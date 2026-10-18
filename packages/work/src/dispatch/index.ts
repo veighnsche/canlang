@@ -254,33 +254,26 @@ function snapshotGuardData<T>(value: T): Snapshot<T> {
   let remaining = 10_000;
   let stringBudget = 1_000_000;
   const active = new Set<object>();
-  function copy(input: unknown, depth: number): unknown {
-    if (--remaining < 0 || depth > 64) throw new RangeError('dispatch guard snapshot exceeds bounds');
-    if (input === null || typeof input !== 'object') {
-      if (typeof input === 'function' || typeof input === 'symbol' || typeof input === 'undefined' || (typeof input === 'number' && !Number.isFinite(input))) {
-        throw new TypeError('dispatch guard snapshot requires plain data');
-      }
-      if (typeof input === 'string' && (stringBudget -= input.length) < 0) {
-        throw new RangeError('dispatch guard snapshot exceeds bounds');
-      }
-      if (typeof input === 'bigint' && (stringBudget -= input.toString().length) < 0) {
-        throw new RangeError('dispatch guard snapshot exceeds bounds');
-      }
-      return input;
-    }
-    if (Array.isArray(input) && input.length > 10_000) throw new RangeError('dispatch guard snapshot exceeds bounds');
-    if (active.has(input)) throw new TypeError('dispatch guard snapshot cannot contain cycles');
-    if (!Array.isArray(input) && Object.getPrototypeOf(input) !== Object.prototype && Object.getPrototypeOf(input) !== null) {
+  function checkScalarLeaf(input: unknown): unknown {
+    if (typeof input === 'function' || typeof input === 'symbol' || typeof input === 'undefined' || (typeof input === 'number' && !Number.isFinite(input))) {
       throw new TypeError('dispatch guard snapshot requires plain data');
     }
-    if (Array.isArray(input)) {
-      if (Object.getPrototypeOf(input) !== Array.prototype) throw new TypeError('dispatch guard snapshot requires plain arrays');
-      for (let index = 0; index < input.length; index++) {
-        if (!Object.hasOwn(input, index)) throw new TypeError('dispatch guard snapshot cannot contain sparse arrays');
-      }
+    if (typeof input === 'string' && (stringBudget -= input.length) < 0) {
+      throw new RangeError('dispatch guard snapshot exceeds bounds');
     }
-    active.add(input);
-    const result: Record<string, unknown> | unknown[] = Array.isArray(input) ? new Array(input.length) : Object.create(Object.getPrototypeOf(input));
+    if (typeof input === 'bigint' && (stringBudget -= input.toString().length) < 0) {
+      throw new RangeError('dispatch guard snapshot exceeds bounds');
+    }
+    return input;
+  }
+  function assertArrayShape(input: unknown[]): void {
+    if (input.length > 10_000) throw new RangeError('dispatch guard snapshot exceeds bounds');
+    if (Object.getPrototypeOf(input) !== Array.prototype) throw new TypeError('dispatch guard snapshot requires plain arrays');
+    for (let index = 0; index < input.length; index++) {
+      if (!Object.hasOwn(input, index)) throw new TypeError('dispatch guard snapshot cannot contain sparse arrays');
+    }
+  }
+  function copyEntries(input: object, result: Record<string, unknown> | unknown[], depth: number, active: Set<object>): void {
     for (const key of Reflect.ownKeys(input)) {
       if (Array.isArray(input) && key === 'length') continue;
       if (typeof key !== 'string') throw new TypeError('dispatch guard snapshot requires string keys');
@@ -293,6 +286,21 @@ function snapshotGuardData<T>(value: T): Snapshot<T> {
       if (!('value' in descriptor)) throw new TypeError('dispatch guard snapshot cannot contain accessors');
       Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1), enumerable: descriptor.enumerable });
     }
+  }
+  function copy(input: unknown, depth: number): unknown {
+    if (--remaining < 0 || depth > 64) throw new RangeError('dispatch guard snapshot exceeds bounds');
+    if (input === null || typeof input !== 'object') {
+      return checkScalarLeaf(input);
+    }
+    if (Array.isArray(input) && input.length > 10_000) throw new RangeError('dispatch guard snapshot exceeds bounds');
+    if (active.has(input)) throw new TypeError('dispatch guard snapshot cannot contain cycles');
+    if (!Array.isArray(input) && Object.getPrototypeOf(input) !== Object.prototype && Object.getPrototypeOf(input) !== null) {
+      throw new TypeError('dispatch guard snapshot requires plain data');
+    }
+    if (Array.isArray(input)) assertArrayShape(input);
+    active.add(input);
+    const result: Record<string, unknown> | unknown[] = Array.isArray(input) ? new Array(input.length) : Object.create(Object.getPrototypeOf(input));
+    copyEntries(input, result, depth, active);
     active.delete(input);
     return Object.freeze(result);
   }

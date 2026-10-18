@@ -132,6 +132,23 @@ export async function callClosure(
  * identities compare by value; role strings become membership callers;
  * live recipe references resolve back to user-fixture names.
  */
+const RESERVED_CELL_ROLES = ["self", "other", "outsider", "public"];
+
+function rolesFromCellArray(value: unknown[]): readonly string[] {
+  const invalid = (): never => { throw new FixtureSetupError(null, "as-cell role array must contain dense own non-empty role strings"); };
+  const length = Object.getOwnPropertyDescriptor(value, "length");
+  if (length === undefined || !("value" in length) || Reflect.ownKeys(value).length !== length.value + 1) return invalid();
+  const roles: string[] = [];
+  for (let index = 0; index < length.value; index++) {
+    const entry = Object.getOwnPropertyDescriptor(value, String(index));
+    if (entry === undefined || !("value" in entry) || !entry.enumerable ||
+        typeof entry.value !== "string" || entry.value.length === 0 ||
+        RESERVED_CELL_ROLES.includes(entry.value)) return invalid();
+    roles.push(entry.value);
+  }
+  return roles;
+}
+
 export function callerFromCell(
   value: unknown,
   bindings: { readonly self: unknown; readonly other: unknown },
@@ -153,18 +170,8 @@ export function callerFromCell(
     return { kind: "membership", roles: [value] };
   }
   if (Array.isArray(value)) {
-    const invalid = (): never => { throw new FixtureSetupError(null, "as-cell role array must contain dense own non-empty role strings"); };
-    const length = Object.getOwnPropertyDescriptor(value, "length");
-    if (length === undefined || !("value" in length) || Reflect.ownKeys(value).length !== length.value + 1) return invalid();
-    const roles: string[] = [];
-    for (let index = 0; index < length.value; index++) {
-      const entry = Object.getOwnPropertyDescriptor(value, String(index));
-      if (entry === undefined || !("value" in entry) || !entry.enumerable ||
-          typeof entry.value !== "string" || entry.value.length === 0 ||
-          ["self", "other", "outsider", "public"].includes(entry.value)) return invalid();
-      roles.push(entry.value);
-    }
-    return roles.length === 0 ? { kind: "self" } : { kind: "membership", roles };
+    const roles = rolesFromCellArray(value);
+    return roles.length === 0 ? { kind: "self" } : { kind: "membership", roles: [...roles] };
   }
   if (typeof value === "object" && value !== null) {
     const name = suite.rawNames.get(value);

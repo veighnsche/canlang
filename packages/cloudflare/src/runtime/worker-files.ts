@@ -24,20 +24,24 @@ export interface WorkerFilesOptions {
   readonly localLoopback?: true;
   readonly clock?: { nowMs(): number };
 }
-export async function createWorkerFiles(options: WorkerFilesOptions): Promise<InterimFilesBinding | undefined> {
-  const declared = options.artifact.runtimeBindings?.filter(binding => binding.kind === 'r2' && binding.implicit) ?? [];
-  if (declared.length === 0) return undefined;
-  const entry = options.artifact.modules[0];
+type ImplicitFileBinding = NonNullable<CompileArtifact['runtimeBindings']>[number];
+
+async function loadWorkerFileDefinition(artifact: CompileArtifact, asm: AssembledModules) {
+  const entry = artifact.modules[0];
   if (entry === undefined) throw new Error('Files require their original compiled entry.');
-  const original = await importVerifiedAssemblyModule(options.asm, entry.path, options.artifact);
+  const original = await importVerifiedAssemblyModule(asm, entry.path, artifact);
   const definition = original !== null && typeof original === 'object' ? Object.getOwnPropertyDescriptor(original, 'appDefinition')?.value as Record<string, unknown> | undefined : undefined;
-  if (definition === undefined || stableStringify(Object.getOwnPropertyDescriptor(definition, 'runtimeBindings')?.value) !== stableStringify(options.artifact.runtimeBindings)) throw new Error('Files inventory differs from its original compiled entry.');
+  if (definition === undefined || stableStringify(Object.getOwnPropertyDescriptor(definition, 'runtimeBindings')?.value) !== stableStringify(artifact.runtimeBindings)) throw new Error('Files inventory differs from its original compiled entry.');
   const app = definition === undefined ? undefined : Object.getOwnPropertyDescriptor(definition, 'id')?.value as unknown;
   const owners: unknown = Object.getOwnPropertyDescriptor(definition, 'runtimeBindingOwners')?.value;
   if (typeof app !== 'string' || app === '' || !Array.isArray(owners) || !owners.includes(app) ||
       owners.some(owner => typeof owner !== 'string' || owner === '') || new Set(owners).size !== owners.length) {
     throw new Error('Files require their actual selected app and source owner closure.');
   }
+  return { definition, app, owners };
+}
+
+function selectWorkerFileBindings(declared: readonly ImplicitFileBinding[], owners: readonly unknown[], app: string) {
   const bindings = declared.filter(binding => owners.includes(binding.owner));
   if (bindings.length === 0) return undefined;
   // Each composed app retains its original implicit declaration. They share the
@@ -47,11 +51,29 @@ export async function createWorkerFiles(options: WorkerFilesOptions): Promise<In
     throw new Error('Files require unique compiler-owned implicit declarations.');
   }
   if (bindings.filter(binding => binding.owner === app).length !== 1) throw new Error('Files bucket differs from its selected owning app.');
-  const configured = new URL(options.origin);
-  if (configured.origin !== options.origin || configured.username || configured.password || configured.pathname !== '/' || configured.search || configured.hash ||
-      !(configured.protocol === 'https:' || options.localLoopback === true && configured.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(configured.hostname))) throw new Error('Files require their trusted HTTPS or local preview origin.');
-  const bucket = options.env['FILES'] as R2Bucket | undefined, db = options.env['DB'] as D1Database | undefined;
+  return bindings;
+}
+
+function verifyWorkerFileOrigin(origin: string, localLoopback: true | undefined): void {
+  const configured = new URL(origin);
+  if (configured.origin !== origin || configured.username || configured.password || configured.pathname !== '/' || configured.search || configured.hash ||
+      !(configured.protocol === 'https:' || localLoopback === true && configured.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(configured.hostname))) throw new Error('Files require their trusted HTTPS or local preview origin.');
+}
+
+function loadWorkerFileBucket(env: Record<string, unknown>) {
+  const bucket = env['FILES'] as R2Bucket | undefined, db = env['DB'] as D1Database | undefined;
   if (typeof bucket?.get !== 'function' || typeof bucket.put !== 'function' || typeof db?.prepare !== 'function') throw new Error('Files require their real R2 and D1 bindings.');
+  return { bucket, db };
+}
+
+export async function createWorkerFiles(options: WorkerFilesOptions): Promise<InterimFilesBinding | undefined> {
+  const declared = options.artifact.runtimeBindings?.filter(binding => binding.kind === 'r2' && binding.implicit) ?? [];
+  if (declared.length === 0) return undefined;
+  const { definition, app, owners } = await loadWorkerFileDefinition(options.artifact, options.asm);
+  const bindings = selectWorkerFileBindings(declared, owners, app);
+  if (bindings === undefined) return undefined;
+  verifyWorkerFileOrigin(options.origin, options.localLoopback);
+  const { bucket, db } = loadWorkerFileBucket(options.env);
   const clock = options.clock ?? { nowMs: Date.now };
   const host = await createR2FileBindings({ db, bucket, namespace: `${app}/FILES`, clock, urlBase: options.origin,
     intentTtlMs: options.intentTtlMs, ...(options.localLoopback === true ? { allowInsecureLoopback: true as const } : {}) });

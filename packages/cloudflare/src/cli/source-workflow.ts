@@ -20,24 +20,58 @@ export interface SourceWorkflowArgs {
   settings?: string;
 }
 
-export function parseSourceWorkflow(command: "generate" | "validate", argv: string[]): SourceWorkflowArgs {
-  let file: string | undefined, retry = false, dryRun = false, format: "json" | "text" = "text";
-  let hasFormat = false;
-  let settings: string | undefined;
-  for (let index = 0; index < argv.length; index++) {
-    const arg = argv[index]!;
-    if (arg === "--retry" && command === "generate" && !retry) retry = true;
-    else if (arg === "--dry-run" && command === "generate" && !dryRun) dryRun = true;
-    else if ((arg === "--settings" || arg.startsWith("--settings=")) && command === "generate" && settings === undefined) {
-      const value = arg === "--settings" ? argv[++index] : arg.slice(11);
-      if (value === undefined || value.length === 0 || value.startsWith("--")) throw new Error("--settings requires a non-empty PATH");
-      settings = resolve(value);
-    }
-    else if (arg.startsWith("--format=") && !hasFormat && ["json", "text"].includes(arg.slice(9))) {
-      format = arg.slice(9) as "json" | "text"; hasFormat = true;
-    } else if (!arg.startsWith("-") && file === undefined) file = arg;
-    else throw new Error(`unexpected argument ${JSON.stringify(arg)}; use can ${command === "generate" ? "gen" : command} FILE${command === "generate" ? " [--retry] [--dry-run] [--settings=PATH]" : ""} [--format=json|text]`);
+interface WorkflowFlags {
+  file?: string;
+  retry: boolean;
+  dryRun: boolean;
+  format: "json" | "text";
+  hasFormat: boolean;
+  settings?: string;
+}
+
+function workflowUsage(command: "generate" | "validate"): string {
+  return `use can ${command === "generate" ? "gen" : command} FILE${command === "generate" ? " [--retry] [--dry-run] [--settings=PATH]" : ""} [--format=json|text]`;
+}
+
+function takeSettingsValue(argv: string[], index: number, arg: string, flags: WorkflowFlags): number {
+  const inline = arg.startsWith("--settings=");
+  const value = inline ? arg.slice("--settings=".length) : argv[index + 1];
+  if (value === undefined || value.length === 0 || value.startsWith("--")) throw new Error("--settings requires a non-empty PATH");
+  flags.settings = resolve(value);
+  return inline ? index + 1 : index + 2;
+}
+
+function parseWorkflowArg(command: "generate" | "validate", argv: string[], index: number, flags: WorkflowFlags): number {
+  const arg = argv[index]!;
+  if (arg === "--retry" && command === "generate" && !flags.retry) {
+    flags.retry = true;
+    return index + 1;
   }
+  if (arg === "--dry-run" && command === "generate" && !flags.dryRun) {
+    flags.dryRun = true;
+    return index + 1;
+  }
+  if ((arg === "--settings" || arg.startsWith("--settings=")) && command === "generate" && flags.settings === undefined) {
+    return takeSettingsValue(argv, index, arg, flags);
+  }
+  if (arg.startsWith("--format=") && !flags.hasFormat && ["json", "text"].includes(arg.slice(9))) {
+    flags.format = arg.slice(9) as "json" | "text";
+    flags.hasFormat = true;
+    return index + 1;
+  }
+  if (!arg.startsWith("-") && flags.file === undefined) {
+    flags.file = arg;
+    return index + 1;
+  }
+  throw new Error(`unexpected argument ${JSON.stringify(arg)}; ${workflowUsage(command)}`);
+}
+
+export function parseSourceWorkflow(command: "generate" | "validate", argv: string[]): SourceWorkflowArgs {
+  const flags: WorkflowFlags = { retry: false, dryRun: false, format: "text", hasFormat: false };
+  for (let index = 0; index < argv.length;) {
+    index = parseWorkflowArg(command, argv, index, flags);
+  }
+  const { file, retry, dryRun, format, settings } = flags;
   if (file === undefined || !file.endsWith(".can")) throw new Error("a readable .can source file is required");
   return { command, file: resolve(file), retry, dryRun, format, ...(settings === undefined ? {} : { settings }) };
 }
@@ -142,6 +176,40 @@ async function validateSaved(args: SourceWorkflowArgs, ctx: SourceWorkflowContex
   }
 }
 
+async function dryRunWorkflow(args: SourceWorkflowArgs, root: string, units: Unit[]): Promise<ControlResult> {
+  const settings = await loadSettings(root, args.settings);
+  const selection = units.filter(unit => unit.association !== "orphaned").map(unit => ({
+    id: unit.id ?? null, owner: unit.owner, kind: unit.kind, association: unit.association,
+    action: args.retry || unit.association !== "retained" || unit.prompt_changed !== false ? "generate" : "check-saved",
+    recipe: resolveRecipe(settings, unit.kind === "named-trait" || unit.kind === "inline-trait" || unit.kind === "keyword" ? "given" : "frontend", unit.contract?.profile ?? null, {}),
+  }));
+  return { code: 0, envelope: `${JSON.stringify({ ok: true, command: args.command, file: args.file, dry_run: true, root, settings: settings?.source ?? null, selection, jobs_started: 0 })}\n` };
+}
+
+async function runGenerateWorkflow(args: SourceWorkflowArgs, ctx: SourceWorkflowContext, requestId: string,
+  root: string, units: Unit[], workspace: string, compiler: string): Promise<ControlResult> {
+  const operation = args.retry ? "retry" : "generate";
+  const result = await (ctx.control ?? dispatchControl)(JSON.stringify({ version: 1, request_id: requestId, operation,
+    root, files: [args.file], accept: true, ...(args.settings === undefined ? {} : { settings: args.settings }),
+    ...(args.retry ? {} : { mode: "prepare" }) }), { ...ctx, workspace });
+  const body = record(JSON.parse(result.envelope));
+  const recovery = `repair the reported issue, then rerun can gen ${JSON.stringify(args.file)} --retry${args.settings === undefined ? "" : ` --settings=${JSON.stringify(args.settings)}`}`;
+  if (result.code !== 0 || body.ok !== true) {
+    return { code: result.code, envelope: `${JSON.stringify({ ...body, command: "generate", file: args.file, next: [recovery] })}\n` };
+  }
+  const reuse = body.state === "candidate" && Array.isArray(body.attempts) && body.attempts.length === 0;
+  if (!reuse && body.state !== "accepted") {
+    return { code: 4, envelope: `${JSON.stringify({ ...body, ok: false, command: "generate", file: args.file, error: { code: "not-accepted", message: "generation did not produce an accepted complete app; inspect the retained attempts" }, next: [recovery] })}\n` };
+  }
+  // Reuse has no promoted set; qualify the saved app before reporting success.
+  if (reuse) {
+    const fresh = unitsFrom(await compilerRequest(ctx, { version: 1, request_id: `${requestId}.reuse`, operation: "status", root, files: [args.file] }));
+    const checked = await validateSaved(args, ctx, requestId, fresh, workspace, compiler);
+    return { code: 0, envelope: `${JSON.stringify({ ...body, command: "generate", file: args.file, saved_validation: checked })}\n` };
+  }
+  return { code: result.code, envelope: `${JSON.stringify({ ...body, command: "generate", file: args.file })}\n` };
+}
+
 export async function sourceWorkflow(args: SourceWorkflowArgs, ctx: SourceWorkflowContext = {}): Promise<ControlResult> {
   const root = dirname(args.file);
   const workspace = resolve(ctx.workspace ?? process.env.CAN_INSTALL_ROOT ?? process.env.CAN_TOOL_ROOT ?? fileURLToPath(new URL("../../../../", import.meta.url)));
@@ -152,38 +220,13 @@ export async function sourceWorkflow(args: SourceWorkflowArgs, ctx: SourceWorkfl
     const status = await compilerRequest(ctx, { version: 1, request_id: `${requestId}.status`, operation: "status", root, files: [args.file] });
     const units = unitsFrom(status);
     if (args.dryRun) {
-      const settings = await loadSettings(root, args.settings);
-      const selection = units.filter(unit => unit.association !== "orphaned").map(unit => ({
-        id: unit.id ?? null, owner: unit.owner, kind: unit.kind, association: unit.association,
-        action: args.retry || unit.association !== "retained" || unit.prompt_changed !== false ? "generate" : "check-saved",
-        recipe: resolveRecipe(settings, unit.kind === "named-trait" || unit.kind === "inline-trait" || unit.kind === "keyword" ? "given" : "frontend", unit.contract?.profile ?? null, {}),
-      }));
-      return { code: 0, envelope: `${JSON.stringify({ ok: true, command: args.command, file: args.file, dry_run: true, root, settings: settings?.source ?? null, selection, jobs_started: 0 })}\n` };
+      return dryRunWorkflow(args, root, units);
     }
     if (args.command === "validate") {
       const payload = await validateSaved(args, ctx, requestId, units, workspace, compiler);
       return { code: 0, envelope: `${JSON.stringify({ ok: true, command: "validate", file: args.file, ...payload })}\n` };
     }
-    const operation = args.retry ? "retry" : "generate";
-    const result = await (ctx.control ?? dispatchControl)(JSON.stringify({ version: 1, request_id: requestId, operation,
-      root, files: [args.file], accept: true, ...(args.settings === undefined ? {} : { settings: args.settings }),
-      ...(args.retry ? {} : { mode: "prepare" }) }), { ...ctx, workspace });
-    const body = record(JSON.parse(result.envelope));
-    const recovery = `repair the reported issue, then rerun can gen ${JSON.stringify(args.file)} --retry${args.settings === undefined ? "" : ` --settings=${JSON.stringify(args.settings)}`}`;
-    if (result.code !== 0 || body.ok !== true) {
-      return { code: result.code, envelope: `${JSON.stringify({ ...body, command: "generate", file: args.file, next: [recovery] })}\n` };
-    }
-    const reuse = body.state === "candidate" && Array.isArray(body.attempts) && body.attempts.length === 0;
-    if (!reuse && body.state !== "accepted") {
-      return { code: 4, envelope: `${JSON.stringify({ ...body, ok: false, command: "generate", file: args.file, error: { code: "not-accepted", message: "generation did not produce an accepted complete app; inspect the retained attempts" }, next: [recovery] })}\n` };
-    }
-    // Reuse has no promoted set; qualify the saved app before reporting success.
-    if (reuse) {
-      const fresh = unitsFrom(await compilerRequest(ctx, { version: 1, request_id: `${requestId}.reuse`, operation: "status", root, files: [args.file] }));
-      const checked = await validateSaved(args, ctx, requestId, fresh, workspace, compiler);
-      return { code: 0, envelope: `${JSON.stringify({ ...body, command: "generate", file: args.file, saved_validation: checked })}\n` };
-    }
-    return { code: result.code, envelope: `${JSON.stringify({ ...body, command: "generate", file: args.file })}\n` };
+    return runGenerateWorkflow(args, ctx, requestId, root, units, workspace, compiler);
   } catch (error) {
     return { code: 4, envelope: `${JSON.stringify({ ok: false, command: args.command, file: args.file, error: { code: "source-workflow-failed", message: error instanceof Error ? error.message : String(error) }, next: ["repair the reported input or check its acceptance report, then rerun the can command"] })}\n` };
   }

@@ -308,6 +308,23 @@ function exactKeys(value: Record<string, unknown>, required: readonly string[], 
     keys.every(key => required.includes(key) || optional.includes(key));
 }
 
+function ownerRoutes(raw: unknown): unknown[] {
+  if (!isRecord(raw) || !exactKeys(raw, ['version', 'owners']) || raw['version'] !== 1 ||
+      !Array.isArray(raw['owners']) || raw['owners'].length < 1 || raw['owners'].length > 16) {
+    throw new Error('owner-storage: CAN_STATE_OWNERS requires version 1 and one to sixteen exact owner routes');
+  }
+  return raw['owners'];
+}
+
+function assertOwnerRoute(entry: unknown): asserts entry is { owner: string; binding: string; initializeFresh?: unknown } {
+  if (!isRecord(entry) || !exactKeys(entry, ['owner', 'binding'], ['initializeFresh']) ||
+      typeof entry['owner'] !== 'string' || entry['owner'] === '' || entry['owner'] === 'app' ||
+      typeof entry['binding'] !== 'string' || !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(entry['binding']) ||
+      entry['binding'] === 'DB' || (Object.hasOwn(entry, 'initializeFresh') && entry['initializeFresh'] !== true)) {
+    throw new Error('owner-storage: CAN_STATE_OWNERS contains an invalid exact owner route');
+  }
+}
+
 function trustedStateOwners(env: Record<string, unknown>, db: D1Binding): StateTeamBindings | undefined {
   const raw = env['CAN_STATE_OWNERS'];
   if (raw === undefined) return undefined;
@@ -315,21 +332,12 @@ function trustedStateOwners(env: Record<string, unknown>, db: D1Binding): StateT
       env['CAN_STATE_INITIALIZE_FRESH'] !== undefined) {
     throw new Error('owner-storage: CAN_STATE_OWNERS is mutually exclusive with legacy selected-owner bindings');
   }
-  if (!isRecord(raw) || !exactKeys(raw, ['version', 'owners']) || raw['version'] !== 1 ||
-      !Array.isArray(raw['owners']) || raw['owners'].length < 1 || raw['owners'].length > 16) {
-    throw new Error('owner-storage: CAN_STATE_OWNERS requires version 1 and one to sixteen exact owner routes');
-  }
   const owners = new Set<string>();
   const bindings = new Set<string>();
   const databases = new Set<unknown>([db]);
   const routes: StateTeamBinding[] = [];
-  for (const entry of raw['owners']) {
-    if (!isRecord(entry) || !exactKeys(entry, ['owner', 'binding'], ['initializeFresh']) ||
-        typeof entry['owner'] !== 'string' || entry['owner'] === '' || entry['owner'] === 'app' ||
-        typeof entry['binding'] !== 'string' || !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(entry['binding']) ||
-        entry['binding'] === 'DB' || (Object.hasOwn(entry, 'initializeFresh') && entry['initializeFresh'] !== true)) {
-      throw new Error('owner-storage: CAN_STATE_OWNERS contains an invalid exact owner route');
-    }
+  for (const entry of ownerRoutes(raw)) {
+    assertOwnerRoute(entry);
     const owner = entry['owner'];
     const binding = entry['binding'];
     const selected = env[binding];
@@ -424,13 +432,41 @@ export function validateDeploymentBase(value: unknown): string {
  * unmet seam. Nothing here ever returns a half-constructed deps
  * object: any failure rejects before the return.
  */
+function resolveDeploymentBase(env: Record<string, unknown>): string | undefined {
+  const configuredBase = Object.getOwnPropertyDescriptor(env, 'CAN_DEPLOYMENT_BASE');
+  if (configuredBase !== undefined && !('value' in configuredBase)) throw new Error('deployment-configuration: CAN_DEPLOYMENT_BASE requires own configuration data');
+  return configuredBase === undefined ? undefined : validateDeploymentBase(configuredBase.value);
+}
+
+function resolveAuthOrigin(env: Record<string, unknown>): URL | undefined {
+  // Optional for non-auth consumers; auth serving requires explicit trusted host configuration.
+  if (!Object.hasOwn(env, 'CAN_AUTH_ORIGIN')) return undefined;
+  const value = env['CAN_AUTH_ORIGIN'];
+  try {
+    if (typeof value !== 'string') throw new Error();
+    const origin = new URL(value);
+    if (origin.origin !== value || !['http:', 'https:'].includes(origin.protocol)) throw new Error();
+    return origin;
+  } catch {
+    throw new Error('auth-configuration: CAN_AUTH_ORIGIN must be a canonical absolute http(s) origin without path, query or credentials');
+  }
+}
+
+async function prepareServingStores(db: D1Binding, origin: URL | undefined): Promise<{ identity: IdentityD1Producer; auth: HttpAuthConfiguration | undefined }> {
+  const identity = await loadIdentityD1();
+  await identity.ensureIdentitySchema(db);
+  await ensurePagePreferencesSchema(db as D1Database);
+  await ensureExportDownloadsSchema(db as D1Database);
+  const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
+    limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
+  return { identity, auth };
+}
+
 export async function buildProductionDeps(
   env: Record<string, unknown>,
   composition?: { readonly store: StoragePort | 'unavailable' },
 ): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; exportDownloads: ExportDownloadStore; stateTeam?: StateTeamBinding; stateTeams?: StateTeamBindings; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
-  const configuredBase = Object.getOwnPropertyDescriptor(env, 'CAN_DEPLOYMENT_BASE');
-  if (configuredBase !== undefined && !('value' in configuredBase)) throw new Error('deployment-configuration: CAN_DEPLOYMENT_BASE requires own configuration data');
-  const deploymentBase = configuredBase === undefined ? undefined : validateDeploymentBase(configuredBase.value);
+  const deploymentBase = resolveDeploymentBase(env);
   const db: unknown = env["DB"];
   if (!isD1Binding(db)) {
     // Self-identifying (module + function): P-A's worker main surfaces
@@ -443,67 +479,49 @@ export async function buildProductionDeps(
   }
   // Validate every host route before any schema or auth limiter writes to DB.
   const stateTeams = trustedStateOwners(env, db);
-  // Optional for non-auth consumers; auth serving requires explicit trusted host configuration.
-  let origin: URL | undefined;
-  if (Object.hasOwn(env, 'CAN_AUTH_ORIGIN')) {
-    const value = env['CAN_AUTH_ORIGIN'];
-    try {
-      if (typeof value !== 'string') throw new Error();
-      origin = new URL(value);
-      if (origin.origin !== value || !['http:', 'https:'].includes(origin.protocol)) throw new Error();
-    } catch {
-      throw new Error('auth-configuration: CAN_AUTH_ORIGIN must be a canonical absolute http(s) origin without path, query or credentials');
-    }
-  }
+  const origin = resolveAuthOrigin(env);
   const selectedOwner = env['CAN_STATE_OWNER'];
   if (selectedOwner === undefined && stateTeams === undefined &&
       (env['STATE_DB'] !== undefined || env['CAN_STATE_INITIALIZE_FRESH'] !== undefined)) {
     throw new Error('owner-storage: STATE_DB/fresh assignment requires explicit CAN_STATE_OWNER');
   }
   if (stateTeams !== undefined || composition !== undefined) {
-    const identity = await loadIdentityD1();
-    await identity.ensureIdentitySchema(db);
-    await ensurePagePreferencesSchema(db as D1Database);
-    await ensureExportDownloadsSchema(db as D1Database);
-    const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
-      limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
+    const { identity, auth } = await prepareServingStores(db, origin);
     return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: composition === undefined || composition.store === 'unavailable' ? unavailableGlobalStore() : composition.store,
       identityStore: identity.createD1IdentityStore(db), preferences: createD1PagePreferenceStore(db as D1Database),
       exportDownloads: createD1ExportDownloadStore(db as D1Database),
       ...(stateTeams === undefined ? {} : { stateTeams }) };
   }
   if (selectedOwner !== undefined) {
-    if (typeof selectedOwner !== 'string' || selectedOwner === '' || selectedOwner === 'app') {
-      throw new Error('owner-storage: CAN_STATE_OWNER must be a concrete Identity team ID');
-    }
-    const stateDb = env['STATE_DB'];
-    if (!isD1Binding(stateDb) || stateDb === db) {
-      throw new Error('owner-storage: selected team requires a separate actual STATE_DB D1 binding');
-    }
-    const fresh = env['CAN_STATE_INITIALIZE_FRESH'];
-    if (fresh !== undefined && fresh !== true && fresh !== 'true') {
-      throw new Error('owner-storage: CAN_STATE_INITIALIZE_FRESH requires explicit true authorization');
-    }
-    const identity = await loadIdentityD1();
-    await identity.ensureIdentitySchema(db);
-    await ensurePagePreferencesSchema(db as D1Database);
-    await ensureExportDownloadsSchema(db as D1Database);
-    const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
-      limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
-    return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(), identityStore: identity.createD1IdentityStore(db),
-      preferences: createD1PagePreferenceStore(db as D1Database),
-      exportDownloads: createD1ExportDownloadStore(db as D1Database),
-      stateTeam: { owner: selectedOwner, db: stateDb as unknown as D1Database,
-        ...(fresh === undefined ? {} : { initializeFresh: true }) } };
+    return buildSelectedOwnerDeps(env, db, deploymentBase, origin, selectedOwner);
   }
+  return buildSingleDbDeps(db, deploymentBase, origin);
+}
+
+async function buildSelectedOwnerDeps(env: Record<string, unknown>, db: D1Binding, deploymentBase: string | undefined, origin: URL | undefined, selectedOwner: unknown): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; exportDownloads: ExportDownloadStore; stateTeam: StateTeamBinding; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
+  if (typeof selectedOwner !== 'string' || selectedOwner === '' || selectedOwner === 'app') {
+    throw new Error('owner-storage: CAN_STATE_OWNER must be a concrete Identity team ID');
+  }
+  const stateDb = env['STATE_DB'];
+  if (!isD1Binding(stateDb) || stateDb === db) {
+    throw new Error('owner-storage: selected team requires a separate actual STATE_DB D1 binding');
+  }
+  const fresh = env['CAN_STATE_INITIALIZE_FRESH'];
+  if (fresh !== undefined && fresh !== true && fresh !== 'true') {
+    throw new Error('owner-storage: CAN_STATE_INITIALIZE_FRESH requires explicit true authorization');
+  }
+  const { identity, auth } = await prepareServingStores(db, origin);
+  return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(), identityStore: identity.createD1IdentityStore(db),
+    preferences: createD1PagePreferenceStore(db as D1Database),
+    exportDownloads: createD1ExportDownloadStore(db as D1Database),
+    stateTeam: { owner: selectedOwner, db: stateDb as unknown as D1Database,
+      ...(fresh === undefined ? {} : { initializeFresh: true }) } };
+}
+
+async function buildSingleDbDeps(db: D1Binding, deploymentBase: string | undefined, origin: URL | undefined): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; exportDownloads: ExportDownloadStore; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
   const state = await loadStateD1();
-  const identity = await loadIdentityD1();
   await state.ensureSchema(db);
-  await identity.ensureIdentitySchema(db);
-  await ensurePagePreferencesSchema(db as D1Database);
-  await ensureExportDownloadsSchema(db as D1Database);
-  const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
-    limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
+  const { identity, auth } = await prepareServingStores(db, origin);
   return {
     ...(deploymentBase === undefined ? {} : { deploymentBase }),
     ...(auth === undefined ? {} : { auth }),

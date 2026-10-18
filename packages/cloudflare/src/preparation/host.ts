@@ -316,13 +316,7 @@ export async function runPreparedBuild(artifactPath: string, lifetime?: LocalCom
  * A compiler/runtime release mismatch refuses `--yes`. No path spawns
  * wrangler without `--yes`.
  */
-export async function runPreparedDeploy(
-  artifactPath: string,
-  env: string | null,
-  preview: boolean,
-  yes: boolean,
-  lifetime?: LocalCommandLifetime,
-): Promise<void> {
+function loadDeployInputs(artifactPath: string, env: string | null, lifetime?: LocalCommandLifetime) {
   lifetime?.checkpoint("load artifact");
   let loaded: LoadedArtifact;
   try {
@@ -353,14 +347,10 @@ export async function runPreparedDeploy(
     fail("deploy", "invalid-deploy-bundle", error instanceof Error ? error.message : String(error));
   }
   lifetime?.checkpoint("deploy installed inputs loaded");
-  const compat = checkCompatibility(descriptor, environment, installed);
-  if (!compat.compatible) {
-    fail(
-      "deploy",
-      "incompatible",
-      compat.reasons.map((reason) => `${reason.code}: ${reason.detail}`).join("; "),
-    );
-  }
+  return { loaded, dir, stem, descriptor, environment, target, installed };
+}
+
+function confirmDeployGate(preview: boolean, yes: boolean): void {
   // Bare deploy refuses before any bundling work (same outcome as before,
   // without the wasted build); --preview and --yes proceed.
   if (!preview) {
@@ -370,26 +360,9 @@ export async function runPreparedDeploy(
       fail("deploy", "confirm-required", error instanceof Error ? error.message : String(error));
     }
   }
-  const compiler = checkCompilerVersionMatch(descriptor, installed);
-  const defaults = resolveLocalDefaults({ artifactPath });
-  // P-B bundle: built in memory here (preview validates + reports the real
-  // sha without writing; --yes writes below). The staged verdict is the
-  // honest `activate()` verdict over deploy-time inputs: gates 1-2 run
-  // for real, gates 3-4 report `activation-incomplete` (no store or
-  // producer gates are importable from the dist CLI — the same honest
-  // scope the `activate` command documents). An inactive verdict deploys
-  // the refusal worker through the same main (by design, never a silent
-  // serve), and preview/--yes report it loudly so the deployer sees it.
-  // Until the P-A serving entry is built, fall back to the legacy main
-  // with a loud warning.
-  lifetime?.checkpoint("deploy activation start");
-  const verdict = await activate({
-    artifact: loaded.artifact,
-    descriptor,
-    environment,
-    installed,
-  });
-  lifetime?.checkpoint("deploy activation completed");
+}
+
+function buildDeployBundleRef(loaded: LoadedArtifact, verdict: Awaited<ReturnType<typeof activate>>, stem: string, lifetime?: LocalCommandLifetime) {
   let bundleRef: DeployBundleRef | null = null;
   let deployBundle: PackageDeployBundle | null = null;
   try {
@@ -412,6 +385,12 @@ export async function runPreparedDeploy(
     }
   }
   lifetime?.checkpoint("deploy bundle completed");
+  return { bundleRef, deployBundle };
+}
+
+function loadDeployPlanInputs(descriptor: CompatibilityDescriptor, environment: EnvironmentSelection,
+  defaults: ReturnType<typeof resolveLocalDefaults>, bundleRef: DeployBundleRef | null,
+  dir: string, stem: string) {
   let plan;
   try {
     plan = buildDeployPlan(descriptor, environment, {
@@ -431,6 +410,48 @@ export async function runPreparedDeploy(
   } catch (error) {
     fail("deploy", "invalid-deploy-bundle", error instanceof Error ? error.message : String(error));
   }
+  return { plan, planPath, tomlPath, previous };
+}
+
+export async function runPreparedDeploy(
+  artifactPath: string,
+  env: string | null,
+  preview: boolean,
+  yes: boolean,
+  lifetime?: LocalCommandLifetime,
+): Promise<void> {
+  const { loaded, dir, stem, descriptor, environment, installed } = loadDeployInputs(artifactPath, env, lifetime);
+  const compat = checkCompatibility(descriptor, environment, installed);
+  if (!compat.compatible) {
+    fail(
+      "deploy",
+      "incompatible",
+      compat.reasons.map((reason) => `${reason.code}: ${reason.detail}`).join("; "),
+    );
+  }
+  confirmDeployGate(preview, yes);
+  const compiler = checkCompilerVersionMatch(descriptor, installed);
+  const defaults = resolveLocalDefaults({ artifactPath });
+  // P-B bundle: built in memory here (preview validates + reports the real
+  // sha without writing; --yes writes below). The staged verdict is the
+  // honest `activate()` verdict over deploy-time inputs: gates 1-2 run
+  // for real, gates 3-4 report `activation-incomplete` (no store or
+  // producer gates are importable from the dist CLI — the same honest
+  // scope the `activate` command documents). An inactive verdict deploys
+  // the refusal worker through the same main (by design, never a silent
+  // serve), and preview/--yes report it loudly so the deployer sees it.
+  // Until the P-A serving entry is built, fall back to the legacy main
+  // with a loud warning.
+  lifetime?.checkpoint("deploy activation start");
+  const verdict = await activate({
+    artifact: loaded.artifact,
+    descriptor,
+    environment,
+    installed,
+  });
+  lifetime?.checkpoint("deploy activation completed");
+  const { bundleRef, deployBundle } = buildDeployBundleRef(loaded, verdict, stem, lifetime);
+  const { plan, planPath, tomlPath, previous } = loadDeployPlanInputs(descriptor, environment, defaults, bundleRef, dir, stem);
   lifetime?.checkpoint("deploy plan inputs loaded");
   const diff = diffPlans(previous, plan);
   const rendered = renderDeployPlan(plan);

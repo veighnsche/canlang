@@ -327,6 +327,66 @@ function sameRunFields(previous: CheckedSelectedRun, next: CheckedSelectedRun, k
     : (previous.fields as Readonly<Record<string, unknown>>)[key] === (next.fields as Readonly<Record<string, unknown>>)[key]);
 }
 
+function readProgressKinds(source: string, result: unknown, context: ReceiptResultContext | undefined,
+  caller: string): { judgment: boolean; rich: boolean } | ReceiptOnlyProgressOutcome {
+  const judgment = context !== undefined && context !== null && 'judgment' in context;
+  if (judgment) {
+    const declaredSource = Object.getOwnPropertyDescriptor(context!, 'source');
+    if (declaredSource && Object.hasOwn(declaredSource, 'value') && declaredSource.value !== source) {
+      throw new Error(`${caller}: declaration context disagrees with the trusted receipt source`);
+    }
+    if (!isJudgmentReceiptContext(context)) return { applied: false, reason: 'inconsistent-envelope' };
+  }
+  const rich = context !== undefined && (context.source.startsWith('std.TextGenerationV1.') ||
+    ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)) && result != null;
+  if (context !== undefined && context.source !== source) {
+    throw new Error(`${caller}: declaration context disagrees with the trusted receipt source`);
+  }
+  return { judgment, rich };
+}
+function checkProgressPayload(status: unknown, result: unknown, error: unknown,
+  context: ReceiptResultContext | undefined, judgment: boolean, rich: boolean,
+  receipt: AssociatedReceipt, caller: string): ReceiptOnlyProgressOutcome | null {
+  if (isImageRunReceiptContext(context) && receipt.result !== null && result == null) {
+    return { applied: false, reason: 'inconsistent-envelope' };
+  }
+  if (judgment ? !isJudgmentReceiptPayload(status, result, error, context)
+    : rich ? context?.request === undefined || !isSelectedRunPayload(status, result, error, context)
+    : !isConsistentCompletion(status, result, error)) {
+    return { applied: false, reason: 'inconsistent-envelope' };
+  }
+  if (judgment && !isJudgmentReceiptPayload(receipt.status, receipt.result, receipt.error, context)) {
+    throw new Error(`${caller}: stored Judgment receipt is malformed or disagrees with its original specification`);
+  }
+  return null;
+}
+function checkRichReplay(receipt: AssociatedReceipt, result: unknown, revision: number,
+  status: unknown, error: unknown, context: ReceiptResultContext | undefined,
+  caller: string): ReceiptOnlyProgressOutcome | null {
+  const previous = readSelectedRun(receipt.result, context!);
+  const next = readSelectedRun(result, context!)!;
+  if (previous === null || !isSelectedRunPayload(receipt.status, receipt.result, receipt.error, context!)) {
+    throw new Error(`${caller}: stored ${context!.declaredResult.name} is malformed or disagrees with its request`);
+  }
+  // Terminal equal-checkpoint replays retain the original rows below;
+  // they never apply the incoming snapshot, even if its sequence differs.
+  if (!(isTerminalReceiptStatus(receipt.status) && revision === receipt.revision)) {
+    if (previous.measurement !== null && next.measurement !== previous.measurement) {
+      return { applied: false, reason: 'inconsistent-envelope' };
+    }
+    if (next.sequence < previous.sequence || (revision > receipt.revision && next.sequence === previous.sequence)) {
+      return { applied: false, reason: 'stale-sequence' };
+    }
+    if (revision === receipt.revision) {
+      if (next.sequence !== previous.sequence || status !== receipt.status || !sameReceiptError(receipt.error, error) ||
+          !sameRunFields(previous, next, Object.keys(previous.fields))) {
+        return { applied: false, reason: 'inconsistent-envelope' };
+      }
+      return { applied: true, receipt };
+    }
+  }
+  return null;
+}
 /** One receipt gate for both actual current pairs and retained original attempts. */
 function applyCorrelatedReceiptProgress(
   source: string,
@@ -352,54 +412,15 @@ function applyCorrelatedReceiptProgress(
   const status: unknown = envelope['status'];
   const result: unknown = envelope['result'];
   const error: unknown = envelope['error'];
-  const judgment = context !== undefined && context !== null && 'judgment' in context;
-  if (judgment) {
-    const declaredSource = Object.getOwnPropertyDescriptor(context!, 'source');
-    if (declaredSource && Object.hasOwn(declaredSource, 'value') && declaredSource.value !== source) {
-      throw new Error(`${caller}: declaration context disagrees with the trusted receipt source`);
-    }
-    if (!isJudgmentReceiptContext(context)) return { applied: false, reason: 'inconsistent-envelope' };
-  }
-  const rich = context !== undefined && (context.source.startsWith('std.TextGenerationV1.') ||
-    ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)) && result != null;
-  if (context !== undefined && context.source !== source) {
-    throw new Error(`${caller}: declaration context disagrees with the trusted receipt source`);
-  }
-  if (isImageRunReceiptContext(context) && receipt.result !== null && result == null) {
-    return { applied: false, reason: 'inconsistent-envelope' };
-  }
-  if (judgment ? !isJudgmentReceiptPayload(status, result, error, context)
-    : rich ? context?.request === undefined || !isSelectedRunPayload(status, result, error, context)
-    : !isConsistentCompletion(status, result, error)) {
-    return { applied: false, reason: 'inconsistent-envelope' };
-  }
-  if (judgment && !isJudgmentReceiptPayload(receipt.status, receipt.result, receipt.error, context)) {
-    throw new Error(`${caller}: stored Judgment receipt is malformed or disagrees with its original specification`);
-  }
+  const kinds = readProgressKinds(source, result, context, caller);
+  if (!('judgment' in kinds)) return kinds;
+  const { judgment, rich } = kinds;
+  const refused = checkProgressPayload(status, result, error, context, judgment, rich, receipt, caller);
+  if (refused !== null) return refused;
   const revision = (progress as AssociatedCompletion).revision;
   if (rich && receipt.result !== null) {
-    const previous = readSelectedRun(receipt.result, context!);
-    const next = readSelectedRun(result, context!)!;
-    if (previous === null || !isSelectedRunPayload(receipt.status, receipt.result, receipt.error, context!)) {
-      throw new Error(`${caller}: stored ${context!.declaredResult.name} is malformed or disagrees with its request`);
-    }
-    // Terminal equal-checkpoint replays retain the original rows below;
-    // they never apply the incoming snapshot, even if its sequence differs.
-    if (!(isTerminalReceiptStatus(receipt.status) && revision === receipt.revision)) {
-      if (previous.measurement !== null && next.measurement !== previous.measurement) {
-        return { applied: false, reason: 'inconsistent-envelope' };
-      }
-      if (next.sequence < previous.sequence || (revision > receipt.revision && next.sequence === previous.sequence)) {
-        return { applied: false, reason: 'stale-sequence' };
-      }
-      if (revision === receipt.revision) {
-        if (next.sequence !== previous.sequence || status !== receipt.status || !sameReceiptError(receipt.error, error) ||
-            !sameRunFields(previous, next, Object.keys(previous.fields))) {
-          return { applied: false, reason: 'inconsistent-envelope' };
-        }
-        return { applied: true, receipt };
-      }
-    }
+    const replayed = checkRichReplay(receipt, result, revision, status, error, context, caller);
+    if (replayed !== null) return replayed;
   }
   return {
     applied: true,

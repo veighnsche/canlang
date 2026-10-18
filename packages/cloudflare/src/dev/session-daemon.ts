@@ -203,10 +203,12 @@ export async function discoverDevDaemon(lookup: SessionSocketLookup): Promise<De
  * non-source input inventory is not yet exposed by the owner handshake.
  * `ready` means control is usable; preview readiness is reported separately.
  */
-export async function startDevDaemon(
+async function prepareDaemonStart(
   options: DevDaemonStartOptions,
-  dependencies: DevDaemonLauncherDependencies = {},
-): Promise<DevDaemonResult> {
+  dependencies: DevDaemonLauncherDependencies,
+): Promise<{ previewRoles: ReturnType<typeof parsePreviewRoles>; timeoutMs: number;
+  expected: Awaited<ReturnType<typeof admittedCapture>>; entryPath: string;
+  lookup: SessionSocketLookup; request: ChildStartMessage }> {
   if (options.checkMode !== undefined && options.checkMode !== "manual" && options.checkMode !== "automatic") {
     throw new SessionSocketError("INVALID_ARGUMENTS", "check mode must be manual or automatic");
   }
@@ -232,6 +234,50 @@ export async function startDevDaemon(
   // Validate before spawning or installing reply listeners: a synchronous
   // setup rejection must not strand a detached child or an unhandled reply.
   validateStart(request);
+  return { previewRoles, timeoutMs, expected, entryPath, lookup, request };
+}
+
+async function awaitDaemonHandoff(
+  child: ChildProcess,
+  request: ChildStartMessage,
+  lookup: SessionSocketLookup,
+  expected: Awaited<ReturnType<typeof admittedCapture>>,
+  timeoutMs: number,
+  selectedApp: string,
+): Promise<DevDaemonResult> {
+  const replyPromise = awaitReply(child, timeoutMs);
+  const delivery = sendStart(child, request);
+  const [reply] = await Promise.all([replyPromise, delivery]);
+  if (reply.type === "failed") throw new SessionSocketError(reply.code, reply.message);
+  if (reply.identity.root !== expected.root || reply.identity.app !== selectedApp ||
+      reply.identity.profile !== PROFILE || reply.identity.pid !== child.pid) {
+    throw new SessionSocketError("SESSION_MISMATCH", "daemon startup identity did not match its child process");
+  }
+  const verified = await verifiedStatus({ ...lookup, sessionId: reply.identity.sessionId }, expected);
+  if (verified.identity.processStart !== reply.identity.processStart ||
+      verified.identity.pid !== reply.identity.pid) {
+    throw new SessionSocketError("SESSION_MISMATCH", "daemon startup reply differs from the verified owner");
+  }
+  if (!(await captureIsCurrent(expected))) {
+    throw new SessionSocketError("CAPTURE_CHANGED", "source or installed inputs changed before daemon handoff");
+  }
+  return verified;
+}
+
+async function absorbStartCleanup(child: ChildProcess, startupFailure: unknown): Promise<void> {
+  try { await releaseFailedChild(child); }
+  catch (cleanupError) {
+    if (startupFailure instanceof Error) {
+      startupFailure.message = safeMessage(`${startupFailure.message}; ${cleanupError instanceof Error ? cleanupError.message : "owned child cleanup incomplete"}`);
+    } else throw cleanupError;
+  }
+}
+
+export async function startDevDaemon(
+  options: DevDaemonStartOptions,
+  dependencies: DevDaemonLauncherDependencies = {},
+): Promise<DevDaemonResult> {
+  const { timeoutMs, expected, entryPath, lookup, request } = await prepareDaemonStart(options, dependencies);
   const child = spawn(dependencies.execPath ?? process.execPath, [entryPath, "--serve"], {
     cwd: expected.root,
     detached: true,
@@ -241,22 +287,7 @@ export async function startDevDaemon(
   let handedOff = false;
   let startupFailure: unknown;
   try {
-    const replyPromise = awaitReply(child, timeoutMs);
-    const delivery = sendStart(child, request);
-    const [reply] = await Promise.all([replyPromise, delivery]);
-    if (reply.type === "failed") throw new SessionSocketError(reply.code, reply.message);
-    if (reply.identity.root !== expected.root || reply.identity.app !== options.selectedApp ||
-        reply.identity.profile !== PROFILE || reply.identity.pid !== child.pid) {
-      throw new SessionSocketError("SESSION_MISMATCH", "daemon startup identity did not match its child process");
-    }
-    const verified = await verifiedStatus({ ...lookup, sessionId: reply.identity.sessionId }, expected);
-    if (verified.identity.processStart !== reply.identity.processStart ||
-        verified.identity.pid !== reply.identity.pid) {
-      throw new SessionSocketError("SESSION_MISMATCH", "daemon startup reply differs from the verified owner");
-    }
-    if (!(await captureIsCurrent(expected))) {
-      throw new SessionSocketError("CAPTURE_CHANGED", "source or installed inputs changed before daemon handoff");
-    }
+    const verified = await awaitDaemonHandoff(child, request, lookup, expected, timeoutMs, options.selectedApp);
     handedOff = true;
     child.disconnect();
     child.unref();
@@ -265,14 +296,7 @@ export async function startDevDaemon(
     startupFailure = error;
     throw error;
   } finally {
-    if (!handedOff) {
-      try { await releaseFailedChild(child); }
-      catch (cleanupError) {
-        if (startupFailure instanceof Error) {
-          startupFailure.message = safeMessage(`${startupFailure.message}; ${cleanupError instanceof Error ? cleanupError.message : "owned child cleanup incomplete"}`);
-        } else throw cleanupError;
-      }
-    }
+    if (!handedOff) await absorbStartCleanup(child, startupFailure);
   }
 }
 
@@ -323,17 +347,21 @@ export async function stopDevDaemon(lookup: SessionSocketLookup, timeoutMs = 10_
   throw new SessionSocketError("DAEMON_STOP_TIMEOUT", "owner release could not be confirmed; inspect this session before retrying");
 }
 
+function childCaptureShape(value: unknown): boolean {
+  const capture = object(value);
+  return capture !== null && typeof capture.checkoutRoot === "string" && typeof capture.appPath === "string" &&
+    typeof capture.profile === "string" && typeof capture.compilerPath === "string" &&
+    (capture.catalogPath === null || typeof capture.catalogPath === "string") &&
+    typeof capture.helpIndexPath === "string" && Array.isArray(capture.packageInputPaths);
+}
+
 function childRequest(value: unknown): ChildStartMessage | null {
   const item = object(value);
-  const capture = object(item?.capture);
   if (item?.type !== "start" || typeof item.selectedApp !== "string" ||
       typeof item.expectedSourceRevision !== "string" || typeof item.expectedEpochMaterial !== "string" ||
       (item.runtimeDir !== undefined && typeof item.runtimeDir !== "string") ||
       (item.checkMode !== undefined && item.checkMode !== "manual" && item.checkMode !== "automatic") ||
-      capture === null || typeof capture.checkoutRoot !== "string" || typeof capture.appPath !== "string" ||
-      typeof capture.profile !== "string" || typeof capture.compilerPath !== "string" ||
-      (capture.catalogPath !== null && typeof capture.catalogPath !== "string") ||
-      typeof capture.helpIndexPath !== "string" || !Array.isArray(capture.packageInputPaths)) return null;
+      !childCaptureShape(item?.capture)) return null;
   try { parsePreviewRoles(item.previewRoles ?? {}); } catch { return null; }
   return item as unknown as ChildStartMessage;
 }

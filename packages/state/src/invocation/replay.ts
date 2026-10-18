@@ -75,38 +75,45 @@ function serialize(value: unknown, budget?: InputBudget, depth = 0): string {
       return failClosed('function');
     case 'symbol':
       return failClosed('symbol');
-    case 'object': {
-      if (typeof (value as { toJSON?: unknown }).toJSON === 'function') {
-        return serialize((value as { toJSON: () => unknown }).toJSON(), budget, depth + 1);
-      }
-      if (Array.isArray(value)) {
-        const parts: string[] = [];
-        for (let index = 0; ; index += 1) {
-          // Preserve the original length-read/index-read order, including
-          // dynamic arrays; use that same read for the remaining-entry bound.
-          const length = value.length;
-          if (!(index < length)) break;
-          if (budget !== undefined) children(budget, typeof length === 'number' ? length - index : 1);
-          parts.push(serialize(value[index], budget, depth + 1));
-        }
-        return `[${parts.join(',')}]`;
-      }
-      if (Object.getOwnPropertySymbols(value).length > 0) {
-        return failClosed('symbol key');
-      }
-      const parts: string[] = [];
-      const keys = Object.keys(value);
-      children(budget, keys.length);
-      for (const key of keys) text(budget, key);
-      for (const key of keys.sort()) {
-        parts.push(
-          `${JSON.stringify(key) as string}:${serialize((value as Record<string, unknown>)[key], budget, depth + 1)}`,
-        );
-      }
-      return `{${parts.join(',')}}`;
-    }
+    case 'object':
+      return serializeObject(value, budget, depth);
   }
   return failClosed('value');
+}
+
+/** Array elements in the original length-read/index-read order. */
+function serializeArrayElements(value: unknown[], budget: InputBudget | undefined, depth: number): string {
+  const parts: string[] = [];
+  for (let index = 0; ; index += 1) {
+    // Preserve the original length-read/index-read order, including
+    // dynamic arrays; use that same read for the remaining-entry bound.
+    const length = value.length;
+    if (!(index < length)) break;
+    if (budget !== undefined) children(budget, typeof length === 'number' ? length - index : 1);
+    parts.push(serialize(value[index], budget, depth + 1));
+  }
+  return `[${parts.join(',')}]`;
+}
+
+/** Object bodies after the toJSON check, in the original key-read order. */
+function serializeObject(value: object, budget: InputBudget | undefined, depth: number): string {
+  if (typeof (value as { toJSON?: unknown }).toJSON === 'function') {
+    return serialize((value as { toJSON: () => unknown }).toJSON(), budget, depth + 1);
+  }
+  if (Array.isArray(value)) return serializeArrayElements(value, budget, depth);
+  if (Object.getOwnPropertySymbols(value).length > 0) {
+    return failClosed('symbol key');
+  }
+  const parts: string[] = [];
+  const keys = Object.keys(value);
+  children(budget, keys.length);
+  for (const key of keys) text(budget, key);
+  for (const key of keys.sort()) {
+    parts.push(
+      `${JSON.stringify(key) as string}:${serialize((value as Record<string, unknown>)[key], budget, depth + 1)}`,
+    );
+  }
+  return `{${parts.join(',')}}`;
 }
 
 /** SHA-256 over the stable encoding, as lowercase hex. */

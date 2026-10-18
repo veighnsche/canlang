@@ -139,12 +139,10 @@ function sha256(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-/** Classify declared containment roots before allocating preview resources. */
-function previewStorageMode(artifact: CompileArtifact): "global" | "team" {
-  const models = artifact.models;
-  if (models === undefined) return "global";
-  if (!Array.isArray(models)) fail("MODEL_OWNERSHIP_INVALID", "preview models must be an array");
-  const byName = new Map<string, NonNullable<CompileArtifact["models"]>[number]>();
+type PreviewModel = NonNullable<CompileArtifact["models"]>[number];
+
+function indexPreviewModels(models: readonly PreviewModel[]): Map<string, PreviewModel> {
+  const byName = new Map<string, PreviewModel>();
   for (const model of models) {
     if (typeof model !== "object" || model === null || Array.isArray(model) ||
         typeof model.name !== "string" || model.name === "" || byName.has(model.name)) {
@@ -157,6 +155,10 @@ function previewStorageMode(artifact: CompileArtifact): "global" | "team" {
     }
     byName.set(model.name, model);
   }
+  return byName;
+}
+
+function resolvePreviewModelModes(models: readonly PreviewModel[], byName: Map<string, PreviewModel>): Map<string, "global" | "team"> {
   const resolved = new Map<string, "global" | "team">();
   for (const model of models) {
     const path: string[] = [];
@@ -175,6 +177,15 @@ function previewStorageMode(artifact: CompileArtifact): "global" | "team" {
     }
     for (const child of path) resolved.set(child, mode);
   }
+  return resolved;
+}
+
+/** Classify declared containment roots before allocating preview resources. */
+function previewStorageMode(artifact: CompileArtifact): "global" | "team" {
+  const models = artifact.models;
+  if (models === undefined) return "global";
+  if (!Array.isArray(models)) fail("MODEL_OWNERSHIP_INVALID", "preview models must be an array");
+  const resolved = resolvePreviewModelModes(models, indexPreviewModels(models));
   const modes = new Set(resolved.values());
   if (modes.size > 1) {
     fail("MIXED_OWNER_PROFILE_UNSUPPORTED", "mixed app/team preview requires an owning operation and page storage-selection API");
@@ -266,21 +277,22 @@ function snapshotBundle(source: PackageDeployBundle): PackageDeployBundle {
   };
 }
 
-function verifyBundle(artifact: CompileArtifact, capture: SingleFileCapture, evidence: PortableBundleEvidence): PackageDeployBundle {
-  if (evidence.artifactJsonSha256 !== sha256(JSON.stringify(artifact))) {
-    fail("BUNDLE_ARTIFACT_MISMATCH", "portable bundle artifact digest differs from checked artifact");
-  }
-  compareInputEvidence(capture, evidence);
-  // Copy before checking: the checked bytes are exactly those later staged.
-  let bundle: PackageDeployBundle;
-  try { bundle = snapshotBundle(evidence.bundle); }
+// Copy before checking: the checked bytes are exactly those later staged.
+function snapshotCheckedBundle(evidence: PortableBundleEvidence): PackageDeployBundle {
+  try { return snapshotBundle(evidence.bundle); }
   catch { fail("BUNDLE_INVALID", "portable bundle module, binary or resource inventory is missing"); }
+}
+
+function assertBundleModuleInventory(bundle: PackageDeployBundle): void {
   if (bundle.mainModule !== "worker/main.js" || bundle.moduleCount !== Object.keys(bundle.modules).length ||
       bundle.modules[bundle.mainModule] === undefined || bundle.modules["worker/artifact.js"] === undefined ||
       bundle.modules["worker/http-assets.js"] === undefined || bundle.modules["worker/mcp-handler.js"] === undefined ||
       bundle.modules["worker/http-operations.js"] === undefined) {
     fail("BUNDLE_INVALID", "portable bundle lacks required Worker modules");
   }
+}
+
+function assertBundleIntegrity(bundle: PackageDeployBundle): void {
   const sorted = Object.fromEntries(Object.entries(bundle.modules).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
   if (bundle.sha256 !== sha256(JSON.stringify({ mainModule: bundle.mainModule, modules: sorted })) ||
       bundle.mcpBundleBytes !== bundle.modules["worker/mcp-handler.js"]!.length ||
@@ -289,11 +301,18 @@ function verifyBundle(artifact: CompileArtifact, capture: SingleFileCapture, evi
       bundle.mixedSha256 !== bundleMixedSha256(bundle.mainModule, inventorizeAssets(bundle.modules, bundle.binaries))) {
     fail("BUNDLE_INTEGRITY", "portable bundle module or binary digest is invalid");
   }
+}
+
+function checkedStagedArtifact(bundle: PackageDeployBundle, artifact: CompileArtifact): string {
   const staged = bundle.modules["worker/artifact.js"]!;
   if (!staged.split("\n").includes(`export const artifact = ${JSON.stringify(artifact)};`) ||
       !staged.split("\n").includes('export const verdict = {"active":true};')) {
     fail("BUNDLE_ARTIFACT_MISMATCH", "portable bundle does not stage the admitted artifact and verdict");
   }
+  return staged;
+}
+
+function assertBundleResources(bundle: PackageDeployBundle, artifact: CompileArtifact, staged: string): void {
   const generatedResources = generatedStyleResources(artifact);
   const keys = Object.keys(bundle.resources).sort();
   if (keys.join("\n") !== [...BROWSER_KEYS, ...Object.keys(generatedResources)].sort().join("\n") ||
@@ -313,13 +332,24 @@ function verifyBundle(artifact: CompileArtifact, capture: SingleFileCapture, evi
       fail("RESOURCE_INVALID", `portable bundle changed owning stylesheet asset ${key}`);
     }
   }
+}
+
+function verifyBundle(artifact: CompileArtifact, capture: SingleFileCapture, evidence: PortableBundleEvidence): PackageDeployBundle {
+  if (evidence.artifactJsonSha256 !== sha256(JSON.stringify(artifact))) {
+    fail("BUNDLE_ARTIFACT_MISMATCH", "portable bundle artifact digest differs from checked artifact");
+  }
+  compareInputEvidence(capture, evidence);
+  const bundle = snapshotCheckedBundle(evidence);
+  assertBundleModuleInventory(bundle);
+  assertBundleIntegrity(bundle);
+  const staged = checkedStagedArtifact(bundle, artifact);
+  assertBundleResources(bundle, artifact, staged);
   assertWorkerdLoadable(bundle.modules);
   assertLinksResolve(bundle.modules, Object.keys(bundle.binaries));
   return bundle;
 }
 
-/** The bridge-selected origin is authoritative for production auth setup. */
-export function selectPreviewWorkerVars(options: LocalPreviewBuilderOptions, origin: string): Readonly<Record<string, unknown>> {
+function assertLoopbackPreviewOrigin(origin: string): void {
   let selected: URL;
   try { selected = new URL(origin); }
   catch { fail("ORIGIN_INVALID", "preview bridge did not select a valid origin"); }
@@ -327,7 +357,9 @@ export function selectPreviewWorkerVars(options: LocalPreviewBuilderOptions, ori
       selected.pathname !== "/" || selected.search || selected.hash || selected.username || selected.password) {
     fail("ORIGIN_INVALID", "preview auth origin must be the selected loopback address");
   }
-  const vars = options.workerVarsForOrigin?.(origin);
+}
+
+function assertPreviewWorkerVars(vars: Readonly<Record<string, unknown>> | undefined, origin: string): void {
   if (vars !== undefined && (vars === null || typeof vars !== "object" || Array.isArray(vars))) {
     fail("RESOURCE_INVALID", "preview Worker vars must be an object");
   }
@@ -340,24 +372,33 @@ export function selectPreviewWorkerVars(options: LocalPreviewBuilderOptions, ori
   if (base !== undefined && (!('value' in base) || base.value !== origin)) {
     fail("RESOURCE_INVALID", "preview deployment base must be the selected protected root loopback origin");
   }
+}
+
+/** The bridge-selected origin is authoritative for production auth setup. */
+export function selectPreviewWorkerVars(options: LocalPreviewBuilderOptions, origin: string): Readonly<Record<string, unknown>> {
+  assertLoopbackPreviewOrigin(origin);
+  const vars = options.workerVarsForOrigin?.(origin);
+  assertPreviewWorkerVars(vars, origin);
   return Object.freeze({ ...(vars ?? {}), CAN_AUTH_ORIGIN: origin, CAN_DEPLOYMENT_BASE: origin, CAN_LOCAL_FILES: true });
 }
 
-async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: string, seed: LocalPreviewSeed, artifact: CompileArtifact): Promise<void> {
+async function probePreviewD1(dev: LocalDev): Promise<void> {
   const db = await dev.getD1Database("DB");
   const row = await db.prepare("SELECT 1 AS ready").first<{ ready: number }>();
   if (row?.ready !== 1) fail("D1_UNAVAILABLE", "real local DB binding did not answer a query");
+}
+
+async function fetchPreviewLoginDescriptor(dev: LocalDev, origin: string): Promise<{ preSessionCookie: string; preSessionToken: string }> {
   const auth = await dev.dispatchUrl(`${origin}/auth/login`, { method: "GET" });
   if (auth.status !== 200 || !(auth.headers.get("content-type") ?? "").startsWith("application/json")) {
     fail("IDENTITY_UNAVAILABLE", `installed Identity login descriptor returned HTTP ${auth.status}`);
   }
   let descriptor: unknown;
   try { descriptor = await auth.json(); } catch { fail("IDENTITY_UNAVAILABLE", "installed Identity login descriptor is invalid JSON"); }
+  const fields = descriptor as Record<string, unknown>;
   if (typeof descriptor !== "object" || descriptor === null || Array.isArray(descriptor) ||
-      (descriptor as Record<string, unknown>)["form"] !== "login" ||
-      (descriptor as Record<string, unknown>)["postTo"] !== "/auth/login" ||
-      typeof (descriptor as Record<string, unknown>)["preSessionToken"] !== "string" ||
-      !((descriptor as Record<string, unknown>)["preSessionToken"] as string)) {
+      fields["form"] !== "login" || fields["postTo"] !== "/auth/login" ||
+      typeof fields["preSessionToken"] !== "string" || !(fields["preSessionToken"] as string)) {
     fail("IDENTITY_UNAVAILABLE", "installed Identity login descriptor or D1 token is missing");
   }
   const preSessionCookies = auth.headers.getSetCookie().filter(value => value.startsWith("can_presession="));
@@ -365,11 +406,15 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
   if (preSessionCookie === undefined || preSessionCookie === "can_presession=") {
     fail("IDENTITY_UNAVAILABLE", "installed Identity login descriptor browser binding is missing");
   }
+  return { preSessionCookie, preSessionToken: fields["preSessionToken"] as string };
+}
+
+async function probePreviewMemberLogin(dev: LocalDev, origin: string, preSessionCookie: string,
+  preSessionToken: string, seed: LocalPreviewSeed): Promise<{ sessionCookie: string; sessionToken: string }> {
   const login = await dev.dispatchUrl(`${origin}/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: preSessionCookie },
-    body: JSON.stringify({ email: seed.probe.email, password: seed.probe.password,
-      [PRESESSION_FIELD]: (descriptor as Record<string, unknown>)["preSessionToken"] }),
+    body: JSON.stringify({ email: seed.probe.email, password: seed.probe.password, [PRESESSION_FIELD]: preSessionToken }),
   });
   const sessionCookies = login.headers.getSetCookie().filter(value => value.startsWith("can_session="));
   const sessionCookie = sessionCookies.length === 1 ? sessionCookies[0]!.split(";", 1)[0] : undefined;
@@ -377,15 +422,24 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
   if (login.status !== 200 || sessionCookie === undefined || sessionToken === null) {
     fail("IDENTITY_UNAVAILABLE", `seeded member login returned HTTP ${login.status} without an app session`);
   }
-  const csrf = await deriveCsrfToken(sessionToken);
+  return { sessionCookie, sessionToken };
+}
+
+async function probePreviewTeamSelection(dev: LocalDev, origin: string,
+  session: { sessionCookie: string; sessionToken: string }, seed: LocalPreviewSeed): Promise<string> {
+  const csrf = await deriveCsrfToken(session.sessionToken);
   const selection = await dev.dispatchUrl(`${origin}/auth/select-team`, {
     method: "POST",
-    headers: { "content-type": "application/json", cookie: sessionCookie, "x-csrf-token": csrf },
+    headers: { "content-type": "application/json", cookie: session.sessionCookie, "x-csrf-token": csrf },
     body: JSON.stringify({ [TEAM_FIELD]: seed.probe.teamId, [CSRF_FIELD]: csrf }),
   });
   if (selection.status !== 200) {
     fail("IDENTITY_UNAVAILABLE", `seeded member team selection returned HTTP ${selection.status}`);
   }
+  return csrf;
+}
+
+async function probePreviewMcpGrant(dev: LocalDev, origin: string, sessionCookie: string, csrf: string): Promise<string> {
   const grantResponse = await dev.dispatchUrl(`${origin}/mcp/grants`, {
     method: "POST", headers: { "content-type": "application/json", cookie: sessionCookie, "x-csrf-token": csrf },
     body: JSON.stringify({ client_id: "can-dev-local-probe" }),
@@ -397,6 +451,10 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
   if (grantResponse.status !== 200 || typeof grant !== "string" || grant.length === 0) {
     fail("MCP_UNAVAILABLE", `seeded member MCP grant returned HTTP ${grantResponse.status}`);
   }
+  return grant;
+}
+
+async function probePreviewMcpDiscovery(dev: LocalDev, origin: string, grant: string, artifact: CompileArtifact): Promise<void> {
   const discovery = await dev.dispatchUrl(`${origin}/mcp`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json, text/event-stream",
@@ -414,6 +472,9 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
       (hasBusinessOperations ? listed.length === 0 : listed.length !== 0)) {
     fail("MCP_UNAVAILABLE", `seeded member business MCP discovery returned HTTP ${discovery.status} with tools inconsistent with the checked operation inventory`);
   }
+}
+
+async function probePreviewAnonymousRefusal(dev: LocalDev, origin: string): Promise<void> {
   const mcp = await dev.dispatchUrl(`${origin}/mcp`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
@@ -422,6 +483,9 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
   if (mcp.status !== 401 || !(mcp.headers.get("content-type") ?? "").startsWith("application/json")) {
     fail("MCP_UNAVAILABLE", `installed business MCP route did not refuse an anonymous caller (HTTP ${mcp.status})`);
   }
+}
+
+async function probePreviewAssets(dev: LocalDev, bundle: PackageDeployBundle, origin: string): Promise<void> {
   for (const key of Object.keys(bundle.resources)) {
     const assetPath = key.split("/").map(encodeURIComponent).join("/");
     const response = await dev.dispatchUrl(`${origin}/assets/${assetPath}`, { method: "GET" });
@@ -431,7 +495,11 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
       fail("RESOURCE_INVALID", `installed Worker did not serve packaged ${key} bytes`);
     }
   }
+}
+
+async function probePreviewPage(dev: LocalDev, origin: string, sessionCookie: string, artifact: CompileArtifact): Promise<void> {
   const declaredPage = artifact.pages.find(page => page.path === "/") ?? artifact.pages[0];
+  const hasBusinessOperations = (artifact.operations?.length ?? 0) > 0;
   // API-only apps already passed the real Identity and business MCP probes.
   if (declaredPage === undefined && hasBusinessOperations) return;
   if (declaredPage === undefined || typeof declaredPage.path !== "string" || !declaredPage.path.startsWith("/")) {
@@ -443,6 +511,18 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
   if (page.status !== 200 || !(page.headers.get("content-type") ?? "").startsWith("text/html")) {
     fail("PAGE_UNAVAILABLE", `installed page route returned HTTP ${page.status}`);
   }
+}
+
+async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: string, seed: LocalPreviewSeed, artifact: CompileArtifact): Promise<void> {
+  await probePreviewD1(dev);
+  const { preSessionCookie, preSessionToken } = await fetchPreviewLoginDescriptor(dev, origin);
+  const session = await probePreviewMemberLogin(dev, origin, preSessionCookie, preSessionToken, seed);
+  const csrf = await probePreviewTeamSelection(dev, origin, session, seed);
+  const grant = await probePreviewMcpGrant(dev, origin, session.sessionCookie, csrf);
+  await probePreviewMcpDiscovery(dev, origin, grant, artifact);
+  await probePreviewAnonymousRefusal(dev, origin);
+  await probePreviewAssets(dev, bundle, origin);
+  await probePreviewPage(dev, origin, session.sessionCookie, artifact);
 }
 
 function validatePreviewSeed(seed: LocalPreviewSeed): void {

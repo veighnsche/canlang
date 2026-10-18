@@ -168,56 +168,85 @@ function checkCohortRawBytes(raw: string): number {
   return bytes;
 }
 
+/** Shared token cursor (one JSON pre-validation walk). */
+interface JsonCursor {
+  at: number;
+}
+
+function invalidJson(): never { throw new SyntaxError('Invalid cohort JSON.'); }
+
+/** Whitespace between tokens in one JSON walk. */
+function skipJsonSpace(raw: string, cursor: JsonCursor): void {
+  while (raw[cursor.at] === ' ' || raw[cursor.at] === '\n' || raw[cursor.at] === '\r' || raw[cursor.at] === '\t') cursor.at++;
+}
+
+/** One JSON string with escapes, charging text to the budget. */
+function readJsonString(raw: string, cursor: JsonCursor, budget: CohortBudget): void {
+  if (raw[cursor.at++] !== '"') invalidJson();
+  for (;;) {
+    const char = raw[cursor.at++];
+    if (char === undefined) throw new SyntaxError('Invalid cohort JSON.');
+    if (char === '"') return;
+    if (char === '\\') {
+      const escaped = raw[cursor.at++];
+      if (escaped === 'u') {
+        for (let n = 0; n < 4; n++) if (!/[0-9a-fA-F]/.test(raw[cursor.at++] ?? '')) invalidJson();
+      } else if (escaped === undefined || !'"\\/bfnrt'.includes(escaped)) invalidJson();
+    } else if (char.charCodeAt(0) < 0x20) invalidJson();
+    budget.addText(1);
+  }
+}
+
+/** Exponent clause of one JSON number spelling. */
+function readJsonExponent(raw: string, cursor: JsonCursor): void {
+  if (raw[cursor.at] === 'e' || raw[cursor.at] === 'E') { cursor.at++; if (raw[cursor.at] === '+' || raw[cursor.at] === '-') cursor.at++; if (!/[0-9]/.test(raw[cursor.at] ?? '')) invalidJson(); while (/[0-9]/.test(raw[cursor.at] ?? '')) cursor.at++; }
+}
+
+/** One JSON number spelling with a finite value. */
+function readJsonNumber(raw: string, cursor: JsonCursor): void {
+  const start = cursor.at;
+  if (raw[cursor.at] === '-') cursor.at++;
+  if (raw[cursor.at] === '0') cursor.at++;
+  else { if (!/[1-9]/.test(raw[cursor.at] ?? '')) invalidJson(); while (/[0-9]/.test(raw[cursor.at] ?? '')) cursor.at++; }
+  if (raw[cursor.at] === '.') { cursor.at++; if (!/[0-9]/.test(raw[cursor.at] ?? '')) invalidJson(); while (/[0-9]/.test(raw[cursor.at] ?? '')) cursor.at++; }
+  readJsonExponent(raw, cursor);
+  if (!Number.isFinite(Number(raw.slice(start, cursor.at)))) cohortInvalid();
+}
+
+/** One JSON container: object members or array elements in order. */
+function readJsonContainer(raw: string, cursor: JsonCursor, budget: CohortBudget, depth: number, array: boolean): void {
+  cursor.at++; skipJsonSpace(raw, cursor);
+  const end = array ? ']' : '}';
+  if (raw[cursor.at] === end) { cursor.at++; return; }
+  let index = 0;
+  for (;;) {
+    if (array) budget.addText(String(index++).length);
+    else { readJsonString(raw, cursor, budget); skipJsonSpace(raw, cursor); if (raw[cursor.at++] !== ':') invalidJson(); }
+    readJsonValue(raw, cursor, budget, depth + 1); skipJsonSpace(raw, cursor);
+    if (raw[cursor.at] === end) { cursor.at++; return; }
+    if (raw[cursor.at++] !== ',') invalidJson(); skipJsonSpace(raw, cursor);
+  }
+}
+
+/** One JSON value at its depth: string, container, literal or number. */
+function readJsonValue(raw: string, cursor: JsonCursor, budget: CohortBudget, depth: number): void {
+  skipJsonSpace(raw, cursor); budget.visit(depth);
+  const char = raw[cursor.at];
+  if (char === '"') { readJsonString(raw, cursor, budget); return; }
+  if (char === '{' || char === '[') { readJsonContainer(raw, cursor, budget, depth, char === '['); return; }
+  for (const literal of ['true', 'false', 'null']) {
+    if (raw.startsWith(literal, cursor.at)) { cursor.at += literal.length; return; }
+  }
+  readJsonNumber(raw, cursor);
+}
+
 /** Validate/count JSON tokens before JSON.parse can grow the retained tree. */
 function checkCohortJson(raw: string, budget: CohortBudget, rootDepth: number): void {
   checkCohortRawBytes(raw);
-  let at = 0;
-  const invalid = (): never => { throw new SyntaxError('Invalid cohort JSON.'); };
-  const space = (): void => { while (raw[at] === ' ' || raw[at] === '\n' || raw[at] === '\r' || raw[at] === '\t') at++; };
-  const string = (): void => {
-    if (raw[at++] !== '"') invalid();
-    for (;;) {
-      const char = raw[at++];
-      if (char === undefined) throw new SyntaxError('Invalid cohort JSON.');
-      if (char === '"') return;
-      if (char === '\\') {
-        const escaped = raw[at++];
-        if (escaped === 'u') {
-          for (let n = 0; n < 4; n++) if (!/[0-9a-fA-F]/.test(raw[at++] ?? '')) invalid();
-        } else if (escaped === undefined || !'"\\/bfnrt'.includes(escaped)) invalid();
-      } else if (char.charCodeAt(0) < 0x20) invalid();
-      budget.addText(1);
-    }
-  };
-  const value = (depth: number): void => {
-    space(); budget.visit(depth);
-    const char = raw[at];
-    if (char === '"') { string(); return; }
-    if (char === '{' || char === '[') {
-      const array = char === '['; at++; space();
-      const end = array ? ']' : '}';
-      if (raw[at] === end) { at++; return; }
-      let index = 0;
-      for (;;) {
-        if (array) budget.addText(String(index++).length);
-        else { string(); space(); if (raw[at++] !== ':') invalid(); }
-        value(depth + 1); space();
-        if (raw[at] === end) { at++; return; }
-        if (raw[at++] !== ',') invalid(); space();
-      }
-    }
-    for (const literal of ['true', 'false', 'null']) {
-      if (raw.startsWith(literal, at)) { at += literal.length; return; }
-    }
-    const start = at;
-    if (raw[at] === '-') at++;
-    if (raw[at] === '0') at++;
-    else { if (!/[1-9]/.test(raw[at] ?? '')) invalid(); while (/[0-9]/.test(raw[at] ?? '')) at++; }
-    if (raw[at] === '.') { at++; if (!/[0-9]/.test(raw[at] ?? '')) invalid(); while (/[0-9]/.test(raw[at] ?? '')) at++; }
-    if (raw[at] === 'e' || raw[at] === 'E') { at++; if (raw[at] === '+' || raw[at] === '-') at++; if (!/[0-9]/.test(raw[at] ?? '')) invalid(); while (/[0-9]/.test(raw[at] ?? '')) at++; }
-    if (!Number.isFinite(Number(raw.slice(start, at)))) cohortInvalid();
-  };
-  value(rootDepth); space(); if (at !== raw.length) invalid();
+  const cursor = { at: 0 };
+  readJsonValue(raw, cursor, budget, rootDepth);
+  skipJsonSpace(raw, cursor);
+  if (cursor.at !== raw.length) invalidJson();
 }
 
 function captureCohort(value: unknown, budget: CohortBudget, depth: number, active: Set<object>): unknown {
@@ -227,26 +256,45 @@ function captureCohort(value: unknown, budget: CohortBudget, depth: number, acti
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value !== 'object' || value === null || active.has(value)) cohortInvalid();
   const array = Array.isArray(value);
-  if (array ? Object.getPrototypeOf(value) !== Array.prototype :
-    Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) cohortInvalid();
-  if (array && value.length > COHORT_NODES - budget.nodes) cohortLimit();
-  const keys = Reflect.ownKeys(value);
-  if (keys.length > COHORT_NODES - budget.nodes + (array ? 1 : 0)) cohortLimit();
-  if (array && keys.length !== value.length + 1) cohortInvalid();
+  const keys = checkCohortShape(value, array, budget);
+  if (array && keys.length !== (value as unknown[]).length + 1) cohortInvalid();
   const result: Record<string, unknown> | unknown[] = array ? [] : {};
   active.add(value);
+  captureCohortEntries(result, value, keys, array, budget, depth, active);
+  active.delete(value);
+  if (array && (result as unknown[]).length !== value.length) cohortInvalid();
+  return result;
+}
+
+/** Plain-array or plain-object shape with node-budget caps. */
+function checkCohortShape(value: object, array: boolean, budget: CohortBudget): (string | symbol)[] {
+  if (array ? Object.getPrototypeOf(value) !== Array.prototype :
+    Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) cohortInvalid();
+  if (array && (value as unknown[]).length > COHORT_NODES - budget.nodes) cohortLimit();
+  const keys = Reflect.ownKeys(value);
+  if (keys.length > COHORT_NODES - budget.nodes + (array ? 1 : 0)) cohortLimit();
+  return keys;
+}
+
+/** One entry in key order: dense-array index or own-enumerable member. */
+function captureCohortEntries(
+  result: Record<string, unknown> | unknown[],
+  value: object,
+  keys: readonly (string | symbol)[],
+  array: boolean,
+  budget: CohortBudget,
+  depth: number,
+  active: Set<object>,
+): void {
   for (const key of keys) {
     if (array && key === 'length') continue;
     if (typeof key !== 'string') cohortInvalid();
-    if (array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length)) cohortInvalid();
+    if (array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= (value as unknown[]).length)) cohortInvalid();
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) cohortInvalid();
     budget.addText(key.length);
     Object.defineProperty(result, key, { value: captureCohort(descriptor.value, budget, depth + 1, active), enumerable: true, writable: true, configurable: true });
   }
-  active.delete(value);
-  if (array && (result as unknown[]).length !== value.length) cohortInvalid();
-  return result;
 }
 
 export function captureCohortRow(row: StoredRow): StoredRow {
@@ -376,6 +424,42 @@ function bindValue(value: unknown): unknown {
   return value;
 }
 
+/** Equality with reference-identity and null sentinels. */
+function compileEqualityPredicate(
+  predicate: Extract<QueryPredicate, { value: unknown }>,
+  bindings: unknown[],
+  sqlOp: '=' | '<>',
+): string {
+  if (isReferenceIdentity(predicate.value)) {
+    const expr = referenceFieldExpr(predicate.field);
+    bindings.push(predicate.value.id);
+    return `(${expr} ${sqlOp} ?)`;
+  }
+  const expr = fieldExpr(predicate.field);
+  if (predicate.value === null || predicate.value === undefined) {
+    return sqlOp === '=' ? `(${expr} IS NULL)` : `(${expr} IS NOT NULL)`;
+  }
+  bindings.push(bindValue(predicate.value));
+  return `(${expr} ${sqlOp} ?)`;
+}
+
+/** Ordered comparison with the bound operand. */
+function compileOrderPredicate(
+  predicate: Extract<QueryPredicate, { value: unknown }>,
+  bindings: unknown[],
+): string {
+  const sqlOp =
+    predicate.op === 'lt'
+      ? '<'
+      : predicate.op === 'lte'
+        ? '<='
+        : predicate.op === 'gt'
+          ? '>'
+          : '>=';
+  bindings.push(bindValue(predicate.value));
+  return `(${fieldExpr(predicate.field)} ${sqlOp} ?)`;
+}
+
 export function compilePredicate(predicate: QueryPredicate, bindings: unknown[]): string {
   switch (predicate.op) {
     case 'and': {
@@ -394,45 +478,16 @@ export function compilePredicate(predicate: QueryPredicate, bindings: unknown[])
       return `(NOT ${compilePredicate(predicate.arg, bindings)})`;
     }
     case 'eq': {
-      if (isReferenceIdentity(predicate.value)) {
-        const expr = referenceFieldExpr(predicate.field);
-        bindings.push(predicate.value.id);
-        return `(${expr} = ?)`;
-      }
-      const expr = fieldExpr(predicate.field);
-      if (predicate.value === null || predicate.value === undefined) {
-        return `(${expr} IS NULL)`;
-      }
-      bindings.push(bindValue(predicate.value));
-      return `(${expr} = ?)`;
+      return compileEqualityPredicate(predicate, bindings, '=');
     }
     case 'ne': {
-      if (isReferenceIdentity(predicate.value)) {
-        const expr = referenceFieldExpr(predicate.field);
-        bindings.push(predicate.value.id);
-        return `(${expr} <> ?)`;
-      }
-      const expr = fieldExpr(predicate.field);
-      if (predicate.value === null || predicate.value === undefined) {
-        return `(${expr} IS NOT NULL)`;
-      }
-      bindings.push(bindValue(predicate.value));
-      return `(${expr} <> ?)`;
+      return compileEqualityPredicate(predicate, bindings, '<>');
     }
     case 'lt':
     case 'lte':
     case 'gt':
     case 'gte': {
-      const sqlOp =
-        predicate.op === 'lt'
-          ? '<'
-          : predicate.op === 'lte'
-            ? '<='
-            : predicate.op === 'gt'
-              ? '>'
-              : '>=';
-      bindings.push(bindValue(predicate.value));
-      return `(${fieldExpr(predicate.field)} ${sqlOp} ?)`;
+      return compileOrderPredicate(predicate, bindings);
     }
     case 'between': {
       bindings.push(bindValue(predicate.lo), bindValue(predicate.hi));
@@ -460,9 +515,18 @@ export function recoveryRecordTable(spec: QuerySpec): string {
       order?.length !== 1 || order[0]?.field !== 'id' || order[0]?.direction !== 'asc' ||
       where?.op !== 'and' || where.args.length < 1 || where.args.length > 2) return 'records';
   const state = where.args[0], after = where.args[1];
-  if (state?.op !== 'eq' || state.field !== 'state' || (state.value !== 'claimed' && state.value !== 'uncertain') ||
-      after !== undefined && (after.op !== 'gt' || after.field !== 'id' || typeof after.value !== 'string')) return 'records';
+  if (checkRecoveryState(state) || checkRecoveryAfter(after)) return 'records';
   return 'records INDEXED BY idx_records_recovery';
+}
+
+/** Claimed/uncertain state equality for the recovery window. */
+function checkRecoveryState(state: QueryPredicate | undefined): boolean {
+  return state?.op !== 'eq' || state.field !== 'state' || (state.value !== 'claimed' && state.value !== 'uncertain');
+}
+
+/** Optional id-greater-than cursor for the recovery window. */
+function checkRecoveryAfter(after: QueryPredicate | undefined): boolean {
+  return after !== undefined && (after.op !== 'gt' || after.field !== 'id' || typeof after.value !== 'string');
 }
 
 export function compileOrder(order: ReadonlyArray<OrderTerm> | undefined): string {
@@ -763,15 +827,27 @@ function inspectHistory(value: unknown, budget: CohortBudget, depth: number, act
   if (keys.length > COHORT_NODES - budget.nodes + (array ? 1 : 0)) historyResource();
   if (array && keys.length !== value.length + 1) historyInvalid();
   active.add(value);
+  inspectHistoryEntries(value, keys, array, budget, depth, active);
+  active.delete(value);
+}
+
+/** One entry in key order: dense-array index or own-enumerable member. */
+function inspectHistoryEntries(
+  value: object,
+  keys: readonly (string | symbol)[],
+  array: boolean,
+  budget: CohortBudget,
+  depth: number,
+  active: Set<object>,
+): void {
   for (const key of keys) {
     if (array && key === 'length') continue;
-    if (typeof key !== 'string' || (array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length))) historyInvalid();
+    if (typeof key !== 'string' || (array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= (value as unknown[]).length))) historyInvalid();
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) historyInvalid();
     budget.addText(key.length);
     inspectHistory(descriptor.value, budget, depth + 1, active);
   }
-  active.delete(value);
 }
 function historyProbe(probe: () => void): void {
   try { probe(); } catch (error) {
@@ -793,6 +869,19 @@ export function toBoundedHistory(rows: readonly BoundedHistoryRow[], limit: numb
   if (rows.some(row => row.history_refusal === 1)) checkHistoryCount(limit + 1, limit);
   if (rows.some(row => row.history_refusal === 2)) historyResource();
   if (rows.some(row => row.history_refusal !== 0)) historyInvalid();
+  checkBoundedHistoryBytes(rows);
+  const budget = new CohortBudget();
+  historyProbe(() => {
+    budget.visit(0);
+    for (const [index, row] of rows.entries()) {
+      checkBoundedHistoryRow(row, index, budget);
+    }
+  });
+  return rows.map(toHistoryEntry);
+}
+
+/** Raw UTF-8 byte budget across every returned string column. */
+function checkBoundedHistoryBytes(rows: readonly BoundedHistoryRow[]): void {
   let rawBytes = 0;
   for (const row of rows) {
     for (const key of ['model', 'record_id', 'operation', 'operation_id', 'actor', 'change', 'before', 'after', 'audit_projection'] as const) {
@@ -811,28 +900,25 @@ export function toBoundedHistory(rows: readonly BoundedHistoryRow[], limit: numb
       }
     }
   }
-  const budget = new CohortBudget();
-  historyProbe(() => {
-    budget.visit(0);
-    for (const [index, row] of rows.entries()) {
-      budget.addText(String(index).length);
-      const metadata = { model: row.model, recordId: row.record_id, version: row.version,
-        operation: row.operation, operationId: row.operation_id, actor: row.actor, at: row.at, change: row.change };
-      inspectHistory(metadata, budget, 1, new Set());
-      for (const key of ['before', 'after'] as const) {
-        budget.addText(key.length);
-        if (row[key] === null) budget.visit(2);
-        else if (typeof row[key] !== 'string') historyInvalid();
-        else checkCohortJson(row[key], budget, 2);
-      }
-      if (row.audit_projection !== null) {
-        if (typeof row.audit_projection !== 'string') historyInvalid();
-        budget.addText('auditProjection'.length);
-        checkCohortJson(row.audit_projection, budget, 2);
-      }
-    }
-  });
-  return rows.map(toHistoryEntry);
+}
+
+/** One row's metadata and JSON payloads against the shared budget. */
+function checkBoundedHistoryRow(row: BoundedHistoryRow, index: number, budget: CohortBudget): void {
+  budget.addText(String(index).length);
+  const metadata = { model: row.model, recordId: row.record_id, version: row.version,
+    operation: row.operation, operationId: row.operation_id, actor: row.actor, at: row.at, change: row.change };
+  inspectHistory(metadata, budget, 1, new Set());
+  for (const key of ['before', 'after'] as const) {
+    budget.addText(key.length);
+    if (row[key] === null) budget.visit(2);
+    else if (typeof row[key] !== 'string') historyInvalid();
+    else checkCohortJson(row[key], budget, 2);
+  }
+  if (row.audit_projection !== null) {
+    if (typeof row.audit_projection !== 'string') historyInvalid();
+    budget.addText('auditProjection'.length);
+    checkCohortJson(row.audit_projection, budget, 2);
+  }
 }
 
 /** S7: raw `snapshots` row as D1 returns it (snake_case columns). */
@@ -967,6 +1053,18 @@ export function toMigrationFailure(row: FailureRow): MigrationFailure {
  * supplies updated/updatedBy — and created/createdBy for rows with no live
  * predecessor. Fallback is 0/''; archivedAt carries over (never unarchives).
  */
+/** First chunk-order history entry for one staged target. */
+function findPublishedHistoryMatch(
+  history: ReadonlyArray<HistoryEntry>,
+  staged: StagedRow,
+): HistoryEntry | undefined {
+  return history.find(
+    (entry) =>
+      (entry.model as string) === (staged.targetModel as string) &&
+      (entry.recordId as string) === (staged.recordId as string),
+  );
+}
+
 export function mergePublishedColumns(
   staged: StagedRow,
   existing: RecordRow | null,
@@ -978,16 +1076,21 @@ export function mergePublishedColumns(
   readonly updatedBy: string;
   readonly archivedAt: number | null;
 } {
-  const match = history.find(
-    (entry) =>
-      (entry.model as string) === (staged.targetModel as string) &&
-      (entry.recordId as string) === (staged.recordId as string),
-  );
+  const match = findPublishedHistoryMatch(history, staged);
   return {
-    created: staged.created ?? existing?.created ?? match?.at ?? 0,
+    created: resolvePublishedCreated(staged, existing, match),
     updated: match?.at ?? existing?.updated ?? 0,
     createdBy: staged.createdBy ?? existing?.created_by ?? match?.actor ?? '',
     updatedBy: match?.actor ?? existing?.updated_by ?? '',
     archivedAt: staged.archivedAt ?? existing?.archived_at ?? null,
   };
+}
+
+/** Creation time: staged, live, history, then fallback. */
+function resolvePublishedCreated(
+  staged: StagedRow,
+  existing: RecordRow | null,
+  match: HistoryEntry | undefined,
+): number {
+  return staged.created ?? existing?.created ?? match?.at ?? 0;
 }

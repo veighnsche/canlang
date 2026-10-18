@@ -21,6 +21,7 @@ import { startLocalDev } from "./local-run.js";
 import { cleanupAfterFailure, DevCleanupError, retryableDispose } from "./cleanup.js";
 import { LOCAL_PREVIEW_CAPABILITIES, PreviewAdmissionError, createLocalPreviewBuilder, type LocalPreviewBundleRequest, type LocalPreviewSeed, type LocalPreviewBuilderOptions, type PortableBundleEvidence } from "./preview-builder.js";
 import { installedReferenceRoot, assertInstalledCatalog, bundlerExecutableInputs, compilerSourceInputs, installedOwnedSourceInputs, installedPortableBundleInputs } from "./preview-inputs.js";
+import type { NamedInputPath } from "./source-capture.js";
 import { captureIsCurrent, type SingleFileCapture } from "./source-capture.js";
 import { PINNED_COMPATIBILITY_DATE } from "./zero-config.js";
 import type { LocalCommandLifetime } from "../cli/command-lifetime.js";
@@ -149,8 +150,7 @@ export async function preflightLocalPreviewActivation(
   }
 }
 
-function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvidence["consumedInputs"] {
-  const expected = installedPortableBundleInputs(capture.root);
+function assertPackageClosure(capture: SingleFileCapture, expected: readonly NamedInputPath[]): void {
   const captured = capture.inputs.filter(input => input.name.startsWith("package:"));
   if (expected.length !== captured.length) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured package inventory differs from installed producer closure");
@@ -163,17 +163,9 @@ function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvide
       throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", `installed producer input ${input.name} differs from capture`);
     }
   }
-  for (const executable of bundlerExecutableInputs()) {
-    const selected = capture.inputs.find(input => input.name === `extra:${executable.name}`);
-    if (selected?.state !== "present" || selected.canonicalPath !== executable.path) {
-      throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", `bundler ${executable.name} executable was not captured`);
-    }
-  }
-  const grammar = capture.inputs.find(input => input.name === "extra:grammar");
-  if (grammar?.state !== "present" || grammar.canonicalPath !== realpathSync(join(installedReferenceRoot(capture.root), "docs/specification/GRAMMAR.md"))) {
-    throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "installed grammar reference was not captured");
-  }
-  const sourceInputs = installedOwnedSourceInputs(capture.root, expected);
+}
+
+function assertSourceClosure(capture: SingleFileCapture, sourceInputs: readonly NamedInputPath[]): void {
   const capturedSources = capture.inputs.filter(input => input.name.startsWith("extra:source:"));
   if (sourceInputs.length !== capturedSources.length) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured package sources differ from installed producer closure");
@@ -185,16 +177,9 @@ function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvide
       throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", `installed producer source ${input.name} differs from capture`);
     }
   }
-  const compilerPath = capture.inputs.find(input => input.name === "compiler")?.requestedPath;
-  if (compilerPath === null || compilerPath === undefined) {
-    throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured compiler is unavailable");
-  }
-  const compilerSources = compilerSourceInputs(capture.root, compilerPath);
-  const catalogPath = capture.inputs.find(input => input.name === "catalog")?.requestedPath;
-  if (catalogPath === null || catalogPath === undefined) {
-    throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured Values catalog is unavailable");
-  }
-  assertInstalledCatalog(capture.root, catalogPath);
+}
+
+function assertCompilerSourceClosure(capture: SingleFileCapture, compilerSources: readonly NamedInputPath[]): void {
   const capturedCompilerSources = capture.inputs.filter(input => input.name.startsWith("extra:compiler-source:"));
   if (compilerSources.length !== capturedCompilerSources.length) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured compiler sources differ from installed compiler closure");
@@ -206,6 +191,34 @@ function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvide
       throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", `compiler source ${input.name} differs from capture`);
     }
   }
+}
+
+function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvidence["consumedInputs"] {
+  const expected = installedPortableBundleInputs(capture.root);
+  assertPackageClosure(capture, expected);
+  for (const executable of bundlerExecutableInputs()) {
+    const selected = capture.inputs.find(input => input.name === `extra:${executable.name}`);
+    if (selected?.state !== "present" || selected.canonicalPath !== executable.path) {
+      throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", `bundler ${executable.name} executable was not captured`);
+    }
+  }
+  const grammar = capture.inputs.find(input => input.name === "extra:grammar");
+  if (grammar?.state !== "present" || grammar.canonicalPath !== realpathSync(join(installedReferenceRoot(capture.root), "docs/specification/GRAMMAR.md"))) {
+    throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "installed grammar reference was not captured");
+  }
+  const sourceInputs = installedOwnedSourceInputs(capture.root, expected);
+  assertSourceClosure(capture, sourceInputs);
+  const compilerPath = capture.inputs.find(input => input.name === "compiler")?.requestedPath;
+  if (compilerPath === null || compilerPath === undefined) {
+    throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured compiler is unavailable");
+  }
+  const compilerSources = compilerSourceInputs(capture.root, compilerPath);
+  const catalogPath = capture.inputs.find(input => input.name === "catalog")?.requestedPath;
+  if (catalogPath === null || catalogPath === undefined) {
+    throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured Values catalog is unavailable");
+  }
+  assertInstalledCatalog(capture.root, catalogPath);
+  assertCompilerSourceClosure(capture, compilerSources);
   return capture.inputs.filter(input => input.name.startsWith("package:") || input.name.startsWith("extra:"));
 }
 

@@ -46,39 +46,58 @@ const owners = new WeakMap<BoundOpaqueDeclarations, Owner>();
 const refuse = (message: string): never => { throw new StateError('validation', `Opaque File declarations: ${message}`); };
 const MAX_NODES = 20_000, MAX_DEPTH = 32, MAX_TEXT = 2_000_000;
 
+/** Shared closed-JSON budget (one detached declaration value). */
+interface ClosedJsonBudget {
+  nodes: number;
+  text: number;
+  readonly active: Set<object>;
+}
+
+/** One entry in key order, charging key text to the shared budget. */
+function visitClosedJsonEntries(
+  output: unknown[] | Record<string, unknown>,
+  part: object,
+  keys: readonly (string | symbol)[],
+  array: boolean,
+  depth: number,
+  budget: ClosedJsonBudget,
+): void {
+  for (const key of keys) {
+    if (array && key === 'length') continue;
+    if (typeof key !== 'string' || array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= (part as unknown[]).length)) {
+      return refuse('own JSON keys required.');
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(part, key);
+    if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) return refuse('own enumerable data required.');
+    if ((budget.text += key.length) > MAX_TEXT) return refuse('JSON text budget exceeded.');
+    Object.defineProperty(output, key, { enumerable: true, configurable: true, writable: true, value: visitClosedJsonPart(descriptor.value, depth + 1, budget) });
+  }
+}
+
+/** One detached node: primitives pass through, plain objects/arrays recurse. */
+function visitClosedJsonPart(part: unknown, depth: number, budget: ClosedJsonBudget): unknown {
+  if (++budget.nodes > MAX_NODES || depth > MAX_DEPTH) return refuse('finite JSON budget exceeded.');
+  if (part === null || typeof part === 'boolean') return part;
+  if (typeof part === 'string') {
+    if ((budget.text += part.length) > MAX_TEXT) return refuse('JSON text budget exceeded.');
+    return part;
+  }
+  if (typeof part === 'number' && Number.isFinite(part)) return part;
+  if (typeof part !== 'object' || budget.active.has(part)) return refuse('own JSON data required.');
+  const array = Array.isArray(part), keys = Reflect.ownKeys(part), prototype = Object.getPrototypeOf(part);
+  if (array ? prototype !== Array.prototype || keys.length !== part.length + 1 : prototype !== Object.prototype && prototype !== null) {
+    return refuse('dense own JSON required.');
+  }
+  const output: unknown[] | Record<string, unknown> = array ? [] : {};
+  budget.active.add(part);
+  visitClosedJsonEntries(output, part, keys, array, depth, budget);
+  budget.active.delete(part);
+  return output;
+}
+
 /** Detached, dense own JSON with one shared budget across the complete value. */
 function closedJSON(value: unknown): unknown {
-  let nodes = 0, text = 0;
-  const active = new Set<object>();
-  const visit = (part: unknown, depth: number): unknown => {
-    if (++nodes > MAX_NODES || depth > MAX_DEPTH) return refuse('finite JSON budget exceeded.');
-    if (part === null || typeof part === 'boolean') return part;
-    if (typeof part === 'string') {
-      if ((text += part.length) > MAX_TEXT) return refuse('JSON text budget exceeded.');
-      return part;
-    }
-    if (typeof part === 'number' && Number.isFinite(part)) return part;
-    if (typeof part !== 'object' || active.has(part)) return refuse('own JSON data required.');
-    const array = Array.isArray(part), keys = Reflect.ownKeys(part), prototype = Object.getPrototypeOf(part);
-    if (array ? prototype !== Array.prototype || keys.length !== part.length + 1 : prototype !== Object.prototype && prototype !== null) {
-      return refuse('dense own JSON required.');
-    }
-    const output: unknown[] | Record<string, unknown> = array ? [] : {};
-    active.add(part);
-    for (const key of keys) {
-      if (array && key === 'length') continue;
-      if (typeof key !== 'string' || array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= (part as unknown[]).length)) {
-        return refuse('own JSON keys required.');
-      }
-      const descriptor = Object.getOwnPropertyDescriptor(part, key);
-      if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) return refuse('own enumerable data required.');
-      if ((text += key.length) > MAX_TEXT) return refuse('JSON text budget exceeded.');
-      Object.defineProperty(output, key, { enumerable: true, configurable: true, writable: true, value: visit(descriptor.value, depth + 1) });
-    }
-    active.delete(part);
-    return output;
-  };
-  return visit(value, 0);
+  return visitClosedJsonPart(value, 0, { nodes: 0, text: 0, active: new Set<object>() });
 }
 function record(value: unknown, required: readonly string[], optional: readonly string[] = []): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return refuse('closed object required.');
@@ -184,55 +203,23 @@ function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInput
   same(input.kind, tag.kind);
   let original: CanTypeId;
   if (input.kind === 'ref') {
-    record(input, ['name', 'kind', 'required', 'model', 'versioned'], ['computedDefault', 'array', 'nullable', 'min', 'max', 'default']);
-    record(tag, ['kind', 'model', 'requireVersion']);
-    same(input.model, tag.model); same(input.versioned, tag.requireVersion); boolean(input.versioned);
-    const model = string(input.model);
-    if (!values.canonicalModels.some(candidate => candidate.name === model)) return refuse('same-load reference model required.');
-    optionalSame(input, authored, 'array'); optionalSame(input, authored, 'nullable');
-    const marker = input.array === undefined ? undefined : record(input.array, ['required']);
-    if (marker !== undefined) boolean(marker.required);
-    if (input.nullable !== undefined) boolean(input.nullable);
-    original = type(`${model}${marker === undefined ? '' : marker.required ? '[]!' : '[]'}${input.nullable === true ? '?' : ''}`);
-    if (Object.hasOwn(authored, 'valueType')) same(original, authored.valueType);
+    original = bindRefInput(values, input, authored, tag);
   } else if (input.kind === 'delivery') {
-    record(input, ['name', 'kind', 'required', 'delivery'], ['min', 'max', 'default']);
-    same(input.delivery, tag);
-    const delivery = input.delivery as FrameworkOpaqueDeliveryContext['canonical'];
-    original = type(`delivery(${string(delivery.capability)}.${string(delivery.operation)})`);
-    if (Object.hasOwn(authored, 'valueType')) same(original, authored.valueType);
+    original = bindDeliveryInput(input, authored, tag);
   } else {
-    if (!['nominal', 'enum', ...Object.keys(scalarTypes)].includes(String(input.kind))) return refuse('checked input kind required.');
-    record(input, ['name', 'kind', 'required', 'valueType'], ['computedDefault', 'enumValues', 'min', 'max', 'default', 'nullable']);
-    original = type(input.valueType);
-    if (Object.hasOwn(authored, 'valueType')) same(original, authored.valueType);
-    const ast = parseTypeId(original), base = printTypeBase(ast.base);
-    const marker = authored.array === undefined ? undefined : record(authored.array, ['required']);
-    if (marker !== undefined) boolean(marker.required);
-    if (ast.array !== (marker !== undefined) || ast.requiredArray !== (marker?.required === true) ||
-        ast.nullable !== (authored.nullable === true)) return refuse('input type/container correspondence required.');
-    if (Object.hasOwn(authored, 'nullable')) boolean(authored.nullable);
-    if (input.kind === 'nominal') {
-      record(tag, ['kind', 'name']);
-      if (ast.base.kind !== 'nominal' || tag.name !== ast.base.path) return refuse('actual nominal source tag required.');
-    } else if (input.kind === 'enum') {
-      record(tag, ['kind', 'values']); same(input.enumValues, tag.values);
-      if (ast.base.kind === 'enum') same(ast.base.cases, tag.values);
-      else if (ast.base.kind === 'nominal') {
-        const name = ast.base.path;
-        const cases = values.valueTypes?.enums?.find(item => item.name === name)?.cases;
-        if (cases === undefined) return refuse('owning named enum required.');
-        same(cases, tag.values);
-      } else return refuse('actual enum type required.');
-    } else {
-      record(tag, ['kind']);
-      if (!Object.hasOwn(authored, 'valueType') && base !== scalarTypes[String(input.kind)]) {
-        return refuse('collapsed scalar source requires its exact type claim.');
-      }
-      if (Object.hasOwn(input, 'enumValues') || !(base === scalarTypes[String(input.kind)] ||
-          input.kind === 'string' && ['date', 'email', 'timezone'].includes(base))) return refuse('actual scalar source type required.');
-    }
+    original = bindScalarInput(values, input, authored, tag);
   }
+  return finishBoundInput(values, input, canonical, original, sendOnly);
+}
+
+/** Profile bind with literal-default occurrences and lexical snapshot. */
+function finishBoundInput(
+  values: FileReferenceProfileBound,
+  input: Record<string, unknown>,
+  canonical: CanonicalInputDef,
+  original: CanTypeId,
+  sendOnly: boolean,
+): BoundInput {
   if ((input.default as { kind?: unknown } | undefined)?.kind === 'context' &&
       (input.kind !== 'user' || input.required !== false || original !== 'user' && original !== 'user?' || input.computedDefault === true)) {
     return refuse('ordinary singular User context default required.');
@@ -247,6 +234,100 @@ function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInput
     ? bindModelLexicalSnapshotProfile(values, original) : undefined;
   return { declaration: canonical, profile, ...(modelSnapshot === undefined ? {} : { modelSnapshot }) };
 }
+/** Reference input: same-load model with container markers. */
+function bindRefInput(
+  values: FileReferenceProfileBound,
+  input: Record<string, unknown>,
+  authored: Record<string, unknown>,
+  tag: Record<string, unknown>,
+): CanTypeId {
+  record(input, ['name', 'kind', 'required', 'model', 'versioned'], ['computedDefault', 'array', 'nullable', 'min', 'max', 'default']);
+  record(tag, ['kind', 'model', 'requireVersion']);
+  same(input.model, tag.model); same(input.versioned, tag.requireVersion); boolean(input.versioned);
+  const model = string(input.model);
+  if (!values.canonicalModels.some(candidate => candidate.name === model)) return refuse('same-load reference model required.');
+  optionalSame(input, authored, 'array'); optionalSame(input, authored, 'nullable');
+  const marker = input.array === undefined ? undefined : record(input.array, ['required']);
+  if (marker !== undefined) boolean(marker.required);
+  if (input.nullable !== undefined) boolean(input.nullable);
+  const original = type(`${model}${marker === undefined ? '' : marker.required ? '[]!' : '[]'}${input.nullable === true ? '?' : ''}`);
+  if (Object.hasOwn(authored, 'valueType')) same(original, authored.valueType);
+  return original;
+}
+
+/** Delivery input: capability dispatch type against its context tag. */
+function bindDeliveryInput(
+  input: Record<string, unknown>,
+  authored: Record<string, unknown>,
+  tag: Record<string, unknown>,
+): CanTypeId {
+  record(input, ['name', 'kind', 'required', 'delivery'], ['min', 'max', 'default']);
+  same(input.delivery, tag);
+  const delivery = input.delivery as FrameworkOpaqueDeliveryContext['canonical'];
+  const original = type(`delivery(${string(delivery.capability)}.${string(delivery.operation)})`);
+  if (Object.hasOwn(authored, 'valueType')) same(original, authored.valueType);
+  return original;
+}
+
+/** Scalar input: checked kind with type/container correspondence. */
+function bindScalarInput(
+  values: FileReferenceProfileBound,
+  input: Record<string, unknown>,
+  authored: Record<string, unknown>,
+  tag: Record<string, unknown>,
+): CanTypeId {
+  if (!['nominal', 'enum', ...Object.keys(scalarTypes)].includes(String(input.kind))) return refuse('checked input kind required.');
+  record(input, ['name', 'kind', 'required', 'valueType'], ['computedDefault', 'enumValues', 'min', 'max', 'default', 'nullable']);
+  const original = type(input.valueType);
+  if (Object.hasOwn(authored, 'valueType')) same(original, authored.valueType);
+  const ast = parseTypeId(original), base = printTypeBase(ast.base);
+  checkScalarContainer(input, authored, ast);
+  if (input.kind === 'nominal') {
+    record(tag, ['kind', 'name']);
+    if (ast.base.kind !== 'nominal' || tag.name !== ast.base.path) return refuse('actual nominal source tag required.');
+  } else if (input.kind === 'enum') {
+    checkEnumInput(values, input, tag, ast);
+  } else {
+    record(tag, ['kind']);
+    if (!Object.hasOwn(authored, 'valueType') && base !== scalarTypes[String(input.kind)]) {
+      return refuse('collapsed scalar source requires its exact type claim.');
+    }
+    if (Object.hasOwn(input, 'enumValues') || !(base === scalarTypes[String(input.kind)] ||
+        input.kind === 'string' && ['date', 'email', 'timezone'].includes(base))) return refuse('actual scalar source type required.');
+  }
+  return original;
+}
+
+/** Type/container correspondence between the claim and authored markers. */
+function checkScalarContainer(
+  input: Record<string, unknown>,
+  authored: Record<string, unknown>,
+  ast: ReturnType<typeof parseTypeId>,
+): void {
+  const marker = authored.array === undefined ? undefined : record(authored.array, ['required']);
+  if (marker !== undefined) boolean(marker.required);
+  if (ast.array !== (marker !== undefined) || ast.requiredArray !== (marker?.required === true) ||
+      ast.nullable !== (authored.nullable === true)) return refuse('input type/container correspondence required.');
+  if (Object.hasOwn(authored, 'nullable')) boolean(authored.nullable);
+}
+
+/** Enum input: inline cases or the owning named enum vocabulary. */
+function checkEnumInput(
+  values: FileReferenceProfileBound,
+  input: Record<string, unknown>,
+  tag: Record<string, unknown>,
+  ast: ReturnType<typeof parseTypeId>,
+): void {
+  record(tag, ['kind', 'values']); same(input.enumValues, tag.values);
+  if (ast.base.kind === 'enum') same(ast.base.cases, tag.values);
+  else if (ast.base.kind === 'nominal') {
+    const name = ast.base.path;
+    const cases = values.valueTypes?.enums?.find(item => item.name === name)?.cases;
+    if (cases === undefined) return refuse('owning named enum required.');
+    same(cases, tag.values);
+  } else return refuse('actual enum type required.');
+}
+
 function nominalResult(values: FileReferenceProfileBound, canonical: unknown, artifact: unknown): FileReferenceProfile {
   same(canonical, artifact);
   const result = record(canonical, ['name', 'fields']);
@@ -267,30 +348,47 @@ function deliveryContext(bound: BoundOpaqueDeclarations, context: FrameworkOpaqu
   string(original.capability); string(original.operation);
   nominalResult(owner(bound).values, original.result, context.artifact.result);
   if (kind === 'judgment' && context.kind === 'judgment') {
-    if (original.judgment !== true || original.operation !== 'evaluate' || original.version !== context.specification.version ||
-        original.capability !== context.specification.declaration) return refuse('original Judgment specification identity required.');
-    const values = owner(bound).values;
-    const schema = values.valueSchema ?? normalizeValueTypes(values.valueTypes!, values.canonicalModels.map(model => model.name)).valueSchema;
-    const specification = validateValue(schema, 'std.JudgmentSpec', context.specification, 'create');
-    same(encodeValue('std.JudgmentSpec', specification), context.specification);
-    createJudgmentReceiptContext(context.canonical, specification as unknown as Parameters<typeof createJudgmentReceiptContext>[1], context.valueTypes);
-    const questions = [...context.specification.noul, ...context.specification.choice, ...context.specification.score].map(question => question.id);
-    const order = array(context.order).map(string);
-    if (new Set(order).size !== order.length || order.length !== questions.length || questions.some(id => !order.includes(id))) return refuse('complete original interleaved Judgment order required.');
-    same(context.canonical.result.fields.slice(0, order.length).map(field => field.name), order);
-    const ownTypes = normalizeValueTypes(context.valueTypes).valueTypes;
-    for (const contract of ownTypes.contracts) same(contract, values.valueTypes?.contracts.find(item => item.name === contract.name));
-    for (const enumeration of ownTypes.enums ?? []) same(enumeration, values.valueTypes?.enums?.find(item => item.name === enumeration.name));
-    for (const alias of ownTypes.aliases ?? []) same(alias, values.valueTypes?.aliases?.find(item => item.name === alias.name));
+    checkJudgmentDeliveryContext(bound, context, original);
   } else {
     integer(original.version);
     if (kind === 'generation' && context.kind === 'generation') {
-      record(context.request, ['source', 'revision']); string(context.request.source); string(context.request.revision);
-      const revision = bindDeclaredFileReferenceProfile(owner(bound).values, 'int' as CanTypeId);
-      fileReferenceOccurrences(revision, context.request.revision);
-      if (context.request.revision.startsWith('-')) return refuse('nonnegative generation request revision required.');
+      checkGenerationDeliveryRequest(bound, context);
     }
   }
+}
+
+/** Judgment specification identity with its interleaved question order. */
+function checkJudgmentDeliveryContext(
+  bound: BoundOpaqueDeclarations,
+  context: FrameworkOpaqueDeliveryProfile & { kind: 'judgment' },
+  original: Record<string, unknown>,
+): void {
+  if (original.judgment !== true || original.operation !== 'evaluate' || original.version !== context.specification.version ||
+      original.capability !== context.specification.declaration) return refuse('original Judgment specification identity required.');
+  const values = owner(bound).values;
+  const schema = values.valueSchema ?? normalizeValueTypes(values.valueTypes!, values.canonicalModels.map(model => model.name)).valueSchema;
+  const specification = validateValue(schema, 'std.JudgmentSpec', context.specification, 'create');
+  same(encodeValue('std.JudgmentSpec', specification), context.specification);
+  createJudgmentReceiptContext(context.canonical, specification as unknown as Parameters<typeof createJudgmentReceiptContext>[1], context.valueTypes);
+  const questions = [...context.specification.noul, ...context.specification.choice, ...context.specification.score].map(question => question.id);
+  const order = array(context.order).map(string);
+  if (new Set(order).size !== order.length || order.length !== questions.length || questions.some(id => !order.includes(id))) return refuse('complete original interleaved Judgment order required.');
+  same(context.canonical.result.fields.slice(0, order.length).map(field => field.name), order);
+  const ownTypes = normalizeValueTypes(context.valueTypes).valueTypes;
+  for (const contract of ownTypes.contracts) same(contract, values.valueTypes?.contracts.find(item => item.name === contract.name));
+  for (const enumeration of ownTypes.enums ?? []) same(enumeration, values.valueTypes?.enums?.find(item => item.name === enumeration.name));
+  for (const alias of ownTypes.aliases ?? []) same(alias, values.valueTypes?.aliases?.find(item => item.name === alias.name));
+}
+
+/** Generation request shape with its nonnegative revision marker. */
+function checkGenerationDeliveryRequest(
+  bound: BoundOpaqueDeclarations,
+  context: FrameworkOpaqueDeliveryProfile & { kind: 'generation' },
+): void {
+  record(context.request, ['source', 'revision']); string(context.request.source); string(context.request.revision);
+  const revision = bindDeclaredFileReferenceProfile(owner(bound).values, 'int' as CanTypeId);
+  fileReferenceOccurrences(revision, context.request.revision);
+  if (context.request.revision.startsWith('-')) return refuse('nonnegative generation request revision required.');
 }
 
 /** Internal correspondence only; authentic installed producer/origin and scope
@@ -346,93 +444,148 @@ export function bindOpaqueFileDeclarations(sets: readonly FrameworkOpaqueDeclara
   const detached = deepFreeze(closedJSON(sets)) as readonly FrameworkOpaqueDeclarationSet[];
   const output = new Map<string, BoundOpaqueDeclarations>();
   for (const set of detached) {
-    record(set, ['id', 'inventory', 'snapshot', 'sources', 'canonicalModels', 'artifactModels', 'valueTypes', 'originalContracts', 'valueDefaults', 'declarations']);
-    const id = string(set.id);
-    if (output.has(id)) return refuse('duplicate historical declaration set.');
-    record(set.inventory, ['owner', 'snapshotId', 'digest']);
-    for (const value of Object.values(set.inventory)) string(value);
-    record(set.snapshot, ['owner', 'snapshotId', 'digest', 'installedRevision', 'installedAt']);
-    for (const key of ['owner', 'snapshotId', 'digest'] as const) same(set.snapshot[key], set.inventory[key]);
-    integer(set.snapshot.installedRevision); integer(set.snapshot.installedAt);
-    const sources = new Set<string>();
-    for (const item of array(set.sources) as FrameworkOpaqueDeclarationSet['sources']) {
-      record(item, ['path', 'sha256']); string(item.path);
-      if (!/^[0-9a-f]{64}$/.test(item.sha256) || sources.has(item.path)) return refuse('complete unique source inventory required.');
-      sources.add(item.path);
-    }
-    array(set.canonicalModels); array(set.artifactModels); array(set.valueDefaults); array(set.declarations);
-    validateModels(set);
-    const normalized = normalizeValueTypes(set.valueTypes, set.canonicalModels.map(model => model.name));
-    same(normalized.valueTypes, set.valueTypes);
-    const values: FileReferenceProfileBound = { canonicalModels: set.canonicalModels,
-      artifactModels: new Map(set.artifactModels.map(model => [model.name as ModelName, model])), valueTypes: set.valueTypes,
-      valueSchema: normalized.valueSchema };
-    // Check every original value declaration, including unused union arms; a
-    // missing nominal is not a model-reference or File-free fallback.
-    for (const entry of [...set.valueTypes.contracts, ...(set.valueTypes.enums ?? []), ...(set.valueTypes.aliases ?? [])]) {
-      bindDeclaredFileReferenceProfile(values, type(entry.name));
-    }
-    const valueDefaults = bindOriginalValueDefaults(set, values, normalized.valueSchema);
-    const bound = Object.freeze({ declarationSet: deepFreeze(set) });
-    const declarations = new Map<string, BoundDeclaration>();
-    owners.set(bound, { values, declarations, valueDefaults });
-    for (const item of set.declarations) {
-      record(item, ['id', 'source', 'profile']);
-      if (declarations.has(string(item.id))) return refuse('duplicate original declaration ID.');
-      const from = item.source;
-      record(from, from.kind === 'callable' ? ['kind', 'source', 'callable'] : from.kind === 'event' ?
-        ['kind', 'source', 'event'] : from.kind === 'send-guard' ?
-          ['kind', 'rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs'] : ['kind', 'source', 'context']);
-      source(set, from.source);
-      if (from.kind === 'callable') {
-        callableShape(from.callable);
-        if (from.callable.module !== from.source.module) return refuse('original source/callable module correspondence required.');
-      } else if (from.kind === 'event') string(from.event);
-      else if (from.kind === 'delivery') {
-        deliveryContext(bound, from.context, true);
-      }
-      else if (from.kind === 'send-guard') sendGuard(set, from, true);
-      else return refuse('checked source kind required.');
-      const profile = item.profile;
-      record(profile, ['kind', 'canonical', 'artifact']);
-      let inputs: ReadonlyMap<string, BoundInput> | undefined, result: FileReferenceProfile | undefined;
-      if (profile.kind === 'inputs') {
-        const canonical = array(profile.canonical), artifact = array(profile.artifact);
-        if (canonical.length !== artifact.length) return refuse('complete ordered original inputs required.');
-        if (from.kind === 'send-guard' && canonical.length !== from.inputs.length) return refuse('complete original send-guard inputs required.');
-        const members = new Map<string, BoundInput>();
-        for (let index = 0; index < canonical.length; index++) {
-          const input = boundInput(values, canonical[index] as CanonicalInputDef, artifact[index] as ArtifactOperationInput, from.kind === 'send-guard');
-          if (from.kind === 'send-guard') {
-            const expected = from.inputs[index]!;
-            if (input.declaration.name !== expected.name || input.profile.type !== expected.type || input.declaration.required !== true ||
-                ['default', 'computedDefault'].some(key => Object.hasOwn(canonical[index]!, key) || Object.hasOwn(artifact[index]!, key))) {
-              return refuse('exact ordered send-guard lexical input profile without defaults required.');
-            }
-          }
-          if (members.has(input.declaration.name)) return refuse('duplicate original input.');
-          members.set(input.declaration.name, input);
-        }
-        inputs = members;
-      } else if (profile.kind === 'result') {
-        record(profile.canonical, ['type'], ['disclosure']); record(profile.artifact, ['type'], ['disclosure']);
-        same(profile.canonical, profile.artifact);
-        if (profile.canonical.type === 'void' || from.kind !== 'callable') return refuse('actual callable result or explicit void profile required.');
-        result = bindDeclaredFileReferenceProfile(values, type(profile.canonical.type));
-      } else if (profile.kind === 'provider-result') {
-        result = nominalResult(values, profile.canonical, profile.artifact);
-        if (from.kind !== 'delivery') return refuse('provider result must own its actual delivery source.');
-        same(profile.canonical, from.context.canonical.result);
-      } else if (profile.kind === 'void') {
-        record(profile.canonical, ['type'], ['disclosure']); record(profile.artifact, ['type'], ['disclosure']);
-        same(profile.canonical, profile.artifact);
-        if (profile.canonical.type !== 'void' || profile.artifact.type !== 'void' || from.kind !== 'callable') return refuse('explicit source-declared void required.');
-      } else return refuse('complete original profile required.');
-      declarations.set(item.id, { declaration: item, ...(inputs === undefined ? {} : { inputs }), ...(result === undefined ? {} : { result }) });
-    }
+    const { id, bound } = bindOneDeclarationSet(set, output, validateModels);
     output.set(id, bound);
   }
   return output;
+}
+
+/** One declaration set: header census, value preparation, declaration binds. */
+function bindOneDeclarationSet(
+  set: FrameworkOpaqueDeclarationSet,
+  output: Map<string, BoundOpaqueDeclarations>,
+  validateModels: (set: FrameworkOpaqueDeclarationSet) => void,
+): { id: string; bound: BoundOpaqueDeclarations } {
+  record(set, ['id', 'inventory', 'snapshot', 'sources', 'canonicalModels', 'artifactModels', 'valueTypes', 'originalContracts', 'valueDefaults', 'declarations']);
+  const id = string(set.id);
+  if (output.has(id)) return refuse('duplicate historical declaration set.');
+  checkDeclarationSetHeader(set);
+  array(set.canonicalModels); array(set.artifactModels); array(set.valueDefaults); array(set.declarations);
+  validateModels(set);
+  const normalized = normalizeValueTypes(set.valueTypes, set.canonicalModels.map(model => model.name));
+  same(normalized.valueTypes, set.valueTypes);
+  const values: FileReferenceProfileBound = { canonicalModels: set.canonicalModels,
+    artifactModels: new Map(set.artifactModels.map(model => [model.name as ModelName, model])), valueTypes: set.valueTypes,
+    valueSchema: normalized.valueSchema };
+  // Check every original value declaration, including unused union arms; a
+  // missing nominal is not a model-reference or File-free fallback.
+  for (const entry of [...set.valueTypes.contracts, ...(set.valueTypes.enums ?? []), ...(set.valueTypes.aliases ?? [])]) {
+    bindDeclaredFileReferenceProfile(values, type(entry.name));
+  }
+  const valueDefaults = bindOriginalValueDefaults(set, values, normalized.valueSchema);
+  const bound = Object.freeze({ declarationSet: deepFreeze(set) });
+  const declarations = new Map<string, BoundDeclaration>();
+  owners.set(bound, { values, declarations, valueDefaults });
+  for (const item of set.declarations) {
+    bindOneOpaqueDeclaration(bound, values, declarations, item);
+  }
+  return { id, bound };
+}
+
+/** Inventory, snapshot and source census for one declaration set. */
+function checkDeclarationSetHeader(set: FrameworkOpaqueDeclarationSet): void {
+  record(set.inventory, ['owner', 'snapshotId', 'digest']);
+  for (const value of Object.values(set.inventory)) string(value);
+  record(set.snapshot, ['owner', 'snapshotId', 'digest', 'installedRevision', 'installedAt']);
+  for (const key of ['owner', 'snapshotId', 'digest'] as const) same(set.snapshot[key], set.inventory[key]);
+  integer(set.snapshot.installedRevision); integer(set.snapshot.installedAt);
+  const sources = new Set<string>();
+  for (const item of array(set.sources) as FrameworkOpaqueDeclarationSet['sources']) {
+    record(item, ['path', 'sha256']); string(item.path);
+    if (!/^[0-9a-f]{64}$/.test(item.sha256) || sources.has(item.path)) return refuse('complete unique source inventory required.');
+    sources.add(item.path);
+  }
+}
+
+/** One original declaration in set order: source dispatch, then profile. */
+function bindOneOpaqueDeclaration(
+  bound: BoundOpaqueDeclarations,
+  values: FileReferenceProfileBound,
+  declarations: Map<string, BoundDeclaration>,
+  item: FrameworkOpaqueDeclarationSet['declarations'][number],
+): void {
+  record(item, ['id', 'source', 'profile']);
+  if (declarations.has(string(item.id))) return refuse('duplicate original declaration ID.');
+  const from = item.source;
+  record(from, from.kind === 'callable' ? ['kind', 'source', 'callable'] : from.kind === 'event' ?
+    ['kind', 'source', 'event'] : from.kind === 'send-guard' ?
+      ['kind', 'rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs'] : ['kind', 'source', 'context']);
+  source(bound.declarationSet, from.source);
+  if (from.kind === 'callable') {
+    callableShape(from.callable);
+    if (from.callable.module !== from.source.module) return refuse('original source/callable module correspondence required.');
+  } else if (from.kind === 'event') string(from.event);
+  else if (from.kind === 'delivery') {
+    deliveryContext(bound, from.context, true);
+  }
+  else if (from.kind === 'send-guard') sendGuard(bound.declarationSet, from, true);
+  else return refuse('checked source kind required.');
+  const bound_ = bindDeclarationProfile(values, item, from);
+  declarations.set(item.id, bound_);
+}
+
+/** Profile dispatch for one declaration: inputs, result, provider or void. */
+function bindDeclarationProfile(
+  values: FileReferenceProfileBound,
+  item: FrameworkOpaqueDeclarationSet['declarations'][number],
+  from: FrameworkOpaqueDeclaration['source'],
+): { declaration: FrameworkOpaqueDeclarationSet['declarations'][number]; inputs?: ReadonlyMap<string, BoundInput>; result?: FileReferenceProfile } {
+  const profile = item.profile;
+  record(profile, ['kind', 'canonical', 'artifact']);
+  let inputs: ReadonlyMap<string, BoundInput> | undefined, result: FileReferenceProfile | undefined;
+  if (profile.kind === 'inputs') {
+    inputs = bindInputsProfile(values, profile, from);
+  } else if (profile.kind === 'result') {
+    record(profile.canonical, ['type'], ['disclosure']); record(profile.artifact, ['type'], ['disclosure']);
+    same(profile.canonical, profile.artifact);
+    if (profile.canonical.type === 'void' || from.kind !== 'callable') return refuse('actual callable result or explicit void profile required.');
+    result = bindDeclaredFileReferenceProfile(values, type(profile.canonical.type));
+  } else if (profile.kind === 'provider-result') {
+    result = nominalResult(values, profile.canonical, profile.artifact);
+    if (from.kind !== 'delivery') return refuse('provider result must own its actual delivery source.');
+    same(profile.canonical, from.context.canonical.result);
+  } else if (profile.kind === 'void') {
+    record(profile.canonical, ['type'], ['disclosure']); record(profile.artifact, ['type'], ['disclosure']);
+    same(profile.canonical, profile.artifact);
+    if (profile.canonical.type !== 'void' || profile.artifact.type !== 'void' || from.kind !== 'callable') return refuse('explicit source-declared void required.');
+  } else return refuse('complete original profile required.');
+  return { declaration: item, ...(inputs === undefined ? {} : { inputs }), ...(result === undefined ? {} : { result }) };
+}
+
+/** Ordered original inputs with send-guard lexical correspondence. */
+function bindInputsProfile(
+  values: FileReferenceProfileBound,
+  profile: { readonly canonical: unknown; readonly artifact: unknown },
+  from: FrameworkOpaqueDeclaration['source'],
+): ReadonlyMap<string, BoundInput> {
+  const canonical = array(profile.canonical), artifact = array(profile.artifact);
+  if (canonical.length !== artifact.length) return refuse('complete ordered original inputs required.');
+  if (from.kind === 'send-guard' && canonical.length !== from.inputs.length) return refuse('complete original send-guard inputs required.');
+  const members = new Map<string, BoundInput>();
+  for (let index = 0; index < canonical.length; index++) {
+    const input = boundInput(values, canonical[index] as CanonicalInputDef, artifact[index] as ArtifactOperationInput, from.kind === 'send-guard');
+    if (from.kind === 'send-guard') {
+      checkSendGuardInput(from, input, canonical[index], artifact[index], index);
+    }
+    if (members.has(input.declaration.name)) return refuse('duplicate original input.');
+    members.set(input.declaration.name, input);
+  }
+  return members;
+}
+
+/** Exact ordered send-guard lexical input profile without defaults. */
+function checkSendGuardInput(
+  from: Extract<FrameworkOpaqueDeclaration['source'], { kind: 'send-guard' }>,
+  input: BoundInput,
+  canonical: unknown,
+  artifact: unknown,
+  index: number,
+): void {
+  const expected = from.inputs[index]!;
+  if (input.declaration.name !== expected.name || input.profile.type !== expected.type || input.declaration.required !== true ||
+      ['default', 'computedDefault'].some(key => Object.hasOwn(canonical!, key) || Object.hasOwn(artifact!, key))) {
+    return refuse('exact ordered send-guard lexical input profile without defaults required.');
+  }
 }
 
 /** The value argument is the actual value selected at projection.path by root. */
@@ -444,63 +597,121 @@ export function resolveOpaqueFileProjection(bound: BoundOpaqueDeclarations, proj
     ['path', 'kind', 'declarationId', 'presence'] : ['path', 'kind', 'declarationId']);
   if (array(picked.path).some(part => typeof part === 'string' ? part === '' : typeof part !== 'number' || !Number.isSafeInteger(part) || part < 0)) return refuse('exact projection path required.');
   if (picked.kind === 'inputs') {
-    const selected = declaration(bound, picked.declarationId, 'inputs');
-    if (selected.declaration.source.kind === 'delivery' && selected.declaration.source.context.kind === 'generation-profile') {
-      originalDeliveryInstance(bound, selected.declaration, binding);
-    }
-    if (selected.declaration.source.kind === 'send-guard') {
-      const queued = binding?.origin.kind === 'source-routing' && binding.origin.recipe.kind === 'queued-routes'
-        ? binding.origin.recipe : undefined;
-      if (queued?.guard !== undefined && queued.guard.inputsDeclarationId === picked.declarationId) {
-        validateOpaqueFileOrigin(bound, binding!);
-        same(queued.guard.declaration, (() => { const { kind: _kind, ...original } = selected.declaration.source; return original; })());
-        same(picked.path, ['origin', 'dispatch', 'sourceGuard', 'inputs']);
-      } else same(picked.path, ['inputs']);
-    }
-    const inputs = selected.inputs!;
-    const data = record(wire, [], [...inputs.keys()]);
-    const found: { path: readonly (string | number)[]; ref: string }[] = [];
-    for (const [name, input] of inputs) {
-      if (!Object.hasOwn(data, name)) {
-        if (input.declaration.required) return refuse('required original admitted input missing.');
-        continue;
-      }
-      const member = data[name];
-      if (input.modelSnapshot === undefined && input.declaration.kind === 'ref' && input.declaration.versioned) {
-        for (const ref of input.profile.array && member !== null ? array(member) : member === null ? [] : [member]) {
-          if (typeof ref !== 'object' || ref === null || !Object.hasOwn(ref, 'version')) return refuse('original admitted reference version required.');
-        }
-      }
-      for (const item of input.modelSnapshot === undefined ? fileReferenceOccurrences(input.profile, member)
-        : modelLexicalSnapshotOccurrences(input.modelSnapshot, member)) found.push({ path: [name, ...item.path], ref: item.ref });
-    }
-    return deepFreeze(found);
+    return resolveInputsProjection(bound, picked, wire, binding);
   }
   if (picked.kind === 'result') {
-    const selected = declaration(bound, picked.declarationId);
-    if (!['result', 'provider-result', 'void'].includes(selected.declaration.profile.kind)) return refuse('actual result declaration required.');
-    const from = selected.declaration.source;
-    const context = from.kind !== 'delivery' ? undefined : from.context.kind === 'generation-profile'
-      ? originalDeliveryInstance(bound, selected.declaration, binding) : from.context;
-    if (picked.presence === 'no-result') {
-      if (wire !== null) return refuse('no-result projection requires actual null.');
-      return Object.freeze([]);
-    }
-    if (picked.presence !== 'value' || selected.result === undefined) return refuse('explicit void cannot contain a value.');
-    if (context !== undefined) {
-      if (context.kind === 'generation') {
-        const result = record(wire, ['source', 'revision'], context.canonical.result.fields.map(field => field.name));
-        same(result.source, context.request.source); same(result.revision, context.request.revision);
-      } else if (context.kind === 'judgment') {
-        const values = owner(bound).values;
-        const specification = validateValue(values.valueSchema!, 'std.JudgmentSpec', context.specification, 'create');
-        const actual = createJudgmentReceiptContext(context.canonical, specification as unknown as Parameters<typeof createJudgmentReceiptContext>[1], context.valueTypes);
-        if (readJudgmentResult(wire, actual) === null) return refuse('result violates original Judgment specification.');
-      }
-    }
-    return fileReferenceOccurrences(selected.result, wire);
+    return resolveResultProjection(bound, picked, wire, binding);
   }
   if (picked.kind !== 'default') return refuse('typed projection kind required.');
+  return resolveDefaultProjection(bound, picked, wire);
+}
+
+/** Admitted inputs projection: send-guard path, then per-input occurrences. */
+function resolveInputsProjection(
+  bound: BoundOpaqueDeclarations,
+  picked: FrameworkOpaqueValueProjection & { kind: 'inputs' },
+  wire: unknown,
+  binding: FrameworkFilePayloadOrigin | undefined,
+): readonly { readonly path: readonly (string | number)[]; readonly ref: string }[] {
+  const selected = declaration(bound, picked.declarationId, 'inputs');
+  if (selected.declaration.source.kind === 'delivery' && selected.declaration.source.context.kind === 'generation-profile') {
+    originalDeliveryInstance(bound, selected.declaration, binding);
+  }
+  if (selected.declaration.source.kind === 'send-guard') {
+    checkSendGuardProjection(bound, selected.declaration, picked, binding);
+  }
+  const inputs = selected.inputs!;
+  const data = record(wire, [], [...inputs.keys()]);
+  const found: { path: readonly (string | number)[]; ref: string }[] = [];
+  for (const [name, input] of inputs) {
+    resolveOneInputProjection(input, data, name, found);
+  }
+  return deepFreeze(found);
+}
+
+/** Send-guard versus plain inputs path for one projection. */
+function checkSendGuardProjection(
+  bound: BoundOpaqueDeclarations,
+  selected: FrameworkOpaqueDeclaration,
+  picked: FrameworkOpaqueValueProjection & { kind: 'inputs' },
+  binding: FrameworkFilePayloadOrigin | undefined,
+): void {
+  const queued = binding?.origin.kind === 'source-routing' && binding.origin.recipe.kind === 'queued-routes'
+    ? binding.origin.recipe : undefined;
+  if (queued?.guard !== undefined && queued.guard.inputsDeclarationId === picked.declarationId) {
+    validateOpaqueFileOrigin(bound, binding!);
+    same(queued.guard.declaration, (() => { const { kind: _kind, ...original } = selected.source; return original; })());
+    same(picked.path, ['origin', 'dispatch', 'sourceGuard', 'inputs']);
+  } else same(picked.path, ['inputs']);
+}
+
+/** One admitted input in declaration order: version seal, then occurrences. */
+function resolveOneInputProjection(
+  input: BoundInput,
+  data: Record<string, unknown>,
+  name: string,
+  found: { path: readonly (string | number)[]; ref: string }[],
+): void {
+  if (!Object.hasOwn(data, name)) {
+    if (input.declaration.required) return refuse('required original admitted input missing.');
+    return;
+  }
+  const member = data[name];
+  if (input.modelSnapshot === undefined && input.declaration.kind === 'ref' && input.declaration.versioned) {
+    for (const ref of input.profile.array && member !== null ? array(member) : member === null ? [] : [member]) {
+      if (typeof ref !== 'object' || ref === null || !Object.hasOwn(ref, 'version')) return refuse('original admitted reference version required.');
+    }
+  }
+  for (const item of input.modelSnapshot === undefined ? fileReferenceOccurrences(input.profile, member)
+    : modelLexicalSnapshotOccurrences(input.modelSnapshot, member)) found.push({ path: [name, ...item.path], ref: item.ref });
+}
+
+/** Result projection: generation or Judgment context, then occurrences. */
+function resolveResultProjection(
+  bound: BoundOpaqueDeclarations,
+  picked: FrameworkOpaqueValueProjection & { kind: 'result' },
+  wire: unknown,
+  binding: FrameworkFilePayloadOrigin | undefined,
+): readonly { readonly path: readonly (string | number)[]; readonly ref: string }[] {
+  const selected = declaration(bound, picked.declarationId);
+  if (!['result', 'provider-result', 'void'].includes(selected.declaration.profile.kind)) return refuse('actual result declaration required.');
+  const from = selected.declaration.source;
+  const context = from.kind !== 'delivery' ? undefined : from.context.kind === 'generation-profile'
+    ? originalDeliveryInstance(bound, selected.declaration, binding) : from.context;
+  if (picked.presence === 'no-result') {
+    if (wire !== null) return refuse('no-result projection requires actual null.');
+    return Object.freeze([]);
+  }
+  if (picked.presence !== 'value' || selected.result === undefined) return refuse('explicit void cannot contain a value.');
+  if (context !== undefined) {
+    checkResultProjectionContext(bound, context, wire);
+  }
+  return fileReferenceOccurrences(selected.result, wire);
+}
+
+/** Generation request or Judgment specification for one result context. */
+function checkResultProjectionContext(
+  bound: BoundOpaqueDeclarations,
+  context: FrameworkOpaqueDeliveryContext,
+  wire: unknown,
+): void {
+  if (context.kind === 'generation') {
+    const result = record(wire, ['source', 'revision'], context.canonical.result.fields.map(field => field.name));
+    same(result.source, context.request.source); same(result.revision, context.request.revision);
+  } else if (context.kind === 'judgment') {
+    const values = owner(bound).values;
+    const specification = validateValue(values.valueSchema!, 'std.JudgmentSpec', context.specification, 'create');
+    const actual = createJudgmentReceiptContext(context.canonical, specification as unknown as Parameters<typeof createJudgmentReceiptContext>[1], context.valueTypes);
+    if (readJudgmentResult(wire, actual) === null) return refuse('result violates original Judgment specification.');
+  }
+}
+
+/** Literal default projection from its input, model or value-field owner. */
+function resolveDefaultProjection(
+  bound: BoundOpaqueDeclarations,
+  picked: FrameworkOpaqueValueProjection & { kind: 'default' },
+  wire: unknown,
+): readonly { readonly path: readonly (string | number)[]; readonly ref: string }[] {
   const owning = picked.owner, values = owner(bound).values;
   record(owning, owning.kind === 'input' ? ['kind', 'declarationId', 'input'] : owning.kind === 'model-field' ?
     ['kind', 'model', 'field'] : ['kind', 'contract', 'field']);
@@ -543,46 +754,7 @@ function bindOriginalValueDefaults(set: FrameworkOpaqueDeclarationSet, values: F
   const reusable: Record<string, unknown> = Object.create(null);
   const expected = new Map<string, { readonly field: CanonicalNominalLeaf; readonly value: WireValue }>();
   for (const contract of set.valueTypes.contracts) {
-    const original = record(contracts[contract.name], ['fields']);
-    const fields = record(original.fields, contract.fields.map(field => field.name));
-    const reusedFields: Record<string, unknown> = Object.create(null);
-    const originalFields: Record<string, unknown> = Object.create(null);
-    for (const field of contract.fields) {
-      const raw = record(fields[field.name], ['type'], ['array', 'nullable', 'trim', 'min', 'max', 'format', 'distinctBy', 'excludedIds',
-        'default', 'server', 'derived']);
-      const array = Object.hasOwn(raw, 'array') ? boolean(raw.array) : undefined;
-      const nullable = Object.hasOwn(raw, 'nullable') ? boolean(raw.nullable) : undefined;
-      const spelling = `${string(raw.type)}${array === true ? '[]' : ''}${nullable === true ? '?' : ''}`;
-      const parsed = parseTypeId(spelling), canonicalType = printTypeId(parsed), base = parsed.base;
-      if (canonicalType !== spelling || array === false && parsed.array || nullable === false && parsed.nullable) {
-        return refuse('canonical original type wrappers required.');
-      }
-      same(canonicalType, field.type);
-      const lengthBound = parsed.array || base.kind === 'stringlike' || base.kind === 'scalar' && base.name === 'text' ||
-        base.kind === 'nominal' && Object.hasOwn(canonicalSchema.aliases ?? {}, base.path);
-      // Native wrappers remain in the original journal; Values owns their
-      // grammar through the equivalent type spelling in this local schema.
-      const { array: _array, nullable: _nullable, ...schemaField } = raw;
-      const forSchema: Record<string, unknown> = { ...schemaField, type: canonicalType };
-      // Native integer metadata retains its int64 wire in the journal. Values'
-      // schema API takes exact numeric lengths; decode only those bounds here.
-      if (lengthBound) for (const key of ['min', 'max'] as const) if (typeof raw[key] === 'string') {
-        const bound = decodeValue('int', raw[key]);
-        same(encodeValue('int', bound), raw[key]);
-        if (typeof bound !== 'bigint' || bound < 0n || bound > BigInt(Number.MAX_SAFE_INTEGER)) {
-          return refuse('exact safe original length bound required.');
-        }
-        forSchema[key] = Number(bound);
-      }
-      originalFields[field.name] = forSchema;
-      // Field reuse deliberately drops creation metadata, but no constraints.
-      const { default: _default, server: _server, derived: _derived, ...reused } = forSchema;
-      reusedFields[field.name] = reused;
-      if (Object.hasOwn(raw, 'default')) expected.set(valueDefaultKey(contract.name, field.name),
-        { field, value: raw.default as WireValue });
-    }
-    reusable[contract.name] = { fields: reusedFields };
-    originalForSchema[contract.name] = { fields: originalFields };
+    bindContractValueDefaults(contract, contracts, canonicalSchema, expected, reusable, originalForSchema);
   }
   const common = { enums: canonicalSchema.enums,
     ...(set.valueTypes.aliases === undefined ? {} : { aliases: Object.fromEntries(set.valueTypes.aliases.map(alias => {
@@ -602,19 +774,103 @@ function bindOriginalValueDefaults(set: FrameworkOpaqueDeclarationSet, values: F
   }
   const defaults = new Map<string, BoundValueDefault>();
   for (const original of set.valueDefaults) {
-    record(original, ['contract', 'field', 'value']);
-    const key = valueDefaultKey(string(original.contract), string(original.field)), raw = expected.get(key);
-    if (raw === undefined || defaults.has(key)) return refuse('one exact original own value-field default required.');
-    same(original.value, raw.value);
-    const validated = originalSchema.contracts[original.contract]!.fields[original.field]!;
-    if (!validated.hasDefault || validated.default === undefined) return refuse('owning literal default validation required.');
-    const item = { original, profile: leafProfile(values, raw.field),
-      validatedWire: encodeValue(raw.field.type, validated.default, undefined, originalSchema) };
-    valueDefaultOccurrences(item, original.value);
-    defaults.set(key, item);
+    bindOneValueDefault(original, expected, defaults, originalSchema, values);
   }
   if (defaults.size !== expected.size) return refuse('complete original own value-field default census required.');
   return defaults;
+}
+
+/** One contract's original fields: schema pair plus default census entries. */
+function bindContractValueDefaults(
+  contract: { readonly name: string; readonly fields: ReadonlyArray<CanonicalNominalLeaf> },
+  contracts: Record<string, unknown>,
+  canonicalSchema: NormalizedSchema,
+  expected: Map<string, { readonly field: CanonicalNominalLeaf; readonly value: WireValue }>,
+  reusable: Record<string, unknown>,
+  originalForSchema: Record<string, unknown>,
+): void {
+  const original = record(contracts[contract.name], ['fields']);
+  const fields = record(original.fields, contract.fields.map(field => field.name));
+  const reusedFields: Record<string, unknown> = Object.create(null);
+  const originalFields: Record<string, unknown> = Object.create(null);
+  for (const field of contract.fields) {
+    bindOneValueField(contract.name, field, fields, canonicalSchema, expected, reusedFields, originalFields);
+  }
+  reusable[contract.name] = { fields: reusedFields };
+  originalForSchema[contract.name] = { fields: originalFields };
+}
+
+/** One original field: canonical spelling, schema pair, default census. */
+function bindOneValueField(
+  contractName: string,
+  field: CanonicalNominalLeaf,
+  fields: Record<string, unknown>,
+  canonicalSchema: NormalizedSchema,
+  expected: Map<string, { readonly field: CanonicalNominalLeaf; readonly value: WireValue }>,
+  reusedFields: Record<string, unknown>,
+  originalFields: Record<string, unknown>,
+): void {
+  const raw = record(fields[field.name], ['type'], ['array', 'nullable', 'trim', 'min', 'max', 'format', 'distinctBy', 'excludedIds',
+    'default', 'server', 'derived']);
+  const array = Object.hasOwn(raw, 'array') ? boolean(raw.array) : undefined;
+  const nullable = Object.hasOwn(raw, 'nullable') ? boolean(raw.nullable) : undefined;
+  const spelling = `${string(raw.type)}${array === true ? '[]' : ''}${nullable === true ? '?' : ''}`;
+  const parsed = parseTypeId(spelling), canonicalType = printTypeId(parsed), base = parsed.base;
+  if (canonicalType !== spelling || array === false && parsed.array || nullable === false && parsed.nullable) {
+    return refuse('canonical original type wrappers required.');
+  }
+  same(canonicalType, field.type);
+  const lengthBound = parsed.array || base.kind === 'stringlike' || base.kind === 'scalar' && base.name === 'text' ||
+    base.kind === 'nominal' && Object.hasOwn(canonicalSchema.aliases ?? {}, base.path);
+  // Native wrappers remain in the original journal; Values owns their
+  // grammar through the equivalent type spelling in this local schema.
+  const { array: _array, nullable: _nullable, ...schemaField } = raw;
+  const forSchema: Record<string, unknown> = { ...schemaField, type: canonicalType };
+  decodeValueFieldBounds(raw, forSchema, lengthBound);
+  originalFields[field.name] = forSchema;
+  // Field reuse deliberately drops creation metadata, but no constraints.
+  const { default: _default, server: _server, derived: _derived, ...reused } = forSchema;
+  reusedFields[field.name] = reused;
+  if (Object.hasOwn(raw, 'default')) expected.set(valueDefaultKey(contractName, field.name),
+    { field, value: raw.default as WireValue });
+}
+
+/** Native int64 length bounds become exact safe schema numbers. */
+function decodeValueFieldBounds(
+  raw: Record<string, unknown>,
+  forSchema: Record<string, unknown>,
+  lengthBound: boolean,
+): void {
+  // Native integer metadata retains its int64 wire in the journal. Values'
+  // schema API takes exact numeric lengths; decode only those bounds here.
+  if (lengthBound) for (const key of ['min', 'max'] as const) if (typeof raw[key] === 'string') {
+    const bound = decodeValue('int', raw[key]);
+    same(encodeValue('int', bound), raw[key]);
+    if (typeof bound !== 'bigint' || bound < 0n || bound > BigInt(Number.MAX_SAFE_INTEGER)) {
+      return refuse('exact safe original length bound required.');
+    }
+    forSchema[key] = Number(bound);
+  }
+}
+
+/** One own value-field default: census, validation, occurrence census. */
+function bindOneValueDefault(
+  original: FrameworkOpaqueValueDefault,
+  expected: Map<string, { readonly field: CanonicalNominalLeaf; readonly value: WireValue }>,
+  defaults: Map<string, BoundValueDefault>,
+  originalSchema: NormalizedSchema,
+  values: FileReferenceProfileBound,
+): void {
+  record(original, ['contract', 'field', 'value']);
+  const key = valueDefaultKey(string(original.contract), string(original.field)), raw = expected.get(key);
+  if (raw === undefined || defaults.has(key)) return refuse('one exact original own value-field default required.');
+  same(original.value, raw.value);
+  const validated = originalSchema.contracts[original.contract]!.fields[original.field]!;
+  if (!validated.hasDefault || validated.default === undefined) return refuse('owning literal default validation required.');
+  const item = { original, profile: leafProfile(values, raw.field),
+    validatedWire: encodeValue(raw.field.type, validated.default, undefined, originalSchema) };
+  valueDefaultOccurrences(item, original.value);
+  defaults.set(key, item);
 }
 
 /** Values may normalize text in a legal default. Keep the original raw literal,
@@ -772,133 +1028,213 @@ function bounds(value: unknown): void {
   if (Object.values(item).some(value => integer(value) === 0)) return refuse('positive source routing bounds required.');
 }
 function origin(bound: BoundOpaqueDeclarations, value: FrameworkOpaquePayloadOrigin): void {
-  if (value.kind === 'send-guard') {
-    record(value, ['kind', 'intent', 'declaration', 'inputsDeclarationId']);
-    sendGuard(bound.declarationSet, value.declaration);
-    record(value.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard']);
-    for (const key of ['intentId', 'operation', 'operationId', 'target', 'dispatchGuard'] as const) guardIdentity(value.intent[key]);
-    integer(value.intent.occurrenceIndex);
-    if (value.intent.dispatchGuard !== value.declaration.rule || value.intent.operation !== value.declaration.owner ||
-        value.intent.target !== value.declaration.target) return refuse('actual original send-guard intent required.');
-    const selected = declaration(bound, value.inputsDeclarationId, 'inputs').declaration;
-    if (!sourceEqual(selected.source, { kind: 'send-guard', ...value.declaration })) return refuse('exact original send-guard input source required.');
-  } else if (value.kind === 'delivery-skipped') {
-    record(value, ['kind', 'deliveryId', 'send', 'request', 'caller', 'association', 'guard', 'declaration', 'resultDeclarationId']);
-    string(value.deliveryId); callable(bound, value.caller); deliveryContext(bound, value.declaration);
-    sendGuard(bound.declarationSet, value.guard);
-    record(value.send, ['operation', 'operationId', 'target', 'occurrenceIndex']);
-    for (const key of ['operation', 'operationId', 'target'] as const) string(value.send[key]);
-    integer(value.send.occurrenceIndex);
-    record(value.request, ['binding', 'from']); string(value.request.binding); string(value.request.from);
-    same(value.send.operation, value.caller.callable.id); same(value.send.operation, value.guard.owner);
-    same(value.send.target, value.guard.target); same(value.request.binding, value.guard.binding);
-    same(value.guard.source, value.caller.source);
-    if (value.send.target !== `${value.declaration.canonical.capability}.${value.declaration.canonical.operation}`) return refuse('actual skipped provider target required.');
-    const guards = [...owner(bound).declarations.values()].filter(item => item.declaration.source.kind === 'send-guard' &&
-      sourceEqual(item.declaration.source, { kind: 'send-guard', ...value.guard }));
-    if (guards.length !== 1 || guards[0]!.declaration.profile.kind !== 'inputs') return refuse('one complete original skipped SEND guard required.');
-    record(value.association, ['model', 'recordId', 'field']); string(value.association.recordId);
-    const field = bound.declarationSet.canonicalModels.find(model => model.name === value.association.model)?.fields[value.association.field];
-    if (field?.delivery === undefined || field.array !== undefined) return refuse('actual skipped owning delivery association required.');
-    same(field.delivery, value.declaration.canonical);
-    const result = declaration(bound, value.resultDeclarationId).declaration;
-    if (!['provider-result', 'void'].includes(result.profile.kind) || result.source.kind !== 'delivery') return refuse('original skipped provider result source required.');
-    assertOpaqueDeliveryProfileMatch(result.source.context, value.declaration); same(result.source.source, value.caller.source);
-  } else if (value.kind === 'delivery-result') {
-    record(value, ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
-    callable(bound, value.caller); deliveryContext(bound, value.declaration);
-    record(value.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
-    for (const key of ['intentId', 'operation', 'operationId', 'target'] as const) string(value.intent[key]);
-    integer(value.intent.occurrenceIndex);
-    record(value.request, ['binding', 'from']); string(value.request.binding); string(value.request.from);
-    same(value.deliveryId, value.intent.intentId); same(value.caller.callable.id, value.intent.operation);
-    if (value.intent.target !== `${value.declaration.canonical.capability}.${value.declaration.canonical.operation}`) return refuse('actual provider dispatch target required.');
-    record(value.association, ['model', 'recordId', 'field']); string(value.association.recordId);
-    const field = bound.declarationSet.canonicalModels.find(model => model.name === value.association.model)?.fields[value.association.field];
-    if (field?.delivery === undefined) return refuse('actual owning delivery association required.');
-    same(field.delivery, value.declaration.canonical);
-    const result = declaration(bound, value.resultDeclarationId, 'provider-result').declaration;
-    if (result.source.kind !== 'delivery') return refuse('original delivery result source required.');
-    assertOpaqueDeliveryProfileMatch(result.source.context, value.declaration); same(result.source.source, value.caller.source);
-  } else if (value.kind === 'event-input') eventOrigin(bound, value);
-  else if (value.kind === 'handler-result') {
+  if (value.kind === 'send-guard') return checkSendGuardOrigin(bound, value);
+  if (value.kind === 'delivery-skipped') return checkSkippedOrigin(bound, value);
+  if (value.kind === 'delivery-result') return checkDeliveryResultOrigin(bound, value);
+  if (value.kind === 'event-input') return eventOrigin(bound, value);
+  if (value.kind === 'handler-result') {
     record(value, ['kind', 'occurrenceId', 'operationId', 'handler', 'event']);
     string(value.occurrenceId); string(value.operationId); callable(bound, value.handler); eventOrigin(bound, value.event);
     same(value.occurrenceId, value.event.occurrenceId);
     if (value.event.target.kind !== 'handler') return refuse('actual handler input target required.');
     same(value.handler, value.event.target.handler);
-  } else if (value.kind === 'source-routing') {
-    record(value, ['kind', 'occurrenceId', 'revision', 'recipe']); string(value.occurrenceId); integer(value.revision);
-    const recipe = value.recipe;
-    if (recipe.kind === 'committed-model') {
-      record(recipe, ['kind', 'source', 'descriptor', 'change', 'payload', 'context', 'bounds', 'routes']);
-      committedDescriptor(bound, recipe.source, recipe.descriptor);
-      record(recipe.change, ['model', 'recordId', 'version', 'kind']);
-      same(recipe.change.model, recipe.descriptor.model); string(recipe.change.recordId); integer(recipe.change.version);
-      same(recipe.change.kind, { create: 'created', update: 'updated', delete: 'deleted' }[recipe.descriptor.change]);
-      record(recipe.payload, ['recordId', 'owner', 'version', 'occurrenceId']);
-      same(recipe.payload.recordId, recipe.change.recordId); same(recipe.payload.version, recipe.change.version);
-      same(recipe.payload.occurrenceId, value.occurrenceId); string(recipe.payload.owner);
-      record(recipe.context, ['kind', 'app', 'actor', 'team', 'operation', 'operationId', 'source', 'now'], ['trustedSource']);
-      for (const key of ['app', 'operation', 'operationId', 'source'] as const) string(recipe.context[key]);
-      integer(recipe.context.now); bounds(recipe.bounds);
-      for (const route of recipe.routes) if (!recipe.descriptor.handlers.includes(route.handler.callable.id)) return refuse('actual committed-model route handler required.');
-      routes(bound, recipe.routes);
-    } else if (recipe.kind === 'queued-routes') {
-      record(recipe, ['kind', 'declaration', 'originalIntent', 'originalCommit', 'routes'], ['guard']);
-      eventDeclaration(bound, recipe.declaration);
-      record(recipe.originalIntent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
-      for (const key of ['intentId', 'operation', 'operationId', 'target'] as const) string(recipe.originalIntent[key]);
-      integer(recipe.originalIntent.occurrenceIndex);
-      same(recipe.originalIntent.target, `${recipe.declaration.event}.publish`);
-      same(value.occurrenceId, `queue/v1/${encodeURIComponent(recipe.originalIntent.intentId)}`);
-      record(recipe.originalCommit, ['revision', 'createdAt']); integer(recipe.originalCommit.revision); integer(recipe.originalCommit.createdAt);
-      if (recipe.originalCommit.revision >= value.revision) return refuse('queue publication must precede its intake.');
-      if (recipe.guard !== undefined) {
-        origin(bound, recipe.guard);
-        const { dispatchGuard: _rule, ...originalIntent } = recipe.guard.intent;
-        same(originalIntent, recipe.originalIntent);
-      }
-      routes(bound, recipe.routes);
-      if (recipe.routes.some(route => route.kind !== 'ordinary')) return refuse('queue requires exact ordinary handler routes.');
-    } else if (recipe.kind === 'scheduled-cohorts' || recipe.kind === 'scheduled-routes') {
-      record(recipe, ['kind', 'event', 'bounds', 'routes']); eventOrigin(bound, recipe.event);
-      record(recipe.bounds, ['pageLimit', 'chunkSize']);
-      if (integer(recipe.bounds.pageLimit) === 0 || integer(recipe.bounds.chunkSize) === 0) return refuse('positive scheduled bounds required.');
-      same(recipe.event.occurrenceId, value.occurrenceId); routes(bound, recipe.routes);
-      if (recipe.kind === 'scheduled-cohorts' && recipe.routes.some(route => route.kind !== 'fanout')) return refuse('actual scheduled cohort routes required.');
-    } else return refuse('actual source routing recipe required.');
-  } else if (value.kind === 'standard-completion') {
-    record(value, ['kind', 'occurrenceId', 'declaration', 'originalIntent', 'originalCommit', 'dispatch', 'terminal', 'revision', 'bounds', 'routes']);
-    string(value.occurrenceId); eventDeclaration(bound, value.declaration); integer(value.revision);
-    record(value.originalIntent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
-    for (const key of ['intentId', 'operation', 'operationId', 'target'] as const) string(value.originalIntent[key]);
-    integer(value.originalIntent.occurrenceIndex);
-    same(value.originalIntent.target, value.declaration.providerSource);
-    record(value.originalCommit, ['revision', 'createdAt']); integer(value.originalCommit.revision); integer(value.originalCommit.createdAt);
-    const dispatch = value.dispatch;
-    record(dispatch, ['operationId', 'source', 'occurrenceIndex', 'originOccurrence', 'created', 'actor', 'kind'], dispatch.kind === 'generation' ? ['correlation'] : []);
-    string(dispatch.operationId); same(dispatch.source, value.originalIntent.target);
-    same(dispatch.occurrenceIndex, value.originalIntent.occurrenceIndex);
-    if (integer(dispatch.created) > value.originalCommit.createdAt) return refuse('actual original dispatch chronology required.');
-    string(dispatch.actor); if (dispatch.originOccurrence !== null) string(dispatch.originOccurrence);
-    if (dispatch.kind === 'generation') {
-      if (value.declaration.delivery.kind !== 'generation') return refuse('original generation declaration required.');
-      record(dispatch.correlation, ['requestSource', 'requestRevision', 'requestBinding', 'requestFrom', 'requestApp', 'requestOwner']);
-      for (const part of Object.values(dispatch.correlation)) string(part);
-      same(dispatch.correlation.requestSource, value.declaration.delivery.request.source);
-      same(dispatch.correlation.requestRevision, value.declaration.delivery.request.revision);
-      same(dispatch.correlation.requestBinding, value.declaration.binding); same(dispatch.correlation.requestFrom, value.declaration.from);
-    } else if (dispatch.kind !== 'capability' || value.declaration.delivery.kind === 'generation') return refuse('actual completion dispatch variant required.');
-    record(value.terminal, ['revision', 'status', 'error']); integer(value.terminal.revision);
-    if (value.terminal.revision < value.originalCommit.revision || value.revision < value.terminal.revision) return refuse('original terminal/source chronology required.');
-    if (!['succeeded', 'failed', 'skipped'].includes(value.terminal.status)) return refuse('actual terminal phase required.');
-    if (value.terminal.error !== null) {
-      record(value.terminal.error, ['code', 'message']); string(value.terminal.error.code); string(value.terminal.error.message);
-    }
-    if ((value.terminal.status === 'failed') !== (value.terminal.error !== null)) return refuse('terminal status/error correspondence required.');
-    bounds(value.bounds); routes(bound, value.routes);
-  } else return refuse('actual original opaque payload origin required.');
+    return;
+  }
+  if (value.kind === 'source-routing') return checkSourceRoutingOrigin(bound, value);
+  if (value.kind === 'standard-completion') return checkStandardCompletionOrigin(bound, value);
+  return refuse('actual original opaque payload origin required.');
+}
+
+/** Send-guard intent with its exact input source. */
+function checkSendGuardOrigin(
+  bound: BoundOpaqueDeclarations,
+  value: Extract<FrameworkOpaquePayloadOrigin, { kind: 'send-guard' }>,
+): void {
+  record(value, ['kind', 'intent', 'declaration', 'inputsDeclarationId']);
+  sendGuard(bound.declarationSet, value.declaration);
+  record(value.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard']);
+  for (const key of ['intentId', 'operation', 'operationId', 'target', 'dispatchGuard'] as const) guardIdentity(value.intent[key]);
+  integer(value.intent.occurrenceIndex);
+  if (value.intent.dispatchGuard !== value.declaration.rule || value.intent.operation !== value.declaration.owner ||
+      value.intent.target !== value.declaration.target) return refuse('actual original send-guard intent required.');
+  const selected = declaration(bound, value.inputsDeclarationId, 'inputs').declaration;
+  if (!sourceEqual(selected.source, { kind: 'send-guard', ...value.declaration })) return refuse('exact original send-guard input source required.');
+}
+
+/** Skipped delivery: guard census, association and provider result. */
+function checkSkippedOrigin(
+  bound: BoundOpaqueDeclarations,
+  value: Extract<FrameworkOpaquePayloadOrigin, { kind: 'delivery-skipped' }>,
+): void {
+  record(value, ['kind', 'deliveryId', 'send', 'request', 'caller', 'association', 'guard', 'declaration', 'resultDeclarationId']);
+  string(value.deliveryId); callable(bound, value.caller); deliveryContext(bound, value.declaration);
+  sendGuard(bound.declarationSet, value.guard);
+  record(value.send, ['operation', 'operationId', 'target', 'occurrenceIndex']);
+  for (const key of ['operation', 'operationId', 'target'] as const) string(value.send[key]);
+  integer(value.send.occurrenceIndex);
+  record(value.request, ['binding', 'from']); string(value.request.binding); string(value.request.from);
+  same(value.send.operation, value.caller.callable.id); same(value.send.operation, value.guard.owner);
+  same(value.send.target, value.guard.target); same(value.request.binding, value.guard.binding);
+  same(value.guard.source, value.caller.source);
+  if (value.send.target !== `${value.declaration.canonical.capability}.${value.declaration.canonical.operation}`) return refuse('actual skipped provider target required.');
+  const guards = [...owner(bound).declarations.values()].filter(item => item.declaration.source.kind === 'send-guard' &&
+    sourceEqual(item.declaration.source, { kind: 'send-guard', ...value.guard }));
+  if (guards.length !== 1 || guards[0]!.declaration.profile.kind !== 'inputs') return refuse('one complete original skipped SEND guard required.');
+  checkSkippedAssociation(bound, value);
+  const result = declaration(bound, value.resultDeclarationId).declaration;
+  if (!['provider-result', 'void'].includes(result.profile.kind) || result.source.kind !== 'delivery') return refuse('original skipped provider result source required.');
+  assertOpaqueDeliveryProfileMatch(result.source.context, value.declaration); same(result.source.source, value.caller.source);
+}
+
+/** Skipped owning delivery association for one payload origin. */
+function checkSkippedAssociation(
+  bound: BoundOpaqueDeclarations,
+  value: Extract<FrameworkOpaquePayloadOrigin, { kind: 'delivery-skipped' }>,
+): void {
+  record(value.association, ['model', 'recordId', 'field']); string(value.association.recordId);
+  const field = bound.declarationSet.canonicalModels.find(model => model.name === value.association.model)?.fields[value.association.field];
+  if (field?.delivery === undefined || field.array !== undefined) return refuse('actual skipped owning delivery association required.');
+  same(field.delivery, value.declaration.canonical);
+}
+
+/** Delivery result: dispatch target, association and provider result. */
+function checkDeliveryResultOrigin(
+  bound: BoundOpaqueDeclarations,
+  value: Extract<FrameworkOpaquePayloadOrigin, { kind: 'delivery-result' }>,
+): void {
+  record(value, ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
+  callable(bound, value.caller); deliveryContext(bound, value.declaration);
+  record(value.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+  for (const key of ['intentId', 'operation', 'operationId', 'target'] as const) string(value.intent[key]);
+  integer(value.intent.occurrenceIndex);
+  record(value.request, ['binding', 'from']); string(value.request.binding); string(value.request.from);
+  same(value.deliveryId, value.intent.intentId); same(value.caller.callable.id, value.intent.operation);
+  if (value.intent.target !== `${value.declaration.canonical.capability}.${value.declaration.canonical.operation}`) return refuse('actual provider dispatch target required.');
+  record(value.association, ['model', 'recordId', 'field']); string(value.association.recordId);
+  const field = bound.declarationSet.canonicalModels.find(model => model.name === value.association.model)?.fields[value.association.field];
+  if (field?.delivery === undefined) return refuse('actual owning delivery association required.');
+  same(field.delivery, value.declaration.canonical);
+  const result = declaration(bound, value.resultDeclarationId, 'provider-result').declaration;
+  if (result.source.kind !== 'delivery') return refuse('original delivery result source required.');
+  assertOpaqueDeliveryProfileMatch(result.source.context, value.declaration); same(result.source.source, value.caller.source);
+}
+
+type SourceRoutingRecipe = Extract<FrameworkOpaquePayloadOrigin, { kind: 'source-routing' }>['recipe'];
+
+/** Source-routing recipe dispatch: committed, queued, or scheduled. */
+function checkSourceRoutingOrigin(
+  bound: BoundOpaqueDeclarations,
+  value: Extract<FrameworkOpaquePayloadOrigin, { kind: 'source-routing' }>,
+): void {
+  record(value, ['kind', 'occurrenceId', 'revision', 'recipe']); string(value.occurrenceId); integer(value.revision);
+  const recipe = value.recipe;
+  if (recipe.kind === 'committed-model') return checkCommittedModelRecipe(bound, value, recipe);
+  if (recipe.kind === 'queued-routes') return checkQueuedRoutesRecipe(bound, value, recipe);
+  if (recipe.kind === 'scheduled-cohorts' || recipe.kind === 'scheduled-routes') {
+    return checkScheduledRecipe(bound, value, recipe);
+  }
+  return refuse('actual source routing recipe required.');
+}
+
+/** Committed-model recipe: descriptor, change, payload, context, routes. */
+function checkCommittedModelRecipe(
+  bound: BoundOpaqueDeclarations,
+  value: Extract<FrameworkOpaquePayloadOrigin, { kind: 'source-routing' }>,
+  recipe: Extract<SourceRoutingRecipe, { kind: 'committed-model' }>,
+): void {
+  record(recipe, ['kind', 'source', 'descriptor', 'change', 'payload', 'context', 'bounds', 'routes']);
+  committedDescriptor(bound, recipe.source, recipe.descriptor);
+  record(recipe.change, ['model', 'recordId', 'version', 'kind']);
+  same(recipe.change.model, recipe.descriptor.model); string(recipe.change.recordId); integer(recipe.change.version);
+  same(recipe.change.kind, { create: 'created', update: 'updated', delete: 'deleted' }[recipe.descriptor.change]);
+  record(recipe.payload, ['recordId', 'owner', 'version', 'occurrenceId']);
+  same(recipe.payload.recordId, recipe.change.recordId); same(recipe.payload.version, recipe.change.version);
+  same(recipe.payload.occurrenceId, value.occurrenceId); string(recipe.payload.owner);
+  record(recipe.context, ['kind', 'app', 'actor', 'team', 'operation', 'operationId', 'source', 'now'], ['trustedSource']);
+  for (const key of ['app', 'operation', 'operationId', 'source'] as const) string(recipe.context[key]);
+  integer(recipe.context.now); bounds(recipe.bounds);
+  for (const route of recipe.routes) if (!recipe.descriptor.handlers.includes(route.handler.callable.id)) return refuse('actual committed-model route handler required.');
+  routes(bound, recipe.routes);
+}
+
+/** Queued-routes recipe: declaration, intent, commit, guard, routes. */
+function checkQueuedRoutesRecipe(
+  bound: BoundOpaqueDeclarations,
+  value: Extract<FrameworkOpaquePayloadOrigin, { kind: 'source-routing' }>,
+  recipe: Extract<SourceRoutingRecipe, { kind: 'queued-routes' }>,
+): void {
+  record(recipe, ['kind', 'declaration', 'originalIntent', 'originalCommit', 'routes'], ['guard']);
+  eventDeclaration(bound, recipe.declaration);
+  record(recipe.originalIntent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+  for (const key of ['intentId', 'operation', 'operationId', 'target'] as const) string(recipe.originalIntent[key]);
+  integer(recipe.originalIntent.occurrenceIndex);
+  same(recipe.originalIntent.target, `${recipe.declaration.event}.publish`);
+  same(value.occurrenceId, `queue/v1/${encodeURIComponent(recipe.originalIntent.intentId)}`);
+  record(recipe.originalCommit, ['revision', 'createdAt']); integer(recipe.originalCommit.revision); integer(recipe.originalCommit.createdAt);
+  if (recipe.originalCommit.revision >= value.revision) return refuse('queue publication must precede its intake.');
+  if (recipe.guard !== undefined) {
+    origin(bound, recipe.guard);
+    const { dispatchGuard: _rule, ...originalIntent } = recipe.guard.intent;
+    same(originalIntent, recipe.originalIntent);
+  }
+  routes(bound, recipe.routes);
+  if (recipe.routes.some(route => route.kind !== 'ordinary')) return refuse('queue requires exact ordinary handler routes.');
+}
+
+/** Scheduled recipe: event, positive bounds and cohort routes. */
+function checkScheduledRecipe(
+  bound: BoundOpaqueDeclarations,
+  value: Extract<FrameworkOpaquePayloadOrigin, { kind: 'source-routing' }>,
+  recipe: Extract<SourceRoutingRecipe, { kind: 'scheduled-cohorts' } | { kind: 'scheduled-routes' }>,
+): void {
+  record(recipe, ['kind', 'event', 'bounds', 'routes']); eventOrigin(bound, recipe.event);
+  record(recipe.bounds, ['pageLimit', 'chunkSize']);
+  if (integer(recipe.bounds.pageLimit) === 0 || integer(recipe.bounds.chunkSize) === 0) return refuse('positive scheduled bounds required.');
+  same(recipe.event.occurrenceId, value.occurrenceId); routes(bound, recipe.routes);
+  if (recipe.kind === 'scheduled-cohorts' && recipe.routes.some(route => route.kind !== 'fanout')) return refuse('actual scheduled cohort routes required.');
+}
+
+/** Standard completion: intent, commit, dispatch, terminal chronology. */
+function checkStandardCompletionOrigin(
+  bound: BoundOpaqueDeclarations,
+  value: Extract<FrameworkOpaquePayloadOrigin, { kind: 'standard-completion' }>,
+): void {
+  record(value, ['kind', 'occurrenceId', 'declaration', 'originalIntent', 'originalCommit', 'dispatch', 'terminal', 'revision', 'bounds', 'routes']);
+  string(value.occurrenceId); eventDeclaration(bound, value.declaration); integer(value.revision);
+  record(value.originalIntent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+  for (const key of ['intentId', 'operation', 'operationId', 'target'] as const) string(value.originalIntent[key]);
+  integer(value.originalIntent.occurrenceIndex);
+  same(value.originalIntent.target, value.declaration.providerSource);
+  record(value.originalCommit, ['revision', 'createdAt']); integer(value.originalCommit.revision); integer(value.originalCommit.createdAt);
+  checkCompletionDispatch(value);
+  record(value.terminal, ['revision', 'status', 'error']); integer(value.terminal.revision);
+  if (value.terminal.revision < value.originalCommit.revision || value.revision < value.terminal.revision) return refuse('original terminal/source chronology required.');
+  if (!['succeeded', 'failed', 'skipped'].includes(value.terminal.status)) return refuse('actual terminal phase required.');
+  if (value.terminal.error !== null) {
+    record(value.terminal.error, ['code', 'message']); string(value.terminal.error.code); string(value.terminal.error.message);
+  }
+  if ((value.terminal.status === 'failed') !== (value.terminal.error !== null)) return refuse('terminal status/error correspondence required.');
+  bounds(value.bounds); routes(bound, value.routes);
+}
+
+/** Completion dispatch variant with its generation correlation. */
+function checkCompletionDispatch(
+  value: Extract<FrameworkOpaquePayloadOrigin, { kind: 'standard-completion' }>,
+): void {
+  const dispatch = value.dispatch;
+  record(dispatch, ['operationId', 'source', 'occurrenceIndex', 'originOccurrence', 'created', 'actor', 'kind'], dispatch.kind === 'generation' ? ['correlation'] : []);
+  string(dispatch.operationId); same(dispatch.source, value.originalIntent.target);
+  same(dispatch.occurrenceIndex, value.originalIntent.occurrenceIndex);
+  if (integer(dispatch.created) > value.originalCommit.createdAt) return refuse('actual original dispatch chronology required.');
+  string(dispatch.actor); if (dispatch.originOccurrence !== null) string(dispatch.originOccurrence);
+  if (dispatch.kind === 'generation') {
+    if (value.declaration.delivery.kind !== 'generation') return refuse('original generation declaration required.');
+    record(dispatch.correlation, ['requestSource', 'requestRevision', 'requestBinding', 'requestFrom', 'requestApp', 'requestOwner']);
+    for (const part of Object.values(dispatch.correlation)) string(part);
+    same(dispatch.correlation.requestSource, value.declaration.delivery.request.source);
+    same(dispatch.correlation.requestRevision, value.declaration.delivery.request.revision);
+    same(dispatch.correlation.requestBinding, value.declaration.binding); same(dispatch.correlation.requestFrom, value.declaration.from);
+  } else if (dispatch.kind !== 'capability' || value.declaration.delivery.kind === 'generation') return refuse('actual completion dispatch variant required.');
 }
 
 /** Root independently checks the header slot/scope and physical receiving facts. */

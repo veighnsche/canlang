@@ -61,6 +61,8 @@ import {
   type OwnerMutationHookParentSite,
   type OwnerMutationHookReferenceRead,
   type OwnerMutationHookReferenceSite,
+  type InterimFieldDef,
+  type InterimHook,
   type InterimModelDef,
   type InterimServerInit,
   type ModelTable,
@@ -243,6 +245,78 @@ export async function beginOwnerMutation(input: OwnerMutationInput): Promise<Own
  * Source schema, stored rows, versions, history and business sources are untouched.
  * Every affected row must fit the explicit owner bounds before one fenced commit.
  */
+type RepairReader = Awaited<ReturnType<typeof beginOwnerMutation>>;
+type RepairScope = ReturnType<typeof createGivenUniqueKeyScope>;
+type RepairEvaluated = Map<RecordId, { raw: string | null; scoped: string | null }>;
+
+async function verifyRepairParents(reader: RepairReader, def: InterimModelDef, rows: readonly StoredRow[]): Promise<void> {
+  for (const row of rows) {
+    canonicalUniqueScopeValue(row, '', def);
+    if (await reader.views.final.get(def.containment!.parent!, row.parent!.id) === null) {
+      throw new StateError('validation', 'Computed-key index repair found a missing declared parent.');
+    }
+  }
+}
+
+async function evaluateRepairRule(
+  scope: RepairScope, reader: RepairReader, model: ModelName, def: InterimModelDef,
+  rule: NonNullable<InterimModelDef['givenUniqueKeys']>[number], rows: readonly StoredRow[],
+): Promise<{ keyName: string; evaluated: RepairEvaluated; pendingClaims: Map<string, UniqueClaim> }> {
+  const keyName = givenUniqueKeyName(rule.rule);
+  const evaluated: RepairEvaluated = new Map();
+  const finalOwners = new Map<string, RecordId>();
+  const pendingClaims = new Map<string, UniqueClaim>();
+  for (const row of rows) {
+    reader.views.consumeWork();
+    const raw = await scope.evaluate(rule, row.data[rule.field]);
+    const scoped = canonicalUniqueScopeValue(row, raw, def);
+    evaluated.set(row.id, { raw, scoped });
+    if (scoped === null) continue;
+    const first = finalOwners.get(scoped);
+    if (first !== undefined && first !== row.id) throw new StateError('conflict', 'Computed-key index repair found a final parent-scoped collision.');
+    finalOwners.set(scoped, row.id);
+    pendingClaims.set(scoped, { model, keyName, keyValue: scoped, recordId: row.id });
+  }
+  return { keyName, evaluated, pendingClaims };
+}
+
+function collectRepairKeys(evaluated: RepairEvaluated): Set<string> {
+  const keys = new Set<string>();
+  for (const value of evaluated.values()) {
+    if (value.raw !== null) keys.add(value.raw);
+    if (value.scoped !== null) keys.add(value.scoped);
+  }
+  return keys;
+}
+
+async function reconcileRepairKey(
+  reader: RepairReader, store: Pick<OwnerMutationInput, 'store'>['store'],
+  checkRevision: () => Promise<void>, model: ModelName, keyName: string, keyValue: string,
+  byId: Map<RecordId, StoredRow>, evaluated: RepairEvaluated,
+  pendingClaims: Map<string, UniqueClaim>, releases: Map<string, UniqueRelease>,
+): Promise<void> {
+  reader.views.consumeWork();
+  await checkRevision();
+  const uniqueOwner = store.uniqueOwner;
+  if (typeof uniqueOwner !== 'function') throw new StateError('validation', 'Computed-key repair requires native unique ownership reads.');
+  // HEAD calls this as a store method; the bare capture keeps its guard but
+  // must retain the receiver.
+  const owner = await uniqueOwner.call(store, model, keyName, keyValue);
+  await checkRevision();
+  if (owner === null) return;
+  const row = byId.get(owner), value = evaluated.get(owner);
+  if (row === undefined || value === undefined || keyValue !== value.raw && keyValue !== value.scoped) {
+    throw new StateError('validation', 'Computed-key index repair found a claim inconsistent with its actual owning row.');
+  }
+  if (keyValue === value.scoped) {
+    // Preserve a genuine current claim even when another raw output has
+    // these exact bytes. It is neither released nor claimed twice.
+    pendingClaims.delete(keyValue);
+  } else {
+    releases.set(JSON.stringify([model, keyName, keyValue]), { model, keyName, keyValue });
+  }
+}
+
 export async function repairGivenUniqueKeyScopes(
   input: Pick<OwnerMutationInput, 'table' | 'store' | 'context' | 'bounds'>,
 ): Promise<CommitResult> {
@@ -261,50 +335,11 @@ export async function repairGivenUniqueKeyScopes(
       if (def.containment?.parent === undefined || (def.givenUniqueKeys ?? []).length === 0) continue;
       const rows = await reader.views.final.query({model, authority: 'owner', archived: 'include', limit: input.bounds.maxRows});
       const byId = new Map(rows.map(row => [row.id, row]));
-      for (const row of rows) {
-        canonicalUniqueScopeValue(row, '', def);
-        if (await reader.views.final.get(def.containment.parent, row.parent!.id) === null) {
-          throw new StateError('validation', 'Computed-key index repair found a missing declared parent.');
-        }
-      }
+      await verifyRepairParents(reader, def, rows);
       for (const rule of def.givenUniqueKeys!) {
-        const keyName = givenUniqueKeyName(rule.rule);
-        const evaluated = new Map<RecordId, {raw: string | null; scoped: string | null}>();
-        const finalOwners = new Map<string, RecordId>();
-        const pendingClaims = new Map<string, UniqueClaim>();
-        for (const row of rows) {
-          reader.views.consumeWork();
-          const raw = await scope.evaluate(rule, row.data[rule.field]);
-          const scoped = canonicalUniqueScopeValue(row, raw, def);
-          evaluated.set(row.id, {raw, scoped});
-          if (scoped === null) continue;
-          const first = finalOwners.get(scoped);
-          if (first !== undefined && first !== row.id) throw new StateError('conflict', 'Computed-key index repair found a final parent-scoped collision.');
-          finalOwners.set(scoped, row.id);
-          pendingClaims.set(scoped, {model, keyName, keyValue: scoped, recordId: row.id});
-        }
-        const keys = new Set<string>();
-        for (const value of evaluated.values()) {
-          if (value.raw !== null) keys.add(value.raw);
-          if (value.scoped !== null) keys.add(value.scoped);
-        }
-        for (const keyValue of keys) {
-          reader.views.consumeWork();
-          await checkRevision();
-          const owner = await store.uniqueOwner(model, keyName, keyValue);
-          await checkRevision();
-          if (owner === null) continue;
-          const row = byId.get(owner), value = evaluated.get(owner);
-          if (row === undefined || value === undefined || keyValue !== value.raw && keyValue !== value.scoped) {
-            throw new StateError('validation', 'Computed-key index repair found a claim inconsistent with its actual owning row.');
-          }
-          if (keyValue === value.scoped) {
-            // Preserve a genuine current claim even when another raw output has
-            // these exact bytes. It is neither released nor claimed twice.
-            pendingClaims.delete(keyValue);
-          } else {
-            releases.set(JSON.stringify([model, keyName, keyValue]), {model, keyName, keyValue});
-          }
+        const { keyName, evaluated, pendingClaims } = await evaluateRepairRule(scope, reader, model, def, rule, rows);
+        for (const keyValue of collectRepairKeys(evaluated)) {
+          await reconcileRepairKey(reader, store, checkRevision, model, keyName, keyValue, byId, evaluated, pendingClaims, releases);
         }
         claims.push(...pendingClaims.values());
       }
@@ -679,16 +714,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     return getEntry(model, id);
   };
 
-  const ownerQuery = async (
-    spec: OwnerMutationQuery, side: 'entry' | 'final',
-    trigger?: { readonly model: ModelName; readonly id: RecordId; readonly after: StoredRow | null },
-  ): Promise<readonly StoredRow[]> => {
-    consumeWork();
-    if (spec.authority !== 'owner' || !table.has(spec.model) || !Number.isSafeInteger(spec.limit) ||
-        spec.limit < 0 || spec.limit > (owner?.bounds.maxRows ?? Number.MAX_SAFE_INTEGER - 1) ||
-        Object.keys(spec).some(key => !['model', 'authority', 'limit', 'where', 'parent', 'archived', 'order'].includes(key))) {
-      throw new StateError('validation', 'Owner mutation queries require checked finite owner selections.');
-    }
+  const checkOwnerQueryParent = (spec: OwnerMutationQuery): void => {
     if (spec.parent !== undefined && (spec.parent === null || typeof spec.parent !== 'object' ||
         typeof spec.parent.model !== 'string' || spec.parent.model === '' ||
         typeof spec.parent.id !== 'string' || spec.parent.id === '' ||
@@ -696,6 +722,66 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         table.get(spec.model)!.containment!.parent !== spec.parent.model)) {
       throw new StateError('validation', 'Owner mutation query parent must match declared containment.');
     }
+  };
+
+  const checkOwnerQueryShape = (spec: OwnerMutationQuery): void => {
+    if (spec.authority !== 'owner' || !table.has(spec.model) || !Number.isSafeInteger(spec.limit) ||
+        spec.limit < 0 || spec.limit > (owner?.bounds.maxRows ?? Number.MAX_SAFE_INTEGER - 1) ||
+        Object.keys(spec).some(key => !['model', 'authority', 'limit', 'where', 'parent', 'archived', 'order'].includes(key))) {
+      throw new StateError('validation', 'Owner mutation queries require checked finite owner selections.');
+    }
+    checkOwnerQueryParent(spec);
+  };
+
+  const mergeBaseRows = (
+    spec: OwnerMutationQuery,
+    base: readonly StoredRow[],
+    applyDomainRow: (key: string, row: StoredRow | null | undefined) => void,
+  ): void => {
+    for (const row of base) {
+      const key = keyOf(spec.model, row.id);
+      if (!entryRows.has(key)) entryRows.set(key, deepFreeze(structuredClone(row)));
+      applyDomainRow(key, entryRows.get(key));
+    }
+  };
+
+  const overlayFinalSnapshot = (
+    spec: OwnerMutationQuery,
+    applyDomainRow: (key: string, row: StoredRow | null | undefined) => void,
+    trigger?: { readonly model: ModelName; readonly id: RecordId; readonly after: StoredRow | null },
+  ): void => {
+    for (const [key, entry] of provisional) {
+      consumeWork();
+      if (!key.startsWith(`${spec.model as string}\0`)) continue;
+      applyDomainRow(key, entry.status === 'row' ? entry.row : null);
+    }
+    // The currently executing hook has not published its candidate into the
+    // provisional map. Overlay the same issued row before selection and bounds.
+    if (trigger?.model === spec.model) {
+      applyDomainRow(keyOf(trigger.model, trigger.id), trigger.after);
+    }
+  };
+
+  const buildOwnerQueryFields = (spec: OwnerMutationQuery): Record<string, CanonicalFieldDef> => {
+    const fields: Record<string, CanonicalFieldDef> = Object.create(null);
+    for (const [name, field] of Object.entries(table.get(spec.model)!.fields)) {
+      fields[name] = { required: field.required, serverOnly: field.serverOnly,
+        ...(field.valueType === undefined ? {} : { valueType: field.valueType }),
+        ...(field.array === undefined ? {} : { array: field.array }) };
+    }
+    return fields;
+  };
+
+  const inQueryScope = (row: StoredRow, includeArchived: boolean, spec: OwnerMutationQuery): boolean =>
+    (includeArchived || row.archivedAt === null) &&
+    (spec.parent === undefined || row.parent?.model === spec.parent.model && row.parent.id === spec.parent.id);
+
+  const ownerQuery = async (
+    spec: OwnerMutationQuery, side: 'entry' | 'final',
+    trigger?: { readonly model: ModelName; readonly id: RecordId; readonly after: StoredRow | null },
+  ): Promise<readonly StoredRow[]> => {
+    consumeWork();
+    checkOwnerQueryShape(spec);
     const inDomain = (row: StoredRow) => spec.parent === undefined ||
       row.parent?.model === spec.parent.model && row.parent.id === spec.parent.id;
     await checkRevision();
@@ -715,23 +801,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       if (row != null && inDomain(row)) merged.set(key, row);
       else merged.delete(key);
     };
-    for (const row of base) {
-      const key = keyOf(spec.model, row.id);
-      if (!entryRows.has(key)) entryRows.set(key, deepFreeze(structuredClone(row)));
-      applyDomainRow(key, entryRows.get(key));
-    }
-    if (side === 'final') {
-      for (const [key, entry] of provisional) {
-        consumeWork();
-        if (!key.startsWith(`${spec.model as string}\0`)) continue;
-        applyDomainRow(key, entry.status === 'row' ? entry.row : null);
-      }
-    }
-    // The currently executing hook has not published its candidate into the
-    // provisional map. Overlay the same issued row before selection and bounds.
-    if (trigger?.model === spec.model) {
-      applyDomainRow(keyOf(trigger.model, trigger.id), trigger.after);
-    }
+    mergeBaseRows(spec, base, applyDomainRow);
+    if (side === 'final') overlayFinalSnapshot(spec, applyDomainRow, trigger);
     if (merged.size > cap) throw new StateError('validation', 'Owner mutation query exceeds its row bound.');
     const rows = [...merged.values()];
     consumeWork(rows.length * (spec.order?.length ?? 1));
@@ -739,19 +810,13 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     // (including nested reference identity paths), numeric ordering and
     // completeness-limit refusal. Its storage seam receives only this
     // bounded merged snapshot and applies storage archive/parent scoping.
-    const fields: Record<string, CanonicalFieldDef> = Object.create(null);
-    for (const [name, field] of Object.entries(table.get(spec.model)!.fields)) {
-      fields[name] = { required: field.required, serverOnly: field.serverOnly,
-        ...(field.valueType === undefined ? {} : { valueType: field.valueType }),
-        ...(field.array === undefined ? {} : { array: field.array }) };
-    }
+    const fields = buildOwnerQueryFields(spec);
     const ordered = await queryRecords({ model: spec.model, authority: 'owner', policy: new Map(),
       modelDescriptor: { name: spec.model, fields, deleteMode: table.get(spec.model)!.deleteMode },
       context: { actorUserId: context.actor?.userId ?? null, teamId: context.team?.teamId ?? null },
       memberships: { findMembership: async () => { throw new StateError('validation', 'Owner decision reads do not resolve viewer authority.'); } },
       store: { ...store, query: async selection => rows.filter(row =>
-        (selection.archived === 'include' || row.archivedAt === null) &&
-        (spec.parent === undefined || row.parent?.model === spec.parent.model && row.parent.id === spec.parent.id)) },
+        inQueryScope(row, selection.archived === 'include', spec)) },
       limit: spec.limit, archived: spec.archived ?? 'exclude',
       ...(spec.where === undefined ? {} : { where: spec.where }),
       ...(spec.order === undefined ? {} : { order: spec.order }),
@@ -916,6 +981,47 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
    * State still owns every earlier structural/presence verdict. Untyped
    * bigints and circular refs keep the existing JSON-safety rejection.
    */
+  const encodeCandidateFields = (
+    candidate: Record<string, unknown>, def: InterimModelDef, encodedFields?: ReadonlySet<string>,
+  ): void => {
+    for (const [field, value] of Object.entries(candidate)) {
+      if (encodedFields !== undefined && !encodedFields.has(field)) continue;
+      const type = def.fields[field]?.valueType;
+      if (type !== undefined && value !== undefined) {
+        safeSet(candidate, field, jsonClone(input.encodeField!(type, value), `Field ${JSON.stringify(field)}`));
+      }
+    }
+  };
+
+  const checkContextActorDecoding = (
+    candidate: Record<string, unknown>, def: InterimModelDef, defaultWriter?: string,
+  ): void => {
+    for (const [field, fieldDef] of Object.entries(def.fields)) {
+      if (!hasContextActorDefault(fieldDef)) continue;
+      try {
+        if (Object.hasOwn(candidate, field)) decodeValue(fieldDef.valueType!, candidate[field]);
+        const key = defaultWriter === undefined ? undefined : defaultKey(field, defaultWriter);
+        if (key !== undefined && defaultWriters.get(key) === defaultWriter) decodeValue(fieldDef.valueType!, resolvedDefaults[key]);
+      } catch { throw new StateError('validation', `Invalid User value for context-defaulted field ${JSON.stringify(field)}.`); }
+    }
+  };
+
+  const encodeResolvedDefaults = (def: InterimModelDef, defaultWriter: string): void => {
+    // Receipts retain the original resolved default, which may differ
+    // from the post-hook field. Reuse its existing write attribution.
+    for (const [field, fieldDef] of Object.entries(def.fields)) {
+      const key = defaultKey(field, defaultWriter);
+      if (defaultWriters.get(key) !== defaultWriter) continue;
+      const value = resolvedDefaults[key];
+      if (fieldDef.valueType !== undefined && value !== undefined) {
+        safeSet(resolvedDefaults, key, jsonClone(
+          input.encodeField!(fieldDef.valueType, value), `Resolved default ${JSON.stringify(field)}`,
+        ));
+      }
+      checkJsonEncoding(resolvedDefaults[key], `Resolved default ${JSON.stringify(field)}`);
+    }
+  };
+
   const checkJsonSafe = (
     candidate: Record<string, unknown>,
     def: InterimModelDef,
@@ -926,23 +1032,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     // This post-hook pass validates the row only. Recorded defaults were
     // normalized before hooks and must retain that original resolution.
     normalizeConstraints(candidate, def, constrainedFields ?? new Set(Object.keys(candidate)));
-    if (input.encodeField !== undefined) {
-      for (const [field, value] of Object.entries(candidate)) {
-        if (encodedFields !== undefined && !encodedFields.has(field)) continue;
-        const type = def.fields[field]?.valueType;
-        if (type !== undefined && value !== undefined) {
-          safeSet(candidate, field, jsonClone(input.encodeField(type, value), `Field ${JSON.stringify(field)}`));
-        }
-      }
-    }
-    if (input.encodeField === undefined) for (const [field, fieldDef] of Object.entries(def.fields)) {
-      if (!hasContextActorDefault(fieldDef)) continue;
-      try {
-        if (Object.hasOwn(candidate, field)) decodeValue(fieldDef.valueType!, candidate[field]);
-        const key = defaultWriter === undefined ? undefined : defaultKey(field, defaultWriter);
-        if (key !== undefined && defaultWriters.get(key) === defaultWriter) decodeValue(fieldDef.valueType!, resolvedDefaults[key]);
-      } catch { throw new StateError('validation', `Invalid User value for context-defaulted field ${JSON.stringify(field)}.`); }
-    }
+    if (input.encodeField !== undefined) encodeCandidateFields(candidate, def, encodedFields);
+    if (input.encodeField === undefined) checkContextActorDecoding(candidate, def, defaultWriter);
     try {
       JSON.stringify(candidate);
     } catch {
@@ -952,19 +1043,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       );
     }
     if (input.encodeField !== undefined && defaultWriter !== undefined) {
-      // Receipts retain the original resolved default, which may differ
-      // from the post-hook field. Reuse its existing write attribution.
-      for (const [field, fieldDef] of Object.entries(def.fields)) {
-        const key = defaultKey(field, defaultWriter);
-        if (defaultWriters.get(key) !== defaultWriter) continue;
-        const value = resolvedDefaults[key];
-        if (fieldDef.valueType !== undefined && value !== undefined) {
-          safeSet(resolvedDefaults, key, jsonClone(
-            input.encodeField(fieldDef.valueType, value), `Resolved default ${JSON.stringify(field)}`,
-          ));
-        }
-        checkJsonEncoding(resolvedDefaults[key], `Resolved default ${JSON.stringify(field)}`);
-      }
+      encodeResolvedDefaults(def, defaultWriter);
     }
   };
 
@@ -1013,6 +1092,62 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
    * checks (refs, locks, uniques, versions) run later on the shared
    * per-write path, attributed to the staging hook via the queue entry.
    */
+  const checkStagedTarget = (
+    def: InterimModelDef, hookTag: string, op: 'create' | 'update', stagedModel: unknown,
+  ): void => {
+    if (typeof stagedModel !== 'string' || stagedModel === '') {
+      throw new StateError('validation', `${hookTag} staged a write with no model.`);
+    }
+    if (!table.has(stagedModel as ModelName)) {
+      throw new Error(`${hookTag} staged a write to unknown model ${JSON.stringify(stagedModel)}.`);
+    }
+    if (stagedModel === (def.model as string)) {
+      throw new StateError(
+        'validation',
+        `${hookTag} cannot stage same-model writes; got ${JSON.stringify(op)} on ` +
+          `${JSON.stringify(stagedModel)} (triggering-path recursion and pending-source ` +
+          'deletion are barred).',
+      );
+    }
+  };
+
+  const checkStagedParent = (
+    hookTag: string, op: 'create' | 'update', stagedParent: unknown,
+  ): RecordParent | undefined => {
+    if (stagedParent === undefined) return undefined;
+    if (op !== 'create') {
+      throw new StateError(
+        'validation',
+        `${hookTag} staged an update carrying a parent; parent linkage is immutable.`,
+      );
+    }
+    if (
+      typeof stagedParent !== 'object' ||
+      stagedParent === null ||
+      Array.isArray(stagedParent)
+    ) {
+      throw new StateError(
+        'validation',
+        `${hookTag} staged a write with an invalid parent reference.`,
+      );
+    }
+    const parentRecord = stagedParent as Record<string, unknown>;
+    const parentModel: unknown = parentRecord['model'];
+    const parentId: unknown = parentRecord['id'];
+    if (
+      typeof parentModel !== 'string' ||
+      parentModel === '' ||
+      typeof parentId !== 'string' ||
+      parentId === ''
+    ) {
+      throw new StateError(
+        'validation',
+        `${hookTag} staged a write with an invalid parent reference.`,
+      );
+    }
+    return { model: parentModel as ModelName, id: parentId as RecordId };
+  };
+
   const checkStagedWrite = (
     def: InterimModelDef,
     hookName: string,
@@ -1036,20 +1171,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     // Validated above: only create/set stage.
     const op = stagedOp as 'create' | 'update';
     const stagedModel: unknown = (staged as { readonly model?: unknown }).model;
-    if (typeof stagedModel !== 'string' || stagedModel === '') {
-      throw new StateError('validation', `${hookTag} staged a write with no model.`);
-    }
-    if (!table.has(stagedModel as ModelName)) {
-      throw new Error(`${hookTag} staged a write to unknown model ${JSON.stringify(stagedModel)}.`);
-    }
-    if (stagedModel === (def.model as string)) {
-      throw new StateError(
-        'validation',
-        `${hookTag} cannot stage same-model writes; got ${JSON.stringify(op)} on ` +
-          `${JSON.stringify(stagedModel)} (triggering-path recursion and pending-source ` +
-          'deletion are barred).',
-      );
-    }
+    checkStagedTarget(def, hookTag, op, stagedModel);
     const stagedId: unknown = (staged as { readonly id?: unknown }).id;
     if (typeof stagedId !== 'string' || stagedId === '') {
       throw new StateError(
@@ -1068,40 +1190,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       );
     }
     const stagedParent: unknown = (staged as { readonly parent?: unknown }).parent;
-    let parent: RecordParent | undefined;
-    if (stagedParent !== undefined) {
-      if (op !== 'create') {
-        throw new StateError(
-          'validation',
-          `${hookTag} staged an update carrying a parent; parent linkage is immutable.`,
-        );
-      }
-      if (
-        typeof stagedParent !== 'object' ||
-        stagedParent === null ||
-        Array.isArray(stagedParent)
-      ) {
-        throw new StateError(
-          'validation',
-          `${hookTag} staged a write with an invalid parent reference.`,
-        );
-      }
-      const parentRecord = stagedParent as Record<string, unknown>;
-      const parentModel: unknown = parentRecord['model'];
-      const parentId: unknown = parentRecord['id'];
-      if (
-        typeof parentModel !== 'string' ||
-        parentModel === '' ||
-        typeof parentId !== 'string' ||
-        parentId === ''
-      ) {
-        throw new StateError(
-          'validation',
-          `${hookTag} staged a write with an invalid parent reference.`,
-        );
-      }
-      parent = { model: parentModel as ModelName, id: parentId as RecordId };
-    }
+    const parent = checkStagedParent(hookTag, op, stagedParent);
     return {
       hook: hookName,
       write: {
@@ -1214,6 +1303,290 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
    * delete hooks reject by throwing, never stage). Hook bodies evaluate
    * once, in written order, against the proposed state.
    */
+  interface HookFireState {
+    readonly def: InterimModelDef;
+    readonly op: 'create' | 'update' | 'remove';
+    readonly hook: InterimHook;
+    readonly hookTag: string;
+    readonly triggerId: RecordId;
+    readonly sink: StagingSink;
+    readonly options: OwnerMutationStageOptions;
+    readonly pendingParent: RecordParent | null;
+    readonly before: StoredRow | null;
+    readonly frozenBefore: InterimHookContext['before'];
+    readonly ancestorModels: ReadonlySet<ModelName>;
+    readonly triggerParent: RecordParent | null;
+    readonly hookOccurrence: number;
+    hookActive: boolean;
+    current: Record<string, unknown>;
+  }
+
+  const collectHookAncestors = (def: InterimModelDef): ReadonlySet<ModelName> => {
+    const models = new Set<ModelName>();
+    const seen = new Set<string>([def.model as string]);
+    let current: ModelName | undefined = table.get(def.model)?.containment?.parent;
+    while (current !== undefined) {
+      if (seen.has(current as string) || models.size >= 32) {
+        throw new StateError('validation', 'Hook parent read exceeds its trigger containment bound.');
+      }
+      seen.add(current as string);
+      models.add(current);
+      current = table.get(current)?.containment?.parent;
+    }
+    return models;
+  };
+
+  const loadHookParent = async (
+    fire: HookFireState, model: ModelName, id: RecordId, site: OwnerMutationHookParentSite,
+  ): Promise<OwnerMutationHookParentRead> => {
+    if (owner !== undefined && !fire.hookActive) {
+      throw new StateError('validation', 'Owner hook scope is closed.');
+    }
+    healthy();
+    consumeWork();
+    if (site !== 'decision' && site !== 'value') {
+      throw new StateError('validation', 'Hook parent read requires its decision or value site.');
+    }
+    if (!table.has(model) || typeof id !== 'string' || id === '') {
+      throw new StateError('validation', 'Owner mutation reads require a known model and record identity.');
+    }
+    // Exact-chain walk from the trigger's parent link through the owner
+    // transaction snapshot. Only genuine ancestors serve; anything else
+    // (foreign models, guessed ids, the trigger itself) exceeds the
+    // trigger containment bound without distinguishing which part was
+    // wrong. Bounded like navigation (32 hops).
+    let cursor: RecordParent | null = fire.triggerParent;
+    const chain = new Set<string>();
+    let hops = 0;
+    while (cursor !== null) {
+      if (hops >= 32 || !fire.ancestorModels.has(cursor.model)) {
+        throw new StateError('validation', 'Hook parent read exceeds its trigger containment bound.');
+      }
+      hops += 1;
+      chain.add(keyOf(cursor.model, cursor.id));
+      if (cursor.model === model && cursor.id === id) break;
+      const intermediate = await getRow(cursor.model, cursor.id);
+      if (intermediate === null) throw new StateError('not_found', 'Parent record not found.');
+      cursor = intermediate.parent ?? null;
+    }
+    if (!chain.has(keyOf(model, id))) {
+      throw new StateError('validation', 'Hook parent read exceeds its trigger containment bound.');
+    }
+    const row = await getRow(model, id);
+    if (row === null) throw new StateError('not_found', 'Parent record not found.');
+    const withheld = site === 'decision' ? new Set<string>() : new Set<string>(Object.keys(row.data));
+    return Object.freeze({ model, row: deepFreeze(structuredClone(row)) as StoredRow,
+      withheld: Object.freeze(withheld) });
+  };
+
+  const loadHookReference = async (
+    fire: HookFireState, model: ModelName, id: RecordId, site: OwnerMutationHookReferenceSite,
+  ): Promise<OwnerMutationHookReferenceRead> => {
+    if (owner !== undefined && !fire.hookActive) {
+      throw new StateError('validation', 'Owner hook scope is closed.');
+    }
+    healthy();
+    consumeWork();
+    if (site !== 'decision' && site !== 'value') {
+      throw new StateError('validation', 'Hook reference read requires its decision or value site.');
+    }
+    if (!table.has(model) || typeof id !== 'string' || id === '') {
+      throw new StateError('validation', 'Owner mutation reads require a known model and record identity.');
+    }
+    const triggerDef = table.get(fire.def.model);
+    if (triggerDef === undefined) {
+      throw new StateError('validation', 'Hook reference read exceeds its trigger reference bound.');
+    }
+    const candidateRefs = triggerDef.refs.filter((ref) => (ref.model as string) === (model as string));
+    if (candidateRefs.length === 0) {
+      throw new StateError('validation', 'Hook reference read exceeds its trigger reference bound.');
+    }
+    let edgeMatches = false;
+    for (const ref of candidateRefs) {
+      consumeWork();
+      const value = getDataPath(fire.current, ref.field);
+      if (typeof value === 'object' && value !== null && !Array.isArray(value) &&
+        (value as Readonly<Record<string, unknown>>)['id'] === (id as string)) {
+        edgeMatches = true;
+        break;
+      }
+    }
+    if (!edgeMatches) {
+      throw new StateError('validation', 'Hook reference read exceeds its trigger reference bound.');
+    }
+    const row = await getRow(model, id);
+    if (row === null) throw new StateError('not_found', 'Referenced record not found.');
+    const withheld = site === 'decision' ? new Set<string>() : new Set<string>(Object.keys(row.data));
+    return Object.freeze({ model, row: deepFreeze(structuredClone(row)) as StoredRow,
+      withheld: Object.freeze(withheld) });
+  };
+
+  const queryHookContained = (
+    fire: HookFireState,
+    hookCandidate: Record<string, unknown>,
+    after: StoredRow | null,
+    model: ModelName,
+    parent: RecordParent,
+    site: OwnerMutationHookParentSite,
+    archived: 'exclude' | 'include' = 'exclude',
+  ): Promise<readonly OwnerMutationHookParentRead[]> => guardedRead(async () => {
+    if (owner === undefined || !fire.hookActive) throw new StateError('validation', 'Owner hook scope is closed.');
+    healthy();
+    consumeWork();
+    if (site !== 'decision' && site !== 'value' || archived !== 'exclude' && archived !== 'include') {
+      throw new StateError('validation', 'Hook contained query requires its decision or value site and archive selection.');
+    }
+    if (!table.has(model) || parent === null || typeof parent !== 'object' ||
+        typeof parent.model !== 'string' || typeof parent.id !== 'string' || parent.id === '' ||
+        table.get(model)!.containment?.parent !== parent.model) {
+      throw new StateError('validation', 'Hook contained query exceeds its trigger containment bound.');
+    }
+    const frozenParent = Object.freeze({ model: parent.model, id: parent.id });
+    // Only the trigger itself or an exact ancestor is a legal parent.
+    // The existing parent loader walks immutable stored containment links;
+    // declared reference edges confer no contained-query authority.
+    if (frozenParent.model !== fire.def.model || frozenParent.id !== fire.triggerId) {
+      await loadHookParent(fire, frozenParent.model, frozenParent.id, 'decision');
+    }
+    const rows = await ownerQuery({ model, parent: frozenParent, authority: 'owner', archived,
+      limit: owner.bounds.maxRows }, 'final', { model: fire.def.model, id: fire.triggerId,
+      after: after === null ? null : issueHookCandidate(fire.def.model, fire.triggerId, hookCandidate, fire.before, fire.pendingParent) });
+    if (!fire.hookActive) throw new StateError('validation', 'Owner hook scope is closed.');
+    return Object.freeze(rows.map(row => Object.freeze({ model, row,
+      withheld: Object.freeze(site === 'decision' ? new Set<string>() : new Set(Object.keys(row.data))) })));
+  });
+
+  const runOneHook = async (fire: HookFireState): Promise<Record<string, unknown>> => {
+    const { def, op, hook, hookTag, triggerId, sink, options, pendingParent, before } = fire;
+    const forbidStagingOnRemove = (what: string): void => {
+      if (op === 'remove') {
+        throw new StateError(
+          'validation',
+          `${hookTag} runs on a delete and cannot stage ${what}; only create/update hooks stage.`,
+        );
+      }
+    };
+    const effect = <T>(execute: () => T): T => {
+      try {
+        if (owner !== undefined && !fire.hookActive) throw new StateError('validation', 'Owner hook scope is closed.');
+        healthy();
+        return execute();
+      }
+      catch (error) { if (owner !== undefined) poisoned = true; throw error; }
+    };
+    // Scope-2 hook parent loader for this fire. Both sites serve the
+    // trigger's exact parent chain from the owner transaction snapshot
+    // (staged own-writes win via getRow, never raw committed storage).
+    // Decision loads serve at owner authority with no withheld fields;
+    // value loads serve the exact row with every data field withheld —
+    // State holds no caller read grants, so the host viewer projection
+    // narrows the baseline per the triggering caller's row/field
+    // authority before serving values. Expected refusals never poison
+    // the session: the hook may catch them as control flow (like any
+    // authored guard); uncaught failures void the batch through the
+    // existing hook-error path. Only the liveness/scope checks below
+    // run before the read.
+    const loadParent = (
+      model: ModelName, id: RecordId, site: OwnerMutationHookParentSite,
+    ): Promise<OwnerMutationHookParentRead> => loadHookParent(fire, model, id, site);
+    // CAN18-v1 referenced-row loader for this fire (file 14
+    // `Account.location` first shape). Same snapshot/authority/rollback
+    // as `loadParent`, over the trigger's DECLARED stored references —
+    // never through the ancestor fence above. The entry candidate
+    // supplies the authoritative reference edge: only (model,id) equal
+    // to the trigger's current `{id}` value for a declared ref field
+    // targeting that model serves. Anything else (foreign models,
+    // guessed ids, the trigger itself, tampered edges) exceeds the
+    // trigger reference bound without distinguishing the miss.
+    // Withheld semantics match `loadParent` exactly so the host viewer
+    // projection narrows value reads per the triggering caller's
+    // row/field authority (revocation included); decision reads serve
+    // at owner authority. Missing genuine targets are `not_found`.
+    const entryCandidate: Readonly<Record<string, unknown>> = fire.current;
+    const loadReference = (
+      model: ModelName, id: RecordId, site: OwnerMutationHookReferenceSite,
+    ): Promise<OwnerMutationHookReferenceRead> => loadHookReference(fire, model, id, site);
+    // This exact clone is passed to the callback. Contained reads may
+    // observe its live business fields without publishing provisional state.
+    const hookCandidate = jsonClone(fire.current, 'Hook candidate');
+    const after = owner === undefined || op === 'remove' ? null :
+      issueHookCandidate(def.model, triggerId, fire.current, before, pendingParent);
+    const queryContained: OwnerMutationHookContext['queryContained'] = (
+      model, parent, site, archived = 'exclude',
+    ) => queryHookContained(fire, hookCandidate, after, model, parent, site, archived);
+    const ctx: InterimHookContext = {
+      before: fire.frozenBefore,
+      op,
+      actor,
+      now,
+      triggerModel: def.model,
+      triggerId,
+      operationId: stageContext.operationId,
+      hookOccurrence: fire.hookOccurrence,
+      stage: (staged) => effect(() => {
+        forbidStagingOnRemove('secondary writes');
+        consumeWork();
+        sink.writes.push(checkStagedWrite(def, hook.name, staged));
+      }),
+      schedule: (replacement) => effect(() => {
+        forbidStagingOnRemove('timers');
+        consumeWork();
+        sink.schedules.push(checkStagedSchedule(def, hook.name, replacement));
+      }),
+      cancel: (key) => effect(() => {
+        forbidStagingOnRemove('timers');
+        consumeWork();
+        sink.schedules.push(checkStagedCancel(def, hook.name, key));
+      }),
+      // T32b-wire: hook bodies are transitive effects — fresh scopes at
+      // the CURRENT revision (zero inherited deps) plus re-reads of
+      // CURRENT committed rows at those scopes. `load` deliberately
+      // bypasses the provisional map (`store.load`, never `getRow`):
+      // transitive re-reads observe committed authority state, never
+      // this batch's uncommitted rows.
+      transitive: {
+        triggerRevision: transitiveTriggerRevision,
+        owner: transitiveOwner,
+        openScope: () => guardedRead(() => effect(() => { consumeWork(); return openTransitiveScope(store, transitiveOwner); })),
+        load: async (
+          scope: FenceScope,
+          model: ModelName,
+          id: RecordId,
+        ): Promise<StoredRow | null> => guardedRead(async () => {
+          effect(() => consumeWork());
+          await checkRevision();
+          const row = await store.load(model, id);
+          await checkRevision();
+          if (row !== null) {
+            scope.enroll({ kind: 'record', model, id, version: row.version });
+          }
+          return row;
+        }),
+      },
+    };
+    // Each hook gets a clone and its return is re-cloned: hooks can neither
+    // mutate the pipeline candidate nor smuggle uncloneable values forward
+    // (or retain an alias and mutate it after returning).
+    const carrier: InterimHookContext | OwnerMutationHookContext = owner === undefined ? ctx : Object.freeze({
+      ...ctx, context: stageContext, input: options.input!, loadParent, loadReference, queryContained, after,
+    });
+    if (owner !== undefined) ownerHookContexts.add(carrier);
+    let next: Record<string, unknown>;
+    try { next = await hook.run(hookCandidate, carrier); }
+    finally { fire.hookActive = false; ownerHookContexts.delete(carrier); }
+    healthy();
+    if (typeof next !== 'object' || next === null || Array.isArray(next)) {
+      throw new Error(`${hookTag} must return a candidate object.`);
+    }
+    const checked = jsonClone(next as Record<string, unknown>, 'Hook result');
+    for (const [field, fieldDef] of Object.entries(def.fields)) {
+      if (fieldDef.machine !== undefined && checked[field] !== fire.current[field]) {
+        throw new StateError('validation', `${hookTag} cannot change machine field ${JSON.stringify(field)}.`);
+      }
+    }
+    return checked;
+  };
+
   const runHooks = async (
     def: InterimModelDef,
     op: 'create' | 'update' | 'remove',
@@ -1239,20 +1612,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     // like navigation (32 hops, cycle-checked). Computed once per trigger;
     // every load additionally walks the exact parent chain, so only the
     // genuine ancestors of this trigger ever serve.
-    const ancestorModels = ((): ReadonlySet<ModelName> => {
-      const models = new Set<ModelName>();
-      const seen = new Set<string>([def.model as string]);
-      let current: ModelName | undefined = table.get(def.model)?.containment?.parent;
-      while (current !== undefined) {
-        if (seen.has(current as string) || models.size >= 32) {
-          throw new StateError('validation', 'Hook parent read exceeds its trigger containment bound.');
-        }
-        seen.add(current as string);
-        models.add(current);
-        current = table.get(current)?.containment?.parent;
-      }
-      return models;
-    })();
+    const ancestorModels = collectHookAncestors(def);
     const triggerParent: RecordParent | null = before?.parent ?? pendingParent ?? null;
     for (const hook of hooks) {
       if (!hook.ops.includes(op)) {
@@ -1275,236 +1635,11 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       const priorFires = hookFireCounts.get(fireKey) ?? 0;
       hookFireCounts.set(fireKey, priorFires + 1);
       const hookOccurrence = priorFires;
-      const forbidStagingOnRemove = (what: string): void => {
-        if (op === 'remove') {
-          throw new StateError(
-            'validation',
-            `${hookTag} runs on a delete and cannot stage ${what}; only create/update hooks stage.`,
-          );
-        }
+      const fire: HookFireState = {
+        def, op, hook, hookTag, triggerId, sink, options, pendingParent, before,
+        frozenBefore, ancestorModels, triggerParent, hookOccurrence, hookActive: true, current,
       };
-      let hookActive = true;
-      const effect = <T>(execute: () => T): T => {
-        try {
-          if (owner !== undefined && !hookActive) throw new StateError('validation', 'Owner hook scope is closed.');
-          healthy();
-          return execute();
-        }
-        catch (error) { if (owner !== undefined) poisoned = true; throw error; }
-      };
-      // Scope-2 hook parent loader for this fire. Both sites serve the
-      // trigger's exact parent chain from the owner transaction snapshot
-      // (staged own-writes win via getRow, never raw committed storage).
-      // Decision loads serve at owner authority with no withheld fields;
-      // value loads serve the exact row with every data field withheld —
-      // State holds no caller read grants, so the host viewer projection
-      // narrows the baseline per the triggering caller's row/field
-      // authority before serving values. Expected refusals never poison
-      // the session: the hook may catch them as control flow (like any
-      // authored guard); uncaught failures void the batch through the
-      // existing hook-error path. Only the liveness/scope checks below
-      // run before the read.
-      const loadParent = (
-        model: ModelName, id: RecordId, site: OwnerMutationHookParentSite,
-      ): Promise<OwnerMutationHookParentRead> => (async () => {
-        if (owner !== undefined && !hookActive) {
-          throw new StateError('validation', 'Owner hook scope is closed.');
-        }
-        healthy();
-        consumeWork();
-        if (site !== 'decision' && site !== 'value') {
-          throw new StateError('validation', 'Hook parent read requires its decision or value site.');
-        }
-        if (!table.has(model) || typeof id !== 'string' || id === '') {
-          throw new StateError('validation', 'Owner mutation reads require a known model and record identity.');
-        }
-        // Exact-chain walk from the trigger's parent link through the owner
-        // transaction snapshot. Only genuine ancestors serve; anything else
-        // (foreign models, guessed ids, the trigger itself) exceeds the
-        // trigger containment bound without distinguishing which part was
-        // wrong. Bounded like navigation (32 hops).
-        let cursor: RecordParent | null = triggerParent;
-        const chain = new Set<string>();
-        let hops = 0;
-        while (cursor !== null) {
-          if (hops >= 32 || !ancestorModels.has(cursor.model)) {
-            throw new StateError('validation', 'Hook parent read exceeds its trigger containment bound.');
-          }
-          hops += 1;
-          chain.add(keyOf(cursor.model, cursor.id));
-          if (cursor.model === model && cursor.id === id) break;
-          const intermediate = await getRow(cursor.model, cursor.id);
-          if (intermediate === null) throw new StateError('not_found', 'Parent record not found.');
-          cursor = intermediate.parent ?? null;
-        }
-        if (!chain.has(keyOf(model, id))) {
-          throw new StateError('validation', 'Hook parent read exceeds its trigger containment bound.');
-        }
-        const row = await getRow(model, id);
-        if (row === null) throw new StateError('not_found', 'Parent record not found.');
-        const withheld = site === 'decision' ? new Set<string>() : new Set<string>(Object.keys(row.data));
-        return Object.freeze({ model, row: deepFreeze(structuredClone(row)) as StoredRow,
-          withheld: Object.freeze(withheld) });
-      })();
-      // CAN18-v1 referenced-row loader for this fire (file 14
-      // `Account.location` first shape). Same snapshot/authority/rollback
-      // as `loadParent`, over the trigger's DECLARED stored references —
-      // never through the ancestor fence above. The entry candidate
-      // supplies the authoritative reference edge: only (model,id) equal
-      // to the trigger's current `{id}` value for a declared ref field
-      // targeting that model serves. Anything else (foreign models,
-      // guessed ids, the trigger itself, tampered edges) exceeds the
-      // trigger reference bound without distinguishing the miss.
-      // Withheld semantics match `loadParent` exactly so the host viewer
-      // projection narrows value reads per the triggering caller's
-      // row/field authority (revocation included); decision reads serve
-      // at owner authority. Missing genuine targets are `not_found`.
-      const entryCandidate: Readonly<Record<string, unknown>> = current;
-      const loadReference = (
-        model: ModelName, id: RecordId, site: OwnerMutationHookReferenceSite,
-      ): Promise<OwnerMutationHookReferenceRead> => (async () => {
-        if (owner !== undefined && !hookActive) {
-          throw new StateError('validation', 'Owner hook scope is closed.');
-        }
-        healthy();
-        consumeWork();
-        if (site !== 'decision' && site !== 'value') {
-          throw new StateError('validation', 'Hook reference read requires its decision or value site.');
-        }
-        if (!table.has(model) || typeof id !== 'string' || id === '') {
-          throw new StateError('validation', 'Owner mutation reads require a known model and record identity.');
-        }
-        const triggerDef = table.get(def.model);
-        if (triggerDef === undefined) {
-          throw new StateError('validation', 'Hook reference read exceeds its trigger reference bound.');
-        }
-        const candidateRefs = triggerDef.refs.filter((ref) => (ref.model as string) === (model as string));
-        if (candidateRefs.length === 0) {
-          throw new StateError('validation', 'Hook reference read exceeds its trigger reference bound.');
-        }
-        let edgeMatches = false;
-        for (const ref of candidateRefs) {
-          consumeWork();
-          const value = getDataPath(entryCandidate, ref.field);
-          if (typeof value === 'object' && value !== null && !Array.isArray(value) &&
-            (value as Readonly<Record<string, unknown>>)['id'] === (id as string)) {
-            edgeMatches = true;
-            break;
-          }
-        }
-        if (!edgeMatches) {
-          throw new StateError('validation', 'Hook reference read exceeds its trigger reference bound.');
-        }
-        const row = await getRow(model, id);
-        if (row === null) throw new StateError('not_found', 'Referenced record not found.');
-        const withheld = site === 'decision' ? new Set<string>() : new Set<string>(Object.keys(row.data));
-        return Object.freeze({ model, row: deepFreeze(structuredClone(row)) as StoredRow,
-          withheld: Object.freeze(withheld) });
-      })();
-      // This exact clone is passed to the callback. Contained reads may
-      // observe its live business fields without publishing provisional state.
-      const hookCandidate = jsonClone(current, 'Hook candidate');
-      const after = owner === undefined || op === 'remove' ? null :
-        issueHookCandidate(def.model, triggerId, current, before, pendingParent);
-      const queryContained: OwnerMutationHookContext['queryContained'] = (
-        model, parent, site, archived = 'exclude',
-      ) => guardedRead(async () => {
-        if (owner === undefined || !hookActive) throw new StateError('validation', 'Owner hook scope is closed.');
-        healthy();
-        consumeWork();
-        if (site !== 'decision' && site !== 'value' || archived !== 'exclude' && archived !== 'include') {
-          throw new StateError('validation', 'Hook contained query requires its decision or value site and archive selection.');
-        }
-        if (!table.has(model) || parent === null || typeof parent !== 'object' ||
-            typeof parent.model !== 'string' || typeof parent.id !== 'string' || parent.id === '' ||
-            table.get(model)!.containment?.parent !== parent.model) {
-          throw new StateError('validation', 'Hook contained query exceeds its trigger containment bound.');
-        }
-        parent = Object.freeze({ model: parent.model, id: parent.id });
-        // Only the trigger itself or an exact ancestor is a legal parent.
-        // The existing parent loader walks immutable stored containment links;
-        // declared reference edges confer no contained-query authority.
-        if (parent.model !== def.model || parent.id !== triggerId) {
-          await loadParent(parent.model, parent.id, 'decision');
-        }
-        const rows = await ownerQuery({ model, parent, authority: 'owner', archived,
-          limit: owner.bounds.maxRows }, 'final', { model: def.model, id: triggerId,
-          after: after === null ? null : issueHookCandidate(def.model, triggerId, hookCandidate, before, pendingParent) });
-        if (!hookActive) throw new StateError('validation', 'Owner hook scope is closed.');
-        return Object.freeze(rows.map(row => Object.freeze({ model, row,
-          withheld: Object.freeze(site === 'decision' ? new Set<string>() : new Set(Object.keys(row.data))) })));
-      });
-      const ctx: InterimHookContext = {
-        before: frozenBefore,
-        op,
-        actor,
-        now,
-        triggerModel: def.model,
-        triggerId,
-        operationId: stageContext.operationId,
-        hookOccurrence,
-        stage: (staged) => effect(() => {
-          forbidStagingOnRemove('secondary writes');
-          consumeWork();
-          sink.writes.push(checkStagedWrite(def, hook.name, staged));
-        }),
-        schedule: (replacement) => effect(() => {
-          forbidStagingOnRemove('timers');
-          consumeWork();
-          sink.schedules.push(checkStagedSchedule(def, hook.name, replacement));
-        }),
-        cancel: (key) => effect(() => {
-          forbidStagingOnRemove('timers');
-          consumeWork();
-          sink.schedules.push(checkStagedCancel(def, hook.name, key));
-        }),
-        // T32b-wire: hook bodies are transitive effects — fresh scopes at
-        // the CURRENT revision (zero inherited deps) plus re-reads of
-        // CURRENT committed rows at those scopes. `load` deliberately
-        // bypasses the provisional map (`store.load`, never `getRow`):
-        // transitive re-reads observe committed authority state, never
-        // this batch's uncommitted rows.
-        transitive: {
-          triggerRevision: transitiveTriggerRevision,
-          owner: transitiveOwner,
-          openScope: () => guardedRead(() => effect(() => { consumeWork(); return openTransitiveScope(store, transitiveOwner); })),
-          load: async (
-            scope: FenceScope,
-            model: ModelName,
-            id: RecordId,
-          ): Promise<StoredRow | null> => guardedRead(async () => {
-            effect(() => consumeWork());
-            await checkRevision();
-            const row = await store.load(model, id);
-            await checkRevision();
-            if (row !== null) {
-              scope.enroll({ kind: 'record', model, id, version: row.version });
-            }
-            return row;
-          }),
-        },
-      };
-      // Each hook gets a clone and its return is re-cloned: hooks can neither
-      // mutate the pipeline candidate nor smuggle uncloneable values forward
-      // (or retain an alias and mutate it after returning).
-      const carrier: InterimHookContext | OwnerMutationHookContext = owner === undefined ? ctx : Object.freeze({
-        ...ctx, context: stageContext, input: options.input!, loadParent, loadReference, queryContained, after,
-      });
-      if (owner !== undefined) ownerHookContexts.add(carrier);
-      let next: Record<string, unknown>;
-      try { next = await hook.run(hookCandidate, carrier); }
-      finally { hookActive = false; ownerHookContexts.delete(carrier); }
-      healthy();
-      if (typeof next !== 'object' || next === null || Array.isArray(next)) {
-        throw new Error(`${hookTag} must return a candidate object.`);
-      }
-      const checked = jsonClone(next as Record<string, unknown>, 'Hook result');
-      for (const [field, fieldDef] of Object.entries(def.fields)) {
-        if (fieldDef.machine !== undefined && checked[field] !== current[field]) {
-          throw new StateError('validation', `${hookTag} cannot change machine field ${JSON.stringify(field)}.`);
-        }
-      }
-      current = checked;
+      current = await runOneHook(fire);
     }
     return current;
   };
@@ -1683,610 +1818,712 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
   // staging order, so staged writes observe the trigger's provisional row
   // (pending parents resolve) plus earlier staged rows. Staged entries skip
   // hooks (flat, no cascade) and stage nothing further.
+  interface ProcessedWriteHead {
+    readonly write: MutationWrite;
+    readonly def: InterimModelDef;
+    readonly before: StoredRow | null;
+    readonly rowKey: string;
+    readonly id: RecordId;
+    readonly fixture: boolean;
+    readonly stagedBy: string | null;
+    readonly sink: StagingSink;
+    readonly drainSink: () => void;
+    readonly writeTag: string;
+  }
+
+  const checkStoredMachineStates = (def: InterimModelDef, before: StoredRow): void => {
+    for (const [field, fieldDef] of Object.entries(def.fields)) {
+      if (fieldDef.machine !== undefined && !fieldDef.machine.states.includes(before.data[field] as string)) {
+        throw new StateError('validation', `Stored machine state for ${JSON.stringify(field)} is incompatible; migration is required.`);
+      }
+    }
+  };
+
+  const processWriteHead = async (
+    entry: MutationQueueEntry | undefined, index: number, queue: MutationQueueEntry[], options: OwnerMutationStageOptions,
+  ): Promise<ProcessedWriteHead> => {
+    if (entry === undefined) {
+      throw new Error('Mutation queue misaligned.');
+    }
+    consumeWork();
+    const write = entry.write;
+    const fixture = options.cause === 'fixture';
+    // Null for caller writes (hooks run into `sink`); the staging hook's
+    // name for staged writes (hooks skipped, sink stays empty).
+    const stagedBy = entry.stagedBy;
+    const sink: StagingSink = { writes: [], schedules: [] };
+    /** Drain this write's staged secondaries into the queue + schedules. */
+    const drainSink = (): void => {
+      if (sink.writes.length === 0 && sink.schedules.length === 0) {
+        return;
+      }
+      queue.splice(
+        index + 1,
+        0,
+        ...sink.writes.map(
+          (staged): MutationQueueEntry => ({ write: staged.write, stagedBy: staged.hook }),
+        ),
+      );
+      outSchedules.push(...sink.schedules);
+    };
+    if (write.transition !== undefined && (write.op !== 'update' || stagedBy !== null)) {
+      throw new StateError('validation', 'Transition is available only on explicit scenario updates.');
+    }
+    const def = table.get(write.model);
+    if (def === undefined) {
+      // Unknown models are programmer bugs: models come from program defs,
+      // never from caller input.
+      throw new Error(
+        `Unknown model in mutation write: ${JSON.stringify(write.model as string)}.`,
+      );
+    }
+    touchedDefs.push(def);
+    const id = write.id;
+    if (typeof id !== 'string' || id === '') {
+      throw new StateError('validation', 'Mutation writes need a non-empty string record id.');
+    }
+    // Admission pre-loads update/remove targets, but the pipeline re-loads
+    // via the provisional map for uniformity (batch-earlier writes visible).
+    const before = await getRow(write.model, id);
+    if (before !== null) checkStoredMachineStates(def, before);
+    // B1: first-touch before-row (committed state at batch start; null for
+    // batch-created rows). Captured once per record: later touches see
+    // provisional state, but unique-netting needs the committed keys.
+    const rowKey = keyOf(write.model, id);
+    if (!firstBefore.has(rowKey)) {
+      firstBefore.set(rowKey, before);
+      // Removal also reserves its one history version, even without an
+      // after row to carry it. Refuse exhausted metadata before staging.
+      if (owner !== undefined && before !== null && !fixture) nextVersion(write.model, id, before);
+    }
+    // B1: collision-guard tag for this write (monotonic sequence — queue
+    // indices shift when staged writes splice in).
+    processedWrites += 1;
+    const writeTag = owner === undefined
+      ? `${write.op} ${write.model as string} ${id as string} (batch write #${processedWrites})`
+      : `${processedWrites - 1}:${write.model as string}`;
+    return { write, def, before, rowKey, id, fixture, stagedBy, sink, drainSink, writeTag };
+  };
+
+  const checkCreateParentage = (write: MutationWrite, def: InterimModelDef): void => {
+    if (write.parent !== undefined) {
+      if (
+        typeof write.parent.model !== 'string' ||
+        write.parent.model === '' ||
+        typeof write.parent.id !== 'string' ||
+        write.parent.id === ''
+      ) {
+        throw new StateError('validation', 'Invalid parent reference.');
+      }
+    }
+    // B5 declared ownership (adopted T28-A): a declared child REQUIRES
+    // its declared parent model; a declared root rejects any supplied
+    // parent. Undeclared (legacy interim) defs skip this entirely —
+    // exact prior behavior. Local and plain-imported parents enforce
+    // identically (flat linkage); every caller path (CRUD, scenario
+    // staging, hook-staged writes) shares this block, so they agree.
+    const declared = def.containment;
+    if (declared !== undefined) {
+      if (declared.parent !== undefined) {
+        if (write.parent === undefined) {
+          throw new StateError(
+            'validation',
+            `Missing required parent for model ${JSON.stringify(write.model as string)}.`,
+          );
+        }
+        if ((write.parent.model as string) !== (declared.parent as string)) {
+          throw new StateError(
+            'validation',
+            `Invalid parent for model ${JSON.stringify(write.model as string)}: ` +
+              `expected parent model ${JSON.stringify(declared.parent as string)}.`,
+          );
+        }
+      } else if (write.parent !== undefined) {
+        throw new StateError(
+          'validation',
+          `Parent linkage is not allowed for model ${JSON.stringify(write.model as string)}.`,
+        );
+      }
+    }
+  };
+
+  const loadCreateParentRow = async (
+    write: MutationWrite, fixture: boolean,
+  ): Promise<{ readonly parent: RecordParent | null; readonly parentRow: StoredRow | null }> => {
+    // Resolve parents once for defaults. Snapshot linkage is checked against
+    // the final setup; production parents must already exist and be live.
+    let parent: RecordParent | null = null;
+    let parentRow: StoredRow | null = null;
+    if (write.parent !== undefined) {
+      parentRow = await getRow(write.parent.model, write.parent.id);
+      if (parentRow === null && !fixture) {
+        throw new StateError('validation', 'Parent record not found.');
+      }
+      if (parentRow !== null && parentRow.archivedAt !== null && !fixture) {
+        throw new StateError('validation', 'Parent record is archived.');
+      }
+      parent = { model: write.parent.model, id: write.parent.id };
+    }
+    return { parent, parentRow };
+  };
+
+  const fillCreateField = (
+    candidate: Record<string, unknown>,
+    field: string,
+    fieldDef: InterimFieldDef,
+    parentRow: StoredRow | null,
+    writeTag: string,
+  ): void => {
+    consumeWork();
+    if (Object.hasOwn(candidate, field)) {
+      return;
+    }
+    if (hasContextActorDefault(fieldDef)) {
+      const userId = stageContext.actor?.userId;
+      const resolved = userId === undefined || userId === null ? null : { id: userId };
+      safeSet(candidate, field, resolved); recordDefault(field, resolved, writeTag);
+      return;
+    }
+    const fallback = fieldDef.default;
+    if (fallback !== undefined) {
+      if (isParentPathDefault(fallback)) {
+        // No parent, or an unresolvable path, reads as missing — the
+        // required check below decides, so optional parent-bound fields
+        // never block parentless creates.
+        if (parentRow === null) {
+          return;
+        }
+        const resolved = resolveRowPath(parentRow, fallback.parentPath);
+        // An unresolvable parent path reads as missing (the required check
+        // below decides); only recorded when it actually defaults.
+        if (resolved === undefined) {
+          return;
+        }
+        safeSet(candidate, field, structuredClone(resolved));
+        recordDefault(field, structuredClone(resolved), writeTag);
+      } else {
+        safeSet(candidate, field, structuredClone(fallback));
+        recordDefault(field, structuredClone(fallback), writeTag);
+      }
+      return;
+    }
+    // No default: required-array omission rejects (L2 required-first
+    // agreement — emission marks these required, so the verdict below
+    // would match; failing here keeps the T16a message stable).
+    const marker = fieldDef.array;
+    if (marker?.required === true) {
+      throw new StateError('validation', `Missing required field ${JSON.stringify(field)}.`);
+    }
+    // T18: known-nullable fills null (L2 parity); unknown nullability
+    // (hand-built defs, fixtures) skips with prior behavior intact.
+    if (fieldDef.nullable === true) {
+      safeSet(candidate, field, null);
+      recordDefault(field, null, writeTag);
+      return;
+    }
+    // T16a: the T09 array marker decides. Ordinary arrays omit to `[]`
+    // (recorded like any resolved omission-fill). Explicit defaults
+    // (handled above) always win over omit-to-empty.
+    if (marker !== undefined) {
+      safeSet(candidate, field, []);
+      recordDefault(field, [], writeTag);
+      return;
+    }
+    // T18: closed-set server init, the last prep step before hooks.
+    // Unspecified inits (pre-T18 artifacts, intake-direct tables)
+    // resolve nothing — the field stays missing, never invented.
+    const init = fieldDef.server;
+    if (init !== undefined) {
+      const resolved = evalServerInit(init, now, actor);
+      safeSet(candidate, field, resolved);
+      recordDefault(field, resolved, writeTag);
+    }
+  };
+
+  const claimRowUniques = (
+    write: MutationWrite, id: RecordId, row: StoredRow, def: InterimModelDef,
+  ): void => {
+    for (const key of def.uniqueKeys) {
+      const canonical = canonicalUnique(row, key, def);
+      if (canonical === null) {
+        continue;
+      }
+      outClaims.push({ model: write.model, keyName: key, keyValue: canonical, recordId: id });
+    }
+  };
+
+  const diffRowUniques = (
+    write: MutationWrite, id: RecordId, before: StoredRow, row: StoredRow, def: InterimModelDef,
+  ): void => {
+    for (const key of def.uniqueKeys) {
+      const oldCanonical = canonicalUnique(before, key, def);
+      const newCanonical = canonicalUnique(row, key, def);
+      if (oldCanonical === newCanonical) {
+        continue;
+      }
+      if (oldCanonical !== null) {
+        outReleases.push({ model: write.model, keyName: key, keyValue: oldCanonical });
+      }
+      if (newCanonical !== null) {
+        outClaims.push({
+          model: write.model,
+          keyName: key,
+          keyValue: newCanonical,
+          recordId: id,
+        });
+      }
+    }
+  };
+
+  const checkFixtureMachineFields = (def: InterimModelDef, hooked: Record<string, unknown>, fixture: boolean): void => {
+    if (!fixture) return;
+    for (const [name, field] of Object.entries(def.fields)) {
+      if (field.machine !== undefined && !field.machine.states.includes(hooked[name] as string)) {
+        throw new StateError('validation', `Snapshot machine field ${JSON.stringify(name)} has no declared state.`);
+      }
+    }
+  };
+
+  const resolveHookedCreate = async (
+    head: ProcessedWriteHead, candidate: Record<string, unknown>, id: RecordId,
+    parent: RecordParent | null, options: OwnerMutationStageOptions,
+  ): Promise<Record<string, unknown>> => {
+    // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
+    // check below plus locks and end-of-batch invariants still runs.
+    const hooked =
+      head.stagedBy !== null || (owner !== undefined && options.cause !== 'crud')
+        ? candidate
+        : await runHooks(head.def, 'create', candidate, null, id, head.sink, options, parent);
+    // Hooks are trusted otherwise (adopted R27 rule: hooks adjusting
+    // the pending record are the ONLY writers that may set server-only
+    // fields), but the contract checks re-run: no undeclared fields,
+    // required present, JSON-safe values.
+    checkKnownFields(hooked, head.def);
+    checkRequired(hooked, head.def);
+    checkJsonSafe(hooked, head.def, head.writeTag);
+    await validateGivenFields(head.def.givenFieldValidations ?? [], hooked, consumeWork);
+    checkFixtureMachineFields(head.def, hooked, head.fixture);
+    return hooked;
+  };
+
+  const runCreateWrite = async (head: ProcessedWriteHead, options: OwnerMutationStageOptions): Promise<void> => {
+    const { write, def, id, fixture, writeTag } = head;
+    if (owner !== undefined && provisional.has(head.rowKey)) {
+      throw new StateError('validation', 'Record identities cannot be recreated during owner mutation.');
+    }
+    if (head.before !== null) {
+      throw new StateError('validation', 'Record already exists.');
+    }
+    // HEAD validates parent shape/declaration, then caller data, and only
+    // then loads the parent row: declaration and load stay split so an
+    // unknown field reports before (and without) a parent load.
+    checkCreateParentage(write, def);
+    const candidate: Record<string, unknown> = {};
+    applyCallerData(candidate, asDataObject(write.data, 'Create data'), def, fixture);
+    const { parent, parentRow } = await loadCreateParentRow(write, fixture);
+    // T18 creation evaluation order per omitted field: caller data
+    // (above) wins over everything; then ordinary actor, literal and
+    // parent-path defaults, required-array rejection, known-nullable null-fill
+    // (L2 parity: nullable arrays yield null, so this precedes the
+    // array-empty fill), ordinary-array omit-to-empty, and finally
+    // closed-set server initializers — hooks observe all of it.
+    for (const [field, fieldDef] of Object.entries(def.fields)) {
+      fillCreateField(candidate, field, fieldDef, parentRow, writeTag);
+    }
+    checkRequired(candidate, def);
+    normalizeConstraints(candidate, def, new Set(Object.keys(candidate)), writeTag);
+    const hooked = await resolveHookedCreate(head, candidate, id, parent, options);
+    const row: StoredRow = {
+      id,
+      version: 1 as RecordVersion,
+      created: now,
+      updated: now,
+      createdBy: actor,
+      updatedBy: actor,
+      archivedAt: null,
+      parent,
+      data: deepFreeze(hooked),
+    };
+    checkWhen(write.when, row);
+    await admitCandidate(row, options, head.stagedBy);
+    // Creates skip locks: there is no pre-state to match against.
+    if (owner === undefined) await checkRefs(def, hooked, null);
+    claimRowUniques(write, id, row, def);
+    // BGI-08: computed keys observe the hook-adjusted candidate, like builtins.
+    await stageGivenUniques(def, write.model, id, null, row);
+    await beforeStage(write.model, id, row);
+    provisional.set(keyOf(write.model, id), { status: 'row', row });
+    outWrites.push({ kind: 'insert', model: write.model, row });
+    recordHistory({
+      model: write.model,
+      recordId: id,
+      version: 1 as RecordVersion,
+      change: 'create',
+      before: null,
+      after: hooked,
+    });
+    head.drainSink();
+  };
+
+  const applyWriteTransition = (
+    candidate: Record<string, unknown>,
+    write: MutationWrite,
+    def: InterimModelDef,
+    before: StoredRow,
+    changedFields: Set<string>,
+  ): void => {
+    if (write.transition === undefined) return;
+    const edge = write.transition;
+    if (typeof edge !== 'object' || edge === null || Array.isArray(edge) ||
+        typeof edge.field !== 'string' || typeof edge.from !== 'string' || typeof edge.to !== 'string') {
+      throw new StateError('validation', 'Malformed transition.');
+    }
+    if (write.data !== undefined && Object.hasOwn(write.data, edge.field)) {
+      throw new StateError('validation', 'Transition cannot carry a patch for its machine field.');
+    }
+    const machine = def.fields[edge.field]?.machine;
+    if (machine === undefined || !machine.transitions.some((site) =>
+        site.from === edge.from && site.to === edge.to && site.operation === stageContext.operation)) {
+      throw new StateError('validation', 'Transition is not declared for the current operation.');
+    }
+    if (!machine.states.includes(before.data[edge.field] as string)) {
+      throw new StateError('validation', 'Stored machine state is incompatible with its declaration.');
+    }
+    if (before.data[edge.field] !== edge.from) {
+      throw new StateError('rule_failed', 'Transition source state does not match.');
+    }
+    safeSet(candidate, edge.field, edge.to);
+    changedFields.add(edge.field);
+  };
+
+  const resolveHookedUpdate = async (
+    head: ProcessedWriteHead,
+    candidate: Record<string, unknown>,
+    beforeHook: Record<string, unknown>,
+    changedFields: Set<string>,
+    id: RecordId,
+    options: OwnerMutationStageOptions,
+  ): Promise<Record<string, unknown>> => {
+    // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
+    // check below plus locks and end-of-batch invariants still runs.
+    const hooked =
+      head.stagedBy !== null || (owner !== undefined && options.cause !== 'crud')
+        ? candidate
+        : await runHooks(head.def, 'update', candidate, head.before, id, head.sink, options);
+    checkKnownFields(hooked, head.def);
+    checkRequired(hooked, head.def);
+    for (const [field, value] of Object.entries(hooked)) {
+      if (!fieldDataEqual(value, beforeHook[field])) changedFields.add(field);
+    }
+    checkJsonSafe(hooked, head.def, undefined, changedFields);
+    await validateGivenFields(head.def.givenFieldValidations ?? [], hooked, consumeWork);
+    checkFixtureMachineFields(head.def, hooked, head.fixture);
+    return hooked;
+  };
+
+  const runUpdateWrite = async (head: ProcessedWriteHead, options: OwnerMutationStageOptions): Promise<void> => {
+    const { write, def, id, fixture } = head;
+    const before = head.before;
+    if (before === null) {
+      throw new StateError('not_found', 'Record not found.');
+    }
+    // B1: archived rows stay updatable here BY DESIGN unless the caller
+    // opts into the admission-parity gate: canonical admission gates
+    // archived targets for every invoke-path write (CRUD via admission,
+    // scenarios via `gateArchivedTargets`), while privileged direct
+    // callers (migrations/backfill) may legitimately touch archived rows.
+    checkGatedArchivedTarget(before, !fixture && input.gateArchivedTargets === true);
+    if (write.parent !== undefined) {
+      throw new StateError('validation', 'Parent linkage is immutable.');
+    }
+    const candidate: Record<string, unknown> = {};
+    for (const [field, value] of Object.entries(before.data)) {
+      safeSet(candidate, field, structuredClone(value));
+    }
+    // Updates apply NO defaults: only the patch lands on before.data.
+    const changedFields = applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def, fixture);
+    applyWriteTransition(candidate, write, def, before, changedFields);
+    checkRequired(candidate, def);
+    normalizeConstraints(candidate, def, changedFields);
+    const beforeHook = jsonClone(candidate, 'Update before hooks');
+    const hooked = await resolveHookedUpdate(head, candidate, beforeHook, changedFields, id, options);
+    const row: StoredRow = {
+      id,
+      version: fixture ? before.version : nextVersion(write.model, id, before),
+      created: before.created,
+      updated: fixture ? before.updated : now,
+      createdBy: before.createdBy,
+      updatedBy: fixture ? before.updatedBy : actor,
+      archivedAt: before.archivedAt,
+      parent: before.parent ?? null,
+      data: deepFreeze(hooked),
+    };
+    checkWhen(write.when, row);
+    await admitCandidate(row, options, head.stagedBy);
+    const lockBefore = owner === undefined ? before : firstBefore.get(head.rowKey);
+    if (!fixture && lockBefore != null) checkLocks(def, lockBefore);
+    if (owner === undefined) await checkRefs(def, hooked, before);
+    diffRowUniques(write, id, before, row, def);
+    // BGI-08: computed keys diff before against the hook-adjusted candidate.
+    await stageGivenUniques(def, write.model, id, before, row);
+    await beforeStage(write.model, id, row);
+    provisional.set(keyOf(write.model, id), { status: 'row', row });
+    outWrites.push({
+      kind: 'update',
+      model: write.model,
+      id,
+      expectedVersion: before.version,
+      row,
+    });
+    recordHistory({
+      model: write.model,
+      recordId: id,
+      version: row.version,
+      change: 'update',
+      before,
+      after: hooked,
+    });
+    head.drainSink();
+  };
+
+  const resolveHookedRemove = async (
+    head: ProcessedWriteHead, before: StoredRow, id: RecordId, options: OwnerMutationStageOptions,
+  ): Promise<Record<string, unknown>> => {
+    // Archive AND hard remove both run hooks filtered to op 'remove' (caller
+    // intent); the hard-remove candidate is discarded, but hook rejections
+    // still block the delete.
+    // T31 (Rule A): staged writes skip hooks (flat, no cascade); staged
+    // removes are unreachable (stage-time barred) but the guard is total.
+    return head.stagedBy !== null || (owner !== undefined && options.cause !== 'crud')
+      ? jsonClone(before.data, 'Remove hook input')
+      : await runHooks(
+          head.def,
+          'remove',
+          jsonClone(before.data, 'Remove hook input'),
+          before,
+          id,
+          head.sink,
+          options,
+        );
+  };
+
+  const checkArchiveCandidate = (
+    head: ProcessedWriteHead, before: StoredRow, hooked: Record<string, unknown>, id: RecordId,
+  ): void => {
+    const { write, def } = head;
+    checkKnownFields(hooked, def);
+    checkRequired(hooked, def);
+    // Archiving keeps unchanged legacy data intact. Hook candidates are
+    // cloned, so compare their wire contents rather than object identity;
+    // newly native or non-JSON values must still pass the changed-field gate.
+    const changedFields = new Set(Object.keys(hooked).filter(field => {
+      try { return JSON.stringify(hooked[field]) !== JSON.stringify(before.data[field]); }
+      catch { return true; }
+    }));
+    checkJsonSafe(hooked, def, undefined, changedFields, changedFields);
+    checkWhen(write.when, {
+      id,
+      version: nextVersion(write.model, id, before),
+      created: before.created,
+      updated: now,
+      createdBy: before.createdBy,
+      updatedBy: actor,
+      archivedAt: now,
+      parent: before.parent ?? null,
+      data: hooked,
+    });
+  };
+
+  const commitArchiveRow = async (
+    head: ProcessedWriteHead, before: StoredRow, hooked: Record<string, unknown>, id: RecordId,
+  ): Promise<void> => {
+    const { write, def } = head;
+    // Archive keeps uniques reserved and skips the disposal scan (the row
+    // stays, so incoming refs stay valid). Refs re-validate like
+    // create/update (a hook-set ref to a missing/archived target must not
+    // persist; unchanged refs still pass). Uniques diff like an update: a
+    // hook-adjusted unique value must move its claim, or the stored row
+    // and the unique index diverge.
+    if (owner === undefined) await checkRefs(def, hooked, before);
+    const row: StoredRow = {
+      id,
+      version: nextVersion(write.model, id, before),
+      created: before.created,
+      updated: now,
+      createdBy: before.createdBy,
+      updatedBy: actor,
+      archivedAt: now,
+      parent: before.parent ?? null,
+      data: deepFreeze(hooked),
+    };
+    diffRowUniques(write, id, before, row, def);
+    // BGI-08: archive diffs computed keys like an update (claims stay
+    // reserved when the key is unchanged, move when hooks adjusted it).
+    await stageGivenUniques(def, write.model, id, before, row);
+    await beforeStage(write.model, id, row);
+    provisional.set(keyOf(write.model, id), { status: 'row', row });
+    outWrites.push({
+      kind: 'update',
+      model: write.model,
+      id,
+      expectedVersion: before.version,
+      row,
+    });
+    recordHistory({
+      model: write.model,
+      recordId: id,
+      version: row.version,
+      change: 'archive',
+      before,
+      after: hooked,
+    });
+    head.drainSink();
+  };
+
+  const dropBatchClaimsForRow = (write: MutationWrite, id: RecordId): void => {
+    for (let claimIndex = outClaims.length - 1; claimIndex >= 0; claimIndex -= 1) {
+      const staged = outClaims[claimIndex];
+      if (
+        staged !== undefined &&
+        (staged.model as string) === (write.model as string) &&
+        (staged.recordId as string) === (id as string)
+      ) {
+        outClaims.splice(claimIndex, 1);
+      }
+    }
+  };
+
+  const commitRemoveRow = async (head: ProcessedWriteHead, before: StoredRow, id: RecordId): Promise<void> => {
+    const { write, def } = head;
+    if (owner === undefined) await checkDisposal(write.model, id);
+    // B1: net uniques against the batch. The removed row's final keys
+    // are nothing, so every claim this batch staged for it is dropped
+    // (single-touch removes staged none — this only bites multi-touch
+    // batches, where a surviving claim would dangle on a removed row).
+    // Releases free the FIRST-touch (committed) keys: a batch-earlier
+    // touch may have moved the provisional keys, and freeing those
+    // would strand the committed claim. Batch-created rows (first
+    // touch null) release nothing — their keys never committed.
+    dropBatchClaimsForRow(write, id);
+    const committedBefore = firstBefore.get(head.rowKey) ?? null;
+    if (committedBefore !== null) {
+      for (const key of def.uniqueKeys) {
+        const canonical = canonicalUnique(committedBefore, key, def);
+        if (canonical === null) {
+          continue;
+        }
+        outReleases.push({ model: write.model, keyName: key, keyValue: canonical });
+      }
+      // BGI-08: release the FIRST-touch committed keys (batch claims for
+      // this row were already dropped by the splice above, which matches
+      // model/recordId and never keyName, so computed claims net too).
+      await stageGivenUniques(def, write.model, id, committedBefore, null);
+    }
+    await beforeStage(write.model, id, null);
+    provisional.set(keyOf(write.model, id), { status: 'removed' });
+    outWrites.push({ kind: 'remove', model: write.model, id, expectedVersion: before.version });
+    recordHistory({
+      model: write.model,
+      recordId: id,
+      version: owner === undefined ? before.version : nextVersion(write.model, id, before),
+      change: 'remove',
+      before,
+      after: null,
+    });
+    head.drainSink();
+  };
+
+  const runRemoveWrite = async (head: ProcessedWriteHead, options: OwnerMutationStageOptions): Promise<void> => {
+    const { write, def, id } = head;
+    const before = head.before;
+    if (write.op !== 'remove') {
+      throw new Error(`Unknown mutation op: ${JSON.stringify(write.op)}.`);
+    }
+    if (before === null) {
+      throw new StateError('not_found', 'Record not found.');
+    }
+    // B1: gated callers agree with admission verdict-for-verdict: an
+    // archived target reports `Archived records cannot be used here.`
+    // (admission's verdict, which the CRUD path inherits) rather than
+    // the archive-mode `already archived` verdict below.
+    checkGatedArchivedTarget(before, input.gateArchivedTargets === true);
+    if (write.parent !== undefined) {
+      throw new StateError('validation', 'Parent linkage is immutable.');
+    }
+    const mode = def.deleteMode;
+    if (mode === 'none') {
+      throw new StateError('validation', 'Deletes are not allowed for this model.');
+    }
+    if (mode === 'archive' && before.archivedAt !== null) {
+      throw new StateError('validation', 'Record is already archived.');
+    }
+    await admitCandidate(before, options, head.stagedBy);
+    const hooked = await resolveHookedRemove(head, before, id, options);
+    if (owner !== undefined && JSON.stringify(hooked) !== JSON.stringify(before.data)) {
+      throw new StateError('validation', 'Owner removal hooks cannot adjust the removed record.');
+    }
+    if (mode === 'archive') {
+      checkArchiveCandidate(head, before, hooked, id);
+    } else {
+      // Hard removes have no candidate: `when` reads as a precondition over
+      // the before row (`may delete when <before matches>`).
+      checkWhen(write.when, before);
+    }
+    const lockBefore = owner === undefined ? before : firstBefore.get(head.rowKey);
+    if (lockBefore != null) checkLocks(def, lockBefore);
+    if (mode === 'archive') {
+      await commitArchiveRow(head, before, hooked, id);
+    } else {
+      await commitRemoveRow(head, before, id);
+    }
+  };
+
   const processWrites = async (writes: readonly MutationWrite[], options: OwnerMutationStageOptions): Promise<void> => {
     const queue: MutationQueueEntry[] = writes.map((write) => ({ write, stagedBy: null }));
     for (let index = 0; index < queue.length; index += 1) {
-      const entry = queue[index];
-      if (entry === undefined) {
-        throw new Error('Mutation queue misaligned.');
-      }
-      consumeWork();
-      const write = entry.write;
-      const fixture = options.cause === 'fixture';
-      // Null for caller writes (hooks run into `sink`); the staging hook's
-      // name for staged writes (hooks skipped, sink stays empty).
-      const stagedBy = entry.stagedBy;
-      const sink: StagingSink = { writes: [], schedules: [] };
-      /** Drain this write's staged secondaries into the queue + schedules. */
-      const drainSink = (): void => {
-        if (sink.writes.length === 0 && sink.schedules.length === 0) {
-          return;
-        }
-        queue.splice(
-          index + 1,
-          0,
-          ...sink.writes.map(
-            (staged): MutationQueueEntry => ({ write: staged.write, stagedBy: staged.hook }),
-          ),
-        );
-        outSchedules.push(...sink.schedules);
-      };
-      if (write.transition !== undefined && (write.op !== 'update' || stagedBy !== null)) {
-        throw new StateError('validation', 'Transition is available only on explicit scenario updates.');
-      }
-      const def = table.get(write.model);
-      if (def === undefined) {
-        // Unknown models are programmer bugs: models come from program defs,
-        // never from caller input.
-        throw new Error(
-          `Unknown model in mutation write: ${JSON.stringify(write.model as string)}.`,
-        );
-      }
-      touchedDefs.push(def);
-      const id = write.id;
-      if (typeof id !== 'string' || id === '') {
-        throw new StateError('validation', 'Mutation writes need a non-empty string record id.');
-      }
-      // Admission pre-loads update/remove targets, but the pipeline re-loads
-      // via the provisional map for uniformity (batch-earlier writes visible).
-      const before = await getRow(write.model, id);
-      if (before !== null) {
-        for (const [field, fieldDef] of Object.entries(def.fields)) {
-          if (fieldDef.machine !== undefined && !fieldDef.machine.states.includes(before.data[field] as string)) {
-            throw new StateError('validation', `Stored machine state for ${JSON.stringify(field)} is incompatible; migration is required.`);
-          }
-        }
-      }
-      // B1: first-touch before-row (committed state at batch start; null for
-      // batch-created rows). Captured once per record: later touches see
-      // provisional state, but unique-netting needs the committed keys.
-      const rowKey = keyOf(write.model, id);
-      if (!firstBefore.has(rowKey)) {
-        firstBefore.set(rowKey, before);
-        // Removal also reserves its one history version, even without an
-        // after row to carry it. Refuse exhausted metadata before staging.
-        if (owner !== undefined && before !== null && !fixture) nextVersion(write.model, id, before);
-      }
-      // B1: collision-guard tag for this write (monotonic sequence — queue
-      // indices shift when staged writes splice in).
-      processedWrites += 1;
-      const writeTag = owner === undefined
-        ? `${write.op} ${write.model as string} ${id as string} (batch write #${processedWrites})`
-        : `${processedWrites - 1}:${write.model as string}`;
-
-      // T18/R27 ADOPTED RULE (one rule over creation defaults, server
-      // initialization, updates, and hooks): server-owned fields resolve
-      // in the engine at creation (closed init set, omitted-only, before
-      // hooks) and are excluded from every caller input; the ordinary
-      // update path rejects them (checker E3001 at authoring, `serverOnly`
-      // at admission/execution); ONLY hook adjustment of the pending
-      // record (`set event.after`, DESIGN §518) may rewrite them; replay
-      // never re-evaluates (the committed row is returned). Re-anchoring a
-      // COMMITTED server-owned field from an operation body stays rejected
-      // (checker-pinned); a supported re-anchor mechanism is future work.
-      if (write.op === 'create') {
-        if (owner !== undefined && provisional.has(rowKey)) {
-          throw new StateError('validation', 'Record identities cannot be recreated during owner mutation.');
-        }
-        if (before !== null) {
-          throw new StateError('validation', 'Record already exists.');
-        }
-        if (write.parent !== undefined) {
-          if (
-            typeof write.parent.model !== 'string' ||
-            write.parent.model === '' ||
-            typeof write.parent.id !== 'string' ||
-            write.parent.id === ''
-          ) {
-            throw new StateError('validation', 'Invalid parent reference.');
-          }
-        }
-        // B5 declared ownership (adopted T28-A): a declared child REQUIRES
-        // its declared parent model; a declared root rejects any supplied
-        // parent. Undeclared (legacy interim) defs skip this entirely —
-        // exact prior behavior. Local and plain-imported parents enforce
-        // identically (flat linkage); every caller path (CRUD, scenario
-        // staging, hook-staged writes) shares this block, so they agree.
-        const declared = def.containment;
-        if (declared !== undefined) {
-          if (declared.parent !== undefined) {
-            if (write.parent === undefined) {
-              throw new StateError(
-                'validation',
-                `Missing required parent for model ${JSON.stringify(write.model as string)}.`,
-              );
-            }
-            if ((write.parent.model as string) !== (declared.parent as string)) {
-              throw new StateError(
-                'validation',
-                `Invalid parent for model ${JSON.stringify(write.model as string)}: ` +
-                  `expected parent model ${JSON.stringify(declared.parent as string)}.`,
-              );
-            }
-          } else if (write.parent !== undefined) {
-            throw new StateError(
-              'validation',
-              `Parent linkage is not allowed for model ${JSON.stringify(write.model as string)}.`,
-            );
-          }
-        }
-        const candidate: Record<string, unknown> = {};
-        applyCallerData(candidate, asDataObject(write.data, 'Create data'), def, fixture);
-        // Resolve parents once for defaults. Snapshot linkage is checked against
-        // the final setup; production parents must already exist and be live.
-        let parent: RecordParent | null = null;
-        let parentRow: StoredRow | null = null;
-        if (write.parent !== undefined) {
-          parentRow = await getRow(write.parent.model, write.parent.id);
-          if (parentRow === null && !fixture) {
-            throw new StateError('validation', 'Parent record not found.');
-          }
-          if (parentRow !== null && parentRow.archivedAt !== null && !fixture) {
-            throw new StateError('validation', 'Parent record is archived.');
-          }
-          parent = { model: write.parent.model, id: write.parent.id };
-        }
-        // T18 creation evaluation order per omitted field: caller data
-        // (above) wins over everything; then ordinary actor, literal and
-        // parent-path defaults, required-array rejection, known-nullable null-fill
-        // (L2 parity: nullable arrays yield null, so this precedes the
-        // array-empty fill), ordinary-array omit-to-empty, and finally
-        // closed-set server initializers — hooks observe all of it.
-        for (const [field, fieldDef] of Object.entries(def.fields)) {
-          consumeWork();
-          if (Object.hasOwn(candidate, field)) {
-            continue;
-          }
-          if (hasContextActorDefault(fieldDef)) {
-            const userId = stageContext.actor?.userId;
-            const resolved = userId === undefined || userId === null ? null : { id: userId };
-            safeSet(candidate, field, resolved); recordDefault(field, resolved, writeTag);
-            continue;
-          }
-          const fallback = fieldDef.default;
-          if (fallback !== undefined) {
-            if (isParentPathDefault(fallback)) {
-              // No parent, or an unresolvable path, reads as missing — the
-              // required check below decides, so optional parent-bound fields
-              // never block parentless creates.
-              if (parentRow === null) {
-                continue;
-              }
-              const resolved = resolveRowPath(parentRow, fallback.parentPath);
-              // An unresolvable parent path reads as missing (the required check
-              // below decides); only recorded when it actually defaults.
-              if (resolved === undefined) {
-                continue;
-              }
-              safeSet(candidate, field, structuredClone(resolved));
-              recordDefault(field, structuredClone(resolved), writeTag);
-            } else {
-              safeSet(candidate, field, structuredClone(fallback));
-              recordDefault(field, structuredClone(fallback), writeTag);
-            }
-            continue;
-          }
-          // No default: required-array omission rejects (L2 required-first
-          // agreement — emission marks these required, so the verdict below
-          // would match; failing here keeps the T16a message stable).
-          const marker = fieldDef.array;
-          if (marker?.required === true) {
-            throw new StateError('validation', `Missing required field ${JSON.stringify(field)}.`);
-          }
-          // T18: known-nullable fills null (L2 parity); unknown nullability
-          // (hand-built defs, fixtures) skips with prior behavior intact.
-          if (fieldDef.nullable === true) {
-            safeSet(candidate, field, null);
-            recordDefault(field, null, writeTag);
-            continue;
-          }
-          // T16a: the T09 array marker decides. Ordinary arrays omit to `[]`
-          // (recorded like any resolved omission-fill). Explicit defaults
-          // (handled above) always win over omit-to-empty.
-          if (marker !== undefined) {
-            safeSet(candidate, field, []);
-            recordDefault(field, [], writeTag);
-            continue;
-          }
-          // T18: closed-set server init, the last prep step before hooks.
-          // Unspecified inits (pre-T18 artifacts, intake-direct tables)
-          // resolve nothing — the field stays missing, never invented.
-          const init = fieldDef.server;
-          if (init !== undefined) {
-            const resolved = evalServerInit(init, now, actor);
-            safeSet(candidate, field, resolved);
-            recordDefault(field, resolved, writeTag);
-          }
-        }
-        checkRequired(candidate, def);
-        normalizeConstraints(candidate, def, new Set(Object.keys(candidate)), writeTag);
-        // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
-        // check below plus locks and end-of-batch invariants still runs.
-        const hooked =
-          stagedBy !== null || (owner !== undefined && options.cause !== 'crud')
-            ? candidate
-            : await runHooks(def, 'create', candidate, null, id, sink, options, parent);
-        // Hooks are trusted otherwise (adopted R27 rule: hooks adjusting
-        // the pending record are the ONLY writers that may set server-only
-        // fields), but the contract checks re-run: no undeclared fields,
-        // required present, JSON-safe values.
-        checkKnownFields(hooked, def);
-        checkRequired(hooked, def);
-        checkJsonSafe(hooked, def, writeTag);
-        await validateGivenFields(def.givenFieldValidations ?? [], hooked, consumeWork);
-        if (fixture) for (const [name, field] of Object.entries(def.fields)) {
-          if (field.machine !== undefined && !field.machine.states.includes(hooked[name] as string)) {
-            throw new StateError('validation', `Snapshot machine field ${JSON.stringify(name)} has no declared state.`);
-          }
-        }
-        const row: StoredRow = {
-          id,
-          version: 1 as RecordVersion,
-          created: now,
-          updated: now,
-          createdBy: actor,
-          updatedBy: actor,
-          archivedAt: null,
-          parent,
-          data: deepFreeze(hooked),
-        };
-        checkWhen(write.when, row);
-        await admitCandidate(row, options, stagedBy);
-        // Creates skip locks: there is no pre-state to match against.
-        if (owner === undefined) await checkRefs(def, hooked, null);
-
-        for (const key of def.uniqueKeys) {
-          const canonical = canonicalUnique(row, key, def);
-          if (canonical === null) {
-            continue;
-          }
-          outClaims.push({ model: write.model, keyName: key, keyValue: canonical, recordId: id });
-        }
-        // BGI-08: computed keys observe the hook-adjusted candidate, like builtins.
-        await stageGivenUniques(def, write.model, id, null, row);
-        await beforeStage(write.model, id, row);
-        provisional.set(keyOf(write.model, id), { status: 'row', row });
-        outWrites.push({ kind: 'insert', model: write.model, row });
-        recordHistory({
-          model: write.model,
-          recordId: id,
-          version: 1 as RecordVersion,
-          change: 'create',
-          before: null,
-          after: hooked,
-        });
-        drainSink();
+      const head = await processWriteHead(queue[index], index, queue, options);
+      if (head.write.op === 'create') {
+        await runCreateWrite(head, options);
         continue;
       }
-
-      if (write.op === 'update') {
-        if (before === null) {
-          throw new StateError('not_found', 'Record not found.');
-        }
-        // B1: archived rows stay updatable here BY DESIGN unless the caller
-        // opts into the admission-parity gate: canonical admission gates
-        // archived targets for every invoke-path write (CRUD via admission,
-        // scenarios via `gateArchivedTargets`), while privileged direct
-        // callers (migrations/backfill) may legitimately touch archived rows.
-        checkGatedArchivedTarget(before, !fixture && input.gateArchivedTargets === true);
-        if (write.parent !== undefined) {
-          throw new StateError('validation', 'Parent linkage is immutable.');
-        }
-        const candidate: Record<string, unknown> = {};
-        for (const [field, value] of Object.entries(before.data)) {
-          safeSet(candidate, field, structuredClone(value));
-        }
-        // Updates apply NO defaults: only the patch lands on before.data.
-        const changedFields = applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def, fixture);
-        if (write.transition !== undefined) {
-          const edge = write.transition;
-          if (typeof edge !== 'object' || edge === null || Array.isArray(edge) ||
-              typeof edge.field !== 'string' || typeof edge.from !== 'string' || typeof edge.to !== 'string') {
-            throw new StateError('validation', 'Malformed transition.');
-          }
-          if (write.data !== undefined && Object.hasOwn(write.data, edge.field)) {
-            throw new StateError('validation', 'Transition cannot carry a patch for its machine field.');
-          }
-          const machine = def.fields[edge.field]?.machine;
-          if (machine === undefined || !machine.transitions.some((site) =>
-              site.from === edge.from && site.to === edge.to && site.operation === stageContext.operation)) {
-            throw new StateError('validation', 'Transition is not declared for the current operation.');
-          }
-          if (!machine.states.includes(before.data[edge.field] as string)) {
-            throw new StateError('validation', 'Stored machine state is incompatible with its declaration.');
-          }
-          if (before.data[edge.field] !== edge.from) {
-            throw new StateError('rule_failed', 'Transition source state does not match.');
-          }
-          safeSet(candidate, edge.field, edge.to);
-          changedFields.add(edge.field);
-        }
-        checkRequired(candidate, def);
-        normalizeConstraints(candidate, def, changedFields);
-        const beforeHook = jsonClone(candidate, 'Update before hooks');
-        // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
-        // check below plus locks and end-of-batch invariants still runs.
-        const hooked =
-          stagedBy !== null || (owner !== undefined && options.cause !== 'crud')
-            ? candidate
-            : await runHooks(def, 'update', candidate, before, id, sink, options);
-        checkKnownFields(hooked, def);
-        checkRequired(hooked, def);
-        for (const [field, value] of Object.entries(hooked)) {
-          if (!fieldDataEqual(value, beforeHook[field])) changedFields.add(field);
-        }
-        checkJsonSafe(hooked, def, undefined, changedFields);
-        await validateGivenFields(def.givenFieldValidations ?? [], hooked, consumeWork);
-        if (fixture) for (const [name, field] of Object.entries(def.fields)) {
-          if (field.machine !== undefined && !field.machine.states.includes(hooked[name] as string)) {
-            throw new StateError('validation', `Snapshot machine field ${JSON.stringify(name)} has no declared state.`);
-          }
-        }
-        const row: StoredRow = {
-          id,
-          version: fixture ? before.version : nextVersion(write.model, id, before),
-          created: before.created,
-          updated: fixture ? before.updated : now,
-          createdBy: before.createdBy,
-          updatedBy: fixture ? before.updatedBy : actor,
-          archivedAt: before.archivedAt,
-          parent: before.parent ?? null,
-          data: deepFreeze(hooked),
-        };
-        checkWhen(write.when, row);
-        await admitCandidate(row, options, stagedBy);
-        const lockBefore = owner === undefined ? before : firstBefore.get(rowKey);
-        if (!fixture && lockBefore != null) checkLocks(def, lockBefore);
-        if (owner === undefined) await checkRefs(def, hooked, before);
-
-        for (const key of def.uniqueKeys) {
-          const oldCanonical = canonicalUnique(before, key, def);
-          const newCanonical = canonicalUnique(row, key, def);
-          if (oldCanonical === newCanonical) {
-            continue;
-          }
-          if (oldCanonical !== null) {
-            outReleases.push({ model: write.model, keyName: key, keyValue: oldCanonical });
-          }
-          if (newCanonical !== null) {
-            outClaims.push({
-              model: write.model,
-              keyName: key,
-              keyValue: newCanonical,
-              recordId: id,
-            });
-          }
-        }
-        // BGI-08: computed keys diff before against the hook-adjusted candidate.
-        await stageGivenUniques(def, write.model, id, before, row);
-        await beforeStage(write.model, id, row);
-        provisional.set(keyOf(write.model, id), { status: 'row', row });
-        outWrites.push({
-          kind: 'update',
-          model: write.model,
-          id,
-          expectedVersion: before.version,
-          row,
-        });
-        recordHistory({
-          model: write.model,
-          recordId: id,
-          version: row.version,
-          change: 'update',
-          before,
-          after: hooked,
-        });
-        drainSink();
+      if (head.write.op === 'update') {
+        await runUpdateWrite(head, options);
         continue;
       }
-
-      if (write.op !== 'remove') {
-        throw new Error(`Unknown mutation op: ${JSON.stringify(write.op)}.`);
-      }
-      if (before === null) {
-        throw new StateError('not_found', 'Record not found.');
-      }
-      // B1: gated callers agree with admission verdict-for-verdict: an
-      // archived target reports `Archived records cannot be used here.`
-      // (admission's verdict, which the CRUD path inherits) rather than
-      // the archive-mode `already archived` verdict below.
-      checkGatedArchivedTarget(before, input.gateArchivedTargets === true);
-      if (write.parent !== undefined) {
-        throw new StateError('validation', 'Parent linkage is immutable.');
-      }
-      const mode = def.deleteMode;
-      if (mode === 'none') {
-        throw new StateError('validation', 'Deletes are not allowed for this model.');
-      }
-      if (mode === 'archive' && before.archivedAt !== null) {
-        throw new StateError('validation', 'Record is already archived.');
-      }
-      await admitCandidate(before, options, stagedBy);
-      // Archive AND hard remove both run hooks filtered to op 'remove' (caller
-      // intent); the hard-remove candidate is discarded, but hook rejections
-      // still block the delete.
-      // T31 (Rule A): staged writes skip hooks (flat, no cascade); staged
-      // removes are unreachable (stage-time barred) but the guard is total.
-      const hooked =
-        stagedBy !== null || (owner !== undefined && options.cause !== 'crud')
-          ? jsonClone(before.data, 'Remove hook input')
-          : await runHooks(
-              def,
-              'remove',
-              jsonClone(before.data, 'Remove hook input'),
-              before,
-              id,
-              sink,
-              options,
-            );
-      if (owner !== undefined && JSON.stringify(hooked) !== JSON.stringify(before.data)) {
-        throw new StateError('validation', 'Owner removal hooks cannot adjust the removed record.');
-      }
-      if (mode === 'archive') {
-        checkKnownFields(hooked, def);
-        checkRequired(hooked, def);
-        // Archiving keeps unchanged legacy data intact. Hook candidates are
-        // cloned, so compare their wire contents rather than object identity;
-        // newly native or non-JSON values must still pass the changed-field gate.
-        const changedFields = new Set(Object.keys(hooked).filter(field => {
-          try { return JSON.stringify(hooked[field]) !== JSON.stringify(before.data[field]); }
-          catch { return true; }
-        }));
-        checkJsonSafe(hooked, def, undefined, changedFields, changedFields);
-        checkWhen(write.when, {
-          id,
-          version: nextVersion(write.model, id, before),
-          created: before.created,
-          updated: now,
-          createdBy: before.createdBy,
-          updatedBy: actor,
-          archivedAt: now,
-          parent: before.parent ?? null,
-          data: hooked,
-        });
-      } else {
-        // Hard removes have no candidate: `when` reads as a precondition over
-        // the before row (`may delete when <before matches>`).
-        checkWhen(write.when, before);
-      }
-      const lockBefore = owner === undefined ? before : firstBefore.get(rowKey);
-      if (lockBefore != null) checkLocks(def, lockBefore);
-      if (mode === 'archive') {
-        // Archive keeps uniques reserved and skips the disposal scan (the row
-        // stays, so incoming refs stay valid). Refs re-validate like
-        // create/update (a hook-set ref to a missing/archived target must not
-        // persist; unchanged refs still pass). Uniques diff like an update: a
-        // hook-adjusted unique value must move its claim, or the stored row
-        // and the unique index diverge.
-        if (owner === undefined) await checkRefs(def, hooked, before);
-        const row: StoredRow = {
-          id,
-          version: nextVersion(write.model, id, before),
-          created: before.created,
-          updated: now,
-          createdBy: before.createdBy,
-          updatedBy: actor,
-          archivedAt: now,
-          parent: before.parent ?? null,
-          data: deepFreeze(hooked),
-        };
-        for (const key of def.uniqueKeys) {
-          const oldCanonical = canonicalUnique(before, key, def);
-          const newCanonical = canonicalUnique(row, key, def);
-          if (oldCanonical === newCanonical) {
-            continue;
-          }
-          if (oldCanonical !== null) {
-            outReleases.push({ model: write.model, keyName: key, keyValue: oldCanonical });
-          }
-          if (newCanonical !== null) {
-            outClaims.push({
-              model: write.model,
-              keyName: key,
-              keyValue: newCanonical,
-              recordId: id,
-            });
-          }
-        }
-        // BGI-08: archive diffs computed keys like an update (claims stay
-        // reserved when the key is unchanged, move when hooks adjusted it).
-        await stageGivenUniques(def, write.model, id, before, row);
-        await beforeStage(write.model, id, row);
-        provisional.set(keyOf(write.model, id), { status: 'row', row });
-        outWrites.push({
-          kind: 'update',
-          model: write.model,
-          id,
-          expectedVersion: before.version,
-          row,
-        });
-        recordHistory({
-          model: write.model,
-          recordId: id,
-          version: row.version,
-          change: 'archive',
-          before,
-          after: hooked,
-        });
-        drainSink();
-      } else {
-        if (owner === undefined) await checkDisposal(write.model, id);
-        // B1: net uniques against the batch. The removed row's final keys
-        // are nothing, so every claim this batch staged for it is dropped
-        // (single-touch removes staged none — this only bites multi-touch
-        // batches, where a surviving claim would dangle on a removed row).
-        // Releases free the FIRST-touch (committed) keys: a batch-earlier
-        // touch may have moved the provisional keys, and freeing those
-        // would strand the committed claim. Batch-created rows (first
-        // touch null) release nothing — their keys never committed.
-        for (let claimIndex = outClaims.length - 1; claimIndex >= 0; claimIndex -= 1) {
-          const staged = outClaims[claimIndex];
-          if (
-            staged !== undefined &&
-            (staged.model as string) === (write.model as string) &&
-            (staged.recordId as string) === (id as string)
-          ) {
-            outClaims.splice(claimIndex, 1);
-          }
-        }
-        const committedBefore = firstBefore.get(rowKey) ?? null;
-        if (committedBefore !== null) {
-          for (const key of def.uniqueKeys) {
-            const canonical = canonicalUnique(committedBefore, key, def);
-            if (canonical === null) {
-              continue;
-            }
-            outReleases.push({ model: write.model, keyName: key, keyValue: canonical });
-          }
-          // BGI-08: release the FIRST-touch committed keys (batch claims for
-          // this row were already dropped by the splice above, which matches
-          // model/recordId and never keyName, so computed claims net too).
-          await stageGivenUniques(def, write.model, id, committedBefore, null);
-        }
-        await beforeStage(write.model, id, null);
-        provisional.set(keyOf(write.model, id), { status: 'removed' });
-        outWrites.push({ kind: 'remove', model: write.model, id, expectedVersion: before.version });
-        recordHistory({
-          model: write.model,
-          recordId: id,
-          version: owner === undefined ? before.version : nextVersion(write.model, id, before),
-          change: 'remove',
-          before,
-          after: null,
-        });
-        drainSink();
-      }
+      await runRemoveWrite(head, options);
     }
-
   };
 
-  const finish = async (): Promise<MutationWritesResult> => {
-    const changes: OwnerMutationChange[] = [...firstBefore].map(([key, before]) => {
-      const split = key.indexOf('\0');
-      const entry = provisional.get(key);
-      return deepFreeze(structuredClone({ model: key.slice(0, split) as ModelName,
-        id: key.slice(split + 1) as RecordId, before, after: entry?.status === 'row' ? entry.row : null }));
-    }).sort((left, right) => left.model < right.model ? -1 : left.model > right.model ? 1 :
-      left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-    if (owner !== undefined) {
-      for (const change of changes) {
-        consumeWork();
-        const def = table.get(change.model)!;
-        if (change.after !== null) {
-          await checkRefs(def, change.after.data, fixtureSession === true ? null : change.before);
-          if ((fixtureSession === true || change.before === null) && change.after.parent != null) {
-            const parent = await getRow(change.after.parent.model, change.after.parent.id);
-            if (parent === null || parent.archivedAt !== null) {
-              throw new StateError('validation', 'Final parent record is missing or archived.');
-            }
-          }
-        } else if (change.before !== null) await checkDisposal(change.model, change.id);
+
+
+
+
+  const describeChange = ([key, before]: [string, StoredRow | null]): OwnerMutationChange => {
+    const split = key.indexOf('\0');
+    const entry = provisional.get(key);
+    return deepFreeze(structuredClone({ model: key.slice(0, split) as ModelName,
+      id: key.slice(split + 1) as RecordId, before, after: entry?.status === 'row' ? entry.row : null }));
+  };
+
+  const compareChanges = (left: OwnerMutationChange, right: OwnerMutationChange): number =>
+    left.model < right.model ? -1 : left.model > right.model ? 1 :
+      left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+
+  const checkFinalChangeRefs = async (change: OwnerMutationChange): Promise<void> => {
+    consumeWork();
+    const def = table.get(change.model)!;
+    if (change.after !== null) {
+      await checkRefs(def, change.after.data, fixtureSession === true ? null : change.before);
+      if ((fixtureSession === true || change.before === null) && change.after.parent != null) {
+        const parent = await getRow(change.after.parent.model, change.after.parent.id);
+        if (parent === null || parent.archivedAt !== null) {
+          throw new StateError('validation', 'Final parent record is missing or archived.');
+        }
       }
-    }
-    // Invariants see the final provisional state through a SYNC view, so every
-    // table model is pre-materialized (archived included, provisional merged,
-    // frozen). The full-table scan is interim-correct over unbounded stores;
-    // L1/L2 narrow it.
+    } else if (change.before !== null) await checkDisposal(change.model, change.id);
+  };
+
+  const materializeInvariantCache = async (): Promise<Map<string, StoredRow>> => {
     const cache = new Map<string, StoredRow>();
     for (const [model] of owner === undefined || touchedDefs.some(def => def.invariants.length !== 0) ? table : []) {
       const rows = await scanModel(model);
@@ -2294,6 +2531,10 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         cache.set(keyOf(model, row.id), deepFreeze(row));
       }
     }
+    return cache;
+  };
+
+  const runFinalInvariants = async (cache: Map<string, StoredRow>): Promise<void> => {
     for (const def of owner === undefined ? touchedDefs : [...new Set(touchedDefs)]) {
       for (const invariant of def.invariants) {
         await invariant.check({
@@ -2306,6 +2547,86 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         });
       }
     }
+  };
+
+  const netOwnerHistory = (changes: OwnerMutationChange[]): void => {
+    const byIdentity = new Map(changes.map(change => [keyOf(change.model, change.id), change]));
+    const lastNewStage = new Map<string, number>();
+    for (const [index, entry] of outHistory.entries()) {
+      const key = keyOf(entry.model, entry.recordId);
+      if (byIdentity.get(key)?.before === null) lastNewStage.set(key, index);
+    }
+    const history = outHistory.flatMap((entry, index): HistoryEntry[] => {
+      const key = keyOf(entry.model, entry.recordId);
+      const change = byIdentity.get(key)!;
+      if (change.before !== null) return [entry];
+      if (change.after === null || lastNewStage.get(key) !== index) return [];
+      return [{ ...entry, version: change.after.version, change: 'create', before: null,
+        after: structuredClone(change.after.data) }];
+    });
+    outHistory.length = 0;
+    for (const entry of history) outHistory.push(entry);
+  };
+
+  const netOwnerChangeWrites = async (change: OwnerMutationChange): Promise<void> => {
+    consumeWork();
+    const { model, id, before, after } = change;
+    const def = table.get(model)!;
+    if (before === null && after === null) return;
+    if (before === null) outWrites.push({ kind: 'insert', model, row: after! });
+    else if (after === null) outWrites.push({ kind: 'remove', model, id, expectedVersion: before.version });
+    else outWrites.push({ kind: 'update', model, id, expectedVersion: before.version, row: after });
+    for (const key of def.uniqueKeys) {
+      consumeWork();
+      const previous = before === null ? null : canonicalUnique(before, key, def);
+      const final = after === null ? null : canonicalUnique(after, key, def);
+      if (previous === final) continue;
+      if (previous !== null) outReleases.push({ model, keyName: key, keyValue: previous });
+      if (final !== null) outClaims.push({ model, keyName: key, keyValue: final, recordId: id });
+    }
+    // BGI-08: owner sessions net computed keys from the same
+    // first-before/final-after pair, with per-rule work accounting.
+    const givenRules = def.givenUniqueKeys;
+    if (givenRules !== undefined && givenRules.length !== 0) {
+      for (let ruleIndex = 0; ruleIndex < givenRules.length; ruleIndex += 1) consumeWork();
+      await stageGivenUniques(
+        def, model, id,
+        before, after,
+      );
+    }
+  };
+
+  const finalizeSources = async (changes: OwnerMutationChange[]): Promise<readonly DomainWrite[] | undefined> => {
+    if (fixtureSession === true || owner === undefined || owner.stageSources === undefined) return undefined;
+    if (revision === undefined) throw new StateError('validation', 'Source finalization requires its original owner revision.');
+    const finalChanges = changes.flatMap((change): OwnerMutationFinalChange[] => {
+      if (change.before === null && change.after === null) return [];
+      const version = change.after?.version ?? change.before!.version + 1;
+      if (!Number.isSafeInteger(version) || version < 1) throw new StateError('validation', 'Source finalization version is exhausted.');
+      const kind = change.before === null ? 'created' : change.after === null ||
+        change.before.archivedAt === null && change.after.archivedAt !== null ? 'deleted' : 'updated';
+      return [{ model: change.model, recordId: change.id, version: version as RecordVersion, kind }];
+    });
+    const business = Object.freeze([...outWrites]);
+    const sources = await stageOwnerMutationSources({ stager: owner.stageSources, context, revision,
+      maxRows: owner.bounds.maxRows, changes: finalChanges, entry: policyViews.entry, final: policyViews.final,
+      actor, frameworkLoad: (model, id) => store.load(model, id), businessModels: new Set(table.keys()),
+      healthy, poison: () => { poisoned = true; }, checkRevision, consumeWork });
+    outWrites.push(...sources);
+    return business;
+  };
+
+  const finish = async (): Promise<MutationWritesResult> => {
+    const changes: OwnerMutationChange[] = [...firstBefore].map(describeChange).sort(compareChanges);
+    if (owner !== undefined) {
+      for (const change of changes) await checkFinalChangeRefs(change);
+    }
+    // Invariants see the final provisional state through a SYNC view, so every
+    // table model is pre-materialized (archived included, provisional merged,
+    // frozen). The full-table scan is interim-correct over unbounded stores;
+    // L1/L2 narrow it.
+    const cache = await materializeInvariantCache();
+    await runFinalInvariants(cache);
 
     if (owner !== undefined) {
       if (owner.policies !== undefined) {
@@ -2316,69 +2637,13 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       // attribution, in source order. Net creation remains one final entry at
       // its last contributing stage; a self-cancelled new row leaves no entry.
       // History cardinality is independent of the single final write/version.
-      const byIdentity = new Map(changes.map(change => [keyOf(change.model, change.id), change]));
-      const lastNewStage = new Map<string, number>();
-      for (const [index, entry] of outHistory.entries()) {
-        const key = keyOf(entry.model, entry.recordId);
-        if (byIdentity.get(key)?.before === null) lastNewStage.set(key, index);
-      }
-      const history = outHistory.flatMap((entry, index): HistoryEntry[] => {
-        const key = keyOf(entry.model, entry.recordId);
-        const change = byIdentity.get(key)!;
-        if (change.before !== null) return [entry];
-        if (change.after === null || lastNewStage.get(key) !== index) return [];
-        return [{ ...entry, version: change.after.version, change: 'create', before: null,
-          after: structuredClone(change.after.data) }];
-      });
-      outHistory.length = 0;
-      for (const entry of history) outHistory.push(entry);
+      netOwnerHistory(changes);
       outWrites.length = 0; outClaims.length = 0; outReleases.length = 0;
       for (const change of changes) {
-        consumeWork();
-        const { model, id, before, after } = change;
-        const def = table.get(model)!;
-        if (before === null && after === null) continue;
-        if (before === null) outWrites.push({ kind: 'insert', model, row: after! });
-        else if (after === null) outWrites.push({ kind: 'remove', model, id, expectedVersion: before.version });
-        else outWrites.push({ kind: 'update', model, id, expectedVersion: before.version, row: after });
-        for (const key of def.uniqueKeys) {
-          consumeWork();
-          const previous = before === null ? null : canonicalUnique(before, key, def);
-          const final = after === null ? null : canonicalUnique(after, key, def);
-          if (previous === final) continue;
-          if (previous !== null) outReleases.push({ model, keyName: key, keyValue: previous });
-          if (final !== null) outClaims.push({ model, keyName: key, keyValue: final, recordId: id });
-        }
-        // BGI-08: owner sessions net computed keys from the same
-        // first-before/final-after pair, with per-rule work accounting.
-        const givenRules = def.givenUniqueKeys;
-        if (givenRules !== undefined && givenRules.length !== 0) {
-          for (let ruleIndex = 0; ruleIndex < givenRules.length; ruleIndex += 1) consumeWork();
-          await stageGivenUniques(
-            def, model, id,
-            before, after,
-          );
-        }
+        await netOwnerChangeWrites(change);
       }
     }
-    let business: readonly DomainWrite[] | undefined;
-    if (fixtureSession !== true && owner?.stageSources !== undefined) {
-      if (revision === undefined) throw new StateError('validation', 'Source finalization requires its original owner revision.');
-      const finalChanges = changes.flatMap((change): OwnerMutationFinalChange[] => {
-        if (change.before === null && change.after === null) return [];
-        const version = change.after?.version ?? change.before!.version + 1;
-        if (!Number.isSafeInteger(version) || version < 1) throw new StateError('validation', 'Source finalization version is exhausted.');
-        const kind = change.before === null ? 'created' : change.after === null ||
-          change.before.archivedAt === null && change.after.archivedAt !== null ? 'deleted' : 'updated';
-        return [{ model: change.model, recordId: change.id, version: version as RecordVersion, kind }];
-      });
-      business = Object.freeze([...outWrites]);
-      const sources = await stageOwnerMutationSources({ stager: owner.stageSources, context, revision,
-        maxRows: owner.bounds.maxRows, changes: finalChanges, entry: policyViews.entry, final: policyViews.final,
-        actor, frameworkLoad: (model, id) => store.load(model, id), businessModels: new Set(table.keys()),
-        healthy, poison: () => { poisoned = true; }, checkRevision, consumeWork });
-      outWrites.push(...sources);
-    }
+    const business = await finalizeSources(changes);
     const result: MutationWritesResult = {
       writes: outWrites,
       history: outHistory,
@@ -2403,82 +2668,107 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       try { consumeWork(amount); } catch (error) { poisoned = true; throw error; }
     },
   });
+
+  const checkStageCause = (options: OwnerMutationStageOptions): void => {
+    if (owner !== undefined && (options?.cause !== 'crud' && options?.cause !== 'scenario' && options?.cause !== 'fixture' ||
+        options.cause === 'crud' && (typeof options.input !== 'object' || options.input === null || Array.isArray(options.input)))) {
+      throw new StateError('validation', 'Owner mutation staging needs an explicit cause and admitted CRUD inputs.');
+    }
+  };
+
+  const checkFixtureCause = (options: OwnerMutationStageOptions, fixture: boolean): void => {
+    const fixtureCause = fixture ? Object.getOwnPropertyDescriptor(options, 'cause') : undefined;
+    if (fixture && (owner === undefined || context.kind !== 'test' ||
+        fixtureCause === undefined || !('value' in fixtureCause) || fixtureCause.enumerable !== true ||
+        Reflect.ownKeys(options).some(key => key !== 'cause'))) {
+      throw new StateError('validation', 'Fixture snapshots require an isolated test owner and only the fixture cause.');
+    }
+  };
+
+  const checkFixtureWrites = (writes: MutationWrite | readonly MutationWrite[]): void => {
+    for (const write of Array.isArray(writes) ? writes : [writes]) {
+      if (typeof write !== 'object' || write === null || Array.isArray(write) ||
+          ![Object.prototype, null].includes(Object.getPrototypeOf(write)) ||
+          Reflect.ownKeys(write).some(key => typeof key !== 'string' ||
+            !['op', 'model', 'id', 'parent', 'data'].includes(key) ||
+            !('value' in Object.getOwnPropertyDescriptor(write, key)!)) ||
+          (write.op !== 'create' && write.op !== 'update')) {
+        throw new StateError('validation', 'Fixture snapshots accept only declared create/update domain data and parent linkage.');
+      }
+    }
+  };
+
+  const isSameFrozenData = (value: unknown, expected: unknown): boolean => {
+    if (typeof expected !== 'object' || expected === null) return Object.is(value, expected);
+    if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+        ![Object.prototype, null].includes(Object.getPrototypeOf(value)) || !Object.isFrozen(value)) return false;
+    const keys = Reflect.ownKeys(expected);
+    return Reflect.ownKeys(value).length === keys.length && keys.every(key => {
+      const actual = Object.getOwnPropertyDescriptor(value, key), original = Object.getOwnPropertyDescriptor(expected, key);
+      return actual !== undefined && 'value' in actual && actual.enumerable === true &&
+        original !== undefined && 'value' in original && isSameFrozenData(actual.value, original.value);
+    });
+  };
+
+  const checkChildCandidate = (candidate: unknown): void => {
+    if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate) ||
+        ![Object.prototype, null].includes(Object.getPrototypeOf(candidate)) || !Object.isFrozen(candidate) ||
+        Reflect.ownKeys(candidate).length !== Reflect.ownKeys(context).length ||
+        !Reflect.ownKeys(context).every(key => {
+          const actual = Object.getOwnPropertyDescriptor(candidate, key), original = Object.getOwnPropertyDescriptor(context, key);
+          if (actual === undefined || !('value' in actual) || actual.enumerable !== true ||
+              original === undefined || !('value' in original)) return false;
+          return key === 'operation' || key === 'source'
+            ? typeof actual.value === 'string' && actual.value.trim().length !== 0
+            : isSameFrozenData(actual.value, original.value);
+        })) {
+      throw new StateError('validation', 'Owner child context must preserve the frozen root caller, owner, clock and operation identity.');
+    }
+  };
+
+  const resolveChildContext = (options: OwnerMutationStageOptions): InvocationContext => {
+    if (typeof options !== 'object' || options === null || !('context' in options)) return context;
+    const member = Object.getOwnPropertyDescriptor(options, 'context');
+    if (owner === undefined || member === undefined || !('value' in member)) {
+      throw new StateError('validation', 'Owner child context requires its own admitted context data.');
+    }
+    checkChildCandidate(member.value);
+    return member.value as InvocationContext;
+  };
+
+  const freezeStageOptions = (
+    options: OwnerMutationStageOptions, writes: MutationWrite | readonly MutationWrite[],
+    ): { frozenWrites: unknown; frozenOptions: OwnerMutationStageOptions } => {
+    const frozenWrites = deepFreeze(jsonClone(Array.isArray(writes) ? writes : [writes], 'Owner mutation writes'));
+    const { admitCandidate: admission, ...descriptors } = Object.getOwnPropertyDescriptors(options);
+    if (admission !== undefined && (owner === undefined || options.cause !== 'crud' ||
+        !('value' in admission) || admission.enumerable !== true || typeof admission.value !== 'function') ||
+        admission === undefined && 'admitCandidate' in options) {
+      throw new StateError('validation', 'Candidate admission requires an own installed CRUD callback.');
+    }
+    const dataOptions = Object.create(Object.getPrototypeOf(options), descriptors);
+    const frozenOptions: OwnerMutationStageOptions = Object.freeze({
+      ...deepFreeze(jsonClone(dataOptions, 'Owner mutation cause')),
+      ...(admission === undefined ? {} : { admitCandidate: admission.value as OwnerMutationCandidateAdmission }),
+    });
+    return { frozenWrites, frozenOptions };
+  };
+
+
   return Object.freeze({
     views,
     read: views.final.get,
     stage: (writes: MutationWrite | readonly MutationWrite[], options: OwnerMutationStageOptions) => serial(async () => {
-      if (owner !== undefined && (options?.cause !== 'crud' && options?.cause !== 'scenario' && options?.cause !== 'fixture' ||
-          options.cause === 'crud' && (typeof options.input !== 'object' || options.input === null || Array.isArray(options.input)))) {
-        throw new StateError('validation', 'Owner mutation staging needs an explicit cause and admitted CRUD inputs.');
-      }
+      checkStageCause(options);
       const fixture = options.cause === 'fixture';
-      const fixtureCause = fixture ? Object.getOwnPropertyDescriptor(options, 'cause') : undefined;
-      if (fixture && (owner === undefined || context.kind !== 'test' ||
-          fixtureCause === undefined || !('value' in fixtureCause) || fixtureCause.enumerable !== true ||
-          Reflect.ownKeys(options).some(key => key !== 'cause'))) {
-        throw new StateError('validation', 'Fixture snapshots require an isolated test owner and only the fixture cause.');
-      }
+      checkFixtureCause(options, fixture);
       if (fixtureSession !== undefined && fixtureSession !== fixture) {
         throw new StateError('validation', 'Fixture snapshots cannot mix with ordinary mutation stages.');
       }
       fixtureSession = fixture;
-      if (fixture) {
-        for (const write of Array.isArray(writes) ? writes : [writes]) {
-          if (typeof write !== 'object' || write === null || Array.isArray(write) ||
-              ![Object.prototype, null].includes(Object.getPrototypeOf(write)) ||
-              Reflect.ownKeys(write).some(key => typeof key !== 'string' ||
-                !['op', 'model', 'id', 'parent', 'data'].includes(key) ||
-                !('value' in Object.getOwnPropertyDescriptor(write, key)!)) ||
-              (write.op !== 'create' && write.op !== 'update')) {
-            throw new StateError('validation', 'Fixture snapshots accept only declared create/update domain data and parent linkage.');
-          }
-        }
-      }
-      let childContext = context;
-      if (typeof options === 'object' && options !== null && 'context' in options) {
-        const member = Object.getOwnPropertyDescriptor(options, 'context');
-        if (owner === undefined || member === undefined || !('value' in member)) {
-          throw new StateError('validation', 'Owner child context requires its own admitted context data.');
-        }
-        const sameFrozenData = (value: unknown, expected: unknown): boolean => {
-          if (typeof expected !== 'object' || expected === null) return Object.is(value, expected);
-          if (typeof value !== 'object' || value === null || Array.isArray(value) ||
-              ![Object.prototype, null].includes(Object.getPrototypeOf(value)) || !Object.isFrozen(value)) return false;
-          const keys = Reflect.ownKeys(expected);
-          return Reflect.ownKeys(value).length === keys.length && keys.every(key => {
-            const actual = Object.getOwnPropertyDescriptor(value, key), original = Object.getOwnPropertyDescriptor(expected, key);
-            return actual !== undefined && 'value' in actual && actual.enumerable === true &&
-              original !== undefined && 'value' in original && sameFrozenData(actual.value, original.value);
-          });
-        };
-        const candidate: unknown = member.value;
-        if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate) ||
-            ![Object.prototype, null].includes(Object.getPrototypeOf(candidate)) || !Object.isFrozen(candidate) ||
-            Reflect.ownKeys(candidate).length !== Reflect.ownKeys(context).length ||
-            !Reflect.ownKeys(context).every(key => {
-              const actual = Object.getOwnPropertyDescriptor(candidate, key), original = Object.getOwnPropertyDescriptor(context, key);
-              if (actual === undefined || !('value' in actual) || actual.enumerable !== true ||
-                  original === undefined || !('value' in original)) return false;
-              return key === 'operation' || key === 'source'
-                ? typeof actual.value === 'string' && actual.value.trim().length !== 0
-                : sameFrozenData(actual.value, original.value);
-            })) {
-          throw new StateError('validation', 'Owner child context must preserve the frozen root caller, owner, clock and operation identity.');
-        }
-        childContext = candidate as InvocationContext;
-      }
-      const frozenWrites = deepFreeze(jsonClone(Array.isArray(writes) ? writes : [writes], 'Owner mutation writes'));
-      const { admitCandidate: admission, ...descriptors } = Object.getOwnPropertyDescriptors(options);
-      if (admission !== undefined && (owner === undefined || options.cause !== 'crud' ||
-          !('value' in admission) || admission.enumerable !== true || typeof admission.value !== 'function') ||
-          admission === undefined && 'admitCandidate' in options) {
-        throw new StateError('validation', 'Candidate admission requires an own installed CRUD callback.');
-      }
-      const dataOptions = Object.create(Object.getPrototypeOf(options), descriptors);
-      const frozenOptions: OwnerMutationStageOptions = Object.freeze({
-        ...deepFreeze(jsonClone(dataOptions, 'Owner mutation cause')),
-        ...(admission === undefined ? {} : { admitCandidate: admission.value as OwnerMutationCandidateAdmission }),
-      });
+      if (fixture) checkFixtureWrites(writes);
+      const childContext = resolveChildContext(options);
+      const { frozenWrites, frozenOptions } = freezeStageOptions(options, writes);
       try {
         stageContext = childContext;
         stagePolicyViews = childContext === context ? policyViews : Object.freeze({ ...policyViews, context: childContext });

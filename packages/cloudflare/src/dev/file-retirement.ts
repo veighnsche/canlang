@@ -96,24 +96,35 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
   const digest = inventory.digest;
   const bindings = createSqliteFileBindings(physical, { clock, intentTtlMs, urlBase,
     ...(policy === undefined ? {} : { policy }), fileRetirement: { storage: store, retention } });
+  const resolveRetirementFile = (ref: FinalizedFileRef): FinalizedFileIdentity | null => {
+    const raw = physical.files.get(ref);
+    const record = raw === null ? null : checkedFileCleanupRecord(raw);
+    const file: FinalizedFileIdentity | null = record === null ? null : Object.freeze({ ref: record.file.id,
+      receiver: record.owner, provenance: record.file.provenance, contentType: record.file.contentType,
+      sizeBytes: record.file.sizeBytes, bytesDigest: record.file.bytesDigest, finalizedAtMs: record.finalizedAtMs });
+    if (file !== null && (file.ref !== ref || file.receiver.app !== scope.app || file.receiver.team !== scope.owner || file.receiver.owner !== scope.owner)) {
+      throw new Error('File retirement physical receiver differs from its original owner.');
+    }
+    return file;
+  };
+  const assertDecisionUnchanged = (
+    previous: Awaited<ReturnType<typeof store.readFinalizedFileRetirement>>,
+    disposition: 'orphaned' | 'expired',
+    file: FinalizedFileIdentity | null,
+  ): void => {
+    if (previous !== null && (!equal(previous.authority, authority) || previous.disposition !== disposition ||
+        !equal(previous.retention, retention) || previous.snapshot.owner !== inventory.owner ||
+        previous.snapshot.snapshotId !== inventory.snapshotId || previous.snapshot.digest !== digest ||
+        file !== null && !equal(previous.file, file))) throw new Error('File retirement original decision cannot be replaced.');
+  };
   return Object.freeze({ store, ownerStorage, bindings,
     async retireAndDelete(ref: FinalizedFileRef, disposition: 'orphaned' | 'expired') {
       if (typeof ref !== 'string' || ref === '' || !['orphaned', 'expired'].includes(disposition)) throw new Error('File retirement requires an exact File and disposition.');
       await verifyCurrent();
       const previous = await store.readFinalizedFileRetirement(ref);
       await verifyCurrent();
-      const raw = physical.files.get(ref);
-      const record = raw === null ? null : checkedFileCleanupRecord(raw);
-      const file: FinalizedFileIdentity | null = record === null ? null : Object.freeze({ ref: record.file.id,
-        receiver: record.owner, provenance: record.file.provenance, contentType: record.file.contentType,
-        sizeBytes: record.file.sizeBytes, bytesDigest: record.file.bytesDigest, finalizedAtMs: record.finalizedAtMs });
-      if (file !== null && (file.ref !== ref || file.receiver.app !== scope.app || file.receiver.team !== scope.owner || file.receiver.owner !== scope.owner)) {
-        throw new Error('File retirement physical receiver differs from its original owner.');
-      }
-      if (previous !== null && (!equal(previous.authority, authority) || previous.disposition !== disposition ||
-          !equal(previous.retention, retention) || previous.snapshot.owner !== inventory.owner ||
-          previous.snapshot.snapshotId !== inventory.snapshotId || previous.snapshot.digest !== digest ||
-          file !== null && !equal(previous.file, file))) throw new Error('File retirement original decision cannot be replaced.');
+      const file = resolveRetirementFile(ref);
+      assertDecisionUnchanged(previous, disposition, file);
       const originalFile = previous?.file ?? file;
       if (originalFile === null) throw new Error('File retirement requires a physical original or a durable original State decision.');
       const revision = await store.readRevision();

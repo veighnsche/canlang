@@ -471,12 +471,7 @@ function checkNativeScalars(native: NativeMap): void {
  * a fully explicit run recipe (runner plus model) resolves, with
  * built-in finite limits.
  */
-export function resolveRecipe(
-  loaded: LoadedSettings | null,
-  category: RecipeCategory,
-  declarationAgent: string | null,
-  overrides: RunOverrides,
-): EffectiveRecipe {
+function checkRunOverrides(overrides: RunOverrides): void {
   if (overrides.runner !== undefined) {
     checkRunner(overrides.runner, "run overrides");
   }
@@ -497,85 +492,116 @@ export function resolveRecipe(
       );
     }
   }
+}
+
+function selectBaseName(
+  loaded: LoadedSettings | null,
+  category: RecipeCategory,
+  declarationAgent: string | null,
+  overrides: RunOverrides,
+): string | null {
   // Base recipe row: explicit run profile, else declaration agent,
   // else the category default (the frontend profile only when
   // settings exist to supply it, else shared).
-  let baseName: string | null;
-  if (overrides.profile !== undefined) {
-    baseName = overrides.profile;
-  } else if (declarationAgent !== null) {
-    baseName = declarationAgent;
-  } else if (loaded !== null && category === "frontend") {
-    baseName = FRONTEND_PROFILE;
-  } else {
-    baseName = null;
+  if (overrides.profile !== undefined) return overrides.profile;
+  if (declarationAgent !== null) return declarationAgent;
+  if (loaded !== null && category === "frontend") return FRONTEND_PROFILE;
+  return null;
+}
+
+function baseFromProfile(
+  loaded: LoadedSettings,
+  baseName: string,
+  declarationAgent: string | null,
+  overrides: RunOverrides,
+  settingsPath: string | null,
+): BaseRow {
+  const suffix = settingsPath === null ? "" : ` (${settingsPath})`;
+  const profile = loaded.settings.profiles[baseName];
+  if (profile !== undefined) {
+    return {
+      runner: profile.runner,
+      model: profile.model,
+      max_attempts: profile.max_attempts ?? loaded.settings.shared.max_attempts,
+      timeout_seconds: profile.timeout_seconds ?? loaded.settings.shared.timeout_seconds,
+      native: { ...profile.native },
+      label: `profile '${baseName}'${suffix}`,
+    };
   }
-  const settingsPath = loaded?.source.path ?? null;
-  const describeSettings = (): string => (settingsPath === null ? "" : ` (${settingsPath})`);
   // Only the implicit Then category default falls back to shared
   // when no `frontend` profile is configured; an explicit
   // declaration `agent=frontend` (or run profile) names a profile
   // that must exist, so it diagnoses like any unknown profile.
-  let base: BaseRow;
-  if (loaded !== null && baseName !== null) {
-    const profile = loaded.settings.profiles[baseName];
-    if (profile !== undefined) {
-      base = {
-        runner: profile.runner,
-        model: profile.model,
-        max_attempts: profile.max_attempts ?? loaded.settings.shared.max_attempts,
-        timeout_seconds: profile.timeout_seconds ?? loaded.settings.shared.timeout_seconds,
-        native: { ...profile.native },
-        label: `profile '${baseName}'${describeSettings()}`,
-      };
-    } else if (
-      baseName === FRONTEND_PROFILE &&
-      overrides.profile === undefined &&
-      declarationAgent === null
-    ) {
-      const shared = loaded.settings.shared;
-      base = {
-        runner: shared.runner,
-        model: shared.model,
-        max_attempts: shared.max_attempts,
-        timeout_seconds: shared.timeout_seconds,
-        native: { ...shared.native },
-        label: `shared recipe${describeSettings()}`,
-      };
-    } else {
-      const known = Object.keys(loaded.settings.profiles);
-      const hint =
-        known.length === 0 ? "the settings define no profiles" : `known profiles: ${known.join(", ")}`;
-      throw new ConfigError(
-        "unknown-profile",
-        `unknown profile '${baseName}'${describeSettings()}; ${hint}`,
-      );
-    }
-  } else if (loaded !== null) {
+  if (baseName === FRONTEND_PROFILE && overrides.profile === undefined && declarationAgent === null) {
     const shared = loaded.settings.shared;
-    base = {
+    return {
       runner: shared.runner,
       model: shared.model,
       max_attempts: shared.max_attempts,
       timeout_seconds: shared.timeout_seconds,
       native: { ...shared.native },
-      label: `shared recipe${describeSettings()}`,
+      label: `shared recipe${suffix}`,
     };
-  } else if (baseName !== null) {
+  }
+  const known = Object.keys(loaded.settings.profiles);
+  const hint =
+    known.length === 0 ? "the settings define no profiles" : `known profiles: ${known.join(", ")}`;
+  throw new ConfigError(
+    "unknown-profile",
+    `unknown profile '${baseName}'${suffix}; ${hint}`,
+  );
+}
+
+function sharedBaseRow(loaded: LoadedSettings, settingsPath: string | null): BaseRow {
+  const shared = loaded.settings.shared;
+  const suffix = settingsPath === null ? "" : ` (${settingsPath})`;
+  return {
+    runner: shared.runner,
+    model: shared.model,
+    max_attempts: shared.max_attempts,
+    timeout_seconds: shared.timeout_seconds,
+    native: { ...shared.native },
+    label: `shared recipe${suffix}`,
+  };
+}
+
+function resolveBaseRow(
+  loaded: LoadedSettings | null,
+  baseName: string | null,
+  declarationAgent: string | null,
+  overrides: RunOverrides,
+  settingsPath: string | null,
+): BaseRow {
+  if (loaded !== null && baseName !== null) {
+    return baseFromProfile(loaded, baseName, declarationAgent, overrides, settingsPath);
+  }
+  if (loaded !== null) return sharedBaseRow(loaded, settingsPath);
+  if (baseName !== null) {
     throw new ConfigError(
       "unknown-profile",
       `unknown profile '${baseName}': no settings file supplies profiles (explicit run overrides still need no settings)`,
     );
-  } else {
-    base = {
-      runner: null,
-      model: null,
-      max_attempts: null,
-      timeout_seconds: null,
-      native: {},
-      label: "run overrides",
-    };
   }
+  return {
+    runner: null,
+    model: null,
+    max_attempts: null,
+    timeout_seconds: null,
+    native: {},
+    label: "run overrides",
+  };
+}
+
+export function resolveRecipe(
+  loaded: LoadedSettings | null,
+  category: RecipeCategory,
+  declarationAgent: string | null,
+  overrides: RunOverrides,
+): EffectiveRecipe {
+  checkRunOverrides(overrides);
+  const baseName = selectBaseName(loaded, category, declarationAgent, overrides);
+  const settingsPath = loaded?.source.path ?? null;
+  const base = resolveBaseRow(loaded, baseName, declarationAgent, overrides, settingsPath);
   // Runner/model: overrides win, but a runner override requires an
   // explicit model in the same run (no cross-runner inheritance).
   if (overrides.runner !== undefined && overrides.model === undefined) {
@@ -585,6 +611,36 @@ export function resolveRecipe(
     );
   }
   const origins: Record<string, string> = {};
+  const { runner, model } = resolveRunnerModel(overrides, base, origins);
+  const { max_attempts, timeout_seconds } = resolveRecipeLimits(overrides, base, loaded, origins);
+  // Native maps replace wholesale: an explicit run map wins, else
+  // the selected recipe's own table (profiles never inherit shared
+  // native controls across runners).
+  let native: NativeMap;
+  if (overrides.native !== undefined) {
+    native = { ...overrides.native };
+    origins["native"] = "run override";
+  } else {
+    native = { ...base.native };
+    origins["native"] = base.label;
+  }
+  return {
+    runner,
+    model,
+    max_attempts,
+    timeout_seconds,
+    native,
+    origins,
+    settings: settingsPath,
+    recipe_source: base.label,
+  };
+}
+
+function resolveRunnerModel(
+  overrides: RunOverrides,
+  base: BaseRow,
+  origins: Record<string, string>,
+): { runner: string; model: string } {
   let runner: string;
   if (overrides.runner !== undefined) {
     origins["runner"] = "run override";
@@ -611,6 +667,15 @@ export function resolveRecipe(
       "no model resolves: configure shared `runner`/`model`, select a profile, or pass explicit run overrides",
     );
   }
+  return { runner, model };
+}
+
+function resolveRecipeLimits(
+  overrides: RunOverrides,
+  base: BaseRow,
+  loaded: LoadedSettings | null,
+  origins: Record<string, string>,
+): { max_attempts: number; timeout_seconds: number } {
   // A profile row reuses shared finite limits when it omits them;
   // report the shared origin so callers see the reuse.
   const limitOrigin = (key: "max_attempts" | "timeout_seconds"): string => {
@@ -645,25 +710,5 @@ export function resolveRecipe(
     timeout_seconds = DEFAULT_TIMEOUT_SECONDS;
     origins["timeout_seconds"] = "built-in default";
   }
-  // Native maps replace wholesale: an explicit run map wins, else
-  // the selected recipe's own table (profiles never inherit shared
-  // native controls across runners).
-  let native: NativeMap;
-  if (overrides.native !== undefined) {
-    native = { ...overrides.native };
-    origins["native"] = "run override";
-  } else {
-    native = { ...base.native };
-    origins["native"] = base.label;
-  }
-  return {
-    runner,
-    model,
-    max_attempts,
-    timeout_seconds,
-    native,
-    origins,
-    settings: settingsPath,
-    recipe_source: base.label,
-  };
+  return { max_attempts, timeout_seconds };
 }

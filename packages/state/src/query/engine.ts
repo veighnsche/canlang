@@ -206,28 +206,35 @@ export function viewerPageSearchTuple(
   return ['search', [...search.fields], search.query];
 }
 
+/** Closed leaf names for one page-predicate combinator or comparison. */
+function pagePredicateFields(predicate: QueryPredicate): ReadonlyArray<string> {
+  return predicate.op === 'and' || predicate.op === 'or' ? ['op', 'args'] :
+    predicate.op === 'not' ? ['op', 'arg'] : predicate.op === 'between' ? ['op', 'field', 'lo', 'hi'] :
+    predicate.op === 'is_null' || predicate.op === 'not_null' ? ['op', 'field'] : ['op', 'field', 'value'];
+}
+
+/** Finite scalar operand: primitives pass through, references travel as ids. */
+function pagePredicateScalar(value: unknown): string | number | boolean | ViewerPageTuple {
+  if (typeof value === 'string' || typeof value === 'boolean' ||
+      (typeof value === 'number' && Number.isFinite(value))) return value;
+  // Reference identities travel as opaque target ids (DESIGN 977), never
+  // enum spellings; the tuple carries no directory access (DESIGN 1027).
+  if (isReferenceIdentity(value)) return ['ref', value.id];
+  throw new StateError('validation', 'Page predicates require finite scalar operands.');
+}
+
 /** Validate with the existing AST evaluator, then copy only its closed leaves. */
 export function viewerPagePredicateTuple(predicate: QueryPredicate): ViewerPageTuple {
   if (typeof predicate !== 'object' || predicate === null || Array.isArray(predicate)) {
     throw new StateError('validation', 'Page predicates require the supported data-only AST.');
   }
-  const fields = predicate.op === 'and' || predicate.op === 'or' ? ['op', 'args'] :
-    predicate.op === 'not' ? ['op', 'arg'] : predicate.op === 'between' ? ['op', 'field', 'lo', 'hi'] :
-    predicate.op === 'is_null' || predicate.op === 'not_null' ? ['op', 'field'] : ['op', 'field', 'value'];
+  const fields = pagePredicateFields(predicate);
   if (Object.keys(predicate).length !== fields.length || fields.some(field => !Object.hasOwn(predicate, field))) {
     throw new StateError('validation', 'Invalid page predicate shape.');
   }
   if ((predicate.op === 'and' || predicate.op === 'or') && !Array.isArray(predicate.args)) {
     throw new StateError('validation', 'Page predicate combinators require AST arrays.');
   }
-  const scalar = (value: unknown): string | number | boolean | ViewerPageTuple => {
-    if (typeof value === 'string' || typeof value === 'boolean' ||
-        (typeof value === 'number' && Number.isFinite(value))) return value;
-    // Reference identities travel as opaque target ids (DESIGN 977), never
-    // enum spellings; the tuple carries no directory access (DESIGN 1027).
-    if (isReferenceIdentity(value)) return ['ref', value.id];
-    throw new StateError('validation', 'Page predicates require finite scalar operands.');
-  };
   switch (predicate.op) {
     case 'and': case 'or': {
       const args: ViewerPageTuple[] = [];
@@ -238,9 +245,9 @@ export function viewerPagePredicateTuple(predicate: QueryPredicate): ViewerPageT
     case 'is_null': case 'not_null':
       validatePredicateShape(predicate); return [predicate.op, predicate.field];
     case 'between':
-      validatePredicateShape(predicate); return [predicate.op, predicate.field, scalar(predicate.lo), scalar(predicate.hi)];
+      validatePredicateShape(predicate); return [predicate.op, predicate.field, pagePredicateScalar(predicate.lo), pagePredicateScalar(predicate.hi)];
     default:
-      validatePredicateShape(predicate); return [predicate.op, predicate.field, scalar(predicate.value)];
+      validatePredicateShape(predicate); return [predicate.op, predicate.field, pagePredicateScalar(predicate.value)];
   }
 }
 
@@ -687,6 +694,53 @@ function compareTypedOrder(type: TypedOrderType, a: TypedOrderValue, b: TypedOrd
  * The engine reapplies the caller's terms and an id ASC tiebreak uniformly,
  * independently of the backend's scan order.
  */
+/** Typed, numeric, textual or ranked comparison for one non-null pair. */
+function compareOrderValues(
+  field: TypedOrderField | undefined,
+  termField: string,
+  a: unknown,
+  b: unknown,
+): number {
+  if (field !== undefined) {
+    try {
+      return compareTypedOrder(field.type, a as TypedOrderValue, b as TypedOrderValue);
+    } catch (error) {
+      if (!(error instanceof ValueError)) throw error;
+      throw new StateError('validation', `Query order field ${JSON.stringify(termField)} cannot be compared: ${error.message}.`);
+    }
+  }
+  if (typeof a === 'number' && typeof b === 'number') {
+    return a === b ? 0 : a < b ? -1 : 1;
+  }
+  if (typeof a === 'string' && typeof b === 'string') {
+    return a === b ? 0 : a < b ? -1 : 1;
+  }
+  if (typeof a === typeof b) {
+    return 0;
+  }
+  const rankA = typeof a === 'number' ? 0 : typeof a === 'string' ? 1 : 2;
+  const rankB = typeof b === 'number' ? 0 : typeof b === 'string' ? 1 : 2;
+  return rankA < rankB ? -1 : 1;
+}
+
+/** One order term: nulls first, then the typed comparison with direction. */
+function compareOneOrderTerm(
+  left: StoredRow,
+  right: StoredRow,
+  term: OrderTerm,
+  numeric: ReadonlyMap<string, TypedOrderField>,
+): number {
+  const field = numeric.get(term.field);
+  const rawA = field === undefined ? resolveRowPath(left, term.field) : field.values.get(left);
+  const rawB = field === undefined ? resolveRowPath(right, term.field) : field.values.get(right);
+  const a = typeof rawA === 'boolean' ? (rawA ? 1 : 0) : rawA;
+  const b = typeof rawB === 'boolean' ? (rawB ? 1 : 0) : rawB;
+  const aNull = a === null || a === undefined;
+  const bNull = b === null || b === undefined;
+  const compared = aNull || bNull ? (aNull && bNull ? 0 : aNull ? -1 : 1) : compareOrderValues(field, term.field, a, b);
+  return term.direction === 'desc' ? -compared : compared;
+}
+
 function compareRowsForOrder(
   left: StoredRow,
   right: StoredRow,
@@ -694,36 +748,9 @@ function compareRowsForOrder(
   numeric: ReadonlyMap<string, TypedOrderField>,
 ): number {
   for (const term of terms) {
-    const field = numeric.get(term.field);
-    const rawA = field === undefined ? resolveRowPath(left, term.field) : field.values.get(left);
-    const rawB = field === undefined ? resolveRowPath(right, term.field) : field.values.get(right);
-    const a = typeof rawA === 'boolean' ? (rawA ? 1 : 0) : rawA;
-    const b = typeof rawB === 'boolean' ? (rawB ? 1 : 0) : rawB;
-    const aNull = a === null || a === undefined;
-    const bNull = b === null || b === undefined;
-    let compared: number;
-    if (aNull || bNull) {
-      compared = aNull && bNull ? 0 : aNull ? -1 : 1;
-    } else if (field !== undefined) {
-      try {
-        compared = compareTypedOrder(field.type, a as TypedOrderValue, b as TypedOrderValue);
-      } catch (error) {
-        if (!(error instanceof ValueError)) throw error;
-        throw new StateError('validation', `Query order field ${JSON.stringify(term.field)} cannot be compared: ${error.message}.`);
-      }
-    } else if (typeof a === 'number' && typeof b === 'number') {
-      compared = a === b ? 0 : a < b ? -1 : 1;
-    } else if (typeof a === 'string' && typeof b === 'string') {
-      compared = a === b ? 0 : a < b ? -1 : 1;
-    } else if (typeof a === typeof b) {
-      compared = 0;
-    } else {
-      const rankA = typeof a === 'number' ? 0 : typeof a === 'string' ? 1 : 2;
-      const rankB = typeof b === 'number' ? 0 : typeof b === 'string' ? 1 : 2;
-      compared = rankA < rankB ? -1 : 1;
-    }
+    const compared = compareOneOrderTerm(left, right, term, numeric);
     if (compared !== 0) {
-      return term.direction === 'desc' ? -compared : compared;
+      return compared;
     }
   }
   if (left.id === right.id) {
@@ -876,76 +903,101 @@ function avgValues(field: string, values: ReadonlyArray<unknown>): number {
  * currency and one minor-unit type — never empty or mixed. Money compares by
  * minor units and returns the winning input value unchanged.
  */
-function minMaxValues(op: 'min' | 'max', field: string, values: ReadonlyArray<unknown>): unknown {
-  const mixed = (): StateError =>
-    new StateError(
+/** Shared min/max accumulation (one aggregate call). */
+interface MinMaxTrack {
+  bestNum: number | null;
+  bestStr: string | null;
+  bestMoney: { minor: number | bigint; value: unknown } | null;
+  moneyCurrency: string;
+  moneyMinorKind: 'number' | 'bigint' | null;
+}
+
+function mixedMinMaxError(op: 'min' | 'max', field: string): StateError {
+  return new StateError(
+    'validation',
+    `Cannot compute ${op} over mixed value types on ${JSON.stringify(field)}.`,
+  );
+}
+
+function sawMinMaxOther(track: MinMaxTrack): boolean {
+  return track.bestNum !== null || track.bestStr !== null || track.bestMoney !== null;
+}
+
+/** One numeric candidate for the running min/max. */
+function trackMinMaxNumber(track: MinMaxTrack, op: 'min' | 'max', field: string, value: number): void {
+  if (track.bestStr !== null || track.bestMoney !== null) {
+    throw mixedMinMaxError(op, field);
+  }
+  track.bestNum = track.bestNum === null ? value : op === 'min' ? Math.min(track.bestNum, value) : Math.max(track.bestNum, value);
+}
+
+/** One text candidate for the running min/max. */
+function trackMinMaxString(track: MinMaxTrack, op: 'min' | 'max', field: string, value: string): void {
+  if (sawMinMaxOther(track) && track.bestStr === null) {
+    throw mixedMinMaxError(op, field);
+  }
+  if (track.bestStr === null || (op === 'min' ? value < track.bestStr : value > track.bestStr)) {
+    track.bestStr = value;
+  }
+}
+
+/** One money candidate: currency, minor units and running extremum. */
+function trackMinMaxMoney(track: MinMaxTrack, op: 'min' | 'max', field: string, value: unknown): void {
+  if (sawMinMaxOther(track) && track.bestMoney === null) {
+    throw mixedMinMaxError(op, field);
+  }
+  const record = value as Readonly<Record<string, unknown>>;
+  const currency = record['currency'];
+  const minor = record['minor'];
+  if (typeof currency !== 'string' || currency === '') {
+    throw new StateError(
       'validation',
-      `Cannot compute ${op} over mixed value types on ${JSON.stringify(field)}.`,
+      `Cannot compute ${op} over money with no currency on ${JSON.stringify(field)}.`,
     );
-  let bestNum: number | null = null;
-  let bestStr: string | null = null;
-  let bestMoney: { minor: number | bigint; value: unknown } | null = null;
-  let moneyCurrency = '';
-  let moneyMinorKind: 'number' | 'bigint' | null = null;
-  const sawOther = (): boolean => bestNum !== null || bestStr !== null || bestMoney !== null;
+  }
+  if (typeof minor !== 'number' && typeof minor !== 'bigint') {
+    throw new StateError(
+      'validation',
+      `Cannot compute ${op} over money with unsupported minor units on ${JSON.stringify(field)}.`,
+    );
+  }
+  if (track.bestMoney !== null && track.moneyCurrency !== currency) {
+    throw new StateError(
+      'validation',
+      `Cannot compute ${op} over money in mixed currencies on ${JSON.stringify(field)}.`,
+    );
+  }
+  const kind = typeof minor === 'bigint' ? 'bigint' : 'number';
+  if (track.moneyMinorKind !== null && track.moneyMinorKind !== kind) {
+    throw new StateError(
+      'validation',
+      `Cannot compute ${op} over money with mixed minor-unit types on ${JSON.stringify(field)}.`,
+    );
+  }
+  track.moneyCurrency = currency;
+  track.moneyMinorKind = kind;
+  if (track.bestMoney === null) {
+    track.bestMoney = { minor, value };
+  } else {
+    const better =
+      op === 'min'
+        ? (minor as number | bigint) < track.bestMoney.minor
+        : (minor as number | bigint) > track.bestMoney.minor;
+    if (better) {
+      track.bestMoney = { minor, value };
+    }
+  }
+}
+
+function minMaxValues(op: 'min' | 'max', field: string, values: ReadonlyArray<unknown>): unknown {
+  const track: MinMaxTrack = { bestNum: null, bestStr: null, bestMoney: null, moneyCurrency: '', moneyMinorKind: null };
   for (const value of values) {
     if (typeof value === 'number') {
-      if (bestStr !== null || bestMoney !== null) {
-        throw mixed();
-      }
-      bestNum = bestNum === null ? value : op === 'min' ? Math.min(bestNum, value) : Math.max(bestNum, value);
+      trackMinMaxNumber(track, op, field, value);
     } else if (typeof value === 'string') {
-      if (sawOther() && bestStr === null) {
-        throw mixed();
-      }
-      if (bestStr === null || (op === 'min' ? value < bestStr : value > bestStr)) {
-        bestStr = value;
-      }
+      trackMinMaxString(track, op, field, value);
     } else if (isMoneyShaped(value)) {
-      if (sawOther() && bestMoney === null) {
-        throw mixed();
-      }
-      const record = value as Readonly<Record<string, unknown>>;
-      const currency = record['currency'];
-      const minor = record['minor'];
-      if (typeof currency !== 'string' || currency === '') {
-        throw new StateError(
-          'validation',
-          `Cannot compute ${op} over money with no currency on ${JSON.stringify(field)}.`,
-        );
-      }
-      if (typeof minor !== 'number' && typeof minor !== 'bigint') {
-        throw new StateError(
-          'validation',
-          `Cannot compute ${op} over money with unsupported minor units on ${JSON.stringify(field)}.`,
-        );
-      }
-      if (bestMoney !== null && moneyCurrency !== currency) {
-        throw new StateError(
-          'validation',
-          `Cannot compute ${op} over money in mixed currencies on ${JSON.stringify(field)}.`,
-        );
-      }
-      const kind = typeof minor === 'bigint' ? 'bigint' : 'number';
-      if (moneyMinorKind !== null && moneyMinorKind !== kind) {
-        throw new StateError(
-          'validation',
-          `Cannot compute ${op} over money with mixed minor-unit types on ${JSON.stringify(field)}.`,
-        );
-      }
-      moneyCurrency = currency;
-      moneyMinorKind = kind;
-      if (bestMoney === null) {
-        bestMoney = { minor, value };
-      } else {
-        const better =
-          op === 'min'
-            ? (minor as number | bigint) < bestMoney.minor
-            : (minor as number | bigint) > bestMoney.minor;
-        if (better) {
-          bestMoney = { minor, value };
-        }
-      }
+      trackMinMaxMoney(track, op, field, value);
     } else {
       throw new StateError(
         'validation',
@@ -953,14 +1005,14 @@ function minMaxValues(op: 'min' | 'max', field: string, values: ReadonlyArray<un
       );
     }
   }
-  if (bestNum !== null) {
-    return bestNum;
+  if (track.bestNum !== null) {
+    return track.bestNum;
   }
-  if (bestStr !== null) {
-    return bestStr;
+  if (track.bestStr !== null) {
+    return track.bestStr;
   }
-  if (bestMoney !== null) {
-    return bestMoney.value;
+  if (track.bestMoney !== null) {
+    return track.bestMoney.value;
   }
   throw new StateError('validation', `Cannot compute ${op} over an empty set on ${JSON.stringify(field)}.`);
 }
@@ -1045,6 +1097,139 @@ function checkViewerPredicate(
   return predicate;
 }
 
+/** Shared authorized-query run state (one revision-fenced scan). */
+interface AuthorizedQueryRun {
+  readonly input: BaseQueryInput;
+  readonly eventual: boolean;
+  readonly predicate: ViewerRecordsInput['predicate'];
+  readonly page: { readonly parent?: RecordParent; readonly revision?: Revision;
+    readonly parentPolicies?: ReadonlyMap<ModelName, ViewerPageParentPolicy>; readonly readBy?: ByPredicate;
+    readonly membershipPredicate?: InstalledSourceQueryPredicate } | undefined;
+  readonly observation: QueryObservation | undefined;
+  readonly extraViewerPaths: ReadonlyArray<string> | undefined;
+  readonly archived: 'exclude' | 'include';
+  readonly sourceReads: ReadonlyMap<ModelName, ViewerSourceReadPolicy> | undefined;
+  readonly selectedRead: ViewerSourceReadPolicy | undefined;
+  readonly order: ReadonlyArray<OrderTerm>;
+  readonly numericTypes: { readonly types: ReadonlyMap<string, TypedOrderType>; readonly arrays: ReadonlyArray<string> };
+  readonly decisionIntFields: ReadonlySet<string> | undefined;
+  readonly coherentPredicate: boolean;
+  readonly revision: Revision;
+  readonly modelDescriptorMismatch: boolean;
+  readonly implicitParent: boolean;
+  readonly sourceRows: Map<string, StoredRow>;
+  readonly parentRows: Map<string, StoredRow | null>;
+  policy: InterimModelPolicy | null;
+  secrets: ReadonlyArray<string>;
+  grantByOk: ReadonlyArray<boolean>;
+  pageAuthority: AuthorizedSet['pageAuthority'];
+  rowContext: ByContext | undefined;
+  byContext: ByContext | undefined;
+  parentDecisions: readonly ViewerPageParentDecision[];
+  originalRows: readonly StoredRow[] | undefined;
+  scanned: readonly StoredRow[] | undefined;
+  rowAuthority: readonly { allowed: readonly boolean[]; grants: readonly Pick<InterimGrant, 'fields'>[];
+    record?: ProjectedRecord | null; decisions?: readonly InstalledSourceRowDecision[] }[] | undefined;
+  revalidateRowAuthority: (() => Promise<void>) | undefined;
+  predicateMatches: readonly boolean[] | undefined;
+}
+
+/** Policy-declared parent chain: one membership/grant read per ancestor. */
+async function walkQueryParentPolicies(
+  run: AuthorizedQueryRun,
+  current: ByContext,
+  decisions: ViewerPageParentDecision[],
+  visited: Set<ModelName>,
+  selected: RecordParent | null,
+): Promise<readonly ViewerPageParentDecision[]> {
+  while (selected !== null && run.page?.parentPolicies !== undefined) {
+    if (visited.has(selected.model)) throw new StateError('validation', 'Invalid cyclic page parent scope.');
+    visited.add(selected.model);
+    const declaration = run.page.parentPolicies.get(selected.model);
+    if (declaration === undefined) throw new StateError('validation', 'Parent scope requires a checked generated model read.');
+    if (!(await evaluateBy(declaration.by, current))) throw new StateError('not_found', 'Parent record not found.');
+    const identity = JSON.stringify([selected.model, selected.id]);
+    // The coherent replay evaluates policy only, over the original rows.
+    if (!run.parentRows.has(identity)) run.parentRows.set(identity, await run.input.store.load(selected.model, selected.id));
+    const row = run.parentRows.get(identity)!;
+    if (row === null) throw new StateError('not_found', 'Parent record not found.');
+    const parentPolicy = run.input.policy.get(selected.model);
+    const authority = await projectCurrentRecordForViewerPolicy({ policy: parentPolicy, context: current, row });
+    if (authority.record === null || row.archivedAt !== null) throw new StateError('not_found', 'Parent record not found.');
+    const ancestor = row.parent ?? null;
+    if ((declaration.parent === undefined && ancestor !== null) ||
+        (declaration.parent !== undefined && (ancestor === null || ancestor.model !== declaration.parent))) {
+      throw new StateError('not_found', 'Parent record not found.');
+    }
+    decisions.push({ model: selected.model, allowed: authority.allowed,
+      projection: JSON.stringify(authority.record) });
+    selected = ancestor;
+  }
+  return decisions;
+}
+
+/** Enrolled parent decisions for one authorization context. */
+async function evaluateQueryParents(run: AuthorizedQueryRun, current: ByContext): Promise<readonly ViewerPageParentDecision[]> {
+  if (run.sourceReads !== undefined && run.page?.parent !== undefined) {
+    const selected = run.page.parent, key = `${selected.model}\0${selected.id}`;
+    if (!run.sourceRows.has(key)) {
+      const row = await run.input.store.cohortLoad({ model: selected.model, id: selected.id, expectedRevision: run.revision });
+      if (row === null) throw new StateError('not_found', 'Parent record not found.');
+      if (row.id !== selected.id) throw new StateError('validation', 'Parent row identity mismatch.');
+      run.sourceRows.set(key, row);
+    }
+    const projected = await projectInstalledSourceRowAndAncestors({ model: selected.model, row: run.sourceRows.get(key)!,
+      readPolicies: run.sourceReads, policy: run.input.policy, context: current, revision: run.revision, fence: run.input.fence,
+      store: run.input.store, rows: run.sourceRows,
+      ...(run.observation?.ownerRows === undefined ? {} : { ownerRows: run.observation.ownerRows }) });
+    if (projected.record === null) throw new StateError('not_found', 'Parent record not found.');
+    return projected.decisions.map(decision => ({ model: decision.model, allowed: decision.allowed,
+      projection: JSON.stringify(decision.projection) }));
+  }
+  const decisions: ViewerPageParentDecision[] = [];
+  const selected = run.page?.parent ?? null;
+  const visited = new Set<ModelName>();
+  return walkQueryParentPolicies(run, current, decisions, visited, selected);
+}
+
+/** Viewer grant preparation: fail closed on every viewer path, then allow. */
+async function prepareQueryViewer(run: AuthorizedQueryRun, current: ByContext, secrets: ReadonlyArray<string>): Promise<boolean[]> {
+  let grantedFields: string[] = [];
+  if (run.sourceReads !== undefined && (run.selectedRead === undefined || 'grants' in run.selectedRead)) {
+    grantedFields = run.selectedRead === undefined ? [] : run.selectedRead.grants.flatMap(grant => [...grant.fields]);
+    if (run.input.where !== undefined) for (const path of collectPredicateFields(run.input.where)) checkViewerPath(path, grantedFields, secrets, run.implicitParent);
+    for (const term of run.order) checkViewerPath(term.field, grantedFields, secrets, run.implicitParent);
+    for (const path of run.extraViewerPaths ?? []) checkViewerPath(path, grantedFields, secrets, run.implicitParent);
+    return [];
+  }
+  const allowed = run.policy === null ? [] : await viewerGrantAuthority(run.policy, current);
+  grantedFields = run.policy === null ? [] : run.policy.grants.flatMap((grant, index) =>
+    allowed[index] || byDependsOnRow(grant.by) ? [...grant.fields] : []);
+  if (run.input.where !== undefined) for (const path of collectPredicateFields(run.input.where)) checkViewerPath(path, grantedFields, secrets, run.implicitParent);
+  for (const term of run.order) checkViewerPath(term.field, grantedFields, secrets, run.implicitParent);
+  for (const path of run.extraViewerPaths ?? []) checkViewerPath(path, grantedFields, secrets, run.implicitParent);
+  return allowed;
+}
+
+/** One row's authority: installed-source projection or legacy grant path. */
+async function projectAuthorizedQueryRow(
+  run: AuthorizedQueryRun,
+  row: StoredRow,
+  current: ByContext,
+  cached: readonly boolean[],
+  selectedPolicy: InterimModelPolicy | null,
+): Promise<{ allowed: readonly boolean[]; grants: readonly Pick<InterimGrant, 'fields'>[];
+  record?: ProjectedRecord | null; decisions?: readonly InstalledSourceRowDecision[] }> {
+  if (run.sourceReads !== undefined) {
+    run.sourceRows.set(`${run.input.model}\0${row.id}`, row);
+    return projectInstalledSourceRowAndAncestors({ model: run.input.model, row, readPolicies: run.sourceReads,
+      policy: run.input.policy, context: current, revision: run.revision, fence: run.input.fence, store: run.input.store, rows: run.sourceRows, archived: run.archived,
+      ...(run.observation?.ownerRows === undefined ? {} : { ownerRows: run.observation.ownerRows }) });
+  }
+  return selectedPolicy === null ? { allowed: [], grants: [] } :
+    viewerRowAuthority(selectedPolicy, current, cached, row);
+}
+
 /**
  * Shared record/aggregate pipeline: validate caller input, fence the
  * revision, resolve viewer authorization, scan unbounded, match and project
@@ -1066,6 +1251,70 @@ async function runAuthorizedQuery(
   observation?: QueryObservation,
 ): Promise<AuthorizedSet> {
   // Capture installed declaration metadata before the first storage/Identity await.
+  // Fence revision FIRST: every row below is read at or after this checkpoint.
+  const head = await readAuthorizedQueryRevision(input, eventual, predicate, page);
+  const run: AuthorizedQueryRun = {
+    input, eventual, predicate, page, observation, extraViewerPaths,
+    ...head,
+    implicitParent: queryImplicitParent(input, head.selectedRead, page),
+    sourceRows: new Map<string, StoredRow>(),
+    parentRows: new Map<string, StoredRow | null>(),
+    policy: null, secrets: [], grantByOk: [], pageAuthority: undefined,
+    rowContext: undefined, byContext: undefined, parentDecisions: [],
+    originalRows: undefined, scanned: undefined, rowAuthority: undefined,
+    revalidateRowAuthority: undefined, predicateMatches: undefined,
+  };
+
+  // Viewer authorization: resolve the caller membership once, evaluate each
+  // grant's row-independent `by` once, then fail closed on every viewer path
+  // (where, order, aggregate field) before touching storage rows.
+  await authorizeAuthorizedQueryRun(run);
+
+  // Unbounded scan: storage applies model/archived/order only. `where` stays
+  // in memory (grant visibility first), and `limit` is never pushed down —
+  // overflow must error, never truncate.
+  await scanAuthorizedQueryRows(run);
+
+  // Visibility (viewer: >=1 matching grant) then `where`, both in memory.
+  // Viewers project BEFORE where: a row visible via grant B evaluates
+  // predicates over its own projected values only, so A-only paths read as
+  // missing (never match comparisons) instead of leaking stored values.
+  const matched = await matchAuthorizedQueryRows(run);
+
+  // One engine ordering over the effective order plus the id tiebreak, so
+  // results are identical regardless of backend scan order.
+  const numeric = decodeTypedOrder(matched, run.numericTypes.types);
+  matched.sort((left, right) => compareRowsForOrder(left, right, run.order, numeric));
+  const rows = matched;
+
+  // Limit overflow fails (never truncates). Code choice: `validation` per the
+  // S4 spec preference. The `limit` code was considered but its DESIGN §10
+  // meaning (quota/rate vs. result-cap overflow) is unconfirmed in this
+  // worktree, so the preferred `validation` stands; note if a code is missing.
+  if (input.limit !== undefined && rows.length > input.limit) {
+    throw new StateError(
+      'validation',
+      `Query matched ${rows.length} rows, over the limit of ${input.limit}. Narrow the query instead of truncating.`,
+    );
+  }
+
+  if (run.revalidateRowAuthority !== undefined) {
+    await run.revalidateRowAuthority();
+    if (await input.store.readRevision() !== run.revision) throw new StateError('conflict', 'Row grant read moved beyond its original State revision.');
+  }
+  return { revision: run.revision, rows, ...(run.pageAuthority === undefined ? {} : { pageAuthority: run.pageAuthority }) };
+}
+
+/** Validated caller input with the fenced pre-scan revision. */
+async function readAuthorizedQueryRevision(
+  input: BaseQueryInput,
+  eventual: boolean,
+  predicate: ViewerRecordsInput['predicate'],
+  page: AuthorizedQueryRun['page'],
+): Promise<Omit<AuthorizedQueryRun, 'input' | 'eventual' | 'predicate' | 'page' | 'observation' | 'extraViewerPaths' |
+  'implicitParent' | 'sourceRows' | 'parentRows' | 'policy' | 'secrets' | 'grantByOk' | 'pageAuthority' |
+  'rowContext' | 'byContext' | 'parentDecisions' | 'originalRows' | 'scanned' | 'rowAuthority' |
+  'revalidateRowAuthority' | 'predicateMatches'>> {
   const archived = queryArchiveMode(input.archived);
   const suppliedReads = (input as ViewerRecordsInput).sourceReadPolicies;
   if (suppliedReads !== undefined && (input.authority !== 'viewer' || eventual)) {
@@ -1073,23 +1322,11 @@ async function runAuthorizedQuery(
   }
   const sourceReads = suppliedReads === undefined ? undefined : captureSourceReadPolicies(suppliedReads);
   const selectedRead = sourceReads?.get(input.model);
-  const sourceRows = new Map<string, StoredRow>();
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 0)) {
     throw new StateError('validation', `Invalid query limit: ${JSON.stringify(input.limit)}.`);
   }
   const coherentPredicate = predicate !== undefined && hasInstalledSourceQueryPredicate(page?.membershipPredicate ?? predicate);
-  const order = input.order ?? DEFAULT_ORDER;
-  for (const term of order) {
-    if (term.direction !== 'asc' && term.direction !== 'desc') {
-      throw new StateError(
-        'validation',
-        `Invalid order direction: ${JSON.stringify(term.direction)}.`,
-      );
-    }
-    if (typeof term.field !== 'string') {
-      throw new StateError('validation', 'Order terms need a string field path.');
-    }
-  }
+  const order = checkAuthorizedQueryOrder(input);
   if (input.where !== undefined) {
     validatePredicateShape(input.where);
   }
@@ -1106,11 +1343,40 @@ async function runAuthorizedQuery(
   }
 
   // Fence revision FIRST: every row below is read at or after this checkpoint.
+  const revision = await readQueryFenceRevision(input, page);
+  enrollQueryFence(input, eventual, revision);
+  return { archived, sourceReads, selectedRead, order, numericTypes, decisionIntFields,
+    coherentPredicate, revision, modelDescriptorMismatch };
+}
+
+/** Caller order terms: valid directions with string field paths. */
+function checkAuthorizedQueryOrder(input: BaseQueryInput): ReadonlyArray<OrderTerm> {
+  const order = input.order ?? DEFAULT_ORDER;
+  for (const term of order) {
+    if (term.direction !== 'asc' && term.direction !== 'desc') {
+      throw new StateError(
+        'validation',
+        `Invalid order direction: ${JSON.stringify(term.direction)}.`,
+      );
+    }
+    if (typeof term.field !== 'string') {
+      throw new StateError('validation', 'Order terms need a string field path.');
+    }
+  }
+  return order;
+}
+
+/** Pre-scan revision with the pagination restart check. */
+async function readQueryFenceRevision(input: BaseQueryInput, page: AuthorizedQueryRun['page']): Promise<Revision> {
   const revision = await input.store.readRevision();
   if (page?.revision !== undefined && page.revision !== revision) {
     throw new StateError('conflict', 'Collection changed; restart pagination.');
   }
+  return revision;
+}
 
+/** T32b owner-checkpoint join: conflicts move, then enrolls the model read. */
+function enrollQueryFence(input: BaseQueryInput, eventual: boolean, revision: Revision): void {
   // T32b: join the operation's owner checkpoint. A read whose checkpoint
   // already moved cannot enroll — it conflicts rather than silently
   // reading at a newer revision than the operation's other reads.
@@ -1124,285 +1390,256 @@ async function runAuthorizedQuery(
   if (input.fence !== undefined && !eventual) {
     input.fence.enroll({ kind: 'query', model: input.model, authority: input.authority });
   }
+}
 
-  // Viewer authorization: resolve the caller membership once, evaluate each
-  // grant's row-independent `by` once, then fail closed on every viewer path
-  // (where, order, aggregate field) before touching storage rows.
-  let policy: InterimModelPolicy | null = null;
-  let secrets: ReadonlyArray<string> = [];
-  let grantByOk: ReadonlyArray<boolean> = [];
-  let grantedFields: string[] = [];
-  let pageAuthority: AuthorizedSet['pageAuthority'];
-  let rowContext: ByContext | undefined;
-  let byContext: ByContext | undefined;
-  let parentDecisions: readonly ViewerPageParentDecision[] = [];
-  const parentRows = new Map<string, StoredRow | null>();
-  const evaluateParents = async (current: ByContext): Promise<readonly ViewerPageParentDecision[]> => {
-    if (sourceReads !== undefined && page?.parent !== undefined) {
-      const selected = page.parent, key = `${selected.model}\0${selected.id}`;
-      if (!sourceRows.has(key)) {
-        const row = await input.store.cohortLoad({ model: selected.model, id: selected.id, expectedRevision: revision });
-        if (row === null) throw new StateError('not_found', 'Parent record not found.');
-        if (row.id !== selected.id) throw new StateError('validation', 'Parent row identity mismatch.');
-        sourceRows.set(key, row);
-      }
-      const projected = await projectInstalledSourceRowAndAncestors({ model: selected.model, row: sourceRows.get(key)!,
-        readPolicies: sourceReads, policy: input.policy, context: current, revision, fence: input.fence,
-        store: input.store, rows: sourceRows,
-        ...(observation?.ownerRows === undefined ? {} : { ownerRows: observation.ownerRows }) });
-      if (projected.record === null) throw new StateError('not_found', 'Parent record not found.');
-      return projected.decisions.map(decision => ({ model: decision.model, allowed: decision.allowed,
-        projection: JSON.stringify(decision.projection) }));
-    }
-    const decisions: ViewerPageParentDecision[] = [];
-    let selected = page?.parent ?? null;
-    const visited = new Set<ModelName>();
-    while (selected !== null && page?.parentPolicies !== undefined) {
-      if (visited.has(selected.model)) throw new StateError('validation', 'Invalid cyclic page parent scope.');
-      visited.add(selected.model);
-      const declaration = page.parentPolicies.get(selected.model);
-      if (declaration === undefined) throw new StateError('validation', 'Parent scope requires a checked generated model read.');
-      if (!(await evaluateBy(declaration.by, current))) throw new StateError('not_found', 'Parent record not found.');
-      const identity = JSON.stringify([selected.model, selected.id]);
-      // The coherent replay evaluates policy only, over the original rows.
-      if (!parentRows.has(identity)) parentRows.set(identity, await input.store.load(selected.model, selected.id));
-      const row = parentRows.get(identity)!;
-      if (row === null) throw new StateError('not_found', 'Parent record not found.');
-      const parentPolicy = input.policy.get(selected.model);
-      const authority = await projectCurrentRecordForViewerPolicy({ policy: parentPolicy, context: current, row });
-      if (authority.record === null || row.archivedAt !== null) throw new StateError('not_found', 'Parent record not found.');
-      const ancestor = row.parent ?? null;
-      if ((declaration.parent === undefined && ancestor !== null) ||
-          (declaration.parent !== undefined && (ancestor === null || ancestor.model !== declaration.parent))) {
-        throw new StateError('not_found', 'Parent record not found.');
-      }
-      decisions.push({ model: selected.model, allowed: authority.allowed,
-        projection: JSON.stringify(authority.record) });
-      selected = ancestor;
-    }
-    return decisions;
-  };
-  const implicitParent = !Object.hasOwn(input.modelDescriptor?.fields ?? {}, 'parent') &&
+/** Implicit parent scope: undeclared parents read through the selected grant. */
+function queryImplicitParent(
+  input: BaseQueryInput,
+  selectedRead: ViewerSourceReadPolicy | undefined,
+  page: AuthorizedQueryRun['page'],
+): boolean {
+  return !Object.hasOwn(input.modelDescriptor?.fields ?? {}, 'parent') &&
     !(selectedRead !== undefined && 'fields' in selectedRead && selectedRead.fields.includes('parent')) &&
     (selectedRead?.parent !== undefined || page?.parentPolicies?.get(input.model)?.parent !== undefined);
-  const prepareViewer = async (current: ByContext): Promise<boolean[]> => {
-    if (sourceReads !== undefined && (selectedRead === undefined || 'grants' in selectedRead)) {
-      grantedFields = selectedRead === undefined ? [] : selectedRead.grants.flatMap(grant => [...grant.fields]);
-      if (input.where !== undefined) for (const path of collectPredicateFields(input.where)) checkViewerPath(path, grantedFields, secrets, implicitParent);
-      for (const term of order) checkViewerPath(term.field, grantedFields, secrets, implicitParent);
-      for (const path of extraViewerPaths ?? []) checkViewerPath(path, grantedFields, secrets, implicitParent);
-      return [];
-    }
-    const allowed = policy === null ? [] : await viewerGrantAuthority(policy, current);
-    grantedFields = policy === null ? [] : policy.grants.flatMap((grant, index) =>
-      allowed[index] || byDependsOnRow(grant.by) ? [...grant.fields] : []);
-    if (input.where !== undefined) for (const path of collectPredicateFields(input.where)) checkViewerPath(path, grantedFields, secrets, implicitParent);
-    for (const term of order) checkViewerPath(term.field, grantedFields, secrets, implicitParent);
-    for (const path of extraViewerPaths ?? []) checkViewerPath(path, grantedFields, secrets, implicitParent);
-    return allowed;
-  };
-  if (input.authority === 'viewer') {
-    const membership =
-      input.context.actorUserId !== null && input.context.teamId !== null
-        ? await input.memberships.findMembership(input.context.teamId, input.context.actorUserId)
-        : null;
-    if (
-      input.fence !== undefined &&
-      !eventual &&
-      input.context.actorUserId !== null &&
-      input.context.teamId !== null
-    ) {
-      input.fence.enroll({
-        kind: 'membership',
-        teamId: input.context.teamId,
-        userId: input.context.actorUserId,
-      });
-    }
-    const byCtx: ByContext = {
-      actorUserId: input.context.actorUserId,
-      teamId: input.context.teamId,
-      membership,
-      memberships: input.memberships,
-    };
-    byContext = byCtx;
-    const found = input.policy.get(input.model);
-    if (found !== undefined) { policy = found; secrets = found.secretFields; }
-    if (selectedRead !== undefined && 'grants' in selectedRead) secrets = selectedRead.secretFields;
-    const parentDependsOnRow = [...(page?.parentPolicies?.keys() ?? [])].some(model =>
-      input.policy.get(model)?.grants.some(grant => byDependsOnRow(grant.by)));
-    if (sourceReads !== undefined || policy?.grants.some(grant => byDependsOnRow(grant.by)) || parentDependsOnRow || coherentPredicate) rowContext = byCtx;
-    else {
-      parentDecisions = await evaluateParents(byCtx);
-      grantByOk = await prepareViewer(byCtx);
-    }
-    if (page !== undefined && rowContext === undefined) pageAuthority = {
-      policy, byContext: byCtx, allowed: grantByOk, parents: parentDecisions, evaluateParents,
-    };
-  }
+}
 
-  // Unbounded scan: storage applies model/archived/order only. `where` stays
-  // in memory (grant visibility first), and `limit` is never pushed down —
-  // overflow must error, never truncate.
-  if (modelDescriptorMismatch) {
+/** Caller membership once, enrolled, with its authority context. */
+async function readQueryCallerContext(input: BaseQueryInput, eventual: boolean): Promise<ByContext> {
+  const membership =
+    input.context.actorUserId !== null && input.context.teamId !== null
+      ? await input.memberships.findMembership(input.context.teamId, input.context.actorUserId)
+      : null;
+  if (
+    input.fence !== undefined &&
+    !eventual &&
+    input.context.actorUserId !== null &&
+    input.context.teamId !== null
+  ) {
+    input.fence.enroll({
+      kind: 'membership',
+      teamId: input.context.teamId,
+      userId: input.context.actorUserId,
+    });
+  }
+  return {
+    actorUserId: input.context.actorUserId,
+    teamId: input.context.teamId,
+    membership,
+    memberships: input.memberships,
+  };
+}
+
+/** Viewer authorization: membership once, row-independent grants, then paths. */
+async function authorizeAuthorizedQueryRun(run: AuthorizedQueryRun): Promise<void> {
+  const { input, page } = run;
+  if (input.authority !== 'viewer') return;
+  const byCtx = await readQueryCallerContext(input, run.eventual);
+  run.byContext = byCtx;
+  const found = input.policy.get(input.model);
+  if (found !== undefined) { run.policy = found; run.secrets = found.secretFields; }
+  if (run.selectedRead !== undefined && 'grants' in run.selectedRead) run.secrets = run.selectedRead.secretFields;
+  const parentDependsOnRow = [...(page?.parentPolicies?.keys() ?? [])].some(model =>
+    input.policy.get(model)?.grants.some(grant => byDependsOnRow(grant.by)));
+  if (run.sourceReads !== undefined || run.policy?.grants.some(grant => byDependsOnRow(grant.by)) || parentDependsOnRow || run.coherentPredicate) {
+    run.rowContext = byCtx;
+  } else {
+    run.parentDecisions = await evaluateQueryParents(run, byCtx);
+    run.grantByOk = await prepareQueryViewer(run, byCtx, run.secrets);
+  }
+  if (page !== undefined && run.rowContext === undefined) run.pageAuthority = {
+    policy: run.policy, byContext: byCtx, allowed: run.grantByOk, parents: run.parentDecisions,
+    evaluateParents: (current: ByContext) => evaluateQueryParents(run, current),
+  };
+}
+
+/** Coherent source-predicate matches over projected rows in domain order. */
+async function matchCoherentPredicateRows(
+  run: AuthorizedQueryRun,
+  current: ByContext,
+  observedRows: readonly StoredRow[],
+  rows: { allowed: readonly boolean[]; grants: readonly Pick<InterimGrant, 'fields'>[];
+    record?: ProjectedRecord | null; decisions?: readonly InstalledSourceRowDecision[] }[],
+  matches: boolean[],
+): Promise<void> {
+  const { input } = run;
+  for (const [index, row] of observedRows.entries()) {
+    const authority = rows[index]!;
+    const projected = 'record' in authority ? authority.record :
+      authority.grants.length === 0 ? null : projectRow(row, authority.grants, run.secrets);
+    if (projected === null) { matches.push(false); continue; }
+    if (input.where !== undefined && !evalPredicateForRow(input.where, projected, run.decisionIntFields, run.implicitParent)) {
+      matches.push(false); continue;
+    }
+    const detached = cleanCopy(projected) as ProjectedRecord;
+    retainQuerySourcePresence(detached, input.model, run.revision, Object.keys(row.data));
+    // The source predicate sees only projected fields. Its membership
+    // reads join this complete domain's coherent authority observation.
+    matches.push(await evaluateInstalledReadPredicate(run.predicate!, detached, {
+      context: current, row: { ...row, data: cleanCopy(projected.data) as StoredRow['data'] }, revision: run.revision, fence: input.fence,
+      sourcePresence: Object.freeze(Object.keys(row.data)),
+    }, input.store));
+    if (await input.store.readRevision() !== run.revision) {
+      throw new StateError('conflict', 'Source predicate moved beyond its original State revision.');
+    }
+  }
+}
+
+/** Row-grant observation for one authority context: parents, rows, matches. */
+async function observeQueryRowAuthority(
+  run: AuthorizedQueryRun,
+  current: ByContext,
+  selectedPolicy: InterimModelPolicy | null,
+  spec: QuerySpec,
+): Promise<{ cached: readonly boolean[]; rows: { allowed: readonly boolean[]; grants: readonly Pick<InterimGrant, 'fields'>[];
+  record?: ProjectedRecord | null; decisions?: readonly InstalledSourceRowDecision[] }[]; parents: readonly ViewerPageParentDecision[]; matches: boolean[] }> {
+  const { input, page, observation } = run;
+  if (page?.readBy !== undefined && !(await evaluateBy(page.readBy, current))) {
+    throw new StateError('forbidden', 'This operation is not permitted for the caller.');
+  }
+  const parents = await evaluateQueryParents(run, current);
+  const cached = await prepareQueryViewer(run, current, run.secrets);
+  const observedRows = run.originalRows ??= observation?.domain === undefined ? await input.store.query(spec) : [...observation.domain];
+  if (page !== undefined && observedRows.length > VIEWER_PAGE_MAX_CANDIDATES) throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
+  const rows: { allowed: readonly boolean[]; grants: readonly Pick<InterimGrant, 'fields'>[];
+    record?: ProjectedRecord | null; decisions?: readonly InstalledSourceRowDecision[] }[] = [];
+  const matches: boolean[] = [];
+  for (const row of observedRows) rows.push(await projectAuthorizedQueryRow(run, row, current, cached, selectedPolicy));
+  if (run.coherentPredicate) await matchCoherentPredicateRows(run, current, observedRows, rows, matches);
+  return { cached, rows, parents, matches };
+}
+
+/** Row-grant booleans after the observed scan (installed or legacy path). */
+function computeRowGrantByOk(
+  run: AuthorizedQueryRun,
+  selectedPolicy: InterimModelPolicy | null,
+  cached: readonly boolean[],
+  rows: readonly { allowed: readonly boolean[] }[],
+): ReadonlyArray<boolean> {
+  if (run.sourceReads === undefined) {
+    return selectedPolicy?.grants.map((grant, index) => byDependsOnRow(grant.by)
+      ? rows.some(row => row.allowed[index] === true) : cached[index] === true) ?? [];
+  }
+  return (run.selectedRead !== undefined && 'grants' in run.selectedRead ? run.selectedRead.grants : selectedPolicy?.grants ?? [])
+    .map((_, index) => rows.some(row => row.allowed[index] === true));
+}
+
+/** Unbounded scan with row-grant discovery at the fenced revision. */
+async function scanAuthorizedQueryRows(run: AuthorizedQueryRun): Promise<void> {
+  const { input, page, observation } = run;
+  if (run.modelDescriptorMismatch) {
     throw new StateError('validation', 'Query model descriptor does not match the selected model.');
   }
-  for (const field of numericTypes.arrays) {
+  for (const field of run.numericTypes.arrays) {
     throw new StateError('validation', `Query order field ${JSON.stringify(field)} requires a singular numeric declaration.`);
   }
   const spec: QuerySpec = {
     model: input.model,
     authority: input.authority,
-    order: toStorageOrder(order),
-    archived,
+    order: toStorageOrder(run.order),
+    archived: run.archived,
     ...(page === undefined ? {} : {
       limit: VIEWER_PAGE_MAX_CANDIDATES + 1,
       ...(page.parent === undefined ? {} : { parent: page.parent }),
     }),
   };
-  let scanned: readonly StoredRow[];
-  let rowAuthority: readonly { allowed: readonly boolean[]; grants: readonly Pick<InterimGrant, 'fields'>[];
-    record?: ProjectedRecord | null; decisions?: readonly InstalledSourceRowDecision[] }[] | undefined;
-  let revalidateRowAuthority: (() => Promise<void>) | undefined;
-  let predicateMatches: readonly boolean[] | undefined;
-  // One projection rule owns installed-source target/ancestor authority and
-  // the legacy grant path for every actual row in the observed domain.
-  const projectQueryRow = async (row: StoredRow, current: ByContext, cached: readonly boolean[],
-    selectedPolicy: InterimModelPolicy | null) => {
-    if (sourceReads !== undefined) {
-      sourceRows.set(`${input.model}\0${row.id}`, row);
-      return projectInstalledSourceRowAndAncestors({ model: input.model, row, readPolicies: sourceReads,
-        policy: input.policy, context: current, revision, fence: input.fence, store: input.store, rows: sourceRows, archived,
-        ...(observation?.ownerRows === undefined ? {} : { ownerRows: observation.ownerRows }) });
-    }
-    return selectedPolicy === null ? { allowed: [], grants: [] } :
-      viewerRowAuthority(selectedPolicy, current, cached, row);
-  };
-  if (rowContext !== undefined) {
-    const selectedPolicy = policy; let originalRows: readonly StoredRow[] | undefined;
-    const authority = await observeRowGrantAuthority(rowContext, async current => {
-      if (page?.readBy !== undefined && !(await evaluateBy(page.readBy, current))) {
-        throw new StateError('forbidden', 'This operation is not permitted for the caller.');
-      }
-      const parents = await evaluateParents(current);
-      const cached = await prepareViewer(current);
-      const observedRows = originalRows ??= observation?.domain === undefined ? await input.store.query(spec) : [...observation.domain];
-      if (page !== undefined && observedRows.length > VIEWER_PAGE_MAX_CANDIDATES) throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
-      const rows = [], matches: boolean[] = [];
-      for (const row of observedRows) rows.push(await projectQueryRow(row, current, cached, selectedPolicy));
-      if (coherentPredicate) for (const [index, row] of observedRows.entries()) {
-        const authority = rows[index]!;
-        const projected = 'record' in authority ? authority.record :
-          authority.grants.length === 0 ? null : projectRow(row, authority.grants, secrets);
-        if (projected === null) { matches.push(false); continue; }
-        if (input.where !== undefined && !evalPredicateForRow(input.where, projected, decisionIntFields, implicitParent)) {
-          matches.push(false); continue;
-        }
-        const detached = cleanCopy(projected) as ProjectedRecord;
-        retainQuerySourcePresence(detached, input.model, revision, Object.keys(row.data));
-        // The source predicate sees only projected fields. Its membership
-        // reads join this complete domain's coherent authority observation.
-        matches.push(await evaluateInstalledReadPredicate(predicate!, detached, {
-          context: current, row: { ...row, data: cleanCopy(projected.data) as StoredRow['data'] }, revision, fence: input.fence,
-          sourcePresence: Object.freeze(Object.keys(row.data)),
-        }, input.store));
-        if (await input.store.readRevision() !== revision) {
-          throw new StateError('conflict', 'Source predicate moved beyond its original State revision.');
-        }
-      }
-      return { cached, rows, parents, matches };
-    });
-    scanned = originalRows!; rowAuthority = authority.value.rows; revalidateRowAuthority = authority.revalidate;
-    if (coherentPredicate) predicateMatches = authority.value.matches;
-    if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'Row grant discovery moved beyond its original State revision.');
-    grantByOk = sourceReads === undefined ? selectedPolicy?.grants.map((grant, index) => byDependsOnRow(grant.by)
-      ? rowAuthority!.some(row => row.allowed[index] === true) : authority.value.cached[index] === true) ?? [] :
-      (selectedRead !== undefined && 'grants' in selectedRead ? selectedRead.grants : selectedPolicy?.grants ?? [])
-        .map((_, index) => rowAuthority!.some(row => row.allowed[index] === true));
-    if (page !== undefined) pageAuthority = { policy, byContext: rowContext, allowed: grantByOk,
+  if (run.rowContext !== undefined) {
+    const selectedPolicy = run.policy;
+    const authority = await observeRowGrantAuthority(run.rowContext,
+      current => observeQueryRowAuthority(run, current, selectedPolicy, spec));
+    run.scanned = run.originalRows!;
+    run.rowAuthority = authority.value.rows;
+    run.revalidateRowAuthority = authority.revalidate;
+    if (run.coherentPredicate) run.predicateMatches = authority.value.matches;
+    if (await input.store.readRevision() !== run.revision) throw new StateError('conflict', 'Row grant discovery moved beyond its original State revision.');
+    run.grantByOk = computeRowGrantByOk(run, selectedPolicy, authority.value.cached, authority.value.rows);
+    if (page !== undefined) run.pageAuthority = { policy: run.policy, byContext: run.rowContext, allowed: run.grantByOk,
       parents: authority.value.parents, revalidate: authority.revalidate };
-  } else scanned = observation?.domain === undefined ? await input.store.query(spec) : [...observation.domain];
-  if (page !== undefined && scanned.length > VIEWER_PAGE_MAX_CANDIDATES) {
+  } else {
+    run.scanned = observation?.domain === undefined ? await input.store.query(spec) : [...observation.domain];
+  }
+  if (page !== undefined && run.scanned.length > VIEWER_PAGE_MAX_CANDIDATES) {
     throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
   }
+}
 
-  // Visibility (viewer: >=1 matching grant) then `where`, both in memory.
-  // Viewers project BEFORE where: a row visible via grant B evaluates
-  // predicates over its own projected values only, so A-only paths read as
-  // missing (never match comparisons) instead of leaking stored values.
+/** Generated-source verdict for one projected row: predicate or observation. */
+async function checkViewerRowPredicate(
+  run: AuthorizedQueryRun,
+  projected: ProjectedRecord,
+  row: StoredRow,
+  presence: ReadonlyArray<string>,
+  index: number,
+): Promise<boolean> {
+  const { input, observation } = run;
+  // Copy metadata (including parent) and nested projected data again:
+  // callback mutation must never alter the matched or output rows.
+  const detached = cleanCopy(projected) as ProjectedRecord;
+  retainQuerySourcePresence(detached, input.model, run.revision, presence);
+  const accepted = observation === undefined
+    ? run.coherentPredicate ? run.predicateMatches![index]! : await executeUnboundReadPredicate(run.predicate!, detached)
+    : await observation.predicate(detached, row);
+  if (typeof accepted !== 'boolean') {
+    throw new StateError('validation', 'Generated-source query predicate must return a boolean.');
+  }
+  return accepted;
+}
+
+/** One viewer row in scan order: grants, where, predicate, selection. */
+async function matchOneViewerRow(
+  run: AuthorizedQueryRun,
+  row: StoredRow,
+  index: number,
+  matched: StoredRow[],
+): Promise<void> {
+  const { input, observation } = run;
+  const matching = run.rowAuthority?.[index]?.grants ?? (run.policy === null ? [] :
+    (await viewerRowAuthority(run.policy, run.byContext!, run.grantByOk, row)).grants);
+  const projected = run.sourceReads !== undefined ? run.rowAuthority![index]!.record ?? null :
+    matching.length === 0 ? null : projectRow(row, matching, run.secrets);
+  if (projected === null) {
+    return;
+  }
+  const presence = Object.freeze(Object.keys(row.data));
+  const candidateIndex = observation?.candidates.length;
+  const candidate = observation === undefined ? undefined : {
+    row, record: cleanCopy(projected) as ProjectedRecord, matched: false,
+  };
+  if (candidate !== undefined) {
+    retainQuerySourcePresence(candidate.record, input.model, run.revision, presence);
+    observation!.candidates.push(candidate);
+  }
+  if (input.where !== undefined && !evalPredicateForRow(input.where, projected, run.decisionIntFields, run.implicitParent)) {
+    return;
+  }
+  if (run.predicate !== undefined || observation !== undefined) {
+    if (!await checkViewerRowPredicate(run, projected, row, presence, index)) return;
+  }
+  const selected = { ...row, data: projected.data };
+  retainQuerySourcePresence(selected, input.model, run.revision, presence);
+  matched.push(selected);
+  if (candidate !== undefined) {
+    candidate.matched = true;
+    observation!.indices.set(selected, candidateIndex!);
+  }
+}
+
+/** Visibility then `where`, both in memory: owner rows or viewer projection. */
+async function matchAuthorizedQueryRows(run: AuthorizedQueryRun): Promise<StoredRow[]> {
+  const { input } = run;
   const matched: StoredRow[] = [];
   if (input.authority === 'owner') {
-    for (const row of scanned) {
-      if (input.where !== undefined && !evalPredicateForRow(input.where, row, decisionIntFields, implicitParent)) {
+    for (const row of run.scanned!) {
+      if (input.where !== undefined && !evalPredicateForRow(input.where, row, run.decisionIntFields, run.implicitParent)) {
         continue;
       }
       matched.push(row);
     }
-  } else {
-    for (const [index, row] of scanned.entries()) {
-      const matching = rowAuthority?.[index]?.grants ?? (policy === null ? [] :
-        (await viewerRowAuthority(policy, byContext!, grantByOk, row)).grants);
-      const projected = sourceReads !== undefined ? rowAuthority![index]!.record ?? null :
-        matching.length === 0 ? null : projectRow(row, matching, secrets);
-      if (projected === null) {
-        continue;
-      }
-      const presence = Object.freeze(Object.keys(row.data));
-      const candidateIndex = observation?.candidates.length;
-      const candidate = observation === undefined ? undefined : {
-        row, record: cleanCopy(projected) as ProjectedRecord, matched: false,
-      };
-      if (candidate !== undefined) {
-        retainQuerySourcePresence(candidate.record, input.model, revision, presence);
-        observation!.candidates.push(candidate);
-      }
-      if (input.where !== undefined && !evalPredicateForRow(input.where, projected, decisionIntFields, implicitParent)) {
-        continue;
-      }
-      if (predicate !== undefined || observation !== undefined) {
-        // Copy metadata (including parent) and nested projected data again:
-        // callback mutation must never alter the matched or output rows.
-        const detached = cleanCopy(projected) as ProjectedRecord;
-        retainQuerySourcePresence(detached, input.model, revision, presence);
-        const accepted = observation === undefined
-          ? coherentPredicate ? predicateMatches![index]! : await executeUnboundReadPredicate(predicate!, detached)
-          : await observation.predicate(detached, row);
-        if (typeof accepted !== 'boolean') {
-          throw new StateError('validation', 'Generated-source query predicate must return a boolean.');
-        }
-        if (!accepted) continue;
-      }
-      const selected = { ...row, data: projected.data };
-      retainQuerySourcePresence(selected, input.model, revision, presence);
-      matched.push(selected);
-      if (candidate !== undefined) {
-        candidate.matched = true;
-        observation!.indices.set(selected, candidateIndex!);
-      }
-    }
+    return matched;
   }
-
-  // One engine ordering over the effective order plus the id tiebreak, so
-  // results are identical regardless of backend scan order.
-  const numeric = decodeTypedOrder(matched, numericTypes.types);
-  matched.sort((left, right) => compareRowsForOrder(left, right, order, numeric));
-  const rows = matched;
-
-  // Limit overflow fails (never truncates). Code choice: `validation` per the
-  // S4 spec preference. The `limit` code was considered but its DESIGN §10
-  // meaning (quota/rate vs. result-cap overflow) is unconfirmed in this
-  // worktree, so the preferred `validation` stands; note if a code is missing.
-  if (input.limit !== undefined && rows.length > input.limit) {
-    throw new StateError(
-      'validation',
-      `Query matched ${rows.length} rows, over the limit of ${input.limit}. Narrow the query instead of truncating.`,
-    );
+  for (const [index, row] of run.scanned!.entries()) {
+    await matchOneViewerRow(run, row, index, matched);
   }
-
-  if (revalidateRowAuthority !== undefined) {
-    await revalidateRowAuthority();
-    if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'Row grant read moved beyond its original State revision.');
-  }
-  return { revision, rows, ...(pageAuthority === undefined ? {} : { pageAuthority }) };
+  return matched;
 }
 
 /** Internal policy-only projection for a caller that owns the complete authority observation. */
@@ -1453,6 +1690,66 @@ async function runPageQuery(input: ViewerPageQueryInput,
     parents: readonly ViewerPageParentDecision[]) => unknown | Promise<unknown>,
   parentPolicies?: ReadonlyMap<ModelName, ViewerPageParentPolicy>,
   retainFinalAuthority?: (revalidate: () => Promise<void>) => void, readBy?: ByPredicate): Promise<unknown> {
+  const selection = clonePageSelection(input);
+  const archived = queryArchiveMode(selection.archived);
+  const search = selection.search;
+  viewerPageSearchTuple(search, input.modelDescriptor);
+  const limit = selection.limit ?? VIEWER_PAGE_DEFAULT_LIMIT;
+  if (!Number.isInteger(limit) || limit < 1 || limit > VIEWER_PAGE_MAX_LIMIT) {
+    throw new StateError('validation', 'Page limit must be between 1 and 100.');
+  }
+  if (selection.where !== undefined) viewerPagePredicateTuple(selection.where);
+  const order = viewerPageOrder(selection.order);
+  const requestedSearch = search?.query.toLowerCase() ?? '';
+  const predicate = makePagePredicate(input, search, requestedSearch);
+  const position = checkPageContinuation(selection);
+  const set = await runAuthorizedQuery({
+    ...input, order, archived,
+    ...(selection.where === undefined ? {} : { where: selection.where }),
+  }, search?.fields, false, predicate, {
+    ...(selection.parent === undefined ? {} : { parent: selection.parent }),
+    ...(position === undefined ? {} : { revision: position.revision }),
+    ...(parentPolicies === undefined ? {} : { parentPolicies }),
+    ...(readBy === undefined ? {} : { readBy }),
+    ...(input.generatedPredicate === undefined ? {} : { membershipPredicate: input.generatedPredicate }),
+  });
+  if (position !== undefined && position.revision !== set.revision) {
+    throw new StateError('conflict', 'Collection changed; restart pagination.');
+  }
+  const { page, captured } = assembleViewerPage(set, position, limit, selection);
+  const result = transform === undefined ? page : await transform(structuredClone(page), [...captured.allowed], structuredClone(captured.parents));
+  // The admitted page owner finishes its outer caller checks before invoking
+  // this same retained observation. Direct page queries finish here.
+  const revalidate = (): Promise<void> => revalidatePageAuthority(input, set.revision, captured);
+  if (retainFinalAuthority === undefined) await revalidate();
+  else retainFinalAuthority(revalidate);
+  return result;
+}
+
+/** Sliced page window with its continuation over the authorized set. */
+function assembleViewerPage(
+  set: AuthorizedSet,
+  position: ViewerPageSelection['continuation'],
+  limit: number,
+  selection: ViewerPageSelection,
+): { page: ViewerPageRecordsResult; captured: NonNullable<AuthorizedSet['pageAuthority']> } {
+  const previous = position === undefined ? -1 : set.rows.findIndex(row => row.id === position.after);
+  if (position !== undefined && previous === -1) {
+    throw new StateError('conflict', 'Page position is no longer visible; restart pagination.');
+  }
+  const records = set.rows.slice(previous + 1, previous + 1 + limit).map(toProjectedRecord);
+  const last = records.at(-1);
+  const page: ViewerPageRecordsResult = {
+    records, revision: set.revision,
+    continuation: previous + 1 + records.length < set.rows.length && last !== undefined
+      ? { revision: set.revision, after: last.id } : null,
+    ...(selection.includeCount === true ? { totalCount: set.rows.length } : {}),
+  };
+  return { page, captured: set.pageAuthority! };
+}
+
+/** Detached data-only page selection: authority, shape and count request. */
+function clonePageSelection(input: ViewerPageQueryInput): ViewerPageSelection {
   if (input.authority !== 'viewer' || 'predicate' in input || 'archived' in input ||
       (input.generatedPredicate !== undefined && typeof input.generatedPredicate !== 'function')) {
     throw new StateError('validation', 'Pages require current viewer authority without caller predicates or archive overrides.');
@@ -1469,101 +1766,83 @@ async function runPageQuery(input: ViewerPageQueryInput,
   if (selection.includeCount !== undefined && selection.includeCount !== true) {
     throw new StateError('validation', 'Invalid page count request.');
   }
-  const archived = queryArchiveMode(selection.archived);
-  const search = selection.search;
-  viewerPageSearchTuple(search, input.modelDescriptor);
-  const limit = selection.limit ?? VIEWER_PAGE_DEFAULT_LIMIT;
-  if (!Number.isInteger(limit) || limit < 1 || limit > VIEWER_PAGE_MAX_LIMIT) {
-    throw new StateError('validation', 'Page limit must be between 1 and 100.');
-  }
-  if (selection.where !== undefined) viewerPagePredicateTuple(selection.where);
-  const order = viewerPageOrder(selection.order);
-  const requestedSearch = search?.query.toLowerCase() ?? '';
-  const predicate = search === undefined && input.generatedPredicate === undefined ? undefined :
-    async (record: Readonly<ProjectedRecord>, observation?: Parameters<InstalledSourceQueryPredicate>[1]): Promise<boolean> => {
-      if (search !== undefined && requestedSearch !== '' &&
-          !search.fields.some(field => {
-            const value = record.data[field];
-            return typeof value === 'string' && value.toLowerCase().includes(requestedSearch);
-          })) return false;
-      if (input.generatedPredicate === undefined) return true;
-      if (observation === undefined) return executeUnboundReadPredicate(input.generatedPredicate, record);
-      return evaluateInstalledReadPredicate(input.generatedPredicate, record, observation, input.store);
-    };
-  const position = selection.continuation;
+  return selection;
+}
+
+/** Search/generated predicate for one page: match text, then caller checks. */
+function makePagePredicate(
+  input: ViewerPageQueryInput,
+  search: ViewerPageSelection['search'],
+  requestedSearch: string,
+): ((record: Readonly<ProjectedRecord>, observation?: Parameters<InstalledSourceQueryPredicate>[1]) => Promise<boolean>) | undefined {
+  if (search === undefined && input.generatedPredicate === undefined) return undefined;
+  return async (record: Readonly<ProjectedRecord>, observation?: Parameters<InstalledSourceQueryPredicate>[1]): Promise<boolean> => {
+    if (search !== undefined && requestedSearch !== '' &&
+        !search.fields.some(field => {
+          const value = record.data[field];
+          return typeof value === 'string' && value.toLowerCase().includes(requestedSearch);
+        })) return false;
+    if (input.generatedPredicate === undefined) return true;
+    if (observation === undefined) return executeUnboundReadPredicate(input.generatedPredicate, record);
+    return evaluateInstalledReadPredicate(input.generatedPredicate, record, observation, input.store);
+  };
+}
+
+/** Continuation position for one page selection. */
+function checkPagePosition(position: ViewerPageSelection['continuation']): void {
   if (position !== undefined && (typeof position !== 'object' || position === null || Array.isArray(position) ||
       !Number.isSafeInteger(position.revision) || position.revision < 0 ||
       typeof position.after !== 'string' || position.after === '' ||
       Object.keys(position).some(key => key !== 'revision' && key !== 'after'))) {
     throw new StateError('validation', 'Invalid page continuation position.');
   }
+}
+
+/** Continuation position and admitted parent for one page selection. */
+function checkPageContinuation(selection: ViewerPageSelection): ViewerPageSelection['continuation'] {
+  checkPagePosition(selection.continuation);
   if (selection.parent !== undefined && (typeof selection.parent !== 'object' || selection.parent === null || Array.isArray(selection.parent) ||
       typeof selection.parent.model !== 'string' || selection.parent.model === '' ||
       typeof selection.parent.id !== 'string' || selection.parent.id === '' || Object.keys(selection.parent).length !== 2 ||
       !Object.hasOwn(selection.parent, 'model') || !Object.hasOwn(selection.parent, 'id'))) {
     throw new StateError('validation', 'Invalid admitted page parent.');
   }
-  const set = await runAuthorizedQuery({
-    ...input, order, archived,
-    ...(selection.where === undefined ? {} : { where: selection.where }),
-  }, search?.fields, false, predicate, {
-    ...(selection.parent === undefined ? {} : { parent: selection.parent }),
-    ...(position === undefined ? {} : { revision: position.revision }),
-    ...(parentPolicies === undefined ? {} : { parentPolicies }),
-    ...(readBy === undefined ? {} : { readBy }),
-    ...(input.generatedPredicate === undefined ? {} : { membershipPredicate: input.generatedPredicate }),
-  });
-  if (position !== undefined && position.revision !== set.revision) {
-    throw new StateError('conflict', 'Collection changed; restart pagination.');
+  return selection.continuation;
+}
+
+/** Final page authority: revision fences around retained parent/grant reads. */
+async function revalidatePageAuthority(
+  input: ViewerPageQueryInput,
+  revision: Revision,
+  captured: NonNullable<AuthorizedSet['pageAuthority']>,
+): Promise<void> {
+  if (await input.store.readRevision() !== revision) {
+    throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
   }
-  const previous = position === undefined ? -1 : set.rows.findIndex(row => row.id === position.after);
-  if (position !== undefined && previous === -1) {
-    throw new StateError('conflict', 'Page position is no longer visible; restart pagination.');
-  }
-  const records = set.rows.slice(previous + 1, previous + 1 + limit).map(toProjectedRecord);
-  const last = records.at(-1);
-  const page: ViewerPageRecordsResult = {
-    records, revision: set.revision,
-    continuation: previous + 1 + records.length < set.rows.length && last !== undefined
-      ? { revision: set.revision, after: last.id } : null,
-    ...(selection.includeCount === true ? { totalCount: set.rows.length } : {}),
-  };
-  const captured = set.pageAuthority!;
-  const result = transform === undefined ? page : await transform(structuredClone(page), [...captured.allowed], structuredClone(captured.parents));
-  // The admitted page owner finishes its outer caller checks before invoking
-  // this same retained observation. Direct page queries finish here.
-  const revalidate = async (): Promise<void> => {
-    if (await input.store.readRevision() !== set.revision) {
-      throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
-    }
-    if (captured.revalidate !== undefined) await captured.revalidate();
-    else {
-      const membership = input.context.actorUserId !== null && input.context.teamId !== null
-        ? await input.memberships.findMembership(input.context.teamId, input.context.actorUserId) : null;
-      const context = { ...captured.byContext, membership };
-      let parents: readonly ViewerPageParentDecision[];
-      try { parents = await captured.evaluateParents!(context); }
-      catch (error) {
-        if (error instanceof StateError && error.code === 'not_found') {
-          throw new StateError('forbidden', 'Parent read authority changed during the page read.');
-        }
-        throw error;
-      }
-      if (JSON.stringify(parents) !== JSON.stringify(captured.parents)) {
+  if (captured.revalidate !== undefined) await captured.revalidate();
+  else {
+    const membership = input.context.actorUserId !== null && input.context.teamId !== null
+      ? await input.memberships.findMembership(input.context.teamId, input.context.actorUserId) : null;
+    const context = { ...captured.byContext, membership };
+    let parents: readonly ViewerPageParentDecision[];
+    try { parents = await captured.evaluateParents!(context); }
+    catch (error) {
+      if (error instanceof StateError && error.code === 'not_found') {
         throw new StateError('forbidden', 'Parent read authority changed during the page read.');
       }
-      const live = captured.policy === null ? [] : await viewerGrantAuthority(captured.policy, context);
-      if (JSON.stringify(live) !== JSON.stringify(captured.allowed)) {
-        throw new StateError('forbidden', 'Collection read authority changed during the page read.');
-      }
+      throw error;
     }
-    if (await input.store.readRevision() !== set.revision) {
-      throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
+    if (JSON.stringify(parents) !== JSON.stringify(captured.parents)) {
+      throw new StateError('forbidden', 'Parent read authority changed during the page read.');
     }
-  };
-  if (retainFinalAuthority === undefined) await revalidate();
-  else retainFinalAuthority(revalidate);
-  return result;
+    const live = captured.policy === null ? [] : await viewerGrantAuthority(captured.policy, context);
+    if (JSON.stringify(live) !== JSON.stringify(captured.allowed)) {
+      throw new StateError('forbidden', 'Collection read authority changed during the page read.');
+    }
+  }
+  if (await input.store.readRevision() !== revision) {
+    throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
+  }
 }
 
 /**

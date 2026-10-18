@@ -210,6 +210,39 @@ export interface SourceVerifiedOwnerModelPolicyModule {
   readonly registry: unknown;
 }
 
+function bindPolicyModuleBindings(
+  carrier: PropertyDescriptor,
+  path: string,
+  bindings: OwnerModelPolicyBinding[],
+): void {
+  if (!('value' in carrier)) return fail('Invalid native model-policy bindings accessor.');
+  for (const rawBinding of list(carrier.value, 'native model-policy bindings')) {
+    const binding = object(rawBinding, ['id', 'module', 'ownerPackage', 'model', 'kind', 'evaluate', 'select', 'run'], 'native binding');
+    if (binding.module !== path) return fail('Native binding disagrees with its emitted module path.');
+    bindings.push(binding as unknown as OwnerModelPolicyBinding);
+  }
+}
+
+function bindPolicyModule(
+  raw: unknown,
+  paths: Set<string>,
+  bindings: OwnerModelPolicyBinding[],
+): void {
+  const module = object(raw, ['path', 'registry'], 'source-verified policy module');
+  const path = text(module.path, 'source-verified module path');
+  if (paths.has(path)) return fail('Duplicate source-verified module path.');
+  paths.add(path);
+  const registry = module.registry;
+  if (typeof registry !== 'object' || registry === null || Array.isArray(registry)
+    || (Object.getPrototypeOf(registry) !== Object.prototype && Object.getPrototypeOf(registry) !== null)) return fail('Invalid source-verified canApp registry.');
+  const carrier = Object.getOwnPropertyDescriptor(registry, OWNER_MODEL_POLICY_BINDINGS_MEMBER);
+  if (carrier === undefined) {
+    if (OWNER_MODEL_POLICY_BINDINGS_MEMBER in registry) return fail('Inherited native model-policy bindings.');
+    return;
+  }
+  bindPolicyModuleBindings(carrier, path, bindings);
+}
+
 /** Join loaded immutable JSON claims to their exact module-local native ABI. */
 export function bindArtifactOwnerModelPolicies(input: {
   readonly artifact: LoadedArtifactDescriptors;
@@ -224,24 +257,7 @@ export function bindArtifactOwnerModelPolicies(input: {
   const descriptors = claim === undefined ? undefined : checkOwnerModelPolicyDescriptors({ descriptors: claim.value, models: input.table });
   const paths = new Set<string>(), bindings: OwnerModelPolicyBinding[] = [];
   for (const raw of list(input.modules, 'source-verified policy modules')) {
-    const module = object(raw, ['path', 'registry'], 'source-verified policy module');
-    const path = text(module.path, 'source-verified module path');
-    if (paths.has(path)) return fail('Duplicate source-verified module path.');
-    paths.add(path);
-    const registry = module.registry;
-    if (typeof registry !== 'object' || registry === null || Array.isArray(registry)
-      || (Object.getPrototypeOf(registry) !== Object.prototype && Object.getPrototypeOf(registry) !== null)) return fail('Invalid source-verified canApp registry.');
-    const carrier = Object.getOwnPropertyDescriptor(registry, OWNER_MODEL_POLICY_BINDINGS_MEMBER);
-    if (carrier === undefined) {
-      if (OWNER_MODEL_POLICY_BINDINGS_MEMBER in registry) return fail('Inherited native model-policy bindings.');
-      continue;
-    }
-    if (!('value' in carrier)) return fail('Invalid native model-policy bindings accessor.');
-    for (const rawBinding of list(carrier.value, 'native model-policy bindings')) {
-      const binding = object(rawBinding, ['id', 'module', 'ownerPackage', 'model', 'kind', 'evaluate', 'select', 'run'], 'native binding');
-      if (binding.module !== path) return fail('Native binding disagrees with its emitted module path.');
-      bindings.push(binding as unknown as OwnerModelPolicyBinding);
-    }
+    bindPolicyModule(raw, paths, bindings);
   }
   if (descriptors === undefined) {
     if (bindings.length !== 0) return fail('Unclaimed native model-policy binding.');

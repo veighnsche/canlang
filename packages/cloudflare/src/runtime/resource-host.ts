@@ -35,19 +35,24 @@ export interface ResourceHostOptions {
 }
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
 
-export async function createResourceHost(options: ResourceHostOptions) {
-  const { artifact, asm, env, store, identities } = options;
-  const module: unknown = await import(asm.entryUrl);
-  const definition = object(module) ? module['appDefinition'] : undefined;
+function assertHostDefinition(options: ResourceHostOptions, definition: unknown): Record<string, unknown> {
   if (!object(definition) || definition['id'] !== options.scope.app ||
-      JSON.stringify(definition['runtimeBindings']) !== JSON.stringify(artifact.runtimeBindings)) {
+      JSON.stringify(definition['runtimeBindings']) !== JSON.stringify(options.artifact.runtimeBindings)) {
     throw new Error('Resource host requires its original selected app and compiler binding inventory.');
   }
   const owners = definition['runtimeBindingOwners'];
   if (!Array.isArray(owners) || owners.some(owner => typeof owner !== 'string')) {
-    if ((artifact.runtimeBindings?.length ?? 0) !== 0) throw new Error('Resource host requires its selected source owner closure.');
+    if ((options.artifact.runtimeBindings?.length ?? 0) !== 0) throw new Error('Resource host requires its selected source owner closure.');
   }
-  const selectedOwners = Array.isArray(owners) ? owners : [];
+  return definition;
+}
+
+export async function createResourceHost(options: ResourceHostOptions) {
+  const { artifact, asm, env, store, identities } = options;
+  const module: unknown = await import(asm.entryUrl);
+  const definition = assertHostDefinition(options, object(module) ? module['appDefinition'] : undefined);
+  const owners = definition['runtimeBindingOwners'];
+  const selectedOwners = Array.isArray(owners) && owners.every(owner => typeof owner === 'string') ? owners as string[] : [];
   const bindings = (artifact.runtimeBindings ?? []).filter(binding =>
     (binding.kind === 'queue' || binding.kind === 'analytics-engine') && selectedOwners.includes(binding.owner));
   const schema = normalizeSchema({ contracts: definition['contracts'] ?? {}, enums: definition['enums'] ?? {},
@@ -75,29 +80,40 @@ export async function createResourceHost(options: ResourceHostOptions) {
         (options.scope.owner === 'app' ? 'app' : options.scope.app)) === options.scope.owner;
     } catch { return false; }
   };
+  interface HostBinding {
+    readonly kind: string;
+    readonly binding: string;
+    readonly owner: string;
+  }
+  const queueTransport = (binding: HostBinding, resource: Record<string, unknown>): InstalledResourceTransport => {
+    if (typeof resource['send'] !== 'function') throw new Error(`Missing queue producer ${binding.binding}.`);
+    return { kind: 'queue', async deliver(event) {
+      await (await runtimeFor(binding.owner)).deliver(event, async body => {
+        await (resource['send'] as (body: unknown) => Promise<void>).call(resource,
+          { ...body, app: options.scope.app, owner: options.scope.owner, ownerPackage: binding.owner,
+            ...(options.locator === undefined ? {} : { locator: options.locator }) });
+      });
+    }, async reconcile(eventId) { return (await runtimeFor(binding.owner)).reconcile(eventId); } };
+  };
+  const analyticsTransport = (binding: HostBinding, resource: Record<string, unknown>): InstalledResourceTransport => {
+    if (typeof resource['writeDataPoint'] !== 'function') throw new Error(`Missing analytics dataset ${binding.binding}.`);
+    return { kind: 'analytics-engine', async deliver(event) {
+      // Retain exact Values wire (including int/decimal); numeric analytics columns are optional projections.
+      const blob = JSON.stringify({ eventId: event.eventId, source: event.source, fields: event.arguments });
+      if (new TextEncoder().encode(blob).byteLength > 16_384) {
+        throw new ResourceDeliveryRejected('Analytics event exceeds the dataset blob quota.', false);
+      }
+      (resource['writeDataPoint'] as (point: unknown) => void).call(resource, { blobs: [blob], doubles: [] });
+    } };
+  };
   const transports = new Map<string, InstalledResourceTransport>();
   for (const binding of bindings) {
     const resource = env[binding.binding];
     if (!object(resource)) throw new Error(`Missing installed resource ${binding.binding}.`);
     if (binding.kind === 'queue') {
-      if (typeof resource['send'] !== 'function') throw new Error(`Missing queue producer ${binding.binding}.`);
-      transports.set(binding.binding, { kind: 'queue', async deliver(event) {
-        await (await runtimeFor(binding.owner)).deliver(event, async body => {
-          await (resource['send'] as (body: unknown) => Promise<void>).call(resource,
-            { ...body, app: options.scope.app, owner: options.scope.owner, ownerPackage: binding.owner,
-              ...(options.locator === undefined ? {} : { locator: options.locator }) });
-        });
-      }, async reconcile(eventId) { return (await runtimeFor(binding.owner)).reconcile(eventId); } });
+      transports.set(binding.binding, queueTransport(binding, resource));
     } else if (binding.kind === 'analytics-engine') {
-      if (typeof resource['writeDataPoint'] !== 'function') throw new Error(`Missing analytics dataset ${binding.binding}.`);
-      transports.set(binding.binding, { kind: 'analytics-engine', async deliver(event) {
-        // Retain exact Values wire (including int/decimal); numeric analytics columns are optional projections.
-        const blob = JSON.stringify({ eventId: event.eventId, source: event.source, fields: event.arguments });
-        if (new TextEncoder().encode(blob).byteLength > 16_384) {
-          throw new ResourceDeliveryRejected('Analytics event exceeds the dataset blob quota.', false);
-        }
-        (resource['writeDataPoint'] as (point: unknown) => void).call(resource, { blobs: [blob], doubles: [] });
-      } });
+      transports.set(binding.binding, analyticsTransport(binding, resource));
     }
   }
   const adapter = createResourceAdapter({ appDefinition: definition, valueSchema: schema, transports });
@@ -106,26 +122,49 @@ export async function createResourceHost(options: ResourceHostOptions) {
   for (const [owner, scope] of scopes) fences.set(owner, await bindNativeEmailDispatchGuards({ asm, artifact, store, identities, scope,
     revalidateAuthority: current, ...(options.files === undefined ? {} : { files: options.files }) }));
   let draining: Promise<void> | undefined;
-  const drain = (): Promise<void> => draining ??= (async () => {
+  const driveIntent = async (intent: Awaited<ReturnType<typeof store.outboxPending>>[number]) => {
+    const binding = bindings.find(binding => binding.binding === intent.arguments['binding']);
+    if (binding === undefined) return null;
+    const fence = intent.dispatchGuard == null ? { owner: options.scope.owner,
+      attemptDispatch: attemptDispatch as FenceAttemptDispatchFn, revalidateAuthority: current }
+      : fences.get(binding.owner)!(intent);
+    return { intentId: intent.intentId, actor: 'can.resources', operation: 'can.resources.dispatch', nowMs: now,
+      nextClaimId: () => crypto.randomUUID(), maxClaimAgeMs: 30_000,
+      claimOperationId: crypto.randomUUID(), recordOperationId: crypto.randomUUID(), classifyFailure,
+      evaluateGuard: () => { throw new Error('Guarded resource sends require the original native guard.'); },
+      readStateSnapshot: () => null, fence };
+  };
+  const drainQueues = async (): Promise<void> => {
+    for (const binding of bindings) if (binding.kind === 'queue') await runtimeFor(binding.owner);
+    for (const runtime of queues.values()) await runtime.recover({ limit: 100 });
+  };
+  const driveOutbox = async (): Promise<void> => {
     if (!await current()) throw new Error('Resource owner is no longer available.');
     await dispatcher.recover({ actor: 'can.resources', operation: 'can.resources.recover', nowMs: now,
       maxClaimAgeMs: 30_000, policy: { maxAttempts: 8, horizonMs: 86_400_000 }, limit: 100,
       operationIdForStep: () => crypto.randomUUID(), planRecoveryScan, revalidateAuthority: current });
     for (const intent of (await store.outboxPending()).filter(intent => adapter.available(intent)).slice(0, 100)) {
-      const binding = bindings.find(binding => binding.binding === intent.arguments['binding']);
-      if (binding === undefined) continue;
-      const fence = intent.dispatchGuard == null ? { owner: options.scope.owner,
-        attemptDispatch: attemptDispatch as FenceAttemptDispatchFn, revalidateAuthority: current }
-        : fences.get(binding.owner)!(intent);
-      await dispatcher.drive({ intentId: intent.intentId, actor: 'can.resources', operation: 'can.resources.dispatch', nowMs: now,
-        nextClaimId: () => crypto.randomUUID(), maxClaimAgeMs: 30_000,
-        claimOperationId: crypto.randomUUID(), recordOperationId: crypto.randomUUID(), classifyFailure,
-        evaluateGuard: () => { throw new Error('Guarded resource sends require the original native guard.'); },
-        readStateSnapshot: () => null, fence });
+      const driven = await driveIntent(intent);
+      if (driven === null) continue;
+      await dispatcher.drive(driven);
     }
-    for (const binding of bindings) if (binding.kind === 'queue') await runtimeFor(binding.owner);
-    for (const runtime of queues.values()) await runtime.recover({ limit: 100 });
-  })().finally(() => { draining = undefined; });
+    await drainQueues();
+  };
+  const drain = (): Promise<void> => draining ??= driveOutbox().finally(() => { draining = undefined; });
+  const consumeQueueMessage = async (owner: string, message: ResourceMessage): Promise<void> => {
+    const body = message.body;
+    if (!object(body) || body['app'] !== options.scope.app || body['owner'] !== options.scope.owner ||
+        body['ownerPackage'] !== owner || typeof body['eventId'] !== 'string' ||
+        JSON.stringify(body['locator']) !== JSON.stringify(options.locator)) {
+      throw new Error('Queue locator does not select this configured physical owner.');
+    }
+    try {
+      const result = await (await runtimeFor(owner)).consume(body['eventId'] as string);
+      if (result.status !== 'completed') { message.retry(); return; }
+      message.ack();
+    }
+    catch (error) { message.retry(); throw error; }
+  };
   return {
     scope: options.scope,
     locator: options.locator,
@@ -148,18 +187,7 @@ export async function createResourceHost(options: ResourceHostOptions) {
       const binding = bindings.find(binding => binding.kind === 'queue' && binding.binding === bindingName);
       if (binding === undefined) throw new Error('Queue batch does not belong to this installed source binding.');
       for (const message of batch.messages) {
-        const body = message.body;
-        if (!object(body) || body['app'] !== options.scope.app || body['owner'] !== options.scope.owner ||
-            body['ownerPackage'] !== binding.owner || typeof body['eventId'] !== 'string' ||
-            JSON.stringify(body['locator']) !== JSON.stringify(options.locator)) {
-          throw new Error('Queue locator does not select this configured physical owner.');
-        }
-        try {
-          const result = await (await runtimeFor(binding.owner)).consume(body['eventId']);
-          if (result.status !== 'completed') { message.retry(); continue; }
-          message.ack();
-        }
-        catch (error) { message.retry(); throw error; }
+        await consumeQueueMessage(binding.owner, message);
       }
     },
   };

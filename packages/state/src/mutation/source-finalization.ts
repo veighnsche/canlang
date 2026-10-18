@@ -78,37 +78,94 @@ export function retainOwnerMutationBusinessWrites(result: MutationWritesResult, 
 /** Own JSON only, detached before any callback output can become a write. */
 function dataCopy<T>(value: T): T {
   let nodes = 0; const seen = new Set<object>();
-  const copy = (part: unknown, depth: number): unknown => {
-    if (++nodes > 20_000 || depth > 32) return fail(undefined, 'finite JSON budget exceeded.');
-    if (part === null || typeof part === 'string' || typeof part === 'boolean') return part;
-    if (typeof part === 'number' && Number.isFinite(part)) return part;
-    if (typeof part !== 'object' || part === null || seen.has(part)) return fail(undefined, 'own JSON data required.');
-    const array = Array.isArray(part), prototype = Object.getPrototypeOf(part);
-    if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) return fail(undefined, 'own JSON prototype required.');
-    seen.add(part);
-    const keys = Reflect.ownKeys(part);
-    if (keys.length > 20_000 - nodes) return fail(undefined, 'finite JSON budget exceeded.');
-    const out: unknown[] | Record<string, unknown> = array ? [] : {};
-    const length = array ? Object.getOwnPropertyDescriptor(part, 'length') : undefined;
-    if (array && (length === undefined || !('value' in length) || !Number.isSafeInteger(length.value) || length.value < 0 ||
-        length.value > 20_000 || keys.length !== length.value + 1)) return fail(undefined, 'finite dense array required.');
-    for (const key of keys) {
-      if (array && key === 'length') continue;
-      const member = Object.getOwnPropertyDescriptor(part, key);
-      if (typeof key !== 'string' || member === undefined || !('value' in member) || !member.enumerable ||
-          array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= length!.value)) return fail(undefined, 'own enumerable JSON members required.');
-      Object.defineProperty(out, key, { value: copy(member.value, depth + 1), enumerable: true, configurable: true, writable: true });
-    }
-    seen.delete(part); return out;
-  };
-  try { return copy(value, 0) as T; }
+  const budget: DataCopyBudget = { nodes, seen };
+  try { return dataCopyValue(value, 0, budget) as T; }
   catch (error) { if (error instanceof StateError) throw error; return fail(undefined, 'own JSON data required.'); }
 }
+interface DataCopyBudget { nodes: number; readonly seen: Set<object>; }
+
+function dataCopyEntry(
+  part: object,
+  key: string | symbol,
+  array: boolean,
+  length: number,
+  out: unknown[] | Record<string, unknown>,
+  depth: number,
+  budget: DataCopyBudget,
+): void {
+  if (array && key === 'length') return;
+  const member = Object.getOwnPropertyDescriptor(part, key);
+  if (typeof key !== 'string' || member === undefined || !('value' in member) || !member.enumerable ||
+      array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= length)) return fail(undefined, 'own enumerable JSON members required.');
+  Object.defineProperty(out, key, { value: dataCopyValue(member.value, depth + 1, budget), enumerable: true, configurable: true, writable: true });
+}
+
+function checkDataCopyShape(
+  part: object,
+  array: boolean,
+  budget: DataCopyBudget,
+): { readonly keys: readonly (string | symbol)[]; readonly count: number } {
+  const prototype = Object.getPrototypeOf(part);
+  if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+    return fail(undefined, 'own JSON prototype required.');
+  }
+  const keys = Reflect.ownKeys(part);
+  if (keys.length > 20_000 - budget.nodes) return fail(undefined, 'finite JSON budget exceeded.');
+  if (!array) return { keys, count: 0 };
+  const length = Object.getOwnPropertyDescriptor(part, 'length');
+  if (length === undefined || !('value' in length) || !Number.isSafeInteger(length.value) || length.value < 0 ||
+      length.value > 20_000 || keys.length !== length.value + 1) return fail(undefined, 'finite dense array required.');
+  return { keys, count: length.value };
+}
+
+function dataCopyValue(part: unknown, depth: number, budget: DataCopyBudget): unknown {
+  if (++budget.nodes > 20_000 || depth > 32) return fail(undefined, 'finite JSON budget exceeded.');
+  if (part === null || typeof part === 'string' || typeof part === 'boolean') return part;
+  if (typeof part === 'number' && Number.isFinite(part)) return part;
+  if (typeof part !== 'object' || part === null || budget.seen.has(part)) return fail(undefined, 'own JSON data required.');
+  const array = Array.isArray(part);
+  budget.seen.add(part);
+  const { keys, count } = checkDataCopyShape(part, array, budget);
+  const out: unknown[] | Record<string, unknown> = array ? [] : {};
+  for (const key of keys) {
+    dataCopyEntry(part, key, array, count, out, depth, budget);
+  }
+  budget.seen.delete(part); return out;
+}
+
 function object(value: unknown, keys: readonly string[]): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value) || Reflect.ownKeys(value).length !== keys.length ||
       keys.some(key => !Object.hasOwn(value, key))) return fail(undefined, 'closed owning write shape required.');
   return value as Record<string, unknown>;
 }
+type SourceStageInput = Parameters<typeof stageOwnerMutationSources>[0];
+
+async function checkSourceInsert(
+  input: SourceStageInput,
+  candidate: unknown,
+  seen: Set<string>,
+  ledger: StageLedger,
+): Promise<void> {
+  const write = object(candidate, ['kind', 'model', 'row']);
+  const model = identity(write['model']);
+  if (write['kind'] !== 'insert' || !FRAMEWORK_MODELS.has(model) || input.businessModels.has(model)) return fail(ledger, 'only noncolliding source framework inserts are supported.');
+  const rowValue = write['row'];
+  const row = object(rowValue, ['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'data',
+    ...(typeof rowValue === 'object' && rowValue !== null && Object.hasOwn(rowValue, 'parent') ? ['parent'] : [])]);
+  // Existing Work codecs own composite identities. Three URI-encoded
+  // bounded components need a larger finite carrier budget than a model.
+  const id = identity(row['id'], 6000);
+  if (row['version'] !== 1 || row['archivedAt'] !== null || row['parent'] !== undefined && row['parent'] !== null ||
+      row['created'] !== input.context.now || row['updated'] !== input.context.now ||
+      row['createdBy'] !== input.actor || row['updatedBy'] !== input.actor ||
+      typeof row['data'] !== 'object' || row['data'] === null || Array.isArray(row['data'])) return fail(ledger, 'source inserts require an original-attribution live unparented version-one row.');
+  const key = `${model}\0${id}`;
+  if (seen.has(key)) return fail(ledger, 'duplicate source insert identity.'); seen.add(key);
+  await input.checkRevision(); input.healthy();
+  if (await input.frameworkLoad(model as ModelName, id as RecordId) !== null) return fail(ledger, 'source insert identity already exists.');
+  await input.checkRevision(); input.healthy();
+}
+
 function identity(value: unknown, maxLength = 200): string {
   return typeof value === 'string' && value.length > 0 && value.length <= maxLength ? value : fail(undefined, 'bounded nonempty identity required.');
 }
@@ -185,24 +242,7 @@ export async function stageOwnerMutationSources(input: {
     const seen = new Set<string>();
     for (const candidate of writes) {
       input.consumeWork(); input.healthy();
-      const write = object(candidate, ['kind', 'model', 'row']);
-      const model = identity(write['model']);
-      if (write['kind'] !== 'insert' || !FRAMEWORK_MODELS.has(model) || input.businessModels.has(model)) return fail(ledger, 'only noncolliding source framework inserts are supported.');
-      const rowValue = write['row'];
-      const row = object(rowValue, ['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'data',
-        ...(typeof rowValue === 'object' && rowValue !== null && Object.hasOwn(rowValue, 'parent') ? ['parent'] : [])]);
-      // Existing Work codecs own composite identities. Three URI-encoded
-      // bounded components need a larger finite carrier budget than a model.
-      const id = identity(row['id'], 6000);
-      if (row['version'] !== 1 || row['archivedAt'] !== null || row['parent'] !== undefined && row['parent'] !== null ||
-          row['created'] !== input.context.now || row['updated'] !== input.context.now ||
-          row['createdBy'] !== input.actor || row['updatedBy'] !== input.actor ||
-          typeof row['data'] !== 'object' || row['data'] === null || Array.isArray(row['data'])) return fail(ledger, 'source inserts require an original-attribution live unparented version-one row.');
-      const key = `${model}\0${id}`;
-      if (seen.has(key)) return fail(ledger, 'duplicate source insert identity.'); seen.add(key);
-      await input.checkRevision(); input.healthy();
-      if (await input.frameworkLoad(model as ModelName, id as RecordId) !== null) return fail(ledger, 'source insert identity already exists.');
-      await input.checkRevision(); input.healthy();
+      await checkSourceInsert(input, candidate, seen, ledger);
     }
     if (ledger.poisoned) return fail(ledger, 'source stage is poisoned.');
     return deepFreeze(writes);

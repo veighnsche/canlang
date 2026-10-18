@@ -105,35 +105,64 @@ function validCard(card: RankedConstructCard): boolean {
     !/[\u0000-\u001f\u007f-\u009f]/.test(`${card.signature}${card.meaning}`);
 }
 
-function eligible(occurrence: RankOccurrence): RankResult | null {
+function checkCaptureComplete(occurrence: RankOccurrence): RankResult | null {
   if (!occurrence.complete || occurrence.omitted !== 0 || !occurrence.exactSourceSpan ||
       !/^[0-9a-f]{64}$/.test(occurrence.sourceHash) || !occurrence.revision || !occurrence.helpRevision ||
       !Number.isSafeInteger(occurrence.span.start) || occurrence.span.start < 0 ||
       !Number.isSafeInteger(occurrence.span.end) || occurrence.span.end < occurrence.span.start) {
     return { state: "ineligible", reason: "diagnostic or source capture is incomplete" };
   }
+  return null;
+}
+
+function checkAuthoringSlot(occurrence: RankOccurrence): RankResult | null {
   if (occurrence.structuralRecovery || occurrence.section === null || occurrence.slot === null ||
       !/^[A-Za-z][A-Za-z0-9_ /.-]{0,39}$/.test(occurrence.section) ||
       !/^[a-z][a-z0-9_.-]{0,95}$/.test(occurrence.slot)) {
     return { state: "structural", reason: "authoring slot is not reliable" };
   }
-  const evidence = occurrence.evidence;
-  if (evidence !== undefined && (evidence.sourceSha256 !== occurrence.sourceHash ||
-      evidence.span.start !== occurrence.span.start || evidence.span.end !== occurrence.span.end ||
-      !Number.isSafeInteger(evidence.sourceWindow.logicalLines) || evidence.sourceWindow.logicalLines < 1 ||
-      evidence.sourceWindow.logicalLines > 5 || !Number.isSafeInteger(evidence.sourceWindow.bytesBeforeRedaction) ||
-      evidence.sourceWindow.bytesBeforeRedaction < 1 || evidence.sourceWindow.bytesBeforeRedaction > 1024 ||
-      evidence.sourceWindow.redacted !== true || typeof evidence.sourceWindow.text !== 'string' ||
-      Buffer.byteLength(evidence.sourceWindow.text,'utf8') > 16384 ||
-      (evidence.authorIntent !== undefined && (evidence.authorIntent.label !== 'author_intent_data' ||
-        !validAuthorIntent(evidence.authorIntent.text))))) {
+  return null;
+}
+
+function checkEvidenceIdentity(occurrence: RankOccurrence,
+  evidence: NonNullable<RankOccurrence["evidence"]>): RankResult | null {
+  if (evidence.sourceSha256 !== occurrence.sourceHash ||
+      evidence.span.start !== occurrence.span.start || evidence.span.end !== occurrence.span.end) {
     return { state: 'ineligible', reason: 'bounded captured source evidence is invalid' };
   }
-  const officeIntent = hasOfficeColumnEvidence(occurrence.messageKind,occurrence.section,occurrence.slot,
-    occurrence.cards.map(card=>card.id),evidence);
+  return null;
+}
+
+function checkSourceWindow(evidence: NonNullable<RankOccurrence["evidence"]>): RankResult | null {
+  const window = evidence.sourceWindow;
+  if (!Number.isSafeInteger(window.logicalLines) || window.logicalLines < 1 ||
+      window.logicalLines > 5 || !Number.isSafeInteger(window.bytesBeforeRedaction) ||
+      window.bytesBeforeRedaction < 1 || window.bytesBeforeRedaction > 1024 ||
+      window.redacted !== true || typeof window.text !== 'string' ||
+      Buffer.byteLength(window.text,'utf8') > 16384) {
+    return { state: 'ineligible', reason: 'bounded captured source evidence is invalid' };
+  }
+  if (evidence.authorIntent !== undefined && (evidence.authorIntent.label !== 'author_intent_data' ||
+      !validAuthorIntent(evidence.authorIntent.text))) {
+    return { state: 'ineligible', reason: 'bounded captured source evidence is invalid' };
+  }
+  return null;
+}
+
+function checkSourceEvidence(occurrence: RankOccurrence): RankResult | null {
+  const evidence = occurrence.evidence;
+  if (evidence === undefined) return null;
+  return checkEvidenceIdentity(occurrence, evidence) ?? checkSourceWindow(evidence);
+}
+
+function checkIntentChoice(occurrence: RankOccurrence, officeIntent: boolean): RankResult | null {
   if (occurrence.materialIntentChoice && !officeIntent) {
     return { state: "intent_required", reason: "author must choose the permission, identity or effect contract" };
   }
+  return null;
+}
+
+function checkCandidateCoverage(occurrence: RankOccurrence): RankResult | null {
   if (occurrence.candidateCoverage !== "complete" || occurrence.cards.some(card => card.availability !== "working")) {
     return { state: "candidate_coverage_unknown", reason: "working construct candidates are not fully qualified" };
   }
@@ -146,6 +175,10 @@ function eligible(occurrence: RankOccurrence): RankResult | null {
   if (new Set(ids).size !== ids.length || occurrence.cards.some(card => !validCard(card))) {
     return { state: "candidate_coverage_unknown", reason: "candidate IDs are invalid or duplicated" };
   }
+  return null;
+}
+
+function checkRankingReadiness(occurrence: RankOccurrence, officeIntent: boolean): RankResult | null {
   if (occurrence.cards.length === 1) return { state: "deterministic", card: occurrence.cards[0] as RankedConstructCard };
   if (occurrence.cards.length > MAX_CARDS) {
     return { state: "intent_required", reason: "candidate set is too broad; narrow the authoring intent" };
@@ -161,6 +194,14 @@ function eligible(occurrence: RankOccurrence): RankResult | null {
     return { state: "ineligible", reason: "source diagnostic identity is missing" };
   }
   return null;
+}
+
+function eligible(occurrence: RankOccurrence): RankResult | null {
+  const officeIntent = hasOfficeColumnEvidence(occurrence.messageKind, occurrence.section, occurrence.slot,
+    occurrence.cards.map(card=>card.id), occurrence.evidence);
+  return checkCaptureComplete(occurrence) ?? checkAuthoringSlot(occurrence) ??
+    checkSourceEvidence(occurrence) ?? checkIntentChoice(occurrence, officeIntent) ??
+    checkCandidateCoverage(occurrence) ?? checkRankingReadiness(occurrence, officeIntent);
 }
 
 function packet(occurrence: RankOccurrence, model: string): JevChoiceRequest {
@@ -197,9 +238,20 @@ function packet(occurrence: RankOccurrence, model: string): JevChoiceRequest {
   };
 }
 
-function validateResponse(raw: unknown, request: JevChoiceRequest): {
-  choice: string; probabilities: Record<string, number>; confidence: number;
-  model: string; usage: { inputTokens: number; outputTokens: number };
+function checkResponseModel(response: Record<string, unknown>): string | null {
+  if (typeof response.model !== "string" || response.model.length > 64 ||
+      !/^jev-[A-Za-z0-9.-]+$/.test(response.model)) return null;
+  return response.model;
+}
+
+function checkResponseUsage(usage: Record<string, unknown>): boolean {
+  return Number.isSafeInteger(usage.input_tokens) && Number(usage.input_tokens) >= 0 &&
+    Number.isSafeInteger(usage.output_tokens) && Number(usage.output_tokens) >= 0;
+}
+
+function checkResponseShape(raw: unknown, request: JevChoiceRequest): {
+  choice: string; confidence: number; model: string;
+  usage: Record<string, unknown>; probabilities: Record<string, unknown>; expectedKeys: string[];
 } | null {
   const response = record(raw);
   const answers = record(response?.answers);
@@ -207,13 +259,17 @@ function validateResponse(raw: unknown, request: JevChoiceRequest): {
   const usage = record(response?.usage);
   const expectedKeys = Object.keys(request.questions[QUESTION].criteria).sort();
   const probabilities = record(answer?.probabilities);
-  if (!response || typeof response.model !== "string" || response.model.length > 64 || !/^jev-[A-Za-z0-9.-]+$/.test(response.model) ||
-      !answers || Object.keys(answers).length !== 1 || !answer || answer.type !== "choice" ||
+  if (!response || !answers || Object.keys(answers).length !== 1 || !answer || answer.type !== "choice" ||
       typeof answer.choice !== "string" || !expectedKeys.includes(answer.choice) ||
       !probabilities || Object.keys(probabilities).sort().join("\0") !== expectedKeys.join("\0") ||
-      !finiteUnit(answer.confidence) || !usage ||
-      !Number.isSafeInteger(usage.input_tokens) || Number(usage.input_tokens) < 0 ||
-      !Number.isSafeInteger(usage.output_tokens) || Number(usage.output_tokens) < 0) return null;
+      !finiteUnit(answer.confidence) || !usage || !checkResponseUsage(usage)) return null;
+  const model = checkResponseModel(response);
+  if (model === null) return null;
+  return { choice: answer.choice, confidence: answer.confidence, model, usage, probabilities, expectedKeys };
+}
+
+function checkDistribution(probabilities: Record<string, unknown>, expectedKeys: string[],
+  choice: string): Record<string, number> | null {
   let sum = 0;
   const distribution: Record<string, number> = Object.create(null) as Record<string, number>;
   for (const id of expectedKeys) {
@@ -223,14 +279,25 @@ function validateResponse(raw: unknown, request: JevChoiceRequest): {
     sum += value;
   }
   if (Math.abs(sum - 1) > PROBABILITY_TOLERANCE) return null;
-  const selected = distribution[answer.choice] as number;
+  const selected = distribution[choice] as number;
   if (expectedKeys.some(id => (distribution[id] as number) - selected > PROBABILITY_TOLERANCE)) return null;
+  return distribution;
+}
+
+function validateResponse(raw: unknown, request: JevChoiceRequest): {
+  choice: string; probabilities: Record<string, number>; confidence: number;
+  model: string; usage: { inputTokens: number; outputTokens: number };
+} | null {
+  const shaped = checkResponseShape(raw, request);
+  if (shaped === null) return null;
+  const distribution = checkDistribution(shaped.probabilities, shaped.expectedKeys, shaped.choice);
+  if (distribution === null) return null;
   return {
-    choice: answer.choice,
+    choice: shaped.choice,
     probabilities: distribution,
-    confidence: answer.confidence,
-    model: response.model,
-    usage: { inputTokens: Number(usage.input_tokens), outputTokens: Number(usage.output_tokens) },
+    confidence: shaped.confidence,
+    model: shaped.model,
+    usage: { inputTokens: Number(shaped.usage.input_tokens), outputTokens: Number(shaped.usage.output_tokens) },
   };
 }
 

@@ -76,6 +76,32 @@ export function sha256Hex(text: string): string {
  * which JSON would omit/coerce are refused. This is not a sandbox for Proxy
  * traps or mutated host intrinsics.
  */
+/**
+ * Copy one own entry of a graph container into `result`. Array containers
+ * accept only dense indexed data; every entry must be an enumerable own
+ * data property.
+ */
+function copyGraphEntry(
+  value: object,
+  array: boolean,
+  key: string | symbol,
+  result: Record<string, unknown> | unknown[],
+  copy: (value: unknown) => unknown,
+): void {
+  if (array && key === 'length') return;
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  if (typeof key !== 'string' || descriptor === undefined ||
+      !descriptor.enumerable || !('value' in descriptor)) {
+    throw new MappingValidationError('Workflow graph requires enumerable own JSON data properties');
+  }
+  if (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= (value as unknown[]).length)) {
+    throw new MappingValidationError('Workflow graph arrays require only dense indexed data');
+  }
+  Object.defineProperty(result, key, {
+    value: copy(descriptor.value), enumerable: true, writable: true, configurable: true,
+  });
+}
+
 function copyGraphData(graph: ApiGraph): ApiGraph {
   const active = new Set<object>();
   const copy = (value: unknown): unknown => {
@@ -96,17 +122,7 @@ function copyGraphData(graph: ApiGraph): ApiGraph {
       let entries = 0;
       for (const key of keys) {
         if (array && key === 'length') continue;
-        const descriptor = Object.getOwnPropertyDescriptor(value, key);
-        if (typeof key !== 'string' || descriptor === undefined ||
-            !descriptor.enumerable || !('value' in descriptor)) {
-          throw new MappingValidationError('Workflow graph requires enumerable own JSON data properties');
-        }
-        if (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= (value as unknown[]).length)) {
-          throw new MappingValidationError('Workflow graph arrays require only dense indexed data');
-        }
-        Object.defineProperty(result, key, {
-          value: copy(descriptor.value), enumerable: true, writable: true, configurable: true,
-        });
+        copyGraphEntry(value, array, key, result, copy);
         entries++;
       }
       if (array && entries !== (value as unknown[]).length) {
@@ -161,11 +177,11 @@ function freezeGraph(graph: ApiGraph): ApiGraph {
  * artifact digest; throws `MappingValidationError` naming the exact
  * breach. Pure: the input graph is never mutated.
  */
-export function substituteAndValidate(
+/** Copy the pinned graph and check the mapping shape/digest against it. */
+function prepareSubstitutedGraph(
   graph: ApiGraph,
   mapping: WorkflowNodeMapping,
-  input: ImageGenerateInput,
-): SubstitutedGraph {
+): { substituted: ApiGraph; digest: string } {
   if (!isRecord(graph)) {
     throw new MappingValidationError('Workflow graph must be an object');
   }
@@ -213,6 +229,11 @@ export function substituteAndValidate(
       );
     }
   }
+  return { substituted, digest };
+}
+
+/** Read and range-check the business input values. */
+function readImageInputValues(input: ImageGenerateInput): Record<ImageInputField, string | number> {
   if (typeof input !== 'object' || input === null) {
     throw new MappingValidationError('Image input must be an object');
   }
@@ -236,53 +257,73 @@ export function substituteAndValidate(
   if (!Number.isInteger(values.seed) || (values.seed as number) < 0) {
     throw new MappingValidationError('Image seed must be a non-negative integer');
   }
+  return values;
+}
+
+export function substituteAndValidate(
+  graph: ApiGraph,
+  mapping: WorkflowNodeMapping,
+  input: ImageGenerateInput,
+): SubstitutedGraph {
+  const { substituted, digest } = prepareSubstitutedGraph(graph, mapping);
+  const values = readImageInputValues(input);
   const usedDestinations = new Map<string, Set<string>>();
   for (const field of IMAGE_INPUT_FIELDS) {
-    const destination = mapping.inputs[field] as
-      | { node: string; key: string }
-      | undefined;
-    const nodeId = destination === undefined ? undefined : destination.node;
-    const key = typeof nodeId === 'string' ? destination!.key : undefined;
-    if (
-      typeof nodeId !== 'string' ||
-      typeof key !== 'string'
-    ) {
-      throw new MappingValidationError(
-        `Workflow mapping destination for '${field}' must name a node and key`,
-      );
-    }
-    const node = substituted[nodeId];
-    if (node === undefined || !isRecord(node.inputs)) {
-      throw new MappingValidationError(
-        `Workflow mapping destination node '${nodeId}' for '${field}' does not exist`,
-      );
-    }
-    if (!(key in node.inputs)) {
-      throw new MappingValidationError(
-        `Workflow mapping destination '${nodeId}.${key}' for '${field}' does not exist`,
-      );
-    }
-    const current = node.inputs[key];
-    const next = values[field];
-    if (typeof current !== typeof next) {
-      throw new MappingValidationError(
-        `Workflow mapping destination '${nodeId}.${key}' holds ${Array.isArray(current) ? 'a link' : typeof current}; cannot substitute ${typeof next}`,
-      );
-    }
-    if (typeof current !== 'string' && typeof current !== 'number') {
-      throw new MappingValidationError(
-        `Workflow mapping destination '${nodeId}.${key}' is not a scalar slot`,
-      );
-    }
-    const usedKeys = usedDestinations.get(nodeId);
-    if (usedKeys?.has(key)) {
-      throw new MappingValidationError(
-        `Workflow mapping destination '${nodeId}.${key}' for '${field}' is already used`,
-      );
-    }
-    if (usedKeys === undefined) usedDestinations.set(nodeId, new Set([key]));
-    else usedKeys.add(key);
-    node.inputs[key] = next;
+    substituteField(substituted, mapping, field, values[field], usedDestinations);
   }
   return { graph: freezeGraph(substituted), digest };
+}
+
+/** Substitute one business input into its mapped graph destination. */
+function substituteField(
+  substituted: ApiGraph,
+  mapping: WorkflowNodeMapping,
+  field: ImageInputField,
+  next: string | number,
+  usedDestinations: Map<string, Set<string>>,
+): void {
+  const destination = mapping.inputs[field] as
+    | { node: string; key: string }
+    | undefined;
+  const nodeId = destination === undefined ? undefined : destination.node;
+  const key = typeof nodeId === 'string' ? destination!.key : undefined;
+  if (
+    typeof nodeId !== 'string' ||
+    typeof key !== 'string'
+  ) {
+    throw new MappingValidationError(
+      `Workflow mapping destination for '${field}' must name a node and key`,
+    );
+  }
+  const node = substituted[nodeId];
+  if (node === undefined || !isRecord(node.inputs)) {
+    throw new MappingValidationError(
+      `Workflow mapping destination node '${nodeId}' for '${field}' does not exist`,
+    );
+  }
+  if (!(key in node.inputs)) {
+    throw new MappingValidationError(
+      `Workflow mapping destination '${nodeId}.${key}' for '${field}' does not exist`,
+    );
+  }
+  const current = node.inputs[key];
+  if (typeof current !== typeof next) {
+    throw new MappingValidationError(
+      `Workflow mapping destination '${nodeId}.${key}' holds ${Array.isArray(current) ? 'a link' : typeof current}; cannot substitute ${typeof next}`,
+    );
+  }
+  if (typeof current !== 'string' && typeof current !== 'number') {
+    throw new MappingValidationError(
+      `Workflow mapping destination '${nodeId}.${key}' is not a scalar slot`,
+    );
+  }
+  const usedKeys = usedDestinations.get(nodeId);
+  if (usedKeys?.has(key)) {
+    throw new MappingValidationError(
+      `Workflow mapping destination '${nodeId}.${key}' for '${field}' is already used`,
+    );
+  }
+  if (usedKeys === undefined) usedDestinations.set(nodeId, new Set([key]));
+  else usedKeys.add(key);
+  node.inputs[key] = next;
 }

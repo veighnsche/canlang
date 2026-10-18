@@ -90,6 +90,70 @@ function decisiveCompletion(value: unknown, deliveryId: string): MailEvidence | 
   return null;
 }
 
+function resolveMailOperationInputs(
+  bindingName: string,
+  from: string,
+  definition: BoundMailAdapterOptions["appDefinition"],
+  expected: BoundMailAdapterOptions["binding"],
+  target: string,
+): Record<string, unknown> | null {
+  const declaredBinding = member(member(definition, "bindings"), bindingName);
+  if (member(declaredBinding, "capability") !== CAPABILITY || member(declaredBinding, "from") !== from ||
+      from !== expected.deployment || expected.capability !== CAPABILITY ||
+      expected.capabilityVersion !== STD_EMAIL_V1_VERSION || typeof expected.account !== "string" || expected.account === "") return null;
+  const capability = member(member(definition, "capabilities"), CAPABILITY);
+  const version = member(capability, "version");
+  if (version !== STD_EMAIL_V1_VERSION && version !== BigInt(STD_EMAIL_V1_VERSION)) return null;
+  const operation = member(member(capability, "operations"), target === USER_TARGET ? "send_user" : "send");
+  if (member(member(operation, "result"), "type") !== "EmailAccepted") return null;
+  const inputs = member(operation, "inputs");
+  if (!record(inputs)) return null;
+  return inputs;
+}
+
+function loadInstalledMailSender(options: BoundMailAdapterOptions, expected: BoundMailAdapterOptions["binding"]) {
+  const installed = options.resolveInstalledMailSender(expected.deployment);
+  if (installed === null || installed.binding.deployment !== expected.deployment ||
+      installed.binding.capability !== expected.capability || installed.binding.capabilityVersion !== expected.capabilityVersion ||
+      installed.binding.account !== expected.account || typeof installed.mail.send !== "function" || typeof installed.mail.reconcile !== "function") return null;
+  return installed;
+}
+
+function buildMailSendArguments(
+  request: OutboxIntent["arguments"],
+  inputs: Record<string, unknown>,
+  target: string,
+  userRecipients: BoundMailAdapterOptions["userRecipients"],
+): { readonly args: Record<string, unknown>; readonly recipientUser: string | undefined } | null {
+  // Frozen carriers in recorded human-text paths unwrap to their
+  // already selected text before Values admission; every other value
+  // keeps the existing string-only admission below.
+  const rawArguments = record(request["arguments"]) ? request["arguments"] : null;
+  if (rawArguments === null) return null;
+  const sendArguments: Record<string, unknown> = { ...rawArguments };
+  for (const name of ["subject", "body"] as const) {
+    const carried = carrierText(sendArguments[name]);
+    if (carried !== null) sendArguments[name] = carried;
+  }
+  // Values owns normalization and wire admission against the exact emitted
+  // operation declaration. Only its nested encoded arguments reach Services.
+  const schema = normalizeSchema({
+    operations: { [target]: { inputs } },
+  } as SchemaDescriptor);
+  const checked = validateOperationInput(schema, target, sendArguments);
+  const args: Record<string, unknown> = Object.create(null);
+  for (const [name, value] of Object.entries(checked)) {
+    args[name] = encodeValue((inputs[name] as FieldDescriptor).type, value as CanValue, undefined, schema);
+  }
+  const recipient = target === USER_TARGET ? args["to"] : undefined;
+  const recipientUser = closed(recipient, ['id']) && typeof recipient['id'] === 'string' && recipient['id'] !== '' ? recipient['id'] : undefined;
+  if (target === USER_TARGET && (recipientUser === undefined || userRecipients === undefined)) return null;
+  if (!closed(args, ["to", "subject", "body", "attachments"]) || (target === TARGET && typeof args["to"] !== "string") ||
+      typeof args["subject"] !== "string" || typeof args["body"] !== "string" || !Array.isArray(args["attachments"]) ||
+      !args["attachments"].every(value => typeof value === "string")) return null;
+  return { args, recipientUser };
+}
+
 /** No discovery, alias fallback, transport implementation or receipt association. */
 export function createBoundMailAdapter(options: BoundMailAdapterOptions): BoundMailAdapter {
   const expected = { ...options.binding };
@@ -100,49 +164,13 @@ export function createBoundMailAdapter(options: BoundMailAdapterOptions): BoundM
       const request = intent.arguments;
       if (typeof request["binding"] !== "string" || typeof request["from"] !== "string" ||
           !record(request["arguments"])) return null;
-      const definition = options.appDefinition;
-      const declaredBinding = member(member(definition, "bindings"), request["binding"]);
-      if (member(declaredBinding, "capability") !== CAPABILITY || member(declaredBinding, "from") !== request["from"] ||
-          request["from"] !== expected.deployment || expected.capability !== CAPABILITY ||
-          expected.capabilityVersion !== STD_EMAIL_V1_VERSION || typeof expected.account !== "string" || expected.account === "") return null;
-      const capability = member(member(definition, "capabilities"), CAPABILITY);
-      const version = member(capability, "version");
-      if (version !== STD_EMAIL_V1_VERSION && version !== BigInt(STD_EMAIL_V1_VERSION)) return null;
-      const operation = member(member(capability, "operations"), intent.target === USER_TARGET ? "send_user" : "send");
-      if (member(member(operation, "result"), "type") !== "EmailAccepted") return null;
-      const inputs = member(operation, "inputs");
-      if (!record(inputs)) return null;
-      const installed = options.resolveInstalledMailSender(expected.deployment);
-      if (installed === null || installed.binding.deployment !== expected.deployment ||
-          installed.binding.capability !== expected.capability || installed.binding.capabilityVersion !== expected.capabilityVersion ||
-          installed.binding.account !== expected.account || typeof installed.mail.send !== "function" || typeof installed.mail.reconcile !== "function") return null;
-      // Frozen carriers in recorded human-text paths unwrap to their
-      // already selected text before Values admission; every other value
-      // keeps the existing string-only admission below.
-      const rawArguments = record(request["arguments"]) ? request["arguments"] : null;
-      if (rawArguments === null) return null;
-      const sendArguments: Record<string, unknown> = { ...rawArguments };
-      for (const name of ["subject", "body"] as const) {
-        const carried = carrierText(sendArguments[name]);
-        if (carried !== null) sendArguments[name] = carried;
-      }
-      // Values owns normalization and wire admission against the exact emitted
-      // operation declaration. Only its nested encoded arguments reach Services.
-      const schema = normalizeSchema({
-        operations: { [intent.target]: { inputs } },
-      } as SchemaDescriptor);
-      const checked = validateOperationInput(schema, intent.target, sendArguments);
-      const args: Record<string, unknown> = Object.create(null);
-      for (const [name, value] of Object.entries(checked)) {
-        args[name] = encodeValue((inputs[name] as FieldDescriptor).type, value as CanValue, undefined, schema);
-      }
-      const recipient = intent.target === USER_TARGET ? args["to"] : undefined;
-      const recipientUser = closed(recipient, ['id']) && typeof recipient['id'] === 'string' && recipient['id'] !== '' ? recipient['id'] : undefined;
-      if (intent.target === USER_TARGET && (recipientUser === undefined || options.userRecipients === undefined)) return null;
-      if (!closed(args, ["to", "subject", "body", "attachments"]) || (intent.target === TARGET && typeof args["to"] !== "string") ||
-          typeof args["subject"] !== "string" || typeof args["body"] !== "string" || !Array.isArray(args["attachments"]) ||
-          !args["attachments"].every(value => typeof value === "string")) return null;
-      return { installed, input: args as unknown as EmailSendInput, ...(recipientUser === undefined ? {} : { recipientUser }) };
+      const inputs = resolveMailOperationInputs(request["binding"], request["from"], options.appDefinition, expected, intent.target);
+      if (inputs === null) return null;
+      const installed = loadInstalledMailSender(options, expected);
+      if (installed === null) return null;
+      const built = buildMailSendArguments(request, inputs, intent.target, options.userRecipients);
+      if (built === null) return null;
+      return { installed, input: built.args as unknown as EmailSendInput, ...(built.recipientUser === undefined ? {} : { recipientUser: built.recipientUser }) };
     } catch { return null; }
   };
   const userRecipient = (intent: OutboxIntent) => {

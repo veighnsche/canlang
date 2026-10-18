@@ -667,12 +667,22 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     const state = core.status();
     const serving = state.servingBuild === null ? undefined : previews.get(state.servingBuild);
     const available = serving !== undefined;
-    let origin: string | null = null;
-    try { if (serving?.origin !== undefined) origin = new URL(serving.origin).origin; } catch { /* no safe origin */ }
-    const reasons: DevObservation["admission"]["reasons"][number][] = [];
-    if (stopRequested) reasons.push("stopping");
-    if (state.cleanupRequired || shutdownError !== null) reasons.push("cleanup_required");
-    if (restartRequired) reasons.push("restart_required");
+    const servingOrigin = (): string | null => {
+      try { if (serving?.origin !== undefined) return new URL(serving.origin).origin; } catch { /* no safe origin */ }
+      return null;
+    };
+    const admissionReasons = (): DevObservation["admission"]["reasons"] => {
+      const reasons: DevObservation["admission"]["reasons"][number][] = [];
+      if (stopRequested) reasons.push("stopping");
+      if (state.cleanupRequired || shutdownError !== null) reasons.push("cleanup_required");
+      if (restartRequired) reasons.push("restart_required");
+      return reasons;
+    };
+    const previewFreshness = (): "not_applicable" | "unconfirmed" | "current" | "older" =>
+      !available ? "not_applicable" : state.captureState !== "confirmed" ? "unconfirmed"
+        : state.servingRevision === state.revision ? "current" : "older";
+    const origin = servingOrigin();
+    const reasons = admissionReasons();
     const outcome = state.lastOutcome;
     return {
       schema: "can.dev.observation.v1", session: socket?.identity.sessionId ?? "starting", sequence: observationSequence,
@@ -681,9 +691,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       operation: state.operation,
       lastOutcome: outcome === null ? null : { ...outcome, reason: outcome.reason === null ? null : short(outcome.reason, MAX_REASON) },
       preview: { availability: available ? "serving" : "unavailable", revision: available ? state.servingRevision : null,
-        build: available ? state.servingBuild : null, origin,
-        freshness: !available ? "not_applicable" : state.captureState !== "confirmed" ? "unconfirmed"
-          : state.servingRevision === state.revision ? "current" : "older" },
+        build: available ? state.servingBuild : null, origin, freshness: previewFreshness() },
       admission: { check: reasons.length === 0, open: !stopRequested && available && !state.cleanupRequired,
         retryCleanup: state.cleanupRequired || shutdownError !== null, reasons }, shutdownError,
     };
@@ -912,14 +920,25 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     if (diagnostic === undefined) throw new SessionSocketError("DIAGNOSTIC_UNAVAILABLE", "diagnostic index is unavailable");
     const index = checkedHelp.get(revision);
     const capture = checkedCaptures.get(revision);
-    const state = core.status();
-    if (stopping !== null || state.revision !== revision || state.dirty || state.captureError !== null || state.checkRevision !== revision) {
-      return { state: "stale", reason: "source or help revision changed" };
-    }
+    const rankRevisionGuard = (): RankResult | null => {
+      const state = core.status();
+      if (stopping !== null || state.revision !== revision || state.dirty || state.captureError !== null || state.checkRevision !== revision) {
+        return { state: "stale", reason: "source or help revision changed" };
+      }
+      return null;
+    };
+    type CheckDiagnostic = ReturnType<typeof detail>["check"]["detail"]["diagnostics"][number];
+    const rankRoutingGuard = (routing: CheckDiagnostic["construct_candidates"]): RankResult | null => {
+      if (routing?.disposition === "structural") return { state: "structural", reason: "authoring slot is not reliable" };
+      if (routing?.disposition === "none" && routing.complete && found.check.complete &&
+          found.check.detail.compilerOmitted === 0 && found.check.detail.serviceOmitted === 0) return { state: "none" };
+      return null;
+    };
+    const revisionGuarded = rankRevisionGuard();
+    if (revisionGuarded !== null) return revisionGuarded;
     const routing = diagnostic.construct_candidates;
-    if (routing?.disposition === "structural") return { state: "structural", reason: "authoring slot is not reliable" };
-    if (routing?.disposition === "none" && routing.complete && found.check.complete &&
-        found.check.detail.compilerOmitted === 0 && found.check.detail.serviceOmitted === 0) return { state: "none" };
+    const routingGuarded = rankRoutingGuard(routing);
+    if (routingGuarded !== null) return routingGuarded;
     if (index === undefined || capture === undefined) {
       return { state: "candidate_coverage_unknown", reason: "captured help or producer inputs are unavailable" };
     }
@@ -930,35 +949,37 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     const context = routing.context;
     const bytes = Buffer.from(capture.sourceText, "utf8");
     const span = diagnostic.primary;
-    const exactSourceSpan = context.exactSourceSpan && bytes.length === capture.sourceBytes &&
+    const sourceSpanExact = (): boolean => context.exactSourceSpan && bytes.length === capture.sourceBytes &&
       createHash("sha256").update(bytes).digest("hex") === capture.sourceSha256 &&
       sourceKeywordAt(bytes, span.start) &&
       bytes.subarray(span.start, span.end).equals(Buffer.from(context.guess, "utf8")) &&
       (span.start === 0 || !/[A-Za-z0-9_]/.test(String.fromCharCode(bytes[span.start - 1]!))) &&
       (span.end === bytes.length || !/[A-Za-z0-9_]/.test(String.fromCharCode(bytes[span.end]!)));
+    const exactSourceSpan = sourceSpanExact();
     if (!context.recoveryComplete || !context.nameFilterComplete || !exactSourceSpan) {
       return { state: "ineligible", reason: "diagnostic or source capture is incomplete" };
     }
     const bundle = await qualification(capture, index, requestSignal);
     await core.refresh().catch(() => undefined);
     if (requestSignal.aborted) return { state: "stale", reason: "request was cancelled" };
-    if (!rankCurrent(revision,index.revision)) return { state: "stale", reason: "source or help revision changed" };
+    if (!rankCurrent(revision, index.revision)) return { state: "stale", reason: "source or help revision changed" };
     if (bundle === null || !bundle.messageKinds.includes(context.messageKind)) {
       return { state: "candidate_coverage_unknown", reason: "host profile or diagnostic branch qualification is unavailable" };
     }
     const selected = joinCompilerConstructCandidates(index, routing, FIRST_PROFILE, bundle.proofs);
     const evidence = context.messageKind === 'unknown_collection_presentation'
-      ? captureConstructEvidence(capture.sourceText,capture.sourceSha256,span,context.guess,authorIntent) : null;
-    return ranker.rank({ ref: diagnosticRef(socket!.identity.sessionId, revision, diagnosticIndex),
+      ? captureConstructEvidence(capture.sourceText, capture.sourceSha256, span, context.guess, authorIntent) : null;
+    const buildRankResponse = (): Promise<RankResult> => ranker.rank({ ref: diagnosticRef(socket!.identity.sessionId, revision, diagnosticIndex),
       revision, helpRevision: index.revision, diagnosticCode: diagnostic.code, sourceHash: capture.sourceSha256,
       span: { start: span.start, end: span.end }, messageKind: context.messageKind, section: context.section,
       slot: routing.slot, guess: context.guess, complete: found.check.complete,
       omitted: found.check.detail.compilerOmitted + found.check.detail.serviceOmitted, exactSourceSpan,
       structuralRecovery: context.structuralRecovery, candidateCoverage: selected.candidateCoverage,
       unsupportedBehaviorProven: context.unsupportedBehaviorProven, materialIntentChoice: context.materialIntentChoice,
-      ...(evidence === null ? {} : {evidence}),
+      ...(evidence === null ? {} : { evidence }),
       evidenceSufficient: context.evidenceSufficient, cards: selected.cards.map(card => ({ id: card.id,
         section: card.section, signature: card.signature, meaning: card.meaning, availability: card.status })) });
+    return buildRankResponse();
   };
 
   const compilerFailure = (ref: string): FailureProjection => {
@@ -1000,30 +1021,28 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       throw new SessionSocketError(restartRequired ? "RESTART_REQUIRED" : "CLEANUP_REQUIRED", "owner admission requires cleanup or restart before new work");
     }
     const payload = record(command.payload);
-    if (command.command === "help") {
-      return {
-        schema: "can.dev.help.v1", protocol: SESSION_SOCKET_PROTOCOL,
-        session: socket?.identity.sessionId,
-        commands: COMMAND_HELP,
-        unavailable: [],
-      };
-    }
-    if (command.command === "status") return status();
-    if (command.command === "observe") return observation();
-    if (command.command === "cleanup.retry") {
+    const helpResponse = async (): Promise<unknown> => ({
+      schema: "can.dev.help.v1", protocol: SESSION_SOCKET_PROTOCOL,
+      session: socket?.identity.sessionId,
+      commands: COMMAND_HELP,
+      unavailable: [],
+    });
+    const statusResponse = async (): Promise<unknown> => status();
+    const observeResponse = async (): Promise<unknown> => observation();
+    const cleanupRetryResponse = async (): Promise<unknown> => {
       await core.retryCleanup();
       automaticAttempt = null;
       scheduleAutomatic();
       return observation();
-    }
-    if (command.command === "check.request") {
+    };
+    const checkRequestResponse = async (): Promise<unknown> => {
       if (!observation().admission.check) throw new SessionSocketError("CLEANUP_REQUIRED", "owner admission requires cleanup or restart");
       if (humanCheckPending || core.status().operation !== null) return { schema: "can.dev.check-request.v1", accepted: false, alreadyChecking: true };
       humanCheckPending = true;
       void check().catch(() => undefined).finally(() => { humanCheckPending = false; observed(); });
       return { schema: "can.dev.check-request.v1", accepted: true, alreadyChecking: false };
-    }
-    if (command.command === "stop.confirm") {
+    };
+    const stopConfirmResponse = async (): Promise<unknown> => {
       beginStop();
       try { await releaseResources(); }
       catch { throw new SessionSocketError("CLEANUP_FAILED", "owned runtime release is incomplete; retry this owner"); }
@@ -1031,32 +1050,47 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       // process release are separately observed by the launcher before Stopped.
       setTimeout(() => { void stop().catch(() => undefined); }, 100).unref();
       return { schema: "can.dev.stop-confirmed.v1", session: socket?.identity.sessionId, resourcesReleased: true };
-    }
-    if (command.command === "check") {
+    };
+    const checkCommandResponse = async (): Promise<unknown> => {
       if (payload?.expectedRevision !== undefined &&
         (payload.expectedRevision !== core.status().revision || core.status().dirty)) {
         throw new SessionSocketError("REVISION_CONFLICT", "expected revision is not current");
       }
       return check(payload?.expectedRevision as string | undefined, requestSignal);
-    }
-    if (command.command === "diagnostics" || command.command === "diagnostic.detail") {
+    };
+    const diagnosticsResponse = async (): Promise<unknown> => {
       const revision = payload?.revision;
       if (typeof revision !== "string" || !/^r[1-9][0-9]*$/.test(revision)) {
         throw new SessionSocketError("INVALID_REQUEST", "captured revision is required");
       }
       const found = detail(revision);
       const diagnostics = found.check.detail.diagnostics;
-      if (command.command === "diagnostic.detail") {
+      const diagnosticDetail = async (): Promise<unknown> => {
         if (!integer(payload?.index) || payload.index >= diagnostics.length) {
           throw new SessionSocketError("DIAGNOSTIC_UNAVAILABLE", "diagnostic index is unavailable");
         }
         const help = checkedHelp.get(revision), captured = checkedCaptures.get(revision);
-        const bundle = !stopRequested && payload?.presentationOnly !== true && help && captured ? await qualification(captured,help,requestSignal) : null;
+        const bundle = !stopRequested && payload?.presentationOnly !== true && help && captured ? await qualification(captured, help, requestSignal) : null;
         if (!stopRequested && payload?.presentationOnly !== true) await core.refresh().catch(() => undefined);
         const state = core.status();
         const current = !requestSignal.aborted && state.revision === revision && !state.dirty &&
           state.captureError === null && state.checkRevision === revision &&
           (help === undefined || rankCurrent(revision, help.revision));
+        const diagnosticIndex = payload.index;
+        const candidates = diagnostics[diagnosticIndex]!.construct_candidates;
+        const diagnosticExcerpt = (): { text: string; start: number; end: number } | null => {
+          const saved = checkedCaptures.get(revision), span = diagnostics[diagnosticIndex]!.primary;
+          if (saved === undefined || span.file !== 0) return null;
+          const bytes = Buffer.from(saved.sourceText, "utf8"), start = Math.max(0, span.start - 160), end = Math.min(bytes.length, span.end + 160);
+          return { text: bytes.subarray(start, Math.min(end, start + 800)).toString("utf8"), start, end: Math.min(end, start + 800) };
+        };
+        const detailConstructHelp = (fresh: boolean, qualified: SessionConstructQualification | null,
+          routed: (typeof diagnostics)[number]["construct_candidates"]): unknown => checkedHelp.has(revision)
+          ? joinCompilerConstructCandidates(checkedHelp.get(revision)!,
+            routed, FIRST_PROFILE,
+            fresh ? qualified?.proofs ?? [] : [])
+          : { disposition: "unknown", slot: null, grammarCoverage: "unknown", candidateCoverage: "unknown", cards: [], classification: [],
+            reason: "captured help index is unavailable" };
         return {
           schema: "can.dev.diagnostic.v1", session: socket?.identity.sessionId,
           revision, source_revision: found.sourceRevision,
@@ -1064,46 +1098,40 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           ref: diagnosticRef(socket!.identity.sessionId, revision, payload.index),
           source: found.check.detail.source,
           diagnostic: diagnostics[payload.index],
-          captured_excerpt: (() => {
-            const saved = checkedCaptures.get(revision), span = diagnostics[payload.index]!.primary;
-            if (saved === undefined || span.file !== 0) return null;
-            const bytes = Buffer.from(saved.sourceText, "utf8"), start = Math.max(0, span.start - 160), end = Math.min(bytes.length, span.end + 160);
-            return { text: bytes.subarray(start, Math.min(end, start + 800)).toString("utf8"), start, end: Math.min(end, start + 800) };
-          })(),
-          construct_help: checkedHelp.has(revision)
-            ? joinCompilerConstructCandidates(checkedHelp.get(revision)!,
-              diagnostics[payload.index]!.construct_candidates, FIRST_PROFILE,
-              current ? bundle?.proofs ?? [] : [])
-            : { disposition: "unknown", slot: null, grammarCoverage: "unknown", candidateCoverage: "unknown", cards: [], classification: [],
-              reason: "captured help index is unavailable" },
+          captured_excerpt: diagnosticExcerpt(),
+          construct_help: detailConstructHelp(current, bundle, candidates),
           evidence: { source_excerpt: "unavailable", trace: "unavailable" },
         };
-      }
-      const after = payload?.after === undefined ? -1 : payload.after;
-      const limit = payload?.limit === undefined ? 10 : payload.limit;
-      if (!integer(after, -1) || !integer(limit, 1) || limit > MAX_PAGE) {
-        throw new SessionSocketError("INVALID_REQUEST", "diagnostic cursor or limit is invalid");
-      }
-      const start = after + 1;
-      const page = diagnostics.slice(start, start + limit).map((item, offset) => ({
-        ref: diagnosticRef(socket!.identity.sessionId, revision, start + offset),
-        code: item.code, severity: item.severity,
-        message: short(item.message, 180),
-        at: { path: found.check.detail.source.path, start: item.primary.start, end: item.primary.end },
-      }));
-      const last = start + page.length - 1;
-      return {
-        schema: "can.dev.diagnostics.v1", session: socket?.identity.sessionId,
-        revision, source_revision: found.sourceRevision,
-        current: core.status().revision === revision && !core.status().dirty,
-        reported: found.check.detail.reported,
-        compiler_omitted: found.check.detail.compilerOmitted,
-        service_omitted: found.check.detail.serviceOmitted,
-        diagnostics: page,
-        next_after: last + 1 < diagnostics.length ? last : null,
       };
-    }
-    if (command.command === "construct.rank" || command.command === "rank.lookup") {
+      const diagnosticsList = (): unknown => {
+        const after = payload?.after === undefined ? -1 : payload.after;
+        const limit = payload?.limit === undefined ? 10 : payload.limit;
+        if (!integer(after, -1) || !integer(limit, 1) || limit > MAX_PAGE) {
+          throw new SessionSocketError("INVALID_REQUEST", "diagnostic cursor or limit is invalid");
+        }
+        const start = after + 1;
+        const page = diagnostics.slice(start, start + limit).map((item, offset) => ({
+          ref: diagnosticRef(socket!.identity.sessionId, revision, start + offset),
+          code: item.code, severity: item.severity,
+          message: short(item.message, 180),
+          at: { path: found.check.detail.source.path, start: item.primary.start, end: item.primary.end },
+        }));
+        const last = start + page.length - 1;
+        return {
+          schema: "can.dev.diagnostics.v1", session: socket?.identity.sessionId,
+          revision, source_revision: found.sourceRevision,
+          current: core.status().revision === revision && !core.status().dirty,
+          reported: found.check.detail.reported,
+          compiler_omitted: found.check.detail.compilerOmitted,
+          service_omitted: found.check.detail.serviceOmitted,
+          diagnostics: page,
+          next_after: last + 1 < diagnostics.length ? last : null,
+        };
+      };
+      if (command.command === "diagnostic.detail") return diagnosticDetail();
+      return diagnosticsList();
+    };
+    const constructRankResponse = async (): Promise<unknown> => {
       const revision = payload?.revision;
       const allowed = command.command === "construct.rank" ? ["revision", "index", "authorIntent"] : ["revision", "ref"];
       if (typeof revision !== "string" || !/^r[1-9][0-9]*$/.test(revision) || payload === null ||
@@ -1111,14 +1139,14 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         throw new SessionSocketError("INVALID_REQUEST", "ranking needs only a captured revision and diagnostic index or pending ref");
       }
       await core.refresh().catch(() => undefined);
-      let result: RankResult;
-      if (command.command === "construct.rank") {
-        if (!integer(payload.index)) throw new SessionSocketError("INVALID_REQUEST", "ranking needs a diagnostic index");
-        if (payload.authorIntent !== undefined && !validAuthorIntent(payload.authorIntent)) {
-          throw new SessionSocketError('INVALID_REQUEST','author intent needs one sentence of at most 240 characters');
+      const resolveRankResult = async (): Promise<RankResult> => {
+        if (command.command === "construct.rank") {
+          if (!integer(payload.index)) throw new SessionSocketError("INVALID_REQUEST", "ranking needs a diagnostic index");
+          if (payload.authorIntent !== undefined && !validAuthorIntent(payload.authorIntent)) {
+            throw new SessionSocketError('INVALID_REQUEST', 'author intent needs one sentence of at most 240 characters');
+          }
+          return rankDiagnostic(revision, payload.index, requestSignal, payload.authorIntent as string | undefined);
         }
-        result = await rankDiagnostic(revision, payload.index, requestSignal, payload.authorIntent as string | undefined);
-      } else {
         if (typeof payload.ref !== "string" || !/^[0-9a-f]{64}$/.test(payload.ref)) {
           throw new SessionSocketError("INVALID_REQUEST", "rank lookup needs a pending ref");
         }
@@ -1126,8 +1154,9 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         if (pending === undefined || pending.revision !== revision) {
           throw new SessionSocketError("RANK_UNAVAILABLE", "pending rank does not select this revision");
         }
-        result = ranker.lookup(payload.ref);
-      }
+        return ranker.lookup(payload.ref);
+      };
+      let result = await resolveRankResult();
       await core.refresh().catch(() => undefined);
       const helpRevision = checkedHelp.get(revision)?.revision;
       const state = core.status();
@@ -1141,8 +1170,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       }
       return { schema: "can.dev.construct-rank.v1", session: socket!.identity.sessionId, revision,
         index_revision: helpRevision ?? null, result };
-    }
-    if (command.command === "construct.help") {
+    };
+    const constructHelpResponse = async (): Promise<unknown> => {
       const revision = payload?.revision;
       const id = payload?.id;
       if (typeof revision !== "string" || !/^r[1-9][0-9]*$/.test(revision) ||
@@ -1169,8 +1198,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         card: current && bundle ? index.get(id, FIRST_PROFILE, bundle.proofs.find(proof => proof.id === id)) : card,
         candidate_coverage: "unknown",
       };
-    }
-    if (command.command === "failure.lookup" || command.command === "failure.detail") {
+    };
+    const failureLookupResponse = async (): Promise<unknown> => {
       const ref = payload?.ref;
       if (typeof ref !== "string") throw new SessionSocketError("INVALID_FAILURE_REF", "failure ref is required");
       if (!ref.startsWith(`${socket!.identity.sessionId}/`)) {
@@ -1187,8 +1216,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         revision: projection.occurrence.revision, source_revision: projection.occurrence.source_revision,
         detail: projection.detail,
       };
-    }
-    if (command.command === "failures") {
+    };
+    const failuresResponse = async (): Promise<unknown> => {
       const revision = payload?.revision;
       const after = payload?.after ?? -1;
       const limit = payload?.limit ?? 1;
@@ -1204,56 +1233,54 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         origins: ["example", "http"], total_retained: retained.length,
         failures: page.map(value => value.projection.occurrence),
         next_after: available.length > page.length ? page.at(-1)!.cursor : null };
-    }
-    if (command.command === "example.run" || command.command === "example.rerun") {
+    };
+    const exampleResponse = async (): Promise<unknown> => {
       const signal = AbortSignal.any([requestSignal, stopExamples.signal]);
       const requireActive = (): void => {
         if (signal.aborted) throw new SessionSocketError(stopExamples.signal.aborted ? "SESSION_STOPPED" : "REQUEST_CANCELLED",
           stopExamples.signal.aborted ? "session is stopping" : "example request was cancelled");
       };
-      const work = exampleQueue.then(async () => {
-        requireActive();
-        if (stopping !== null) throw new SessionSocketError("SESSION_STOPPED", "session is stopping");
-        if (command.command === "example.rerun") {
-          const ref = payload?.ref;
-          if (typeof ref !== "string" || !ref.startsWith(`${socket!.identity.sessionId}/`)) {
-            throw new SessionSocketError("INVALID_FAILURE_REF", "failure ref does not select this session");
-          }
-          const failure = exampleFailures.get(ref);
-          if (failure?.rerunRef === undefined) {
-            throw new SessionSocketError("RERUN_UNAVAILABLE", "retained failure has no supported example row");
-          }
-          let completed: CompletedExampleRerunAttempt | undefined;
-          const result = await reruns.rerun(failure.rerunRef, signal, attempt => { completed = attempt; });
-          requireActive();
-          let focus: FailureProjection["occurrence"] | undefined;
-          if (result.ok && completed !== undefined) {
-            const captured = exampleCaptures.get(completed.fixtureRecipeId);
-            if (captured === undefined || captured.sourceRevision !== completed.artifact.sourceRevision ||
-                completed.artifact.revision !== failure.projection.occurrence.revision) {
-              throw new SessionSocketError("CAPTURE_CHANGED", "validated rerun source capture is unavailable");
-            }
-            // Coordinator validated exactly one table/row and the actual source,
-            // artifact and runtime recipe. Never reconstruct a report from the
-            // shortened public result or release its private actor/mismatch data.
-            const row = completed.result.report.cases[0];
-            if (row?.kind === "table" && (row.rows[0]?.outcome === "failed" || row.rows[0]?.outcome === "setup-failed")) {
-              const projection = projectExampleFailure({ context: {
-                session: socket!.identity.sessionId, revision: completed.artifact.revision,
-                sourceRevision: captured.sourceRevision, sourcePaths: [captured.compilerOperand],
-                servingBuild: failure.projection.occurrence.serving_build!,
-              }, report: completed.result.report, artifactSourceRevision: captured.sourceRevision,
-                runId: completed.runId, caseIndex: 0, entryIndex: 0 });
-              const rerunRef = reruns.recordFailure({ artifactRef: completed.artifact.artifactRef,
-                selector: completed.selector, runId: completed.runId, result: completed.result }).failureRef;
-              requireActive();
-              exampleFailures.set(projection.occurrence.ref, { projection, cursor: failureCursor++, rerunRef });
-              while (exampleFailures.size > 64) exampleFailures.delete(exampleFailures.keys().next().value!);
-              focus = projection.occurrence;
-            }
-          }
-          return { ...safeRerunResult(result), ...(focus === undefined ? {} : { focus }) };
+      const rerunSelectedExample = async (): Promise<unknown> => {
+        const ref = payload?.ref;
+        if (typeof ref !== "string" || !ref.startsWith(`${socket!.identity.sessionId}/`)) {
+          throw new SessionSocketError("INVALID_FAILURE_REF", "failure ref does not select this session");
         }
+        const failure = exampleFailures.get(ref);
+        if (failure?.rerunRef === undefined) {
+          throw new SessionSocketError("RERUN_UNAVAILABLE", "retained failure has no supported example row");
+        }
+        let completed: CompletedExampleRerunAttempt | undefined;
+        const result = await reruns.rerun(failure.rerunRef, signal, attempt => { completed = attempt; });
+        requireActive();
+        let focus: FailureProjection["occurrence"] | undefined;
+        if (result.ok && completed !== undefined) {
+          const captured = exampleCaptures.get(completed.fixtureRecipeId);
+          if (captured === undefined || captured.sourceRevision !== completed.artifact.sourceRevision ||
+              completed.artifact.revision !== failure.projection.occurrence.revision) {
+            throw new SessionSocketError("CAPTURE_CHANGED", "validated rerun source capture is unavailable");
+          }
+          // Coordinator validated exactly one table/row and the actual source,
+          // artifact and runtime recipe. Never reconstruct a report from the
+          // shortened public result or release its private actor/mismatch data.
+          const row = completed.result.report.cases[0];
+          if (row?.kind === "table" && (row.rows[0]?.outcome === "failed" || row.rows[0]?.outcome === "setup-failed")) {
+            const projection = projectExampleFailure({ context: {
+              session: socket!.identity.sessionId, revision: completed.artifact.revision,
+              sourceRevision: captured.sourceRevision, sourcePaths: [captured.compilerOperand],
+              servingBuild: failure.projection.occurrence.serving_build!,
+            }, report: completed.result.report, artifactSourceRevision: captured.sourceRevision,
+              runId: completed.runId, caseIndex: 0, entryIndex: 0 });
+            const rerunRef = reruns.recordFailure({ artifactRef: completed.artifact.artifactRef,
+              selector: completed.selector, runId: completed.runId, result: completed.result }).failureRef;
+            requireActive();
+            exampleFailures.set(projection.occurrence.ref, { projection, cursor: failureCursor++, rerunRef });
+            while (exampleFailures.size > 64) exampleFailures.delete(exampleFailures.keys().next().value!);
+            focus = projection.occurrence;
+          }
+        }
+        return { ...safeRerunResult(result), ...(focus === undefined ? {} : { focus }) };
+      };
+      const runSelectedExample = async (): Promise<unknown> => {
         const expectedRevision = payload?.expectedRevision;
         if (typeof expectedRevision !== "string" || !/^r[1-9][0-9]*$/.test(expectedRevision)) {
           throw new SessionSocketError("REVISION_REQUIRED", "example run needs the expected revision");
@@ -1285,67 +1312,76 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           }
           requireActive();
         };
-        await requireCapturedRuntime();
-        const input = { ...recipe, testkit: await loadInstalledExampleTestkit(captured.root) };
-        await requireCapturedRuntime();
-        const artifactDigest = createHash("sha256").update(input.artifactBytes).digest("hex");
-        const runId = randomUUID();
-        const result = await runCompiledExamples({ ...input, runId, signal,
-          ...(typeof operation === "string" ? { selectedRow: { operation, rowIndex: rowIndex as number } } : {}) });
-        await core.refresh().catch(() => undefined);
-        // Do not retain evidence from a row that ran against changed producer
-        // bytes, even when the selected source itself still has the same hash.
-        await requireCapturedRuntime();
-        // Passing and unsupported runs have no row to rerun. They must not
-        // consume the bounded artifacts backing earlier failure references.
-        const rerunnable = result.report.cases.some(example => example.kind === "table" &&
-          example.rows.some(row => row.outcome === "failed" || row.outcome === "setup-failed"));
-        const artifact = rerunnable ? reruns.retainArtifact({ revision: expectedRevision,
-          fixtureRecipeId: captured.epochMaterial, runtimeProfileId: options.capture.profile, input }) : null;
-        if (artifact !== null) {
-          exampleCaptures.delete(captured.epochMaterial);
-          exampleCaptures.set(captured.epochMaterial, captured);
-          while (exampleCaptures.size > 8) exampleCaptures.delete(exampleCaptures.keys().next().value!);
-        }
-        const failures: FailureProjection["occurrence"][] = [];
-        for (const [caseIndex, example] of result.report.cases.entries()) {
-          const entries = example.kind === "table" ? example.rows : example.steps;
-          for (const [entryIndex, entry] of entries.entries()) {
-            if (entry.outcome === "passed") continue;
-            const projection = projectExampleFailure({ context: {
-              session: socket!.identity.sessionId, revision: expectedRevision, sourceRevision: captured.sourceRevision,
-              sourcePaths: [captured.compilerOperand], servingBuild: state.servingBuild!,
-            }, report: result.report, artifactSourceRevision: captured.sourceRevision, runId, caseIndex, entryIndex });
-            let rerunRef: string | undefined;
-            if (example.kind === "table" && artifact !== null && entry.outcome !== "unsupported") {
-              rerunRef = reruns.recordFailure({ artifactRef: artifact.artifactRef, runId, result,
-                selector: { operation: example.operation, rowIndex: example.rows[entryIndex]!.rowIndex } }).failureRef;
-            }
-            exampleFailures.set(projection.occurrence.ref, { projection, cursor: failureCursor++,
-              ...(rerunRef === undefined ? {} : { rerunRef }) });
-            failures.push(projection.occurrence);
-            while (exampleFailures.size > 64) exampleFailures.delete(exampleFailures.keys().next().value!);
+        const executeExampleRun = async (): Promise<unknown> => {
+          await requireCapturedRuntime();
+          const input = { ...recipe, testkit: await loadInstalledExampleTestkit(captured.root) };
+          await requireCapturedRuntime();
+          const artifactDigest = createHash("sha256").update(input.artifactBytes).digest("hex");
+          const runId = randomUUID();
+          const result = await runCompiledExamples({ ...input, runId, signal,
+            ...(typeof operation === "string" ? { selectedRow: { operation, rowIndex: rowIndex as number } } : {}) });
+          await core.refresh().catch(() => undefined);
+          // Do not retain evidence from a row that ran against changed producer
+          // bytes, even when the selected source itself still has the same hash.
+          await requireCapturedRuntime();
+          // Passing and unsupported runs have no row to rerun. They must not
+          // consume the bounded artifacts backing earlier failure references.
+          const rerunnable = result.report.cases.some(example => example.kind === "table" &&
+            example.rows.some(row => row.outcome === "failed" || row.outcome === "setup-failed"));
+          const artifact = rerunnable ? reruns.retainArtifact({ revision: expectedRevision,
+            fixtureRecipeId: captured.epochMaterial, runtimeProfileId: options.capture.profile, input }) : null;
+          if (artifact !== null) {
+            exampleCaptures.delete(captured.epochMaterial);
+            exampleCaptures.set(captured.epochMaterial, captured);
+            while (exampleCaptures.size > 8) exampleCaptures.delete(exampleCaptures.keys().next().value!);
           }
-        }
-        return { schema: "can.dev.example-run.v1", session: socket!.identity.sessionId, revision: expectedRevision,
-          source_revision: captured.sourceRevision, serving_build: state.servingBuild, artifact_digest: artifactDigest,
-          run_id: runId, current: core.status().revision === expectedRevision && !core.status().dirty,
-          ok: result.ok, executed: result.executed, summary: result.report.summary,
-          focus: failures[Math.max(0, failures.length - 64)] ?? null,
-          failures_retained: Math.min(failures.length, 64), failures_omitted: Math.max(0, failures.length - 64),
-          replay: { available: false, reason: "no_restore_capsule" } };
+          const failures: FailureProjection["occurrence"][] = [];
+          for (const [caseIndex, example] of result.report.cases.entries()) {
+            const entries = example.kind === "table" ? example.rows : example.steps;
+            for (const [entryIndex, entry] of entries.entries()) {
+              if (entry.outcome === "passed") continue;
+              const projection = projectExampleFailure({ context: {
+                session: socket!.identity.sessionId, revision: expectedRevision, sourceRevision: captured.sourceRevision,
+                sourcePaths: [captured.compilerOperand], servingBuild: state.servingBuild!,
+              }, report: result.report, artifactSourceRevision: captured.sourceRevision, runId, caseIndex, entryIndex });
+              let rerunRef: string | undefined;
+              if (example.kind === "table" && artifact !== null && entry.outcome !== "unsupported") {
+                rerunRef = reruns.recordFailure({ artifactRef: artifact.artifactRef, runId, result,
+                  selector: { operation: example.operation, rowIndex: example.rows[entryIndex]!.rowIndex } }).failureRef;
+              }
+              exampleFailures.set(projection.occurrence.ref, { projection, cursor: failureCursor++,
+                ...(rerunRef === undefined ? {} : { rerunRef }) });
+              failures.push(projection.occurrence);
+              while (exampleFailures.size > 64) exampleFailures.delete(exampleFailures.keys().next().value!);
+            }
+          }
+          return { schema: "can.dev.example-run.v1", session: socket!.identity.sessionId, revision: expectedRevision,
+            source_revision: captured.sourceRevision, serving_build: state.servingBuild, artifact_digest: artifactDigest,
+            run_id: runId, current: core.status().revision === expectedRevision && !core.status().dirty,
+            ok: result.ok, executed: result.executed, summary: result.report.summary,
+            focus: failures[Math.max(0, failures.length - 64)] ?? null,
+            failures_retained: Math.min(failures.length, 64), failures_omitted: Math.max(0, failures.length - 64),
+            replay: { available: false, reason: "no_restore_capsule" } };
+        };
+        return executeExampleRun();
+      };
+      const work = exampleQueue.then(async () => {
+        requireActive();
+        if (stopping !== null) throw new SessionSocketError("SESSION_STOPPED", "session is stopping");
+        if (command.command === "example.rerun") return rerunSelectedExample();
+        return runSelectedExample();
       }).catch(error => { requireActive(); throw error; });
       exampleQueue = work.then(() => undefined, () => undefined);
       return work;
-    }
-    if (command.command === "preview.status") {
+    };
+    const previewStatusResponse = async (): Promise<unknown> => {
       const state = status();
       return { schema: "can.dev.preview.v1", session: state.session, state: state.preview,
         serving_revision: state.serving_revision, serving_build: state.serving_build, stale: state.stale,
         failure_focus: [...exampleFailures.values()].reverse().find(value =>
           value.projection.occurrence.serving_build === state.serving_build)?.projection.occurrence ?? null };
-    }
-    if (command.command === "preview.open") {
+    };
+    const previewOpenResponse = async (): Promise<unknown> => {
       const build = core.status().servingBuild;
       const preview = build === null ? undefined : previews.get(build);
       if (preview?.issueOpenUrl === undefined) {
@@ -1354,14 +1390,38 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       return { schema: "can.dev.preview-open.v1", serving_build: build,
         url: preview.issueOpenUrl(),
         ...(preview.issueLocalActors === undefined ? {} : { actors: preview.issueLocalActors() }) };
-    }
-    if (command.command === "stop") {
+    };
+    const stopResponse = async (): Promise<unknown> => {
       beginStop();
       // Let the socket write its acknowledgement before closing active peers.
       setTimeout(() => { void stop().catch(() => undefined); }, 100).unref();
       return { schema: "can.dev.stop.v1", session: socket?.identity.sessionId, stopping: true };
-    }
-    throw new SessionSocketError("UNKNOWN_COMMAND", "control command is unsupported");
+    };
+    const commandHandlers: Record<string, () => Promise<unknown>> = {
+      help: helpResponse,
+      status: statusResponse,
+      observe: observeResponse,
+      "cleanup.retry": cleanupRetryResponse,
+      "check.request": checkRequestResponse,
+      "stop.confirm": stopConfirmResponse,
+      check: checkCommandResponse,
+      diagnostics: diagnosticsResponse,
+      "diagnostic.detail": diagnosticsResponse,
+      "construct.rank": constructRankResponse,
+      "rank.lookup": constructRankResponse,
+      "construct.help": constructHelpResponse,
+      "failure.lookup": failureLookupResponse,
+      "failure.detail": failureLookupResponse,
+      failures: failuresResponse,
+      "example.run": exampleResponse,
+      "example.rerun": exampleResponse,
+      "preview.status": previewStatusResponse,
+      "preview.open": previewOpenResponse,
+      stop: stopResponse,
+    };
+    const commandHandler = commandHandlers[command.command];
+    if (commandHandler === undefined) throw new SessionSocketError("UNKNOWN_COMMAND", "control command is unsupported");
+    return commandHandler();
   };
 
   try {

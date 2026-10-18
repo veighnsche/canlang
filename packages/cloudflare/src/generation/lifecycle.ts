@@ -1245,6 +1245,99 @@ export interface ResumeOptions {
  * conflict, fenced attempts refuse, and unrecorded sessions refuse;
  * the resumed run reuses the recorded recipe and snapshot.
  */
+async function runResumeTry(
+  adapter: ReturnType<typeof adapterFor>,
+  launch: AdapterLaunch,
+  timeoutMs: number,
+  signal: AbortSignal | undefined,
+  record: AttemptRecord,
+  attemptDir: string,
+  attempt: string,
+  tryNo: number,
+  emit: NonNullable<ResumeOptions["onEvent"]>,
+): Promise<TryOutcome> {
+  emit(tryNo === 1 ? "launched" : "retry", `resume ${JSON.stringify(attempt)} try ${String(tryNo)}`);
+  let pidWrite: Promise<void> | null = null;
+  const capture = await spawnBounded(
+    launch,
+    timeoutMs,
+    signal,
+    (pid) => {
+      record.pid = pid;
+      pidWrite = writeAttempt(attemptDir, record);
+    },
+  );
+  if (pidWrite !== null) await pidWrite;
+  if (capture.runnerSession !== null) record.runner_session = capture.runnerSession;
+  await writeAttempt(attemptDir, record);
+  const parsed = adapter.parseResult({
+    exitCode: capture.exitCode,
+    signal: capture.signal,
+    stdout: capture.stdout,
+    stderr: capture.stderr,
+    timedOut: capture.timedOut,
+    ...(capture.spawnError === undefined ? {} : { spawnError: capture.spawnError }),
+  });
+  return { capture, parsed };
+}
+
+async function settleResumeTries(
+  options: ResumeOptions,
+  attempt: string,
+  sessionId: string,
+  session: McpSession,
+  fence: number,
+  attemptDir: string,
+  now: () => number,
+  tries: TryOutcome[],
+): Promise<RequestOutcome> {
+  const aborted = options.signal?.aborted ?? false;
+  const last = tries[tries.length - 1];
+  if (aborted || (last !== undefined && last.capture.cancelled)) {
+    const fenced = await advanceFence(attemptDir, "cancel", now);
+    session.supersede("cancel");
+    return resumedOutcome(options, attempt, sessionId, fenced, tries, session.completion().complete, {
+      state: "cancelled",
+      exit: EXIT_RUNNER,
+      detail: "resumed run cancelled; the attempt fence advanced and late output cannot promote",
+      next: [`inspect the fenced attempt at ${attemptDir}`, "start explicit new work with a new request id"],
+    });
+  }
+  if (last === undefined) {
+    return resumedOutcome(options, attempt, sessionId, fence, tries, session.completion().complete, {
+      state: "failed",
+      exit: EXIT_RUNNER,
+      detail: "resumed run ended before any bounded try launched",
+      next: ["resend with a new request id"],
+    });
+  }
+  if (last.parsed.kind === "unknown") {
+    return resumedOutcome(options, attempt, sessionId, fence, tries, session.completion().complete, {
+      state: "unknown",
+      exit: EXIT_UNKNOWN,
+      detail: last.parsed.detail,
+      next: [
+        `recover by session ${sessionId} when the adapter supports it`,
+        "or start an explicit new attempt acknowledging possible duplicate work and cost",
+      ],
+    });
+  }
+  if (last.parsed.kind === "known-failure") {
+    return resumedOutcome(options, attempt, sessionId, fence, tries, session.completion().complete, {
+      state: "failed",
+      exit: EXIT_RUNNER,
+      detail: `resumed runner failed after ${String(tries.length)} bounded try/tries: ${last.parsed.detail}`,
+      next: [`inspect the attempt at ${attemptDir}`, "fix the failure and resend as an explicit new request"],
+    });
+  }
+  return resumedOutcome(options, attempt, sessionId, fence, tries, session.completion().complete, {
+    state: "candidate",
+    exit: 0,
+    detail: `resumed runner exited 0 after ${String(tries.length)} bounded try/tries; submissions report completion separately`,
+    next: [`inspect candidates under ${attemptDir}`, "validate before any acceptance"],
+  });
+}
+
 export async function resumeSession(options: ResumeOptions): Promise<RequestOutcome> {
   if (options.request_id.length === 0) {
     throw new LifecycleError(EXIT_INVALID, "invalid-request", "resume needs a request id");
@@ -1357,79 +1450,15 @@ export async function resumeSession(options: ResumeOptions): Promise<RequestOutc
       const tries: TryOutcome[] = [];
       for (let tryNo = 1; tryNo <= recorded.recipe.max_attempts; tryNo += 1) {
         if (options.signal?.aborted ?? false) break;
-        emit(tryNo === 1 ? "launched" : "retry", `resume ${JSON.stringify(attempt)} try ${String(tryNo)}`);
-        let pidWrite: Promise<void> | null = null;
-        const capture = await spawnBounded(
-          launch,
-          recorded.recipe.timeout_seconds * 1000,
-          options.signal,
-          (pid) => {
-            record.pid = pid;
-            pidWrite = writeAttempt(options.attemptDir, record);
-          },
-        );
-        if (pidWrite !== null) await pidWrite;
-        if (capture.runnerSession !== null) record.runner_session = capture.runnerSession;
-        await writeAttempt(options.attemptDir, record);
-        const parsed = adapter.parseResult({
-          exitCode: capture.exitCode,
-          signal: capture.signal,
-          stdout: capture.stdout,
-          stderr: capture.stderr,
-          timedOut: capture.timedOut,
-          ...(capture.spawnError === undefined ? {} : { spawnError: capture.spawnError }),
-        });
-        tries.push({ capture, parsed });
-        if (capture.cancelled || (options.signal?.aborted ?? false)) break;
-        if (parsed.kind === "ok") break;
-        if (parsed.kind === "unknown") break;
-        if (!parsed.retryable) break;
+        const outcome = await runResumeTry(adapter, launch, recorded.recipe.timeout_seconds * 1000,
+          options.signal, record, options.attemptDir, attempt, tryNo, emit);
+        tries.push(outcome);
+        if (outcome.capture.cancelled || (options.signal?.aborted ?? false)) break;
+        if (outcome.parsed.kind === "ok") break;
+        if (outcome.parsed.kind === "unknown") break;
+        if (!outcome.parsed.retryable) break;
       }
-      const aborted = options.signal?.aborted ?? false;
-      const last = tries[tries.length - 1];
-      if (aborted || (last !== undefined && last.capture.cancelled)) {
-        const fenced = await advanceFence(options.attemptDir, "cancel", now);
-        session.supersede("cancel");
-        return resumedOutcome(options, attempt, sessionId, fenced, tries, session.completion().complete, {
-          state: "cancelled",
-          exit: EXIT_RUNNER,
-          detail: "resumed run cancelled; the attempt fence advanced and late output cannot promote",
-          next: [`inspect the fenced attempt at ${options.attemptDir}`, "start explicit new work with a new request id"],
-        });
-      }
-      if (last === undefined) {
-        return resumedOutcome(options, attempt, sessionId, fence, tries, session.completion().complete, {
-          state: "failed",
-          exit: EXIT_RUNNER,
-          detail: "resumed run ended before any bounded try launched",
-          next: ["resend with a new request id"],
-        });
-      }
-      if (last.parsed.kind === "unknown") {
-        return resumedOutcome(options, attempt, sessionId, fence, tries, session.completion().complete, {
-          state: "unknown",
-          exit: EXIT_UNKNOWN,
-          detail: last.parsed.detail,
-          next: [
-            `recover by session ${sessionId} when the adapter supports it`,
-            "or start an explicit new attempt acknowledging possible duplicate work and cost",
-          ],
-        });
-      }
-      if (last.parsed.kind === "known-failure") {
-        return resumedOutcome(options, attempt, sessionId, fence, tries, session.completion().complete, {
-          state: "failed",
-          exit: EXIT_RUNNER,
-          detail: `resumed runner failed after ${String(tries.length)} bounded try/tries: ${last.parsed.detail}`,
-          next: [`inspect the attempt at ${options.attemptDir}`, "fix the failure and resend as an explicit new request"],
-        });
-      }
-      return resumedOutcome(options, attempt, sessionId, fence, tries, session.completion().complete, {
-        state: "candidate",
-        exit: 0,
-        detail: `resumed runner exited 0 after ${String(tries.length)} bounded try/tries; submissions report completion separately`,
-        next: [`inspect candidates under ${options.attemptDir}`, "validate before any acceptance"],
-      });
+      return settleResumeTries(options, attempt, sessionId, session, fence, options.attemptDir, now, tries);
     });
   } finally {
     for (const file of launch.cleanupFiles) {

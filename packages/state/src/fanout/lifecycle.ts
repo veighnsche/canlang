@@ -68,73 +68,117 @@ export interface ClassifyFanoutChildInput {
  * so this read produces `missing-record`/`infra-read-failure` unknowns
  * only; `inaccessible-record` comes from `refusedFanoutLifecycle`.
  */
-export async function classifyFanoutChildLifecycle(
-  input: ClassifyFanoutChildInput,
-): Promise<FanoutChildLifecycle> {
+interface ResolvedClassifyInput {
+  readonly model: string;
+  readonly recordId: string;
+  readonly anchor: ClassifyFanoutChildInput['anchor'];
+  readonly selected: boolean;
+  readonly expectedRevision: Revision | undefined;
+}
+
+function resolveClassifyInput(input: ClassifyFanoutChildInput): ResolvedClassifyInput {
   if (typeof input.model !== 'string' || input.model === '') {
     throw new StateError('validation', 'Fanout lifecycle needs a non-empty model.');
   }
   if (typeof input.recordId !== 'string' || input.recordId === '') {
     throw new StateError('validation', 'Fanout lifecycle needs a non-empty record id.');
   }
+  // HEAD reads the revision getter once; model/anchor reads reuse the
+  // capture so a changing getter cannot split the load path decision.
   const expectedRevision = input.expectedRevision;
   const selected = expectedRevision !== undefined;
-  const model = selected ? checkPrivateFanoutIdentity(input.model) : input.model;
-  const recordId = selected ? checkPrivateFanoutIdentity(input.recordId) : input.recordId;
-  const anchor = selected && input.anchor !== undefined ? {
-    model: checkPrivateFanoutIdentity(input.anchor.model),
-    id: checkPrivateFanoutIdentity(input.anchor.id),
-  } : input.anchor;
-  const store = input.store;
-  const readFailure = (error: unknown): FanoutChildLifecycle => {
-    if (selected && (error instanceof StateError || error instanceof FenceConflictError)) throw error;
-    return { status: 'unknown', reason: 'infra-read-failure' };
+  if (!selected) {
+    return { model: input.model, recordId: input.recordId, anchor: input.anchor, selected, expectedRevision };
+  }
+  return {
+    model: checkPrivateFanoutIdentity(input.model),
+    recordId: checkPrivateFanoutIdentity(input.recordId),
+    anchor: input.anchor !== undefined ? {
+      model: checkPrivateFanoutIdentity(input.anchor.model),
+      id: checkPrivateFanoutIdentity(input.anchor.id),
+    } : input.anchor,
+    selected,
+    expectedRevision,
   };
+}
+
+function toReadFailure(selected: boolean, error: unknown): FanoutChildLifecycle {
+  if (selected && (error instanceof StateError || error instanceof FenceConflictError)) throw error;
+  return { status: 'unknown', reason: 'infra-read-failure' };
+}
+
+async function loadClassifiedRow(
+  store: StoragePort,
+  model: string,
+  recordId: string,
+  expectedRevision: Revision | undefined,
+): Promise<Awaited<ReturnType<StoragePort['load']>>> {
+  return expectedRevision === undefined
+    ? store.load(model as ModelName, recordId as RecordId)
+    : store.cohortLoad({ model: model as ModelName, id: recordId as RecordId, expectedRevision });
+}
+
+async function classifyNullRow(
+  store: StoragePort,
+  model: string,
+  recordId: string,
+  expectedRevision: Revision | undefined,
+  selected: boolean,
+): Promise<FanoutChildLifecycle> {
+  if (expectedRevision !== undefined) {
+    try {
+      const fact = await store.cohortAnchorFact({ model: model as ModelName,
+        id: recordId as RecordId, expectedRevision });
+      if (fact === 'disposed') return { status: 'deleted' };
+      if (fact === 'unknown') return { status: 'unknown', reason: 'missing-record' };
+      throw new StateError('validation', 'Fanout lifecycle row and existence fact disagree.');
+    } catch (error) {
+      return toReadFailure(selected, error);
+    }
+  }
+  let history: Awaited<ReturnType<StoragePort['historyFor']>>;
+  try {
+    history = await store.historyFor(model as ModelName, recordId as RecordId);
+  } catch {
+    return { status: 'unknown', reason: 'infra-read-failure' };
+  }
+  for (const entry of history) {
+    if (entry.change === 'remove' || entry.change === 'archive') {
+      return { status: 'deleted' };
+    }
+  }
+  return { status: 'unknown', reason: 'missing-record' };
+}
+
+function anchorDeparted(
+  row: NonNullable<Awaited<ReturnType<StoragePort['load']>>>,
+  anchor: NonNullable<ClassifyFanoutChildInput['anchor']>,
+): boolean {
+  const parent = row.parent ?? null;
+  return parent === null ||
+    (parent.model as string) !== anchor.model ||
+    (parent.id as string) !== anchor.id;
+}
+
+export async function classifyFanoutChildLifecycle(
+  input: ClassifyFanoutChildInput,
+): Promise<FanoutChildLifecycle> {
+  const { model, recordId, anchor, selected, expectedRevision } = resolveClassifyInput(input);
+  const store = input.store;
   let row: Awaited<ReturnType<StoragePort['load']>>;
   try {
-    row = expectedRevision === undefined
-      ? await store.load(model as ModelName, recordId as RecordId)
-      : await store.cohortLoad({ model: model as ModelName, id: recordId as RecordId, expectedRevision });
+    row = await loadClassifiedRow(store, model, recordId, expectedRevision);
   } catch (error) {
-    return readFailure(error);
+    return toReadFailure(selected, error);
   }
   if (row === null) {
-    if (expectedRevision !== undefined) {
-      try {
-        const fact = await store.cohortAnchorFact({ model: model as ModelName,
-          id: recordId as RecordId, expectedRevision });
-        if (fact === 'disposed') return { status: 'deleted' };
-        if (fact === 'unknown') return { status: 'unknown', reason: 'missing-record' };
-        throw new StateError('validation', 'Fanout lifecycle row and existence fact disagree.');
-      } catch (error) {
-        return readFailure(error);
-      }
-    }
-    let history: Awaited<ReturnType<StoragePort['historyFor']>>;
-    try {
-      history = await store.historyFor(model as ModelName, recordId as RecordId);
-    } catch {
-      return { status: 'unknown', reason: 'infra-read-failure' };
-    }
-    for (const entry of history) {
-      if (entry.change === 'remove' || entry.change === 'archive') {
-        return { status: 'deleted' };
-      }
-    }
-    return { status: 'unknown', reason: 'missing-record' };
+    return classifyNullRow(store, model, recordId, expectedRevision, selected);
   }
   if (row.archivedAt !== null) {
     return { status: 'deleted' };
   }
-  if (anchor !== undefined) {
-    const parent = row.parent ?? null;
-    if (
-      parent === null ||
-      (parent.model as string) !== anchor.model ||
-      (parent.id as string) !== anchor.id
-    ) {
-      return { status: 'moved' };
-    }
+  if (anchor !== undefined && anchorDeparted(row, anchor)) {
+    return { status: 'moved' };
   }
   return { status: 'present' };
 }

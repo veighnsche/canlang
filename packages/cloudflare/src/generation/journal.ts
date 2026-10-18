@@ -348,17 +348,7 @@ function orderScope(scope: readonly string[]): string[] {
  * files; the caller holds the capture/accept write leases. Patch is the
  * default; replace removes all old owned files omitted from replacements.
  */
-export async function stageJournal(
-  root: string,
-  runId: string,
-  scope: readonly string[],
-  replacements: readonly Replacement[],
-  mode: "patch" | "replace" = "patch",
-): Promise<RunJournal> {
-  validateLeaseId("run id", runId);
-  if (mode !== "patch" && mode !== "replace") throw new JournalError("io", "invalid replacement mode");
-  const orderedScope = orderScope(scope);
-  const dir = runDir(root, runId);
+async function claimRunDir(root: string, runId: string, dir: string): Promise<void> {
   await mkdir(join(root, RUNS_DIR), { recursive: true });
   try {
     await mkdir(dir);
@@ -376,6 +366,9 @@ export async function stageJournal(
     }
     throw error;
   }
+}
+
+async function snapshotScopeUnits(root: string, dir: string, orderedScope: readonly string[]): Promise<void> {
   for (const unit of orderedScope) {
     const group = groupDir(root, unit);
     const oldUnit = join(dir, OLD_DIR, unit);
@@ -385,16 +378,30 @@ export async function stageJournal(
       await mkdir(oldUnit, { recursive: true });
     }
   }
+}
+
+async function expandReplaceDeletions(
+  dir: string,
+  orderedScope: readonly string[],
+  replacements: readonly Replacement[],
+): Promise<Replacement[]> {
   // Only complete replacement treats omitted owned files as deletions.
   const changes = [...replacements];
-  if (mode === "replace") {
-    for (const unit of orderedScope) {
-      const supplied = new Set(replacements.filter((r) => r.unit === unit).map((r) => r.path));
-      for (const path of await listFilesRel(join(dir, OLD_DIR, unit))) {
-        if (!supplied.has(path)) changes.push({ unit, path, bytes: null });
-      }
+  for (const unit of orderedScope) {
+    const supplied = new Set(replacements.filter((r) => r.unit === unit).map((r) => r.path));
+    for (const path of await listFilesRel(join(dir, OLD_DIR, unit))) {
+      if (!supplied.has(path)) changes.push({ unit, path, bytes: null });
     }
   }
+  return changes;
+}
+
+async function stageReplacements(
+  root: string,
+  dir: string,
+  orderedScope: readonly string[],
+  changes: readonly Replacement[],
+): Promise<JournalEntry[]> {
   const entries: JournalEntry[] = [];
   const seen = new Set<string>();
   for (const replacement of changes) {
@@ -431,6 +438,33 @@ export async function stageJournal(
   entries.sort((a, b) =>
     a.unit < b.unit ? -1 : a.unit > b.unit ? 1 : a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
   );
+  return entries;
+}
+
+/**
+ * Stage one full-run journal: copy every scope unit's complete current
+ * group into `old/`, write every replacement into `new/`, then atomically
+ * write `journal.json` with state `staged`. Staging never touches current
+ * files; the caller holds the capture/accept write leases. Patch is the
+ * default; replace removes all old owned files omitted from replacements.
+ */
+export async function stageJournal(
+  root: string,
+  runId: string,
+  scope: readonly string[],
+  replacements: readonly Replacement[],
+  mode: "patch" | "replace" = "patch",
+): Promise<RunJournal> {
+  validateLeaseId("run id", runId);
+  if (mode !== "patch" && mode !== "replace") throw new JournalError("io", "invalid replacement mode");
+  const orderedScope = orderScope(scope);
+  const dir = runDir(root, runId);
+  await claimRunDir(root, runId, dir);
+  await snapshotScopeUnits(root, dir, orderedScope);
+  const changes = mode === "replace"
+    ? await expandReplaceDeletions(dir, orderedScope, replacements)
+    : [...replacements];
+  const entries = await stageReplacements(root, dir, orderedScope, changes);
   const journal: RunJournal = {
     version: JOURNAL_VERSION,
     run_id: runId,

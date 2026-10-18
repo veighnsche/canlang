@@ -136,6 +136,13 @@ export interface CheckedTextRunResult {
 }
 
 /** Exact own data fields and the existing Values scalar codec; never invokes payload accessors. */
+function decodeTextRunLeaf(leaf: { readonly name: string; readonly type: string }, value: unknown): { readonly scalar: unknown } | null {
+  if (value !== null && typeof value !== 'string') return null;
+  const scalar = decodeValue(leaf.type, value);
+  if ((leaf.type === 'int' || leaf.type === 'int?') && encodeValue(leaf.type, scalar) !== value) return null;
+  return { scalar };
+}
+
 export function readTextRunResult(result: unknown, declaration: CanonicalNominalResult | undefined): CheckedTextRunResult | null {
   if (!isCanonicalTextRunDeclaration(declaration) || typeof result !== 'object' || result === null ||
       Array.isArray(result) || (Object.getPrototypeOf(result) !== Object.prototype && Object.getPrototypeOf(result) !== null)) return null;
@@ -148,10 +155,9 @@ export function readTextRunResult(result: unknown, declaration: CanonicalNominal
       const property = Object.getOwnPropertyDescriptor(result, leaf.name);
       if (property === undefined || !Object.hasOwn(property, 'value') || !property.enumerable) return null;
       const value: unknown = property.value;
-      if (value !== null && typeof value !== 'string') return null;
-      const scalar = decodeValue(leaf.type, value);
-      if ((leaf.type === 'int' || leaf.type === 'int?') && encodeValue(leaf.type, scalar) !== value) return null;
-      decoded.set(leaf.name, scalar);
+      const decodedLeaf = decodeTextRunLeaf(leaf, value);
+      if (decodedLeaf === null) return null;
+      decoded.set(leaf.name, decodedLeaf.scalar);
       fields[leaf.name as TextRunResultLeaf] = value as string | null;
     }
   } catch { return null; }
@@ -180,35 +186,63 @@ export function isTextRunReceiptPayload(status: unknown, result: unknown, error:
   return status === 'succeeded' && failure === null;
 }
 
-/** Detach own data before schema/codec reads; accessors and inherited/extended arrays have no authority. */
-function snapshotJudgmentData(value: unknown, native = false, ancestors = new Set<object>(), depth = 0, path: readonly string[] = []): unknown {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean' ||
-      (typeof value === 'bigint' && native)) return value;
+function checkJudgmentBound(value: number, native: boolean, path: readonly string[]): boolean {
   // Descriptor length bounds are JSON integers; runtime value scalars remain exact wire text/native bigint.
-  if (native && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 &&
-      (path.at(-1) === 'min' || path.at(-1) === 'max') &&
-      (path[0] === 'valueTypes' || path[0] === 'declaredResult' ||
-        (path[0] === 'judgment' && path[1] === 'valueTypes') || (path[0] === 'delivery' && path[1] === 'result'))) return value;
-  if (typeof value !== 'object' || depth > 64 || ancestors.has(value)) throw new Error('invalid judgment data');
+  return native && Number.isSafeInteger(value) && value >= 0 &&
+    (path.at(-1) === 'min' || path.at(-1) === 'max') &&
+    (path[0] === 'valueTypes' || path[0] === 'declaredResult' ||
+      (path[0] === 'judgment' && path[1] === 'valueTypes') || (path[0] === 'delivery' && path[1] === 'result'));
+}
+
+function snapshotJudgmentEntry(
+  value: object,
+  key: string | symbol,
+  array: boolean,
+  length: number,
+  out: Record<string, unknown> | unknown[],
+  native: boolean,
+  ancestors: Set<object>,
+  depth: number,
+  path: readonly string[],
+): void {
+  if (array && key === 'length') return;
+  if (typeof key !== 'string' || (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= length))) {
+    throw new Error('invalid judgment key');
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
+    throw new Error('invalid judgment accessor');
+  }
+  (out as Record<string, unknown>)[key] = snapshotJudgmentData(descriptor.value, native, ancestors, depth + 1, [...path, key]);
+}
+
+function openJudgmentComposite(
+  value: object,
+  depth: number,
+  ancestors: Set<object>,
+): { readonly array: boolean; readonly keys: readonly (string | symbol)[] } {
+  if (depth > 64 || ancestors.has(value)) throw new Error('invalid judgment data');
   const array = Array.isArray(value);
   const prototype = Object.getPrototypeOf(value);
   if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
     throw new Error('invalid judgment prototype');
   }
   const keys = Reflect.ownKeys(value);
+  if (array && keys.length !== (value as unknown[]).length + 1) throw new Error('invalid judgment array');
+  return { array, keys };
+}
+
+/** Detach own data before schema/codec reads; accessors and inherited/extended arrays have no authority. */
+function snapshotJudgmentData(value: unknown, native = false, ancestors = new Set<object>(), depth = 0, path: readonly string[] = []): unknown {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean' ||
+      (typeof value === 'bigint' && native)) return value;
+  if (typeof value === 'number' && checkJudgmentBound(value, native, path)) return value;
+  if (typeof value !== 'object') throw new Error('invalid judgment data');
+  const { array, keys } = openJudgmentComposite(value, depth, ancestors);
   const out: Record<string, unknown> | unknown[] = array ? [] : Object.create(null) as Record<string, unknown>;
-  if (array && keys.length !== value.length + 1) throw new Error('invalid judgment array');
   ancestors.add(value);
   for (const key of keys) {
-    if (array && key === 'length') continue;
-    if (typeof key !== 'string' || (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= value.length))) {
-      throw new Error('invalid judgment key');
-    }
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
-      throw new Error('invalid judgment accessor');
-    }
-    (out as Record<string, unknown>)[key] = snapshotJudgmentData(descriptor.value, native, ancestors, depth + 1, [...path, key]);
+    snapshotJudgmentEntry(value, key, array, array ? (value as unknown[]).length : 0, out, native, ancestors, depth, path);
   }
   ancestors.delete(value);
   return Object.freeze(out);
@@ -219,24 +253,156 @@ function exactJudgmentKeys(value: object, keys: readonly string[]): boolean {
   return actual.length === keys.length && keys.every(key => Object.hasOwn(value, key));
 }
 
+interface JudgmentSpecCheck {
+  readonly spec: JudgmentSpec;
+  readonly inventory: CanonicalValueTypes;
+}
+
+function checkJudgmentDeclaration(detached: ReceiptResultContext, spec: JudgmentSpec): boolean {
+  return exactJudgmentKeys(spec, ['declaration', 'version', 'revision', 'language', 'noul', 'choice', 'score']) &&
+    typeof spec.declaration === 'string' && /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(spec.declaration) &&
+    typeof spec.version === 'bigint' && spec.version >= 0n && spec.version <= 9223372036854775807n &&
+    typeof spec.revision === 'string' && /^sha256:[0-9a-f]{64}$/.test(spec.revision) &&
+    typeof spec.language === 'string' && decodeValue('locale', spec.language) === spec.language &&
+    detached.source === `${spec.declaration}.evaluate` && detached.declaredResult?.name === spec.declaration &&
+    Array.isArray(spec.noul) && Array.isArray(spec.choice) && Array.isArray(spec.score);
+}
+
+function checkJudgmentInventory(inventory: CanonicalValueTypes): boolean {
+  return Array.isArray(inventory.contracts) && (inventory.enums === undefined || Array.isArray(inventory.enums)) &&
+    (inventory.aliases === undefined || Array.isArray(inventory.aliases)) &&
+    exactJudgmentKeys(inventory, ['contracts', ...(Object.hasOwn(inventory, 'enums') ? ['enums'] : []),
+      ...(Object.hasOwn(inventory, 'aliases') ? ['aliases'] : [])]);
+}
+
+function checkJudgmentSpecShape(detached: ReceiptResultContext): JudgmentSpecCheck | null {
+  const spec = detached.judgment?.specification;
+  const inventory = detached.judgment?.valueTypes;
+  if (!spec || !inventory || !exactJudgmentKeys(detached.judgment!, ['specification', 'valueTypes']) ||
+      !checkJudgmentDeclaration(detached, spec) || !checkJudgmentInventory(inventory)) return null;
+  return { spec, inventory };
+}
+
+interface JudgmentQuestionCheck {
+  readonly spec: JudgmentSpec;
+  readonly fields: ReadonlyMap<string, string>;
+  readonly fieldType: (name: string, field: string) => string | undefined;
+  readonly sameFields: (type: string | undefined, expected: Readonly<Record<string, string>>) => boolean;
+  readonly enumMatches: (type: string, ids: readonly string[], runtimeName?: string) => boolean;
+  readonly aliases: ReadonlyMap<string, unknown>;
+  readonly runtimeChoices: JudgmentSpec['choice'][number][];
+  readonly questions: Set<string>;
+}
+
+function checkQuestionIdentity(
+  questions: Set<string>,
+  fields: ReadonlyMap<string, string>,
+  kind: 'noul' | 'choice' | 'score',
+  question: JudgmentSpec['noul'][number] | JudgmentSpec['choice'][number] | JudgmentSpec['score'][number],
+): { readonly type: string | undefined } | null {
+  if (!exactJudgmentKeys(question, kind === 'noul' ? ['id', 'instructions', 'yes', 'no'] :
+      kind === 'choice' ? ['id', 'instructions', 'options'] : ['id', 'instructions', 'levels']) ||
+      typeof question.id !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(question.id) ||
+      questions.has(question.id) || ['specification_revision', 'model', 'input_tokens', 'output_tokens'].includes(question.id) ||
+      typeof question.instructions !== 'string' || question.instructions === '') return null;
+  questions.add(question.id);
+  return { type: fields.get(question.id) };
+}
+
+function checkNoulQuestion(
+  question: JudgmentSpec['noul'][number],
+  type: string | undefined,
+  sameFields: (type: string | undefined, expected: Readonly<Record<string, string>>) => boolean,
+): boolean {
+  return !((question.yes === null) !== (question.no === null) || (question.yes !== null &&
+      (typeof question.yes !== 'string' || question.yes === '' || typeof question.no !== 'string' || question.no === '')) ||
+      !sameFields(type, { probability: 'decimal' }));
+}
+
+function checkOptionEntries(
+  kind: 'choice' | 'score',
+  entries: unknown,
+  type: string | undefined,
+): entries is { readonly id: string; readonly description: string }[] {
+  if (!Array.isArray(entries) || entries.length < 2 || entries.length > (kind === 'choice' ? 26 : 10) ||
+      !entries.every(entry => exactJudgmentKeys(entry, ['id', 'description']) && typeof entry.id === 'string' &&
+        /^[A-Za-z_][A-Za-z0-9_]*$/.test(entry.id) && typeof entry.description === 'string' && entry.description !== '') ||
+      new Set(entries.map(entry => (entry as { id: string }).id)).size !== entries.length || !type) {
+    return false;
+  }
+  return true;
+}
+
+function resolveOptionIdentity(
+  fieldType: (name: string, field: string) => string | undefined,
+  kind: 'choice' | 'score',
+  type: string,
+): { readonly distribution: string; readonly identity: string; readonly element: string } | null {
+  const parsed = parseTypeId(type);
+  if (parsed.array || parsed.nullable || parsed.base.kind !== 'nominal') return null;
+  const distribution = fieldType(parsed.base.path, kind === 'choice' ? 'probabilities' : 'levels');
+  if (!distribution) return null;
+  const array = parseTypeId(distribution);
+  if (!array.array || array.nullable || array.base.kind !== 'nominal') return null;
+  const identity = fieldType(array.base.path, kind === 'choice' ? 'option' : 'level');
+  if (!identity) return null;
+  return { distribution, identity, element: array.base.path };
+}
+
+function checkOptionQuestion(
+  check: JudgmentQuestionCheck,
+  kind: 'choice' | 'score',
+  question: JudgmentSpec['choice'][number] | JudgmentSpec['score'][number],
+  type: string | undefined,
+): boolean {
+  const { spec, fieldType, sameFields, enumMatches, runtimeChoices } = check;
+  const entries = kind === 'choice' ? (question as JudgmentSpec['choice'][number]).options :
+    (question as JudgmentSpec['score'][number]).levels;
+  if (!checkOptionEntries(kind, entries, type)) return false;
+  const resolved = resolveOptionIdentity(fieldType, kind, type!);
+  if (resolved === null) return false;
+  const { distribution, identity, element } = resolved;
+  if (!enumMatches(identity, entries.map(entry => entry.id), kind === 'choice' ? `${spec.declaration}.${question.id}.choice` : undefined) ||
+      !sameFields(element, kind === 'choice' ? { option: identity, probability: 'decimal' } :
+        { level: identity, index: 'int', description: 'text', probability: 'decimal' }) ||
+      !sameFields(type, kind === 'choice' ? { choice: identity, probabilities: distribution, confidence: 'decimal' } :
+        { score: 'decimal', levels: distribution, confidence: 'decimal' })) return false;
+  if (kind === 'choice' && check.aliases.has(identity)) {
+    runtimeChoices.push(question as JudgmentSpec['choice'][number]);
+  }
+  return true;
+}
+
+function checkJudgmentQuestion(
+  check: JudgmentQuestionCheck,
+  kind: 'noul' | 'choice' | 'score',
+  question: JudgmentSpec['noul'][number] | JudgmentSpec['choice'][number] | JudgmentSpec['score'][number],
+): boolean {
+  const identity = checkQuestionIdentity(check.questions, check.fields, kind, question);
+  if (identity === null) return false;
+  if (kind === 'noul') {
+    return checkNoulQuestion(question as JudgmentSpec['noul'][number], identity.type, check.sameFields);
+  }
+  return checkOptionQuestion(check, kind, question as JudgmentSpec['choice'][number] | JudgmentSpec['score'][number],
+    identity.type);
+}
+
+function checkJudgmentQuestions(check: JudgmentQuestionCheck): boolean {
+  for (const [kind, entries] of [['noul', check.spec.noul], ['choice', check.spec.choice], ['score', check.spec.score]] as const) {
+    for (const question of entries) {
+      if (!checkJudgmentQuestion(check, kind, question)) return false;
+    }
+  }
+  return true;
+}
+
 function checkedJudgmentContext(context: ReceiptResultContext | undefined) {
   try {
     if (context === undefined) return null;
     const detached = snapshotJudgmentData(context, true) as ReceiptResultContext;
-    const spec = detached.judgment?.specification;
-    const inventory = detached.judgment?.valueTypes;
-    if (!spec || !inventory || !exactJudgmentKeys(detached.judgment!, ['specification', 'valueTypes']) ||
-        !exactJudgmentKeys(spec, ['declaration', 'version', 'revision', 'language', 'noul', 'choice', 'score']) ||
-        typeof spec.declaration !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(spec.declaration) ||
-        typeof spec.version !== 'bigint' || spec.version < 0n || spec.version > 9223372036854775807n ||
-        typeof spec.revision !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(spec.revision) ||
-        typeof spec.language !== 'string' || decodeValue('locale', spec.language) !== spec.language ||
-        detached.source !== `${spec.declaration}.evaluate` || detached.declaredResult?.name !== spec.declaration ||
-        !Array.isArray(spec.noul) || !Array.isArray(spec.choice) || !Array.isArray(spec.score) ||
-        !Array.isArray(inventory.contracts) || (inventory.enums !== undefined && !Array.isArray(inventory.enums)) ||
-        (inventory.aliases !== undefined && !Array.isArray(inventory.aliases)) ||
-        !exactJudgmentKeys(inventory, ['contracts', ...(Object.hasOwn(inventory, 'enums') ? ['enums'] : []),
-          ...(Object.hasOwn(inventory, 'aliases') ? ['aliases'] : [])])) return null;
+    const specCheck = checkJudgmentSpecShape(detached);
+    if (specCheck === null) return null;
+    const { spec, inventory } = specCheck;
     const normalized = normalizeValueTypes(inventory);
     const contracts = new Map(normalized.valueTypes.contracts.map(declaration => [declaration.name, declaration]));
     const enums = new Map((normalized.valueTypes.enums ?? []).map(declaration => [declaration.name, declaration.cases]));
@@ -272,42 +438,9 @@ function checkedJudgmentContext(context: ReceiptResultContext | undefined) {
         alias.type === 'text' && alias.min === 1 && alias.max === 80 && alias.format === 'name' &&
         ids.every(id => id.length >= 1 && id.length <= 80 && /^[A-Za-z_][A-Za-z0-9_]*$/.test(id));
     };
-    for (const [kind, entries] of [['noul', spec.noul], ['choice', spec.choice], ['score', spec.score]] as const) {
-      for (const question of entries) {
-        if (!exactJudgmentKeys(question, kind === 'noul' ? ['id', 'instructions', 'yes', 'no'] :
-            kind === 'choice' ? ['id', 'instructions', 'options'] : ['id', 'instructions', 'levels']) ||
-            typeof question.id !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(question.id) ||
-            questions.has(question.id) || ['specification_revision', 'model', 'input_tokens', 'output_tokens'].includes(question.id) ||
-            typeof question.instructions !== 'string' || question.instructions === '') return null;
-        questions.add(question.id);
-        const type = fields.get(question.id);
-        if (kind === 'noul') {
-          const q = question as JudgmentSpec['noul'][number];
-          if ((q.yes === null) !== (q.no === null) || (q.yes !== null &&
-              (typeof q.yes !== 'string' || q.yes === '' || typeof q.no !== 'string' || q.no === '')) ||
-              !sameFields(type, { probability: 'decimal' })) return null;
-          continue;
-        }
-        const entries = kind === 'choice' ? (question as JudgmentSpec['choice'][number]).options :
-          (question as JudgmentSpec['score'][number]).levels;
-        if (!Array.isArray(entries) || entries.length < 2 || entries.length > (kind === 'choice' ? 26 : 10) ||
-            entries.some(entry => !exactJudgmentKeys(entry, ['id', 'description']) || typeof entry.id !== 'string' ||
-              !/^[A-Za-z_][A-Za-z0-9_]*$/.test(entry.id) || typeof entry.description !== 'string' || entry.description === '') ||
-            new Set(entries.map(entry => entry.id)).size !== entries.length || !type) return null;
-        const parsed = parseTypeId(type);
-        if (parsed.array || parsed.nullable || parsed.base.kind !== 'nominal') return null;
-        const distribution = fieldType(parsed.base.path, kind === 'choice' ? 'probabilities' : 'levels');
-        if (!distribution) return null;
-        const array = parseTypeId(distribution);
-        if (!array.array || array.nullable || array.base.kind !== 'nominal') return null;
-        const identity = fieldType(array.base.path, kind === 'choice' ? 'option' : 'level');
-        if (!identity || !enumMatches(identity, entries.map(entry => entry.id), kind === 'choice' ? `${spec.declaration}.${question.id}.choice` : undefined) ||
-            !sameFields(array.base.path, kind === 'choice' ? { option: identity, probability: 'decimal' } :
-              { level: identity, index: 'int', description: 'text', probability: 'decimal' }) ||
-            !sameFields(type, kind === 'choice' ? { choice: identity, probabilities: distribution, confidence: 'decimal' } :
-              { score: 'decimal', levels: distribution, confidence: 'decimal' })) return null;
-        if (kind === 'choice' && aliases.has(identity)) runtimeChoices.push(question as JudgmentSpec['choice'][number]);
-      }
+    if (!checkJudgmentQuestions({ spec, fields, fieldType, sameFields, enumMatches, aliases, runtimeChoices,
+        questions })) {
+      return null;
     }
     if (questions.size < 1 || questions.size > 32 ||
         fields.size !== questions.size + 4 ||
@@ -414,6 +547,25 @@ export interface CheckedImageRunResult {
   readonly chargedJobs: bigint | null;
 }
 
+function snapshotImageOutputEntry(
+  value: object,
+  key: string | symbol,
+  array: boolean,
+  length: number,
+  out: Record<string, unknown> | unknown[],
+  depth: number,
+): void {
+  if (array && key === 'length') return;
+  if (typeof key !== 'string' || (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= length))) {
+    throw new Error('invalid output key');
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
+    throw new Error('invalid output accessor');
+  }
+  (out as Record<string, unknown>)[key] = snapshotImageOutputData(descriptor.value, depth + 1);
+}
+
 /** Bounded own-data snapshot before Values reads nested data; no getters, inherited data or omissions. */
 function snapshotImageOutputData(value: unknown, depth = 0): unknown {
   if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
@@ -427,17 +579,26 @@ function snapshotImageOutputData(value: unknown, depth = 0): unknown {
   const out: Record<string, unknown> | unknown[] = array ? [] : Object.create(null) as Record<string, unknown>;
   if (array && keys.length !== value.length + 1) throw new Error('sparse or extended output array');
   for (const key of keys) {
-    if (array && key === 'length') continue;
-    if (typeof key !== 'string' || (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= value.length))) {
-      throw new Error('invalid output key');
-    }
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
-      throw new Error('invalid output accessor');
-    }
-    (out as Record<string, unknown>)[key] = snapshotImageOutputData(descriptor.value, depth + 1);
+    snapshotImageOutputEntry(value, key, array, array ? value.length : 0, out, depth);
   }
   return out;
+}
+
+function decodeImageOutputsLeaf(value: unknown, leafType: string): CanValue | null {
+  const snapshot = snapshotImageOutputData(value);
+  const outputs = validateValue(GENERATED_IMAGE_SCHEMA, leafType, snapshot, 'create');
+  // Values decodes exact integers; require their canonical wire spelling too.
+  if (!Array.isArray(outputs) || !Array.isArray(snapshot) || outputs.some((output, index) =>
+    encodeValue('int', (output as Record<string, CanValue>)['position']!) !==
+      (snapshot[index] as Record<string, unknown>)['position'])) return null;
+  return outputs;
+}
+
+function decodeImageScalarLeaf(leafType: string, value: unknown): { readonly scalar: CanValue } | null {
+  if (value !== null && typeof value !== 'string') return null;
+  const scalar = decodeValue(leafType, value);
+  if ((leafType === 'int' || leafType === 'int?') && encodeValue(leafType, scalar) !== value) return null;
+  return { scalar };
 }
 
 /** Canonical source ImageRun, never the provider byte-result shape. File shape alone adds no authority. */
@@ -454,22 +615,24 @@ export function readImageRunResult(result: unknown, declaration: CanonicalNomina
       if (property === undefined || !Object.hasOwn(property, 'value') || !property.enumerable) return null;
       const value: unknown = property.value;
       if (leaf.name === 'outputs') {
-        const snapshot = snapshotImageOutputData(value);
-        const outputs = validateValue(GENERATED_IMAGE_SCHEMA, leaf.type, snapshot, 'create');
-        // Values decodes exact integers; require their canonical wire spelling too.
-        if (!Array.isArray(outputs) || !Array.isArray(snapshot) || outputs.some((output, index) =>
-          encodeValue('int', (output as Record<string, CanValue>)['position']!) !==
-            (snapshot[index] as Record<string, unknown>)['position'])) return null;
+        const outputs = decodeImageOutputsLeaf(value, leaf.type);
+        if (outputs === null) return null;
         decoded.set(leaf.name, outputs);
       } else {
-        if (value !== null && typeof value !== 'string') return null;
-        const scalar = decodeValue(leaf.type, value);
-        if ((leaf.type === 'int' || leaf.type === 'int?') && encodeValue(leaf.type, scalar) !== value) return null;
-        decoded.set(leaf.name, scalar);
+        const scalarLeaf = decodeImageScalarLeaf(leaf.type, value);
+        if (scalarLeaf === null) return null;
+        decoded.set(leaf.name, scalarLeaf.scalar);
       }
       fields[leaf.name] = value;
     }
   } catch { return null; }
+  return finishImageRunResult(fields, decoded);
+}
+
+function finishImageRunResult(
+  fields: Record<string, unknown>,
+  decoded: ReadonlyMap<string, CanValue>,
+): CheckedImageRunResult | null {
   const revision = decoded.get('revision');
   const sequence = decoded.get('sequence');
   const chargedJobs = decoded.get('charged_jobs');
@@ -633,14 +796,12 @@ function isClosedErrorShape(error: unknown): boolean {
  * every non-pending status is pinned by the join tests against the
  * real function.
  */
-export function isStoredReceiptPayload(
+function checkTypedReceiptPayload(
   status: unknown,
-  result: unknown,
-  error: unknown,
-  context?: ReceiptResultContext,
-): boolean {
-  const payload = result === undefined ? null : result;
-  const failure = error === undefined ? null : error;
+  payload: unknown,
+  failure: unknown,
+  context: ReceiptResultContext | undefined,
+): boolean | null {
   if (context !== undefined && context !== null && 'judgment' in context) {
     return isJudgmentReceiptPayload(status, payload, failure, context);
   }
@@ -653,6 +814,10 @@ export function isStoredReceiptPayload(
       ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)) {
     return isImageRunReceiptPayload(status, payload, failure, context);
   }
+  return null;
+}
+
+function checkStatusPayload(status: unknown, payload: unknown, failure: unknown): boolean {
   if (status === 'pending') {
     return payload === null && failure === null;
   }
@@ -669,6 +834,17 @@ export function isStoredReceiptPayload(
     return payload === null && failure === null;
   }
   return false;
+}
+
+export function isStoredReceiptPayload(
+  status: unknown,
+  result: unknown,
+  error: unknown,
+  context?: ReceiptResultContext,
+): boolean {
+  const payload = result === undefined ? null : result;
+  const failure = error === undefined ? null : error;
+  return checkTypedReceiptPayload(status, payload, failure, context) ?? checkStatusPayload(status, payload, failure);
 }
 
 /** Read one association row's data, failing closed on any shape drift. */
@@ -697,43 +873,61 @@ export interface StoredReceiptRow {
   readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
 }
 
+interface OriginSnapshotBudget {
+  nodes: number;
+  textSize: number;
+  readonly ancestors: Set<object>;
+}
+
+function snapshotOriginEntry(
+  node: object,
+  key: string | symbol,
+  array: boolean,
+  length: number,
+  out: Record<string, unknown> | unknown[],
+  depth: number,
+  budget: OriginSnapshotBudget,
+): void {
+  if (array && key === 'length') return;
+  if (typeof key !== 'string' || (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= length))) {
+    throw new ReceiptTableError('work.receipt filePayloadOrigin has an invalid key.');
+  }
+  const property = Object.getOwnPropertyDescriptor(node, key);
+  if (property === undefined || !Object.hasOwn(property, 'value') || !property.enumerable) {
+    throw new ReceiptTableError('work.receipt filePayloadOrigin must contain own data properties.');
+  }
+  if ((budget.textSize += key.length) > 2_000_000) throw new ReceiptTableError('work.receipt filePayloadOrigin exceeds its bounds.');
+  Object.defineProperty(out, key, { enumerable: true, configurable: true, writable: true,
+    value: snapshotOriginValue(property.value, depth + 1, budget) });
+}
+
+function snapshotOriginValue(node: unknown, depth: number, budget: OriginSnapshotBudget): unknown {
+  if (++budget.nodes > 20_000 || depth > 32) throw new ReceiptTableError('work.receipt filePayloadOrigin exceeds its bounds.');
+  if (node === null || typeof node === 'boolean') return node;
+  if (typeof node === 'string') {
+    if ((budget.textSize += node.length) > 2_000_000) throw new ReceiptTableError('work.receipt filePayloadOrigin exceeds its bounds.');
+    return node;
+  }
+  if (typeof node === 'number' && Number.isFinite(node)) return node;
+  if (typeof node !== 'object' || budget.ancestors.has(node)) throw new ReceiptTableError('work.receipt filePayloadOrigin must be own JSON data.');
+  const array = Array.isArray(node), prototype = Object.getPrototypeOf(node);
+  if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+    throw new ReceiptTableError('work.receipt filePayloadOrigin must be own JSON data.');
+  }
+  const keys = Reflect.ownKeys(node);
+  if (keys.length > 20_000 || (array && keys.length !== node.length + 1)) throw new ReceiptTableError('work.receipt filePayloadOrigin must be dense bounded JSON.');
+  const out: Record<string, unknown> | unknown[] = array ? [] : {};
+  budget.ancestors.add(node);
+  for (const key of keys) {
+    snapshotOriginEntry(node, key, array, array ? node.length : 0, out, depth, budget);
+  }
+  budget.ancestors.delete(node);
+  return out;
+}
+
 /** Bounded own JSON snapshot; neither accessors nor inherited facts become evidence. */
 function snapshotReceiptOrigin(value: unknown): unknown {
-  let nodes = 0, textSize = 0;
-  const ancestors = new Set<object>();
-  const visit = (node: unknown, depth: number): unknown => {
-    if (++nodes > 20_000 || depth > 32) throw new ReceiptTableError('work.receipt filePayloadOrigin exceeds its bounds.');
-    if (node === null || typeof node === 'boolean') return node;
-    if (typeof node === 'string') {
-      if ((textSize += node.length) > 2_000_000) throw new ReceiptTableError('work.receipt filePayloadOrigin exceeds its bounds.');
-      return node;
-    }
-    if (typeof node === 'number' && Number.isFinite(node)) return node;
-    if (typeof node !== 'object' || ancestors.has(node)) throw new ReceiptTableError('work.receipt filePayloadOrigin must be own JSON data.');
-    const array = Array.isArray(node), prototype = Object.getPrototypeOf(node);
-    if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
-      throw new ReceiptTableError('work.receipt filePayloadOrigin must be own JSON data.');
-    }
-    const keys = Reflect.ownKeys(node);
-    if (keys.length > 20_000 || (array && keys.length !== node.length + 1)) throw new ReceiptTableError('work.receipt filePayloadOrigin must be dense bounded JSON.');
-    const out: Record<string, unknown> | unknown[] = array ? [] : {};
-    ancestors.add(node);
-    for (const key of keys) {
-      if (array && key === 'length') continue;
-      if (typeof key !== 'string' || (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= node.length))) {
-        throw new ReceiptTableError('work.receipt filePayloadOrigin has an invalid key.');
-      }
-      const property = Object.getOwnPropertyDescriptor(node, key);
-      if (property === undefined || !Object.hasOwn(property, 'value') || !property.enumerable) {
-        throw new ReceiptTableError('work.receipt filePayloadOrigin must contain own data properties.');
-      }
-      if ((textSize += key.length) > 2_000_000) throw new ReceiptTableError('work.receipt filePayloadOrigin exceeds its bounds.');
-      Object.defineProperty(out, key, { enumerable: true, configurable: true, writable: true, value: visit(property.value, depth + 1) });
-    }
-    ancestors.delete(node);
-    return out;
-  };
-  return visit(value, 0);
+  return snapshotOriginValue(value, 0, { nodes: 0, textSize: 0, ancestors: new Set<object>() });
 }
 
 function originRecord(value: unknown, keys: readonly string[]): Record<string, unknown> {
@@ -743,6 +937,176 @@ function originRecord(value: unknown, keys: readonly string[]): Record<string, u
   return value as Record<string, unknown>;
 }
 function originString(value: unknown): value is string { return typeof value === 'string' && value !== ''; }
+
+interface OriginRecords {
+  readonly inventory: Record<string, unknown>;
+  readonly slot: Record<string, unknown>;
+  readonly scope: Record<string, unknown>;
+  readonly skipped: boolean;
+  readonly origin: Record<string, unknown>;
+  readonly intent: Record<string, unknown>;
+  readonly request: Record<string, unknown>;
+  readonly caller: Record<string, unknown>;
+  readonly source: Record<string, unknown>;
+  readonly association: Record<string, unknown>;
+  readonly declarationKind: unknown;
+  readonly declaration: Record<string, unknown>;
+  readonly canonical: Record<string, unknown> | null;
+  readonly artifact: Record<string, unknown> | null;
+  readonly callable: Record<string, unknown> | null;
+  readonly callerCanonical: Record<string, unknown> | null;
+  readonly callerArtifact: Record<string, unknown> | null;
+}
+
+function readOriginRecords(header: Record<string, unknown>): OriginRecords {
+  const inventory = originRecord(header.inventory, ['owner', 'snapshotId', 'digest']);
+  const slot = originRecord(header.slot, ['model', 'id', 'created', 'createdBy', 'field', 'role']);
+  const scope = originRecord(header.scope, ['app', 'ownerPackage', 'owner']);
+  const skipped = (header.origin as { kind?: unknown } | null)?.kind === 'delivery-skipped';
+  const origin = originRecord(header.origin, skipped ?
+    ['kind', 'deliveryId', 'send', 'request', 'caller', 'association', 'guard', 'declaration', 'resultDeclarationId'] :
+    ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
+  return { inventory, slot, scope, skipped, origin, ...readOriginParties(origin, skipped) };
+}
+
+function readOriginParties(origin: Record<string, unknown>, skipped: boolean): {
+  readonly intent: Record<string, unknown>;
+  readonly request: Record<string, unknown>;
+  readonly caller: Record<string, unknown>;
+  readonly source: Record<string, unknown>;
+  readonly association: Record<string, unknown>;
+  readonly declarationKind: unknown;
+  readonly declaration: Record<string, unknown>;
+  readonly canonical: Record<string, unknown> | null;
+  readonly artifact: Record<string, unknown> | null;
+  readonly callable: Record<string, unknown> | null;
+  readonly callerCanonical: Record<string, unknown> | null;
+  readonly callerArtifact: Record<string, unknown> | null;
+} {
+  const intent = originRecord(skipped ? origin.send : origin.intent, skipped ?
+    ['operation', 'operationId', 'target', 'occurrenceIndex'] : ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+  const request = originRecord(origin.request, ['binding', 'from']);
+  const caller = originRecord(origin.caller, ['source', 'callable', 'canonical', 'artifact', 'resultDeclarationId']);
+  const source = originRecord(caller.source, ['path', 'sha256', 'module']);
+  const association = originRecord(origin.association, ['model', 'recordId', 'field']);
+  const declarationKind = (origin.declaration as { kind?: unknown } | null)?.kind;
+  const declaration = originRecord(origin.declaration, declarationKind === 'generation' ? ['kind', 'canonical', 'artifact', 'request'] :
+    declarationKind === 'judgment' ? ['kind', 'canonical', 'artifact', 'specification', 'order', 'valueTypes'] : ['kind', 'canonical', 'artifact']);
+  return { intent, request, caller, source, association, declarationKind, declaration,
+    canonical: declaration.canonical as Record<string, unknown> | null,
+    artifact: declaration.artifact as Record<string, unknown> | null,
+    callable: caller.callable as Record<string, unknown> | null,
+    callerCanonical: caller.canonical as Record<string, unknown> | null,
+    callerArtifact: caller.artifact as Record<string, unknown> | null };
+}
+
+function checkOriginHeaderBinding(
+  header: Record<string, unknown>,
+  inventory: Record<string, unknown>,
+  scope: Record<string, unknown>,
+  source: Record<string, unknown>,
+): boolean {
+  return header.version === 1 && Object.values(inventory).every(originString) && originString(header.declarationSetId) &&
+    Object.values(scope).every(originString) && Object.values(source).every(originString);
+}
+
+function checkOriginSlot(
+  slot: Record<string, unknown>,
+  row: Pick<StoredRow, 'id' | 'created' | 'createdBy'>,
+): boolean {
+  return slot.model === RECEIPT_MODEL && slot.id === row.id && slot.created === row.created && slot.createdBy === row.createdBy &&
+    typeof slot.created === 'number' && Number.isFinite(slot.created) && slot.created >= 0 && originString(slot.createdBy) &&
+    slot.field === 'result' && slot.role === 'retained-result';
+}
+
+function checkOriginDelivery(
+  origin: Record<string, unknown>,
+  deliveryId: string,
+  skipped: boolean,
+  intent: Record<string, unknown>,
+): boolean {
+  return ['delivery-result', 'delivery-skipped'].includes(String(origin.kind)) && origin.deliveryId === deliveryId &&
+    (skipped || intent.intentId === deliveryId) && originString(intent.operation) && originString(intent.operationId) &&
+    originString(intent.target) && typeof intent.occurrenceIndex === 'number' &&
+    Number.isSafeInteger(intent.occurrenceIndex) && intent.occurrenceIndex >= 0;
+}
+
+function checkOriginCallers(
+  origin: Record<string, unknown>,
+  caller: Record<string, unknown>,
+  request: Record<string, unknown>,
+  association: Record<string, unknown>,
+  intent: Record<string, unknown>,
+  callable: Record<string, unknown> | null,
+  callerCanonical: Record<string, unknown> | null,
+  callerArtifact: Record<string, unknown> | null,
+): boolean {
+  return Object.values(request).every(originString) && Object.values(association).every(originString) &&
+    originString(origin.resultDeclarationId) && originString(caller.resultDeclarationId) &&
+    callable?.id === intent.operation && callerCanonical?.name === intent.operation && callerArtifact?.name === intent.operation;
+}
+
+function checkOriginCanonical(
+  declarationKind: unknown,
+  canonical: Record<string, unknown> | null,
+  artifact: Record<string, unknown> | null,
+  intent: Record<string, unknown>,
+): boolean {
+  return ['capability', 'generation', 'judgment'].includes(String(declarationKind)) &&
+    canonical?.kind === 'delivery' && artifact?.kind === 'delivery' && originString(canonical?.capability) &&
+    originString(canonical?.operation) && `${canonical.capability}.${canonical.operation}` === intent.target &&
+    artifact.capability === canonical.capability && artifact.operation === canonical.operation &&
+    artifact.version === canonical.version;
+}
+
+function checkOriginBinding(
+  header: Record<string, unknown>,
+  records: OriginRecords,
+  row: Pick<StoredRow, 'id' | 'created' | 'createdBy'>,
+  deliveryId: string,
+  context: ReceiptResultContext | undefined,
+): void {
+  const { inventory, slot, scope, skipped, origin, intent, request, caller, source, association,
+    declarationKind, canonical, artifact, callable, callerCanonical, callerArtifact } = records;
+  if (!checkOriginHeaderBinding(header, inventory, scope, source) || !checkOriginSlot(slot, row) ||
+      !checkOriginDelivery(origin, deliveryId, skipped, intent) ||
+      !checkOriginCallers(origin, caller, request, association, intent, callable, callerCanonical, callerArtifact) ||
+      !checkOriginCanonical(declarationKind, canonical, artifact, intent) ||
+      (context !== undefined && intent.target !== context.source)) {
+    throw new ReceiptTableError('work.receipt filePayloadOrigin disagrees with its original receipt binding.');
+  }
+}
+
+function checkSkippedGuardInputs(guard: Record<string, unknown>): void {
+  const names = new Set<string>();
+  if (!Array.isArray(guard.inputs) || guard.inputs.length > 200 || guard.inputs.some(value => {
+      const input = originRecord(value, ['name', 'type']);
+      if (!originString(input.name) || !originString(input.type) || names.has(input.name)) return true;
+      names.add(input.name); return false;
+    })) {
+    throw new ReceiptTableError('work.receipt skipped origin requires its original false SEND and null skipped envelope.');
+  }
+}
+
+function checkSkippedOrigin(data: object, records: OriginRecords): void {
+  const { origin, intent, request, source } = records;
+  const guard = originRecord(origin.guard, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
+  const guardSource = originRecord(guard.source, ['path', 'sha256', 'module']);
+  const node = originRecord(guard.node, ['start', 'end']);
+  const validNode = typeof node.start === 'number' && Number.isSafeInteger(node.start) && node.start >= 0 &&
+    typeof node.end === 'number' && Number.isSafeInteger(node.end) && node.end > node.start;
+  if (!originString(guard.rule) || guard.owner !== intent.operation || guard.target !== intent.target ||
+      guard.binding !== request.binding || !sameJudgmentWire(guardSource, source) || !validNode) {
+    throw new ReceiptTableError('work.receipt skipped origin requires its original false SEND and null skipped envelope.');
+  }
+  checkSkippedGuardInputs(guard);
+  if (['result', 'error', 'contentRef', 'resultExpiresAtMs'].some(key => {
+      const member = Object.getOwnPropertyDescriptor(data, key);
+      return member === undefined || !('value' in member) || member.value !== null;
+    }) || Object.getOwnPropertyDescriptor(data, 'status')?.value !== 'skipped') {
+    throw new ReceiptTableError('work.receipt skipped origin requires its original false SEND and null skipped envelope.');
+  }
+}
 
 /** Validate local correspondence only; the complete installed source/recipe belongs to State census. */
 function receiptOrigin(data: object, row: Pick<StoredRow, 'id' | 'created' | 'createdBy'>,
@@ -754,89 +1118,54 @@ function receiptOrigin(data: object, row: Pick<StoredRow, 'id' | 'created' | 'cr
   }
   if (!Object.hasOwn(property, 'value') || !property.enumerable) throw new ReceiptTableError('work.receipt filePayloadOrigin must be own data.');
   const header = originRecord(snapshotReceiptOrigin(property.value), ['version', 'inventory', 'declarationSetId', 'slot', 'scope', 'origin', 'files']);
-  const inventory = originRecord(header.inventory, ['owner', 'snapshotId', 'digest']);
-  const slot = originRecord(header.slot, ['model', 'id', 'created', 'createdBy', 'field', 'role']);
-  const scope = originRecord(header.scope, ['app', 'ownerPackage', 'owner']);
-  const skipped = (header.origin as { kind?: unknown } | null)?.kind === 'delivery-skipped';
-  const origin = originRecord(header.origin, skipped ?
-    ['kind', 'deliveryId', 'send', 'request', 'caller', 'association', 'guard', 'declaration', 'resultDeclarationId'] :
-    ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
-  const intent = originRecord(skipped ? origin.send : origin.intent, skipped ?
-    ['operation', 'operationId', 'target', 'occurrenceIndex'] : ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
-  const request = originRecord(origin.request, ['binding', 'from']);
-  const caller = originRecord(origin.caller, ['source', 'callable', 'canonical', 'artifact', 'resultDeclarationId']);
-  const source = originRecord(caller.source, ['path', 'sha256', 'module']);
-  const association = originRecord(origin.association, ['model', 'recordId', 'field']);
-  const declarationKind = (origin.declaration as { kind?: unknown } | null)?.kind;
-  const declaration = originRecord(origin.declaration, declarationKind === 'generation' ? ['kind', 'canonical', 'artifact', 'request'] :
-    declarationKind === 'judgment' ? ['kind', 'canonical', 'artifact', 'specification', 'order', 'valueTypes'] : ['kind', 'canonical', 'artifact']);
-  const canonical = declaration.canonical as Record<string, unknown> | null;
-  const artifact = declaration.artifact as Record<string, unknown> | null;
-  const callable = caller.callable as Record<string, unknown> | null;
-  const callerCanonical = caller.canonical as Record<string, unknown> | null;
-  const callerArtifact = caller.artifact as Record<string, unknown> | null;
-  if (header.version !== 1 || !Object.values(inventory).every(originString) || !originString(header.declarationSetId) ||
-      !Object.values(scope).every(originString) || !Object.values(source).every(originString) ||
-      slot.model !== RECEIPT_MODEL || slot.id !== row.id || slot.created !== row.created || slot.createdBy !== row.createdBy ||
-      typeof slot.created !== 'number' || !Number.isFinite(slot.created) || slot.created < 0 || !originString(slot.createdBy) ||
-      slot.field !== 'result' || slot.role !== 'retained-result' || !['delivery-result', 'delivery-skipped'].includes(String(origin.kind)) || origin.deliveryId !== deliveryId ||
-      (!skipped && intent.intentId !== deliveryId) || !originString(intent.operation) || !originString(intent.operationId) || !originString(intent.target) ||
-      typeof intent.occurrenceIndex !== 'number' || !Number.isSafeInteger(intent.occurrenceIndex) || intent.occurrenceIndex < 0 ||
-      !Object.values(request).every(originString) || !Object.values(association).every(originString) ||
-      !originString(origin.resultDeclarationId) || !originString(caller.resultDeclarationId) ||
-      callable?.id !== intent.operation || callerCanonical?.name !== intent.operation || callerArtifact?.name !== intent.operation ||
-      !['capability', 'generation', 'judgment'].includes(String(declarationKind)) ||
-      canonical?.kind !== 'delivery' || artifact?.kind !== 'delivery' || !originString(canonical?.capability) || !originString(canonical?.operation) ||
-      `${canonical.capability}.${canonical.operation}` !== intent.target || artifact.capability !== canonical.capability ||
-      artifact.operation !== canonical.operation || artifact.version !== canonical.version ||
-      (context !== undefined && intent.target !== context.source) || !Array.isArray(header.files)) {
+  const records = readOriginRecords(header);
+  checkOriginBinding(header, records, row, deliveryId, context);
+  // HEAD guards the files array (binding error) before the skipped-origin
+  // check: malformed-both inputs report the binding disagreement, not the
+  // skipped-envelope error.
+  const files = header.files;
+  if (!Array.isArray(files)) {
     throw new ReceiptTableError('work.receipt filePayloadOrigin disagrees with its original receipt binding.');
   }
-  if (skipped) {
-    const guard = originRecord(origin.guard, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
-    const guardSource = originRecord(guard.source, ['path', 'sha256', 'module']);
-    const node = originRecord(guard.node, ['start', 'end']);
-    const validNode = typeof node.start === 'number' && Number.isSafeInteger(node.start) && node.start >= 0 &&
-      typeof node.end === 'number' && Number.isSafeInteger(node.end) && node.end > node.start;
-    const names = new Set<string>();
-    if (!originString(guard.rule) || guard.owner !== intent.operation || guard.target !== intent.target ||
-        guard.binding !== request.binding || !sameJudgmentWire(guardSource, source) || !validNode || !Array.isArray(guard.inputs) ||
-        guard.inputs.length > 200 || guard.inputs.some(value => {
-          const input = originRecord(value, ['name', 'type']);
-          if (!originString(input.name) || !originString(input.type) || names.has(input.name)) return true;
-          names.add(input.name); return false;
-        }) || ['result', 'error', 'contentRef', 'resultExpiresAtMs'].some(key => {
-          const member = Object.getOwnPropertyDescriptor(data, key);
-          return member === undefined || !('value' in member) || member.value !== null;
-        }) || Object.getOwnPropertyDescriptor(data, 'status')?.value !== 'skipped') {
-      throw new ReceiptTableError('work.receipt skipped origin requires its original false SEND and null skipped envelope.');
-    }
+  if (records.skipped) {
+    checkSkippedOrigin(data, records);
   }
-  for (const entry of header.files) {
-    const fact = originRecord(entry, ['path', 'file']);
-    if (!Array.isArray(fact.path) || fact.path.some(segment => !(typeof segment === 'string' ||
-        (typeof segment === 'number' && Number.isSafeInteger(segment) && segment >= 0)))) {
-      throw new ReceiptTableError('work.receipt filePayloadOrigin has an invalid File path.');
-    }
-    const file = originRecord(fact.file, ['ref', 'receiver', 'provenance', 'contentType', 'sizeBytes', 'bytesDigest', 'finalizedAtMs', 'retention']);
-    const receiver = originRecord(file.receiver, ['app', 'team', 'owner', 'principal']);
-    const retainsAttached = typeof file.retention === 'object' && file.retention !== null && Object.hasOwn(file.retention, 'retainAttached');
-    const retention = originRecord(file.retention, ['unattachedHorizonMs', 'retentionMs', ...(retainsAttached ? ['retainAttached'] : [])]);
-    const provenanceKind = (file.provenance as { kind?: unknown } | null)?.kind;
-    const provenance = originRecord(file.provenance, provenanceKind === 'request' ?
-      ['kind', 'app', 'team', 'owner', 'principal', 'adapter', 'deliveryId', 'resultPath'] :
-      ['kind', 'source', 'adapter', 'occurrenceId', 'fieldPath', 'itemIndex']);
-    const epoch = (value: unknown): boolean => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
-    if (!originString(file.ref) || !originString(file.contentType) || typeof file.bytesDigest !== 'string' ||
-        !/^sha256:[0-9a-f]{64}$/.test(file.bytesDigest) || !epoch(file.sizeBytes) || !epoch(file.finalizedAtMs) ||
-        !Object.values(receiver).every(originString) || !epoch(retention.unattachedHorizonMs) || !epoch(retention.retentionMs) ||
-        retainsAttached && retention.retainAttached !== true ||
-        !['request', 'event'].includes(String(provenanceKind)) ||
-        !Object.entries(provenance).every(([key, value]) => key === 'itemIndex' ? epoch(value) : originString(value))) {
-      throw new ReceiptTableError('work.receipt filePayloadOrigin has invalid original File facts.');
-    }
+  for (const entry of files) {
+    checkOriginFile(entry);
   }
   return header as unknown as FrameworkFilePayloadOrigin;
+}
+
+function readOriginFileProvenance(file: Record<string, unknown>): {
+  readonly kind: unknown; readonly provenance: Record<string, unknown>;
+} {
+  const provenanceKind = (file.provenance as { kind?: unknown } | null)?.kind;
+  const provenance = originRecord(file.provenance, provenanceKind === 'request' ?
+    ['kind', 'app', 'team', 'owner', 'principal', 'adapter', 'deliveryId', 'resultPath'] :
+    ['kind', 'source', 'adapter', 'occurrenceId', 'fieldPath', 'itemIndex']);
+  return { kind: provenanceKind, provenance };
+}
+
+function checkOriginFile(entry: unknown): void {
+  const fact = originRecord(entry, ['path', 'file']);
+  if (!Array.isArray(fact.path) || fact.path.some(segment => !(typeof segment === 'string' ||
+      (typeof segment === 'number' && Number.isSafeInteger(segment) && segment >= 0)))) {
+    throw new ReceiptTableError('work.receipt filePayloadOrigin has an invalid File path.');
+  }
+  const file = originRecord(fact.file, ['ref', 'receiver', 'provenance', 'contentType', 'sizeBytes', 'bytesDigest', 'finalizedAtMs', 'retention']);
+  const receiver = originRecord(file.receiver, ['app', 'team', 'owner', 'principal']);
+  const retainsAttached = typeof file.retention === 'object' && file.retention !== null && Object.hasOwn(file.retention, 'retainAttached');
+  const retention = originRecord(file.retention, ['unattachedHorizonMs', 'retentionMs', ...(retainsAttached ? ['retainAttached'] : [])]);
+  const { kind: provenanceKind, provenance } = readOriginFileProvenance(file);
+  const epoch = (value: unknown): boolean => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+  if (!originString(file.ref) || !originString(file.contentType) || typeof file.bytesDigest !== 'string' ||
+      !/^sha256:[0-9a-f]{64}$/.test(file.bytesDigest) || !epoch(file.sizeBytes) || !epoch(file.finalizedAtMs) ||
+      !Object.values(receiver).every(originString) || !epoch(retention.unattachedHorizonMs) || !epoch(retention.retentionMs) ||
+      retainsAttached && retention.retainAttached !== true ||
+      !['request', 'event'].includes(String(provenanceKind)) ||
+      !Object.entries(provenance).every(([key, value]) => key === 'itemIndex' ? epoch(value) : originString(value))) {
+    throw new ReceiptTableError('work.receipt filePayloadOrigin has invalid original File facts.');
+  }
 }
 
 /** Read one receipt row's data, failing closed on any shape drift. */
@@ -1105,41 +1434,49 @@ function readJoinWrite(
  * callers are unaffected. Claim-style conditional updates on other
  * models pass trivially too.
  */
-export function assertReceiptJoin(batch: CommitBatch, contexts?: ReadonlyMap<string, ReceiptResultContext>): void {
-  const associations = new Map<string, JoinWrite>();
-  const receipts = new Map<string, JoinWrite>();
-  const seen = new Set<string>();
-  for (const write of batch.writes ?? []) {
-    const model = write.model as string;
-    if (model !== RECEIPT_ASSOCIATION_MODEL && model !== RECEIPT_MODEL) {
-      continue;
-    }
-    if (write.kind === 'remove') {
-      continue;
-    }
-    const rowId = (write.kind === 'insert' ? write.row.id : write.id) as string;
-    const key = `${model}\0${rowId}`;
-    if (seen.has(key)) {
-      throw new StateError(
-        'validation',
-        `Receipt join: duplicate ${model} write for ${JSON.stringify(rowId)}.`,
-      );
-    }
-    seen.add(key);
-    const join =
-      write.kind === 'insert'
-        ? readJoinWrite(model, write.row, null, contexts)
-        : readJoinWrite(model, write.row, write.id as string, contexts);
-    if (model === RECEIPT_ASSOCIATION_MODEL) {
-      const context = contexts?.get(join.deliveryId);
-      if (context !== undefined && readAssociationRow(write.row).source !== context.source) {
-        throw new StateError('validation', 'Receipt join: declaration context disagrees with association source.');
-      }
-      associations.set(join.deliveryId, join);
-    } else {
-      receipts.set(join.deliveryId, join);
-    }
+interface ReceiptJoinScan {
+  readonly associations: Map<string, JoinWrite>;
+  readonly receipts: Map<string, JoinWrite>;
+  readonly seen: Set<string>;
+}
+
+function foldReceiptJoinWrite(
+  write: NonNullable<CommitBatch['writes']>[number],
+  scan: ReceiptJoinScan,
+  contexts: ReadonlyMap<string, ReceiptResultContext> | undefined,
+): void {
+  const model = write.model as string;
+  if (model !== RECEIPT_ASSOCIATION_MODEL && model !== RECEIPT_MODEL) {
+    return;
   }
+  if (write.kind === 'remove') {
+    return;
+  }
+  const rowId = (write.kind === 'insert' ? write.row.id : write.id) as string;
+  const key = `${model}\0${rowId}`;
+  if (scan.seen.has(key)) {
+    throw new StateError(
+      'validation',
+      `Receipt join: duplicate ${model} write for ${JSON.stringify(rowId)}.`,
+    );
+  }
+  scan.seen.add(key);
+  const join =
+    write.kind === 'insert'
+      ? readJoinWrite(model, write.row, null, contexts)
+      : readJoinWrite(model, write.row, write.id as string, contexts);
+  if (model === RECEIPT_ASSOCIATION_MODEL) {
+    const context = contexts?.get(join.deliveryId);
+    if (context !== undefined && readAssociationRow(write.row).source !== context.source) {
+      throw new StateError('validation', 'Receipt join: declaration context disagrees with association source.');
+    }
+    scan.associations.set(join.deliveryId, join);
+  } else {
+    scan.receipts.set(join.deliveryId, join);
+  }
+}
+
+function checkSkippedDispatch(batch: CommitBatch, receipts: ReadonlyMap<string, JoinWrite>): void {
   for (const receipt of receipts.values()) {
     const original = receipt.filePayloadOrigin?.origin;
     if (original?.kind !== 'delivery-skipped') continue;
@@ -1151,6 +1488,16 @@ export function assertReceiptJoin(batch: CommitBatch, contexts?: ReadonlyMap<str
         write.row.data.source === send.target && write.row.data.occurrenceIndex === send.occurrenceIndex));
     if (queued || dispatch) throw new StateError('validation', 'Receipt-only skipped SEND cannot queue its original provider dispatch.');
   }
+}
+
+export function assertReceiptJoin(batch: CommitBatch, contexts?: ReadonlyMap<string, ReceiptResultContext>): void {
+  const scan: ReceiptJoinScan = { associations: new Map<string, JoinWrite>(),
+    receipts: new Map<string, JoinWrite>(), seen: new Set<string>() };
+  for (const write of batch.writes ?? []) {
+    foldReceiptJoinWrite(write, scan, contexts);
+  }
+  const { associations, receipts } = scan;
+  checkSkippedDispatch(batch, receipts);
   for (const association of associations.values()) {
     const receipt = receipts.get(association.deliveryId);
     if (receipt === undefined) {

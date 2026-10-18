@@ -695,35 +695,41 @@ function rewriteNamedProducerImports(js: string, moduleKey: string, source: stri
   const refuse = (): never => {
     throw new Error(`deploy bundle: module ${JSON.stringify(moduleKey)} uses unsupported ${source} root access; only static named ${[...leaves.keys()].join(', ')} imports are staged`);
   };
+  type WalkEnter = NonNullable<Parameters<typeof walkJavaScript>[1]['enter']>;
+  type WalkNode = Parameters<WalkEnter>[0];
+  type WalkParent = Parameters<WalkEnter>[1];
+  const rewriteImportDeclaration = (node: WalkNode & { type: "ImportDeclaration" }) => {
+    if (node.specifiers.length === 0 || (node as unknown as { attributes?: readonly unknown[] }).attributes?.length || node.specifiers.some(specifier =>
+      specifier.type !== "ImportSpecifier" ||
+      !leaves.has(String(specifier.imported.type === "Identifier" ? specifier.imported.name : specifier.imported.value)),
+    )) refuse();
+    acceptedSources.add(node.source);
+    const groups = new Map<string, string[]>();
+    for (const specifier of node.specifiers) {
+      const named = specifier.type === 'ImportSpecifier' ? specifier : refuse();
+      const name = String(named.imported.type === 'Identifier' ? named.imported.name : named.imported.value);
+      const leaf = leaves.get(name)!;
+      const members = groups.get(leaf) ?? [];
+      const range = specifier as unknown as { start: number; end: number };
+      members.push(js.slice(range.start, range.end));
+      groups.set(leaf, members);
+    }
+    const range = node as unknown as { start: number; end: number };
+    replacements.push({ start: range.start, end: range.end, text: [...groups].map(([leaf, members]) =>
+      `import { ${members.join(', ')} } from ${JSON.stringify(relativeSpecifier(moduleKey, leaf))};`).join('\n') });
+  };
+  const isInventoryPackage = (parent: WalkParent, node: WalkNode): boolean =>
+    source === WORK_SOURCE_SPECIFIER && moduleKey === WORK_FILE_REFERENCE_VENDOR_ENTRY &&
+    parent?.type === 'Property' && parent.value === node && !parent.computed && !parent.method && parent.kind === 'init' &&
+    (parent.key.type === 'Identifier' ? parent.key.name === 'package' : parent.key.type === 'Literal' && parent.key.value === 'package');
   walkJavaScript(ast, {
     enter(node, parent) {
-      if (node.type === "ImportDeclaration" && node.source.value === source) {
-        if (node.specifiers.length === 0 || (node as unknown as { attributes?: readonly unknown[] }).attributes?.length || node.specifiers.some(specifier =>
-          specifier.type !== "ImportSpecifier" ||
-          !leaves.has(String(specifier.imported.type === "Identifier" ? specifier.imported.name : specifier.imported.value)),
-        )) refuse();
-        acceptedSources.add(node.source);
-        const groups = new Map<string, string[]>();
-        for (const specifier of node.specifiers) {
-          const named = specifier.type === 'ImportSpecifier' ? specifier : refuse();
-          const name = String(named.imported.type === 'Identifier' ? named.imported.name : named.imported.value);
-          const leaf = leaves.get(name)!;
-          const members = groups.get(leaf) ?? [];
-          const range = specifier as unknown as { start: number; end: number };
-          members.push(js.slice(range.start, range.end));
-          groups.set(leaf, members);
-        }
-        const range = node as unknown as { start: number; end: number };
-        replacements.push({ start: range.start, end: range.end, text: [...groups].map(([leaf, members]) =>
-          `import { ${members.join(', ')} } from ${JSON.stringify(relativeSpecifier(moduleKey, leaf))};`).join('\n') });
-      }
+      if (node.type === "ImportDeclaration" && node.source.value === source) rewriteImportDeclaration(node);
       // Reject re-exports, dynamic imports, constant loaders and other exact
       // root values. Decoded AST values also catch escaped literals/templates.
       // The genuine Work inventory's declaration provenance is inert data,
       // preserved byte-for-byte. This exception grants no root import access.
-      const inventoryPackage = source === WORK_SOURCE_SPECIFIER && moduleKey === WORK_FILE_REFERENCE_VENDOR_ENTRY &&
-        parent?.type === 'Property' && parent.value === node && !parent.computed && !parent.method && parent.kind === 'init' &&
-        (parent.key.type === 'Identifier' ? parent.key.name === 'package' : parent.key.type === 'Literal' && parent.key.value === 'package');
+      const inventoryPackage = isInventoryPackage(parent, node);
       if (node.type === "Literal" && node.value === source && !acceptedSources.has(node) && !inventoryPackage) refuse();
       if (node.type === "TemplateElement" && node.value.cooked === source) refuse();
     },
@@ -750,51 +756,58 @@ function rewriteSelectedProducerImports(js: string, moduleKey: string): string {
   ]));
 }
 
+function mapRuntimeCoreImport(spec: string, moduleKey: string): string | null {
+  if (spec === SOURCEMAP_CODEC_SPECIFIER) return relativeSpecifier(moduleKey, SOURCEMAP_CODEC_VENDOR_ENTRY);
+  if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
+  if (spec === STATE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_VENDOR_ENTRY);
+  if (spec === "@canlang/state/storage") return relativeSpecifier(moduleKey, "vendor/state/storage/index.js");
+  if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
+  if (spec === STATE_MUTATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_MUTATION_VENDOR_ENTRY);
+  if (spec === STATE_INVOCATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_INVOCATION_VENDOR_ENTRY);
+  if (spec === STATE_QUERY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_QUERY_VENDOR_ENTRY);
+  if (spec === STATE_RECEIPT_JOIN_SOURCE_SPECIFIER) {
+    return relativeSpecifier(moduleKey, STATE_RECEIPT_JOIN_VENDOR_ENTRY);
+  }
+  if (spec === STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER) {
+    return relativeSpecifier(moduleKey, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY);
+  }
+  if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
+  if (spec === JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, JUDGMENT_SPECIFICATION_VENDOR_ENTRY);
+  if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
+  if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
+  if (spec === WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_EXECUTION_VENDOR_ENTRY);
+  if (spec === "@canlang/work/recovery") return relativeSpecifier(moduleKey, "vendor/work/recovery/index.js");
+  if (spec === WORK_INTENT_STAGING_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_INTENT_STAGING_VENDOR_ENTRY);
+  return null;
+}
+
+function mapRuntimeExtendedImport(spec: string, moduleKey: string): string | null {
+  if (spec.startsWith("@canlang/work/kernel/")) return relativeSpecifier(moduleKey, `vendor/work/kernel/${spec.slice("@canlang/work/kernel/".length)}.js`);
+  if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
+  if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
+  if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
+  if (spec === FILES_DURABLE_SQLITE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_DURABLE_SQLITE_VENDOR_ENTRY);
+  if (spec === "@canlang/files/upload") return relativeSpecifier(moduleKey, "vendor/files/upload/index.js");
+  if (spec === "@canlang/files/provenance") return relativeSpecifier(moduleKey, "vendor/files/provenance/index.js");
+  if (spec.startsWith("@canlang/files/")) return relativeSpecifier(moduleKey, `vendor/files/${spec.slice("@canlang/files/".length)}.js`);
+  if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
+  if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
+  if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
+  if (spec === "@canlang/interfaces" || spec === "@canlang/interfaces/http/operations" || spec === "@canlang/interfaces/uploads/kernel") {
+    return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
+  }
+  if (spec.startsWith("@canlang/state/")) return relativeSpecifier(moduleKey, `vendor/state/${spec.slice("@canlang/state/".length)}.js`);
+  if (spec === WORK_KERNEL_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, "vendor/work-kernel/src/index.js");
+  if (spec === WORK_KERNEL_ROWS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_KERNEL_ROWS_VENDOR_ENTRY);
+  if (spec.startsWith("@canlang/work-kernel/")) return relativeSpecifier(moduleKey, `vendor/work-kernel/src/${spec.slice("@canlang/work-kernel/".length)}.js`);
+  return null;
+}
+
 /** Rewrite worker/runtime producer imports to module-relative `vendor/` keys. */
 function rewriteRuntimeImports(js: string, moduleKey: string): string {
   js = rewriteSelectedProducerImports(js, moduleKey);
-  const mapped = (spec: string): string => {
-    if (spec === SOURCEMAP_CODEC_SPECIFIER) return relativeSpecifier(moduleKey, SOURCEMAP_CODEC_VENDOR_ENTRY);
-    if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
-    if (spec === STATE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_VENDOR_ENTRY);
-    if (spec === "@canlang/state/storage") return relativeSpecifier(moduleKey, "vendor/state/storage/index.js");
-    if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
-    if (spec === STATE_MUTATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_MUTATION_VENDOR_ENTRY);
-    if (spec === STATE_INVOCATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_INVOCATION_VENDOR_ENTRY);
-    if (spec === STATE_QUERY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_QUERY_VENDOR_ENTRY);
-    if (spec === STATE_RECEIPT_JOIN_SOURCE_SPECIFIER) {
-      return relativeSpecifier(moduleKey, STATE_RECEIPT_JOIN_VENDOR_ENTRY);
-    }
-    if (spec === STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER) {
-      return relativeSpecifier(moduleKey, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY);
-    }
-    if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
-    if (spec === JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, JUDGMENT_SPECIFICATION_VENDOR_ENTRY);
-    if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
-    if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
-    if (spec === WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_EXECUTION_VENDOR_ENTRY);
-    if (spec === "@canlang/work/recovery") return relativeSpecifier(moduleKey, "vendor/work/recovery/index.js");
-    if (spec === WORK_INTENT_STAGING_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_INTENT_STAGING_VENDOR_ENTRY);
-    if (spec.startsWith("@canlang/work/kernel/")) return relativeSpecifier(moduleKey, `vendor/work/kernel/${spec.slice("@canlang/work/kernel/".length)}.js`);
-    if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
-    if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
-    if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
-    if (spec === FILES_DURABLE_SQLITE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_DURABLE_SQLITE_VENDOR_ENTRY);
-    if (spec === "@canlang/files/upload") return relativeSpecifier(moduleKey, "vendor/files/upload/index.js");
-    if (spec === "@canlang/files/provenance") return relativeSpecifier(moduleKey, "vendor/files/provenance/index.js");
-    if (spec.startsWith("@canlang/files/")) return relativeSpecifier(moduleKey, `vendor/files/${spec.slice("@canlang/files/".length)}.js`);
-    if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
-    if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
-    if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
-    if (spec === "@canlang/interfaces" || spec === "@canlang/interfaces/http/operations" || spec === "@canlang/interfaces/uploads/kernel") {
-      return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
-    }
-    if (spec.startsWith("@canlang/state/")) return relativeSpecifier(moduleKey, `vendor/state/${spec.slice("@canlang/state/".length)}.js`);
-    if (spec === WORK_KERNEL_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, "vendor/work-kernel/src/index.js");
-    if (spec === WORK_KERNEL_ROWS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_KERNEL_ROWS_VENDOR_ENTRY);
-    if (spec.startsWith("@canlang/work-kernel/")) return relativeSpecifier(moduleKey, `vendor/work-kernel/src/${spec.slice("@canlang/work-kernel/".length)}.js`);
-    return spec;
-  };
+  const mapped = (spec: string): string =>
+    mapRuntimeCoreImport(spec, moduleKey) ?? mapRuntimeExtendedImport(spec, moduleKey) ?? spec;
   let out = rewriteModuleImports(js, moduleKey, mapped, { profile: "trusted-producer" }).js;
   // The P-C joins hold their specifiers in consts (`import(IDENTITY_SPECIFIER)`),
   // so the import-syntax pass above cannot see them: rewrite the exact source
@@ -922,6 +935,64 @@ export function stageSodaRuntimeModules(existing: Readonly<Record<string, string
   return modules;
 }
 
+function mapVendorScopedImport(moduleKey: string, spec: string): string | null {
+  if (moduleKey.startsWith("vendor/identity/")) {
+    if (spec === "#identity-byte-compare") return relativeSpecifier(moduleKey, "vendor/identity/sessions/comparison-worker.js");
+    if (spec === "cookie") return relativeSpecifier(moduleKey, "vendor/cookie/index.js");
+    if (spec === "@scure/base") return relativeSpecifier(moduleKey, "vendor/scure-base/index.js");
+  }
+  if (moduleKey.startsWith("vendor/ui/") && spec === "csv-parse/browser/esm/sync") {
+    return relativeSpecifier(moduleKey, "vendor/csv-parse/sync.js");
+  }
+  if (moduleKey.startsWith("vendor/values-bindings/") && isRelativeSpecifier(spec)) {
+    const target = posix.normalize(posix.join(posix.dirname(moduleKey), spec));
+    if (target.startsWith("vendor/src/")) {
+      return relativeSpecifier(moduleKey, `vendor/values/${target.slice("vendor/src/".length)}`);
+    }
+  }
+  return null;
+}
+
+function mapVendorCoreImport(spec: string, moduleKey: string): string | null {
+  if (spec === STDLIB_SPECIFIER) return relativeSpecifier(moduleKey, STDLIB_VENDOR_ENTRY);
+  if (spec === UI_SPECIFIER) return relativeSpecifier(moduleKey, UI_VENDOR_ENTRY);
+  if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
+  if (spec === STATE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_VENDOR_ENTRY);
+  if (spec === "@canlang/state/storage") return relativeSpecifier(moduleKey, "vendor/state/storage/index.js");
+  if (spec === STATE_QUERY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_QUERY_VENDOR_ENTRY);
+  if (spec === "@canlang/state/storage/port") return relativeSpecifier(moduleKey, "vendor/state/storage/port.js");
+  if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
+  if (spec === WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_EXECUTION_VENDOR_ENTRY);
+  if (spec === "@canlang/work/recovery") return relativeSpecifier(moduleKey, "vendor/work/recovery/index.js");
+  if (spec === WORK_INTENT_STAGING_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_INTENT_STAGING_VENDOR_ENTRY);
+  if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
+  if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
+  if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
+  if (spec === FILES_DURABLE_SQLITE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_DURABLE_SQLITE_VENDOR_ENTRY);
+  if (spec === "@canlang/files/upload") return relativeSpecifier(moduleKey, "vendor/files/upload/index.js");
+  if (spec === "@canlang/files/provenance") return relativeSpecifier(moduleKey, "vendor/files/provenance/index.js");
+  return null;
+}
+
+function mapVendorExtendedImport(spec: string, moduleKey: string): string | null {
+  if (spec.startsWith("@canlang/files/")) return relativeSpecifier(moduleKey, `vendor/files/${spec.slice("@canlang/files/".length)}.js`);
+  if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
+  if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
+  if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
+  if (spec === "@noble/hashes/sha2.js" || spec === "@noble/hashes/utils.js") {
+    return relativeSpecifier(moduleKey, `vendor/noble-hashes/${spec.slice("@noble/hashes/".length)}`);
+  }
+  if (spec === WORK_KERNEL_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, "vendor/work-kernel/src/index.js");
+  if (spec === WORK_KERNEL_ROWS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_KERNEL_ROWS_VENDOR_ENTRY);
+  if (spec.startsWith("@canlang/work-kernel/")) return relativeSpecifier(moduleKey, `vendor/work-kernel/src/${spec.slice("@canlang/work-kernel/".length)}.js`);
+  if (spec === "@canlang/contracts/values") return relativeSpecifier(moduleKey, "vendor/contracts/values.js");
+  if (spec === "@canlang/state/effects/transition") return relativeSpecifier(moduleKey, "vendor/state/effects/transition.js");
+  if (spec === "@canlang/state/effects/guards") return relativeSpecifier(moduleKey, "vendor/state/effects/guards.js");
+  if (spec === "@canlang/state/effects/delivery") return relativeSpecifier(moduleKey, "vendor/state/effects/delivery.js");
+  if (spec === "@canlang/state/receipt/tables") return relativeSpecifier(moduleKey, "vendor/state/receipt/tables.js");
+  return null;
+}
+
 /**
  * Rewrite producer imports inside staged vendor trees. Vendor dists are
  * verbatim builds: today only `vendor/stdlib` carries a bare producer
@@ -931,55 +1002,8 @@ export function stageSodaRuntimeModules(existing: Readonly<Record<string, string
  */
 function rewriteVendorImports(js: string, moduleKey: string): string {
   js = rewriteSelectedProducerImports(js, moduleKey);
-  const mapped = (spec: string): string => {
-    if (moduleKey.startsWith("vendor/identity/")) {
-      if (spec === "#identity-byte-compare") return relativeSpecifier(moduleKey, "vendor/identity/sessions/comparison-worker.js");
-      if (spec === "cookie") return relativeSpecifier(moduleKey, "vendor/cookie/index.js");
-      if (spec === "@scure/base") return relativeSpecifier(moduleKey, "vendor/scure-base/index.js");
-    }
-    if (moduleKey.startsWith("vendor/ui/") && spec === "csv-parse/browser/esm/sync") {
-      return relativeSpecifier(moduleKey, "vendor/csv-parse/sync.js");
-    }
-    if (moduleKey.startsWith("vendor/values-bindings/") && isRelativeSpecifier(spec)) {
-      const target = posix.normalize(posix.join(posix.dirname(moduleKey), spec));
-      if (target.startsWith("vendor/src/")) {
-        return relativeSpecifier(moduleKey, `vendor/values/${target.slice("vendor/src/".length)}`);
-      }
-    }
-    if (spec === STDLIB_SPECIFIER) return relativeSpecifier(moduleKey, STDLIB_VENDOR_ENTRY);
-    if (spec === UI_SPECIFIER) return relativeSpecifier(moduleKey, UI_VENDOR_ENTRY);
-    if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
-    if (spec === STATE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_VENDOR_ENTRY);
-    if (spec === "@canlang/state/storage") return relativeSpecifier(moduleKey, "vendor/state/storage/index.js");
-    if (spec === STATE_QUERY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_QUERY_VENDOR_ENTRY);
-    if (spec === "@canlang/state/storage/port") return relativeSpecifier(moduleKey, "vendor/state/storage/port.js");
-    if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
-    if (spec === WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_EXECUTION_VENDOR_ENTRY);
-    if (spec === "@canlang/work/recovery") return relativeSpecifier(moduleKey, "vendor/work/recovery/index.js");
-    if (spec === WORK_INTENT_STAGING_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_INTENT_STAGING_VENDOR_ENTRY);
-    if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
-    if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
-    if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
-    if (spec === FILES_DURABLE_SQLITE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_DURABLE_SQLITE_VENDOR_ENTRY);
-    if (spec === "@canlang/files/upload") return relativeSpecifier(moduleKey, "vendor/files/upload/index.js");
-    if (spec === "@canlang/files/provenance") return relativeSpecifier(moduleKey, "vendor/files/provenance/index.js");
-    if (spec.startsWith("@canlang/files/")) return relativeSpecifier(moduleKey, `vendor/files/${spec.slice("@canlang/files/".length)}.js`);
-    if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
-    if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
-    if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
-    if (spec === "@noble/hashes/sha2.js" || spec === "@noble/hashes/utils.js") {
-      return relativeSpecifier(moduleKey, `vendor/noble-hashes/${spec.slice("@noble/hashes/".length)}`);
-    }
-    if (spec === WORK_KERNEL_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, "vendor/work-kernel/src/index.js");
-    if (spec === WORK_KERNEL_ROWS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_KERNEL_ROWS_VENDOR_ENTRY);
-    if (spec.startsWith("@canlang/work-kernel/")) return relativeSpecifier(moduleKey, `vendor/work-kernel/src/${spec.slice("@canlang/work-kernel/".length)}.js`);
-    if (spec === "@canlang/contracts/values") return relativeSpecifier(moduleKey, "vendor/contracts/values.js");
-    if (spec === "@canlang/state/effects/transition") return relativeSpecifier(moduleKey, "vendor/state/effects/transition.js");
-    if (spec === "@canlang/state/effects/guards") return relativeSpecifier(moduleKey, "vendor/state/effects/guards.js");
-    if (spec === "@canlang/state/effects/delivery") return relativeSpecifier(moduleKey, "vendor/state/effects/delivery.js");
-    if (spec === "@canlang/state/receipt/tables") return relativeSpecifier(moduleKey, "vendor/state/receipt/tables.js");
-    return spec;
-  };
+  const mapped = (spec: string): string =>
+    mapVendorScopedImport(moduleKey, spec) ?? mapVendorCoreImport(spec, moduleKey) ?? mapVendorExtendedImport(spec, moduleKey) ?? spec;
   return rewriteModuleImports(js, moduleKey, mapped, { profile: "trusted-producer" }).js;
 }
 
@@ -2068,6 +2092,40 @@ function buildGeneratedBrowserClient(artifact: CompileArtifact, lifetime?: Local
  * the same vendor rewrite/link checks as ordinary producers. Browser resources
  * remain outside the Worker module inventory, including browser JavaScript.
  */
+function mergeGeneratedStyles(artifact: CompileArtifact, resources: ReturnType<typeof snapshotResources>): void {
+  Object.assign(resources, generatedStyleResources(artifact));
+  if ((artifact.stylesheets?.length ?? 0) === 0) return;
+  const baseCss = resources["browser/can-style.css"];
+  if (baseCss === undefined) throw new Error("deploy bundle: generated styles need the canonical browser stylesheet");
+  const paths = new Set<string>();
+  const css: string[] = [];
+  for (const sheet of artifact.stylesheets ?? []) {
+    if (paths.has(sheet.path) || sheet.path !== `can.generated/${sheet.owner.unitId}/style.css` ||
+        sha256Bytes(new TextEncoder().encode(sheet.css)) !== sheet.sha256) {
+      throw new Error(`deploy bundle: invalid generated stylesheet ${JSON.stringify(sheet.path)}`);
+    }
+    paths.add(sheet.path);
+    css.push(sheet.css);
+  }
+  resources["browser/can-style.css"] = { ...baseCss,
+    bytes: new TextEncoder().encode(`${new TextDecoder().decode(baseCss.bytes)}\n${css.join("\n")}\n`) };
+}
+
+function installBrowserAssets(artifact: CompileArtifact, resources: ReturnType<typeof snapshotResources>,
+  modules: ReturnType<typeof buildDeployBundle>['modules'], options: BuildPackageDeployBundleOptions): string {
+  const generatedClient = buildGeneratedBrowserClient(artifact, options.commandLifetime, options);
+  if (generatedClient !== null) resources["browser/bootstrap.js"] = { bytes: generatedClient, contentType: "application/javascript" };
+  const resourceDigest = resourcesSha256(resources);
+  const entries = resourceEntries(resources);
+  if (!["browser/bootstrap.js", "browser/can-style.css", "browser/polling.js"].every(key => Object.hasOwn(resources,key))) {
+    throw new Error("deploy bundle: selected browser resource inventory lacks the canonical shared producer");
+  }
+  const manifest = { version: 1 as const, module: "./http-assets.js" as const, resourcesSha256: resourceDigest, resources: entries };
+  modules[HTTP_ASSETS_MODULE] = buildBrowserAssetsModule(resources, manifest, options.commandLifetime, options);
+  modules[ARTIFACT_MODULE] += `export const browserAssets = ${JSON.stringify(manifest)};\n`;
+  return resourceDigest;
+}
+
 export function buildDeployBundleWithAssets(
   artifact: CompileArtifact,
   options: BuildPackageDeployBundleOptions,
@@ -2077,36 +2135,10 @@ export function buildDeployBundleWithAssets(
   const base = buildDeployBundle(artifact, options);
   const modules = { ...base.modules };
   const resources = snapshotResources(assets.resources);
-  if (options.assets?.browser === true) Object.assign(resources, generatedStyleResources(artifact));
-  if (options.assets?.browser === true && (artifact.stylesheets?.length ?? 0) > 0) {
-    const baseCss = resources["browser/can-style.css"];
-    if (baseCss === undefined) throw new Error("deploy bundle: generated styles need the canonical browser stylesheet");
-    const paths = new Set<string>();
-    const css: string[] = [];
-    for (const sheet of artifact.stylesheets ?? []) {
-      if (paths.has(sheet.path) || sheet.path !== `can.generated/${sheet.owner.unitId}/style.css` ||
-          sha256Bytes(new TextEncoder().encode(sheet.css)) !== sheet.sha256) {
-        throw new Error(`deploy bundle: invalid generated stylesheet ${JSON.stringify(sheet.path)}`);
-      }
-      paths.add(sheet.path);
-      css.push(sheet.css);
-    }
-    resources["browser/can-style.css"] = { ...baseCss,
-      bytes: new TextEncoder().encode(`${new TextDecoder().decode(baseCss.bytes)}\n${css.join("\n")}\n`) };
-  }
+  let resourceDigest = resourcesSha256(resources);
   if (options.assets?.browser === true) {
-    const generatedClient = buildGeneratedBrowserClient(artifact, options.commandLifetime, options);
-    if (generatedClient !== null) resources["browser/bootstrap.js"] = { bytes: generatedClient, contentType: "application/javascript" };
-  }
-  const resourceDigest = resourcesSha256(resources);
-  if (options.assets?.browser === true) {
-    const entries = resourceEntries(resources);
-    if (!["browser/bootstrap.js", "browser/can-style.css", "browser/polling.js"].every(key => Object.hasOwn(resources,key))) {
-      throw new Error("deploy bundle: selected browser resource inventory lacks the canonical shared producer");
-    }
-    const manifest = { version: 1 as const, module: "./http-assets.js" as const, resourcesSha256: resourceDigest, resources: entries };
-    modules[HTTP_ASSETS_MODULE] = buildBrowserAssetsModule(resources, manifest, options.commandLifetime, options);
-    modules[ARTIFACT_MODULE] += `export const browserAssets = ${JSON.stringify(manifest)};\n`;
+    mergeGeneratedStyles(artifact, resources);
+    resourceDigest = installBrowserAssets(artifact, resources, modules, options);
   }
   for (const [key, js] of Object.entries(assets.modules)) {
     if (Object.hasOwn(modules, key)) {

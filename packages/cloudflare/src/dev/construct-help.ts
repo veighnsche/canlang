@@ -188,26 +188,42 @@ const UNKNOWN_ROUTING: CompilerConstructCandidates = Object.freeze({
   version: 1, disposition: "unknown", slot: null, ids: Object.freeze([]), complete: false,
 });
 
+function routingShape(entry: Record<string, unknown>): boolean {
+  return entry["version"] === 1 && typeof entry["disposition"] === "string" &&
+    ["exact", "structural", "none", "unknown"].includes(entry["disposition"]) &&
+    typeof entry["complete"] === "boolean" && Array.isArray(entry["ids"]);
+}
+
+function routingSlot(entry: Record<string, unknown>): string | null | undefined {
+  const slot = entry["slot"] === undefined ? null : entry["slot"];
+  if (slot !== null && (typeof slot !== "string" || !/^[a-z][a-z0-9_.-]{0,95}$/.test(slot))) return undefined;
+  return slot;
+}
+
+function routingIds(entry: Record<string, unknown>): string[] | undefined {
+  const ids = entry["ids"] as unknown[];
+  if (ids.length > 8 || ids.some(id => typeof id !== "string" || id.length > 96 || !CARD_ID.test(id)) ||
+      new Set(ids).size !== ids.length) return undefined;
+  return ids as string[];
+}
+
 /** Reject malformed or overbroad routing as unknown; never recover IDs from prose. */
 export function parseCompilerConstructCandidates(value: unknown): CompilerConstructCandidates {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return UNKNOWN_ROUTING;
   const entry = value as Record<string, unknown>;
-  if (entry["version"] !== 1 || typeof entry["disposition"] !== "string" ||
-      !["exact", "structural", "none", "unknown"].includes(entry["disposition"]) ||
-      typeof entry["complete"] !== "boolean" || !Array.isArray(entry["ids"])) return UNKNOWN_ROUTING;
+  if (!routingShape(entry)) return UNKNOWN_ROUTING;
   const disposition = entry["disposition"] as CompilerConstructCandidates["disposition"];
-  const slot = entry["slot"] === undefined ? null : entry["slot"];
-  if (slot !== null && (typeof slot !== "string" || !/^[a-z][a-z0-9_.-]{0,95}$/.test(slot))) return UNKNOWN_ROUTING;
-  const ids = entry["ids"] as unknown[];
-  if (ids.length > 8 || ids.some(id => typeof id !== "string" || id.length > 96 || !CARD_ID.test(id)) ||
-      new Set(ids).size !== ids.length) return UNKNOWN_ROUTING;
+  const slot = routingSlot(entry);
+  if (slot === undefined) return UNKNOWN_ROUTING;
+  const ids = routingIds(entry);
+  if (ids === undefined) return UNKNOWN_ROUTING;
   if (disposition === "exact" && (slot === null || ids.length === 0)) return UNKNOWN_ROUTING;
   if (disposition !== "exact" && ids.length !== 0) return UNKNOWN_ROUTING;
   if ((disposition === "structural" || disposition === "unknown") && entry["complete"] !== false) return UNKNOWN_ROUTING;
   const context = disposition === "exact" && entry["complete"] === true
     ? parseRankingContext(entry["context"]) : undefined;
-  return Object.freeze({ version: 1, disposition, slot: slot as string | null,
-    ids: Object.freeze(ids as string[]), complete: entry["complete"] as boolean,
+  return Object.freeze({ version: 1, disposition, slot,
+    ids: Object.freeze(ids), complete: entry["complete"] as boolean,
     ...(context === undefined ? {} : { context }) });
 }
 
@@ -322,6 +338,48 @@ function cardSection(id: string, tableSection: string): string {
   return tableSection === "App/Given" ? "Given" : tableSection;
 }
 
+function parseCardHeader(cells: string[], ids: Set<string>): { anchor: string; id: string } {
+  const header = cells[0]?.match(/^<a id="(can-v1-[a-z0-9_-]+)"><\/a>`(can\.v1\.[a-z0-9_.-]+)`$/);
+  if (!header) throw new Error("construct card has an invalid ID or anchor");
+  const [, anchor, id] = header;
+  const normalAnchor = id?.replace(/\./g, "-");
+  if (!id || !anchor || !CARD_ID.test(id) ||
+      (anchor !== normalAnchor && anchor !== normalAnchor?.replace(/_/g, "-"))) {
+    throw new Error(`construct card ID/anchor mismatch: ${id ?? "unknown"}`);
+  }
+  if (ids.has(id)) throw new Error(`duplicate construct card: ${id}`);
+  ids.add(id);
+  return { anchor, id };
+}
+
+function parseCardRow(line: string, section: string, tableWidth: number, ids: Set<string>): ConstructHelpCard {
+  const cells = splitRow(line);
+  if (cells.length !== tableWidth) throw new Error(`construct help row has ${cells.length} cells; expected ${tableWidth}`);
+  const { anchor, id } = parseCardHeader(cells, ids);
+  const signature = inlineCode(cells[1]!, "signature");
+  const meaning = cells[2]?.trim() ?? "";
+  const example = plainCode(cells[3]!);
+  const availability = cells[4]?.trim() ?? "";
+  const link = linkTarget(cells[tableWidth - 1]!, "stable link");
+  if (!meaning || !availability || !example || link !== `#${anchor}`) {
+    throw new Error(`incomplete construct card: ${id}`);
+  }
+  const sourceLink = tableWidth === 7
+    ? linkTarget(cells[5]!, "source link")
+    : VALUES_SOURCE;
+  return Object.freeze({
+    id,
+    section: cardSection(id, section),
+    signature,
+    meaning,
+    example,
+    availability,
+    status: availability.toLowerCase().includes("proposed") ? "planned" : "unavailable",
+    link: `${DOCUMENT_PATH}${link}`,
+    sourceLink,
+  });
+}
+
 function parseCards(markdown: string): ConstructHelpCard[] {
   const cards: ConstructHelpCard[] = [];
   const ids = new Set<string>();
@@ -339,40 +397,7 @@ function parseCards(markdown: string): ConstructHelpCard[] {
     }
     if (!line.startsWith("| <a id=")) continue;
     if (!section || !tableWidth) throw new Error("construct card is outside a known table");
-    const cells = splitRow(line);
-    if (cells.length !== tableWidth) throw new Error(`construct help row has ${cells.length} cells; expected ${tableWidth}`);
-    const header = cells[0]?.match(/^<a id="(can-v1-[a-z0-9_-]+)"><\/a>`(can\.v1\.[a-z0-9_.-]+)`$/);
-    if (!header) throw new Error("construct card has an invalid ID or anchor");
-    const [, anchor, id] = header;
-    const normalAnchor = id?.replace(/\./g, "-");
-    if (!id || !anchor || !CARD_ID.test(id) ||
-        (anchor !== normalAnchor && anchor !== normalAnchor?.replace(/_/g, "-"))) {
-      throw new Error(`construct card ID/anchor mismatch: ${id ?? "unknown"}`);
-    }
-    if (ids.has(id)) throw new Error(`duplicate construct card: ${id}`);
-    ids.add(id);
-    const signature = inlineCode(cells[1]!, "signature");
-    const meaning = cells[2]?.trim() ?? "";
-    const example = plainCode(cells[3]!);
-    const availability = cells[4]?.trim() ?? "";
-    const link = linkTarget(cells[tableWidth - 1]!, "stable link");
-    if (!meaning || !availability || !example || link !== `#${anchor}`) {
-      throw new Error(`incomplete construct card: ${id}`);
-    }
-    const sourceLink = tableWidth === 7
-      ? linkTarget(cells[5]!, "source link")
-      : VALUES_SOURCE;
-    cards.push(Object.freeze({
-      id,
-      section: cardSection(id, section),
-      signature,
-      meaning,
-      example,
-      availability,
-      status: availability.toLowerCase().includes("proposed") ? "planned" : "unavailable",
-      link: `${DOCUMENT_PATH}${link}`,
-      sourceLink,
-    }));
+    cards.push(parseCardRow(line, section, tableWidth, ids));
   }
   if (cards.length === 0) throw new Error("construct help inventory is empty");
   return cards;

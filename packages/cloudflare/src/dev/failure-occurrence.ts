@@ -175,6 +175,76 @@ export interface ExampleValueAccess {
 }
 
 /** One failed table row or sequence step from a compiled ExampleReport. */
+function resolveExampleEntry(report: ExampleReport, caseIndex: number, entryIndex: number) {
+  const example = report.cases[caseIndex];
+  if (example === undefined) throw new Error("example case not found");
+  const entry = example.kind === "table" ? example.rows[entryIndex] : example.steps[entryIndex];
+  if (entry === undefined) throw new Error("example entry not found");
+  if (entry.outcome === "passed") throw new Error("passed example has no failure occurrence");
+  return { example, entry };
+}
+
+type ExampleFailureInput = Parameters<typeof projectExampleFailure>[0];
+type ResolvedExampleEntry = ReturnType<typeof resolveExampleEntry>;
+
+function projectMismatchValues(input: ExampleFailureInput,
+  entry: ResolvedExampleEntry["entry"]): {
+  projected: ObservationMismatch[]; effectiveCaller: NonNullable<ResolvedExampleEntry["entry"]["caller"]>;
+} {
+  const effectiveCaller = entry.caller ?? { account: "unknown", team: null, roles: [], authenticated: false };
+  const projected: ObservationMismatch[] = [];
+  if (input.access !== undefined && entry.mismatches !== undefined) {
+    for (const mismatch of entry.mismatches.slice(0, MAX_MISMATCHES)) {
+      try {
+        const safe = input.access.projectMismatch(mismatch, input.access.viewer, effectiveCaller);
+        if (safe !== null && Buffer.byteLength(JSON.stringify(safe), "utf8") <= MAX_VALUE_BYTES) projected.push(safe);
+      } catch {
+        // A failed policy projection withholds data; it cannot turn into a leak.
+      }
+    }
+  }
+  return { projected, effectiveCaller };
+}
+
+function exampleMissingEvidence(input: ExampleFailureInput, entry: ResolvedExampleEntry["entry"],
+  at: FailureAt | undefined, projected: readonly ObservationMismatch[]): string[] {
+  return [
+    ...(at === undefined ? ["structured_example_location_unavailable"] : []),
+    "trace_unavailable",
+    "runtime_detail_unreleased",
+    ...(input.access === undefined ? ["actor_projection_unavailable"] : []),
+    ...(entry.mismatches !== undefined && projected.length < entry.mismatches.length ? ["actor_values_withheld"] : []),
+    ...(entry.mismatches !== undefined && entry.mismatches.length > MAX_MISMATCHES ? ["mismatch_values_truncated"] : []),
+    ...(entry.rejection?.sideEffectsAbsent === true ? [] : ["side_effect_scope_unproven"]),
+  ];
+}
+
+function buildExampleOccurrence(context: FailureContext, runId: string, caseIndex: number, entryIndex: number,
+  example: ResolvedExampleEntry["example"], entry: ResolvedExampleEntry["entry"],
+  ref: string, at: FailureAt | undefined, missing: readonly string[]): FailureOccurrence {
+  const phase = entry.outcome === "setup-failed" ? "setup" :
+    entry.outcome === "unsupported" ? "unsupported" :
+    entry.mismatches !== undefined ? "assertion" : "invoke_or_observe";
+  const entryRef = example.kind === "table"
+    ? { row_index: example.rows[entryIndex]!.rowIndex }
+    : { step_index: example.steps[entryIndex]!.index };
+  return {
+    ...base(context, ref, "example"),
+    phase,
+    summary: entry.outcome === "setup-failed" ? "Example setup failed." :
+      entry.outcome === "unsupported" ? "Example could not run in this profile." :
+      phase === "assertion" ? "Example assertion failed." : "Example invocation or observation failed.",
+    owner_ref: {
+      run_id: runId,
+      case_index: caseIndex,
+      entry_index: entryIndex,
+      ...entryRef,
+    },
+    ...(at === undefined ? {} : { at }),
+    evidence: evidence(missing),
+  };
+}
+
 export function projectExampleFailure(input: {
   context: FailureContext;
   report: ExampleReport;
@@ -193,55 +263,12 @@ export function projectExampleFailure(input: {
   if (!Number.isSafeInteger(caseIndex) || caseIndex < 0 || !Number.isSafeInteger(entryIndex) || entryIndex < 0) {
     throw new Error("invalid example index");
   }
-  const example = report.cases[caseIndex];
-  if (example === undefined) throw new Error("example case not found");
-  const entry = example.kind === "table" ? example.rows[entryIndex] : example.steps[entryIndex];
-  if (entry === undefined) throw new Error("example entry not found");
-  if (entry.outcome === "passed") throw new Error("passed example has no failure occurrence");
+  const { example, entry } = resolveExampleEntry(report, caseIndex, entryIndex);
   const ref = `${refPart(input.runId, "run")}/f${caseIndex}_${entryIndex}`;
   const at = mappedPoint(input.mapped, context.sourcePaths);
-  const phase = entry.outcome === "setup-failed" ? "setup" :
-    entry.outcome === "unsupported" ? "unsupported" :
-    entry.mismatches !== undefined ? "assertion" : "invoke_or_observe";
-  const effectiveCaller = entry.caller ?? { account: "unknown", team: null, roles: [], authenticated: false };
-  const projected: ObservationMismatch[] = [];
-  if (input.access !== undefined && entry.mismatches !== undefined) {
-    for (const mismatch of entry.mismatches.slice(0, MAX_MISMATCHES)) {
-      try {
-        const safe = input.access.projectMismatch(mismatch, input.access.viewer, effectiveCaller);
-        if (safe !== null && Buffer.byteLength(JSON.stringify(safe), "utf8") <= MAX_VALUE_BYTES) projected.push(safe);
-      } catch {
-        // A failed policy projection withholds data; it cannot turn into a leak.
-      }
-    }
-  }
-  const missing = [
-    ...(at === undefined ? ["structured_example_location_unavailable"] : []),
-    "trace_unavailable",
-    "runtime_detail_unreleased",
-    ...(input.access === undefined ? ["actor_projection_unavailable"] : []),
-    ...(entry.mismatches !== undefined && projected.length < entry.mismatches.length ? ["actor_values_withheld"] : []),
-    ...(entry.mismatches !== undefined && entry.mismatches.length > MAX_MISMATCHES ? ["mismatch_values_truncated"] : []),
-    ...(entry.rejection?.sideEffectsAbsent === true ? [] : ["side_effect_scope_unproven"]),
-  ];
-  const entryRef = example.kind === "table"
-    ? { row_index: example.rows[entryIndex]!.rowIndex }
-    : { step_index: example.steps[entryIndex]!.index };
-  const occurrence: FailureOccurrence = {
-    ...base(context, ref, "example"),
-    phase,
-    summary: entry.outcome === "setup-failed" ? "Example setup failed." :
-      entry.outcome === "unsupported" ? "Example could not run in this profile." :
-      phase === "assertion" ? "Example assertion failed." : "Example invocation or observation failed.",
-    owner_ref: {
-      run_id: input.runId,
-      case_index: caseIndex,
-      entry_index: entryIndex,
-      ...entryRef,
-    },
-    ...(at === undefined ? {} : { at }),
-    evidence: evidence(missing),
-  };
+  const { projected, effectiveCaller } = projectMismatchValues(input, entry);
+  const occurrence = buildExampleOccurrence(context, input.runId, caseIndex, entryIndex, example, entry,
+    ref, at, exampleMissingEvidence(input, entry, at, projected));
   const detail: Record<string, unknown> = {
     ref: occurrence.ref,
     outcome: entry.outcome,

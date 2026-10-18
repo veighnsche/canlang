@@ -9,14 +9,18 @@ export function terminalText(value: unknown, limit = 2000): string {
     .slice(0, limit);
 }
 
-function cellWidth(char: string): number {
-  const code = char.codePointAt(0)!;
-  if (/\p{Mark}/u.test(char) || code === 0x200d || code === 0xfe0f) return 0;
+function isWideCode(code: number): boolean {
   return code >= 0x1100 && (code <= 0x115f || code === 0x2329 || code === 0x232a ||
     (code >= 0x2e80 && code <= 0xa4cf) || (code >= 0xac00 && code <= 0xd7a3) ||
     (code >= 0xf900 && code <= 0xfaff) || (code >= 0xfe10 && code <= 0xfe6f) ||
     (code >= 0xff01 && code <= 0xff60) || (code >= 0xffe0 && code <= 0xffe6) ||
-    (code >= 0x1f300 && code <= 0x1faff) || code >= 0x20000) ? 2 : 1;
+    (code >= 0x1f300 && code <= 0x1faff) || code >= 0x20000);
+}
+
+function cellWidth(char: string): number {
+  const code = char.codePointAt(0)!;
+  if (/\p{Mark}/u.test(char) || code === 0x200d || code === 0xfe0f) return 0;
+  return isWideCode(code) ? 2 : 1;
 }
 export function terminalColumns(value: string): number {
   return Array.from(value).reduce((width, char) => width + cellWidth(char), 0);
@@ -94,38 +98,58 @@ export function terminalAction(line: string): TerminalAction | null {
   return aliases[line.trim().toLowerCase()] ?? null;
 }
 
+export interface TerminalFeed {
+  lines: string[];
+  interrupts: number;
+  rejectedPaste: boolean;
+  eof: boolean;
+}
+
 /** Raw input is bounded; a pasted block cannot silently execute multiple commands. */
 export class TerminalInput {
   value = "";
   private paste = false;
   private rejected = false;
   private pending = "";
-  feed(chunk: string): { lines: string[]; interrupts: number; rejectedPaste: boolean; eof: boolean } {
-    const result = { lines: [] as string[], interrupts: 0, rejectedPaste: false, eof: false };
-    this.pending += chunk;
+  private rejectUnbracketedBatch(result: TerminalFeed): boolean {
     // Canonical/non-TTY input also passes here; treat a multi-line batch as pasted text.
     const breaks = this.pending.match(/\r\n|\r|\n/g)?.length ?? 0;
-    if (!this.paste && !this.pending.includes("\x1b[200~") && breaks > 1) {
-      this.pending = ""; this.value = ""; result.rejectedPaste = true; return result;
-    }
+    if (this.paste || this.pending.includes("\x1b[200~") || breaks <= 1) return false;
+    this.pending = "";
+    this.value = "";
+    result.rejectedPaste = true;
+    return true;
+  }
+  private stepEscape(): "advance" | "stall" | null {
+    if (this.pending.startsWith("\x1b[200~")) { this.paste = true; this.rejected = false; this.pending = this.pending.slice(6); return "advance"; }
+    if (this.pending.startsWith("\x1b[201~")) { this.paste = false; if (this.rejected) this.value = ""; this.rejected = false; this.pending = this.pending.slice(6); return "advance"; }
+    if (!this.pending.startsWith("\x1b")) return null;
+    if (/^\x1b\[(?:2(?:0[01]?)?)?$/.test(this.pending) || this.pending === "\x1b") return "stall";
+    const escape = /^\x1b\[[0-?]*[ -/]*[@-~]/.exec(this.pending);
+    this.pending = this.pending.slice(escape?.[0].length ?? 1);
+    return "advance";
+  }
+  private stepChar(result: TerminalFeed): void {
+    const char = this.pending[0]!;
+    this.pending = this.pending.slice(1);
+    if (char === "\x03") { if (!this.paste) { result.interrupts++; this.value = ""; } }
+    else if (char === "\x04") { if (!this.paste) result.eof = true; }
+    else if (char === "\r" || char === "\n") {
+      if (char === "\r" && this.pending.startsWith("\n")) this.pending = this.pending.slice(1);
+      if (this.paste) { result.rejectedPaste = true; this.rejected = true; this.value = ""; }
+      else { result.lines.push(this.value); this.value = ""; }
+    } else if (char === "\x7f" || char === "\b") this.value = this.value.slice(0, -1);
+    else if (!this.rejected && /^[\x20-\x7e]$/.test(char) && this.value.length < 128) this.value += char;
+  }
+  feed(chunk: string): TerminalFeed {
+    const result: TerminalFeed = { lines: [], interrupts: 0, rejectedPaste: false, eof: false };
+    this.pending += chunk;
+    if (this.rejectUnbracketedBatch(result)) return result;
     while (this.pending.length) {
-      if (this.pending.startsWith("\x1b[200~")) { this.paste = true; this.rejected = false; this.pending = this.pending.slice(6); continue; }
-      if (this.pending.startsWith("\x1b[201~")) { this.paste = false; if (this.rejected) this.value = ""; this.rejected = false; this.pending = this.pending.slice(6); continue; }
-      if (this.pending.startsWith("\x1b")) {
-        if (/^\x1b\[(?:2(?:0[01]?)?)?$/.test(this.pending) || this.pending === "\x1b") break;
-        const escape = /^\x1b\[[0-?]*[ -/]*[@-~]/.exec(this.pending);
-        this.pending = this.pending.slice(escape?.[0].length ?? 1); continue;
-      }
-      const char = this.pending[0]!;
-      this.pending = this.pending.slice(1);
-      if (char === "\x03") { if (!this.paste) { result.interrupts++; this.value = ""; } }
-      else if (char === "\x04") { if (!this.paste) result.eof = true; }
-      else if (char === "\r" || char === "\n") {
-        if (char === "\r" && this.pending.startsWith("\n")) this.pending = this.pending.slice(1);
-        if (this.paste) { result.rejectedPaste = true; this.rejected = true; this.value = ""; }
-        else { result.lines.push(this.value); this.value = ""; }
-      } else if (char === "\x7f" || char === "\b") this.value = this.value.slice(0, -1);
-      else if (!this.rejected && /^[\x20-\x7e]$/.test(char) && this.value.length < 128) this.value += char;
+      const escape = this.stepEscape();
+      if (escape === "advance") continue;
+      if (escape === "stall") break;
+      this.stepChar(result);
     }
     // A rejected pasted line must also discard its final unterminated segment.
     if (result.rejectedPaste) this.value = "";

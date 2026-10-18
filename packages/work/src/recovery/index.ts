@@ -463,7 +463,11 @@ function compareOutboxIds(a: OutboxId, b: OutboxId): number {
  *
  * All lists are id-sorted for stable evidence.
  */
-export function planRecoveryScan(input: RecoveryScanInput): RecoveryPlan {
+interface RecoveryClassLists {
+  readonly resume: OutboxId[]; readonly retry: OutboxId[]; readonly reconcile: OutboxId[];
+  readonly awaiting: OutboxId[]; readonly skipped: OutboxId[]; readonly terminal: OutboxId[]; readonly dead: OutboxId[];
+}
+const checkRecoveryScanInput = (input: RecoveryScanInput): NonNullable<RecoveryScanInput['policy']> => {
   if (!Number.isFinite(input.nowMs) || input.nowMs < 0) {
     throw new RangeError('planRecoveryScan: nowMs must be finite and >= 0');
   }
@@ -477,59 +481,62 @@ export function planRecoveryScan(input: RecoveryScanInput): RecoveryPlan {
   if (!Number.isFinite(policy.horizonMs) || policy.horizonMs <= 0) {
     throw new RangeError('planRecoveryScan: policy.horizonMs must be finite and > 0');
   }
+  return policy;
+};
+const classifyRecoveryRow = (row: RecoveryScanInput['rows'][number], byOutbox: Map<OutboxId, DispatchClaim>,
+  input: RecoveryScanInput, policy: NonNullable<RecoveryScanInput['policy']>, lists: RecoveryClassLists): void => {
+  const item = row.item;
+  switch (item.state) {
+    case 'pending':
+      if (row.guardVerdict === false) {
+        lists.skipped.push(item.id);
+      }
+      break;
+    case 'claimed': {
+      const claim = byOutbox.get(item.id);
+      if (claim !== undefined && isClaimStale(claim, input.nowMs, input.maxClaimAgeMs)) {
+        lists.resume.push(item.id);
+      }
+      break;
+    }
+    case 'failed':
+      if (row.retryClass !== 'transient') {
+        lists.terminal.push(item.id);
+      } else if (
+        item.attempts >= policy.maxAttempts ||
+        (row.firstAttemptAtMs !== null &&
+          input.nowMs - row.firstAttemptAtMs >= policy.horizonMs)
+      ) {
+        lists.dead.push(item.id);
+      } else {
+        lists.retry.push(item.id);
+      }
+      break;
+    case 'uncertain': {
+      const found = input.evidence(item.id);
+      if (found === null) {
+        lists.awaiting.push(item.id);
+      } else if (found.kind === 'not-found') {
+        lists.retry.push(item.id);
+      } else {
+        lists.reconcile.push(item.id);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+};
+export function planRecoveryScan(input: RecoveryScanInput): RecoveryPlan {
+  const policy = checkRecoveryScanInput(input);
   const byOutbox = new Map<OutboxId, DispatchClaim>();
   for (const claim of input.claims) {
     byOutbox.set(claim.outboxId, claim);
   }
-  const resume: OutboxId[] = [];
-  const retry: OutboxId[] = [];
-  const reconcile: OutboxId[] = [];
-  const awaiting: OutboxId[] = [];
-  const skipped: OutboxId[] = [];
-  const terminal: OutboxId[] = [];
-  const dead: OutboxId[] = [];
+  const lists: RecoveryClassLists = { resume: [], retry: [], reconcile: [], awaiting: [], skipped: [], terminal: [], dead: [] };
+  const { resume, retry, reconcile, awaiting, skipped, terminal, dead } = lists;
   for (const row of input.rows) {
-    const item = row.item;
-    switch (item.state) {
-      case 'pending':
-        if (row.guardVerdict === false) {
-          skipped.push(item.id);
-        }
-        break;
-      case 'claimed': {
-        const claim = byOutbox.get(item.id);
-        if (claim !== undefined && isClaimStale(claim, input.nowMs, input.maxClaimAgeMs)) {
-          resume.push(item.id);
-        }
-        break;
-      }
-      case 'failed':
-        if (row.retryClass !== 'transient') {
-          terminal.push(item.id);
-        } else if (
-          item.attempts >= policy.maxAttempts ||
-          (row.firstAttemptAtMs !== null &&
-            input.nowMs - row.firstAttemptAtMs >= policy.horizonMs)
-        ) {
-          dead.push(item.id);
-        } else {
-          retry.push(item.id);
-        }
-        break;
-      case 'uncertain': {
-        const evidence = input.evidence(item.id);
-        if (evidence === null) {
-          awaiting.push(item.id);
-        } else if (evidence.kind === 'not-found') {
-          retry.push(item.id);
-        } else {
-          reconcile.push(item.id);
-        }
-        break;
-      }
-      default:
-        break;
-    }
+    classifyRecoveryRow(row, byOutbox, input, policy, lists);
   }
   resume.sort(compareOutboxIds);
   retry.sort(compareOutboxIds);
@@ -761,7 +768,11 @@ const FANOUT_UNKNOWN_LIFECYCLE_REASONS: ReadonlySet<string> = new Set([
  * a checkpoint (adopted §C8 no-supersession default). All lists are
  * id-sorted for stable evidence.
  */
-export function planFanoutRecoveryScan(input: FanoutRecoveryScanInput): FanoutRecoveryPlan {
+interface FanoutClassLists {
+  readonly resume: string[]; readonly skipped: FanoutSkippedAction[]; readonly dead: string[];
+  readonly failed: FanoutFailedAction[]; readonly uncertain: string[]; readonly phantoms: string[];
+}
+const checkFanoutScanInput = (input: FanoutRecoveryScanInput): NonNullable<FanoutRecoveryScanInput['policy']> => {
   if (typeof input.fanoutId !== 'string' || input.fanoutId === '') {
     throw new Error('planFanoutRecoveryScan: fanoutId must be a non-empty string.');
   }
@@ -779,92 +790,102 @@ export function planFanoutRecoveryScan(input: FanoutRecoveryScanInput): FanoutRe
   }
   const policy = input.policy ?? DEFAULT_RETRY_POLICY;
   assertFanoutRetryPolicy(policy, 'planFanoutRecoveryScan');
-  const resume: string[] = [];
-  const skipped: FanoutSkippedAction[] = [];
-  const dead: string[] = [];
-  const failed: FanoutFailedAction[] = [];
-  const uncertain: string[] = [];
-  const phantoms: string[] = [];
+  return policy;
+};
+const checkFanoutChildRow = (row: FanoutRecoveryScanInput['rows'][number], input: FanoutRecoveryScanInput): FanoutRecoveryScanInput['rows'][number]['child'] => {
+  const child = row.child;
+  if (child.fanoutId !== input.fanoutId) {
+    throw new Error('planFanoutRecoveryScan: child row carries a different fanoutId.');
+  }
+  if (!FANOUT_RECOVERABLE_STATES.has(child.state)) {
+    throw new Error(
+      `planFanoutRecoveryScan: child ${JSON.stringify(child.childId)} has unknown state ` +
+        `${JSON.stringify(child.state)}.`,
+    );
+  }
+  if (
+    row.claimedAtMs !== null &&
+    (!Number.isFinite(row.claimedAtMs) || row.claimedAtMs < 0)
+  ) {
+    throw new RangeError('planFanoutRecoveryScan: claimedAtMs must be finite and >= 0');
+  }
+  if (
+    row.firstAttemptAtMs !== null &&
+    (!Number.isFinite(row.firstAttemptAtMs) || row.firstAttemptAtMs < 0)
+  ) {
+    throw new RangeError('planFanoutRecoveryScan: firstAttemptAtMs must be finite and >= 0');
+  }
+  const lifecycle = row.lifecycle.status;
+  if (lifecycle !== 'present' && lifecycle !== 'deleted' && lifecycle !== 'moved' && lifecycle !== 'unknown') {
+    throw new Error(
+      `planFanoutRecoveryScan: child ${JSON.stringify(child.childId)} has unknown lifecycle ` +
+        `${JSON.stringify(lifecycle)}.`,
+    );
+  }
+  if (
+    row.lifecycle.status === 'unknown' &&
+    !FANOUT_UNKNOWN_LIFECYCLE_REASONS.has(row.lifecycle.reason)
+  ) {
+    throw new Error(
+      `planFanoutRecoveryScan: child ${JSON.stringify(child.childId)} has unknown lifecycle ` +
+        `reason ${JSON.stringify(row.lifecycle.reason)}.`,
+      );
+  }
+  return child;
+};
+const classifyFanoutChild = (row: FanoutRecoveryScanInput['rows'][number], child: FanoutRecoveryScanInput['rows'][number]['child'],
+  input: FanoutRecoveryScanInput, policy: NonNullable<FanoutRecoveryScanInput['policy']>,
+  memberSet: Set<string>, rowRecordIds: Set<string>, terminalRecordIds: Set<string>,
+  lists: FanoutClassLists): void => {
+  rowRecordIds.add(child.recordId);
+  if (!memberSet.has(child.recordId)) {
+    lists.phantoms.push(child.childId);
+  }
+  if (child.state === 'completed' || child.state === 'skipped' || child.state === 'failed') {
+    terminalRecordIds.add(child.recordId);
+    return;
+  }
+  if (child.state === 'running') {
+    if (
+      row.claimedAtMs === null ||
+      !isFanoutClaimStale(row.claimedAtMs, input.nowMs, input.maxClaimAgeMs)
+    ) {
+      lists.uncertain.push(child.childId);
+      return;
+    }
+  }
+  if (row.lifecycle.status === 'deleted') {
+    lists.skipped.push({ childId: child.childId, reason: 'deleted' });
+    return;
+  }
+  if (row.lifecycle.status === 'unknown') {
+    lists.failed.push({ childId: child.childId, reason: row.lifecycle.reason });
+    return;
+  }
+  if (row.guardVerdict === false) {
+    lists.skipped.push({ childId: child.childId, reason: 'non-applicable' });
+    return;
+  }
+  if (child.state === 'pending') {
+    return;
+  }
+  if (isFanoutChildExhausted(child.attempts, row.firstAttemptAtMs, input.nowMs, policy)) {
+    lists.dead.push(child.childId);
+  } else {
+    lists.resume.push(child.childId);
+  }
+};
+export function planFanoutRecoveryScan(input: FanoutRecoveryScanInput): FanoutRecoveryPlan {
+  const policy = checkFanoutScanInput(input);
+  const lists: FanoutClassLists = { resume: [], skipped: [], dead: [], failed: [], uncertain: [], phantoms: [] };
+  const { resume, skipped, dead, failed, uncertain, phantoms } = lists;
   const memberSet = new Set<string>(input.intent.members);
   const completedSet = new Set<string>(input.checkpoint.completed);
   const rowRecordIds = new Set<string>();
   const terminalRecordIds = new Set<string>();
   for (const row of input.rows) {
-    const child = row.child;
-    if (child.fanoutId !== input.fanoutId) {
-      throw new Error('planFanoutRecoveryScan: child row carries a different fanoutId.');
-    }
-    if (!FANOUT_RECOVERABLE_STATES.has(child.state)) {
-      throw new Error(
-        `planFanoutRecoveryScan: child ${JSON.stringify(child.childId)} has unknown state ` +
-          `${JSON.stringify(child.state)}.`,
-      );
-    }
-    if (
-      row.claimedAtMs !== null &&
-      (!Number.isFinite(row.claimedAtMs) || row.claimedAtMs < 0)
-    ) {
-      throw new RangeError('planFanoutRecoveryScan: claimedAtMs must be finite and >= 0');
-    }
-    if (
-      row.firstAttemptAtMs !== null &&
-      (!Number.isFinite(row.firstAttemptAtMs) || row.firstAttemptAtMs < 0)
-    ) {
-      throw new RangeError('planFanoutRecoveryScan: firstAttemptAtMs must be finite and >= 0');
-    }
-    const lifecycle = row.lifecycle.status;
-    if (lifecycle !== 'present' && lifecycle !== 'deleted' && lifecycle !== 'moved' && lifecycle !== 'unknown') {
-      throw new Error(
-        `planFanoutRecoveryScan: child ${JSON.stringify(child.childId)} has unknown lifecycle ` +
-          `${JSON.stringify(lifecycle)}.`,
-      );
-    }
-    if (
-      row.lifecycle.status === 'unknown' &&
-      !FANOUT_UNKNOWN_LIFECYCLE_REASONS.has(row.lifecycle.reason)
-    ) {
-      throw new Error(
-        `planFanoutRecoveryScan: child ${JSON.stringify(child.childId)} has unknown lifecycle ` +
-          `reason ${JSON.stringify(row.lifecycle.reason)}.`,
-      );
-    }
-    rowRecordIds.add(child.recordId);
-    if (!memberSet.has(child.recordId)) {
-      phantoms.push(child.childId);
-    }
-    if (child.state === 'completed' || child.state === 'skipped' || child.state === 'failed') {
-      terminalRecordIds.add(child.recordId);
-      continue;
-    }
-    if (child.state === 'running') {
-      if (
-        row.claimedAtMs === null ||
-        !isFanoutClaimStale(row.claimedAtMs, input.nowMs, input.maxClaimAgeMs)
-      ) {
-        uncertain.push(child.childId);
-        continue;
-      }
-    }
-    if (row.lifecycle.status === 'deleted') {
-      skipped.push({ childId: child.childId, reason: 'deleted' });
-      continue;
-    }
-    if (row.lifecycle.status === 'unknown') {
-      failed.push({ childId: child.childId, reason: row.lifecycle.reason });
-      continue;
-    }
-    if (row.guardVerdict === false) {
-      skipped.push({ childId: child.childId, reason: 'non-applicable' });
-      continue;
-    }
-    if (child.state === 'pending') {
-      continue;
-    }
-    if (isFanoutChildExhausted(child.attempts, row.firstAttemptAtMs, input.nowMs, policy)) {
-      dead.push(child.childId);
-    } else {
-      resume.push(child.childId);
-    }
+    const child = checkFanoutChildRow(row, input);
+    classifyFanoutChild(row, child, input, policy, memberSet, rowRecordIds, terminalRecordIds, lists);
   }
   const admit = input.intent.members.filter(
     (member) => !rowRecordIds.has(member) && !completedSet.has(member),

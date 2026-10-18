@@ -469,41 +469,64 @@ async function acquireRecoveryLock(root: string, reclaimPath: string): Promise<{
   throw new SessionSocketError("RECOVERY_IN_PROGRESS", "another process is recovering this session");
 }
 
+async function assertTakeoverAllowed(
+  root: string,
+  paths: SessionPaths,
+  claim: ReturnType<typeof storedClaim>,
+  descriptor: ReturnType<typeof storedIdentity>,
+): Promise<void> {
+  if ((claim?.root !== undefined && claim.root !== root) || (descriptor?.root !== undefined && descriptor.root !== root)) {
+    throw new SessionSocketError("ROOT_COLLISION", "session index belongs to another checkout");
+  }
+  if (descriptor && await verifyLive(descriptor)) {
+    throw new SessionSocketError("SESSION_EXISTS", "a live session already owns this checkout");
+  }
+  if (claim && await claimProcessAlive(claim)) {
+    throw new SessionSocketError("OWNER_UNRESPONSIVE", "session owner is alive but its control endpoint is unavailable");
+  }
+  if (!claim) {
+    const age = Date.now() - (await stat(paths.sessionDir)).mtimeMs;
+    if (age < INCOMPLETE_CLAIM_GRACE_MS) {
+      throw new SessionSocketError("CLAIM_IN_PROGRESS", "session claim is still being created");
+    }
+  }
+}
+
+async function moveStaleDirectory(paths: SessionPaths, staleDirectory: { dev: number; ino: number }): Promise<string> {
+  const stalePath = `${paths.sessionDir}.stale-${randomBytes(8).toString("hex")}`;
+  await rename(paths.sessionDir, stalePath);
+  const movedDirectory = await lstat(stalePath);
+  if (!sameInode(staleDirectory, movedDirectory)) {
+    const replacement = await lstat(paths.sessionDir).catch(() => null);
+    if (!replacement) await rename(stalePath, paths.sessionDir).catch(() => undefined);
+    throw new SessionSocketError("RECOVERY_IN_PROGRESS", "session directory changed during takeover");
+  }
+  return stalePath;
+}
+
+async function releaseRecoveryLock(reclaimPath: string, lock: Awaited<ReturnType<typeof acquireRecoveryLock>>): Promise<void> {
+  const currentLock = await lstat(reclaimPath).catch(() => null);
+  if (currentLock && sameInode(currentLock, lock.inode)) {
+    const currentOwner = storedClaim(await readJson(join(reclaimPath, "owner.json")));
+    if (currentOwner?.sessionId === lock.owner.sessionId) {
+      await rm(reclaimPath, { recursive: true, force: true });
+    }
+  }
+}
+
 async function reclaimStale(root: string, paths: SessionPaths): Promise<DirectoryIdentity> {
   const reclaimPath = `${paths.sessionDir}.recover`;
   const lock = await acquireRecoveryLock(root, reclaimPath);
   try {
     await privateDirectory(paths.sessionDir, false);
     const staleDirectory = await lstat(paths.sessionDir);
-    const claim = storedClaim(await readJson(paths.claimPath));
-    const descriptor = storedIdentity(await readJson(paths.descriptorPath));
-    if ((claim?.root !== undefined && claim.root !== root) || (descriptor?.root !== undefined && descriptor.root !== root)) {
-      throw new SessionSocketError("ROOT_COLLISION", "session index belongs to another checkout");
-    }
-    if (descriptor && await verifyLive(descriptor)) {
-      throw new SessionSocketError("SESSION_EXISTS", "a live session already owns this checkout");
-    }
-    if (claim && await claimProcessAlive(claim)) {
-      throw new SessionSocketError("OWNER_UNRESPONSIVE", "session owner is alive but its control endpoint is unavailable");
-    }
-    if (!claim) {
-      const age = Date.now() - (await stat(paths.sessionDir)).mtimeMs;
-      if (age < INCOMPLETE_CLAIM_GRACE_MS) {
-        throw new SessionSocketError("CLAIM_IN_PROGRESS", "session claim is still being created");
-      }
-    }
+    await assertTakeoverAllowed(root, paths,
+      storedClaim(await readJson(paths.claimPath)), storedIdentity(await readJson(paths.descriptorPath)));
     const currentLock = await lstat(reclaimPath).catch(() => null);
     if (!currentLock || !sameInode(currentLock, lock.inode)) {
       throw new SessionSocketError("RECOVERY_IN_PROGRESS", "recovery lock changed before takeover");
     }
-    const stalePath = `${paths.sessionDir}.stale-${randomBytes(8).toString("hex")}`;
-    await rename(paths.sessionDir, stalePath);
-    const movedDirectory = await lstat(stalePath);
-    if (!sameInode(staleDirectory, movedDirectory)) {
-      const replacement = await lstat(paths.sessionDir).catch(() => null);
-      if (!replacement) await rename(stalePath, paths.sessionDir).catch(() => undefined);
-      throw new SessionSocketError("RECOVERY_IN_PROGRESS", "session directory changed during takeover");
-    }
+    const stalePath = await moveStaleDirectory(paths, staleDirectory);
     try {
       await mkdir(paths.sessionDir, { mode: 0o700 });
       return await privateDirectory(paths.sessionDir, false);
@@ -511,13 +534,7 @@ async function reclaimStale(root: string, paths: SessionPaths): Promise<Director
       await rm(stalePath, { recursive: true, force: true });
     }
   } finally {
-    const currentLock = await lstat(reclaimPath).catch(() => null);
-    if (currentLock && sameInode(currentLock, lock.inode)) {
-      const currentOwner = storedClaim(await readJson(join(reclaimPath, "owner.json")));
-      if (currentOwner?.sessionId === lock.owner.sessionId) {
-        await rm(reclaimPath, { recursive: true, force: true });
-      }
-    }
+    await releaseRecoveryLock(reclaimPath, lock);
   }
 }
 
@@ -531,6 +548,102 @@ async function claimRoot(root: string, paths: SessionPaths): Promise<DirectoryId
   return privateDirectory(paths.sessionDir, false);
 }
 
+interface SocketConnectionState {
+  stage: "hello" | "request" | "busy" | "done";
+  bytes: Buffer;
+}
+
+function isHelloFrame(frame: Record<string, unknown> | null, identity: SessionSocketIdentity): frame is Record<string, unknown> & { nonce: string } {
+  return frame?.type === "hello" && frame.protocol === identity.protocol &&
+    frame.root === identity.root && frame.app === identity.app &&
+    frame.profile === identity.profile && frame.sessionId === identity.sessionId &&
+    frame.processStart === identity.processStart &&
+    frame.pid === identity.pid && frame.uid === identity.uid &&
+    frame.socketPath === identity.socketPath &&
+    typeof frame.nonce === "string" && frame.nonce.length === 32;
+}
+
+function answerHello(
+  socket: Socket,
+  frame: Record<string, unknown> | null,
+  identity: SessionSocketIdentity,
+  maxResponse: number,
+): boolean {
+  if (!isHelloFrame(frame, identity)) {
+    socket.destroy();
+    return false;
+  }
+  try {
+    writeLine(socket, { type: "hello", ...identity, nonce: frame.nonce }, maxResponse);
+  } catch {
+    socket.destroy();
+    return false;
+  }
+  return true;
+}
+
+function parseSocketRequest(
+  socket: Socket,
+  frame: Record<string, unknown> | null,
+): { id: string; command: SessionSocketCommand } | null {
+  if (
+    frame?.type !== "request" || typeof frame.id !== "string" || frame.id.length > 64 ||
+    typeof frame.command !== "string" || frame.command.length === 0 || frame.command.length > 100
+  ) {
+    socket.destroy();
+    return null;
+  }
+  return { id: frame.id, command: { command: frame.command, payload: frame.payload } };
+}
+
+function respondSocketResult(socket: Socket, id: string, result: unknown, maxResponse: number): void {
+  if (socket.destroyed) return;
+  try {
+    writeLine(socket, { type: "response", id, ok: true, result: result ?? null }, maxResponse);
+  } catch {
+    try {
+      writeLine(socket, { type: "response", id, ok: false, error: { code: "RESPONSE_TOO_LARGE", message: "control response exceeds byte limit" } }, maxResponse);
+    } catch { socket.destroy(); }
+  }
+}
+
+function respondSocketError(socket: Socket, id: string, error: unknown, maxResponse: number): void {
+  if (socket.destroyed) return;
+  const code = error instanceof SessionSocketError ? error.code : "REQUEST_FAILED";
+  const message = error instanceof SessionSocketError ? error.message : "control request failed";
+  try {
+    writeLine(socket, { type: "response", id, ok: false, error: { code, message } }, maxResponse);
+  } catch { socket.destroy(); }
+}
+
+function startSocketCommand(
+  socket: Socket,
+  state: SocketConnectionState,
+  id: string,
+  command: SessionSocketCommand,
+  options: SessionSocketOptions,
+  controllers: Set<AbortController>,
+  controller: AbortController,
+  requestMs: number,
+  maxResponse: number,
+): void {
+  const timer = setTimeout(() => controller.abort(), requestMs);
+  void Promise.race([
+    Promise.resolve().then(() => options.handle(command, controller.signal)),
+    new Promise<never>((_, reject) => controller.signal.addEventListener("abort", () => reject(
+      new SessionSocketError("REQUEST_TIMEOUT", "control request timed out"),
+    ), { once: true })),
+  ]).then(
+    result => respondSocketResult(socket, id, result, maxResponse),
+    error => respondSocketError(socket, id, error, maxResponse),
+  ).finally(() => {
+    clearTimeout(timer);
+    controllers.delete(controller);
+    state.stage = "done";
+    if (!socket.destroyed) socket.end();
+  });
+}
+
 function serveConnection(
   socket: Socket,
   identity: SessionSocketIdentity,
@@ -540,8 +653,7 @@ function serveConnection(
   const maxRequest = numericLimit(options.maxRequestBytes, DEFAULT_REQUEST_BYTES);
   const maxResponse = numericLimit(options.maxResponseBytes, DEFAULT_RESPONSE_BYTES);
   const requestMs = numericLimit(options.requestTimeoutMs, DEFAULT_REQUEST_MS);
-  let stage: "hello" | "request" | "busy" | "done" = "hello";
-  let bytes = Buffer.alloc(0);
+  const state: SocketConnectionState = { stage: "hello", bytes: Buffer.alloc(0) };
   const handshakeTimer = setTimeout(() => socket.destroy(), DEFAULT_HANDSHAKE_MS);
   let idleTimer: NodeJS.Timeout | undefined;
   let requestController: AbortController | undefined;
@@ -557,78 +669,38 @@ function serveConnection(
     requestController?.abort();
   });
   socket.on("data", (chunk: Buffer) => {
-    if (stage === "busy" || stage === "done") {
+    if (state.stage === "busy" || state.stage === "done") {
       socket.destroy();
       return;
     }
-    bytes = Buffer.concat([bytes, chunk]);
-    if (bytes.length > maxRequest) {
+    state.bytes = Buffer.concat([state.bytes, chunk]);
+    if (state.bytes.length > maxRequest) {
       socket.destroy();
       return;
     }
-    while (stage === "hello" || stage === "request") {
-      const newline = bytes.indexOf(10);
+    while (state.stage === "hello" || state.stage === "request") {
+      const newline = state.bytes.indexOf(10);
       if (newline < 0) break;
-      const line = bytes.subarray(0, newline).toString("utf8");
-      bytes = bytes.subarray(newline + 1);
+      const line = state.bytes.subarray(0, newline).toString("utf8");
+      state.bytes = state.bytes.subarray(newline + 1);
       let frame: Record<string, unknown> | null;
       try { frame = object(JSON.parse(line) as unknown); }
       catch { socket.destroy(); return; }
-      if (stage === "hello") {
-        if (
-          frame?.type !== "hello" || frame.protocol !== identity.protocol ||
-          frame.root !== identity.root || frame.app !== identity.app ||
-          frame.profile !== identity.profile || frame.sessionId !== identity.sessionId ||
-          frame.processStart !== identity.processStart ||
-          frame.pid !== identity.pid || frame.uid !== identity.uid ||
-          frame.socketPath !== identity.socketPath ||
-          typeof frame.nonce !== "string" || frame.nonce.length !== 32
-        ) { socket.destroy(); return; }
+      if (state.stage === "hello") {
+        if (!answerHello(socket, frame, identity, maxResponse)) return;
         clearTimeout(handshakeTimer);
-        try { writeLine(socket, { type: "hello", ...identity, nonce: frame.nonce }, maxResponse); }
-        catch { socket.destroy(); return; }
         idleTimer = setTimeout(() => socket.destroy(), DEFAULT_HANDSHAKE_MS);
-        stage = "request";
+        state.stage = "request";
         continue;
       }
-      if (
-        frame?.type !== "request" || typeof frame.id !== "string" || frame.id.length > 64 ||
-        typeof frame.command !== "string" || frame.command.length === 0 || frame.command.length > 100
-      ) { socket.destroy(); return; }
+      const request = parseSocketRequest(socket, frame);
+      if (request === null) return;
       if (idleTimer) clearTimeout(idleTimer);
-      stage = "busy";
-      const command: SessionSocketCommand = { command: frame.command, payload: frame.payload };
+      state.stage = "busy";
       const controller = new AbortController();
       requestController = controller;
       controllers.add(controller);
-      const timer = setTimeout(() => controller.abort(), requestMs);
-      void Promise.race([
-        Promise.resolve().then(() => options.handle(command, controller.signal)),
-        new Promise<never>((_, reject) => controller.signal.addEventListener("abort", () => reject(
-          new SessionSocketError("REQUEST_TIMEOUT", "control request timed out"),
-        ), { once: true })),
-      ]).then(
-        result => {
-          if (socket.destroyed) return;
-          try { writeLine(socket, { type: "response", id: frame!.id, ok: true, result: result ?? null }, maxResponse); }
-          catch {
-            try { writeLine(socket, { type: "response", id: frame!.id, ok: false, error: { code: "RESPONSE_TOO_LARGE", message: "control response exceeds byte limit" } }, maxResponse); }
-            catch { socket.destroy(); }
-          }
-        },
-        error => {
-          if (socket.destroyed) return;
-          const code = error instanceof SessionSocketError ? error.code : "REQUEST_FAILED";
-          const message = error instanceof SessionSocketError ? error.message : "control request failed";
-          try { writeLine(socket, { type: "response", id: frame!.id, ok: false, error: { code, message } }, maxResponse); }
-          catch { socket.destroy(); }
-        },
-      ).finally(() => {
-        clearTimeout(timer);
-        controllers.delete(controller);
-        stage = "done";
-        if (!socket.destroyed) socket.end();
-      });
+      startSocketCommand(socket, state, request.id, request.command, options, controllers, controller, requestMs, maxResponse);
       break;
     }
   });

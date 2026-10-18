@@ -60,7 +60,7 @@ import {
 } from './sqlite-codecs.js';
 import type { CohortRecordRow } from './sqlite-codecs.js';
 import type { RecordRow, ReceiptRow, OutboxRow, RetainedOutboxRow, ScheduleRow, HistoryRow, SnapshotRow, StagingRow, ProgressRow, OutcomeRow, FailureRow } from './sqlite-codecs.js';
-import type { D1Database } from '@cloudflare/workers-types';
+import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import type {
   CohortIdentityPageRequest,
   CohortRowLoadRequest,
@@ -340,6 +340,384 @@ function commitFileRows(before: readonly FileGuardRow[], batch: CommitBatch): Fi
   return [...rows.values()];
 }
 
+/** Record insert/update/remove statements for one commit batch. */
+function commitWriteStatements(db: D1Database, statements: unknown[], batch: CommitBatch): void {
+  for (const write of batch.writes) {
+    if (write.kind === 'insert') {
+      statements.push(
+        db
+          .prepare(
+            'INSERT INTO records(model, id, version, created, updated, created_by, ' +
+              'updated_by, archived_at, owner, parent_model, parent_id, data) ' +
+              'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          )
+          .bind(
+            write.model as string,
+            write.row.id as string,
+            write.row.version as number,
+            write.row.created,
+            write.row.updated,
+            write.row.createdBy,
+            write.row.updatedBy,
+            write.row.archivedAt,
+            '',
+            // S5: persist row.parent (undefined counts as NULL, like null).
+            (write.row.parent?.model as string | undefined) ?? null,
+            (write.row.parent?.id as string | undefined) ?? null,
+            JSON.stringify(write.row.data),
+          ),
+      );
+    } else if (write.kind === 'update') {
+      // Unconditional on version inside the batch: expectedVersion was
+      // pre-validated above, and the fence INSERT serializes writers, so
+      // a concurrent change aborts the whole batch first.
+      statements.push(
+        db
+          .prepare(
+            'UPDATE records SET version = ?, updated = ?, updated_by = ?, ' +
+              'archived_at = ?, parent_model = ?, parent_id = ?, data = ? ' +
+              'WHERE model = ? AND id = ?',
+          )
+          .bind(
+            write.row.version as number,
+            write.row.updated,
+            write.row.updatedBy,
+            write.row.archivedAt,
+            // S5: persist whatever parent the row carries (the engine keeps
+            // it immutable by carrying before.parent; see contracts).
+            (write.row.parent?.model as string | undefined) ?? null,
+            (write.row.parent?.id as string | undefined) ?? null,
+            JSON.stringify(write.row.data),
+            write.model as string,
+            write.id as string,
+          ),
+      );
+    } else {
+      statements.push(
+        db
+          .prepare('DELETE FROM records WHERE model = ? AND id = ?')
+          .bind(write.model as string, write.id as string),
+      );
+    }
+  }
+}
+
+/** Unique-claim releases/claims plus history rows for one commit batch. */
+function commitClaimStatements(db: D1Database, statements: unknown[], batch: CommitBatch): void {
+  // Releases run before claims so a key can move between records (or be
+  // re-claimed) within one batch without a transient PK collision.
+  for (const release of batch.uniqueReleases) {
+    statements.push(
+      db
+        .prepare('DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?')
+        .bind(
+          release.model as string,
+          release.keyName,
+          release.keyValue,
+        ),
+    );
+  }
+  for (const claim of batch.uniqueClaims) {
+    statements.push(
+      db
+        .prepare(
+          'INSERT INTO unique_claims(model, key_name, key_value, record_id) ' +
+            'VALUES (?, ?, ?, ?)',
+        )
+        .bind(
+          claim.model as string,
+          claim.keyName,
+          claim.keyValue,
+          claim.recordId as string,
+        ),
+    );
+  }
+  for (const entry of batch.history) {
+    statements.push(
+      db
+        .prepare(
+          'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
+            'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .bind(
+          entry.model as string,
+          entry.recordId as string,
+          entry.version as number,
+          entry.operation as string,
+          entry.operationId as string,
+          entry.actor,
+          entry.at,
+          entry.change,
+          entry.before === null ? null : JSON.stringify(entry.before),
+          entry.after === null ? null : JSON.stringify(entry.after),
+          entry.auditProjection === undefined ? null : JSON.stringify(entry.auditProjection),
+        ),
+    );
+  }
+}
+
+/** Receipt, outbox, acks and schedules for one commit batch. */
+function commitEventStatements(db: D1Database, statements: unknown[], batch: CommitBatch, at: number, next: number): void {
+  if (batch.receipt !== null) {
+    const receipt = batch.receipt;
+    statements.push(
+      db
+        .prepare(
+          'INSERT INTO receipts(app, owner, principal, operation, operation_id, ' +
+            'input_hash, resolved_defaults, outcome, committed_revision, created_at) ' +
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .bind(
+          receipt.identity.app,
+          receipt.identity.owner,
+          receipt.identity.principal,
+          receipt.identity.operation as string,
+          receipt.identity.operationId as string,
+          receipt.inputHash,
+          JSON.stringify(receipt.resolvedDefaults),
+          JSON.stringify(receipt.outcome),
+          receipt.committedRevision as number,
+          receipt.createdAt,
+        ),
+    );
+  }
+  for (const intent of batch.outbox) {
+    statements.push(
+      db
+        .prepare(
+          'INSERT INTO outbox(intent_id, operation, operation_id, target, arguments, ' +
+            'occurrence_index, dispatch_guard, handler_contract, status, created_at, committed_revision) ' +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
+        )
+        .bind(
+          intent.intentId,
+          intent.operation as string,
+          intent.operationId as string,
+          intent.target,
+          JSON.stringify(intent.arguments),
+          intent.occurrenceIndex,
+          intent.dispatchGuard ?? null,
+          intent.handlerContract ?? null,
+          at,
+          next,
+        ),
+    );
+  }
+  // S6: acks run AFTER the intent inserts in this same atomic batch, so
+  // acking an id staged in this SAME batch marks it dispatched. One UPDATE
+  // per id; unknown, dispatched, or skipped ids match zero rows (idempotent
+  // no-op — dispatchers retry at-least-once). `undefined` counts as `[]`.
+  for (const intentId of batch.outboxAck ?? []) {
+    statements.push(
+      db
+        .prepare("UPDATE outbox SET status = 'dispatched' WHERE intent_id = ? AND status = 'pending'")
+        .bind(intentId),
+    );
+  }
+  for (const schedule of batch.schedules) {
+    if (schedule.op === 'replace') {
+      statements.push(
+        db
+          .prepare('INSERT OR REPLACE INTO schedules("key", at, event, payload) VALUES (?, ?, ?, ?)')
+          .bind(
+            schedule.key,
+            schedule.at,
+            schedule.event as string,
+            JSON.stringify(schedule.payload),
+          ),
+      );
+    } else {
+      statements.push(
+        db.prepare('DELETE FROM schedules WHERE "key" = ?').bind(schedule.key),
+      );
+    }
+  }
+}
+
+/** Published record upserts plus staged history rows for one chunk. */
+function publishRecordStatements(
+  db: D1Database,
+  statements: unknown[],
+  input: PublishMigrationChunk,
+  existing: Map<string, RecordRow | null>,
+): void {
+  for (const row of input.rows) {
+    const key = `${row.targetModel as string}\0${row.recordId as string}`;
+    const merged = mergePublishedColumns(row, existing.get(key) ?? null, input.history);
+    statements.push(
+      db
+        .prepare(
+          'INSERT OR REPLACE INTO records(model, id, version, created, updated, created_by, ' +
+            'updated_by, archived_at, owner, parent_model, parent_id, data) ' +
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .bind(
+          row.targetModel as string,
+          row.recordId as string,
+          row.version as number,
+          merged.created,
+          merged.updated,
+          merged.createdBy,
+          merged.updatedBy,
+          merged.archivedAt,
+          '',
+          (row.parent?.model as string | undefined) ?? null,
+          (row.parent?.id as string | undefined) ?? null,
+          JSON.stringify(row.data),
+        ),
+    );
+  }
+  for (const entry of input.history) {
+    statements.push(
+      db
+        .prepare(
+          'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
+            'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .bind(
+          entry.model as string,
+          entry.recordId as string,
+          entry.version as number,
+          entry.operation as string,
+          entry.operationId as string,
+          entry.actor,
+          entry.at,
+          entry.change,
+          entry.before === null ? null : JSON.stringify(entry.before),
+          entry.after === null ? null : JSON.stringify(entry.after),
+          entry.auditProjection === undefined ? null : JSON.stringify(entry.auditProjection),
+        ),
+    );
+  }
+}
+
+/** Drop deletes with their drop-history rows for one chunk. */
+function publishDropStatements(db: D1Database, statements: unknown[], input: PublishMigrationChunk): void {
+  for (const drop of input.drops) {
+    statements.push(
+      db
+        .prepare('DELETE FROM records WHERE model = ? AND id = ?')
+        .bind(drop.model as string, drop.recordId as string),
+    );
+    statements.push(
+      db
+        .prepare(
+          'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
+            'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .bind(
+          drop.history.model as string,
+          drop.history.recordId as string,
+          drop.history.version as number,
+          drop.history.operation as string,
+          drop.history.operationId as string,
+          drop.history.actor,
+          drop.history.at,
+          drop.history.change,
+          drop.history.before === null ? null : JSON.stringify(drop.history.before),
+          drop.history.after === null ? null : JSON.stringify(drop.history.after),
+          drop.history.auditProjection === undefined ? null : JSON.stringify(drop.history.auditProjection),
+        ),
+    );
+  }
+}
+
+/** Claim moves for one chunk: releases before claims, mirroring commit. */
+function publishClaimStatements(db: D1Database, statements: unknown[], input: PublishMigrationChunk): void {
+  // Claim moves ride the same batch: releases before claims, mirroring
+  // commit, so a model rename moves keys between models atomically.
+  for (const release of input.uniqueReleases ?? []) {
+    statements.push(
+      db
+        .prepare('DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?')
+        .bind(
+          release.model as string,
+          release.keyName,
+          release.keyValue,
+        ),
+    );
+  }
+  for (const claim of input.uniqueClaims ?? []) {
+    statements.push(
+      db
+        .prepare(
+          'INSERT INTO unique_claims(model, key_name, key_value, record_id) ' +
+            'VALUES (?, ?, ?, ?)',
+        )
+        .bind(
+          claim.model as string,
+          claim.keyName,
+          claim.keyValue,
+          claim.recordId as string,
+        ),
+    );
+  }
+}
+
+/** Snapshot install/remove statement for one flip. */
+function flipSnapshotStatement(db: D1Database, input: FlipInstalledSnapshot, next: number): D1PreparedStatement {
+  if (input.snapshot === null) {
+    return db.prepare('DELETE FROM snapshots WHERE owner = ?').bind(input.owner);
+  }
+  return db
+    .prepare(
+      'INSERT OR REPLACE INTO snapshots(owner, snapshot_id, digest, installed_revision, ' +
+        'installed_at) VALUES (?, ?, ?, ?, ?)',
+    )
+    .bind(
+      input.snapshot.owner,
+      input.snapshot.snapshotId,
+      input.snapshot.digest,
+      // The engine cannot know the flip revision pre-commit: record actual.
+      next,
+      input.snapshot.installedAt,
+    );
+}
+
+/** Rename, invalidation, outcome and progress statements for one flip. */
+function flipAuxStatements(db: D1Database, statements: unknown[], input: FlipInstalledSnapshot, next: number): void {
+  if (input.renameFromOwner !== null) {
+    statements.push(
+      db.prepare('DELETE FROM snapshots WHERE owner = ?').bind(input.renameFromOwner),
+    );
+  }
+  for (const intentId of input.invalidatedIntentIds) {
+    // Pending-only: unknown, dispatched, or skipped ids match zero rows
+    // (idempotent no-op), and a dispatched intent is never rewritten.
+    statements.push(
+      db
+        .prepare("UPDATE outbox SET status = 'skipped' WHERE intent_id = ? AND status = 'pending'")
+        .bind(intentId),
+    );
+  }
+  for (const outcome of input.outcomes) {
+    statements.push(
+      db
+        .prepare(
+          'INSERT INTO migration_outcomes(migration_id, kind, intent_id, handler_contract) ' +
+            'VALUES (?, ?, ?, ?)',
+        )
+        .bind(
+          input.migrationId,
+          outcome.kind,
+          outcome.intentId,
+          outcome.handlerContract,
+        ),
+    );
+  }
+  // Upsert that preserves cursors: only phase + updated_revision advance.
+  // Missing progress (a rowless migration) is created active.
+  statements.push(
+    db
+      .prepare(
+        'INSERT INTO migration_progress(migration_id, phase, staged_cursor, publish_cursor, ' +
+          'updated_revision) VALUES (?, ?, NULL, NULL, ?) ' +
+          'ON CONFLICT(migration_id) DO UPDATE SET phase = ?, updated_revision = ?',
+      )
+      .bind(input.migrationId, 'active', next, 'active', next),
+  );
+}
+
 /** D1-backed `StoragePort`. Call `ensureSchema(db)` once before first use. */
 export function createD1Storage(db: D1Database, authority: FileRetirementAuthority, producers?: readonly FrameworkFileReferenceProducer[]): FileReferenceStoragePort;
 export function createD1Storage(db: D1Database, authority?: undefined, producers?: readonly FrameworkFileReferenceProducer[]): StoragePort;
@@ -483,188 +861,9 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
         statements.push(db.prepare('UPDATE file_reference_authority SET opaque_lifetimes = ? WHERE id = 1')
           .bind(JSON.stringify(nextGuard.opaqueLifetimes)));
       }
-      for (const write of batch.writes) {
-        if (write.kind === 'insert') {
-          statements.push(
-            db
-              .prepare(
-                'INSERT INTO records(model, id, version, created, updated, created_by, ' +
-                  'updated_by, archived_at, owner, parent_model, parent_id, data) ' +
-                  'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-              )
-              .bind(
-                write.model as string,
-                write.row.id as string,
-                write.row.version as number,
-                write.row.created,
-                write.row.updated,
-                write.row.createdBy,
-                write.row.updatedBy,
-                write.row.archivedAt,
-                '',
-                // S5: persist row.parent (undefined counts as NULL, like null).
-                (write.row.parent?.model as string | undefined) ?? null,
-                (write.row.parent?.id as string | undefined) ?? null,
-                JSON.stringify(write.row.data),
-              ),
-          );
-        } else if (write.kind === 'update') {
-          // Unconditional on version inside the batch: expectedVersion was
-          // pre-validated above, and the fence INSERT serializes writers, so
-          // a concurrent change aborts the whole batch first.
-          statements.push(
-            db
-              .prepare(
-                'UPDATE records SET version = ?, updated = ?, updated_by = ?, ' +
-                  'archived_at = ?, parent_model = ?, parent_id = ?, data = ? ' +
-                  'WHERE model = ? AND id = ?',
-              )
-              .bind(
-                write.row.version as number,
-                write.row.updated,
-                write.row.updatedBy,
-                write.row.archivedAt,
-                // S5: persist whatever parent the row carries (the engine keeps
-                // it immutable by carrying before.parent; see contracts).
-                (write.row.parent?.model as string | undefined) ?? null,
-                (write.row.parent?.id as string | undefined) ?? null,
-                JSON.stringify(write.row.data),
-                write.model as string,
-                write.id as string,
-              ),
-          );
-        } else {
-          statements.push(
-            db
-              .prepare('DELETE FROM records WHERE model = ? AND id = ?')
-              .bind(write.model as string, write.id as string),
-          );
-        }
-      }
-      // Releases run before claims so a key can move between records (or be
-      // re-claimed) within one batch without a transient PK collision.
-      for (const release of batch.uniqueReleases) {
-        statements.push(
-          db
-            .prepare('DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?')
-            .bind(
-              release.model as string,
-              release.keyName,
-              release.keyValue,
-            ),
-        );
-      }
-      for (const claim of batch.uniqueClaims) {
-        statements.push(
-          db
-            .prepare(
-              'INSERT INTO unique_claims(model, key_name, key_value, record_id) ' +
-                'VALUES (?, ?, ?, ?)',
-            )
-            .bind(
-              claim.model as string,
-              claim.keyName,
-              claim.keyValue,
-              claim.recordId as string,
-            ),
-        );
-      }
-      for (const entry of batch.history) {
-        statements.push(
-          db
-            .prepare(
-              'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
-                'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            )
-            .bind(
-              entry.model as string,
-              entry.recordId as string,
-              entry.version as number,
-              entry.operation as string,
-              entry.operationId as string,
-              entry.actor,
-              entry.at,
-              entry.change,
-              entry.before === null ? null : JSON.stringify(entry.before),
-              entry.after === null ? null : JSON.stringify(entry.after),
-              entry.auditProjection === undefined ? null : JSON.stringify(entry.auditProjection),
-            ),
-        );
-      }
-      if (batch.receipt !== null) {
-        const receipt = batch.receipt;
-        statements.push(
-          db
-            .prepare(
-              'INSERT INTO receipts(app, owner, principal, operation, operation_id, ' +
-                'input_hash, resolved_defaults, outcome, committed_revision, created_at) ' +
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            )
-            .bind(
-              receipt.identity.app,
-              receipt.identity.owner,
-              receipt.identity.principal,
-              receipt.identity.operation as string,
-              receipt.identity.operationId as string,
-              receipt.inputHash,
-              JSON.stringify(receipt.resolvedDefaults),
-              JSON.stringify(receipt.outcome),
-              receipt.committedRevision as number,
-              receipt.createdAt,
-            ),
-        );
-      }
-      for (const intent of batch.outbox) {
-        statements.push(
-          db
-            .prepare(
-              'INSERT INTO outbox(intent_id, operation, operation_id, target, arguments, ' +
-                'occurrence_index, dispatch_guard, handler_contract, status, created_at, committed_revision) ' +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
-            )
-            .bind(
-              intent.intentId,
-              intent.operation as string,
-              intent.operationId as string,
-              intent.target,
-              JSON.stringify(intent.arguments),
-              intent.occurrenceIndex,
-              intent.dispatchGuard ?? null,
-              intent.handlerContract ?? null,
-              at,
-              next,
-            ),
-        );
-      }
-      // S6: acks run AFTER the intent inserts in this same atomic batch, so
-      // acking an id staged in this SAME batch marks it dispatched. One UPDATE
-      // per id; unknown, dispatched, or skipped ids match zero rows (idempotent
-      // no-op — dispatchers retry at-least-once). `undefined` counts as `[]`.
-      for (const intentId of batch.outboxAck ?? []) {
-        statements.push(
-          db
-            .prepare("UPDATE outbox SET status = 'dispatched' WHERE intent_id = ? AND status = 'pending'")
-            .bind(intentId),
-        );
-      }
-      for (const schedule of batch.schedules) {
-        if (schedule.op === 'replace') {
-          statements.push(
-            db
-              .prepare('INSERT OR REPLACE INTO schedules("key", at, event, payload) VALUES (?, ?, ?, ?)')
-              .bind(
-                schedule.key,
-                schedule.at,
-                schedule.event as string,
-                JSON.stringify(schedule.payload),
-              ),
-          );
-        } else {
-          statements.push(
-            db.prepare('DELETE FROM schedules WHERE "key" = ?').bind(schedule.key),
-          );
-        }
-      }
+      commitWriteStatements(db, statements, batch);
+      commitClaimStatements(db, statements, batch);
+      commitEventStatements(db, statements, batch, at, next);
       try {
         await db.batch(statements);
       } catch (error) {
@@ -901,109 +1100,9 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
           .bind(next, at, `migration:publish:${input.migrationId}`),
         db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
       ];
-      for (const row of input.rows) {
-        const key = `${row.targetModel as string}\0${row.recordId as string}`;
-        const merged = mergePublishedColumns(row, existing.get(key) ?? null, input.history);
-        statements.push(
-          db
-            .prepare(
-              'INSERT OR REPLACE INTO records(model, id, version, created, updated, created_by, ' +
-                'updated_by, archived_at, owner, parent_model, parent_id, data) ' +
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            )
-            .bind(
-              row.targetModel as string,
-              row.recordId as string,
-              row.version as number,
-              merged.created,
-              merged.updated,
-              merged.createdBy,
-              merged.updatedBy,
-              merged.archivedAt,
-              '',
-              (row.parent?.model as string | undefined) ?? null,
-              (row.parent?.id as string | undefined) ?? null,
-              JSON.stringify(row.data),
-            ),
-        );
-      }
-      for (const entry of input.history) {
-        statements.push(
-          db
-            .prepare(
-              'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
-                'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            )
-            .bind(
-              entry.model as string,
-              entry.recordId as string,
-              entry.version as number,
-              entry.operation as string,
-              entry.operationId as string,
-              entry.actor,
-              entry.at,
-              entry.change,
-              entry.before === null ? null : JSON.stringify(entry.before),
-              entry.after === null ? null : JSON.stringify(entry.after),
-              entry.auditProjection === undefined ? null : JSON.stringify(entry.auditProjection),
-            ),
-        );
-      }
-      for (const drop of input.drops) {
-        statements.push(
-          db
-            .prepare('DELETE FROM records WHERE model = ? AND id = ?')
-            .bind(drop.model as string, drop.recordId as string),
-        );
-        statements.push(
-          db
-            .prepare(
-              'INSERT INTO history(model, record_id, version, operation, operation_id, ' +
-                'actor, at, change, "before", "after", audit_projection) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            )
-            .bind(
-              drop.history.model as string,
-              drop.history.recordId as string,
-              drop.history.version as number,
-              drop.history.operation as string,
-              drop.history.operationId as string,
-              drop.history.actor,
-              drop.history.at,
-              drop.history.change,
-              drop.history.before === null ? null : JSON.stringify(drop.history.before),
-              drop.history.after === null ? null : JSON.stringify(drop.history.after),
-              drop.history.auditProjection === undefined ? null : JSON.stringify(drop.history.auditProjection),
-            ),
-        );
-      }
-      // Claim moves ride the same batch: releases before claims, mirroring
-      // commit, so a model rename moves keys between models atomically.
-      for (const release of input.uniqueReleases ?? []) {
-        statements.push(
-          db
-            .prepare('DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?')
-            .bind(
-              release.model as string,
-              release.keyName,
-              release.keyValue,
-            ),
-        );
-      }
-      for (const claim of input.uniqueClaims ?? []) {
-        statements.push(
-          db
-            .prepare(
-              'INSERT INTO unique_claims(model, key_name, key_value, record_id) ' +
-                'VALUES (?, ?, ?, ?)',
-            )
-            .bind(
-              claim.model as string,
-              claim.keyName,
-              claim.keyValue,
-              claim.recordId as string,
-            ),
-        );
-      }
+      publishRecordStatements(db, statements, input, existing);
+      publishDropStatements(db, statements, input);
+      publishClaimStatements(db, statements, input);
       statements.push(
         db
           .prepare(
@@ -1073,69 +1172,14 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
       if (guard.state.authority !== null) requireFileRevision(input.expectedRevision, guard.revision);
       const next = (input.expectedRevision as number) + 1;
       const at = Date.now();
-      const snapshotStatement =
-        input.snapshot === null
-          ? db.prepare('DELETE FROM snapshots WHERE owner = ?').bind(input.owner)
-          : db
-              .prepare(
-                'INSERT OR REPLACE INTO snapshots(owner, snapshot_id, digest, installed_revision, ' +
-                  'installed_at) VALUES (?, ?, ?, ?, ?)',
-              )
-              .bind(
-                input.snapshot.owner,
-                input.snapshot.snapshotId,
-                input.snapshot.digest,
-                // The engine cannot know the flip revision pre-commit: record actual.
-                next,
-                input.snapshot.installedAt,
-              );
       const statements = [
         db
           .prepare('INSERT INTO fence_log(revision, at, operation) VALUES (?, ?, ?)')
           .bind(next, at, `migration:flip:${input.migrationId}`),
         db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
-        snapshotStatement,
+        flipSnapshotStatement(db, input, next),
       ];
-      if (input.renameFromOwner !== null) {
-        statements.push(
-          db.prepare('DELETE FROM snapshots WHERE owner = ?').bind(input.renameFromOwner),
-        );
-      }
-      for (const intentId of input.invalidatedIntentIds) {
-        // Pending-only: unknown, dispatched, or skipped ids match zero rows
-        // (idempotent no-op), and a dispatched intent is never rewritten.
-        statements.push(
-          db
-            .prepare("UPDATE outbox SET status = 'skipped' WHERE intent_id = ? AND status = 'pending'")
-            .bind(intentId),
-        );
-      }
-      for (const outcome of input.outcomes) {
-        statements.push(
-          db
-            .prepare(
-              'INSERT INTO migration_outcomes(migration_id, kind, intent_id, handler_contract) ' +
-                'VALUES (?, ?, ?, ?)',
-            )
-            .bind(
-              input.migrationId,
-              outcome.kind,
-              outcome.intentId,
-              outcome.handlerContract,
-            ),
-        );
-      }
-      // Upsert that preserves cursors: only phase + updated_revision advance.
-      // Missing progress (a rowless migration) is created active.
-      statements.push(
-        db
-          .prepare(
-            'INSERT INTO migration_progress(migration_id, phase, staged_cursor, publish_cursor, ' +
-              'updated_revision) VALUES (?, ?, NULL, NULL, ?) ' +
-              'ON CONFLICT(migration_id) DO UPDATE SET phase = ?, updated_revision = ?',
-          )
-          .bind(input.migrationId, 'active', next, 'active', next),
-      );
+      flipAuxStatements(db, statements, input, next);
       if (guard.state.authority !== null) statements.push(...fileGuardStatements(db, guardedState));
       try {
         await db.batch(statements);

@@ -42,66 +42,88 @@ export async function bindNativeUiWhere(query: RowQueryRunner, where: Function, 
 /** Capture the original callable even when lower_ui_expr emitted no sibling
  * metadata. The registered canonical scope consults its verified original getter;
  * public props never decide whether the callable is a native source predicate. */
+interface FactoryQueryParts {
+  hasSource: boolean;
+  source: PropertyDescriptor | undefined;
+  where: PropertyDescriptor | undefined;
+  context: PropertyDescriptor | undefined;
+  actualQuery: RowQueryRunner | undefined;
+}
+
+function resolveFactoryQuery(props: object): FactoryQueryParts {
+  const hasSource = Object.hasOwn(props, 'whereSource');
+  const source = Object.getOwnPropertyDescriptor(props, 'whereSource');
+  const where = Object.getOwnPropertyDescriptor(props, 'where');
+  const context = Object.getOwnPropertyDescriptor(props, 'context');
+  const query = context !== undefined && 'value' in context &&
+    typeof context.value === 'object' && context.value !== null
+    ? Object.getOwnPropertyDescriptor(context.value, 'query') : undefined;
+  const actualQuery = query !== undefined && 'value' in query && typeof query.value === 'function'
+    ? query.value as RowQueryRunner : undefined;
+  return { hasSource, source, where, context, actualQuery };
+}
+
+async function bindFactoryWhere(parts: FactoryQueryParts): Promise<void> {
+  const { hasSource, source, where, context, actualQuery } = parts;
+  // Unchanged generic factories retain their original function ABI. The
+  // owning canonical scope separately refuses unbound original predicates.
+  if (hasSource || actualQuery !== undefined && binders.has(actualQuery) &&
+      where !== undefined && 'value' in where && typeof where.value === 'function') {
+    if (hasSource && (source === undefined || !('value' in source)) ||
+        where === undefined || !('value' in where) || typeof where.value !== 'function' ||
+        context === undefined || !('value' in context) ||
+        typeof context.value !== 'object' || context.value === null) {
+      throw new AssemblyCorrespondenceError('Native UI where requires original own-data factory props.');
+    }
+    if (actualQuery === undefined) {
+      throw new AssemblyCorrespondenceError('Native UI where requires its original factory query.');
+    }
+    await bindNativeUiWhere(actualQuery, where.value, source?.value);
+  }
+}
+
+function wrapFactoryRenderRow(props: object, decoder: NativeUiSourceRowDecoder): object {
+  const render = Object.getOwnPropertyDescriptor(props, 'renderRow');
+  if (render === undefined || !('value' in render) || typeof render.value !== 'function') {
+    throw new AssemblyCorrespondenceError('Native UI source row requires an original own-data renderRow callback.');
+  }
+  const original = render.value;
+  const descriptors = Object.getOwnPropertyDescriptors(props);
+  // Do not read unrelated getters while wrapping. Preserve their original
+  // receiver as well as the factory/callback receiver and argument order.
+  for (const key of Reflect.ownKeys(descriptors)) {
+    const descriptor = Reflect.get(descriptors, key) as PropertyDescriptor;
+    if (descriptor.get !== undefined) {
+      const get = descriptor.get;
+      descriptor.get = () => Reflect.apply(get, props, []);
+    }
+    if (descriptor.set !== undefined) {
+      const set = descriptor.set;
+      descriptor.set = value => { Reflect.apply(set, props, [value]); };
+    }
+  }
+  let forwarded: object;
+  descriptors.renderRow = { ...render, value: async function (this: unknown, row: RowView, childContext: unknown) {
+    const native = await decoder(row);
+    if (typeof native !== 'object' || native === null || Array.isArray(native)) {
+      throw new AssemblyCorrespondenceError('Native UI source row decoder did not return its checked record.');
+    }
+    return Reflect.apply(original, this === forwarded ? props : this, [row, childContext, native]);
+  } };
+  forwarded = Object.create(Object.getPrototypeOf(props), descriptors) as object;
+  if (!Object.isExtensible(props)) Object.preventExtensions(forwarded);
+  return forwarded;
+}
+
 export function wrapNativeUiQueryFactory<T extends (...args: any[]) => any>(factory: T): T {
   return (async function (this: unknown, ...args: Parameters<T>) {
     const props: unknown = args[0];
     if (typeof props === 'object' && props !== null) {
-      const hasSource = Object.hasOwn(props, 'whereSource');
-      const source = Object.getOwnPropertyDescriptor(props, 'whereSource');
-      const where = Object.getOwnPropertyDescriptor(props, 'where');
-      const context = Object.getOwnPropertyDescriptor(props, 'context');
-      const query = context !== undefined && 'value' in context &&
-        typeof context.value === 'object' && context.value !== null
-        ? Object.getOwnPropertyDescriptor(context.value, 'query') : undefined;
-      const actualQuery = query !== undefined && 'value' in query && typeof query.value === 'function'
-        ? query.value as RowQueryRunner : undefined;
-      // Unchanged generic factories retain their original function ABI. The
-      // owning canonical scope separately refuses unbound original predicates.
-      if (hasSource || actualQuery !== undefined && binders.has(actualQuery) &&
-          where !== undefined && 'value' in where && typeof where.value === 'function') {
-        if (hasSource && (source === undefined || !('value' in source)) ||
-            where === undefined || !('value' in where) || typeof where.value !== 'function' ||
-            context === undefined || !('value' in context) ||
-            typeof context.value !== 'object' || context.value === null) {
-          throw new AssemblyCorrespondenceError('Native UI where requires original own-data factory props.');
-        }
-        if (actualQuery === undefined) {
-          throw new AssemblyCorrespondenceError('Native UI where requires its original factory query.');
-        }
-        await bindNativeUiWhere(actualQuery, where.value, source?.value);
-      }
-      const decoder = actualQuery === undefined ? undefined : binders.get(actualQuery)?.sourceRow;
+      const parts = resolveFactoryQuery(props);
+      await bindFactoryWhere(parts);
+      const decoder = parts.actualQuery === undefined ? undefined : binders.get(parts.actualQuery)?.sourceRow;
       if (decoder !== undefined && Object.hasOwn(props, 'renderRow')) {
-        const render = Object.getOwnPropertyDescriptor(props, 'renderRow');
-        if (render === undefined || !('value' in render) || typeof render.value !== 'function') {
-          throw new AssemblyCorrespondenceError('Native UI source row requires an original own-data renderRow callback.');
-        }
-        const original = render.value;
-        const descriptors = Object.getOwnPropertyDescriptors(props);
-        // Do not read unrelated getters while wrapping. Preserve their original
-        // receiver as well as the factory/callback receiver and argument order.
-        for (const key of Reflect.ownKeys(descriptors)) {
-          const descriptor = Reflect.get(descriptors, key) as PropertyDescriptor;
-          if (descriptor.get !== undefined) {
-            const get = descriptor.get;
-            descriptor.get = () => Reflect.apply(get, props, []);
-          }
-          if (descriptor.set !== undefined) {
-            const set = descriptor.set;
-            descriptor.set = value => { Reflect.apply(set, props, [value]); };
-          }
-        }
-        let forwarded: object;
-        descriptors.renderRow = { ...render, value: async function (this: unknown, row: RowView, childContext: unknown) {
-          const native = await decoder(row);
-          if (typeof native !== 'object' || native === null || Array.isArray(native)) {
-            throw new AssemblyCorrespondenceError('Native UI source row decoder did not return its checked record.');
-          }
-          return Reflect.apply(original, this === forwarded ? props : this, [row, childContext, native]);
-        } };
-        forwarded = Object.create(Object.getPrototypeOf(props), descriptors) as object;
-        if (!Object.isExtensible(props)) Object.preventExtensions(forwarded);
-        args[0] = forwarded;
+        args[0] = wrapFactoryRenderRow(props, decoder);
       }
     }
     return Reflect.apply(factory, this, args);

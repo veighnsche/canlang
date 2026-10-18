@@ -164,6 +164,104 @@ function sameStringSet(a: readonly string[], b: readonly string[]): boolean {
  * level counts, non-serializable state and over-cap requests are
  * rejected before anything is sent.
  */
+type ChoiceJudgmentQuestion = Extract<JudgmentQuestion, { kind: 'choice' }>;
+type ScoreJudgmentQuestion = Extract<JudgmentQuestion, { kind: 'score' }>;
+
+function assertChoiceQuestion(question: ChoiceJudgmentQuestion, ctx: FrozenJudgmentRequestContext): void {
+  if (
+    typeof question.options !== 'object' ||
+    question.options === null ||
+    Array.isArray(question.options)
+  ) {
+    throw new JudgmentValidationError(
+      `Choice question '${question.id}' needs an options object`,
+    );
+  }
+  const optionIds = Object.keys(question.options);
+  if (
+    optionIds.length < ctx.minChoiceOptions ||
+    optionIds.length > ctx.maxChoiceOptions
+  ) {
+    throw new JudgmentValidationError(
+      `Choice question '${question.id}' has ${optionIds.length} options; binding supports ${ctx.minChoiceOptions}..${ctx.maxChoiceOptions}`,
+    );
+  }
+  for (const optionId of optionIds) {
+    if (
+      optionId.length === 0 ||
+      typeof question.options[optionId] !== 'string'
+    ) {
+      throw new JudgmentValidationError(
+        `Choice question '${question.id}' has a malformed option`,
+      );
+    }
+  }
+}
+
+function assertScoreQuestion(question: ScoreJudgmentQuestion, ctx: FrozenJudgmentRequestContext): void {
+  if (!Array.isArray(question.levels)) {
+    throw new JudgmentValidationError(
+      `Score question '${question.id}' needs an ordered level list`,
+    );
+  }
+  if (
+    question.levels.length < ctx.minScoreLevels ||
+    question.levels.length > ctx.maxScoreLevels
+  ) {
+    throw new JudgmentValidationError(
+      `Score question '${question.id}' has ${question.levels.length} levels; binding supports ${ctx.minScoreLevels}..${ctx.maxScoreLevels}`,
+    );
+  }
+  for (const level of question.levels) {
+    if (typeof level !== 'string' || level.length === 0) {
+      throw new JudgmentValidationError(
+        `Score question '${question.id}' has a malformed level`,
+      );
+    }
+  }
+}
+
+function assertJudgmentQuestion(
+  question: JudgmentQuestion,
+  ctx: FrozenJudgmentRequestContext,
+  ids: Set<string>,
+): void {
+  if (typeof question !== 'object' || question === null) {
+    throw new JudgmentValidationError('Judgment questions must be objects');
+  }
+  if (!isNonEmptyString(question.id)) {
+    throw new JudgmentValidationError(
+      'Judgment question ids must be non-empty strings',
+    );
+  }
+  if (ids.has(question.id)) {
+    throw new JudgmentValidationError(
+      `Duplicate judgment question id '${question.id}'`,
+    );
+  }
+  ids.add(question.id);
+  const questionId = question.id;
+  if (!isNonEmptyString(question.instructions)) {
+    throw new JudgmentValidationError(
+      `Judgment question '${questionId}' needs instructions`,
+    );
+  }
+  switch (question.kind) {
+    case 'noul':
+      break;
+    case 'choice':
+      assertChoiceQuestion(question, ctx);
+      break;
+    case 'score':
+      assertScoreQuestion(question, ctx);
+      break;
+    default:
+      throw new JudgmentValidationError(
+        `Judgment question '${questionId}' has an unknown kind`,
+      );
+  }
+}
+
 export function buildFrozenJudgmentRequest(
   input: JudgmentBatchInput,
   ctx: FrozenJudgmentRequestContext,
@@ -196,88 +294,7 @@ export function buildFrozenJudgmentRequest(
   }
   const ids = new Set<string>();
   for (const question of questions) {
-    if (typeof question !== 'object' || question === null) {
-      throw new JudgmentValidationError('Judgment questions must be objects');
-    }
-    if (!isNonEmptyString(question.id)) {
-      throw new JudgmentValidationError(
-        'Judgment question ids must be non-empty strings',
-      );
-    }
-    if (ids.has(question.id)) {
-      throw new JudgmentValidationError(
-        `Duplicate judgment question id '${question.id}'`,
-      );
-    }
-    ids.add(question.id);
-    const questionId = question.id;
-    if (!isNonEmptyString(question.instructions)) {
-      throw new JudgmentValidationError(
-        `Judgment question '${questionId}' needs instructions`,
-      );
-    }
-    switch (question.kind) {
-      case 'noul':
-        break;
-      case 'choice': {
-        if (
-          typeof question.options !== 'object' ||
-          question.options === null ||
-          Array.isArray(question.options)
-        ) {
-          throw new JudgmentValidationError(
-            `Choice question '${question.id}' needs an options object`,
-          );
-        }
-        const optionIds = Object.keys(question.options);
-        if (
-          optionIds.length < ctx.minChoiceOptions ||
-          optionIds.length > ctx.maxChoiceOptions
-        ) {
-          throw new JudgmentValidationError(
-            `Choice question '${question.id}' has ${optionIds.length} options; binding supports ${ctx.minChoiceOptions}..${ctx.maxChoiceOptions}`,
-          );
-        }
-        for (const optionId of optionIds) {
-          if (
-            optionId.length === 0 ||
-            typeof question.options[optionId] !== 'string'
-          ) {
-            throw new JudgmentValidationError(
-              `Choice question '${question.id}' has a malformed option`,
-            );
-          }
-        }
-        break;
-      }
-      case 'score': {
-        if (!Array.isArray(question.levels)) {
-          throw new JudgmentValidationError(
-            `Score question '${question.id}' needs an ordered level list`,
-          );
-        }
-        if (
-          question.levels.length < ctx.minScoreLevels ||
-          question.levels.length > ctx.maxScoreLevels
-        ) {
-          throw new JudgmentValidationError(
-            `Score question '${question.id}' has ${question.levels.length} levels; binding supports ${ctx.minScoreLevels}..${ctx.maxScoreLevels}`,
-          );
-        }
-        for (const level of question.levels) {
-          if (typeof level !== 'string' || level.length === 0) {
-            throw new JudgmentValidationError(
-              `Score question '${question.id}' has a malformed level`,
-            );
-          }
-        }
-        break;
-      }
-      default:
-        throw new JudgmentValidationError(
-          `Judgment question '${questionId}' has an unknown kind`,
-        );
-    }
+    assertJudgmentQuestion(question, ctx, ids);
   }
   let serialized: string;
   try {
@@ -422,6 +439,31 @@ function readChoiceAnswer(
   return { choice, probabilities: distribution, confidence };
 }
 
+/** Read one score level row; null unless the description/probability pair is valid. */
+function readScoreLevel(
+  legendRecord: Record<string, unknown>,
+  probabilityRecord: Record<string, unknown>,
+  index: number,
+): ScoreLevel | null {
+  const key = String(index);
+  const description = legendRecord[key];
+  const probability = probabilityRecord[key];
+  if (!isNonEmptyString(description) || !isProbability(probability)) {
+    return null;
+  }
+  return { index, description, probability };
+}
+
+/** True for a finite score index inside `levelCount` levels. */
+function isScoreIndex(score: unknown, levelCount: number): score is number {
+  return (
+    typeof score === 'number' &&
+    Number.isFinite(score) &&
+    score >= 0 &&
+    score <= levelCount - 1
+  );
+}
+
 function readScoreAnswer(
   value: unknown,
   levelCount: number,
@@ -434,12 +476,7 @@ function readScoreAnswer(
   const legend = record['legend'];
   const probabilities = record['probabilities'];
   const confidence = record['confidence'];
-  if (
-    typeof score !== 'number' ||
-    !Number.isFinite(score) ||
-    score < 0 ||
-    score > levelCount - 1
-  ) {
+  if (!isScoreIndex(score, levelCount)) {
     return null;
   }
   if (
@@ -468,15 +505,13 @@ function readScoreAnswer(
   let sum = 0;
   let weighted = 0;
   for (let index = 0; index < levelCount; index += 1) {
-    const key = String(index);
-    const description = legendRecord[key];
-    const probability = probabilityRecord[key];
-    if (!isNonEmptyString(description) || !isProbability(probability)) {
+    const level = readScoreLevel(legendRecord, probabilityRecord, index);
+    if (level === null) {
       return null;
     }
-    levels.push({ index, description, probability });
-    sum += probability;
-    weighted += index * probability;
+    levels.push(level);
+    sum += level.probability;
+    weighted += level.index * level.probability;
   }
   if (Math.abs(sum - 1) > WIRE_PROBABILITY_TOLERANCE) {
     return null;
@@ -502,6 +537,60 @@ function readUsageCount(value: unknown): number | null {
  * checks. Returns null for anything that is not a complete valid
  * batch — never a partial result.
  */
+/** Normalize one batch answer against its question; null unless fully valid. */
+function readQuestionAnswer(
+  question: JudgmentQuestion,
+  answer: unknown,
+): JudgmentAnswer | null {
+  if (
+    typeof answer !== 'object' ||
+    answer === null ||
+    (answer as Record<string, unknown>)['type'] !== question.kind
+  ) {
+    return null;
+  }
+  switch (question.kind) {
+    case 'noul': {
+      const noul = readNoulAnswer(answer);
+      if (noul === null) {
+        return null;
+      }
+      return { kind: 'noul', id: question.id, answer: noul };
+    }
+    case 'choice': {
+      const choice = readChoiceAnswer(answer, question.options);
+      if (choice === null) {
+        return null;
+      }
+      return { kind: 'choice', id: question.id, answer: choice };
+    }
+    case 'score': {
+      const score = readScoreAnswer(answer, question.levels.length);
+      if (score === null) {
+        return null;
+      }
+      return { kind: 'score', id: question.id, answer: score };
+    }
+  }
+}
+
+/** Read optional token usage; null unless both counts are valid. */
+function readTokenUsage(usage: unknown): { inputTokens: number | null; outputTokens: number | null } | null {
+  if (usage === undefined) {
+    return { inputTokens: null, outputTokens: null };
+  }
+  if (typeof usage !== 'object' || usage === null || Array.isArray(usage)) {
+    return null;
+  }
+  const usageRecord = usage as Record<string, unknown>;
+  const input = readUsageCount(usageRecord['input_tokens']);
+  const output = readUsageCount(usageRecord['output_tokens']);
+  if (input === null || output === null) {
+    return null;
+  }
+  return { inputTokens: input, outputTokens: output };
+}
+
 export function readJudgmentBatchResult(
   value: unknown,
   questions: readonly JudgmentQuestion[],
@@ -528,62 +617,21 @@ export function readJudgmentBatchResult(
   }
   const normalized: JudgmentAnswer[] = [];
   for (const question of questions) {
-    const answer = answerRecord[question.id];
-    if (
-      typeof answer !== 'object' ||
-      answer === null ||
-      (answer as Record<string, unknown>)['type'] !== question.kind
-    ) {
+    const answer = readQuestionAnswer(question, answerRecord[question.id]);
+    if (answer === null) {
       return null;
     }
-    switch (question.kind) {
-      case 'noul': {
-        const noul = readNoulAnswer(answer);
-        if (noul === null) {
-          return null;
-        }
-        normalized.push({ kind: 'noul', id: question.id, answer: noul });
-        break;
-      }
-      case 'choice': {
-        const choice = readChoiceAnswer(answer, question.options);
-        if (choice === null) {
-          return null;
-        }
-        normalized.push({ kind: 'choice', id: question.id, answer: choice });
-        break;
-      }
-      case 'score': {
-        const score = readScoreAnswer(answer, question.levels.length);
-        if (score === null) {
-          return null;
-        }
-        normalized.push({ kind: 'score', id: question.id, answer: score });
-        break;
-      }
-    }
+    normalized.push(answer);
   }
-  const usage = record['usage'];
-  let inputTokens: number | null = null;
-  let outputTokens: number | null = null;
-  if (usage !== undefined) {
-    if (typeof usage !== 'object' || usage === null || Array.isArray(usage)) {
-      return null;
-    }
-    const usageRecord = usage as Record<string, unknown>;
-    const input = readUsageCount(usageRecord['input_tokens']);
-    const output = readUsageCount(usageRecord['output_tokens']);
-    if (input === null || output === null) {
-      return null;
-    }
-    inputTokens = input;
-    outputTokens = output;
+  const usage = readTokenUsage(record['usage']);
+  if (usage === null) {
+    return null;
   }
   return {
     model: record['model'] as string,
     answers: normalized,
-    inputTokens,
-    outputTokens,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
   };
 }
 
@@ -790,15 +838,11 @@ function staticResult(bodyText: string, spec: JudgmentSpec, order: readonly stri
   } catch { return null; }
 }
 
-/** Rebuild from source values to validate revision, ordering, portable bounds and ownership. */
-function staticRequest(input: JudgmentEvaluationInput, binding: InstalledJudgment['binding'], model: string): {
-  readonly body: string; readonly specification: JudgmentSpec; readonly order: readonly string[];
-} {
-  const fail = (): never => { throw new JudgmentValidationError('Invalid static judgment request'); };
-  const source = input?.source, spec = source?.specification;
-  if (!spec || spec.declaration !== binding.judgment || spec.version !== binding.version ||
-      typeof input.state !== 'string' || scalarLength(input.state) > 40000n || !Array.isArray(source.order) ||
-      !Array.isArray(spec.noul) || !Array.isArray(spec.choice) || !Array.isArray(spec.score)) fail();
+/** Collect retained spec questions by name; duplicate ids fail. */
+function collectStaticQuestions(
+  spec: JudgmentSpec,
+  fail: () => never,
+): Map<string, StaticJudgmentQuestion> {
   const questions = new Map<string, StaticJudgmentQuestion>();
   const add = (question: StaticJudgmentQuestion): void => { if (questions.has(question.name)) fail(); questions.set(question.name, question); };
   for (const q of spec.noul) {
@@ -809,21 +853,40 @@ function staticRequest(input: JudgmentEvaluationInput, binding: InstalledJudgmen
   }
   for (const q of spec.choice) add({ name: q.id, kind: 'choice', instructions: q.instructions, options: q.options });
   for (const q of spec.score) add({ name: q.id, kind: 'score', instructions: q.instructions, levels: q.levels });
+  return questions;
+}
+
+/** Build the wire question map in frozen source order. */
+function buildStaticWire(specification: JudgmentSpec, order: readonly string[]): Record<string, unknown> {
+  const wire: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+  const byId = new Map<string, unknown>();
+  for (const q of specification.noul) byId.set(q.id, { type: 'noul', instructions: q.instructions,
+    ...(q.yes === null ? {} : { criteria: { true: q.yes, false: q.no } }) });
+  for (const q of specification.choice) byId.set(q.id, { type: 'choice', instructions: q.instructions,
+    criteria: Object.fromEntries(q.options.map(o => [o.id, o.description])) });
+  for (const q of specification.score) byId.set(q.id, { type: 'score', instructions: q.instructions,
+    criteria: q.levels.map(l => l.description) });
+  for (const id of order) wire[id] = byId.get(id);
+  return wire;
+}
+
+/** Rebuild from source values to validate revision, ordering, portable bounds and ownership. */
+function staticRequest(input: JudgmentEvaluationInput, binding: InstalledJudgment['binding'], model: string): {
+  readonly body: string; readonly specification: JudgmentSpec; readonly order: readonly string[];
+} {
+  const fail = (): never => { throw new JudgmentValidationError('Invalid static judgment request'); };
+  const source = input?.source, spec = source?.specification;
+  if (!spec || spec.declaration !== binding.judgment || spec.version !== binding.version ||
+      typeof input.state !== 'string' || scalarLength(input.state) > 40000n || !Array.isArray(source.order) ||
+      !Array.isArray(spec.noul) || !Array.isArray(spec.choice) || !Array.isArray(spec.score)) fail();
+  const questions = collectStaticQuestions(spec, fail);
   if (!sameStringSet(source.order, [...questions.keys()])) fail();
   const frozen = freezeJudgmentSource(spec.declaration, { version: spec.version, questions: source.order.map(id => questions.get(id)!) }, spec.language);
   // A revision is trusted only after deriving it from the exact source declaration.
   if (frozen.specification.revision !== spec.revision ||
       !sameOrderedIds(frozen.specification.noul, spec.noul) || !sameOrderedIds(frozen.specification.choice, spec.choice) ||
       !sameOrderedIds(frozen.specification.score, spec.score)) fail();
-  const wire: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-  const byId = new Map<string, unknown>();
-  for (const q of frozen.specification.noul) byId.set(q.id, { type: 'noul', instructions: q.instructions,
-    ...(q.yes === null ? {} : { criteria: { true: q.yes, false: q.no } }) });
-  for (const q of frozen.specification.choice) byId.set(q.id, { type: 'choice', instructions: q.instructions,
-    criteria: Object.fromEntries(q.options.map(o => [o.id, o.description])) });
-  for (const q of frozen.specification.score) byId.set(q.id, { type: 'score', instructions: q.instructions,
-    criteria: q.levels.map(l => l.description) });
-  for (const id of frozen.order) wire[id] = byId.get(id);
+  const wire = buildStaticWire(frozen.specification, frozen.order);
   return { body: JSON.stringify({ model, state: input.state, questions: wire }), specification: frozen.specification, order: frozen.order };
 }
 function sameOrderedIds(a: readonly { readonly id: string }[], b: readonly { readonly id: string }[]): boolean {

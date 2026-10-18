@@ -289,6 +289,53 @@ interface ExampleOwnerProfile {
   readonly app: string;
 }
 
+function matchArrayRowCaller(by: unknown, rowCaller: ResolvedCaller, accounts: RowAccounts): string | null {
+  if (!Array.isArray(by)) return null;
+  // The Testkit has already resolved and provisioned this row caller.
+  // Match its static role selection; this path never installs grants.
+  const length = Object.getOwnPropertyDescriptor(by, "length");
+  const roles: string[] = [];
+  let valid = length !== undefined && "value" in length &&
+    Reflect.ownKeys(by).length === length.value + 1;
+  if (valid) for (let index = 0; index < length!.value; index++) {
+    const entry = Object.getOwnPropertyDescriptor(by, String(index));
+    if (entry === undefined || !("value" in entry) || !entry.enumerable ||
+        typeof entry.value !== "string" || entry.value.length === 0 ||
+        ["self", "other", "outsider", "public"].includes(entry.value)) {
+      valid = false;
+      break;
+    }
+    roles.push(entry.value);
+  }
+  const expected = roles.length === 0 ? ["members"] : roles;
+  if (valid && rowCaller.account === accounts.self && rowCaller.authenticated &&
+      rowCaller.team === "current" && expected.length === rowCaller.roles.length &&
+      expected.every((role, index) => role === rowCaller.roles[index])) return accounts.self;
+  return null;
+}
+
+function matchStaticRowCaller(by: unknown, rowCaller: ResolvedCaller,
+  bindings: CompiledExampleInput['bindings'], accounts: RowAccounts): string | null | undefined {
+  if (by === "self" || (bindings !== undefined && by === bindings.self)) return accounts.self;
+  if (by === "other" || (bindings !== undefined && by === bindings.other)) return accounts.other;
+  if (by === "outsider" || (bindings !== undefined && by === bindings.outsider && by !== undefined)) return accounts.outsider;
+  if (typeof by === "string" && Object.hasOwn(accounts.users, by)) return accounts.users[by]!.account;
+  if (typeof by === "string" && (by === "members" || rowCaller.roles.includes(by))) {
+    return rowCaller.account === "public" ? null : rowCaller.account;
+  }
+  return undefined;
+}
+
+function matchFixtureRowCaller(by: object, fixtures: ReadonlyMap<string, unknown>, accounts: RowAccounts): string | null {
+  for (const [name, value] of fixtures) {
+    if (value === by && accounts.users[name] !== undefined) {
+      return accounts.users[name]!.account;
+    }
+  }
+  return null;
+}
+
+
 async function createRowScope(input: CompiledExampleInput, moduleIndex: number, rowIndex: number,
   ownerProfile?: ExampleOwnerProfile): Promise<ExampleRowScope> {
   const d1Id = randomUUID();
@@ -410,43 +457,14 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
         }
         if (by === "public") return resolveIdentity(identities, { team_id: currentTeamId });
         let account: string | null = null;
-        if (by === "self" || (input.bindings !== undefined && by === input.bindings.self)) account = accountsOfRow.self;
-        else if (by === "other" || (input.bindings !== undefined && by === input.bindings.other)) account = accountsOfRow.other;
-        else if (by === "outsider" || (input.bindings !== undefined && by === input.bindings.outsider && by !== undefined)) account = accountsOfRow.outsider;
-        else if (typeof by === "string" && Object.hasOwn(accountsOfRow.users, by)) {
-          account = accountsOfRow.users[by]!.account;
-        } else if (typeof by === "string" && (by === "members" || rowCaller.roles.includes(by))) {
-          account = rowCaller.account === "public" ? null : rowCaller.account;
-        } else if (Array.isArray(by)) {
-          // The Testkit has already resolved and provisioned this row caller.
-          // Match its static role selection; this path never installs grants.
-          const length = Object.getOwnPropertyDescriptor(by, "length");
-          const roles: string[] = [];
-          let valid = length !== undefined && "value" in length &&
-            Reflect.ownKeys(by).length === length.value + 1;
-          if (valid) for (let index = 0; index < length!.value; index++) {
-            const entry = Object.getOwnPropertyDescriptor(by, String(index));
-            if (entry === undefined || !("value" in entry) || !entry.enumerable ||
-                typeof entry.value !== "string" || entry.value.length === 0 ||
-                ["self", "other", "outsider", "public"].includes(entry.value)) {
-              valid = false;
-              break;
-            }
-            roles.push(entry.value);
-          }
-          const expected = roles.length === 0 ? ["members"] : roles;
-          if (valid && rowCaller.account === accountsOfRow.self && rowCaller.authenticated &&
-              rowCaller.team === "current" && expected.length === rowCaller.roles.length &&
-              expected.every((role, index) => role === rowCaller.roles[index])) account = accountsOfRow.self;
+        const staticAccount = matchStaticRowCaller(by, rowCaller, input.bindings, accountsOfRow);
+        if (staticAccount !== undefined) account = staticAccount;
+        else if (Array.isArray(by)) {
+          account = matchArrayRowCaller(by, rowCaller, accountsOfRow);
         } else if (isUserRef(by) && actorAccounts.has(by.id)) {
           account = actorAccounts.get(by.id)!;
         } else if (typeof by === "object" && by !== null) {
-          for (const [name, value] of fixtures) {
-            if (value === by && accountsOfRow.users[name] !== undefined) {
-              account = accountsOfRow.users[name]!.account;
-              break;
-            }
-          }
+          account = matchFixtureRowCaller(by, fixtures, accountsOfRow);
         }
         if (account === null) throw new Error("example runner: call names no provisioned actor");
         const token = tokens.get(account);
@@ -732,6 +750,77 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
         for (const part of parts) value = Array.isArray(value) ? value[Number(part)] : isRecord(value) ? value[part] : undefined;
         return value;
       };
+      const resolveModelCell = (
+        model: typeof models[number],
+        value: unknown,
+        part: string,
+        parts: readonly string[],
+        offset: number,
+        findBinding: typeof bindingFor,
+        objectBindings: Map<object, StoredFixtureBinding>,
+        rowBindings: Map<string, StoredFixtureBinding>,
+      ): { stored: { name: string; field: string; path: readonly string[] }; type: string } => {
+        const binding = findBinding(value, model.name, objectBindings, rowBindings);
+        const fixtureName = binding === undefined ? undefined : [...rowBindings].find(([, current]) => current.model === binding.model && current.id === binding.id)?.[0];
+        if (fixtureName === undefined) throw new Error("example runner: row cell has no genuine declared fixture reference");
+        const field = model.fields.find(field => field.name === part);
+        if (field === undefined) throw new Error(`example runner: fixture cell cannot initialize unknown or reserved field ${part}`);
+        if (field.default?.kind === "derived") throw new Error(`example runner: fixture cell cannot initialize derived field ${part}`);
+        return { stored: { name: fixtureName, field: part, path: parts.slice(0, offset + 1) }, type: fixtureFieldType(field) };
+      };
+      const resolveNestedCellType = (
+        parsed: ReturnType<typeof parseTypeId>,
+        value: unknown,
+        part: string,
+        selector: string,
+        contract: { readonly fields: Readonly<Record<string, { readonly typeId: string }>> } | undefined,
+        stored: { name: string; field: string; path: readonly string[] } | undefined,
+      ): string | undefined => {
+        if (contract !== undefined) {
+          const nested = contract.fields[part]?.typeId;
+          if (nested === undefined && stored !== undefined) throw new Error(`example runner: unknown stored Contract cell ${part}`);
+          return nested;
+        }
+        if (parsed.base.kind === "union" && part === "value" && isRecord(value) &&
+            typeof value["type"] === "string" && parsed.base.arms.includes(value["type"])) {
+          return value["type"];
+        }
+        if (stored !== undefined) throw new Error(`example runner: fixture cell ${selector} has no declared nested field`);
+        return undefined;
+      };
+      const walkSelectorPath = (
+        type: string | undefined,
+        value: unknown,
+        parts: readonly string[],
+        selector: string,
+        resolveType: typeof resolved,
+        valueSchema: typeof schema,
+        allModels: typeof models,
+        findBinding: typeof bindingFor,
+        objectBindings: Map<object, StoredFixtureBinding>,
+        rowBindings: Map<string, StoredFixtureBinding>,
+      ): { type: string | undefined; value: unknown; stored: { name: string; field: string; path: readonly string[] } | undefined } => {
+        let stored: { name: string; field: string; path: readonly string[] } | undefined;
+        for (let offset = 1; type !== undefined && offset < parts.length; offset++) {
+          const parsed = resolveType(type), part = parts[offset]!;
+          if (parsed.array) {
+            const slot = Number(part);
+            if (!Array.isArray(value) || !Number.isSafeInteger(slot) || slot < 0 || slot >= value.length) throw new Error("example runner: fixture reference array index is unavailable");
+            type = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false }); value = value[slot]; continue;
+          }
+          const name = parsed.base.kind === "nominal" ? parsed.base.path : undefined;
+          const model = allModels.find(model => model.name === name), contract = name === undefined ? undefined : valueSchema?.contracts[name];
+          if (model !== undefined) {
+            const cell = resolveModelCell(model, value, part, parts, offset, findBinding, objectBindings, rowBindings);
+            stored = cell.stored;
+            type = cell.type;
+          } else {
+            type = resolveNestedCellType(parsed, value, part, selector, contract, stored);
+          }
+          value = isRecord(value) ? value[part] : undefined;
+        }
+        return { type, value, stored };
+      };
       let effective: unknown = baselineInputs;
       const overrides = new Map<string, Record<string, unknown>>();
       for (const [index, selector] of selectors.entries()) {
@@ -739,70 +828,79 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
         if (channel !== "input") continue;
         const parts = selector.split("."), root = parts[0]!;
         const input = operation.inputs.fields.find(input => input.name === root);
-        let type = input === undefined || parts.length === 1 ? undefined : fixtureFieldType(input), value = isRecord(effective) ? effective[root] : undefined;
-        let stored: { name: string; field: string; path: readonly string[] } | undefined;
-        for (let offset = 1; type !== undefined && offset < parts.length; offset++) {
-          const parsed = resolved(type), part = parts[offset]!;
-          if (parsed.array) {
-            const slot = Number(part);
-            if (!Array.isArray(value) || !Number.isSafeInteger(slot) || slot < 0 || slot >= value.length) throw new Error("example runner: fixture reference array index is unavailable");
-            type = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false }); value = value[slot]; continue;
-          }
-          const name = parsed.base.kind === "nominal" ? parsed.base.path : undefined;
-          const model = models.find(model => model.name === name), contract = name === undefined ? undefined : schema?.contracts[name];
-          if (model !== undefined) {
-            const binding = bindingFor(value, model.name, objectBindings, rowBindings);
-            const fixtureName = binding === undefined ? undefined : [...rowBindings].find(([, current]) => current.model === binding.model && current.id === binding.id)?.[0];
-            if (fixtureName === undefined) throw new Error("example runner: row cell has no genuine declared fixture reference");
-            const field = model.fields.find(field => field.name === part);
-            if (field === undefined) throw new Error(`example runner: fixture cell cannot initialize unknown or reserved field ${part}`);
-            if (field.default?.kind === "derived") throw new Error(`example runner: fixture cell cannot initialize derived field ${part}`);
-            stored = { name: fixtureName, field: part, path: parts.slice(0, offset + 1) };
-            type = fixtureFieldType(field);
-          } else if (contract !== undefined) {
-            type = contract.fields[part]?.typeId;
-            if (type === undefined && stored !== undefined) throw new Error(`example runner: unknown stored Contract cell ${part}`);
-          } else if (parsed.base.kind === "union" && part === "value" && isRecord(value) &&
-              typeof value["type"] === "string" && parsed.base.arms.includes(value["type"])) {
-            type = value["type"];
-          } else {
-            if (stored !== undefined) throw new Error(`example runner: fixture cell ${selector} has no declared nested field`);
-            type = undefined;
-          }
-          value = isRecord(value) ? value[part] : undefined;
-        }
+        const start = {
+          type: input === undefined || parts.length === 1 ? undefined : fixtureFieldType(input),
+          value: isRecord(effective) ? effective[root] : undefined,
+        };
+        const walked = walkSelectorPath(start.type, start.value, parts, selector, resolved, schema, models,
+          bindingFor, objectBindings, rowBindings);
         effective = setCell(effective, parts, cells[index]);
-        if (stored !== undefined) {
-          const fields = overrides.get(stored.name) ?? {};
-          fields[stored.field] = atPath(effective, stored.path); overrides.set(stored.name, fields);
+        if (walked.stored !== undefined) {
+          const fields = overrides.get(walked.stored.name) ?? {};
+          fields[walked.stored.field] = atPath(effective, walked.stored.path); overrides.set(walked.stored.name, fields);
         }
       }
+      const persistCellOverrides = async (
+        scope: ExampleRowScope,
+        fixtures: ReadonlyMap<string, unknown>,
+        overrides: Map<string, Record<string, unknown>>,
+        rowBindings: Map<string, StoredFixtureBinding>,
+        allModels: typeof models,
+        valueSchema: typeof schema,
+        objectBindings: Map<object, StoredFixtureBinding>,
+        makeResolver: typeof resolverFor,
+        asm: AssembledModules,
+        artifact: CompileArtifact,
+      ): Promise<Map<string, unknown>> => {
+        const updatedFixtures = new Map(fixtures), snapshots = [];
+        const resolveFixture = makeResolver(objectBindings, rowBindings);
+        for (const [name, fields] of overrides) {
+          const binding = rowBindings.get(name)!, model = allModels.find(model => model.name === binding.model)!;
+          const before = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
+          if (before === null) throw new Error(`example runner: fixture ${name} disappeared before row cells`);
+          const data = { ...before.data };
+          for (const [name, value] of Object.entries(fields)) data[name] = fieldWire(model.fields.find(field => field.name === name)!, value, valueSchema, resolveFixture);
+          snapshots.push({ model: binding.model as ModelName, id: before.id, data,
+            ...(before.parent === null || before.parent === undefined ? {} : { parent: before.parent }) });
+        }
+        const identity = await scope.identityFor("self", { account: "self", team: "current", roles: [], authenticated: true }, fixtures);
+        const saved = await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity,
+          now: scope.nowMs, operationId: freshOperationId(), snapshots });
+        // Publish only after the complete override batch passes its owning session.
+        for (const name of overrides.keys()) {
+          const binding = rowBindings.get(name)!, row = saved.get(`${binding.model}\0${binding.id}`);
+          if (row === undefined) throw new Error(`example runner: fixture ${name} row cells were not stored`);
+          const view = fixtureView(artifact, binding.model, row, valueSchema), current = { ...binding, version: row.version as number };
+          updatedFixtures.set(name, view); rowBindings.set(name, current); objectBindings.set(view, current);
+        }
+        return updatedFixtures;
+      };
       if (overrides.size === 0) return { fixtures, inputs };
       if (invoked.has(scope)) throw new Error("example runner: fixture state is sealed after invocation");
-      const updatedFixtures = new Map(fixtures), snapshots = [];
-      const resolveFixture = resolverFor(objectBindings, rowBindings);
-      for (const [name, fields] of overrides) {
-        const binding = rowBindings.get(name)!, model = models.find(model => model.name === binding.model)!;
-        const before = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
-        if (before === null) throw new Error(`example runner: fixture ${name} disappeared before row cells`);
-        const data = { ...before.data };
-        for (const [name, value] of Object.entries(fields)) data[name] = fieldWire(model.fields.find(field => field.name === name)!, value, schema, resolveFixture);
-        snapshots.push({ model: binding.model as ModelName, id: before.id, data,
-          ...(before.parent === null || before.parent === undefined ? {} : { parent: before.parent }) });
-      }
-      const identity = await scope.identityFor("self", { account: "self", team: "current", roles: [], authenticated: true }, fixtures);
-      const saved = await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity,
-        now: scope.nowMs, operationId: freshOperationId(), snapshots });
-      // Publish only after the complete override batch passes its owning session.
-      for (const name of overrides.keys()) {
-        const binding = rowBindings.get(name)!, row = saved.get(`${binding.model}\0${binding.id}`);
-        if (row === undefined) throw new Error(`example runner: fixture ${name} row cells were not stored`);
-        const view = fixtureView(artifact, binding.model, row, schema), current = { ...binding, version: row.version as number };
-        updatedFixtures.set(name, view); rowBindings.set(name, current); objectBindings.set(view, current);
-      }
+      const updatedFixtures = await persistCellOverrides(scope, fixtures, overrides, rowBindings, models, schema,
+        objectBindings, resolverFor, asm, artifact);
       // A fixture may occur repeatedly through Contract fields/arrays. Refresh
       // every declared reference slot while retaining ordinary input overrides.
       const seen = new Set<object>(); let nodes = 0;
+      const refreshComposite = (
+        parsed: ReturnType<typeof parseTypeId>,
+        value: object,
+        contract: { readonly fields: Readonly<Record<string, { readonly typeId: string }>> } | undefined,
+        refresh: (type: string, value: unknown, depth: number) => unknown,
+        depth: number,
+      ): unknown => {
+        if (parsed.array) {
+          if (!Array.isArray(value)) return value;
+          const element = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false });
+          return value.map(item => refresh(element, item, depth + 1));
+        }
+        if (contract !== undefined && isRecord(value)) return Object.fromEntries(Object.entries(value).map(([field, item]) =>
+          [field, contract.fields[field] === undefined ? item : refresh(contract.fields[field]!.typeId, item, depth + 1)]));
+        if (parsed.base.kind === "union" && isRecord(value) && typeof value["type"] === "string" && parsed.base.arms.includes(value["type"])) {
+          return { ...value, value: refresh(value["type"], value["value"], depth + 1) };
+        }
+        return value;
+      };
       const refresh = (type: string, value: unknown, depth = 0): unknown => {
         if (++nodes > 16384 || depth > 64) throw new Error("example runner: fixture input traversal bound exceeded");
         const parsed = resolved(type);
@@ -818,21 +916,18 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
         if (seen.has(value)) throw new Error("example runner: cyclic example input");
         seen.add(value);
         try {
-          if (parsed.array) {
-            if (!Array.isArray(value)) return value;
-            const element = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false });
-            return value.map(item => refresh(element, item, depth + 1));
-          }
-          if (contract !== undefined && isRecord(value)) return Object.fromEntries(Object.entries(value).map(([field, item]) =>
-            [field, contract.fields[field] === undefined ? item : refresh(contract.fields[field]!.typeId, item, depth + 1)]));
-          if (parsed.base.kind === "union" && isRecord(value) && typeof value["type"] === "string" && parsed.base.arms.includes(value["type"])) {
-            return { ...value, value: refresh(value["type"], value["value"], depth + 1) };
-          }
-          return value;
+          return refreshComposite(parsed, value, contract, refresh, depth);
         } finally { seen.delete(value); }
       };
+      const refreshRowInputs = (
+        operation: typeof operations[number],
+        updatedInputs: Record<string, unknown>,
+        refresh: (type: string, value: unknown) => unknown,
+      ): void => {
+        for (const input of operation.inputs.fields) if (input.field.kind !== "enum" && Object.hasOwn(updatedInputs, input.name)) updatedInputs[input.name] = refresh(fixtureFieldType(input), updatedInputs[input.name]);
+      };
       const updatedInputs = { ...effective as Record<string, unknown> };
-      for (const input of operation.inputs.fields) if (input.field.kind !== "enum" && Object.hasOwn(updatedInputs, input.name)) updatedInputs[input.name] = refresh(fixtureFieldType(input), updatedInputs[input.name]);
+      refreshRowInputs(operation, updatedInputs, refresh);
       return { fixtures: updatedFixtures, inputs: updatedInputs };
     },
     async invoke({ call, identity }) {
@@ -945,8 +1040,58 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
  * actor identities, observations and zero-row suites fail loud. Row-level
  * setup/invocation/assertion failures remain in the owning testkit report.
  */
-export async function runCompiledExamples(input: CompiledExampleInput): Promise<CompiledExampleResult> {
-  if (input.signal?.aborted) throw cancellationError();
+/** Mutable per-module proxy phases shared by the row wrappers of one test module. */
+interface ExampleModuleScopes {
+  observationScope: CanonicalEffectsScope | undefined;
+  evaluationScope: ExampleRowScope | undefined;
+}
+
+/** Shared context for the row wrappers of one test module. */
+interface ExampleRowContext {
+  readonly input: CompiledExampleInput;
+  readonly box: ExampleModuleScopes;
+  readonly asm: AssembledModules;
+  readonly moduleArtifact: CompileArtifact;
+  readonly testScope: string;
+  readonly suite: LoadedSuite;
+  readonly rowUserRefs: WeakMap<ExampleRowScope, Readonly<Record<string, unknown>>>;
+  readonly rowCallers: WeakMap<object, ResolvedCaller>;
+  readonly rowIdentities: WeakMap<object, ResolvedIdentity>;
+}
+
+/** Shared per-run state for the test-module driver. */
+interface ExampleRunContext {
+  readonly input: CompiledExampleInput;
+  readonly asm: AssembledModules;
+  readonly moduleArtifact: CompileArtifact;
+  readonly resources: RuntimeExampleResources;
+  readonly ownerProfile: ExampleOwnerProfile | undefined;
+  readonly tableOperations: WeakMap<ExampleRowScope, Readonly<{ id: string; source: string }>>;
+  readonly loadSuite: (
+    moduleUrl: string,
+    bindings: { self: unknown; other: unknown; outsider?: unknown; imported: unknown },
+    hooks: RunnerHooks,
+  ) => Promise<unknown>;
+  readonly runTable: (spec: unknown) => Promise<TableCaseResult>;
+  readonly fixtureValuesOf: (scope: ExampleRowScope) => unknown;
+  readonly authoredBindings: { self: unknown; other: unknown; outsider?: unknown; imported: unknown };
+  readonly reportBuilder: { addCase(result: ExampleCaseResult): void };
+}
+
+/** Prepared per-module execution state for one compiled test module. */
+interface ExampleModuleExecution {
+  readonly url: string;
+  readonly box: ExampleModuleScopes;
+  readonly rowCallers: WeakMap<object, ResolvedCaller>;
+  readonly rowIdentities: WeakMap<object, ResolvedIdentity>;
+  readonly rowUserRefs: WeakMap<ExampleRowScope, Readonly<Record<string, unknown>>>;
+  readonly importedRef: { value: unknown };
+  readonly bindings: { self: unknown; other: unknown; outsider?: unknown; imported: unknown };
+  readonly hooks: RunnerHooks;
+  readonly createScope: (rowIndex: number) => Promise<ExampleRowScope>;
+}
+
+function validateExampleInput(input: CompiledExampleInput): void {
   nonempty(input.artifactLabel, "artifactLabel");
   nonempty(input.sourceRevision, "sourceRevision");
   nonempty(input.workerName, "workerName");
@@ -971,6 +1116,401 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
   if (input.worker.modules[input.worker.mainModule] === undefined) {
     throw new Error(`example runner: Worker entry ${input.worker.mainModule} is absent`);
   }
+}
+
+async function loadExampleOwnerProfile(
+  artifact: CompileArtifact,
+  asm: AssembledModules,
+): Promise<ExampleOwnerProfile | undefined> {
+  if ((artifact.models?.length ?? 0) === 0) return undefined;
+  const first = artifact.modules[0];
+  const url = first === undefined ? undefined : asm.moduleUrls[first.path];
+  if (url === undefined) throw new Error("example runner: canonical app entry is missing");
+  const module: unknown = await import(url);
+  const definition = isRecord(module) ? module["appDefinition"] : undefined;
+  if (!isRecord(definition) || typeof definition["id"] !== "string" || definition["id"] === "") {
+    throw new Error("example runner: canonical app definition is missing");
+  }
+  return { artifact, asm, app: definition["id"] };
+}
+
+function readExampleBinding(
+  input: CompiledExampleInput,
+  box: ExampleModuleScopes,
+  tableOperations: WeakMap<ExampleRowScope, Readonly<{ id: string; source: string }>>,
+  rowUserRefs: WeakMap<ExampleRowScope, Readonly<Record<string, unknown>>>,
+  imported: unknown,
+  target: object,
+  property: string | symbol,
+  receiver: unknown,
+): unknown {
+  if (property === "imported") return imported;
+  if (property === "operation") {
+    const operation = box.observationScope === undefined || box.evaluationScope === undefined
+      ? undefined : tableOperations.get(box.evaluationScope);
+    if (operation === undefined) throw new Error("example runner: no completed mutation operation context in this phase");
+    return operation;
+  }
+  return property === "canonical" ? box.observationScope
+  : input.bindings === undefined && box.evaluationScope !== undefined && typeof property === "string" &&
+      ["self", "other", "outsider"].includes(property) ? rowUserRefs.get(box.evaluationScope)?.[property]
+  : property === "now" && box.evaluationScope !== undefined ? decodeValue("datetime", new Date(box.evaluationScope.nowMs).toISOString())
+  : Reflect.get(target, property, receiver);
+}
+
+function createModuleBindings(
+  input: CompiledExampleInput,
+  box: ExampleModuleScopes,
+  tableOperations: WeakMap<ExampleRowScope, Readonly<{ id: string; source: string }>>,
+  rowUserRefs: WeakMap<ExampleRowScope, Readonly<Record<string, unknown>>>,
+  importedRef: { value: unknown },
+  authored: { self: unknown; other: unknown; outsider?: unknown; imported: unknown },
+): { self: unknown; other: unknown; outsider?: unknown; imported: unknown } {
+  return new Proxy(authored, {
+    get: (target, property, receiver) =>
+      readExampleBinding(input, box, tableOperations, rowUserRefs, importedRef.value, target, property, receiver),
+  });
+}
+
+function createExampleScope(
+  resources: RuntimeExampleResources,
+  input: CompiledExampleInput,
+  moduleIndex: number,
+  ownerProfile: ExampleOwnerProfile | undefined,
+  rowIndex: number,
+): Promise<ExampleRowScope> {
+  return resources.allocate(async () => {
+    if (input.signal?.aborted) throw cancellationError();
+    let owned: ExampleRowScope;
+    try { owned = await createRowScope(input, moduleIndex, rowIndex, ownerProfile); }
+    catch (error) {
+      if (error instanceof DevCleanupError) resources.retain(error, error.dispose);
+      throw error;
+    }
+    const scoped = Object.create(owned) as ExampleRowScope;
+    resources.retain(scoped, () => owned.dispose());
+    Object.defineProperty(scoped, "dispose", { value: () => resources.dispose(scoped) });
+    if (input.signal?.aborted) {
+      await resources.dispose(scoped);
+      throw cancellationError();
+    }
+    return scoped;
+  });
+}
+
+async function prepareModuleFixtures(
+  input: CompiledExampleInput,
+  runtimeHooks: ExampleRuntimeHooks,
+  testScope: string,
+  scope: ExampleRowScope,
+  fixtures: ReadonlyMap<string, unknown>,
+  required: readonly ExampleFixtureRecipe[],
+): Promise<Map<string, unknown>> {
+  const nonUser = required.filter(recipe => recipe.kind !== "user");
+  const result = await withCancellation(input.signal, () =>
+    runtimeHooks.materializeFixtures({ scope, fixtures, required: nonUser }));
+  if (!isRecord(result) || !Array.isArray(result["materialized"]) || !(result["values"] instanceof Map)) {
+    throw new Error(`example runner: ${testScope} fixture materializer returned no stored values receipt`);
+  }
+  const actual = new Set(result.materialized);
+  const missing = nonUser.find(recipe => !actual.has(recipe.name));
+  if (missing !== undefined) throw new Error(`example runner: fixture ${missing.name} was not materialized`);
+  return result.values;
+}
+
+async function invokeModuleCall(
+  input: CompiledExampleInput,
+  runtimeHooks: ExampleRuntimeHooks,
+  testScope: string,
+  rowCallers: WeakMap<object, ResolvedCaller>,
+  rowIdentities: WeakMap<object, ResolvedIdentity>,
+  fixtureValuesOf: (scope: ExampleRowScope) => unknown,
+  call: ExampleCall,
+): Promise<ExampleCallOutcome> {
+  if (input.signal?.aborted) throw cancellationError();
+  const caller = rowCallers.get(call.scope);
+  if (caller === undefined) return { ok: false, unsupported: true, detail: "row caller was not resolved" };
+  if (call.by === null || call.by === undefined) {
+    return { ok: false, unsupported: true, detail: "call has no selected actor" };
+  }
+  const fixtures = checkedFixtureValues(fixtureValuesOf(call.scope), testScope);
+  const identity = await withCancellation(input.signal, () => call.scope.identityFor(call.by, caller, fixtures));
+  rowIdentities.set(call.scope, identity);
+  return withCancellation(input.signal, () => runtimeHooks.invoke({ call, identity, rowCaller: caller }));
+}
+
+function buildRunnerHooks(
+  input: CompiledExampleInput,
+  runtimeHooks: ExampleRuntimeHooks,
+  testScope: string,
+  rowCallers: WeakMap<object, ResolvedCaller>,
+  rowIdentities: WeakMap<object, ResolvedIdentity>,
+  fixtureValuesOf: (scope: ExampleRowScope) => unknown,
+): RunnerHooks {
+  return {
+    prepareFixtures: (scope, fixtures, required) =>
+      prepareModuleFixtures(input, runtimeHooks, testScope, scope, fixtures, required),
+    ...(runtimeHooks.prepareRowCells === undefined ? {} : { prepareRowCells: (args) =>
+      withCancellation(input.signal, () => runtimeHooks.prepareRowCells!(args)) }),
+    invokeCall: call => invokeModuleCall(input, runtimeHooks, testScope, rowCallers, rowIdentities, fixtureValuesOf, call),
+    observeScope: (scope, stashed) => withCancellation(input.signal, () => runtimeHooks.observeLive({
+      scope, fixtures: stashed.fixtures,
+    })),
+  };
+}
+
+async function setupExampleRow(
+  ctx: ExampleRowContext,
+  row: RowSpec,
+  scope: ExampleRowScope,
+  accounts: RowAccounts,
+): Promise<void> {
+  const { input, box } = ctx;
+  await withCancellation(input.signal, () => scope.provisionActors(accounts, row.caller, ctx.suite.userFixtures));
+  if (input.bindings === undefined) {
+    const refs: Record<string, unknown> = Object.create(null);
+    for (const account of ["self", "other", "outsider"] as const) {
+      const identity = await withCancellation(input.signal, () => scope.identityFor(account,
+        { account, team: account === "outsider" ? "other" : "current", roles: [], authenticated: true }, new Map()));
+      if (identity.actor === null) throw new Error(`example runner: ${account} has no provisioned user identity`);
+      refs[account] = decodeValue("user", { id: identity.actor.user_id });
+    }
+    ctx.rowUserRefs.set(scope, Object.freeze(refs));
+  }
+  box.evaluationScope = scope;
+  try { await withCancellation(input.signal, () => row.setup(scope, accounts)); }
+  finally { box.evaluationScope = undefined; }
+}
+
+async function invokeExampleRow(
+  ctx: ExampleRowContext,
+  row: RowSpec,
+  scope: ExampleRowScope,
+  caller: ResolvedCaller,
+): Promise<ExampleCallOutcome> {
+  ctx.rowCallers.set(scope, caller);
+  ctx.box.evaluationScope = scope;
+  try { return await withCancellation(ctx.input.signal, () => row.invoke(scope, caller)); }
+  finally { ctx.box.evaluationScope = undefined; }
+}
+
+async function readObservationRecord(
+  ctx: ExampleRowContext,
+  scope: ExampleRowScope,
+  store: StoragePort,
+  identity: ResolvedIdentity,
+  revision: number,
+  model: string,
+  query: CanonicalReadQuery,
+) {
+  if (Object.keys(query).some(key => key !== "where") ||
+      query.where !== undefined && typeof query.where !== "function") {
+    throw new Error("example runner: unsupported observation query shape");
+  }
+  if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
+  const served = await invokeReadCanonical({ asm: ctx.asm, artifact: ctx.moduleArtifact, operation: `${model}.read`,
+    inputs: {} as ClosedInputs, identity, store, memberships: scope.identities, source: "example" });
+  if (!("records" in served) || !Array.isArray(served.records)) throw new Error("example runner: observation read returned no records");
+  if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
+  return served.records;
+}
+
+async function readObservationViews(
+  ctx: ExampleRowContext,
+  scope: ExampleRowScope,
+  store: StoragePort,
+  identity: ResolvedIdentity,
+  revision: number,
+  model: string,
+  query: CanonicalReadQuery,
+): Promise<Record<string, unknown>[]> {
+  const served = await readObservationRecord(ctx, scope, store, identity, revision, model, query);
+  const views = served.map(record => fixtureView(ctx.moduleArtifact, model, record));
+  if (query.where === undefined) return views;
+  const selected: Record<string, unknown>[] = [];
+  for (const view of views) {
+    const admitted: unknown = await (query.where as (record: unknown) => unknown)(view);
+    if (typeof admitted !== "boolean") throw new Error("example runner: observation predicate must return bool");
+    if (admitted) selected.push(view);
+  }
+  if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
+  return selected;
+}
+
+async function observeCustomRow(
+  ctx: ExampleRowContext,
+  row: RowSpec,
+  scope: ExampleRowScope,
+): Promise<ReportValue[]> {
+  ctx.box.evaluationScope = scope;
+  try { return await withCancellation(ctx.input.signal, () => row.observe(scope)); }
+  finally { ctx.box.evaluationScope = undefined; }
+}
+
+async function observeDefaultRow(
+  ctx: ExampleRowContext,
+  row: RowSpec,
+  scope: ExampleRowScope,
+): Promise<ReportValue[]> {
+  const caller = ctx.rowCallers.get(scope);
+  if (caller === undefined) throw new Error("example runner: observation caller was not resolved");
+  const identity = ctx.rowIdentities.get(scope);
+  if (identity === undefined) throw new Error("example runner: observation identity was not resolved");
+  const store = scope.ownerStorage === undefined ? scope.store : await scope.ownerStorage.forIdentity(identity);
+  const revision = await store.readRevision();
+  const refuse = async (): Promise<never> => { throw new Error("example runner: observations are read only"); };
+  const read = (model: string, query: CanonicalReadQuery) =>
+    readObservationRecord(ctx, scope, store, identity, revision, model, query);
+  ctx.box.observationScope = { operation: ctx.testScope, stageWrite: refuse, readModel: read,
+    readRecords: (model, query) => readObservationViews(ctx, scope, store, identity, revision, model, query),
+  };
+  ctx.box.evaluationScope = scope;
+  try { return await withCancellation(ctx.input.signal, () => row.observe(scope)); }
+  finally { ctx.box.observationScope = undefined; ctx.box.evaluationScope = undefined; }
+}
+
+async function observeExampleRow(
+  ctx: ExampleRowContext,
+  row: RowSpec,
+  scope: ExampleRowScope,
+): Promise<ReportValue[]> {
+  if (ctx.input.hooks !== undefined) return observeCustomRow(ctx, row, scope);
+  return observeDefaultRow(ctx, row, scope);
+}
+
+function wrapExampleRows(ctx: ExampleRowContext, selectedRows: LoadedSuite["rows"]): readonly unknown[] {
+  return selectedRows.map(row => ({
+    ...row,
+    // Testkit resolves authored values/errors during row.setup. The
+    // wrapper must read that live expectation, not the initial empty
+    // placeholder copied by the spread above.
+    get expected() { return row.expected; },
+    setup: (scope: ExampleRowScope, accounts: RowAccounts): Promise<void> => setupExampleRow(ctx, row, scope, accounts),
+    invoke: (scope: ExampleRowScope, caller: ResolvedCaller): Promise<ExampleCallOutcome> =>
+      invokeExampleRow(ctx, row, scope, caller),
+    observe: (scope: ExampleRowScope): Promise<ReportValue[]> => observeExampleRow(ctx, row, scope),
+  }));
+}
+
+function selectExampleRows(
+  input: CompiledExampleInput,
+  test: CompileArtifact["tests"][number],
+  suite: LoadedSuite,
+): LoadedSuite["rows"] {
+  const selectedRows = input.selectedRow === undefined
+    ? suite.rows
+    : suite.rows.filter(row => row.rowIndex === input.selectedRow!.rowIndex);
+  if (selectedRows.length === 0) {
+    throw new Error(`example runner: selected row ${test.scope}#${input.selectedRow!.rowIndex} is unavailable`);
+  }
+  if (input.selectedRow !== undefined && selectedRows.length !== 1) {
+    throw new Error(`example runner: selected row ${test.scope}#${input.selectedRow.rowIndex} is ambiguous`);
+  }
+  return selectedRows;
+}
+
+async function loadModuleSuite(
+  artifact: CompileArtifact,
+  asm: AssembledModules,
+  input: CompiledExampleInput,
+  loadSuite: ExampleRunContext["loadSuite"],
+  url: string,
+  bindings: { self: unknown; other: unknown; outsider?: unknown; imported: unknown },
+  hooks: RunnerHooks,
+  test: CompileArtifact["tests"][number],
+): Promise<{ imported: unknown; suite: LoadedSuite } | null> {
+  const imported = await withCancellation(input.signal, () =>
+    resolveExampleFixtureImports(artifact.tests, asm.moduleUrls, test, bindings));
+  const suite = asLoadedSuite(await withCancellation(input.signal, () => loadSuite(url, bindings, hooks)), test.scope);
+  if (suite.rows.length === 0) {
+    // Compiler fixture declarations can have their own test-only
+    // module. They do not count as a passing example; a module for an
+    // attaching operation must contribute actual rows.
+    if (test.fixtures.includes(test.scope)) return null;
+    throw new Error(`example runner: ${test.scope} emitted zero executable rows`);
+  }
+  return { imported, suite };
+}
+
+function prepareModuleExecution(
+  ctx: ExampleRunContext,
+  moduleIndex: number,
+  test: CompileArtifact["tests"][number],
+): ExampleModuleExecution | null {
+  const { input } = ctx;
+  if (input.signal?.aborted) throw cancellationError();
+  if (input.selectedRow !== undefined && test.scope !== input.selectedRow.operation) return null;
+  const runtimeHooks = input.hooks ?? canonicalExampleHooks(ctx.moduleArtifact, ctx.asm, ctx.tableOperations, test.scope);
+  const url = ctx.asm.moduleUrls[test.module.path];
+  if (url === undefined) throw new Error(`example runner: test module ${test.module.path} was not staged`);
+  const box: ExampleModuleScopes = { observationScope: undefined, evaluationScope: undefined };
+  const rowCallers = new WeakMap<object, ResolvedCaller>();
+  const rowIdentities = new WeakMap<object, ResolvedIdentity>();
+  const rowUserRefs = new WeakMap<ExampleRowScope, Readonly<Record<string, unknown>>>();
+  const importedRef = { value: ctx.authoredBindings.imported };
+  const bindings = createModuleBindings(input, box, ctx.tableOperations, rowUserRefs, importedRef, ctx.authoredBindings);
+  const hooks = buildRunnerHooks(input, runtimeHooks, test.scope, rowCallers, rowIdentities, ctx.fixtureValuesOf);
+  const createScope = (rowIndex: number) =>
+    createExampleScope(ctx.resources, input, moduleIndex, ctx.ownerProfile, rowIndex);
+  return { url, box, rowCallers, rowIdentities, rowUserRefs, importedRef, bindings, hooks, createScope };
+}
+
+async function executeExampleRows(
+  input: CompiledExampleInput,
+  testScope: string,
+  userFixtures: readonly UserFixture[],
+  rows: readonly unknown[],
+  selectedCount: number,
+  createScope: (rowIndex: number) => Promise<ExampleRowScope>,
+  runTable: (spec: unknown) => Promise<TableCaseResult>,
+  disposeActive: () => Promise<void>,
+  release: () => Promise<void>,
+): Promise<TableCaseResult> {
+  let result: TableCaseResult;
+  try {
+    result = await withCancellation(input.signal, () => runTable({
+      operation: testScope, userFixtures, rows, createScope,
+    }), disposeActive);
+  } catch (error) {
+    try { await disposeActive(); }
+    catch (cleanupError) { throw new DevCleanupError(error, cleanupError, release); }
+    throw error;
+  }
+  await disposeActive();
+  if (input.signal?.aborted) throw cancellationError();
+  if (result.kind !== "table" || result.rows.length !== selectedCount) {
+    throw new Error(`example runner: testkit returned incomplete rows for ${testScope}`);
+  }
+  return result;
+}
+
+async function runExampleTestModule(
+  ctx: ExampleRunContext,
+  moduleIndex: number,
+  test: CompileArtifact["tests"][number],
+  disposeActive: () => Promise<void>,
+  release: () => Promise<void>,
+): Promise<number> {
+  const prepared = prepareModuleExecution(ctx, moduleIndex, test);
+  if (prepared === null) return 0;
+  const loaded = await loadModuleSuite(ctx.moduleArtifact, ctx.asm, ctx.input, ctx.loadSuite,
+    prepared.url, prepared.bindings, prepared.hooks, test);
+  if (loaded === null) return 0;
+  prepared.importedRef.value = loaded.imported;
+  const selectedRows = selectExampleRows(ctx.input, test, loaded.suite);
+  const rowCtx: ExampleRowContext = { input: ctx.input, box: prepared.box, asm: ctx.asm,
+    moduleArtifact: ctx.moduleArtifact, testScope: test.scope, suite: loaded.suite,
+    rowUserRefs: prepared.rowUserRefs, rowCallers: prepared.rowCallers, rowIdentities: prepared.rowIdentities };
+  const result = await executeExampleRows(ctx.input, test.scope, loaded.suite.userFixtures,
+    wrapExampleRows(rowCtx, selectedRows), selectedRows.length, prepared.createScope,
+    ctx.runTable, disposeActive, release);
+  ctx.reportBuilder.addCase(result);
+  return selectedRows.length;
+}
+
+export async function runCompiledExamples(input: CompiledExampleInput): Promise<CompiledExampleResult> {
+  if (input.signal?.aborted) throw cancellationError();
+  validateExampleInput(input);
 
   const artifactText = Buffer.from(input.artifactBytes).toString("utf8");
   const loaded = parseArtifactText(artifactText, input.artifactLabel);
@@ -995,18 +1535,7 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
       { artifact: moduleArtifact, sourcePath: input.artifactLabel },
       { workDir, stdlibUrl: new URL("../runtime/stdlib.js", import.meta.url).href },
     );
-    let ownerProfile: ExampleOwnerProfile | undefined;
-    if ((artifact.models?.length ?? 0) > 0) {
-      const first = artifact.modules[0];
-      const url = first === undefined ? undefined : asm.moduleUrls[first.path];
-      if (url === undefined) throw new Error("example runner: canonical app entry is missing");
-      const module: unknown = await import(url);
-      const definition = isRecord(module) ? module["appDefinition"] : undefined;
-      if (!isRecord(definition) || typeof definition["id"] !== "string" || definition["id"] === "") {
-        throw new Error("example runner: canonical app definition is missing");
-      }
-      ownerProfile = { artifact: moduleArtifact, asm, app: definition["id"] };
-    }
+    const ownerProfile = await loadExampleOwnerProfile(moduleArtifact, asm);
     // Canonical source verification consumes the same complete artifact that
     // issued this assembly, including the actual compiled test modules. The
     // original compiler bytes still own the report digest and row inventory.
@@ -1025,192 +1554,11 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
     const reportBuilder = createReport({ digest, sourceRevision: input.sourceRevision });
     let expectedRows = 0;
     const authoredBindings = input.bindings ?? { self: "self", other: "other", outsider: "outsider", imported: {} };
+    const disposeActive = () => resources.drain();
+    const ctx: ExampleRunContext = { input, asm, moduleArtifact, resources, ownerProfile,
+      tableOperations, loadSuite, runTable, fixtureValuesOf, authoredBindings, reportBuilder };
     for (const [moduleIndex, test] of artifact.tests.entries()) {
-      if (input.signal?.aborted) throw cancellationError();
-      if (input.selectedRow !== undefined && test.scope !== input.selectedRow.operation) continue;
-      const runtimeHooks = input.hooks ?? canonicalExampleHooks(moduleArtifact, asm, tableOperations, test.scope);
-      const url = asm.moduleUrls[test.module.path];
-      if (url === undefined) throw new Error(`example runner: test module ${test.module.path} was not staged`);
-      const rowCallers = new WeakMap<object, ResolvedCaller>();
-      const rowIdentities = new WeakMap<object, ResolvedIdentity>();
-      let observationScope: CanonicalEffectsScope | undefined;
-      let evaluationScope: ExampleRowScope | undefined;
-      const rowUserRefs = new WeakMap<ExampleRowScope, Readonly<Record<string, unknown>>>();
-      let imported: unknown = authoredBindings.imported;
-      const bindings = new Proxy(authoredBindings, {
-        get: (target, property, receiver) => {
-          if (property === "imported") return imported;
-          if (property === "operation") {
-            const operation = observationScope === undefined || evaluationScope === undefined
-              ? undefined : tableOperations.get(evaluationScope);
-            if (operation === undefined) throw new Error("example runner: no completed mutation operation context in this phase");
-            return operation;
-          }
-          return property === "canonical" ? observationScope
-          : input.bindings === undefined && evaluationScope !== undefined && typeof property === "string" &&
-              ["self", "other", "outsider"].includes(property) ? rowUserRefs.get(evaluationScope)?.[property]
-          : property === "now" && evaluationScope !== undefined ? decodeValue("datetime", new Date(evaluationScope.nowMs).toISOString())
-          : Reflect.get(target, property, receiver);
-        },
-      });
-      const disposeActive = () => resources.drain();
-      const createScope = (rowIndex: number): Promise<ExampleRowScope> => resources.allocate(async () => {
-        if (input.signal?.aborted) throw cancellationError();
-        let owned: ExampleRowScope;
-        try { owned = await createRowScope(input, moduleIndex, rowIndex, ownerProfile); }
-        catch (error) {
-          if (error instanceof DevCleanupError) resources.retain(error, error.dispose);
-          throw error;
-        }
-        const scoped = Object.create(owned) as ExampleRowScope;
-        resources.retain(scoped, () => owned.dispose());
-        Object.defineProperty(scoped, "dispose", { value: () => resources.dispose(scoped) });
-        if (input.signal?.aborted) {
-          await resources.dispose(scoped);
-          throw cancellationError();
-        }
-        return scoped;
-      });
-      const hooks: RunnerHooks = {
-        prepareFixtures: async (scope, fixtures, required) => {
-          const nonUser = required.filter(recipe => recipe.kind !== "user");
-          const result = await withCancellation(input.signal, () =>
-            runtimeHooks.materializeFixtures({ scope, fixtures, required: nonUser }));
-          if (!isRecord(result) || !Array.isArray(result["materialized"]) || !(result["values"] instanceof Map)) {
-            throw new Error(`example runner: ${test.scope} fixture materializer returned no stored values receipt`);
-          }
-          const actual = new Set(result.materialized);
-          const missing = nonUser.find(recipe => !actual.has(recipe.name));
-          if (missing !== undefined) throw new Error(`example runner: fixture ${missing.name} was not materialized`);
-          return result.values;
-        },
-        ...(runtimeHooks.prepareRowCells === undefined ? {} : { prepareRowCells: (args) =>
-          withCancellation(input.signal, () => runtimeHooks.prepareRowCells!(args)) }),
-        invokeCall: async call => {
-          if (input.signal?.aborted) throw cancellationError();
-          const caller = rowCallers.get(call.scope);
-          if (caller === undefined) return { ok: false, unsupported: true, detail: "row caller was not resolved" };
-          if (call.by === null || call.by === undefined) {
-            return { ok: false, unsupported: true, detail: "call has no selected actor" };
-          }
-          const fixtures = checkedFixtureValues(fixtureValuesOf(call.scope), test.scope);
-          const identity = await withCancellation(input.signal, () => call.scope.identityFor(call.by, caller, fixtures));
-          rowIdentities.set(call.scope, identity);
-          return withCancellation(input.signal, () => runtimeHooks.invoke({ call, identity, rowCaller: caller }));
-        },
-        observeScope: async (scope, stashed) => withCancellation(input.signal, () => runtimeHooks.observeLive({
-          scope, fixtures: stashed.fixtures,
-        })),
-      };
-      imported = await withCancellation(input.signal, () =>
-        resolveExampleFixtureImports(artifact.tests, asm.moduleUrls, test, bindings));
-      const suite = asLoadedSuite(await withCancellation(input.signal, () => loadSuite(url, bindings, hooks)), test.scope);
-      if (suite.rows.length === 0) {
-        // Compiler fixture declarations can have their own test-only
-        // module. They do not count as a passing example; a module for an
-        // attaching operation must contribute actual rows.
-        if (test.fixtures.includes(test.scope)) continue;
-        throw new Error(`example runner: ${test.scope} emitted zero executable rows`);
-      }
-      const selectedRows = input.selectedRow === undefined
-        ? suite.rows
-        : suite.rows.filter(row => row.rowIndex === input.selectedRow!.rowIndex);
-      if (selectedRows.length === 0) {
-        throw new Error(`example runner: selected row ${test.scope}#${input.selectedRow!.rowIndex} is unavailable`);
-      }
-      if (input.selectedRow !== undefined && selectedRows.length !== 1) {
-        throw new Error(`example runner: selected row ${test.scope}#${input.selectedRow.rowIndex} is ambiguous`);
-      }
-      expectedRows += selectedRows.length;
-      const rows = selectedRows.map(row => ({
-        ...row,
-        // Testkit resolves authored values/errors during row.setup. The
-        // wrapper must read that live expectation, not the initial empty
-        // placeholder copied by the spread above.
-        get expected() { return row.expected; },
-        setup: async (scope: ExampleRowScope, accounts: RowAccounts): Promise<void> => {
-          await withCancellation(input.signal, () => scope.provisionActors(accounts, row.caller, suite.userFixtures));
-          if (input.bindings === undefined) {
-            const refs: Record<string, unknown> = Object.create(null);
-            for (const account of ["self", "other", "outsider"] as const) {
-              const identity = await withCancellation(input.signal, () => scope.identityFor(account,
-                { account, team: account === "outsider" ? "other" : "current", roles: [], authenticated: true }, new Map()));
-              if (identity.actor === null) throw new Error(`example runner: ${account} has no provisioned user identity`);
-              refs[account] = decodeValue("user", { id: identity.actor.user_id });
-            }
-            rowUserRefs.set(scope, Object.freeze(refs));
-          }
-          evaluationScope = scope;
-          try { await withCancellation(input.signal, () => row.setup(scope, accounts)); }
-          finally { evaluationScope = undefined; }
-        },
-        invoke: async (scope: ExampleRowScope, caller: ResolvedCaller): Promise<ExampleCallOutcome> => {
-          rowCallers.set(scope, caller);
-          evaluationScope = scope;
-          try { return await withCancellation(input.signal, () => row.invoke(scope, caller)); }
-          finally { evaluationScope = undefined; }
-        },
-        observe: async (scope: ExampleRowScope): Promise<ReportValue[]> => {
-          if (input.hooks !== undefined) {
-            evaluationScope = scope;
-            try { return await withCancellation(input.signal, () => row.observe(scope)); }
-            finally { evaluationScope = undefined; }
-          }
-          const caller = rowCallers.get(scope);
-          if (caller === undefined) throw new Error("example runner: observation caller was not resolved");
-          const identity = rowIdentities.get(scope);
-          if (identity === undefined) throw new Error("example runner: observation identity was not resolved");
-          const store = scope.ownerStorage === undefined ? scope.store : await scope.ownerStorage.forIdentity(identity);
-          const revision = await store.readRevision();
-          const refuse = async (): Promise<never> => { throw new Error("example runner: observations are read only"); };
-          const read = async (model: string, query: CanonicalReadQuery) => {
-            if (Object.keys(query).some(key => key !== "where") ||
-                query.where !== undefined && typeof query.where !== "function") {
-              throw new Error("example runner: unsupported observation query shape");
-            }
-            if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
-            const served = await invokeReadCanonical({ asm, artifact: moduleArtifact, operation: `${model}.read`,
-              inputs: {} as ClosedInputs, identity, store, memberships: scope.identities, source: "example" });
-            if (!("records" in served) || !Array.isArray(served.records)) throw new Error("example runner: observation read returned no records");
-            if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
-            return served.records;
-          };
-          observationScope = { operation: test.scope, stageWrite: refuse, readModel: read,
-            readRecords: async (model, query) => {
-              const served = await read(model, query);
-              const views = served.map(record => fixtureView(moduleArtifact, model, record));
-              if (query.where === undefined) return views;
-              const selected: Record<string, unknown>[] = [];
-              for (const view of views) {
-                const admitted: unknown = await (query.where as (record: unknown) => unknown)(view);
-                if (typeof admitted !== "boolean") throw new Error("example runner: observation predicate must return bool");
-                if (admitted) selected.push(view);
-              }
-              if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
-              return selected;
-            },
-          };
-          evaluationScope = scope;
-          try { return await withCancellation(input.signal, () => row.observe(scope)); }
-          finally { observationScope = undefined; evaluationScope = undefined; }
-        },
-      }));
-      let result: TableCaseResult;
-      try {
-        result = await withCancellation(input.signal, () => runTable({
-          operation: test.scope, userFixtures: suite.userFixtures, rows, createScope,
-        }), disposeActive);
-      } catch (error) {
-        try { await disposeActive(); }
-        catch (cleanupError) { throw new DevCleanupError(error, cleanupError, release); }
-        throw error;
-      }
-      await disposeActive();
-      if (input.signal?.aborted) throw cancellationError();
-      if (result.kind !== "table" || result.rows.length !== selectedRows.length) {
-        throw new Error(`example runner: testkit returned incomplete rows for ${test.scope}`);
-      }
-      reportBuilder.addCase(result);
+      expectedRows += await runExampleTestModule(ctx, moduleIndex, test, disposeActive, release);
     }
     if (input.signal?.aborted) throw cancellationError();
     const report = reportBuilder.build();

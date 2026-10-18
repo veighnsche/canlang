@@ -37,41 +37,45 @@ export function nativeValueReferenceEncoder(rootType: string, schema: Normalized
       if (!('value' in member) || !member.enumerable || typeof member.value !== 'string' && typeof member.value !== 'number') return refuse();
       return member.value;
     };
+    type StepOutcome = { done: false } | { done: true; value: RecordRef | undefined };
+    const stepArray = (): StepOutcome => {
+      const index = segment(position);
+      if (position === path.length || typeof index !== 'number' || !Number.isSafeInteger(index) || index < 0 ||
+          !Array.isArray(current) || index >= current.length) return { done: true, value: refuse() };
+      current = own(current, index); position++;
+      type = { ...type, array: false, requiredArray: false, nullable: false };
+      return { done: false };
+    };
+    const stepNominal = (): StepOutcome => {
+      const name = type.base.kind === 'nominal' ? type.base.path : '';
+      const alias = schema?.aliases !== undefined && Object.hasOwn(schema.aliases, name) ? schema.aliases[name] : undefined;
+      if (alias !== undefined) { type = alias.type; return { done: false }; }
+      const contract = schema !== undefined && Object.hasOwn(schema.contracts, name) ? schema.contracts[name] : undefined;
+      if (contract !== undefined) {
+        const key = segment(position);
+        if (position === path.length || typeof key !== 'string' || !Object.hasOwn(contract.fields, key)) return { done: true, value: refuse() };
+        current = own(current, key); position++;
+        type = contract.fields[key]!.type;
+        return { done: false };
+      }
+      if (position !== path.length || current !== value ||
+          schema !== undefined && Object.hasOwn(schema.enums, name) || reference.model !== name) return { done: true, value: refuse() };
+      return { done: true, value: reference };
+    };
+    const stepUnion = (): StepOutcome => {
+      if (type.base.kind !== 'union') return { done: true, value: refuse() };
+      if (segment(position) !== 'value') return { done: true, value: refuse() };
+      const arm = own(current, 'type');
+      if (typeof arm !== 'string' || !type.base.arms.includes(arm)) return { done: true, value: refuse() };
+      current = own(current, 'value'); position++;
+      try { type = parseTypeId(arm); } catch { return { done: true, value: refuse() }; }
+      return { done: false };
+    };
     let position = 0, steps = 0;
     while (++steps <= 128) {
-      if (type.array) {
-        const index = segment(position);
-        if (position === path.length || typeof index !== 'number' || !Number.isSafeInteger(index) || index < 0 ||
-            !Array.isArray(current) || index >= current.length) return refuse();
-        current = own(current, index); position++;
-        type = { ...type, array: false, requiredArray: false, nullable: false };
-        continue;
-      }
-      if (type.base.kind === 'nominal') {
-        const name = type.base.path;
-        const alias = schema?.aliases !== undefined && Object.hasOwn(schema.aliases, name) ? schema.aliases[name] : undefined;
-        if (alias !== undefined) { type = alias.type; continue; }
-        const contract = schema !== undefined && Object.hasOwn(schema.contracts, name) ? schema.contracts[name] : undefined;
-        if (contract !== undefined) {
-          const key = segment(position);
-          if (position === path.length || typeof key !== 'string' || !Object.hasOwn(contract.fields, key)) return refuse();
-          current = own(current, key); position++;
-          type = contract.fields[key]!.type;
-          continue;
-        }
-        if (position !== path.length || current !== value ||
-            schema !== undefined && Object.hasOwn(schema.enums, name) || reference.model !== name) return refuse();
-        return reference;
-      }
-      if (type.base.kind === 'union') {
-        if (segment(position) !== 'value') return refuse();
-        const arm = own(current, 'type');
-        if (typeof arm !== 'string' || !type.base.arms.includes(arm)) return refuse();
-        current = own(current, 'value'); position++;
-        try { type = parseTypeId(arm); } catch { return refuse(); }
-        continue;
-      }
-      return refuse(); // scalar, JSON, enum and protected values prove no Model slot
+      const outcome = type.array ? stepArray() : type.base.kind === 'nominal' ? stepNominal() :
+        type.base.kind === 'union' ? stepUnion() : { done: true, value: refuse() } as StepOutcome;
+      if (outcome.done) return outcome.value;
     }
     return refuse();
   };

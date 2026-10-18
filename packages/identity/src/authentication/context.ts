@@ -21,6 +21,7 @@ import {
 } from '../ports.js';
 import type { Clock, IdentityStore } from '../ports.js';
 import type {
+  InstantString,
   Membership,
   ResolvedIdentity,
   Team,
@@ -61,59 +62,45 @@ async function activeMembership(
   return membership;
 }
 
-export async function resolveIdentity(
+async function resolveSessionIdentity(
   store: IdentityStore,
   input: ResolveIdentityInput,
-  opts: { clock?: Clock } = {},
+  now: InstantString,
 ): Promise<ResolvedIdentity> {
-  // The admission instant always comes from the injected clock. Callers must
-  // never supply it: a caller-chosen `now` would admit expired credentials.
-  const clock = opts.clock ?? systemClock;
-  const now = toInstant(clock.nowMs());
-  const hasSession = input.session_token !== undefined;
-  const hasGrant = input.mcp_grant_token !== undefined;
-  if (hasSession && hasGrant) {
-    throw new IdentityError('validation', 'Present at most one credential.');
+  const session = await store.findSessionByTokenHash(
+    await sha256HexText(input.session_token ?? ''),
+  );
+  if (session === null || session.revoked_at !== null || session.expires_at <= now) {
+    throw new IdentityError('forbidden', CREDENTIAL_FAILED);
   }
-
-  if (!hasSession && !hasGrant) {
-    const team =
-      input.team_id === undefined
-        ? null
-        : await resolveSessionTeam(store, input.team_id, true);
-    return { actor: null, team, membership: null, binding: { kind: 'none' }, admitted_at: now };
+  const user = await store.findUserById(session.user_id);
+  if (user === null) {
+    throw new IdentityError('forbidden', CREDENTIAL_FAILED);
   }
+  const explicit = input.team_id !== undefined;
+  const team = await resolveSessionTeam(
+    store,
+    explicit ? (input.team_id as string) : session.last_team_id,
+    explicit,
+  );
+  return {
+    actor: {
+      user_id: user.user_id,
+      email: user.email,
+      email_verified: user.email_verified,
+    },
+    team,
+    membership: await activeMembership(store, team, user.user_id),
+    binding: { kind: 'session', session_id: session.session_id },
+    admitted_at: now,
+  };
+}
 
-  if (hasSession) {
-    const session = await store.findSessionByTokenHash(
-      await sha256HexText(input.session_token ?? ''),
-    );
-    if (session === null || session.revoked_at !== null || session.expires_at <= now) {
-      throw new IdentityError('forbidden', CREDENTIAL_FAILED);
-    }
-    const user = await store.findUserById(session.user_id);
-    if (user === null) {
-      throw new IdentityError('forbidden', CREDENTIAL_FAILED);
-    }
-    const explicit = input.team_id !== undefined;
-    const team = await resolveSessionTeam(
-      store,
-      explicit ? (input.team_id as string) : session.last_team_id,
-      explicit,
-    );
-    return {
-      actor: {
-        user_id: user.user_id,
-        email: user.email,
-        email_verified: user.email_verified,
-      },
-      team,
-      membership: await activeMembership(store, team, user.user_id),
-      binding: { kind: 'session', session_id: session.session_id },
-      admitted_at: now,
-    };
-  }
-
+async function resolveGrantIdentity(
+  store: IdentityStore,
+  input: ResolveIdentityInput,
+  now: InstantString,
+): Promise<ResolvedIdentity> {
   const grant = await store.findMcpGrantByTokenHash(
     await sha256HexText(input.mcp_grant_token ?? ''),
   );
@@ -163,4 +150,34 @@ export async function resolveIdentity(
     binding: { kind: 'mcp_grant', grant_id: grant.grant_id },
     admitted_at: now,
   };
+}
+
+export async function resolveIdentity(
+  store: IdentityStore,
+  input: ResolveIdentityInput,
+  opts: { clock?: Clock } = {},
+): Promise<ResolvedIdentity> {
+  // The admission instant always comes from the injected clock. Callers must
+  // never supply it: a caller-chosen `now` would admit expired credentials.
+  const clock = opts.clock ?? systemClock;
+  const now = toInstant(clock.nowMs());
+  const hasSession = input.session_token !== undefined;
+  const hasGrant = input.mcp_grant_token !== undefined;
+  if (hasSession && hasGrant) {
+    throw new IdentityError('validation', 'Present at most one credential.');
+  }
+
+  if (!hasSession && !hasGrant) {
+    const team =
+      input.team_id === undefined
+        ? null
+        : await resolveSessionTeam(store, input.team_id, true);
+    return { actor: null, team, membership: null, binding: { kind: 'none' }, admitted_at: now };
+  }
+
+  if (hasSession) {
+    return resolveSessionIdentity(store, input, now);
+  }
+
+  return resolveGrantIdentity(store, input, now);
 }

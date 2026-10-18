@@ -179,14 +179,21 @@ const DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.(\d
  * rather than truncated (DESIGN L211). Leap second 60 is rejected. Years are
  * 0001-9999 and the resulting instant must lie in the supported range.
  */
-export function datetime(value: string): DatetimeValue {
-  if (typeof value !== "string") {
-    throw new ValueError("invalid-construction", "datetime() requires text");
-  }
-  const match = DATETIME_RE.exec(value);
-  if (match === null) {
-    throw new ValueError("invalid-construction", `invalid datetime text: ${value}`);
-  }
+interface DatetimeParts {
+  readonly year: number;
+  readonly month: number;
+  readonly day: number;
+  readonly hour: number;
+  readonly minute: number;
+  readonly second: number;
+  readonly ms: number;
+  readonly sign: string | undefined;
+  readonly offHour: number;
+  readonly offMinute: number;
+}
+
+/** Parse and range-check RFC 3339 components from a regex match. */
+function readDatetimeParts(match: RegExpExecArray, value: string): DatetimeParts {
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
@@ -222,13 +229,29 @@ export function datetime(value: string): DatetimeValue {
       throw new ValueError("invalid-construction", `nonzero sub-millisecond fraction rejected: ${value}`);
     }
   }
+  return { year, month, day, hour, minute, second, ms, sign, offHour, offMinute };
+}
 
-  const days = BigInt(daysFromCivil(year, month, day));
-  let instant = days * MS_PER_DAY + BigInt(hour * 3600000 + minute * 60000 + second * 1000 + ms);
-  if (sign !== undefined) {
-    const offsetMs = BigInt((offHour * 60 + offMinute) * 60000);
-    instant = sign === "+" ? instant - offsetMs : instant + offsetMs;
+/** Assemble the UTC instant from validated components. */
+function instantFromParts(parts: DatetimeParts): bigint {
+  const days = BigInt(daysFromCivil(parts.year, parts.month, parts.day));
+  let instant = days * MS_PER_DAY + BigInt(parts.hour * 3600000 + parts.minute * 60000 + parts.second * 1000 + parts.ms);
+  if (parts.sign !== undefined) {
+    const offsetMs = BigInt((parts.offHour * 60 + parts.offMinute) * 60000);
+    instant = parts.sign === "+" ? instant - offsetMs : instant + offsetMs;
   }
+  return instant;
+}
+
+export function datetime(value: string): DatetimeValue {
+  if (typeof value !== "string") {
+    throw new ValueError("invalid-construction", "datetime() requires text");
+  }
+  const match = DATETIME_RE.exec(value);
+  if (match === null) {
+    throw new ValueError("invalid-construction", `invalid datetime text: ${value}`);
+  }
+  const instant = instantFromParts(readDatetimeParts(match, value));
   assertDatetimeInRange(instant);
   return makeDatetime(instant);
 }

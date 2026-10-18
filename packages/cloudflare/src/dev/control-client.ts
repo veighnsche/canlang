@@ -127,13 +127,7 @@ async function declaredAppName(path: string): Promise<string> {
 }
 
 /** One envelope even when the app check itself reports source errors. */
-export async function runDevControlArgv(argv: readonly string[], deps: ControlClientDependencies): Promise<DevControlEnvelope> {
-  const command = argv[0] ?? "help";
-  if (command === "help" || command === "--help" || command === "-h") {
-    return argv.length > 1 ? fail(command, "INVALID_ARGUMENTS", "help takes no arguments") : help();
-  }
-  if (!COMMANDS.includes(command as Command)) return fail(command, "UNKNOWN_COMMAND", "development control command is unavailable");
-  const selected = command as Command;
+function parseControlFlags(argv: readonly string[], command: string): Map<Flag, string> | DevControlEnvelope {
   const values = new Map<Flag, string>();
   for (let i = 1; i < argv.length; i += 2) {
     const flag = argv[i];
@@ -143,31 +137,59 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
     }
     values.set(flag as Flag, value);
   }
+  return values;
+}
+
+function controlAllowedFlags(selected: Command): Set<string> {
   const allowed = new Set<string>(selected === "start"
     ? ["--root", "--app", "--source", "--capture", "--compiler", "--catalog", "--help-index", "--preview-roles", "--check-mode"]
     : ["--root", "--session", "--app", "--profile"]);
   if (selected === "check" || selected === "example.run") allowed.add("--expected-revision");
   if (selected === "example.run") { allowed.add("--operation"); allowed.add("--row"); }
   if (selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "construct.rank" || selected === "rank.lookup" || selected === "failures") allowed.add("--revision");
+  allowLookupFlags(allowed, selected);
+  return allowed;
+}
+
+function allowLookupFlags(allowed: Set<string>, selected: Command): void {
   if (selected === "diagnostics" || selected === "failures") { allowed.add("--after"); allowed.add("--limit"); }
   if (selected === "diagnostic.detail" || selected === "construct.rank") allowed.add("--index");
   if (selected === 'construct.rank') allowed.add('--author-intent');
   if (selected === "rank.lookup") allowed.add("--ref");
   if (selected === "construct.help") allowed.add("--id");
   if (selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun") allowed.add("--ref");
-  if ([...values.keys()].some(flag => !allowed.has(flag))) {
-    return fail(command, "INVALID_ARGUMENTS", "flag does not apply to this command");
+}
+
+function validateControlRefs(command: string, selected: Command, values: Map<Flag, string>) {
+  const ref = values.get("--ref");
+  if ((selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun") &&
+      !/^[A-Za-z0-9_-]{1,64}\/r[1-9][0-9]*\/(?:d(?:0|[1-9][0-9]*)|[A-Za-z0-9_-]{1,64}\/f[0-9]+(?:_[0-9]+)?)$/.test(ref ?? "")) {
+    return fail(command, "FAILURE_REF_REQUIRED", "failure lookup needs a retained compiler or example ref");
   }
-  const revision = values.get("--revision");
-  const authorIntent = values.get('--author-intent');
-  if (authorIntent !== undefined && !validAuthorIntent(authorIntent)) {
-    return fail(command,'INVALID_ARGUMENTS','author intent needs one sentence of at most 240 characters');
+  if (selected === "rank.lookup" && !/^[0-9a-f]{64}$/.test(ref ?? "")) {
+    return fail(command, "RANK_REF_REQUIRED", "rank lookup needs a pending SHA256 ref");
   }
-  const expectedRevision = values.get("--expected-revision");
+  const cursors = parseControlCursors(command, selected, values);
+  if ('ok' in cursors) return cursors;
+  return { ref, ...cursors };
+}
+
+function parseControlCursors(command: string, selected: Command, values: Map<Flag, string>) {
+  const index = values.get("--index") === undefined ? null : parseInteger(values.get("--index"), 0);
+  const afterRaw = values.get("--after");
+  const after = afterRaw === undefined ? null : afterRaw === "-1" ? -1 : parseInteger(afterRaw, 0);
+  const limit = values.get("--limit") === undefined ? null : parseInteger(values.get("--limit"), 1);
+  if (((selected === "diagnostic.detail" || selected === "construct.rank") && index === null) ||
+      (values.has("--after") && after === null) || (values.has("--limit") && (limit === null || limit > 25))) {
+    return fail(command, "INVALID_ARGUMENTS", "diagnostic index/cursor/limit is invalid");
+  }
+  return { index, after, limit };
+}
+
+function validateControlRevisions(command: string, selected: Command, revision: string | undefined, expectedRevision: string | undefined, constructId: string | undefined) {
   if ((selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "construct.rank" || selected === "rank.lookup" || selected === "failures") && !/^r[1-9][0-9]*$/.test(revision ?? "")) {
     return fail(command, "REVISION_REQUIRED", "revisioned lookup needs --revision rN");
   }
-  const constructId = values.get("--id");
   if (selected === "construct.help" && !/^can\.v1\.[a-z0-9_.-]{1,100}$/.test(constructId ?? "")) {
     return fail(command, "CONSTRUCT_ID_REQUIRED", "construct help needs --id can.v1.CONSTRUCT");
   }
@@ -177,28 +199,125 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
   if (selected === "example.run" && expectedRevision === undefined) {
     return fail(command, "REVISION_REQUIRED", "example run needs --expected-revision rN");
   }
+  return { expectedRevision, constructId };
+}
+
+function validateControlValues(command: string, selected: Command, values: Map<Flag, string>) {
+  const revision = values.get("--revision");
+  const authorIntent = values.get('--author-intent');
+  if (authorIntent !== undefined && !validAuthorIntent(authorIntent)) {
+    return fail(command,'INVALID_ARGUMENTS','author intent needs one sentence of at most 240 characters');
+  }
+  const expectedRevision = values.get("--expected-revision");
+  if ((selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "construct.rank" || selected === "rank.lookup" || selected === "failures") && !/^r[1-9][0-9]*$/.test(revision ?? "")) {
+    return fail(command, "REVISION_REQUIRED", "revisioned lookup needs --revision rN");
+  }
+  const revisions = validateControlRevisions(command, selected, revision, expectedRevision, values.get("--id"));
+  if ('ok' in revisions) return revisions;
+  const { constructId } = revisions;
   const operation = values.get("--operation");
   const rowIndex = values.has("--row") ? parseInteger(values.get("--row"), 0) : undefined;
   if (selected === "example.run" && ((operation === undefined) !== (rowIndex === undefined) || rowIndex === null ||
       (operation !== undefined && !/^[A-Za-z_][A-Za-z0-9_.]{0,199}$/.test(operation)))) {
     return fail(command, "INVALID_ARGUMENTS", "selected example needs --operation NAME and --row N");
   }
-  const ref = values.get("--ref");
-  if ((selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun") &&
-      !/^[A-Za-z0-9_-]{1,64}\/r[1-9][0-9]*\/(?:d(?:0|[1-9][0-9]*)|[A-Za-z0-9_-]{1,64}\/f[0-9]+(?:_[0-9]+)?)$/.test(ref ?? "")) {
-    return fail(command, "FAILURE_REF_REQUIRED", "failure lookup needs a retained compiler or example ref");
+  const refs = validateControlRefs(command, selected, values);
+  if ('ok' in refs) return refs;
+  return { revision, authorIntent, expectedRevision, constructId, operation, rowIndex, ...refs };
+}
+
+async function loadControlCapture(values: Map<Flag, string>, deps: ControlClientDependencies, manifest: string | undefined, source: string | undefined): Promise<SingleFileCaptureRequest> {
+  if (manifest !== undefined) {
+    return readCaptureManifest(resolve(deps.cwd, manifest));
   }
-  if (selected === "rank.lookup" && !/^[0-9a-f]{64}$/.test(ref ?? "")) {
-    return fail(command, "RANK_REF_REQUIRED", "rank lookup needs a pending SHA256 ref");
+  const root = resolve(deps.cwd, values.get("--root") ?? ".");
+  try {
+    return prepareLocalPreviewCapture({
+      checkoutRoot: root,
+      appPath: resolve(root, source!),
+      compilerPath: resolve(root, values.get("--compiler") ?? process.env.CAN_DEV_COMPILER ?? "compiler/target/debug/can"),
+      catalogPath: resolve(root, values.get("--catalog") ?? process.env.CAN_CATALOG ?? "packages/values/dist/catalog.json"),
+      helpIndexPath: resolve(root, values.get("--help-index") ?? process.env.CAN_HELP_INDEX ?? "docs/specification/CONSTRUCT-HELP.md"),
+    });
+  } catch (error) {
+    throw new SessionSocketError("CAPTURE_INCOMPLETE", error instanceof Error ? error.message : "installed preview inputs are unavailable");
   }
-  const index = values.get("--index") === undefined ? null : parseInteger(values.get("--index"), 0);
-  const afterRaw = values.get("--after");
-  const after = afterRaw === undefined ? null : afterRaw === "-1" ? -1 : parseInteger(afterRaw, 0);
-  const limit = values.get("--limit") === undefined ? null : parseInteger(values.get("--limit"), 1);
-  if (((selected === "diagnostic.detail" || selected === "construct.rank") && index === null) ||
-      (values.has("--after") && after === null) || (values.has("--limit") && (limit === null || limit > 25))) {
-    return fail(command, "INVALID_ARGUMENTS", "diagnostic index/cursor/limit is invalid");
+}
+
+async function runControlStart(command: string, selected: Command, values: Map<Flag, string>, deps: ControlClientDependencies): Promise<DevControlEnvelope> {
+  const checkMode = values.get("--check-mode") ?? "manual";
+  if (checkMode !== "manual" && checkMode !== "automatic") return fail(command, "INVALID_ARGUMENTS", "--check-mode must be manual or automatic");
+  const manifest = values.get("--capture");
+  const source = values.get("--source");
+  if ((manifest === undefined) === (source === undefined)) {
+    return fail(command, "INVALID_ARGUMENTS", "start needs exactly one of --source or --capture");
   }
+  if (manifest !== undefined && ["--root", "--compiler", "--catalog", "--help-index"].some(flag => values.has(flag as Flag))) {
+    return fail(command, "INVALID_ARGUMENTS", "a capture manifest already fixes root and tool inputs");
+  }
+  const capture = await loadControlCapture(values, deps, manifest, source);
+  const app = values.get("--app") ?? await declaredAppName(resolve(capture.checkoutRoot, capture.appPath));
+  let previewRoles: ReturnType<typeof parsePreviewRoles> | undefined;
+  try { previewRoles = values.has("--preview-roles") ? parsePreviewRoles(JSON.parse(values.get("--preview-roles")!)) : undefined; }
+  catch { throw new SessionSocketError("INVALID_ARGUMENTS", "--preview-roles requires a JSON map of seeded actor labels to declared role names"); }
+  const started = await startDevDaemon({ selectedApp: app, checkMode, capture, ...(previewRoles === undefined ? {} : { previewRoles }) });
+  return { ok: true, command: selected, session: started.identity.sessionId,
+    result: { schema: "can.dev.start.v1", attached: started.attached, root: started.identity.root, status: started.status } };
+}
+
+async function runControlSocketCommand(selected: Command, lookup: SessionSocketLookup, validated: Parameters<typeof buildControlPayload>[1], deps: ControlClientDependencies): Promise<DevControlEnvelope> {
+  if (selected === "discover") {
+    const found = await discoverDevDaemon(lookup);
+    return { ok: true, command: selected, session: found.identity.sessionId,
+      result: { schema: "can.dev.discover.v1", root: found.identity.root, status: found.status } };
+  }
+  if (selected === "stop") {
+    const stopped = await stopDevDaemon(lookup);
+    return { ok: true, command: selected, session: stopped.session, result: { schema: "can.dev.stop.v1", stopped: true } };
+  }
+  const owner = await (deps.discover ?? discoverSessionSocket)(lookup);
+  const payload = buildControlPayload(selected, validated);
+  const result = await owner.request({ command: selected, ...(payload === undefined ? {} : { payload }) });
+  return { ok: true, command: selected, session: owner.identity.sessionId, result };
+}
+
+function buildControlPayload(selected: Command, validated: {
+  readonly revision: string | undefined; readonly authorIntent: string | undefined;
+  readonly expectedRevision: string | undefined; readonly constructId: string | undefined;
+  readonly operation: string | undefined; readonly rowIndex: number | null | undefined;
+  readonly ref: string | undefined; readonly index: number | null;
+  readonly after: number | null; readonly limit: number | null;
+}) {
+  const { revision, authorIntent, expectedRevision, operation, rowIndex, ref, index, after, limit, constructId } = validated;
+  return selected === "example.run"
+    ? { expectedRevision, ...(operation === undefined ? {} : { operation, rowIndex }) }
+    : selected === "check" && expectedRevision !== undefined
+    ? { expectedRevision }
+    : selected === "diagnostics" || selected === "failures" ? { revision, ...(after === null ? {} : { after }), ...(limit === null ? {} : { limit }) }
+    : selected === "construct.rank" ? { revision, index, ...(authorIntent === undefined ? {} : {authorIntent}) }
+    : selected === "diagnostic.detail" ? { revision, index }
+    : selected === "rank.lookup" ? { revision, ref }
+    : selected === "construct.help" ? { revision, id: constructId }
+    : selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun" ? { ref }
+    : undefined;
+}
+
+export async function runDevControlArgv(argv: readonly string[], deps: ControlClientDependencies): Promise<DevControlEnvelope> {
+  const command = argv[0] ?? "help";
+  if (command === "help" || command === "--help" || command === "-h") {
+    return argv.length > 1 ? fail(command, "INVALID_ARGUMENTS", "help takes no arguments") : help();
+  }
+  if (!COMMANDS.includes(command as Command)) return fail(command, "UNKNOWN_COMMAND", "development control command is unavailable");
+  const selected = command as Command;
+  const parsed = parseControlFlags(argv, command);
+  if (!(parsed instanceof Map)) return parsed;
+  const values = parsed;
+  const allowed = controlAllowedFlags(selected);
+  if ([...values.keys()].some(flag => !allowed.has(flag))) {
+    return fail(command, "INVALID_ARGUMENTS", "flag does not apply to this command");
+  }
+  const validated = validateControlValues(command, selected, values);
+  if ('ok' in validated) return validated;
   const checkoutRoot = values.get("--root") ?? deps.cwd;
   const lookup: SessionSocketLookup = {
     checkoutRoot,
@@ -207,65 +326,8 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
     ...(values.has("--profile") ? { profile: values.get("--profile")! } : {}),
   };
   try {
-    if (selected === "start") {
-      const checkMode = values.get("--check-mode") ?? "manual";
-      if (checkMode !== "manual" && checkMode !== "automatic") return fail(command, "INVALID_ARGUMENTS", "--check-mode must be manual or automatic");
-      const manifest = values.get("--capture");
-      const source = values.get("--source");
-      if ((manifest === undefined) === (source === undefined)) {
-        return fail(command, "INVALID_ARGUMENTS", "start needs exactly one of --source or --capture");
-      }
-      if (manifest !== undefined && ["--root", "--compiler", "--catalog", "--help-index"].some(flag => values.has(flag as Flag))) {
-        return fail(command, "INVALID_ARGUMENTS", "a capture manifest already fixes root and tool inputs");
-      }
-      let capture: SingleFileCaptureRequest;
-      if (manifest !== undefined) {
-        capture = await readCaptureManifest(resolve(deps.cwd, manifest));
-      } else {
-        const root = resolve(deps.cwd, values.get("--root") ?? ".");
-        try {
-          capture = prepareLocalPreviewCapture({
-            checkoutRoot: root,
-            appPath: resolve(root, source!),
-            compilerPath: resolve(root, values.get("--compiler") ?? process.env.CAN_DEV_COMPILER ?? "compiler/target/debug/can"),
-            catalogPath: resolve(root, values.get("--catalog") ?? process.env.CAN_CATALOG ?? "packages/values/dist/catalog.json"),
-            helpIndexPath: resolve(root, values.get("--help-index") ?? process.env.CAN_HELP_INDEX ?? "docs/specification/CONSTRUCT-HELP.md"),
-          });
-        } catch (error) {
-          throw new SessionSocketError("CAPTURE_INCOMPLETE", error instanceof Error ? error.message : "installed preview inputs are unavailable");
-        }
-      }
-      const app = values.get("--app") ?? await declaredAppName(resolve(capture.checkoutRoot, capture.appPath));
-      let previewRoles: ReturnType<typeof parsePreviewRoles> | undefined;
-      try { previewRoles = values.has("--preview-roles") ? parsePreviewRoles(JSON.parse(values.get("--preview-roles")!)) : undefined; }
-      catch { throw new SessionSocketError("INVALID_ARGUMENTS", "--preview-roles requires a JSON map of seeded actor labels to declared role names"); }
-      const started = await startDevDaemon({ selectedApp: app, checkMode, capture, ...(previewRoles === undefined ? {} : { previewRoles }) });
-      return { ok: true, command: selected, session: started.identity.sessionId,
-        result: { schema: "can.dev.start.v1", attached: started.attached, root: started.identity.root, status: started.status } };
-    }
-    if (selected === "discover") {
-      const found = await discoverDevDaemon(lookup);
-      return { ok: true, command: selected, session: found.identity.sessionId,
-        result: { schema: "can.dev.discover.v1", root: found.identity.root, status: found.status } };
-    }
-    if (selected === "stop") {
-      const stopped = await stopDevDaemon(lookup);
-      return { ok: true, command: selected, session: stopped.session, result: { schema: "can.dev.stop.v1", stopped: true } };
-    }
-    const owner = await (deps.discover ?? discoverSessionSocket)(lookup);
-    const payload = selected === "example.run"
-      ? { expectedRevision, ...(operation === undefined ? {} : { operation, rowIndex }) }
-      : selected === "check" && expectedRevision !== undefined
-      ? { expectedRevision }
-      : selected === "diagnostics" || selected === "failures" ? { revision, ...(after === null ? {} : { after }), ...(limit === null ? {} : { limit }) }
-      : selected === "construct.rank" ? { revision, index, ...(authorIntent === undefined ? {} : {authorIntent}) }
-      : selected === "diagnostic.detail" ? { revision, index }
-      : selected === "rank.lookup" ? { revision, ref }
-      : selected === "construct.help" ? { revision, id: constructId }
-      : selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun" ? { ref }
-      : undefined;
-    const result = await owner.request({ command: selected, ...(payload === undefined ? {} : { payload }) });
-    return { ok: true, command: selected, session: owner.identity.sessionId, result };
+    if (selected === "start") return await runControlStart(command, selected, values, deps);
+    return await runControlSocketCommand(selected, lookup, validated, deps);
   } catch (error) {
     return fail(command, error instanceof SessionSocketError ? error.code : "CONTROL_UNAVAILABLE",
       error instanceof Error ? error.message : "control request failed");

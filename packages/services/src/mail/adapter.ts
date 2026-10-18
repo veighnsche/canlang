@@ -261,25 +261,12 @@ export function skippedCompletion(
  * error; unknown carries null result + diagnostic-or-null; skipped
  * carries null + null. Pending is a receipt, never a completion.
  */
-export function assertValidCompletion<R>(
-  completion: CapabilityCompletion<R>,
+function assertCompletionPayload<R>(
+  status: CapabilityCompletion<R>['status'],
+  result: CapabilityCompletion<R>['result'],
+  error: CapabilityCompletion<R>['error'],
+  validError: boolean,
 ): void {
-  if (typeof completion !== 'object' || completion === null) {
-    throw new MailCompletionError('Completion must be an object');
-  }
-  const { delivery_id, status, result, error } = completion;
-  if (typeof delivery_id !== 'string' || delivery_id.length === 0) {
-    throw new MailCompletionError(
-      'Completion delivery_id must be a non-empty string',
-    );
-  }
-  const validError =
-    typeof error === 'object' &&
-    error !== null &&
-    typeof error.code === 'string' &&
-    error.code.length > 0 &&
-    typeof error.message === 'string' &&
-    error.message.length > 0;
   switch (status) {
     case 'succeeded':
       if (result === null || result === undefined || error !== null) {
@@ -312,6 +299,28 @@ export function assertValidCompletion<R>(
         'pending is a receipt, never a completion',
       );
   }
+}
+
+export function assertValidCompletion<R>(
+  completion: CapabilityCompletion<R>,
+): void {
+  if (typeof completion !== 'object' || completion === null) {
+    throw new MailCompletionError('Completion must be an object');
+  }
+  const { delivery_id, status, result, error } = completion;
+  if (typeof delivery_id !== 'string' || delivery_id.length === 0) {
+    throw new MailCompletionError(
+      'Completion delivery_id must be a non-empty string',
+    );
+  }
+  const validError =
+    typeof error === 'object' &&
+    error !== null &&
+    typeof error.code === 'string' &&
+    error.code.length > 0 &&
+    typeof error.message === 'string' &&
+    error.message.length > 0;
+  assertCompletionPayload(status, result, error, validError);
 }
 
 function readReference(value: unknown): string | null {

@@ -52,7 +52,33 @@ async function run(argv: string[]): Promise<number> {
     } })); return 0;
   }
   if (command === 'inventory') { console.log(JSON.stringify(SODA_PROVIDER_INVENTORY)); return 0; }
-  const options: Options = new Map(); let child = false;
+  const { options, child } = parseSodaOptions(command, argv);
+  if (command === 'build') {
+    await runSodaBuild(command, options);
+    return 0;
+  }
+  if (command === 'serve' && !child) return superviseWorkerd(fileURLToPath(import.meta.url), [...argv, '--child']);
+  let runtime: Awaited<ReturnType<typeof startSodaRuntime>> | undefined;
+  let started: Promise<void> | undefined;
+  if (child) installWorkerdShutdown(async () => { await started; await runtime?.dispose(); });
+  if (command === 'bootstrap' || command === 'member') {
+    await runSodaMembership(command, options);
+    return 0;
+  }
+  started = (async () => {
+    const input = await loadBundle(required(options, '--bundle'));
+    const port = Number(options.get('--port') ?? '8080');
+    if (!Number.isSafeInteger(port) || port < 0 || port > 65535) throw new Error('Invalid Soda port');
+    runtime = await startSodaRuntime(input, { dataDir: required(options, '--data'), ownerTeam: required(options, '--owner'),
+      host: options.get('--host') ?? '127.0.0.1', port });
+    console.log(JSON.stringify({ ok: true, command, origin: runtime.origin }));
+  })();
+  await started; return 0;
+}
+
+function parseSodaOptions(command: string, argv: string[]): { options: Options; child: boolean } {
+  const options: Options = new Map();
+  let child = false;
   const allowed = command === 'build' ? ['--artifact', '--descriptor', '--environment', '--out', '--date', '--flags']
     : command === 'bootstrap' ? ['--bundle', '--data', '--credentials']
       : command === 'member' ? ['--bundle', '--data', '--owner', '--credentials']
@@ -65,43 +91,32 @@ async function run(argv: string[]): Promise<number> {
     if (!allowed.includes(flag) || options.has(flag) || value === undefined || value.startsWith('--')) throw new Error('Unknown, duplicate or missing can-soda option');
     options.set(flag, value);
   }
-  if (command === 'build') {
-    const artifact = loadArtifactFile(resolve(required(options, '--artifact'))).artifact;
-    const descriptor = JSON.parse(await readFile(required(options, '--descriptor'), 'utf8'));
-    const environment = JSON.parse(await readFile(required(options, '--environment'), 'utf8'));
-    const input = buildSodaBundle(artifact, descriptor, environment, options.get('--date') ?? PINNED_COMPATIBILITY_DATE,
-      options.get('--flags')?.split(',').filter(Boolean) ?? []);
-    await writeFile(required(options, '--out'), JSON.stringify({ ...input, bundle: { ...input.bundle,
-      binaries: Object.fromEntries(Object.entries(input.bundle.binaries).map(([name, bytes]) => [name, Buffer.from(bytes).toString('base64')])) } }), { flag: 'wx' });
-    console.log(JSON.stringify({ ok: true, command, mixedSha256: input.bundle.mixedSha256 })); return 0;
-  }
-  if (command === 'serve' && !child) return superviseWorkerd(fileURLToPath(import.meta.url), [...argv, '--child']);
-  let runtime: Awaited<ReturnType<typeof startSodaRuntime>> | undefined;
-  let started: Promise<void> | undefined;
-  if (child) installWorkerdShutdown(async () => { await started; await runtime?.dispose(); });
-  if (command === 'bootstrap' || command === 'member') {
-    const input = await loadBundle(required(options, '--bundle'));
-    const secret = await secretFile(required(options, '--credentials'));
-    const { bootstrapD1Owner, addD1TeamMember } = await import('@canlang/identity');
-    const dev = await provisionSodaStorage(input, required(options, '--data'));
-    try {
-      const db = await dev.getD1Database('DB');
-      const owner = command === 'bootstrap'
-        ? await bootstrapD1Owner(db, secret as Parameters<typeof bootstrapD1Owner>[1])
-        : await addD1TeamMember(db, { ...secret as { email: string; password: string }, teamId: required(options, '--owner') });
-      console.log(JSON.stringify({ ok: true, command, ...owner }));
-    } finally { await dev.dispose(); }
-    return 0;
-  }
-  started = (async () => {
-    const input = await loadBundle(required(options, '--bundle'));
-    const port = Number(options.get('--port') ?? '8080');
-    if (!Number.isSafeInteger(port) || port < 0 || port > 65535) throw new Error('Invalid Soda port');
-    runtime = await startSodaRuntime(input, { dataDir: required(options, '--data'), ownerTeam: required(options, '--owner'),
-      host: options.get('--host') ?? '127.0.0.1', port });
-    console.log(JSON.stringify({ ok: true, command, origin: runtime.origin }));
-  })();
-  await started; return 0;
+  return { options, child };
+}
+
+async function runSodaBuild(command: string, options: Options): Promise<void> {
+  const artifact = loadArtifactFile(resolve(required(options, '--artifact'))).artifact;
+  const descriptor = JSON.parse(await readFile(required(options, '--descriptor'), 'utf8'));
+  const environment = JSON.parse(await readFile(required(options, '--environment'), 'utf8'));
+  const input = buildSodaBundle(artifact, descriptor, environment, options.get('--date') ?? PINNED_COMPATIBILITY_DATE,
+    options.get('--flags')?.split(',').filter(Boolean) ?? []);
+  await writeFile(required(options, '--out'), JSON.stringify({ ...input, bundle: { ...input.bundle,
+    binaries: Object.fromEntries(Object.entries(input.bundle.binaries).map(([name, bytes]) => [name, Buffer.from(bytes).toString('base64')])) } }), { flag: 'wx' });
+  console.log(JSON.stringify({ ok: true, command, mixedSha256: input.bundle.mixedSha256 }));
+}
+
+async function runSodaMembership(command: string, options: Options): Promise<void> {
+  const input = await loadBundle(required(options, '--bundle'));
+  const secret = await secretFile(required(options, '--credentials'));
+  const { bootstrapD1Owner, addD1TeamMember } = await import('@canlang/identity');
+  const dev = await provisionSodaStorage(input, required(options, '--data'));
+  try {
+    const db = await dev.getD1Database('DB');
+    const owner = command === 'bootstrap'
+      ? await bootstrapD1Owner(db, secret as Parameters<typeof bootstrapD1Owner>[1])
+      : await addD1TeamMember(db, { ...secret as { email: string; password: string }, teamId: required(options, '--owner') });
+    console.log(JSON.stringify({ ok: true, command, ...owner }));
+  } finally { await dev.dispose(); }
 }
 
 void run(process.argv.slice(2)).then(code => { process.exitCode = code; }).catch(error => {

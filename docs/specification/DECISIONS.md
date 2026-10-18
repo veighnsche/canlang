@@ -19808,3 +19808,28 @@ the affected 200,000-image Node probe pass. Services no-emit typing exits 0 afte
 the final helper change, reusing the existing pinned hash dependency read-only.
 All changed bodies score within 20. Full workspace consumer qualification remains
 held where package aliases resolve another checkout's live output.
+
+
+## 2026-10-18 — finish the released TypeScript complexity batch
+
+Accepted implementation: retain the current private-helper extractions in 135
+remaining TypeScript owners across State, Cloudflare, Values, Work, Work-kernel,
+provider/file/identity/testkit adapters and the editor. Preserve original authority,
+error/skip distinctions, callback receivers, lazy getter reads, staged effects and
+recovery order. Independent review repaired recovery clocks/evidence/receivers,
+Values type/default demand, diagnostic rank precedence, generation progress/clock
+capture, State declaration/retirement reads and ANY overloads. The source metric
+now closes 468 of the 630 original TypeScript diagnostics (338 in this batch);
+162 remaining TypeScript identities are deferred by the user's wind-down. No
+threshold, allowance, public protocol or test weakening is introduced.
+
+Validation: owned-source Bun tests report 2858 pass, 191 fail and 64 environment/
+initialization errors across 3050 cases. An in-memory HEAD comparison reproduces
+the same runtime failure identities and error scopes; no new runtime failure was
+identified. This is not a clean full-suite claim: missing emitted/workerd fixtures
+and provider dependencies remain, and a separate frozen-corpus Node child refuses
+the changed source hash before semantic qualification. State package no-emit typing
+passes after the extracted D1 statement return type repair; Work with its owning
+Work-kernel source and Values typing pass. Focused retained getter/receiver probes
+pass. Large released helpers received targeted semantic review, not exhaustive
+branch qualification. Rust validation and final integration remain separate.

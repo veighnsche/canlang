@@ -22,9 +22,30 @@ export interface ReceiptProgressInput {
   readonly revision: number;
 }
 
-/** Stage retained receipt progress; callers join these writes to their existing fence. */
-export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: SystemCommandContext): Promise<SystemStaging> {
-  const { intent, outcome, revision, context } = input;
+function checkReceiptProgressRevision(skipping: boolean, revision: number, ctx: SystemCommandContext): void {
+  if (skipping && revision !== systemCommandStageRevision(ctx) + 1) {
+    throw new Error('Skipped receipt requires the actual claim stage commit revision.');
+  }
+  if (!Number.isSafeInteger(revision) || revision < 0) throw new Error('Receipt progress requires a commit revision.');
+}
+
+function readReceiptProgressOutcome(
+  outcome: ReceiptProgressInput['outcome'],
+  skipping: boolean,
+): { readonly status: 'succeeded' | 'skipped' | 'failed'; readonly result: unknown; readonly error: ReceiptError | null } {
+  const status = outcome.kind === 'delivered' ? 'succeeded' : skipping ? 'skipped' : 'failed';
+  const result = outcome.kind === 'delivered' ? outcome.result : null;
+  const error = outcome.kind === 'failed' ? outcome.error : null;
+  return { status, result, error };
+}
+
+function checkReceiptProgressIntent(
+  intent: ReceiptProgressInput['intent'],
+  outcome: ReceiptProgressInput['outcome'],
+  context: ReceiptProgressInput['context'],
+  revision: number,
+  ctx: SystemCommandContext,
+): { readonly judgment: boolean; readonly skipping: boolean; readonly status: 'succeeded' | 'skipped' | 'failed'; readonly result: unknown; readonly error: ReceiptError | null } {
   const judgment = isJudgmentReceiptContext(context) && context!.source === intent.target;
   const skipping = outcome.kind === 'skipped';
   // Original empty generation receipts use the adapter's real request context.
@@ -36,17 +57,58 @@ export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: Sys
       (context !== undefined && !judgment && !generation) || typeof intent.intentId !== 'string' || intent.intentId === '') {
     throw new Error('Receipt progress requires the verified original Email, Judgment or empty generation intent.');
   }
-  if (skipping && revision !== systemCommandStageRevision(ctx) + 1) {
-    throw new Error('Skipped receipt requires the actual claim stage commit revision.');
+  checkReceiptProgressRevision(skipping, revision, ctx);
+  const { status, result, error } = readReceiptProgressOutcome(outcome, skipping);
+  return { judgment, skipping, status, result, error };
+}
+
+type ReceiptProgressGate = ReturnType<typeof checkReceiptProgressIntent>;
+
+async function stageAssociationProgressRow(
+  ctx: SystemCommandContext,
+  row: Awaited<ReturnType<SystemCommandContext['query']>>[number],
+  intent: ReceiptProgressInput['intent'],
+  receipt: ReturnType<typeof readReceiptRow>['receipt'],
+  revision: number,
+  status: ReceiptProgressGate['status'],
+  result: ReceiptProgressGate['result'],
+  error: ReceiptProgressGate['error'],
+  context: ReceiptProgressInput['context'],
+  meta: { readonly nowMs: number; readonly actor: string },
+): Promise<{ readonly receipt: AssociatedReceipt; readonly write: DomainWrite }> {
+  const association = readAssociationRow(row);
+  if (association.deliveryId !== intent.intentId || association.source !== intent.target) {
+    throw new Error('Receipt association disagrees with the verified original intent.');
   }
-  if (!Number.isSafeInteger(revision) || revision < 0) throw new Error('Receipt progress requires a commit revision.');
+  const recordModel = row.data['recordModel'];
+  // readAssociationRow already validates this stored model and protected locator ID.
+  if (typeof recordModel !== 'string') throw new Error('Receipt owner model is missing.');
+  const owner = await ctx.load(recordModel as ModelName, association.locator.recordId as RecordId);
+  if (owner === null || owner.archivedAt !== null) throw new Error('Receipt current owner is unavailable.');
+  const delivery = decodeValue(`delivery(${intent.target})`, owner.data[association.locator.field]);
+  if (!isDeliveryRef(delivery) || delivery.id !== association.deliveryId || delivery.operation !== association.source) {
+    throw new Error('Receipt current owner field disagrees with its association.');
+  }
+  const progress = applyReceiptProgress(association, receipt, {
+    delivery_id: intent.intentId, source: intent.target, revision, status, result, error,
+  }, context);
+  if (!progress.applied) throw new Error(`Receipt progress refused: ${progress.reason}.`);
+  return { receipt: progress.receipt, write: { kind: 'update', model: RECEIPT_ASSOCIATION_MODEL as ModelName, id: row.id,
+    expectedVersion: row.version, row: withAssociationRowData(row, {
+      recordModel, recordId: association.locator.recordId, field: association.locator.field,
+      deliveryId: progress.association.deliveryId, source: progress.association.source,
+      revision: progress.association.revision,
+    }, meta) } };
+}
+
+/** Stage retained receipt progress; callers join these writes to their existing fence. */
+export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: SystemCommandContext): Promise<SystemStaging> {
+  const { intent, outcome, revision, context } = input;
+  const { judgment, skipping, status, result, error } = checkReceiptProgressIntent(intent, outcome, context, revision, ctx);
   const receiptRow = await ctx.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
   if (receiptRow === null) return {};
   const retained = readReceiptRow(receiptRow, context);
   if (retained.receipt.deliveryId !== intent.intentId) throw new Error('Receipt progress intent identity disagrees.');
-  const status = outcome.kind === 'delivered' ? 'succeeded' : skipping ? 'skipped' : 'failed';
-  const result = outcome.kind === 'delivered' ? outcome.result : null;
-  const error = outcome.kind === 'failed' ? outcome.error : null;
   if (judgment ? !isJudgmentReceiptPayload(status, result, error, context)
     : !isConsistentCompletion(status, result, error)) throw new Error('Receipt progress requires a closed decisive completion.');
   if (skipping && (isTerminalReceiptStatus(retained.receipt.status) || retained.receipt.status !== 'pending' ||
@@ -64,30 +126,10 @@ export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: Sys
   const writes: DomainWrite[] = [];
   let nextReceipt: AssociatedReceipt = { ...retained.receipt, revision, status, result, error };
   for (const row of rows) {
-    const association = readAssociationRow(row);
-    if (association.deliveryId !== intent.intentId || association.source !== intent.target) {
-      throw new Error('Receipt association disagrees with the verified original intent.');
-    }
-    const recordModel = row.data['recordModel'];
-    // readAssociationRow already validates this stored model and protected locator ID.
-    if (typeof recordModel !== 'string') throw new Error('Receipt owner model is missing.');
-    const owner = await ctx.load(recordModel as ModelName, association.locator.recordId as RecordId);
-    if (owner === null || owner.archivedAt !== null) throw new Error('Receipt current owner is unavailable.');
-    const delivery = decodeValue(`delivery(${intent.target})`, owner.data[association.locator.field]);
-    if (!isDeliveryRef(delivery) || delivery.id !== association.deliveryId || delivery.operation !== association.source) {
-      throw new Error('Receipt current owner field disagrees with its association.');
-    }
-    const progress = applyReceiptProgress(association, retained.receipt, {
-      delivery_id: intent.intentId, source: intent.target, revision, status, result, error,
-    }, context);
-    if (!progress.applied) throw new Error(`Receipt progress refused: ${progress.reason}.`);
-    nextReceipt = progress.receipt;
-    writes.push({ kind: 'update', model: RECEIPT_ASSOCIATION_MODEL as ModelName, id: row.id,
-      expectedVersion: row.version, row: withAssociationRowData(row, {
-        recordModel, recordId: association.locator.recordId, field: association.locator.field,
-        deliveryId: progress.association.deliveryId, source: progress.association.source,
-        revision: progress.association.revision,
-      }, meta) });
+    const staged = await stageAssociationProgressRow(ctx, row, intent, retained.receipt, revision,
+      status, result, error, context, meta);
+    nextReceipt = staged.receipt;
+    writes.push(staged.write);
   }
   // Superseded/cleared sends retain their original receipt without selecting a new association.
   writes.push({ kind: 'update', model: RECEIPT_MODEL as ModelName, id: receiptRow.id,

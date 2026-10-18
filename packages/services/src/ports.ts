@@ -405,6 +405,122 @@ export function startControlledMailServer(
       sendBody(res, 200, { reference });
     };
 
+    const handleSendPost = async (
+      req: http.IncomingMessage,
+      res: http.ServerResponse,
+      rawPath: string,
+      idempotencyKey: string | null,
+    ): Promise<void> => {
+      const bodyText = await readTextBody(req);
+      requests.push({
+        method: 'POST',
+        path: rawPath,
+        idempotencyKey,
+        bodyText,
+        hadAuth: req.headers['authorization'] !== undefined,
+      });
+      if (rawPath === '/send-final') {
+        acceptSend(res, idempotencyKey);
+        return;
+      }
+      switch (scenario.kind) {
+        case 'accept':
+          acceptSend(res, idempotencyKey);
+          return;
+        case 'reject':
+          sendBody(res, scenario.status, scenario.body);
+          return;
+        case 'flaky-then-accept':
+          sendAttempts += 1;
+          if (sendAttempts <= scenario.failures) {
+            sendBody(res, 500, { error: 'transient failure' });
+            return;
+          }
+          acceptSend(res, idempotencyKey);
+          return;
+        case 'invalid-schema':
+          sendBody(res, 200, scenario.body);
+          return;
+        case 'hang': {
+          // Possible commit: the send took effect server-side but the
+          // response is lost, so the client must time out to unknown
+          // and reconcile through the original identity.
+          counter += 1;
+          const reference = `mail_${counter}`;
+          deliveries.set(idempotencyKey ?? `anon_${counter}`, {
+            outcome: scenario.reconcile,
+            reference,
+          });
+          return; // Never respond.
+        }
+        case 'redirect':
+          res.writeHead(scenario.status, {
+            location: scenario.location,
+            'content-length': '0',
+          });
+          res.end();
+          return;
+        case 'drip': {
+          const text = JSON.stringify({ reference: 'mail_drip' });
+          res.writeHead(200, {
+            'content-type': 'application/json',
+            'content-length': Buffer.byteLength(text),
+          });
+          const releaseTimer = (): void => {
+            clearTimeout(timer);
+            dripTimers.delete(timer);
+            res.off('close', releaseTimer);
+          };
+          const timer = setTimeout(() => {
+            releaseTimer();
+            try {
+              if (!res.destroyed) {
+                res.end(text);
+              }
+            } catch {
+              // Client already gone (e.g. timed out).
+            }
+          }, scenario.delayMs);
+          dripTimers.add(timer);
+          res.once('close', releaseTimer);
+          return;
+        }
+      }
+    };
+
+    const handleDeliveryLookup = (
+      res: http.ServerResponse,
+      rawPath: string,
+    ): void => {
+      if (scenario.kind === 'invalid-schema') {
+        sendBody(res, 200, scenario.body);
+        return;
+      }
+      const id = decodeURIComponent(
+        rawPath.slice('/deliveries/'.length),
+      );
+      const record = deliveries.get(id);
+      if (record === undefined) {
+        sendBody(res, 404, { error: 'unknown delivery' });
+        return;
+      }
+      if (record.outcome === 'pending') {
+        sendBody(res, 200, { status: 'pending' });
+        return;
+      }
+      if (record.outcome === 'accepted') {
+        sendBody(res, 200, {
+          status: 'accepted',
+          reference: record.reference,
+        });
+        return;
+      }
+      sendBody(res, 200, {
+        status: 'rejected',
+        message: 'No mailbox for recipient',
+      });
+    };
+
     const handle = async (
       req: http.IncomingMessage,
       res: http.ServerResponse,
@@ -415,81 +531,8 @@ export function startControlledMailServer(
       const idempotencyKey =
         typeof keyHeader === 'string' ? keyHeader : null;
       if (method === 'POST' && (rawPath === '/send' || rawPath === '/send-final')) {
-        const bodyText = await readTextBody(req);
-        requests.push({
-          method,
-          path: rawPath,
-          idempotencyKey,
-          bodyText,
-          hadAuth: req.headers['authorization'] !== undefined,
-        });
-        if (rawPath === '/send-final') {
-          acceptSend(res, idempotencyKey);
-          return;
-        }
-        switch (scenario.kind) {
-          case 'accept':
-            acceptSend(res, idempotencyKey);
-            return;
-          case 'reject':
-            sendBody(res, scenario.status, scenario.body);
-            return;
-          case 'flaky-then-accept':
-            sendAttempts += 1;
-            if (sendAttempts <= scenario.failures) {
-              sendBody(res, 500, { error: 'transient failure' });
-              return;
-            }
-            acceptSend(res, idempotencyKey);
-            return;
-          case 'invalid-schema':
-            sendBody(res, 200, scenario.body);
-            return;
-          case 'hang': {
-            // Possible commit: the send took effect server-side but the
-            // response is lost, so the client must time out to unknown
-            // and reconcile through the original identity.
-            counter += 1;
-            const reference = `mail_${counter}`;
-            deliveries.set(idempotencyKey ?? `anon_${counter}`, {
-              outcome: scenario.reconcile,
-              reference,
-            });
-            return; // Never respond.
-          }
-          case 'redirect':
-            res.writeHead(scenario.status, {
-              location: scenario.location,
-              'content-length': '0',
-            });
-            res.end();
-            return;
-          case 'drip': {
-            const text = JSON.stringify({ reference: 'mail_drip' });
-            res.writeHead(200, {
-              'content-type': 'application/json',
-              'content-length': Buffer.byteLength(text),
-            });
-            const releaseTimer = (): void => {
-              clearTimeout(timer);
-              dripTimers.delete(timer);
-              res.off('close', releaseTimer);
-            };
-            const timer = setTimeout(() => {
-              releaseTimer();
-              try {
-                if (!res.destroyed) {
-                  res.end(text);
-                }
-              } catch {
-                // Client already gone (e.g. timed out).
-              }
-            }, scenario.delayMs);
-            dripTimers.add(timer);
-            res.once('close', releaseTimer);
-            return;
-          }
-        }
+        await handleSendPost(req, res, rawPath, idempotencyKey);
+        return;
       }
       if (method === 'GET' && rawPath === '/send-final') {
         // Same-origin 302 target: proves POST-to-GET conversion, since a
@@ -498,33 +541,7 @@ export function startControlledMailServer(
         return;
       }
       if (method === 'GET' && rawPath.startsWith('/deliveries/')) {
-        if (scenario.kind === 'invalid-schema') {
-          sendBody(res, 200, scenario.body);
-          return;
-        }
-        const id = decodeURIComponent(
-          rawPath.slice('/deliveries/'.length),
-        );
-        const record = deliveries.get(id);
-        if (record === undefined) {
-          sendBody(res, 404, { error: 'unknown delivery' });
-          return;
-        }
-        if (record.outcome === 'pending') {
-          sendBody(res, 200, { status: 'pending' });
-          return;
-        }
-        if (record.outcome === 'accepted') {
-          sendBody(res, 200, {
-            status: 'accepted',
-            reference: record.reference,
-          });
-          return;
-        }
-        sendBody(res, 200, {
-          status: 'rejected',
-          message: 'No mailbox for recipient',
-        });
+        handleDeliveryLookup(res, rawPath!);
         return;
       }
       sendBody(res, 404, { error: 'not found' });

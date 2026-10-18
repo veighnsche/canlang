@@ -12,12 +12,12 @@ import { makeDeliveryRef } from '@canlang/values';
 import { checkArgs, argString, argNullableString, argRecord } from './arguments.js';
 import type { FanoutLineage } from '../intent/index.js';
 import { stageOutboxIntentAsync } from '../intent/staging.js';
-import type { StageOutboxIntentInput } from '../intent/staging.js';
+import type { StageOutboxIntentInput, StagedOutboxIntent } from '../intent/staging.js';
 import {
   KernelTableError, snapshotKernelJsonValue, WORK_DISPATCH_MODEL, newDispatchRow, readDispatchRow,
   DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageCorrelation, type DispatchImageCorrelation,
   dispatchGenerationTargetProfile, readDispatchSourceGuard, type DispatchSourceGuard,
-  readWorkFilePayloadOrigin,
+  readWorkFilePayloadOrigin, type DispatchRowData,
 } from './tables.js';
 
 /** L3 staging bound (`STAGING_MAX_ID_LENGTH`); length is UTF-16 units. */
@@ -55,6 +55,13 @@ function argGenerationCorrelation(record: Readonly<Record<string, unknown>>, sou
   const control = profile?.role === 'control';
   const value = typeof args === 'object' && args !== null && !Array.isArray(args)
     ? control ? args : (args as Record<string, unknown>)['value'] : undefined;
+  assertGenerationCarrier(request, correlation, profile, control, value, what);
+  return correlation;
+}
+
+function assertGenerationCarrier(request: Record<string, unknown>,
+  correlation: DispatchImageCorrelation | null, profile: ReturnType<typeof dispatchGenerationTargetProfile>,
+  control: boolean, value: unknown, what: string): void {
   if (profile === null || correlation === null ||
       request['binding'] !== correlation.requestBinding || request['from'] !== correlation.requestFrom ||
       typeof value !== 'object' || value === null || Array.isArray(value) ||
@@ -63,7 +70,6 @@ function argGenerationCorrelation(record: Readonly<Record<string, unknown>>, sou
       (value as Record<string, unknown>)['revision'] !== correlation.requestRevision) {
     throw new KernelTableError(`${what}: original generation correlation disagrees with its retained carrier.`);
   }
-  return correlation;
 }
 
 function argOccurrenceIndex(
@@ -199,6 +205,77 @@ function parseStageIntent(
  * (a prior run committed both halves together), and throws on mismatch
  * instead of silently adopting a foreign row.
  */
+function assertReplayedIntent(data: DispatchRowData, intent: ParsedStageIntent, what: string): void {
+  if (
+    data.intentId !== intent.intentId ||
+    data.operationId !== intent.originOperationId ||
+    data.source !== intent.source ||
+    data.occurrenceIndex !== intent.occurrenceIndex ||
+    data.originOccurrence !== intent.originOccurrence ||
+    data.guardVerdict !== intent.guardVerdict ||
+    !sameSendData(data.sourceGuard ?? null, intent.sourceGuard) ||
+    !sameSendData(data.filePayloadOrigin ?? null, intent.filePayloadOrigin) ||
+    !sameSendData(data.queuePayload ?? null, intent.queuePayload) || !sameSendData(data.queuePayloadOrigin ?? null, intent.queuePayloadOrigin) ||
+    DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => data[field] !== intent.correlation?.[field])
+  ) {
+    throw new KernelTableError(
+      `${what}: intent ${JSON.stringify(intent.intentId)} already staged ` +
+        'with a different origin or verdict.',
+    );
+  }
+}
+interface FreshIntentEffects {
+  readonly writes: DomainWrite[]; readonly outbox: OutboxIntent[];
+  readonly staged: unknown[]; readonly skipped: unknown[];
+}
+function stageFreshIntent(ctx: SystemCommandContext, operationId: string,
+  intent: ParsedStageIntent, effects: FreshIntentEffects): void {
+  const fresh = newDispatchRow(
+    {
+      intentId: intent.intentId as OutboxId,
+      operationId: intent.originOperationId,
+      source: intent.source,
+      occurrenceIndex: intent.occurrenceIndex,
+      originOccurrence: intent.originOccurrence,
+      ...(intent.correlation ?? {}),
+      ...(intent.sourceGuard === null ? {} : { sourceGuard: intent.sourceGuard }),
+      ...(intent.filePayloadOrigin === null ? {} : { filePayloadOrigin: intent.filePayloadOrigin }),
+      ...(intent.queuePayload === null ? {} : { queuePayload: intent.queuePayload, queuePayloadOrigin: intent.queuePayloadOrigin! }),
+    },
+    { nowMs: ctx.now, actor: ctx.actor },
+  );
+  effects.writes.push({
+    kind: 'insert',
+    model: WORK_DISPATCH_MODEL,
+    row: { ...fresh, data: { ...readDispatchRow(fresh), guardVerdict: intent.guardVerdict } },
+  });
+  const origin = {
+    operationId: intent.originOperationId,
+    source: intent.source,
+    occurrenceIndex: intent.occurrenceIndex,
+    originOccurrence: intent.originOccurrence,
+  };
+  if (intent.guardVerdict === false) {
+    effects.skipped.push({
+      intentId: intent.intentId,
+      guard: intent.guard,
+      verdict: false,
+      reason: 'guard-false',
+      fanout: intent.fanout,
+    });
+    return;
+  }
+  effects.outbox.push({
+    intentId: intent.intentId,
+    operation: intent.operation as OperationName,
+    operationId: operationId as OperationId,
+    target: intent.source,
+    arguments: intent.request,
+    occurrenceIndex: intent.occurrenceIndex,
+    ...(intent.guard !== null ? { dispatchGuard: intent.guard } : {}),
+  });
+  effects.staged.push({ intentId: intent.intentId, origin, guard: intent.guard, fanout: intent.fanout });
+}
 export const workDispatchStageCommand: SystemCommandDef = {
   name: 'work.dispatch.stage',
   stage: async (args, ctx) => {
@@ -227,72 +304,11 @@ export const workDispatchStageCommand: SystemCommandDef = {
     for (const intent of intents) {
       const existing = await ctx.load(WORK_DISPATCH_MODEL, intent.intentId as RecordId);
       if (existing !== null) {
-        const data = readDispatchRow(existing);
-        if (
-          data.intentId !== intent.intentId ||
-          data.operationId !== intent.originOperationId ||
-          data.source !== intent.source ||
-          data.occurrenceIndex !== intent.occurrenceIndex ||
-          data.originOccurrence !== intent.originOccurrence ||
-          data.guardVerdict !== intent.guardVerdict ||
-          !sameSendData(data.sourceGuard ?? null, intent.sourceGuard) ||
-          !sameSendData(data.filePayloadOrigin ?? null, intent.filePayloadOrigin) ||
-          !sameSendData(data.queuePayload ?? null, intent.queuePayload) || !sameSendData(data.queuePayloadOrigin ?? null, intent.queuePayloadOrigin) ||
-          DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => data[field] !== intent.correlation?.[field])
-        ) {
-          throw new KernelTableError(
-            `${what}: intent ${JSON.stringify(intent.intentId)} already staged ` +
-              'with a different origin or verdict.',
-          );
-        }
+        assertReplayedIntent(readDispatchRow(existing), intent, what);
         replayed.push(intent.intentId);
         continue;
       }
-      const fresh = newDispatchRow(
-        {
-          intentId: intent.intentId as OutboxId,
-          operationId: intent.originOperationId,
-          source: intent.source,
-          occurrenceIndex: intent.occurrenceIndex,
-          originOccurrence: intent.originOccurrence,
-          ...(intent.correlation ?? {}),
-          ...(intent.sourceGuard === null ? {} : { sourceGuard: intent.sourceGuard }),
-          ...(intent.filePayloadOrigin === null ? {} : { filePayloadOrigin: intent.filePayloadOrigin }),
-          ...(intent.queuePayload === null ? {} : { queuePayload: intent.queuePayload, queuePayloadOrigin: intent.queuePayloadOrigin! }),
-        },
-        { nowMs: ctx.now, actor: ctx.actor },
-      );
-      writes.push({
-        kind: 'insert',
-        model: WORK_DISPATCH_MODEL,
-        row: { ...fresh, data: { ...readDispatchRow(fresh), guardVerdict: intent.guardVerdict } },
-      });
-      const origin = {
-        operationId: intent.originOperationId,
-        source: intent.source,
-        occurrenceIndex: intent.occurrenceIndex,
-        originOccurrence: intent.originOccurrence,
-      };
-      if (intent.guardVerdict === false) {
-        skipped.push({
-          intentId: intent.intentId,
-          guard: intent.guard,
-          verdict: false,
-          reason: 'guard-false',
-          fanout: intent.fanout,
-        });
-        continue;
-      }
-      outbox.push({
-        intentId: intent.intentId,
-        operation: intent.operation as OperationName,
-        operationId: operationId as OperationId,
-        target: intent.source,
-        arguments: intent.request,
-        occurrenceIndex: intent.occurrenceIndex,
-        ...(intent.guard !== null ? { dispatchGuard: intent.guard } : {}),
-      });
-      staged.push({ intentId: intent.intentId, origin, guard: intent.guard, fanout: intent.fanout });
+      stageFreshIntent(ctx, operationId, intent, { writes, outbox, staged, skipped });
     }
     return { writes, outbox, result: { staged, skipped, replayed } };
   },
@@ -329,10 +345,19 @@ interface CanonicalSendSeal {
 }
 const canonicalSendSeals = new WeakMap<object, CanonicalSendSeal>();
 
+const isSendPrimitive = (item: unknown): boolean => item === null || typeof item === 'string' ||
+  typeof item === 'boolean' || typeof item === 'number' && Number.isFinite(item);
+const checkSendArrayShape = (source: object, names: string[]): boolean => {
+  const length = Object.getOwnPropertyDescriptor(source, 'length');
+  if (length === undefined || !('value' in length) || typeof length.value !== 'number') return false;
+  const count: number = length.value;
+  if (names.length !== count + 1) return false;
+  return !names.some(key => key !== 'length' &&
+    (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= count));
+};
 /** Strict iterative own-JSON copy: shared subgraphs are harmless; cycles are not. */
 function copySendData(value: unknown, requireFrozen: boolean): { readonly value: unknown } | null {
-  const primitive = (item: unknown): boolean => item === null || typeof item === 'string' ||
-    typeof item === 'boolean' || typeof item === 'number' && Number.isFinite(item);
+  const primitive = isSendPrimitive;
   if (primitive(value)) return { value };
   type Frame = { source: object; target: object; keys: string[]; index: number };
   const copies = new Map<object, object>(), active = new Set<object>();
@@ -344,12 +369,7 @@ function copySendData(value: unknown, requireFrozen: boolean): { readonly value:
     const keys = Reflect.ownKeys(source);
     if (keys.some(key => typeof key !== 'string')) return null;
     const names = keys as string[];
-    if (array) {
-      const length = Object.getOwnPropertyDescriptor(source, 'length');
-      if (length === undefined || !('value' in length) || typeof length.value !== 'number' ||
-          names.length !== length.value + 1 || names.some(key => key !== 'length' &&
-            (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= length.value))) return null;
-    }
+    if (array && !checkSendArrayShape(source, names)) return null;
     const fields = array ? names.filter(key => key !== 'length') : names;
     for (const key of fields) {
       const member = Object.getOwnPropertyDescriptor(source, key);
@@ -415,15 +435,16 @@ function captureCanonicalSend(input: CanonicalSendInput, context: SystemCommandC
   }
 }
 
-function captureCanonicalSendData(input: CanonicalSendInput, context: SystemCommandContext): CanonicalSendSeal | null {
-  const inputCopy = copySendData(input, true);
-  if (inputCopy === null || typeof inputCopy.value !== 'object' || inputCopy.value === null || Array.isArray(inputCopy.value)) return null;
-  const keys = Reflect.ownKeys(inputCopy.value);
+const checkCanonicalInputKeys = (input: CanonicalSendInput, copied: object): boolean => {
+  const keys = Reflect.ownKeys(copied);
   const required = ['operationId', 'source', 'occurrenceIndex', 'request', 'originOccurrence'];
-  if (required.some(key => !keys.includes(key)) || keys.some(key => !required.includes(key as string) && key !== 'correlation' && key !== 'sourceGuard')) return null;
-  if (!keys.includes('correlation') && Reflect.has(input, 'correlation')) return null;
-  if (!keys.includes('sourceGuard') && Reflect.has(input, 'sourceGuard')) return null;
+  if (required.some(key => !keys.includes(key)) || keys.some(key => !required.includes(key as string) && key !== 'correlation' && key !== 'sourceGuard')) return false;
+  if (!keys.includes('correlation') && Reflect.has(input, 'correlation')) return false;
+  if (!keys.includes('sourceGuard') && Reflect.has(input, 'sourceGuard')) return false;
   readDispatchSourceGuard(input as unknown as Readonly<Record<string, unknown>>);
+  return true;
+};
+const snapshotCanonicalContext = (context: SystemCommandContext): Record<string, unknown> | null => {
   if (typeof context !== 'object' || context === null || !Object.isFrozen(context) ||
       (Object.getPrototypeOf(context) !== Object.prototype && Object.getPrototypeOf(context) !== null)) return null;
   const contextKeys = ['actor', 'now', 'operation', 'load', 'query'];
@@ -438,6 +459,14 @@ function captureCanonicalSendData(input: CanonicalSendInput, context: SystemComm
       typeof snapshot['operation'] !== 'string' || snapshot['operation'] === '' ||
       typeof snapshot['now'] !== 'number' || !Number.isFinite(snapshot['now']) || snapshot['now'] < 0 ||
       typeof snapshot['load'] !== 'function' || typeof snapshot['query'] !== 'function') return null;
+  return snapshot;
+};
+function captureCanonicalSendData(input: CanonicalSendInput, context: SystemCommandContext): CanonicalSendSeal | null {
+  const inputCopy = copySendData(input, true);
+  if (inputCopy === null || typeof inputCopy.value !== 'object' || inputCopy.value === null || Array.isArray(inputCopy.value)) return null;
+  if (!checkCanonicalInputKeys(input, inputCopy.value)) return null;
+  const snapshot = snapshotCanonicalContext(context);
+  if (snapshot === null) return null;
   return { input, context, inputSnapshot: inputCopy.value,
     contextSnapshot: Object.freeze(snapshot) as unknown as SystemCommandContext };
 }
@@ -479,11 +508,10 @@ export function readCanonicalSendStaging(
  * a failed scenario drops them all. No binding or request schema is inferred
  * here, and no transport, registry run or separate commit occurs.
  */
-export async function stageCanonicalSend(
-  input: CanonicalSendInput,
-  ctx: SystemCommandContext,
-  guardOrigin?: CanonicalSendGuardOriginProducer,
-): Promise<CanonicalSendStaging> {
+type GuardOriginPrepare = NonNullable<CanonicalSendGuardOriginProducer['prepareSourceGuardOrigin']>;
+type QueueOriginPrepare = NonNullable<CanonicalSendGuardOriginProducer['prepareQueuePayloadOrigin']>;
+type CanonicalStagedItem = StagedOutboxIntent['item'];
+const readCanonicalSendProducers = (input: CanonicalSendInput, guardOrigin: CanonicalSendGuardOriginProducer | undefined) => {
   const sourceGuard = readDispatchSourceGuard(input as unknown as Readonly<Record<string, unknown>>);
   const descriptor = guardOrigin === undefined ? undefined : Object.getOwnPropertyDescriptor(guardOrigin, 'prepareSourceGuardOrigin');
   const prepare = descriptor !== undefined && 'value' in descriptor && descriptor.enumerable ? descriptor.value : undefined;
@@ -498,61 +526,47 @@ export async function stageCanonicalSend(
   if (sourceGuard === null && descriptor !== undefined) {
     throw new KernelTableError('Unguarded send cannot acquire an orphan guard origin.');
   }
-  const seal = captureCanonicalSend(input, ctx);
-  const stageContext = { ...ctx };
-  let correlation: DispatchImageCorrelation | undefined;
-  if (input.correlation !== undefined) {
-    if (Reflect.ownKeys(input.correlation).length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length) {
-      throw new KernelTableError('Canonical send original generation correlation has unknown or missing fields.');
-    }
-    correlation = readDispatchImageCorrelation(input.correlation) ?? undefined;
-    if (correlation === undefined) throw new KernelTableError('Canonical send original generation correlation is missing.');
+  return { sourceGuard, prepare: prepare as GuardOriginPrepare | undefined, prepareQueue: prepareQueue as QueueOriginPrepare | undefined };
+};
+const readSendCorrelation = (input: CanonicalSendInput): DispatchImageCorrelation | undefined => {
+  if (input.correlation === undefined) return undefined;
+  if (Reflect.ownKeys(input.correlation).length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length) {
+    throw new KernelTableError('Canonical send original generation correlation has unknown or missing fields.');
   }
-  const staged = await stageOutboxIntentAsync(input);
-  const item = staged.item;
-  let filePayloadOrigin: FrameworkFilePayloadOrigin | undefined;
-  if (sourceGuard !== null) {
-    const row = newDispatchRow({ intentId: item.id as OutboxId, operationId: item.operationId,
-      source: item.source, occurrenceIndex: item.occurrenceIndex, originOccurrence: item.originOccurrence,
-      sourceGuard, ...(correlation === undefined ? {} : correlation) }, { nowMs: ctx.now, actor: ctx.actor });
-    const intent: OutboxIntent = { intentId: item.id, operation: ctx.operation as OperationName,
-      operationId: item.operationId as OperationId, target: item.source, arguments: item.request,
-      occurrenceIndex: item.occurrenceIndex, dispatchGuard: sourceGuard.rule };
-    const guarded = { ...row, data: { ...row.data, guardVerdict: true } };
-    filePayloadOrigin = await prepare!(guarded, intent);
-    readDispatchRow({ ...guarded, data: { ...guarded.data, filePayloadOrigin } });
-  }
-  let queuePayload: Readonly<Record<string, unknown>> | undefined, queuePayloadOrigin: FrameworkFilePayloadOrigin | undefined;
-  if (prepareQueue !== undefined) {
-    if (!item.source.endsWith('.publish')) throw new KernelTableError('Queue publication requires its original publish target.');
-    queuePayload = snapshotKernelJsonValue(argRecord(item.request, 'arguments', 'queue publication'), 'queue publication payload');
-    const row = newDispatchRow({ intentId: item.id as OutboxId, operationId: item.operationId, source: item.source,
-      occurrenceIndex: item.occurrenceIndex, originOccurrence: item.originOccurrence,
-      ...(sourceGuard === null ? {} : { sourceGuard }), ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }) }, { nowMs: ctx.now, actor: ctx.actor });
-    const intent: OutboxIntent = { intentId: item.id, operation: ctx.operation as OperationName, operationId: item.operationId as OperationId,
-      target: item.source, arguments: item.request, occurrenceIndex: item.occurrenceIndex, ...(sourceGuard === null ? {} : { dispatchGuard: sourceGuard.rule }) };
-    queuePayloadOrigin = await prepareQueue({ ...row, data: { ...row.data, queuePayload, ...(sourceGuard === null ? {} : { guardVerdict: true }) } }, intent);
-    readWorkFilePayloadOrigin({ queuePayloadOrigin }, row, WORK_DISPATCH_MODEL, 'queuePayload', 'deferred-input', 'queuePayloadOrigin');
-  }
-  const effects = await stageCanonicalDispatch({
-    operationId: item.operationId,
-    intents: [{
-      intentId: item.id,
-      operation: stageContext.operation,
-      originOperationId: item.operationId,
-      source: item.source,
-      occurrenceIndex: item.occurrenceIndex,
-      request: item.request,
-      originOccurrence: item.originOccurrence,
-      guard: sourceGuard?.rule ?? null,
-      guardVerdict: sourceGuard === null ? null : true,
-      ...(sourceGuard === null ? {} : { sourceGuard }),
-      ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
-      ...(queuePayload === undefined ? {} : { queuePayload, queuePayloadOrigin }),
-      ...(correlation === undefined ? {} : { correlation }),
-    }],
-  }, stageContext);
-  const delivery = makeDeliveryRef(item.id, item.source);
+  const correlation = readDispatchImageCorrelation(input.correlation) ?? undefined;
+  if (correlation === undefined) throw new KernelTableError('Canonical send original generation correlation is missing.');
+  return correlation;
+};
+const prepareGuardedOrigin = async (prepare: GuardOriginPrepare, ctx: SystemCommandContext,
+  item: CanonicalStagedItem, sourceGuard: DispatchSourceGuard,
+  correlation: DispatchImageCorrelation | undefined): Promise<FrameworkFilePayloadOrigin> => {
+  const row = newDispatchRow({ intentId: item.id as OutboxId, operationId: item.operationId,
+    source: item.source, occurrenceIndex: item.occurrenceIndex, originOccurrence: item.originOccurrence,
+    sourceGuard, ...(correlation === undefined ? {} : correlation) }, { nowMs: ctx.now, actor: ctx.actor });
+  const intent: OutboxIntent = { intentId: item.id, operation: ctx.operation as OperationName,
+    operationId: item.operationId as OperationId, target: item.source, arguments: item.request,
+    occurrenceIndex: item.occurrenceIndex, dispatchGuard: sourceGuard.rule };
+  const guarded = { ...row, data: { ...row.data, guardVerdict: true } };
+  const filePayloadOrigin = await prepare(guarded, intent);
+  readDispatchRow({ ...guarded, data: { ...guarded.data, filePayloadOrigin } });
+  return filePayloadOrigin;
+};
+const prepareQueuePublication = async (prepareQueue: QueueOriginPrepare, ctx: SystemCommandContext,
+  item: CanonicalStagedItem, sourceGuard: DispatchSourceGuard | null,
+  filePayloadOrigin: FrameworkFilePayloadOrigin | undefined) => {
+  if (!item.source.endsWith('.publish')) throw new KernelTableError('Queue publication requires its original publish target.');
+  const queuePayload = snapshotKernelJsonValue(argRecord(item.request, 'arguments', 'queue publication'), 'queue publication payload');
+  const row = newDispatchRow({ intentId: item.id as OutboxId, operationId: item.operationId, source: item.source,
+    occurrenceIndex: item.occurrenceIndex, originOccurrence: item.originOccurrence,
+    ...(sourceGuard === null ? {} : { sourceGuard }), ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }) }, { nowMs: ctx.now, actor: ctx.actor });
+  const intent: OutboxIntent = { intentId: item.id, operation: ctx.operation as OperationName, operationId: item.operationId as OperationId,
+    target: item.source, arguments: item.request, occurrenceIndex: item.occurrenceIndex, ...(sourceGuard === null ? {} : { dispatchGuard: sourceGuard.rule }) };
+  const queuePayloadOrigin = await prepareQueue({ ...row, data: { ...row.data, queuePayload, ...(sourceGuard === null ? {} : { guardVerdict: true }) } }, intent);
+  readWorkFilePayloadOrigin({ queuePayloadOrigin }, row, WORK_DISPATCH_MODEL, 'queuePayload', 'deferred-input', 'queuePayloadOrigin');
+  return { queuePayload, queuePayloadOrigin };
+};
+const sealCanonicalStaging = (seal: CanonicalSendSeal | null, input: CanonicalSendInput,
+  ctx: SystemCommandContext, effects: SystemStaging, delivery: DeliveryRef): CanonicalSendStaging => {
   if (seal !== null) {
     const current = captureCanonicalSend(input, ctx);
     if (current !== null && sameSendData(current.inputSnapshot, seal.inputSnapshot) &&
@@ -567,4 +581,40 @@ export async function stageCanonicalSend(
   }
   // Legacy staging remains structural; only the strict immutable profile is sealed.
   return { effects, delivery };
+};
+export async function stageCanonicalSend(
+  input: CanonicalSendInput,
+  ctx: SystemCommandContext,
+  guardOrigin?: CanonicalSendGuardOriginProducer,
+): Promise<CanonicalSendStaging> {
+  const { sourceGuard, prepare, prepareQueue } = readCanonicalSendProducers(input, guardOrigin);
+  const seal = captureCanonicalSend(input, ctx);
+  const stageContext = { ...ctx };
+  const correlation = readSendCorrelation(input);
+  const staged = await stageOutboxIntentAsync(input);
+  const item = staged.item;
+  const filePayloadOrigin = sourceGuard === null ? undefined
+    : await prepareGuardedOrigin(prepare!, ctx, item, sourceGuard, correlation);
+  const queued = prepareQueue === undefined ? undefined
+    : await prepareQueuePublication(prepareQueue, ctx, item, sourceGuard, filePayloadOrigin);
+  const effects = await stageCanonicalDispatch({
+    operationId: item.operationId,
+    intents: [{
+      intentId: item.id,
+      operation: stageContext.operation,
+      originOperationId: item.operationId,
+      source: item.source,
+      occurrenceIndex: item.occurrenceIndex,
+      request: item.request,
+      originOccurrence: item.originOccurrence,
+      guard: sourceGuard?.rule ?? null,
+      guardVerdict: sourceGuard === null ? null : true,
+      ...(sourceGuard === null ? {} : { sourceGuard }),
+      ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
+      ...(queued === undefined ? {} : queued),
+      ...(correlation === undefined ? {} : { correlation }),
+    }],
+  }, stageContext);
+  const delivery = makeDeliveryRef(item.id, item.source);
+  return sealCanonicalStaging(seal, input, ctx, effects, delivery);
 }

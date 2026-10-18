@@ -109,32 +109,49 @@ export type PreparedInputArrays = Readonly<
  * Copies every rule field (primitives only) so later mutation of the
  * source descriptor or markers cannot alter the plan.
  */
+/** Ordinary-array omission-fill eligibility for one prepared rule. */
+function preparedArrayFill(
+  input: CanonicalOperationDescriptor['inputs'][number],
+  marker: { readonly required: boolean } | undefined,
+  descriptor: CanonicalOperationDescriptor,
+): boolean {
+  return marker !== undefined && !marker.required && descriptor.kind !== 'update' &&
+    input.default === undefined && !(input.kind === 'ref' && input.nullable === true) &&
+    !(input.kind !== 'ref' && input.kind !== 'delivery' &&
+      Object.hasOwn(input, 'computedDefault') && input.computedDefault === true) &&
+    !(input.kind !== 'ref' && input.kind !== 'delivery' &&
+      Object.hasOwn(input, 'valueType') && input.valueType?.endsWith('?'));
+}
+
+/** One prepared input rule: copied data-only metadata in descriptor order. */
+function buildPreparedInputRule(
+  input: CanonicalOperationDescriptor['inputs'][number],
+  marker: { readonly required: boolean } | undefined,
+  descriptor: CanonicalOperationDescriptor,
+  inputNullableRefs: Readonly<Record<string, true>>,
+): PreparedInputRule {
+  return {
+    name: input.name,
+    ref:
+      input.kind === 'ref'
+        ? { model: input.model, versioned: input.versioned,
+            ...((input.nullable === true || Object.hasOwn(inputNullableRefs, input.name) && inputNullableRefs[input.name] === true) ? { nullable: true as const } : {}) }
+        : null,
+    required: input.required,
+    arrayFill: preparedArrayFill(input, marker, descriptor),
+    arrayCheck: marker !== undefined,
+    ...(input.min !== undefined ? { min: input.min } : {}),
+    ...(input.max !== undefined ? { max: input.max } : {}),
+  };
+}
+
 export function prepareDescriptorInputs(
   descriptor: CanonicalOperationDescriptor,
   inputArrays: PreparedInputArrays,
   inputNullableRefs: Readonly<Record<string, true>> = {},
 ): PreparedOperationPlan {
-  const rules: PreparedInputRule[] = descriptor.inputs.map((input) => {
-    const marker = inputArrays[input.name];
-    return {
-      name: input.name,
-      ref:
-        input.kind === 'ref'
-          ? { model: input.model, versioned: input.versioned,
-              ...((input.nullable === true || Object.hasOwn(inputNullableRefs, input.name) && inputNullableRefs[input.name] === true) ? { nullable: true as const } : {}) }
-          : null,
-      required: input.required,
-      arrayFill: marker !== undefined && !marker.required && descriptor.kind !== 'update' &&
-        input.default === undefined && !(input.kind === 'ref' && input.nullable === true) &&
-        !(input.kind !== 'ref' && input.kind !== 'delivery' &&
-          Object.hasOwn(input, 'computedDefault') && input.computedDefault === true) &&
-        !(input.kind !== 'ref' && input.kind !== 'delivery' &&
-          Object.hasOwn(input, 'valueType') && input.valueType?.endsWith('?')),
-      arrayCheck: marker !== undefined,
-      ...(input.min !== undefined ? { min: input.min } : {}),
-      ...(input.max !== undefined ? { max: input.max } : {}),
-    };
-  });
+  const rules: PreparedInputRule[] = descriptor.inputs.map((input) =>
+    buildPreparedInputRule(input, inputArrays[input.name], descriptor, inputNullableRefs));
   return {
     profile: PREPARED_INPUTS_PROFILE,
     operation: descriptor.name as string,
@@ -174,6 +191,101 @@ export function prepareOperationInputs(
  * the returned `normalized` object is a fresh unfrozen shallow copy.
  * Operation defaults remain absent for host evaluation; update omissions remain absent.
  */
+/** One ref slot (or each array element) against its rule, in slot order. */
+function validatePreparedRefSlots(
+  rule: PreparedInputRule,
+  param: string,
+  supplied: unknown,
+  refs: PendingRef[],
+  fields: FieldError[],
+): void {
+  const array = rule.arrayCheck && Array.isArray(supplied) ? supplied : undefined;
+  for (let index = 0; index < (array === undefined ? 1 : array.length); index += 1) {
+    const slot = array === undefined ? param : `${param}/${index}`;
+    const value = (array === undefined ? supplied : array[index]) as Record<string, unknown> | null;
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      fields.push({
+        path: `/${slot}`,
+        code: 'invalid_ref',
+        message: `Input "${slot}" must be a record reference with an id.`,
+      });
+      continue;
+    }
+    const id = value['id'];
+    if (typeof id !== 'string' || id === '') {
+      fields.push({
+        path: `/${slot}`,
+        code: 'invalid_ref',
+        message: `Input "${slot}" must be a record reference with an id.`,
+      });
+      continue;
+    }
+    const hasVersion = Object.hasOwn(value, 'version');
+    if (rule.ref !== null && rule.ref.versioned && !hasVersion) {
+      fields.push({
+        path: `/${slot}`,
+        code: 'version_required',
+        message: `Input "${slot}" requires an expected version.`,
+      });
+      continue;
+    }
+    let expectedVersion: RecordVersion | null = null;
+    if (hasVersion) {
+      const version = value['version'];
+      if (typeof version !== 'string' || !CANONICAL_VERSION_RE.test(version)) {
+        fields.push({
+          path: `/${slot}`,
+          code: 'invalid_version',
+          message: `Input "${slot}" carries a malformed record version.`,
+        });
+        continue;
+      }
+      expectedVersion = Number(version) as RecordVersion;
+    }
+    refs.push({ param: slot, model: (rule.ref as { readonly model: ModelName }).model, id: id as RecordId, expectedVersion });
+  }
+}
+
+/** One rule in descriptor order: omission fill, array shape, then ref slots. */
+function validateOnePreparedRule(
+  rule: PreparedInputRule,
+  inputs: ClosedInputs,
+  normalized: Record<string, unknown>,
+  refs: PendingRef[],
+  fields: FieldError[],
+): void {
+  const param = rule.name;
+  if (!Object.hasOwn(inputs, param)) {
+    if (rule.required) {
+      fields.push({
+        path: `/${param}`,
+        code: 'required',
+        message: `Missing required input "${param}".`,
+      });
+    } else if (rule.arrayFill) {
+      normalized[param] = [];
+      appendInputArrayLengthErrors(fields, param, 0, rule.min, rule.max);
+    }
+    return;
+  }
+  const outer = inputs[param];
+  if (rule.arrayCheck && outer !== null) {
+    if (!Array.isArray(outer)) {
+      fields.push({ path: `/${param}`, code: 'invalid_array', message: `Input "${param}" must be an array.` });
+      return;
+    }
+    if (appendInputArrayLengthErrors(fields, param, outer.length, rule.min, rule.max)) return;
+    // Empty arrays need no element wire parsing.
+    if (outer.length === 0) return;
+  }
+  if (rule.ref === null) return;
+  const supplied = inputs[param];
+  if (supplied === null && Object.hasOwn(rule.ref, 'nullable') && rule.ref.nullable === true) {
+    return;
+  }
+  validatePreparedRefSlots(rule, param, supplied, refs, fields);
+}
+
 export function validatePreparedInputs(
   plan: PreparedOperationPlan,
   inputs: ClosedInputs,
@@ -188,80 +300,7 @@ export function validatePreparedInputs(
   const normalized: Record<string, unknown> = { ...inputs };
   const refs: PendingRef[] = [];
   for (const rule of plan.rules) {
-    const param = rule.name;
-    if (!Object.hasOwn(inputs, param)) {
-      if (rule.required) {
-        fields.push({
-          path: `/${param}`,
-          code: 'required',
-          message: `Missing required input "${param}".`,
-        });
-      } else if (rule.arrayFill) {
-        normalized[param] = [];
-        appendInputArrayLengthErrors(fields, param, 0, rule.min, rule.max);
-      }
-      continue;
-    }
-    const outer = inputs[param];
-    if (rule.arrayCheck && outer !== null) {
-      if (!Array.isArray(outer)) {
-        fields.push({ path: `/${param}`, code: 'invalid_array', message: `Input "${param}" must be an array.` });
-        continue;
-      }
-      if (appendInputArrayLengthErrors(fields, param, outer.length, rule.min, rule.max)) continue;
-      // Empty arrays need no element wire parsing.
-      if (outer.length === 0) continue;
-    }
-    if (rule.ref === null) continue;
-    const supplied = inputs[param];
-    if (supplied === null && Object.hasOwn(rule.ref, 'nullable') && rule.ref.nullable === true) {
-      continue;
-    }
-    const array = rule.arrayCheck && Array.isArray(supplied) ? supplied : undefined;
-    for (let index = 0; index < (array === undefined ? 1 : array.length); index += 1) {
-      const slot = array === undefined ? param : `${param}/${index}`;
-      const value = (array === undefined ? supplied : array[index]) as Record<string, unknown> | null;
-      if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-        fields.push({
-          path: `/${slot}`,
-          code: 'invalid_ref',
-          message: `Input "${slot}" must be a record reference with an id.`,
-        });
-        continue;
-      }
-      const id = value['id'];
-      if (typeof id !== 'string' || id === '') {
-        fields.push({
-          path: `/${slot}`,
-          code: 'invalid_ref',
-          message: `Input "${slot}" must be a record reference with an id.`,
-        });
-        continue;
-      }
-      const hasVersion = Object.hasOwn(value, 'version');
-      if (rule.ref.versioned && !hasVersion) {
-        fields.push({
-          path: `/${slot}`,
-          code: 'version_required',
-          message: `Input "${slot}" requires an expected version.`,
-        });
-        continue;
-      }
-      let expectedVersion: RecordVersion | null = null;
-      if (hasVersion) {
-        const version = value['version'];
-        if (typeof version !== 'string' || !CANONICAL_VERSION_RE.test(version)) {
-          fields.push({
-            path: `/${slot}`,
-            code: 'invalid_version',
-            message: `Input "${slot}" carries a malformed record version.`,
-          });
-          continue;
-        }
-        expectedVersion = Number(version) as RecordVersion;
-      }
-      refs.push({ param: slot, model: rule.ref.model, id: id as RecordId, expectedVersion });
-    }
+    validateOnePreparedRule(rule, inputs, normalized, refs, fields);
   }
   if (fields.length > 0) {
     throw new StateError('validation', 'Invalid operation inputs.', null, { fields });

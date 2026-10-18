@@ -28,6 +28,34 @@ export function defaultPreviewStateRoot(): string {
   return process.env.CAN_DEV_STATE_ROOT ?? join(homedir(), ".local", "state", "canlang", "preview");
 }
 
+type PreviewManifest = { version: 1; identity: string; schema: string; databaseId: string; ownerDatabaseIds: string[]; seed: LocalPreviewSeed | null };
+
+function assertValidManifest(value: PreviewManifest, identity: string): void {
+  if (value.version !== 1 || value.identity !== identity || typeof value.databaseId !== "string" ||
+      !/^can-preview-[0-9a-f-]{36}$/.test(value.databaseId) || !Array.isArray(value.ownerDatabaseIds) ||
+      value.ownerDatabaseIds.length !== 2 || new Set(value.ownerDatabaseIds).size !== 2 ||
+      value.ownerDatabaseIds.some(id => typeof id !== "string" || !/^can-preview-owner-[0-9a-f-]{36}$/.test(id)) ||
+      !(value.seed === null || (typeof value.seed === "object" && Array.isArray(value.seed.actors) &&
+        Array.isArray(value.seed.owners) && typeof value.seed.probe === "object" && value.seed.probe !== null))) {
+    throw new Error("preview metadata is invalid; retained state was preserved");
+  }
+}
+
+async function loadPreviewManifest(path: string, identity: string): Promise<PreviewManifest | null> {
+  try {
+    const info = await lstat(path);
+    if (!info.isFile() || info.isSymbolicLink() || info.uid !== process.getuid?.() || (info.mode & 0o077) !== 0 || info.size > 64 * 1024) {
+      throw new Error("preview metadata must be a bounded owner-only regular file");
+    }
+    const value = JSON.parse(await readFile(path, "utf8")) as PreviewManifest;
+    assertValidManifest(value, identity);
+    return value;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
 /** Schema edits require an explicit reset until the preview profile supports migrations. */
 export async function openRetainedPreviewState(
   root: string, capture: Pick<SingleFileCapture, "root" | "appPath">,
@@ -43,29 +71,16 @@ export async function openRetainedPreviewState(
   await privateDirectory(persistence);
   const path = join(directory, "preview.json");
   const schema = createHash("sha256").update(JSON.stringify({ storageMode, models: artifact.models ?? [] })).digest("hex");
-  type Manifest = { version: 1; identity: string; schema: string; databaseId: string; ownerDatabaseIds: string[]; seed: LocalPreviewSeed | null };
-  let manifest: Manifest;
-  try {
-    const info = await lstat(path);
-    if (!info.isFile() || info.isSymbolicLink() || info.uid !== process.getuid?.() || (info.mode & 0o077) !== 0 || info.size > 64 * 1024) {
-      throw new Error("preview metadata must be a bounded owner-only regular file");
-    }
-    const value = JSON.parse(await readFile(path, "utf8")) as Manifest;
-    if (value.version !== 1 || value.identity !== identity || typeof value.databaseId !== "string" ||
-        !/^can-preview-[0-9a-f-]{36}$/.test(value.databaseId) || !Array.isArray(value.ownerDatabaseIds) ||
-        value.ownerDatabaseIds.length !== 2 || new Set(value.ownerDatabaseIds).size !== 2 ||
-        value.ownerDatabaseIds.some(id => typeof id !== "string" || !/^can-preview-owner-[0-9a-f-]{36}$/.test(id)) ||
-        !(value.seed === null || (typeof value.seed === "object" && Array.isArray(value.seed.actors) &&
-          Array.isArray(value.seed.owners) && typeof value.seed.probe === "object" && value.seed.probe !== null))) {
-      throw new Error("preview metadata is invalid; retained state was preserved");
-    }
-    if (value.schema !== schema) throw new Error("retained preview models changed; migrations are unsupported, use a separate preview state root or explicitly reset this source's development data");
-    manifest = value;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  let manifest: PreviewManifest;
+  const loaded = await loadPreviewManifest(path, identity);
+  if (loaded === null) {
     manifest = { version: 1, identity, schema, databaseId: `can-preview-${randomUUID()}`,
       ownerDatabaseIds: [0, 1].map(() => `can-preview-owner-${randomUUID()}`), seed: null };
     await writeFile(path, JSON.stringify(manifest), { mode: 0o600, flag: "wx" });
+  } else if (loaded.schema !== schema) {
+    throw new Error("retained preview models changed; migrations are unsupported, use a separate preview state root or explicitly reset this source's development data");
+  } else {
+    manifest = loaded;
   }
   return {
     persistence, databaseId: manifest.databaseId, ownerDatabaseIds: manifest.ownerDatabaseIds, seed: manifest.seed,

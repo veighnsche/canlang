@@ -4,7 +4,7 @@
 import type { ArtifactModel, CanonicalModelDescriptor, CanonicalValueTypes, FinalizedFileReceiver,
   ModelName, RecordId, RecordVersion, Revision, StoragePort, StoredRow } from '@canlang/contracts';
 import { assertSafeBlobKey } from '@canlang/files/ports';
-import { normalizeValueTypes } from '@canlang/values';
+import { normalizeValueTypes, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze } from '../internal/own-data.js';
 import { copyScenarioFileData } from '../invocation/scenario-file-assignment.js';
@@ -12,7 +12,7 @@ import { bindFileReferenceProfile, fileReferenceOccurrences, type FileReferenceP
 import { isGeneratedOperationDef, type GeneratedOperationDef, type OperationRegistry } from '../invocation/registry.js';
 import { openFenceScope } from '../invocation/admission.js';
 import { stableStringify } from '../invocation/replay.js';
-import { evalPredicateForRow, isEqualOrUnder, type PolicyTable, type ByContext } from '../policy/grants.js';
+import { evalPredicateForRow, isEqualOrUnder, type InterimModelPolicy, type PolicyTable, type ByContext } from '../policy/grants.js';
 import { observeRowGrantAuthority } from '../policy/membership-facts.js';
 import { evaluateBy, type MembershipReader } from '../policy/roles.js';
 import { projectCurrentRecordForViewerPolicy } from '../query/engine.js';
@@ -98,48 +98,207 @@ interface ModelFiles {
   readonly artifact: ArtifactModel;
 }
 
-/** Installed State-only consumer. Caller JSON never selects an owner store,
- * substitutes declarations, supplies grants or mints a retained observation. */
-export function createFileReferenceConsumer(input: FileReferenceConsumerInput): FileReferenceConsumer {
-  const { store, policy, memberships, registry, maxRows, maxReferences } = input;
+interface ReadParent {
+  readonly model: ModelName;
+  readonly row: StoredRow;
+  readonly def: GeneratedOperationDef;
+}
+
+function bindConsumerFields(
+  canonical: CanonicalModelDescriptor,
+  artifact: ArtifactModel,
+  artifactModels: ReadonlyMap<ModelName, ArtifactModel>,
+  canonicalModels: readonly CanonicalModelDescriptor[],
+  valueSchema: NormalizedSchema | undefined,
+): Map<string, FileReferenceProfile> {
+  const fields = new Map<string, FileReferenceProfile>();
+  for (const name of Object.keys(canonical.fields)) {
+    const authored = artifact.fields.filter(candidate => candidate.name === name);
+    if (authored.length !== 1) return invalid('complete owning field correspondence required.');
+    const profile = bindFileReferenceProfile({ artifactModels, canonicalModels,
+      ...(valueSchema === undefined ? {} : { valueSchema }) }, canonical.name, name);
+    if (profile.fileBearing) fields.set(name, profile);
+  }
+  return fields;
+}
+
+function bindConsumerModels(
+  canonicalModels: readonly CanonicalModelDescriptor[],
+  artifactModels: ReadonlyMap<ModelName, ArtifactModel>,
+  valueSchema: NormalizedSchema | undefined,
+): Map<ModelName, ModelFiles> {
+  const declared = new Set<ModelName>();
+  const models = new Map<ModelName, ModelFiles>();
+  for (const canonical of canonicalModels) {
+    const artifact = artifactModels.get(canonical.name);
+    if (artifact === undefined || declared.has(canonical.name)) {
+      return invalid('complete unique same-load owning models required.');
+    }
+    if (artifact.fields.length !== Object.keys(canonical.fields).length) {
+      return invalid('complete owning field correspondence required.');
+    }
+    declared.add(canonical.name);
+    models.set(canonical.name, { fields: bindConsumerFields(canonical, artifact,
+      artifactModels, canonicalModels, valueSchema), artifact });
+  }
+  return models;
+}
+
+function checkReadParties(
+  locator: FileSlotLocator,
+  caller: FinalizedFileReceiver,
+  scope: Omit<FinalizedFileReceiver, 'principal'>,
+  consume: unknown,
+): boolean {
+  return typeof locator === 'object' && locator !== null && !Array.isArray(locator) &&
+    typeof caller === 'object' && caller !== null && !Array.isArray(caller) &&
+    Object.keys(locator).length === 4 && !!text(locator.model) && !!text(locator.recordId) && !!text(locator.field) &&
+    Object.keys(caller).length === 4 && !!text(caller.principal) && caller.app === scope.app &&
+    caller.team === scope.team && caller.owner === scope.owner && typeof consume === 'function';
+}
+
+async function climbReadParents(
+  store: StoragePort,
+  models: ReadonlyMap<ModelName, ModelFiles>,
+  readDef: (model: ModelName) => GeneratedOperationDef | null,
+  locator: FileSlotLocator,
+  original: StoredRow,
+  definition: ModelFiles,
+): Promise<ReadParent[] | null> {
+  const parents: ReadParent[] = [];
+  let selected = original, selectedDefinition = definition;
+  const visited = new Set<ModelName>([locator.model]);
+  while (selectedDefinition.artifact.parent !== undefined || selected.parent != null) {
+    const parent = selected.parent, model = selectedDefinition.artifact.parent as ModelName | undefined;
+    if (model === undefined || parent == null || parent.model !== model || visited.has(model) || parents.length >= 32) return null;
+    const parentDefinition = models.get(model), parentDef = readDef(model);
+    if (parentDefinition === undefined || parentDef === null) return null;
+    const loadedParent = await store.load(model, parent.id);
+    if (loadedParent === null) return null;
+    selected = row(loadedParent); selectedDefinition = parentDefinition;
+    if (selected.id !== parent.id || selected.archivedAt !== null) return null;
+    parents.push({ model, row: selected, def: parentDef }); visited.add(model);
+  }
+  return parents;
+}
+
+function readAuthorityPredicate(
+  parents: readonly ReadParent[],
+  policies: ReadonlyMap<ModelName, InterimModelPolicy | undefined>,
+  locator: FileSlotLocator,
+  def: GeneratedOperationDef,
+  original: StoredRow,
+  wire: unknown,
+): (current: ByContext) => Promise<boolean> {
+  return async current => {
+    for (const parent of parents) {
+      if (!await evaluateBy(parent.def.by, current) ||
+          (await projectCurrentRecordForViewerPolicy({ policy: policies.get(parent.model), context: current, row: parent.row })).record === null) return false;
+    }
+    const policy = policies.get(locator.model);
+    if (policy === undefined || policy.secretFields.some(secret =>
+      isEqualOrUnder(secret, locator.field) || isEqualOrUnder(locator.field, secret)) || !await evaluateBy(def.by, current)) return false;
+    const projected = await projectCurrentRecordForViewerPolicy({ policy, context: current, row: original });
+    return projected.record !== null && projected.allowed.some((allowed, index) =>
+      allowed && policy.grants[index]!.fields.includes(locator.field) &&
+      (policy.grants[index]!.when === undefined || evalPredicateForRow(policy.grants[index]!.when!, original))) &&
+      stableStringify(projected.record.data[locator.field]) === stableStringify(wire);
+  };
+}
+
+interface ReadSlotBindings {
+  readonly locator: FileSlotLocator;
+  readonly def: GeneratedOperationDef;
+  readonly parents: readonly ReadParent[];
+  readonly policies: ReadonlyMap<ModelName, InterimModelPolicy | undefined>;
+  readonly original: StoredRow;
+  readonly revision: Revision;
+  readonly authority: { readonly revalidate: () => Promise<void> };
+}
+
+function makeReadRevalidator(
+  bindings: ReadSlotBindings,
+  checkInventory: () => void,
+  assertRevision: (revision: Revision) => Promise<void>,
+  readDef: (model: ModelName) => GeneratedOperationDef | null,
+  policy: PolicyTable,
+  store: StoragePort,
+): { readonly checkBindings: () => void; readonly revalidate: () => Promise<void> } {
+  const checkBindings = () => {
+    checkInventory();
+    if ([{ model: bindings.locator.model, def: bindings.def }, ...bindings.parents].some(entry => readDef(entry.model) !== entry.def) ||
+        [...bindings.policies].some(([model, captured]) => policy.get(model) !== captured)) {
+      throw new StateError('forbidden', 'Current File slot operation or policy changed.');
+    }
+  };
+  const revalidate = async () => {
+    checkBindings();
+    for (const entry of [{ model: bindings.locator.model, row: bindings.original, def: bindings.def }, ...bindings.parents]) {
+      const current = await store.load(entry.model, entry.row.id);
+      if (readDef(entry.model) !== entry.def || current === null || stableStringify(row(current)) !== stableStringify(entry.row)) {
+        throw new StateError('forbidden', 'Current File slot or owning row lifetime changed.');
+      }
+    }
+    await bindings.authority.revalidate();
+    await assertRevision(bindings.revision);
+    checkBindings();
+  };
+  return { checkBindings, revalidate };
+}
+
+function checkConsumerScope(input: FileReferenceConsumerInput): FileReferenceConsumerInput['scope'] {
   const scope = deepFreeze(copyScenarioFileData(input.scope) as FileReferenceConsumerInput['scope']);
   if (typeof scope !== 'object' || scope === null || Array.isArray(scope) ||
       Object.keys(scope).length !== 3 || !text(scope.app) || !text(scope.team) || !text(scope.owner)) {
     return invalid('exact receiving app/team/owner required.');
   }
-  for (const bound of [maxRows, maxReferences]) {
-    if (!Number.isSafeInteger(bound) || bound < 1 || bound > 20_000) return invalid('finite positive bounds required.');
+  return scope;
+}
+
+function indexConsumerArtifacts(
+  artifacts: readonly ArtifactModel[],
+  canonicalModels: readonly CanonicalModelDescriptor[],
+): Map<ModelName, ArtifactModel> {
+  if (canonicalModels.length !== artifacts.length || artifacts.length > 200) {
+    return invalid('complete same-load owning models required.');
   }
-  const canonicalModels = deepFreeze(copyScenarioFileData(input.canonicalModels) as readonly CanonicalModelDescriptor[]);
-  const artifacts = deepFreeze(copyScenarioFileData(input.artifactModels) as readonly ArtifactModel[]);
-  if (canonicalModels.length !== artifacts.length || artifacts.length > 200) return invalid('complete same-load owning models required.');
   const artifactModels = new Map<ModelName, ArtifactModel>();
   for (const artifact of artifacts) {
     if (!text(artifact.name) || artifactModels.has(artifact.name as ModelName)) return invalid('unique owning models required.');
     artifactModels.set(artifact.name as ModelName, artifact);
   }
+  return artifactModels;
+}
+
+function loadConsumerValueSchema(
+  valueTypes: CanonicalValueTypes | undefined,
+  canonicalModels: readonly CanonicalModelDescriptor[],
+): NormalizedSchema | undefined {
+  try {
+    return valueTypes === undefined ? undefined :
+      normalizeValueTypes(valueTypes, canonicalModels.map(model => model.name)).valueSchema;
+  } catch {
+    return invalid('complete same-load value declarations required.');
+  }
+}
+
+/** Installed State-only consumer. Caller JSON never selects an owner store,
+ * substitutes declarations, supplies grants or mints a retained observation. */
+export function createFileReferenceConsumer(input: FileReferenceConsumerInput): FileReferenceConsumer {
+  const { store, policy, memberships, registry, maxRows, maxReferences } = input;
+  const scope = checkConsumerScope(input);
+  for (const bound of [maxRows, maxReferences]) {
+    if (!Number.isSafeInteger(bound) || bound < 1 || bound > 20_000) return invalid('finite positive bounds required.');
+  }
+  const canonicalModels = deepFreeze(copyScenarioFileData(input.canonicalModels) as readonly CanonicalModelDescriptor[]);
+  const artifacts = deepFreeze(copyScenarioFileData(input.artifactModels) as readonly ArtifactModel[]);
+  const artifactModels = indexConsumerArtifacts(artifacts, canonicalModels);
   const models = new Map<ModelName, ModelFiles>();
   const valueTypes = input.valueTypes === undefined ? undefined :
     deepFreeze(copyScenarioFileData(input.valueTypes) as CanonicalValueTypes);
-  let valueSchema: ReturnType<typeof normalizeValueTypes>['valueSchema'] | undefined;
-  try { valueSchema = valueTypes === undefined ? undefined :
-    normalizeValueTypes(valueTypes, canonicalModels.map(model => model.name)).valueSchema; }
-  catch { return invalid('complete same-load value declarations required.'); }
-  const declared = new Set<ModelName>();
-  for (const canonical of canonicalModels) {
-    const artifact = artifactModels.get(canonical.name);
-    if (artifact === undefined || declared.has(canonical.name)) return invalid('complete unique same-load owning models required.');
-    if (artifact.fields.length !== Object.keys(canonical.fields).length) return invalid('complete owning field correspondence required.');
-    declared.add(canonical.name);
-    const fields = new Map<string, FileReferenceProfile>();
-    for (const name of Object.keys(canonical.fields)) {
-      const authored = artifact.fields.filter(candidate => candidate.name === name);
-      if (authored.length !== 1) return invalid('complete owning field correspondence required.');
-      const profile = bindFileReferenceProfile({ artifactModels, canonicalModels,
-        ...(valueSchema === undefined ? {} : { valueSchema }) }, canonical.name, name);
-      if (profile.fileBearing) fields.set(name, profile);
-    }
-    models.set(canonical.name, { fields, artifact });
+  const valueSchema = loadConsumerValueSchema(valueTypes, canonicalModels);
+  for (const [name, files] of bindConsumerModels(canonicalModels, artifactModels, valueSchema)) {
+    models.set(name, files);
   }
   const inventory = stableStringify({ canonicalModels, artifacts, valueTypes: valueTypes ?? null });
   const checkInventory = () => {
@@ -195,11 +354,7 @@ export function createFileReferenceConsumer(input: FileReferenceConsumerInput): 
     read: async (rawLocator, rawCaller, consume) => {
       const locator = copyScenarioFileData(rawLocator) as FileSlotLocator;
       const caller = copyScenarioFileData(rawCaller) as FinalizedFileReceiver;
-      if (typeof locator !== 'object' || locator === null || Array.isArray(locator) ||
-          typeof caller !== 'object' || caller === null || Array.isArray(caller) ||
-          Object.keys(locator).length !== 4 || !text(locator.model) || !text(locator.recordId) || !text(locator.field) ||
-          Object.keys(caller).length !== 4 || !text(caller.principal) || caller.app !== scope.app ||
-          caller.team !== scope.team || caller.owner !== scope.owner || typeof consume !== 'function') return null;
+      if (!checkReadParties(locator, caller, scope, consume)) return null;
       fileRef(locator.ref); checkInventory();
       const definition = models.get(locator.model), profile = definition?.fields.get(locator.field), def = readDef(locator.model);
       if (definition === undefined || profile === undefined || def === null) return null;
@@ -210,60 +365,20 @@ export function createFileReferenceConsumer(input: FileReferenceConsumerInput): 
       if (original.id !== locator.recordId || original.archivedAt !== null || !Object.hasOwn(original.data, locator.field)) return null;
       const wire = original.data[locator.field];
       if (!fileReferenceOccurrences(profile, wire).some(occurrence => occurrence.ref === locator.ref)) return null;
-      const parents: { model: ModelName; row: StoredRow; def: GeneratedOperationDef }[] = [];
-      let selected = original, selectedDefinition = definition;
-      const visited = new Set<ModelName>([locator.model]);
-      while (selectedDefinition.artifact.parent !== undefined || selected.parent != null) {
-        const parent = selected.parent, model = selectedDefinition.artifact.parent as ModelName | undefined;
-        if (model === undefined || parent == null || parent.model !== model || visited.has(model) || parents.length >= 32) return null;
-        const parentDefinition = models.get(model), parentDef = readDef(model);
-        if (parentDefinition === undefined || parentDef === null) return null;
-        const loadedParent = await store.load(model, parent.id);
-        if (loadedParent === null) return null;
-        selected = row(loadedParent); selectedDefinition = parentDefinition;
-        if (selected.id !== parent.id || selected.archivedAt !== null) return null;
-        parents.push({ model, row: selected, def: parentDef }); visited.add(model);
-      }
+      const parents = await climbReadParents(store, models, readDef, locator, original, definition);
+      if (parents === null) return null;
       const context: ByContext = { actorUserId: caller.principal === 'public' ? null : caller.principal,
         teamId: caller.team, membership: caller.principal === 'public' ? null :
           await memberships.findMembership(caller.team, caller.principal), memberships: memberships };
       if (context.actorUserId !== null) fence.enroll({ kind: 'membership', teamId: caller.team, userId: context.actorUserId });
       fence.enroll({ kind: 'record', model: locator.model, id: original.id, version: original.version });
       const policies = new Map([locator.model, ...parents.map(parent => parent.model)].map(model => [model, policy.get(model)]));
-      const authority = await observeRowGrantAuthority(context, async current => {
-        for (const parent of parents) {
-          if (!await evaluateBy(parent.def.by, current) ||
-              (await projectCurrentRecordForViewerPolicy({ policy: policies.get(parent.model), context: current, row: parent.row })).record === null) return false;
-        }
-        const policy = policies.get(locator.model);
-        if (policy === undefined || policy.secretFields.some(secret =>
-          isEqualOrUnder(secret, locator.field) || isEqualOrUnder(locator.field, secret)) || !await evaluateBy(def.by, current)) return false;
-        const projected = await projectCurrentRecordForViewerPolicy({ policy, context: current, row: original });
-        return projected.record !== null && projected.allowed.some((allowed, index) =>
-          allowed && policy.grants[index]!.fields.includes(locator.field) &&
-          (policy.grants[index]!.when === undefined || evalPredicateForRow(policy.grants[index]!.when!, original))) &&
-          stableStringify(projected.record.data[locator.field]) === stableStringify(wire);
-      });
+      const authority = await observeRowGrantAuthority(context,
+        readAuthorityPredicate(parents, policies, locator, def, original, wire));
       if (!authority.value) return null;
-      const checkBindings = () => {
-        checkInventory();
-        if ([{ model: locator.model, def }, ...parents].some(entry => readDef(entry.model) !== entry.def) ||
-            [...policies].some(([model, captured]) => policy.get(model) !== captured)) {
-          throw new StateError('forbidden', 'Current File slot operation or policy changed.');
-        }
-      };
-      const revalidate = async () => {
-        checkBindings();
-        for (const entry of [{ model: locator.model, row: original, def }, ...parents]) {
-          const current = await store.load(entry.model, entry.row.id);
-          if (readDef(entry.model) !== entry.def || current === null || stableStringify(row(current)) !== stableStringify(entry.row)) {
-            throw new StateError('forbidden', 'Current File slot or owning row lifetime changed.');
-          }
-        }
-        await authority.revalidate();
-        await assertRevision(revision);
-        checkBindings();
-      };
+      const { revalidate } = makeReadRevalidator(
+        { locator, def, parents, policies, original, revision, authority },
+        checkInventory, assertRevision, readDef, policy, store);
       await revalidate();
       const result = await consume(Object.freeze({ model: locator.model, recordId: original.id,
         rowVersion: original.version, field: locator.field, ref: locator.ref }));

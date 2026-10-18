@@ -112,6 +112,98 @@ function checkMapperWiring(
  * past staging completion are idempotent no-ops returning the stored
  * progress.
  */
+interface ChunkScan {
+  readonly staged: StagedRow[];
+  stagedCursor: StagedRowCursor | null;
+  remaining: number;
+  exhausted: boolean;
+}
+
+function stageRowsPage(
+  input: StageNextChunkInput,
+  source: string,
+  rows: readonly StoredRow[],
+  scan: ChunkScan,
+): boolean {
+  // HEAD chooses the oversized branch on the pre-callback length and
+  // decrements per processed row: a row callback may empty the caller-port
+  // query array mid-page, and the remaining budget must track processed
+  // rows, never the late mutated length.
+  if (rows.length > scan.remaining) {
+    for (const row of rows.slice(0, scan.remaining)) {
+      scan.staged.push(stageOneRow(input, source, row));
+      scan.stagedCursor = { model: source, recordId: row.id as string };
+    }
+    scan.remaining = 0;
+    scan.exhausted = false;
+    return true;
+  }
+  for (const row of rows) {
+    scan.staged.push(stageOneRow(input, source, row));
+    scan.stagedCursor = { model: source, recordId: row.id as string };
+    scan.remaining -= 1;
+  }
+  return false;
+}
+
+async function scanStagedSources(
+  store: StageNextChunkInput['store'],
+  input: StageNextChunkInput,
+  sources: readonly string[],
+  cursor: StagedRowCursor | null,
+  scan: ChunkScan,
+): Promise<void> {
+  for (const source of sources) {
+    if (scan.remaining === 0) {
+      // Chunk filled exactly while sources remain unscanned: more may wait.
+      scan.exhausted = false;
+      break;
+    }
+    if (cursor !== null && source < cursor.model) {
+      continue;
+    }
+    const resumeId = cursor !== null && source === cursor.model ? cursor.recordId : null;
+    // Read-ahead by one: a full page proves more rows wait (precise
+    // `done` even when the chunk fills exactly at a source boundary).
+    const rows = await store.query({
+      model: source as ModelName,
+      authority: 'owner',
+      archived: 'include',
+      ...(resumeId === null
+        ? {}
+        : { where: { op: 'gt', field: 'id', value: resumeId } }),
+      order: [{ field: 'id', direction: 'asc' }],
+      limit: scan.remaining + 1,
+    });
+    if (stageRowsPage(input, source, rows, scan)) break;
+  }
+}
+
+async function establishStagingProgress(
+  store: StageNextChunkInput['store'],
+  plan: ValidatedMigrationPlan,
+): Promise<MigrationProgress> {
+  const revision = await store.readRevision();
+  const fresh: MigrationProgress = {
+    migrationId: plan.migrationId,
+    phase: 'staging',
+    stagedCursor: null,
+    publishCursor: null,
+    updatedRevision: (revision as number + 1) as Revision,
+  };
+  try {
+    await store.stageMigrationRows({
+      expectedRevision: revision,
+      migrationId: plan.migrationId,
+      rows: [],
+      progress: fresh,
+    });
+  } catch (error) {
+    throw storageToStateError(error);
+  }
+  return fresh;
+}
+
 export async function stageNextChunk(input: StageNextChunkInput): Promise<StageNextChunkResult> {
   const { store, plan, mappers, desiredModels, chunkSize } = input;
   if (!Number.isInteger(chunkSize) || chunkSize < 1) {
@@ -131,71 +223,14 @@ export async function stageNextChunk(input: StageNextChunkInput): Promise<StageN
 
   const sources = stagedSources(plan);
   const cursor = progress?.stagedCursor ?? null;
-  const staged: StagedRow[] = [];
-  let stagedCursor: StagedRowCursor | null = cursor;
-  let remaining = chunkSize;
-  let exhausted = true;
-
-  for (const source of sources) {
-    if (remaining === 0) {
-      // Chunk filled exactly while sources remain unscanned: more may wait.
-      exhausted = false;
-      break;
-    }
-    if (cursor !== null && source < cursor.model) {
-      continue;
-    }
-    const resumeId = cursor !== null && source === cursor.model ? cursor.recordId : null;
-    // Read-ahead by one: a full page proves more rows wait (precise
-    // `done` even when the chunk fills exactly at a source boundary).
-    const rows = await store.query({
-      model: source as ModelName,
-      authority: 'owner',
-      archived: 'include',
-      ...(resumeId === null
-        ? {}
-        : { where: { op: 'gt', field: 'id', value: resumeId } }),
-      order: [{ field: 'id', direction: 'asc' }],
-      limit: remaining + 1,
-    });
-    if (rows.length > remaining) {
-      for (const row of rows.slice(0, remaining)) {
-        staged.push(stageOneRow(input, source, row));
-        stagedCursor = { model: source, recordId: row.id as string };
-      }
-      remaining = 0;
-      exhausted = false;
-      break;
-    }
-    for (const row of rows) {
-      staged.push(stageOneRow(input, source, row));
-      stagedCursor = { model: source, recordId: row.id as string };
-      remaining -= 1;
-    }
-  }
+  const scan: ChunkScan = { staged: [], stagedCursor: cursor, remaining: chunkSize, exhausted: true };
+  await scanStagedSources(store, input, sources, cursor, scan);
+  const { staged, stagedCursor } = scan;
 
   if (staged.length === 0) {
     // Empty scan: establish progress on first touch, else a pure no-op.
     if (progress === null) {
-      const revision = await store.readRevision();
-      const fresh: MigrationProgress = {
-        migrationId: plan.migrationId,
-        phase: 'staging',
-        stagedCursor: null,
-        publishCursor: null,
-        updatedRevision: (revision as number + 1) as Revision,
-      };
-      try {
-        await store.stageMigrationRows({
-          expectedRevision: revision,
-          migrationId: plan.migrationId,
-          rows: [],
-          progress: fresh,
-        });
-      } catch (error) {
-        throw storageToStateError(error);
-      }
-      return { done: true, progress: fresh };
+      return { done: true, progress: await establishStagingProgress(store, plan) };
     }
     return { done: true, progress };
   }
@@ -218,7 +253,7 @@ export async function stageNextChunk(input: StageNextChunkInput): Promise<StageN
   } catch (error) {
     throw storageToStateError(error);
   }
-  return { done: exhausted, progress: next };
+  return { done: scan.exhausted, progress: next };
 }
 
 /**

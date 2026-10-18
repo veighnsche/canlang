@@ -172,16 +172,7 @@ export function loadArtifactFile(path: string): LoadedArtifact {
  * `loadArtifactFile`; toolchain-stdout readers (the T21 e2e loader) use
  * this — one validation body, never two loader semantics.
  */
-export function parseArtifactText(text: string, sourcePath: string): LoadedArtifact {
-  const path = sourcePath;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch (error) {
-    fail(path, `invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  if (!isRecord(parsed)) fail(path, "root must be a JSON object");
-
+function checkArtifactHeader(parsed: Record<string, unknown>, path: string): void {
   if (parsed.artifact_version !== 1) {
     fail(path, `unsupported artifact_version ${JSON.stringify(parsed.artifact_version)} (want 1)`);
   }
@@ -203,7 +194,9 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
   if (typeof source0.sha256 !== "string" || !SHA256_HEX.test(source0.sha256)) {
     fail(path, "sources[0].sha256 must be 64-char lowercase hex");
   }
+}
 
+function checkArtifactModules(parsed: Record<string, unknown>, path: string): Set<string> {
   if (!Array.isArray(parsed.modules) || parsed.modules.length === 0) {
     fail(path, "modules must be a non-empty array; modules[0] is the entrypoint");
   }
@@ -212,54 +205,168 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
     checkModule(module, `modules[${index}]`, path);
     modulePaths.add((module as { path: string }).path);
   }
+  return modulePaths;
+}
 
+function checkArtifactCallable(callable: Record<string, unknown>, where: string, path: string,
+  modulePaths: ReadonlySet<string>, parsed: Record<string, unknown>): void {
+  if (!isNonEmptyString(callable.id)) {
+    fail(path, `${where}.id must be a non-empty string`);
+  }
+  if (typeof callable.kind !== "string" || !CALLABLE_KINDS.has(callable.kind)) {
+    fail(
+      path,
+      `${where}.kind must be one of operation|pure|rule|handler|migration ` +
+        `(got ${JSON.stringify(callable.kind)})`,
+    );
+  }
+  if (!isNonEmptyString(callable.module)) {
+    fail(path, `${where}.module must be a non-empty string`);
+  }
+  if (!modulePaths.has(callable.module)) {
+    fail(path, `${where}.module ${JSON.stringify(callable.module)} names no modules[] entry`);
+  }
+  if (!isNonEmptyString(callable.export)) {
+    fail(path, `${where}.export must be a non-empty string`);
+  }
+  if (callable.inputStyle !== undefined &&
+      (callable.inputStyle !== "parameters" || callable.kind !== "operation" ||
+       !Array.isArray(parsed.requires) || !parsed.requires.some((requirement) => isRecord(requirement) &&
+         requirement.capability === "state.parameters" && typeof requirement.min_version === "number" && requirement.min_version >= 1) ||
+       !Array.isArray(parsed.operations) || !parsed.operations.some((operation) =>
+         isRecord(operation) && operation.name === callable.id &&
+         (operation.kind === "scenario" || operation.kind === "read")))) {
+    fail(path, `${where}.inputStyle must be parameters on a scenario or read operation callable`);
+  }
+  const member: unknown = callable.member;
+  if (
+    !Array.isArray(member) ||
+    member.length === 0 ||
+    !member.every((segment) => typeof segment === "string" && segment.length > 0)
+  ) {
+    fail(
+      path,
+      `${where}.member for callable ${JSON.stringify(callable.id)} must be a non-empty ` +
+        `array of non-empty strings (registry path into canApp()); ` +
+        "recompile with the fixed `can compile`",
+    );
+  }
+}
+
+function checkArtifactCallables(parsed: Record<string, unknown>, path: string, modulePaths: ReadonlySet<string>): unknown[] {
   if (!Array.isArray(parsed.callables)) fail(path, "callables must be an array");
   for (const [index, callable] of parsed.callables.entries()) {
     const where = `callables[${index}]`;
     if (!isRecord(callable)) fail(path, `${where} must be an object`);
-    if (!isNonEmptyString(callable.id)) {
-      fail(path, `${where}.id must be a non-empty string`);
+    checkArtifactCallable(callable, where, path, modulePaths, parsed);
+  }
+  return parsed.callables;
+}
+
+export function parseArtifactText(text: string, sourcePath: string): LoadedArtifact {
+  const path = sourcePath;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    fail(path, `invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!isRecord(parsed)) fail(path, "root must be a JSON object");
+
+  checkArtifactHeader(parsed, path);
+  const modulePaths = checkArtifactModules(parsed, path);
+  const callables = checkArtifactCallables(parsed, path, modulePaths);
+  checkArtifactOperations(parsed, path);
+  checkArtifactMachines(parsed, path, callables);
+  checkArtifactPages(parsed, path, modulePaths);
+  checkArtifactRequires(parsed, path);
+  checkArtifactTests(parsed, path);
+
+  return { artifact: parsed as unknown as CompileArtifact, sourcePath: path };
+}
+
+function checkDeliverySchema(schema: Record<string, unknown>, fieldWhere: string, path: string): void {
+  // T15b `ArtifactDeliveryDescriptor` (T04b-ratified):
+  // structural presence only. Send-target identity and
+  // version fencing are semantic (derivation-owned,
+  // enforced at deploy-bake), never re-derived here — this
+  // check stays strictly weaker than the derivation, so
+  // deploy-valid descriptors always load.
+  if (!isNonEmptyString(schema.capability)) {
+    fail(path, `${fieldWhere}.field.capability must be a non-empty string`);
+  }
+  if (!isNonEmptyString(schema.operation)) {
+    fail(path, `${fieldWhere}.field.operation must be a non-empty string`);
+  }
+  if (schema.judgment === true ? !isNonEmptyString(schema.version) : typeof schema.version !== "number") {
+    fail(path, `${fieldWhere}.field.version must be ${schema.judgment === true ? 'exact int64 text for a judgment' : 'a number'}`);
+  }
+  const result: unknown = schema.result;
+  if (!isRecord(result)) {
+    fail(path, `${fieldWhere}.field.result must be an object`);
+  }
+  if (!isNonEmptyString(result.name)) {
+    fail(path, `${fieldWhere}.field.result.name must be a non-empty string`);
+  }
+  const leaves: unknown = result.fields;
+  if (
+    !Array.isArray(leaves) ||
+    !leaves.every(
+      (leaf): boolean =>
+        isRecord(leaf) && isNonEmptyString(leaf.name) && typeof leaf.type === "string",
+    )
+  ) {
+    fail(path, `${fieldWhere}.field.result.fields must be an array of {name, type} leaves`);
+  }
+}
+
+function checkOperationField(field: Record<string, unknown>, fieldWhere: string, path: string): void {
+  if (typeof field.required !== "boolean") {
+    fail(path, `${fieldWhere}.required must be a boolean`);
+  }
+  // MCP P4 input descriptions are additive: old artifacts carry
+  // no `description` key and must still load. A present key
+  // must be the verbatim authored string.
+  if (field.description !== undefined && typeof field.description !== "string") {
+    fail(path, `${fieldWhere}.description must be a string`);
+  }
+  const schema: unknown = field.field;
+  if (!isRecord(schema)) fail(path, `${fieldWhere}.field must be an object`);
+  if (typeof schema.kind !== "string" || !OPERATION_FIELD_KINDS.has(schema.kind)) {
+    fail(
+      path,
+      `${fieldWhere}.field.kind must be one of ` +
+        `ref|string|integer|decimal|money|datetime|duration|user|boolean|file|enum|nominal|delivery ` +
+        `(got ${JSON.stringify(schema.kind)})`,
+    );
+  }
+  if (schema.kind === "ref") {
+    if (!isNonEmptyString(schema.model)) {
+      fail(path, `${fieldWhere}.field.model must be a non-empty string`);
     }
-    if (typeof callable.kind !== "string" || !CALLABLE_KINDS.has(callable.kind)) {
-      fail(
-        path,
-        `${where}.kind must be one of operation|pure|rule|handler|migration ` +
-          `(got ${JSON.stringify(callable.kind)})`,
-      );
-    }
-    if (!isNonEmptyString(callable.module)) {
-      fail(path, `${where}.module must be a non-empty string`);
-    }
-    if (!modulePaths.has(callable.module)) {
-      fail(path, `${where}.module ${JSON.stringify(callable.module)} names no modules[] entry`);
-    }
-    if (!isNonEmptyString(callable.export)) {
-      fail(path, `${where}.export must be a non-empty string`);
-    }
-    if (callable.inputStyle !== undefined &&
-        (callable.inputStyle !== "parameters" || callable.kind !== "operation" ||
-         !Array.isArray(parsed.requires) || !parsed.requires.some((requirement) => isRecord(requirement) &&
-           requirement.capability === "state.parameters" && typeof requirement.min_version === "number" && requirement.min_version >= 1) ||
-         !Array.isArray(parsed.operations) || !parsed.operations.some((operation) =>
-           isRecord(operation) && operation.name === callable.id &&
-           (operation.kind === "scenario" || operation.kind === "read")))) {
-      fail(path, `${where}.inputStyle must be parameters on a scenario or read operation callable`);
-    }
-    const member: unknown = callable.member;
-    if (
-      !Array.isArray(member) ||
-      member.length === 0 ||
-      !member.every((segment) => typeof segment === "string" && segment.length > 0)
-    ) {
-      fail(
-        path,
-        `${where}.member for callable ${JSON.stringify(callable.id)} must be a non-empty ` +
-          `array of non-empty strings (registry path into canApp()); ` +
-          "recompile with the fixed `can compile`",
-      );
+    if (typeof schema.requireVersion !== "boolean") {
+      fail(path, `${fieldWhere}.field.requireVersion must be a boolean`);
     }
   }
+  if (schema.kind === "enum") {
+    const values: unknown = schema.values;
+    if (
+      !Array.isArray(values) ||
+      values.length === 0 ||
+      !values.every((value) => typeof value === "string")
+    ) {
+      fail(path, `${fieldWhere}.field.values must be a non-empty array of strings`);
+    }
+  }
+  if (schema.kind === "nominal" && !isNonEmptyString(schema.name)) {
+    fail(path, `${fieldWhere}.field.name must be a non-empty nominal name`);
+  }
+  if (schema.kind === "delivery") {
+    checkDeliverySchema(schema, fieldWhere, path);
+  }
+}
 
+function checkArtifactOperations(parsed: Record<string, unknown>, path: string): void {
   // MCP P1 descriptors are additive: artifacts compiled before P1
   // carry no `operations` key and must still load. A present key
   // validates strictly; unknown kinds are rejected loudly.
@@ -301,84 +408,50 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
           fail(path, `${where} repeats input ${JSON.stringify(field.name)}`);
         }
         seenFields.add(field.name);
-        if (typeof field.required !== "boolean") {
-          fail(path, `${fieldWhere}.required must be a boolean`);
-        }
-        // MCP P4 input descriptions are additive: old artifacts carry
-        // no `description` key and must still load. A present key
-        // must be the verbatim authored string.
-        if (field.description !== undefined && typeof field.description !== "string") {
-          fail(path, `${fieldWhere}.description must be a string`);
-        }
-        const schema: unknown = field.field;
-        if (!isRecord(schema)) fail(path, `${fieldWhere}.field must be an object`);
-        if (typeof schema.kind !== "string" || !OPERATION_FIELD_KINDS.has(schema.kind)) {
-          fail(
-            path,
-            `${fieldWhere}.field.kind must be one of ` +
-              `ref|string|integer|decimal|money|datetime|duration|user|boolean|file|enum|nominal|delivery ` +
-              `(got ${JSON.stringify(schema.kind)})`,
-          );
-        }
-        if (schema.kind === "ref") {
-          if (!isNonEmptyString(schema.model)) {
-            fail(path, `${fieldWhere}.field.model must be a non-empty string`);
-          }
-          if (typeof schema.requireVersion !== "boolean") {
-            fail(path, `${fieldWhere}.field.requireVersion must be a boolean`);
-          }
-        }
-        if (schema.kind === "enum") {
-          const values: unknown = schema.values;
-          if (
-            !Array.isArray(values) ||
-            values.length === 0 ||
-            !values.every((value) => typeof value === "string")
-          ) {
-            fail(path, `${fieldWhere}.field.values must be a non-empty array of strings`);
-          }
-        }
-        if (schema.kind === "nominal" && !isNonEmptyString(schema.name)) {
-          fail(path, `${fieldWhere}.field.name must be a non-empty nominal name`);
-        }
-        if (schema.kind === "delivery") {
-          // T15b `ArtifactDeliveryDescriptor` (T04b-ratified):
-          // structural presence only. Send-target identity and
-          // version fencing are semantic (derivation-owned,
-          // enforced at deploy-bake), never re-derived here — this
-          // check stays strictly weaker than the derivation, so
-          // deploy-valid descriptors always load.
-          if (!isNonEmptyString(schema.capability)) {
-            fail(path, `${fieldWhere}.field.capability must be a non-empty string`);
-          }
-          if (!isNonEmptyString(schema.operation)) {
-            fail(path, `${fieldWhere}.field.operation must be a non-empty string`);
-          }
-          if (schema.judgment === true ? !isNonEmptyString(schema.version) : typeof schema.version !== "number") {
-            fail(path, `${fieldWhere}.field.version must be ${schema.judgment === true ? 'exact int64 text for a judgment' : 'a number'}`);
-          }
-          const result: unknown = schema.result;
-          if (!isRecord(result)) {
-            fail(path, `${fieldWhere}.field.result must be an object`);
-          }
-          if (!isNonEmptyString(result.name)) {
-            fail(path, `${fieldWhere}.field.result.name must be a non-empty string`);
-          }
-          const leaves: unknown = result.fields;
-          if (
-            !Array.isArray(leaves) ||
-            !leaves.every(
-              (leaf): boolean =>
-                isRecord(leaf) && isNonEmptyString(leaf.name) && typeof leaf.type === "string",
-            )
-          ) {
-            fail(path, `${fieldWhere}.field.result.fields must be an array of {name, type} leaves`);
-          }
-        }
+        checkOperationField(field, fieldWhere, path);
       }
     }
   }
+}
 
+function checkMachineEdge(edge: unknown, where: string, path: string, states: unknown[],
+  parsed: Record<string, unknown>, callables: unknown[]): void {
+  if (!isRecord(edge) || !isNonEmptyString(edge.from) || !states.includes(edge.from) ||
+      !isNonEmptyString(edge.to) || !states.includes(edge.to) || !isNonEmptyString(edge.operation)) {
+    fail(path, `${where} has an invalid transition edge`);
+  }
+  const scenario = Array.isArray(parsed.operations) && parsed.operations.some((op) =>
+    isRecord(op) && op.name === edge.operation && op.kind === "scenario");
+  const handler = callables.some((callable) =>
+    isRecord(callable) && callable.id === edge.operation && callable.kind === "handler");
+  if (!scenario && !handler) fail(path, `${where} edge names no scenario or trusted handler`);
+}
+
+function checkMachineStates(machine: Record<string, unknown>, where: string, path: string): { states: unknown[]; transitions: unknown[] } {
+  if (!Array.isArray(machine.states) || machine.states.length === 0 ||
+      !machine.states.every(isNonEmptyString) || new Set(machine.states).size !== machine.states.length ||
+      !isNonEmptyString(machine.initial) || !machine.states.includes(machine.initial) ||
+      !Array.isArray(machine.transitions)) fail(path, `${where} requires states, initial and transitions`);
+  return { states: machine.states, transitions: machine.transitions };
+}
+
+function checkMachineField(field: Record<string, unknown>, where: string, path: string,
+  parsed: Record<string, unknown>, callables: unknown[]): void {
+  const machine = field.machine;
+  if (!isRecord(machine)) fail(path, `${where} requires states, initial and transitions`);
+  const { states, transitions } = checkMachineStates(machine, where, path);
+  if (field.required !== false || field.serverOnly !== false || field.nullable === true || field.array !== undefined ||
+      !isRecord(field.field) || field.field.kind !== "enum" || !Array.isArray(field.field.values) ||
+      field.field.values.length !== states.length || field.field.values.some((state, index) => state !== states[index]) ||
+      !isRecord(field.default) || field.default.kind !== "literal" || field.default.value !== machine.initial) {
+    fail(path, `${where} requires a nonnullable stored enum with a literal initial default`);
+  }
+  for (const edge of transitions) {
+    checkMachineEdge(edge, where, path, states, parsed, callables);
+  }
+}
+
+function checkArtifactMachines(parsed: Record<string, unknown>, path: string, callables: unknown[]): void {
   // Lifecycle metadata is executable policy: malformed metadata must not
   // disappear during downstream descriptor conversion.
   if (Array.isArray(parsed.models)) {
@@ -386,34 +459,13 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
       if (!isRecord(model) || !Array.isArray(model.fields)) continue;
       for (const [fieldIndex, field] of model.fields.entries()) {
         if (!isRecord(field) || field.machine === undefined) continue;
-        const where = `models[${modelIndex}].fields[${fieldIndex}].machine`;
-        const machine = field.machine;
-        if (!isRecord(machine) || !Array.isArray(machine.states) || machine.states.length === 0 ||
-            !machine.states.every(isNonEmptyString) || new Set(machine.states).size !== machine.states.length ||
-            !isNonEmptyString(machine.initial) || !machine.states.includes(machine.initial) ||
-            !Array.isArray(machine.transitions)) fail(path, `${where} requires states, initial and transitions`);
-        const states = machine.states;
-        if (field.required !== false || field.serverOnly !== false || field.nullable === true || field.array !== undefined ||
-            !isRecord(field.field) || field.field.kind !== "enum" || !Array.isArray(field.field.values) ||
-            field.field.values.length !== machine.states.length || field.field.values.some((state, index) => state !== states[index]) ||
-            !isRecord(field.default) || field.default.kind !== "literal" || field.default.value !== machine.initial) {
-          fail(path, `${where} requires a nonnullable stored enum with a literal initial default`);
-        }
-        for (const edge of machine.transitions) {
-          if (!isRecord(edge) || !isNonEmptyString(edge.from) || !machine.states.includes(edge.from) ||
-              !isNonEmptyString(edge.to) || !machine.states.includes(edge.to) || !isNonEmptyString(edge.operation)) {
-            fail(path, `${where} has an invalid transition edge`);
-          }
-          const scenario = Array.isArray(parsed.operations) && parsed.operations.some((op) =>
-            isRecord(op) && op.name === edge.operation && op.kind === "scenario");
-          const handler = parsed.callables.some((callable) =>
-            isRecord(callable) && callable.id === edge.operation && callable.kind === "handler");
-          if (!scenario && !handler) fail(path, `${where} edge names no scenario or trusted handler`);
-        }
+        checkMachineField(field, `models[${modelIndex}].fields[${fieldIndex}].machine`, path, parsed, callables);
       }
     }
   }
+}
 
+function checkArtifactPages(parsed: Record<string, unknown>, path: string, modulePaths: ReadonlySet<string>): void {
   if (!Array.isArray(parsed.pages)) fail(path, "pages must be an array");
   for (const [index, page] of parsed.pages.entries()) {
     const where = `pages[${index}]`;
@@ -427,7 +479,9 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
       fail(path, `${where}.module ${JSON.stringify(page.module)} names no modules[] entry`);
     }
   }
+}
 
+function checkArtifactRequires(parsed: Record<string, unknown>, path: string): void {
   if (!Array.isArray(parsed.requires)) fail(path, "requires must be an array");
   for (const [index, requirement] of parsed.requires.entries()) {
     const where = `requires[${index}]`;
@@ -439,7 +493,9 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
       fail(path, `${where}.min_version must be an integer >= 0`);
     }
   }
+}
 
+function checkArtifactTests(parsed: Record<string, unknown>, path: string): void {
   if (!Array.isArray(parsed.tests)) fail(path, "tests must be an array");
   for (const [index, test] of parsed.tests.entries()) {
     const where = `tests[${index}]`;
@@ -452,6 +508,4 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
       fail(path, `${where}.fixtures must be an array of strings`);
     }
   }
-
-  return { artifact: parsed as unknown as CompileArtifact, sourcePath: path };
 }

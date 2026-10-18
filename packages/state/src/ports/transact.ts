@@ -391,101 +391,101 @@ export interface FanoutChildJoinOutcome {
  * recovery finish) commits through the PLAIN store port, never here:
  * this port is exclusively for outcome-bearing child units.
  */
-export function assertFanoutChildJoin(batch: CommitBatch): void {
-  const childIds = new Set<string>();
-  const checkpointIds = new Set<string>();
-  const terminalOutcomes: FanoutChildJoinOutcome[] = [];
-  const checkpointCovers = new Map<string, Set<string>>();
-  for (const write of batch.writes ?? []) {
-    const model = write.model as string;
-    if (model === FANOUT_INTENT_MODEL) {
-      if (write.kind !== 'insert') {
-        throw new StateError(
-          'validation',
-          'Fanout child join: work.fanout_intent rows are insert-only (the frozen set is never redefined).',
-        );
-      }
-      readFanoutIntentRow(write.row);
-      continue;
-    }
-    if (model === FANOUT_CHILD_MODEL) {
-      if (write.kind === 'remove') {
-        throw new StateError(
-          'validation',
-          'Fanout child join: work.fanout_child rows are never removed (terminal records stand).',
-        );
-      }
-      if (write.kind === 'insert') {
-        const data = readFanoutChildRow(write.row);
-        if (data.state !== 'pending' || data.attempts !== 0) {
-          throw new StateError(
-            'validation',
-            'Fanout child join: work.fanout_child inserts stage pending with zero attempts ' +
-              '(no fabricated claims or outcomes).',
-          );
-        }
-        if (childIds.has(data.childId)) {
-          throw new StateError(
-            'validation',
-            `Fanout child join: duplicate work.fanout_child row ${JSON.stringify(data.childId)}.`,
-          );
-        }
-        childIds.add(data.childId);
-        continue;
-      }
-      const data = readFanoutChildRow(write.row);
-      if (childIds.has(data.childId)) {
-        throw new StateError(
-          'validation',
-          `Fanout child join: duplicate work.fanout_child row ${JSON.stringify(data.childId)}.`,
-        );
-      }
-      childIds.add(data.childId);
-      if (data.state === 'completed' || data.state === 'skipped' || data.state === 'failed') {
-        terminalOutcomes.push({ fanoutId: data.fanoutId, recordId: data.recordId });
-      }
-      continue;
-    }
-    if (model === FANOUT_CHECKPOINT_MODEL) {
-      if (write.kind === 'remove') {
-        throw new StateError(
-          'validation',
-          'Fanout child join: work.fanout_checkpoint rows are never removed.',
-        );
-      }
-      if (write.kind === 'insert') {
-        const data = readFanoutCheckpointRow(write.row);
-        if (data.completed.length > 0) {
-          throw new StateError(
-            'validation',
-            'Fanout child join: work.fanout_checkpoint inserts carry an empty completed set ' +
-              '(no fabricated completion).',
-          );
-        }
-        if (checkpointIds.has(data.fanoutId)) {
-          throw new StateError(
-            'validation',
-            `Fanout child join: duplicate work.fanout_checkpoint row ${JSON.stringify(data.fanoutId)}.`,
-          );
-        }
-        checkpointIds.add(data.fanoutId);
-        continue;
-      }
-      const data = readFanoutCheckpointRow(write.row);
-      if (checkpointIds.has(data.fanoutId)) {
-        throw new StateError(
-          'validation',
-          `Fanout child join: duplicate work.fanout_checkpoint row ${JSON.stringify(data.fanoutId)}.`,
-        );
-      }
-      checkpointIds.add(data.fanoutId);
-      checkpointCovers.set(data.fanoutId, new Set(data.completed));
-      continue;
-    }
+type FanoutJoinWrite = NonNullable<CommitBatch['writes']>[number];
+
+interface FanoutJoinScan {
+  readonly childIds: Set<string>;
+  readonly checkpointIds: Set<string>;
+  readonly terminalOutcomes: FanoutChildJoinOutcome[];
+  readonly checkpointCovers: Map<string, Set<string>>;
+}
+
+function foldJoinIntentWrite(write: FanoutJoinWrite): void {
+  if (write.kind !== 'insert') {
+    throw new StateError(
+      'validation',
+      'Fanout child join: work.fanout_intent rows are insert-only (the frozen set is never redefined).',
+    );
   }
+  readFanoutIntentRow(write.row);
+}
+
+function checkDuplicateChildRow(childIds: Set<string>, childId: string): void {
+  if (childIds.has(childId)) {
+    throw new StateError(
+      'validation',
+      `Fanout child join: duplicate work.fanout_child row ${JSON.stringify(childId)}.`,
+    );
+  }
+  childIds.add(childId);
+}
+
+function foldJoinChildWrite(write: FanoutJoinWrite, scan: FanoutJoinScan): void {
+  if (write.kind === 'remove') {
+    throw new StateError(
+      'validation',
+      'Fanout child join: work.fanout_child rows are never removed (terminal records stand).',
+    );
+  }
+  if (write.kind === 'insert') {
+    const data = readFanoutChildRow(write.row);
+    if (data.state !== 'pending' || data.attempts !== 0) {
+      throw new StateError(
+        'validation',
+        'Fanout child join: work.fanout_child inserts stage pending with zero attempts ' +
+          '(no fabricated claims or outcomes).',
+      );
+    }
+    checkDuplicateChildRow(scan.childIds, data.childId);
+    return;
+  }
+  const data = readFanoutChildRow(write.row);
+  checkDuplicateChildRow(scan.childIds, data.childId);
+  if (data.state === 'completed' || data.state === 'skipped' || data.state === 'failed') {
+    scan.terminalOutcomes.push({ fanoutId: data.fanoutId, recordId: data.recordId });
+  }
+}
+
+function foldJoinCheckpointWrite(write: FanoutJoinWrite, scan: FanoutJoinScan): void {
+  if (write.kind === 'remove') {
+    throw new StateError(
+      'validation',
+      'Fanout child join: work.fanout_checkpoint rows are never removed.',
+    );
+  }
+  if (write.kind === 'insert') {
+    const data = readFanoutCheckpointRow(write.row);
+    if (data.completed.length > 0) {
+      throw new StateError(
+        'validation',
+        'Fanout child join: work.fanout_checkpoint inserts carry an empty completed set ' +
+          '(no fabricated completion).',
+      );
+    }
+    if (scan.checkpointIds.has(data.fanoutId)) {
+      throw new StateError(
+        'validation',
+        `Fanout child join: duplicate work.fanout_checkpoint row ${JSON.stringify(data.fanoutId)}.`,
+      );
+    }
+    scan.checkpointIds.add(data.fanoutId);
+    return;
+  }
+  const data = readFanoutCheckpointRow(write.row);
+  if (scan.checkpointIds.has(data.fanoutId)) {
+    throw new StateError(
+      'validation',
+      `Fanout child join: duplicate work.fanout_checkpoint row ${JSON.stringify(data.fanoutId)}.`,
+    );
+  }
+  scan.checkpointIds.add(data.fanoutId);
+  scan.checkpointCovers.set(data.fanoutId, new Set(data.completed));
+}
+
+function checkJoinCoverage(scan: FanoutJoinScan): void {
   const coveredFanoutIds = new Set<string>();
-  for (const outcome of terminalOutcomes) {
-    const cover = checkpointCovers.get(outcome.fanoutId);
+  for (const outcome of scan.terminalOutcomes) {
+    const cover = scan.checkpointCovers.get(outcome.fanoutId);
     if (cover === undefined || !cover.has(outcome.recordId)) {
       throw new StateError(
         'validation',
@@ -495,7 +495,7 @@ export function assertFanoutChildJoin(batch: CommitBatch): void {
     }
     coveredFanoutIds.add(outcome.fanoutId);
   }
-  for (const fanoutId of checkpointCovers.keys()) {
+  for (const fanoutId of scan.checkpointCovers.keys()) {
     if (!coveredFanoutIds.has(fanoutId)) {
       throw new StateError(
         'validation',
@@ -504,6 +504,27 @@ export function assertFanoutChildJoin(batch: CommitBatch): void {
       );
     }
   }
+}
+
+export function assertFanoutChildJoin(batch: CommitBatch): void {
+  const scan: FanoutJoinScan = { childIds: new Set<string>(), checkpointIds: new Set<string>(),
+    terminalOutcomes: [], checkpointCovers: new Map<string, Set<string>>() };
+  for (const write of batch.writes ?? []) {
+    const model = write.model as string;
+    if (model === FANOUT_INTENT_MODEL) {
+      foldJoinIntentWrite(write);
+      continue;
+    }
+    if (model === FANOUT_CHILD_MODEL) {
+      foldJoinChildWrite(write, scan);
+      continue;
+    }
+    if (model === FANOUT_CHECKPOINT_MODEL) {
+      foldJoinCheckpointWrite(write, scan);
+      continue;
+    }
+  }
+  checkJoinCoverage(scan);
 }
 
 /** Single-shot fanout child-join commit surface (no retry — callers decide). */

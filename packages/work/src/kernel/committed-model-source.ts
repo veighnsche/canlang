@@ -39,33 +39,38 @@ function identity(value: unknown, maxLength = 200): string {
 function integer(value: unknown): number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 && value < Number.MAX_SAFE_INTEGER ? value : refuse('positive finite safe bound required.');
 }
+function copyContainer(part: object, array: boolean, keys: readonly (string | symbol)[],
+  child: (value: unknown, depth: number) => unknown, depth: number): unknown {
+  const out: unknown[] | Record<string, unknown> = array ? [] : {};
+  let length = 0;
+  if (array) {
+    const descriptor = Object.getOwnPropertyDescriptor(part, 'length');
+    if (descriptor === undefined || !('value' in descriptor) || !Number.isSafeInteger(descriptor.value) ||
+        descriptor.value < 0 || descriptor.value > 20_000 || keys.length !== descriptor.value + 1) return refuse('dense bounded arrays required.');
+    length = descriptor.value as number;
+  }
+  for (const key of keys) {
+    if (array && key === 'length') continue;
+    const descriptor = Object.getOwnPropertyDescriptor(part, key);
+    if (typeof key !== 'string' || descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable ||
+        array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= length)) return refuse('own enumerable selector data required.');
+    Object.defineProperty(out, key, { value: child(descriptor.value, depth + 1), enumerable: true, writable: true, configurable: true });
+  }
+  return out;
+}
 function copyData(value: unknown): unknown {
   let nodes = 0; const active = new Set<object>();
   const copy = (part: unknown, depth: number): unknown => {
     if (++nodes > 20_000 || depth > 32) return refuse('selector data exceeds its finite budget.');
     if (part === null || typeof part === 'string' || typeof part === 'boolean') return part;
     if (typeof part === 'number' && Number.isFinite(part)) return part;
-    if (typeof part !== 'object' || part === null || active.has(part)) return refuse('own JSON selector data required.');
+    if (typeof part !== 'object' || active.has(part)) return refuse('own JSON selector data required.');
     const array = Array.isArray(part), prototype = Object.getPrototypeOf(part);
     if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) return refuse('own JSON selector data required.');
     active.add(part);
     const keys = Reflect.ownKeys(part);
     if (keys.length > 20_000 - nodes) return refuse('selector data exceeds its finite budget.');
-    const out: unknown[] | Record<string, unknown> = array ? [] : {};
-    let length = 0;
-    if (array) {
-      const descriptor = Object.getOwnPropertyDescriptor(part, 'length');
-      if (descriptor === undefined || !('value' in descriptor) || !Number.isSafeInteger(descriptor.value) ||
-          descriptor.value < 0 || descriptor.value > 20_000 || keys.length !== descriptor.value + 1) return refuse('dense bounded arrays required.');
-      length = descriptor.value as number;
-    }
-    for (const key of keys) {
-      if (array && key === 'length') continue;
-      const descriptor = Object.getOwnPropertyDescriptor(part, key);
-      if (typeof key !== 'string' || descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable ||
-          array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= length)) return refuse('own enumerable selector data required.');
-      Object.defineProperty(out, key, { value: copy(descriptor.value, depth + 1), enumerable: true, writable: true, configurable: true });
-    }
+    const out = copyContainer(part, array, keys, (child, childDepth) => copy(child, childDepth), depth);
     active.delete(part); return out;
   };
   try { return copy(value, 0); }
@@ -204,10 +209,59 @@ export async function stageDeclaredEventSources(token: OwnerMutationSourceStage,
   })));
 }
 
+interface SourceStageEntry {
+  readonly occurrenceId: () => OccurrenceId; readonly routes: () => CommittedModelSourceRoutes;
+  readonly event: string; readonly payload: (id: OccurrenceId, scope: WorkScope) => Readonly<Record<string, unknown>>;
+  readonly result: Readonly<Record<string, unknown>>; readonly skipEmpty: boolean;
+}
+type SourceStage = ReturnType<typeof readOwnerMutationSourceStage>;
+type SourceInserter = (model: ModelName, row: StoredRow) => Promise<void>;
+async function stageOrdinaryRoute(stage: SourceStage,
+  insert: SourceInserter, source: { readonly occurrenceId: OccurrenceId; readonly event: string;
+    readonly payload: Readonly<Record<string, unknown>>; readonly scope: WorkScope },
+  handler: string, inventory: Record<string, unknown>[]): Promise<void> {
+  const ordinary = await stageHandlerOccurrence({ source, handler }, stage.framework);
+  if (ordinary.status !== 'ready') return refuse('ordinary handler route is not fresh and ready.');
+  readHandlerOccurrenceRow(ordinary.row);
+  const effects = ordinary.effects.writes ?? [];
+  if (effects.length !== 1 || effects[0]?.kind !== 'insert' || effects[0].row !== ordinary.row) return refuse('unexpected ordinary handler effects.');
+  await insert(effects[0].model, ordinary.row);
+  inventory.push({ handler, kind: 'ordinary', occurrenceId: ordinary.occurrence.occurrenceId });
+}
+async function stageCohortRoute(stage: SourceStage, bounds: CommittedModelSourceBounds,
+  meta: Parameters<typeof newFanoutIntentRow>[1], insert: SourceInserter,
+  occurrenceId: OccurrenceId, handler: string, cohort: FanoutCohortSpec, inventory: Record<string, unknown>[]): Promise<void> {
+  if (cohort.kind === 'anchored-collection') {
+    const parentModel = cohort.parent.model as ModelName, parentId = cohort.parent.id as RecordId;
+    if (await stage.final.get(parentModel, parentId) === null && await stage.entry.get(parentModel, parentId) === null) return refuse('anchored cohort parent is unknowable.');
+  }
+  // The actual final view checks the known model and complete bounded
+  // domain before applying this selection; a limit never truncates a cut.
+  const rows = await stage.final.query({ model: cohort.model as ModelName, authority: 'owner', archived: 'exclude',
+    order: [{ field: 'id', direction: 'asc' }], limit: stage.maxRows,
+    ...(cohort.kind === 'anchored-collection' ? { parent: { model: cohort.parent.model as ModelName, id: cohort.parent.id as RecordId } } : {}) });
+  if (rows.length > bounds.maxMembers) return refuse('complete cohort membership exceeds bound.');
+  stage.consumeWork(rows.length);
+  const members = rows.map(row => row.id as string);
+  if (new Set(members).size !== members.length || members.some((id, index) => rowInvalid(id, rows[index]!, cohort, members[index - 1]))) return refuse('cohort is not a complete canonical identity selection.');
+  const intentRow = newFanoutIntentRow({ sourceOccurrence: occurrenceId, handler, cohort: cohort.kind, members }, meta);
+  const intent = readFanoutIntentRow(intentRow);
+  const first = intent.members.slice(0, bounds.chunkSize);
+  const cursor = first.length === intent.memberCount ? null : `admit/v2/${first.length}`;
+  const checkpoint = newFanoutCheckpointRow({ fanoutId: intent.fanoutId, cursor }, meta);
+  readFanoutCheckpointRow(checkpoint);
+  await insert(WORK_FANOUT_INTENT_MODEL, intentRow);
+  await insert(WORK_FANOUT_CHECKPOINT_MODEL, checkpoint);
+  for (const recordId of first) {
+    stage.consumeWork(1);
+    const child = newFanoutChildRow({ fanoutId: intent.fanoutId, parentOccurrence: occurrenceId, handler, recordId }, meta);
+    readFanoutChildRow(child); await insert(WORK_FANOUT_CHILD_MODEL, child);
+  }
+  inventory.push({ handler, kind: 'fanout', cohort, fanoutId: intent.fanoutId,
+    members: intent.members, memberCount: intent.memberCount, firstChunkCount: first.length, cursor });
+}
 async function stageSources(token: OwnerMutationSourceStage, bounds: CommittedModelSourceBounds,
-  entries: readonly { occurrenceId: () => OccurrenceId; routes: () => CommittedModelSourceRoutes;
-    event: string; payload: (id: OccurrenceId, scope: WorkScope) => Readonly<Record<string, unknown>>;
-    result: Readonly<Record<string, unknown>>; skipEmpty: boolean }[]): Promise<readonly DomainWrite[]> {
+  entries: readonly SourceStageEntry[]): Promise<readonly DomainWrite[]> {
     const stage = readOwnerMutationSourceStage(token);
     const writes: DomainWrite[] = [], allocated = new Set<string>(), stagedRows = new Set<string>();
     const meta = { nowMs: stage.framework.now, actor: stage.framework.actor };
@@ -236,44 +290,10 @@ async function stageSources(token: OwnerMutationSourceStage, bounds: CommittedMo
       for (const route of routes.handlers) {
         stage.consumeWork(1);
         if (route.cohort === undefined) {
-          const ordinary = await stageHandlerOccurrence({ source, handler: route.handler }, stage.framework);
-          if (ordinary.status !== 'ready') return refuse('ordinary handler route is not fresh and ready.');
-          readHandlerOccurrenceRow(ordinary.row);
-          const effects = ordinary.effects.writes ?? [];
-          if (effects.length !== 1 || effects[0]?.kind !== 'insert' || effects[0].row !== ordinary.row) return refuse('unexpected ordinary handler effects.');
-          await insert(effects[0].model, ordinary.row);
-          inventory.push({ handler: route.handler, kind: 'ordinary', occurrenceId: ordinary.occurrence.occurrenceId });
+          await stageOrdinaryRoute(stage, insert, source, route.handler, inventory);
           continue;
         }
-        const cohort = route.cohort;
-        if (cohort.kind === 'anchored-collection') {
-          const parentModel = cohort.parent.model as ModelName, parentId = cohort.parent.id as RecordId;
-          if (await stage.final.get(parentModel, parentId) === null && await stage.entry.get(parentModel, parentId) === null) return refuse('anchored cohort parent is unknowable.');
-        }
-        // The actual final view checks the known model and complete bounded
-        // domain before applying this selection; a limit never truncates a cut.
-        const rows = await stage.final.query({ model: cohort.model as ModelName, authority: 'owner', archived: 'exclude',
-          order: [{ field: 'id', direction: 'asc' }], limit: stage.maxRows,
-          ...(cohort.kind === 'anchored-collection' ? { parent: { model: cohort.parent.model as ModelName, id: cohort.parent.id as RecordId } } : {}) });
-        if (rows.length > bounds.maxMembers) return refuse('complete cohort membership exceeds bound.');
-        stage.consumeWork(rows.length);
-        const members = rows.map(row => row.id as string);
-        if (new Set(members).size !== members.length || members.some((id, index) => rowInvalid(id, rows[index]!, cohort, members[index - 1]))) return refuse('cohort is not a complete canonical identity selection.');
-        const intentRow = newFanoutIntentRow({ sourceOccurrence: occurrenceId, handler: route.handler, cohort: cohort.kind, members }, meta);
-        const intent = readFanoutIntentRow(intentRow);
-        const first = intent.members.slice(0, bounds.chunkSize);
-        const cursor = first.length === intent.memberCount ? null : `admit/v2/${first.length}`;
-        const checkpoint = newFanoutCheckpointRow({ fanoutId: intent.fanoutId, cursor }, meta);
-        readFanoutCheckpointRow(checkpoint);
-        await insert(WORK_FANOUT_INTENT_MODEL, intentRow);
-        await insert(WORK_FANOUT_CHECKPOINT_MODEL, checkpoint);
-        for (const recordId of first) {
-          stage.consumeWork(1);
-          const child = newFanoutChildRow({ fanoutId: intent.fanoutId, parentOccurrence: occurrenceId, handler: route.handler, recordId }, meta);
-          readFanoutChildRow(child); await insert(WORK_FANOUT_CHILD_MODEL, child);
-        }
-        inventory.push({ handler: route.handler, kind: 'fanout', cohort, fanoutId: intent.fanoutId,
-          members: intent.members, memberCount: intent.memberCount, firstChunkCount: first.length, cursor });
+        await stageCohortRoute(stage, bounds, meta, insert, occurrenceId, route.handler, route.cohort, inventory);
       }
       const receipt = newOccurrenceRow({ occurrenceId, status: 'completed', code: null, message: null, recordedAtMs: stage.context.now,
         result: { ...entry.result, event, payload, context: attribution(stage.context),

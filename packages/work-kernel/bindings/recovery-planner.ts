@@ -146,6 +146,50 @@ export function createRecoveryPlanner(options: RecoveryPlannerOptions): Recovery
       }
       return phase;
     };
+    const collectScanResult = (): RecoveryPlan => {
+      const result: RecoveryPlan = { resume: [], retry: [], reconcile: [], awaiting: [], skipped: [], terminal: [], dead: [] };
+      const lists = [result.resume, result.retry, result.reconcile, result.awaiting, result.skipped, result.terminal, result.dead];
+      for (let list = 0; list < lists.length; list++) {
+        const count = word(abi.can_recovery_result_len(handle, list));
+        check(abi.can_recovery_demand(handle));
+        for (let index = 0; index < count; index++) {
+          if (word(abi.can_recovery_result_select(handle, list, index)) !== 1) throw nativeFailure('result selection refused');
+          const units = frame();
+          let value = '';
+          for (let offset = 0; offset < units.length; offset += 8192) {
+            value += String.fromCharCode(...units.subarray(offset, offset + 8192));
+          }
+          lists[list]!.push(value);
+        }
+      }
+      return result;
+    };
+    const advanceClaims = (): void => {
+      claims ??= begin(input.claims);
+      const next = step(claims);
+      if (next.done) tag(0);
+      else { claim = next.value; claimRefs.push(claim); tag(1); }
+    };
+    const advanceRows = (): void => {
+      rows ??= begin(input.rows);
+      const next = step(rows);
+      if (next.done) tag(0);
+      else { row = next.value; item = row.item; tag(1); }
+    };
+    const tagItemState = (): void => {
+      const state = item!.state;
+      tag(state === 'pending' ? 0 : state === 'claimed' ? 1 : state === 'failed' ? 2 : state === 'uncertain' ? 3 : 4);
+    };
+    const replyClaimAt = (): void => {
+      const index = word(abi.can_recovery_claim_index(handle));
+      check(abi.can_recovery_demand(handle));
+      if (index >= claimRefs.length) throw nativeFailure('claim reference is outside this call');
+      number(claimRefs[index]!.claimedAt);
+    };
+    const tagEvidence = (): void => {
+      const evidence = input.evidence(item!.id);
+      tag(evidence === null ? 0 : evidence.kind === 'not-found' ? 1 : 2);
+    };
     const frame = (): Uint16Array => {
       const pointer = word(abi.can_recovery_text_ptr(handle));
       const length = word(abi.can_recovery_text_len(handle));
@@ -172,80 +216,60 @@ export function createRecoveryPlanner(options: RecoveryPlannerOptions): Recovery
     const validate = (value: unknown): void => { check(abi.can_recovery_number_reply(handle, validationNumber(value))); };
     const tag = (value: number): void => { check(abi.can_recovery_tag_reply(handle, value)); };
 
+    const serveInputDemand = (demand: number): boolean => {
+      switch (demand) {
+        case 1: validate(input.nowMs); break;
+        case 2: number(input.nowMs); break;
+        case 3: validate(input.maxClaimAgeMs); break;
+        case 4: number(input.maxClaimAgeMs); break;
+        case 15: validate(input.nowMs); break;
+        case 16: validate(input.maxClaimAgeMs); break;
+        case 24: number(input.nowMs); break;
+        default: return false;
+      }
+      return true;
+    };
+    const servePolicyDemand = (demand: number): boolean => {
+      switch (demand) {
+        case 5: policy = input.policy ?? DEFAULT_RETRY_POLICY; validate(policy.maxAttempts); break;
+        case 6: number(policy!.maxAttempts); break;
+        case 7: validate(policy!.horizonMs); break;
+        case 8: number(policy!.horizonMs); break;
+        case 22: number(policy!.maxAttempts); break;
+        case 26: number(policy!.horizonMs); break;
+        default: return false;
+      }
+      return true;
+    };
+    const serveRowDemand = (demand: number): boolean => {
+      switch (demand) {
+        case 10: text(claim!.outboxId); break;
+        case 13: tag(row!.guardVerdict === false ? 0 : 1); break;
+        case 14: text(item!.id); break;
+        case 20: tag(row!.retryClass === 'transient' ? 1 : 0); break;
+        case 21: number(item!.attempts); break;
+        case 23: tag(row!.firstAttemptAtMs === null ? 0 : 1); break;
+        case 25: number(row!.firstAttemptAtMs); break;
+        case 30: text(item!.id); break;
+        default: return false;
+      }
+      return true;
+    };
     try {
       while (true) {
-        switch (check(abi.can_recovery_demand(handle))) {
-          case 0: {
-            const result: RecoveryPlan = { resume: [], retry: [], reconcile: [], awaiting: [], skipped: [], terminal: [], dead: [] };
-            const lists = [result.resume, result.retry, result.reconcile, result.awaiting, result.skipped, result.terminal, result.dead];
-            for (let list = 0; list < lists.length; list++) {
-              const count = word(abi.can_recovery_result_len(handle, list));
-              check(abi.can_recovery_demand(handle));
-              for (let index = 0; index < count; index++) {
-                if (word(abi.can_recovery_result_select(handle, list, index)) !== 1) throw nativeFailure('result selection refused');
-                const units = frame();
-                let value = '';
-                for (let offset = 0; offset < units.length; offset += 8192) {
-                  value += String.fromCharCode(...units.subarray(offset, offset + 8192));
-                }
-                lists[list]!.push(value);
-              }
-            }
-            return result;
-          }
-          case 1: validate(input.nowMs); break;
-          case 2: number(input.nowMs); break;
-          case 3: validate(input.maxClaimAgeMs); break;
-          case 4: number(input.maxClaimAgeMs); break;
-          case 5: policy = input.policy ?? DEFAULT_RETRY_POLICY; validate(policy.maxAttempts); break;
-          case 6: number(policy!.maxAttempts); break;
-          case 7: validate(policy!.horizonMs); break;
-          case 8: number(policy!.horizonMs); break;
-          case 9: {
-            claims ??= begin(input.claims);
-            const next = step(claims);
-            if (next.done) tag(0);
-            else { claim = next.value; claimRefs.push(claim); tag(1); }
-            break;
-          }
-          case 10: text(claim!.outboxId); break;
-          case 11: {
-            rows ??= begin(input.rows);
-            const next = step(rows);
-            if (next.done) tag(0);
-            else { row = next.value; item = row.item; tag(1); }
-            break;
-          }
-          case 12: {
-            const state = item!.state;
-            tag(state === 'pending' ? 0 : state === 'claimed' ? 1 : state === 'failed' ? 2 : state === 'uncertain' ? 3 : 4);
-            break;
-          }
-          case 13: tag(row!.guardVerdict === false ? 0 : 1); break;
-          case 14: text(item!.id); break;
-          case 15: validate(input.nowMs); break;
-          case 16: validate(input.maxClaimAgeMs); break;
-          case 17: {
-            const index = word(abi.can_recovery_claim_index(handle));
-            check(abi.can_recovery_demand(handle));
-            if (index >= claimRefs.length) throw nativeFailure('claim reference is outside this call');
-            number(claimRefs[index]!.claimedAt);
-            break;
-          }
-          case 20: tag(row!.retryClass === 'transient' ? 1 : 0); break;
-          case 21: number(item!.attempts); break;
-          case 22: number(policy!.maxAttempts); break;
-          case 23: tag(row!.firstAttemptAtMs === null ? 0 : 1); break;
-          case 24: number(input.nowMs); break;
-          case 25: number(row!.firstAttemptAtMs); break;
-          case 26: number(policy!.horizonMs); break;
-          case 27: {
-            const evidence = input.evidence(item!.id);
-            tag(evidence === null ? 0 : evidence.kind === 'not-found' ? 1 : 2);
-            break;
-          }
-          case 30: text(item!.id); break;
-          default: throw nativeFailure('demand is unsupported');
+        const demand = check(abi.can_recovery_demand(handle));
+        switch (demand) {
+          case 0: return collectScanResult();
+          case 9: advanceClaims(); break;
+          case 11: advanceRows(); break;
+          case 12: tagItemState(); break;
+          case 17: replyClaimAt(); break;
+          case 27: tagEvidence(); break;
+          default:
+            if (serveInputDemand(demand)) break;
+            if (servePolicyDemand(demand)) break;
+            if (serveRowDemand(demand)) break;
+            throw nativeFailure('demand is unsupported');
         }
       }
     } catch (failure) {

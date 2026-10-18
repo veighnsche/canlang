@@ -134,6 +134,88 @@ function runStagedCompiler(executable: string, catalog: string, capture: SingleF
  * compiler's consumed one-file source identity before returning any result.
  * The caller still owns one-file profile admission and preview bundle inputs.
  */
+async function loadCompilerBytes(capture: SingleFileCapture,
+  signal?: AbortSignal): Promise<{ compilerBytes: Buffer; catalogBytes: Buffer } | { failure: string }> {
+  try {
+    const compilerBytes = await verifiedBytes(input(capture, "compiler"));
+    signal?.throwIfAborted();
+    const catalogBytes = await verifiedBytes(input(capture, "catalog"));
+    signal?.throwIfAborted();
+    return { compilerBytes, catalogBytes };
+  } catch (error) {
+    if (signal?.aborted && error === signal.reason) throw error;
+    return { failure: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function stageCompilerInputs(staging: string, compilerBytes: Buffer, catalogBytes: Buffer,
+  capture: SingleFileCapture): Promise<void> {
+  const executable = join(staging, "can");
+  const catalog = join(staging, "catalog.json");
+  await writeFile(executable, compilerBytes, { mode: 0o700 });
+  await writeFile(catalog, catalogBytes, { mode: 0o600 });
+  if (capture.sourceSnapshot !== undefined) {
+    for (const input of capture.sourceSnapshot) {
+      const path = join(staging, input.path);
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, input.bytes);
+    }
+  }
+}
+
+async function runCompilerTool(staging: string, capture: SingleFileCapture, signal?: AbortSignal,
+  reportPhase?: DevPhaseReporter): Promise<Awaited<ReturnType<typeof runStagedCompiler>> | { failure: string }> {
+  try {
+    reportPhase?.("compiler");
+    return await runStagedCompiler(join(staging, "can"), join(staging, "catalog.json"), capture, signal);
+  } catch (error) {
+    if (signal?.aborted && error === signal.reason) throw error;
+    return { failure: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function interpretCompilerRun(run: Awaited<ReturnType<typeof runStagedCompiler>>,
+  capture: SingleFileCapture, signal?: AbortSignal,
+  reportPhase?: DevPhaseReporter): Promise<CapturedCompileResult> {
+  signal?.throwIfAborted();
+  reportPhase?.("verifying_compiler_inputs");
+  const current = await captureIsCurrent(capture);
+  signal?.throwIfAborted();
+  if (!current) {
+    return { kind: "capture_incomplete", reason: "inputs changed during compiler execution", capture };
+  }
+  if (run.code !== 0 && run.code !== 10) {
+    return { kind: "tool_failure", reason: `compiler exited ${run.code ?? "without status"}: ${run.stderr.slice(0, 400)}`, capture };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(run.stdout) as unknown;
+  } catch {
+    return { kind: "tool_failure", reason: "compiler returned invalid JSON", capture };
+  }
+  if (run.code === 0) {
+    try {
+      const artifact = parseArtifactText(run.stdout, `captured:${capture.compilerOperand}`).artifact;
+      const sources = artifact.sources.map(source => ({ path: source.path, sha256: source.sha256 }));
+      const verdict = verifyCompilerSources(capture, { complete: true, sources });
+      if (!verdict.ok) return { kind: "capture_incomplete", reason: verdict.reason, capture };
+      return { kind: "artifact", artifact, artifactBytes: new Uint8Array(run.stdoutBytes), capture };
+    } catch (error) {
+      return { kind: "tool_failure", reason: error instanceof Error ? error.message : String(error), capture };
+    }
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { kind: "tool_failure", reason: "compiler diagnostics envelope is not an object", capture };
+  }
+  const envelope = parsed as CompilerSourceReport & { readonly diagnostics?: readonly unknown[] };
+  const verdict = verifyCompilerSources(capture, envelope);
+  if (!verdict.ok) return { kind: "capture_incomplete", reason: verdict.reason, capture };
+  if (!Array.isArray(envelope.diagnostics)) {
+    return { kind: "tool_failure", reason: "compiler diagnostics are missing", capture };
+  }
+  return { kind: "diagnostics", envelope: envelope as CompilerSourceReport & { readonly diagnostics: readonly unknown[] }, capture };
+}
+
 export async function compileCapturedSingleFile(capture: SingleFileCapture, signal?: AbortSignal, reportPhase?: DevPhaseReporter): Promise<CapturedCompileResult> {
   signal?.throwIfAborted();
   const profile = admitSingleAppProfile(capture.sourceText);
@@ -141,77 +223,20 @@ export async function compileCapturedSingleFile(capture: SingleFileCapture, sign
   if (basename(capture.compilerOperand).startsWith("-")) {
     return { kind: "capture_incomplete", reason: "source filename cannot be a compiler option", capture };
   }
-  let compilerBytes: Buffer;
-  let catalogBytes: Buffer;
-  try {
-    compilerBytes = await verifiedBytes(input(capture, "compiler"));
-    signal?.throwIfAborted();
-    catalogBytes = await verifiedBytes(input(capture, "catalog"));
-    signal?.throwIfAborted();
-  } catch (error) {
-    if (signal?.aborted && error === signal.reason) throw error;
-    return { kind: "capture_incomplete", reason: error instanceof Error ? error.message : String(error), capture };
+  const bytes = await loadCompilerBytes(capture, signal);
+  if ("failure" in bytes) {
+    return { kind: "capture_incomplete", reason: bytes.failure, capture };
   }
   reportPhase?.("staging_compiler");
   const staging = await mkdtemp(join(tmpdir(), "can-dev-compiler-"));
   try {
     signal?.throwIfAborted();
-    const executable = join(staging, "can");
-    const catalog = join(staging, "catalog.json");
-    await writeFile(executable, compilerBytes, { mode: 0o700 });
-    await writeFile(catalog, catalogBytes, { mode: 0o600 });
-    if (capture.sourceSnapshot !== undefined) {
-      for (const input of capture.sourceSnapshot) {
-        const path = join(staging, input.path);
-        await mkdir(dirname(path), { recursive: true });
-        await writeFile(path, input.bytes);
-      }
+    await stageCompilerInputs(staging, bytes.compilerBytes, bytes.catalogBytes, capture);
+    const run = await runCompilerTool(staging, capture, signal, reportPhase);
+    if ("failure" in run) {
+      return { kind: "tool_failure", reason: run.failure, capture };
     }
-    let run: Awaited<ReturnType<typeof runStagedCompiler>>;
-    try {
-      reportPhase?.("compiler");
-      run = await runStagedCompiler(executable, catalog, capture, signal);
-    } catch (error) {
-      if (signal?.aborted && error === signal.reason) throw error;
-      return { kind: "tool_failure", reason: error instanceof Error ? error.message : String(error), capture };
-    }
-    signal?.throwIfAborted();
-    reportPhase?.("verifying_compiler_inputs");
-    const current = await captureIsCurrent(capture);
-    signal?.throwIfAborted();
-    if (!current) {
-      return { kind: "capture_incomplete", reason: "inputs changed during compiler execution", capture };
-    }
-    if (run.code !== 0 && run.code !== 10) {
-      return { kind: "tool_failure", reason: `compiler exited ${run.code ?? "without status"}: ${run.stderr.slice(0, 400)}`, capture };
-    }
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(run.stdout) as unknown;
-    } catch {
-      return { kind: "tool_failure", reason: "compiler returned invalid JSON", capture };
-    }
-    if (run.code === 0) {
-      try {
-        const artifact = parseArtifactText(run.stdout, `captured:${capture.compilerOperand}`).artifact;
-        const sources = artifact.sources.map(source => ({ path: source.path, sha256: source.sha256 }));
-        const verdict = verifyCompilerSources(capture, { complete: true, sources });
-        if (!verdict.ok) return { kind: "capture_incomplete", reason: verdict.reason, capture };
-        return { kind: "artifact", artifact, artifactBytes: new Uint8Array(run.stdoutBytes), capture };
-      } catch (error) {
-        return { kind: "tool_failure", reason: error instanceof Error ? error.message : String(error), capture };
-      }
-    }
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return { kind: "tool_failure", reason: "compiler diagnostics envelope is not an object", capture };
-    }
-    const envelope = parsed as CompilerSourceReport & { readonly diagnostics?: readonly unknown[] };
-    const verdict = verifyCompilerSources(capture, envelope);
-    if (!verdict.ok) return { kind: "capture_incomplete", reason: verdict.reason, capture };
-    if (!Array.isArray(envelope.diagnostics)) {
-      return { kind: "tool_failure", reason: "compiler diagnostics are missing", capture };
-    }
-    return { kind: "diagnostics", envelope: envelope as CompilerSourceReport & { readonly diagnostics: readonly unknown[] }, capture };
+    return interpretCompilerRun(run, capture, signal, reportPhase);
   } finally {
     await rm(staging, { recursive: true, force: true });
   }

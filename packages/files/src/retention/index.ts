@@ -180,6 +180,131 @@ export interface FinalizedFileCleanupDeps {
  * lookup once; accept only a ref, never a caller DTO/census/issuer callback.
  * Shape checks and copies establish correspondence, not durable issuance.
  * The host must supply the genuine port after State guard/profile qualification. */
+/**
+ * Snapshot the CURRENT content policy before the async issuer lookup;
+ * later mutation cannot change the policy half of the call's physical
+ * decision. Throws (refuses) unless the policy is bounded own data.
+ */
+function snapshotCleanupContentPolicy(current: FilePolicy): FilePolicy {
+  const p = closedData(current, ['types', 'maxBytes']);
+  if (!Array.isArray(p.types) || p.types.length > 100) return cleanupRefuse('bounded current content policy required');
+  const types = Object.getOwnPropertyDescriptors(p.types);
+  if (Reflect.ownKeys(types).length !== p.types.length + 1 || Object.getPrototypeOf(p.types) !== Array.prototype) {
+    return cleanupRefuse('own dense current content types required');
+  }
+  const policy: FilePolicy = { maxBytes: cleanupTime(p.maxBytes), types: [] };
+  for (let i = 0; i < p.types.length; i++) {
+    const d = types[String(i)];
+    if (d === undefined || !('value' in d) || !d.enumerable) return cleanupRefuse('own current content type required');
+    policy.types.push(cleanupText(d.value));
+  }
+  return policy;
+}
+
+interface CleanupDeleteScope {
+  readonly ref: FinalizedFileRef;
+  readonly authority: FileRetirementAuthority;
+  readonly decision: FinalizedFileRetirement;
+  readonly retention: FileRetentionPolicy;
+  readonly policy: FilePolicy;
+  readonly before: StoredFileRecord;
+  readonly readAuthority: () => FileRetirementAuthority | null;
+  readonly readDeletion: (ref: FinalizedFileRef) => FinalizedFileDeletionRecord | null;
+  readonly saveDeletion: (record: FinalizedFileDeletionRecord) => void;
+  readonly get: (ref: FinalizedFileRef) => StoredFileRecord | null;
+  readonly put: (record: StoredFileRecord) => void;
+  readonly read: (key: string) => Uint8Array | null;
+  readonly remove: (key: string) => void;
+  readonly nowMs: () => number;
+}
+
+/**
+ * Run the deleting transaction: recheck the persisted assignment,
+ * the current content policy and retirement due-ness, then the original
+ * physical metadata/journal/bytes before deleting. Called inside the
+ * host's transaction by the cleanup closure, preserving its atomicity.
+ */
+function runCleanupDelete(scope: CleanupDeleteScope): 'deleted' | 'already-deleted' {
+  const { ref, authority, decision, retention, before } = scope;
+  if (!cleanupEqual(authority, checkedFileCleanupAuthority(scope.readAuthority())) || !cleanupEqual(decision.authority, authority) ||
+      decision.file.ref !== ref || decision.file.receiver.app !== authority.receiver.app ||
+      decision.file.receiver.team !== authority.receiver.team || decision.file.receiver.owner !== authority.receiver.owner) {
+    return cleanupRefuse('issuer/physical assignment mismatch');
+  }
+  const now = cleanupTime(scope.nowMs());
+  if (decision.file.sizeBytes > scope.policy.maxBytes || !scope.policy.types.includes(decision.file.contentType)) {
+    return cleanupRefuse('current content policy refuses');
+  }
+  if (retention.retainAttached === true && decision.disposition === 'expired' || now < decision.retiredAtMs || BigInt(now) - BigInt(decision.file.finalizedAtMs) <
+      BigInt(decision.disposition === 'expired' ? retention.retentionMs : retention.unattachedHorizonMs)) {
+    return cleanupRefuse('current retirement is not due');
+  }
+  const stored = checkedFileCleanupRecord(scope.get(ref));
+  if (!sameCleanupRecord(stored, before) || !cleanupEqual(identityOf(stored), decision.file) ||
+      stored.attachedAtMs !== undefined && stored.attachedAtMs > now) {
+    return cleanupRefuse('original physical metadata mismatch');
+  }
+  const saved = scope.readDeletion(ref);
+  verifyCleanupJournal(decision, stored, saved);
+  const detached = readCleanupBytes(scope, decision, saved);
+  if (detached === 'already-deleted') {
+    return 'already-deleted';
+  }
+  if (saved === null) {
+    const tombstone = { ...stored, state: decision.disposition };
+    scope.saveDeletion({ retirement: decision, tombstone });
+    scope.put(tombstone);
+  }
+  scope.remove(blobKeyForFile(ref));
+  return 'deleted';
+}
+
+/**
+ * Check the original terminal journal against the decision and stored
+ * row. Terminal rows without a journal refuse; mismatches refuse.
+ */
+function verifyCleanupJournal(
+  decision: FinalizedFileRetirement,
+  stored: StoredFileRecord,
+  saved: FinalizedFileDeletionRecord | null,
+): void {
+  if (saved !== null) {
+    const journal = closedData(saved, ['retirement', 'tombstone']);
+    const original = cleanupDecision(journal.retirement), tombstone = checkedFileCleanupRecord(journal.tombstone);
+    if (!cleanupEqual(original, decision) || tombstone.state !== decision.disposition || stored.state !== decision.disposition ||
+        !cleanupEqual(identityOf(tombstone), identityOf(stored)) || tombstone.attachedRecord !== stored.attachedRecord ||
+        tombstone.attachedAtMs !== stored.attachedAtMs) return cleanupRefuse('original terminal journal mismatch');
+  } else if (stored.state === 'orphaned' || stored.state === 'expired') {
+    return cleanupRefuse('terminal row has no original journal');
+  }
+}
+
+/**
+ * Read and validate the original physical bytes. Missing bytes behind a
+ * journaled deletion report `already-deleted`; anything else that does
+ * not match the decision refuses.
+ */
+function readCleanupBytes(
+  scope: CleanupDeleteScope,
+  decision: FinalizedFileRetirement,
+  saved: FinalizedFileDeletionRecord | null,
+): Uint8Array | 'already-deleted' {
+  const bytes = scope.read(blobKeyForFile(scope.ref));
+  if (bytes === null) {
+    if (saved === null) return cleanupRefuse('missing bytes have no original terminal journal');
+    return 'already-deleted';
+  }
+  const detached = new Uint8Array(bytes);
+  if (detached.byteLength !== decision.file.sizeBytes || sha256Hex(detached) !== decision.file.bytesDigest) {
+    return cleanupRefuse('original physical bytes mismatch');
+  }
+  const content = checkContent(scope.policy, decision.file.contentType, detached);
+  if (content.verdict !== 'accepted' || content.detectedType !== decision.file.contentType || content.sizeBytes !== decision.file.sizeBytes) {
+    return cleanupRefuse('current content policy refuses');
+  }
+  return detached;
+}
+
 export function createFinalizedFileCleanup(
   deps: FinalizedFileCleanupDeps,
   storage: FileReferenceStoragePort,
@@ -198,71 +323,15 @@ export function createFinalizedFileCleanup(
     // Snapshot CURRENT policy before the async issuer lookup; later mutation
     // cannot change the policy half of this call's physical decision.
     const retention = cleanupRetention(options.retention);
-    const p = closedData(options.policy, ['types', 'maxBytes']);
-    if (!Array.isArray(p.types) || p.types.length > 100) return cleanupRefuse('bounded current content policy required');
-    const types = Object.getOwnPropertyDescriptors(p.types);
-    if (Reflect.ownKeys(types).length !== p.types.length + 1 || Object.getPrototypeOf(p.types) !== Array.prototype) {
-      return cleanupRefuse('own dense current content types required');
-    }
-    const policy: FilePolicy = { maxBytes: cleanupTime(p.maxBytes), types: [] };
-    for (let i = 0; i < p.types.length; i++) {
-      const d = types[String(i)];
-      if (d === undefined || !('value' in d) || !d.enumerable) return cleanupRefuse('own current content type required');
-      policy.types.push(cleanupText(d.value));
-    }
+    const policy = snapshotCleanupContentPolicy(options.policy);
     const before = transaction(() => {
       if (!cleanupEqual(authority, checkedFileCleanupAuthority(readAuthority()))) return cleanupRefuse('persisted physical assignment mismatch');
       return checkedFileCleanupRecord(get(ref));
     });
     const decision = cleanupDecision(await readRetirement(ref));
-    return transaction(() => {
-      if (!cleanupEqual(authority, checkedFileCleanupAuthority(readAuthority())) || !cleanupEqual(decision.authority, authority) ||
-          decision.file.ref !== ref || decision.file.receiver.app !== authority.receiver.app ||
-          decision.file.receiver.team !== authority.receiver.team || decision.file.receiver.owner !== authority.receiver.owner) {
-        return cleanupRefuse('issuer/physical assignment mismatch');
-      }
-      const now = cleanupTime(nowMs());
-      if (decision.file.sizeBytes > policy.maxBytes || !policy.types.includes(decision.file.contentType)) {
-        return cleanupRefuse('current content policy refuses');
-      }
-      if (retention.retainAttached === true && decision.disposition === 'expired' || now < decision.retiredAtMs || BigInt(now) - BigInt(decision.file.finalizedAtMs) <
-          BigInt(decision.disposition === 'expired' ? retention.retentionMs : retention.unattachedHorizonMs)) {
-        return cleanupRefuse('current retirement is not due');
-      }
-      const stored = checkedFileCleanupRecord(get(ref));
-      if (!sameCleanupRecord(stored, before) || !cleanupEqual(identityOf(stored), decision.file) ||
-          stored.attachedAtMs !== undefined && stored.attachedAtMs > now) {
-        return cleanupRefuse('original physical metadata mismatch');
-      }
-      const saved = readDeletion(ref);
-      if (saved !== null) {
-        const journal = closedData(saved, ['retirement', 'tombstone']);
-        const original = cleanupDecision(journal.retirement), tombstone = checkedFileCleanupRecord(journal.tombstone);
-        if (!cleanupEqual(original, decision) || tombstone.state !== decision.disposition || stored.state !== decision.disposition ||
-            !cleanupEqual(identityOf(tombstone), identityOf(stored)) || tombstone.attachedRecord !== stored.attachedRecord ||
-            tombstone.attachedAtMs !== stored.attachedAtMs) return cleanupRefuse('original terminal journal mismatch');
-      } else if (stored.state === 'orphaned' || stored.state === 'expired') return cleanupRefuse('terminal row has no original journal');
-      const bytes = read(blobKeyForFile(ref));
-      if (bytes === null) {
-        if (saved === null) return cleanupRefuse('missing bytes have no original terminal journal');
-        return 'already-deleted';
-      }
-      const detached = new Uint8Array(bytes);
-      if (detached.byteLength !== decision.file.sizeBytes || sha256Hex(detached) !== decision.file.bytesDigest) {
-        return cleanupRefuse('original physical bytes mismatch');
-      }
-      const content = checkContent(policy, decision.file.contentType, detached);
-      if (content.verdict !== 'accepted' || content.detectedType !== decision.file.contentType || content.sizeBytes !== decision.file.sizeBytes) {
-        return cleanupRefuse('current content policy refuses');
-      }
-      if (saved === null) {
-        const tombstone = { ...stored, state: decision.disposition };
-        saveDeletion({ retirement: decision, tombstone });
-        put(tombstone);
-      }
-      remove(blobKeyForFile(ref));
-      return 'deleted';
-    });
+    const scope: CleanupDeleteScope = { ref, authority, decision, retention, policy, before,
+      readAuthority, readDeletion, saveDeletion, get, put, read, remove, nowMs };
+    return transaction(() => runCleanupDelete(scope));
   };
 }
 

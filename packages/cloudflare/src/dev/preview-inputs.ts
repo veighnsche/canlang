@@ -171,6 +171,92 @@ function resolveOwned(specifier: string, applicationRoot: string): string | null
   }
 }
 
+/** Construct help fingerprints the two owning authored catalogs as data;
+ * a release needs neither contributor sources nor source build timestamps. */
+function recordInstalledCatalogSource(
+  pkg: ReturnType<typeof packageRoot>,
+  installation: string,
+  paths: Map<string, string>,
+): void {
+  if (pkg.name !== "@canlang/values" && pkg.name !== "@canlang/ui") return;
+  const path = join(installation, "packages", pkg.name.slice("@canlang/".length), "src/catalog.ts");
+  if (!statSync(path).isFile()) throw new Error(`preview inputs: ${pkg.name} catalog source metadata is absent`);
+  paths.set(`source:${pkg.name}@${pkg.version}/src/catalog.ts`, path);
+}
+
+function walkPackageSources(pkg: ReturnType<typeof packageRoot>, paths: Map<string, string>): void {
+  // Release packages carry built outputs without the author's source tree.
+  try { if (!statSync(join(pkg.root, "src")).isDirectory()) return; }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  const sourceDirectories = pkg.name === "@canlang/values"
+    ? ["src", "scripts", "semantics/src", "bindings/src", "bindings/generated", "conformance/v1"]
+    : ["src", "scripts"];
+  for (const directory of sourceDirectories) {
+    const root = join(pkg.root, directory);
+    try { if (!statSync(root).isDirectory()) continue; } catch { continue; }
+    const walk = (current: string): void => {
+      for (const entry of readdirSync(current, { withFileTypes: true })) {
+        const path = join(current, entry.name);
+        if (lstatSync(path).isSymbolicLink()) throw new Error(`preview inputs: source link ${path} is unsupported`);
+        if (entry.isDirectory()) walk(path);
+        else if (entry.isFile() && SOURCE_FILE.test(entry.name)) {
+          paths.set(`source:${pkg.name}@${pkg.version}/${relative(pkg.root, path).split(sep).join("/")}`, path);
+        }
+      }
+    };
+    walk(root);
+  }
+  for (const name of pkg.name === "@canlang/values" ? ["Cargo.toml", "Cargo.lock"] :
+    pkg.name === "@canlang/ui" ? ["themes.css"] : []) {
+    const path = join(pkg.root, name);
+    paths.set(`source:${pkg.name}@${pkg.version}/${name}`, path);
+  }
+}
+
+function assertOwnedSourceFresh(
+  pkg: ReturnType<typeof packageRoot>,
+  paths: Map<string, string>,
+  installed: readonly NamedInputPath[],
+): void {
+  if (pkg.name === "@canlang/values") {
+    const rust = [...paths].filter(([name]) => name.startsWith(`source:${pkg.name}@${pkg.version}/semantics/src/`));
+    const glue = join(pkg.root, "bindings", "generated", "BUILD.json");
+    if (rust.length === 0 || rust.some(([, path]) => statSync(path).mtimeMs > statSync(glue).mtimeMs)) {
+      throw new Error("preview inputs: Values WASM binding is older than Rust semantics; rebuild the binding");
+    }
+  }
+  const sourceTimes = [...paths].filter(([name]) => name.startsWith(`source:${pkg.name}@${pkg.version}/`))
+    .map(([, path]) => statSync(path).mtimeMs);
+  const distFiles = installed.filter(item => item.name.startsWith(`${pkg.name}@${pkg.version}/dist/`) && item.path.endsWith(".js"));
+  if (distFiles.length === 0 || (sourceTimes.length > 0 && Math.max(...sourceTimes) > Math.min(...distFiles.map(item => statSync(item.path).mtimeMs)))) {
+    throw new Error(`preview inputs: ${pkg.name} installed dist is older than its source; rebuild the package`);
+  }
+}
+
+function accumulateOwnedSource(
+  specifier: string,
+  applicationRoot: string,
+  installation: string | null,
+  installed: readonly NamedInputPath[],
+  paths: Map<string, string>,
+  seen: Set<string>,
+): void {
+  const entry = resolveOwned(specifier, applicationRoot);
+  if (entry === null) return;
+  const pkg = packageRoot(entry);
+  if (seen.has(pkg.root)) return;
+  seen.add(pkg.root);
+  if (installation !== null) {
+    recordInstalledCatalogSource(pkg, installation, paths);
+    return;
+  }
+  walkPackageSources(pkg, paths);
+  assertOwnedSourceFresh(pkg, paths, installed);
+}
+
 export function installedOwnedSourceInputs(
   applicationRoot = process.cwd(),
   installed: readonly NamedInputPath[] = installedPortableBundleInputs(applicationRoot),
@@ -179,63 +265,7 @@ export function installedOwnedSourceInputs(
   const installation = installedRoot();
   const seen = new Set<string>();
   for (const specifier of OWNED_EXPORTS) {
-    const entry = resolveOwned(specifier, applicationRoot);
-    if (entry === null) continue;
-    const pkg = packageRoot(entry);
-    if (seen.has(pkg.root)) continue;
-    seen.add(pkg.root);
-    if (installation !== null) {
-      // Construct help fingerprints the two owning authored catalogs as data;
-      // a release needs neither contributor sources nor source build timestamps.
-      if (pkg.name === "@canlang/values" || pkg.name === "@canlang/ui") {
-        const path = join(installation, "packages", pkg.name.slice("@canlang/".length), "src/catalog.ts");
-        if (!statSync(path).isFile()) throw new Error(`preview inputs: ${pkg.name} catalog source metadata is absent`);
-        paths.set(`source:${pkg.name}@${pkg.version}/src/catalog.ts`, path);
-      }
-      continue;
-    }
-    // Release packages carry built outputs without the author's source tree.
-    try { if (!statSync(join(pkg.root, "src")).isDirectory()) continue; }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
-      throw error;
-    }
-    const sourceDirectories = pkg.name === "@canlang/values"
-      ? ["src", "scripts", "semantics/src", "bindings/src", "bindings/generated", "conformance/v1"]
-      : ["src", "scripts"];
-    for (const directory of sourceDirectories) {
-      const root = join(pkg.root, directory);
-      try { if (!statSync(root).isDirectory()) continue; } catch { continue; }
-      const walk = (current: string): void => {
-        for (const entry of readdirSync(current, { withFileTypes: true })) {
-          const path = join(current, entry.name);
-          if (lstatSync(path).isSymbolicLink()) throw new Error(`preview inputs: source link ${path} is unsupported`);
-          if (entry.isDirectory()) walk(path);
-          else if (entry.isFile() && SOURCE_FILE.test(entry.name)) {
-            paths.set(`source:${pkg.name}@${pkg.version}/${relative(pkg.root, path).split(sep).join("/")}`, path);
-          }
-        }
-      };
-      walk(root);
-    }
-    for (const name of pkg.name === "@canlang/values" ? ["Cargo.toml", "Cargo.lock"] :
-      pkg.name === "@canlang/ui" ? ["themes.css"] : []) {
-      const path = join(pkg.root, name);
-      paths.set(`source:${pkg.name}@${pkg.version}/${name}`, path);
-    }
-    if (pkg.name === "@canlang/values") {
-      const rust = [...paths].filter(([name]) => name.startsWith(`source:${pkg.name}@${pkg.version}/semantics/src/`));
-      const glue = join(pkg.root, "bindings", "generated", "BUILD.json");
-      if (rust.length === 0 || rust.some(([, path]) => statSync(path).mtimeMs > statSync(glue).mtimeMs)) {
-        throw new Error("preview inputs: Values WASM binding is older than Rust semantics; rebuild the binding");
-      }
-    }
-    const sourceTimes = [...paths].filter(([name]) => name.startsWith(`source:${pkg.name}@${pkg.version}/`))
-      .map(([, path]) => statSync(path).mtimeMs);
-    const distFiles = installed.filter(item => item.name.startsWith(`${pkg.name}@${pkg.version}/dist/`) && item.path.endsWith(".js"));
-    if (distFiles.length === 0 || (sourceTimes.length > 0 && Math.max(...sourceTimes) > Math.min(...distFiles.map(item => statSync(item.path).mtimeMs)))) {
-      throw new Error(`preview inputs: ${pkg.name} installed dist is older than its source; rebuild the package`);
-    }
+    accumulateOwnedSource(specifier, applicationRoot, installation, installed, paths, seen);
   }
   return [...paths].sort(([a], [b]) => a.localeCompare(b)).map(([name, path]) => ({ name, path }));
 }
@@ -268,6 +298,26 @@ function browserInventory() {
     .map(([name, path]) => ({ name, path })) };
 }
 
+function visitDriverPackage(
+  pkg: ReturnType<typeof packageRoot>,
+  inventory: ReturnType<typeof browserInventory>,
+  pending: string[],
+): string {
+  if (!["@playwright/test", "playwright", "playwright-core"].includes(pkg.name) || pkg.version !== BROWSER_DRIVER_VERSION) {
+    throw new Error("preview inputs: browser driver does not match the locked producer");
+  }
+  inventory.walk(pkg.root, pkg.root, `browser:driver:${pkg.name}@${pkg.version}`);
+  const dependencies = pkg.manifest.dependencies;
+  if (dependencies === undefined) return pkg.name;
+  if (dependencies === null || typeof dependencies !== "object" || Array.isArray(dependencies)) {
+    throw new Error("preview inputs: malformed browser dependencies");
+  }
+  for (const name of Object.keys(dependencies).sort()) {
+    pending.push(createRequire(join(pkg.root, "package.json")).resolve(name));
+  }
+  return pkg.name;
+}
+
 function browserDriverInputs(kitRoot: string): {
   entryPath: string; coreRoot: string; inputs: readonly NamedInputPath[];
 } | null {
@@ -286,16 +336,7 @@ function browserDriverInputs(kitRoot: string): {
     const pkg = packageRoot(pending.shift()!);
     if (seen.has(pkg.root)) continue;
     seen.add(pkg.root);
-    if (!["@playwright/test", "playwright", "playwright-core"].includes(pkg.name) || pkg.version !== BROWSER_DRIVER_VERSION) {
-      throw new Error("preview inputs: browser driver does not match the locked producer");
-    }
-    inventory.walk(pkg.root, pkg.root, `browser:driver:${pkg.name}@${pkg.version}`);
-    if (pkg.name === "playwright-core") coreRoot = pkg.root;
-    const dependencies = pkg.manifest.dependencies;
-    if (dependencies !== undefined) {
-      if (dependencies === null || typeof dependencies !== "object" || Array.isArray(dependencies)) throw new Error("preview inputs: malformed browser dependencies");
-      for (const name of Object.keys(dependencies).sort()) pending.push(createRequire(join(pkg.root, "package.json")).resolve(name));
-    }
+    if (visitDriverPackage(pkg, inventory, pending) === "playwright-core") coreRoot = pkg.root;
   }
   if (!coreRoot || seen.size !== 3) throw new Error("preview inputs: incomplete browser driver closure");
   return { entryPath, coreRoot, inputs: inventory.inputs() };

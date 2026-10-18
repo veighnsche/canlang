@@ -3,7 +3,7 @@ import type { Readable, Writable } from "node:stream";
 import type { DevControlEnvelope } from "./control-client.js";
 import { discoverSessionSocket, type SessionSocketClient, type SessionSocketLookup } from "./session-socket.js";
 import type { DevObservation } from "./observation.js";
-import { terminalAction, terminalColumns, TerminalInput, terminalOutcome, terminalStatus, terminalText } from "./terminal-presenter.js";
+import { terminalAction, terminalColumns, type TerminalAction, TerminalInput, terminalOutcome, terminalStatus, terminalText } from "./terminal-presenter.js";
 
 type Input = Readable & { isTTY?: boolean; isRaw?: boolean; setRawMode?: (raw: boolean) => unknown };
 type Output = Writable & { isTTY?: boolean; columns?: number };
@@ -25,7 +25,7 @@ function record(value: unknown): Record<string, unknown> {
 }
 function quoted(value: string): string { return `'${value.replace(/'/g, `'\\''`)}'`; }
 
-export async function runDevTerminal(argv: readonly string[], dependencies: TerminalDependencies = {}): Promise<number> {
+function resolveTerminalDeps(argv: readonly string[], dependencies: TerminalDependencies) {
   const input = dependencies.input ?? process.stdin;
   const output = dependencies.output ?? process.stdout;
   const cwd = dependencies.cwd ?? process.cwd();
@@ -36,6 +36,39 @@ export async function runDevTerminal(argv: readonly string[], dependencies: Term
   const plain = argv.includes("--plain") || !input.isTTY || !output.isTTY;
   const args = argv.filter(arg => arg !== "--plain");
   const width = () => Math.max(12, (output.columns ?? 80) - 1);
+  return { input, output, cwd, run, connect, now, interrupts, plain, args, width };
+}
+
+type DevSessionStart =
+  | { ok: false; code: number }
+  | { ok: true; owned: boolean; session: string; selection: string[]; recovery: string; lookup: SessionSocketLookup };
+
+async function beginDevSession(
+  run: (args: readonly string[]) => Promise<DevControlEnvelope>,
+  args: string[],
+  cwd: string,
+  history: (...lines: string[]) => void,
+): Promise<DevSessionStart> {
+  let start: DevControlEnvelope;
+  try { start = await run([args.includes("--source") ? "start" : "discover", ...args]); }
+  catch { history("Control unavailable before connection. Retry can dev terminal with the same selection."); return { ok: false, code: 1 }; }
+  if (!start.ok) { history(`${start.code}: ${start.detail}`); return { ok: false, code: start.code === "INVALID_ARGUMENTS" ? 2 : 1 }; }
+  const result = record(start.result);
+  const root = typeof result.root === "string" ? result.root : cwd;
+  if (!start.session) { history("Control returned no verified session identity."); return { ok: false, code: 1 }; }
+  const session = start.session;
+  return {
+    ok: true,
+    owned: start.command === "start" && result.attached === false,
+    session,
+    selection: ["--root", root, "--session", session],
+    recovery: `can dev stop --root ${quoted(root)} --session ${quoted(session)}`,
+    lookup: { checkoutRoot: root, sessionId: session },
+  };
+}
+
+export async function runDevTerminal(argv: readonly string[], dependencies: TerminalDependencies = {}): Promise<number> {
+  const { input, output, cwd, run, connect, now, interrupts, plain, args, width } = resolveTerminalDeps(argv, dependencies);
   const parser = new TerminalInput();
   let frame: string[] = [];
   let state: DevObservation | null = null;
@@ -92,18 +125,13 @@ export async function runDevTerminal(argv: readonly string[], dependencies: Term
   interrupts.on("SIGINT", onStartupInterrupt);
   const startupExit = (code: number) => { interrupts.off("SIGINT", onStartupInterrupt); return code; };
   history(args.includes("--source") ? "Starting development control. Source and preview have not been checked." : "Attaching to development control.");
-  let start: DevControlEnvelope;
-  try { start = await run([args.includes("--source") ? "start" : "discover", ...args]); }
-  catch { history("Control unavailable before connection. Retry can dev terminal with the same selection."); return startupExit(1); }
-  if (!start.ok) { history(`${start.code}: ${start.detail}`); return startupExit(start.code === "INVALID_ARGUMENTS" ? 2 : 1); }
-  const result = record(start.result);
-  const root = typeof result.root === "string" ? result.root : cwd;
-  if (!start.session) { history("Control returned no verified session identity."); return startupExit(1); }
-  owned = start.command === "start" && result.attached === false;
-  const session = start.session;
-  const selection = ["--root", root, "--session", session];
-  const recovery = `can dev stop --root ${quoted(root)} --session ${quoted(session)}`;
-  const lookup: SessionSocketLookup = { checkoutRoot: root, sessionId: session };
+  const begun = await beginDevSession(run, args, cwd, history);
+  if (!begun.ok) return startupExit(begun.code);
+  owned = begun.owned;
+  const session = begun.session;
+  const selection = begun.selection;
+  const recovery = begun.recovery;
+  const lookup = begun.lookup;
   // Detach closes only this foreground client's requests, not an accepted owner check.
   const request = (command: string, payload?: unknown) => client.request({ command, ...(payload === undefined ? {} : { payload }) }, lifetime.signal);
   const adopt = (value: unknown) => {
@@ -182,54 +210,63 @@ export async function runDevTerminal(argv: readonly string[], dependencies: Term
       } catch { stopping = false; history(`Cleanup not confirmed. Retry stop. Recovery: ${recovery}`); }
     };
     const onInterrupt = () => { if (owned) void stop(true); else finish(0, "Detached; session remains running."); };
+    const runCheck = async (): Promise<void> => {
+      if (checking || state!.operation) { history("Already checking; duplicate request coalesced."); return; }
+      if (!state!.admission.check) { history(`Check unavailable: ${state!.admission.reasons.join(", ") || "owner admission closed"}.`); return; }
+      checking = true;
+      pendingOutcome = state!.lastOutcome?.id ?? null;
+      history("Check requested; waiting for owner progress.");
+      const admission = record(await request("check.request"));
+      if (admission.accepted === false && admission.alreadyChecking !== true) checking = false;
+      if (!finished) adopt(await request("observe"));
+    };
+    const runOpen = async (): Promise<void> => {
+      if (!state!.admission.open) { history("Preview access unavailable; enter check to prepare a preview."); return; }
+      const access = record(await request("preview.open"));
+      // Only this explicit action exposes Bearer [REDACTED] No shell/browser dispatch.
+      if (typeof access.url === "string") history(`Preview access (private): ${access.url}`);
+      const actors = record(access.actors);
+      for (const [label, actor] of Object.entries(actors).slice(0, 20)) {
+        const info = record(actor);
+        if (typeof actor === "string") history(`Actor ${label} (private): ${actor}`);
+        else if (typeof info.url === "string") history(`Actor ${label} (private): ${info.url}`);
+      }
+      if (Array.isArray(access.actors)) for (const raw of access.actors.slice(0, 20)) {
+        const actor = record(raw);
+        if (typeof actor.email === "string" && typeof actor.password === "string") {
+          history(`Actor ${actor.label ?? "local"} (private): ${actor.email} / ${actor.password}`);
+        }
+      }
+      if (typeof access.url !== "string") history("Preview access URL unavailable.");
+    };
+    const runDetails = async (): Promise<void> => {
+      const revision = state!.lastOutcome?.revision;
+      if (!revision) history("No captured check details yet; enter check.");
+      else {
+        history(...terminalOutcome(state!));
+        await diagnostics(revision);
+      }
+    };
+    const preAction = async (selected: TerminalAction): Promise<boolean> => {
+      if (selected === "detach") { finish(0, `Detached; session remains running.${owned ? ` Stop later: ${recovery}` : ""}`); return true; }
+      if (selected === "stop") { await stop(); return true; }
+      if (selected === "help") { history(HELP); return true; }
+      if (selected === "logs") { history("Retained server logs unavailable. Check outcomes and diagnostics remain in this transcript."); return true; }
+      if (selected === "status") { if (state) history(...terminalStatus(state, now(), width()), connected ? "Control connected." : "Control disconnected; status is last observed."); return true; }
+      if (!connected) { history("Control disconnected. Wait for a verified snapshot before retrying."); return true; }
+      if (selected !== "details" && (stopping || state!.lifecycle !== "running")) { history(`Action unavailable while server is ${stopping ? "stopping" : state!.lifecycle}.`); return true; }
+      return false;
+    };
     const action = async (line: string) => {
       const selected = terminalAction(line);
       if (!line.trim()) return;
       history(`can> ${line}`);
       if (!selected) { history("Unknown command. Enter help for known commands."); return; }
-      if (selected === "detach") { finish(0, `Detached; session remains running.${owned ? ` Stop later: ${recovery}` : ""}`); return; }
-      if (selected === "stop") { await stop(); return; }
-      if (selected === "help") { history(HELP); return; }
-      if (selected === "logs") { history("Retained server logs unavailable. Check outcomes and diagnostics remain in this transcript."); return; }
-      if (selected === "status") { if (state) history(...terminalStatus(state, now(), width()), connected ? "Control connected." : "Control disconnected; status is last observed."); return; }
-      if (!connected) { history("Control disconnected. Wait for a verified snapshot before retrying."); return; }
-      if (selected !== "details" && (stopping || state!.lifecycle !== "running")) { history(`Action unavailable while server is ${stopping ? "stopping" : state!.lifecycle}.`); return; }
+      if (await preAction(selected)) return;
       try {
-        if (selected === "check") {
-          if (checking || state!.operation) { history("Already checking; duplicate request coalesced."); return; }
-          if (!state!.admission.check) { history(`Check unavailable: ${state!.admission.reasons.join(", ") || "owner admission closed"}.`); return; }
-          checking = true;
-          pendingOutcome = state!.lastOutcome?.id ?? null;
-          history("Check requested; waiting for owner progress.");
-          const admission = record(await request("check.request"));
-          if (admission.accepted === false && admission.alreadyChecking !== true) checking = false;
-          if (!finished) adopt(await request("observe"));
-        } else if (selected === "open") {
-          if (!state!.admission.open) { history("Preview access unavailable; enter check to prepare a preview."); return; }
-          const access = record(await request("preview.open"));
-          // Only this explicit action exposes bearer access. No shell/browser dispatch.
-          if (typeof access.url === "string") history(`Preview access (private): ${access.url}`);
-          const actors = record(access.actors);
-          for (const [label, actor] of Object.entries(actors).slice(0, 20)) {
-            const info = record(actor);
-            if (typeof actor === "string") history(`Actor ${label} (private): ${actor}`);
-            else if (typeof info.url === "string") history(`Actor ${label} (private): ${info.url}`);
-          }
-          if (Array.isArray(access.actors)) for (const raw of access.actors.slice(0, 20)) {
-            const actor = record(raw);
-            if (typeof actor.email === "string" && typeof actor.password === "string") {
-              history(`Actor ${actor.label ?? "local"} (private): ${actor.email} / ${actor.password}`);
-            }
-          }
-          if (typeof access.url !== "string") history("Preview access URL unavailable.");
-        } else if (selected === "details") {
-          const revision = state!.lastOutcome?.revision;
-          if (!revision) history("No captured check details yet; enter check.");
-          else {
-            history(...terminalOutcome(state!));
-            await diagnostics(revision);
-          }
-        }
+        if (selected === "check") await runCheck();
+        else if (selected === "open") await runOpen();
+        else if (selected === "details") await runDetails();
       } catch { checking = false; if (!finished) history("Control action unavailable or retained detail expired. Enter status; retry after connection recovers."); }
     };
     const onData = (chunk: Buffer | string) => {

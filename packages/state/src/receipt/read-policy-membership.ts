@@ -114,24 +114,35 @@ function observationLifetime(observation: unknown): ReadLifetime | undefined {
 function poison(lifetime: ReadLifetime | undefined): void {
   for (let current = lifetime; current !== undefined; current = current.parent ?? undefined) current.poisoned = true;
 }
+function checkNestedNavigation(current: ReadLifetime, parent: ReadLifetime): void {
+  const observation = current.observation;
+  if (!parent.pending || parent.navigation === null ||
+      parent.navigation !== current.parentNavigation || parent.navigation.child !== current ||
+      parent.store !== current.store || parent.ownerRows !== current.ownerRows || parent.observation.revision !== observation.revision ||
+      parent.observation.fence !== observation.fence ||
+      parent.observation.context.actorUserId !== observation.context.actorUserId ||
+      parent.observation.context.teamId !== observation.context.teamId ||
+      parent.observation.context.membership !== observation.context.membership ||
+      parent.observation.context.memberships !== observation.context.memberships) {
+    return fail('nested read crossed its original owning navigation.');
+  }
+}
+
+function checkLifetimeLevel(current: ReadLifetime): void {
+  current.ownerRows?.assertHealthy();
+  const observation = current.observation;
+  if (current.closed || current.poisoned || lifetimes.get(observation) !== current ||
+      contexts.get(observation.context) !== current || observation.fence !== undefined &&
+      observation.fence.revision !== observation.revision) {
+    return fail('read crossed its original active observation/checkpoint.');
+  }
+  const parent: ReadLifetime | null = current.parent;
+  if (parent !== null) checkNestedNavigation(current, parent);
+}
+
 function healthyLifetime(lifetime: ReadLifetime): void {
   for (let current: ReadLifetime | null = lifetime; current !== null; current = current.parent) {
-    current.ownerRows?.assertHealthy();
-    const observation = current.observation;
-    if (current.closed || current.poisoned || lifetimes.get(observation) !== current ||
-        contexts.get(observation.context) !== current || observation.fence !== undefined &&
-        observation.fence.revision !== observation.revision) return fail('read crossed its original active observation/checkpoint.');
-    const parent: ReadLifetime | null = current.parent;
-    if (parent !== null && (!parent.pending || parent.navigation === null ||
-        parent.navigation !== current.parentNavigation || parent.navigation.child !== current ||
-        parent.store !== current.store || parent.ownerRows !== current.ownerRows || parent.observation.revision !== observation.revision ||
-        parent.observation.fence !== observation.fence ||
-        parent.observation.context.actorUserId !== observation.context.actorUserId ||
-        parent.observation.context.teamId !== observation.context.teamId ||
-        parent.observation.context.membership !== observation.context.membership ||
-        parent.observation.context.memberships !== observation.context.memberships)) {
-      return fail('nested read crossed its original owning navigation.');
-    }
+    checkLifetimeLevel(current);
   }
 }
 
@@ -329,6 +340,52 @@ export function executeUnboundReadPredicate(read: InstalledSourceQueryPredicate,
   return read(record);
 }
 
+function checkOwningRead(
+  input: Readonly<ViewerGenerationCallbackReadObservation>,
+  owningObservation: Readonly<ViewerGenerationCallbackReadObservation>,
+  parent: ReadLifetime | undefined,
+  store: StoragePort,
+  capturedOwnerRows: InstalledSourceOwnerRows | undefined,
+): ReadNavigation {
+  if (parent === undefined || parent.observation !== owningObservation || parent.store !== store ||
+      !parent.pending || parent.navigation === null || parent.navigation.child !== null) {
+    return fail('child source read requires its exact live owning navigation.');
+  }
+  healthyLifetime(parent);
+  if (capturedOwnerRows !== undefined && (parent.ownerRows === undefined ||
+      capturedOwnerRows.read !== parent.ownerRows.read || capturedOwnerRows.assertHealthy !== parent.ownerRows.assertHealthy ||
+      capturedOwnerRows.query !== parent.ownerRows.query || capturedOwnerRows.policyQuery !== parent.ownerRows.policyQuery)) {
+    return fail('child source read cannot replace its owning row closure.');
+  }
+  if (input.revision !== parent.observation.revision || input.fence !== parent.observation.fence ||
+      input.context.actorUserId !== parent.observation.context.actorUserId ||
+      input.context.teamId !== parent.observation.context.teamId ||
+      input.context.membership !== parent.observation.context.membership ||
+      input.context.memberships !== parent.observation.context.memberships) {
+    return fail('child source read requires the unchanged tracked owning context.');
+  }
+  return parent.navigation;
+}
+
+function openInstalledLifetime(
+  read: InstalledRead,
+  stage: ReadStage,
+  input: Readonly<ViewerGenerationCallbackReadObservation>,
+  store: StoragePort,
+  parent: ReadLifetime | null,
+  parentNavigation: ReadNavigation | null,
+  capturedOwnerRows: InstalledSourceOwnerRows | undefined,
+): ReadLifetime {
+  const observation = Object.freeze({ ...input, context: Object.freeze({ ...input.context }) });
+  const lifetime: ReadLifetime = { read, stage, observation, store, ownerRows: parent?.ownerRows ?? capturedOwnerRows,
+    bound: bindings.get(read) ?? [], parent, parentNavigation,
+    navigationTargets: parent?.navigationTargets ?? new Set(),
+    navigation: null, pending: false, poisoned: false, closed: false, count: 0 };
+  lifetimes.set(observation, lifetime); contexts.set(observation.context, lifetime);
+  if (parentNavigation !== null) parentNavigation.child = lifetime;
+  return lifetime;
+}
+
 async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
   input: Readonly<ViewerGenerationCallbackReadObservation>, store: StoragePort,
   execute: (observation: Readonly<ViewerGenerationCallbackReadObservation>) => boolean | Promise<boolean>,
@@ -339,36 +396,15 @@ async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
   try {
     const capturedOwnerRows = ownerRows === undefined ? undefined : captureInstalledSourceOwnerRows(ownerRows);
     if (owningObservation !== undefined) {
-      if (parent === undefined || parent.observation !== owningObservation || parent.store !== store ||
-          !parent.pending || parent.navigation === null || parent.navigation.child !== null) {
-        return fail('child source read requires its exact live owning navigation.');
-      }
-      healthyLifetime(parent); parentNavigation = parent.navigation;
-      if (capturedOwnerRows !== undefined && (parent.ownerRows === undefined ||
-          capturedOwnerRows.read !== parent.ownerRows.read || capturedOwnerRows.assertHealthy !== parent.ownerRows.assertHealthy ||
-          capturedOwnerRows.query !== parent.ownerRows.query || capturedOwnerRows.policyQuery !== parent.ownerRows.policyQuery)) {
-        return fail('child source read cannot replace its owning row closure.');
-      }
-      if (input.revision !== parent.observation.revision || input.fence !== parent.observation.fence ||
-          input.context.actorUserId !== parent.observation.context.actorUserId ||
-          input.context.teamId !== parent.observation.context.teamId ||
-          input.context.membership !== parent.observation.context.membership ||
-          input.context.memberships !== parent.observation.context.memberships) {
-        return fail('child source read requires the unchanged tracked owning context.');
-      }
+      parentNavigation = checkOwningRead(input, owningObservation, parent, store, capturedOwnerRows);
     }
     invoked.add(read);
     if (stage === 'read-policy' && installedPredicates.has(read as InstalledSourceQueryPredicate)) {
       return fail('installed query predicate cannot execute as a read policy.');
     }
-    const observation = Object.freeze({ ...input, context: Object.freeze({ ...input.context }) });
-    lifetime = { read, stage, observation, store, ownerRows: parent?.ownerRows ?? capturedOwnerRows, bound: bindings.get(read) ?? [],
-      parent: parent ?? null, parentNavigation, navigationTargets: parent?.navigationTargets ?? new Set(),
-      navigation: null, pending: false, poisoned: false, closed: false, count: 0 };
-    lifetimes.set(observation, lifetime); contexts.set(observation.context, lifetime);
-    if (parentNavigation !== null) parentNavigation.child = lifetime;
+    lifetime = openInstalledLifetime(read, stage, input, store, parent ?? null, parentNavigation, capturedOwnerRows);
     healthyLifetime(lifetime);
-    const value = await execute(observation);
+    const value = await execute(lifetime.observation);
     healthyLifetime(lifetime);
     if (lifetime.pending || lifetime.poisoned || typeof value !== 'boolean') return fail('caught, pending or malformed source read cannot authorize.');
     return value;
@@ -384,28 +420,51 @@ async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
 /** Only a State-issued live coherent observation and its exact checked handle
  * can evaluate membership. Current facts join the owning reader's complete
  * Identity observation/revalidation, never the scenario or dispatch ledger. */
+type IssuedRead = NonNullable<ReturnType<typeof handles.get>>;
+
+function acquireReadOccurrence(
+  observation: Readonly<ViewerGenerationCallbackReadObservation>,
+  input: { readonly site: ReadPolicyMembershipHandle },
+  lifetime: ReadLifetime | undefined,
+): { readonly lifetime: ReadLifetime; readonly issued: IssuedRead } {
+  object(input, ['site']); const issued = handles.get(input.site);
+  if (lifetime === undefined || lifetime.observation !== observation || lifetime.closed || lifetime.poisoned ||
+      lifetime.pending || issued === undefined || issued.bound.read !== lifetime.read ||
+      issued.bound.stage !== lifetime.stage || !lifetime.bound.includes(issued.bound) ||
+      lifetime.count >= 200) return fail('exact live nonconcurrent source read/occurrence required.');
+  healthyLifetime(lifetime);
+  lifetime.pending = true; lifetime.count++;
+  return { lifetime, issued };
+}
+
+function verifyReadCapture(
+  values: unknown,
+  team: unknown,
+): { readonly teamId: string; readonly personId: string } {
+  object(values, ['person', 'team']);
+  const person = object((values as Record<string, unknown>).person, ['kind', 'id']);
+  if (!isUserRef((values as Record<string, unknown>).person) || !Object.isFrozen((values as Record<string, unknown>).person) ||
+      person.kind !== 'user' || (values as Record<string, unknown>).team !== team) {
+    return fail('actual owning Values user and exact verified Team pointer required.');
+  }
+  return { teamId: text((team as { teamId: unknown }).teamId), personId: text(person.id) };
+}
+
 export async function evaluateReadPolicyMembership(observation: Readonly<ViewerGenerationCallbackReadObservation>,
   input: { readonly site: ReadPolicyMembershipHandle }): Promise<boolean> {
   const lifetime = observationLifetime(observation);
   let acquired = false;
   try {
-    object(input, ['site']); const issued = handles.get(input.site);
-    if (lifetime === undefined || lifetime.observation !== observation || lifetime.closed || lifetime.poisoned ||
-        lifetime.pending || issued === undefined || issued.bound.read !== lifetime.read ||
-        issued.bound.stage !== lifetime.stage || !lifetime.bound.includes(issued.bound) ||
-        lifetime.count >= 200) return fail('exact live nonconcurrent source read/occurrence required.');
-    healthyLifetime(lifetime);
-    lifetime.pending = true; acquired = true; lifetime.count++;
+    const acquiredRead = acquireReadOccurrence(observation, input, lifetime);
+    acquired = true;
+    const { issued } = acquiredRead;
+    const current = acquiredRead.lifetime;
     const team = issued.bound.team(observation);
     if (team === null) return fail('actual corresponding native Team required.');
     const snapshot = teamSnapshot(team);
     if (team.teamId !== observation.context.teamId) return fail('actual corresponding native Team required.');
     const values = issued.bound.capture(observation, issued.site, issued.callIndex);
-    object(values, ['person', 'team']); const person = object(values.person, ['kind', 'id']);
-    if (!isUserRef(values.person) || !Object.isFrozen(values.person) || person.kind !== 'user' || values.team !== team) {
-      return fail('actual owning Values user and exact verified Team pointer required.');
-    }
-    const teamId = text(team.teamId), personId = text(person.id), current = lifetime;
+    const { teamId, personId } = verifyReadCapture(values, team);
     const healthy = () => {
       healthyLifetime(current);
       if (current.closed || current.poisoned || !current.pending || lifetimes.get(observation) !== current ||

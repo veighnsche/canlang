@@ -269,6 +269,131 @@ function validateInputs(def: InterimOperationDef, inputs: ClosedInputs): Pending
  * is computed from the RAW inputs before this runs (frozen order), so fills
  * — deterministic from the descriptor — never perturb replay identity.
  */
+/** One ref slot (or each array element) against its generated rule, in slot order. */
+function validateGeneratedRefSlots(
+  paramDef: Extract<CanonicalInputDef, { kind: 'ref' }>,
+  param: string,
+  supplied: unknown,
+  inputArrays: GeneratedOperationDef['inputArrays'],
+  refs: PendingRef[],
+  fields: FieldError[],
+): void {
+  const array = Object.hasOwn(inputArrays, param) && Array.isArray(supplied) ? supplied : undefined;
+  for (let index = 0; index < (array === undefined ? 1 : array.length); index += 1) {
+    const slot = array === undefined ? param : `${param}/${index}`;
+    const value = (array === undefined ? supplied : array[index]) as Record<string, unknown> | null;
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      fields.push({
+        path: `/${slot}`,
+        code: 'invalid_ref',
+        message: `Input "${slot}" must be a record reference with an id.`,
+      });
+      continue;
+    }
+    const id = value['id'];
+    if (typeof id !== 'string' || id === '') {
+      fields.push({
+        path: `/${slot}`,
+        code: 'invalid_ref',
+        message: `Input "${slot}" must be a record reference with an id.`,
+      });
+      continue;
+    }
+    const hasVersion = Object.hasOwn(value, 'version');
+    if (paramDef.versioned && !hasVersion) {
+      fields.push({
+        path: `/${slot}`,
+        code: 'version_required',
+        message: `Input "${slot}" requires an expected version.`,
+      });
+      continue;
+    }
+    let expectedVersion: RecordVersion | null = null;
+    if (hasVersion) {
+      const version = value['version'];
+      if (typeof version !== 'string' || !CANONICAL_VERSION_RE.test(version)) {
+        fields.push({
+          path: `/${slot}`,
+          code: 'invalid_version',
+          message: `Input "${slot}" carries a malformed record version.`,
+        });
+        continue;
+      }
+      expectedVersion = Number(version) as RecordVersion;
+    }
+    refs.push({ param: slot, model: paramDef.model, id: id as RecordId, expectedVersion });
+  }
+}
+
+/** Omitted generated input: required refusal or ordinary-array fill. */
+function validateOmittedGeneratedInput(
+  def: GeneratedOperationDef,
+  paramDef: CanonicalInputDef,
+  param: string,
+  normalized: Record<string, unknown>,
+  fields: FieldError[],
+): void {
+  if (paramDef.required) {
+    fields.push({
+      path: `/${param}`,
+      code: 'required',
+      message: `Missing required input "${param}".`,
+    });
+    return;
+  }
+  const marker = def.inputArrays[param];
+  if (marker !== undefined && !marker.required && def.descriptor.kind !== 'update' &&
+      paramDef.default === undefined && !(paramDef.kind === 'ref' && paramDef.nullable === true) &&
+      !(paramDef.kind !== 'ref' && paramDef.kind !== 'delivery' &&
+        Object.hasOwn(paramDef, 'computedDefault') && paramDef.computedDefault === true) &&
+      !(paramDef.kind !== 'ref' && paramDef.kind !== 'delivery' &&
+        Object.hasOwn(paramDef, 'valueType') && paramDef.valueType?.endsWith('?'))) {
+    normalized[param] = [];
+    appendInputArrayLengthErrors(fields, param, 0, paramDef.min, paramDef.max);
+  }
+}
+
+/** One present generated input in descriptor order: shape, nominal, ref slots. */
+function validateOneGeneratedInput(
+  def: GeneratedOperationDef,
+  paramDef: CanonicalInputDef,
+  inputs: ClosedInputs,
+  normalized: Record<string, unknown>,
+  refs: PendingRef[],
+  fields: FieldError[],
+  inspected: { count: number },
+  nominalInputs: boolean,
+): void {
+  const param = paramDef.name;
+  if (!Object.hasOwn(inputs, param)) {
+    validateOmittedGeneratedInput(def, paramDef, param, normalized, fields);
+    return;
+  }
+  const outer = inputs[param];
+  if (Object.hasOwn(def.inputArrays, param) && outer !== null) {
+    if (!Array.isArray(outer)) {
+      fields.push({ path: `/${param}`, code: 'invalid_array', message: `Input "${param}" must be an array.` });
+      return;
+    }
+    if (appendInputArrayLengthErrors(fields, param, outer.length, paramDef.min, paramDef.max)) return;
+    // Empty arrays need no element wire parsing.
+    if (outer.length === 0) return;
+  }
+  if (paramDef.kind === 'nominal' && nominalInputs) {
+    const declarations = generatedCallInputDeclarations(def);
+    const typed = normalizeCallTypedInput(paramDef, outer, def, declarations?.valueSchema,
+      declarations?.modelNames, inspected, false);
+    normalized[param] = typed.wire; refs.push(...typed.refs);
+  }
+  if (paramDef.kind !== 'ref') return;
+  const supplied = inputs[param];
+  if (supplied === null && (paramDef.nullable === true || def.inputNullableRefs !== undefined &&
+    Object.hasOwn(def.inputNullableRefs, param) && def.inputNullableRefs[param] === true)) {
+    return;
+  }
+  validateGeneratedRefSlots(paramDef, param, supplied, def.inputArrays, refs, fields);
+}
+
 function validateGeneratedInputs(
   def: GeneratedOperationDef,
   inputs: ClosedInputs,
@@ -285,95 +410,7 @@ function validateGeneratedInputs(
   const refs: PendingRef[] = [];
   const inspected = { count: 0 };
   for (const paramDef of def.descriptor.inputs) {
-    const param = paramDef.name;
-    if (!Object.hasOwn(inputs, param)) {
-      if (paramDef.required) {
-        fields.push({
-          path: `/${param}`,
-          code: 'required',
-          message: `Missing required input "${param}".`,
-        });
-      } else {
-        const marker = def.inputArrays[param];
-        if (marker !== undefined && !marker.required && def.descriptor.kind !== 'update' &&
-            paramDef.default === undefined && !(paramDef.kind === 'ref' && paramDef.nullable === true) &&
-            !(paramDef.kind !== 'ref' && paramDef.kind !== 'delivery' &&
-              Object.hasOwn(paramDef, 'computedDefault') && paramDef.computedDefault === true) &&
-            !(paramDef.kind !== 'ref' && paramDef.kind !== 'delivery' &&
-              Object.hasOwn(paramDef, 'valueType') && paramDef.valueType?.endsWith('?'))) {
-          normalized[param] = [];
-          appendInputArrayLengthErrors(fields, param, 0, paramDef.min, paramDef.max);
-        }
-      }
-      continue;
-    }
-    const outer = inputs[param];
-    if (Object.hasOwn(def.inputArrays, param) && outer !== null) {
-      if (!Array.isArray(outer)) {
-        fields.push({ path: `/${param}`, code: 'invalid_array', message: `Input "${param}" must be an array.` });
-        continue;
-      }
-      if (appendInputArrayLengthErrors(fields, param, outer.length, paramDef.min, paramDef.max)) continue;
-      // Empty arrays need no element wire parsing.
-      if (outer.length === 0) continue;
-    }
-    if (paramDef.kind === 'nominal' && nominalInputs) {
-      const declarations = generatedCallInputDeclarations(def);
-      const typed = normalizeCallTypedInput(paramDef, outer, def, declarations?.valueSchema,
-        declarations?.modelNames, inspected, false);
-      normalized[param] = typed.wire; refs.push(...typed.refs);
-    }
-    if (paramDef.kind !== 'ref') continue;
-    const supplied = inputs[param];
-    if (supplied === null && (paramDef.nullable === true || def.inputNullableRefs !== undefined &&
-      Object.hasOwn(def.inputNullableRefs, param) && def.inputNullableRefs[param] === true)) {
-      continue;
-    }
-    const array = Object.hasOwn(def.inputArrays, param) && Array.isArray(supplied) ? supplied : undefined;
-    for (let index = 0; index < (array === undefined ? 1 : array.length); index += 1) {
-      const slot = array === undefined ? param : `${param}/${index}`;
-      const value = (array === undefined ? supplied : array[index]) as Record<string, unknown> | null;
-      if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-        fields.push({
-          path: `/${slot}`,
-          code: 'invalid_ref',
-          message: `Input "${slot}" must be a record reference with an id.`,
-        });
-        continue;
-      }
-      const id = value['id'];
-      if (typeof id !== 'string' || id === '') {
-        fields.push({
-          path: `/${slot}`,
-          code: 'invalid_ref',
-          message: `Input "${slot}" must be a record reference with an id.`,
-        });
-        continue;
-      }
-      const hasVersion = Object.hasOwn(value, 'version');
-      if (paramDef.versioned && !hasVersion) {
-        fields.push({
-          path: `/${slot}`,
-          code: 'version_required',
-          message: `Input "${slot}" requires an expected version.`,
-        });
-        continue;
-      }
-      let expectedVersion: RecordVersion | null = null;
-      if (hasVersion) {
-        const version = value['version'];
-        if (typeof version !== 'string' || !CANONICAL_VERSION_RE.test(version)) {
-          fields.push({
-            path: `/${slot}`,
-            code: 'invalid_version',
-            message: `Input "${slot}" carries a malformed record version.`,
-          });
-          continue;
-        }
-        expectedVersion = Number(version) as RecordVersion;
-      }
-      refs.push({ param: slot, model: paramDef.model, id: id as RecordId, expectedVersion });
-    }
+    validateOneGeneratedInput(def, paramDef, inputs, normalized, refs, fields, inspected, nominalInputs);
   }
   if (fields.length > 0) {
     throw new StateError('validation', 'Invalid operation inputs.', null, { fields });
@@ -415,72 +452,156 @@ function normalizeCallTypedInput(field: Exclude<CanonicalInputDef, { kind: 'ref'
     }
   }
   const seen = new WeakSet<object>();
-  const inspect = (value: unknown, path: string, depth: number, original: unknown, type?: ReturnType<typeof parseTypeId>): void => {
-    if (ownerStage && (++inspected.count > 4096 || depth > 64)) {
-      throw new StateError('limit', 'Owner call composite reference inspection exceeds its finite budget.');
-    }
-    // Only the exact owning declaration can make kind/model/id ordinary data.
-    // Keep discovery in its existing order, including union metadata visits.
-    let declared = type;
-    while (declared !== undefined && !declared.array && declared.base.kind === 'nominal' &&
-        valueSchema?.aliases?.[declared.base.path] !== undefined) {
-      declared = valueSchema.aliases[declared.base.path]!.type;
-    }
-    const contract = declared !== undefined && !declared.array && declared.base.kind === 'nominal'
-      ? valueSchema?.contracts[declared.base.path] : undefined;
-    if (receivingField) {
-      if (declared === undefined || declared.array && !Array.isArray(value)) return;
-      const model = !declared.array && declared.base.kind === 'nominal' &&
-        modelNames?.has(declared.base.path) === true;
-      if (model) {
-        // Decode this exact Model leaf only. Do not normalize its containing
-        // Contract or convert business fields before the receiving hooks.
-        if (value === null && declared.nullable) return;
-        try { value = decodeValue(printTypeId(declared), value); }
-        catch { throw new StateError('validation', 'Invalid owner call typed input.'); }
-      } else if (!declared.array && contract === undefined && declared.base.kind !== 'union') return;
-    }
-    if (typeof value !== 'object' || value === null || seen.has(value)) return;
-    seen.add(value);
-    if (contract === undefined && (!receivingField || !declared?.array && declared?.base.kind === 'nominal' &&
-        modelNames?.has(declared.base.path) === true) && isRecordRef(value)) {
-      if (field.kind !== 'nominal' || modelNames?.has(value.model) !== true ||
-          value.version === undefined || !CANONICAL_VERSION_RE.test(value.version.toString())) {
-        throw new StateError('validation', 'Owner calls require checked models and original expected reference versions.');
-      }
-      if (!ownerStage && (typeof original !== 'object' || original === null ||
-          typeof (original as Record<string, unknown>)['version'] !== 'string' ||
-          !CANONICAL_VERSION_RE.test((original as Record<string, string>)['version']!))) {
-        throw new StateError('validation', 'Nested record references require canonical expected versions.');
-      }
-      pending.push({ param: path, model: value.model as ModelName, id: value.id as RecordId,
-        expectedVersion: Number(value.version) as RecordVersion });
-      return;
-    }
-    if (contract === undefined && ownerStage && Object.hasOwn(value, 'kind') && (value as Record<string, unknown>)['kind'] === 'ref') {
-      throw new StateError('validation', 'Owner calls require declared singular reference inputs.');
-    }
-    const kind = (value as Record<string, unknown>)['kind'];
-    if (contract === undefined && ownerStage && (kind === 'file' || kind === 'delivery' || kind === 'action' || kind === 'invocation')) {
-      throw new StateError('validation', 'Owner calls do not support composite protected value provenance.');
-    }
-    // Root protected leaves retain their receiving pipeline. Values' typed
-    // guards distinguish them from ordinary Contract fields named kind/id.
-    if (!receivingField && contract === undefined && !ownerStage && (isFileValue(value) || isDeliveryRef(value) || isActionRef(value) || isInvocationRef(value))) return;
-    for (const [name, nested] of Object.entries(value)) {
-      const childType = declared?.array
-        ? { ...declared, array: false, requiredArray: false, nullable: false }
-        : contract !== undefined ? contract.fields[name]?.type
-        : declared?.base.kind === 'union' && name === 'value' &&
-          typeof (value as Record<string, unknown>)['type'] === 'string' &&
-          declared.base.arms.includes((value as Record<string, string>)['type']!)
-          ? parseTypeId((value as Record<string, string>)['type']!) : undefined;
-      inspect(nested, `${path}/${name}`, depth + 1,
-        typeof original === 'object' && original !== null ? (original as Record<string, unknown>)[name] : undefined, childType);
-    }
-  };
-  inspect(value, field.name, 0, originalValue, valueType === undefined ? undefined : parseTypeId(valueType));
+  inspectCompositeRefs({
+    pending, seen, inspected, ownerStage, receivingField,
+    field, valueSchema, modelNames,
+  }, value, field.name, 0, originalValue, valueType === undefined ? undefined : parseTypeId(valueType));
   return { wire, refs: pending };
+}
+
+/** Shared composite-reference inspection scope (one owner-stage call). */
+interface CompositeInspectScope {
+  readonly pending: PendingRef[];
+  readonly seen: WeakSet<object>;
+  readonly inspected: { count: number };
+  readonly ownerStage: boolean;
+  readonly receivingField: boolean;
+  readonly field: CanonicalInputDef;
+  readonly valueSchema: NormalizedSchema | undefined;
+  readonly modelNames: ReadonlySet<string> | undefined;
+}
+
+type InspectionDeclared = ReturnType<typeof parseTypeId>;
+
+/** Alias resolution: only the exact owning declaration names nominal data. */
+function resolveInspectionDeclared(
+  type: InspectionDeclared | undefined,
+  valueSchema: NormalizedSchema | undefined,
+): InspectionDeclared | undefined {
+  let declared = type;
+  while (declared !== undefined && !declared.array && declared.base.kind === 'nominal' &&
+      valueSchema?.aliases?.[declared.base.path] !== undefined) {
+    declared = valueSchema.aliases[declared.base.path]!.type;
+  }
+  return declared;
+}
+
+/** Receiving-stage gate: decode exact Model leaves, skip non-model shapes. */
+function inspectReceivingFieldValue(
+  scope: CompositeInspectScope,
+  declared: InspectionDeclared | undefined,
+  contract: { readonly fields: Record<string, { readonly type: InspectionDeclared | undefined }> } | undefined,
+  value: unknown,
+): { stop: boolean; value: unknown } {
+  if (declared === undefined || declared.array && !Array.isArray(value)) return { stop: true, value };
+  const model = !declared.array && declared.base.kind === 'nominal' &&
+    scope.modelNames?.has(declared.base.path) === true;
+  if (model) {
+    // Decode this exact Model leaf only. Do not normalize its containing
+    // Contract or convert business fields before the receiving hooks.
+    if (value === null && declared.nullable) return { stop: true, value };
+    try { value = decodeValue(printTypeId(declared), value); }
+    catch { throw new StateError('validation', 'Invalid owner call typed input.'); }
+    return { stop: false, value };
+  }
+  if (!declared.array && contract === undefined && declared.base.kind !== 'union') return { stop: true, value };
+  return { stop: false, value };
+}
+
+/** Record-reference discovery in declaration order (may push and finish). */
+function collectCompositeRecordRef(
+  scope: CompositeInspectScope,
+  declared: InspectionDeclared | undefined,
+  contract: unknown,
+  value: object,
+  path: string,
+  original: unknown,
+): boolean {
+  if (contract === undefined && (!scope.receivingField || !declared?.array && declared?.base.kind === 'nominal' &&
+      scope.modelNames?.has(declared.base.path) === true) && isRecordRef(value)) {
+    if (scope.field.kind !== 'nominal' || scope.modelNames?.has(value.model) !== true ||
+        value.version === undefined || !CANONICAL_VERSION_RE.test(value.version.toString())) {
+      throw new StateError('validation', 'Owner calls require checked models and original expected reference versions.');
+    }
+    if (!scope.ownerStage && (typeof original !== 'object' || original === null ||
+        typeof (original as Record<string, unknown>)['version'] !== 'string' ||
+        !CANONICAL_VERSION_RE.test((original as Record<string, string>)['version']!))) {
+      throw new StateError('validation', 'Nested record references require canonical expected versions.');
+    }
+    scope.pending.push({ param: path, model: value.model as ModelName, id: value.id as RecordId,
+      expectedVersion: Number(value.version) as RecordVersion });
+    return true;
+  }
+  return false;
+}
+
+/** Protected-kind refusals; true when the caller must stop descending. */
+function rejectCompositeProtectedKinds(
+  scope: CompositeInspectScope,
+  contract: unknown,
+  value: object,
+): boolean {
+  if (contract === undefined && scope.ownerStage && Object.hasOwn(value, 'kind') && (value as Record<string, unknown>)['kind'] === 'ref') {
+    throw new StateError('validation', 'Owner calls require declared singular reference inputs.');
+  }
+  const kind = (value as Record<string, unknown>)['kind'];
+  if (contract === undefined && scope.ownerStage && (kind === 'file' || kind === 'delivery' || kind === 'action' || kind === 'invocation')) {
+    throw new StateError('validation', 'Owner calls do not support composite protected value provenance.');
+  }
+  // Root protected leaves retain their receiving pipeline. Values' typed
+  // guards distinguish them from ordinary Contract fields named kind/id.
+  if (!scope.receivingField && contract === undefined && !scope.ownerStage && (isFileValue(value) || isDeliveryRef(value) || isActionRef(value) || isInvocationRef(value))) return true;
+  return false;
+}
+
+/** Child type for one descent step, including union metadata visits. */
+function compositeChildType(
+  declared: InspectionDeclared | undefined,
+  contract: { readonly fields: Record<string, { readonly type: InspectionDeclared | undefined }> } | undefined,
+  value: object,
+  name: string,
+): InspectionDeclared | undefined {
+  if (declared?.array) return { ...declared, array: false, requiredArray: false, nullable: false };
+  if (contract !== undefined) return contract.fields[name]?.type;
+  if (declared?.base.kind === 'union' && name === 'value' &&
+      typeof (value as Record<string, unknown>)['type'] === 'string' &&
+      declared.base.arms.includes((value as Record<string, string>)['type']!)) {
+    return parseTypeId((value as Record<string, string>)['type']!);
+  }
+  return undefined;
+}
+
+/** Composite reference discovery, keeping the existing visit order. */
+function inspectCompositeRefs(
+  scope: CompositeInspectScope,
+  value: unknown,
+  path: string,
+  depth: number,
+  original: unknown,
+  type?: InspectionDeclared,
+): void {
+  if (scope.ownerStage && (++scope.inspected.count > 4096 || depth > 64)) {
+    throw new StateError('limit', 'Owner call composite reference inspection exceeds its finite budget.');
+  }
+  // Only the exact owning declaration can make kind/model/id ordinary data.
+  // Keep discovery in its existing order, including union metadata visits.
+  const declared = resolveInspectionDeclared(type, scope.valueSchema);
+  const contract = declared !== undefined && !declared.array && declared.base.kind === 'nominal'
+    ? scope.valueSchema?.contracts[declared.base.path] : undefined;
+  if (scope.receivingField) {
+    const gate = inspectReceivingFieldValue(scope, declared, contract, value);
+    if (gate.stop) return;
+    value = gate.value;
+  }
+  if (typeof value !== 'object' || value === null || scope.seen.has(value)) return;
+  scope.seen.add(value);
+  if (collectCompositeRecordRef(scope, declared, contract, value, path, original)) return;
+  if (rejectCompositeProtectedKinds(scope, contract, value)) return;
+  for (const [name, nested] of Object.entries(value)) {
+    inspectCompositeRefs(scope, nested, `${path}/${name}`, depth + 1,
+      typeof original === 'object' && original !== null ? (original as Record<string, unknown>)[name] : undefined,
+      compositeChildType(declared, contract, value, name));
+  }
 }
 
 /** Validated call inputs: pending record refs plus the execution inputs. */
@@ -541,6 +662,60 @@ export function bindOwnerStageStoredFileInputs(def: GeneratedOperationDef, input
   return proof;
 }
 
+type OwnerStoredFileBinding = {
+  readonly def: GeneratedOperationDef;
+  readonly inputs: ClosedInputs;
+  readonly wires: ReadonlyMap<string, string>;
+} | undefined;
+
+/** Take (and void) the one-shot stored-File binding, proving exact reuse. */
+function consumeOwnerStoredFileBinding(input: {
+  readonly def: GeneratedOperationDef;
+  readonly inputs: ClosedInputs;
+  readonly storedFiles?: object;
+}): OwnerStoredFileBinding {
+  const files = input.storedFiles === undefined ? undefined : ownerStoredFileInputs.get(input.storedFiles);
+  if (input.storedFiles !== undefined) ownerStoredFileInputs.delete(input.storedFiles);
+  if (input.storedFiles !== undefined && (files?.def !== input.def || files.inputs !== input.inputs)) {
+    throw new StateError('validation', 'Owner File inputs require their exact unused stored source binding.');
+  }
+  return files;
+}
+
+/** One owner-stage input in descriptor order: File proof or typed re-check. */
+function normalizeOneOwnerStageInput(
+  input: {
+    readonly def: GeneratedOperationDef;
+    readonly inputs: ClosedInputs;
+    readonly valueSchema?: NormalizedSchema;
+    readonly modelNames?: ReadonlySet<string>;
+  },
+  field: CanonicalInputDef,
+  normalized: Record<string, unknown>,
+  files: OwnerStoredFileBinding,
+  pending: PendingRef[],
+  inspected: { count: number },
+): void {
+  if (field.kind === 'ref') return;
+  if (field.kind === 'file') {
+    if (field.valueType !== 'file[]' || input.def.inputArrays[field.name]?.required !== false ||
+        !Object.hasOwn(input.inputs, field.name) || !files?.wires.has(field.name) ||
+        files.wires.get(field.name) !== stableStringify(normalized[field.name])) {
+      throw new StateError('validation', 'Owner File array inputs require their exact authenticated stored field.');
+    }
+    try { decodeValue('file[]', normalized[field.name]); }
+    catch { throw new StateError('validation', 'Invalid stored owner File array input.'); }
+    return;
+  }
+  if (field.kind === 'delivery') {
+    throw new StateError('validation', 'Owner calls do not support file or delivery input provenance.');
+  }
+  const value = normalized[field.name];
+  if (!Object.hasOwn(normalized, field.name)) return;
+  const typed = normalizeCallTypedInput(field, value, input.def, input.valueSchema, input.modelNames, inspected);
+  normalized[field.name] = typed.wire; pending.push(...typed.refs);
+}
+
 export async function admitOwnerStageCall(input: {
   readonly def: GeneratedOperationDef;
   readonly inputs: ClosedInputs;
@@ -560,34 +735,13 @@ export async function admitOwnerStageCall(input: {
   // policy even when the enclosing source is an authenticated trusted trigger.
   await authorizeCall(input.def, input.context, input.memberships, scope, false);
   const validated = validateGeneratedInputs(input.def, input.inputs, false);
-  const files = input.storedFiles === undefined ? undefined : ownerStoredFileInputs.get(input.storedFiles);
-  if (input.storedFiles !== undefined) ownerStoredFileInputs.delete(input.storedFiles);
-  if (input.storedFiles !== undefined && (files?.def !== input.def || files.inputs !== input.inputs)) {
-    throw new StateError('validation', 'Owner File inputs require their exact unused stored source binding.');
-  }
+  const files = consumeOwnerStoredFileBinding(input);
   const pending: PendingRef[] = [...validated.refs];
   const inspected = { count: 0 };
   // Nominal values need their checked owner schema before recursive refs can
   // be discovered. The schema's unknown nominals alone do not prove models.
   for (const field of input.def.descriptor.inputs) {
-    if (field.kind === 'ref') continue;
-    if (field.kind === 'file') {
-      if (field.valueType !== 'file[]' || input.def.inputArrays[field.name]?.required !== false ||
-          !Object.hasOwn(input.inputs, field.name) || !files?.wires.has(field.name) ||
-          files.wires.get(field.name) !== stableStringify(validated.normalized[field.name])) {
-        throw new StateError('validation', 'Owner File array inputs require their exact authenticated stored field.');
-      }
-      try { decodeValue('file[]', validated.normalized[field.name]); }
-      catch { throw new StateError('validation', 'Invalid stored owner File array input.'); }
-      continue;
-    }
-    if (field.kind === 'delivery') {
-      throw new StateError('validation', 'Owner calls do not support file or delivery input provenance.');
-    }
-    let value = validated.normalized[field.name];
-    if (!Object.hasOwn(validated.normalized, field.name)) continue;
-    const typed = normalizeCallTypedInput(field, value, input.def, input.valueSchema, input.modelNames, inspected);
-    validated.normalized[field.name] = typed.wire; pending.push(...typed.refs);
+    normalizeOneOwnerStageInput(input, field, validated.normalized, files, pending, inspected);
   }
   const recordRefs = await loadCallRecordRefs({
     pending, inputs: validated.normalized,

@@ -551,10 +551,7 @@ export interface BoundBridgeSession {
  * moved fence, a missing capture, or malformed issuance refuses
  * before serving; the bridge never invents targets.
  */
-export async function openMcpSessionFromBinding(
-  sessionFile: string,
-  now?: () => number,
-): Promise<BoundBridgeSession> {
+async function readSessionBinding(sessionFile: string): Promise<{ session: string; attempt: string; source_digest: string; fence: number }> {
   if (sessionFile.length === 0) {
     throw new McpError(
       "invalid-session",
@@ -588,14 +585,10 @@ export async function openMcpSessionFromBinding(
   ) {
     throw new McpError("invalid-session", "the session binding carries no usable session/attempt/digest/fence");
   }
-  const attemptDir = dirname(sessionFile);
-  const liveFence = await readBridgeFence(attemptDir);
-  if (liveFence !== fence) {
-    throw new McpError(
-      "session-superseded",
-      `session ${JSON.stringify(session)} was fenced (${String(fence)} -> ${String(liveFence)}); the bridge refuses a superseded session`,
-    );
-  }
+  return { session, attempt, source_digest, fence };
+}
+
+async function readBridgeCapture(attemptDir: string): Promise<Record<string, unknown>> {
   let captureRaw: unknown;
   try {
     captureRaw = JSON.parse(await readFile(join(attemptDir, BRIDGE_CAPTURE_FILE), "utf8")) as unknown;
@@ -608,6 +601,10 @@ export async function openMcpSessionFromBinding(
   if (!isRecord(captureRaw) || !Array.isArray(captureRaw["units"]) || !isRecord(captureRaw["handles"])) {
     throw new McpError("invalid-session", "the attempt capture carries no units/handles map");
   }
+  return captureRaw;
+}
+
+function bridgeUnitKinds(captureRaw: Record<string, unknown>): Map<string, string> {
   const kinds = new Map<string, string>();
   for (const unit of captureRaw["units"] as unknown[]) {
     if (!isRecord(unit) || typeof unit["unit_id"] !== "string" || typeof unit["kind"] !== "string") {
@@ -615,6 +612,10 @@ export async function openMcpSessionFromBinding(
     }
     kinds.set(unit["unit_id"] as string, unit["kind"] as string);
   }
+  return kinds;
+}
+
+function bridgeTargets(captureRaw: Record<string, unknown>, kinds: Map<string, string>): { allowed: AllowedTarget[]; required: string[] } {
   const allowed: AllowedTarget[] = [];
   const required: string[] = [];
   for (const [handle, issued] of Object.entries(captureRaw["handles"] as Record<string, unknown>)) {
@@ -645,6 +646,24 @@ export async function openMcpSessionFromBinding(
     allowed.push({ handle, role: role as AllowedTarget["role"], kind, filename });
     if (issued["required"] === true) required.push(handle);
   }
+  return { allowed, required };
+}
+
+export async function openMcpSessionFromBinding(
+  sessionFile: string,
+  now?: () => number,
+): Promise<BoundBridgeSession> {
+  const { session, attempt, source_digest, fence } = await readSessionBinding(sessionFile);
+  const attemptDir = dirname(sessionFile);
+  const liveFence = await readBridgeFence(attemptDir);
+  if (liveFence !== fence) {
+    throw new McpError(
+      "session-superseded",
+      `session ${JSON.stringify(session)} was fenced (${String(fence)} -> ${String(liveFence)}); the bridge refuses a superseded session`,
+    );
+  }
+  const captureRaw = await readBridgeCapture(attemptDir);
+  const { allowed, required } = bridgeTargets(captureRaw, bridgeUnitKinds(captureRaw));
   const opened = await createMcpSession({
     session,
     attempt,
@@ -738,6 +757,90 @@ export async function serveMcpBridgeStdio(options: BridgeServerOptions): Promise
     fail(id, code, message);
     return protocolErrors < BRIDGE_MAX_PROTOCOL_ERRORS;
   };
+  const guardFence = async (method: string, id: unknown): Promise<boolean> => {
+    if (method !== "tools/call" || options.fenceGuard === undefined) return true;
+    let live = false;
+    try {
+      live = await options.fenceGuard();
+    } catch {
+      live = false;
+    }
+    if (live) return true;
+    fail(id, -32000, "the attempt fence moved; late calls cannot submit");
+    return false;
+  };
+  const callBridgeTool = async (id: unknown, params: unknown): Promise<void> => {
+    if (!isRecord(params) || typeof params["name"] !== "string") {
+      fail(id, -32602, "tools/call needs a {name, arguments} envelope");
+      return;
+    }
+    const name = params["name"] as string;
+    const args = isRecord(params["arguments"]) ? params["arguments"] : {};
+    if (name === MCP_CONTEXT_TOOL) {
+      const context = tools[MCP_CONTEXT_TOOL]();
+      write({
+        jsonrpc: "2.0",
+        id,
+        result: { content: [{ type: "text", text: JSON.stringify(context) }] },
+      });
+    } else if (name === MCP_SUBMIT_TOOL) {
+      try {
+        const report = await tools[MCP_SUBMIT_TOOL](args as unknown as SubmitToolParams);
+        write({
+          jsonrpc: "2.0",
+          id,
+          result: { content: [{ type: "text", text: JSON.stringify(report) }] },
+        });
+      } catch (error) {
+        if (error instanceof McpError) {
+          write({
+            jsonrpc: "2.0",
+            id,
+            result: {
+              content: [{ type: "text", text: JSON.stringify({ code: error.code, message: error.detail }) }],
+              isError: true,
+            },
+          });
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      fail(
+        id,
+        -32602,
+        `unknown tool ${JSON.stringify(name)}; the bridge serves generation_context and generation_submit only`,
+      );
+    }
+  };
+  const dispatchMethod = async (method: string, id: unknown, message: Record<string, unknown>): Promise<void> => {
+    try {
+      if (method === "initialize") {
+        const params = isRecord(message["params"]) ? (message["params"] as Record<string, unknown>) : {};
+        const offered = params["protocolVersion"];
+        write({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            protocolVersion:
+              typeof offered === "string" && offered.length > 0 ? offered : BRIDGE_PROTOCOL_VERSION,
+            capabilities: { tools: {} },
+            serverInfo: { name: BRIDGE_SERVER_NAME, version: "1" },
+          },
+        });
+      } else if (method === "ping") {
+        write({ jsonrpc: "2.0", id, result: {} });
+      } else if (method === "tools/list") {
+        write({ jsonrpc: "2.0", id, result: { tools: [contextToolSchema(), submitToolSchema()] } });
+      } else if (method === "tools/call") {
+        await callBridgeTool(id, message["params"]);
+      } else {
+        fail(id, -32601, `unknown method ${JSON.stringify(method)}`);
+      }
+    } catch (error) {
+      fail(id, -32603, error instanceof Error ? error.message : String(error));
+    }
+  };
   const handleLine = async (line: string): Promise<boolean> => {
     if (line.trim().length === 0) return true;
     let message: unknown;
@@ -764,86 +867,8 @@ export async function serveMcpBridgeStdio(options: BridgeServerOptions): Promise
       fail(id, -32000, "the bridge served its bounded request budget for this run");
       return false;
     }
-    if (method === "tools/call" && options.fenceGuard !== undefined) {
-      let live = false;
-      try {
-        live = await options.fenceGuard();
-      } catch {
-        live = false;
-      }
-      if (!live) {
-        fail(id, -32000, "the attempt fence moved; late calls cannot submit");
-        return true;
-      }
-    }
-    try {
-      if (method === "initialize") {
-        const params = isRecord(message["params"]) ? (message["params"] as Record<string, unknown>) : {};
-        const offered = params["protocolVersion"];
-        write({
-          jsonrpc: "2.0",
-          id,
-          result: {
-            protocolVersion:
-              typeof offered === "string" && offered.length > 0 ? offered : BRIDGE_PROTOCOL_VERSION,
-            capabilities: { tools: {} },
-            serverInfo: { name: BRIDGE_SERVER_NAME, version: "1" },
-          },
-        });
-      } else if (method === "ping") {
-        write({ jsonrpc: "2.0", id, result: {} });
-      } else if (method === "tools/list") {
-        write({ jsonrpc: "2.0", id, result: { tools: [contextToolSchema(), submitToolSchema()] } });
-      } else if (method === "tools/call") {
-        const params = message["params"];
-        if (!isRecord(params) || typeof params["name"] !== "string") {
-          fail(id, -32602, "tools/call needs a {name, arguments} envelope");
-          return true;
-        }
-        const name = params["name"] as string;
-        const args = isRecord(params["arguments"]) ? params["arguments"] : {};
-        if (name === MCP_CONTEXT_TOOL) {
-          const context = tools[MCP_CONTEXT_TOOL]();
-          write({
-            jsonrpc: "2.0",
-            id,
-            result: { content: [{ type: "text", text: JSON.stringify(context) }] },
-          });
-        } else if (name === MCP_SUBMIT_TOOL) {
-          try {
-            const report = await tools[MCP_SUBMIT_TOOL](args as unknown as SubmitToolParams);
-            write({
-              jsonrpc: "2.0",
-              id,
-              result: { content: [{ type: "text", text: JSON.stringify(report) }] },
-            });
-          } catch (error) {
-            if (error instanceof McpError) {
-              write({
-                jsonrpc: "2.0",
-                id,
-                result: {
-                  content: [{ type: "text", text: JSON.stringify({ code: error.code, message: error.detail }) }],
-                  isError: true,
-                },
-              });
-            } else {
-              throw error;
-            }
-          }
-        } else {
-          fail(
-            id,
-            -32602,
-            `unknown tool ${JSON.stringify(name)}; the bridge serves generation_context and generation_submit only`,
-          );
-        }
-      } else {
-        fail(id, -32601, `unknown method ${JSON.stringify(method)}`);
-      }
-    } catch (error) {
-      fail(id, -32603, error instanceof Error ? error.message : String(error));
-    }
+    if (!(await guardFence(method, id))) return true;
+    await dispatchMethod(method, id, message);
     return true;
   };
   for await (const chunk of options.input) {

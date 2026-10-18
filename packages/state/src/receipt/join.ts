@@ -301,17 +301,30 @@ export async function observeOwnerSelectedReceiptJoin(
   return observeReceiptJoin(input, input);
 }
 
-async function observeReceiptJoin(
-  input: SelectedReceiptJoinInput | OwnerSelectedReceiptJoinInput,
-  ownerExecution?: OwnerSelectedReceiptJoinInput,
-): Promise<SelectedReceiptJoinOutcome> {
-  const { recordId, field } = resolveJoinLocator(input.locator);
-  assertJoinSelected(input.selected);
-  assertDeliveryField(input.schema, input.model, field);
+type ReceiptJoinInput = SelectedReceiptJoinInput | OwnerSelectedReceiptJoinInput;
+
+interface JoinDelivery {
+  readonly id: string;
+  readonly operation: string;
+}
+
+interface JoinVerdicts {
+  readonly selectedVerdicts: Map<ReceiptProperty, boolean>;
+  readonly revalidateAuthority: (() => Promise<void>) | undefined;
+}
+
+interface JoinAssociation {
+  readonly association: ReceiptAssociation | null;
+  readonly receipt: JoinStoredReceipt | null;
+  readonly receiptRow: StoredRow | null;
+  readonly contentRef: string | null;
+  readonly resultExpiresAtMs: number | null;
+}
+
+async function checkJoinFence(input: ReceiptJoinInput, readRevision: Revision): Promise<void> {
   // Fence revision FIRST: every row below is read at or after this
   // checkpoint, and a moved checkpoint conflicts rather than silently
   // reading newer than the operation's other reads.
-  const readRevision = await input.store.readRevision();
   if (input.fence !== undefined && input.fence.revision !== readRevision) {
     throw new StateError(
       'conflict',
@@ -319,19 +332,29 @@ async function observeReceiptJoin(
         `now at ${readRevision}); re-fence the operation.`,
     );
   }
-  const owner = await input.store.load(input.model, recordId as RecordId);
-  if (owner === null) {
-    throw new StateError('not_found', 'Receipt owner record not found.');
+}
+
+function checkOwnerExecutionBinding(
+  input: ReceiptJoinInput,
+  owner: StoredRow,
+  ownerExecution: OwnerSelectedReceiptJoinInput,
+  recordId: string,
+): void {
+  assertOwnerReceiptExecution(ownerExecution.call, input.store, ownerExecution.fence);
+  if (owner.id !== recordId || owner.version !== ownerExecution.recordVersion) {
+    throw new StateError('conflict', 'Receipt owner record disagrees with the native binding.');
   }
-  if (ownerExecution !== undefined) {
-    assertOwnerReceiptExecution(ownerExecution.call, input.store, ownerExecution.fence);
-    if (owner.id !== recordId || owner.version !== ownerExecution.recordVersion) {
-      throw new StateError('conflict', 'Receipt owner record disagrees with the native binding.');
-    }
-    if (owner.archivedAt !== null) {
-      throw new StateError('validation', 'Archived records cannot supply owner receipt observations.');
-    }
+  if (owner.archivedAt !== null) {
+    throw new StateError('validation', 'Archived records cannot supply owner receipt observations.');
   }
+}
+
+async function resolveJoinVerdicts(
+  input: ReceiptJoinInput,
+  owner: StoredRow,
+  field: string,
+  ownerExecution: OwnerSelectedReceiptJoinInput | undefined,
+): Promise<JoinVerdicts> {
   const selectedVerdicts = new Map<ReceiptProperty, boolean>();
   let revalidateAuthority: (() => Promise<void>) | undefined;
   if (ownerExecution === undefined) {
@@ -349,18 +372,16 @@ async function observeReceiptJoin(
   } else {
     for (const property of new Set(input.selected)) selectedVerdicts.set(property, true);
   }
-  const denied = [...selectedVerdicts].filter(([, allowed]) => !allowed).map(([property]) => property);
-  const grants: JoinGrantPort = {
-    mayObserve: (property, context) => context.field === field && selectedVerdicts.get(property) === true,
-  };
-  if (denied.length !== 0) {
-    await revalidateAuthority?.();
-    await assertReceiptReadRevision(input, readRevision);
-    return { outcome: 'denied', denied, readRevision };
-  }
+  return { selectedVerdicts, revalidateAuthority };
+}
+
+function checkJoinDeclaration(input: ReceiptJoinInput): ReceiptResultContext | undefined {
   if (typeof input.declaredSource !== 'string' || input.declaredSource.length === 0) {
     throw new Error('receipt join: missing declared delivery source');
   }
+  // HEAD reads the declared context once; the same validated object flows
+  // into the association read below (a second getter read could return an
+  // altered, unvalidated context after the awaited store loads).
   const declaredContext = input.declaredContext;
   if (declaredContext !== undefined) {
     if (typeof declaredContext !== 'object' || declaredContext === null ||
@@ -374,26 +395,38 @@ async function observeReceiptJoin(
       throw new Error('receipt join: declared context disagrees with delivery source or result');
     }
   }
+  return declaredContext;
+}
+
+function readJoinDelivery(owner: StoredRow, field: string, declaredSource: string): JoinDelivery | null {
   const current: unknown = (owner.data as Record<string, unknown>)[field];
-  let delivery: { id: string; operation: string } | null = null;
-  if (current !== null && current !== undefined) {
-    if (
-      typeof current !== 'object' || Array.isArray(current) ||
-      (Object.getPrototypeOf(current) !== Object.prototype && Object.getPrototypeOf(current) !== null) ||
-      Reflect.ownKeys(current).length !== 2 ||
-      !Object.hasOwn(current, 'id') || !Object.hasOwn(current, 'operation') ||
-      typeof (current as Record<string, unknown>)['id'] !== 'string' ||
-      (current as Record<string, unknown>)['id'] === '' ||
-      typeof (current as Record<string, unknown>)['operation'] !== 'string' ||
-      (current as Record<string, unknown>)['operation'] === ''
-    ) {
-      throw new Error('receipt join: malformed current owner delivery field');
-    }
-    delivery = current as { id: string; operation: string };
-    if (delivery.operation !== input.declaredSource) {
-      throw new Error('receipt join: current owner delivery source disagrees with its declaration');
-    }
+  if (current === null || current === undefined) return null;
+  if (
+    typeof current !== 'object' || Array.isArray(current) ||
+    (Object.getPrototypeOf(current) !== Object.prototype && Object.getPrototypeOf(current) !== null) ||
+    Reflect.ownKeys(current).length !== 2 ||
+    !Object.hasOwn(current, 'id') || !Object.hasOwn(current, 'operation') ||
+    typeof (current as Record<string, unknown>)['id'] !== 'string' ||
+    (current as Record<string, unknown>)['id'] === '' ||
+    typeof (current as Record<string, unknown>)['operation'] !== 'string' ||
+    (current as Record<string, unknown>)['operation'] === ''
+  ) {
+    throw new Error('receipt join: malformed current owner delivery field');
   }
+  const delivery = current as JoinDelivery;
+  if (delivery.operation !== declaredSource) {
+    throw new Error('receipt join: current owner delivery source disagrees with its declaration');
+  }
+  return delivery;
+}
+
+async function loadJoinAssociation(
+  input: ReceiptJoinInput,
+  recordId: string,
+  field: string,
+  delivery: JoinDelivery | null,
+  declaredContext: ReceiptResultContext | undefined,
+): Promise<JoinAssociation> {
   const associationId = associationRowId(input.model as string, recordId, field);
   const associationRow = await input.store.load(
     RECEIPT_ASSOCIATION_MODEL as ModelName,
@@ -431,6 +464,39 @@ async function observeReceiptJoin(
   if (associationRow === null && delivery !== null) {
     throw new Error('receipt join: missing association for the current owner delivery');
   }
+  return { association, receipt, receiptRow, contentRef, resultExpiresAtMs };
+}
+
+async function observeReceiptJoin(
+  input: SelectedReceiptJoinInput | OwnerSelectedReceiptJoinInput,
+  ownerExecution?: OwnerSelectedReceiptJoinInput,
+): Promise<SelectedReceiptJoinOutcome> {
+  const { recordId, field } = resolveJoinLocator(input.locator);
+  assertJoinSelected(input.selected);
+  assertDeliveryField(input.schema, input.model, field);
+  const readRevision = await input.store.readRevision();
+  await checkJoinFence(input, readRevision);
+  const owner = await input.store.load(input.model, recordId as RecordId);
+  if (owner === null) {
+    throw new StateError('not_found', 'Receipt owner record not found.');
+  }
+  if (ownerExecution !== undefined) {
+    checkOwnerExecutionBinding(input, owner, ownerExecution, recordId);
+  }
+  const { selectedVerdicts, revalidateAuthority } = await resolveJoinVerdicts(input, owner, field, ownerExecution);
+  const denied = [...selectedVerdicts].filter(([, allowed]) => !allowed).map(([property]) => property);
+  const grants: JoinGrantPort = {
+    mayObserve: (property, context) => context.field === field && selectedVerdicts.get(property) === true,
+  };
+  if (denied.length !== 0) {
+    await revalidateAuthority?.();
+    await assertReceiptReadRevision(input, readRevision);
+    return { outcome: 'denied', denied, readRevision };
+  }
+  const declaredContext = checkJoinDeclaration(input);
+  const delivery = readJoinDelivery(owner, field, input.declaredSource);
+  const { association, receipt, receiptRow, contentRef, resultExpiresAtMs } =
+    await loadJoinAssociation(input, recordId, field, delivery, declaredContext);
   const outcome = input.observeSelected({
     // The ORIGINAL locator: the mechanism re-validates it
     // authoritatively; the mirror above only loaded rows.

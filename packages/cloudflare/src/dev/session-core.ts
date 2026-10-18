@@ -349,7 +349,8 @@ export class DevSessionCore<T, P extends DevPreview> {
     return work;
   }
 
-  private async checkOne(expectedRevision: string | undefined, signal: AbortSignal, operationId: string): Promise<CheckPublication<T>> {
+  private async captureCheckInputs(expectedRevision: string | undefined,
+    signal: AbortSignal): Promise<{ inputs: DevInputs; revision: string } | { incomplete: CheckPublication<T> }> {
     if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
     // Never grow the runtime set while a previous build still needs release.
     await this.cleanupPending();
@@ -358,35 +359,41 @@ export class DevSessionCore<T, P extends DevPreview> {
       inputs = await this.refresh(signal);
     } catch (error) {
       if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
-      return { kind: "capture_incomplete", revision: this.revision() ?? "r0", error: errorText(error) };
+      return { incomplete: { kind: "capture_incomplete", revision: this.revision() ?? "r0", error: errorText(error) } };
     }
     const revision = this.revision() as string;
-    if (this.stopChecks.signal.aborted) return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
+    if (this.stopChecks.signal.aborted) {
+      return { incomplete: { kind: "superseded", revision, sourceRevision: inputs.sourceRevision } };
+    }
     if (expectedRevision !== undefined && revision !== expectedRevision) {
       throw new DevRevisionConflictError();
     }
     signal.throwIfAborted();
-    let check: DevCheck<T>;
+    return { inputs, revision };
+  }
+
+  private async runSourceCheck(inputs: DevInputs, revision: string,
+    operationId: string, signal: AbortSignal): Promise<{ check: DevCheck<T> } | { superseded: CheckPublication<T> }> {
     // A currently serving, successful check already owns this exact full-input
     // epoch. Reuse its immutable result after recapture; the ordinary final
     // currency fence below still runs. Failed/unserved/superseded checks miss.
     const retained = this.serving?.revision === revision ? this.history.get(revision) : undefined;
     const reusable = retained?.check.complete === true && retained.check.passed;
     this.phase(operationId, "checking_source", reusable ? "reusing_unchanged_check" : null);
-    try { check = reusable ? structuredClone(retained.check)
-      : await this.hooks.check(inputs, signal, subphase => this.phase(operationId, "checking_source", subphase)); }
+    try {
+      const check = reusable ? structuredClone(retained.check)
+        : await this.hooks.check(inputs, signal, subphase => this.phase(operationId, "checking_source", subphase));
+      return { check };
+    }
     catch (error) {
       if (this.stopChecks.signal.aborted && error === this.stopChecks.signal.reason) {
-        return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
+        return { superseded: { kind: "superseded", revision, sourceRevision: inputs.sourceRevision } };
       }
       throw error;
     }
-    if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
-    if (!(await this.stillCurrent(inputs, revision, signal))) {
-      if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
-      return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
-    }
-    signal.throwIfAborted();
+  }
+
+  private recordCheckedRevision(inputs: DevInputs, revision: string, check: DevCheck<T>): DevCheck<T> {
     const captured: DevCheck<T> = structuredClone(check);
     this.checkRevision = revision;
     this.history.set(revision, {
@@ -400,13 +407,35 @@ export class DevSessionCore<T, P extends DevPreview> {
     }
     this.dirty = false;
     this.lastPreviewReset = false;
+    return captured;
+  }
+
+  private async checkOne(expectedRevision: string | undefined, signal: AbortSignal, operationId: string): Promise<CheckPublication<T>> {
+    const captured = await this.captureCheckInputs(expectedRevision, signal);
+    if ("incomplete" in captured) return captured.incomplete;
+    const { inputs, revision } = captured;
+    const ran = await this.runSourceCheck(inputs, revision, operationId, signal);
+    if ("superseded" in ran) return ran.superseded;
+    const check = ran.check;
+    if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
+    if (!(await this.stillCurrent(inputs, revision, signal))) {
+      if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
+      return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
+    }
+    signal.throwIfAborted();
+    const recorded = this.recordCheckedRevision(inputs, revision, check);
     if (!check.complete || !check.passed) {
-      return { kind: "checked", revision, check: structuredClone(captured), preview: "unavailable" };
+      return { kind: "checked", revision, check: structuredClone(recorded), preview: "unavailable" };
     }
     if (this.serving?.revision === revision) {
-      return { kind: "checked", revision, check: structuredClone(captured), preview: "ready" };
+      return { kind: "checked", revision, check: structuredClone(recorded), preview: "ready" };
     }
 
+    return this.publishPreparedPreview(inputs, revision, check, recorded, operationId, signal);
+  }
+
+  private async publishPreparedPreview(inputs: DevInputs, revision: string, check: DevCheck<T>,
+    recorded: DevCheck<T>, operationId: string, signal: AbortSignal): Promise<CheckPublication<T>> {
     let prepared: P;
     try {
       this.phase(operationId, "preparing_preview");
@@ -414,7 +443,7 @@ export class DevSessionCore<T, P extends DevPreview> {
     } catch (error) {
       if (error instanceof DevCleanupError) this.pendingCleanup.add(error);
       signal.throwIfAborted();
-      return { kind: "build_failed", revision, check: structuredClone(captured), error: errorText(error) };
+      return { kind: "build_failed", revision, check: structuredClone(recorded), error: errorText(error) };
     }
     const current = !signal.aborted && await this.stillCurrent(inputs, revision, signal);
     if (!current || signal.aborted) {
@@ -428,7 +457,7 @@ export class DevSessionCore<T, P extends DevPreview> {
     catch (error) {
       this.pendingCleanup.add(prepared);
       try { await this.cleanupPending(); } catch { /* retained cleanup blocks later allocation */ }
-      return { kind: "build_failed", revision, check: structuredClone(captured), error: errorText(error) };
+      return { kind: "build_failed", revision, check: structuredClone(recorded), error: errorText(error) };
     }
     const old = this.serving;
     // A hint during preparation may have recaptured identical inputs.
@@ -445,7 +474,7 @@ export class DevSessionCore<T, P extends DevPreview> {
         cleanupError = errorText(error);
       }
     }
-    return { kind: "checked", revision, check: structuredClone(captured), preview: "ready",
+    return { kind: "checked", revision, check: structuredClone(recorded), preview: "ready",
       ...(cleanupError === undefined ? {} : { cleanupError }) };
   }
 

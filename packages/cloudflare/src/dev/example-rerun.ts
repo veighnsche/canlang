@@ -207,6 +207,8 @@ async function awaitAbortable<T>(start: () => Promise<T>, signal?: AbortSignal):
  * generated IDs, fresh D1 and ambient inputs still make this a rerun, not a
  * deterministic replay. The session owner should dispose this with its socket.
  */
+type RerunAvailability = Extract<Awaited<ReturnType<ExampleRerunPorts["resourcesReady"]>>, { available: true }>;
+
 export class ExampleRerunCoordinator {
   private readonly artifacts = new Map<string, RetainedArtifact>();
   private readonly failures = new Map<string, FailureRecord>();
@@ -323,39 +325,35 @@ export class ExampleRerunCoordinator {
     return structuredClone(record);
   }
 
-  async rerun(failureRef: string, signal?: AbortSignal,
-    completed?: (attempt: CompletedExampleRerunAttempt) => void): Promise<ExampleRerunResult> {
-    assertNotAborted(signal);
-    this.assertOpen();
-    this.prune();
-    const failure = this.failures.get(failureRef);
-    if (failure === undefined) return refusal("failure_unavailable", "failure reference is no longer retained");
-    const retained = this.artifacts.get(failure.artifact.artifactRef);
-    if (retained === undefined) return refusal("artifact_unavailable", "exact artifact was evicted or expired", failure.original);
-    const checkResources = () => awaitAbortable(() => this.ports.resourcesReady({
-      revision: retained.ref.revision,
-      sourceRevision: retained.ref.sourceRevision,
-      artifactDigest: retained.ref.artifactDigest,
-      fixtureRecipeId: retained.fixtureRecipeId,
-      runtimeProfileId: retained.runtimeProfileId,
-    }), signal);
+  private async checkRerunResources(retained: RetainedArtifact, failure: FailureRecord,
+    signal?: AbortSignal): Promise<{ available: RerunAvailability } | { refusal: ExampleRerunResult }> {
     let available: Awaited<ReturnType<ExampleRerunPorts["resourcesReady"]>>;
     try {
-      available = await checkResources();
+      available = await awaitAbortable(() => this.ports.resourcesReady({
+        revision: retained.ref.revision,
+        sourceRevision: retained.ref.sourceRevision,
+        artifactDigest: retained.ref.artifactDigest,
+        fixtureRecipeId: retained.fixtureRecipeId,
+        runtimeProfileId: retained.runtimeProfileId,
+      }), signal);
     } catch (error) {
       if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw abortError(signal);
-      return refusal("resource_unavailable", error instanceof Error ? error.message : String(error), failure.original);
+      return { refusal: refusal("resource_unavailable", error instanceof Error ? error.message : String(error), failure.original) };
     }
     assertNotAborted(signal);
-    if (!available.available) return refusal("resource_unavailable", available.reason, failure.original);
+    if (!available.available) {
+      return { refusal: refusal("resource_unavailable", available.reason, failure.original) };
+    }
+    return { available };
+  }
 
-    const runId = randomUUID();
-    let result: ExampleAttemptResult;
+  private async runSelectedAttempt(retained: RetainedArtifact, failure: FailureRecord, runId: string,
+    signal?: AbortSignal): Promise<{ result: ExampleAttemptResult } | { refusal: ExampleRerunResult }> {
     try {
       const runSelected = this.ports.runSelected ?? runCompiledExamples;
       // The selected-run producer owns its row scope. Await its abort-aware
       // promise through cleanup before releasing the session's serial queue.
-      result = await runSelected({
+      const result = await runSelected({
         ...retained.input,
         artifactBytes: Uint8Array.from(retained.input.artifactBytes),
         worker: { ...retained.input.worker,
@@ -366,19 +364,17 @@ export class ExampleRerunCoordinator {
         runId,
         ...(signal === undefined ? {} : { signal }),
       });
+      return { result };
     } catch (error) {
       if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw abortError(signal);
-      return refusal("rerun_incomplete", error instanceof Error ? error.message : String(error), failure.original);
+      return { refusal: refusal("rerun_incomplete", error instanceof Error ? error.message : String(error), failure.original) };
     }
-    assertNotAborted(signal);
-    try {
-      available = await checkResources();
-    } catch (error) {
-      if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw abortError(signal);
-      return refusal("resource_unavailable", error instanceof Error ? error.message : String(error), failure.original);
-    }
-    assertNotAborted(signal);
-    if (!available.available) return refusal("resource_unavailable", available.reason, failure.original);
+  }
+
+  private finishRerunAttempt(runId: string, result: ExampleAttemptResult, failure: FailureRecord,
+    retained: RetainedArtifact, available: RerunAvailability,
+    completed: ((attempt: CompletedExampleRerunAttempt) => void) | undefined,
+    signal?: AbortSignal): ExampleRerunResult {
     const row = oneRow(result.report, failure.selector);
     const example = result.report.cases[0];
     if (result.report.artifact.digest !== retained.ref.artifactDigest ||
@@ -413,6 +409,27 @@ export class ExampleRerunCoordinator {
       },
       replay,
     };
+  }
+
+  async rerun(failureRef: string, signal?: AbortSignal,
+    completed?: (attempt: CompletedExampleRerunAttempt) => void): Promise<ExampleRerunResult> {
+    assertNotAborted(signal);
+    this.assertOpen();
+    this.prune();
+    const failure = this.failures.get(failureRef);
+    if (failure === undefined) return refusal("failure_unavailable", "failure reference is no longer retained");
+    const retained = this.artifacts.get(failure.artifact.artifactRef);
+    if (retained === undefined) return refusal("artifact_unavailable", "exact artifact was evicted or expired", failure.original);
+    const pre = await this.checkRerunResources(retained, failure, signal);
+    if ("refusal" in pre) return pre.refusal;
+
+    const runId = randomUUID();
+    const ran = await this.runSelectedAttempt(retained, failure, runId, signal);
+    if ("refusal" in ran) return ran.refusal;
+    assertNotAborted(signal);
+    const post = await this.checkRerunResources(retained, failure, signal);
+    if ("refusal" in post) return post.refusal;
+    return this.finishRerunAttempt(runId, ran.result, failure, retained, post.available, completed, signal);
   }
 
   close(): void {

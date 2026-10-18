@@ -195,65 +195,80 @@ function parse(argv: string[]): ParsedArgs {
   if (!(COMMANDS as readonly string[]).includes(command)) {
     usage(`unknown command ${JSON.stringify(command)}`);
   }
-  let artifact: string | null = null;
-  let env: string | null = null;
-  let preview = false;
-  let yes = false;
-  let locale: string | null = null;
-  let backend: "ts" | "native" | null = null;
+  const flags: PlatformFlags = { artifact: null, env: null, preview: false, yes: false, locale: null, backend: null };
   for (let i = 0; i < rest.length; i += 1) {
-    const flag = rest[i];
-    if (flag === "--help" || flag === "-h") {
-      // `can {cmd} --help` passes through verbatim (L1 thin entries), so
-      // help is honored in subcommand position too — same envelope, exit 0.
-      process.stderr.write(`${USAGE_TEXT}\nDelegation target for thin 'can' entries.\n`);
-      emit({ ok: true, name: PLATFORM_CLI_NAME, version: PLATFORM_CLI_VERSION, usage: USAGE_TEXT });
-      process.exit(0);
-    }
-    if (flag === "--preview" || flag === "--yes") {
-      if (flag === "--preview") {
-        if (preview) usage("duplicate --preview");
-        preview = true;
-      } else {
-        if (yes) usage("duplicate --yes");
-        yes = true;
-      }
-      continue;
-    }
-    if (flag !== undefined && (flag === "--backend" || flag.startsWith("--backend="))) {
-      if (backend !== null) usage("duplicate --backend");
-      const taken = takeFlagValue(rest, i, "--backend");
-      i = taken.nextI;
-      if (taken.value !== "ts" && taken.value !== "native") {
-        usage(`--backend must be ts or native (got ${JSON.stringify(taken.value)})`);
-      }
-      backend = taken.value;
-      continue;
-    }
-    if (flag !== undefined && (flag === "--locale" || flag.startsWith("--locale="))) {
-      if (locale !== null) usage("duplicate --locale");
-      const taken = takeFlagValue(rest, i, "--locale");
-      i = taken.nextI;
-      if (taken.value.length === 0) usage("--locale needs a non-empty tag");
-      locale = taken.value;
-      continue;
-    }
-    if (flag === "--artifact" || flag === "--env") {
-      const taken = takeFlagValue(rest, i, flag);
-      i = taken.nextI;
-      if (flag === "--artifact") {
-        if (artifact !== null) usage("duplicate --artifact");
-        artifact = taken.value;
-      } else {
-        if (env !== null) usage("duplicate --env");
-        env = taken.value;
-      }
-    } else {
-      usage(`unexpected argument ${JSON.stringify(flag)}`);
-    }
+    i = parsePlatformFlag(rest, i, flags);
   }
+  const { artifact, env, preview, yes, backend, locale } = flags;
   validateCommandFlags(command, { artifact, env, preview, yes, backend, locale });
   return { command: command as PlatformCommand, artifact, env, preview, yes, backend, locale, genRequest: null };
+}
+
+interface PlatformFlags {
+  artifact: string | null;
+  env: string | null;
+  preview: boolean;
+  yes: boolean;
+  locale: string | null;
+  backend: "ts" | "native" | null;
+}
+
+function parseBackendFlag(rest: string[], i: number, flags: PlatformFlags): number | null {
+  const flag = rest[i];
+  if (flag === undefined || (flag !== "--backend" && !flag.startsWith("--backend="))) return null;
+  if (flags.backend !== null) usage("duplicate --backend");
+  const taken = takeFlagValue(rest, i, "--backend");
+  if (taken.value !== "ts" && taken.value !== "native") {
+    usage(`--backend must be ts or native (got ${JSON.stringify(taken.value)})`);
+  }
+  flags.backend = taken.value;
+  return taken.nextI;
+}
+
+function parseLocaleFlag(rest: string[], i: number, flags: PlatformFlags): number | null {
+  const flag = rest[i];
+  if (flag === undefined || (flag !== "--locale" && !flag.startsWith("--locale="))) return null;
+  if (flags.locale !== null) usage("duplicate --locale");
+  const taken = takeFlagValue(rest, i, "--locale");
+  if (taken.value.length === 0) usage("--locale needs a non-empty tag");
+  flags.locale = taken.value;
+  return taken.nextI;
+}
+
+function parsePlatformFlag(rest: string[], i: number, flags: PlatformFlags): number {
+  const flag = rest[i];
+  if (flag === "--help" || flag === "-h") {
+    // `can {cmd} --help` passes through verbatim (L1 thin entries), so
+    // help is honored in subcommand position too — same envelope, exit 0.
+    process.stderr.write(`${USAGE_TEXT}\nDelegation target for thin 'can' entries.\n`);
+    emit({ ok: true, name: PLATFORM_CLI_NAME, version: PLATFORM_CLI_VERSION, usage: USAGE_TEXT });
+    process.exit(0);
+  }
+  if (flag === "--preview" || flag === "--yes") {
+    if (flag === "--preview") {
+      if (flags.preview) usage("duplicate --preview");
+      flags.preview = true;
+    } else {
+      if (flags.yes) usage("duplicate --yes");
+      flags.yes = true;
+    }
+    return i;
+  }
+  const scalar = parseBackendFlag(rest, i, flags) ?? parseLocaleFlag(rest, i, flags);
+  if (scalar !== null) return scalar;
+  if (flag === "--artifact" || flag === "--env") {
+    const taken = takeFlagValue(rest, i, flag);
+    if (flag === "--artifact") {
+      if (flags.artifact !== null) usage("duplicate --artifact");
+      flags.artifact = taken.value;
+    } else {
+      if (flags.env !== null) usage("duplicate --env");
+      flags.env = taken.value;
+    }
+    return taken.nextI;
+  }
+  usage(`unexpected argument ${JSON.stringify(flag)}`);
+  return i;
 }
 
 /** Parse `gen` args: at most one `--request FILE`; stdin carries the request when bare. */

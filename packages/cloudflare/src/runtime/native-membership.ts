@@ -120,16 +120,15 @@ function ownObject(value: unknown, keys: readonly string[]): Record<string, unkn
   }
   return value as Record<string, unknown>;
 }
-function markerKey(value: unknown): string {
-  const selected = typeof value === 'object' && value !== null && Object.hasOwn(value, 'sourceCall');
-  const marker = ownObject(value, ['source', 'node', ...(selected ? ['sourceCall'] : [])]);
-  if (selected) {
-    const selection = ownObject(marker.sourceCall, ['siteIndex', 'callIndex']);
-    if (!Number.isSafeInteger(selection.siteIndex) || (selection.siteIndex as number) < 0 ||
-        !Number.isSafeInteger(selection.callIndex) || (selection.callIndex as number) < 0) {
-      return refuse('exact original site/call indices required.');
-    }
+function checkMarkerSelection(marker: Record<string, unknown>): void {
+  const selection = ownObject(marker.sourceCall, ['siteIndex', 'callIndex']);
+  if (!Number.isSafeInteger(selection.siteIndex) || (selection.siteIndex as number) < 0 ||
+      !Number.isSafeInteger(selection.callIndex) || (selection.callIndex as number) < 0) {
+    return refuse('exact original site/call indices required.');
   }
+}
+
+function checkMarkerSourceNode(marker: Record<string, unknown>): { source: Record<string, unknown>; node: Record<string, unknown> } {
   const source = ownObject(marker.source, ['path', 'sha256', 'module']);
   const node = ownObject(marker.node, ['start', 'end']);
   if (typeof source.path !== 'string' || source.path.length === 0 || source.path.length > 4096 ||
@@ -139,6 +138,14 @@ function markerKey(value: unknown): string {
       (node.start as number) < 0 || (node.end as number) <= (node.start as number)) {
     return refuse('exact emitted physical source/node required.');
   }
+  return { source, node };
+}
+
+function markerKey(value: unknown): string {
+  const selected = typeof value === 'object' && value !== null && Object.hasOwn(value, 'sourceCall');
+  const marker = ownObject(value, ['source', 'node', ...(selected ? ['sourceCall'] : [])]);
+  if (selected) checkMarkerSelection(marker);
+  const { source, node } = checkMarkerSourceNode(marker);
   return stableStringify({ source, node });
 }
 function binding(sites: readonly ScenarioReceiptMembershipSite[], handles: readonly Handle[]): Binding {
@@ -418,6 +425,21 @@ export function openNativeReadMembershipFrame(c: HandlerContext, read: Read, obs
 
 /** Generated facade only. No request context, Team id or physical marker can
  * create an execution lifetime or substitute for its actual captured values. */
+async function resolveMemberValue(frame: Frame, matches: Frame['binding']['occurrences'], person: UserRef, team: unknown): Promise<boolean> {
+  if (frame.dispatch !== undefined) {
+    if (frame.dispatch.observer === undefined || frame.dispatch.team === null) return refuse('original dispatch membership observer required.');
+    frame.dispatch.captured = { occurrence: matches[0]!, person, team: frame.dispatch.team };
+    return frame.dispatch.observer.evaluate({ site: matches[0]!.handle });
+  }
+  frame.captured = { occurrence: matches[0]!, person, team: frame.team! };
+  if (frame.call !== undefined) {
+    return frame.sourceSend !== undefined
+      ? evaluateScenarioReceiptSendMembership(frame.call, frame.store!, { site: matches[0]!.handle })
+      : evaluateScenarioReceiptMembership(frame.call, frame.store!, { site: matches[0]!.handle });
+  }
+  return evaluateReadPolicyMembership(frame.observation!, { site: matches[0]!.handle });
+}
+
 export async function active_member(c: HandlerContext, person: unknown, team: unknown,
   marker: NativeMembershipMarker): Promise<boolean> {
   const frame = checked(c);
@@ -438,19 +460,7 @@ export async function active_member(c: HandlerContext, person: unknown, team: un
         'ambiguous original occurrence: Compiler must lower the exact outer decision and derive call chain into the emitted membership marker.');
     }
     frame.pending = true;
-    let value: boolean;
-    if (frame.dispatch !== undefined) {
-      if (frame.dispatch.observer === undefined || frame.dispatch.team === null) return refuse('original dispatch membership observer required.');
-      frame.dispatch.captured = { occurrence: matches[0]!, person, team: frame.dispatch.team };
-      value = await frame.dispatch.observer.evaluate({ site: matches[0]!.handle });
-    } else {
-      frame.captured = { occurrence: matches[0]!, person, team: frame.team! };
-      value = frame.call !== undefined
-        ? frame.sourceSend !== undefined
-          ? await evaluateScenarioReceiptSendMembership(frame.call, frame.store!, { site: matches[0]!.handle })
-          : await evaluateScenarioReceiptMembership(frame.call, frame.store!, { site: matches[0]!.handle })
-        : await evaluateReadPolicyMembership(frame.observation!, { site: matches[0]!.handle });
-    }
+    const value = await resolveMemberValue(frame, matches, person, team);
     checked(c);
     if (frame.captured !== null || frame.dispatch?.captured != null) return refuse('State must consume actual arguments before yielding.');
     return value;
@@ -461,6 +471,23 @@ export async function active_member(c: HandlerContext, person: unknown, team: un
 /** Subject roles are current source-read decisions. The owning State reader
  * supplies its tracked MembershipReader and coherent replay; owner mutation
  * helpers cannot substitute an untracked directory or invent commit guards. */
+function checkSubjectPerson(subject: unknown, role: string): UserRef {
+  const person = ownObject(subject, ['kind', 'id']);
+  if (!isUserRef(subject) || !Object.isFrozen(subject) || person.kind !== 'user' ||
+      typeof role !== 'string' || role.length === 0 || role.length > 4096) {
+    return refuse('subject role requires its owning frozen Values user and exact role.');
+  }
+  return subject;
+}
+
+function checkSubjectCheckpoint(frame: Frame, observation: NonNullable<Frame['observation']>,
+  context: NonNullable<Frame['observation']>['context']): void {
+  if (observations.get(observation) !== frame || context.teamId !== (frame.team?.teamId ?? null) ||
+      observation.fence !== undefined && observation.fence.revision !== observation.revision) {
+    return refuse('subject role requires its exact original read/context/checkpoint.');
+  }
+}
+
 export async function nativeReadSubjectRole(c: HandlerContext, role: string, subject: unknown): Promise<boolean> {
   const frame = checked(c);
   try {
@@ -468,18 +495,11 @@ export async function nativeReadSubjectRole(c: HandlerContext, role: string, sub
       return refuse('subject hasRole requires its actual coherent State source-read policy context; owner mutation subject role ledger is unavailable.');
     }
     if (frame.pending || frame.captured !== null) return refuse('membership/role decisions must be awaited sequentially.');
-    const person = ownObject(subject, ['kind', 'id']);
-    if (!isUserRef(subject) || !Object.isFrozen(subject) || person.kind !== 'user' ||
-        typeof role !== 'string' || role.length === 0 || role.length > 4096) {
-      return refuse('subject role requires its owning frozen Values user and exact role.');
-    }
+    const userSubject = checkSubjectPerson(subject, role);
     const observation = frame.observation, context = observation.context;
-    if (observations.get(observation) !== frame || context.teamId !== (frame.team?.teamId ?? null) ||
-        observation.fence !== undefined && observation.fence.revision !== observation.revision) {
-      return refuse('subject role requires its exact original read/context/checkpoint.');
-    }
+    checkSubjectCheckpoint(frame, observation, context);
     frame.pending = true;
-    const answer = await stateSubjectRole(context, role, subject.id);
+    const answer = await stateSubjectRole(context, role, userSubject.id);
     checked(c);
     if (observations.get(observation) !== frame || frame.observation.context !== context ||
         context.teamId !== (frame.team?.teamId ?? null) ||

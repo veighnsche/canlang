@@ -211,12 +211,22 @@ function collectDirectives(directives: ReadonlyArray<MigrationDirective>): Colle
  * Fresh installs (installed null) never apply transitions — they take the
  * separate `freshInstallSnapshot` path.
  */
-export function validateTransition(
+interface TransitionHead {
+  readonly migrationId: string;
+  readonly owner: string;
+  readonly fromSnapshotId: string;
+  readonly fromDigest: string;
+  readonly toSnapshotId: string;
+  readonly toDigest: string;
+  readonly bodyDigest: string;
+  readonly renameOwners: MigrationTransition['directives'];
+  readonly dropOwners: MigrationTransition['directives'];
+}
+
+function checkTransitionHead(
   installed: InstalledSnapshot | null,
   plan: MigrationTransition,
-  oldModels: ModelTable,
-  desiredModels: ModelTable,
-): ValidatedMigrationPlan {
+): TransitionHead {
   if (typeof plan !== 'object' || plan === null || Array.isArray(plan)) {
     throw new StateError('validation', 'Migration plan must be an object.');
   }
@@ -230,6 +240,8 @@ export function validateTransition(
   if (!Array.isArray(plan.directives)) {
     throw new StateError('validation', 'Migration plan directives must be an array.');
   }
+  // HEAD validates headers/directives before refusing a null install:
+  // null+{} reaches the migrationId check, never the fresh-install refusal.
   if (installed === null) {
     throw new StateError(
       'validation',
@@ -272,9 +284,15 @@ export function validateTransition(
   if (dropOwners.length > 1) {
     throw new StateError('validation', 'Migration drops its owner more than once.');
   }
-  const collected = collectDirectives(plan.directives);
+  return { migrationId, owner, fromSnapshotId, fromDigest, toSnapshotId, toDigest, bodyDigest,
+    renameOwners, dropOwners };
+}
 
-  let ownerAction: ValidatedOwnerAction;
+function resolveOwnerAction(
+  installed: InstalledSnapshot,
+  owner: string,
+  renameOwners: MigrationTransition['directives'],
+): ValidatedOwnerAction {
   const renameOwner = renameOwners[0] as { from?: unknown } | undefined;
   if (renameOwner !== undefined) {
     const from = checkPlanString(renameOwner.from, 'renameOwner.from');
@@ -285,85 +303,96 @@ export function validateTransition(
           `${JSON.stringify(installed.owner)}.`,
       );
     }
-    ownerAction = Object.freeze({ kind: 'rename', from });
-  } else if (dropOwners.length > 0) {
-    if (owner !== installed.owner) {
-      throw new StateError(
-        'validation',
-        'Migration dropOwner headers must name the removed installed owner.',
-      );
-    }
-    for (const desired of desiredModels.keys()) {
-      if (ownerPrefixOf(desired as string) === owner) {
-        throw new StateError(
-          'validation',
-          `Migration drops owner ${JSON.stringify(owner)} but desired models still carry it.`,
-        );
-      }
-    }
-    if (
-      collected.renameModels.length > 0 ||
-      collected.dropModels.length > 0 ||
-      collected.renameFields.length > 0 ||
-      collected.dropFields.length > 0 ||
-      collected.backfills.length > 0
-    ) {
-      throw new StateError(
-        'validation',
-        'Migration dropOwner takes no model, field, or backfill directives.',
-      );
-    }
-    ownerAction = Object.freeze({ kind: 'drop' });
-    const models = new Map<ModelName, ValidatedModelMapping>();
-    for (const name of sortedNames(oldModels)) {
-      const def = oldModels.get(name as ModelName);
-      if (def === undefined) {
-        continue;
-      }
-      const fields = new Map<string, ValidatedFieldMapping>();
-      for (const field of Object.keys(def.fields)) {
-        fields.set(field, Object.freeze({ kind: 'drop' }));
-      }
-      models.set(
-        name as ModelName,
-        Object.freeze({
-          kind: 'drop',
-          target: null,
-          fields,
-          needsBackfill: false,
-          needsStaging: false,
-          hasFieldDrops: false,
-        }),
-      );
-    }
-    return freezePlan({
-      migrationId,
-      owner,
-      fromSnapshotId,
-      fromDigest,
-      toSnapshotId,
-      toDigest,
-      bodyDigest,
-      ownerAction,
-      models,
-      targets: new Map(),
-      newModels: sortedNames(desiredModels).map((name) => name as ModelName),
-      backfills: new Set(),
-      invalidates: [...new Set(collected.invalidates)].sort(),
-    });
-  } else {
-    if (owner !== installed.owner) {
-      throw new StateError(
-        'validation',
-        `Migration owner ${JSON.stringify(owner)} differs from installed owner ` +
-          `${JSON.stringify(installed.owner)} without a renameOwner directive.`,
-      );
-    }
-    ownerAction = Object.freeze({ kind: 'retain' });
+    return Object.freeze({ kind: 'rename', from });
   }
+  if (owner !== installed.owner) {
+    throw new StateError(
+      'validation',
+      `Migration owner ${JSON.stringify(owner)} differs from installed owner ` +
+        `${JSON.stringify(installed.owner)} without a renameOwner directive.`,
+    );
+  }
+  return Object.freeze({ kind: 'retain' });
+}
 
-  // Pass 1: source consumption (each old model retained, renamed, or
-  // dropped exactly once; a drop cannot also map the same source).
+function buildDropOwnerPlan(
+  installed: InstalledSnapshot,
+  head: TransitionHead,
+  collected: CollectedDirectives,
+  oldModels: ModelTable,
+  desiredModels: ModelTable,
+): ValidatedMigrationPlan {
+  const { migrationId, owner, fromSnapshotId, fromDigest, toSnapshotId, toDigest, bodyDigest } = head;
+  if (owner !== installed.owner) {
+    throw new StateError(
+      'validation',
+      'Migration dropOwner headers must name the removed installed owner.',
+    );
+  }
+  for (const desired of desiredModels.keys()) {
+    if (ownerPrefixOf(desired as string) === owner) {
+      throw new StateError(
+        'validation',
+        `Migration drops owner ${JSON.stringify(owner)} but desired models still carry it.`,
+      );
+    }
+  }
+  if (
+    collected.renameModels.length > 0 ||
+    collected.dropModels.length > 0 ||
+    collected.renameFields.length > 0 ||
+    collected.dropFields.length > 0 ||
+    collected.backfills.length > 0
+  ) {
+    throw new StateError(
+      'validation',
+      'Migration dropOwner takes no model, field, or backfill directives.',
+    );
+  }
+  const models = new Map<ModelName, ValidatedModelMapping>();
+  for (const name of sortedNames(oldModels)) {
+    const def = oldModels.get(name as ModelName);
+    if (def === undefined) {
+      continue;
+    }
+    const fields = new Map<string, ValidatedFieldMapping>();
+    for (const field of Object.keys(def.fields)) {
+      fields.set(field, Object.freeze({ kind: 'drop' }));
+    }
+    models.set(
+      name as ModelName,
+      Object.freeze({
+        kind: 'drop',
+        target: null,
+        fields,
+        needsBackfill: false,
+        needsStaging: false,
+        hasFieldDrops: false,
+      }),
+    );
+  }
+  return freezePlan({
+    migrationId,
+    owner,
+    fromSnapshotId,
+    fromDigest,
+    toSnapshotId,
+    toDigest,
+    bodyDigest,
+    ownerAction: Object.freeze({ kind: 'drop' }),
+    models,
+    targets: new Map(),
+    newModels: sortedNames(desiredModels).map((name) => name as ModelName),
+    backfills: new Set(),
+    invalidates: [...new Set(collected.invalidates)].sort(),
+  });
+}
+
+function consumeModelSources(
+  collected: CollectedDirectives,
+  oldModels: ModelTable,
+  desiredModels: ModelTable,
+): Map<string, SourceConsumption> {
   const consumedSources = new Map<string, SourceConsumption>();
   const consumeSource = (name: string, kind: SourceConsumption): void => {
     if (!oldModels.has(name as ModelName)) {
@@ -393,9 +422,15 @@ export function validateTransition(
       );
     }
   }
+  return consumedSources;
+}
 
-  // Pass 2: rename targets (each target at most one source; renaming onto
-  // a retained model is a collision).
+function resolveRenameTargets(
+  collected: CollectedDirectives,
+  oldModels: ModelTable,
+  desiredModels: ModelTable,
+  consumedSources: ReadonlyMap<string, SourceConsumption>,
+): { readonly renameTargets: Map<string, string>; readonly renameSources: Map<string, string> } {
   const renameTargets = new Map<string, string>();
   const renameSources = new Map<string, string>();
   for (const rename of collected.renameModels) {
@@ -422,90 +457,130 @@ export function validateTransition(
     renameTargets.set(rename.to, rename.from);
     renameSources.set(rename.from, rename.to);
   }
+  return { renameTargets, renameSources };
+}
 
-  // Pass 3: field directives (old-namespace models; each old field
-  // retained, renamed, or dropped exactly once).
-  const fieldConsumption = new Map<string, Map<string, FieldConsumption>>();
-  const fieldTargets = new Map<string, Map<string, string>>();
-  const consumedFieldsFor = (model: string): Map<string, FieldConsumption> => {
-    let fields = fieldConsumption.get(model);
-    if (fields === undefined) {
-      fields = new Map();
-      fieldConsumption.set(model, fields);
-    }
-    return fields;
-  };
-  const fieldTargetModel = (model: string): string => {
-    if (!oldModels.has(model as ModelName)) {
-      throw new StateError(
-        'validation',
-        `Migration field directive names unknown old model ${JSON.stringify(model)}.`,
-      );
-    }
-    if (consumedSources.get(model) === 'dropModel') {
-      throw new StateError(
-        'validation',
-        `Migration field directive targets dropped model ${JSON.stringify(model)}.`,
-      );
-    }
-    const resolved = renameSources.get(model) ?? model;
-    if (!desiredModels.has(resolved as ModelName)) {
-      throw new StateError(
-        'validation',
-        `Migration removes model ${JSON.stringify(model)} without a drop or rename.`,
-      );
-    }
-    return resolved;
-  };
-  const consumeField = (model: string, field: string, kind: FieldConsumption): void => {
-    const def = oldModels.get(model as ModelName);
-    if (def === undefined || !Object.hasOwn(def.fields, field)) {
-      throw new StateError(
-        'validation',
-        `Migration ${kind} names unknown old field ${JSON.stringify(field)} on model ` +
-          `${JSON.stringify(model)}.`,
-      );
-    }
-    const consumed = consumedFieldsFor(model);
-    const prior = consumed.get(field);
-    if (prior !== undefined) {
-      throw new StateError(
-        'validation',
-        `Migration handles old field ${JSON.stringify(model)}.${JSON.stringify(field)} twice ` +
-          `(${prior}, ${kind}).`,
-      );
-    }
-    consumed.set(field, kind);
-  };
+interface FieldConsumptionState {
+  readonly fieldConsumption: Map<string, Map<string, FieldConsumption>>;
+  readonly fieldTargets: Map<string, Map<string, string>>;
+}
+
+function consumedFieldsFor(
+  state: FieldConsumptionState,
+  model: string,
+): Map<string, FieldConsumption> {
+  let fields = state.fieldConsumption.get(model);
+  if (fields === undefined) {
+    fields = new Map();
+    state.fieldConsumption.set(model, fields);
+  }
+  return fields;
+}
+
+function fieldTargetModel(
+  oldModels: ModelTable,
+  desiredModels: ModelTable,
+  consumedSources: ReadonlyMap<string, SourceConsumption>,
+  renameSources: ReadonlyMap<string, string>,
+  model: string,
+): string {
+  if (!oldModels.has(model as ModelName)) {
+    throw new StateError(
+      'validation',
+      `Migration field directive names unknown old model ${JSON.stringify(model)}.`,
+    );
+  }
+  if (consumedSources.get(model) === 'dropModel') {
+    throw new StateError(
+      'validation',
+      `Migration field directive targets dropped model ${JSON.stringify(model)}.`,
+    );
+  }
+  const resolved = renameSources.get(model) ?? model;
+  if (!desiredModels.has(resolved as ModelName)) {
+    throw new StateError(
+      'validation',
+      `Migration removes model ${JSON.stringify(model)} without a drop or rename.`,
+    );
+  }
+  return resolved;
+}
+
+function consumeField(
+  oldModels: ModelTable,
+  state: FieldConsumptionState,
+  model: string,
+  field: string,
+  kind: FieldConsumption,
+): void {
+  const def = oldModels.get(model as ModelName);
+  if (def === undefined || !Object.hasOwn(def.fields, field)) {
+    throw new StateError(
+      'validation',
+      `Migration ${kind} names unknown old field ${JSON.stringify(field)} on model ` +
+        `${JSON.stringify(model)}.`,
+    );
+  }
+  const consumed = consumedFieldsFor(state, model);
+  const prior = consumed.get(field);
+  if (prior !== undefined) {
+    throw new StateError(
+      'validation',
+      `Migration handles old field ${JSON.stringify(model)}.${JSON.stringify(field)} twice ` +
+        `(${prior}, ${kind}).`,
+    );
+  }
+  consumed.set(field, kind);
+}
+
+function resolveFieldRename(
+  desiredModels: ModelTable,
+  state: FieldConsumptionState,
+  oldModels: ModelTable,
+  consumedSources: ReadonlyMap<string, SourceConsumption>,
+  renameSources: ReadonlyMap<string, string>,
+  rename: CollectedDirectives['renameFields'][number],
+): void {
+  const target = fieldTargetModel(oldModels, desiredModels, consumedSources, renameSources, rename.model);
+  consumeField(oldModels, state, rename.model, rename.from, 'renameField');
+  const desired = desiredModels.get(target as ModelName);
+  if (desired === undefined || !Object.hasOwn(desired.fields, rename.to)) {
+    throw new StateError(
+      'validation',
+      `Migration renameField maps to undeclared desired field ${JSON.stringify(rename.to)} ` +
+        `on model ${JSON.stringify(target)}.`,
+    );
+  }
+  let targets = state.fieldTargets.get(target);
+  if (targets === undefined) {
+    targets = new Map();
+    state.fieldTargets.set(target, targets);
+  }
+  const prior = targets.get(rename.to);
+  if (prior !== undefined) {
+    throw new StateError(
+      'validation',
+      `Migration target field ${JSON.stringify(target)}.${JSON.stringify(rename.to)} has two ` +
+        `sources (${JSON.stringify(prior)}, ${JSON.stringify(rename.from)}).`,
+    );
+  }
+  targets.set(rename.to, `${rename.model}.${rename.from}`);
+}
+
+function resolveFieldConsumption(
+  collected: CollectedDirectives,
+  oldModels: ModelTable,
+  desiredModels: ModelTable,
+  consumedSources: ReadonlyMap<string, SourceConsumption>,
+  renameSources: ReadonlyMap<string, string>,
+): FieldConsumptionState {
+  const state: FieldConsumptionState = { fieldConsumption: new Map(), fieldTargets: new Map() };
   for (const rename of collected.renameFields) {
-    const target = fieldTargetModel(rename.model);
-    consumeField(rename.model, rename.from, 'renameField');
-    const desired = desiredModels.get(target as ModelName);
-    if (desired === undefined || !Object.hasOwn(desired.fields, rename.to)) {
-      throw new StateError(
-        'validation',
-        `Migration renameField maps to undeclared desired field ${JSON.stringify(rename.to)} ` +
-          `on model ${JSON.stringify(target)}.`,
-      );
-    }
-    let targets = fieldTargets.get(target);
-    if (targets === undefined) {
-      targets = new Map();
-      fieldTargets.set(target, targets);
-    }
-    const prior = targets.get(rename.to);
-    if (prior !== undefined) {
-      throw new StateError(
-        'validation',
-        `Migration target field ${JSON.stringify(target)}.${JSON.stringify(rename.to)} has two ` +
-          `sources (${JSON.stringify(prior)}, ${JSON.stringify(rename.from)}).`,
-      );
-    }
-    targets.set(rename.to, `${rename.model}.${rename.from}`);
+    resolveFieldRename(desiredModels, state, oldModels, consumedSources, renameSources, rename);
   }
   for (const drop of collected.dropFields) {
-    const target = fieldTargetModel(drop.model);
-    consumeField(drop.model, drop.field, 'dropField');
+    const target = fieldTargetModel(oldModels, desiredModels, consumedSources, renameSources, drop.model);
+    consumeField(oldModels, state, drop.model, drop.field, 'dropField');
     const desired = desiredModels.get(target as ModelName);
     if (desired !== undefined && Object.hasOwn(desired.fields, drop.field)) {
       throw new StateError(
@@ -515,8 +590,16 @@ export function validateTransition(
       );
     }
   }
+  return state;
+}
 
-  // Pass 4: backfills (one per target model; the target needs a live source).
+function collectBackfills(
+  collected: CollectedDirectives,
+  oldModels: ModelTable,
+  desiredModels: ModelTable,
+  consumedSources: ReadonlyMap<string, SourceConsumption>,
+  renameTargets: ReadonlyMap<string, string>,
+): Set<string> {
   const backfills = new Set<string>();
   for (const name of collected.backfills) {
     if (!desiredModels.has(name as ModelName)) {
@@ -540,129 +623,234 @@ export function validateTransition(
     }
     backfills.add(name);
   }
+  return backfills;
+}
 
-  // Final sweep: build per-model mappings over every old model.
-  const models = new Map<ModelName, ValidatedModelMapping>();
-  const targets = new Map<ModelName, ModelName>();
-  for (const name of sortedNames(oldModels)) {
-    const def = oldModels.get(name as ModelName);
-    if (def === undefined) {
+interface ModelSweep {
+  readonly oldModels: ModelTable;
+  readonly desiredModels: ModelTable;
+  readonly collected: CollectedDirectives;
+  readonly consumedSources: ReadonlyMap<string, SourceConsumption>;
+  readonly renameSources: ReadonlyMap<string, string>;
+  readonly fieldConsumption: ReadonlyMap<string, ReadonlyMap<string, FieldConsumption>>;
+  readonly fieldTargets: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  readonly backfills: ReadonlySet<string>;
+}
+
+function mapRenamedField(
+  sweep: ModelSweep,
+  name: string,
+  field: string,
+  def: InterimModelDef,
+  desired: InterimModelDef,
+  consumedFields: ReadonlyMap<string, FieldConsumption>,
+  target: string,
+): ValidatedFieldMapping {
+  const rename = sweep.collected.renameFields.find(
+    (entry) => entry.model === name && entry.from === field,
+  );
+  if (rename === undefined) {
+    throw new StateError(
+      'validation',
+      `Migration lost the rename target for ${JSON.stringify(name)}.${JSON.stringify(field)}.`,
+    );
+  }
+  if (
+    rename.to !== field &&
+    Object.hasOwn(def.fields, rename.to) &&
+    !consumedFields.has(rename.to) &&
+    Object.hasOwn(desired.fields, rename.to)
+  ) {
+    throw new StateError(
+      'validation',
+      `Migration target field ${JSON.stringify(target)}.${JSON.stringify(rename.to)} ` +
+        `collides with the retained field.`,
+    );
+  }
+  return Object.freeze({ kind: 'rename', to: rename.to });
+}
+
+function mapModelFields(
+  sweep: ModelSweep,
+  name: string,
+  def: InterimModelDef,
+  desired: InterimModelDef,
+  target: string,
+): { readonly fields: Map<string, ValidatedFieldMapping>; readonly hasFieldDrops: boolean; readonly hasFieldRenames: boolean } {
+  const consumedFields = sweep.fieldConsumption.get(name) ?? new Map<string, FieldConsumption>();
+  const fields = new Map<string, ValidatedFieldMapping>();
+  let hasFieldDrops = false;
+  let hasFieldRenames = false;
+  for (const field of Object.keys(def.fields)) {
+    const handling = consumedFields.get(field);
+    if (handling === 'dropField') {
+      fields.set(field, Object.freeze({ kind: 'drop' }));
+      hasFieldDrops = true;
       continue;
     }
-    const consumed = consumedSources.get(name);
-    if (consumed === 'dropModel') {
-      const fields = new Map<string, ValidatedFieldMapping>();
-      for (const field of Object.keys(def.fields)) {
-        fields.set(field, Object.freeze({ kind: 'drop' }));
-      }
-      models.set(
-        name as ModelName,
-        Object.freeze({
-          kind: 'drop',
-          target: null,
-          fields,
-          needsBackfill: false,
-          needsStaging: false,
-          hasFieldDrops: false,
-        }),
-      );
+    if (handling === 'renameField') {
+      fields.set(field, mapRenamedField(sweep, name, field, def, desired, consumedFields, target));
+      hasFieldRenames = true;
       continue;
     }
-    const target = renameSources.get(name) ?? name;
-    if (!desiredModels.has(target as ModelName)) {
+    if (!Object.hasOwn(desired.fields, field)) {
       throw new StateError(
         'validation',
-        `Migration removes model ${JSON.stringify(name)} without a drop or rename.`,
+        `Migration removes field ${JSON.stringify(name)}.${JSON.stringify(field)} without ` +
+          `a drop or rename.`,
       );
     }
-    const desired = desiredModels.get(target as ModelName);
-    if (desired === undefined) {
+    fields.set(field, Object.freeze({ kind: 'retain' }));
+  }
+  return { fields, hasFieldDrops, hasFieldRenames };
+}
+
+function checkDesiredCoverage(
+  sweep: ModelSweep,
+  name: string,
+  def: InterimModelDef,
+  desired: InterimModelDef,
+  target: string,
+): void {
+  const consumedFields = sweep.fieldConsumption.get(name) ?? new Map<string, FieldConsumption>();
+  for (const desiredField of Object.keys(desired.fields)) {
+    const retainedSource =
+      Object.hasOwn(def.fields, desiredField) && !consumedFields.has(desiredField);
+    const renamedSource = sweep.fieldTargets.get(target)?.has(desiredField) === true;
+    if (!retainedSource && !renamedSource) {
       throw new StateError(
         'validation',
-        `Migration target ${JSON.stringify(target)} has no desired def.`,
+        `Migration leaves desired field ${JSON.stringify(target)}.${JSON.stringify(desiredField)} ` +
+          `without a source or backfill.`,
       );
     }
-    const consumedFields = fieldConsumption.get(name) ?? new Map<string, FieldConsumption>();
+  }
+}
+
+function buildSweptModel(
+  sweep: ModelSweep,
+  name: string,
+  models: Map<ModelName, ValidatedModelMapping>,
+  targets: Map<ModelName, ModelName>,
+): void {
+  const def = sweep.oldModels.get(name as ModelName);
+  if (def === undefined) {
+    return;
+  }
+  const consumed = sweep.consumedSources.get(name);
+  if (consumed === 'dropModel') {
     const fields = new Map<string, ValidatedFieldMapping>();
-    let hasFieldDrops = false;
-    let hasFieldRenames = false;
     for (const field of Object.keys(def.fields)) {
-      const handling = consumedFields.get(field);
-      if (handling === 'dropField') {
-        fields.set(field, Object.freeze({ kind: 'drop' }));
-        hasFieldDrops = true;
-        continue;
-      }
-      if (handling === 'renameField') {
-        const rename = collected.renameFields.find(
-          (entry) => entry.model === name && entry.from === field,
-        );
-        if (rename === undefined) {
-          throw new StateError(
-            'validation',
-            `Migration lost the rename target for ${JSON.stringify(name)}.${JSON.stringify(field)}.`,
-          );
-        }
-        if (
-          rename.to !== field &&
-          Object.hasOwn(def.fields, rename.to) &&
-          !consumedFields.has(rename.to) &&
-          Object.hasOwn(desired.fields, rename.to)
-        ) {
-          throw new StateError(
-            'validation',
-            `Migration target field ${JSON.stringify(target)}.${JSON.stringify(rename.to)} ` +
-              `collides with the retained field.`,
-          );
-        }
-        fields.set(field, Object.freeze({ kind: 'rename', to: rename.to }));
-        hasFieldRenames = true;
-        continue;
-      }
-      if (!Object.hasOwn(desired.fields, field)) {
-        throw new StateError(
-          'validation',
-          `Migration removes field ${JSON.stringify(name)}.${JSON.stringify(field)} without ` +
-            `a drop or rename.`,
-        );
-      }
-      fields.set(field, Object.freeze({ kind: 'retain' }));
+      fields.set(field, Object.freeze({ kind: 'drop' }));
     }
-    const needsBackfill = backfills.has(target);
-    if (!needsBackfill) {
-      for (const desiredField of Object.keys(desired.fields)) {
-        const retainedSource =
-          Object.hasOwn(def.fields, desiredField) && !consumedFields.has(desiredField);
-        const renamedSource = fieldTargets.get(target)?.has(desiredField) === true;
-        if (!retainedSource && !renamedSource) {
-          throw new StateError(
-            'validation',
-            `Migration leaves desired field ${JSON.stringify(target)}.${JSON.stringify(desiredField)} ` +
-              `without a source or backfill.`,
-          );
-        }
-      }
-    }
-    if (targets.has(target as ModelName)) {
-      throw new StateError(
-        'validation',
-        `Migration target ${JSON.stringify(target)} has two sources.`,
-      );
-    }
-    targets.set(target as ModelName, name as ModelName);
-    const kind: ValidatedModelKind = consumed === 'renameModel' ? 'rename' : 'retain';
     models.set(
       name as ModelName,
       Object.freeze({
-        kind,
-        target: target as ModelName,
+        kind: 'drop',
+        target: null,
         fields,
-        needsBackfill,
-        needsStaging: kind === 'rename' || needsBackfill || hasFieldDrops || hasFieldRenames,
-        hasFieldDrops,
+        needsBackfill: false,
+        needsStaging: false,
+        hasFieldDrops: false,
       }),
     );
+    return;
   }
+  const target = sweep.renameSources.get(name) ?? name;
+  if (!sweep.desiredModels.has(target as ModelName)) {
+    throw new StateError(
+      'validation',
+      `Migration removes model ${JSON.stringify(name)} without a drop or rename.`,
+    );
+  }
+  const desired = sweep.desiredModels.get(target as ModelName);
+  if (desired === undefined) {
+    throw new StateError(
+      'validation',
+      `Migration target ${JSON.stringify(target)} has no desired def.`,
+    );
+  }
+  const { fields, hasFieldDrops, hasFieldRenames } = mapModelFields(sweep, name, def, desired, target);
+  const needsBackfill = sweep.backfills.has(target);
+  if (!needsBackfill) {
+    checkDesiredCoverage(sweep, name, def, desired, target);
+  }
+  if (targets.has(target as ModelName)) {
+    throw new StateError(
+      'validation',
+      `Migration target ${JSON.stringify(target)} has two sources.`,
+    );
+  }
+  targets.set(target as ModelName, name as ModelName);
+  const kind: ValidatedModelKind = consumed === 'renameModel' ? 'rename' : 'retain';
+  models.set(
+    name as ModelName,
+    Object.freeze({
+      kind,
+      target: target as ModelName,
+      fields,
+      needsBackfill,
+      needsStaging: kind === 'rename' || needsBackfill || hasFieldDrops || hasFieldRenames,
+      hasFieldDrops,
+    }),
+  );
+}
+
+function buildModelMappings(
+  sweep: ModelSweep,
+): { readonly models: Map<ModelName, ValidatedModelMapping>; readonly targets: Map<ModelName, ModelName> } {
+  const models = new Map<ModelName, ValidatedModelMapping>();
+  const targets = new Map<ModelName, ModelName>();
+  for (const name of sortedNames(sweep.oldModels)) {
+    buildSweptModel(sweep, name, models, targets);
+  }
+  return { models, targets };
+}
+
+export function validateTransition(
+  installed: InstalledSnapshot | null,
+  plan: MigrationTransition,
+  oldModels: ModelTable,
+  desiredModels: ModelTable,
+): ValidatedMigrationPlan {
+  if (typeof plan !== 'object' || plan === null || Array.isArray(plan)) {
+    throw new StateError('validation', 'Migration plan must be an object.');
+  }
+  const head = checkTransitionHead(installed, plan);
+  // checkTransitionHead refuses a null install (fresh installs never apply
+  // transitions) after the header checks; the guard below only narrows the
+  // type for the passes that follow and is unreachable when null.
+  if (installed === null) {
+    throw new StateError(
+      'validation',
+      'Fresh installs never apply transitions; initialize the current schema directly.',
+    );
+  }
+  const collected = collectDirectives(plan.directives);
+  if (head.dropOwners.length > 0) {
+    return buildDropOwnerPlan(installed, head, collected, oldModels, desiredModels);
+  }
+  const ownerAction = resolveOwnerAction(installed, head.owner, head.renameOwners);
+
+  // Pass 1: source consumption (each old model retained, renamed, or
+  // dropped exactly once; a drop cannot also map the same source).
+  const consumedSources = consumeModelSources(collected, oldModels, desiredModels);
+
+  // Pass 2: rename targets (each target at most one source; renaming onto
+  // a retained model is a collision).
+  const { renameTargets, renameSources } = resolveRenameTargets(collected, oldModels, desiredModels, consumedSources);
+
+  // Pass 3: field directives (old-namespace models; each old field
+  // retained, renamed, or dropped exactly once).
+  const { fieldConsumption, fieldTargets } = resolveFieldConsumption(
+    collected, oldModels, desiredModels, consumedSources, renameSources);
+
+  // Pass 4: backfills (one per target model; the target needs a live source).
+  const backfills = collectBackfills(collected, oldModels, desiredModels, consumedSources, renameTargets);
+
+  // Final sweep: build per-model mappings over every old model.
+  const { models, targets } = buildModelMappings({ oldModels, desiredModels, collected, consumedSources,
+    renameSources, fieldConsumption, fieldTargets, backfills });
 
   const newModels: ModelName[] = [];
   for (const name of sortedNames(desiredModels)) {
@@ -672,13 +860,13 @@ export function validateTransition(
   }
 
   return freezePlan({
-    migrationId,
-    owner,
-    fromSnapshotId,
-    fromDigest,
-    toSnapshotId,
-    toDigest,
-    bodyDigest,
+    migrationId: head.migrationId,
+    owner: head.owner,
+    fromSnapshotId: head.fromSnapshotId,
+    fromDigest: head.fromDigest,
+    toSnapshotId: head.toSnapshotId,
+    toDigest: head.toDigest,
+    bodyDigest: head.bodyDigest,
     ownerAction,
     models,
     targets,

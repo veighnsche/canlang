@@ -24,39 +24,37 @@ export class ValueTypesError extends Error {
  * Model names come from the loader's same-load model declarations, never value contracts.
  * They permit reference shape validation only; the loader retains identity and authority checks.
  */
-export function normalizeValueTypes(inventory: unknown, modelNames: readonly string[] = []): {
-  readonly valueTypes: CanonicalValueTypes;
-  readonly valueSchema: NormalizedSchema;
-} {
-  const fail = (code: ValueTypesError["code"], message: string): never => { throw new ValueTypesError(code, message); };
-  const record = (value: unknown): value is Record<string, unknown> =>
-    typeof value === "object" && value !== null && !Array.isArray(value);
-  // The core admits only primitive bounds or a closed, flat money wire object.
-  // Detach objects before validation; malformed/nested bounds never publish.
-  const copyBound = (value: unknown): WireValue =>
-    record(value) ? Object.freeze({ ...value }) as WireValue : value as WireValue;
-  const keys = (value: object, expected: readonly string[]): boolean =>
-    Object.keys(value).length === expected.length && expected.every(key => Object.hasOwn(value, key));
-  if (!record(inventory) || !keys(inventory, ["contracts", ...(Object.hasOwn(inventory, "enums") ? ["enums"] : []), ...(Object.hasOwn(inventory, "aliases") ? ["aliases"] : [])]) ||
+type ValueTypesFail = (code: ValueTypesError["code"], message: string) => never;
+
+function isInventoryRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Exact own-key match for inventory descriptors. */
+function inventoryKeys(value: object, expected: readonly string[]): boolean {
+  return Object.keys(value).length === expected.length && expected.every(key => Object.hasOwn(value, key));
+}
+
+/** Inventory shape gate: contracts plus optional enums/aliases arrays. */
+function checkInventoryShape(inventory: unknown, fail: ValueTypesFail): asserts inventory is Record<string, unknown> {
+  if (!isInventoryRecord(inventory) || !inventoryKeys(inventory, ["contracts", ...(Object.hasOwn(inventory, "enums") ? ["enums"] : []), ...(Object.hasOwn(inventory, "aliases") ? ["aliases"] : [])]) ||
       !Array.isArray(inventory["contracts"]) || Object.hasOwn(inventory, "enums") && !Array.isArray(inventory["enums"]) ||
       Object.hasOwn(inventory, "aliases") && !Array.isArray(inventory["aliases"])) {
     return fail("malformed", "valueTypes requires contracts and optional enums declaration arrays.");
   }
-  const contractEntries = inventory["contracts"];
-  const enumEntries = inventory["enums"] as unknown[] | undefined ?? [];
-  const aliasEntries = inventory["aliases"] as unknown[] | undefined ?? [];
-  const aliases: Record<string, FieldDescriptor> = Object.create(null);
-  const contracts: Record<string, { fields: Record<string, FieldDescriptor> }> = Object.create(null);
-  const enums: Record<string, { cases: readonly string[] }> = Object.create(null);
+}
+
+/** Collect model and declaration names, refusing duplicates. */
+function collectDeclarationNames(
+  modelNames: readonly string[],
+  contractEntries: readonly unknown[],
+  enumEntries: readonly unknown[],
+  aliasEntries: readonly unknown[],
+  canonicalNominal: (name: unknown) => boolean,
+  fail: ValueTypesFail,
+): { names: Set<string>; models: Set<string> } {
   const names = new Set<string>();
   const models = new Set<string>();
-  const canonicalNominal = (name: unknown): name is string => {
-    if (typeof name !== "string") return false;
-    try {
-      const type = parseTypeId(name);
-      return type.base.kind === "nominal" && !type.array && !type.nullable && printTypeId(type) === name;
-    } catch { return false; }
-  };
   if (!Array.isArray(modelNames)) return fail("malformed", "valueTypes model context requires a model-name array.");
   for (const name of modelNames) {
     if (!canonicalNominal(name)) return fail("malformed", "valueTypes model context requires canonical bare nominal names.");
@@ -64,7 +62,7 @@ export function normalizeValueTypes(inventory: unknown, modelNames: readonly str
     models.add(name);
   }
   for (const declaration of [...contractEntries, ...enumEntries, ...aliasEntries]) {
-    if (!record(declaration) || typeof declaration["name"] !== "string" || !Object.hasOwn(declaration, "name")) {
+    if (!isInventoryRecord(declaration) || typeof declaration["name"] !== "string" || !Object.hasOwn(declaration, "name")) {
       return fail("malformed", "valueTypes requires own declaration names.");
     }
     const name = declaration["name"];
@@ -72,76 +70,171 @@ export function normalizeValueTypes(inventory: unknown, modelNames: readonly str
     if (names.has(name) || models.has(name)) return fail("duplicate", `Duplicate valueTypes declaration ${JSON.stringify(name)}.`);
     names.add(name);
   }
+  return { names, models };
+}
+
+/** Constraint-shape check plus frozen constraint copy for one field. */
+function readFieldConstraints(
+  field: Record<string, unknown>,
+  copyBound: (value: unknown) => WireValue,
+  fail: ValueTypesFail,
+): Record<string, unknown> {
+  if (["min", "max"].some(key => Object.hasOwn(field, key) && field[key] === undefined) ||
+      Object.hasOwn(field, "trim") && typeof field["trim"] !== "boolean" ||
+      Object.hasOwn(field, "format") && field["format"] !== "name" ||
+      Object.hasOwn(field, "distinctBy") && field["distinctBy"] !== "id" ||
+      Object.hasOwn(field, "excludedIds") && (!Array.isArray(field["excludedIds"]) || field["excludedIds"].some((entry: unknown) => typeof entry !== "string"))) {
+    return fail("malformed", "Invalid valueTypes field constraints.");
+  }
+  return {
+    ...(Object.hasOwn(field, "trim") ? { trim: field["trim"] as boolean } : {}),
+    ...(Object.hasOwn(field, "min") ? { min: copyBound(field["min"]) } : {}),
+    ...(Object.hasOwn(field, "max") ? { max: copyBound(field["max"]) } : {}),
+    ...(Object.hasOwn(field, "format") ? { format: "name" as const } : {}),
+    ...(Object.hasOwn(field, "distinctBy") ? { distinctBy: "id" as const } : {}),
+    ...(Object.hasOwn(field, "excludedIds") ? { excludedIds: Object.freeze(Array.from(field["excludedIds"] as string[])) } : {}),
+  };
+}
+
+/** Exact int bound strings for legacy numeric metadata; never via Number. */
+function readIntValueBounds(
+  parsed: ReturnType<typeof parseTypeId>,
+  field: Record<string, unknown>,
+  fail: ValueTypesFail,
+): { min?: string; max?: string } {
+  // Preserve exact scalar wire bounds. Legacy numeric int metadata can
+  // convert only while exact; never route full-int64 bounds through Number.
+  const valueBounds: { min?: string; max?: string } = {};
+  if (!parsed.array && parsed.base.kind === "scalar" && parsed.base.name === "int") {
+    for (const key of ["min", "max"] as const) if (Object.hasOwn(field, key) && typeof field[key] === "number") {
+      if (!Number.isSafeInteger(field[key])) return fail("malformed", "valueTypes int bounds require exact safe integers.");
+      valueBounds[key] = String(field[key]);
+    }
+  }
+  return valueBounds;
+}
+
+/** Validate one field declaration into its descriptor plus frozen copy. */
+function readValueTypesField(
+  field: unknown,
+  seen: ReadonlySet<string>,
+  declarations: ReadonlySet<string>,
+  models: ReadonlySet<string>,
+  copyBound: (value: unknown) => WireValue,
+  fail: ValueTypesFail,
+): { name: string; descriptor: FieldDescriptor; copied: CanonicalNominalLeaf } {
+  if (!isInventoryRecord(field) || !inventoryKeys(field, ["name", "type", ...["trim", "min", "max", "format", "distinctBy", "excludedIds"].filter(key => Object.hasOwn(field, key))]) || typeof field["name"] !== "string" ||
+      field["name"] === "" || typeof field["type"] !== "string") return fail("malformed", "Invalid valueTypes field.");
+  if (seen.has(field["name"])) return fail("duplicate", `Duplicate valueTypes field ${JSON.stringify(field["name"])}.`);
+  let parsed;
+  try {
+    parsed = parseTypeId(field["type"]);
+    if (printTypeId(parsed) !== field["type"]) throw new Error();
+  } catch { return fail("malformed", `Noncanonical valueTypes field ${JSON.stringify(field["name"])}.`); }
+  if (parsed.base.kind === "nominal" && !declarations.has(parsed.base.path) && !models.has(parsed.base.path)) {
+    return fail("dangling", `Undeclared valueTypes nominal ${JSON.stringify(parsed.base.path)}.`);
+  }
+  const constraints = readFieldConstraints(field, copyBound, fail);
+  const valueBounds = readIntValueBounds(parsed, field, fail);
+  const name = field["name"] as string;
+  return {
+    name,
+    descriptor: { type: field["type"], ...constraints, ...valueBounds } as FieldDescriptor,
+    copied: Object.freeze({ name, type: field["type"], ...constraints }),
+  };
+}
+
+/** Validate one contract declaration into descriptors plus frozen copy. */
+function readValueTypesContract(
+  declaration: unknown,
+  declarations: ReadonlySet<string>,
+  models: ReadonlySet<string>,
+  copyBound: (value: unknown) => WireValue,
+  fail: ValueTypesFail,
+): { name: string; fields: Record<string, FieldDescriptor>; copied: CanonicalValueTypes["contracts"][number] } {
+  if (!isInventoryRecord(declaration) || !inventoryKeys(declaration, ["name", "fields"]) || !Array.isArray(declaration["fields"])) {
+    return fail("malformed", "valueTypes contract requires an own fields array.");
+  }
+  const name = declaration["name"] as string;
+  const fields: Record<string, FieldDescriptor> = Object.create(null);
+  const copied: CanonicalNominalLeaf[] = [];
+  const seen = new Set<string>();
+  for (const field of declaration["fields"]) {
+    const read = readValueTypesField(field, seen, declarations, models, copyBound, fail);
+    seen.add(read.name);
+    fields[read.name] = read.descriptor;
+    copied.push(read.copied);
+  }
+  return { name, fields, copied: Object.freeze({ name, fields: Object.freeze(copied) }) };
+}
+
+/** Validate one enum declaration into its frozen cases. */
+function readValueTypesEnum(
+  declaration: unknown,
+  fail: ValueTypesFail,
+): { name: string; cases: readonly string[] } {
+  if (!isInventoryRecord(declaration) || !inventoryKeys(declaration, ["name", "cases"]) || !Array.isArray(declaration["cases"]) ||
+      declaration["cases"].some((entry: unknown) => typeof entry !== "string")) return fail("malformed", "Invalid valueTypes enum.");
+  const name = declaration["name"] as string;
+  return { name, cases: Object.freeze([...declaration["cases"]] as string[]) };
+}
+
+/** Validate one alias declaration into its bounded-text descriptor. */
+function readValueTypesAlias(
+  declaration: unknown,
+  fail: ValueTypesFail,
+): { name: string; descriptor: { readonly type: "text"; readonly min: number; readonly max: number; readonly format: "name" } } {
+  if (!isInventoryRecord(declaration) || !inventoryKeys(declaration, ["name", "type", "min", "max", "format"]) ||
+      declaration["type"] !== "text" || declaration["format"] !== "name" ||
+      typeof declaration["min"] !== "number" || typeof declaration["max"] !== "number") {
+    return fail("malformed", "valueTypes aliases require bounded text with NAME format.");
+  }
+  const name = declaration["name"] as string;
+  return { name, descriptor: { type: "text" as const, min: declaration["min"] as number, max: declaration["max"] as number, format: "name" as const } };
+}
+
+export function normalizeValueTypes(inventory: unknown, modelNames: readonly string[] = []): {
+  readonly valueTypes: CanonicalValueTypes;
+  readonly valueSchema: NormalizedSchema;
+} {
+  const fail: ValueTypesFail = (code, message): never => { throw new ValueTypesError(code, message); };
+  const record = isInventoryRecord;
+  // The core admits only primitive bounds or a closed, flat money wire object.
+  // Detach objects before validation; malformed/nested bounds never publish.
+  const copyBound = (value: unknown): WireValue =>
+    record(value) ? Object.freeze({ ...value }) as WireValue : value as WireValue;
+  const canonicalNominal = (name: unknown): name is string => {
+    if (typeof name !== "string") return false;
+    try {
+      const type = parseTypeId(name);
+      return type.base.kind === "nominal" && !type.array && !type.nullable && printTypeId(type) === name;
+    } catch { return false; }
+  };
+  checkInventoryShape(inventory, fail);
+  const contractEntries = inventory["contracts"] as unknown[];
+  const enumEntries = (inventory["enums"] as unknown[] | undefined) ?? [];
+  const aliasEntries = (inventory["aliases"] as unknown[] | undefined) ?? [];
+  const aliases: Record<string, FieldDescriptor> = Object.create(null);
+  const contracts: Record<string, { fields: Record<string, FieldDescriptor> }> = Object.create(null);
+  const enums: Record<string, { cases: readonly string[] }> = Object.create(null);
+  const { names, models } = collectDeclarationNames(modelNames, contractEntries, enumEntries, aliasEntries, canonicalNominal, fail);
   const copiedContracts: CanonicalValueTypes["contracts"][number][] = [];
   for (const declaration of contractEntries) {
-    if (!record(declaration) || !keys(declaration, ["name", "fields"]) || !Array.isArray(declaration["fields"])) {
-      return fail("malformed", "valueTypes contract requires an own fields array.");
-    }
-    const name = declaration["name"] as string;
-    const fields: Record<string, FieldDescriptor> = Object.create(null);
-    const copied: CanonicalNominalLeaf[] = [];
-    for (const field of declaration["fields"]) {
-      if (!record(field) || !keys(field, ["name", "type", ...["trim", "min", "max", "format", "distinctBy", "excludedIds"].filter(key => Object.hasOwn(field, key))]) || typeof field["name"] !== "string" ||
-          field["name"] === "" || typeof field["type"] !== "string") return fail("malformed", "Invalid valueTypes field.");
-      if (Object.hasOwn(fields, field["name"])) return fail("duplicate", `Duplicate valueTypes field ${JSON.stringify(field["name"])}.`);
-      let parsed;
-      try {
-        parsed = parseTypeId(field["type"]);
-        if (printTypeId(parsed) !== field["type"]) throw new Error();
-      } catch { return fail("malformed", `Noncanonical valueTypes field ${JSON.stringify(field["name"])}.`); }
-      if (parsed.base.kind === "nominal" && !names.has(parsed.base.path) && !models.has(parsed.base.path)) {
-        return fail("dangling", `Undeclared valueTypes nominal ${JSON.stringify(parsed.base.path)}.`);
-      }
-      if (["min", "max"].some(key => Object.hasOwn(field, key) && field[key] === undefined) ||
-          Object.hasOwn(field, "trim") && typeof field["trim"] !== "boolean" ||
-          Object.hasOwn(field, "format") && field["format"] !== "name" ||
-          Object.hasOwn(field, "distinctBy") && field["distinctBy"] !== "id" ||
-          Object.hasOwn(field, "excludedIds") && (!Array.isArray(field["excludedIds"]) || field["excludedIds"].some((entry: unknown) => typeof entry !== "string"))) {
-        return fail("malformed", "Invalid valueTypes field constraints.");
-      }
-      const constraints = {
-        ...(Object.hasOwn(field, "trim") ? { trim: field["trim"] as boolean } : {}),
-        ...(Object.hasOwn(field, "min") ? { min: copyBound(field["min"]) } : {}),
-        ...(Object.hasOwn(field, "max") ? { max: copyBound(field["max"]) } : {}),
-        ...(Object.hasOwn(field, "format") ? { format: "name" as const } : {}),
-        ...(Object.hasOwn(field, "distinctBy") ? { distinctBy: "id" as const } : {}),
-        ...(Object.hasOwn(field, "excludedIds") ? { excludedIds: Object.freeze(Array.from(field["excludedIds"] as string[])) } : {}),
-      };
-      // Preserve exact scalar wire bounds. Legacy numeric int metadata can
-      // convert only while exact; never route full-int64 bounds through Number.
-      const valueBounds: { min?: string; max?: string } = {};
-      if (!parsed.array && parsed.base.kind === "scalar" && parsed.base.name === "int") {
-        for (const key of ["min", "max"] as const) if (Object.hasOwn(field, key) && typeof field[key] === "number") {
-          if (!Number.isSafeInteger(field[key])) return fail("malformed", "valueTypes int bounds require exact safe integers.");
-          valueBounds[key] = String(field[key]);
-        }
-      }
-      fields[field["name"]] = { type: field["type"], ...constraints, ...valueBounds };
-      copied.push(Object.freeze({ name: field["name"], type: field["type"], ...constraints }));
-    }
-    contracts[name] = { fields };
-    copiedContracts.push(Object.freeze({ name, fields: Object.freeze(copied) }));
+    const read = readValueTypesContract(declaration, names, models, copyBound, fail);
+    contracts[read.name] = { fields: read.fields };
+    copiedContracts.push(read.copied);
   }
   const copiedEnums: NonNullable<CanonicalValueTypes["enums"]>[number][] = [];
   for (const declaration of enumEntries) {
-    if (!record(declaration) || !keys(declaration, ["name", "cases"]) || !Array.isArray(declaration["cases"]) ||
-        declaration["cases"].some((entry: unknown) => typeof entry !== "string")) return fail("malformed", "Invalid valueTypes enum.");
-    const name = declaration["name"] as string;
-    const cases = Object.freeze([...declaration["cases"]] as string[]);
-    enums[name] = { cases };
-    copiedEnums.push(Object.freeze({ name, cases }));
+    const read = readValueTypesEnum(declaration, fail);
+    enums[read.name] = { cases: read.cases };
+    copiedEnums.push(Object.freeze({ name: read.name, cases: read.cases }));
   }
   const copiedAliases: NonNullable<CanonicalValueTypes["aliases"]>[number][] = [];
   for (const declaration of aliasEntries) {
-    if (!record(declaration) || !keys(declaration, ["name", "type", "min", "max", "format"]) ||
-        declaration["type"] !== "text" || declaration["format"] !== "name" ||
-        typeof declaration["min"] !== "number" || typeof declaration["max"] !== "number") {
-      return fail("malformed", "valueTypes aliases require bounded text with NAME format.");
-    }
-    const name = declaration["name"] as string;
-    const descriptor = { type: "text" as const, min: declaration["min"], max: declaration["max"], format: "name" as const };
-    aliases[name] = descriptor;
-    copiedAliases.push(Object.freeze({ name, ...descriptor }));
+    const read = readValueTypesAlias(declaration, fail);
+    aliases[read.name] = read.descriptor;
+    copiedAliases.push(Object.freeze({ name: read.name, ...read.descriptor }));
   }
   let valueSchema: NormalizedSchema;
   try { valueSchema = normalizeSchema({ contracts, enums, ...(Object.hasOwn(inventory, "aliases") ? { aliases } : {}) }); }

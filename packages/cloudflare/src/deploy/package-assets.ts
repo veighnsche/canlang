@@ -244,50 +244,67 @@ export function gatherSavedUnitAssets(unitDir: string, manifest: Record<string, 
     throw savedUnitError(`cannot read unit directory ${JSON.stringify(unitDir)}: ${String(error)}`);
   }
   const rels = Object.keys(manifest).sort();
-  for (const rel of rels) {
-    if (rel.length === 0 || isAbsolute(rel) || rel.split("/").some((part) => part === "" || part === "." || part === "..") || rel.includes("\\")) {
-      throw savedUnitError(`manifest path ${JSON.stringify(rel)} must be a traversal-free unit-relative path`);
-    }
-    const expected: unknown = manifest[rel];
-    if (typeof expected !== "string" || !/^[a-f0-9]{64}$/.test(expected)) {
-      throw savedUnitError(`manifest entry ${JSON.stringify(rel)} expects malformed SHA-256 ${JSON.stringify(expected)}`);
-    }
-    if (SAVED_UNIT_RESERVED_FILES.has(rel)) {
-      throw savedUnitError(`manifest entry ${JSON.stringify(rel)} names a reserved primary/metadata file, not an asset`);
-    }
-  }
+  for (const rel of rels) assertManifestEntry(manifest, rel);
   const decoder = new TextDecoder("utf-8", { fatal: true });
   const modules: Record<string, string> = {};
   const resources: Record<string, PackageResource> = {};
   for (const rel of rels) {
-    const expected = manifest[rel] as string;
-    let bytes: Uint8Array;
-    try {
-      bytes = readContainedFile(root, join(root, rel));
-    } catch (error) {
-      throw savedUnitError(`cannot read ${JSON.stringify(rel)}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-    const actual = createHash("sha256").update(bytes).digest("hex");
-    if (actual !== expected) {
-      throw savedUnitError(`file ${JSON.stringify(rel)} changed (fingerprint mismatch): re-validate before gathering; refusing to gather changed bytes silently`);
-    }
-    const dot = rel.lastIndexOf(".");
-    const extension = dot >= 0 ? rel.slice(dot).toLowerCase() : "";
-    if (SAVED_UNIT_MODULE_EXTENSIONS.has(extension)) {
-      try {
-        modules[rel] = decoder.decode(bytes);
-      } catch {
-        throw savedUnitError(`module ${JSON.stringify(rel)} is not valid UTF-8`);
-      }
-      continue;
-    }
-    const contentType = SAVED_UNIT_RESOURCE_TYPES[extension];
-    if (contentType === undefined) {
-      throw savedUnitError(`file ${JSON.stringify(rel)} has an unadmitted extension ${JSON.stringify(extension)} (only unit-local .js/.mjs, CSS, images, fonts, and bytes gather as assets)`);
-    }
-    resources[rel] = { bytes, contentType };
+    gatherAsset(root, manifest[rel] as string, rel, decoder, modules, resources);
   }
   return { modules, resources };
+}
+
+function assertManifestEntry(manifest: Record<string, string>, rel: string): void {
+  if (rel.length === 0 || isAbsolute(rel) || rel.split("/").some((part) => part === "" || part === "." || part === "..") || rel.includes("\\")) {
+    throw savedUnitError(`manifest path ${JSON.stringify(rel)} must be a traversal-free unit-relative path`);
+  }
+  const expected: unknown = manifest[rel];
+  if (typeof expected !== "string" || !/^[a-f0-9]{64}$/.test(expected)) {
+    throw savedUnitError(`manifest entry ${JSON.stringify(rel)} expects malformed SHA-256 ${JSON.stringify(expected)}`);
+  }
+  if (SAVED_UNIT_RESERVED_FILES.has(rel)) {
+    throw savedUnitError(`manifest entry ${JSON.stringify(rel)} names a reserved primary/metadata file, not an asset`);
+  }
+}
+
+function readVerifiedAsset(root: string, rel: string, expected: string): Uint8Array {
+  let bytes: Uint8Array;
+  try {
+    bytes = readContainedFile(root, join(root, rel));
+  } catch (error) {
+    throw savedUnitError(`cannot read ${JSON.stringify(rel)}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const actual = createHash("sha256").update(bytes).digest("hex");
+  if (actual !== expected) {
+    throw savedUnitError(`file ${JSON.stringify(rel)} changed (fingerprint mismatch): re-validate before gathering; refusing to gather changed bytes silently`);
+  }
+  return bytes;
+}
+
+function gatherAsset(
+  root: string,
+  expected: string,
+  rel: string,
+  decoder: TextDecoder,
+  modules: Record<string, string>,
+  resources: Record<string, PackageResource>,
+): void {
+  const bytes = readVerifiedAsset(root, rel, expected);
+  const dot = rel.lastIndexOf(".");
+  const extension = dot >= 0 ? rel.slice(dot).toLowerCase() : "";
+  if (SAVED_UNIT_MODULE_EXTENSIONS.has(extension)) {
+    try {
+      modules[rel] = decoder.decode(bytes);
+    } catch {
+      throw savedUnitError(`module ${JSON.stringify(rel)} is not valid UTF-8`);
+    }
+    return;
+  }
+  const contentType = SAVED_UNIT_RESOURCE_TYPES[extension];
+  if (contentType === undefined) {
+    throw savedUnitError(`file ${JSON.stringify(rel)} has an unadmitted extension ${JSON.stringify(extension)} (only unit-local .js/.mjs, CSS, images, fonts, and bytes gather as assets)`);
+  }
+  resources[rel] = { bytes, contentType };
 }
 
 /** No assets are selected implicitly; package installation does not select WASM. */

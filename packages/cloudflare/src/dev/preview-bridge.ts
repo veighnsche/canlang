@@ -50,24 +50,52 @@ export interface ProtectedPreview {
 }
 
 /** Project the closed code and boolean retry policy; response prose and values are untrusted. */
+function htmlRefusal(response: Response, request: {
+  method: string; pathname: string; body: Buffer;
+}, contentType: string): { error: BusinessError } | null | undefined {
+  if (!(response.status >= 400 && request.method === "POST" &&
+      request.pathname.startsWith("/api/operations/") && contentType.startsWith("text/html"))) return undefined;
+  // HTML may contain the user's draft and credential-bearing controls. Only
+  // the owning handler's bounded metadata is eligible for observation.
+  const raw = response.headers.get(FORM_REFUSAL_HEADER);
+  if (raw === null || Buffer.byteLength(raw, "utf8") > 256) return null;
+  let metadata: unknown;
+  try { metadata = JSON.parse(raw); } catch { return null; }
+  if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const fields = metadata as Record<string, unknown>;
+  if (Object.keys(fields).sort().join(",") !== "code,retryable,version" || fields.version !== 1 ||
+      !isBusinessErrorCode(fields.code) || typeof fields.retryable !== "boolean") return null;
+  return { error: buildBusinessError(fields.code, undefined, { retryable: fields.retryable }) };
+}
+
+function mcpRefusal(root: Record<string, unknown>, response: Response, request: {
+  method: string; pathname: string; body: Buffer;
+}): { candidate: unknown; transport: "mcp" } | null {
+  // Success values and protocol errors are not business refusals. Match the
+  // owning tools/call envelope rather than interpreting arbitrary JSON.
+  if (response.status !== 200 || request.method !== "POST" || request.pathname !== "/mcp" ||
+      root.jsonrpc !== "2.0" || root.error !== undefined) return null;
+  let call: Record<string, unknown>;
+  try {
+    const raw: unknown = JSON.parse(request.body.toString("utf8"));
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+    call = raw as Record<string, unknown>;
+  } catch { return null; }
+  if (call.jsonrpc !== "2.0" || call.method !== "tools/call" ||
+      (typeof call.id !== "string" && !(typeof call.id === "number" && Number.isSafeInteger(call.id))) ||
+      root.id !== call.id) return null;
+  const result = root.result;
+  if (result === null || typeof result !== "object" || Array.isArray(result) ||
+      (result as Record<string, unknown>).isError !== true) return null;
+  return { candidate: (result as Record<string, unknown>).structuredContent, transport: "mcp" };
+}
+
 export function observedError(response: Response, body: Buffer, request: {
   method: string; pathname: string; body: Buffer;
 }): { error: BusinessError; transport?: "mcp" } | null {
   const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
-  if (response.status >= 400 && request.method === "POST" &&
-      request.pathname.startsWith("/api/operations/") && contentType.startsWith("text/html")) {
-    // HTML may contain the user's draft and credential-bearing controls. Only
-    // the owning handler's bounded metadata is eligible for observation.
-    const raw = response.headers.get(FORM_REFUSAL_HEADER);
-    if (raw === null || Buffer.byteLength(raw, "utf8") > 256) return null;
-    let metadata: unknown;
-    try { metadata = JSON.parse(raw); } catch { return null; }
-    if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) return null;
-    const fields = metadata as Record<string, unknown>;
-    if (Object.keys(fields).sort().join(",") !== "code,retryable,version" || fields.version !== 1 ||
-        !isBusinessErrorCode(fields.code) || typeof fields.retryable !== "boolean") return null;
-    return { error: buildBusinessError(fields.code, undefined, { retryable: fields.retryable }) };
-  }
+  const html = htmlRefusal(response, request, contentType);
+  if (html !== undefined) return html;
   if (body.length === 0 || body.length > MAX_OBSERVED_ERROR_BYTES ||
       !contentType.startsWith("application/json")) return null;
   let parsed: unknown;
@@ -78,24 +106,9 @@ export function observedError(response: Response, body: Buffer, request: {
   let transport: "mcp" | undefined;
   if (response.status >= 400) candidate = root.error ?? root;
   else {
-    // Success values and protocol errors are not business refusals. Match the
-    // owning tools/call envelope rather than interpreting arbitrary JSON.
-    if (response.status !== 200 || request.method !== "POST" || request.pathname !== "/mcp" ||
-        root.jsonrpc !== "2.0" || root.error !== undefined) return null;
-    let call: Record<string, unknown>;
-    try {
-      const raw: unknown = JSON.parse(request.body.toString("utf8"));
-      if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
-      call = raw as Record<string, unknown>;
-    } catch { return null; }
-    if (call.jsonrpc !== "2.0" || call.method !== "tools/call" ||
-        (typeof call.id !== "string" && !(typeof call.id === "number" && Number.isSafeInteger(call.id))) ||
-        root.id !== call.id) return null;
-    const result = root.result;
-    if (result === null || typeof result !== "object" || Array.isArray(result) ||
-        (result as Record<string, unknown>).isError !== true) return null;
-    candidate = (result as Record<string, unknown>).structuredContent;
-    transport = "mcp";
+    const refusal = mcpRefusal(root, response, request);
+    if (refusal === null) return null;
+    ({ candidate, transport } = refusal);
   }
   if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) return null;
   const error = candidate as Record<string, unknown>;
@@ -245,50 +258,52 @@ export async function startProtectedPreview(
     const abort = (): void => controller.abort();
     active.add(controller);
     reply.once("close", abort);
-    void (async () => {
-      const raw = request.url ?? "";
+    const resolveRequestUrl = (raw: string): URL | null => {
       if (!raw.startsWith("/") || raw.startsWith("//")) {
         sendRefusal(reply, 400, "invalid_preview_path");
-        return;
+        return null;
       }
       let url: URL;
       try {
         url = new URL(raw, origin);
       } catch {
         sendRefusal(reply, 400, "invalid_preview_path");
-        return;
+        return null;
       }
       if (url.origin !== origin) {
         sendRefusal(reply, 400, "invalid_preview_path");
-        return;
+        return null;
       }
       if (request.headers.host !== new URL(origin).host) {
         sendRefusal(reply, 400, "invalid_preview_host");
-        return;
+        return null;
       }
-      const method = (request.method ?? "GET").toUpperCase();
-      if (url.pathname === BOOTSTRAP_PATH) {
-        const token = url.searchParams.get("token");
-        const valid = method === "GET" && token !== null && url.searchParams.size === 1 &&
-          pending !== null && pending.expiresAt > now() && digest(token) === pending.hash;
-        if (!valid) {
-          sendRefusal(reply, 403, "invalid_preview_bootstrap");
-          return;
-        }
-        pending = null; // Consumed before any asynchronous work.
-        prune();
-        const cookie = randomBytes(32).toString("base64url");
-        if (cookies.size >= MAX_COOKIES) cookies.delete(cookies.keys().next().value!);
-        cookies.set(digest(cookie), now() + cookieTtlMs);
-        reply.writeHead(303, {
-          "cache-control": "no-store",
-          "location": "/",
-          "referrer-policy": "no-referrer",
-          "set-cookie": `${PREVIEW_COOKIE}=${cookie}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.ceil(cookieTtlMs / 1000)}`,
-        });
-        reply.end();
-        return;
+      return url;
+    };
+    const serveBootstrap = (url: URL, method: string): boolean => {
+      if (url.pathname !== BOOTSTRAP_PATH) return false;
+      const token = url.searchParams.get("token");
+      const valid = method === "GET" && token !== null && url.searchParams.size === 1 &&
+        pending !== null && pending.expiresAt > now() && digest(token) === pending.hash;
+      if (!valid) {
+        sendRefusal(reply, 403, "invalid_preview_bootstrap");
+        return true;
       }
+      pending = null; // Consumed before any asynchronous work.
+      prune();
+      const cookie = randomBytes(32).toString("base64url");
+      if (cookies.size >= MAX_COOKIES) cookies.delete(cookies.keys().next().value!);
+      cookies.set(digest(cookie), now() + cookieTtlMs);
+      reply.writeHead(303, {
+        "cache-control": "no-store",
+        "location": "/",
+        "referrer-policy": "no-referrer",
+        "set-cookie": `${PREVIEW_COOKIE}=${cookie}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.ceil(cookieTtlMs / 1000)}`,
+      });
+      reply.end();
+      return true;
+    };
+    const relayWorkerResponse = async (url: URL, method: string): Promise<void> => {
       prune();
       const cookie = previewCookie(request);
       if (cookie === null || !cookies.has(digest(cookie))) {
@@ -326,6 +341,13 @@ export async function startProtectedPreview(
           }
         }
       }
+    };
+    void (async () => {
+      const url = resolveRequestUrl(request.url ?? "");
+      if (url === null) return;
+      const method = (request.method ?? "GET").toUpperCase();
+      if (serveBootstrap(url, method)) return;
+      await relayWorkerResponse(url, method);
     })().catch(() => {
       if (closed || controller.signal.aborted || reply.destroyed) reply.destroy();
       else if (!reply.headersSent) sendRefusal(reply, 502, "preview_dispatch_failed");
