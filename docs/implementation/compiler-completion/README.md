@@ -72,6 +72,25 @@ Focused compiler/runtime checks and package typechecks passed; unchanged results
 are reused. This accepts the two-operation witness, not the whole application
 or its latency.
 
+**Measured runtime waste repair (2026-10-18).** One original `record_payable`
+operation in the existing D1 harness fell from **59.99s to 10.36s** with the same
+corrected counters/CPU profiling, compiled artifact, inputs and setup. Compilation
+was separately 1.73s and reused for the comparison. The baseline repeatedly
+prepared/bound the identical fence SELECT 5,146 times (9.76s/9.54s), with additional
+synchronous executor/method lookup cost; CPU samples attribute 44.31s to revision
+query RPC. State now retains only the fixed prepared query/executor per exact D1
+handle. It is prepared once during setup; all **5,146 fresh revision executions**,
+**222 source-policy evaluations** and **674 complete assembly verifications**
+remain. Closure verification plus artifact comparison cost only 2.67s before the
+change and were left intact. No revisions, policy answers or failures are cached.
+The same compiled operation and three focused D1 checks pass: live changes,
+concurrent reads/handle isolation, failed-read recovery, cohort revision races
+and concurrent commits. TypeScript emit/typecheck passes. Temporary instrumentation
+and scratch were removed. Reuse the prior full-workflow, tamper and authority
+results; the 1128.71s workflow was not repeated, so no full-suite or hosted-latency
+speedup is claimed. Remaining checkpoints/policy recursion are not thereby proved
+redundant. No new branch, worktree, dependency tree or Muse session was created.
+
 ## Remaining roots, owners and finite exits
 
 The headings below group the existing outcomes; they are not new task IDs. An unresolved discriminator is labeled as diagnosis, not promoted into a proven root cause.

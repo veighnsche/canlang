@@ -185,11 +185,17 @@ async function checkWriteVersions(db: D1Database, batch: CommitBatch): Promise<v
   }
 }
 
+// Only fixed SQL/bindings and their private executor are reused. Every call
+// still reads the live fence; neither revisions nor failures are cached.
+const revisionQueries = new WeakMap<D1Database, () => Promise<{ revision: number } | null>>();
 async function readRevisionInner(db: D1Database): Promise<Revision> {
-  const row = await db
-    .prepare('SELECT revision FROM fence WHERE id = ?')
-    .bind(FENCE_ROW_ID)
-    .first<{ revision: number }>();
+  let read = revisionQueries.get(db);
+  if (read === undefined) {
+    const statement = db.prepare('SELECT revision FROM fence WHERE id = ?').bind(FENCE_ROW_ID);
+    read = (statement.first<{ revision: number }>).bind(statement);
+    revisionQueries.set(db, read);
+  }
+  const row = await read();
   if (row === null) {
     throw new Error('schema not initialized: fence row is missing (run ensureSchema first)');
   }

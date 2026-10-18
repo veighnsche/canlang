@@ -147,6 +147,42 @@ async function d1Setup(): Promise<ConformanceSetup> {
 storageConformance('d1', d1Setup);
 
 describe('d1 adapter proofs', () => {
+  it('reuses only the fixed revision query while observing live changes, failures and database handles', async () => {
+    await resetD1();
+    const counted = () => {
+      const counts = { prepare: 0, bind: 0, method: 0, execute: 0 };
+      const handle = { prepare(sql: string) {
+        counts.prepare++;
+        assert.equal(sql, 'SELECT revision FROM fence WHERE id = ?');
+        const statement = db.prepare(sql);
+        return { bind(...values: unknown[]) {
+          counts.bind++;
+          const bound = statement.bind(...values);
+          return { get first() {
+            counts.method++;
+            return () => { counts.execute++; return bound.first<{ revision: number }>(); };
+          } };
+        } };
+      } } as unknown as D1Database;
+      return { handle, counts };
+    };
+    const original = counted(), other = counted();
+    const a = createD1Storage(original.handle), b = createD1Storage(original.handle);
+    try {
+      assert.equal(await a.readRevision(), 0);
+      assert.equal(await b.readRevision(), 0);
+      await db.prepare('UPDATE fence SET revision = 1 WHERE id = 1').run();
+      assert.deepEqual(await Promise.all([a.readRevision(), b.readRevision()]), [1, 1]);
+      assert.equal(await createD1Storage(other.handle).readRevision(), 1);
+      await db.prepare('DELETE FROM fence WHERE id = 1').run();
+      await assert.rejects(a.readRevision(), /fence row is missing/);
+      await db.prepare('INSERT INTO fence (id, revision) VALUES (1, 2)').run();
+      assert.equal(await a.readRevision(), 2, 'a failed execution does not cache its error or a stale revision');
+      assert.deepEqual(original.counts, { prepare: 1, bind: 1, method: 1, execute: 6 });
+      assert.deepEqual(other.counts, { prepare: 1, bind: 1, method: 1, execute: 1 });
+    } finally { await resetD1(); }
+  });
+
   it('cohort reads refuse a genuine revision race before decoding retained data', async () => {
     const model = asModel('t.CohortRace');
     const id = asId('race-row');

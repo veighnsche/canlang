@@ -18790,3 +18790,16 @@ pass; the owner-session loss test was corrected to mutate the store-scoped
 registry actually consumed by the runtime and still refuses before writes/receipt.
 This is a two-operation batch, not whole CanCRM completion. Muse stays stopped;
 implementation remains on main with no new worktree or branch.
+
+
+## 2026-10-18 — reuse fixed D1 revision query preparation
+
+Retain the constant fence SELECT, its fixed row binding and private executor in a
+WeakMap keyed by the exact D1 database handle. Every checkpoint still executes
+against the live database; revisions, failures and authority are never cached.
+Measured repeated preparation/binding/executor lookup dominated a representative
+compiled-Can operation; assembly verification did not. Preserve all current
+revision/Identity/fence/error/replay ordering rather than removing checks. The
+existing compiler completion record contains the before/after measurements and
+three focused passing D1 checks. Full-workflow and hosted latency remain unmeasured
+after this change; unchanged source/permission/rollback qualification is reused.
