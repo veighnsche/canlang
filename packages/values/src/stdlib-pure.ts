@@ -40,6 +40,7 @@ import type {
   MoneyValue,
   RecordRef,
 } from "@canlang/contracts/values";
+import { NOT_ROUTED, routeExact } from "../bindings/exact-route.js";
 import { sumDecimal, sumDuration, sumInt, sumMoney } from "./array.js";
 import type { Decimal } from "./decimal.js";
 import { absDecimal, isDecimal } from "./decimal.js";
@@ -90,6 +91,17 @@ export function sum(
   if (element !== "money" && currency !== undefined) {
     throw new ValueError("invalid-construction", "sum currency applies only to money elements");
   }
+  // Admission (element, domain, currency arity) runs first under the
+  // original contract; only admitted calls reach the selected backend, with
+  // the same one-or-two-argument shape the native dispatch expects.
+  const routedSum = routeExact<bigint | DecimalValue | MoneyValue>(
+    element === "int" ? "sum-int"
+      : element === "decimal" ? "sum-decimal"
+      : element === "duration" ? "sum-duration"
+      : "sum-money",
+    element === "money" && currency !== undefined ? [domain, currency] : [domain],
+  );
+  if (routedSum !== NOT_ROUTED) return routedSum;
   switch (element) {
     case "int":
       return sumInt(domain as ReadonlyArray<bigint>);
@@ -115,12 +127,20 @@ export function sum(
  */
 export function abs(value: bigint | DecimalValue | MoneyValue): bigint | DecimalValue | MoneyValue {
   if (typeof value === "bigint") {
+    // Durations share the int runtime tag and route through absInt here,
+    // exactly like the canonical path below.
+    const routedAbs = routeExact<bigint>("abs-int", [value]);
+    if (routedAbs !== NOT_ROUTED) return routedAbs;
     return absInt(value);
   }
   if (isDecimal(value)) {
+    const routedAbs = routeExact<DecimalValue>("abs-decimal", [value]);
+    if (routedAbs !== NOT_ROUTED) return routedAbs;
     return absDecimal(value);
   }
   if (isMoney(value)) {
+    const routedAbs = routeExact<MoneyValue>("abs-money", [value]);
+    if (routedAbs !== NOT_ROUTED) return routedAbs;
     return absMoney(value);
   }
   throw new ValueError(

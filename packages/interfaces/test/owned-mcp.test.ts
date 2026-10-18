@@ -26,6 +26,12 @@ import { catalogFromArtifactOperations } from '../src/http/operations.js';
 import { prepareMcpPlan, runPreparedMcpPlan } from '../src/mcp/prepared.js';
 import type { PreparedMcpPlan } from '../src/mcp/prepared.js';
 import { createMcpHandler } from '../src/mcp/server.js';
+import {
+  OwnedInputError,
+  OwnedJsonToken,
+  ownedJsonValue,
+  parseOwnedJsonBody,
+} from '@canlang/values/bindings/owned-input';
 import { registryFromArtifactOperations } from '../src/mcp/tools.js';
 import {
   createTestApp,
@@ -307,4 +313,39 @@ test('bounded ref-array component preserves real/prepared MCP wire admission and
   const indexed = runPreparedMcpPlan(plan, { operation_id: freshOperationId(), customer: { id: 'customer' }, owner: [ref, { id: 'bad', version: 2 }] });
   assert.ok(!indexed.ok);
   assert.equal(indexed.error.fields?.[0]?.path, '/owner/1/version');
+});
+
+test('ordinary-MCP action admits genuine parser-owned arguments at original scope', async (t) => {
+  const plan = testPlan('Billing.Invoice.issue');
+  const id = freshOperationId();
+  const plain = { operation_id: id, ...VALID_MUTATION };
+  const bytes = new TextEncoder().encode(JSON.stringify(plain));
+  const token = await parseOwnedJsonBody(
+    new Request('http://owned.test/input', { method: 'POST', body: JSON.stringify(plain) }),
+    async () => bytes,
+  );
+  const owned = ownedJsonValue(token);
+  assert.ok(Object.isFrozen(owned), 'parser output stays frozen');
+  const viaToken = runPreparedMcpPlan(plan, token);
+  const viaPlain = runPreparedMcpPlan(plan, plain);
+  assert.deepEqual(viaToken, viaPlain);
+  assert.equal(viaToken.ok, true);
+  if (viaToken.ok) {
+    // Same action scope, same operation_id, verbatim business inputs.
+    assert.equal(viaToken.operation_id, id);
+    assert.deepEqual(viaToken.inputs, VALID_MUTATION);
+    assert.notStrictEqual(viaToken.inputs, owned);
+  }
+  // Forged tokens refuse at lineage resolution, never as plan outcomes.
+  assert.throws(
+    () => runPreparedMcpPlan(plan, new OwnedJsonToken()),
+    (error: unknown) => error instanceof OwnedInputError,
+  );
+  // Non-object resolutions are caller misuse.
+  const scalarBytes = new TextEncoder().encode('"nope"');
+  const scalar = await parseOwnedJsonBody(
+    new Request('http://owned.test/input', { method: 'POST', body: '"nope"' }),
+    async () => scalarBytes,
+  );
+  assert.throws(() => runPreparedMcpPlan(plan, scalar), /must resolve to an object/);
 });

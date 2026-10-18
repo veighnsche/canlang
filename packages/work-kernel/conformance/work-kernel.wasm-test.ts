@@ -325,6 +325,396 @@ describe('work-kernel full-family TS=Wasm differential', () => {
     // eslint-disable-next-line no-console
     console.log(JSON.stringify({ ran: Object.fromEntries(Object.entries(ran).map(([k, v]) => [k, v.length])), skipped }));
   });
+describe('WORK-CRITICAL-009 demanded-read and identity traces', () => {
+  function parity(
+    name: string,
+    build: () => unknown[],
+    invoke: (kernel: WorkKernel, args: unknown[]) => unknown,
+    extra?: (tsArgs: unknown[], wasmArgs: unknown[], tsOut: unknown, wasmOut: unknown) => void,
+    // Cross-side deep comparison is skipped when outputs hold per-side
+    // references (functions) or throwing getters: `extra` checks those.
+    skipDeep?: boolean,
+  ): void {
+    it(name, () => {
+      const tsArgs = build();
+      const wasmArgs = build();
+      let tsOut: unknown = null;
+      let wasmOut: unknown = null;
+      let tsThrew: unknown = null;
+      let wasmThrew: unknown = null;
+      try {
+        tsOut = invoke(tsKernel, tsArgs);
+      } catch (error) { tsThrew = error; }
+      try {
+        wasmOut = invoke(wasmKernel, wasmArgs);
+      } catch (error) { wasmThrew = error; }
+      assert.equal(wasmThrew !== null, tsThrew !== null, `${name}: throw parity`);
+      if (tsThrew !== null) {
+        const t = faultOf(tsThrew);
+        const w = faultOf(wasmThrew);
+        assert.equal(w.name, t.name, `${name}: fault name`);
+        if (t.name !== 'URIError') assert.equal(w.message, t.message, `${name}: fault message`);
+        return;
+      }
+      if (!skipDeep) assert.deepStrictEqual(wasmOut, tsOut, `${name}: value parity`);
+      extra?.(tsArgs, wasmArgs, tsOut, wasmOut);
+    });
+  }
+
+  const throwingGetter = (): Record<string, unknown> => {
+    const out: Record<string, unknown> = {};
+    Object.defineProperty(out, 'boom', {
+      enumerable: true,
+      get(): unknown { throw new Error('donor-unread position must not enumerate'); },
+    });
+    return out;
+  };
+
+  const outboxItem = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    id: 'o1',
+    operationId: 'op',
+    source: 's',
+    occurrenceIndex: 0,
+    request: { q: 1 },
+    originOccurrence: null,
+    attempts: 0,
+    state: 'pending',
+    ...over,
+  });
+
+  const storedRow = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    id: 'r1',
+    version: 1,
+    created: 100,
+    updated: 100,
+    createdBy: 't',
+    updatedBy: 't',
+    archivedAt: null,
+    parent: null,
+    data: {},
+    ...over,
+  });
+
+  const meta = { nowMs: 200, actor: 't' };
+
+  // P1 opaque/evaluation: donor-unread positions never enumerate.
+  parity('predicate ignores throwing getter on succeeded', () => [throwingGetter()],
+    (kernel, args) => kernel.receipt.isConsistentCompletion('succeeded', args[0], null) as unknown,
+    (_tsArgs, _wasmArgs, tsOut) => { assert.equal(tsOut, true); });
+  parity('predicate ignores cyclic result', () => {
+    const o: Record<string, unknown> = { a: 1 };
+    o['self'] = o;
+    return [o];
+  }, (kernel, args) => kernel.receipt.isConsistentCompletion('succeeded', args[0], null) as unknown);
+  parity('predicate ignores function result', () => [() => 1],
+    (kernel, args) => kernel.receipt.isConsistentCompletion('succeeded', args[0], null) as unknown);
+  parity('stored predicate ignores throwing getter on succeeded', () => [throwingGetter()],
+    (kernel, args) => kernel.receipt.isStoredReceiptPayload('succeeded', args[0], null) as unknown);
+  parity('reconcileUncertain untouched path skips traversal', () => {
+    const item = outboxItem({ state: 'delivered' });
+    Object.defineProperty(item, 'request', { enumerable: true, get(): unknown { throw new Error('unread'); } });
+    return [item, throwingGetter()];
+  }, (kernel, args) => kernel.lifecycle.reconcileUncertain(args[0] as never, args[1] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    assert.strictEqual((tsOut as { item: unknown }).item, tsArgs[0]);
+    assert.strictEqual((wasmOut as { item: unknown }).item, wasmArgs[0]);
+    assert.equal((tsOut as { changed: unknown }).changed, false);
+    assert.equal((wasmOut as { changed: unknown }).changed, false);
+  }, true);
+  parity('recordOutcome delivered passes function result by reference', () => {
+    const result = () => 1;
+    return [{ item: outboxItem(), outcome: { kind: 'delivered', result }, nowMs: 10, firstAttemptAtMs: 5 }, result];
+  }, (kernel, args) => kernel.lifecycle.recordOutcome(args[0] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    assert.strictEqual((tsOut as { result: unknown }).result, (tsArgs[0] as { outcome: { result: unknown } }).outcome.result);
+    assert.strictEqual((wasmOut as { result: unknown }).result, (wasmArgs[0] as { outcome: { result: unknown } }).outcome.result);
+    assert.equal((tsOut as { status: unknown }).status, 'succeeded');
+    assert.equal((wasmOut as { status: unknown }).status, 'succeeded');
+    assert.equal(((tsOut as { item: Record<string, unknown> }).item)['state'], 'delivered');
+    assert.equal(((wasmOut as { item: Record<string, unknown> }).item)['state'], 'delivered');
+  }, true);
+  parity('classifyFailure ignores payload getters', () => {
+    const cause: Record<string, unknown> = { kind: 'transient', code: 'E', message: 'M' };
+    Object.defineProperty(cause, 'extra', { enumerable: true, get(): unknown { throw new Error('unread'); } });
+    return [cause];
+  }, (kernel, args) => kernel.retry.classifyFailure(args[0] as never) as unknown);
+  parity('readOccurrenceRow restores function result by reference', () => {
+    const result = () => 1;
+    return [{
+      id: 'r1', version: 1, created: 1, updated: 1, createdBy: 't', updatedBy: 't', archivedAt: null, parent: null,
+      data: { occurrenceId: 'occ1', status: 'completed', result, code: null, message: null, recordedAtMs: 5 },
+    }, result];
+  }, (kernel, args) => kernel.rows.readOccurrenceRow(args[0] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    assert.strictEqual((tsOut as { result: unknown }).result, tsArgs[1]);
+    assert.strictEqual((wasmOut as { result: unknown }).result, wasmArgs[1]);
+    assert.equal((tsOut as { occurrenceId: unknown }).occurrenceId, 'occ1');
+    assert.equal((wasmOut as { occurrenceId: unknown }).occurrenceId, 'occ1');
+  }, true);
+
+  // P1 identity/clone + P2 object: sharing, undefined, cycles.
+  parity('withRowData rejects shared identity as cyclic', () => {
+    const shared = { v: 1 };
+    return [storedRow(), { a: shared, b: shared }, meta, 'work.dispatch'];
+  }, (kernel, args) => kernel.rows.withRowData(args[0] as never, args[1] as never, args[2] as never, args[3] as never) as unknown);
+  parity('withFanoutRowData preserves sharing', () => {
+    const shared = { v: 1 };
+    return [storedRow(), { a: shared, b: shared }, meta];
+  }, (kernel, args) => kernel.rows.withFanoutRowData(args[0] as never, args[1] as never, args[2] as never) as unknown,
+  (_tsArgs, _wasmArgs, tsOut, wasmOut) => {
+    assert.strictEqual((tsOut as { data: { a: unknown; b: unknown } }).data.a, (tsOut as { data: { a: unknown; b: unknown } }).data.b);
+    assert.strictEqual((wasmOut as { data: { a: unknown; b: unknown } }).data.a, (wasmOut as { data: { a: unknown; b: unknown } }).data.b);
+  });
+  parity('withFanoutRowData preserves undefined data', () => [storedRow(), { x: undefined }, meta],
+    (kernel, args) => kernel.rows.withFanoutRowData(args[0] as never, args[1] as never, args[2] as never) as unknown,
+    (_tsArgs, _wasmArgs, tsOut, wasmOut) => {
+      assert.ok('x' in ((tsOut as { data: object }).data as object));
+      assert.ok('x' in ((wasmOut as { data: object }).data as object));
+    });
+  parity('withFanoutRowData accepts cycles', () => {
+    const data: Record<string, unknown> = {};
+    data['self'] = data;
+    return [storedRow(), data, meta];
+  }, (kernel, args) => kernel.rows.withFanoutRowData(args[0] as never, args[1] as never, args[2] as never) as unknown,
+  (_tsArgs, _wasmArgs, tsOut, wasmOut) => {
+    assert.strictEqual((tsOut as { data: Record<string, unknown> }).data['self'], (tsOut as { data: Record<string, unknown> }).data);
+    assert.strictEqual((wasmOut as { data: Record<string, unknown> }).data['self'], (wasmOut as { data: Record<string, unknown> }).data);
+  });
+  parity('withFanoutRowData keeps own __proto__ data', () => {
+    const mk = (): Record<string, unknown> => {
+      const o: Record<string, unknown> = { a: 1 };
+      Object.defineProperty(o, '__proto__', { value: 2, enumerable: true, writable: true, configurable: true });
+      return o;
+    };
+    return [storedRow(), mk(), meta];
+  }, (kernel, args) => kernel.rows.withFanoutRowData(args[0] as never, args[1] as never, args[2] as never) as unknown,
+  (_tsArgs, _wasmArgs, tsOut, wasmOut) => {
+    for (const [out, side] of [[tsOut, 'TS'], [wasmOut, 'Wasm']] as const) {
+      const data = (out as { data: Record<string, unknown> }).data;
+      assert.equal(Object.getPrototypeOf(data), Object.prototype, `${side} prototype untouched`);
+      assert.ok(Object.prototype.hasOwnProperty.call(data, '__proto__'), `${side} own __proto__ preserved`);
+    }
+  });
+
+  // P1 callback order: per-occurrence demand, stop at refusal.
+  parity('buildInventory retains oldest duplicate commit', () => {
+    const calls: unknown[][] = [];
+    const committedAtMs = (id: unknown): number | null => {
+      calls.push([id]);
+      return calls.length === 1 ? 10 : 20;
+    };
+    const items = [
+      { id: 'dup', state: 'uncertain' },
+      { id: 'dup', state: 'uncertain' },
+      { id: 'p', state: 'pending' },
+    ];
+    return [{ outboxItems: items, dueOccurrences: [], committedAtMs }, calls, items];
+  }, (kernel, args) => kernel.recovery.buildInventory(args[0] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    assert.equal((tsOut as { oldestUncertainAt: unknown }).oldestUncertainAt, 10);
+    assert.equal((wasmOut as { oldestUncertainAt: unknown }).oldestUncertainAt, 10);
+    assert.equal((tsArgs[1] as unknown[][]).length, 2);
+    assert.equal((wasmArgs[1] as unknown[][]).length, 2);
+  });
+  parity('buildWorkInventory stops callbacks at unknown state', () => {
+    const calls: unknown[] = [];
+    const handlerContractFor = (item: unknown): string | null => {
+      calls.push((item as { id: unknown }).id);
+      return 'c';
+    };
+    const items = [
+      { id: 'a', state: 'pending' },
+      { id: 'bad', state: 'weird' },
+      { id: 'c', state: 'pending' },
+    ];
+    return [{ outboxItems: items, handlerContractFor }, calls];
+  }, (kernel, args) => kernel.recovery.buildWorkInventory(args[0] as never) as unknown,
+  (tsArgs, wasmArgs) => {
+    assert.deepStrictEqual(tsArgs[1], ['a']);
+    assert.deepStrictEqual(wasmArgs[1], ['a']);
+  });
+
+  // P2 reference identity: occurrence refs, never id lookups.
+  parity('listDeadLetter keeps same-id occurrence order', () => [
+    [{ id: 'x', state: 'dead', tag: 'a' }, { id: 'x', state: 'dead', tag: 'b' }, { id: 'y', state: 'dead', tag: 'c' }],
+  ], (kernel, args) => kernel.receipt.listDeadLetter(args[0] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    const tsIn = tsArgs[0] as { tag: string }[];
+    const wasmIn = wasmArgs[0] as { tag: string }[];
+    assert.deepStrictEqual((tsOut as { tag: string }[]).map((r) => r.tag), ['a', 'b', 'c']);
+    assert.deepStrictEqual((wasmOut as { tag: string }[]).map((r) => r.tag), ['a', 'b', 'c']);
+    assert.strictEqual((tsOut as unknown[])[0], tsIn[0]);
+    assert.strictEqual((tsOut as unknown[])[1], tsIn[1]);
+    assert.strictEqual((wasmOut as unknown[])[0], wasmIn[0]);
+    assert.strictEqual((wasmOut as unknown[])[1], wasmIn[1]);
+  });
+  parity('findStaleClaims keeps same-id occurrence order', () => [
+    [
+      { claimId: 'k', outboxId: 'o1', claimedAt: 0, tag: 'a' },
+      { claimId: 'k', outboxId: 'o2', claimedAt: 0, tag: 'b' },
+    ],
+    1000,
+    10,
+  ], (kernel, args) => kernel.recovery.findStaleClaims(args[0] as never, args[1] as never, args[2] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    assert.strictEqual((tsOut as unknown[])[0], (tsArgs[0] as unknown[])[0]);
+    assert.strictEqual((tsOut as unknown[])[1], (tsArgs[0] as unknown[])[1]);
+    assert.strictEqual((wasmOut as unknown[])[0], (wasmArgs[0] as unknown[])[0]);
+    assert.strictEqual((wasmOut as unknown[])[1], (wasmArgs[0] as unknown[])[1]);
+  });
+
+  // RUST-CRITICAL-REPAIR-012 A: mixed-eligibility same-id inputs return the
+  // exact selected occurrence, never an unselected same-id one.
+  parity('listDeadLetter returns the dead occurrence with mixed same-id', () => [
+    [{ ...outboxItem({ id: 'same' }), state: 'pending', tag: 'P' }, { ...outboxItem({ id: 'same' }), state: 'dead', tag: 'D' }],
+  ], (kernel, args) => kernel.receipt.listDeadLetter(args[0] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    assert.equal((tsOut as unknown[]).length, 1);
+    assert.equal((wasmOut as unknown[]).length, 1);
+    assert.strictEqual((tsOut as unknown[])[0], (tsArgs[0] as unknown[])[1]);
+    assert.strictEqual((wasmOut as unknown[])[0], (wasmArgs[0] as unknown[])[1]);
+  });
+  parity('findStaleClaims returns the stale claim with mixed same-claimId', () => [
+    [
+      { claimId: 'k', outboxId: 'o1', claimedAt: 90, tag: 'FRESH' },
+      { claimId: 'k', outboxId: 'o2', claimedAt: 0, tag: 'STALE' },
+    ],
+    100,
+    50,
+  ], (kernel, args) => kernel.recovery.findStaleClaims(args[0] as never, args[1] as never, args[2] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    assert.equal((tsOut as unknown[]).length, 1);
+    assert.equal((wasmOut as unknown[]).length, 1);
+    assert.strictEqual((tsOut as unknown[])[0], (tsArgs[0] as unknown[])[1]);
+    assert.strictEqual((wasmOut as unknown[])[0], (wasmArgs[0] as unknown[])[1]);
+  });
+  parity('releaseStaleClaims keeps the untouched same-id occurrence reference', () => [
+    [
+      { ...outboxItem({ id: 'same' }), state: 'pending' },
+      { ...outboxItem({ id: 'same' }), state: 'claimed', attempts: 1 },
+    ],
+    [{ outboxId: 'same', claimId: 'c', claimedAt: 0 }],
+    1000,
+    10,
+  ], (kernel, args) => kernel.recovery.releaseStaleClaims(args[0] as never, args[1] as never, args[2] as never, args[3] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    for (const [out, argv, side] of [[tsOut, tsArgs, 'TS'], [wasmOut, wasmArgs, 'Wasm']] as const) {
+      const items = (out as { items: unknown[] }).items;
+      assert.strictEqual(items[0], (argv[0] as unknown[])[0], `${side} untouched keeps reference`);
+      assert.equal((items[0] as { state: unknown }).state, 'pending');
+      assert.equal((items[1] as { state: unknown }).state, 'pending');
+    }
+    assert.deepStrictEqual((tsOut as { releasedIds: unknown }).releasedIds, ['same']);
+    assert.deepStrictEqual((wasmOut as { releasedIds: unknown }).releasedIds, ['same']);
+  });
+
+  // P2 spread: extras survive with donor timing.
+  parity('recordOutcome keeps extras and request by reference', () => [{
+    item: outboxItem({ notBefore: 123, custom: { deep: 1 } }),
+    outcome: { kind: 'delivered', result: { ok: 1 } },
+    nowMs: 10,
+    firstAttemptAtMs: 5,
+  }], (kernel, args) => kernel.lifecycle.recordOutcome(args[0] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    for (const [out, argv, side] of [[tsOut, tsArgs, 'TS'], [wasmOut, wasmArgs, 'Wasm']] as const) {
+      const item = (out as { item: Record<string, unknown> }).item;
+      const input = (argv[0] as { item: Record<string, unknown> }).item;
+      assert.strictEqual(item['request'], input['request'], `${side} request by reference`);
+      assert.equal(item['notBefore'], 123);
+      assert.deepStrictEqual(item['custom'], { deep: 1 });
+    }
+  });
+  parity('recordStagingFailure keeps extras', () => [{
+    item: outboxItem({ custom: { deep: 2 } }),
+    cause: { kind: 'transient', code: 'E', message: 'M' },
+    nowMs: 10,
+    firstAttemptAtMs: 5,
+  }], (kernel, args) => kernel.recovery.recordStagingFailure(args[0] as never) as unknown,
+  (_tsArgs, _wasmArgs, tsOut, wasmOut) => {
+    assert.deepStrictEqual((tsOut as { item: Record<string, unknown> }).item['custom'], { deep: 2 });
+    assert.deepStrictEqual((wasmOut as { item: Record<string, unknown> }).item['custom'], { deep: 2 });
+  });
+  parity('withRowData keeps row extras', () => [
+    storedRow({ customMeta: 'keep' }), { ok: true }, meta, 'work.dispatch',
+  ], (kernel, args) => kernel.rows.withRowData(args[0] as never, args[1] as never, args[2] as never, args[3] as never) as unknown,
+  (_tsArgs, _wasmArgs, tsOut, wasmOut) => {
+    assert.equal((tsOut as Record<string, unknown>)['customMeta'], 'keep');
+    assert.equal((wasmOut as Record<string, unknown>)['customMeta'], 'keep');
+  });
+
+  // Fault identity traces.
+  parity('toReceiptObservation locator refusal is RangeError', () => [
+    '', 0, { status: 'succeeded', result: null, error: null },
+  ], (kernel, args) => kernel.receipt.toReceiptObservation(args[0] as never, args[1] as never, args[2] as never) as unknown);
+  parity('toReceiptObservation passes function payloads by reference', () => {
+    const result = () => 1;
+    const error = { code: 'E', message: 'M' };
+    return ['d1', 3, { status: 'succeeded', result, error }, result, error];
+  }, (kernel, args) => kernel.receipt.toReceiptObservation(args[0] as never, args[1] as never, args[2] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    assert.strictEqual((tsOut as { result: unknown }).result, tsArgs[3]);
+    assert.strictEqual((tsOut as { error: unknown }).error, tsArgs[4]);
+    assert.strictEqual((wasmOut as { result: unknown }).result, wasmArgs[3]);
+    assert.strictEqual((wasmOut as { error: unknown }).error, wasmArgs[4]);
+    assert.equal((wasmOut as { id: unknown }).id, 'd1');
+    assert.equal((wasmOut as { revision: unknown }).revision, 3);
+  }, true);
+  parity('isTerminalReceiptStatus decides non-strings false', () => [5],
+    (kernel, args) => kernel.receipt.isTerminalReceiptStatus(args[0] as never) as unknown);
+  parity('recordStagingFailure classifies past throwing extras', () => {
+    const cause: Record<string, unknown> = { kind: 'transient', code: 'E', message: 'M' };
+    Object.defineProperty(cause, 'extra', { enumerable: true, get(): unknown { throw new Error('unread'); } });
+    return [{ item: outboxItem(), cause, nowMs: 10, firstAttemptAtMs: 5 }];
+  }, (kernel, args) => kernel.recovery.recordStagingFailure(args[0] as never) as unknown);
+
+  // RUST-CRITICAL-REPAIR-012 B: an undefined-first getter refuses on the
+  // first read on both sides (fresh accessor per side, one observation).
+  parity('withRowData refuses an undefined-first getter on first read', () => {
+    let fires = 0;
+    const data: Record<string, unknown> = {};
+    Object.defineProperty(data, 'value', {
+      enumerable: true,
+      get(): unknown { fires += 1; return fires === 1 ? undefined : 1; },
+    });
+    return [storedRow(), data, meta, 'work.dispatch'];
+  }, (kernel, args) => kernel.rows.withRowData(args[0] as never, args[1] as never, args[2] as never, args[3] as never) as unknown);
+  // RUST-CRITICAL-REPAIR-012 C: owning errors decide before later-field
+  // reads; a later throwing accessor never masks them.
+  parity('recordOutcome refuses dead state before a throwing clock read', () => {
+    const input: Record<string, unknown> = {
+      item: outboxItem({ state: 'dead' }),
+      outcome: { kind: 'uncertain' },
+      firstAttemptAtMs: 5,
+    };
+    Object.defineProperty(input, 'nowMs', { enumerable: true, get(): unknown { throw new Error('clock touched'); } });
+    return [input];
+  }, (kernel, args) => kernel.lifecycle.recordOutcome(args[0] as never) as unknown);
+  parity('readOccurrenceRow refuses status before a throwing id read', () => {
+    const row = storedRow({
+      data: { status: 'bogus', code: null, message: null, recordedAtMs: 5 },
+    });
+    Object.defineProperty(row['data'] as Record<string, unknown>, 'occurrenceId', {
+      enumerable: true,
+      get(): unknown { throw new Error('id touched'); },
+    });
+    return [row];
+  }, (kernel, args) => kernel.rows.readOccurrenceRow(args[0] as never) as unknown);
+  // RUST-CRITICAL-REPAIR-012 D: a valid failed row passes its error object
+  // through by reference on both sides.
+  parity('readReceiptRow passes the failed error by reference', () => {
+    const error = { code: 'E', message: 'M' };
+    return [storedRow({
+      id: 'd1',
+      data: { deliveryId: 'd1', revision: 2, status: 'failed', result: null, error, contentRef: null, resultExpiresAtMs: null },
+    }), error];
+  }, (kernel, args) => kernel.receipt.readReceiptRow(args[0] as never) as unknown,
+  (tsArgs, wasmArgs, tsOut, wasmOut) => {
+    assert.strictEqual((tsOut as { receipt: { error: unknown } }).receipt.error, tsArgs[1]);
+    assert.strictEqual((wasmOut as { receipt: { error: unknown } }).receipt.error, wasmArgs[1]);
+  }, true);
+});
+
+describe('work-kernel ABI misuse refusal', () => {
   it('ABI refuses misuse visibly: unknown fn, planner route, wrong phase, freed handle', () => {
     const exports = new WebAssembly.Instance(nativeModule).exports as unknown as Record<string, (...args: number[]) => number>;
     const demand = exports.can_work_demand!;
@@ -367,4 +757,5 @@ describe('work-kernel full-family TS=Wasm differential', () => {
       assert.equal(free(handle), 0);
     }
   });
+});
 });

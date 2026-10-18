@@ -24,8 +24,10 @@
 //! documented new-path `limit` outcome, never a trap or a legacy-cycle
 //! `RangeError` equivalent.
 
-use std::collections::HashMap;
+use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
 
+use num_bigint::BigInt;
 use serde_json::{json, Value};
 
 use crate::input::{InputArena, TransportNode};
@@ -45,7 +47,7 @@ pub struct ExecBudgets {
 }
 
 /// One violation path segment: object key (lossless units) or index.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PathSeg {
     Key(Vec<u16>),
     Index(usize),
@@ -53,10 +55,12 @@ pub enum PathSeg {
 
 /// One ordered violation record: closed diagnostic template plus
 /// ordered lossless arguments (host formats over owned data only).
+/// Native codes are static templates; host-replayed exact-codec
+/// violations carry owned codes through the same record.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Violation {
     pub path: Vec<PathSeg>,
-    pub code: &'static str,
+    pub code: Cow<'static, str>,
     pub message: String,
     pub expected: Option<String>,
     pub actual: Option<String>,
@@ -65,14 +69,33 @@ pub struct Violation {
 impl Violation {
     fn new(
         path: &[PathSeg],
-        code: &'static str,
+        code: impl Into<Cow<'static, str>>,
         message: String,
         expected: Option<String>,
         actual: Option<String>,
     ) -> Self {
         Violation {
             path: path.to_vec(),
-            code,
+            code: code.into(),
+            message,
+            expected,
+            actual,
+        }
+    }
+
+    /// Replays one host-decoded exact-codec violation at its leaf:
+    /// the genuine codec produced the code and message, native only
+    /// prefixes the leaf path and preserves order.
+    pub fn replayed(
+        path: Vec<PathSeg>,
+        code: String,
+        message: String,
+        expected: Option<String>,
+        actual: Option<String>,
+    ) -> Self {
+        Violation {
+            path,
+            code: Cow::Owned(code),
             message,
             expected,
             actual,
@@ -114,6 +137,51 @@ enum LeafClass {
     Deferred(LeafOwner),
 }
 
+/// Resolvable deferred-leaf pointer: the exact scalar kind the host
+/// must decode, the value path of the leaf input in violation
+/// segment encoding, and the declared array shape the wire value must
+/// have before decoding. Present only for directly resolvable exact
+/// leaves; every other deferral carries no pointer and passes
+/// through the host unresolved.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LeafPointer {
+    pub leaf: String,
+    pub path: Vec<PathSeg>,
+    /// Declared array shape of the enclosing field: the host checks
+    /// wire array-ness against this before decoding, so scalar/array
+    /// skew replays the genuine leaf type verdict instead of failing
+    /// admission as malformed.
+    pub array: bool,
+}
+
+/// Exact scalar kinds the host resolve loop decodes through the
+/// genuine repaired backend. Anything else is never coverable by a
+/// resolved entry and keeps its current deferral.
+pub fn is_exact_scalar(name: &str) -> bool {
+    matches!(
+        name,
+        "int" | "decimal" | "money" | "date" | "datetime" | "duration"
+    )
+}
+
+/// One admitted resolved leaf, keyed by value path: either the
+/// canonical value frame from a genuine host decode, replayed host
+/// violations from a failed decode, or neither (a native-decides
+/// marker for absent/null inputs, where nullability and omission
+/// stay native duties).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResolvedLeaf {
+    pub frame: Option<Value>,
+    pub violations: Vec<Violation>,
+    pub nodes: usize,
+    pub depth: usize,
+}
+
+/// Admitted resolved leaves by value path. Empty when the caller
+/// passes no `resolved` entries: coverage and execution then behave
+/// exactly as before.
+pub type ResolvedMap = HashMap<Vec<PathSeg>, ResolvedLeaf>;
+
 /// Execution outcome: valid normalized frame tree, ordered violations,
 /// a declared deferral, or a traversal-limit refusal.
 #[derive(Debug, Clone, PartialEq)]
@@ -123,6 +191,7 @@ pub enum Outcome {
     Deferred {
         owner: LeafOwner,
         detail: String,
+        pointer: Option<LeafPointer>,
     },
     Limit {
         code: &'static str,
@@ -151,6 +220,14 @@ pub enum OutNode {
     Union {
         arm: String,
         value: Box<OutNode>,
+    },
+    /// Host-resolved exact scalar: the scalar kind plus its canonical
+    /// frame, admitted through the resolved-leaf join (the genuine
+    /// host decode is the check; native carries the canonical value
+    /// opaquely and applies the surrounding structural duties).
+    Exact {
+        kind: String,
+        frame: Value,
     },
     /// Registry default resolved by key at materialization (stable host
     /// identity through the shared default registry).
@@ -346,9 +423,7 @@ fn scalar_class(name: &str) -> LeafClass {
     match name {
         "text" => LeafClass::Text,
         "bool" => LeafClass::Bool,
-        "int" | "decimal" | "money" | "date" | "datetime" | "duration" => {
-            LeafClass::Deferred(LeafOwner::ExactCodec)
-        }
+        name if is_exact_scalar(name) => LeafClass::Deferred(LeafOwner::ExactCodec),
         _ => LeafClass::Deferred(LeafOwner::WireCodec),
     }
 }
@@ -372,16 +447,58 @@ fn base_class(base: &TypeBase) -> LeafClass {
     }
 }
 
+/// One coverage gap: the owning lane, the dotted plan path carried
+/// by the declared deferral, and — only for directly resolvable
+/// exact leaves — the host pointer (scalar kind plus value path).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoverageGap {
+    pub owner: LeafOwner,
+    pub plan: String,
+    pub pointer: Option<LeafPointer>,
+}
+
+fn covered_gap(owner: LeafOwner, plan: String) -> CoverageGap {
+    CoverageGap {
+        owner,
+        plan,
+        pointer: None,
+    }
+}
+
 /// Coverage walk over one field type: finds the first leaf owned by
-/// another lane or the host, before any input is executed. Returns the
-/// dotted plan path of the deferral for the declared outcome.
+/// another lane or the host, before any input is executed. `vpath`
+/// tracks the value path alongside the dotted plan path; `resolvable`
+/// marks walks outside union arms, where the host can decode the leaf
+/// input directly; `array` carries the enclosing field's declared
+/// array shape so the host pointer names the wire shape the leaf
+/// input must have before decoding. Returns the deferral gap for the
+/// declared outcome.
 pub fn coverage_gap(
     plan: &Plan,
     owner_path: &str,
     base: &TypeBase,
     visiting: &mut Vec<String>,
-) -> Option<(LeafOwner, String)> {
+    vpath: &mut Vec<PathSeg>,
+    resolvable: bool,
+    array: bool,
+) -> Option<CoverageGap> {
     match base {
+        TypeBase::Scalar { name } if is_exact_scalar(name) => {
+            let pointer = if resolvable {
+                Some(LeafPointer {
+                    leaf: name.clone(),
+                    path: vpath.clone(),
+                    array,
+                })
+            } else {
+                None
+            };
+            Some(CoverageGap {
+                owner: LeafOwner::ExactCodec,
+                plan: owner_path.to_string(),
+                pointer,
+            })
+        }
         TypeBase::Scalar { .. }
         | TypeBase::Stringlike { .. }
         | TypeBase::User
@@ -392,7 +509,7 @@ pub fn coverage_gap(
         | TypeBase::Action { .. }
         | TypeBase::Invocation { .. }
         | TypeBase::Delivery { .. } => match base_class(base) {
-            LeafClass::Deferred(owner) => Some((owner, owner_path.to_string())),
+            LeafClass::Deferred(owner) => Some(covered_gap(owner, owner_path.to_string())),
             _ => None,
         },
         TypeBase::Enum { .. } => None,
@@ -412,7 +529,11 @@ pub fn coverage_gap(
                     .expect("contract located above");
                 for field in &contract.fields {
                     let nested = format!("{owner_path}.{}", field.name);
-                    if let Some(gap) = coverage_gap(plan, &nested, &field.base, visiting) {
+                    vpath.push(PathSeg::Key(field.name.encode_utf16().collect()));
+                    let gap = coverage_gap(plan, &nested, &field.base, visiting, vpath, resolvable, field.array);
+                    vpath.pop();
+                    if let Some(gap) = gap {
+                        visiting.pop();
                         return Some(gap);
                     }
                 }
@@ -427,7 +548,7 @@ pub fn coverage_gap(
         }
         TypeBase::Union { arms } => {
             for arm in arms {
-                if let Some(gap) = coverage_gap_arm(plan, owner_path, arm, visiting) {
+                if let Some(gap) = coverage_gap_arm(plan, owner_path, arm, visiting, vpath) {
                     return Some(gap);
                 }
             }
@@ -438,19 +559,20 @@ pub fn coverage_gap(
 
 /// Coverage walk over one union arm name: scalar leaves, aliases,
 /// contracts, enums and model refs resolve as above; anything else
-/// waits on its owning codec.
+/// waits on its owning codec. Arm-nested leaves carry no host
+/// pointer: union inputs keep their discriminator object shape, so
+/// the host cannot decode the leaf input directly.
 fn coverage_gap_arm(
     plan: &Plan,
     owner_path: &str,
     arm: &str,
     visiting: &mut Vec<String>,
-) -> Option<(LeafOwner, String)> {
+    vpath: &mut Vec<PathSeg>,
+) -> Option<CoverageGap> {
     let nested = format!("{owner_path}<{arm}>");
     match arm {
         "text" | "bool" => None,
-        "int" | "decimal" | "money" | "date" | "datetime" | "duration" => {
-            Some((LeafOwner::ExactCodec, nested))
-        }
+        arm if is_exact_scalar(arm) => Some(covered_gap(LeafOwner::ExactCodec, nested)),
         _ => {
             if plan.aliases.iter().any(|alias| alias.name == arm) {
                 return None;
@@ -462,7 +584,11 @@ fn coverage_gap_arm(
                 visiting.push(arm.to_string());
                 for field in &contract.fields {
                     let deeper = format!("{nested}.{}", field.name);
-                    if let Some(gap) = coverage_gap(plan, &deeper, &field.base, visiting) {
+                    vpath.push(PathSeg::Key(field.name.encode_utf16().collect()));
+                    let gap = coverage_gap(plan, &deeper, &field.base, visiting, vpath, false, field.array);
+                    vpath.pop();
+                    if let Some(gap) = gap {
+                        visiting.pop();
                         return Some(gap);
                     }
                 }
@@ -475,7 +601,7 @@ fn coverage_gap_arm(
             // Bare model/enum-inline arms resolve as model-ref shapes when
             // they name no scalar, alias, contract or enum: still native.
             if arm.contains('(') || arm.contains('[') || arm.contains('|') || arm.contains('<') {
-                return Some((LeafOwner::WireCodec, nested));
+                return Some(covered_gap(LeafOwner::WireCodec, nested));
             }
             None
         }
@@ -484,22 +610,35 @@ fn coverage_gap_arm(
 
 /// Whole-target coverage: every field of the target contract or
 /// operation must be natively executable, else the declared deferral.
+/// Gaps carrying a host pointer count as covered when the caller
+/// admitted a resolved entry for their value path; every other gap
+/// keeps the exact current deferred outcome.
 pub fn target_gap(
     plan: &Plan,
     target: &Target,
     resolve: &dyn Fn(&str) -> Option<Meta>,
-) -> Option<(LeafOwner, String)> {
+    covered: &HashSet<Vec<PathSeg>>,
+) -> Option<CoverageGap> {
     let mut visiting: Vec<String> = Vec::new();
+    let mut vpath: Vec<PathSeg> = Vec::new();
     match target {
         Target::Contract { name, .. } => {
             let contract = plan.contracts.iter().find(|contract| contract.name == *name)?;
             for field in &contract.fields {
                 let path = format!("contracts.{name}.fields.{}", field.name);
-                if let Some(gap) = coverage_gap(plan, &path, &field.base, &mut visiting) {
+                vpath.push(PathSeg::Key(field.name.encode_utf16().collect()));
+                let gap = coverage_gap(plan, &path, &field.base, &mut visiting, &mut vpath, true, field.array);
+                vpath.pop();
+                if let Some(gap) = gap {
+                    if let Some(pointer) = &gap.pointer {
+                        if covered.contains(&pointer.path) {
+                            continue;
+                        }
+                    }
                     return Some(gap);
                 }
-                if let Some(gap) = default_gap(&format!("{path}#default"), field, resolve) {
-                    return Some(gap);
+                if let Some((owner, plan)) = default_gap(&format!("{path}#default"), field, resolve) {
+                    return Some(covered_gap(owner, plan));
                 }
             }
             None
@@ -511,11 +650,19 @@ pub fn target_gap(
                 .find(|operation| operation.name == *name)?;
             for input in &operation.inputs {
                 let path = format!("operations.{name}.inputs.{}", input.name);
-                if let Some(gap) = coverage_gap(plan, &path, &input.base, &mut visiting) {
+                vpath.push(PathSeg::Key(input.name.encode_utf16().collect()));
+                let gap = coverage_gap(plan, &path, &input.base, &mut visiting, &mut vpath, true, input.array);
+                vpath.pop();
+                if let Some(gap) = gap {
+                    if let Some(pointer) = &gap.pointer {
+                        if covered.contains(&pointer.path) {
+                            continue;
+                        }
+                    }
                     return Some(gap);
                 }
-                if let Some(gap) = default_gap(&format!("{path}#default"), input, resolve) {
-                    return Some(gap);
+                if let Some((owner, plan)) = default_gap(&format!("{path}#default"), input, resolve) {
+                    return Some(covered_gap(owner, plan));
                 }
             }
             None
@@ -567,6 +714,7 @@ enum Omit {
 struct Cx<'a> {
     arena: &'a InputArena,
     plan: &'a Plan,
+    resolved: &'a ResolvedMap,
     violations: Vec<Violation>,
     visited: usize,
     budgets: ExecBudgets,
@@ -600,7 +748,7 @@ impl<'a> Cx<'a> {
     fn push(
         &mut self,
         path: &[PathSeg],
-        code: &'static str,
+        code: impl Into<Cow<'static, str>>,
         message: String,
         expected: Option<String>,
         actual: Option<String>,
@@ -741,6 +889,7 @@ fn omitted(cx: &mut Cx, field: &FieldPlan, path: &[PathSeg], mode: Mode) -> Resu
         let reference = field.default_ref.as_ref().ok_or(Outcome::Deferred {
             owner: LeafOwner::WireCodec,
             detail: "field claims a default the registry cannot resolve".to_string(),
+            pointer: None,
         })?;
         return Ok(Omit::Out(OutNode::DefaultRef(reference.key.clone())));
     }
@@ -874,6 +1023,109 @@ fn check_bounds(cx: &mut Cx, field: &FieldPlan, value: &OutNode, path: &[PathSeg
     }
 }
 
+/// Constraint enforcement over one consumed resolved exact leaf, in
+/// the original `checkBounds` order. Registration routes bounds by
+/// shape — array fields carry length bounds, scalar exact fields
+/// carry value bounds — so each branch reads only its own duties:
+/// array carriers check inclusive length against the admitted input
+/// length; scalar `int`/`duration` carriers compare the canonical
+/// digit string against the registered bigint bound. Length bounds on
+/// a scalar carrier check nothing (the original length branch returns
+/// after length duties, and decoded exact scalars have no length),
+/// and value bounds on any other scalar kind stay a native no-op,
+/// exactly like the unresolved path. The `Exact` carrier is preserved:
+/// only violations are added, never a rewritten value.
+fn check_exact_bounds(
+    cx: &mut Cx,
+    field: &FieldPlan,
+    kind: &str,
+    frame: &Value,
+    path: &[PathSeg],
+    node: usize,
+) {
+    if field.array {
+        let length = match cx.arena.node(node) {
+            TransportNode::Array { items } => items.len() as f64,
+            _ => return,
+        };
+        if let Some(min) = field.length_min {
+            if length < min {
+                cx.push(
+                    path,
+                    "bound",
+                    format!("length {length} is below the minimum of {}", js_number(min)),
+                    Some(format!("length >= {}", js_number(min))),
+                    Some(format!("length {length}")),
+                );
+            }
+        }
+        if let Some(max) = field.length_max {
+            if length > max {
+                cx.push(
+                    path,
+                    "bound",
+                    format!("length {length} is above the maximum of {}", js_number(max)),
+                    Some(format!("length <= {}", js_number(max))),
+                    Some(format!("length {length}")),
+                );
+            }
+        }
+        return;
+    }
+    if field.length_min.is_some() || field.length_max.is_some() {
+        return;
+    }
+    if kind != "int" && kind != "duration" {
+        return;
+    }
+    let units = match frame.get("t").and_then(Value::as_str) {
+        Some("text") => match frame.get("units").and_then(Value::as_array) {
+            Some(units) => units,
+            None => return,
+        },
+        _ => return,
+    };
+    let mut digits: Vec<u16> = Vec::with_capacity(units.len());
+    for unit in units {
+        match unit.as_u64() {
+            Some(unit) if unit <= u16::MAX as u64 => digits.push(unit as u16),
+            _ => return,
+        }
+    }
+    let spelled = match String::from_utf16(&digits) {
+        Ok(spelled) => spelled,
+        Err(_) => return,
+    };
+    let value = match BigInt::parse_bytes(spelled.as_bytes(), 10) {
+        Some(value) => value,
+        None => return,
+    };
+    let render = |spelled: &str| format!("\"{spelled}\"");
+    let actual = render(&spelled);
+    if let Some(crate::plans::Meta::Bigint(limit)) = field.value_min.as_ref() {
+        if value < *limit {
+            cx.push(
+                path,
+                "bound",
+                "value is below the minimum".to_string(),
+                Some(format!(">= {}", render(&limit.to_string()))),
+                Some(actual.clone()),
+            );
+        }
+    }
+    if let Some(crate::plans::Meta::Bigint(limit)) = field.value_max.as_ref() {
+        if value > *limit {
+            cx.push(
+                path,
+                "bound",
+                "value is above the maximum".to_string(),
+                Some(format!("<= {}", render(&limit.to_string()))),
+                Some(actual.clone()),
+            );
+        }
+    }
+}
+
 /// One-line shape description of a normalized node for diagnostics.
 fn describe_out(node: &OutNode) -> String {
     match node {
@@ -894,6 +1146,7 @@ fn describe_out(node: &OutNode) -> String {
             format!("object with keys [{}]", keys.join(", "))
         }
         OutNode::Union { .. } => "union".to_string(),
+        OutNode::Exact { kind, .. } => format!("exact {kind}"),
         OutNode::DefaultRef(_) => "default".to_string(),
         OutNode::EmptyArray => "array of length 0".to_string(),
         OutNode::UpdateOmitted => "omitted".to_string(),
@@ -913,6 +1166,155 @@ fn has_bounds(field: &FieldPlan) -> bool {
 // ---------------------------------------------------------------------------
 // Node validation (mirrors `validateNode`).
 // ---------------------------------------------------------------------------
+
+/// Targeted exact-leaf check for resolved-entry admission: follows
+/// one value path through the target's fields, descending nominal
+/// contracts by key exactly like the coverage walk. Returns the
+/// scalar kind and array flag when the path names a directly
+/// resolvable exact leaf, else `None` (unions, aliases, enums, model
+/// refs, indices and scalar interiors never admit entries).
+pub(crate) fn exact_leaf_at(
+    plan: &Plan,
+    target: &Target,
+    path: &[PathSeg],
+) -> Option<(String, bool)> {
+    fn field_leaf(plan: &Plan, field: &FieldPlan, rest: &[PathSeg]) -> Option<(String, bool)> {
+        if rest.is_empty() {
+            return match &field.base {
+                TypeBase::Scalar { name } if is_exact_scalar(name) => {
+                    Some((name.clone(), field.array))
+                }
+                _ => None,
+            };
+        }
+        match &field.base {
+            TypeBase::Nominal { path } => {
+                let contract = plan.contracts.iter().find(|contract| contract.name == *path)?;
+                let key = match &rest[0] {
+                    PathSeg::Key(key) => key,
+                    PathSeg::Index(_) => return None,
+                };
+                let nested = contract
+                    .fields
+                    .iter()
+                    .find(|field| &field.name.encode_utf16().collect::<Vec<u16>>() == key)?;
+                field_leaf(plan, nested, &rest[1..])
+            }
+            _ => None,
+        }
+    }
+    let key = match path.first()? {
+        PathSeg::Key(key) => key,
+        PathSeg::Index(_) => return None,
+    };
+    let deeper = &path[1..];
+    let field = match target {
+        Target::Contract { name, .. } => {
+            let contract = plan.contracts.iter().find(|contract| contract.name == *name)?;
+            contract
+                .fields
+                .iter()
+                .find(|field| &field.name.encode_utf16().collect::<Vec<u16>>() == key)?
+        }
+        Target::Operation { name } => {
+            let operation = plan
+                .operations
+                .iter()
+                .find(|operation| operation.name == *name)?;
+            operation
+                .inputs
+                .iter()
+                .find(|input| &input.name.encode_utf16().collect::<Vec<u16>>() == key)?
+        }
+    };
+    field_leaf(plan, field, deeper)
+}
+
+/// Resolves one value path in the arena, mirroring execution lookup:
+/// last duplicate key wins, array indices bound-check, anything else
+/// (including absent keys) resolves to no node.
+pub(crate) fn resolve_vpath(arena: &InputArena, path: &[PathSeg]) -> Option<usize> {
+    let mut node = arena.root();
+    for segment in path {
+        match (arena.node(node), segment) {
+            (TransportNode::Entries { entries }, PathSeg::Key(key)) => {
+                let mut found = None;
+                for entry in entries {
+                    if &entry.key == key {
+                        found = Some(entry.node);
+                    }
+                }
+                node = found?;
+            }
+            (TransportNode::Array { items }, PathSeg::Index(index)) => {
+                node = *items.get(*index)?;
+            }
+            _ => return None,
+        }
+    }
+    Some(node)
+}
+
+/// Iterative depth of one entry frame: the temp-arena build already
+/// enforces the absolute budget, so consumption charges the relative
+/// depth exactly like a grafted subtree would.
+pub(crate) fn frame_depth(frame: &crate::input::Frame) -> usize {
+    let mut deepest = 0;
+    let mut stack = vec![(frame, 0)];
+    while let Some((current, depth)) = stack.pop() {
+        deepest = deepest.max(depth);
+        match current {
+            crate::input::Frame::Array(items) => {
+                for child in items {
+                    stack.push((child, depth + 1));
+                }
+            }
+            crate::input::Frame::Entries(entries) => {
+                for (_, child) in entries {
+                    stack.push((child, depth + 1));
+                }
+            }
+            _ => {}
+        }
+    }
+    deepest
+}
+
+/// Consumes one admitted resolved leaf at its exact field: replayed
+/// host violations accumulate in order at this position; a canonical
+/// frame carries opaquely as the normalized value. Budget charges
+/// mirror grafted execution (node visits plus relative depth).
+fn consume_resolved(
+    cx: &mut Cx,
+    kind: &str,
+    leaf: &ResolvedLeaf,
+    frame: &Value,
+    path: &[PathSeg],
+    depth: usize,
+) -> Result<Option<OutNode>, Outcome> {
+    if !leaf.violations.is_empty() {
+        for violation in &leaf.violations {
+            let mut full = path.to_vec();
+            full.extend(violation.path.iter().cloned());
+            cx.push(
+                &full,
+                violation.code.clone(),
+                violation.message.clone(),
+                violation.expected.clone(),
+                violation.actual.clone(),
+            );
+        }
+        return Ok(None);
+    }
+    for _ in 0..leaf.nodes {
+        cx.visit()?;
+    }
+    cx.descend(depth + leaf.depth)?;
+    Ok(Some(OutNode::Exact {
+        kind: kind.to_string(),
+        frame: frame.clone(),
+    }))
+}
 
 /// Validates one present field value: null, array and base dispatch.
 /// Returns `None` after recording a violation; `UPDATE_OMITTED` never
@@ -953,6 +1355,61 @@ fn validate_node(
             return Ok(None);
         }
         _ => {}
+    }
+    // Resolved-leaf admission: an admitted entry carrying a frame or
+    // replayed violations consumes here, for array and scalar shapes
+    // alike. Native-decides markers fall through to the standard
+    // dispatch below, so the skew deferral only fires for genuinely
+    // uncovered leaves. Shape runs before decoding (the original
+    // `validateNode` order): array skew against the declared shape
+    // records the leaf type verdict instead of consuming opaquely, and
+    // constraints run after decoding in the original `checkBounds`
+    // order over the consumed exact carrier.
+    if owner_of(&field.base) == LeafOwner::ExactCodec {
+        if let Some(leaf) = cx.resolved.get(path).cloned() {
+            if !leaf.violations.is_empty() || leaf.frame.is_some() {
+                let kind = match &field.base {
+                    TypeBase::Scalar { name } => name.clone(),
+                    other => {
+                        return Err(Outcome::Deferred {
+                            owner: owner_of(other),
+                            detail: format!("uncovered leaf at {}", print_base(other)),
+                            pointer: None,
+                        })
+                    }
+                };
+                // Replayed decode verdicts (including genuine whole-value
+                // shape verdicts from the host loop) accumulate in order
+                // below with their original codes and messages; the
+                // shape guard applies only to frame-carrying entries,
+                // where the host claims a decoded value for a wire shape
+                // the declared shape cannot hold.
+                if leaf.frame.is_some() && leaf.violations.is_empty() {
+                    let wire_is_array =
+                        matches!(cx.arena.node(node), TransportNode::Array { .. });
+                    if field.array != wire_is_array {
+                        cx.push(
+                            path,
+                            "type",
+                            "expected an array".to_string(),
+                            Some(field_type_id(field)),
+                            Some(actual_node(cx.arena, node)),
+                        );
+                        return Ok(None);
+                    }
+                }
+                let frame = leaf.frame.clone().unwrap_or(Value::Null);
+                let produced = consume_resolved(cx, &kind, &leaf, &frame, path, depth)?;
+                if produced.is_some() {
+                    let before = cx.violations.len();
+                    check_exact_bounds(cx, field, &kind, &frame, path, node);
+                    if cx.violations.len() != before {
+                        return Ok(None);
+                    }
+                }
+                return Ok(produced);
+            }
+        }
     }
     if field.array {
         let items = match cx.arena.node(node) {
@@ -1132,6 +1589,7 @@ fn validate_base_node(
         other => Err(Outcome::Deferred {
             owner: owner_of(other),
             detail: format!("uncovered leaf at {}", print_base(other)),
+            pointer: None,
         }),
     }
 }
@@ -1290,6 +1748,7 @@ fn arm_field(cx: &Cx, arm: &str) -> Result<FieldPlan, Outcome> {
             return Err(Outcome::Deferred {
                 owner: LeafOwner::ExactCodec,
                 detail: format!("union arm {arm} waits on the Exact codec release"),
+                pointer: None,
             });
         }
         _ => {
@@ -1309,6 +1768,7 @@ fn arm_field(cx: &Cx, arm: &str) -> Result<FieldPlan, Outcome> {
                 return Err(Outcome::Deferred {
                     owner: LeafOwner::WireCodec,
                     detail: format!("union arm {arm} waits on its owning codec"),
+                    pointer: None,
                 });
             } else {
                 // Bare model names resolve as model-ref shapes.
@@ -2023,16 +2483,24 @@ pub fn execute(
     resolve: &dyn Fn(&str) -> Option<Meta>,
     target: &Target,
     budgets: ExecBudgets,
+    resolved: &ResolvedMap,
 ) -> Outcome {
-    if let Some((owner, path)) = target_gap(plan, target, resolve) {
+    let covered: HashSet<Vec<PathSeg>> = resolved.keys().cloned().collect();
+    if let Some(gap) = target_gap(plan, target, resolve, &covered) {
         return Outcome::Deferred {
-            owner,
-            detail: format!("target reaches a leaf owned by {} at {path}", owner.reason()),
+            detail: format!(
+                "target reaches a leaf owned by {} at {}",
+                gap.owner.reason(),
+                gap.plan
+            ),
+            owner: gap.owner,
+            pointer: gap.pointer,
         };
     }
     let mut cx = Cx {
         arena,
         plan,
+        resolved,
         violations: Vec::new(),
         visited: 0,
         budgets,
@@ -2045,6 +2513,7 @@ pub fn execute(
                 return Outcome::Deferred {
                     owner: LeafOwner::WireCodec,
                     detail: format!("unknown contract target {name}"),
+                    pointer: None,
                 };
             };
             let contract = contract.clone();
@@ -2062,6 +2531,7 @@ pub fn execute(
                 return Outcome::Deferred {
                     owner: LeafOwner::WireCodec,
                     detail: format!("unknown operation target {name}"),
+                    pointer: None,
                 };
             };
             let operation = operation.clone();
@@ -2113,6 +2583,9 @@ pub fn out_to_json(node: &OutNode) -> Value {
         OutNode::Union { arm, value } => {
             json!({"t": "union", "arm": arm, "value": out_to_json(value)})
         }
+        OutNode::Exact { kind, frame } => {
+            json!({"t": "exact", "kind": kind, "value": frame})
+        }
         OutNode::DefaultRef(key) => json!({"t": "default-ref", "key": key}),
         OutNode::EmptyArray => json!({"t": "empty-array"}),
         OutNode::UpdateOmitted => json!({"t": "update-omitted"}),
@@ -2154,11 +2627,19 @@ pub fn outcome_to_json(outcome: &Outcome) -> Value {
             "outcome": "invalid",
             "violations": violations.iter().map(violation_to_json).collect::<Vec<_>>(),
         }),
-        Outcome::Deferred { owner, detail } => json!({
-            "outcome": "deferred",
-            "reason": owner.reason(),
-            "detail": detail,
-        }),
+        Outcome::Deferred { owner, detail, pointer } => {
+            let mut value = json!({
+                "outcome": "deferred",
+                "reason": owner.reason(),
+                "detail": detail,
+            });
+            if let Some(resolved) = pointer {
+                value["leaf"] = Value::String(resolved.leaf.clone());
+                value["path"] = path_to_json(&resolved.path);
+                value["array"] = Value::Bool(resolved.array);
+            }
+            value
+        }
         Outcome::Limit { code, check } => json!({
             "outcome": "limit",
             "code": code,

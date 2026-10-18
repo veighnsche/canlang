@@ -9,19 +9,26 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { max, min } from "../src/array.js";
-import { Decimal } from "../src/decimal.js";
+import { max, min, sumMoney } from "../src/array.js";
+import { Decimal, parseDecimal } from "../src/decimal.js";
 import { SchemaError, ValueError } from "../src/errors.js";
+import { addInt } from "../src/int.js";
 import {
   isDatetime,
   isDateValue,
   isMoney,
   makeMoney,
 } from "../src/kinds.js";
+import { addMoney, money, multiplyMoney } from "../src/money.js";
+import { abs, sum } from "../src/stdlib-pure.js";
+import { compareDate } from "../src/temporal.js";
+import { decodeValue, encodeValue } from "../src/wire.js";
 import {
   decodeSelectedInt,
   encodeSelectedInt,
   exactOpNames,
+  selectExactBackend,
+  selectedExactBackendRead,
   selectSelectedIntBackend,
   tsBackend,
   wasmBackend,
@@ -310,6 +317,15 @@ describe("exact binding edge corpus (wide, -0, UTF16, diagnostics)", () => {
     agree("decode-value", ["money", { minor: "1", currency: astral }]);
     agree("decode-value", ["int", literalReplacement]);
     agree("decode-value", ["money", { minor: "1", currency: literalReplacement }]);
+    // Money unknown keys keep unit-exact identity: one lone key, two
+    // distinct lone keys, and a lone key beside a literal U+FFFD key each
+    // report their own path, message and actual on both backends.
+    agree("decode-value", ["money", { minor: "1", currency: "USD", [lone]: "x" }]);
+    agree("decode-value", ["money", { minor: "1", currency: "USD", [lone]: "x", [trail]: "y" }]);
+    agree("decode-value", [
+      "money",
+      { minor: "1", currency: "USD", [lone]: "x", [literalReplacement]: "y" },
+    ]);
     agree("encode-value", ["int", 42n]);
     agree("is-known-currency", [lone]);
     agree("is-currency-shape", [lone]);
@@ -482,5 +498,240 @@ describe("supported generated-helper chain through the binding", () => {
       native.call("negate-decimal", [native.call("parse-decimal", ["1.5"])]),
       new Decimal(-15n, 1),
     );
+  });
+});
+
+describe("wasm failure messages without argument-graph rescans", () => {
+  const native = wasm();
+
+  it("re-renders from only the matching template argument, in demand order", () => {
+    let currencyReads = 0;
+    const args: unknown[] = [5n];
+    Object.defineProperty(args, 1, {
+      get() {
+        currencyReads += 1;
+        return String.fromCharCode(0xd800);
+      },
+      enumerable: true,
+      configurable: true,
+    });
+    // VALUES-012 A: admission demands the currency before any tagging,
+    // so it reads the slot exactly once and throws the canonical
+    // unknown-currency without tagging or message re-render. A
+    // whole-graph eager scan would read it again.
+    assert.throws(() => native.call("money", args), (error: unknown) => {
+      assert.ok(error instanceof ValueError);
+      assert.equal((error as ValueError).code, "unknown-currency");
+      assert.equal((error as ValueError).message, `unknown currency: ${String.fromCharCode(0xd800)}`);
+      return true;
+    });
+    assert.equal(currencyReads, 1);
+  });
+
+  it("never lets an unrelated throwing getter mask a native failure", () => {
+    let reads = 0;
+    const carrier: Record<string, unknown> = {};
+    // Lone-surrogate key: losslessly tagged as k16, lossy in the guard.
+    Object.defineProperty(carrier, String.fromCharCode(0xd800), {
+      get() {
+        reads += 1;
+        if (reads > 1) throw new Error("second read exploded");
+        return "USD";
+      },
+      enumerable: true,
+      configurable: true,
+    });
+    // VALUES-012 A: admission refuses the non-string before any tagging,
+    // so the throwing getter is never read (0 reads). No native call, no
+    // message rescan, no masking.
+    assert.throws(() => native.call("currency-scale", [carrier]), (error: unknown) => {
+      assert.ok(error instanceof ValueError);
+      assert.equal((error as ValueError).code, "invalid-construction");
+      return true;
+    });
+    assert.equal(reads, 0);
+  });
+});
+
+describe("selected exact backend routing through real consumers", () => {
+  const native = wasm();
+
+  function countingOver(backend: ExactBackend): {
+    calls: Array<{ op: string; arity: number }>;
+    backend: ExactBackend;
+  } {
+    const calls: Array<{ op: string; arity: number }> = [];
+    return {
+      calls,
+      backend: {
+        name: backend.name,
+        call(op: string, args: unknown[]): unknown {
+          calls.push({ op, arity: args.length });
+          return backend.call(op, args);
+        },
+      },
+    };
+  }
+
+  function probeBattery(): unknown {
+    const m1 = makeMoney(100n, "USD");
+    const m2 = makeMoney(25n, "USD");
+    const d1 = decodeValue("date", "2024-01-01");
+    const d2 = decodeValue("date", "2024-02-29");
+    return {
+      publicDecodeMoney: decodeValue("money", { minor: "1", currency: "USD" }),
+      publicDecodeDecimal: decodeValue("decimal", "1.5"),
+      publicDecodeInt: decodeValue("int", "42"),
+      publicEncodeMoney: encodeValue("money", m1),
+      publicEncodeInt: encodeValue("int", 42n),
+      numericMoney: money(1000n, "USD"),
+      numericAddMoney: addMoney(m1, m2),
+      numericParse: parseDecimal("19.99"),
+      numericAddInt: addInt(1n, 2n),
+      numericCompareDate: compareDate(d1 as never, d2 as never),
+      numericSumMoney: sumMoney([m1], "USD"),
+      stdlibSumInt: sum([1n, 2n], "int"),
+      stdlibSumMoney: sum([m1, m2], "money", "USD"),
+      stdlibAbsInt: abs(-5n),
+      stdlibAbsMoney: abs(m1),
+      generatedMultiply: multiplyMoney(m1, parseDecimal("2")),
+    };
+  }
+
+  it("keeps the TypeScript default with no backend installed", () => {
+    assert.equal(selectedExactBackendRead(), null);
+    assert.deepEqual(money(1000n, "USD"), { kind: "money", minor: 100000n, currency: "USD" });
+  });
+
+  it("serves public, numeric, stdlib and generated routes through one genuine backend", () => {
+    const expected = probeBattery();
+    const seen = countingOver(native);
+    selectExactBackend(seen.backend);
+    let actual: unknown;
+    try {
+      actual = probeBattery();
+    } finally {
+      selectExactBackend(null);
+    }
+    assert.deepEqual(actual, expected);
+    for (const op of [
+      "decode-value",
+      "encode-value",
+      "money",
+      "add-money",
+      "parse-decimal",
+      "add-int",
+      "compare-date",
+      "sum-money",
+      "sum-int",
+      "abs-int",
+      "abs-money",
+      "multiply-money",
+    ]) {
+      assert.ok(seen.calls.some((call) => call.op === op), `no genuine backend call for ${op}`);
+    }
+    // Synchronicity is by construction (`routeExact` returns `T`, never a
+    // promise); reaching here with deep-equal values proves the sync path.
+    assert.equal(typeof actual, "object");
+  });
+
+  it("propagates backend failures once with no TypeScript retry", () => {
+    let calls = 0;
+    selectExactBackend({
+      name: "wasm",
+      call(): unknown {
+        calls += 1;
+        throw new ValueError("overflow", "boom");
+      },
+    });
+    try {
+      assert.throws(() => addInt(1n, 2n), (error: unknown) => {
+        assert.ok(error instanceof ValueError);
+        assert.equal((error as ValueError).message, "boom");
+        return true;
+      });
+      assert.equal(calls, 1);
+      assert.throws(() => decodeValue("decimal", "1.5"), /boom/);
+      assert.equal(calls, 2);
+      assert.throws(() => sum([1n], "int"), /boom/);
+      assert.equal(calls, 3);
+    } finally {
+      selectExactBackend(null);
+    }
+  });
+
+  it("runs the canonical TypeScript path without recursion when selected", () => {
+    const expected = probeBattery();
+    selectExactBackend(tsBackend());
+    let actual: unknown;
+    try {
+      actual = probeBattery();
+    } finally {
+      selectExactBackend(null);
+    }
+    assert.deepEqual(actual, expected);
+  });
+});
+
+describe("wire facade admission before payload eval", () => {
+  const native = wasm();
+
+  it("keeps non-string and bogus type ids on the original contract", () => {
+    const expectedNonString = outcomeOfFn(() => decodeValue(123 as unknown as string, "1"));
+    const expectedBogus = outcomeOfFn(() => decodeValue("bogus!!", "1"));
+    const expectedEncodeBogus = outcomeOfFn(() => encodeValue("bogus!!", 1n));
+    selectExactBackend(native);
+    try {
+      assert.deepEqual(outcomeOfFn(() => decodeValue(123 as unknown as string, "1")), expectedNonString);
+      assert.deepEqual(outcomeOfFn(() => decodeValue("bogus!!", "1")), expectedBogus);
+      assert.deepEqual(outcomeOfFn(() => encodeValue("bogus!!", 1n)), expectedEncodeBogus);
+    } finally {
+      selectExactBackend(null);
+    }
+  });
+
+  it("keeps unadmitted facade ops on TypeScript dispatch with identical results", () => {
+    const m = money(100n, "USD");
+    const expectedText = decodeValue("text", "hi");
+    const expectedArray = decodeValue("int[]", ["1", "2"]);
+    const expectedAssisted = encodeValue("money", m, () => undefined);
+    const ops: string[] = [];
+    selectExactBackend({
+      name: "wasm",
+      call(op: string, args: unknown[]): unknown {
+        ops.push(op);
+        return native.call(op, args);
+      },
+    });
+    try {
+      assert.deepEqual(decodeValue("text", "hi"), expectedText);
+      assert.deepEqual(decodeValue("int[]", ["1", "2"]), expectedArray);
+      assert.deepEqual(encodeValue("money", m, () => undefined), expectedAssisted);
+      // The facade never dispatches decode-value/encode-value itself for
+      // these; inner numeric primitives may still serve natively with
+      // identical results through the general selection.
+      assert.ok(!ops.includes("decode-value") && !ops.includes("encode-value"));
+    } finally {
+      selectExactBackend(null);
+    }
+  });
+
+  it("refuses bad type ids before touching the payload", () => {
+    const poisoned = new Proxy({}, { get() { throw new Error("payload evaluated"); } });
+    selectExactBackend(native);
+    try {
+      assert.throws(() => decodeValue(123 as unknown as string, poisoned), (error: unknown) => {
+        assert.ok(error instanceof ValueError);
+        assert.equal((error as ValueError).message, "type id must be a string");
+        return true;
+      });
+      assert.throws(() => decodeValue("bogus!!", poisoned), (error: unknown) => {
+        assert.ok(error instanceof ValueError);
+        assert.notEqual((error as ValueError).message, "payload evaluated");
+        return true;
+      });
+    } finally {
+      selectExactBackend(null);
+    }
   });
 });

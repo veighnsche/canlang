@@ -187,13 +187,15 @@ export function reconstruct(tagged: Tagged): unknown {
       return out;
     }
     case "array":
-      return tagged.items.map(reconstruct);
+      return Object.freeze(tagged.items.map(reconstruct));
     case "record":
-      return Object.fromEntries(
-        tagged.entries.map(([k, v]) => [
-          typeof k === "string" ? k : fromCodeUnits(k.k16),
-          reconstruct(v),
-        ]),
+      return Object.freeze(
+        Object.fromEntries(
+          tagged.entries.map(([k, v]) => [
+            typeof k === "string" ? k : fromCodeUnits(k.k16),
+            reconstruct(v),
+          ]),
+        ),
       );
   }
 }

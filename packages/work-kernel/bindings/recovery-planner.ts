@@ -115,8 +115,21 @@ export function createRecoveryPlanner(options: RecoveryPlannerOptions): Recovery
   if (WebAssembly.Module.imports(options.module).length !== 0) {
     throw nativeFailure('module must not import callbacks or host services');
   }
-  const exports = new WebAssembly.Instance(options.module).exports;
-  if (!(exports.memory instanceof WebAssembly.Memory)) throw nativeFailure('memory export is missing');
+  return createRecoveryPlannerFromExports(
+    new WebAssembly.Instance(options.module).exports as Record<string, WebAssembly.ExportValue>,
+  );
+}
+
+/**
+ * Shared-instance factory: bind the planner to one already-initialized
+ * instance's exports instead of instantiating the module again, preserving
+ * the original one-instance contract for kernels that share the module
+ * between the selected-call driver and the planner route.
+ */
+export function createRecoveryPlannerFromExports(
+  exports: Record<string, WebAssembly.ExportValue>,
+): RecoveryPlanner {
+  if (!(exports['memory'] instanceof WebAssembly.Memory)) throw nativeFailure('memory export is missing');
   for (const name of FUNCTIONS) {
     if (typeof exports[`can_recovery_${name}`] !== 'function') {
       throw nativeFailure(`export can_recovery_${name} is missing`);

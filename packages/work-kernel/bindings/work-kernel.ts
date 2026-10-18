@@ -11,7 +11,7 @@ import * as receiptTs from '../src/receipt.js';
 import { ReceiptTableError } from '../src/receipt.js';
 import * as recoveryTs from '../src/recovery.js';
 import * as linkageTs from '../src/linkage.js';
-import { createRecoveryPlanner } from './recovery-planner.js';
+import { createRecoveryPlannerFromExports } from './recovery-planner.js';
 
 /** Startup selection is explicit. The caller compiles the producer-owned asset. */
 export type WorkKernelOptions =
@@ -105,37 +105,101 @@ function stringFromUnits(values: readonly number[]): string {
 }
 
 // Closed-data wire: numbers ride bit-exact, strings ride as UTF-16 units
-// (lone surrogates preserved), objects ride key-ordered entries. Missing
-// (`undefined`) reads as null, matching the receipt payload rule; delivered
-// `undefined` results therefore normalize to null. Functions, symbols and
-// bigints cannot cross and refuse loudly; cyclic graphs refuse loudly (the
-// leaf's path-specific cyclic refusal stays TS-proven in the family suites).
-function encode(value: unknown, seen?: Set<object>): unknown {
-  if (value === undefined) return null;
-  if (typeof value === 'number') return { $bits: bits(value) };
-  if (typeof value === 'string') return { $u16: units(value) };
-  if (typeof value === 'boolean' || value === null) return value;
-  if (typeof value === 'object') {
-    seen ??= new Set();
-    if (seen.has(value)) throw profileRefusal('cyclic graphs cannot cross the closed-data channel');
-    seen.add(value);
-    try {
-      if (Array.isArray(value)) return value.map((entry) => encode(entry, seen));
-      // Materialized host tables (committedAtMs/contract lookups) cross as
-      // key-ordered entries; absent keys stay absent on the native side.
-      if (value instanceof Map) {
-        return {
-          $entries: [...value].map(([key, entry]) => [units(key as string), encode(entry, seen)]),
-        };
-      }
-      return {
-        $entries: Object.entries(value).map(([key, entry]) => [units(key), encode(entry, seen)]),
-      };
-    } finally {
-      seen.delete(value);
+// (lone surrogates preserved), objects ride key-ordered entries.
+// `undefined` rides as an explicit tag (never silent null): the receipt
+// payload rule maps it to null natively, work-profile safety refuses it,
+// and state clone-only paths echo it back. Functions, symbols and bigints
+// ride as tags so the NATIVE safety verdict (not a host traversal refusal)
+// decides them with donor-identical faults. Containers shared across the
+// graph ride with `$id`/`$ref` marks so native identity checks (cyclic
+// refusal) and host thaw (alias restoration) observe the same graph.
+// Per-wrapper demanded projections keep donor-unread positions out of the
+// traversal entirely: those ride as `$opaque` and are restored by the
+// wrapper from call-local references, never enumerated.
+/**
+ * Marker for one donor-unread by-reference position. A module-private class
+ * so live user data shaped `{$opaque: true}` can never collide with it:
+ * only markers minted here ride the opaque channel. Markers hold no props,
+ * so neither traversal pass reads through them.
+ */
+class OpaqueMarker {
+  declare readonly __workKernelOpaque: true;
+}
+
+function isOpaqueMarker(value: unknown): value is OpaqueMarker {
+  return value instanceof OpaqueMarker;
+}
+
+/** Mint one donor-unread by-reference marker for this call only. */
+function opaque(): OpaqueMarker {
+  return new OpaqueMarker();
+}
+
+function encode(value: unknown): unknown {
+  // Single observation: the first (and only) live traversal captures every
+  // read exactly once, and serialization reuses those captured values. Only
+  // repeated containers carry `$id`/`$ref`, so acyclic payloads keep their
+  // exact historical shape. A changed second read is never consulted: the
+  // donor's safety verdict comes from its first observation (a getter that
+  // reads `undefined` first refuses `not JSON-safe` even when a later read
+  // would see a value), and the same first observation decides here, with
+  // the accessor firing exactly once. Projected views hold only scalars
+  // and markers and traverse nothing live.
+  const counts = new Map<object, number>();
+  const firstEntries = new Map<object, Array<[string, unknown]>>();
+  const firstItems = new Map<object, unknown[]>();
+  const visit = (node: unknown): void => {
+    if (node === null || typeof node !== 'object') return;
+    counts.set(node, (counts.get(node) ?? 0) + 1);
+    if (counts.get(node)! > 1) return;
+    if (Array.isArray(node)) {
+      const items = node.map((entry) => entry);
+      firstItems.set(node, items);
+      for (const entry of items) visit(entry);
+      return;
     }
-  }
-  throw profileRefusal(`${typeof value} values cannot cross the closed-data channel`);
+    if (node instanceof Map) {
+      const pairs = [...node];
+      firstEntries.set(node, pairs as Array<[string, unknown]>);
+      for (const [, entry] of pairs) visit(entry);
+      return;
+    }
+    const entries = Object.entries(node);
+    firstEntries.set(node, entries);
+    for (const [, entry] of entries) visit(entry);
+  };
+  visit(value);
+  let nextId = 0;
+  const ids = new Map<object, number>();
+  const build = (node: unknown): unknown => {
+    // Demanded-projection markers cross verbatim: the native side carries
+    // them as opaque values and echoes them back for call-local restore.
+    if (isOpaqueMarker(node)) return { $opaque: true };
+    if (node === undefined) return { $undefined: true };
+    if (typeof node === 'number') return { $bits: bits(node) };
+    if (typeof node === 'string') return { $u16: units(node) };
+    if (typeof node === 'boolean' || node === null) return node;
+    if (typeof node === 'function' || typeof node === 'symbol' || typeof node === 'bigint') {
+      return { $fn: true };
+    }
+    if (typeof node === 'object') {
+      const repeat = (counts.get(node) ?? 0) > 1;
+      const known = ids.get(node);
+      if (known !== undefined) return { $ref: known };
+      const id = nextId++;
+      if (repeat) ids.set(node, id);
+      if (Array.isArray(node)) {
+        const items = (firstItems.get(node) ?? []).map((entry) => build(entry));
+        return repeat ? { $id: id, $items: items } : items;
+      }
+      const entries = (firstEntries.get(node) ?? []).map(
+        ([key, entry]) => [units(key as string), build(entry)],
+      );
+      return repeat ? { $id: id, $entries: entries } : { $entries: entries };
+    }
+    throw profileRefusal(`${typeof node} values cannot cross the closed-data channel`);
+  };
+  return build(value);
 }
 
 function decodeKey(unitsValue: unknown): string {
@@ -143,25 +207,124 @@ function decodeKey(unitsValue: unknown): string {
   return stringFromUnits(unitsValue as number[]);
 }
 
-function thaw(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(thaw);
+function defineOwn(out: Record<string, unknown>, key: string, value: unknown): void {
+  // Prototype-safe: an own `__proto__` key stays an own data property
+  // (spread/structuredClone semantics), never a prototype mutation.
+  Object.defineProperty(out, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
+function thaw(value: unknown, refs?: Map<number, unknown>): unknown {
+  if (Array.isArray(value)) return value.map((entry) => thaw(entry, refs));
   if (value !== null && typeof value === 'object') {
     const node = value as Record<string, unknown>;
     if (typeof node.$bits === 'string') return unbits(node.$bits);
     if (Array.isArray(node.$u16)) return stringFromUnits(node.$u16 as number[]);
-    if (Array.isArray(node.$entries)) {
-      const out: Record<string, unknown> = {};
-      for (const entry of node.$entries as Array<[unknown, unknown]>) {
-        out[decodeKey(entry[0])] = thaw(entry[1]);
+    if (typeof node.$ref === 'number') {
+      const target = refs?.get(node.$ref);
+      if (target === undefined) throw nativeFailure('returned a dangling identity reference');
+      return target;
+    }
+    // Opaque echoes ride through for positional restore: every wrapper
+    // overwrites each echo site with its call-local reference (or discards
+    // the native value outright), so echoes never reach callers. They cross
+    // bare only from native Opaque carriers; live user data can never forge
+    // a bare tag (the encoder wraps every object in entries).
+    if (node.$opaque === true) return { $opaque: true };
+    if (node.$fn === true || node.$sym === true || node.$bigint === true) {
+      // State clone-only positions echo exotic tags the donor's own
+      // structuredClone refuses; match its DataCloneError name loudly.
+      throw new DOMException('could not be cloned', 'DataCloneError');
+    }
+    if (Array.isArray(node.$items) || Array.isArray(node.$entries)) {
+      const table = refs ?? new Map<number, unknown>();
+      const out: Record<string, unknown> | unknown[] = Array.isArray(node.$items) ? [] : {};
+      if (typeof node.$id === 'number') table.set(node.$id, out);
+      if (Array.isArray(node.$items)) {
+        for (const entry of node.$items as unknown[]) (out as unknown[]).push(thaw(entry, table));
+      } else {
+        for (const entry of node.$entries as Array<[unknown, unknown]>) {
+          defineOwn(out as Record<string, unknown>, decodeKey(entry[0]), thaw(entry[1], table));
+        }
       }
       return out;
     }
     if ('$undefined' in node) return undefined;
     const out: Record<string, unknown> = {};
-    for (const [key, entry] of Object.entries(node)) out[key] = thaw(entry);
+    for (const [key, entry] of Object.entries(node)) defineOwn(out, key, thaw(entry, refs));
     return out;
   }
   return value;
+}
+
+/**
+ * Demanded-read projection scalar: leaves cross as themselves; anything the
+ * donor only references (objects, functions, symbols, bigints) rides opaque
+ * so the traversal never touches donor-unread positions. `undefined` rides
+ * as itself and encodes to the explicit undefined tag.
+ */
+function demanded(value: unknown): unknown {
+  switch (typeof value) {
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'undefined':
+      return value;
+    default:
+      return value === null ? null : opaque();
+  }
+}
+
+/**
+ * Demanded closed-error shape view: the donor reads exactly the key set plus
+ * the `code`/`message` values, so the view preserves the key count (padding
+ * unread positions with opaque markers without reading them) and carries
+ * only the two demanded values. Verdicts over the view equal the donor's.
+ */
+function shapeView(error: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(error)) {
+    defineOwn(out, key, key === 'code' || key === 'message' ? demanded(error[key]) : opaque());
+  }
+  return out;
+}
+
+/**
+ * Predicate argument projection for the completion-consistency twins: status
+ * crosses only when it is a string (anything else decides false on both
+ * sides); result crosses only as null-ness (the donor never reads further);
+ * error crosses as null-ness, or as a demanded shape view exactly when the
+ * status selects the shape check.
+ */
+function completionView(
+  status: unknown,
+  result: unknown,
+  error: unknown,
+  shaped: boolean,
+): [unknown, unknown, unknown] {
+  const statusView = typeof status === 'string' ? status : opaque();
+  const resultView = result === undefined || result === null ? null : opaque();
+  let errorView: unknown;
+  if (error === undefined || error === null) errorView = null;
+  else if (shaped && typeof error === 'object') errorView = shapeView(error as Record<string, unknown>);
+  else errorView = opaque();
+  return [statusView, resultView, errorView];
+}
+
+/** Policy projection: the guard reads exactly maxAttempts/horizonMs. */
+function policyView(policy: unknown): unknown {
+  if (policy === undefined || policy === null) return policy;
+  if (typeof policy !== 'object') return policy;
+  const source = policy as Record<string, unknown>;
+  return { maxAttempts: source['maxAttempts'], horizonMs: source['horizonMs'] };
+}
+
+/**
+ * Cause-kind projection: classification reads exactly kind. Sibling payload
+ * fields ride as empty dummies (never read, only parsed): the native cause
+ * arms require the keys present, while the donor never touches them here.
+ */
+function causeKindView(cause: unknown): { kind: unknown; require: string; code: string; message: string } {
+  return { kind: demanded((cause as { kind: unknown }).kind), require: '', code: '', message: '' };
 }
 
 interface FaultWire {
@@ -320,8 +483,51 @@ function wasmRows(driver: CallDriver): typeof rowsTs {
     driver.run('rows', fn, args, { errors });
   rows.readDispatchRow = ((row: unknown, errors?: RowsErrorFactory): unknown =>
     call('readDispatchRow', [row], errors)) as typeof rows.readDispatchRow;
-  rows.readOccurrenceRow = ((row: unknown, errors?: RowsErrorFactory): unknown =>
-    call('readOccurrenceRow', [row], errors)) as typeof rows.readOccurrenceRow;
+  rows.readOccurrenceRow = ((row: unknown, errors?: RowsErrorFactory): unknown => {
+    // The donor validates the fixed scalar fields and returns result by
+    // reference: result rides opaque and is restored, exactly like the
+    // lifecycle passthroughs. Non-record data fails closed natively.
+    const source = row as { data: unknown };
+    if (typeof source.data !== 'object' || source.data === null || Array.isArray(source.data)) {
+      return call('readOccurrenceRow', [row], errors);
+    }
+    const data = source.data as Record<string, unknown>;
+    // Donor read order: status, then the return-literal fields. An already
+    // refused status never touches the later accessors: the native verdict
+    // (not a later getter) decides, so unread positions ride dummies while
+    // the refused status itself still rides for the owning status error.
+    const status = data['status'];
+    if (status !== 'completed' && status !== 'failed') {
+      return call('readOccurrenceRow', [{
+        id: '',
+        version: 0,
+        created: 0,
+        updated: 0,
+        createdBy: '',
+        updatedBy: '',
+        archivedAt: null,
+        parent: null,
+        data: { occurrenceId: '', status, result: opaque(), code: null, message: null, recordedAtMs: 0 },
+      }], errors);
+    }
+    const occurrenceId = data['occurrenceId'];
+    const result = data['result'] ?? null;
+    const code = data['code'];
+    const message = data['message'];
+    const recordedAtMs = data['recordedAtMs'];
+    const out = call('readOccurrenceRow', [{
+      id: '',
+      version: 0,
+      created: 0,
+      updated: 0,
+      createdBy: '',
+      updatedBy: '',
+      archivedAt: null,
+      parent: null,
+      data: { occurrenceId, status, result: opaque(), code, message, recordedAtMs },
+    }], errors) as Record<string, unknown>;
+    return { ...out, result };
+  }) as typeof rows.readOccurrenceRow;
   rows.readScheduleRow = ((row: unknown, errors?: RowsErrorFactory): unknown =>
     call('readScheduleRow', [row], errors)) as typeof rows.readScheduleRow;
   rows.scheduleRowScope = ((row: unknown): unknown =>
@@ -374,25 +580,66 @@ function wasmRows(driver: CallDriver): typeof rowsTs {
     call('fanoutChildPageQuery', [fanoutId, opts, direction], errors)) as typeof rows.fanoutChildPageQuery;
   rows.fanoutChildPageResult = ((paged: unknown, limit: unknown, direction: unknown, errors?: RowsErrorFactory): unknown =>
     call('fanoutChildPageResult', [paged, limit, direction], errors)) as typeof rows.fanoutChildPageResult;
-  rows.withRowData = ((row: unknown, data: unknown, meta: unknown, what: unknown, errors?: RowsErrorFactory): unknown =>
-    call('withRowData', [row, data, meta, what], errors)) as typeof rows.withRowData;
-  rows.withFanoutRowData = ((row: unknown, data: unknown, meta: unknown, errors?: RowsErrorFactory): unknown =>
-    call('withFanoutRowData', [row, data, meta], errors)) as typeof rows.withFanoutRowData;
+  // Replacement rows merge the native verdict onto the input spread: caller
+  // extras and envelope references survive with donor spread timing, while
+  // the safety/clone semantics stay exact. Work data crosses whole (the
+  // donor safety-traverses then clones, matching the two-pass traversal);
+  // state clone-only data never crosses (the donor only clones) and is
+  // cloned host-side, preserving alias identity and cycles exactly.
+  const storedRowEnvelope = (row: Record<string, unknown>): Record<string, unknown> => ({
+    id: '',
+    version: row['version'],
+    created: 0,
+    updated: 0,
+    createdBy: '',
+    updatedBy: '',
+    archivedAt: null,
+    parent: null,
+    data: null,
+  });
+  rows.withRowData = ((row: unknown, data: unknown, meta: unknown, what: unknown, errors?: RowsErrorFactory): unknown => {
+    const source = row as Record<string, unknown>;
+    const out = call('withRowData', [storedRowEnvelope(source), data, meta, what], errors) as {
+      version: unknown; updated: unknown; updatedBy: unknown; data: unknown;
+    };
+    return {
+      ...source,
+      version: out.version,
+      updated: out.updated,
+      updatedBy: out.updatedBy,
+      data: out.data,
+    };
+  }) as typeof rows.withRowData;
+  rows.withFanoutRowData = ((row: unknown, data: unknown, meta: unknown, errors?: RowsErrorFactory): unknown => {
+    const source = row as Record<string, unknown>;
+    const out = call('withFanoutRowData', [storedRowEnvelope(source), null, meta], errors) as {
+      version: unknown; updated: unknown; updatedBy: unknown;
+    };
+    return {
+      ...source,
+      version: out.version,
+      updated: out.updated,
+      updatedBy: out.updatedBy,
+      data: cloneData(data),
+    };
+  }) as typeof rows.withFanoutRowData;
   return rows;
 }
 
 function wasmRetry(driver: CallDriver): typeof retryTs {
   const retry = { ...retryTs };
+  // Classification reads exactly kind; the code/message payload never
+  // affects it, so it never crosses (and can never fault the traversal).
   retry.classifyFailure = ((cause: unknown): unknown =>
-    driver.run('retry', 'classifyFailure', [cause], {})) as typeof retry.classifyFailure;
+    driver.run('retry', 'classifyFailure', [causeKindView(cause)], {})) as typeof retry.classifyFailure;
   retry.assertPolicy = ((policy: unknown): unknown =>
-    driver.run('retry', 'assertPolicy', [policy], {})) as typeof retry.assertPolicy;
+    driver.run('retry', 'assertPolicy', [policyView(policy)], {})) as typeof retry.assertPolicy;
   retry.computeBackoff = ((input: { attempt: number; firstAttemptAtMs: number; nowMs: number; policy?: unknown; random: RandomPort }): unknown =>
     driver.run('retry', 'computeBackoff', [{
       attempt: input.attempt,
       firstAttemptAtMs: input.firstAttemptAtMs,
       nowMs: input.nowMs,
-      policy: input.policy,
+      policy: policyView(input.policy),
     }], { sample: () => input.random.nextUnit() })) as typeof retry.computeBackoff;
   return retry;
 }
@@ -437,138 +684,583 @@ function wasmEvery(driver: CallDriver): typeof everyTs {
 function wasmLifecycle(driver: CallDriver): typeof lifecycleTs {
   const lifecycle = { ...lifecycleTs };
   lifecycle.recordOutcome = ((input: {
-    item: { request: unknown };
-    outcome: { kind: string; result?: unknown };
+    item: { id: unknown; attempts: unknown; state: unknown; request: unknown };
+    outcome: { kind: unknown; result?: unknown; cause?: { kind: unknown; code?: unknown; message?: unknown } };
+    nowMs: unknown;
+    firstAttemptAtMs: unknown;
+    policy?: unknown;
   }): unknown => {
-    const out = driver.run('lifecycle', 'recordOutcome', [input], {}) as {
-      item: Record<string, unknown>; result: unknown;
+    // Demanded projection in donor read order: state, clock anchors, policy
+    // fields, outcome kind, cause refs, attempts, id. The donor never reads
+    // past these (request and extras ride the host spread below), so the
+    // traversal cannot fire donor-unread getters or refuse valid opaques.
+    const item = input.item;
+    const outcome = input.outcome;
+    const state = item.state;
+    // Donor demand order: a refused state never touches the clock, policy,
+    // outcome or counters — the owning state error decides. The refusal
+    // still consults the native verdict (never whitelisted away): only the
+    // donor-read refusal fields ride (state, then id for the message) while
+    // every donor-unread position rides a parseable dummy the native
+    // refusal never consults.
+    if (state !== 'pending' && state !== 'claimed') {
+      const id = item.id;
+      // The donor's refusal message observes state once more after id;
+      // match that access (state, id, state) while the first observation
+      // keeps governing the verdict, exactly like the wire single-read rule.
+      void item.state;
+      return driver.run('lifecycle', 'recordOutcome', [{
+        item: {
+          id: typeof id === 'string' ? id : '',
+          operationId: '',
+          source: '',
+          occurrenceIndex: 0,
+          request: opaque(),
+          originOccurrence: null,
+          attempts: 0,
+          state,
+        },
+        outcome: { kind: 'uncertain' },
+        nowMs: 0,
+        firstAttemptAtMs: 0,
+        policy: policyView(undefined),
+      }], {});
+    }
+    const nowMs = input.nowMs;
+    const firstAttemptAtMs = input.firstAttemptAtMs;
+    const policy = policyView(input.policy);
+    const attempts = item.attempts;
+    const kind = outcome.kind;
+    let causeView: unknown = null;
+    let causeKind: unknown;
+    let causeCode: unknown;
+    let causeMessage: unknown;
+    if (kind === 'failed') {
+      const cause = outcome.cause as { kind: unknown; code?: unknown; message?: unknown };
+      causeKind = cause.kind;
+      if (causeKind === 'handler-require-false') {
+        causeView = { kind: causeKind, require: '', code: '', message: '' };
+      } else {
+        causeCode = cause.code;
+        causeMessage = cause.message;
+        causeView = {
+          kind: demanded(causeKind),
+          code: typeof causeCode === 'string' ? causeCode : '',
+          message: typeof causeMessage === 'string' ? causeMessage : '',
+        };
+      }
+    }
+    const id = item.id;
+    const out = driver.run('lifecycle', 'recordOutcome', [{
+      item: {
+        id: typeof id === 'string' ? id : '',
+        operationId: '',
+        source: '',
+        occurrenceIndex: 0,
+        request: opaque(),
+        originOccurrence: null,
+        attempts,
+        state,
+      },
+      outcome: kind === 'delivered'
+        ? { kind, result: opaque() }
+        : kind === 'uncertain'
+          ? { kind }
+          : { kind: demanded(kind), cause: causeView },
+      nowMs,
+      firstAttemptAtMs,
+      policy,
+    }], {}) as {
+      item: { attempts: unknown; state: unknown };
+      status: unknown; result: unknown; error: { code: unknown } | null;
+      retryClass: unknown; retryable: unknown;
     };
-    // The spread item keeps the caller-owned request by reference; a
-    // delivered result passes through by reference. Decoded scalars match.
-    out.item = { ...out.item, request: input.item.request };
-    if (input.outcome.kind === 'delivered') out.result = input.outcome.result;
-    return out;
+    // Host merge: the spread preserves caller extras and the request by
+    // reference with donor spread timing; only the decided fields come from
+    // the native verdict. A delivered result passes through by reference; a
+    // terminal cause error carries the captured refs when they are exotic
+    // (fixed exhaustion errors stay native).
+    const merged = { ...(item as Record<string, unknown>), attempts: out.item.attempts, state: out.item.state };
+    let result: unknown = null;
+    if (kind === 'delivered') result = (outcome as { result?: unknown }).result;
+    let error: unknown = out.error;
+    const errorCode = (error as { code?: unknown } | null)?.code;
+    if (kind === 'failed' && causeKind !== 'handler-require-false'
+      && (typeof causeCode !== 'string' || typeof causeMessage !== 'string')
+      && errorCode !== 'retry-exhausted' && errorCode !== 'retry-horizon-exceeded') {
+      error = { code: causeCode, message: causeMessage };
+    }
+    return {
+      item: merged,
+      status: out.status,
+      result,
+      error,
+      retryClass: out.retryClass,
+      retryable: out.retryable,
+    };
   }) as typeof lifecycle.recordOutcome;
-  lifecycle.reconcileUncertain = ((item: { request: unknown }, evidence: { kind: string; result?: unknown } | null): unknown => {
-    const out = driver.run('lifecycle', 'reconcileUncertain', [item, evidence], {}) as {
-      item: Record<string, unknown>; changed: boolean; result: unknown;
+  lifecycle.reconcileUncertain = ((item: { request: unknown }, evidence: { kind: unknown; result?: unknown; code?: unknown; message?: unknown } | null): unknown => {
+    // Donor read order: item.state first; evidence is untouched (not even
+    // its kind) on the non-uncertain path, so it rides null there and the
+    // native no-op decides unchanged.
+    const source = item as unknown as { state: unknown };
+    const state = source.state;
+    let evidenceView: unknown = null;
+    let capturedResult: unknown;
+    let capturedCode: unknown;
+    let capturedMessage: unknown;
+    let evidenceKind: unknown;
+    // Only null evidence is a no-op: undefined evidence still reads kind
+    // (and reconciles as not-found), exactly like the donor.
+    if (state === 'uncertain' && evidence !== null) {
+      evidenceKind = (evidence as { kind: unknown }).kind;
+      if (evidenceKind === 'delivered') {
+        capturedResult = evidence.result;
+        evidenceView = { kind: evidenceKind, result: opaque() };
+      } else if (evidenceKind === 'failed') {
+        capturedCode = evidence.code;
+        capturedMessage = evidence.message;
+        evidenceView = {
+          kind: evidenceKind,
+          code: typeof capturedCode === 'string' ? capturedCode : '',
+          message: typeof capturedMessage === 'string' ? capturedMessage : '',
+        };
+      } else {
+        evidenceView = { kind: typeof evidenceKind === 'string' ? evidenceKind : '' };
+      }
+    }
+    const out = driver.run('lifecycle', 'reconcileUncertain', [{
+      id: '',
+      operationId: '',
+      source: '',
+      occurrenceIndex: 0,
+      request: opaque(),
+      originOccurrence: null,
+      attempts: 0,
+      state,
+    }, evidenceView], {}) as {
+      item: { state: unknown };
+      changed: boolean;
+      status: unknown;
+      result: unknown;
+      error: unknown;
     };
-    // Untouched paths return the input item itself; spreads keep the
-    // caller-owned request; delivered evidence passes through by reference.
-    if (!out.changed) out.item = item as Record<string, unknown>;
-    else out.item = { ...out.item, request: item.request };
-    if (out.changed && evidence?.kind === 'delivered') out.result = evidence.result;
-    return out;
+    // Untouched paths return the input item itself; changed paths spread the
+    // input (caller-owned request and extras by reference) with the decided
+    // state; delivered/failed payloads restore call-local references.
+    if (!out.changed) {
+      return { item, changed: false, status: null, result: null, error: null };
+    }
+    const merged = { ...(item as Record<string, unknown>), state: out.item.state };
+    if (evidenceKind === 'delivered') {
+      return { item: merged, changed: true, status: out.status, result: capturedResult, error: null };
+    }
+    if (evidenceKind === 'failed'
+      && (typeof capturedCode !== 'string' || typeof capturedMessage !== 'string')) {
+      return {
+        item: merged,
+        changed: true,
+        status: out.status,
+        result: null,
+        error: { code: capturedCode, message: capturedMessage },
+      };
+    }
+    return { item: merged, changed: true, status: out.status, result: null, error: out.error };
   }) as typeof lifecycle.reconcileUncertain;
   return lifecycle;
 }
 
+/** Minimal global structuredClone shape (Node >= 22 runtime). */
+declare const structuredClone: <T>(value: T) => T;
+
+/** Clone-only positions reuse the donor's own clone, host-side, exactly. */
+function cloneData<T>(value: T): T {
+  return structuredClone(value);
+}
+
 function wasmReceipt(driver: CallDriver): typeof receiptTs {
   const receipt = { ...receiptTs };
+  // Minimal item projection: the donor reads exactly id (sort) and state
+  // (filter); request and extras ride the host zip below, never the wire.
+  const listingItemView = (item: Record<string, unknown>): Record<string, unknown> => ({
+    id: demanded(item['id']),
+    operationId: '',
+    source: '',
+    occurrenceIndex: 0,
+    request: opaque(),
+    originOccurrence: null,
+    attempts: 0,
+    state: demanded(item['state']),
+  });
+  // Exact-occurrence restore: each native output row maps back to the one
+  // original occurrence the native decision actually selected, in
+  // selected-order. Pools hold only selectable inputs (by the
+  // already-observed view values, in input order) keyed by the
+  // already-observed id — never every input regardless of the decision,
+  // which would hand back an unselected same-id occurrence. A native id
+  // with an empty pool is skew, never silent.
   receipt.listDeadLetter = ((items: readonly { id: string }[]): unknown => {
-    const out = driver.run('receipt', 'listDeadLetter', [items], {}) as { id: string }[];
-    // Reference restoration only: the native order and membership decide;
-    // every returned id must resolve to an input reference of this call.
-    const byId = new Map(items.map((item) => [item.id, item]));
+    const pairs = items.map((item) => ({ item, view: listingItemView(item as Record<string, unknown>) }));
+    const out = driver.run('receipt', 'listDeadLetter', [pairs.map((pair) => pair.view)], {}) as { id: string }[];
+    const pools = new Map<unknown, { id: string }[]>();
+    for (const { item, view } of pairs) {
+      if (view['state'] === 'dead') {
+        const key = view['id'];
+        const pool = pools.get(key);
+        if (pool === undefined) pools.set(key, [item]);
+        else pool.push(item);
+      }
+    }
     return out.map((row) => {
-      const original = byId.get(row.id);
+      const original = pools.get(row.id)?.shift();
       if (original === undefined) throw nativeFailure('returned a dead-letter row outside this call');
       return original;
     });
   }) as typeof receipt.listDeadLetter;
   receipt.isConsistentCompletion = ((status: unknown, result: unknown, error: unknown): unknown =>
-    driver.run('receipt', 'isConsistentCompletion', [status, result, error], {})) as typeof receipt.isConsistentCompletion;
+    driver.run('receipt', 'isConsistentCompletion',
+      completionView(status, result, error, status === 'failed' || status === 'unknown'), {})) as typeof receipt.isConsistentCompletion;
   receipt.isStoredReceiptPayload = ((status: unknown, result: unknown, error: unknown): unknown =>
-    driver.run('receipt', 'isStoredReceiptPayload', [status, result, error], {})) as typeof receipt.isStoredReceiptPayload;
+    driver.run('receipt', 'isStoredReceiptPayload',
+      completionView(status, result, error, status === 'failed' || status === 'unknown'), {})) as typeof receipt.isStoredReceiptPayload;
   receipt.isTerminalReceiptStatus = ((status: unknown): unknown =>
-    driver.run('receipt', 'isTerminalReceiptStatus', [status], {})) as typeof receipt.isTerminalReceiptStatus;
+    driver.run('receipt', 'isTerminalReceiptStatus', [demanded(status)], {})) as typeof receipt.isTerminalReceiptStatus;
   receipt.toReceiptObservation = ((deliveryId: string, revision: number, recorded: { status: unknown; result: unknown; error: unknown }): unknown => {
-    // Validated natively; result and error pass through by host reference —
-    // the kernel never mints them.
-    driver.run('receipt', 'toReceiptObservation', [deliveryId, revision, recorded], {});
-    return { id: deliveryId, revision, status: recorded.status, result: recorded.result, error: recorded.error };
+    // Donor read order: deliveryId, revision, then the recorded fields. The
+    // native call validates the locator pair (the only calculation); result
+    // and error pass through by host reference — the kernel never mints or
+    // traverses them. Status rides only when it is a string, like the
+    // native carrier requires. Locator refusal leaves recorded untouched.
+    const idOk = typeof deliveryId === 'string' && deliveryId.length > 0;
+    const revOk = typeof revision === 'number' && Number.isInteger(revision) && revision >= 0;
+    if (!idOk || !revOk) {
+      driver.run('receipt', 'toReceiptObservation', [idOk ? deliveryId : '', revOk ? revision : -1, {
+        status: '',
+        result: null,
+        error: null,
+      }], {});
+      throw nativeFailure('unreachable: native locator validation must refuse');
+    }
+    // The donor observes recorded.status exactly once; capture it and reuse
+    // the capture for the view and the merge — never re-read the accessor.
+    const status = recorded.status;
+    driver.run('receipt', 'toReceiptObservation', [deliveryId, revision, {
+      status: typeof status === 'string' ? status : '',
+      result: opaque(),
+      error: null,
+    }], {});
+    return { id: deliveryId, revision, status, result: recorded.result, error: recorded.error };
   }) as typeof receipt.toReceiptObservation;
   receipt.associationRowId = ((model: unknown, recordId: unknown, field: unknown): unknown =>
     driver.run('receipt', 'associationRowId', [model, recordId, field], {})) as typeof receipt.associationRowId;
   receipt.readAssociationRow = ((row: unknown): unknown =>
     driver.run('receipt', 'readAssociationRow', [row], {})) as typeof receipt.readAssociationRow;
-  receipt.readReceiptRow = ((row: unknown): unknown =>
-    driver.run('receipt', 'readReceiptRow', [row], {})) as typeof receipt.readReceiptRow;
+  receipt.readReceiptRow = ((row: unknown): unknown => {
+    // The donor reads the envelope id plus the data's fixed scalar fields
+    // and validates (never traverses) result/error: result rides opaque and
+    // is restored by reference; error rides a demanded shape view exactly
+    // when the status selects the shape check.
+    const source = row as { id: unknown; data: unknown };
+    // Non-record data fails closed natively exactly like the donor's
+    // checkRecord: it crosses as-is for the native verdict.
+    if (typeof source.data !== 'object' || source.data === null || Array.isArray(source.data)) {
+      return driver.run('receipt', 'readReceiptRow', [row], {});
+    }
+    const data = source.data as Record<string, unknown>;
+    const status = data['status'];
+    const shaped = status === 'failed' || status === 'unknown';
+    const error = data['error'];
+    // Result crosses as null-ness (the donor maps missing to null and never
+    // reads further); only present results ride opaque for restore.
+    const resultValue = data['result'];
+    const resultView = resultValue === undefined || resultValue === null ? null : opaque();
+    const errorView = error === undefined || error === null
+      ? null
+      : shaped && typeof error === 'object'
+        ? shapeView(error as Record<string, unknown>)
+        : opaque();
+    const out = driver.run('receipt', 'readReceiptRow', [{
+      id: source.id,
+      version: 0,
+      created: 0,
+      updated: 0,
+      createdBy: '',
+      updatedBy: '',
+      archivedAt: null,
+      parent: null,
+      data: {
+        deliveryId: data['deliveryId'],
+        revision: data['revision'],
+        status,
+        result: resultView,
+        error: errorView,
+        contentRef: data['contentRef'],
+        resultExpiresAtMs: data['resultExpiresAtMs'],
+      },
+    }], {}) as {
+      receipt: { deliveryId: unknown; revision: unknown; status: unknown; result: unknown; error: unknown };
+      contentRef: unknown;
+      resultExpiresAtMs: unknown;
+    };
+    // Result and error are always the caller-owned references (missing
+    // reads as null), exactly like the donor: the native verdict validates,
+    // never mints, so the decoded clone is discarded on success. The shape
+    // view already observed code/message once, matching the donor's single
+    // closed-shape read — no second observation here.
+    const result = resultValue === undefined ? null : resultValue;
+    const observed = error === undefined ? null : error;
+    return {
+      receipt: {
+        deliveryId: out.receipt.deliveryId,
+        revision: out.receipt.revision,
+        status: out.receipt.status,
+        result,
+        error: observed,
+      },
+      contentRef: out.contentRef,
+      resultExpiresAtMs: out.resultExpiresAtMs,
+    };
+  }) as typeof receipt.readReceiptRow;
   receipt.newAssociationRow = ((input: unknown, meta: unknown): unknown =>
-    driver.run('receipt', 'newAssociationRow', [input, meta], {})) as typeof receipt.newAssociationRow;
+    driver.run('receipt', 'newAssociationRow', [{ ...(input as Record<string, unknown>) }, meta], {})) as typeof receipt.newAssociationRow;
   receipt.newReceiptRow = ((input: unknown, meta: unknown): unknown =>
-    driver.run('receipt', 'newReceiptRow', [input, meta], {})) as typeof receipt.newReceiptRow;
-  receipt.withAssociationRowData = ((row: unknown, data: unknown, meta: unknown): unknown =>
-    driver.run('receipt', 'withAssociationRowData', [row, data, meta], {})) as typeof receipt.withAssociationRowData;
-  receipt.withReceiptRowData = ((row: unknown, data: unknown, meta: unknown): unknown =>
-    driver.run('receipt', 'withReceiptRowData', [row, data, meta], {})) as typeof receipt.withReceiptRowData;
+    driver.run('receipt', 'newReceiptRow', [{ ...(input as Record<string, unknown>) }, meta], {})) as typeof receipt.newReceiptRow;
+  // Replacement rows merge the native verdict (updated/version/data) onto
+  // the input spread, so caller extras and envelope references survive with
+  // donor spread timing; data crosses whole for the native safety verdict.
+  // The stale check reads the current row data's revision exactly like the
+  // donor (throwing on null data); the envelope id rides real for the
+  // native read-back derivation check; everything else rides fixed dummies.
+  const storedRowView = (row: Record<string, unknown>): Record<string, unknown> => ({
+    id: demanded(row['id']),
+    version: row['version'],
+    created: 0,
+    updated: 0,
+    createdBy: '',
+    updatedBy: '',
+    archivedAt: null,
+    parent: null,
+    data: { revision: (row['data'] as Record<string, unknown>)['revision'] },
+  });
+  receipt.withAssociationRowData = ((row: unknown, data: unknown, meta: unknown): unknown => {
+    const source = row as Record<string, unknown>;
+    const out = driver.run('receipt', 'withAssociationRowData', [storedRowView(source), data, meta], {}) as {
+      version: unknown; updated: unknown; updatedBy: unknown; data: unknown;
+    };
+    return {
+      ...source,
+      version: out.version,
+      updated: out.updated,
+      updatedBy: out.updatedBy,
+      data: out.data,
+    };
+  }) as typeof receipt.withAssociationRowData;
+  receipt.withReceiptRowData = ((row: unknown, data: unknown, meta: unknown): unknown => {
+    const source = row as Record<string, unknown>;
+    const out = driver.run('receipt', 'withReceiptRowData', [storedRowView(source), data, meta], {}) as {
+      version: unknown; updated: unknown; updatedBy: unknown; data: unknown;
+    };
+    return {
+      ...source,
+      version: out.version,
+      updated: out.updated,
+      updatedBy: out.updatedBy,
+      data: out.data,
+    };
+  }) as typeof receipt.withReceiptRowData;
   return receipt;
 }
 
 function wasmRecovery(driver: CallDriver, planRecoveryScan: (input: never) => unknown): typeof recoveryTs {
   const recovery = { ...recoveryTs };
-  recovery.isClaimStale = ((claim: unknown, nowMs: unknown, maxClaimAgeMs: unknown): unknown =>
-    driver.run('recovery', 'isClaimStale', [claim, nowMs, maxClaimAgeMs], {})) as typeof recovery.isClaimStale;
+  recovery.isClaimStale = ((claim: unknown, nowMs: unknown, maxClaimAgeMs: unknown): unknown => {
+    // The donor reads exactly claimedAt; sibling locator fields are unread.
+    const source = claim as Record<string, unknown>;
+    return driver.run('recovery', 'isClaimStale', [{
+      outboxId: '',
+      claimId: '',
+      claimedAt: source['claimedAt'],
+    }, nowMs, maxClaimAgeMs], {});
+  }) as typeof recovery.isClaimStale;
   recovery.findStaleClaims = ((claims: readonly { claimId: string }[], nowMs: unknown, maxClaimAgeMs: unknown): unknown => {
-    const out = driver.run('recovery', 'findStaleClaims', [claims, nowMs, maxClaimAgeMs], {}) as { claimId: string }[];
-    // Reference restoration only: the native order and membership decide.
-    const byId = new Map(claims.map((claim) => [claim.claimId, claim]));
+    const pairs = claims.map((claim) => ({
+      claim,
+      view: {
+        outboxId: '',
+        claimId: (claim as Record<string, unknown>)['claimId'],
+        claimedAt: (claim as Record<string, unknown>)['claimedAt'],
+      },
+    }));
+    const out = driver.run('recovery', 'findStaleClaims', [pairs.map((pair) => pair.view), nowMs, maxClaimAgeMs], {}) as { claimId: string }[];
+    // Exact-occurrence restore: pools hold only the claims the native
+    // decision actually selected — stale by the already-observed claimedAt
+    // under the donor's own boundary expression, in input order — keyed by
+    // the already-observed claim id. Pooling every input regardless of the
+    // decision would hand back an unselected same-id claim. The clock pair
+    // is loop-invariant (the donor threads one value through every claim),
+    // so it is observed once, never once per claim.
+    const pools = new Map<unknown, { claimId: string }[]>();
+    const now = nowMs as number;
+    const age = maxClaimAgeMs as number;
+    for (const { claim, view } of pairs) {
+      const stale = (view['claimedAt'] as number) + age <= now;
+      if (stale) {
+        const key = view['claimId'];
+        const pool = pools.get(key);
+        if (pool === undefined) pools.set(key, [claim]);
+        else pool.push(claim);
+      }
+    }
     return out.map((row) => {
-      const original = byId.get(row.claimId);
+      const original = pools.get(row.claimId)?.shift();
       if (original === undefined) throw nativeFailure('returned a stale claim outside this call');
       return original;
     });
   }) as typeof recovery.findStaleClaims;
+  // Minimal outbox projection: id/state ride demanded (the donor reads them
+  // for filter/sort/output/throw); request rides opaque (never traversed);
+  // every other envelope field rides a parseable dummy the host merge below
+  // discards. Attempts rides real only where the donor reads it (staging).
+  const outboxItemView = (item: Record<string, unknown>, withAttempts: boolean): Record<string, unknown> => ({
+    id: demanded(item['id']),
+    operationId: '',
+    source: '',
+    occurrenceIndex: 0,
+    request: opaque(),
+    originOccurrence: null,
+    attempts: withAttempts ? item['attempts'] : 0,
+    state: demanded(item['state']),
+  });
+  recovery.buildInventory = ((input: recoveryTs.InventoryInput): unknown => {
+    // Per-occurrence demand in donor order: one callback reply per uncertain
+    // occurrence (duplicates keep their own replies; the native minimum over
+    // the ordered list retains the oldest). No Map collapse, no id
+    // consultation beyond the callback argument itself.
+    const replies: (number | null)[] = [];
+    for (const item of input.outboxItems) {
+      if (item.state === 'uncertain') {
+        const committed = input.committedAtMs(item.id);
+        replies.push(typeof committed === 'number' ? committed : null);
+      }
+    }
+    return driver.run('recovery', 'buildInventory', [{
+      outboxItems: input.outboxItems.map((item) => ({
+        id: '',
+        operationId: '',
+        source: '',
+        occurrenceIndex: 0,
+        request: opaque(),
+        originOccurrence: null,
+        attempts: 0,
+        state: demanded((item as unknown as Record<string, unknown>)['state']),
+      })),
+      // Length only: the donor never reads due rows.
+      dueOccurrences: input.dueOccurrences.map(() => opaque()),
+      committedList: replies,
+    }], {});
+  }) as typeof recovery.buildInventory;
+  recovery.buildWorkInventory = ((input: recoveryTs.WorkInventoryInput): unknown => {
+    // Donor-order pre-scan: settled items never consult the callback; an
+    // unknown-state item stops consultation (no callback for it or later
+    // items) and rides along for the native unknown-state refusal; every
+    // other non-settled occurrence consults exactly once, duplicates
+    // included. The native cursor consumes the reply list in the same order.
+    const views: Record<string, unknown>[] = [];
+    const replies: (string | null)[] = [];
+    for (const item of input.outboxItems) {
+      const source = item as unknown as Record<string, unknown>;
+      const state = source['state'];
+      if (state === 'delivered' || state === 'failed' || state === 'dead') continue;
+      if (state !== 'pending' && state !== 'claimed' && state !== 'uncertain') {
+        views.push(outboxItemView(source, false));
+        break;
+      }
+      const contract = input.handlerContractFor(item);
+      views.push(outboxItemView(source, false));
+      replies.push(typeof contract === 'string' && contract !== '' ? contract : null);
+    }
+    return driver.run('recovery', 'buildWorkInventory', [{
+      outboxItems: views,
+      contractsList: replies,
+    }], {});
+  }) as typeof recovery.buildWorkInventory;
   recovery.releaseStaleClaims = ((outboxItems: readonly { id: string }[], claims: unknown, nowMs: unknown, maxClaimAgeMs: unknown): unknown => {
-    const out = driver.run('recovery', 'releaseStaleClaims', [outboxItems, claims, nowMs, maxClaimAgeMs], {}) as {
+    const pairs = outboxItems.map((item) => ({
+      item,
+      view: outboxItemView(item as Record<string, unknown>, false),
+    }));
+    const out = driver.run('recovery', 'releaseStaleClaims', [pairs.map((pair) => pair.view), (claims as unknown[]).map((claim) => {
+      const source = claim as Record<string, unknown>;
+      return { outboxId: source['outboxId'], claimId: source['claimId'], claimedAt: source['claimedAt'] };
+    }), nowMs, maxClaimAgeMs], {}) as {
       items: Record<string, unknown>[]; releasedIds: string[];
     };
-    // Input order is preserved: zip decoded rows back to input references;
-    // released rows are shallow spreads, exactly like the donor.
-    if (out.items.length !== outboxItems.length) throw nativeFailure('returned a release set outside this call');
-    const released = new Set(out.releasedIds);
+    // Input order is preserved: zip decoded rows back to input references.
+    // The release decision is per occurrence, not per id: only a claimed
+    // occurrence the native verdict actually moved to pending is re-spread;
+    // every other occurrence keeps its exact original reference. An id-set
+    // heuristic would clone an untouched same-id occurrence.
+    if (out.items.length !== pairs.length) throw nativeFailure('returned a release set outside this call');
     return {
       items: out.items.map((row, index) => {
-        const original = outboxItems[index] as Record<string, unknown>;
+        const pair = pairs[index];
+        if (pair === undefined) throw nativeFailure('returned a release row outside this call');
+        const original = pair.item as Record<string, unknown>;
         if (original?.['id'] !== row['id']) throw nativeFailure('returned a release row outside this call');
-        return released.has(row['id'] as string) ? { ...original, state: 'pending' } : original;
+        if (pair.view['state'] === 'claimed' && row['state'] === 'pending') {
+          return { ...original, state: 'pending' };
+        }
+        return pair.item;
       }),
       releasedIds: out.releasedIds,
     };
   }) as typeof recovery.releaseStaleClaims;
-  recovery.buildInventory = ((input: recoveryTs.InventoryInput): unknown => {
-    // Materialize the commit lookup at the original demand: once per
-    // uncertain item, in iteration order, exactly like the donor.
-    const committedAt = new Map<string, number | null>();
-    for (const item of input.outboxItems) {
-      if (item.state === 'uncertain') committedAt.set(item.id, input.committedAtMs(item.id));
-    }
-    return driver.run('recovery', 'buildInventory', [{
-      outboxItems: input.outboxItems,
-      dueOccurrences: input.dueOccurrences,
-      committedAt,
-    }], {});
-  }) as typeof recovery.buildInventory;
-  recovery.buildWorkInventory = ((input: recoveryTs.WorkInventoryInput): unknown => {
-    // Materialize the contract lookup at the original demand: once per
-    // non-settled item, in iteration order; settled items never consult it.
-    const contracts = new Map<string, string | null>();
-    for (const item of input.outboxItems) {
-      if (item.state === 'delivered' || item.state === 'failed' || item.state === 'dead') continue;
-      contracts.set(item.id, input.handlerContractFor(item));
-    }
-    return driver.run('recovery', 'buildWorkInventory', [{
-      outboxItems: input.outboxItems,
-      contracts,
-    }], {});
-  }) as typeof recovery.buildWorkInventory;
-  recovery.recordStagingFailure = ((input: { item: { request: unknown } }): unknown => {
-    const out = driver.run('recovery', 'recordStagingFailure', [input], {}) as {
-      item: Record<string, unknown>;
+  recovery.recordStagingFailure = ((input: {
+    item: { id: unknown; attempts: unknown; state: unknown; request: unknown };
+    cause: unknown;
+    nowMs: unknown;
+    firstAttemptAtMs: unknown;
+    policy?: unknown;
+  }): unknown => {
+    // Donor read order: item.state, clock anchors, policy fields, cause
+    // kind, attempts, id. Cause classifies on kind alone (no error is
+    // synthesized here); the output item merges decided fields onto the
+    // input spread, preserving extras and the request by reference.
+    const item = input.item;
+    const state = item.state;
+    const nowMs = input.nowMs;
+    const firstAttemptAtMs = input.firstAttemptAtMs;
+    const policy = policyView(input.policy);
+    const kind = (input.cause as { kind: unknown }).kind;
+    const attempts = item.attempts;
+    const id = item.id;
+    const out = driver.run('recovery', 'recordStagingFailure', [{
+      item: {
+        id: typeof id === 'string' ? id : '',
+        operationId: '',
+        source: '',
+        occurrenceIndex: 0,
+        request: opaque(),
+        originOccurrence: null,
+        attempts,
+        state,
+      },
+      cause: causeKindView(input.cause),
+      nowMs,
+      firstAttemptAtMs,
+      policy,
+    }], {}) as {
+      item: { attempts: unknown; state: unknown };
+      disposition: unknown;
+      retryClass: unknown;
+      retryable: unknown;
     };
-    // The spread item keeps the caller-owned request by reference.
-    out.item = { ...out.item, request: input.item.request };
-    return out;
+    return {
+      item: { ...(item as Record<string, unknown>), attempts: out.item.attempts, state: out.item.state },
+      disposition: out.disposition,
+      retryClass: out.retryClass,
+      retryable: out.retryable,
+    };
   }) as typeof recovery.recordStagingFailure;
   recovery.planRecoveryScan = planRecoveryScan as typeof recovery.planRecoveryScan;
   recovery.isFanoutClaimStale = ((claimedAtMs: unknown, nowMs: unknown, maxClaimAgeMs: unknown): unknown =>
@@ -633,8 +1325,12 @@ export function createWorkKernel(options: WorkKernelOptions): WorkKernel {
   if (word(abi.can_work_abi_version()) !== 1) throw nativeFailure('ABI version is unsupported');
   const driver = createDriver(abi);
   // The accepted dedicated recovery planner stays the planRecoveryScan
-  // route; all other recovery calculations use the selected-call ABI.
-  const planRecoveryScan = createRecoveryPlanner(options) as (input: never) => unknown;
+  // route; all other recovery calculations use the selected-call ABI. The
+  // planner binds to this same initialized instance (one-instance contract),
+  // never a second instantiation of the supplied module.
+  const planRecoveryScan = createRecoveryPlannerFromExports(
+    exports as unknown as Record<string, WebAssembly.ExportValue>,
+  ) as (input: never) => unknown;
   return {
     rows: wasmRows(driver),
     retry: wasmRetry(driver),

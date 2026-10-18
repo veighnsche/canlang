@@ -45,6 +45,7 @@
  */
 
 import type { ArrayOmission, CanValue, MoneyValue } from "@canlang/contracts/values";
+import { NOT_ROUTED, routeExact } from "../bindings/exact-route.js";
 import { compareDecimal, DECIMAL_MAX_SIGNIFICANT_DIGITS, Decimal, isDecimal } from "./decimal.js";
 import { equalValue } from "./equality.js";
 import { ValueError } from "./errors.js";
@@ -150,6 +151,8 @@ export function count<T>(domain: ReadonlyArray<T>): bigint {
 
 /** Int sum; the empty sum is the typed zero. The mathematical total is int64-checked once. */
 export function sumInt(domain: ReadonlyArray<bigint>): bigint {
+  const routedSum = routeExact<bigint>("sum-int", [domain]);
+  if (routedSum !== NOT_ROUTED) return routedSum;
   const items = requireArray<bigint>(domain, "sumInt domain");
   let total = 0n;
   for (const value of items) {
@@ -168,6 +171,8 @@ export function sumInt(domain: ReadonlyArray<bigint>): bigint {
  * per-addition rounding or intermediate checks.
  */
 export function sumDecimal(domain: ReadonlyArray<Decimal>): Decimal {
+  const routedSum = routeExact<Decimal>("sum-decimal", [domain]);
+  if (routedSum !== NOT_ROUTED) return routedSum;
   const items = requireArray<Decimal>(domain, "sumDecimal domain");
   for (const value of items) {
     if (!isDecimal(value)) {
@@ -199,6 +204,8 @@ export function sumDecimal(domain: ReadonlyArray<Decimal>): Decimal {
  * mathematical total is int64-checked once (durations share the int64 range).
  */
 export function sumDuration(domain: ReadonlyArray<bigint>): bigint {
+  const routedSum = routeExact<bigint>("sum-duration", [domain]);
+  if (routedSum !== NOT_ROUTED) return routedSum;
   const items = requireArray<bigint>(domain, "sumDuration domain");
   let total = 0n;
   for (const value of items) {
@@ -219,6 +226,13 @@ export function sumDuration(domain: ReadonlyArray<bigint>): bigint {
  * fits (binary `+` chains keep per-op checks via `addMoney`).
  */
 export function sumMoney(domain: ReadonlyArray<MoneyValue>, currency?: string): MoneyValue {
+  // One argument when the currency is absent: the native dispatch reads an
+  // explicit undefined second argument as an explicit (invalid) currency.
+  const routedSum = routeExact<MoneyValue>(
+    "sum-money",
+    currency === undefined ? [domain] : [domain, currency],
+  );
+  if (routedSum !== NOT_ROUTED) return routedSum;
   const items = requireArray<MoneyValue>(domain, "sumMoney domain");
   if (currency !== undefined) {
     currencyScale(currency);

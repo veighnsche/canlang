@@ -111,7 +111,12 @@ impl std::fmt::Debug for U16 {
 }
 
 /// JS value model. Objects/arrays ride behind `Rc` so DAG-shared
-/// references keep their identity for the seen-set traversal.
+/// references keep their identity for the seen-set traversal. `Undef` and
+/// `Func` ride the explicit wire tags (never silent nulls or host traversal
+/// refusals); `Opaque` carries donor-unread by-reference positions through
+/// decisions that never inspect them; `Ref` marks an unresolvable identity
+/// back-reference (a true cycle through the wire), which safety reports as
+/// cyclic exactly like the donor.
 #[derive(Clone)]
 pub enum Value {
     Null,
@@ -120,6 +125,10 @@ pub enum Value {
     Str(U16),
     Arr(Rc<Vec<Value>>),
     Obj(Rc<Vec<(U16, Value)>>),
+    Undef,
+    Func,
+    Opaque,
+    Ref,
 }
 
 impl PartialEq for Value {
@@ -132,6 +141,10 @@ impl PartialEq for Value {
             (Value::Str(a), Value::Str(b)) => a == b,
             (Value::Arr(a), Value::Arr(b)) => a == b,
             (Value::Obj(a), Value::Obj(b)) => a == b,
+            (Value::Undef, Value::Undef) => true,
+            (Value::Func, Value::Func) => true,
+            (Value::Opaque, Value::Opaque) => true,
+            (Value::Ref, Value::Ref) => true,
             _ => false,
         }
     }
@@ -154,6 +167,10 @@ impl Value {
             Value::Obj(o) => Value::Obj(Rc::new(
                 o.iter().map(|(k, v)| (k.clone(), v.deep_clone())).collect(),
             )),
+            Value::Undef => Value::Undef,
+            Value::Func => Value::Func,
+            Value::Opaque => Value::Opaque,
+            Value::Ref => Value::Ref,
         }
     }
     /// Shallow clone: containers share their allocation (preserves
@@ -166,6 +183,10 @@ impl Value {
             Value::Str(s) => Value::Str(s.clone()),
             Value::Arr(a) => Value::Arr(Rc::clone(a)),
             Value::Obj(o) => Value::Obj(Rc::clone(o)),
+            Value::Undef => Value::Undef,
+            Value::Func => Value::Func,
+            Value::Opaque => Value::Opaque,
+            Value::Ref => Value::Ref,
         }
     }
     fn as_obj(&self) -> Option<&Vec<(U16, Value)>> {
@@ -229,6 +250,9 @@ fn js_stringify(v: &Value) -> String {
             out.push('}');
             out
         }
+        // Only reachable inside `${...}` interpolation of exotic wire tags,
+        // where the donor renders the undefined stringify result.
+        Value::Undef | Value::Func | Value::Opaque | Value::Ref => "undefined".to_string(),
     }
 }
 
@@ -401,6 +425,16 @@ fn check_json_safe(value: &Value, what: &str) -> Result<(), RowsError> {
                     })
                 }
             }
+            Value::Undef | Value::Func | Value::Opaque => Err(RowsError {
+                name: "KernelTableError".to_string(),
+                code: None,
+                message: format!("{what}{path} is not JSON-safe."),
+            }),
+            Value::Ref => Err(RowsError {
+                name: "KernelTableError".to_string(),
+                code: None,
+                message: format!("{what}{path} is cyclic."),
+            }),
             Value::Arr(a) => {
                 let id = Rc::as_ptr(a) as usize;
                 if !seen.insert(id) {

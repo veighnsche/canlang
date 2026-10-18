@@ -21,7 +21,9 @@
 
 #![allow(dead_code)]
 
-use crate::input::{as_arr, as_num, as_text, json_quote, obj_get, render_text, Node};
+use crate::input::{
+    as_arr, as_num, as_text, json_quote, obj_get, parse_json_text, render_text, Node,
+};
 use std::collections::{HashMap, HashSet};
 
 // ---------------------------------------------------------------------------
@@ -2144,6 +2146,169 @@ pub fn stage_artifact_modules(
     Ok(staged)
 }
 
+/// One authored artifact module with its host-composed source map
+/// (mirrors one `stageArtifactModules` unit): `map_json` is the composed
+/// map JSON for this module's rewritten stages (`None` = no map), while
+/// `has_original`/`stage_count` drive the pure status core. The remapping
+/// merge itself stays host-executed; Rust owns staging, suffixing and
+/// status around the host-composed bytes.
+pub struct AuthoredModule<'a> {
+    pub path: &'a [u16],
+    pub js: &'a [u16],
+    pub map_json: Option<&'a str>,
+    pub has_original: bool,
+    pub stage_count: usize,
+}
+
+/// Native staged bundle: staged text with inline map suffixes plus the
+/// per-module composed map JSON carried alongside (never through) the
+/// text stages, ready for assembly.
+pub struct StagedBundle {
+    pub staged: ModuleMap,
+    pub maps: Vec<(Vec<u16>, String)>,
+}
+
+/// Native artifact construction from the authored inventory (mirrors
+/// `stageArtifactModules` end to end at the authored domain): ownership
+/// (platform/manifest/alias), staging (imports, pages, callables,
+/// rewrites), per-module map status, and inline suffixes. This is the
+/// constructor the job must feed with raw producer reads instead of the
+/// finished final map; the final-map path keeps its own gate.
+pub fn construct_staged_bundle(
+    modules: &[AuthoredModule],
+    pages: &[PageRef],
+    callables: &[CallableRef],
+) -> Result<StagedBundle, ModulesError> {
+    let paths: Vec<&[u16]> = modules.iter().map(|module| module.path).collect();
+    check_artifact_module_ownership(&paths)?;
+    let staging: Vec<StagingModule> = modules
+        .iter()
+        .map(|module| StagingModule {
+            path: module.path,
+            js: module.js,
+        })
+        .collect();
+    let staged = stage_artifact_modules(&staging, pages, callables)?;
+    let mut out: Vec<(Vec<u16>, Vec<u16>)> = Vec::with_capacity(staged.len());
+    let mut maps: Vec<(Vec<u16>, String)> = Vec::new();
+    for ((path, text), module) in staged.into_iter().zip(modules.iter()) {
+        // Exact `composeModuleMap` parity: the composed view is defined
+        // iff an original map exists, whatever the stage count (absent
+        // stays absent even with stages; unchanged, composed and invalid
+        // all carry a map and stage it inline). The remapping merge
+        // stays host-executed; Rust refuses a presence mismatch as host
+        // skew instead of re-deriving the merge. `stage_count` remains
+        // an observed rewrite fact for status reporting.
+        let present = module.map_json.is_some();
+        if present != module.has_original {
+            return Err(ModulesError {
+                message: format!(
+                    "deploy bundle: module {} map presence disagrees with original (host skew)",
+                    json_quote(&path)
+                ),
+            });
+        }
+        match module.map_json {
+            // No map exists: text stages bare.
+            None => out.push((path, text)),
+            // Host merge produced a map: carry it alongside, suffix inline.
+            Some(json) => {
+                maps.push((path.clone(), json.to_string()));
+                let mut with_suffix = text;
+                with_suffix.extend(inline_sourcemap_suffix(Some(json)).encode_utf16());
+                out.push((path, with_suffix));
+            }
+        }
+    }
+    Ok(StagedBundle { staged: out, maps })
+}
+
+/// Native final-map assembly: every natively staged authored entry must
+/// arrive in the served final map byte-identical (the served map is the
+/// host-observed oracle for platform layers and frontend facts; the
+/// staged text is the Rust-produced buffer that flows downstream). A
+/// constructed key missing from (or differing in) the served map is
+/// host skew and refuses; non-authored served entries pass through
+/// untouched in served order. Output order matches the served map, so a
+/// sorted served map stays sorted.
+pub fn assemble_native_texts(
+    served: &[(Vec<u16>, Vec<u16>)],
+    staged: &StagedBundle,
+) -> Result<ModuleMap, ModulesError> {
+    let mut staged_by_key: HashMap<&[u16], &[u16]> = HashMap::with_capacity(staged.staged.len());
+    for (path, text) in &staged.staged {
+        if staged_by_key.insert(path.as_slice(), text.as_slice()).is_some() {
+            return Err(ModulesError {
+                message: format!(
+                    "deploy bundle: staged module {} produced twice (host skew)",
+                    json_quote(path)
+                ),
+            });
+        }
+    }
+    let mut out: Vec<(Vec<u16>, Vec<u16>)> = Vec::with_capacity(served.len());
+    for (key, js) in served {
+        match staged_by_key.remove(key.as_slice()) {
+            None => out.push((key.clone(), js.clone())),
+            Some(text) => {
+                if text != js.as_slice() {
+                    return Err(ModulesError {
+                        message: format!(
+                            "deploy bundle: module {} staged text differs from served map (host skew)",
+                            json_quote(key)
+                        ),
+                    });
+                }
+                out.push((key.clone(), text.to_vec()));
+            }
+        }
+    }
+    // Leftover check in staged order, so the refusal names the first
+    // missing module deterministically.
+    for (path, _) in &staged.staged {
+        if staged_by_key.contains_key(path.as_slice()) {
+            return Err(ModulesError {
+                message: format!(
+                    "deploy bundle: staged module {} missing from served map (host skew)",
+                    json_quote(path)
+                ),
+            });
+        }
+    }
+    Ok(out)
+}
+
+/// Full native deployment assembly (011): the natively staged
+/// authored texts merged with served platform layers in exact bundle
+/// order — pre layers (worker/runtime dists), then authored, then
+/// post layers (vendor through ops bundles), then natively rendered
+/// and served trailing entries — duplicate-last-wins exactly like the
+/// reference spread order, then UTF-16 sorted. Every entry of the
+/// returned map is either Rust-produced (authored staging, native
+/// renders) or a served raw producer layer; no finished-map
+/// passthrough.
+pub fn assemble_full_deployment(
+    staged_authored: &[(Vec<u16>, Vec<u16>)],
+    pre_layers: &[ModuleMap],
+    post_layers: &[ModuleMap],
+    trailing: &[(Vec<u16>, Vec<u16>)],
+) -> ModuleMap {
+    let mut layers: Vec<ModuleMap> = Vec::with_capacity(
+        pre_layers.len() + post_layers.len() + 2,
+    );
+    for layer in pre_layers {
+        layers.push(layer.clone());
+    }
+    layers.push(staged_authored.to_vec());
+    for layer in post_layers {
+        layers.push(layer.clone());
+    }
+    layers.push(trailing.to_vec());
+    let mut out = merge_module_layers(&layers);
+    sort_module_keys(&mut out);
+    out
+}
+
 // ---------------------------------------------------------------------------
 // Inventory merging, digest, manifest, assembly.
 // ---------------------------------------------------------------------------
@@ -2174,6 +2339,33 @@ pub fn merge_module_layers(layers: &[ModuleMap]) -> ModuleMap {
 /// `Object.keys(modules).sort()`).
 pub fn sort_module_keys(modules: &mut [(Vec<u16>, Vec<u16>)]) {
     modules.sort_by(|a, b| a.0.cmp(&b.0));
+}
+
+/// Duplicate-last-wins merge over ordered factored layers (key, text,
+/// facts), mirroring the host bundle's `Object.assign` composition:
+/// the LAST value wins with its own layer facts, the FIRST insertion
+/// position is kept. The caller passes layers in bundle order
+/// (pre, authored, post, artifact, trailing).
+pub fn merge_factored_layers(
+    layers: &[Vec<(Vec<u16>, Vec<u16>, ModuleFacts)>],
+) -> Vec<(Vec<u16>, Vec<u16>, ModuleFacts)> {
+    let mut index: HashMap<Vec<u16>, usize> = HashMap::new();
+    let mut merged: Vec<(Vec<u16>, Vec<u16>, ModuleFacts)> = Vec::new();
+    for layer in layers {
+        for (key, text, facts) in layer {
+            match index.get(key) {
+                Some(position) => {
+                    merged[*position].1 = text.clone();
+                    merged[*position].2 = facts.clone();
+                }
+                None => {
+                    index.insert(key.clone(), merged.len());
+                    merged.push((key.clone(), text.clone(), facts.clone()));
+                }
+            }
+        }
+    }
+    merged
 }
 
 /// Legacy v1 serialization + digest (mirrors `bundleSha256` and the
@@ -2232,6 +2424,30 @@ pub fn portable_assembled_modules(
     ]))
 }
 
+/// Build the staged `Record<string, SourceMap>` node for
+/// `portable_assembled_modules` from a natively staged bundle: one
+/// entry per module that carries a composed map, in staged (artifact)
+/// order — the insertion order `stageArtifactModules` produces, which
+/// the render embeds byte-for-byte. Each `map_json` parses through
+/// the order-preserving plain-JSON decoder (the `serde_json` value
+/// domain would sort keys); an unparsable map refuses as host skew
+/// (the host `JSON.parse` would throw while composing, so the served
+/// text is always valid JSON).
+pub fn staged_source_maps_node(staged: &StagedBundle) -> Result<Node, ModulesError> {
+    let mut entries = Vec::with_capacity(staged.maps.len());
+    for (path, map_json) in &staged.maps {
+        let units: Vec<u16> = map_json.encode_utf16().collect();
+        let map = parse_json_text(&units).map_err(|detail| ModulesError {
+            message: format!(
+                "deploy bundle: staged map {} is not valid JSON (host skew): {detail}",
+                json_quote(path)
+            ),
+        })?;
+        entries.push((path.clone(), map));
+    }
+    Ok(Node::Obj(entries))
+}
+
 /// Render the P-B staged deployment (`worker/artifact.js`) source in full
 /// (mirrors `renderStagedDeployment` byte-for-byte): the generated header
 /// plus artifact/modules/verdict consts, the frozen-assembly guard
@@ -2286,6 +2502,7 @@ pub fn render_staged_deployment(
     let mut out = String::new();
     out.push_str("// Generated by can-platform deploy (P-B staged deployment). Do not edit.\n");
     out.push_str("import { registerAssemblerModuleCapability } from \"../runtime/assembly-verification.js\";\n");
+    out.push_str("// Keep these exact export spellings: preview admission compares the artifact and verdict bytes.\n");
     out.push_str(&format!("export const artifact = {artifact_json};\n"));
     out.push_str(&format!("export const modules = {assembly_json};\n"));
     out.push_str(&format!("export const verdict = {verdict_json};\n"));
@@ -2313,6 +2530,7 @@ pub fn render_staged_deployment(
     out.push_str("async function verifyInstalledAssembly() {\n");
     out.push_str("  if (!Object.isFrozen(artifact) || !Object.isFrozen(modules) || !Object.isFrozen(modules.moduleUrls) || JSON.stringify(artifact) !== assembledArtifactJson || JSON.stringify(modules) !== assembledMetadataJson) throw new Error(\"portable assembly: installed artifact or module graph changed\");\n");
     out.push_str("}\n");
+    out.push_str("// The host's checked bundle installs these literal targets together; no request or URL map selects code.\n");
     out.push_str("async function importInstalledModule(path) {\n");
     out.push_str("  switch (path) {\n");
     out.push_str(&import_lines.join("\n"));

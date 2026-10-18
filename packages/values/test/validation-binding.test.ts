@@ -16,7 +16,7 @@ import {
   type ValidationGlue,
 } from "../bindings/validation.js";
 import { ownedFrameFor, parseOwnedJsonBody } from "../bindings/owned-input.js";
-import { loadOwnerPlan, withOwnedRequest } from "../bindings/validation.js";
+import { loadOwnerPlan, stableJsonStringify, withOwnedRequest } from "../bindings/validation.js";
 import { structural_abi_version, validation_call } from "../bindings/generated/values_semantics.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -292,6 +292,93 @@ describe("owner plan loader", () => {
         return true;
       },
     );
+  });
+});
+
+describe("stable request serialization", () => {
+  it("matches JSON.stringify byte for byte on JSON-shaped data", () => {
+    const cases: unknown[] = [
+      null,
+      true,
+      false,
+      0,
+      -0,
+      1,
+      -5,
+      1.5,
+      1e21,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      "",
+      "A✓",
+      '"\\\b\f\n\r\t',
+      "\u001f",
+      "lone \ud800 unit",
+      [],
+      [null, true, 1, "x", [], {}],
+      {},
+      { b: 1, a: 2 },
+      { "10": "int-key", "2": "order", b: [1, { c: null }] },
+      { t: "f64", bits: "8000000000000000" },
+      { nested: { deep: [{ lots: [1, 2, { of: "things" }] }] } },
+    ];
+    for (const value of cases) {
+      assert.equal(stableJsonStringify(value), JSON.stringify(value));
+    }
+    assert.throws(() => stableJsonStringify(1n), TypeError);
+    assert.throws(() => JSON.stringify(1n), TypeError);
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    assert.throws(() => stableJsonStringify(cyclic), TypeError);
+    assert.throws(() => JSON.stringify(cyclic), TypeError);
+  });
+});
+
+describe("deep input controlled at the native stage", () => {
+  it("frames parser-accepted depth without host stack overflow", async () => {
+    const deep = "[".repeat(12000) + "0" + "]".repeat(12000);
+    const bytes = new TextEncoder().encode(deep);
+    const token = await parseOwnedJsonBody(
+      new Request("http://owned.test/input", { method: "POST", body: deep }),
+      async () => bytes,
+    );
+    // Host boundaries hold on the heap: no RangeError before native budgets.
+    const frame = ownedFrameFor(token);
+    assert.equal(frame.t, "array");
+    const via = backend();
+    try {
+      via.call("input.digest", { frame, budgets });
+      assert.fail("expected the native stage to decide deep input");
+    } catch (err) {
+      assert.ok(!(err instanceof RangeError), "host stack must not decide");
+      assert.ok(err instanceof StructuralError, "native stage decides");
+    }
+  });
+
+  it("reports depth200 envelopes at the owning bound gate, not args/malformed", async () => {
+    // Mask detector (VALIDATION-009FB): 200 layers exceed serde's 128
+    // envelope span, so the Err-branch pre-scan must surface the same
+    // length/bound-exceeded + depth the arena emits for depth51/budget50.
+    let value: unknown = 0;
+    for (let index = 0; index < 200; index++) value = [value];
+    const body = JSON.stringify(value);
+    const bytes = new TextEncoder().encode(body);
+    const token = await parseOwnedJsonBody(
+      new Request("http://owned.test/input", { method: "POST", body }),
+      async () => bytes,
+    );
+    const frame = ownedFrameFor(token);
+    const via = backend();
+    try {
+      via.call("input.digest", { frame, budgets });
+      assert.fail("expected the owning depth refusal");
+    } catch (err) {
+      assert.ok(err instanceof StructuralError, "native stage decides");
+      const failure = err as StructuralError;
+      assert.equal(failure.stage, "transport");
+      assert.equal(failure.code, "length/bound-exceeded");
+      assert.equal(failure.check, "depth");
+    }
   });
 });
 

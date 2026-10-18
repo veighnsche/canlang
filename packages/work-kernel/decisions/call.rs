@@ -22,6 +22,19 @@ pub fn text(v: &J) -> Vec<u16> {
 pub fn ascii(v: &J) -> String {
     String::from_utf16(&text(v)).unwrap()
 }
+/// Lenient text read for donor `===`-compared state tags: strings decode,
+/// anything else reads as empty (never a throw). The donor never throws on
+/// exotic states either — strict equality simply misses — so every
+/// state-guard branch decides identically on both sides.
+pub fn text_lenient(v: &J) -> Vec<u16> {
+    match v.get("$u16").and_then(|u| u.as_array()) {
+        Some(units) => units
+            .iter()
+            .map(|x| u16::try_from(x.as_u64().unwrap()).unwrap())
+            .collect(),
+        None => Vec::new(),
+    }
+}
 pub fn field<'a>(v: &'a J, key: &str) -> &'a J {
     v["$entries"]
         .as_array()
@@ -134,6 +147,16 @@ pub fn fault(name: &str, message: &str, code: Option<&str>, scope: Option<&[u16]
 // Finite data-only observer graph. Its wire parser rejects unsupported
 // channels instead of silently materializing exotic original objects.
 pub fn rows_value(v: &J) -> rows::Value {
+    rows_decode(v, &mut Vec::new())
+}
+
+/// Identity-graph decoder: `$id` marks a repeated container, `$ref` points
+/// back at one. Backward references resolve to the shared allocation so the
+/// safety seen-set observes the same sharing the host saw (shared data
+/// refuses as cyclic, exactly like the donor); forward/cycle references
+/// decode to `Ref`, which safety likewise reports as cyclic. Each top-level
+/// argument decodes with a fresh table: host id spaces are per-argument.
+fn rows_decode(v: &J, table: &mut Vec<Option<rows::Value>>) -> rows::Value {
     if v.is_null() {
         return rows::Value::Null;
     }
@@ -146,19 +169,66 @@ pub fn rows_value(v: &J) -> rows::Value {
     if v.get("$u16").is_some() {
         return rows::Value::Str(rows::U16(text(v)));
     }
+    if v.get("$undefined").is_some() {
+        return rows::Value::Undef;
+    }
+    if v.get("$fn").is_some() || v.get("$sym").is_some() || v.get("$bigint").is_some() {
+        return rows::Value::Func;
+    }
+    if v.get("$opaque").is_some() {
+        return rows::Value::Opaque;
+    }
+    if let Some(id) = v.get("$ref").and_then(|n| n.as_u64()) {
+        let id = id as usize;
+        if let Some(hit) = table.get(id).and_then(|slot| slot.clone()) {
+            return hit;
+        }
+        return rows::Value::Ref;
+    }
+    if let Some(id) = v.get("$id").and_then(|n| n.as_u64()) {
+        let id = id as usize;
+        let value = if let Some(items) = v.get("$items").and_then(|a| a.as_array()) {
+            rows::Value::Arr(Rc::new(items.iter().map(|e| rows_decode(e, table)).collect()))
+        } else {
+            rows::Value::Obj(Rc::new(
+                v["$entries"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|e| (rows::U16(text(&e[0])), rows_decode(&e[1], table)))
+                    .collect(),
+            ))
+        };
+        if table.len() <= id {
+            table.resize(id + 1, None);
+        }
+        table[id] = Some(value.clone());
+        return value;
+    }
+    if let Some(items) = v.get("$items").and_then(|a| a.as_array()) {
+        return rows::Value::Arr(Rc::new(items.iter().map(|e| rows_decode(e, table)).collect()));
+    }
     if let Some(a) = v.as_array() {
-        return rows::Value::Arr(Rc::new(a.iter().map(rows_value).collect()));
+        return rows::Value::Arr(Rc::new(a.iter().map(|e| rows_decode(e, table)).collect()));
     }
     rows::Value::Obj(Rc::new(
         v["$entries"]
             .as_array()
             .unwrap()
             .iter()
-            .map(|e| (rows::U16(text(&e[0])), rows_value(&e[1])))
+            .map(|e| (rows::U16(text(&e[0])), rows_decode(&e[1], table)))
             .collect(),
     ))
 }
 pub fn receipt_value(v: &J) -> receipt::Value {
+    receipt_decode(v, &mut Vec::new())
+}
+
+/// Identity-graph decoder for receipt values: same `$id`/`$ref` contract as
+/// rows (shared data refuses as cyclic under row safety, exactly like the
+/// donor). `$fn` tags ride the existing `Func` variant; `$opaque` rides
+/// `Opaque` for host-restored by-reference positions.
+fn receipt_decode(v: &J, table: &mut Vec<Option<receipt::Value>>) -> receipt::Value {
     if v.get("$undefined").is_some() {
         return receipt::Value::Undef;
     }
@@ -174,15 +244,53 @@ pub fn receipt_value(v: &J) -> receipt::Value {
     if v.get("$u16").is_some() {
         return receipt::Value::Str(receipt::U16(text(v)));
     }
+    if v.get("$fn").is_some() || v.get("$sym").is_some() || v.get("$bigint").is_some() {
+        return receipt::Value::Func;
+    }
+    if v.get("$opaque").is_some() {
+        return receipt::Value::Opaque;
+    }
+    if let Some(id) = v.get("$ref").and_then(|n| n.as_u64()) {
+        let id = id as usize;
+        if let Some(hit) = table.get(id).and_then(|slot| slot.clone()) {
+            return hit;
+        }
+        return receipt::Value::Ref;
+    }
+    if let Some(id) = v.get("$id").and_then(|n| n.as_u64()) {
+        let id = id as usize;
+        let value = if let Some(items) = v.get("$items").and_then(|a| a.as_array()) {
+            receipt::Value::Arr(Rc::new(items.iter().map(|e| receipt_decode(e, table)).collect()))
+        } else {
+            receipt::Value::Obj(Rc::new(
+                v["$entries"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|e| (receipt::U16(text(&e[0])), receipt_decode(&e[1], table)))
+                    .collect(),
+            ))
+        };
+        if table.len() <= id {
+            table.resize(id + 1, None);
+        }
+        table[id] = Some(value.clone());
+        return value;
+    }
+    if let Some(items) = v.get("$items").and_then(|a| a.as_array()) {
+        return receipt::Value::Arr(Rc::new(
+            items.iter().map(|e| receipt_decode(e, table)).collect(),
+        ));
+    }
     if let Some(a) = v.as_array() {
-        return receipt::Value::Arr(Rc::new(a.iter().map(receipt_value).collect()));
+        return receipt::Value::Arr(Rc::new(a.iter().map(|e| receipt_decode(e, table)).collect()));
     }
     receipt::Value::Obj(Rc::new(
         v["$entries"]
             .as_array()
             .unwrap()
             .iter()
-            .map(|e| (receipt::U16(text(&e[0])), receipt_value(&e[1])))
+            .map(|e| (receipt::U16(text(&e[0])), receipt_decode(&e[1], table)))
             .collect(),
     ))
 }
@@ -224,6 +332,9 @@ pub fn lifecycle_value(v: &J) -> lifecycle::Value {
     if v.get("$u16").is_some() {
         return lifecycle::Value::Str(lifecycle::U16(text(v)));
     }
+    if v.get("$opaque").is_some() {
+        return lifecycle::Value::Opaque;
+    }
     if let Some(a) = v.as_array() {
         return lifecycle::Value::Arr(a.iter().map(lifecycle_value).collect());
     }
@@ -246,6 +357,9 @@ pub fn lifecycle_observe(v: &lifecycle::Value) -> J {
         lifecycle::Value::Obj(o) => {
             json!({"$entries":o.iter().map(|(k,v)|json!([k.0,lifecycle_observe(v)])).collect::<Vec<_>>() })
         }
+        // Opaque carriers echo for host positional restore; the wrappers
+        // overwrite every echo site with its call-local reference.
+        lifecycle::Value::Opaque => json!({"$opaque": true}),
         lifecycle::Value::Map(_) | lifecycle::Value::Set(_) => {
             panic!("unsupported sample output channel")
         }
@@ -261,7 +375,7 @@ pub fn lifecycle_item(v: &J) -> lifecycle::OutboxItem {
         origin_occurrence: (!field(v, "originOccurrence").is_null())
             .then(|| lifecycle::U16(text(field(v, "originOccurrence")))),
         attempts: number(field(v, "attempts")),
-        state: lifecycle::U16(text(field(v, "state"))),
+        state: lifecycle::U16(text_lenient(field(v, "state"))),
     }
 }
 pub fn item_observe(v: &lifecycle::OutboxItem) -> J {
@@ -315,6 +429,14 @@ pub fn rows_observe(v: &rows::Value) -> J {
         rows::Value::Obj(o) => {
             json!({"$entries":o.iter().map(|(k,v)|json!([k.0,rows_observe(v)])).collect::<Vec<_>>()})
         }
+        // Opaque carriers echo for host positional restore (occurrence
+        // results ride opaque and are restored by the wrapper); the rest is
+        // unreachable post-safety (work-profile safety refuses exotics
+        // before any observe, and state clone-only data never crosses).
+        rows::Value::Opaque => json!({"$opaque": true}),
+        rows::Value::Undef | rows::Value::Func | rows::Value::Ref => {
+            panic!("unobservable exotic value reached rows observe")
+        }
     }
 }
 pub fn receipt_observe(v: &receipt::Value) -> J {
@@ -328,7 +450,11 @@ pub fn receipt_observe(v: &receipt::Value) -> J {
             json!({"$entries":o.iter().map(|(k,v)|json!([k.0,receipt_observe(v)])).collect::<Vec<_>>()})
         }
         receipt::Value::Undef => json!({"$undefined":true}),
+        // Opaque carriers echo for host positional restore; the wrappers
+        // overwrite every echo site with its call-local reference.
+        receipt::Value::Opaque => json!({"$opaque": true}),
         receipt::Value::Func => panic!("unsupported sample output channel"),
+        receipt::Value::Ref => panic!("unresolvable identity reached receipt observe"),
     }
 }
 pub fn linkage_observe(v: &linkage::Value) -> J {
@@ -356,6 +482,9 @@ pub fn recovery_value(v: &J) -> recovery::Value {
     if v.get("$u16").is_some() {
         return recovery::Value::Str(recovery::U16(text(v)));
     }
+    if v.get("$opaque").is_some() {
+        return recovery::Value::Opaque;
+    }
     if let Some(a) = v.as_array() {
         return recovery::Value::Arr(a.iter().map(recovery_value).collect());
     }
@@ -378,6 +507,9 @@ pub fn recovery_observe(v: &recovery::Value) -> J {
         recovery::Value::Obj(o) => {
             json!({"$entries":o.iter().map(|(k,v)|json!([k.0,recovery_observe(v)])).collect::<Vec<_>>()})
         }
+        // Opaque carriers echo for host positional restore; the wrappers
+        // overwrite every echo site with its call-local reference.
+        recovery::Value::Opaque => json!({"$opaque": true}),
     }
 }
 pub fn rows_direction(v: &J) -> rows::Direction {
@@ -422,7 +554,7 @@ pub fn receipt_item(v: &J) -> receipt::OutboxItem {
         origin_occurrence: (!field(v, "originOccurrence").is_null())
             .then(|| receipt::U16(text(field(v, "originOccurrence")))),
         attempts: number(field(v, "attempts")),
-        state: receipt::U16(text(field(v, "state"))),
+        state: receipt::U16(text_lenient(field(v, "state"))),
     }
 }
 pub fn receipt_item_observe(v: &receipt::OutboxItem) -> J {
@@ -453,7 +585,7 @@ pub fn recovery_item(v: &J) -> recovery::OutboxItem {
         origin_occurrence: (!field(v, "originOccurrence").is_null())
             .then(|| recovery::U16(text(field(v, "originOccurrence")))),
         attempts: number(field(v, "attempts")),
-        state: recovery::U16(text(field(v, "state"))),
+        state: recovery::U16(text_lenient(field(v, "state"))),
     }
 }
 pub fn recovery_item_observe(v: &recovery::OutboxItem) -> J {
@@ -738,7 +870,15 @@ pub fn observe(c: &J) -> J {
             let evidence = if v.is_null() {
                 None
             } else {
-                Some(match ascii(field(v, "kind")).as_str() {
+                // Unknown kinds reconcile as not-found (pending), exactly
+                // like the donor's fallthrough; non-string kinds the same.
+                let kind_node = field(v, "kind");
+                let kind = if kind_node.get("$u16").is_some() {
+                    ascii(kind_node)
+                } else {
+                    String::new()
+                };
+                Some(match kind.as_str() {
                     "delivered" => lifecycle::ReconcileEvidence::Delivered {
                         result: lifecycle_value(field(v, "result")),
                     },
@@ -746,8 +886,7 @@ pub fn observe(c: &J) -> J {
                         code: lifecycle::U16(text(field(v, "code"))),
                         message: lifecycle::U16(text(field(v, "message"))),
                     },
-                    "not-found" => lifecycle::ReconcileEvidence::NotFound,
-                    _ => panic!("unsupported fixture evidence"),
+                    _ => lifecycle::ReconcileEvidence::NotFound,
                 })
             };
             let v = lifecycle::reconcile_uncertain(&item, &evidence);
@@ -766,33 +905,49 @@ pub fn observe(c: &J) -> J {
             let v = &args[0];
             let raw = field(v, "outcome");
             let policy = field(v, "policy");
-            let outcome = match ascii(field(raw, "kind")).as_str() {
+            // Any kind outside delivered/uncertain runs the failed branch,
+            // exactly like the donor; non-string kinds the same way.
+            let outcome_kind_node = field(raw, "kind");
+            let outcome_kind = if outcome_kind_node.get("$u16").is_some() {
+                ascii(outcome_kind_node)
+            } else {
+                String::from("failed")
+            };
+            let outcome = match outcome_kind.as_str() {
                 "delivered" => lifecycle::ProviderOutcome::Delivered {
                     result: lifecycle_value(field(raw, "result")),
                 },
                 "uncertain" => lifecycle::ProviderOutcome::Uncertain,
-                "failed" => {
+                _ => {
                     let cause = field(raw, "cause");
+                    // Unknown kinds classify terminal with the carried
+                    // code/message, exactly like the donor (only
+                    // `transient` is transient; the payload is passthrough).
+                    // Non-string kinds decide the same way (never a throw).
+                    let kind_node = field(cause, "kind");
+                    let kind = if kind_node.get("$u16").is_some() {
+                        ascii(kind_node)
+                    } else {
+                        String::new()
+                    };
                     lifecycle::ProviderOutcome::Failed {
-                        cause: match ascii(field(cause, "kind")).as_str() {
+                        cause: match kind.as_str() {
                             "handler-require-false" => {
                                 lifecycle::FailureCause::HandlerRequireFalse {
                                     require: lifecycle::U16(text(field(cause, "require"))),
                                 }
                             }
-                            "permanent" => lifecycle::FailureCause::Permanent {
-                                code: lifecycle::U16(text(field(cause, "code"))),
-                                message: lifecycle::U16(text(field(cause, "message"))),
-                            },
                             "transient" => lifecycle::FailureCause::Transient {
                                 code: lifecycle::U16(text(field(cause, "code"))),
                                 message: lifecycle::U16(text(field(cause, "message"))),
                             },
-                            _ => panic!("unsupported cause"),
+                            _ => lifecycle::FailureCause::Permanent {
+                                code: lifecycle::U16(text(field(cause, "code"))),
+                                message: lifecycle::U16(text(field(cause, "message"))),
+                            },
                         },
                     }
                 }
-                _ => panic!("unsupported outcome"),
             };
             let input = lifecycle::RecordOutcomeInput {
                 item: lifecycle_item(field(v, "item")),
@@ -832,9 +987,14 @@ pub fn observe(c: &J) -> J {
             &receipt_value(&args[1]),
             &receipt_value(&args[2])
         ))),
-        ("receipt", "isTerminalReceiptStatus") => ok(json!(receipt::is_terminal_receipt_status(
-            &receipt::U16(text(&args[0]))
-        ))),
+        // Non-string statuses decide false, exactly like the donor's
+        // strict comparisons (never a throw).
+        ("receipt", "isTerminalReceiptStatus") => match args[0].get("$u16") {
+            Some(_) => ok(json!(receipt::is_terminal_receipt_status(
+                &receipt::U16(text(&args[0]))
+            ))),
+            None => ok(json!(false)),
+        },
         ("recovery", "isClaimStale") => {
             let v = &args[0];
             let claim = recovery::DispatchClaim {
@@ -1356,21 +1516,56 @@ pub fn observe(c: &J) -> J {
                 .collect::<Vec<_>>()))
         }
         ("receipt", "toReceiptObservation") => {
-            let recorded = &args[2];
-            let error = field(recorded, "error");
-            let input = receipt::RecordedReceiptFields {
-                status: receipt::U16(text(field(recorded, "status"))),
-                result: receipt_value(field(recorded, "result")),
-                error: (!error.is_null()).then(|| receipt::ReceiptError {
-                    code: receipt::U16(text(field(error, "code"))),
-                    message: receipt::U16(text(field(error, "message"))),
-                }),
+            // Donor read order: deliveryId, revision, then the recorded
+            // fields. Locator refusal faults here (RangeError, donor text);
+            // result/error are donor-unread passthroughs carried opaquely
+            // for host restore, and status rides only when it is a string.
+            let revision_ok = match args[1].get("$bits") {
+                Some(_) => {
+                    let revision = number(&args[1]);
+                    revision.fract() == 0.0 && revision >= 0.0
+                }
+                None => false,
             };
-            match receipt::to_receipt_observation(
-                &receipt::U16(text(&args[0])),
-                number(&args[1]),
-                &input,
-            ) {
+            // DeliveryId refuses before revision, exactly like the donor.
+            let refusal: Option<J> =
+                if !args[0].get("$u16").and_then(|u| u.as_array()).is_some()
+                    || text(&args[0]).is_empty()
+                {
+                    Some(fault(
+                        "RangeError",
+                        "toReceiptObservation: deliveryId must be a non-empty string",
+                        None,
+                        None,
+                    ))
+                } else if !revision_ok {
+                    Some(fault(
+                        "RangeError",
+                        "toReceiptObservation: revision must be a non-negative integer",
+                        None,
+                        None,
+                    ))
+                } else {
+                    None
+                };
+            match refusal {
+                Some(outcome) => outcome,
+                None => {
+                    let recorded = &args[2];
+                    let status = match field(recorded, "status").get("$u16") {
+                        Some(_) => text(field(recorded, "status")),
+                        None => Vec::new(),
+                    };
+                    let input = receipt::RecordedReceiptFields {
+                        status: receipt::U16(status),
+                        result: receipt_value(field(recorded, "result")),
+                        error: None,
+                    };
+                    match receipt::to_receipt_observation(
+                        &receipt::U16(text(&args[0])),
+                        number(&args[1]),
+                        &input,
+                    ) {
                 Ok(v) => ok(object(vec![
                     ("id", string(&v.id.0)),
                     ("revision", n(v.revision)),
@@ -1390,6 +1585,8 @@ pub fn observe(c: &J) -> J {
                     ),
                 ])),
                 Err(e) => fault(&e.name, &e.message, None, None),
+                    }
+                }
             }
         }
         ("receipt", "associationRowId") => {
@@ -1564,21 +1761,36 @@ pub fn observe(c: &J) -> J {
                 .iter()
                 .map(recovery_value)
                 .collect();
-            let mut committed: std::collections::HashMap<Vec<u16>, f64> =
-                std::collections::HashMap::new();
-            for entry in field(v, "committedAt")["$entries"].as_array().unwrap() {
-                let id = text(&entry[0]);
-                // Unknown commits stay unknown: null and non-number
-                // lookups are ignored exactly like the donor's guard.
-                if entry[1].get("$bits").is_none() {
-                    continue;
-                }
-                committed.insert(id, number(&entry[1]));
-            }
+            // Per-occurrence reply list in donor consultation order: each
+            // uncertain item consumes the next reply, so duplicate ids keep
+            // their own replies and the minimum retains the oldest. Unknown
+            // commits stay unknown, exactly like the donor's guard.
+            let replies: Vec<Option<f64>> = field(v, "committedList")
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|entry| {
+                    if entry.get("$bits").is_none() {
+                        None
+                    } else {
+                        Some(number(entry))
+                    }
+                })
+                .collect();
+            let cursor = Cell::new(0usize);
             let input = recovery::InventoryInput {
                 outbox_items: &items,
                 due_occurrences: &due,
-                committed_at_ms: &|id: &recovery::U16| committed.get(&id.0).copied(),
+                committed_at_ms: &|_id: &recovery::U16| {
+                    let index = cursor.get();
+                    cursor.set(index + 1);
+                    match replies.get(index) {
+                        Some(reply) => *reply,
+                        None => {
+                            panic!("committed reply list skew: fewer replies than uncertain items")
+                        }
+                    }
+                },
             };
             let got = recovery::build_inventory(&input);
             ok(object(vec![
@@ -1601,21 +1813,36 @@ pub fn observe(c: &J) -> J {
                 .iter()
                 .map(recovery_item)
                 .collect();
-            let mut contracts: std::collections::HashMap<Vec<u16>, Vec<u16>> =
-                std::collections::HashMap::new();
-            for entry in field(v, "contracts")["$entries"].as_array().unwrap() {
-                let id = text(&entry[0]);
-                // Only text contracts map; null and non-text lookups land
-                // unmapped exactly like the donor's guard.
-                if entry[1].get("$u16").is_none() && entry[1].as_array().is_none() {
-                    continue;
-                }
-                contracts.insert(id, text(&entry[1]));
-            }
+            // Per-occurrence reply list in donor consultation order: each
+            // consulted (non-settled, pre-refusal) occurrence consumes the
+            // next reply, duplicates included. Null and non-text replies
+            // land unmapped exactly like the donor's guard. An unknown-state
+            // item refuses before consuming, exactly like the donor.
+            let replies: Vec<Option<Vec<u16>>> = field(v, "contractsList")
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|entry| {
+                    if entry.get("$u16").is_none() {
+                        None
+                    } else {
+                        let contract = text(entry);
+                        (!contract.is_empty()).then(|| contract)
+                    }
+                })
+                .collect();
+            let cursor = Cell::new(0usize);
             let input = recovery::WorkInventoryInput {
                 outbox_items: &items,
-                handler_contract_for: &|item: &recovery::OutboxItem| {
-                    contracts.get(&item.id.0).map(|x| recovery::U16(x.clone()))
+                handler_contract_for: &|_item: &recovery::OutboxItem| {
+                    let index = cursor.get();
+                    cursor.set(index + 1);
+                    match replies.get(index) {
+                        Some(reply) => reply.clone().map(recovery::U16),
+                        None => {
+                            panic!("contract reply list skew: fewer replies than consulted items")
+                        }
+                    }
                 },
             };
             match recovery::build_work_inventory(&input) {
@@ -1633,19 +1860,27 @@ pub fn observe(c: &J) -> J {
         ("recovery", "recordStagingFailure") => {
             let v = &args[0];
             let raw = field(v, "cause");
-            let cause = match ascii(field(raw, "kind")).as_str() {
+            // Staging classifies on kind alone (no error is synthesized):
+            // unknown and non-string kinds classify terminal, exactly like
+            // the donor. Payload dummies ride only for parsing.
+            let cause_kind_node = field(raw, "kind");
+            let cause_kind = if cause_kind_node.get("$u16").is_some() {
+                ascii(cause_kind_node)
+            } else {
+                String::new()
+            };
+            let cause = match cause_kind.as_str() {
                 "handler-require-false" => recovery::FailureCause::HandlerRequireFalse {
                     require: recovery::U16(text(field(raw, "require"))),
-                },
-                "permanent" => recovery::FailureCause::Permanent {
-                    code: recovery::U16(text(field(raw, "code"))),
-                    message: recovery::U16(text(field(raw, "message"))),
                 },
                 "transient" => recovery::FailureCause::Transient {
                     code: recovery::U16(text(field(raw, "code"))),
                     message: recovery::U16(text(field(raw, "message"))),
                 },
-                _ => panic!("unsupported cause"),
+                _ => recovery::FailureCause::Permanent {
+                    code: recovery::U16(text(field(raw, "code"))),
+                    message: recovery::U16(text(field(raw, "message"))),
+                },
             };
             let input = recovery::RecordStagingFailureInput {
                 item: recovery_item(field(v, "item")),

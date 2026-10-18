@@ -65,9 +65,10 @@ import {
 import { formBindingFor, renderFormError, wantsHtmlRerender } from './formErrors.js';
 import { isPartialRequest } from './fragments.js';
 import { FORM_BODY_MAX_BYTES, JSON_BODY_MAX_BYTES, readCappedBody } from './limits.js';
-import { OwnedInputError, parseOwnedJsonBody, readOwnedJson } from '@canlang/values/bindings/owned-input';
+import { OwnedInputError, type OwnedJsonToken, ownedOperationFrame, parseOwnedJsonBody, readOwnedJson } from '@canlang/values/bindings/owned-input';
+import { resolveDeferredValidation } from '@canlang/values/bindings/validation';
 import { assertSourceValidationCurrent, assertSourceValidationStable, closeSourceValidationCatalog, runSourceHttpPlan } from './prepared-validation.js';
-export { createSourceValidationCatalog } from './prepared-validation.js';
+export { createSourceValidationCatalog, wrapCatalogWithOwnedValidation } from './prepared-validation.js';
 /** Same installed/bundled owner codec used by the verified source adapter. */
 export { encodeServingLiteral } from '@canlang/values/bindings/serving-validation';
 import { buildPresentationContext } from './presentation.js';
@@ -281,6 +282,82 @@ function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<
 }
 
 /**
+ * Renders one native violation path as a JSON Pointer into the
+ * submitted inputs (lossy display only, mirroring host formatting).
+ */
+function ownedPathToPointer(path: ReadonlyArray<{ k: readonly number[] } | { i: number }>): string {
+  let out = '';
+  for (const seg of path) {
+    out += 'i' in seg ? `/${seg.i}` : `/${String.fromCharCode(...seg.k)}`;
+  }
+  return out === '' ? '/' : out;
+}
+
+/**
+ * Runs the owned values/v1 gate for one JSON operation call: the
+ * catalog's owned execution (when present) validates the submitted
+ * inputs through genuine native execution with the deferred-leaf
+ * join, decoding through the installed exact-codec capability.
+ * Returns a validation denial for invalid and limit outcomes, or
+ * null to continue the legacy flow on valid outcomes. TS-only
+ * selections never enter the gate; an unresolvable deferral under a
+ * native selection is installation/execution skew and fails loudly,
+ * never silent legacy.
+ */
+function runOwnedHttpValidation(
+  deps: HttpDeps,
+  operation: string,
+  token: OwnedJsonToken,
+): BusinessError | null {
+  const handle = deps.catalog.ownedValidationFor?.(operation) ?? null;
+  if (handle === null || handle.selection.kind !== 'native') return null;
+  // Framing already established the envelope shape (record body with
+  // an inputs object); anything else here is unreachable skew, so a
+  // refusal surfaces loudly instead of silently skipping the gate.
+  // The native call sees the protected original-stage projection:
+  // `_csrf` is transport (consumed by the check, stripped before the
+  // closed-inputs check), so it is projected out of the frame and the
+  // resolve-loop input alike — still derived from this same token's
+  // raw source, never reparsed or forged.
+  const call = ownedOperationFrame(token, { exclude: [CSRF_FIELD] });
+  const outcome = resolveDeferredValidation(
+    handle.backend,
+    {
+      owner: handle.owner,
+      plan: handle.plan,
+      frame: call.frame,
+      budgets: handle.budgets,
+      profile: 'values/v1',
+      target: { kind: 'operation', name: operation },
+    },
+    call.input,
+    { exact: handle.exact },
+  );
+  if (outcome.outcome === 'invalid') {
+    const fields = outcome.violations.map((violation) => ({
+      path: ownedPathToPointer(violation.path),
+      code: violation.code,
+      message: violation.message,
+    }));
+    return buildBusinessError('validation', outcome.violations[0]?.message ?? 'Invalid inputs.', {
+      fields,
+    });
+  }
+  if (outcome.outcome === 'limit') {
+    return buildBusinessError(
+      'validation',
+      `Owned validation refused: ${outcome.code} (${outcome.check}).`,
+    );
+  }
+  if (outcome.outcome === 'deferred') {
+    throw new Error(
+      `Owned validation left an unresolvable ${outcome.reason} deferral under a native selection.`,
+    );
+  }
+  return null;
+}
+
+/**
  * Dispatch one `POST /api/operations/<operation>` request through framing
  * checks to the L3 canonical invocation. Non-POST methods and malformed
  * names are `not_found`; every other denial carries its canonical status.
@@ -322,9 +399,11 @@ export async function handleOperationRequest(
     const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
     let body: unknown;
     let nativeForm: Record<string, string> | null = null;
+    let ownedToken: OwnedJsonToken | null = null;
     if (mediaType === JSON_CONTENT_TYPE) {
       try {
-        body = readOwnedJson(await parseOwnedJsonBody(request, readCappedBody, JSON_BODY_MAX_BYTES)).value;
+        ownedToken = await parseOwnedJsonBody(request, readCappedBody, JSON_BODY_MAX_BYTES);
+        body = readOwnedJson(ownedToken).value;
       } catch (error) {
         if (error instanceof OwnedInputError && error.code === 'validation') {
           throw new IdentityError('validation', error.message);
@@ -422,6 +501,21 @@ export async function handleOperationRequest(
     if (shape === null) {
       return denyOrRerender(deps, request, operation, buildBusinessError('not_found', 'Unknown operation.'), seen, authed);
     }
+    // Owned values/v1 gate (JSON only): when the catalog carries an
+    // installed owned execution for this operation, genuine native
+    // validation with the deferred-leaf join judges the submitted
+    // inputs FIRST — before the legacy TS validators below. Invalid
+    // denies here; valid and honestly unresolved (deferred) outcomes
+    // continue on the legacy flow with its value identity unchanged.
+    // All host shells above (auth, framing, CSRF, operation identity,
+    // known operation) keep their precedence. Forms and SDK-shaped
+    // bodies carry no token and keep their original handling.
+    if (ownedToken !== null) {
+      const ownedError = runOwnedHttpValidation(deps, operation, ownedToken);
+      if (ownedError !== null) {
+        return denyOrRerender(deps, request, operation, ownedError, seen, authed);
+      }
+    }
     const { [CSRF_FIELD]: _csrf, ...submittedInputs } = inputs;
     void _csrf;
     if (derived === undefined) derived = deps.catalog.derivedFor?.(operation) ?? null;
@@ -476,7 +570,6 @@ export async function handleOperationRequest(
         return denyOrRerender(deps, request, operation, boundError, seen, authed);
       }
     }
-
     /* B4 pre-invoker admission: re-read CURRENT session facts after the
      * capped body and checked arguments. Revocation or expiry before this
      * read refuses entry with the admission-identical message. Work already
@@ -676,7 +769,10 @@ export function deriveOperationShape(op: ArtifactOperation): OperationInputShape
  * optionality. Any unknown kind, server-owned input, duplicate, or
  * version mismatch rejects the whole slice — nothing derives partially.
  */
-export function catalogFromArtifactOperations(slice: ArtifactOperationSlice): DerivedInputCatalog {
+export function catalogFromArtifactOperations(
+  slice: ArtifactOperationSlice,
+  options?: { readonly owned?: ReadonlyMap<string, import('../envelope/owned-selection.js').InstalledOwnedOperation> },
+): DerivedInputCatalog {
   const shapes = new Map<string, OperationInputShape>();
   const derived = new Map<string, DerivedOperationInputs>();
   for (const checked of checkArtifactOperations(slice)) {
@@ -693,9 +789,16 @@ export function catalogFromArtifactOperations(slice: ArtifactOperationSlice): De
     );
     derived.set(checked.name, checkedToDerivedInputs(checked));
   }
+  // Explicit owned installation: native-selected operations serve
+  // their handle; every other operation serves null and validates
+  // exactly as before. No coverage is (re-)decided here.
+  const owned = options?.owned;
   return {
     shapeFor: (operation: string): OperationInputShape | null => shapes.get(operation) ?? null,
     derivedFor: (operation: string): DerivedOperationInputs | null => derived.get(operation) ?? null,
+    ...(owned === undefined
+      ? {}
+      : { ownedValidationFor: (operation: string) => owned.get(operation)?.handle ?? null }),
   };
 }
 

@@ -97,10 +97,13 @@ import {
   subtractDuration,
   weekday,
 } from "../src/temporal.js";
-import { decodeValue, encodeValue } from "../src/wire.js";
 import { decodeValueTsCore, encodeValueTsCore } from "../src/internal/wire-core.js";
 import {
-  hasLoneSurrogates,
+  readSelectedExact,
+  withCanonicalDispatch,
+  writeSelectedExact,
+} from "./exact-route.js";
+import {
   reconstruct,
   tag,
   type Tagged,
@@ -216,9 +219,9 @@ const TS_OPS: Record<string, ExactFn> = {
   "sum-duration": ((a: unknown) => sumDuration(a as ReadonlyArray<bigint>)) as ExactFn,
   "sum-money": ((a: unknown, b: unknown) =>
     sumMoney(a as ReadonlyArray<MoneyValue>, b as string | undefined)) as ExactFn,
-  "decode-value": ((a: unknown, b: unknown) => decodeValue(a as string, b)) as ExactFn,
+  "decode-value": ((a: unknown, b: unknown) => decodeValueTsCore(a as string, b)) as ExactFn,
   "encode-value": ((a: unknown, b: unknown) =>
-    encodeValue(a as string, b as CanValue)) as ExactFn,
+    encodeValueTsCore(a as string, b as CanValue)) as ExactFn,
   "is-decimal": ((a: unknown) => isDecimal(a)) as ExactFn,
   "is-money": ((a: unknown) => isMoney(a)) as ExactFn,
   "is-date": ((a: unknown) => isDateValue(a)) as ExactFn,
@@ -240,6 +243,130 @@ export function hasExactOp(op: string): boolean {
   return Object.hasOwn(TS_OPS, op);
 }
 
+/**
+ * VALUES-012 A admission before tagging: mirrors the canonical guard
+ * read order for the poison-trigger shapes only. Bigint guards check
+ * `typeof` (no value-internal reads); string/currency guards check the
+ * slot before any graph scan; `money` demands the currency (arg 1)
+ * before the value (arg 0) exactly like `money()` scales the currency
+ * first, so an unknown currency wins without touching a poison value;
+ * `decode-value` for `decimal` defers to the owning core (which reads
+ * no value internals for a non-string wire) to raise the owning
+ * SchemaError. Every other op falls through to tagging: their guards
+ * either read value internals identically on both backends (1 read) or
+ * have no poison trigger. Arbitrary-JS shells (`is-*`) stay untouched.
+ */
+function admitBeforeTag(op: string, args: unknown[]): void {
+  switch (op) {
+    case "int64": {
+      if (typeof args[0] !== "bigint") {
+        throw new ValueError("invalid-construction", "int64 must be a bigint");
+      }
+      return;
+    }
+    case "add-int": {
+      if (typeof args[0] !== "bigint") {
+        throw new ValueError("invalid-construction", "addInt must be a bigint");
+      }
+      if (args.length > 1 && typeof args[1] !== "bigint") {
+        throw new ValueError("invalid-construction", "addInt must be a bigint");
+      }
+      return;
+    }
+    case "subtract-int": {
+      if (typeof args[0] !== "bigint") {
+        throw new ValueError("invalid-construction", "subtractInt must be a bigint");
+      }
+      if (args.length > 1 && typeof args[1] !== "bigint") {
+        throw new ValueError("invalid-construction", "subtractInt must be a bigint");
+      }
+      return;
+    }
+    case "multiply-int": {
+      if (typeof args[0] !== "bigint") {
+        throw new ValueError("invalid-construction", "multiplyInt must be a bigint");
+      }
+      if (args.length > 1 && typeof args[1] !== "bigint") {
+        throw new ValueError("invalid-construction", "multiplyInt must be a bigint");
+      }
+      return;
+    }
+    case "mod-int": {
+      if (typeof args[0] !== "bigint") {
+        throw new ValueError("invalid-construction", "modInt must be a bigint");
+      }
+      if (args.length > 1 && typeof args[1] !== "bigint") {
+        throw new ValueError("invalid-construction", "modInt must be a bigint");
+      }
+      return;
+    }
+    case "negate-int": {
+      if (typeof args[0] !== "bigint") {
+        throw new ValueError("invalid-construction", "negateInt must be a bigint");
+      }
+      return;
+    }
+    case "abs-int": {
+      if (typeof args[0] !== "bigint") {
+        throw new ValueError("invalid-construction", "absInt must be a bigint");
+      }
+      return;
+    }
+    case "compare-int": {
+      if (typeof args[0] !== "bigint") {
+        throw new ValueError("invalid-construction", "compareInt must be a bigint");
+      }
+      if (args.length > 1 && typeof args[1] !== "bigint") {
+        throw new ValueError("invalid-construction", "compareInt must be a bigint");
+      }
+      return;
+    }
+    case "round-rational": {
+      if (typeof args[0] !== "bigint" || (args.length > 1 && typeof args[1] !== "bigint")) {
+        throw new ValueError("invalid-construction", "roundRationalHalfEven needs bigint inputs");
+      }
+      return;
+    }
+    case "currency-scale": {
+      if (typeof args[0] !== "string") {
+        throw new ValueError("invalid-construction", "currency must be a string");
+      }
+      return;
+    }
+    case "money": {
+      const currency = args[1];
+      if (typeof currency !== "string") {
+        throw new ValueError("invalid-construction", "currency must be a string");
+      }
+      if (!isKnownCurrency(currency)) {
+        throw new ValueError("unknown-currency", `unknown currency: ${currency}`);
+      }
+      return;
+    }
+    case "make-money": {
+      if (typeof args[0] !== "bigint") {
+        throw new ValueError("invalid-construction", "money minor must be a bigint");
+      }
+      const currency = args[1];
+      if (typeof currency !== "string" || !isCurrencyShape(currency)) {
+        throw new ValueError("invalid-construction", `invalid currency code shape: ${currency}`);
+      }
+      if (!isKnownCurrency(currency)) {
+        throw new ValueError("unknown-currency", `unknown currency: ${currency}`);
+      }
+      return;
+    }
+    case "decode-value": {
+      if (args[0] === "decimal" && typeof args[1] !== "string") {
+        decodeValueTsCore(args[0] as string, args[1]);
+      }
+      return;
+    }
+    default:
+      return;
+  }
+}
+
 /** Direct-TS backend: works with no bootstrap and no built glue. */
 export function tsBackend(): ExactBackend {
   return {
@@ -249,7 +376,9 @@ export function tsBackend(): ExactBackend {
       if (!fn) {
         throw new ValueError("invalid-construction", `smoke backend has no op: ${op}`);
       }
-      return (fn as (...a: unknown[]) => unknown)(...args);
+      // Canonical dispatch: routing public functions re-enter their
+      // canonical TypeScript bodies here instead of recursing outward.
+      return withCanonicalDispatch(() => (fn as (...a: unknown[]) => unknown)(...args));
     },
   };
 }
@@ -423,25 +552,16 @@ const HOST_RENDERED_PREFIXES: Readonly<Record<string, ReadonlyArray<readonly [pr
   "sum-money": [["unknown currency: ", 1]],
 };
 
-/** True when any nested string holds lone surrogates. */
-function containsIllFormed(value: unknown): boolean {
-  if (typeof value === "string") return hasLoneSurrogates(value);
-  if (Array.isArray(value)) return value.some(containsIllFormed);
-  if (typeof value === "object" && value !== null) {
-    return Object.entries(value).some(([key, item]) =>
-      hasLoneSurrogates(key) || containsIllFormed(item)
-    );
-  }
-  return false;
-}
-
 /** Re-renders one native failure message from the original string argument. */
 function renderHostMessage(op: string, message: string, args: ReadonlyArray<unknown>): string {
   const prefixes = HOST_RENDERED_PREFIXES[op];
   if (prefixes === undefined) return message;
   for (const [prefix, index] of prefixes) {
-    if (message.startsWith(prefix) && typeof args[index] === "string") {
-      return `${prefix}${args[index] as string}`;
+    // Demand order: the caller's argument is read only when its template
+    // matches, exactly once per matching template.
+    if (message.startsWith(prefix)) {
+      const original = args[index];
+      if (typeof original === "string") return `${prefix}${original}`;
     }
   }
   return message;
@@ -483,25 +603,60 @@ function lossyTs(value: string): string {
   );
 }
 
+/** True for identical lossy violation paths (segments compared as-is). */
+function sameLossyPath(left: unknown, right: ReadonlyArray<string | number>): boolean {
+  if (!Array.isArray(left) || left.length !== right.length) return false;
+  return right.every((segment, index) => left[index] === segment);
+}
+
+/**
+ * Resolves the nth original key (caller enumeration order) whose lossy
+ * form equals the native lossy segment. Distinct ill-formed keys decoding
+ * to the same guard text resolve per occurrence, so lone-surrogate keys
+ * never collide and literal U+FFFD keys keep their own identity. Well-formed
+ * segments match only their own key, exactly like a direct lookup.
+ */
+function resolveLossyKey(
+  record: Record<string, unknown>,
+  segment: string,
+  occurrence: number,
+): string | undefined {
+  let seen = 0;
+  for (const key of Object.keys(record)) {
+    if (lossyTs(key) !== segment) continue;
+    // Suppressed (undefined-valued) keys are absent like `presentKeys`
+    // and the native `check_shape` filter: they never emitted a
+    // violation, so occurrence identity skips them in enumeration order.
+    if (record[key] === undefined) continue;
+    if (seen === occurrence) return key;
+    seen += 1;
+  }
+  return undefined;
+}
+
 /** Walks a violation path into the caller's original wire value. */
-function lookupPath(wire: unknown, path: ReadonlyArray<string | number>): unknown {
+function lookupPath(
+  wire: unknown,
+  path: ReadonlyArray<string | number>,
+  lastOccurrence = 0,
+): unknown {
   let current = wire;
-  for (const segment of path) {
+  for (let index = 0; index < path.length; index += 1) {
+    const segment = path[index];
     if (Array.isArray(current) && typeof segment === "number") {
       current = current[segment];
     } else if (typeof current === "object" && current !== null && typeof segment === "string") {
       const record = current as Record<string, unknown>;
-      if (Object.hasOwn(record, segment)) {
-        current = record[segment];
-      } else {
-        // The native path holds lossy key text; resolve the original key
-        // whose lossy form matches (first match wins, mirroring lookup
-        // order; mixed literal/lone-surrogate U+FFFD keys are out of
-        // scope per the transport micro-boundary).
-        const original = Object.keys(record).find((key) => lossyTs(key) === segment);
-        if (original === undefined) return undefined;
-        current = record[original];
-      }
+      // The native path holds lossy key text; only the final segment
+      // varies per occurrence, intermediate segments keep first-match
+      // order as before.
+      const original = resolveLossyKey(
+        record,
+        segment,
+        index === path.length - 1 ? lastOccurrence : 0,
+      );
+      if (original === undefined) return undefined;
+      current = record[original];
     } else {
       return undefined;
     }
@@ -513,38 +668,74 @@ function lookupPath(wire: unknown, path: ReadonlyArray<string | number>): unknow
  * Repairs native violation diagnostics that embed ill-formed text. Only
  * fields holding replacement characters are re-rendered, from the
  * caller's original wire value; every other field keeps native bytes.
+ * Paths resolve to the exact original key per occurrence, so distinct
+ * lone-surrogate keys (and literal U+FFFD keys beside them) report their
+ * own path, message and actual in entry order.
  */
 function repairViolations(violations: unknown, wire: unknown): unknown {
   if (!Array.isArray(violations)) return violations;
-  return violations.map((item) => {
+  return violations.map((item, index) => {
     const record = item as { path?: unknown; message?: unknown; actual?: unknown };
     if (typeof record !== "object" || record === null) return item;
     const { path, message } = record;
     if (!Array.isArray(path) || typeof message !== "string") return item;
+    const typedPath = path as Array<string | number>;
+    // Occurrence of this exact lossy path among earlier violations:
+    // native unknown-key diagnostics preserve entry order, so the nth
+    // identical lossy path belongs to the nth matching original key.
+    let occurrence = 0;
+    for (let prior = 0; prior < index; prior += 1) {
+      const priorPath = (violations[prior] as { path?: unknown } | null | undefined)?.path;
+      if (sameLossyPath(priorPath, typedPath)) occurrence += 1;
+    }
     let nextMessage = message;
     let nextActual = record.actual;
-    if (typeof nextActual === "string" && nextActual.includes("�")) {
-      nextActual = actualWireTs(lookupPath(wire, path as Array<string | number>));
-    }
-    if (nextMessage.includes("�")) {
-      const last = (path as Array<string | number>).at(-1);
-      const parent = lookupPath(wire, (path as Array<string | number>).slice(0, -1));
-      if (typeof last === "string" && typeof parent === "object" && parent !== null) {
-        const keys = Object.keys(parent as Record<string, unknown>);
-        const original = Object.hasOwn(parent as Record<string, unknown>, last)
-          ? last
-          : keys.find((key) => lossyTs(key) === last);
-        if (original !== undefined) {
-          const rustTail = JSON.stringify(lossyTs(original));
-          if (nextMessage.endsWith(rustTail)) {
-            nextMessage = nextMessage.slice(0, nextMessage.length - rustTail.length) +
-              (JSON.stringify(original) as string);
-          }
-        }
+    let nextPath: Array<string | number> | undefined;
+    const last = typedPath.at(-1);
+    const parent = lookupPath(wire, typedPath.slice(0, -1));
+    const original = typeof last === "string" && typeof parent === "object" && parent !== null
+      ? resolveLossyKey(parent as Record<string, unknown>, last, occurrence)
+      : undefined;
+    if (typeof nextActual === "string" && (nextActual.includes("�") || occurrence > 0)) {
+      // Repair only from the caller's original wire value; when the path
+      // resolves nowhere, the native bytes stand.
+      const resolved = lookupPath(wire, typedPath, occurrence);
+      if (resolved !== undefined) nextActual = actualWireTs(resolved);
+    } else if (typeof nextActual === "string" && nextActual.endsWith("...")) {
+      // Surrogate-split truncation parity (VALUES-012 C): only string
+      // leaves carry truncated `actual` diagnostics, and the native cut
+      // trims a split surrogate pair that the TypeScript slice retains.
+      // Recompute from the resolved original string under the same
+      // source/UTF-16 contract; JSON.stringify of a primitive string
+      // invokes no user code, and the walk follows the violation path
+      // only (never a whole-graph scan), so throwing getters keep their
+      // original order with zero extra reads. When the recomputation
+      // matches, the native bytes stand untouched.
+      const resolved = lookupPath(wire, typedPath, occurrence);
+      if (typeof resolved === "string") {
+        const rendered = actualWireTs(resolved);
+        if (rendered !== nextActual) nextActual = rendered;
       }
     }
-    if (nextMessage === message && nextActual === record.actual) return item;
-    return { ...(item as Record<string, unknown>), message: nextMessage, actual: nextActual };
+    if (nextMessage.includes("�") && original !== undefined) {
+      const rustTail = JSON.stringify(lossyTs(original));
+      if (nextMessage.endsWith(rustTail)) {
+        nextMessage = nextMessage.slice(0, nextMessage.length - rustTail.length) +
+          (JSON.stringify(original) as string);
+      }
+    }
+    if (original !== undefined && typeof last === "string" && original !== last) {
+      nextPath = [...typedPath.slice(0, -1), original];
+    }
+    if (nextMessage === message && nextActual === record.actual && nextPath === undefined) {
+      return item;
+    }
+    return {
+      ...(item as Record<string, unknown>),
+      ...(nextPath === undefined ? null : { path: nextPath }),
+      message: nextMessage,
+      actual: nextActual,
+    };
   });
 }
 
@@ -571,6 +762,13 @@ export function wasmBackend(glue: WasmGlue): ExactBackend {
       if (!hasExactOp(op)) {
         throw new ValueError("invalid-construction", `smoke backend has no op: ${op}`);
       }
+      // VALUES-012 A: demand-ordered admission before any tagging. Each
+      // check reads its own argument slot once, in the canonical guard
+      // order, and throws the canonical error without touching later
+      // arguments or scanning value graphs. Success falls through to
+      // tagging and the single genuine native call; native semantic
+      // failures never retry in TS.
+      admitBeforeTag(op, args);
       const tagged = args.map(tag);
       const request = stringifyRequest(op, tagged);
       const raw = glue.exact_call(request);
@@ -586,7 +784,11 @@ export function wasmBackend(glue: WasmGlue): ExactBackend {
         if (response.violations !== undefined && args.length > 1) {
           response.violations = repairViolations(response.violations, args[1]);
         }
-        if (typeof response.message === "string" && containsIllFormed(args)) {
+        if (typeof response.message === "string" && response.message.includes("�")) {
+          // Demand-ordered re-render only: the message itself carries a
+          // replacement character, so at most one known primitive template
+          // matches. No whole-graph argument rescan runs here, so throwing
+          // getters surface in call order, identically on both backends.
           response.message = renderHostMessage(op, response.message, args);
         }
         throwFailure(op, response);
@@ -603,14 +805,12 @@ export function wasmBackend(glue: WasmGlue): ExactBackend {
  * native evaluation: selection never changes guard, freezing, or error
  * ownership, which stay with the TypeScript surface.
  */
-let selectedExactBackend: ExactBackend | null = null;
-
 export function selectExactBackend(backend: ExactBackend | null): void {
-  selectedExactBackend = backend;
+  writeSelectedExact(backend);
 }
 
 export function selectedExactBackendRead(): ExactBackend | null {
-  return selectedExactBackend;
+  return readSelectedExact();
 }
 
 /**
@@ -700,7 +900,9 @@ export function selectSelectedIntBackend(backend: ExactBackend | null): void {
  * value, effect, or retry.
  */
 export function decodeSelectedInt(wire: unknown): bigint {
-  const backend = selectedIntBackend;
+  // The int-specific backend overrides; otherwise the general exact
+  // selection serves admitted ASCII text through the same genuine call.
+  const backend = selectedIntBackend ?? readSelectedExact();
   if (backend === null || !isAsciiText(wire)) {
     return decodeValueTsCore("int", wire) as bigint;
   }
@@ -730,7 +932,9 @@ export function decodeSelectedInt(wire: unknown): bigint {
 const ENCODE_DIAGNOSTIC_LIMIT = 10n ** 26n;
 
 export function encodeSelectedInt(value: unknown): string {
-  const backend = selectedIntBackend;
+  // The int-specific backend overrides; otherwise the general exact
+  // selection serves admitted bigints through the same genuine call.
+  const backend = selectedIntBackend ?? readSelectedExact();
   if (backend === null || typeof value !== "bigint") {
     return encodeValueTsCore("int", value as CanValue) as string;
   }

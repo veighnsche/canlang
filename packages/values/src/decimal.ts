@@ -33,6 +33,7 @@
  * (out-of-range, never silent rounding) stay rejected.
  */
 import type { DecimalValue, MoneyValue } from "@canlang/contracts/values";
+import { NOT_ROUTED, routeExact } from "../bindings/exact-route.js";
 import { ValueError } from "./errors.js";
 import { int64 } from "./int.js";
 
@@ -138,6 +139,8 @@ function toDecimalParts(value: Decimal | bigint, what: string): DecimalParts {
  * for negatives. Zero denominator is `division-by-zero`.
  */
 export function roundRationalHalfEven(num: bigint, den: bigint): bigint {
+  const routedRound = routeExact<bigint>("round-rational", [num, den]);
+  if (routedRound !== NOT_ROUTED) return routedRound;
   if (typeof num !== "bigint" || typeof den !== "bigint") {
     throw new ValueError("invalid-construction", "roundRationalHalfEven needs bigint inputs");
   }
@@ -168,6 +171,8 @@ function roundScaledHalfEven(coef: bigint, drop: number): bigint {
  * rounding), then the 38-digit check. Value-exact: no rounding occurs.
  */
 export function addDecimal(a: Decimal | bigint, b: Decimal | bigint): Decimal {
+  const routedAdd = routeExact<Decimal>("add-decimal", [a, b]);
+  if (routedAdd !== NOT_ROUTED) return routedAdd;
   const left = toDecimalParts(a, "addDecimal");
   const right = toDecimalParts(b, "addDecimal");
   const scale = Math.max(left.scale, right.scale);
@@ -177,6 +182,8 @@ export function addDecimal(a: Decimal | bigint, b: Decimal | bigint): Decimal {
 
 /** Decimal subtraction. Exact difference, then the 38-digit check. */
 export function subtractDecimal(a: Decimal | bigint, b: Decimal | bigint): Decimal {
+  const routedSubtract = routeExact<Decimal>("subtract-decimal", [a, b]);
+  if (routedSubtract !== NOT_ROUTED) return routedSubtract;
   const left = toDecimalParts(a, "subtractDecimal");
   const right = toDecimalParts(b, "subtractDecimal");
   const scale = Math.max(left.scale, right.scale);
@@ -189,6 +196,8 @@ export function subtractDecimal(a: Decimal | bigint, b: Decimal | bigint): Decim
  * 18 fractional places, else half-even to 18 places, then the 38-digit check.
  */
 export function multiplyDecimal(a: Decimal | bigint, b: Decimal | bigint): Decimal {
+  const routedMultiply = routeExact<Decimal>("multiply-decimal", [a, b]);
+  if (routedMultiply !== NOT_ROUTED) return routedMultiply;
   const left = toDecimalParts(a, "multiplyDecimal");
   const right = toDecimalParts(b, "multiplyDecimal");
   const exactScale = left.scale + right.scale;
@@ -255,6 +264,8 @@ function asMoneyParts(value: unknown): { readonly minor: bigint; readonly curren
  * Unlike-currency ratios are `currency-mismatch`; zero divisors fail.
  */
 export function divideDecimal(a: Decimal | bigint | MoneyValue, b: Decimal | bigint | MoneyValue): Decimal {
+  const routedDivide = routeExact<Decimal>("divide-decimal", [a, b]);
+  if (routedDivide !== NOT_ROUTED) return routedDivide;
   const leftMoney = asMoneyParts(a);
   const rightMoney = asMoneyParts(b);
   if (leftMoney !== null || rightMoney !== null) {
@@ -282,6 +293,8 @@ export function divideDecimal(a: Decimal | bigint | MoneyValue, b: Decimal | big
  * other duration op; out-of-range inputs are `overflow`.
  */
 export function divideDurationMs(aMs: bigint, bMs: bigint): Decimal {
+  const routedDivide = routeExact<Decimal>("divide-duration-ms", [aMs, bMs]);
+  if (routedDivide !== NOT_ROUTED) return routedDivide;
   if (typeof aMs !== "bigint" || typeof bMs !== "bigint") {
     throw new ValueError("invalid-construction", "divideDurationMs needs bigint millisecond inputs");
   }
@@ -290,6 +303,8 @@ export function divideDurationMs(aMs: bigint, bMs: bigint): Decimal {
 
 /** Decimal unary negation. Exact; scale preserved. */
 export function negateDecimal(value: Decimal): Decimal {
+  const routedNegate = routeExact<Decimal>("negate-decimal", [value]);
+  if (routedNegate !== NOT_ROUTED) return routedNegate;
   if (!isDecimal(value)) {
     throw new ValueError("invalid-construction", "negateDecimal needs a decimal");
   }
@@ -298,6 +313,8 @@ export function negateDecimal(value: Decimal): Decimal {
 
 /** Decimal absolute value. Exact; scale preserved. */
 export function absDecimal(value: Decimal): Decimal {
+  const routedAbs = routeExact<Decimal>("abs-decimal", [value]);
+  if (routedAbs !== NOT_ROUTED) return routedAbs;
   if (!isDecimal(value)) {
     throw new ValueError("invalid-construction", "absDecimal needs a decimal");
   }
@@ -311,6 +328,8 @@ export function absDecimal(value: Decimal): Decimal {
  * Int inputs promote exactly; a breaching rescale is `overflow`.
  */
 export function round(value: Decimal | bigint, scale: number): Decimal {
+  const routedRound = routeExact<Decimal>("round-decimal", [value, scale]);
+  if (routedRound !== NOT_ROUTED) return routedRound;
   if (typeof scale !== "number" || !Number.isInteger(scale)) {
     throw new ValueError("invalid-construction", "round scale must be an integer");
   }
@@ -329,6 +348,8 @@ export function round(value: Decimal | bigint, scale: number): Decimal {
  * Exact promotion makes int/decimal mixes comparable; scale-insensitive.
  */
 export function compareDecimal(a: Decimal | bigint, b: Decimal | bigint): -1 | 0 | 1 {
+  const routedCompare = routeExact<-1 | 0 | 1>("compare-decimal", [a, b]);
+  if (routedCompare !== NOT_ROUTED) return routedCompare;
   const left = toDecimalParts(a, "compareDecimal");
   const right = toDecimalParts(b, "compareDecimal");
   const scale = Math.max(left.scale, right.scale);
@@ -341,6 +362,8 @@ export function compareDecimal(a: Decimal | bigint, b: Decimal | bigint): -1 | 0
 
 /** Decimal value equality across scales (R3): 1.0 == 1.00. */
 export function equalDecimal(a: Decimal | bigint, b: Decimal | bigint): boolean {
+  const routedEqual = routeExact<boolean>("equal-decimal", [a, b]);
+  if (routedEqual !== NOT_ROUTED) return routedEqual;
   return compareDecimal(a, b) === 0;
 }
 
@@ -354,6 +377,8 @@ const DECIMAL_TEXT = /^(-)?(\d+)(?:\.(\d+))?$/;
  * representations, never silently rounded. Authored scale is retained.
  */
 export function parseDecimal(text: string): Decimal {
+  const routedParse = routeExact<Decimal>("parse-decimal", [text]);
+  if (routedParse !== NOT_ROUTED) return routedParse;
   if (typeof text !== "string") {
     throw new ValueError("invalid-construction", "parseDecimal needs a string");
   }
@@ -383,6 +408,8 @@ export function parseDecimal(text: string): Decimal {
  * stay a checker-side rejection (later slice).
  */
 export function decimalFromInteger(coef: bigint): Decimal {
+  const routedFromInt = routeExact<Decimal>("decimal-from-integer", [coef]);
+  if (routedFromInt !== NOT_ROUTED) return routedFromInt;
   if (typeof coef !== "bigint") {
     throw new ValueError("invalid-construction", "decimalFromInteger needs a bigint");
   }
@@ -394,6 +421,8 @@ export function decimalFromInteger(coef: bigint): Decimal {
  * zeros, no point when integral, `0` for zero, plain base-10, no exponent.
  */
 export function decimalToString(value: Decimal): string {
+  const routedToString = routeExact<string>("decimal-to-string", [value]);
+  if (routedToString !== NOT_ROUTED) return routedToString;
   if (!isDecimal(value)) {
     throw new ValueError("invalid-construction", "decimalToString needs a decimal");
   }

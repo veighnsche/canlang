@@ -57,7 +57,7 @@ function stageSources(stage) {
   const files = [];
   const walk = dir => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) walk(p); else if (e.name.endsWith('.ts')) files.push(p); } };
   walk(path.join(pkg, 'src'));
-  for (const p of ['bindings/backend.ts', 'bindings/carriers.ts']) files.push(path.join(pkg, p));
+  for (const p of ['bindings/backend.ts', 'bindings/carriers.ts', 'bindings/exact-route.ts']) files.push(path.join(pkg, p));
   for (const file of files) {
     const rel = path.relative(pkg, file).replace(/\.ts$/, '.js');
     const out = path.join(stage, rel); fs.mkdirSync(path.dirname(out), { recursive: true });

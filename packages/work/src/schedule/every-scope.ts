@@ -1,20 +1,13 @@
 /** Portable recurrence scope checks shared by owning Work system commands. */
 import type { RecurringScope } from '@canlang/contracts';
 
-/** Typed rejection for non-team/app recurring scopes (notably root). */
-export class RootRecurrenceNotSupportedError extends Error {
-  readonly code = 'ROOT_RECURRING_UNSUPPORTED' as const;
-  readonly scope: string;
-
-  constructor(scope: string) {
-    super(
-      `work: recurring every() fanout covers team/app scopes only; rejected scope ` +
-        `'${scope}' (root recurrence uses explicit record-bound schedule)`,
-    );
-    this.name = 'RootRecurrenceNotSupportedError';
-    this.scope = scope;
-  }
-}
+/**
+ * Shared rejection constructor: the defining class lives in
+ * `@canlang/work-kernel/every` (the same constructor the selected
+ * kernel throws across the transport boundary), re-exported here so
+ * the Work every-scope surface keeps one error identity end to end.
+ */
+export { RootRecurrenceNotSupportedError } from '@canlang/work-kernel/every';
 
 /** Map key joining one fanout scope to its last admitted slot. */
 export function everyScopeKey(scope: RecurringScope, owner: string): string {

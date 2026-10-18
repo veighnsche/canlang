@@ -4,11 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  buildAuthoredMapsPayload,
+  describeAuthoredMaps,
   loadModulesResumeForModules,
   loadModulesResumeWithFacts,
   previousPlanResumeForPath,
   scanModuleFacts,
 } from "../src/preparation/build-adapter.js";
+import type { CompileArtifact } from "@canlang/contracts";
 import {
   buildArtifactPayload,
   buildCompanionsPayload,
@@ -244,5 +247,49 @@ describe("LOAD_PREVIOUS_PLAN resume payload", () => {
   it("refuses unreadable sidecars in the oracle voice", () => {
     const dir = mkdtempSync(join(tmpdir(), "can-prev-"));
     expect(() => previousPlanResumeForPath(dir)).toThrow(/cannot read previous plan/);
+  });
+});
+
+describe("authored maps for native construction", () => {
+  const bareMap = { version: 3, sources: [], sourcesContent: [], names: [], mappings: "" };
+  const artifact = {
+    modules: [
+      { path: "a.js", js: "export const a = 1;\n" },
+      { path: "b.js", js: "export const b = 2;\n", map: { ...bareMap } },
+      {
+        path: "c.js",
+        js: 'import { x } from "@canlang/stdlib";\nexport const c = x;\n',
+        map: { ...bareMap },
+      },
+    ],
+  } as unknown as CompileArtifact;
+
+  it("serves composed maps and stage counts per module", () => {
+    const got = describeAuthoredMaps(artifact);
+    expect(got).toEqual([
+      { path: "a.js", mapJson: null, stages: 0 },
+      { path: "b.js", mapJson: JSON.stringify(bareMap), stages: 0 },
+      {
+        path: "c.js",
+        mapJson: expect.any(String),
+        stages: 1,
+      },
+    ]);
+    const composed = JSON.parse(got[2]?.mapJson as string) as { version: number };
+    expect(composed.version).toBe(3);
+  });
+
+  it("encodes the authoredMaps admitted tree the native gate decodes", () => {
+    const payload = buildAuthoredMapsPayload(describeAuthoredMaps(artifact));
+    expect(payload.authoredMaps.t).toBe("arr");
+    const items = (payload.authoredMaps as { items: unknown[] }).items;
+    expect(items).toHaveLength(3);
+    const first = items[0] as { t: string; entries: Array<[number[], unknown]> };
+    expect(entryKeys(first)).toEqual(["path", "mapJson", "stages"]);
+    const last = items[2] as { t: string; entries: Array<[number[], unknown]> };
+    const byKey = Object.fromEntries(
+      last.entries.map(([k, v]) => [String.fromCharCode(...k), v]),
+    ) as Record<string, { t: string; bits?: string; spelling?: string }>;
+    expect(byKey["stages"]).toEqual({ t: "num", bits: "3ff0000000000000", spelling: "1" });
   });
 });

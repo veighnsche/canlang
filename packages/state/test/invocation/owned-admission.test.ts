@@ -44,6 +44,12 @@ import {
   type PreparedOperationPlan,
 } from '../../src/invocation/prepared-inputs.js';
 import { StateError } from '../../src/errors.js';
+import {
+  OwnedInputError,
+  OwnedJsonToken,
+  ownedJsonValue,
+  parseOwnedJsonBody,
+} from '@canlang/values/bindings/owned-input';
 import { asModel, asOperation, makeDef } from './fixtures.js';
 
 const MODEL = asModel('Acme.Expense');
@@ -1135,4 +1141,58 @@ it('rejects inherited or accessor engine array hint channels without evaluating 
   marker.required = true;
   assert.deepEqual(validateCallInputs(def, {}), { refs: [], normalized: { records: [] } });
   assert.deepEqual(validatePreparedInputs(prepareOperationInputs(def), {}), { refs: [], normalized: { records: [] } });
+});
+
+describe('owned token admission into prepared inputs', () => {
+  const tokenFor = async (body: string) => {
+    const bytes = new TextEncoder().encode(body);
+    return parseOwnedJsonBody(
+      new Request('http://owned.test/input', { method: 'POST', body }),
+      async () => bytes,
+    );
+  };
+
+  it('validates genuine parser-owned tokens exactly like plain inputs', async () => {
+    const plan = prepareOperationInputs(makeGenerated([scalar('note', true), versionedRef('record', true)]));
+    const supplied: ClosedInputs = { note: 'hi', record: { id: 'r1', version: '7' } };
+    const token = await tokenFor(JSON.stringify(supplied));
+    const owned = ownedJsonValue(token);
+    assert.ok(Object.isFrozen(owned), 'parser output stays frozen');
+    const viaToken = validatePreparedInputs(plan, token);
+    assert.deepEqual(viaToken, validatePreparedInputs(plan, supplied));
+    assert.deepEqual(viaToken.normalized, supplied);
+    assert.notStrictEqual(viaToken.normalized, owned, 'normalized output is a fresh copy');
+    assert.ok(!Object.isFrozen(viaToken.normalized));
+  });
+
+  it('aggregates field errors from owned input in order', async () => {
+    const plan = prepareOperationInputs(makeGenerated([scalar('note', true)]));
+    const token = await tokenFor('{"extra":1}');
+    assert.deepEqual(captureFields(() => validatePreparedInputs(plan, token)), [
+      { path: '/extra', code: 'unknown_input', message: 'Unknown input "extra".' },
+      { path: '/note', code: 'required', message: 'Missing required input "note".' },
+    ]);
+  });
+
+  it('refuses forged tokens at lineage resolution', () => {
+    const plan = prepareOperationInputs(makeGenerated([scalar('note', false)]));
+    assert.throws(
+      () => validatePreparedInputs(plan, new OwnedJsonToken()),
+      (error: unknown) =>
+        error instanceof OwnedInputError &&
+        (error as OwnedInputError).code === 'forged-token',
+    );
+  });
+
+  it('rejects tokens resolving to non-objects as caller misuse', async () => {
+    const plan = prepareOperationInputs(makeGenerated([scalar('note', false)]));
+    for (const body of ['"str"', '42', 'null', '[1]']) {
+      const token = await tokenFor(body);
+      assert.throws(
+        () => validatePreparedInputs(plan, token),
+        /must resolve to an object/,
+        body,
+      );
+    }
+  });
 });

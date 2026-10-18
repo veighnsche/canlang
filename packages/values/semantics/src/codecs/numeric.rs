@@ -189,14 +189,6 @@ fn read_key<'a>(entries: &'a [(String, Value)], key: &str) -> (bool, Option<&'a 
     }
 }
 
-fn present_keys(entries: &[(String, Value)]) -> Vec<&str> {
-    entries
-        .iter()
-        .filter(|(_, v)| !matches!(v, Value::Undefined))
-        .map(|(k, _)| k.as_str())
-        .collect()
-}
-
 /// Exact-key-shape check: missing keys are `required`, extras are
 /// `unknown-field` (`checkShape`).
 fn check_shape(
@@ -221,22 +213,25 @@ fn check_shape(
             );
         }
     }
-    for key in present_keys(entries) {
-        if !keys.contains(&key) {
+    // Unit-exact unknown keys: entries keep transport order and duplicate
+    // lossy keys (distinct ill-formed keys decoding to the same guard
+    // text) are reported once per entry, each with its OWN value. A
+    // first-match lookup here would alias every duplicate to the first
+    // entry's value; iterating entries directly preserves identity.
+    for (key, value) in entries
+        .iter()
+        .filter(|(_, v)| !matches!(v, Value::Undefined))
+    {
+        if !keys.contains(&key.as_str()) {
             ok = false;
             let mut at = path.to_vec();
-            at.push(PathSeg::Key(key.to_string()));
-            let actual = entries
-                .iter()
-                .find(|(k, _)| k == key)
-                .map(|(_, v)| actual_wire(v))
-                .unwrap_or_else(|| "undefined".to_string());
+            at.push(PathSeg::Key(key.clone()));
             ctx.push(
                 &at,
                 ViolationCode::UnknownField,
                 format!("{what} has no field {}", json_stringify(key)),
                 Some(what.to_string()),
-                Some(actual),
+                Some(actual_wire(value)),
             );
         }
     }

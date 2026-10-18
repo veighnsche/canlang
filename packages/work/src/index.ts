@@ -1,5 +1,6 @@
 export * from './catalog.js';
 export * from './dispatch/index.js';
+export * from './dispatch/durable.js';
 export * from './event/index.js';
 export * from './intent/index.js';
 export * from './kernel/commands.js';
