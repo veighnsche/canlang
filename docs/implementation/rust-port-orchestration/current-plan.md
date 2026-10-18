@@ -1,13 +1,11 @@
 # Rust-port finite packet detail
 
-Refreshed **18 October 2026** after ICU integration at
-`d9abbd9427ce02eed6cf9af97073adf9eb45aaec` in the clean planning worktree.
-**Planning only. Product execution and future dispatch are false. Native
-preparation/native release remains HUMAN HOLD.** The user requested a plan
-refresh, not implementation. Two focused Sol-medium source investigations checked
-serving and independent asset/fanout readiness; no implementation worker, build,
-product test, timer or lease was started. Model choices for future packets remain
-proposals to recheck at dispatch.
+Updated **18 October 2026** for the human-released `ports:V02.6` qualification
+against committed `3059a36af` plus the local test and one-line delivery repair.
+**Selected ordinary TS Worker packet complete. Future dispatch remains false;
+native preparation/native release remains HUMAN HOLD.** Other packets still
+require their own finite release. Source/contract readiness is separate from
+future setup; no supervisor or automation was started.
 
 This document and [next-packets.json](next-packets.json) are the finite detail under the [canonical start-guide execution view](../RUST-PORT-START-HERE.md#current-execution-view--2026-10-18). The original ledger and task manifests retain their
 canonical IDs, dependencies, acceptance clauses and historical statuses. Old
@@ -25,25 +23,66 @@ them for this refresh. The optional single-Rust parser remains dormant: neither
 new drift/cost evidence nor a required native syntax consumer is established.
 No additional Rust compute candidate displaces the existing delivery/consumer work.
 
-Since the previous queue's `0571eacb3` source pin, product changes comprise eight
-Values/UI and six compiler ICU paths. None of the three queued packets' named
-prerequisite paths changed. The retained [source comparison](source-refresh.json)
+At the pre-qualification refresh, the interval from the queue's `0571eacb3` pin
+comprised eight Values/UI and six compiler ICU paths, with no named packet
+prerequisite changes. The released qualification adds the one runtime staging
+edge recorded below. The retained [source comparison](source-refresh.json)
 identities also still match; it remains historical evidence at its recorded pin,
 not a new runtime qualification. The main checkout's ongoing compiler/runtime
-edits remain outside this clean worktree and this planning scope; activation must
-reconcile any subsequently released source instead of assuming these inputs frozen.
+edits remain outside this packet; later activation must reconcile newly released
+source rather than assuming the completed capture's inputs remain current.
 
-**Recommended next release: `ports:V02.6`, ordinary TS serving in an isolated
-Worker**, consuming the existing `V01.2` source-owned registration outputs.
-Its finite observable outcome is the original typed-operation request passing
-through the actual staged portable Worker with canonical defaults/error order,
-correspondence refusals before effects and request-lifetime cleanup. R2 retains
-Values/Interfaces ownership; R3/Dev owns the local Worker qualification fixture.
-The missing output is that fixture and its result, not a new parser, validator,
-source carrier or backend. Packet 1 below defines the stop condition. No missing
-external producer is identified; setup and a finite human release remain required.
-`C04.values-assets` is independently ready; `W02.5` retains its bounded graph and
-installer handoff. These are the same existing packets, not new assignments.
+## Released `ports:V02.6` outcome
+
+The selected ordinary TS isolated Worker serving qualification is **complete**.
+`packages/cloudflare/test/prepared-validation.workerd.test.ts` exercises:
+
+- The unmodified default deploy Worker, genuine Miniflare D1 and a production
+  Identity session: original `TypedOperationForms.Entry.create`, State-owned count
+  and actor defaults, durable receipt/replay, unknown-before-required-before-bind
+  diagnostics, CSRF/auth/body-cap/JSON/method refusals and unchanged state/history
+  after refusals.
+- A separate test-only entry in the same intact installed module graph, using
+  real `assembleWorker`, HTTP/page handlers and portable issuer. It retains the
+  genuine request catalog and observes exact closed/copy diagnostics through the
+  existing handler/logger after success and validation failure. Copied assembly,
+  mismatched artifact and stale derived catalog refuse without effects; the last
+  checks its actual source-correspondence diagnostic. No alternate Interfaces
+  copy, mock issuer, mutable metadata or generation-revocation API is introduced.
+
+The first capture exposed a real missing delivery edge: `runtime/stdlib.js` and
+`invoke.js` import existing `native-scenario-require.js`, absent from the pinned
+runtime list. One list entry in `src/deploy/bundle.ts` now stages that existing
+Worker-safe helper. This is the only production change; no compiler, interpreter,
+admission, rendering, source-check or cleanup semantics change.
+
+All 12 consumed package sources emitted/typechecked. The test fixture also passed
+its focused strict typecheck. Current package contents were packed with scripts
+disabled and installed outside the checkout; frozen owning manifests/dist exports
+fed `buildDeployBundleWithAssets`. The original `.can` source was compiled using
+the retained unchanged `can-652cd12b506421fc` producer and checked against the
+artifact's source hash. Node24.19.0, Vitest3.2.7, Miniflare4.20260730.0 and local
+workerd1.20260730.1 executed **two distinct passing tests**: default Worker passed
+first; only the affected controlled adapter reran after its required page-handler
+fixture correction. Reuse the unchanged default result, independent source
+review and retained Node stale-file/final-credential-await mutation evidence.
+Logs: `/private/tmp/can-v026-workerd.log` and
+`/private/tmp/can-v026-lifetime.log`; no extra proof tree or unchanged suite rerun.
+
+**PH2/PH4 scope:** actual trusted source/operation/catalog correspondence and
+request-lifetime closure are demonstrated for this ordinary TS serving path.
+HTTP still calls `runPreparedHttpPlan`; Values registration/lifetime checks do not
+establish Rust validation or protected parser-to-Rust result lineage. Full PH2
+identity/native-handle, PH3 default-identity, PH4 protected graph/state sequencing,
+other source/profile/resource, remote-host and aggregate parent gates remain
+separate. Existing copied-default acceptance is reused, not requalified. No full
+CLI tarball, browser journey, Rust/default/retirement or native preparation release
+is claimed. Canonical ledger tasks stay partial.
+
+The next recommended finite release is **`ports:C04.values-assets`**, the existing
+current-byte installed/vendor/workerd delivery qualification; its producer and
+bootstrap are already available. `ports:W02.5` remains independently ready for its
+named fanout/graph/installer join. Neither is authorized by the V02.6 release.
 
 ## What current source changes
 
@@ -51,7 +90,7 @@ installer handoff. These are the same existing packets, not new assignments.
 | --- | --- |
 | Start guide ends at step 9 | Step 10 identity/CSV/services, step 11 mechanics retirement and step 12 selected joined review also have accepted finite records. Do not replay them. |
 | Work exposes facts only; no Rust consumer exists | A real explicit `createRecoveryPlanner`, wasm32 recovery ABI, asset stager and distribution entry now exist. The original Images durable consumer is accepted for TS and Wasm, 26 planner calls each. This selected family is finished; other families and aggregate W03–W08 gates remain separate. |
-| Prepared hooks lack source-serving association | Ordinary TS owner-bound serving registration and verified source/operation/default association now exist. Node installed/State-memory and scoped lifetime/default controls are recorded. Isolated Worker linking is still explicitly unqualified. HTTP uses its canonical prepared evaluator after Values plan/lifetime checks; it does not call `values.validate()` or adopt Rust validation. |
+| Prepared hooks lack source-serving association | Ordinary TS owner-bound serving registration and verified source/operation/default association now exist. Node installed/State-memory and scoped lifetime/default controls are recorded. The selected installed isolated Worker source/correspondence/cleanup join is qualified above; other source/native profiles remain separate. HTTP uses its canonical prepared evaluator after Values plan/lifetime checks; it does not call `values.validate()` or adopt Rust validation. |
 | Old values Wasm receipts certify current binary | The committed asset changed at `1f524a62f`. Its current SHA is `55cd8801037581538ae3d181dc359eff879028299f9b5ef78bf1ad29213e6b91`, 650251 bytes. All four generated inventory entries match BUILD by static inspection. Existing delivery machinery is present, but older installed receipts name different bytes. |
 | Full codec scope is undecided | TECH-V04 already selects the existing ASCII/int64 codec and CSV duplicate-key consumer. Bounded native preflight and public SchemaError projection are missing producer outputs. Its source/adoption hold remains explicit; no new scope selection or implementation is authorized. |
 
@@ -64,45 +103,19 @@ decisions/source provide the comparison rather than an invented Git interval.
 
 The current generated inventory check establishes file identity only. Neither it
 nor the old raw/dev Wasm qualification proves current installed delivery. No
-product behavior was executed during this refresh.
+product behavior was executed by that historical comparison; the selected serving
+qualification above supplies its own current runtime evidence.
 
-## Next finite packets, after a new release
+## Completed first packet and ready remainder
 
-All three have concrete consumed outputs available at this checkpoint. Ready
-means ready **at the selected slice's scope**, with no missing external producer;
-it does not mean that their aggregate parent prerequisites are complete or that
-execution is authorized. Original parent dependency lists remain in the machine
-queue. Do not wait for another owner's entire plan where only a released output
-is consumed.
+`ports:V02.6`, consuming the existing `V01.2` producer outputs, is complete only
+at the scope above. Do not redispatch it to finish its broader parents. The two
+remaining packets below have concrete consumed outputs available: ready means
+source/contract-ready at the selected slice, not implementation permission or
+completion of their aggregate parent dependencies. Original task contracts and
+accepted components remain unchanged in the machine queue.
 
-1. **`ports:V02.6`, consuming `V01.2`: ordinary TS serving in an isolated Worker.**
-   R2 supplies current Values/Interfaces source-registration outputs; R3/Dev
-   qualifies the existing typed-operation path in the actual staged Worker.
-   Reuse the recorded factory/default/literal/lifetime and genuine installed
-   Node/State-memory checks. Qualify the current handler/catalog/codec link,
-   canonical defaults/errors, current source correspondence, refusals before
-   effects, and owner cleanup on success/failure. Reuse the existing Node proof
-   of mutation after the last credential await. The immutable portable host must
-   use the real issuer's copied-assembly/artifact-mismatch and stale derived-catalog
-   refusals, and preserve final revalidation. The portable issuer freezes its
-   captured artifact/module graph and literal importer; it exposes no generation
-   revocation API. Reuse Node's stale-file/mutation proof rather than adding a
-   revocation mechanism or manufacturing mutable Worker metadata.
-   A new isolated-Worker fixture is a pending packet output: consume the existing
-   portable source issuer, node-free assembly verification and genuine host/store
-   seams. The Node-only test dependencies cannot run unchanged inside Worker.
-   Reuse the staged default-Worker/D1/production-session setup in
-   `packages/cloudflare/test/page-query-serving.test.ts:35–59`, whose existing
-   create/default/receipt/replay/CSRF controls are source precedent, not fresh
-   acceptance of the missing serving checks. Extend only missing source linkage,
-   correspondence and catalog-lifetime observations; retain unchanged results at
-   their existing pin. No new host dependency or revocation API is needed.
-   Record the actual PH2/PH4 coverage; retain PH3/native/profile/resource/state
-   criteria separately. Stop at this ordinary TS profile, without changing the
-   HTTP evaluator or introducing a native validation join. No remote deployment
-   is required or authorized.
-
-2. **`ports:C04.values-assets`: current-byte installed delivery qualification.**
+1. **`ports:C04.values-assets`: current-byte installed delivery qualification.**
    R3 consumes R1's existing generated asset and bootstrap, plus the existing
    package graph, asset verifier and installed host machinery. Qualify the
    committed binary through owning installed Node and isolated workerd delivery,
@@ -113,7 +126,7 @@ is consumed.
    or full A07/A08 acceptance is selected. Stop when this current selected
    delivery profile has exact-source evidence and its negative controls.
 
-3. **`ports:W02.5`, with one `C04.graph` handoff: shared fanout TS rows.**
+2. **`ports:W02.5`, with one `C04.graph` handoff: shared fanout TS rows.**
    R3 consumes the existing shared fanout leaves and both-direction original
    vectors. Expose only the shared intent/checkpoint/child helpers and join the
    actual Work and State wrappers. Preserve public `KernelTableError`/`StateError`
@@ -131,15 +144,15 @@ is consumed.
 
 This checkout has no `node_modules`, compiler debug binary or emitted Cloudflare
 assembly. Small Contracts/Values/UI outputs retained from ICU checks do not supply
-that missing serving setup. Source/contract readiness therefore does not claim command-launch
-readiness. After a finite release, reuse compatible dependencies/compiler caches
+future delivery setup. Source/contract readiness therefore does not claim
+command-launch readiness. After a finite release, reuse compatible dependencies/compiler caches
 and emit only the needed consumers; obtain a released compiler binary or build
 the current source once for the typed-operation fixture. Check disk, locks,
-toolchain, flags and workspace links before allocating anything. Setup and all
-product commands remain unstarted here.
+toolchain, flags and workspace links before allocating anything. The completed
+serving capture used private setup, cleaned after release. Future product commands remain unstarted.
 
-The two qualifications can prepare independently. R3 serializes shared
-bundle/manifests/lock/output joins; packet 3 can use a separate editing slot with
+Future asset qualification and fanout editing can prepare independently. R3 serializes shared
+bundle/manifests/lock/output joins; the fanout packet can use a separate editing slot with
 only acknowledged files. Capture-sensitive qualification must freeze its exact
 producer/output closure; do not change a consumed graph underneath a run. At
 activation retain the two-command heavy limit and compatible cache rules, check

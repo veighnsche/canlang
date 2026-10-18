@@ -2,38 +2,45 @@
 
 ## Current execution view — 2026-10-18
 
-This is the single current execution view for the existing Rust migration. Post-ICU refresh: committed source `d9abbd942`, reusing the earlier `ede59d051` investigation and retained source comparison at their recorded scopes. The original task IDs, dependencies, acceptance clauses and defining owners remain in [tasks.json](remaining-work/tasks.json) and the [subsystem plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md). The numbered historical sequence below is evidence, not another dispatch queue. Unreleased implementation remains stopped and existing holds remain in force; the separately released Shared TS syntax, compiler parse/usage and UI full-signature completions are credited below.
+This is the single current execution view for the existing Rust migration. Selected Worker qualification: committed source `3059a36af` plus the local finite fixture/delivery changes, reusing the earlier `ede59d051` investigation and retained source comparison at their recorded scopes. The original task IDs, dependencies, acceptance clauses and defining owners remain in [tasks.json](remaining-work/tasks.json) and the [subsystem plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md). The numbered historical sequence below is evidence, not another dispatch queue. Unreleased implementation remains stopped and existing holds remain in force; the separately released ICU and ordinary TS Worker serving completions are credited below.
 
 ### Finite packet detail reconciled after origin sync
 
 The [finite packet detail](rust-port-orchestration/current-plan.md) and
 [machine packet queue](rust-port-orchestration/next-packets.json) refine the
 priorities below. They add no canonical tasks or implementation permission.
-Ordinary TS isolated-Worker qualification remains the first priority; changed-byte
-Values installed/vendor qualification can proceed independently. Shared fanout
-TS integration includes only its actual consumer graph and installer handoff.
+Ordinary TS isolated-Worker serving qualification is complete at its selected
+scope. Current-byte Values installed/vendor/workerd qualification is next after
+a finite release. Shared fanout TS integration includes only its actual consumer graph and installer handoff.
 Current-byte Node binding smoke recorded below is already credited; it does not
 replace installed/vendor/workerd delivery evidence. No accepted recovery work is
 reopened. All native-preparation/source-adoption/default/publication holds remain.
 
-**Next finite packet: `ports:V02.6`, ordinary TS serving qualification in the
-actual staged isolated Worker.** Values/Interfaces already supply trusted
-registration, copied defaults, source checks and lifetime cleanup; R3/Dev supplies
-the missing Worker fixture/result using the existing staged D1/production-session
-setup. Stop when the typed-operation path preserves canonical defaults/error and
-admission order, real issuer/catalog correspondence refusals before effects, and
-catalog closure on success/failure. Reuse accepted Node mutation/stale-file checks;
-the immutable portable issuer has no generation-revocation API. This finishes only
-the selected ordinary TS PH2/PH4 evidence, with no Rust validator or native join.
+**Completed `ports:V02.6`: ordinary TS serving in the staged isolated Worker.**
+The new `prepared-validation.workerd.test.ts` runs current packed package contents
+outside the checkout through the real deploy bundler, workerd/D1 and a production
+Identity session. The unmodified default Worker preserves State defaults, receipt/
+replay, diagnostic order and auth/CSRF/body admission without refusal effects. A
+same-graph test-only adapter observes the original catalog's closure after success
+and validation failure and rejects copied readers, copied assembly, mismatched
+artifacts and a stale derived catalog with its exact correspondence diagnostic.
+The run exposed one missing existing runtime module; `deploy/bundle.ts` now stages
+`native-scenario-require.js`, without changing admission or helper semantics.
 
-All three queued packets' named prerequisite paths are unchanged by the ICU
-consolidation. `ports:C04.values-assets` remains independently ready for current
-installed/vendor/workerd delivery; `ports:W02.5` retains its bounded consumer,
-graph and installer join. Their exact stop conditions are in the finite detail.
-Ready means source/contract-ready after a new finite release; missing local
-dependencies/Cloudflare output/compiler capture are activation setup. No further
-ICU implementation is queued: retain the two parsers, with a shared Rust core
-dormant pending actual drift/cost or a named native-consumer need.
+All 12 consumed packages emitted/typechecked; the fixture passed strict typecheck.
+Two distinct Worker tests pass, reusing the default result after affected adapter
+fixture corrections. Existing Node final-await mutation/stale-file proof remains
+credited. This demonstrates ordinary TS source/operation/catalog correspondence
+and request cleanup portions of PH2/PH4; HTTP still uses `runPreparedHttpPlan`.
+Full PH2/native identity, PH3, protected parser-to-Rust/state/resource/other-profile
+and whole parent acceptance remain separate. Canonical tasks stay partial.
+
+**Next finite packet: `ports:C04.values-assets`**, current-byte installed/vendor/
+workerd asset qualification. Its existing producer/bootstrap are ready; no asset
+regeneration or direct Node binding-smoke replay is needed. `ports:W02.5` remains
+independently ready for its bounded fanout consumer/graph/installer join. Both
+require a new finite release. No further ICU implementation is queued; a common
+Rust parser remains dormant. Native preparation remains **HUMAN HOLD**.
 
 ### Additional package opportunities — message syntax and usage completed
 
@@ -96,7 +103,7 @@ preparation was released; native preparation remains **HUMAN HOLD**.
 | Owner / original scope | Current implementation and evidence | Limit that remains |
 | --- | --- | --- |
 | R1 / `A03–A07` exact values | Registered Rust integer/decimal/money, temporal, aggregate and scalar-codec modules; broad [operation dispatcher](../../packages/values/semantics/src/transport/exact.rs); generated Wasm, synchronous bootstrap and integrity-checked assets. [Step9 acceptance](rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json) credits its actual Node/Bun/workerd profile. | Six operations have the matching qualified TS comparison profile; Rust dispatch supports more. Public helpers still run TS. Full boundary parity, public routing and adoption are unfinished. |
-| R2 / `V02–V03`, `V07` validation foundation | Rust structural transport, owner/plan handles and release scaffolding. Ordinary TS has frozen parser-created input, copied Date/Decimal plan defaults, trusted serving registration, source/revision fences and request cleanup. [Current V03 record](../research/package-library-audit-20261006/repair-queue/queue.json) retains accepted components and the unfinished serving checkpoint. | [Rust profile dispatch](../../packages/values/semantics/src/profiles.rs) has input/owner/plan operations, no validation operation. TS serving is explicitly `ordinary-ts-serving`; no Rust HTTP/state/MCP adoption. |
+| R2 / `V02–V03`, `V07` validation foundation | Rust structural transport, owner/plan handles and release scaffolding. Ordinary TS has frozen parser-created input, copied Date/Decimal plan defaults, trusted serving registration, source/revision fences and request cleanup, with the selected installed isolated Worker serving join now qualified. [Current V03 record](../research/package-library-audit-20261006/repair-queue/queue.json) retains accepted components and the unfinished serving checkpoint. | [Rust profile dispatch](../../packages/values/semantics/src/profiles.rs) has input/owner/plan operations, no validation operation. TS serving is explicitly `ordinary-ts-serving`; no Rust HTTP/state/MCP adoption. |
 | R3 / `W03–W06` selected recovery | Registered Rust decision families; explicit [recovery Wasm producer](../../packages/work-kernel/package.json) and [startup-selected facade](../../packages/work-kernel/bindings/recovery-planner.ts). Accepted `TECH-W03` at `6fe652c4b932e8c095ab8c5c8fdedee9de6bd537` exercised the actual durable recovery path with TS and Wasm, 26 planner calls each. | The selected `planRecoveryScan` outcome is closed at that scope. Other families, final distribution/installed-host coverage and wider original W gates remain open; do not redispatch accepted recovery qualification. |
 | R4 / `P04–P06` preparation candidate | Registered Rust artifact, compatibility, release, module, plan, render and review algorithms, retained protocol/job prefix and separate host/publication adapters. | Native job still omits module/plan phases; real CLI build/deploy stays TS. Executable verifier is not connected to launch. Candidate source is not full CLI acceptance. Preparation/native release remains human-held. |
 | Shared / `C04` delivery | Values generated assets are manifest-checked and staged as binary; mixed asset/bundle plumbing exists. Cloudflare now declares the work-kernel dependency, and Work has an explicit recovery asset producer. | Ordinary Work emit does not produce recovery Wasm; final Work package/deploy/release inventories and claimed host coverage remain separate. Do not require unused consumers to add dependencies. |
@@ -107,7 +114,8 @@ Ranks order the existing outcomes, not new task identities or permission to exec
 
 | Rank / existing IDs | Defining owner and prerequisite output | Remaining change and finite acceptance |
 | --- | --- | --- |
-| 1 — `V02.6`, `V03.3`, `V08.4` / selected `TECH-V03` | R2 Values/Interfaces with Cloudflare serving assembly; consume existing trusted source/owner/revision catalog and copied-default implementations. | Finish the remaining actual serving association/isolated Worker qualification at the preserved checkpoint. Reuse accepted factory/default/HTTP controls and compiled installed HTTP+State-memory evidence; check only missing deployed/isolated linking and affected lifetime/source fences. Close this ordinary TS prerequisite only; no Rust or whole V08 credit. |
+| Accepted finite slice — `V02.6`, related `V03.3`, `V08.4` / selected `TECH-V03` | R2 Values/Interfaces with R3/Dev Worker qualification; existing trusted source/catalog and copied-default producers. | Ordinary TS isolated Worker linkage/correspondence/cleanup is complete above; reuse its two passing cases and prior Node controls. No redispatch of this slice. Full protected/native/source-profile/resource and broader parent criteria remain open. |
+| Next finite — `C04.values-assets` | R3 delivery, consuming R1's committed asset/bootstrap and existing installed bundler. | Qualify current owning installed vendor bytes and isolated workerd startup/add-int/negative controls through actual `buildDeployBundleWithAssets` output. No regeneration, direct binding-smoke replay, codec/adoption/default expansion or whole A07/A08 closure. Stop at that exact delivery profile; future release required. |
 | 2 — `A04.5`, `A07.3`, `A08` | R1 shared values assembly; existing Rust semantics, committed Wasm and actual host adapters. | Complete admitted carrier/error/profile parity and the matching comparison registry, then route only proved public profiles before evaluation. Resolve exact UTF-16/truncation, signed-zero and observable-object exclusions explicitly. Done when full claimed vectors use actual delivered adapters with original error/order/identity behavior and unsupported profiles retain declared TS routing. The selected int/ASCII source/adoption slice stays held below. |
 | 3 — remaining `W03.3–W04.4`, `W05–W06`, `C04.graph`, `C04.work-assets` | R3 Work/global delivery; consume the existing recovery producer/facade and accepted durable recovery result. State and Cloudflare retain authority and commit ownership. | Complete only unmet family demand/provenance/consumer obligations and the actual required package/deploy/installed asset closure. Preserve `W05.1 → W05.2 → C04.work-assets → W05.4 → W05.3` for missing delivery, plus the original runtime writer handoff. Done when each claimed remaining family has required trace/fault/persisted behavior and its named installed/workerd evidence. Selected recovery remains credited; no scheduler expansion. |
 | 4 — `V04–V07` | R2 validation, with R1 applying shared registrations; consume released numeric/codec/error contracts and immutable owner plans. | Implement the missing ordered Rust validator, defaults/materialization, codec joins and distinct supported profiles; finish matching TS/Rust budget, retirement and cleanup policy. Done when original ordering, presence/default identity, error projection and stale/foreign/disposed refusals match through actual bindings. Work needing the held selected int/ASCII contract waits for that exact release; disjoint preparation does not inherit a blanket hold. |

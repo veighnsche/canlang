@@ -141,6 +141,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "native-records.js",
   "native-membership.js",
   "native-read-boolean.js",
+  "native-scenario-require.js",
   "native-value-schema.js",
   "native-ui-query.js",
   "generation-callback-origin.js",
