@@ -2711,8 +2711,9 @@ fn emit_program_with_sources(
         }
     }
     emitter.emit_app_definition(&mut body, entry_id);
-    emitter.emit_derive_fns(&mut body);
+    emitter.emit_derive_fns(&mut body, false);
     emitter.emit_can_app(&mut body, entry_id, &operations, local_policies.as_ref());
+    emitter.emit_derive_fns(&mut body, true);
     // Hook-variant definitions come after the hooks registry that selects
     // them (see `emit_hook_variants`): hook bodies lower inside
     // `emit_can_app`, so only now is the selected set complete.
@@ -4162,6 +4163,7 @@ pub struct Emitter<'a> {
     boolean_rules: HashSet<String>,
     owner_handlers: HashSet<SymbolId>,
     owner_handler_body: bool,
+    owner_handler_derives: HashSet<String>,
     boolean_body: bool,
     source_guard_body: bool,
     source_guard_derive_depth: usize,
@@ -4374,6 +4376,7 @@ impl<'a> Emitter<'a> {
             boolean_rules: HashSet::new(),
             owner_handlers: HashSet::new(),
             owner_handler_body: false,
+            owner_handler_derives: HashSet::new(),
             boolean_body: false,
             source_guard_body: false,
             source_guard_derive_depth: 0,
@@ -7226,7 +7229,7 @@ impl<'a> Emitter<'a> {
                 // A source-owned guard or checked owner rule consumes a derived
                 // scalar's original body under the same current-row observer. No stored
                 // value is fabricated and no standalone read transaction opens.
-                if self.source_guard_body
+                if (self.source_guard_body || self.owner_handler_body)
                     && let ResolvedType::Record {
                         symbol: model,
                         stored: true,
@@ -7250,7 +7253,7 @@ impl<'a> Emitter<'a> {
                         );
                         return self.throw_expr("unsupported source guard derive");
                     }
-                    let receiver = self.lower_boolean_record(base);
+                    let receiver = if self.owner_handler_body { self.lower_expr(base) } else { self.lower_boolean_record(base) };
                     self.enter_scope();
                     let row = self.bind("row");
                     self.source_guard_derive_depth += 1;
@@ -7274,11 +7277,7 @@ impl<'a> Emitter<'a> {
                     && matches!(field.as_str(), "actor" | "now" | "team" | "operation");
                 let base_text = if ambient {
                     "c".to_string()
-                } else if self.boolean_body
-                    && matches!(
-                        base.ty.nullable_inner().unwrap_or(&base.ty),
-                        ResolvedType::Record { stored: true, .. }
-                    )
+                } else if self.boolean_body && self.is_model_reference(&base.ty)
                 {
                     self.lower_boolean_record(base)
                 } else {
@@ -8752,9 +8751,14 @@ impl<'a> Emitter<'a> {
                     }
                     HookDerive::AsIs => {}
                 }
+                if self.owner_handler_body {
+                    self.owner_handler_derives.insert(canonical.clone());
+                }
                 let name = match self.by_canonical.get(canonical) {
                     Some(index) => binding_ident(
-                        if (self.boolean_body || self.authority_body)
+                        if self.owner_handler_body {
+                            "o"
+                        } else if (self.boolean_body || self.authority_body)
                             && self.boolean_derives.contains(canonical)
                         {
                             "b"
@@ -18173,27 +18177,35 @@ impl<'a> Emitter<'a> {
     /// order (no `row`: derives are pure functions, DESIGN §2). Always
     /// `async`: call sites uniformly `await`. Exported exactly when the
     /// source derive is exported.
-    fn emit_derive_fns(&mut self, out: &mut JsWriter) {
+    fn emit_derive_fns(&mut self, out: &mut JsWriter, owner_mode: bool) {
         let ir = self.ir;
-        for item in &ir.items {
+        let mut emitted = HashSet::new();
+        loop {
+        let items: Vec<_> = ir.items.iter().filter(|item| matches!(item.kind, IrItemKind::DeriveFn { .. })
+            && (!owner_mode || self.owner_handler_derives.contains(&item.canonical))
+            && !emitted.contains(&item.id)).cloned().collect();
+        if items.is_empty() { break; }
+        for item in &items {
+            emitted.insert(item.id);
             let IrItemKind::DeriveFn { params, expr, .. } = &item.kind else {
                 continue;
             };
-            let modes = if self.boolean_derives.contains(&item.canonical) {
+            let modes = if !owner_mode && self.boolean_derives.contains(&item.canonical) {
                 vec![false, true]
             } else {
                 vec![false]
             };
             for boolean_body in modes {
+                self.owner_handler_body = owner_mode;
                 self.boolean_body = boolean_body;
                 self.boolean_helper = self.boolean_derives.contains(&item.canonical);
-                let name = binding_ident(if boolean_body { "b" } else { "s" }, &item.canonical);
+                let name = binding_ident(if owner_mode { "o" } else if boolean_body { "b" } else { "s" }, &item.canonical);
                 self.enter_scope();
                 let mut signature = vec!["c".to_string()];
                 for id in params {
                     signature.push(self.bind(&self.ir.items[id.0 as usize].name.clone()));
                 }
-                let export = if item.exported && !boolean_body {
+                let export = if item.exported && !boolean_body && !owner_mode {
                     "export "
                 } else {
                     ""
@@ -18245,7 +18257,10 @@ impl<'a> Emitter<'a> {
                 self.exit_scope();
                 self.boolean_body = false;
                 self.boolean_helper = false;
+                self.owner_handler_body = false;
             }
+        }
+        if !owner_mode { break; }
         }
     }
 

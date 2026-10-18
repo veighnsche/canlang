@@ -2,9 +2,9 @@
  * Complete checked declaration correspondence in common metadata/Compiler and
  * genuine Dev native consumption/adoption remain BLOCKED under full SEQ048.
  * An installed selector here is runtime wiring, not that source acceptance. */
-import type { CommittedChangeEvent, DomainWrite, InvocationContext, ModelName, OccurrenceId,
+import type { DomainWrite, InvocationContext, ModelName, OccurrenceId,
   RecordId, RecordVersion, StoredRow, WorkScope } from '@canlang/contracts';
-import { readOwnerMutationSourceStage, type OwnerMutationSourceStager } from '@canlang/state';
+import { readOwnerMutationSourceStage, type OwnerMutationSourceStager, type OwnerMutationSourceStage } from '@canlang/state';
 import type { FanoutCohortSpec } from '@canlang/state/fanout/cohort';
 import type { OccurrenceIdPort } from '../ports.js';
 import { stageHandlerOccurrence, readHandlerOccurrenceRow } from './handler-occurrence.js';
@@ -173,7 +173,41 @@ export function createCommittedModelSourceStager(options: {
   if (typeof config['routesForChange'] !== 'function') return refuse('own installed selector function required.');
   const select = config['routesForChange'] as typeof options.routesForChange;
   const bounds = boundsOf(config['bounds'] as CommittedModelSourceBounds);
-  return async token => {
+  return token => {
+    const stage = readOwnerMutationSourceStage(token);
+    return stageSources(token, bounds, stage.changes.map(change => ({
+      occurrenceId: () => nextOccurrenceId(), routes: () => select(change, stage.context),
+      event: `${change.model}.${change.kind}`,
+      payload: (occurrenceId: OccurrenceId, scope: WorkScope) => ({ recordId: change.recordId,
+        owner: scope.owner, version: change.version, occurrenceId }),
+      result: { kind: 'committed-model-source', change: { ...change } }, skipEmpty: true,
+    })));
+  };
+}
+
+/** Typed payloads and route declarations are captured by the installed host
+ * at each authored emit. Only State's genuine finalization token can stage them. */
+export interface DeclaredEventSourceInput {
+  readonly occurrenceId: OccurrenceId;
+  readonly event: string;
+  readonly payload: Readonly<Record<string, unknown>>;
+  readonly routes: CommittedModelSourceRoutes;
+}
+export async function stageDeclaredEventSources(token: OwnerMutationSourceStage,
+  events: readonly DeclaredEventSourceInput[], bounds: CommittedModelSourceBounds): Promise<readonly DomainWrite[]> {
+  const captured = events.map(event => ({ occurrenceId: identity(event.occurrenceId) as OccurrenceId,
+    event: identity(event.event), payload: frozen(copyData(event.payload)) as Readonly<Record<string, unknown>>,
+    routes: frozen(copyData(event.routes)) as unknown as CommittedModelSourceRoutes }));
+  return stageSources(token, boundsOf(bounds), captured.map(event => ({
+    occurrenceId: () => event.occurrenceId, event: event.event, routes: () => event.routes,
+    payload: () => event.payload, result: { kind: 'declared-event-source' }, skipEmpty: false,
+  })));
+}
+
+async function stageSources(token: OwnerMutationSourceStage, bounds: CommittedModelSourceBounds,
+  entries: readonly { occurrenceId: () => OccurrenceId; routes: () => CommittedModelSourceRoutes;
+    event: string; payload: (id: OccurrenceId, scope: WorkScope) => Readonly<Record<string, unknown>>;
+    result: Readonly<Record<string, unknown>>; skipEmpty: boolean }[]): Promise<readonly DomainWrite[]> {
     const stage = readOwnerMutationSourceStage(token);
     const writes: DomainWrite[] = [], allocated = new Set<string>(), stagedRows = new Set<string>();
     const meta = { nowMs: stage.framework.now, actor: stage.framework.actor };
@@ -186,18 +220,17 @@ export function createCommittedModelSourceStager(options: {
       if (stagedRows.has(key) || await stage.framework.load(model, row.id) !== null) return refuse('preexisting or colliding framework source effect.');
       stagedRows.add(key); writes.push({ kind: 'insert', model, row });
     };
-    for (const change of stage.changes) {
+    for (const entry of entries) {
       stage.consumeWork(1);
-      const routes = routesOf(select(change, stage.context), stage.context, bounds);
-      if (routes.handlers.length === 0) continue;
+      const routes = routesOf(entry.routes(), stage.context, bounds);
+      if (entry.skipEmpty && routes.handlers.length === 0) continue;
       if (++sources > bounds.maxSources || (handlers += routes.handlers.length) > bounds.maxHandlers) return refuse('complete source/handler inventory exceeds bound.');
-      const occurrenceId = identity(nextOccurrenceId()) as OccurrenceId;
+      const occurrenceId = identity(entry.occurrenceId()) as OccurrenceId;
       if (allocated.has(occurrenceId)) return refuse('occurrence allocator repeated a source identity.');
       allocated.add(occurrenceId);
       if (await stage.framework.load(WORK_OCCURRENCE_MODEL, occurrenceId as RecordId) !== null) return refuse('source occurrence receipt already exists.');
-      const event = `${change.model}.${change.kind}`;
-      const payload: CommittedChangeEvent = Object.freeze({ recordId: change.recordId, owner: routes.scope.owner,
-        version: change.version, occurrenceId });
+      const event = entry.event;
+      const payload = frozen(copyData(entry.payload(occurrenceId, routes.scope))) as Readonly<Record<string, unknown>>;
       const source = frozen({ occurrenceId, event, payload: { ...payload }, scope: routes.scope });
       const inventory: Record<string, unknown>[] = [];
       for (const route of routes.handlers) {
@@ -243,12 +276,11 @@ export function createCommittedModelSourceStager(options: {
           members: intent.members, memberCount: intent.memberCount, firstChunkCount: first.length, cursor });
       }
       const receipt = newOccurrenceRow({ occurrenceId, status: 'completed', code: null, message: null, recordedAtMs: stage.context.now,
-        result: { kind: 'committed-model-source', change: { ...change }, event, payload, context: attribution(stage.context),
+        result: { ...entry.result, event, payload, context: attribution(stage.context),
           revision: stage.revision, scope: routes.scope, bounds, handlers: inventory } }, meta);
       readOccurrenceRow(receipt); await insert(WORK_OCCURRENCE_MODEL, receipt);
     }
     return frozen(writes);
-  };
 }
 function rowInvalid(id: string, row: StoredRow, cohort: FanoutCohortSpec, previous: string | undefined): boolean {
   identity(id);

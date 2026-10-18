@@ -936,8 +936,9 @@ mod tests {
     fn transitive_computed_rules_and_contained_lock_keep_dependencies_and_source() {
         let source = r#"app ComputedRules
 Given
- Location {active:bool}
- Budget {total:money,locations:Location[],zone:timezone}
+ Location {active:bool,unit:enum(hour,day)}
+ contract Interval {from:datetime,until:datetime}
+ Budget {total:money,locations:Location[],zone:timezone,intervals:Interval[],unit:Location.unit}
  Slot in Budget {state:enum(held,pending,confirmed),until:datetime}
  Request in Budget {amount:money,location:Location,actual:money?}
  Increase in Request {amount:money}
@@ -948,9 +949,10 @@ Given
  derive Budget.remaining:money = row.total-row.committed
  derive Budget.available:int = count(row.Slot as slot where slot.state==confirmed or (slot.state in [held,pending] and now<slot.until))
  invariant Budget: row.available>=0
- lock Budget fields=zone
+ lock Budget fields=zone,unit
  invariant Budget: row.remaining.minor>=0
  invariant Request: row.location in row.parent.locations and (row.actual ?? row.amount).currency==row.parent.total.currency
+ invariant Budget: all(row.intervals as interval,interval.from<interval.until)
  lock Request fields=amount when=count(row.Increase)>0
 When
 Then
@@ -971,7 +973,7 @@ Then
         assert!(available.checked_body);
         assert_eq!(available.query_models, vec![model("Slot")]);
         assert!(policies.descriptors.iter().find(|policy| policy.model == "ComputedRules.Budget").unwrap().rules.iter()
-            .any(|rule| matches!(rule, ModelRule::Lock { fields, .. } if fields == &["zone"])));
+            .any(|rule| matches!(rule, ModelRule::Lock { fields, .. } if fields == &["zone", "unit"])));
         let original_contexts = std::mem::take(&mut program.types.contextual_references);
         let missing_context_refuses = checked_query_rule_fields(&program, &original, model("Budget"), available.predicate.as_ref().unwrap(), &db, catalog.as_ref()).is_none();
         program.types.contextual_references = original_contexts;
@@ -984,8 +986,23 @@ Then
         let lock = policies.bindings.iter().find(|binding| binding.id.ends_with("Request.lock.1")).unwrap();
         assert!(lock.checked_body);
         assert_eq!(lock.query_models, vec![model("Increase")]);
-        for corruption in 0..2 {
+        let interval_rule = policies.bindings.iter().find(|binding| binding.id.ends_with("Budget.require.3")).unwrap();
+        assert!(interval_rule.checked_body);
+        assert!(interval_rule.query_models.is_empty(), "Contract values do not invent stored queries");
+        for corruption in 0..3 {
             let mut changed = original.clone();
+            if corruption == 2 {
+                let rule = changed.invariants.iter_mut().find(|rule| rule.origin.as_ref().is_some_and(|origin|
+                    origin.model == model("Budget") && origin.registry_id.ends_with("require.3"))).unwrap();
+                let args = match &mut rule.pred.expr {
+                    IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => args,
+                    _ => panic!("checked Contract collection call"),
+                };
+                let IrExpr::Lambda { param, .. } = &mut args[1].expr else { panic!("Contract predicate"); };
+                *param = "unbound".into();
+                assert!(collect_checked_policies(&program, &changed, &db, catalog.as_ref(), &module).is_none(), "changed Contract lambda source");
+                continue;
+            }
             let derived = changed.items.iter_mut().find(|item| item.canonical == "ComputedRules.Budget.remaining").unwrap();
             let IrItemKind::DeriveField { expr: Some(body), .. } = &mut derived.kind else { panic!("derived body"); };
             if corruption == 0 { body.expr = IrExpr::Int(0); }

@@ -1291,3 +1291,19 @@ Concurrent integrations through main82b888c8b retain their separate Work/recover
 coverage; foreign AGENTS/development-startup notes and inventory output are preserved.
 Reuse prior coverage and checks; do not advance the held complete review checkpoint
 or treat this bounded reconciliation as a whole-tree audit. Muse remains stopped.
+
+
+### 2026-10-18 — private declared-event and helper composition
+
+Retain existing Compiler codegen/model-policy owners, Work's committed-model-source
+module, Cloudflare runtime/bundle and the existing hook-first-delivery harness.
+No new package/query engine/public carrier. All changed source/tests are reviewed;
+three JEV responses remain advice under the existing design owner. Source-joined
+Emit and selected helper closure use the existing owner finalizer and Work routes;
+actual original Maintain/Invoice D1 consumers and affected prefix/cohort checks pass.
+The completion view/decision record this same batch and original24 delta264→212
+(FIRST78→25), plus the separate pre-existing saved-result/bundle gaps. Reuse held
+coverage; do not advance the complete historical checkpoint or claim whole-tree
+currency. Concurrent documentation integrations through d240246c2 retain their own
+scope; foreign working edits remain preserved. Main is unchanged as the working
+branch; Muse remains stopped.

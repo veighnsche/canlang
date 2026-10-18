@@ -726,6 +726,7 @@ function rewriteNamedProducerImports(js: string, moduleKey: string, source: stri
 function rewriteSelectedProducerImports(js: string, moduleKey: string): string {
   js = rewriteNamedProducerImports(js, moduleKey, WORK_SOURCE_SPECIFIER, new Map([
     ['createCommittedModelSourceStager', WORK_VENDOR_ENTRY],
+    ['stageDeclaredEventSources', WORK_VENDOR_ENTRY],
     ['createStandardCompletionSourceCommand', WORK_COMPLETION_VENDOR_ENTRY],
     ['WORK_FILE_REFERENCE_PRODUCER', WORK_FILE_REFERENCE_VENDOR_ENTRY],
   ]));

@@ -18890,3 +18890,26 @@ Integration scope: eight documentation paths only, on top of main `46cb113ad`.
 Retain the compiler owner's accumulated coverage and newer history, all foreign
 working notes and the stale complete filetree checkpoint. This merge authorizes
 no implementation; the proposed W02.5 packet and native-preparation hold remain.
+
+
+## 2026-10-18 — private declared-event publication in the owner transaction
+
+Extend the complete original/fresh-IR handler join to Emit. Freeze its typed payload
+at the authored statement, then stage source receipts and complete ordinary/frozen
+cohort routes through State's genuine finalization token and existing Work rows.
+Business changes and publication commit together; later handler execution retains
+owner/source checks, failure recovery and replay. Keep selector evaluation inside
+the original per-source work accounting/order. No synthetic schedule or public
+owner upgrade. Selected private transitive helpers/computed fields consume the same
+native owner view; source-checked value-array/imported-enum locks and Contract-array
+predicates retain original policies without introducing stored model dependencies.
+
+Three equivalent JEV requests favored this existing finalization route (probabilities
+1/.99/1, confidence1/.98/1), as advice. Original compiled Maintain cancellation and
+Invoice reconciliation pass on D1/Identity/Work; snapshot/rollback/cohort and source
+mutants pass. One unchanged original24 capture removes53 FIRST refusals (78→25),
+total264→212; the extra diagnostic occurrence duplicates existing Invoice helper
+ordering. Full composition, public saved-result emission, guarded private SEND and
+opaque File lineage remain open. The existing completion record names pre-existing
+saved-result test and Work-kernel bundle failures separately. Work stays on main;
+Muse remains stopped.

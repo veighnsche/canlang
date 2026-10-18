@@ -114,7 +114,7 @@ export async function createBoundCohortTick(input: {
       const receipt = readOccurrenceRow(row);
       const result = receipt.result as { kind?: unknown; event?: unknown } | null;
       if (receipt.status !== 'completed' ||
-          result?.kind !== 'committed-model-source' && result?.kind !== 'standard-completion-source' || typeof result?.event !== 'string') {
+          result?.kind !== 'committed-model-source' && result?.kind !== 'standard-completion-source' && result?.kind !== 'declared-event-source' || typeof result?.event !== 'string') {
         throw new Error('Cohort tick retained intent lacks a checked source receipt.');
       }
       body = await createCanonicalCommittedCohortBody({ artifact, asm, app: scope.app, handler: intent.handler,

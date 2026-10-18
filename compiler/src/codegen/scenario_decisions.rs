@@ -785,7 +785,7 @@ pub(super) fn owner_handler_queries(context: &FreshSourceContext<'_>, owner: &Ir
     if !params.is_empty() || !by.is_empty() { return None; }
     fn mutation(statements: &[IrStmt]) -> bool {
         statements.iter().any(|statement| match statement {
-            IrStmt::Create { .. } | IrStmt::Set { .. } | IrStmt::Send { .. } |
+            IrStmt::Create { .. } | IrStmt::Set { .. } | IrStmt::Send { .. } | IrStmt::Emit { .. } |
             IrStmt::Schedule { .. } | IrStmt::Cancel { .. } => true,
             IrStmt::If { then_branch, else_branch, .. } => mutation(then_branch) || mutation(else_branch),
             IrStmt::For { body, .. } => mutation(body),
@@ -1618,6 +1618,10 @@ impl SemanticJoin<'_> {
                 },
             ) if x == y && a == b && u == v && ar == br && s == t => {
                 self.expression(c, e, d + 1)?;
+            }
+            (IrStmt::Emit { event: x, payload: a, span: s },
+             IrStmt::Emit { event: y, payload: b, span: t }) if x == y && s == t => {
+                self.expression(a, b, d + 1)?;
             }
             (
                 IrStmt::Schedule { owner_package: x, key: a, at: c, event: u, payload: e, span: s },
@@ -3456,7 +3460,7 @@ mod owner_handler_tests {
 
     #[test]
     fn whole_handler_queries_require_original_body_parent_order_and_continuation() {
-        let source = "app OwnerHandler\nGiven\n Root {name:text}\n Child in Root {state:enum(open,done),source:text}\n event Tick {root:Root,source:text}\n policy Root read=public\n policy Child read=public\nWhen\n scenario drain on=Tick\n  require event.root.name!=\"\"\n  do\n   let child=first(event.root.Child as row where row.state==open and row.source==event.source order=row.id)\n   if child!=null\n    set child {state=done}\n    schedule child.id at=now event=Tick {root=event.root,source=event.source}\nThen\n";
+        let source = "app OwnerHandler\nGiven\n Root {name:text}\n Child in Root {state:enum(open,done),source:text}\n event Tick {root:Root,source:text}\n policy Root read=public\n policy Child read=public\nWhen\n scenario drain on=Tick\n  require event.root.name!=\"\"\n  do\n   let child=first(event.root.Child as row where row.state==open and row.source==event.source order=row.id)\n   if child!=null\n    set child {state=done}\n    schedule child.id at=now event=Tick {root=event.root,source=event.source}\n    emit Tick {root=event.root,source=event.source}\nThen\n";
         let mut db = SourceDb::new();
         let file = db.add("owner-handler.can".into(), source.into());
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
@@ -3476,7 +3480,7 @@ mod owner_handler_tests {
             owner_handler_queries(&context, &actual.items[index]).is_some()
         };
         assert!(prepare(&ir), "whole original handler is independently source-joined");
-        for mutation in 0..5 {
+        for mutation in 0..7 {
             let mut actual = ir.clone();
             let IrItemKind::Scenario { effects, event_source, .. } = &mut actual.items[index].kind else { unreachable!() };
             if mutation == 4 {
@@ -3490,9 +3494,13 @@ mod owner_handler_tests {
             } else {
                 let IrStmt::If { then_branch, .. } = &mut effects[1] else { unreachable!() };
                 if mutation == 2 { then_branch.remove(0); }
-                else {
+                else if mutation == 3 {
                     let IrStmt::Schedule { owner_package, .. } = &mut then_branch[1] else { unreachable!() };
                     *owner_package = "Other".into();
+                } else {
+                    let IrStmt::Emit { event, payload, .. } = &mut then_branch[2] else { unreachable!() };
+                    if mutation == 5 { *event = "Other.Tick".into(); }
+                    else { let IrExpr::Object(fields) = &mut payload.expr else { unreachable!() }; fields.pop(); }
                 }
             }
             assert!(!prepare(&actual), "changed source occurrence {mutation} must not bypass receipt admission");

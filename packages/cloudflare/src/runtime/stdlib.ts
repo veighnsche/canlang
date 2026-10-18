@@ -354,10 +354,13 @@ export async function send(
     : c.sendDeferred(operation, request, options.binding, when);
 }
 
-/** Not in B1: domain-event emission needs the L3 effects pipeline. */
-export function emit(c: HandlerContext, ..._args: unknown[]): never {
-  void c;
-  return unsupported('emit', 'domain-event emission needs the L3 effects pipeline.');
+/** Typed events are frozen now and persisted with their source commit.
+ * Their handlers execute later through Work, never inline in this operation. */
+export async function emit(c: HandlerContext, event: string, payload: unknown): Promise<void> {
+  if (c.canonical === undefined || c.emitDeferred === undefined) {
+    return unsupported('emit', 'domain-event emission requires canonical source staging.');
+  }
+  await c.emitDeferred(event, payload);
 }
 
 /** Keyed schedules join the admitted scenario's canonical commit. */

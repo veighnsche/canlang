@@ -146,6 +146,7 @@ export interface HandlerContext {
   /** Lexical package is checked producer metadata; the seam owns app/owner identity. */
   readonly scheduleDeferred?: (key: string, at: DatetimeValue, event: string, payload: unknown, ownerPackage: string) => Promise<void>;
   readonly cancelDeferred?: (key: string, ownerPackage: string) => Promise<void>;
+  readonly emitDeferred?: (event: string, payload: unknown) => Promise<void>;
 }
 
 /**
@@ -169,6 +170,7 @@ export interface CreateContextDeps {
   sendDeferred?: HandlerContext['sendDeferred'];
   scheduleDeferred?: HandlerContext['scheduleDeferred'];
   cancelDeferred?: HandlerContext['cancelDeferred'];
+  emitDeferred?: HandlerContext['emitDeferred'];
   /** Internal admitted facts; business inputs and caller labels cannot supply these. */
   qualified?: Pick<InvocationContext, 'actor' | 'team' | 'now' | 'source'> & { readonly operationId?: string };
   /** Internal checked selected-app formatting facts. No context-level defaults. */
@@ -198,6 +200,7 @@ export function createContext(deps: CreateContextDeps): HandlerContext {
     ...(deps.sendDeferred === undefined ? {} : { sendDeferred: deps.sendDeferred }),
     ...(deps.scheduleDeferred === undefined ? {} : { scheduleDeferred: deps.scheduleDeferred }),
     ...(deps.cancelDeferred === undefined ? {} : { cancelDeferred: deps.cancelDeferred }),
+    ...(deps.emitDeferred === undefined ? {} : { emitDeferred: deps.emitDeferred }),
     ...(deps.qualified === undefined ? {} : {
       actor: deps.qualified.actor === null ? null : makeUserRef(deps.qualified.actor.userId),
       actorFacts: deps.qualified.actor === null ? null : Object.freeze({

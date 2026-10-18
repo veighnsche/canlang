@@ -2,7 +2,7 @@
 
 ## Current remainder and finite completion
 
-**State: original Customer `recover`, Purchase `record_payable` / `return_goods`, and the whole-handler query batch below are accepted at their recorded scopes. The latest unchanged original24 compile has 264 E6008, down from 273, with nine FIRST refusals removed and none added. Whole CanCRM compilation/runtime remains open. Muse stays stopped and supervision disabled; work remains on main without a new branch or worktree. Other proposed batches await agreement.**
+**State: original Customer `recover`, Purchase `record_payable` / `return_goods`, private whole-handler queries and the declared-event/helper batch below are accepted at their recorded scopes. Latest unchanged original24: 212 E6008, down from 264; FIRST refusals 78→25. Whole CanCRM compilation/runtime remains open. Muse stays stopped and supervision disabled; work remains on main without a new branch or worktree. Other proposed batches await agreement.**
 
 This is the **one execution plan** for general Can correctness and adoption: existing outcomes 1–18 / C01–C24 and their required executable/reference consumers. The original CanCRM composition and other draft apps are reference programs that reveal reusable language/runtime gaps, not end-user products to finish or polish. Shared work is counted once; consumers link to its output. Other roadmaps supply contracts and dependencies, not extra assignments. Product requirements remain in REQUIREMENTS, behavior in DESIGN and syntax in GRAMMAR.
 
@@ -14,9 +14,9 @@ The former 8,333-line completion journal is preserved as [historical evidence](h
 | --- | --- |
 | Canonical checkout | `/Users/vince/Projects/canlang`, branch `main`; user documentation commits through `e3ba3c9e2` are preserved before this repair |
 | Released code review | Retain the complete `44e6332c0` checkpoint/190 paths. The recover batch has its own complete 18-code-path review; neither review establishes full workflow completion. |
-| Latest original24 | Whole-handler producer: actual compiler exit **10**, complete=true, omitted=0, unchanged 24 authored inputs/26 source records; **264 E6008**. Against the preceding 273-error producer, nine FIRST refusals removed, zero added; FIRST 87→78, including the targeted handler bucket 67→58. No whole-composition artifact yet. |
-| Producer / catalog | Compiler SHA-256 `9e37e5d39dc8db2bb301ca9a60cf82659bc753a5a1f093796f023ef789dd83cd`; catalog `ca50fdca852170b09f95ec4adb97cc63ddabf26437629c02dfd234991bc486a8` |
-| Existing raw inputs/evidence | Current `/tmp/can-handler-original24.json` and `-meta.json` (529.82s), frozen `/tmp/can-handler-batch-can`; prior `/tmp/cancrm-query-original24-final.json` (589.24s); post-recover `/tmp/cancrm-recover-original24.json` (488.10s), prior `/tmp/can18-merge66-capture.json`; unchanged original argv `/private/tmp/cancrm-helper-invariants-card-20261015-argv.json` and catalog `/tmp/can18-merge66/catalog.json`. |
+| Latest original24 | Declared-event/helper producer: actual compiler exit **10**, complete=true, omitted=0, unchanged 24 authored inputs/26 source records; **212 E6008**. Against the preceding 264-error producer, 53 FIRST refusals removed; one additional occurrence of the already-existing Invoice expression-order diagnostic, at the same source site, from the selected owner helper. FIRST78→25. No whole-composition artifact yet. |
+| Producer / catalog | Compiler SHA-256 `b50088b5290d7a09e7688db18857fd9caa9c8cbfeb17d0dbcd14eed97b1c521f`; catalog `ca50fdca852170b09f95ec4adb97cc63ddabf26437629c02dfd234991bc486a8` |
+| Existing raw inputs/evidence | Current `/tmp/can-emission-original24.json` and `-meta.json` (597.56s), frozen `/tmp/can-emission-batch-can`; preceding `/tmp/can-handler-original24.json` (529.82s); prior `/tmp/cancrm-query-original24-final.json` (589.24s); post-recover `/tmp/cancrm-recover-original24.json` (488.10s), prior `/tmp/can18-merge66-capture.json`; unchanged original argv `/private/tmp/cancrm-helper-invariants-card-20261015-argv.json` and catalog `/tmp/can18-merge66/catalog.json`. |
 | Unfinished source | Old paused diagnostics remain preserved in stash `baecef7f8a745c08ef20b373cd81fc7e4cd006fa`; do not reapply them over the released repair. Temporary tracing was removed. The permanent original-source consumer is `packages/cloudflare/test/native-customer-recover.test.ts`. |
 
 Do not derive a completion percentage from goal progress, commit counts, diagnostic counts or reviewed paths. Do not rebuild merely because a commit label changed; use the actual producer/input identity.
@@ -133,6 +133,49 @@ publication, periodic intake and additional source/helper/dispatch joins; these 
 local engineering gaps, not external/policy holds. No unchanged full Purchase run
 was repeated. Muse's exact CAN18 pane remains dead/paused; it was not resumed.
 
+### Private declared-event and helper composition — 2026-10-18
+
+The next shared refusal was a complete handler containing `emit`: its statement
+was absent from the original/fresh-IR join and runtime emission still threw.
+Source-joined private handlers now stage typed events with their business changes
+through State's genuine owner finalizer and existing Work source/ordinary/cohort
+rows. Payloads freeze at the authored emit; nested references retain the reserved
+row version. Handlers execute later, once, through existing Work consumers; no
+synthetic keyed schedules or inline dispatch. Original computed scalars and selected
+transitive helpers use the same native owner view. Source-checked scalar-array and
+imported-enum locks plus Contract-array predicates preserve full owning policies.
+
+**Actual compiled Can in the existing harness:** original Maintain
+`cancel_inspection_step` completes five handler transactions/four persisted events,
+in authored ID order, including phase changes and eligible inspection cancellation.
+Commit outage publishes nothing; retry progresses; source/route replay changes no
+revision; wrong-owner routes refuse and excluded inspection evidence is retained.
+Original Invoice `source_reconcile` emits exact absence or the original nonzero
+computed settlement, refuses draft invoices, and replays without publication.
+The existing prefix case also covers late rollback, at-emit scalar snapshots,
+nested reserved references, Contract-array invariants and real frozen-cohort delivery.
+
+**Checks:** original/fresh-source unit with seven mutants and six retained
+model-policy cases pass. Cloudflare/Work typecheck and emit pass. All twelve affected
+runtime case scopes have passing results across the full-file run and affected
+repairs; after the final source-staging order correction only the affected prefix
+and original Maintain consumers reran:2/2 (7.69s). Work source suite12/14; its two
+saved-result failures reproduce with pre-batch HEAD source. The larger scheduled
+routing case reaches bundle construction, which fails on the pre-existing
+`vendor/work-kernel/index.js` → `../bindings/recovery-planner.js` missing staged
+module; the same error reproduces using the pre-batch runtime. These local gaps
+are recorded, not passing or external holds. Other unchanged checks are reused.
+Every changed production/test path was reviewed; no full review checkpoint advances.
+
+**Composition:** one frozen compile597.56s; all24 authored hashes/all26 source records
+unchanged, complete=true/omitted0. FIRST78→25;53 removed across Member21, Invoice15,
+Shift5, Stock5, Rent4, Maintain2 and Event1. One duplicate of Invoice's existing
+expression-order diagnostic appears in its selected owner helper: total264→212,
+with no newly failing source site. Those counts do not establish53 runnable workflows.
+Public saved-result emission, private guarded SEND, opaque File event lineage,
+periodic intake and remaining helper/query profiles remain local work. No unchanged
+full Purchase workflow or original24 capture was repeated. Muse remains stopped.
+
 ### Observed repeated work — command-log snapshot
 
 Counts below distinguish command invocations from actual rebuilds/cases. Prior
@@ -145,6 +188,7 @@ percentage or monetary cost is claimed.
 | Two-operation query batch | Root: 25 Cargo builds, 11 Cargo-test calls, 19 TS builds, 6 literal Node-test calls (Vitest wrappers excluded). Original D1 workflow: 3 attempts, two timeouts then pass1128.71s. Original24: 2 changed-producer captures,531.96s then589.24s after reserved-ID repair; earlier488.10s baseline reused. Runtime combo8pass/1stale-test failure then affected retry1pass; State13pass. One wrong Vitest invocation found no tests. Earlier compiler case denominator is unknown. |
 | D1 preparation performance repair | 0 Rust builds/tests; 1 State TS build and 1 worker build. One-operation harness: 5 attempts =1 transform/setup failure +4 single-case passes (83.14s,84.43s profile, corrected-proxy baseline59.99s, repair10.36s). Probe correction addressed measured instrumentation distortion. One focused Node run passed3 cases/1.93s. Live revision executions stayed5146. No full24/full-workflow repeat. |
 | Whole-handler batch | Root: 3 Cargo builds,4 Cargo-test calls (1 setup compile failure,1 fixture failure,2 passing runs/12 cases),14 TS-build invocations including no-ops. Worker:9 Rust attempts (2 setup compile failures,6 temporary diagnostic cases:5fail/1pass,1 retained pass);3 compile-only attempts (1 invalid scratch capture,2 clean). Combined Rust13attempts =3 setup failures +10 executed runs/20 cases (14pass/6fail); probes are not new business acceptance. Node10 commands/28 case executions:22pass/6fail, including2 full-file runs. Original D1 consumer8 attempts: missing facade, sandbox bind, policy profile, selector profile, seed wire, then3passes; prefix4 executions:1 setup failure/3passes; old8 cases repeated twice after receipt-boundary edits. Single original24 run above. |
+| Declared-event/helper batch | Root snapshot:98 exec orchestrations/129 literal shell calls before closing work;17 TS emit invocations including no-ops,3 Cargo builds,2 Cargo-test calls. Worker4 Cargo-test calls; combined12 executed cases9pass/3fail, including removed diagnostic probes. Literal Node-test commands16 plus the two-case HEAD-source baseline invoked through a child process; repeated scopes addressed actual model, owner-view, reserved-version, routing and fixture failures. One full12-case runtime run was followed by affected retries; final source-stage retry2/2. Work12/14 reproduces its two failures on HEAD; the bundle baseline reproduces the missing staged Work-kernel import. One unchanged-input original24 capture;3 JEV calls. No overhead/cost percentage inferred. |
 
 The query batch root snapshot had566 exec orchestrations/604 literal shell calls,
 2 spawns/24 followups/29 messages; performance42/44 and no coordination; handler
@@ -182,7 +226,7 @@ The headings below group the existing outcomes; they are not new task IDs. An un
 1. **Closed at its original guard/body scope — CanCustomer recover:** `by=customer_manager`, `customer_staff(actor,org)` → positive `any(org.locations … can_work(person,location))`, then first/create-or-reactivate. `locations` is a **Location[] reference array** with an imported helper, not a stored-model scan. Custom role, current row/field authority through commit, helper context, lazy order, both branches and replay are validated by actual compiled Can. Reuse this output; do not reopen it as another helper prerequisite. The unrelated whole-cohort IR gate no longer orphans this independently sealed observer; ordinary predicate/send gates stay strict.
 2. **Additional demonstrated discriminator:** a leading positive stored `require any(p.C …)` plus a companion first produces E6008; the debug disclosure declines with “query closure is not supported” before the ANY enters the plan. This proves that finite source-inventory gap only. It does not prove that mirroring the stored-ANY recipe implements recover's reference-array/helper closure.
 3. **Original CanCustomer accept:** compose verified-email/address/status/expiry/parent guards, `has_role` and location `all` helpers, the accepted negated ANY + first prerequisite, create-or-reactivate, invitation update and emission. Keep the actual authored inputs and examples. The full operation is still open.
-4. **Other first-query refusals:** identify each original consumer's first declined defining function and group consumers sharing that mechanism. The current 87 occurrences comprise 15 scenarios, 67 handlers and 5 derive sites; they are neither 87 tasks nor proof of one common fix. Derive consumers must not be forced into scenario-only receipt profiles. Handler sites consume the required hook output below, not completion of all hook work.
+4. **Other first-query refusals:** identify each original consumer's first declined defining function and group consumers sharing that mechanism. The current 25 occurrences remain after the two private-handler batches (originally87, including67 handler sites). Remaining consumers include public operations, model-change hooks, periodic handlers and derive queries; these are neither25 tasks nor proof of one common fix. Derive consumers must not be forced into scenario-only receipt profiles. Handler sites consume the required hook output below, not completion of all hook work.
 5. **Remaining query-order forms:** consume the original expression ordering and required example expressions; preserve complete domains, stable order and declared limits. Extend only demonstrated original profiles.
 
 **Dependencies:** reuse the accepted query/enum/navigation/void engines. Take only the specific source/authority or typed handler output the consumer needs. If the reference-array receipt representation is genuinely missing, name that exact design decision and compare existing mechanisms before introducing a carrier; use the required JEV consultation for a difficult design choice.
@@ -281,7 +325,7 @@ These are links to existing acceptance outputs, not nine new programmes or host/
 
 ## Genuine holds and unresolved decisions
 
-None of the 264 compiler diagnostics is itself a credential or human-policy blocker. The following recorded release conditions remain exact; this planning pass has not performed or revalidated external qualification.
+None of the 212 compiler diagnostics is itself a credential or human-policy blocker. The following recorded release conditions remain exact; this planning pass has not performed or revalidated external qualification.
 
 | Existing gate | Owner | Release condition and dependent scope |
 | --- | --- | --- |
