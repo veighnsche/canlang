@@ -2456,9 +2456,20 @@ fn emit_program_with_sources(
             {
                 let requires = ir.scenario_disclosures.get(&item.id)
                     .and_then(|value| value.source_facts())
-                    .and_then(|facts| facts.source_requires.as_deref()).unwrap_or(&[]);
-                if requires.iter().any(|site| !emitter.source_requires.contains_key(&Span::new(site.node.file,site.node.start,site.node.end))) {
-                    emitter.unsupported("scenario source requirement", "original source observer correspondence is unavailable", item.span);
+                    .and_then(|facts| facts.source_requires.as_deref())
+                    .unwrap_or(&[]);
+                if requires.iter().any(|site| {
+                    !emitter.source_requires.contains_key(&Span::new(
+                        site.node.file,
+                        site.node.start,
+                        site.node.end,
+                    ))
+                }) {
+                    emitter.unsupported(
+                        "scenario source requirement",
+                        "original source observer correspondence is unavailable",
+                        item.span,
+                    );
                     continue;
                 }
                 emitter.native_receipts.insert(item.id, recipe);
@@ -4148,6 +4159,8 @@ pub struct Emitter<'a> {
     boolean_derives: HashSet<String>,
     boolean_rules: HashSet<String>,
     boolean_body: bool,
+    source_guard_body: bool,
+    source_guard_derive_depth: usize,
     boolean_helper: bool,
     /// True while lowering a `scope=authority` report body (DESIGN §442
     /// decision mode): helper calls resolve to the decision variant where
@@ -4356,6 +4369,8 @@ impl<'a> Emitter<'a> {
             boolean_derives: HashSet::new(),
             boolean_rules: HashSet::new(),
             boolean_body: false,
+            source_guard_body: false,
+            source_guard_derive_depth: 0,
             boolean_helper: false,
             authority_body: false,
             record_page_render: false,
@@ -5273,8 +5288,13 @@ impl<'a> Emitter<'a> {
     /// equality and argument values retain their original identity.
     fn lower_boolean_record(&mut self, value: &TypedExpr) -> String {
         self.stdlib.insert("nativeReadReference".into());
+        let nullable = value.ty.nullable_inner().is_some();
         let value = self.lower_expr(value);
-        format!("(await nativeReadReference(c,{value}))")
+        if nullable {
+            format!("(await (async($reference)=>$reference==null?null:nativeReadReference(c,$reference))({value}))")
+        } else {
+            format!("(await nativeReadReference(c,{value}))")
+        }
     }
 
     fn lower_business_expr(&mut self, expr: &TypedExpr, sink: &str) -> String {
@@ -7197,6 +7217,42 @@ impl<'a> Emitter<'a> {
                 format!("judgmentSpecification(c,{}{options})", js_string(judgment))
             }
             IrExpr::Member { base, field } => {
+                // A source-owned guard or checked owner rule consumes a derived
+                // scalar's original body under the same current-row observer. No stored
+                // value is fabricated and no standalone read transaction opens.
+                if self.source_guard_body
+                    && let ResolvedType::Record {
+                        symbol: model,
+                        stored: true,
+                    } = &base.ty
+                    && let Some(derived) = self.ir.items.iter().find_map(|item| match &item.kind {
+                        IrItemKind::DeriveField {
+                            model: owner,
+                            expr: Some(body),
+                            ..
+                        } if owner == model && item.name == *field && body.ty == expr.ty => {
+                            Some(body.clone())
+                        }
+                        _ => None,
+                    })
+                {
+                    if self.source_guard_derive_depth >= 16 {
+                        self.unsupported(
+                            "source guard derive",
+                            "derived scalar closure exceeds its source bound",
+                            span,
+                        );
+                        return self.throw_expr("unsupported source guard derive");
+                    }
+                    let receiver = self.lower_boolean_record(base);
+                    self.enter_scope();
+                    let row = self.bind("row");
+                    self.source_guard_derive_depth += 1;
+                    let body = self.lower_business_expr(&derived, "source guard derived scalar");
+                    self.source_guard_derive_depth -= 1;
+                    self.exit_scope();
+                    return format!("(await (async({row})=>({body}))({receiver}))");
+                }
                 if let Some(linked) = self.hook_helper_member(base, field, span, &expr.ty) {
                     return linked;
                 }
@@ -10939,10 +10995,13 @@ impl<'a> Emitter<'a> {
                         .collect::<Vec<_>>()
                         .join(",");
                     let previous_boolean = std::mem::replace(&mut self.boolean_body, true);
+                    let previous_source_guard =
+                        std::mem::replace(&mut self.source_guard_body, true);
                     let previous_receipt = self.receipt_capture.take();
                     let previous_query = self.query_capture.take();
                     let expression = self.lower_expr(cond);
                     self.boolean_body = previous_boolean;
+                    self.source_guard_body = previous_source_guard;
                     self.receipt_capture = previous_receipt;
                     self.query_capture = previous_query;
                     self.stdlib.insert("nativeScenarioRequire".into());
@@ -13957,14 +14016,9 @@ impl<'a> Emitter<'a> {
                 for (name, alias, _span) in import.members.clone() {
                     let key = format!("{}.{}", module.name, alias);
                     let declaration = format!("{}.{}", import.provider, name);
-                    let kind = if self.ir.items.iter().any(|item| {
-                        item.canonical == declaration
-                            && matches!(item.kind, IrItemKind::Judgment { .. })
-                    }) {
-                        "judgment"
-                    } else {
-                        "capability"
-                    };
+                    let Some(kind) = super::runtime_bindings::bound_import_kind(
+                        self.ir, &import.provider, &name,
+                    ) else { continue; };
                     bindings.push(format!(
                         "{}:{{{kind}:{},from:{}}}",
                         js_string(&key),
@@ -17706,9 +17760,9 @@ impl<'a> Emitter<'a> {
             }
             let previous_rule = self.current_policy_rule.take();
             self.current_policy_rule = binding.current_revision.clone();
-            self.boolean_body = binding.kind == crate::codegen::ir::IrModelRuleKind::Invariant
-                && (!binding.query_models.is_empty()
-                    || binding.predicate.as_ref().is_some_and(|predicate| {
+            self.boolean_body = binding.checked_body
+                || (binding.kind == crate::codegen::ir::IrModelRuleKind::Invariant
+                    && binding.predicate.as_ref().is_some_and(|predicate| {
                         super::model_policy_profile::required_model_rule_fields(
                             self.ir,
                             binding.model,
@@ -17716,12 +17770,17 @@ impl<'a> Emitter<'a> {
                         )
                         .is_some()
                     }));
+            // Query policy classification seals the transitive derived bodies
+            // against fresh source before this existing inline lowering is used.
+            let previous_source_guard = self.source_guard_body;
+            self.source_guard_body = binding.checked_body;
             let predicate = binding
                 .predicate
                 .as_ref()
                 .map(|predicate| self.lower_rule_fn(predicate))
                 .unwrap_or_else(|| "(c,row)=>true".to_string());
             self.boolean_body = false;
+            self.source_guard_body = previous_source_guard;
             self.current_policy_rule = previous_rule;
             let kind = match binding.kind {
                 crate::codegen::ir::IrModelRuleKind::Invariant => "invariant",

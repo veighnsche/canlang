@@ -1,9 +1,10 @@
 /** Captured original Employee predicate -> imported leading Require -> real D1/Identity.
  * This fixture qualifies the helper workflow, without Employee.changed or provider ingress. */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -89,7 +90,7 @@ async function nativeHelperCase(splitFiles: boolean) {
     const originalLines = new Set(original.split('\n').map(line => line.trim()));
     for (const line of EMPLOYEE_LINES) assert.ok(originalLines.has(line), `original Employee declaration drift: ${line}`);
     assert.equal(SOURCE.match(/require can_work\(actor,input\.location\)/g)?.length, 1);
-    const directory = await mkdtemp(join(root, '.can-native-helper-predicate-'));
+    const directory = await createCheckoutScratch(root, 'native-helper-predicate-');
     let worker: Miniflare | undefined;
     try {
       const sourcePath = join(directory, 'original-helper-predicate.can');

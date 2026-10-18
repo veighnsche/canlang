@@ -326,16 +326,14 @@ export async function readRecordsAtSourceObservation(input: SourceObservationRec
     const reads = captureSourceReadPolicies(input.readPolicies), policy = new Map(input.policy), read = reads.get(model);
     if (read === undefined) invalid();
     const policyDomain = control ? ownerRows?.policyQuery : undefined;
-    if (policyDomain !== undefined && parent !== undefined && read.parent !== parent.model) invalid();
-    if (ownerRows !== undefined && id === undefined && (control
-        ? policyDomain === undefined && (parent !== undefined || ownerRows.query === undefined)
-        : parent !== undefined || ownerRows.query === undefined)) {
+    if (parent !== undefined && read.parent !== parent.model) invalid();
+    if (ownerRows !== undefined && id === undefined && policyDomain === undefined && ownerRows.query === undefined) {
       throw new StateError('validation', 'Source collection needs its original committed query domain.');
     }
     await checkpoint();
     const single = id === undefined ? undefined : await loadRow(model, id);
     const candidates = id === undefined ? policyDomain !== undefined ? await policyDomain(model, parent) :
-      ownerRows !== undefined ? await ownerRows.query!(model) :
+      ownerRows !== undefined ? await ownerRows.query!(model, parent) :
       await store.query({ model, authority: 'viewer', order: [{ field: 'id', direction: 'asc' }], archived: 'exclude',
         ...(parent === undefined ? {} : { parent }) }) : single === null ? [] : [single!];
     await checkpoint();

@@ -2,12 +2,13 @@
  * source Budget first, then contained Turn count; same Run is returned with
  * original Budget Set, guarded SEND and late require preserved. Setup only CRUD.
  */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -54,7 +55,7 @@ test('three original ordered queries preserve lazy ancestors, same Branch and Ru
   // terminal replay, then timed out in case four. Preserve all remaining guard,
   // rollback, authority and lifetime checks with a measured finite allowance.
   // This does not alter Office/A7 limits or establish latency acceptance.
-  const directory = await mkdtemp(join(root, '.can-native-three-query-run-turn-'));
+  const directory = await createCheckoutScratch(root, 'native-three-query-run-turn-');
   const startedAt = Date.now(), phase = (name: string) => console.info(`[native-three-query-run-turn] ${name} elapsed_ms=${Date.now() - startedAt}`);
   let worker: Miniflare | undefined, physical: SqliteFileStore | undefined, foreignPhysical: SqliteFileStore | undefined, capture: SingleFileCapture | undefined;
   let sequence = 0, now = Date.now(); const clock = {nowMs: () => now};

@@ -68,6 +68,8 @@ pub(crate) struct PredicateBinding {
     pub current_revision: Option<CurrentRevisionRuleProfile>,
     /// Original checked Model query roots; empty on all other bindings.
     pub query_models: Vec<SymbolId>,
+    /// Source-sealed extended pure predicate lowering, including no-query bodies.
+    pub checked_body: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -229,9 +231,11 @@ fn collect_policies(
             let current_revision = checked_profiles
                 .and_then(|profiles| profiles.iter().find(|profile| &profile.origin == origin))
                 .cloned();
-            let query_profile = checked_context.and_then(|(program, db, catalog)| {
-                checked_query_rule_fields(program, ir, model.id, &rule.pred, db, catalog)
-            });
+            let query_profile = if current_revision.is_none() {
+                checked_context.and_then(|(program, db, catalog)| {
+                    checked_query_rule_fields(program, ir, model.id, &rule.pred, db, catalog)
+                })
+            } else { None };
             if current_revision.is_none() && query_profile.is_none() {
                 local_rule_fields(ir, model.id, &rule.pred)
                     .or_else(|| {
@@ -333,6 +337,7 @@ fn collect_policies(
                 kind: origin.kind,
                 predicate: Some(rule.pred.clone()),
                 current_revision,
+                checked_body: query_profile.is_some(),
                 query_models: query_profile
                     .map(|profile| profile.query_models)
                     .unwrap_or_default(),
@@ -362,9 +367,13 @@ fn collect_policies(
             {
                 return None;
             }
-            if let Some(predicate) = &rule.when {
-                local_rule_fields(ir, model.id, predicate)?;
-            }
+            let lock_profile = if let Some(predicate) = &rule.when {
+                let profile = checked_context.and_then(|(program, db, catalog)| {
+                    checked_query_rule_fields(program, ir, model.id, predicate, db, catalog)
+                });
+                if profile.is_none() { local_rule_fields(ir, model.id, predicate)?; }
+                profile
+            } else { None };
             let id = format!("{owner_package}.{}", origin.registry_id);
             rules.push((
                 origin.ordinal,
@@ -380,7 +389,8 @@ fn collect_policies(
                 kind: origin.kind,
                 predicate: rule.when.clone(),
                 current_revision: None,
-                query_models: Vec::new(),
+                checked_body: lock_profile.is_some(),
+                query_models: lock_profile.map(|profile| profile.query_models).unwrap_or_default(),
             });
         }
         if rules.len() != invariants.len() + locks.len() {
@@ -922,4 +932,53 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn transitive_computed_rules_and_contained_lock_keep_dependencies_and_source() {
+        let source = r#"app ComputedRules
+Given
+ Location {active:bool}
+ Budget {total:money,locations:Location[]}
+ Request in Budget {amount:money,location:Location,actual:money?}
+ Increase in Request {amount:money}
+ Document in Budget {document:file}
+ lock Document fields=document
+ derive Request.authorized:money = row.amount+sum(row.Increase as increase select increase.amount,row.amount.currency)
+ derive Budget.committed:money = sum(row.Request as request select request.authorized,row.total.currency)
+ derive Budget.remaining:money = row.total-row.committed
+ invariant Budget: row.remaining.minor>=0
+ invariant Request: row.location in row.parent.locations and (row.actual ?? row.amount).currency==row.parent.total.currency
+ lock Request fields=amount when=count(row.Increase)>0
+When
+Then
+"#;
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let mut db = SourceDb::new();
+        let file = db.add("computed-rules.can".into(), source.into());
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest { flag: Some(&root.join("packages/cloudflare/dist/native-catalog.json")), env: None, cwd: root, primary: Span::new(file, 0, 0) });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (original, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let module = super::super::js::module_path("ComputedRules");
+        let policies = collect_checked_policies(&program, &original, &db, catalog.as_ref(), &module).expect("complete transitive policy closure");
+        let model = |name: &str| original.items.iter().find(|item| item.canonical == format!("ComputedRules.{name}")).unwrap().id;
+        let budget = policies.bindings.iter().find(|binding| binding.id.ends_with("Budget.require.1")).unwrap();
+        assert!(budget.checked_body);
+        assert_eq!(budget.query_models, vec![model("Request"), model("Increase")]);
+        let targets = policies.dependency_bindings.iter().filter(|binding| binding.id.contains("Budget.require.1")).map(|binding| { assert!(binding.all_owners); binding.changed_model }).collect::<Vec<_>>();
+        assert_eq!(targets, vec![model("Request"), model("Increase")]);
+        let lock = policies.bindings.iter().find(|binding| binding.id.ends_with("Request.lock.1")).unwrap();
+        assert!(lock.checked_body);
+        assert_eq!(lock.query_models, vec![model("Increase")]);
+        for corruption in 0..2 {
+            let mut changed = original.clone();
+            let derived = changed.items.iter_mut().find(|item| item.canonical == "ComputedRules.Budget.remaining").unwrap();
+            let IrItemKind::DeriveField { expr: Some(body), .. } = &mut derived.kind else { panic!("derived body"); };
+            if corruption == 0 { body.expr = IrExpr::Int(0); }
+            else { let IrExpr::Binary { op, .. } = &mut body.expr else { panic!("subtraction"); }; *op = IrBinOp::Add; }
+            assert!(collect_checked_policies(&program, &changed, &db, catalog.as_ref(), &module).is_none(), "retained derived body corruption {corruption}");
+        }
+    }
+
 }

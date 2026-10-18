@@ -6841,11 +6841,13 @@ async function loadLocalOwnerPolicyControl(input: {
       }
       const queryCarrier = localPolicyMember(binding, 'queryModels');
       const queryModels = queryCarrier === undefined ? [] : localPolicyStrings(queryCarrier);
-      if (queryCarrier !== undefined && (rule.kind !== 'invariant' || evaluate.length !== 2 || queryModels.length === 0 ||
+      if (queryCarrier !== undefined && (evaluate.length !== 2 || queryModels.length === 0 ||
           queryModels.some(model => !input.native.models.some(candidate => candidate.name === model) ||
-            !rule.dependencies.some(dependency => dependency.model === model)))) {
-        throw new Error('Owner query domains differ from their exact invariant dependency claims.');
+            rule.kind === 'invariant' && !rule.dependencies.some(dependency => dependency.model === model)))) {
+        throw new Error('Owner query domains differ from their exact model rule claims.');
       }
+      // Conditional locks consume State's entry view. They guard the owning
+      // row's write, so unlike final invariants they need no reverse dependency.
       if (rule.kind === 'invariant' && evaluate.length === 3) {
         const dependency = rule.dependencies[0];
         const parent = dependency === undefined ? undefined : input.native.containment.get(dependency.model);
@@ -6883,13 +6885,18 @@ async function loadLocalOwnerPolicyControl(input: {
             const definition = input.native.models.find(candidate => candidate.name === model)!;
             for (const declaration of input.native.refs.get(model) ?? []) {
               const field = definition.fields[declaration.field];
-              if (field?.required !== true || field.nullable === true || field.array !== undefined) continue;
+              if (field === undefined) return poison(new input.native.producers.errors('validation', 'Owner rule reference lacks its declared field.'));
               const member = Object.getOwnPropertyDescriptor(view, declaration.field);
               const value = member !== undefined && 'value' in member ? member.value : undefined;
-              if (!isRecordRef(value) || value.model !== declaration.model) {
-                return poison(new input.native.producers.errors('validation', 'Owner rule reference differs from its required loaded field.'));
+              if (value === undefined && field.required !== true || value === null && field.nullable === true) continue;
+              const values = field.array !== undefined && Array.isArray(value) ? value : [value];
+              if (field.array !== undefined && !Array.isArray(value)) return poison(new input.native.producers.errors('validation', 'Owner rule reference array differs from its loaded field.'));
+              for (const reference of values) {
+                if (!isRecordRef(reference) || reference.model !== declaration.model) {
+                  return poison(new input.native.producers.errors('validation', 'Owner rule reference differs from its loaded field.'));
+                }
+                issuedReferences.set(reference, Object.freeze({ model: declaration.model, id: reference.id }));
               }
-              issuedReferences.set(value, Object.freeze({ model: declaration.model, id: value.id }));
             }
             const containment = input.native.containment.get(model);
             if (isUnknownRecord(containment) && typeof containment.parent === 'string' && source.parent !== null && source.parent !== undefined) {
@@ -6940,11 +6947,22 @@ async function loadLocalOwnerPolicyControl(input: {
                 assertLive();
                 if (!queryModels.includes(model)) return poison(new input.native.producers.errors('validation', 'Owner query lacks its original checked model domain.'));
                 let selection: Record<string, unknown>;
-                try { selection = localPolicyObject(query, ['where']); }
+                try { selection = localPolicyObject(query, ['where', 'parent']); }
                 catch (error) { return poison(new input.native.producers.errors('validation', message(error))); }
                 const where = localPolicyMember(selection, 'where');
                 if (where !== undefined && typeof where !== 'function') return poison(new input.native.producers.errors('validation', 'Owner query requires its original source predicate.'));
+                const parentValue = localPolicyMember(selection, 'parent');
+                let parent: { readonly model: string; readonly id: string } | undefined;
+                if (parentValue !== undefined) {
+                  if (typeof parentValue !== 'object' || parentValue === null) return poison(new input.native.producers.errors('validation', 'Owner query parent requires an issued record.'));
+                  parent = issuedViews.has(parentValue) ? nativeRecordReference(parentValue) : issuedReferences.get(parentValue);
+                  const containment = input.native.containment.get(model);
+                  if (parent === undefined || !isUnknownRecord(containment) || containment.parent !== parent.model) {
+                    return poison(new input.native.producers.errors('validation', 'Owner query parent differs from its declared containment.'));
+                  }
+                }
                 const sources = await owner.read.query({ model: model as ModelName, authority: 'owner', archived: 'exclude',
+                  ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }),
                   order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
                 assertLive();
                 const result: Record<string, unknown>[] = [];
@@ -9240,7 +9258,7 @@ async function runScenarioExecution(
         }
         const original = captureDispatchPreclaimData(source) as unknown as import('@canlang/state/invocation').ScenarioReceiptRequireSource;
         const originalSites = loaded.membershipSources.get(scenarioDef.name) ?? [];
-        const matches = originalSites.filter(site => site.stage === 'leading-require' &&
+        const matches = originalSites.filter(site => (site.stage === 'leading-require' || site.stage === 'body-require') &&
           stableStringify(site.source) === stableStringify(original.source) &&
           stableStringify(site.node) === stableStringify(original.node) &&
           stableStringify(site.statement) === stableStringify(original.statement));
@@ -9301,7 +9319,10 @@ async function runScenarioExecution(
                 predicate: (context, row) => Reflect.apply(fn, undefined, [context,
                   Object.freeze({ ...admittedParameters, [parameter]: row })]) }], observation, predicate);
             };
-            bindNativeReadMembership(predicate, { source: original.source, rule: original.owner, sites: original.sites });
+            if (original.sites.some(site => site.calls.some(call =>
+              call.target.kind === 'builtin' && call.target.id === 'active_member'))) {
+              bindNativeReadMembership(predicate, { source: original.source, rule: original.owner, sites: original.sites });
+            } else bindNativeReadRoleContext(predicate, original.owner);
             bindInstalledSourceQueryPredicate(predicate, { source: original.source, rule: original.owner });
             adapter = createSourceReadPolicyAdapter({ loaded, opts: { ...opts, store: receiptStore },
               now: () => actualCall.context.now, observer: { predicate, reads } });

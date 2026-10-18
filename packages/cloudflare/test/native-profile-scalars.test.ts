@@ -2,12 +2,13 @@
  * Runtime outcomes below require this complete installed native execution;
  * source/descriptor/factory qualification alone does not establish them.
  */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -65,7 +66,7 @@ test('original required Profile reference keeps scalar codecs, nine read pairs, 
     process.stdout.write(`[native-profile ${Date.now() - started}ms] ${name}\n`);
   };
   phase('source:start');
-  const directory = await mkdtemp(join(root, '.can-native-profile-scalars-'));
+  const directory = await createCheckoutScratch(root, 'native-profile-scalars-');
   let worker: Miniflare | undefined, capture: SingleFileCapture | undefined, physical: SqliteFileStore | undefined, foreignPhysical: SqliteFileStore | undefined;
   try {
     // Private assembly, row, query and policy producers share the authentic

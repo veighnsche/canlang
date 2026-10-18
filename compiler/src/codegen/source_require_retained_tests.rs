@@ -59,8 +59,12 @@ package directory
 "#;
 
 fn fixture() -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
+    fixture_source(SOURCE)
+}
+
+fn fixture_source(source: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
     let mut db = SourceDb::new();
-    let file = db.add("source-require-retained.can".into(), SOURCE.into());
+    let file = db.add("source-require-retained.can".into(), source.into());
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let path = root.join("packages/cloudflare/dist/native-catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
@@ -76,6 +80,28 @@ fn fixture() -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
     let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     (db, program, ir, catalog)
+}
+
+#[test]
+fn body_require_seals_the_inlined_derived_member_body() {
+    let source = "app DerivedGuard\nGiven\n P {value:int}\n C in P {n:int}\n derive P.total:int = sum(row.C as child select child.n)\n policy P read=members\n policy C read=members\nWhen\n scenario consume(p:P) by=members\n  do\n   require p.total>=0\nThen\n";
+    let (db, program, mut ir, catalog) = fixture_source(source);
+    let context = FreshSourceContext::prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+    let sources = super::scenario_decisions::serialize_scenario_requires(&context).unwrap();
+    assert_eq!(sources.len(), 1, "original pre-write aggregate Require");
+    let derived = index(&ir, "DerivedGuard.P.total");
+    let IrItemKind::DeriveField {
+        expr: Some(body), ..
+    } = &mut ir.items[derived].kind
+    else {
+        panic!("derived aggregate");
+    };
+    body.expr = IrExpr::Int(0);
+    let context = FreshSourceContext::prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+    assert!(
+        super::scenario_decisions::serialize_scenario_requires(&context).is_none(),
+        "retained Member spelling cannot authorize an altered executable body"
+    );
 }
 
 fn index(ir: &IrProgram, name: &str) -> usize {

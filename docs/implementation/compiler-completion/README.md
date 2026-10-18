@@ -2,9 +2,9 @@
 
 ## Current remainder and finite completion
 
-**State: the human authorized the first scoped repair, original CanCustomer `recover`, on 2026-10-18; that component is now implemented and validated below. The rest of this plan still awaits agreement. Muse remains stopped and supervision disabled; no automation, Muse session or extra implementation worktree was started.**
+**State: original CanCustomer `recover` is accepted. The human next authorized a shared query-root repair on main, targeting original Purchase `record_payable` and `return_goods`; its current qualification is below. Other proposed batches still await agreement. Muse remains stopped and supervision disabled; no automation, Muse session, branch or extra implementation worktree was started.**
 
-This is the **one execution plan** for the existing Can18 work: original CanCRM composition, existing outcomes 1–18 / C01–C24, and their already required executable/reference consumers. Shared work is counted once; consumers link to its output. Other roadmaps supply contracts and dependencies, not extra assignments. Product requirements remain in REQUIREMENTS, behavior in DESIGN and syntax in GRAMMAR.
+This is the **one execution plan** for general Can correctness and adoption: existing outcomes 1–18 / C01–C24 and their required executable/reference consumers. The original CanCRM composition and other draft apps are reference programs that reveal reusable language/runtime gaps, not end-user products to finish or polish. Shared work is counted once; consumers link to its output. Other roadmaps supply contracts and dependencies, not extra assignments. Product requirements remain in REQUIREMENTS, behavior in DESIGN and syntax in GRAMMAR.
 
 The former 8,333-line completion journal is preserved as [historical evidence](history-before-reorganization-20261017.md). Its checkpoint recaps, REVIEW-NOW list, 24-priority list and older “current” captures are retired as execution queues. Their accepted evidence is reused below; unresolved items are included here.
 
@@ -14,9 +14,9 @@ The former 8,333-line completion journal is preserved as [historical evidence](h
 | --- | --- |
 | Canonical checkout | `/Users/vince/Projects/canlang`, branch `main`; user documentation commits through `e3ba3c9e2` are preserved before this repair |
 | Released code review | Retain the complete `44e6332c0` checkpoint/190 paths. The recover batch has its own complete 18-code-path review; neither review establishes full workflow completion. |
-| Latest original24 | Post-recover producer: actual compiler exit **10**, complete=true, omitted=0, 26 source records including the unchanged 24 authored inputs; **275 E6008**, no whole-composition artifact. Exactly the original recover refusal at CanCustomer165 was removed; 0 diagnostics added. Remaining CanCustomer refusal: accept135. |
-| Producer / catalog | Compiler SHA-256 `f98a156c4f254a9fa1d6998dd1ae36c711401503af58f0b012312a0a56c6a177`; catalog `ca50fdca852170b09f95ec4adb97cc63ddabf26437629c02dfd234991bc486a8` |
-| Existing raw inputs/evidence | `/tmp/cancrm-recover-original24.json` (488.10s), prior `/tmp/can18-merge66-capture.json`, `/private/tmp/cancrm-helper-invariants-card-20261015-argv.json`; frozen compiler/catalog under `/tmp/can18-merge66/`; supervision/handoff in the existing `can-conformance-20261015/monitor.json` |
+| Latest original24 | Current query producer: actual compiler exit **10**, complete=true, omitted=0, unchanged 24 authored inputs/26 source records; **273 E6008**. Compared with post-recover 275, only CanPurchase179/219 FIRST refusals were removed; 0 added. FIRST correspondence errors 89→87 (15 scenarios / 67 handlers / 5 derives). No whole-composition artifact yet. |
+| Producer / catalog | Compiler SHA-256 `efce5b0cc8aca7327a6f2a1f2adab4c6386ea439677a47a4cce6054f793461b7`; catalog `ca50fdca852170b09f95ec4adb97cc63ddabf26437629c02dfd234991bc486a8` |
+| Existing raw inputs/evidence | Current `/tmp/cancrm-query-original24-final.json` and `-meta.json` (589.24s); post-recover `/tmp/cancrm-recover-original24.json` (488.10s), prior `/tmp/can18-merge66-capture.json`; unchanged original argv `/private/tmp/cancrm-helper-invariants-card-20261015-argv.json` and catalog `/tmp/can18-merge66/catalog.json`. |
 | Unfinished source | Old paused diagnostics remain preserved in stash `baecef7f8a745c08ef20b373cd81fc7e4cd006fa`; do not reapply them over the released repair. Temporary tracing was removed. The permanent original-source consumer is `packages/cloudflare/test/native-customer-recover.test.ts`. |
 
 Do not derive a completion percentage from goal progress, commit counts, diagnostic counts or reviewed paths. Do not rebuild merely because a commit label changed; use the actual producer/input identity.
@@ -39,6 +39,38 @@ These accepted components stay closed. Their original consumers and negative che
 | Original Customer recover guard/body | This repair: original declarations/helper/read policies and unchanged recover body compiled and executed against installed D1/Identity (1/1, 281.28s); 43 compiler checks, full24 removes its exact refusal with no additions | Full accept, independent hooks and the other 275 original-composition errors remain open |
 | Recorded `delivery.id` persistence and dispatch fencing slices | `69579880f`, merge47 and recorded fence/field-grant consumers | Original cancel/retry shapes, stale-source mismatches and the open test correction |
 | Other closed finite original scopes | Guarded Email, supported Office A1–A6, original Chat source/optional-input/SEND prerequisites, scoped File and current-revision primitives: reuse the linked historical acceptance | Only the separately named runtime/host/whole-source consumers below remain |
+
+### Current authorized query batch
+
+The 89 post-recover FIRST refusals are profile/correspondence symptoms, not 89
+independent query-engine bugs. The shared admission gap is whole-owner composition:
+actual helper/reference guards, contained replay, pure aggregate Requires and
+typed SEND/create tails must retain their defining source and owner stage together.
+The 67 handler sites also hit a distinct whole-handler profile restricted to its
+old Let/Require shape; widening this scenario batch does not close those hooks.
+
+The production changes add no draft app/package/model/operation/path allowlist.
+Existing `DerivedGuard.consume`, `ContainedSources.record`, `ReplayChild.pick`
+and `ComputedRules` coverage exercises the general mechanisms under other names.
+The admitted boundaries are structural (required reference/schema correspondence,
+pre-write source guards and finite create/set/SEND tails). The separately recorded
+completion-event name allowlists/rename failures remain open.
+
+Original Purchase `record_payable` and `return_goods` now compile with their original
+Given closure, all 12 rule-bearing model descriptors and 29 rules. This also repairs
+the missing transitive derived-rule dependency census, singular File lock target,
+money facade exports and Contract-as-service binding error found by execution.
+Contained source-data queries retain declared parents and ordinary candidate read
+projection. Pre-write aggregate guards keep their original domain while current
+Identity and consumed-field authority are checked through final effects. Raw
+rows are reused only within a fixed owner stage; policy answers are not cached.
+The actual CLI-compiled D1 consumer passed (1/1, 1128.71s): both original
+operations, Stock reversal staging, business and physical/retained receipt replay,
+conflicting proof/currency/cap/quantity/receipt-state refusals and current/late
+role revocation without business effects. Captured inputs stayed current.
+Focused compiler/runtime checks and package typechecks passed; unchanged results
+are reused. This accepts the two-operation witness, not the whole application
+or its latency.
 
 ## Remaining roots, owners and finite exits
 
@@ -63,7 +95,7 @@ The headings below group the existing outcomes; they are not new task IDs. An un
 1. **Closed at its original guard/body scope — CanCustomer recover:** `by=customer_manager`, `customer_staff(actor,org)` → positive `any(org.locations … can_work(person,location))`, then first/create-or-reactivate. `locations` is a **Location[] reference array** with an imported helper, not a stored-model scan. Custom role, current row/field authority through commit, helper context, lazy order, both branches and replay are validated by actual compiled Can. Reuse this output; do not reopen it as another helper prerequisite. The unrelated whole-cohort IR gate no longer orphans this independently sealed observer; ordinary predicate/send gates stay strict.
 2. **Additional demonstrated discriminator:** a leading positive stored `require any(p.C …)` plus a companion first produces E6008; the debug disclosure declines with “query closure is not supported” before the ANY enters the plan. This proves that finite source-inventory gap only. It does not prove that mirroring the stored-ANY recipe implements recover's reference-array/helper closure.
 3. **Original CanCustomer accept:** compose verified-email/address/status/expiry/parent guards, `has_role` and location `all` helpers, the accepted negated ANY + first prerequisite, create-or-reactivate, invitation update and emission. Keep the actual authored inputs and examples. The full operation is still open.
-4. **Other first-query refusals:** identify each original consumer's first declined defining function and group consumers sharing that mechanism. The 90 occurrences comprise 18 scenario, 67 handler and 5 derive sites; they are neither 90 tasks nor proof of one common fix. Derive consumers must not be forced into scenario-only receipt profiles. Handler sites consume the required hook output below, not completion of all hook work.
+4. **Other first-query refusals:** identify each original consumer's first declined defining function and group consumers sharing that mechanism. The current 87 occurrences comprise 15 scenarios, 67 handlers and 5 derive sites; they are neither 87 tasks nor proof of one common fix. Derive consumers must not be forced into scenario-only receipt profiles. Handler sites consume the required hook output below, not completion of all hook work.
 5. **Remaining query-order forms:** consume the original expression ordering and required example expressions; preserve complete domains, stable order and declared limits. Extend only demonstrated original profiles.
 
 **Dependencies:** reuse the accepted query/enum/navigation/void engines. Take only the specific source/authority or typed handler output the consumer needs. If the reference-array receipt representation is genuinely missing, name that exact design decision and compare existing mechanisms before introducing a carrier; use the required JEV consultation for a difficult design choice.
@@ -162,7 +194,7 @@ These are links to existing acceptance outputs, not nine new programmes or host/
 
 ## Genuine holds and unresolved decisions
 
-None of the 276 compiler diagnostics is itself a credential or human-policy blocker. The following recorded release conditions remain exact; this planning pass has not performed or revalidated external qualification.
+None of the 273 compiler diagnostics is itself a credential or human-policy blocker. The following recorded release conditions remain exact; this planning pass has not performed or revalidated external qualification.
 
 | Existing gate | Owner | Release condition and dependent scope |
 | --- | --- | --- |
@@ -174,11 +206,11 @@ None of the 276 compiler diagnostics is itself a credential or human-policy bloc
 | Local decision, outcome14 | Source/Testkit owner | Establish the legitimate Partner editing operation or intentional immutability before lock-edit qualification. This blocks that test, not the compiler work. |
 | Conditional input, outcomes15/16 | Exact producer/host/capability owner | Name the actual absent predecessor, caller, credential or frozen request/result tuple and the consuming criterion before marking it held. Local implementation continues; no blanket “15/16 HELD”. |
 
-Human agreement to this plan is the current execution gate. Planning edits or reviewer agreement do not resume Muse. No push, deployment, activation, training, dataset work, unrelated apps or foreign-resource changes are authorized here.
+The current query batch is human-authorized; other proposed implementation batches still require agreement. Planning edits or reviewer agreement do not resume Muse. No push, deployment, activation, training, dataset work, unrelated apps or foreign-resource changes are authorized here.
 
 ## Proposed order and dependencies
 
-1. **After agreement, establish the next finite batch.** Preserve the paused scratch and reuse the complete released review. Start with source/authority discriminators and original Customer query/helper closure; do not restart closed primitives.
+1. **Complete the authorized shared query batch.** Reuse accepted Customer recover and unchanged checks; qualify the original Purchase query/helper/guard/effect closure through actual compiled Can. Select the next finite root-cause batch from the remaining diagnostic families after agreement; do not restart closed primitives.
 2. **Allow independent ready work.** UI/factory and typed collection-call/Boolean repairs can proceed alongside compiler query/hook diagnosis. Hook/event/source work consumes only the query/context/authority output required by that original profile.
 3. **Feed the dependent boundaries.** Typed original handler/operation outputs unlock their parent calls; complete original execution closures unlock their send guards. Formatting supplies the required sink output. A handoff needs the concrete output, not completion of another owner's entire plan.
 4. **Integrate complete tested, reviewed implementation batches promptly.** Prefer closing an actual original operation/page boundary. If a necessary shared prerequisite lands first, keep its parent criterion visibly open and continue directly; do not stop at its fixture or checkpoint.
@@ -232,12 +264,12 @@ Reuse compatible shared caches with `CARGO_INCREMENTAL=0`, `CARGO_PROFILE_DEV_DE
 
 | Current surface family | Occurrences | Interpretation |
 | --- | ---: | --- |
-| First-query correspondence | 90 | 18 scenarios /67 handlers /5 derives; classify actual declined producer, share repairs |
+| First-query correspondence | 87 | 15 scenarios /67 handlers /5 derives; classify actual declined producer, share repairs |
 | Hook query/context/derive/parent/staged/emit | 85 | 39 query +22 now +10 derive +7 parent +2 staged +5 emit; whole-plan fallback can multiply symptoms |
 | Dispatch guards | 27 | 23 correspondence +4 whole-IR mismatches |
 | Cross-operation calls | 7 | Seven named parents above |
 | Invoice trigger/carrier joins | 5 | Five original handlers above |
 | Other collection/UI/formatting/read profiles | 62 | Breakdown below |
-| **Total** | **276** | Complete frozen post-authentication diagnostic multiset |
+| **Total** | **273** | Current complete original24 diagnostic multiset |
 
 The 62 are: filters16 (eight authored sites), collection domains10, localized sinks9, archived collections6, expression order4, inline preferences4, stats3, board page3, collapse2, history1, compact hero1, skeleton1, checked collection-call/source1 and Boolean observer1. Consequent container errors are not extra redesign tasks. The 18 outcomes, nine references, 190 reviewed paths and these occurrence counts overlap in purpose and must never be summed.

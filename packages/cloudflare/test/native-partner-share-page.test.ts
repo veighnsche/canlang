@@ -1,10 +1,11 @@
 /** Original Partner record route, source-owned capture action and public field policy. */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
+import { readFile, realpath, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
@@ -37,7 +38,7 @@ async function snapshot(db: D1Database) {
 }
 
 test('original Partner share record route renders only public fields under a nonprivileged member', { timeout: 180000 }, async () => {
-  const directory = await realpath(await mkdtemp(join(root, '.can-native-partner-share-')));
+  const directory = await realpath(await createCheckoutScratch(root, 'native-partner-share-'));
   let worker: Miniflare | undefined, completed = false;
   try {
     const selected = await preparePartnerShareSource(directory);
@@ -152,7 +153,7 @@ test('original Partner share record route renders only public fields under a non
  * deliberately bypasses entry locks; original lock edits remain pending below.
  * No test operation or permission replaces the source. */
 test('original Program and Advocate query invariants validate final fixture transactions and dependency changes atomically', { timeout: 180000 }, async (t) => {
-  const directory = await realpath(await mkdtemp(join(root, '.can-native-partner-invariants-')));
+  const directory = await realpath(await createCheckoutScratch(root, 'native-partner-invariants-'));
   let worker: Miniflare | undefined, completed = false;
   try {
     const selected = await preparePartnerShareSource(directory);

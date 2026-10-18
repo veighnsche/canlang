@@ -1,7 +1,8 @@
 /** Native source -> installed canonical invoker; memory State, not browser/D1 coverage. */
+import { createCheckoutScratch } from '../dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -39,7 +40,7 @@ Then
 `;
 
 test('native CRUD admits normalized candidates before writes and leaves source scenario guards independent', { timeout: 120_000 }, async () => {
-  const scratch = await mkdtemp(join(root, '.can-crud-candidate-'));
+  const scratch = await createCheckoutScratch(root, 'crud-candidate-');
   const path = join(scratch, 'CandidateAdmission.can');
   try {
     await writeFile(path, source);

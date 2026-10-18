@@ -955,7 +955,50 @@ impl SemanticJoin<'_> {
             (IrExpr::Member { base: a, field: x }, IrExpr::Member { base: b, field: y })
                 if x == y =>
             {
-                self.expression(a, b, depth + 1)?
+                self.expression(a, b, depth + 1)?;
+                // A derived member can be inlined into an owning source
+                // observer. Its executable body belongs to that same source
+                // comparison, rather than only the Member's spelling/type.
+                if let ResolvedType::Record { symbol: model, .. } = &b.ty
+                    && let Some(expected) = self.expected.items.iter().find(|item| {
+                        item.name == *y
+                            && matches!(item.kind,
+                            IrItemKind::DeriveField { model: owner, .. } if owner == *model)
+                    })
+                {
+                    let actual = self.actual.items.get(expected.id.0 as usize)?;
+                    let (
+                        IrItemKind::DeriveField {
+                            model: actual_model,
+                            ty: actual_ty,
+                            expr: Some(actual_body),
+                            ..
+                        },
+                        IrItemKind::DeriveField {
+                            model: expected_model,
+                            ty: expected_ty,
+                            expr: Some(expected_body),
+                            ..
+                        },
+                    ) = (&actual.kind, &expected.kind)
+                    else {
+                        return None;
+                    };
+                    if actual.id != expected.id
+                        || actual.name != expected.name
+                        || actual.module != expected.module
+                        || actual.canonical != expected.canonical
+                        || actual.span != expected.span
+                        || actual_model != expected_model
+                        || !known_type_equal(actual_ty, expected_ty)
+                        || self.stack.len() >= 16
+                        || !self.stack.insert(expected.id)
+                    {
+                        return None;
+                    }
+                    self.expression(actual_body, expected_body, depth + 1)?;
+                    self.stack.remove(&expected.id);
+                }
             }
             (
                 IrExpr::Binary {
@@ -2622,6 +2665,7 @@ pub(super) fn serialize_scenario_requires(
         let IrItemKind::Scenario {
             params,
             guards,
+            effects,
             read: false,
             trusted: false,
             cohort: None,
@@ -2633,6 +2677,7 @@ pub(super) fn serialize_scenario_requires(
         let expected = sources.fresh().items.get(owner.id.0 as usize)?;
         let IrItemKind::Scenario {
             guards: expected_guards,
+            effects: expected_effects,
             ..
         } = &expected.kind
         else {
@@ -2667,21 +2712,26 @@ pub(super) fn serialize_scenario_requires(
         }
         consumer.index_required(sources.trees(), &required)?;
         for site in sites {
-            let [CheckedDecisionPosition::Guard(index)] = site.position.as_slice() else {
-                return None;
+            let (actual, expected) = match (site.position.as_slice(), site.stage) {
+                ([CheckedDecisionPosition::Guard(index)], CheckedDecisionStage::LeadingRequire) => {
+                    (guards.get(*index)?, expected_guards.get(*index)?)
+                }
+                ([CheckedDecisionPosition::Body(index)], CheckedDecisionStage::BodyRequire) => {
+                    (effects.get(*index)?, expected_effects.get(*index)?)
+                }
+                _ => return None,
             };
-            let IrStmt::Require { cond, span } = guards.get(*index)? else {
+            let IrStmt::Require { cond, span } = actual else {
                 return None;
             };
             let IrStmt::Require {
                 cond: expected_cond,
                 span: expected_span,
-            } = expected_guards.get(*index)?
+            } = expected
             else {
                 return None;
             };
-            if site.stage != CheckedDecisionStage::LeadingRequire
-                || site.owner != owner.id
+            if site.owner != owner.id
                 || *span != *expected_span
                 || !consumer.same(site.statement, *span)
                 || !consumer.same(site.node, cond.span)
@@ -2698,7 +2748,7 @@ pub(super) fn serialize_scenario_requires(
                 return None;
             }
             // Recollect the same expression for its read observer. This is not
-            // a mutation of the original LeadingRequire membership record.
+            // a mutation of the original leading/body Require membership record.
             let observer = crate::analysis::scenario_disclosure::checked_read_boolean_site(
                 sources.db(),
                 sources.trees(),
@@ -2806,12 +2856,13 @@ fn serialize_call(
         return None;
     }
     let target = match &call.target {
-        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin { id, overload } => {
-            SerialDecisionTarget::Builtin {
-                id: id.clone(),
-                overload: *overload,
-            }
-        }
+        crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin {
+            id,
+            overload,
+        } => SerialDecisionTarget::Builtin {
+            id: id.clone(),
+            overload: *overload,
+        },
         crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::DeriveFn(id) => {
             SerialDecisionTarget::Derive {
                 name: serialize_canonical(program, ir, *id)?,

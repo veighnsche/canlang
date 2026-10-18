@@ -29,9 +29,11 @@ pub(super) fn matches(program: &CheckedProgram, actual: &IrProgram, fresh: &IrPr
         if matches!(
             actual.kind,
             IrItemKind::Model { .. } | IrItemKind::Contract { .. } | IrItemKind::Field { .. }
+                | IrItemKind::DeriveField { .. } | IrItemKind::DeriveFn { .. }
         ) || matches!(
             fresh.kind,
             IrItemKind::Model { .. } | IrItemKind::Contract { .. } | IrItemKind::Field { .. }
+                | IrItemKind::DeriveField { .. } | IrItemKind::DeriveFn { .. }
         ) {
             // Exact bounded owning declarations include field defaults/server,
             // type/schema, source spans, grants, uniqueness and lock registries.

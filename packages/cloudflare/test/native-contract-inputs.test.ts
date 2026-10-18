@@ -1,6 +1,7 @@
 /** Original Contract input paths -> captured compiler -> installed native receiver -> real D1/Identity. */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -118,7 +119,7 @@ function referenceId(outcome: MutationOutcome, status: 'committed' | 'replayed' 
 
 test('native Contract input slots retain normalized values, distinct reference versions, rollback and current-authority replay',
   { timeout: 120000 }, async () => {
-    const directory = await mkdtemp(join(root, '.can-native-contract-inputs-'));
+    const directory = await createCheckoutScratch(root, 'native-contract-inputs-');
     let worker: Miniflare | undefined;
     try {
       const sourcePath = join(directory, 'original-contract-inputs.can');

@@ -1176,3 +1176,40 @@ advanced and unrelated CAN18 outcomes remain at their recorded scope.
 ### 2026-10-18 — original Customer recover repair
 
 The human-authorized first CanCRM component is implemented at the existing Compiler analysis/receipt/source-preparation owners, State invocation/source-policy owners and Cloudflare runtime owner. New files stay with those responsibilities: `compiler/src/codegen/source_require_retained_tests.rs`, `packages/cloudflare/src/runtime/native-scenario-require.ts`, and the original-source helper/installed consumer under `packages/cloudflare/test/`. No target allocation or package split changes. Reuse prior accepted coverage; all 18 code paths in this batch were inspected, and decisions/one current Can18 plan are updated with the implementation. Keep the complete `44e6332c0` checkpoint unchanged; concurrent documentation relocation/Rust planning is accounted as documentation maintenance, not new implementation acceptance. Actual compiled recover passes its full guard/body consumer; original24 drops 276→275 with only its recover refusal removed. Remaining roots are unchanged and Muse stays stopped.
+
+
+### 2026-10-18 — native query and source-guard composition batch
+
+The next human-authorized batch remains in the existing owners: Compiler's
+`analysis/scenario_disclosure.rs` and `codegen/{js,model_policies,model_policy_profile,model_policy_sources,runtime_bindings,scenario_create_sources,scenario_decisions,scenario_receipts}.rs`;
+State's `invocation/scenario-receipt.ts`, `query/source-policy.ts` and
+`receipt/read-policy-membership.ts`; Cloudflare's `runtime/invoke.ts` and
+`runtime/stdlib.ts`. Required reference/id promotion, contained FIRST replay,
+pre-write aggregate guards and transitive model rules compose through existing
+source/owner mechanisms. No package split, public carrier or second query engine
+is introduced. The new `packages/cloudflare/test/purchase-source.ts` mechanically
+extracts original declarations/operations; its adjacent
+`native-purchase-return-payable.test.ts` owns the installed D1 consumer. The small
+internal `src/dev/checkout-scratch.ts` helper creates unique inputs directly under
+the existing ignored `.can/tmp/`; callers retain cleanup in `finally`. Existing
+Compiler source/tamper and native replay tests, Cloudflare owner-reference tests
+and State source-policy tests cover the affected seams. All changed source/test
+paths received ordinary code review, including the three `resolved_cases` fixture
+initializers required by the concurrently integrated ICU change. Decisions and
+the one current completion plan carry this batch's validation outcome; retained
+unchanged acceptance and the complete `44e6332c0` review checkpoint remain.
+All 25 checkout-root scratch creation sites across 22 Cloudflare test files now
+use that helper directly; system temporary staging and existing lock/cleanup
+semantics remain. The installed owner-session loss test targets the actual
+store-scoped descriptor registry. Mechanical path/import changes were reviewed
+for every affected file; actual compiled-source memory consumers and the
+affected producer-loss refusal passed. Concurrent ICU and ordinary Worker
+qualification integrations through `1527ed1e8` retain their separate recorded
+coverage and allocations. Muse remains stopped.
+
+> **Stale plan — not verified against the current repository.** This document
+> is historical planning guidance, not a reliable current description of the
+> repository or an independent mandate to implement changes. Current source and
+> explicit user decisions take precedence. Historical checkpoints, accepted
+> decisions and bounded coverage evidence are retained below; that evidence
+> applies only at its recorded scope and does not establish whole-plan currency.

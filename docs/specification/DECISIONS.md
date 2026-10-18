@@ -18713,3 +18713,80 @@ Integration bookkeeping: `2b36d6836` contains only the six refreshed planning/de
 - **Limits and ownership:** PH2 evidence covers the genuine ordinary source/operation/catalog association and PH4 evidence its request cleanup. HTTP still uses `runPreparedHttpPlan`, with Values plan/lifetime checks; full identity/native handle and protected parser-to-Rust/result lineage, PH3 default identity, broader source/profile/state/resource and aggregate gates remain separate. No full CLI tarball, browser, remote host or formatter/native acceptance is inferred. Cloudflare retains the runtime staging/test owners; canonical IDs/statuses, target allocations, complete filetree checkpoint, defaults/adoption/TS retirement and publication holds are unchanged. Private dependency/install/compiler captures and copied rebuildable outputs are released after validation; retain the source-checked artifact and concise logs. No commit, merge, push or remote deployment occurred in this implementation round.
 
 Integration bookkeeping: `125c4c540` brings the selected Worker qualification into main from `3059a36af`, covering two Cloudflare paths and seven planning/decision records. Retain accumulated living-plan coverage, defining owners and target allocations, canonical partial statuses and the complete review checkpoint. The finite ordinary TS serving result is credited once; no broader parent/default/adoption/native release follows. Integration introduces no semantic edits, so the two passing Worker cases, 12 package emits, strict fixture typecheck and existing Node controls are reused at their recorded scope. Newer compiler/runtime work and appended compiler notes in the living plan/DECISIONS remain uncommitted in the main checkout, with foreign staging preserved. Native preparation remains **HUMAN HOLD**.
+
+
+## 2026-10-18 — general native query and pre-write guard composition
+
+The draft operations are regression witnesses for general Can correctness and
+adoption, not business products to complete. Added production code contains no
+draft app/package/model/operation/path special case. Reuse the already passing
+`DerivedGuard.consume`, `ContainedSources.record`, `ReplayChild.pick` and
+`ComputedRules` tests; no unchanged rename run is needed. The admitted bounds
+are structural. Existing completion-event allowlists/rename failures remain open.
+
+**Accepted implementation choice.** Reuse the existing source-Require observer
+for original imported helper guards and top-level pre-write aggregate Requires.
+Keep the source/fresh IR, original parameter, selected call, schema and current
+Identity joins; do not manufacture scalar disclosure carriers or app exceptions.
+BodyIf/post-write guards, multiple model parameters and unsupported effect tails
+remain outside this finite observer profile. JEV's three equivalent comparisons
+preferred this reuse (probabilities .88/.95/.99, confidence .82/.92/.98); advice
+and uncertainty are retained in `docs/design/jev/cancrm-query-guards-20261018/`.
+
+Source-owned required reference arguments, contained FIRST replay and typed
+Contract SEND payloads now compose with the existing created-row receipt path.
+Required-reference argument paths retain at most two declared parent edges;
+the new ordinary reference leaf is reserved `.id`, with State-owned promotion.
+This does not add unrestricted target-field/nullable navigation or whole-handler
+admission. Count distinct authored Return sites rather than duplicate Boolean
+paths, and retain each path's provenance. Cache only the immutable identity-selector census.
+Runtime binding discovery follows actual Capability/Judgment declarations; a
+Contract imported beside a bound capability is schema, not a service binding.
+Cloudflare reexports the three existing Values money operations required by the
+emitted module rather than implementing another money backend.
+
+Model rules reuse the existing checked predicate, owner views and dependency ABI
+for transitive derived scalars, contained SUM/COUNT, arithmetic/coalesce, reference
+arrays and nullable selectors. Seal derived bodies against fresh source. Final
+invariants retain their reached reverse dependencies; conditional locks read
+State's entry view. Exact persisted File lock targets use State's existing wire
+equality. The unchanged original Purchase closure emits 12 rule-bearing model
+descriptors and all 29 original rules; no invariant is removed to activate it.
+
+Contained source-data queries borrow the exact declared parent domain from their
+owner and still project every candidate through its ordinary read policy. Other
+root-only providers explicitly refuse a parent. A pure aggregate guard uses the
+existing nonmembership source-read context, without an empty active_member
+inventory. Recheck the guard's original stage domain under current Identity;
+check consumed-field authority separately against the actual final overlay, as
+the existing query guard already does. Never rerun the business aggregate after
+its own create, or confuse that create with foreign domain drift.
+Raw row reuse is confined to each immutable owner stage/finalized guard; policy
+projections, current Identity revalidation and the revision fence still run.
+This is general stage-local reuse, not app-specific caching or latency acceptance.
+
+**Validation scope.** Original24 completed in 589.24s, child exit10, complete=true,
+omitted=0, unchanged 24 authored inputs/26 source records. It removes exactly
+CanPurchase179/219 FIRST refusals: 275→273 E6008, no additions; FIRST errors
+89→87. Producer SHA-256 is
+`efce5b0cc8aca7327a6f2a1f2adab4c6386ea439677a47a4cce6054f793461b7`;
+the frozen catalog remains
+`ca50fdca852170b09f95ec4adb97cc63ddabf26437629c02dfd234991bc486a8`.
+The actual CLI-compiled original-source D1 consumer passed (1/1, 1128.71s):
+original payable/return creates and business replay, Stock reversal outbox,
+unchanged rows/history on denial, currency/quantity/receipt-state/cap/proof
+refusals, current and late role revocation, and four balanced physical/retained
+receipt replays. Original source and captured producer currentness stayed intact.
+Focused compiler source/tamper, model-rule and replay checks, State source-policy
+checks (13/13), Cloudflare owner-reference checks (2/2), package emits/typechecks
+and all nine distinct native memory regression cases also passed. Reuse unchanged
+checks; no whole-application or performance acceptance is claimed.
+All 25 checkout-root scratch creators in 22 Cloudflare tests now create unique
+inputs directly under `.can/tmp/` through a small internal helper. Existing
+finally cleanup, source capture/module resolution and lock locations are retained;
+system temporary staging remains separate. Ordinary source review covered every
+mechanical import/path change. Existing actual compiled-source memory consumers
+pass; the owner-session loss test was corrected to mutate the store-scoped
+registry actually consumed by the runtime and still refuses before writes/receipt.
+This is a two-operation batch, not whole CanCRM completion. Muse stays stopped;
+implementation remains on main with no new worktree or branch.

@@ -320,39 +320,52 @@ fn other_shapes_stay_refused() {
             ),
         ),
     ];
-    // Contained parent scoping stays a separate family (refused here).
+    for (mode, source) in cases {
+        let (db, program, _, catalog) = fixture_source("refused-replay.can", &source);
+        let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic.message.contains("original native query correspondence")),
+            "{mode}: expected loud first-query refusal, got {diagnostics:?}"
+        );
+    }
+}
+
+#[test]
+fn contained_replay_retains_original_parent_and_both_returns() {
     let contained = r#"app ContainedSources
 Given
- Order {reference:text unique}
- Payable in Order {invoice:text, amount:int}
+ Location {name:text}
+ Order {reference:text unique,location:Location}
+ Payable in Order {invoice:text, amount:int,location_id:text}
+ policy Location read=members
  policy Order read=members
  policy Payable read=members
 When
- crud Order by=members fields=reference
- crud Payable by=members fields=invoice,amount
+ crud Order by=members fields=reference,location
+ crud Payable by=members fields=invoice,amount,location_id
  scenario record(order:Order,invoice:text,amount:int) -> Payable by=members
   do
    let previous=first(order.Payable as payable where payable.invoice==invoice order=payable.id)
    if previous!=null
     require previous.amount==amount
     return previous
-   create Payable {parent=order,invoice,amount} as payable
+   create Payable {parent=order,invoice,amount,location_id=order.location.id} as payable
    return payable
 Then
 "#.to_string();
-    let mut all = cases.to_vec();
-    all.push(("contained", contained));
-    for (mode, source) in all {
-        let (db, program, _, catalog) = fixture_source("refused-replay.can", &source);
-        let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
-        assert!(
-            diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"
-                && diagnostic
-                    .message
-                    .contains("original native query correspondence")),
-            "{mode}: expected loud first-query refusal, got {diagnostics:?}"
-        );
-    }
+    let (db, program, _, catalog) = fixture_source("contained-replay.can", &contained);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = artifact["operations"].as_array().unwrap().iter()
+        .find(|operation| operation["name"] == "ContainedSources.record").unwrap();
+    let plan = &operation["result"]["disclosure"];
+    assert_eq!(plan["queries"][0]["parent"]["model"], "ContainedSources.Order");
+    assert_eq!(plan["queries"][0]["parent"]["origin"]["parameter"], "order");
+    assert_eq!(plan["returns"].as_array().unwrap().len(), 2);
+    let emitted = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(emitted.contains("(await readScenarioReceiptStoredReference(c,"),
+        "original stored reference.id must promote its exact observed source before the id marker");
 }
 
 #[test]

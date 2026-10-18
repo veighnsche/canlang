@@ -2,12 +2,13 @@
  * CRUD solely for setup. Original Budget selection/guards/Set/SEND/late require
  * remain intact; count appends a genuine sibling Turn linked to the same Run.
  */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -50,7 +51,7 @@ async function snapshot(db: D1Database) {
 
 test('original first Budget and contained counted pair preserve source authority, same Run return and late rollback',
  {timeout: 900000}, async () => {
-  const directory = await mkdtemp(join(root, '.can-native-first-count-run-turn-'));
+  const directory = await createCheckoutScratch(root, 'native-first-count-run-turn-');
   const startedAt = Date.now(), phase = (name: string) => console.info(`[native-first-count-run-turn] ${name} elapsed_ms=${Date.now() - startedAt}`);
   let worker: Miniflare | undefined, physical: SqliteFileStore | undefined, foreignPhysical: SqliteFileStore | undefined, capture: SingleFileCapture | undefined;
   let sequence = 0, now = Date.now(); const clock = {nowMs: () => now};

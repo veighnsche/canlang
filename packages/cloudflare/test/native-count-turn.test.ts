@@ -2,12 +2,13 @@
  * CRUD setup is separate from the exact 454-byte Compiler CountSources fixture.
  * This qualifies count(branch.Turn)+1 and one new contained Turn, not full Chat.
  */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -57,7 +58,7 @@ function historySequence(before: Awaited<ReturnType<typeof snapshot>>, after: Aw
 
 test('released bounded count uses its original Branch scope, empty parent witness and bigint +1 under real D1 authority',
  {timeout: 240000}, async () => {
-  const directory = await mkdtemp(join(root, '.can-native-count-turn-'));
+  const directory = await createCheckoutScratch(root, 'native-count-turn-');
   let worker: Miniflare | undefined, capture: SingleFileCapture | undefined;
   try {
     // Private assembly, row, query and policy producers share the authentic

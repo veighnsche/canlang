@@ -2,12 +2,13 @@
  * linked to that Run, then the same Run return. Only labelled authenticated
  * CRUD setup is added; removing it restores the pinned original fixture.
  */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -58,7 +59,7 @@ function historySequence(before: Awaited<ReturnType<typeof snapshot>>, after: Aw
 
 test('original Run then counted sibling Turn returns the same first Run under real D1 authority',
  {timeout: 240000}, async () => {
-  const directory = await mkdtemp(join(root, '.can-native-count-run-turn-'));
+  const directory = await createCheckoutScratch(root, 'native-count-run-turn-');
   let worker: Miniflare | undefined, capture: SingleFileCapture | undefined;
   try {
     // Private assembly, row, query and policy producers share the authentic
