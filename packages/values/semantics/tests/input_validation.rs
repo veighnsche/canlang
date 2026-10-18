@@ -7,3 +7,5 @@ mod conformance_v1;
 mod input;
 #[path = "input_validation/validation.rs"]
 mod validation;
+#[path = "input_validation/resolved.rs"]
+mod resolved;

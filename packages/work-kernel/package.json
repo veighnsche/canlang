@@ -21,6 +21,30 @@
     "./rows": {
       "types": "./dist/src/rows.d.ts",
       "default": "./dist/src/rows.js"
+    },
+    "./retry": {
+      "types": "./dist/src/retry.d.ts",
+      "default": "./dist/src/retry.js"
+    },
+    "./lifecycle": {
+      "types": "./dist/src/lifecycle.d.ts",
+      "default": "./dist/src/lifecycle.js"
+    },
+    "./receipt": {
+      "types": "./dist/src/receipt.d.ts",
+      "default": "./dist/src/receipt.js"
+    },
+    "./every": {
+      "types": "./dist/src/every.d.ts",
+      "default": "./dist/src/every.js"
+    },
+    "./recovery": {
+      "types": "./dist/src/recovery.d.ts",
+      "default": "./dist/src/recovery.js"
+    },
+    "./linkage": {
+      "types": "./dist/src/linkage.d.ts",
+      "default": "./dist/src/linkage.js"
     }
   },
   "scripts": {

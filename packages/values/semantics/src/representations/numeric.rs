@@ -45,22 +45,33 @@ pub fn significant_digits(coef: &BigInt) -> usize {
     coef.abs().to_string().len()
 }
 
-/// Exact decimal value: unnormalized coefficient plus scale 0..=18.
-/// Stored scale is retained, never normalized.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Exact decimal value: unnormalized coefficient plus an integral JS-number
+/// scale 0..=18 that preserves `-0` (`Object.is` distinguishes it from `0`
+/// on the public carrier). Stored scale is retained, never normalized.
+/// IEEE `max`/`+` over these scales reproduces `Math.max`/scale-sum
+/// exactly (`max(-0, +0)` is `+0`; `-0 + -0` is `-0`), and `as u32`
+/// magnitudes are exact for `pow10`.
+#[derive(Debug, Clone, PartialEq)]
 pub struct DecimalParts {
     pub coef: BigInt,
-    pub scale: u8,
+    pub scale: f64,
 }
 
 impl DecimalParts {
-    /// Checked construction boundary (`new Decimal`): scale breaches and
-    /// 38-digit breaches are `out-of-range`; a non-bigint coef is
-    /// `invalid-construction` (handled by callers passing typed values).
-    pub fn make(coef: BigInt, scale: i64) -> Result<Self, Failure> {
-        if scale < 0 || scale > DECIMAL_MAX_SCALE as i64 {
+    /// Checked construction boundary (`new Decimal`): non-integers are
+    /// `invalid-construction`; scale breaches and 38-digit breaches are
+    /// `out-of-range`; a non-bigint coef is `invalid-construction`
+    /// (handled by callers passing typed values).
+    pub fn make(coef: BigInt, scale: f64) -> Result<Self, Failure> {
+        if !is_integer_number(scale) {
+            return Err(Failure::invalid_construction(
+                "decimal scale must be an integer",
+            ));
+        }
+        if scale < 0.0 || scale > DECIMAL_MAX_SCALE as f64 {
             return Err(Failure::out_of_range(format!(
-                "decimal scale out of range 0..18: {scale}"
+                "decimal scale out of range 0..18: {}",
+                format_js_number(scale)
             )));
         }
         if significant_digits(&coef) > DECIMAL_MAX_SIGNIFICANT_DIGITS {
@@ -68,15 +79,13 @@ impl DecimalParts {
                 "decimal exceeds 38 significant digits",
             ));
         }
-        Ok(DecimalParts {
-            coef,
-            scale: scale as u8,
-        })
+        Ok(DecimalParts { coef, scale })
     }
 
     /// Arithmetic-result boundary (`makeDecimalResult`): a computed coef
-    /// breaching 38 digits is `overflow`.
-    pub fn make_result(coef: BigInt, scale: u8) -> Result<Self, Failure> {
+    /// breaching 38 digits is `overflow`. The scale is an already-valid
+    /// integral scale carried through from the operands (including `-0`).
+    pub fn make_result(coef: BigInt, scale: f64) -> Result<Self, Failure> {
         if significant_digits(&coef) > DECIMAL_MAX_SIGNIFICANT_DIGITS {
             return Err(Failure::overflow(
                 "decimal result exceeds 38 significant digits",
@@ -180,6 +189,26 @@ impl Value {
 /// Note `-0` is an integer, matching TypeScript.
 pub fn is_integer_number(value: f64) -> bool {
     value.is_finite() && value.fract() == 0.0
+}
+
+/// `Math.max` over integral scales, preserving `-0` bit-exactly: the
+/// larger magnitude wins; equal magnitudes yield `+0` unless both are
+/// `-0` (then `-0`). Rust `f64::max` does not promise the zero-sign
+/// rule, so every scale selection routes through here.
+pub fn max_scale(a: f64, b: f64) -> f64 {
+    if a > b {
+        a
+    } else if b > a {
+        b
+    } else if a == 0.0 {
+        if a.is_sign_negative() && b.is_sign_negative() {
+            a
+        } else {
+            0.0
+        }
+    } else {
+        a
+    }
 }
 
 /// Guard for valid decimal values: shape, scale range and 38-digit bound
@@ -397,12 +426,14 @@ pub fn check_int64_temporal(value: &BigInt, what: &str) -> Result<i64, Failure> 
     narrow_int64(value, what)
 }
 
-/// Extracts decimal parts with int promotion (`toDecimalParts`).
+/// Extracts decimal parts with int promotion (`toDecimalParts`). Record
+/// scales arrive as JS numbers (already integer/range-checked by
+/// `is_decimal_value`, including `-0`, which is preserved verbatim).
 pub fn decimal_parts(value: &Value, what: &str) -> Result<DecimalParts, Failure> {
     match value {
         Value::BigInt(coef) => Ok(DecimalParts {
             coef: coef.clone(),
-            scale: 0,
+            scale: 0.0,
         }),
         Value::Decimal(parts) => Ok(parts.clone()),
         Value::Record(_) if is_decimal_value(value) => {
@@ -415,7 +446,7 @@ pub fn decimal_parts(value: &Value, what: &str) -> Result<DecimalParts, Failure>
                 }
             };
             let scale = match value.record_field("scale") {
-                Some(Value::Num(scale)) => *scale as u8,
+                Some(Value::Num(scale)) => *scale,
                 _ => {
                     return Err(Failure::invalid_construction(format!(
                         "{what} must be a decimal or bigint"

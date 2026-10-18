@@ -41,7 +41,9 @@ impl std::fmt::Debug for U16 {
     }
 }
 
-/// Passthrough data: compared structurally, never inspected.
+/// Passthrough data: compared structurally, never inspected. `Opaque`
+/// carries donor-unread by-reference positions (outbox requests, due rows)
+/// through decisions that never inspect them; the host restores them.
 #[derive(Clone, Debug)]
 pub enum Value {
     Null,
@@ -50,6 +52,7 @@ pub enum Value {
     Str(U16),
     Arr(Vec<Value>),
     Obj(Vec<(U16, Value)>),
+    Opaque,
 }
 
 impl PartialEq for Value {
@@ -61,6 +64,7 @@ impl PartialEq for Value {
             (Value::Str(a), Value::Str(b)) => a == b,
             (Value::Arr(a), Value::Arr(b)) => a == b,
             (Value::Obj(a), Value::Obj(b)) => a == b,
+            (Value::Opaque, Value::Opaque) => true,
             _ => false,
         }
     }

@@ -1,3 +1,4 @@
+import { NOT_ROUTED, routeExact } from "../bindings/exact-route.js";
 import { ValueError } from "./errors.js";
 
 /** Minimum signed 64-bit integer. */
@@ -17,6 +18,8 @@ function requireBigint(value: unknown, what: string): asserts value is bigint {
  * "overflow is an error". No Number routing: the value stays a bigint.
  */
 export function int64(value: bigint): bigint {
+  const routed = routeExact<bigint>("int64", [value]);
+  if (routed !== NOT_ROUTED) return routed;
   requireBigint(value, "int64");
   if (value < INT64_MIN || value > INT64_MAX) {
     throw new ValueError("overflow", `int64 out of range: ${value}`);
@@ -29,6 +32,8 @@ export function int64(value: bigint): bigint {
  * the exact sum must fit; `overflow` otherwise.
  */
 export function addInt(a: bigint, b: bigint): bigint {
+  const routed = routeExact<bigint>("add-int", [a, b]);
+  if (routed !== NOT_ROUTED) return routed;
   requireBigint(a, "addInt");
   requireBigint(b, "addInt");
   return int64(a + b);
@@ -36,6 +41,8 @@ export function addInt(a: bigint, b: bigint): bigint {
 
 /** Checked int64 subtraction; `overflow` when the exact difference escapes. */
 export function subtractInt(a: bigint, b: bigint): bigint {
+  const routed = routeExact<bigint>("subtract-int", [a, b]);
+  if (routed !== NOT_ROUTED) return routed;
   requireBigint(a, "subtractInt");
   requireBigint(b, "subtractInt");
   return int64(a - b);
@@ -43,6 +50,8 @@ export function subtractInt(a: bigint, b: bigint): bigint {
 
 /** Checked int64 multiplication; `overflow` when the exact product escapes. */
 export function multiplyInt(a: bigint, b: bigint): bigint {
+  const routed = routeExact<bigint>("multiply-int", [a, b]);
+  if (routed !== NOT_ROUTED) return routed;
   requireBigint(a, "multiplyInt");
   requireBigint(b, "multiplyInt");
   return int64(a * b);
@@ -54,6 +63,8 @@ export function multiplyInt(a: bigint, b: bigint): bigint {
  * A zero divisor fails with `division-by-zero`.
  */
 export function modInt(a: bigint, b: bigint): bigint {
+  const routed = routeExact<bigint>("mod-int", [a, b]);
+  if (routed !== NOT_ROUTED) return routed;
   requireBigint(a, "modInt");
   requireBigint(b, "modInt");
   if (b === 0n) {
@@ -67,6 +78,8 @@ export function modInt(a: bigint, b: bigint): bigint {
  * (`overflow` for INT64_MIN, DESIGN L211). Shared by decimal/money negation.
  */
 export function negateInt(a: bigint): bigint {
+  const routed = routeExact<bigint>("negate-int", [a]);
+  if (routed !== NOT_ROUTED) return routed;
   requireBigint(a, "negateInt");
   return int64(-a);
 }
@@ -76,6 +89,8 @@ export function negateInt(a: bigint): bigint {
  * (`overflow` for INT64_MIN, DESIGN L263).
  */
 export function absInt(a: bigint): bigint {
+  const routed = routeExact<bigint>("abs-int", [a]);
+  if (routed !== NOT_ROUTED) return routed;
   requireBigint(a, "absInt");
   return a < 0n ? negateInt(a) : int64(a);
 }
@@ -85,6 +100,8 @@ export function absInt(a: bigint): bigint {
  * Exact for arbitrary bigints; comparison cannot overflow, so no range check.
  */
 export function compareInt(a: bigint, b: bigint): -1 | 0 | 1 {
+  const routed = routeExact<-1 | 0 | 1>("compare-int", [a, b]);
+  if (routed !== NOT_ROUTED) return routed;
   requireBigint(a, "compareInt");
   requireBigint(b, "compareInt");
   if (a < b) return -1;

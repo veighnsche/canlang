@@ -19937,3 +19937,125 @@ and checksum-installed startup, authenticated HTTP and confirmed stop pass at
 83733736d plus this repair. Keep older timing tuples historical; current serving
 is7.248479s, owner/control0.066906417s, HTTP0.022462625s and stop0.176525958s.
 The unrelated pending Rust/complexity scopes are not qualified by this result.
+
+## 2026-10-18 — finish Rust by complete responsibility outcomes
+
+**Accepted human priority and execution granularity; proposed implementation plan.**
+Vince requests a full plan of large end-to-end Rust steps and clarifies that
+finishing Rust matters more than TypeScript retirement, which may remain held.
+The [single current completion plan](../implementation/rust-port-orchestration/current-plan.md)
+therefore groups the existing selected port contracts into four outcomes: native
+preparation, exact Values, owned validation and Work transition kernel. The earlier
+digest-only proposal becomes an internal preparation activity rather than another
+approval/dispatch milestone. No new canonical IDs or scope are created.
+
+A milestone is complete only when its declared Rust mechanisms run through their
+actual selected consumer with focused qualification, independent critical review/
+repairs, resource/rollback disposition and coherent integration. Existing substantive
+Rust algorithms and accepted consumer evidence are inputs, not work to repeat.
+Smoke bindings, a Rust checker after TS computation or renamed whole TS evaluators
+do not prove the responsibility implemented. Required missing work stays visible.
+Default changes, public deployment and physical TS deletion are separate held
+outcomes and cannot block Rust implementation completion. Intentionally retained
+host parsing/libraries/producers, observable shells and live authority/transaction
+work remain named owners.
+
+Rationale: the prior execution queue added repeated coordination stops around small
+bridges without finishing module construction, full binding/consumer routing or the
+missing validator. One responsibility-sized implementation/consumer/review outcome
+keeps those joins inside the deliverable. Internal ordinary tasks/repairs need no
+fresh human approval after implementation is requested; only actual new scope,
+compatibility decisions or external release constraints require their original
+process. Shared-file writers serialize concrete released edits, not completion of
+unrelated adoption parents. C04/C05 complete gates consume outcomes and must not
+become circular prerequisites. New source changes trigger only affected checks.
+
+The source pin is fetched main `ab516f39b`. Three independent read-only challenges
+cover native completion, Values/validation and Work. Concrete findings include stale
+Rust module/source-map/browser builders, the full native exact dispatch versus its
+smoke TS registry, absent native validation/profile execution, incomplete owner-plan
+fields/lossless metadata and newer State/Work provenance/result contexts. These are
+implementation duties within the selected outcomes, not optional scope silently
+excluded. This planning change does not execute code, change a backend default,
+retire TS, commit/merge/push or advance the complete stale filetree checkpoint.
+
+
+### Muse implementation release and fresh coordinator
+
+Vince explicitly invokes the Muse implementation skill for the four completion
+outcomes, then requests a fresh Muse instance. Implementation/consumer qualification/
+review/repairs are released continuously at those outcomes; prior planning-only
+wording no longer holds their source work. A new Contributor/XHIGH coordinator
+and three inheriting native workers have exact startup/goal and actual source
+progress. The previous coordinator remains released standby with its unique work/
+viewer preserved. Runtime identities, exact leases and model evidence are recorded
+in the new run monitor. The one existing25minute same-chat heartbeat is repointed,
+not duplicated; single-instance mode has no recurring Muse worker timer or human
+ready gate. Codex owns independent review and accepted Git/main integration while
+Muse owns implementation and the single central checklist. Public deployment,
+automatic defaults and TS retirement remain held independently of Rust completion.
+
+
+Rust completion main sync: committed main `69d45c33c` is incorporated into the
+active port branch after exact coordinator/worker writer release. Local checkpoint
+`8d5f2706f` preserves all55 unfinished planning/source/artifact inputs without
+claiming acceptance or publishing them to main. All53 nonshared inputs retain
+identical bytes/modes; both shared documentation histories merge automatically.
+Main's132-path development/compiler/preferences/distribution/cleanup coverage is
+retained in the living plan. No source conflicts occurred; focused JSON/whitespace
+checks pass. Newer bundle execution ownership and optional development browser
+resource behavior are inputs to native preparation, not behavior to overwrite.
+Continue original full outcomes and independent review; public deployment,
+automatic defaults and TS retirement remain held. The complete historical
+filetree checkpoint is unchanged.
+
+
+### Rust completion wind-down (18 October 2026)
+
+Vince requests no new tasks: finish the current preparation and Values/Work/
+validation repair assignments, then commit and merge their work. Stop new dispatches
+and scope expansion; preserve unfinished source and report remaining original
+acceptance honestly. This does not claim the four Rust outcomes complete or lift
+public deployment, automatic defaults or TS-retirement holds. Required affected
+checks and merge reconciliation remain part of closing the current batch; unchanged
+accepted results are reused. The complete historical filetree checkpoint stays
+unchanged. Canonical-main integration is coordinated with the existing integration
+owner so newer compiler/runtime history and foreign dirty inputs are preserved.
+
+The released batch preserves the explicit TS default and adds scoped Rust mechanisms;
+it does not complete the production host/State/MCP/Cloudflare consumer outcomes.
+Final passing checks: preparation266 (vectors26, modules131); validation native47
+and lib21, actual-Wasm binding15 plus the12,000-level malformed-input cleanup
+probe; Values join/backends32; Interfaces owned18; State admission65; Work-kernel
+conformance464, Work dispatch23 and durable17. The current Work recurrence error
+constructor regression is corrected and every11 passes. Final Values artifact
+inventory and all four emitted mirrors agree. Codex regenerated the existing
+string-escape correspondence metadata only after confirming identical semantic
+observations; its focused contract2 passes. Reuse unaffected earlier results.
+
+The broader suite was not declared green: descriptor mail-field, command14-vs13
+and relation17-vs16 pins disagree with committed content; timeout cases remain
+reported rather than silently fixed during wind-down. The host layer/facts/PUBLISH
+and installed deployment consumer, production validation profile joins, actual
+Cloudflare Work durable integration and remaining adoption/resource criteria stay
+open in the current plan. The earlier claimed all-four completion was withdrawn.
+The reviewed/repaired source is saved as this finite batch, with no new dispatch
+or default/public/retirement release.
+
+
+### Integrate the released experimental Rust core snapshot (2026-10-18)
+
+Merge the complete9b1682598 branch, including initial8d5f2706f and final239cd0763
+repairs, preserving all authored work. Retain the TypeScript helper extractions
+while threading the genuine owned JSON token from the existing HTTP body reader
+to native validation after authentication/framing/CSRF/operation identity, and
+route datetime through the exact backend before the existing extracted fallback.
+Work tables merge both kernel selection and private extraction helpers. Reuse the
+owner's focused native/Wasm/Interfaces/State/Work checks; incomplete host/production
+joins and recorded broad failures remain explicitly open. No defaults/public
+deployment/TypeScript retirement or whole-port completion is accepted.
+
+Integrated validation: Values/Work-kernel/Interfaces/State/Work emitted builds pass
+in dependency order. Actual-Wasm HTTP owned validation and exact backend consumers
+pass27/27; merged Work facade/kernel selection passes3/3 using the released,
+manifest-verified native artifact. No whole-application acceptance is inferred.

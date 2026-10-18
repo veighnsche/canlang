@@ -100,7 +100,10 @@ impl std::fmt::Debug for U16 {
 /// references keep their identity for the seen-set traversal.
 /// `Undef`/`Func` cover the frozen `$undef`/`$fn` corpus tags (never
 /// JSON-safe; stringify renders them `undefined`, exactly as the
-/// donor's template interpolation does).
+/// donor's template interpolation does). `Opaque` carries donor-unread
+/// by-reference positions through decisions that never inspect them (the
+/// host restores them); `Ref` marks an unresolvable identity
+/// back-reference, which row safety reports as cyclic like the donor.
 #[derive(Clone, Debug)]
 pub enum Value {
     Null,
@@ -111,6 +114,8 @@ pub enum Value {
     Obj(Rc<Vec<(U16, Value)>>),
     Undef,
     Func,
+    Opaque,
+    Ref,
 }
 
 impl PartialEq for Value {
@@ -125,6 +130,8 @@ impl PartialEq for Value {
             (Value::Obj(a), Value::Obj(b)) => a == b,
             (Value::Undef, Value::Undef) => true,
             (Value::Func, Value::Func) => true,
+            (Value::Opaque, Value::Opaque) => true,
+            (Value::Ref, Value::Ref) => true,
             _ => false,
         }
     }
@@ -143,6 +150,8 @@ impl Value {
             )),
             Value::Undef => Value::Undef,
             Value::Func => Value::Func,
+            Value::Opaque => Value::Opaque,
+            Value::Ref => Value::Ref,
         }
     }
     fn as_obj(&self) -> Option<&Vec<(U16, Value)>> {
@@ -208,7 +217,7 @@ fn js_stringify(v: &Value) -> String {
         }
         // Only reachable inside `${...}` interpolation, where the donor
         // renders the undefined stringify result as `undefined`.
-        Value::Undef | Value::Func => "undefined".to_string(),
+        Value::Undef | Value::Func | Value::Opaque | Value::Ref => "undefined".to_string(),
     }
 }
 
@@ -570,8 +579,11 @@ fn check_json_safe(value: &Value, what: &str) -> Result<(), ReceiptFailure> {
                     Err(table_error(format!("{what}{path} must be finite JSON.")))
                 }
             }
-            Value::Undef | Value::Func => {
+            Value::Undef | Value::Func | Value::Opaque => {
                 Err(table_error(format!("{what}{path} is not JSON-safe.")))
+            }
+            Value::Ref => {
+                Err(table_error(format!("{what}{path} is cyclic.")))
             }
             Value::Arr(a) => {
                 let id = Rc::as_ptr(a) as usize;

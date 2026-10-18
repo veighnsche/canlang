@@ -1075,6 +1075,39 @@ function stageArtifactModules(artifact: CompileArtifact): { modules: Record<stri
   return { modules: staged, sourceMaps };
 }
 
+/** One authored module's host-observed map facts for native construction. */
+export interface AuthoredMapDescription {
+  /** Artifact module path (matches the staged key). */
+  readonly path: string;
+  /** Canonical JSON of the composed map, or null when no original map exists. */
+  readonly mapJson: string | null;
+  /** Import-edit stage count observed by the host rewrite (0 or 1). */
+  readonly stages: number;
+}
+
+/**
+ * Describe the authored layer for the native constructor
+ * (RUST-PREPARATION-010): per artifact module, the composed map JSON
+ * and rewrite stage count from the exact same rewrite/compose calls
+ * `stageArtifactModules` uses — no bundle assembly, no ownership
+ * re-checks (the real build inside `ensureBundle` already enforces
+ * those before LOAD_MODULES is served). Deterministic and pure, so a
+ * second evaluation agrees with the bundle build byte-for-byte. Raw
+ * JS, pages and callables ride the artifact payload the native job
+ * already holds; only these host-composed bytes are served.
+ */
+export function describeAuthoredMaps(artifact: CompileArtifact): AuthoredMapDescription[] {
+  return artifact.modules.map((mod) => {
+    const rewritten = rewriteArtifactImports(mod.js, mod.path);
+    const view = composeModuleMap(mod.map, rewritten.map === undefined ? [] : [rewritten.map], mod.js);
+    return {
+      path: mod.path,
+      mapJson: view.map === undefined ? null : JSON.stringify(view.map),
+      stages: rewritten.map === undefined ? 0 : 1,
+    };
+  });
+}
+
 /**
  * Build the `derived-inputs.js` module (C1): the REAL interfaces
  * derivation (`catalogFromArtifactOperations`) for the staged

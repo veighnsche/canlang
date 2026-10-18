@@ -54,9 +54,9 @@ fn int_sums_narrow_once() {
 #[test]
 fn decimal_sums_validate_then_align() {
     let out = sum_decimal(&[]).unwrap();
-    assert_eq!((out.coef.to_string(), out.scale), ("0".to_string(), 0));
+    assert_eq!((out.coef.to_string(), out.scale), ("0".to_string(), 0.0));
     let out = sum_decimal(&[dec("1", 0.0), dec("5", 1.0)]).unwrap();
-    assert_eq!((out.coef.to_string(), out.scale), ("15".to_string(), 1));
+    assert_eq!((out.coef.to_string(), out.scale), ("15".to_string(), 1.0));
     // A malformed element anywhere fails before any summing.
     let err = sum_decimal(&[dec("1", 0.0), bi("2")]).unwrap_err();
     assert_eq!(err.message, "sumDecimal needs decimal elements");
@@ -66,7 +66,7 @@ fn decimal_sums_validate_then_align() {
         dec("-99999999999999999999", 0.0),
     ])
     .unwrap();
-    assert_eq!((out.coef.to_string(), out.scale), ("0".to_string(), 0));
+    assert_eq!((out.coef.to_string(), out.scale), ("0".to_string(), 0.0));
     let err = sum_decimal(&[dec(&"9".repeat(38), 0.0), dec("1", 0.0)]).unwrap_err();
     assert_eq!(err.code.as_str(), "overflow");
 }

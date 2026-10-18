@@ -46,6 +46,7 @@ import type {
 } from './registry.js';
 import type { PendingRef, ValidatedCallInputs } from './admission.js';
 import { StateError } from '../errors.js';
+import { OwnedJsonToken, readOwnedJson } from '@canlang/values/bindings/owned-input';
 
 /** Input-validation profile this leaf implements (V01.1 `state-generated/v1`). */
 export const PREPARED_INPUTS_PROFILE = 'state-generated/v1' as const;
@@ -190,6 +191,12 @@ export function prepareOperationInputs(
  * current order; eligible ordinary-array omissions fill a fresh `[]`;
  * the returned `normalized` object is a fresh unfrozen shallow copy.
  * Operation defaults remain absent for host evaluation; update omissions remain absent.
+ *
+ * Owned admission: `inputs` may be a genuine parser-owned token, in
+ * which case the lineage-checked value is validated without mutation
+ * (frozen parser output is only read and shallow-copied). Forged
+ * tokens refuse at lineage resolution; tokens resolving to
+ * non-objects are caller misuse and throw.
  */
 /** One ref slot (or each array element) against its rule, in slot order. */
 function validatePreparedRefSlots(
@@ -287,6 +294,20 @@ function validateOnePreparedRule(
 }
 
 export function validatePreparedInputs(
+  plan: PreparedOperationPlan,
+  inputs: ClosedInputs | OwnedJsonToken,
+): ValidatedCallInputs {
+  if (inputs instanceof OwnedJsonToken) {
+    const owned: unknown = readOwnedJson(inputs).value;
+    if (typeof owned !== 'object' || owned === null || Array.isArray(owned)) {
+      throw new Error('validatePreparedInputs: owned inputs must resolve to an object.');
+    }
+    return validatePreparedRecord(plan, owned as ClosedInputs);
+  }
+  return validatePreparedRecord(plan, inputs);
+}
+
+function validatePreparedRecord(
   plan: PreparedOperationPlan,
   inputs: ClosedInputs,
 ): ValidatedCallInputs {

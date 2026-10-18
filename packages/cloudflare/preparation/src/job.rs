@@ -281,6 +281,7 @@ const GATE_CONFIRM: &str = "CONFIRM_GATE";
 const GATE_COMPILER: &str = "COMPILER_GATE";
 /// Host-read stage (one NeedHost round-trip): staged module buffers.
 const ST_LOAD_MODULES: &str = "LOAD_MODULES";
+const ST_PUBLISH_NATIVE_MODULES: &str = "PUBLISH_NATIVE_MODULES";
 /// Host-read stage (one NeedHost round-trip): plan options. Built
 /// before any previous-plan demand: competing binding failures refuse
 /// here without previous-plan IO.
@@ -435,23 +436,48 @@ struct ModuleBuffer {
 /// facts?: Facts}]}`. Shape failures speak the tree voice (BAD_NODE):
 /// the resume is a malformed tagged tree, never an invented module code.
 fn module_buffers(tree: &Node, command: &str) -> Result<Vec<ModuleBuffer>, Failure> {
+    module_entries(tree, command, ST_LOAD_MODULES, "modules")
+}
+
+/// Shared `{key: Text, js: Text, facts?: Facts}` entry parser for the
+/// finished `modules` map and each native `layers.*` array. `field`
+/// names the resume member so refusals point at the exact array; the
+/// `modules` field keeps its historical detail strings byte-identical.
+fn module_entries(
+    tree: &Node,
+    command: &str,
+    stage: &str,
+    field: &str,
+) -> Result<Vec<ModuleBuffer>, Failure> {
     let bad = |detail: String| {
-        Failure::for_stage(command, ST_LOAD_MODULES, crate::failures::transport::BAD_NODE, detail)
+        Failure::for_stage(command, stage, crate::failures::transport::BAD_NODE, detail)
     };
     let Node::Arr(items) = tree else {
-        return Err(bad("LOAD_MODULES resume: modules must be an array".to_string()));
+        return Err(bad(format!("LOAD_MODULES resume: {field} must be an array")));
     };
     let mut buffers = Vec::with_capacity(items.len());
     for item in items {
         let key = crate::input::obj_get(item, "key")
             .and_then(crate::input::as_text)
-            .ok_or_else(|| bad("LOAD_MODULES resume: modules[*].key must be text".to_string()))?;
+            .ok_or_else(|| bad(format!("LOAD_MODULES resume: {field}[*].key must be text")))?;
         let js = crate::input::obj_get(item, "js")
             .and_then(crate::input::as_text)
-            .ok_or_else(|| bad("LOAD_MODULES resume: modules[*].js must be text".to_string()))?;
+            .ok_or_else(|| bad(format!("LOAD_MODULES resume: {field}[*].js must be text")))?;
         let facts = match crate::input::obj_get(item, "facts") {
             None => None,
-            Some(node) => Some(crate::modules::decode_module_facts(node).map_err(bad)?),
+            Some(node) => Some(
+                crate::modules::decode_module_facts(node)
+                    .map_err(|detail| {
+                        // The `modules` field keeps the shared decoder's
+                        // historical detail byte-identical (pinned by
+                        // vectors); layer fields name their own array.
+                        if field == "modules" {
+                            bad(detail)
+                        } else {
+                            bad(format!("LOAD_MODULES resume: {field}[*].facts {detail}"))
+                        }
+                    })?,
+            ),
         };
         buffers.push(ModuleBuffer {
             key: key.clone(),
@@ -460,6 +486,247 @@ fn module_buffers(tree: &Node, command: &str) -> Result<Vec<ModuleBuffer>, Failu
         });
     }
     Ok(buffers)
+}
+
+/// Raw native layers from a LOAD_MODULES resume: `{layers: {pre,
+/// post, trailing}}`, each an array of `{key, js, facts?}` entries in
+/// bundle-composition order. Present means the native route: the job
+/// assembles the final map itself instead of consuming a finished TS
+/// bundle. Layers ride deploy only; mixing `layers` with a finished
+/// `modules` map refuses (fail-closed on ambiguous input).
+struct NativeLayers {
+    pre: Vec<ModuleBuffer>,
+    post: Vec<ModuleBuffer>,
+    trailing: Vec<ModuleBuffer>,
+}
+
+fn native_layers(
+    payload: &serde_json::Value,
+    command: &str,
+) -> Result<Option<NativeLayers>, Failure> {
+    let raw = match payload.get("layers") {
+        None | Some(serde_json::Value::Null) => return Ok(None),
+        Some(tree) => tree,
+    };
+    if command != "deploy" {
+        return Err(Failure::for_stage(
+            command,
+            ST_LOAD_MODULES,
+            crate::failures::transport::BAD_NODE,
+            "LOAD_MODULES resume: layers ride the deploy native route".to_string(),
+        ));
+    }
+    if payload.get("modules").is_some_and(|v| !v.is_null()) {
+        return Err(Failure::for_stage(
+            command,
+            ST_LOAD_MODULES,
+            crate::failures::transport::BAD_NODE,
+            "LOAD_MODULES resume: mixed map+layers".to_string(),
+        ));
+    }
+    let bytes = serde_json::to_vec(raw).unwrap_or_default();
+    let node = decode_tree(&bytes).map_err(|e| {
+        Failure::for_stage(command, ST_LOAD_MODULES, e.code, e.detail)
+    })?;
+    let layer = |name: &str| -> Result<Vec<ModuleBuffer>, Failure> {
+        let field = format!("layers.{name}");
+        match crate::input::obj_get(&node, name) {
+            None => Err(Failure::for_stage(
+                command,
+                ST_LOAD_MODULES,
+                crate::failures::transport::BAD_NODE,
+                format!("LOAD_MODULES resume: {field} is required"),
+            )),
+            Some(member) => module_entries(member, command, ST_LOAD_MODULES, &field),
+        }
+    };
+    Ok(Some(NativeLayers {
+        pre: layer("pre")?,
+        post: layer("post")?,
+        trailing: layer("trailing")?,
+    }))
+}
+
+/// One served composed map for an authored module: the host-executed
+/// remapping merge output (`map_json`, canonical JSON text, or null
+/// when the module carries no usable original) plus the observed
+/// import-edit stage count. Raw JS, pages and callables ride the
+/// artifact payload the job already holds; only the host-composed
+/// bytes need serving here.
+struct AuthoredMap {
+    path: Vec<u16>,
+    map_json: Option<String>,
+    stages: usize,
+    facts: Option<crate::modules::ModuleFacts>,
+}
+
+/// Typed `authoredMaps` LOAD_MODULES resume field. Absent (or null)
+/// means the host serves a finished final map with no
+/// natively-constructed layer: legacy and canned payloads keep the
+/// pre-construction gates, and the Prepared outputs record no digest.
+/// Present (even empty) switches deploy to native construction with a
+/// host-skew veto. Shape failures speak the tree voice (BAD_NODE);
+/// content mismatches refuse as bundle failures at the call site.
+fn authored_maps(
+    payload: &serde_json::Value,
+    command: &str,
+) -> Result<Option<Vec<AuthoredMap>>, Failure> {
+    let bad = |detail: String| {
+        Failure::for_stage(command, ST_LOAD_MODULES, crate::failures::transport::BAD_NODE, detail)
+    };
+    let raw = match payload.get("authoredMaps") {
+        None | Some(serde_json::Value::Null) => return Ok(None),
+        Some(tree) => tree,
+    };
+    let bytes = serde_json::to_vec(raw).unwrap_or_default();
+    let node = decode_tree(&bytes)
+        .map_err(|error| Failure::for_stage(command, ST_LOAD_MODULES, error.code, error.detail))?;
+    let Node::Arr(items) = node else {
+        return Err(bad("LOAD_MODULES resume: authoredMaps must be an array".to_string()));
+    };
+    let mut out = Vec::with_capacity(items.len());
+    for item in &items {
+        let field = |name: &str| {
+            obj_get(item, name).ok_or_else(|| {
+                bad(format!("LOAD_MODULES resume: authoredMaps[*].{name} is required"))
+            })
+        };
+        let path = field("path")
+            .and_then(|node| {
+                as_text(node).ok_or_else(|| {
+                    bad("LOAD_MODULES resume: authoredMaps[*].path must be text".to_string())
+                })
+            })
+            .map(|units| units.clone())?;
+        let map_json = match field("mapJson")? {
+            Node::Null => None,
+            node => Some(
+                as_text(node)
+                    .ok_or_else(|| {
+                        bad("LOAD_MODULES resume: authoredMaps[*].mapJson must be text or null"
+                            .to_string())
+                    })
+                    // WHATWG parity with the host `Buffer.from(json,
+                    // "utf8")`: lone surrogates ride as U+FFFD on both
+                    // sides, never as corrupt bytes.
+                    .map(|units| String::from_utf16_lossy(units))?,
+            ),
+        };
+        let (bits, _) = field("stages")
+            .and_then(|node| {
+                as_num(node).ok_or_else(|| {
+                    bad("LOAD_MODULES resume: authoredMaps[*].stages must be a number".to_string())
+                })
+            })?;
+        let stages = f64::from_bits(bits);
+        if !(stages >= 0.0 && stages.fract() == 0.0) {
+            return Err(bad(
+                "LOAD_MODULES resume: authoredMaps[*].stages must be a non-negative integer"
+                    .to_string(),
+            ));
+        }
+        // Host frontend facts over the staged bytes for this module
+        // (the layer route validates Rust-produced bytes against
+        // these; absent rides None and refuses at validation like a
+        // facts-less served buffer).
+        let facts = match obj_get(item, "facts") {
+            None | Some(Node::Null) => None,
+            Some(node) => Some(crate::modules::decode_module_facts(node).map_err(|detail| {
+                bad(format!("LOAD_MODULES resume: authoredMaps[*].facts {detail}"))
+            })?),
+        };
+        out.push(AuthoredMap {
+            path,
+            map_json,
+            stages: stages as usize,
+            facts,
+        });
+    }
+    Ok(Some(out))
+}
+
+/// Native authored construction for deploy (RUST-PREPARATION-010):
+/// match every validated artifact module to its served composed map,
+/// stage the authored layer in Rust, and substitute the Rust-produced
+/// texts over the served final map (host-skew veto inside
+/// `assemble_native_texts`). Artifact validation mandates
+/// `modules[*].map`, so `has_original` is always true here; a served
+/// map entry for an unknown module (or a module missing its entry)
+/// refuses as host skew.
+/// Native authored staging without served-map substitution: match
+/// every validated artifact module to its served composed map (host
+/// skew veto) and stage the authored layer in Rust. Both the legacy
+/// substitution route and the native layer route build on this.
+fn stage_authored(
+    artifact: &crate::artifact::ValidatedArtifact,
+    maps: &[AuthoredMap],
+    command: &str,
+) -> Result<crate::modules::StagedBundle, Failure> {
+    let refused = |message: String| {
+        Failure::for_stage(command, ST_LOAD_MODULES, crate::failures::semantic::BUNDLE_FAILED, message)
+    };
+    for entry in maps {
+        if !artifact.modules.iter().any(|module| module.path == entry.path.as_slice()) {
+            return Err(refused(format!(
+                "LOAD_MODULES resume: authoredMaps carries unknown module {} (host skew)",
+                crate::input::json_quote(&entry.path)
+            )));
+        }
+    }
+    let mut authored = Vec::with_capacity(artifact.modules.len());
+    for module in &artifact.modules {
+        let entry = maps
+            .iter()
+            .find(|entry| entry.path.as_slice() == module.path)
+            .ok_or_else(|| {
+                refused(format!(
+                    "LOAD_MODULES resume: authoredMaps drops module {} (host skew)",
+                    crate::input::json_quote(module.path)
+                ))
+            })?;
+        authored.push(crate::modules::AuthoredModule {
+            path: module.path,
+            js: module.js,
+            map_json: entry.map_json.as_deref(),
+            has_original: true,
+            stage_count: entry.stages,
+        });
+    }
+    let pages: Vec<crate::modules::PageRef> = artifact
+        .pages
+        .iter()
+        .map(|page| crate::modules::PageRef {
+            path: page.path,
+            module: page.module,
+        })
+        .collect();
+    let callables: Vec<crate::modules::CallableRef> = artifact
+        .callables
+        .iter()
+        .map(|callable| crate::modules::CallableRef {
+            id: callable.id,
+            module: callable.module,
+        })
+        .collect();
+    crate::modules::construct_staged_bundle(&authored, &pages, &callables)
+        .map_err(|error| refused(error.message))
+}
+
+fn native_authored_texts(
+    artifact: &crate::artifact::ValidatedArtifact,
+    maps: &[AuthoredMap],
+    served: &[(Vec<u16>, Vec<u16>)],
+    command: &str,
+) -> Result<Vec<(Vec<u16>, Vec<u16>)>, Failure> {
+    let staged = stage_authored(artifact, maps, command)?;
+    crate::modules::assemble_native_texts(served, &staged).map_err(|error| {
+        Failure::for_stage(
+            command,
+            ST_LOAD_MODULES,
+            crate::failures::semantic::BUNDLE_FAILED,
+            error.message,
+        )
+    })
 }
 
 /// `<dir>/<stem>.deploy-plan.json` where stem strips one trailing
@@ -627,21 +894,479 @@ fn plan_and_review(
     }
 }
 
-/// LOAD_MODULES exchange plus the native import/graph gates. Returns
-/// the verified buffer count for the Prepared outputs. Deploy applies
-/// the facts policy over the host frontend's syntax observations;
-/// build admits its domain with no module gate (021: the TS build
-/// accepts artifacts the deploy loadability gate refuses).
-fn load_modules(
+/// Attach host facts to one layer's buffers, refusing facts-less
+/// entries in the served-buffer voice. Runs before content
+/// validation so presence precedes shape per buffer, like the
+/// legacy gate.
+fn factored_layer(
+    buffers: &[ModuleBuffer],
+    writer: &mut impl Write,
+) -> Result<Vec<(Vec<u16>, Vec<u16>, crate::modules::ModuleFacts)>, i32> {
+    const COMMAND: &str = "deploy";
+    let mut out = Vec::with_capacity(buffers.len());
+    for buffer in buffers {
+        let facts = match &buffer.facts {
+            None => {
+                let _ = refuse(
+                    writer,
+                    Failure::for_stage(
+                        COMMAND,
+                        ST_LOAD_MODULES,
+                        crate::failures::transport::BAD_NODE,
+                        format!(
+                            "LOAD_MODULES resume: module {} serves no host syntax facts",
+                            crate::input::json_quote(&buffer.key)
+                        ),
+                    ),
+                );
+                return Err(1);
+            }
+            Some(facts) => facts.clone(),
+        };
+        out.push((buffer.key.clone(), buffer.js.clone(), facts));
+    }
+    Ok(out)
+}
+
+/// PUBLISH_NATIVE_MODULES exchange: send the natively-assembled
+/// modules for host publication, then verify the returned digest
+/// against the native one. Consumes one token.
+fn publish_native_modules(
     reader: &mut impl Read,
     writer: &mut impl Write,
-    token: u64,
-    command: &str,
-) -> Result<usize, i32> {
-    let payload = match exchange(reader, writer, token, ST_LOAD_MODULES, serde_json::json!({})) {
+    token: &mut u64,
+    merged: &[(Vec<u16>, Vec<u16>, crate::modules::ModuleFacts)],
+    digest: &str,
+) -> Result<(), i32> {
+    const COMMAND: &str = "deploy";
+    *token += 1;
+    let items: Vec<serde_json::Value> = merged
+        .iter()
+        .map(|(key, js, _)| {
+            encode_tree(&Node::Obj(vec![
+                ("key".encode_utf16().collect(), Node::Text(key.clone())),
+                ("js".encode_utf16().collect(), Node::Text(js.clone())),
+            ]))
+        })
+        .collect();
+    let payload = match exchange(
+        reader,
+        writer,
+        *token,
+        ST_PUBLISH_NATIVE_MODULES,
+        serde_json::json!({"modules": items}),
+    ) {
         Exchange::Payload(payload) => payload,
         Exchange::Done(code) => return Err(code),
     };
+    let sha = match payload.get("sha256").and_then(|value| value.as_str()) {
+        Some(sha) => sha,
+        None => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_PUBLISH_NATIVE_MODULES,
+                    transport::PROTOCOL_VIOLATION,
+                    "PUBLISH_NATIVE_MODULES resume: sha256 must be a string".to_string(),
+                ),
+            );
+            return Err(1);
+        }
+    };
+    if sha != digest {
+        let _ = refuse(
+            writer,
+            Failure::for_stage(
+                COMMAND,
+                ST_PUBLISH_NATIVE_MODULES,
+                semantic::BUNDLE_FAILED,
+                "PUBLISH_NATIVE_MODULES publication digest mismatch (host skew)".to_string(),
+            ),
+        );
+        return Err(1);
+    }
+    Ok(())
+}
+
+/// Native layer route: stage the authored layer, merge
+/// pre/authored/post/rendered-artifact/trailing in bundle order with
+/// duplicate-last-wins (the host `Object.assign` composition), run
+/// the facts and deploy gates over the merged buffers, then publish
+/// the natively-assembled modules and verify the publication
+/// digest. No finished TS bundle is consumed anywhere on this path.
+fn load_native_layers(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    token: &mut u64,
+    artifact: &crate::artifact::ValidatedArtifact,
+    artifact_tree: Option<&Node>,
+    activation: Option<&serde_json::Value>,
+    payload: &serde_json::Value,
+    layers: NativeLayers,
+) -> Result<LoadModulesOutcome, i32> {
+    const COMMAND: &str = "deploy";
+    let mut binary_keys: Vec<Vec<u16>> = Vec::new();
+    if payload.get("binaries").is_some() {
+        let tree = match resume_tree(payload, "binaries", COMMAND, ST_LOAD_MODULES) {
+            Ok(tree) => tree,
+            Err(failure) => {
+                let _ = refuse(writer, failure);
+                return Err(1);
+            }
+        };
+        let Node::Arr(items) = tree else {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    crate::failures::transport::BAD_NODE,
+                    "LOAD_MODULES resume: binaries must be an array".to_string(),
+                ),
+            );
+            return Err(1);
+        };
+        for item in items {
+            match item {
+                Node::Text(units) => binary_keys.push(units),
+                _ => {
+                    let _ = refuse(
+                        writer,
+                        Failure::for_stage(
+                            COMMAND,
+                            ST_LOAD_MODULES,
+                            crate::failures::transport::BAD_NODE,
+                            "LOAD_MODULES resume: binaries[*] must be text".to_string(),
+                        ),
+                    );
+                    return Err(1);
+                }
+            }
+        }
+    }
+    let maps = match authored_maps(payload, COMMAND) {
+        Ok(Some(maps)) => maps,
+        Ok(None) => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    crate::failures::transport::BAD_NODE,
+                    "LOAD_MODULES resume: layers require authoredMaps".to_string(),
+                ),
+            );
+            return Err(1);
+        }
+        Err(failure) => {
+            let _ = refuse(writer, failure);
+            return Err(1);
+        }
+    };
+    let staged = match stage_authored(artifact, &maps, COMMAND) {
+        Ok(staged) => staged,
+        Err(failure) => {
+            let _ = refuse(writer, failure);
+            return Err(1);
+        }
+    };
+    // Presence gates run in bundle order (pre, authored, post,
+    // artifact, trailing) so multi-failure precedence matches the
+    // composed-map gate order.
+    let pre = factored_layer(&layers.pre, writer)?;
+    let mut staged_layer =
+        Vec::with_capacity(staged.staged.len());
+    for (key, js) in &staged.staged {
+        let facts = match maps
+            .iter()
+            .find(|entry| entry.path.as_slice() == key.as_slice())
+            .and_then(|entry| entry.facts.as_ref())
+        {
+            None => {
+                let _ = refuse(
+                    writer,
+                    Failure::for_stage(
+                        COMMAND,
+                        ST_LOAD_MODULES,
+                        crate::failures::transport::BAD_NODE,
+                        format!(
+                            "LOAD_MODULES resume: module {} serves no host syntax facts",
+                            crate::input::json_quote(key)
+                        ),
+                    ),
+                );
+                return Err(1);
+            }
+            Some(facts) => facts.clone(),
+        };
+        staged_layer.push((key.clone(), js.clone(), facts));
+    }
+    let post = factored_layer(&layers.post, writer)?;
+    // The artifact module renders natively from the validated
+    // artifact tree, the staged source maps and the activation
+    // verdict (all already gated inputs); its syntax facts ride the
+    // `artifactFacts` attestation the host scans over byte-identical
+    // output, and any span-affecting divergence refuses below.
+    let tree = match artifact_tree {
+        Some(tree) => tree,
+        None => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    transport::PROTOCOL_VIOLATION,
+                    "native route needs the artifact tree".to_string(),
+                ),
+            );
+            return Err(1);
+        }
+    };
+    let activation = match activation {
+        Some(activation) => activation,
+        None => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    transport::PROTOCOL_VIOLATION,
+                    "native route needs the activation verdict".to_string(),
+                ),
+            );
+            return Err(1);
+        }
+    };
+    // The resume already crossed `serde_json` (object keys sorted),
+    // which is exact here because `activate()` builds verdicts with
+    // alphabetical keys (`active` before `reasons`, `code` before
+    // `detail`); the d21 vector pins a reasons-carrying render.
+    let verdict_json = serde_json::to_string(activation).unwrap_or_default();
+    let verdict_units: Vec<u16> = verdict_json.encode_utf16().collect();
+    let verdict = match crate::input::parse_json_text(&verdict_units) {
+        Ok(verdict) => verdict,
+        Err(detail) => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    transport::PROTOCOL_VIOLATION,
+                    format!("LOAD_MODULES resume: verdict is not a JSON value ({detail})"),
+                ),
+            );
+            return Err(1);
+        }
+    };
+    let source_maps = match crate::modules::staged_source_maps_node(&staged) {
+        Ok(node) => node,
+        Err(error) => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    semantic::BUNDLE_FAILED,
+                    error.message,
+                ),
+            );
+            return Err(1);
+        }
+    };
+    let staged_paths: Vec<Vec<u16>> =
+        staged.staged.iter().map(|(path, _)| path.clone()).collect();
+    let path_refs: Vec<&[u16]> = staged_paths.iter().map(|path| path.as_slice()).collect();
+    let assembly = match crate::modules::portable_assembled_modules(&path_refs, &source_maps) {
+        Ok(assembly) => assembly,
+        Err(error) => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    semantic::BUNDLE_FAILED,
+                    error.message,
+                ),
+            );
+            return Err(1);
+        }
+    };
+    let rendered = match crate::modules::render_staged_deployment(tree, &assembly, &staged_paths, &verdict) {
+        Ok(rendered) => rendered,
+        Err(error) => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    semantic::BUNDLE_FAILED,
+                    error.message,
+                ),
+            );
+            return Err(1);
+        }
+    };
+    let artifact_key: Vec<u16> = crate::modules::ARTIFACT_MODULE.encode_utf16().collect();
+    let artifact_facts = match payload.get("artifactFacts") {
+        None | Some(serde_json::Value::Null) => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    crate::failures::transport::BAD_NODE,
+                    "LOAD_MODULES resume: artifactFacts is required".to_string(),
+                ),
+            );
+            return Err(1);
+        }
+        Some(raw) => {
+            let bytes = serde_json::to_vec(raw).unwrap_or_default();
+            let node = match decode_tree(&bytes) {
+                Ok(node) => node,
+                Err(error) => {
+                    let _ = refuse(
+                        writer,
+                        Failure::for_stage(COMMAND, ST_LOAD_MODULES, error.code, error.detail),
+                    );
+                    return Err(1);
+                }
+            };
+            match crate::modules::decode_module_facts(&node) {
+                Ok(facts) => facts,
+                Err(detail) => {
+                    let _ = refuse(
+                        writer,
+                        Failure::for_stage(
+                            COMMAND,
+                            ST_LOAD_MODULES,
+                            crate::failures::transport::BAD_NODE,
+                            format!("LOAD_MODULES resume: artifactFacts {detail}"),
+                        ),
+                    );
+                    return Err(1);
+                }
+            }
+        }
+    };
+    let artifact_layer = vec![(
+        artifact_key,
+        rendered.encode_utf16().collect::<Vec<u16>>(),
+        artifact_facts,
+    )];
+    let trailing = factored_layer(&layers.trailing, writer)?;
+    let merged = crate::modules::merge_factored_layers(&[pre, staged_layer, post, artifact_layer, trailing]);
+    for binary in &binary_keys {
+        if merged.iter().any(|(key, _, _)| key == binary) {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    crate::failures::transport::BAD_NODE,
+                    format!(
+                        "LOAD_MODULES resume: binary key {} shadows a text module",
+                        crate::input::json_quote(binary)
+                    ),
+                ),
+            );
+            return Err(1);
+        }
+    }
+    for (key, js, facts) in &merged {
+        if let Err(detail) = crate::modules::validate_module_facts(key, js, facts) {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(COMMAND, ST_LOAD_MODULES, crate::failures::transport::BAD_NODE, detail),
+            );
+            return Err(1);
+        }
+    }
+    let count = match crate::modules::check_deploy_modules(&merged, &binary_keys) {
+        Ok(count) => count,
+        Err(error) => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    semantic::BUNDLE_FAILED,
+                    error.message,
+                ),
+            );
+            return Err(1);
+        }
+    };
+    let refs: Vec<(&[u16], &[u16])> = merged
+        .iter()
+        .map(|(key, js, _)| (key.as_slice(), js.as_slice()))
+        .collect();
+    let main: Vec<u16> = crate::modules::DEPLOY_MAIN_MODULE.encode_utf16().collect();
+    let digest = crate::modules::bundle_sha256(&main, &refs);
+    publish_native_modules(reader, writer, token, &merged, &digest)?;
+    Ok(LoadModulesOutcome {
+        checked: count,
+        sha256: Some(digest),
+        published: true,
+    })
+}
+
+/// Outcome of the module gate: the verified buffer count plus, on
+/// native-constructed deploy paths, the Rust-computed final digest.
+/// `published` is true only when the host published the
+/// natively-assembled modules through `PUBLISH_NATIVE_MODULES` (the
+/// PLAN stage records it in the stage list).
+struct LoadModulesOutcome {
+    checked: usize,
+    sha256: Option<String>,
+    published: bool,
+}
+
+/// LOAD_MODULES exchange plus the native import/graph gates. Consumes
+/// one token for the resume, plus one more on the native layer route
+/// for the publication exchange (`token` advances past both so PLAN
+/// resumes numbering). Deploy applies the facts policy over the host
+/// frontend's syntax observations; build admits its domain with no
+/// module gate (021: the TS build accepts artifacts the deploy
+/// loadability gate refuses).
+fn load_modules(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    token: &mut u64,
+    command: &str,
+    artifact: &crate::artifact::ValidatedArtifact,
+    artifact_tree: Option<&Node>,
+    activation: Option<&serde_json::Value>,
+) -> Result<LoadModulesOutcome, i32> {
+    *token += 1;
+    let payload = match exchange(reader, writer, *token, ST_LOAD_MODULES, serde_json::json!({})) {
+        Exchange::Payload(payload) => payload,
+        Exchange::Done(code) => return Err(code),
+    };
+    // Native layer route: raw layers assemble fully in Rust with no
+    // finished TS bundle underneath. Legacy payloads (finished
+    // `modules` map, with or without 010 `authoredMaps`) keep their
+    // gates below.
+    let layers = match native_layers(&payload, command) {
+        Ok(layers) => layers,
+        Err(failure) => {
+            let _ = refuse(writer, failure);
+            return Err(1);
+        }
+    };
+    if let Some(layers) = layers {
+        return load_native_layers(
+            reader,
+            writer,
+            token,
+            artifact,
+            artifact_tree,
+            activation,
+            &payload,
+            layers,
+        );
+    }
     let tree = match resume_tree(&payload, "modules", command, ST_LOAD_MODULES) {
         Ok(tree) => tree,
         Err(failure) => {
@@ -649,7 +1374,7 @@ fn load_modules(
             return Err(1);
         }
     };
-    let buffers = match module_buffers(&tree, command) {
+    let mut buffers = match module_buffers(&tree, command) {
         Ok(buffers) => buffers,
         Err(failure) => {
             let _ = refuse(writer, failure);
@@ -657,7 +1382,11 @@ fn load_modules(
         }
     };
     if command != "deploy" {
-        return Ok(buffers.len());
+        return Ok(LoadModulesOutcome {
+            checked: buffers.len(),
+            sha256: None,
+            published: false,
+        });
     }
     // Staged binary asset keys join the link closure (028: mixed
     // Wasm links resolve in this same stage scope; absent when the
@@ -719,6 +1448,37 @@ fn load_modules(
             return Err(1);
         }
     }
+    // Native construction (010), after the transport-shape checks and
+    // before facts validation so the facts policy applies to the
+    // Rust-produced bytes: when the host serves composed maps, the
+    // authored layer is staged natively and substituted over the
+    // served map (skew veto inside). Absent authoredMaps keeps the
+    // legacy finished-map gates with no digest.
+    let native_maps = match authored_maps(&payload, command) {
+        Ok(maps) => maps,
+        Err(failure) => {
+            let _ = refuse(writer, failure);
+            return Err(1);
+        }
+    };
+    let native_present = native_maps.is_some();
+    if let Some(maps) = native_maps {
+        let served: Vec<(Vec<u16>, Vec<u16>)> = buffers
+            .iter()
+            .map(|buffer| (buffer.key.clone(), buffer.js.clone()))
+            .collect();
+        match native_authored_texts(artifact, &maps, &served, command) {
+            Ok(texts) => {
+                for (buffer, (_, js)) in buffers.iter_mut().zip(texts) {
+                    buffer.js = js;
+                }
+            }
+            Err(failure) => {
+                let _ = refuse(writer, failure);
+                return Err(1);
+            }
+        }
+    }
     let mut validated: Vec<(Vec<u16>, Vec<u16>, crate::modules::ModuleFacts)> =
         Vec::with_capacity(buffers.len());
     for buffer in &buffers {
@@ -750,7 +1510,31 @@ fn load_modules(
         validated.push((buffer.key.clone(), buffer.js.clone(), facts.clone()));
     }
     match crate::modules::check_deploy_modules(&validated, &binary_keys) {
-        Ok(count) => Ok(count),
+        Ok(count) => {
+            // The native digest covers the Rust-produced final buffers
+            // (identical to the served map by the skew veto above, and
+            // `bundle_sha256` sorts defensively like the TS helper, so
+            // any served order yields the publication digest). The host
+            // checks it against its bundle at publication; legacy
+            // payloads record no digest.
+            let sha256 = if native_present {
+                let refs: Vec<(&[u16], &[u16])> = validated
+                    .iter()
+                    .map(|(key, js, _)| (key.as_slice(), js.as_slice()))
+                    .collect();
+                let main = crate::modules::DEPLOY_MAIN_MODULE
+                    .encode_utf16()
+                    .collect::<Vec<u16>>();
+                Some(crate::modules::bundle_sha256(&main, &refs))
+            } else {
+                None
+            };
+            Ok(LoadModulesOutcome {
+                checked: count,
+                sha256,
+                published: false,
+            })
+        }
         Err(error) => {
             let _ = refuse(
                 writer,
@@ -839,7 +1623,15 @@ fn run_real_stages(
     if command == "build" {
         return run_build_tail(reader, writer, token, &validated);
     }
-    run_deploy_tail(reader, writer, token, begin, artifact_path, &validated)
+    run_deploy_tail(
+        reader,
+        writer,
+        token,
+        begin,
+        artifact_path,
+        &validated,
+        &artifact_tree,
+    )
 }
 
 /// Build tail: lockstep over host-read tree facts, then the build
@@ -894,11 +1686,13 @@ fn run_build_tail(
             ),
         );
     }
-    let token = token + 1;
-    let modules_checked = match load_modules(reader, writer, token, "build") {
-        Ok(count) => count,
+    // load_modules consumes the next token itself.
+    let mut token = token;
+    let outcome = match load_modules(reader, writer, &mut token, "build", validated, None, None) {
+        Ok(outcome) => outcome,
         Err(code) => return Err(code),
     };
+    let modules_checked = outcome.checked;
     let prepared = Prepared {
         prepared: PreparedBody {
             scaffold: false,
@@ -984,7 +1778,8 @@ fn run_deploy_tail(
     token: u64,
     begin: &BeginBody,
     artifact_path: &str,
-    _validated: &crate::artifact::ValidatedArtifact,
+    validated: &crate::artifact::ValidatedArtifact,
+    artifact_tree: &Node,
 ) -> Result<(), i32> {
     let env = match begin.env.as_deref() {
         Some(env) => env,
@@ -1129,11 +1924,22 @@ fn run_deploy_tail(
     };
     // Module buffers gate the bundle before the compiler gate:
     // import/graph failures refuse here, never at publication.
-    let token = token + 1;
-    let modules_checked = match load_modules(reader, writer, token, "deploy") {
-        Ok(count) => count,
+    // load_modules consumes the next token itself.
+    let mut token = token;
+    let outcome = match load_modules(
+        reader,
+        writer,
+        &mut token,
+        "deploy",
+        validated,
+        Some(&artifact_tree),
+        Some(&activation),
+    ) {
+        Ok(outcome) => outcome,
         Err(code) => return Err(code),
     };
+    let modules_checked = outcome.checked;
+    let modules_sha256 = outcome.sha256;
     // Plan/review join (P06.3) sits after module staging and before
     // the compiler gate; see `plan_and_review` for the order.
     let review = match plan_and_review(
@@ -1166,14 +1972,23 @@ fn run_deploy_tail(
         prepared: PreparedBody {
             scaffold: false,
             mode: "deploy".to_string(),
-            stages: vec![
-                ST_LOAD_ARTIFACT.to_string(),
-                ST_LOAD_COMPANIONS.to_string(),
-                ST_ACTIVATION_REQUEST.to_string(),
-                ST_LOAD_MODULES.to_string(),
-                ST_PLAN.to_string(),
-                ST_LOAD_PREVIOUS_PLAN.to_string(),
-            ],
+            stages: {
+                let mut stages = vec![
+                    ST_LOAD_ARTIFACT.to_string(),
+                    ST_LOAD_COMPANIONS.to_string(),
+                    ST_ACTIVATION_REQUEST.to_string(),
+                    ST_LOAD_MODULES.to_string(),
+                ];
+                // The native layer route publishes the Rust-assembled
+                // modules through PUBLISH_NATIVE_MODULES; legacy
+                // payloads record no publication stage.
+                if outcome.published {
+                    stages.push(ST_PUBLISH_NATIVE_MODULES.to_string());
+                }
+                stages.push(ST_PLAN.to_string());
+                stages.push(ST_LOAD_PREVIOUS_PLAN.to_string());
+                stages
+            },
             resumes: Vec::new(),
             outputs: serde_json::json!({
                 "preview": begin.preview,
@@ -1181,6 +1996,7 @@ fn run_deploy_tail(
                 "compilerDetail": compiler_detail,
                 "verdict": activation,
                 "modulesChecked": modules_checked,
+                "modulesSha256": modules_sha256,
                 "planChanged": review.changed,
                 "planDiff": review.lines,
                 "planJson": review.plan_json,

@@ -203,17 +203,17 @@ describe("wasm bootstrap", () => {
     assert.equal(calls, 1);
   });
 
-  it("refuses decimal scale -0 on the wasm path (carrier pin negative)", () => {
+  it("preserves decimal scale -0 on the wasm path (lossless carrier)", () => {
     const wasm = bootstrapWasm(wasmBytes());
-    assert.throws(
-      () => wasm.call("negate-decimal", [new Decimal(1n, -0)]),
-      (err: unknown) => {
-        assert.ok(err instanceof ValueError);
-        assert.equal(err.code, "invalid-construction");
-        assert.match(err.message, /outside the wasm profile/);
-        return true;
-      },
-    );
+    const out = wasm.call("negate-decimal", [new Decimal(1n, -0)]);
+    assert.ok(out instanceof Decimal);
+    assert.ok(Object.is((out as Decimal).scale, -0));
+    assert.equal((out as Decimal).coef, -1n);
+    assert.ok(Object.isFrozen(out));
+    const roundTrip = wasm.call("add-decimal", [new Decimal(1n, -0), new Decimal(2n, -0)]);
+    assert.ok(roundTrip instanceof Decimal);
+    assert.ok(Object.is((roundTrip as Decimal).scale, -0));
+    assert.equal((roundTrip as Decimal).coef, 3n);
   });
 
   it("propagates real native failures with original code and message", () => {

@@ -1,5 +1,7 @@
 # Prepared owned-input validation, normalization and codecs
 
+**Current completion plan, 18 October 2026:** [Owned validation](../../../implementation/rust-port-orchestration/current-plan.md#owned-validation-complete) is one end-to-end outcome, with implementation, actual consumer, focused qualification/review/repairs and integration inside it. The original tasks/waves below retain IDs and acceptance; they are not repeated approval or dispatch units. Rust completion is independent of held TypeScript retirement, defaults and public deployment. This update starts no implementation.
+
 Planning checkpoint: `3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5`, October 6, 2026. This plan implements the changed boundary in [boundary-options.md](../boundary-options.md), using the compatibility findings in [full-evaluation.md](../full-evaluation.md). It is a plan only: no backend, measured gain, production consumer, binary delivery or new validation API has been implemented by this document. Compiler changes and language-specific directories are excluded.
 
 ## Outcome and scope

@@ -42,6 +42,9 @@ import type {
   OperationInputShape,
 } from '../ports.js';
 import { toBindingEntry } from '../internal/prepared-binding.js';
+import { OwnedJsonToken, ownedFrameFor, readOwnedJson } from '@canlang/values/bindings/owned-input';
+import { resolveDeferredValidation } from '@canlang/values/bindings/validation';
+import type { OwnedOperationValidation } from '../ports.js';
 import { buildBusinessError } from '../errors/envelope.js';
 import { checkClosedInputs, validateOperationId } from '../envelope/validate.js';
 import type { PreparedBindingEntry } from '../envelope/prepared.js';
@@ -79,6 +82,13 @@ export interface PreparedMcpPlan {
   readonly defaults: 'never-applied';
   readonly sdkProvenance: 'deferred';
   readonly derived: DerivedOperationInputs;
+  /** Explicit installed owned-validation selection (`values/v1`) for
+   * this operation: the installed native backend, the fixed
+   * exact-codec capability, the registered owner/plan pair and the
+   * admitted budgets. Absent keeps the legacy path. Supplied once at
+   * preparation from the installed glue plus released plans — never
+   * per call, never a test-only injection. */
+  readonly owned?: OwnedOperationValidation;
 }
 
 /** Prepared-plan run outcome: first error, or the framed call verbatim. */
@@ -111,11 +121,15 @@ export function prepareMcpPlan(
   descriptor: OperationDescriptor,
   shape: OperationInputShape,
   derived: DerivedOperationInputs,
+  owned?: OwnedOperationValidation | null,
 ): PreparedMcpPlan {
   if (derived.operation !== descriptor.name) {
     throw new Error(
       `prepareMcpPlan: derived inputs name ${JSON.stringify(derived.operation)}, not ${JSON.stringify(descriptor.name)}.`,
     );
+  }
+  if (owned !== undefined && owned !== null && typeof owned.backend?.call !== 'function') {
+    throw new Error('prepareMcpPlan: installed owned selection requires its native backend.');
   }
   return Object.freeze({
     operation: descriptor.name,
@@ -129,7 +143,67 @@ export function prepareMcpPlan(
     defaults: 'never-applied',
     sdkProvenance: 'deferred',
     derived,
+    ...(owned === undefined || owned === null ? {} : { owned }),
   });
+}
+
+/**
+ * Renders one native violation path as a JSON Pointer into the
+ * submitted arguments (lossy display only, mirroring host formatting).
+ */
+function ownedPathToPointer(path: ReadonlyArray<{ k: readonly number[] } | { i: number }>): string {
+  let out = '';
+  for (const seg of path) {
+    out += 'i' in seg ? `/${seg.i}` : `/${String.fromCharCode(...seg.k)}`;
+  }
+  return out === '' ? '/' : out;
+}
+
+/**
+ * Runs the owned values/v1 gate for one ordinary-mode call: genuine
+ * native execution with the deferred-leaf join over the parser-owned
+ * arguments. Returns a validation denial for invalid and limit
+ * outcomes, or null to continue the legacy stages (valid outcomes
+ * and honestly unresolved deferrals alike, with value identity
+ * unchanged). Only fires for genuine tokens with an installed plan
+ * selection; plain SDK records keep their original disposition.
+ */
+function runOwnedMcpValidation(
+  plan: PreparedMcpPlan,
+  owned: OwnedOperationValidation,
+  token: OwnedJsonToken,
+  record: Record<string, unknown>,
+): BusinessError | null {
+  const outcome = resolveDeferredValidation(
+    owned.backend,
+    {
+      owner: owned.owner,
+      plan: owned.plan,
+      frame: ownedFrameFor(token),
+      budgets: owned.budgets,
+      profile: 'values/v1',
+      target: { kind: 'operation', name: plan.operation },
+    },
+    record,
+    { exact: owned.exact },
+  );
+  if (outcome.outcome === 'invalid') {
+    const fields = outcome.violations.map((violation) => ({
+      path: ownedPathToPointer(violation.path),
+      code: violation.code,
+      message: violation.message,
+    }));
+    return buildBusinessError('validation', outcome.violations[0]?.message ?? 'Invalid inputs.', {
+      fields,
+    });
+  }
+  if (outcome.outcome === 'limit') {
+    return buildBusinessError(
+      'validation',
+      `Owned validation refused: ${outcome.code} (${outcome.check}).`,
+    );
+  }
+  return null;
 }
 
 /**
@@ -145,15 +219,26 @@ export function prepareMcpPlan(
  */
 export function runPreparedMcpPlan(
   plan: PreparedMcpPlan,
-  args: Record<string, unknown>,
+  args: Record<string, unknown> | OwnedJsonToken,
   clock?: InterfacesClock,
 ): PreparedMcpOutcome {
-  if (Object.prototype.hasOwnProperty.call(args, 'action_handle')) {
+  // Owned admission: a genuine parser-owned token resolves through its
+  // lineage before the ordinary stages run. The resolved value is only
+  // read and copied; forged tokens refuse at lineage resolution and
+  // non-object resolutions are caller misuse. Scope, framing and
+  // binding below are unchanged.
+  const submitted: unknown =
+    args instanceof OwnedJsonToken ? readOwnedJson(args).value : args;
+  if (typeof submitted !== 'object' || submitted === null || Array.isArray(submitted)) {
+    throw new Error('runPreparedMcpPlan: owned arguments must resolve to an object.');
+  }
+  const record = submitted as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(record, 'action_handle')) {
     throw new Error('runPreparedMcpPlan: sealed handle calls take the handle-mode path, never the ordinary plan.');
   }
   let operationId = '';
   if (plan.mutation) {
-    const raw: unknown = args['operation_id'];
+    const raw: unknown = record['operation_id'];
     if (typeof raw !== 'string') {
       return { ok: false, error: buildBusinessError('validation', 'Missing operation_id.') };
     }
@@ -161,7 +246,18 @@ export function runPreparedMcpPlan(
     if (idError !== null) return { ok: false, error: idError };
     operationId = raw;
   }
-  const businessInputs: ClosedInputs = { ...args };
+  // Owned values/v1 gate (token + installed selection only): genuine
+  // native admission over the framed call (operation_id already
+  // host-validated above for mutations) before the legacy
+  // closed/ref-shape/binding stages. Invalid and limit outcomes deny
+  // here; valid and honestly unresolved deferrals continue below with
+  // value identity unchanged. Plain SDK records keep their original
+  // disposition.
+  if (args instanceof OwnedJsonToken && plan.owned !== undefined && plan.owned !== null) {
+    const ownedError = runOwnedMcpValidation(plan, plan.owned, args, record);
+    if (ownedError !== null) return { ok: false, error: ownedError };
+  }
+  const businessInputs: ClosedInputs = { ...record };
   if (plan.mutation) delete businessInputs['operation_id'];
   const shape: OperationInputShape = { allowed: [...plan.allowed], required: [...plan.required] };
   const framingError = checkClosedInputs(businessInputs, shape);

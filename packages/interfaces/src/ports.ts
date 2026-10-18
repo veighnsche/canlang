@@ -33,8 +33,41 @@ export interface OperationInputShape {
   readonly required: readonly string[];
 }
 
+/**
+ * Owned values/v1 execution for one HTTP operation: the native
+ * backend plus the registered owner/plan pair covering the
+ * operation's inputs. Supplied per operation (or null to keep the
+ * legacy path); operations without a handle validate exactly as
+ * before. The valid normalized value is intentionally unused: the
+ * owned gate judges acceptance while the legacy flow keeps value
+ * identity (null/presence/default handling) unchanged.
+ */
+export interface OwnedOperationValidation {
+  readonly backend: import('@canlang/values/bindings/validation').ValidationBackend;
+  /** Fixed exact-codec capability the deferred-leaf join decodes
+   * through: selected once at installation from the installed exact
+   * backend, never re-read from global selection per request. */
+  readonly exact: import('@canlang/values/bindings/validation').ExactCodecCapability;
+  readonly owner: number;
+  readonly plan: string;
+  readonly budgets: { readonly nodes: number; readonly depth: number; readonly text: number; readonly entries: number };
+  /** Registration-time coverage selection, recorded once at
+   * installation by the genuine `values.coverage` query: `native`
+   * operations dispatch the owned join (the gate decides acceptance
+   * before the legacy validators run); `ts-only` operations never
+   * enter the gate and validate exactly as before. Handlers honor
+   * this and never re-decide coverage at runtime. */
+  readonly selection: import('@canlang/values/bindings/validation').OwnedSelection;
+}
+
 export interface SchemaCatalog {
   shapeFor(operation: string): OperationInputShape | null;
+  /**
+   * Owned-validation channel: the values/v1 execution for one
+   * operation, or null/undefined when the operation stays on the
+   * legacy path. Absent keeps legacy behavior (existing doubles).
+   */
+  ownedValidationFor?(operation: string): OwnedOperationValidation | null;
   /**
    * E1 binding-visibility channel: the derived writable inputs for one
    * operation (submittable writables plus engine-resolved delivery

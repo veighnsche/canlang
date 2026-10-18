@@ -103,6 +103,43 @@ fn unique_money_and_ordered_errors_are_unchanged() {
 }
 
 #[test]
+fn distinct_lone_surrogate_money_keys_report_per_entry_actuals() {
+    // Distinct ill-formed keys share one lossy guard text but never
+    // collide: transport admits both (unit-exact duplicate detection)
+    // and the money codec reports one unknown-field violation per entry,
+    // each carrying its OWN value for the host to re-render per key.
+    let result = decode_money(json!([
+            [{"k16":[55296]}, {"t":"str", "v":"a"}],
+            [{"k16":[56320]}, {"t":"str", "v":"b"}],
+            ["minor", {"t":"str", "v":"1"}], ["currency", {"t":"str", "v":"USD"}]
+    ]));
+    assert_eq!(result["ok"], false);
+    let violations = result["violations"].as_array().unwrap();
+    assert_eq!(violations.len(), 2);
+    for violation in violations {
+        assert_eq!(violation["code"], "unknown-field");
+        assert_eq!(violation["path"], json!(["\u{FFFD}"]));
+        assert_eq!(
+            violation["message"],
+            "money {minor, currency} has no field \"\u{FFFD}\""
+        );
+    }
+    assert_eq!(violations[0]["actual"], json!("\"a\""));
+    assert_eq!(violations[1]["actual"], json!("\"b\""));
+    // A literal replacement-character key beside a lone-surrogate key is
+    // a second entry with its own value, never an alias of the first.
+    let mixed = decode_money(json!([
+            [{"k16":[55296]}, {"t":"str", "v":"a"}],
+            ["\u{FFFD}", {"t":"str", "v":"b"}],
+            ["minor", {"t":"str", "v":"1"}], ["currency", {"t":"str", "v":"USD"}]
+    ]));
+    let violations = mixed["violations"].as_array().unwrap();
+    assert_eq!(violations.len(), 2);
+    assert_eq!(violations[0]["actual"], json!("\"a\""));
+    assert_eq!(violations[1]["actual"], json!("\"b\""));
+}
+
+#[test]
 fn special_keys_stay_distinct_ordinary_transport_data() {
     assert!(decode_input(&json!({"t":"record", "entries":[
         ["__proto__", {"t":"null"}], ["constructor", {"t":"null"}],

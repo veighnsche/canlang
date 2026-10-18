@@ -1,4 +1,5 @@
 import type { MoneyValue } from "@canlang/contracts/values";
+import { NOT_ROUTED, routeExact } from "../bindings/exact-route.js";
 import { CURRENCY_MINOR_UNITS } from "./currency-data.js";
 import type { Decimal } from "./decimal.js";
 import { divideDecimal, isDecimal, roundRationalHalfEven } from "./decimal.js";
@@ -16,6 +17,8 @@ const MINOR_FACTORS: ReadonlyArray<bigint> = [1n, 10n, 100n, 1000n, 10000n];
  * are `invalid-construction`.
  */
 export function currencyScale(currency: string): number {
+  const routedScale = routeExact<number>("currency-scale", [currency]);
+  if (routedScale !== NOT_ROUTED) return routedScale;
   if (typeof currency !== "string") {
     throw new ValueError("invalid-construction", "currency must be a string");
   }
@@ -28,6 +31,8 @@ export function currencyScale(currency: string): number {
 
 /** Pinned-table membership probe: true exactly for admissible currencies. */
 export function isKnownCurrency(currency: unknown): boolean {
+  const routedKnown = routeExact<boolean>("is-known-currency", [currency]);
+  if (routedKnown !== NOT_ROUTED) return routedKnown;
   return typeof currency === "string" && CURRENCY_MINOR_UNITS[currency] !== undefined;
 }
 
@@ -54,6 +59,8 @@ function requireFactor(value: Decimal | bigint, what: string): Decimal | bigint 
  * to the pinned minor-unit scale, then checks `minor:int` (`overflow`).
  */
 export function money(value: bigint | Decimal, currency: string): MoneyValue {
+  const routedMoney = routeExact<MoneyValue>("money", [value, currency]);
+  if (routedMoney !== NOT_ROUTED) return routedMoney;
   const scale = currencyScale(currency);
   let minor: bigint;
   if (typeof value === "bigint") {
@@ -84,6 +91,8 @@ function roundDecimalToMinor(coef: bigint, drop: number): bigint {
  * (`currency-mismatch` otherwise), exact minor sum checked to int64.
  */
 export function addMoney(a: MoneyValue, b: MoneyValue): MoneyValue {
+  const routedAdd = routeExact<MoneyValue>("add-money", [a, b]);
+  if (routedAdd !== NOT_ROUTED) return routedAdd;
   const left = requireMoney(a, "addMoney");
   const right = requireMoney(b, "addMoney");
   if (left.currency !== right.currency) {
@@ -94,6 +103,8 @@ export function addMoney(a: MoneyValue, b: MoneyValue): MoneyValue {
 
 /** Money subtraction: same currency, exact minor difference, int64-checked. */
 export function subtractMoney(a: MoneyValue, b: MoneyValue): MoneyValue {
+  const routedSubtract = routeExact<MoneyValue>("subtract-money", [a, b]);
+  if (routedSubtract !== NOT_ROUTED) return routedSubtract;
   const left = requireMoney(a, "subtractMoney");
   const right = requireMoney(b, "subtractMoney");
   if (left.currency !== right.currency) {
@@ -108,6 +119,8 @@ export function subtractMoney(a: MoneyValue, b: MoneyValue): MoneyValue {
  * Generated code normalizes scalar*money to this (money, factor) order.
  */
 export function multiplyMoney(m: MoneyValue, factor: Decimal | bigint): MoneyValue {
+  const routedMultiply = routeExact<MoneyValue>("multiply-money", [m, factor]);
+  if (routedMultiply !== NOT_ROUTED) return routedMultiply;
   const amount = requireMoney(m, "multiplyMoney");
   const f = requireFactor(factor, "multiplyMoney");
   let minor: bigint;
@@ -125,6 +138,8 @@ export function multiplyMoney(m: MoneyValue, factor: Decimal | bigint): MoneyVal
  * with `division-by-zero`.
  */
 export function divideMoney(m: MoneyValue, divisor: Decimal | bigint): MoneyValue {
+  const routedDivide = routeExact<MoneyValue>("divide-money", [m, divisor]);
+  if (routedDivide !== NOT_ROUTED) return routedDivide;
   const amount = requireMoney(m, "divideMoney");
   const d = requireFactor(divisor, "divideMoney");
   if (typeof d === "bigint") {
@@ -149,6 +164,8 @@ export function divideMoney(m: MoneyValue, divisor: Decimal | bigint): MoneyValu
  * divisor fails; unlike currencies are `currency-mismatch`.
  */
 export function moneyRatio(a: MoneyValue, b: MoneyValue): Decimal {
+  const routedRatio = routeExact<Decimal>("money-ratio", [a, b]);
+  if (routedRatio !== NOT_ROUTED) return routedRatio;
   const left = requireMoney(a, "moneyRatio");
   const right = requireMoney(b, "moneyRatio");
   if (left.currency !== right.currency) {
@@ -162,6 +179,8 @@ export function moneyRatio(a: MoneyValue, b: MoneyValue): Decimal {
  * Unlike currencies FAIL (R2c); cross-currency questions use `equalMoney`.
  */
 export function compareMoney(a: MoneyValue, b: MoneyValue): -1 | 0 | 1 {
+  const routedCompare = routeExact<-1 | 0 | 1>("compare-money", [a, b]);
+  if (routedCompare !== NOT_ROUTED) return routedCompare;
   const left = requireMoney(a, "compareMoney");
   const right = requireMoney(b, "compareMoney");
   if (left.currency !== right.currency) {
@@ -178,6 +197,8 @@ export function compareMoney(a: MoneyValue, b: MoneyValue): -1 | 0 | 1 {
  * Centralizes the unlike-currency rule pending any normative clarification.
  */
 export function equalMoney(a: MoneyValue, b: MoneyValue): boolean {
+  const routedEqual = routeExact<boolean>("equal-money", [a, b]);
+  if (routedEqual !== NOT_ROUTED) return routedEqual;
   const left = requireMoney(a, "equalMoney");
   const right = requireMoney(b, "equalMoney");
   return left.currency === right.currency && left.minor === right.minor;
@@ -185,12 +206,16 @@ export function equalMoney(a: MoneyValue, b: MoneyValue): boolean {
 
 /** Money unary negation. Exact minor negation, int64-checked. */
 export function negateMoney(m: MoneyValue): MoneyValue {
+  const routedNegate = routeExact<MoneyValue>("negate-money", [m]);
+  if (routedNegate !== NOT_ROUTED) return routedNegate;
   const amount = requireMoney(m, "negateMoney");
   return makeMoney(negateInt(amount.minor), amount.currency);
 }
 
 /** Money absolute value. Same overflow boundary as negation. */
 export function absMoney(m: MoneyValue): MoneyValue {
+  const routedAbs = routeExact<MoneyValue>("abs-money", [m]);
+  if (routedAbs !== NOT_ROUTED) return routedAbs;
   const amount = requireMoney(m, "absMoney");
   return makeMoney(absInt(amount.minor), amount.currency);
 }

@@ -1041,10 +1041,15 @@ fn preserde_selected_scan(line: &str) -> Preserde {
         TagName::Str => match payload.v_str {
             Some(span) => match c.content_ulen(span) {
                 Some(len) if len <= SELECTED_INT_TEXT_MAX_BYTES => Preserde::Admitted,
-                _ => Preserde::Refused(transport_refused(format!(
+                Some(_) => Preserde::Refused(transport_refused(format!(
                     "selected int text exceeds the {} byte admission bound",
                     SELECTED_INT_TEXT_MAX_BYTES,
                 ))),
+                // Undecodable escapes (lone surrogates): not selected
+                // text at all. Keep the legacy serde verdicts byte for
+                // byte instead of misreporting an admission bound the
+                // caller never approached.
+                None => Preserde::Legacy,
             },
             None => Preserde::Refused(transport_refused(
                 "selected int payload tag is malformed".to_string(),
@@ -1270,6 +1275,39 @@ fn json_to_f64(v: &Json) -> Result<f64, TransportError> {
     }
 }
 
+/// Decodes a UTF-16 code-unit array (each an integer 0..=0xFFFF) to its
+/// units. Anything else is malformed transport, never Can behavior.
+fn decode_units(v: &Json) -> Result<Vec<u16>, TransportError> {
+    let items = v
+        .as_array()
+        .ok_or_else(|| TransportError::new("UTF-16 input needs a code-unit array"))?;
+    items
+        .iter()
+        .map(|unit| {
+            unit.as_u64().filter(|n| *n <= 0xFFFF).map(|n| n as u16).ok_or_else(|| {
+                TransportError::new("UTF-16 input needs integer code units 0..65535")
+            })
+        })
+        .collect()
+}
+
+/// Decodes a record key to its exact units plus the guard-observed text.
+/// Plain strings encode to their UTF-16 units; `{k16: [...]}` carries
+/// ill-formed text losslessly. Duplicate detection compares units, so two
+/// distinct ill-formed keys never collide.
+fn decode_key(v: &Json) -> Result<(Vec<u16>, String), TransportError> {
+    if let Some(text) = v.as_str() {
+        return Ok((text.encode_utf16().collect(), text.to_string()));
+    }
+    if let Some(obj) = v.as_object() {
+        if let Some(units) = obj.get("k16") {
+            let units = decode_units(units)?;
+            return Ok((units.clone(), String::from_utf16_lossy(&units)));
+        }
+    }
+    Err(TransportError::new("record keys must be strings"))
+}
+
 /// Decodes a tagged JSON input value to a core `Value`.
 pub fn decode_input(v: &Json) -> Result<Value, TransportError> {
     let tag = v
@@ -1289,6 +1327,16 @@ pub fn decode_input(v: &Json) -> Result<Value, TransportError> {
                 .as_str()
                 .ok_or_else(|| TransportError::new("str input needs a string payload"))?;
             Ok(Value::Str(text.to_string()))
+        }
+        // Lossless UTF-16 text: code units cross as integers so lone
+        // surrogates survive transport. Guards observe the lossy
+        // `String` (every selected grammar is ASCII-only, so verdicts
+        // and codes match the host exactly); dynamic diagnostics that
+        // embed the original text are host-rendered from the caller's
+        // own string, never from this lossy copy.
+        "str16" => {
+            let units = decode_units(get_field(v, "v")?)?;
+            Ok(Value::Str(String::from_utf16_lossy(&units)))
         }
         "bool" => {
             let flag = get_field(v, "v")?
@@ -1365,13 +1413,20 @@ pub fn decode_input(v: &Json) -> Result<Value, TransportError> {
                         "record entries must be [key, value] pairs",
                     ));
                 }
-                let key = pair[0]
-                    .as_str()
-                    .ok_or_else(|| TransportError::new("record keys must be strings"))?;
-                if !keys.insert(key) {
+                // Unit-exact duplicate detection: JS objects cannot repeat
+                // a key, and distinct lone-surrogate keys must not collide
+                // through their lossy guard text. Micro-boundary: guard
+                // lookups compare the lossy key text, so a well-formed key
+                // holding a literal U+FFFD can alias an ill-formed key
+                // decoding to the same text. Keys are ASCII throughout the
+                // selected scalar codecs, where no aliasing is possible;
+                // arbitrary-record probes avoid mixing literal and
+                // lone-surrogate U+FFFD keys.
+                let (units, key) = decode_key(&pair[0])?;
+                if !keys.insert(units) {
                     return Err(TransportError::new("record keys must not repeat"));
                 }
-                out.push((key.to_string(), decode_input(&pair[1])?));
+                out.push((key, decode_input(&pair[1])?));
             }
             Ok(Value::Record(out))
         }

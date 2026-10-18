@@ -15,6 +15,8 @@ import {
   type ValidationBackend,
   type ValidationGlue,
 } from "../bindings/validation.js";
+import { ownedFrameFor, parseOwnedJsonBody } from "../bindings/owned-input.js";
+import { loadOwnerPlan, stableJsonStringify, withOwnedRequest } from "../bindings/validation.js";
 import { structural_abi_version, validation_call } from "../bindings/generated/values_semantics.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -225,5 +227,194 @@ describe("structural scaffold binding", () => {
         return true;
       },
     );
+  });
+});
+
+describe("owned frame round-trip through the native seam", () => {
+  const digestOf = async (body: string): Promise<Record<string, unknown>> => {
+    const bytes = new TextEncoder().encode(body);
+    const token = await parseOwnedJsonBody(
+      new Request("http://owned.test/input", { method: "POST", body }),
+      async () => bytes,
+    );
+    const via = backend();
+    return via.call("input.digest", { frame: ownedFrameFor(token), budgets }) as Record<
+      string,
+      unknown
+    >;
+  };
+
+  it("carries parser-owned -0, lone surrogates and key order into the arena", async () => {
+    const negZero = (await digestOf("-0"))["root"] as { bits: string };
+    assert.equal(negZero.bits, "8000000000000000");
+    const lone = (await digestOf('"\\ud800"'))["root"] as { units: number[] };
+    assert.deepEqual(lone.units, [55296]);
+    const dupes = (await digestOf('{"b":1,"a":2,"b":3}'))["root"] as { keys: number[][] };
+    assert.deepEqual(dupes.keys, [[98], [97]]);
+  });
+});
+
+describe("owner plan loader", () => {
+  it("threads owner scope and provenance into a registered plan id", () => {
+    const via = backend();
+    const loaded = loadOwnerPlan(via, {
+      abi: "v1",
+      profile: "values",
+      planProfile: "values/v1",
+      backend: "native",
+      owner_rev: "artifact-1",
+      bound: 8,
+      schema: schema(),
+      provenance,
+    });
+    assert.equal(typeof loaded.owner, "number");
+    assert.match(loaded.id, /^plan:v1:values:native:artifact-1:g\d+:\d+$/);
+  });
+
+  it("lets the native stale-scope gate refuse a revision mismatch", () => {
+    const via = backend();
+    assert.throws(
+      () =>
+        loadOwnerPlan(via, {
+          abi: "v1",
+          profile: "values",
+          planProfile: "values/v1",
+          backend: "native",
+          owner_rev: "artifact-1",
+          bound: 8,
+          schema: schema(),
+          provenance: { factory: "normalizeSchema", owner_rev: "artifact-2" },
+        }),
+      (err: unknown) => {
+        assert.ok(err instanceof StructuralError);
+        assert.equal(err.stage, "plan");
+        assert.equal(err.code, "stale-scope");
+        return true;
+      },
+    );
+  });
+});
+
+describe("stable request serialization", () => {
+  it("matches JSON.stringify byte for byte on JSON-shaped data", () => {
+    const cases: unknown[] = [
+      null,
+      true,
+      false,
+      0,
+      -0,
+      1,
+      -5,
+      1.5,
+      1e21,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      "",
+      "A✓",
+      '"\\\b\f\n\r\t',
+      "\u001f",
+      "lone \ud800 unit",
+      [],
+      [null, true, 1, "x", [], {}],
+      {},
+      { b: 1, a: 2 },
+      { "10": "int-key", "2": "order", b: [1, { c: null }] },
+      { t: "f64", bits: "8000000000000000" },
+      { nested: { deep: [{ lots: [1, 2, { of: "things" }] }] } },
+    ];
+    for (const value of cases) {
+      assert.equal(stableJsonStringify(value), JSON.stringify(value));
+    }
+    assert.throws(() => stableJsonStringify(1n), TypeError);
+    assert.throws(() => JSON.stringify(1n), TypeError);
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    assert.throws(() => stableJsonStringify(cyclic), TypeError);
+    assert.throws(() => JSON.stringify(cyclic), TypeError);
+  });
+});
+
+describe("deep input controlled at the native stage", () => {
+  it("frames parser-accepted depth without host stack overflow", async () => {
+    const deep = "[".repeat(12000) + "0" + "]".repeat(12000);
+    const bytes = new TextEncoder().encode(deep);
+    const token = await parseOwnedJsonBody(
+      new Request("http://owned.test/input", { method: "POST", body: deep }),
+      async () => bytes,
+    );
+    // Host boundaries hold on the heap: no RangeError before native budgets.
+    const frame = ownedFrameFor(token);
+    assert.equal(frame.t, "array");
+    const via = backend();
+    try {
+      via.call("input.digest", { frame, budgets });
+      assert.fail("expected the native stage to decide deep input");
+    } catch (err) {
+      assert.ok(!(err instanceof RangeError), "host stack must not decide");
+      assert.ok(err instanceof StructuralError, "native stage decides");
+    }
+  });
+
+  it("reports depth200 envelopes at the owning bound gate, not args/malformed", async () => {
+    // Mask detector (VALIDATION-009FB): 200 layers exceed serde's 128
+    // envelope span, so the Err-branch pre-scan must surface the same
+    // length/bound-exceeded + depth the arena emits for depth51/budget50.
+    let value: unknown = 0;
+    for (let index = 0; index < 200; index++) value = [value];
+    const body = JSON.stringify(value);
+    const bytes = new TextEncoder().encode(body);
+    const token = await parseOwnedJsonBody(
+      new Request("http://owned.test/input", { method: "POST", body }),
+      async () => bytes,
+    );
+    const frame = ownedFrameFor(token);
+    const via = backend();
+    try {
+      via.call("input.digest", { frame, budgets });
+      assert.fail("expected the owning depth refusal");
+    } catch (err) {
+      assert.ok(err instanceof StructuralError, "native stage decides");
+      const failure = err as StructuralError;
+      assert.equal(failure.stage, "transport");
+      assert.equal(failure.code, "length/bound-exceeded");
+      assert.equal(failure.check, "depth");
+    }
+  });
+});
+
+describe("whole profile action through loader, frame and request", () => {
+  it("routes a parser-owned contract create to the named owning lane", async () => {
+    const via = backend();
+    const loaded = loadOwnerPlan(via, {
+      abi: "v1",
+      profile: "values",
+      planProfile: "values/v1",
+      backend: "native",
+      owner_rev: "artifact-1",
+      bound: 8,
+      schema: schema(),
+      provenance,
+    });
+    const bytes = new TextEncoder().encode('{"id":1}');
+    const token = await parseOwnedJsonBody(
+      new Request("http://owned.test/input", { method: "POST", body: '{"id":1}' }),
+      async () => bytes,
+    );
+    const outcome = withOwnedRequest(
+      via,
+      {
+        owner: loaded.owner,
+        plan: loaded.id,
+        frame: ownedFrameFor(token),
+        budgets,
+        profile: "values/v1",
+        target: { kind: "contract", name: "User", mode: "create" },
+      },
+      (result) => result,
+    );
+    // The int leaf belongs to the Exact lane: the whole path must land
+    // on its named deferral, never a false native verdict.
+    assert.equal(outcome.outcome, "deferred");
+    assert.match((outcome as { detail: string }).detail, /exact-codec/);
   });
 });

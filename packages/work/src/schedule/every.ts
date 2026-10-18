@@ -18,6 +18,9 @@ import type { OccurrenceId, RecurringOccurrence, RecurringScope } from '@canlang
 
 import { RootRecurrenceNotSupportedError, everyScopeKey } from './every-scope.js';
 export { RootRecurrenceNotSupportedError, everyScopeKey } from './every-scope.js';
+import { tsWorkKernel } from '@canlang/work-kernel';
+import type { WorkKernel } from '@canlang/work-kernel';
+import type { RecurringIdPort } from '@canlang/work-kernel/every';
 
 /** One eligible fanout scope for this tick. `scope` is validated at admission. */
 export interface EveryScopeInput {
@@ -59,18 +62,12 @@ export interface EverySlot {
   slotStartMs: number;
 }
 
-/** UTC-epoch aligned slot containing `nowMs`. Pure. */
-export function computeEverySlot(nowMs: number, periodMs: number): EverySlot {
-  if (!Number.isFinite(nowMs) || nowMs < 0) {
-    throw new RangeError('computeEverySlot: nowMs must be finite UTC epoch ms >= 0');
-  }
-  if (!Number.isInteger(periodMs) || periodMs <= 0 || periodMs % 1000 !== 0) {
-    throw new RangeError(
-      'computeEverySlot: periodMs must be a positive integer multiple of 1000',
-    );
-  }
-  const slotStartMs = Math.floor(nowMs / periodMs) * periodMs;
-  return { slot: slotStartMs / 1000, slotStartMs };
+/**
+ * UTC-epoch aligned slot containing `nowMs`. Pure. Routes through the
+ * selected kernel (identical decisions); the TypeScript backend is default.
+ */
+export function computeEverySlot(nowMs: number, periodMs: number, kernel: WorkKernel = tsWorkKernel): EverySlot {
+  return kernel.every.computeEverySlot(nowMs, periodMs);
 }
 
 /**
@@ -93,69 +90,20 @@ export function deriveRecurringOccurrenceId(
   return `evr_${digest}`;
 }
 
-function assertScope(input: EveryScopeInput): RecurringScope {
-  if (input.scope !== 'team' && input.scope !== 'app') {
-    throw new RootRecurrenceNotSupportedError(input.scope);
-  }
-  if (typeof input.owner !== 'string' || input.owner.length === 0) {
-    throw new RangeError('admitEveryTick: scope owner must be a non-empty string');
-  }
-  return input.scope;
-}
-
 /**
  * Admit one `every` tick. Returns the current slot and the coalesced
  * occurrence set: at most one occurrence per eligible pre-existing scope at
  * the current slot. New scopes admit nothing until the next slot; removed
  * scopes and already-admitted slots admit nothing.
+ *
+ * Routes through the selected kernel with the donor host mint by default
+ * (identical decisions); the donor `deriveRecurringOccurrenceId` stays the
+ * host authority and still mints at its original demand.
  */
-export function admitEveryTick(input: EveryTickInput): EveryTickResult {
-  if (typeof input.app !== 'string' || input.app.length === 0) {
-    throw new RangeError('admitEveryTick: app must be a non-empty string');
-  }
-  if (typeof input.handler !== 'string' || input.handler.length === 0) {
-    throw new RangeError('admitEveryTick: handler must be a non-empty string');
-  }
-  const { slot, slotStartMs } = computeEverySlot(input.nowMs, input.periodMs);
-  const seen = new Set<string>();
-  const admitted: RecurringOccurrence[] = [];
-  for (const scopeInput of input.scopes) {
-    const scope = assertScope(scopeInput);
-    const key = everyScopeKey(scope, scopeInput.owner);
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    const previous = input.previousSlots[key];
-    if (previous === undefined) {
-      // New scope: begins at the next slot, nothing admitted now.
-      continue;
-    }
-    if (!Number.isInteger(previous) || previous < 0) {
-      throw new RangeError(`admitEveryTick: previous slot for ${key} must be a non-negative integer`);
-    }
-    if (previous >= slot) {
-      // Already admitted (duplicate tick or clock standing still).
-      continue;
-    }
-    // Missed slots coalesce: one occurrence at the current slot.
-    admitted.push({
-      occurrenceId: deriveRecurringOccurrenceId(
-        input.app,
-        input.handler,
-        scope,
-        scopeInput.owner,
-        slot,
-      ),
-      app: input.app,
-      handler: input.handler,
-      scope,
-      owner: scopeInput.owner,
-      slot,
-    });
-  }
-  admitted.sort((a, b) =>
-    a.scope < b.scope ? -1 : a.scope > b.scope ? 1 : a.owner < b.owner ? -1 : a.owner > b.owner ? 1 : 0,
-  );
-  return { slot, slotStartMs, admitted };
+export function admitEveryTick(
+  input: EveryTickInput,
+  deriveId: RecurringIdPort = deriveRecurringOccurrenceId,
+  kernel: WorkKernel = tsWorkKernel,
+): EveryTickResult {
+  return kernel.every.admitEveryTick(input, deriveId);
 }

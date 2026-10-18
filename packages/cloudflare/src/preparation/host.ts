@@ -35,7 +35,9 @@ import {
   type PackageDeployBundle,
 } from "../deploy/bundle.js";
 import {
+  buildAuthoredMapsPayload,
   buildBundleWithHostPhasesAndAssets,
+  describeAuthoredMaps,
   loadModulesResumeWithFacts,
   previousPlanResumeForPath,
 } from "./build-adapter.js";
@@ -1150,10 +1152,20 @@ export async function runNativeDeploy(
         // (base before mixed). Serving pre-gate bytes would split the
         // builder and reorder stage-contract effects, so it is not done.
         const { bundle } = await ensureBundle();
-        return loadModulesResumeWithFacts(
-          bundle === null ? {} : bundle.modules,
-          bundle === null ? [] : Object.keys(bundle.binaries),
-        );
+        return {
+          ...loadModulesResumeWithFacts(
+            bundle === null ? {} : bundle.modules,
+            bundle === null ? [] : Object.keys(bundle.binaries),
+          ),
+          // Native construction (010): the host-composed authored maps
+          // switch the native job to Rust-staged authored texts with a
+          // skew veto and a publication digest. Served only with a real
+          // bundle — the legacy-main fallback keeps the finished-map
+          // gates with no digest.
+          ...(bundle === null
+            ? {}
+            : buildAuthoredMapsPayload(describeAuthoredMaps(loaded.artifact))),
+        };
       }
       if (stage === "PLAN") {
         const { ref } = await ensureBundle();
@@ -1273,6 +1285,21 @@ async function finishNativeDeploy(
     if (error instanceof NativeSemanticError) fail("deploy", error.code, error.message);
     throw error;
   });
+  // Native-construction publication check (010): when the native job
+  // staged the authored layer, its final digest must equal the bundle
+  // about to publish. A missing digest with a real bundle, or any
+  // mismatch, is version/host skew and refuses before any write. The
+  // legacy-main fallback (null bundle) carries no digest either side.
+  if (bundle !== null) {
+    const modulesSha256 = outputs["modulesSha256"];
+    if (typeof modulesSha256 !== "string" || modulesSha256 !== bundle.sha256) {
+      failNative(
+        "deploy",
+        "invalid-deploy-bundle",
+        `native staged digest ${JSON.stringify(modulesSha256)} disagrees with bundle ${bundle.sha256} (host skew)`,
+      );
+    }
+  }
   await publishDeployAndApply({
     dir,
     stem,

@@ -1,5 +1,14 @@
 # Living ideal file-tree plan for Canlang
 
+**Released Rust core merge, 2026-10-18:** integrate the complete98-path branch
+through9b1682598, preserving initial8d5f2706f work and final239cd0763 repairs,
+existing native ABI/validation/preparation owners, and the complexity helper
+extractions. Reconcile HTTP owned-token threading and datetime exact routing
+with their extracted host helpers. Dependency-order builds pass; actual Wasm
+HTTP/exact consumers27/27 and merged Work facade parity3/3 pass. Retain the
+branch's documented incomplete production/host joins and broad-test exclusions.
+No full-port/default/retirement release or historical complete-checkpoint advance.
+
 **Installed bundle integration repair, 2026-10-18:** Deployment owns the one-line
 portable runtime inventory addition for `bound-mail.js`, now consumed by runtime
 `invoke.js`. Reuse the actual290-module bundle closure and checksum-installed
@@ -74,6 +83,35 @@ as recorded above the earlier intake. Preserve accepted ranges and the complete
 historical checkpoint. Runtime, hook and original24 outcomes remain open;
 active diagnostic/runtime edits are excluded from this implementation intake.
 
+
+**Rust completion wind-down intake, 2026-10-18:** retain the current batch in
+its defining owners: Values owns exact carriers/binding/routing and the owned
+interpreter/profile/transport with generated Wasm; Interfaces owns optional
+installed selection and HTTP/MCP projections; State owns token admission; Work
+kernel owns seven-family ABI/graph/error transport and Work owns pure callers
+and its optional selected-kernel durable store. Cloudflare preparation owns ordered
+JSON, staging/maps/native-layer/publication protocol and host adapters; its
+synthetic installed probe stays qualification, not a production consumer claim.
+Adjacent tests, manifests, existing fixture metadata and planning docs retain
+those owners. Reuse recorded focused checks and accepted ICU/int-CSV/recovery/
+CLI-integrity results; the full host/production-consumer/adoption residuals remain
+open in the one current Rust checklist. Stop new dispatches under human wind-down.
+This bounded coverage preserves all earlier compiler/runtime/Work review and the
+complete historical checkpoint; it does not assert all Rust outcomes complete.
+
+**Rust completion main sync, 2026-10-18:** incorporate committed main
+`69d45c33c` into the active completion branch after all current writers and
+commands released for the sync window. Reuse main's existing coverage for all132
+incoming paths: Compiler context/preferences and tests; native development owner,
+Cloudflare bundle/runtime/browser consumers; Contracts/Interfaces/UI preferences;
+distribution, contributor rules and repository cleanup. Preserve both shared
+planning/decision histories and all55 in-progress Rust completion inputs in local
+checkpoint `8d5f2706f`; their presence does not imply acceptance. The53 product/
+nonshared inputs retain identical bytes/modes. No source conflict or new behavior
+was introduced by integration; JSON and whitespace checks pass, and existing
+owner tests remain scoped to their recorded inputs. The active Muse lanes resume
+against the newer bundle/worker/browser and compiler contracts. Complete historical
+checkpoint and public/default/retirement holds remain unchanged.
 
 **User cleanup intake, 2026-10-18:** retain the user's root `/output/` ignore
 policy and reduced-process contributor instructions; remove both tracked root
@@ -233,6 +271,22 @@ The development-server intake is separately owned and preserves these sources.
 > explicit user decisions take precedence. Historical checkpoints, accepted
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
+
+**Rust completion outcome plan, 2026-10-18 (main `ab516f39b`):** the latest
+human priority is finished Rust with TypeScript retirement allowed to remain held.
+The single current Rust checklist now groups the existing A/V/W/P/C contracts into
+four full responsibility/consumer outcomes, replacing digest-only and other tiny
+packet dispatch. Native preparation includes current source-map/browser construction;
+Values includes full actual binding/routing; validation includes the missing Rust
+interpreter and actual protected HTTP/State profiles; Work includes all seven
+selected families through durable consumers. Existing owner/target allocations and
+accepted results are reused. Three read-only owner-boundary reviews identify current
+source drift and genuine narrow handoffs; shared Values assembly, delivery and
+runtime files each keep one writer. No new package, compiler owner, optional port,
+canonical task/status or complete review checkpoint is introduced. Public/default/
+retirement holds are independent of Rust implementation completion. This is planning
+only; implementation and product checks have not started. Historical notes below
+retain their source pin and are superseded only for dispatch granularity/priority.
 
 **Rust-port planning integration, 2026-10-18:** this seven-document intake
 reconciles the proposed native identity packet against main `a28335e6b`.

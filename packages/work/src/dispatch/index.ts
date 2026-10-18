@@ -49,6 +49,7 @@ import {
   readFanoutChildRow,
   withRowData,
 } from '../kernel/tables.js';
+import { tsWorkKernel, type WorkKernel } from '@canlang/work-kernel';
 
 /**
  * Injected pure guard evaluator: predicate reference plus frozen retained
@@ -759,8 +760,9 @@ const FANOUT_TERMINAL_FAILED_REASONS: ReadonlySet<string> = new Set([
  * non-durable, non-atomic across processes: concurrent claimants
  * serialize because each method runs its read-decide-write
  * synchronously (no await between load and store), so exactly one
- * wins and losers observe the winner. Production F7 replaces this
- * with fenced conditional updates on the durable substrate; the
+ * wins and losers observe the winner. Retained for unit tests only.
+ * Production F7 (`./durable.js` `DurableFanoutChildStore`) replaces
+ * this with fenced conditional updates on the durable substrate; the
  * pure shapes (F1 outcomes, F2 rows, progress, turns) stay identical.
  */
 export class TestOnlyMemoryFanoutChildStore {
@@ -1063,6 +1065,7 @@ export class TestOnlyMemoryFanoutChildStore {
 export function summarizeFanoutChildren(
   fanoutId: FanoutId,
   rows: ReadonlyArray<StoredRow>,
+  kernel: WorkKernel = tsWorkKernel,
 ): FanoutProgress {
   if (typeof fanoutId !== 'string' || fanoutId === '') {
     throw new Error('t34-f3: fanoutId must be a non-empty string.');
@@ -1073,7 +1076,7 @@ export function summarizeFanoutChildren(
   let skipped = 0;
   let failed = 0;
   for (const row of rows) {
-    const data = readFanoutChildRow(row);
+    const data = readFanoutChildRow(row, kernel);
     if (data.fanoutId !== fanoutId) {
       throw new Error('t34-f3: progress rows must share one fanoutId (no cross-fanout leak).');
     }

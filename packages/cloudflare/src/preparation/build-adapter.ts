@@ -5,12 +5,16 @@
 import {
   buildHttpOperationsBundle,
   buildMcpBundle,
+  describeAuthoredMaps,
+  type AuthoredMapDescription,
 } from "../deploy/bundle.js";
 
 export {
   buildDeployBundle as buildBundleWithHostPhases,
   buildDerivedInputsModule as runCatalogPhase,
+  describeAuthoredMaps,
   scanModuleFacts,
+  type AuthoredMapDescription,
   type ModuleImportFact,
   type ModuleSyntaxFacts,
   type ModuleUnresolvedFact,
@@ -21,6 +25,7 @@ import {
   buildBinariesPayload,
   buildLoadModulesPayload,
   buildPreviousPlanPayload,
+  encodeAdmittedTree,
   type StagedModuleBuffer,
   type TaggedNode,
 } from "./inputs.js";
@@ -78,6 +83,29 @@ export function loadModulesResumeWithFacts(
       }),
     ),
     ...buildBinariesPayload(binaryKeys),
+  };
+}
+
+/**
+ * Serve the host-composed authored maps for native construction
+ * (RUST-PREPARATION-010): `{authoredMaps: [{path, mapJson, stages}]}`
+ * as one admitted tree, the exact shape the native `authored_maps`
+ * gate decodes. Served only when the real bundle built (legacy-main
+ * fallback keeps the finished-map gates with no digest).
+ */
+export function buildAuthoredMapsPayload(
+  descriptions: ReadonlyArray<AuthoredMapDescription>,
+): {
+  readonly authoredMaps: TaggedNode;
+} {
+  return {
+    authoredMaps: encodeAdmittedTree(
+      descriptions.map((entry) => ({
+        path: entry.path,
+        mapJson: entry.mapJson,
+        stages: entry.stages,
+      })),
+    ),
   };
 }
 

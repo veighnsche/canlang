@@ -1,128 +1,422 @@
-# Rust-port finite packet detail
+# Rust-port completion plan
 
-## Current planning refresh — 18 October 2026
+## Wind-down closeout — 18 October 2026
 
-Source pin: fetched origin/main and canonical main both
-`a28335e6b6d65ac338189f0481cc0af32bfb88f3`. The planning checkout at `3a3d4e419`
-has identical tracked content (`git diff HEAD origin/main` is empty); the intervening
-main commits are the retained integration merges. Concurrent uncommitted main
-work is outside this source baseline and remains with its owners.
+Vince requests **no new tasks or workers**: finish the current batch, commit it,
+and merge while preserving newer main changes. The current assignments are
+released for final review/integration; the original four full outcomes below are
+acceptance references, not permission to continue dispatching. Public deployment,
+automatic defaults and physical TS retirement remain held. The broad native goal
+is left incomplete because its recorded residuals remain; no implementation runs
+in the background after closeout.
 
-**Planning only.** Vince's latest request pauses implementation/dispatch while
-this next packet is proposed. The earlier native source/local-validation release
-remains historical authority, but does not override this request. Public deployment,
-automatic backend defaults and TS retirement remain held. No source writer,
-implementation command, implementation worker or new goal is started by this refresh. The existing
-Muse coordinator remains in released standby with exact closure ACK053; accepted
-CLI/integrity work is not a stalled assignment.
+The batch adds the full selected exact-operation binding and public/stdlib routing,
+lossless carriers and targeted diagnostic repairs; a structural validation
+interpreter, explicit exact-codec context, constraint/shape handling, stack-safe
+framing/parsing/destruction and optional installed-selection helpers; all seven
+Work-family call transport, pure consumers and a selected-kernel durable store;
+and native preparation parser/staging/assembly/publication protocol mechanisms.
+These mechanisms retain their scoped passing checks. They do not establish the
+full production outcomes merely by existing or by passing synthetic callers.
 
-Accepted source `4ed0d38fe` and facts `1e018e714` are integrated in this main.
-The selected N4/N5 CLI/integrity/local mocked-publication packet is complete:
-Darwin installed native9/TS9, genuine native mocked apply, same-data TS rollback,
-and final Linux installed build/integrity controls retain their recorded scope.
-All assigned writers/commands are released. Owned debug/private expanded installs
-were cleaned; binaries, source, logs, reconstructible consumers and viewer remain.
-W02.5's ten matching helpers are accepted at `cd2651c5e`. Do not redispatch them.
-Broader P05 module construction/policy and P10/P11 adoption remain partial.
+**Still incomplete after this batch:** the preparation host must serve native
+layers/facts and consume the native publication/plan outputs through the actual
+installed CLI; State and ordinary MCP/HTTP production selection joins and remaining
+required validation duties remain open; Work's actual Cloudflare/F5/F7 production
+joins and complete installed-consumer/resource/adoption coverage remain open.
+Public arbitrary-JavaScript admission/evaluation parity beyond the specifically
+qualified exact-operation cases is not claimed. The original conditional SDK/form
+and unused mixed-Wasm dispositions remain unchanged. None of these residuals
+creates a new wind-down assignment or closes a canonical task automatically.
 
-### Next proposed packet — native bundle identity into the retained deploy plan
+Final affected checks and known broad failures are recorded with the committed
+batch in DECISIONS. Earlier progress notes below are historical. Canonical-main
+integration is owned by the existing integration chat; this worktree releases its
+commits without mutating main's index or foreign dirty inputs. The complete stale
+filetree checkpoint remains unchanged.
 
-**Original IDs:** a bounded remaining component of `ports:P05.1` and
-`ports:P05.4`, consumed by the accepted `ports:P06.3` plan/review join.
-This is a useful source handoff, not completion of either P05 parent. It creates
-no additional canonical task or release gate.
+## Implementation release — fresh Muse completion run
 
-**Observable outcome:** the real native deploy job derives the text-bundle v1
-identity from the exact final module buffers it admitted, and that native-derived
-identity supplies the actual deploy plan/review used by the host's existing
-reviewed-byte publication. Today `load_modules` returns only `modulesChecked`;
-`build_plan` separately accepts the host's bundle reference. Existing Rust
-`modules::bundle_sha256` is not called by that job. Merely adding another reported
-hash without changing the consumed plan reference does not satisfy this packet.
+Vince explicitly invokes the Muse implementation skill for this plan and requests
+**a fresh Muse instance**. This releases implementation, actual-consumer qualification,
+review and repairs of all four outcomes below without per-subtask approval. Prior
+planning-only wording records plan creation and does not hold this run. Rust
+completion is primary; public deployment, automatic defaults and physical TS
+retirement remain held and independent. No optional new port is added.
 
-**Concrete prerequisites already available:**
+Run records: `/private/tmp/can-rust-completion-q3gcgg2h`. Four genuinely parallel lanes use one fresh Muse coordinator
+and native subagents within actual capacity; no human-ready gate or recurring Muse
+worker timer. The old run is released under ACK053, receives no new assignments,
+and retains its viewer/evidence. Codex supervises every25minutes and independently
+reviews released source. The coordinator owns this central checklist/live outcome
+progress; Codex retains all other central planning documents and Git/main integration.
 
-- `src/preparation/host.ts::ensureBundle` supplies one retained final
-  `PackageDeployBundle`, exact final `modules`, actual binary keys and owner facts
-  through `loadModulesResumeWithFacts`/`buildLoadModulesPayload`.
-- `preparation/src/modules.rs` already has UTF16-key sorting, legacy v1 digest and
-  inventory helpers; `job.rs` admits the buffers/facts and owns ordered PLAN /
-  LOAD_PREVIOUS_PLAN / review. The existing lossless renderer is available.
-- The accepted host/publication path retains those same bundle bytes and checks
-  reviewed plan/TOML before local publication. No new parser, module producer,
-  resource inventory, compiler output or executable packaging framework is needed.
+| Outcome / source owner | Exclusive initial assignment and handoff |
+| --- | --- |
+| Preparation / coordinator | Existing preparation crate/host, pure bundle/module-map split, global Cloudflare delivery/release joins and central checklist. Native preparation is first priority; delegate narrower internal implementation only with exact writer transfer. |
+| Exact Values / native worker | Numeric/temporal/aggregate/codecs/exact transport, exact bindings/carriers and public numeric/stdlib routing. Initial sole shared Values Cargo/lib/binding assembly writer. Release specific structural exports to validation promptly. |
+| Owned validation / native worker | Structural input/plans/profiles/interpreter and prepared schema/wire work, Interfaces profiles and State admission/prepared inputs. Shared Values assembly writes only after explicit transfer from exact owner; structural work need not wait. |
+| Work / native worker | Work-kernel full registered families/binding and matching Work/State pure consumers. Submit Cloudflare runtime/delivery needs to coordinator; do not race its bundle/release/runtime writer. |
 
-**Remaining change and defining owners:** the preparation job retains/reuses the
-admitted deploy buffers long enough to calculate their count and v1 digest, and
-joins those results to its private PLAN input/output. The host retains the
-stem-derived deployment main path and the actual frozen bundle for publication;
-its private native boundary must establish that the plan's count/digest identifies
-that same bundle. Preserve the genuine no-bundle legacy-main outcome separately
-from a present bundle. Use the existing framed protocol/outputs and error classes;
-no new stage, generic carrier or filesystem authority is selected. Do not tighten
-`plan.rs`'s public helper domain to enforce an internal native-driver invariant.
+At most four implementation lanes; queue within the native runtime's actual limit.
+Shared runtime integration is serialized across preparation/delivery, Work and
+validation at concrete released file/interface boundaries, not entire outcome gates.
+The twelve dirty planning files at release are intentional inputs owned by Codex
+except this checklist; no product source is initially dirty. Do not overwrite them.
+No Muse Git commits/merges/pushes until explicit released-source integration handoff
+to Codex. Existing human authorization for Codex accepted-slice Git integration
+and preserving newer compiler/runtime/Work changes remains recorded.
 
-One source writer owns `preparation/src/{job,modules}.rs` and the necessary
-`src/preparation/{host,inputs,build-adapter}.ts` join. Only change
-`src/preparation/protocol.ts` if its existing output types need the fields.
-Focused owning tests are `preparation/tests/{modules,vectors}.rs` and
-`test/preparation-{inputs,protocol,publication}.test.ts`; change only affected tests.
-`deploy/bundle.ts` remains the construction/frontend oracle, not a second writer
-or a required extraction in this packet. Codex independently reviews the released
-source and updates central planning docs. No writes are leased now.
+The first native status must name actual session/model/XHIGH/Contributor state,
+new goal, worker roster with model inheritance, exact file leases, active command
+handles/check deadlines, acknowledged release and actual first implementation.
+Use the runtime record helper; immutable startup separately from later status.
+After handoff continue ready work while Codex reviews asynchronously. Leave Codex
+review/acceptance/closure unchecked. Root owns cleanup after exact release.
 
-**Finite acceptance:**
+## Current execution view — four finished Rust responsibilities
 
-1. The actual native deploy job's plan count/v1 digest comes from its admitted
-   final JS map and equals TS for the same frozen producer. Hash source-map inline
-   suffixes, generated modules and final browser asset/artifact appends exactly as
-   supplied; do not hash an earlier base bundle or re-render JS.
-2. The same identity reaches plan JSON, review and contained mocked publication;
-   a deliberately inconsistent private host/native reference refuses through the
-   existing protocol/semantic boundary before writes/apply, with no TS retry.
-   Preserve the stem-derived main path and exact absent-bundle legacy warning,
-   null plan reference and zero Bun/catalog calls on that branch.
-3. Keep builder/loadability/link checks at their current checkpoints, original
-   source/facts correspondence and module/error order, then PLAN before prior-plan
-   IO, and the confirmed compiler refusal before publication. Build remains in
-   its original admission domain with no deploy-only hash/loadability gate.
-4. v1 covers final text modules only. Existing binary keys remain link facts;
-   `mixedSha256` and `resourcesSha256` keep their existing distinct host owners.
-   Current CLI is JS-only even when it selects browser resources. Do not decode
-   binary bytes as JS, relabel v1 as mixed identity or enable Values/recovery Wasm.
-5. Extend affected existing module/job and host-boundary cases, including UTF16 /
-   numeric-key enumeration and legacy absence, then run one frozen actual native
-   deploy preview and contained mocked publication that consume the new identity.
-   Reuse accepted installed executable/integrity, rollback, Work/ICU/codec tests;
-   rerun only a changed or invalidated case. Stop at this handoff.
+Planning baseline: fetched origin/main `ab516f39bd69498f5e317a0e6662028a385c9a61`
+(18 October 2026); checkout `0fb8d41c8` has the same committed tree. Concurrent
+compiler/runtime/Work source and notes stay with their current owners. This update
+is planning only: no implementation, build, new runtime, merge or push is started.
 
-**Readiness and successors:** source/contracts are dependency-ready; no external
-host/toolchain result or new difficult frontend decision blocks this slice.
-Runtime commands still require a compatible cache/output lease and a frozen
-producer closure after implementation is requested. Full P05 construction remains
-separate: current TS owns staging/import rewrites/source-map composition,
-worker/runtime/vendor discovery, generated artifact/browser modules and the real
-Bun/catalog phases. The old Rust stager lacks newer reserved-path/alias guards,
-source-map composition and generated native-UI facade behavior; it cannot simply
-replace the current builder. A later finite construction handoff must compare
-those exact duties before selection. P05.5 real native-output MCP/workerd proof
-follows the specific producer it claims; existing CLI9 results are not that proof.
-P10 full-job CPU/tree-RSS/IPC/temp measurements and P11 coverage/adoption remain
-successors with their original prerequisites; no arbitrary budget is ratified here.
-Optional mixed support requires its original P05.6 producer/loader/consumer proof;
-JS-only disposition is allowed and adds no unused mixed prerequisite.
+Vince's latest priority is **finish Rust**, while TypeScript retirement may remain
+held. This plan replaces the tiny-packet execution queue with four outcome-sized
+milestones. The previously proposed digest-only P05.1/P05.4 handoff is internal
+work inside native preparation, not a separate dispatch/approval/merge milestone.
+Original A/V/W/P/C identities and acceptance definitions remain the contract;
+these headings group their work and do not create extra task IDs or gates.
 
-**Refresh evidence:** read the current module producer, facts encoder, native job,
-digest/render/plan and publication handoffs against fetched main. A separate
-read-only reviewer challenged the packet boundary and its real consumed identity.
-Native source inspection, workflow tracing, independent challenge and defining
-owner/target allocation are covered for this packet; this is not a new whole-tree
-audit. No product tests/builds were run. Reuse unchanged accepted checks above,
-retain original task IDs/statuses/dependencies and the complete stale filetree
-checkpoint. Planning checks pass: JSON and dispatch/lease flags, all 11 proposed
-existing paths, seven added local Markdown destinations and `git diff --check`.
-Only seven planning documents changed; canonical task ledgers and product source
-are unchanged.
+### What “Rust finished” means
+
+For each responsibility below, the complete declared Rust mechanisms execute
+through their actual selected package/CLI/handler/durable consumer. Actual shipped
+artifacts, observable behavior, failure cleanup and original-scope resource/rollback
+outcomes are qualified. A Rust library, smoke registry, TS-to-TS comparator or a
+Rust checker after a finished TS computation is insufficient. Explicit native/Wasm
+selection must reach the complete Rust operation; no semantic-error retry in TS.
+
+Public deployment, automatic default changes and physical TS retirement stay held.
+They are **not prerequisites for finishing Rust**. Retained host I/O, JavaScript
+observable shells, authority, external producers and reference/rollback TS are
+named below and are legitimate boundaries, not unfinished Rust algorithms. Any
+unimplemented required mechanism remains an implementation gap; it cannot be
+renamed a host callback or excluded silently to claim completion. Adoption decisions
+must report measured costs honestly, but an unratified performance threshold is
+not a new blocker for implementing/qualifying the Rust path.
+
+Scope is the existing four selected package-port plans. Compiler replacement,
+optional new package opportunities, a new ICU Rust parser, W09 scheduler, optional
+forms and unused preparation Wasm profiles are not hidden prerequisites.
+
+| Outcome milestone | End product | Concrete dependencies / scheduling |
+| --- | --- | --- |
+| Native preparation complete | Installed explicit-native build/deploy prepares the complete current JS/browser package and plan/review in one Rust job. | Ready source/toolchain/real host producers. Independent of Wasm Values/Work. First priority. |
+| Exact Values complete | Full selected exact operation family executes through genuine synchronous Wasm/package/stdlib consumers with original carriers/errors. | Broad Rust algorithms and generated binding exist. One Values assembly writer; full-registry/routing work remains. Can run with preparation. |
+| Owned validation complete | Rust interpreter/codecs plus required HTTP/State/ordinary-MCP profiles, with actual selected handlers and durable admission. | Structural implementation can start now; numeric branches consume the exact specific Values codec outputs, not the whole Values parent. Runtime joins consume released writer outputs. |
+| Work transition kernel complete | All seven selected data-only families execute through real Work/State/Cloudflare callers and installed Wasm. | Registered families and accepted recovery/graph exist. Needs exact final family binary and released runtime writer handoff, not all validation acceptance. Can run with preparation/Values. |
+
+### Historical outcome progress (coordinator, 2026-10-18T12:23Z)
+
+- Preparation: module-construction slice done (ownership checks, assembly
+  `sourceMaps`, full frozen-registration staged render, inline map suffix,
+  map-status core; vectors 24/24 incl. final-map platform-keys regression,
+  modules 123 + 1 proven pre-existing digest-pin failure). Ownership guard
+  repaired to the authored-inventory domain after review caught a final-map
+  mismatch. Full constructor/browser outputs remain the active work.
+- Exact Values: binding/registry scope accepted as PARTIAL handoff
+  only (69 ops, native 120/120, binding 42/42, stdlib 41/41, tsc clean,
+  TS 1028/1030 with 2 disclosed out-of-scope failures). Independent
+  review RUST-EXACT-REPAIR-007 found material defects (money key
+  loss, failure-time rescans, unwired consumer routing, facade order):
+  NOT final accepted/lossless; single repair worker assigned.
+  Assembly writership transferred Exact → coordinator. Whole-input HTTP
+  consumer stays open for the joint validation join.
+- Owned validation: slice 1 LANE_ACCEPTED (structural interpreter,
+  carried plan duties, dispatch, bindings; 33 + 15 re-verified). Worker
+  terminal afterward; slice 2 coordinator-direct (frame join + loader
+  joins qualified 9→12/12 seam suites; numeric branches now unblocked by
+  the released Exact codecs). HTTP/State/MCP joins open.
+- Work: W05 TS-consolidation slice accepted at that scope only. First
+  worker lost its file/shell/edit grant (evidenced, retained); single
+  authorized replacement writes the full seven-family Wasm scope
+  (ABI/call.rs/bindings/conformance in tree, running).
+
+## Native preparation complete
+
+**Original scope:** P04–P09, remaining P10/P11 implementation/qualification/disposition,
+with C04.preparation-join and C04.native-release consumed at their actual outputs.
+Accepted CLI/integrity source `4ed0d38fe`, facts `1e018e714`, module/plan wiring
+`6fb752375` and release alignment `c105bf2c4` remain inputs, not repeat assignments.
+
+**Outcome:** real installed `build`, `deploy --preview` and contained confirmed
+mocked apply use one retained Rust job for the current admitted preparation
+policy, module/package construction, final identities, plan and reviewed bytes.
+The host no longer gives Rust a finished TS bundle or supplies an independent TS
+bundle for publication. Current selected scope includes JS and browser resources;
+Values/recovery Wasm in preparation remains an explicitly conditional mixed profile.
+
+**One coherent implementation, with internal activities rather than new gates:**
+
+- Complete native-route semantic artifact/companion admission, indexes, compiled
+  identity, lockstep and preparation compatibility from host-read lossless data.
+  Preserve filesystem/JSON syntax attribution and original lazy reads, including
+  the current local-defaults reload. Remove native-route dependence on TS semantic
+  loader/lockstep work; retain activation's own compatibility/authority gate.
+- Complete current module construction: ordered layers, path/reserved/alias rules,
+  selected producer import rewrites, source-map composition/inline suffixes,
+  portable assembly metadata, frozen assembly registration/literal import switch,
+  generated facade/artifact modules, markers and loadability/link policy. Existing
+  Rust stager/renderer helpers lag current source and must be updated, not assumed
+  complete because their APIs exist. The accepted JS frontend supplies exact
+  observations, including any minimal additional rewrite facts needed; no second
+  JavaScript parser or generic AST framework is selected.
+- Complete current browser package preparation: selected resource inventory,
+  generated client/style inputs, http-assets module, appended browser metadata,
+  resource manifests and final package layout. Owning UI/browser/catalog producers
+  remain authoritative. Host executes actual bundlers at the original demanded
+  positions; Rust owns migrated deterministic validation/templates/assembly.
+- Retain constructed buffers through final v1/resource identity, plan, prior-plan
+  demand, exact review/config and publication handoff. The old digest-only proposal
+  is absorbed here. Host publishes those exact prepared outputs through existing
+  contained writers and mocked apply, without rebuilding in TS. Preserve missing-
+  worker legacy main/zero producer calls, preview precedence, compiler gate, error
+  attribution, cancellation, cleanup and the original partial-write/apply policy.
+
+**Defining files / writer:** one native integrator owns
+`packages/cloudflare/preparation/src/{artifact,modules,job,plan,render,review}.rs`,
+necessary existing protocol/input modules and matching
+`packages/cloudflare/src/preparation/`. The same stream owns the necessary pure/host
+split in `deploy/{bundle,module-maps}.ts`, CLI and package-local conformance/scripts.
+Shared bundle/release edits have this one delivery writer; compiler/runtime business
+changes remain foreign. Existing source-map, frontend and UI producer contracts
+are inspected at the actual cutover; no optional producer project is added.
+
+**Finish once:** affected semantic/byte/order cases; one frozen installed fixture
+with real operations/MCP, a page/browser mount/style and edited source maps; TS/Rust
+final module/resource/plan/config equality; run the produced Worker and MCP handler;
+preview and contained confirmed mocked apply consume those same outputs. Qualify
+the changed binary outside checkout on the claimed Darwin/Linux hosts and retain
+honest supported-host limits. Reuse unaffected executable-integrity controls and
+accepted rollback; measure full-job resources using the existing C05 procedure,
+record the original P10/P11 scope ledger, and stop. No public provider call occurs.
+
+**TS intentionally retained:** file/package reads, exact-source parser/scope
+libraries, actual bundlers, owning catalog/UI/browser producers, activation, CLI
+presentation, executable bootstrap, contained filesystem publication and external
+apply. Public synchronous TS preparation helpers may remain for reference/rollback.
+Keeping a whole TS module constructor behind a renamed callback fails this outcome.
+
+## Exact Values complete
+
+**Original scope:** remaining A01–A11 required outcomes; shared A/V assembly and
+actual C04 Values assets. Preserve accepted integer/ASCII→CSV and full existing
+native numeric/temporal/aggregate dispatch. This is not a rewrite of already
+implemented arithmetic and not another scalar smoke project.
+
+**Outcome:** every selected exact operation crosses the real synchronous Wasm
+boundary with original public structural carriers/classes, error ownership and
+safe pre-evaluation profile routing. Full package/stdlib/generated helper consumers
+exercise it; the whole-input consumer joins owned validation below. Do not limit
+completion to the current six-operation TS comparison registry.
+
+**One coherent implementation:** finish full binding/comparison registry and
+carrier/error/lossless transport; join all selected integer, decimal, money,
+temporal, numeric aggregate/comparison and scalar-codec operations; wire the real
+package/stdlib profiles and supported generated helper chains; deliver one final
+binding asset closure. Preserve arbitrary raw BigInt inputs, operation-specific
+narrowing/guards, half-even rounding, final-only sum bounds and original winning-
+object identity. Stored Decimal scale -0 and dynamic UTF16/number diagnostics must
+be preserved under the existing full contract: transport loss is a bug to fix,
+not an implied new exclusion. Any proposed narrower compatibility policy needs
+its exact decision and cannot silently redefine full completion.
+
+**Owners:** `packages/values/semantics/src/{numeric,temporal,aggregates,codecs,transport}`,
+existing bindings/carriers/bootstrap and public numeric/stdlib routing; currency/
+catalog/contracts keep their existing defining producer. One Values integrator
+serializes Cargo/module/binding/generated assembly with validation. Algorithm and
+consumer work can overlap using released interfaces; validation does not wait for
+A10/A11 paperwork to receive an already proved numeric codec.
+
+**Finish once:** whole selected operation differential over the actual binding,
+carrier/error/evaluation/identity controls, supported generated/stdlib caller and
+the real whole-input HTTP consumer (qualified with validation, counted once), final
+installed Node/Worker assets, complete-call resources and persisted/profile rollback.
+Use existing fixtures/observers and accepted int/CSV results; do not replay unchanged
+ICU/Work/preparation suites. Report remaining host-observable compatibility domains.
+
+**TS intentionally retained:** public guards/getter order, construction/freezing/
+error reconstruction, arbitrary observable object/array shells, nonnumeric equality,
+identity-returning orchestration and default/reference implementations. A selected
+safe call must actually compute in Rust; a façade delegating all work to TS fails.
+
+## Owned validation complete
+
+**Original scope:** V03–V09 and required V11/V12, with V06 profiles and the original
+V10 conditional/deferred producer disposition. Reuse accepted ordinary TS serving
+correspondence, plan/default ownership, source identity and request cleanup. Those
+are foundations, not native validation execution.
+
+**Outcome:** a complete Rust owned interpreter/codecs and required policy profiles
+run at the actual HTTP handler and State admission/read points, with canonical
+invocation and durable replay intact. Implement the ordinary MCP profile at its
+original scope; actual SDK/form adoption remains governed by its originally
+conditional producer requirement, with an explicit disposition rather than a false
+execution claim. No new HTTP server or SDK-provenance project blocks ready HTTP/State.
+
+**One coherent implementation:**
+
+- Implement the missing interpreter and structured codecs in the shared Values
+  core: nested contracts/unions/arrays, presence/default/trim/bounds/ref behavior,
+  ordered accumulated violations, normalization/materialization and retained-result
+  encoding at its real consumed seam. ProfileHost currently implements ownership/
+  plan lifecycle, not validation. Prepared TS codec/validation delegates are the
+  comparator, not the native implementation.
+- Complete current owner-plan information: lossless names/text/default metadata,
+  aliases and currently owned format/distinctBy/excludedIds duties that the old
+  prepared plan rejects. No current full-owner claim may silently drop them.
+  Preserve default/array/Decimal identity and absence/null distinctions. Host URL,
+  Intl/locale/timezone predicates run only when demanded at the original position.
+- Join existing HTTP framing/binding, State generated input validation and ordinary
+  MCP profile actions to genuine Rust execution, preserving distinct errors and
+  deferrals. Actual handler/parser/loader ownership establishes provenance; freezing
+  arbitrary input does not. State raw hash and receipt replay precede normalization;
+  age/auth, ordered reference loads, revision/archive/fence checks and atomic commit
+  retain their owners. Selected mode is fixed before evaluation, no TS retry.
+- Finish ownership generations, bounded input/plans/calls, stale/foreign/disposed
+  refusal and success/error/cancel disposal at the actual request/call seams.
+  Preserve legacy unknown-input behavior through declared preselected compatibility
+  routing; never use a new bound to silently reject a previously valid legacy call.
+
+**Owners:** `packages/values/semantics/src/{input,plans,profiles}.rs` and the
+validation module/operation dispatch, `values/src/prepared/`, matching bindings,
+`interfaces/src/{envelope,http,mcp}` existing evaluators, State's
+`invocation/{prepared-inputs,admission}.ts` responsibilities and necessary owning
+Cloudflare handler joins. Exact filenames follow current owners; proposed missing
+modules are created only to implement these existing duties. One Values assembly
+writer and one shared runtime writer prevent collisions; they release concrete
+interfaces/edits as soon as ready, not entire parent plans.
+
+**Finish once:** actual owner schema and protected parser-produced input pass full
+create/update/codec profiles through genuine installed Wasm; actual HTTP operation
+and State mutation/read plus durable receipt/backend-swap replay; competing-error,
+default/clone/ref/permission/source/lifetime controls at the changed seams; complete-
+handler resources and rollback. Share the numeric whole-input result with Values.
+Report any genuinely unexercised optional SDK/form branch separately. No default
+activation or TS deletion is necessary for the explicit selected Rust route.
+
+**TS intentionally retained:** parser/transport ownership, WHATWG/Intl predicates,
+public arbitrary objects, error/default object reconstruction, raw hashing/replay,
+authorization/reference loading and storage/invocation authority. A TS schema-core
+call hidden under a Rust-selected profile fails this outcome.
+
+## Work transition kernel complete
+
+**Original scope:** remaining W01–W08 required outcomes, especially W02.5/W03/W04.4,
+W05 asset/consumer joins, W06 State/F7 handoff and W07/W08 original resource/rollback
+outcomes. W09 scheduler stays deferred. Seven registered Rust families already
+exist; production binary/facade currently selects recovery only.
+
+**Outcome:** rows, retry, recurrence/every, lifecycle, receipts, recovery and linkage
+execute the selected closed-data calculations in Rust through actual Work, State
+and Cloudflare callers and final installed Wasm. A family registration or standalone
+differential is insufficient. Keep these together: they share rows/linkage/ABI,
+asset delivery and runtime writers; separate tiny family gates would strand halves.
+
+**One coherent implementation:** finish current closed facts/error/opaque-reference
+joins; extend the existing producer/bootstrap/transport to the full selected families;
+route actual Work receipt/commands/every, State row/outcome/checkpoint/linkage and
+F5/F7 durable consumer calculations; deliver one genuine final asset/import closure.
+Carry current generation/queue/mail/File provenance and State Text/Image/Judgment
+receipt contexts. Old historical row codecs cannot wholesale replace these owners.
+Retain original pending-pin versus executed-attempt policies, callback/RNG/evidence
+short-circuit order, original thrown identity, sync signatures, Work JSON-safety-
+before-clone versus State clone-only, and call-local opaque result identity.
+
+**Owners:** `packages/work-kernel/{decisions,src,bindings}` and the existing Wasm
+producer, matching pure joins in Work kernel/receipt/commands, State fanout/receipt/
+ports and Cloudflare's owning runtime seam. State retains live lifecycle/member/
+history reads, grants, retention, admission and transaction authority; Cloudflare
+retains guard/authority rechecks, clocks/provider effects, fenced claims and commits.
+Claim and child execution stay separate units; child outcome/checkpoint and its
+existing domain/history/replay/outbox/schedule effects remain one atomic unit.
+
+**Finish once:** changed-family Rust/TS differential and fault/identity traces,
+affected Work/State owner cases, actual final installed package/staged workerd binary,
+F5/F7 D1/DO winner/refusal/atomic child/crash-restart/progress cases and persisted
+byte/backend rollback. Measure complete calls with existing observers and record
+original W08 reuse/benefit disposition. Reuse accepted planRecoveryScan durable
+qualification, fanout consolidation and ten-helper installed results unless a
+relevant source change invalidates them. No optional scheduler or new loader project.
+
+**Concrete dependencies:** final matching ABI/binary/export asset output under
+C04.work-assets and a stable released `invoke.ts` capture closure. W06.runtimehandoff
+and V09.1 sequence shared writers; neither requires all validation acceptance.
+C04.complete/C05.complete consume these outcomes and cannot block them circularly.
+
+## Execution model and finite finish
+
+Once implementation is requested, dispatch responsibility-sized work, not individual
+checkboxes. Preparation, exact Values and Work are independent ready streams;
+validation core work overlaps and consumes exact numeric handoffs. Respect available
+capacity: normally one coordinator/reviewer plus up to three implementers; queue a
+fourth stream until a slot frees rather than growing uncontrolled workers. Shared
+Values assembly, bundle/release and runtime integration each have one writer.
+
+Each milestone follows **implement → actual consumer qualification → independent
+critical review/repairs → integrate coherent accepted outcome**. Internal subtasks,
+source handoffs and ordinary fixes need no new user approval. Integrate useful
+coherent slices when necessary to avoid long-lived conflicts, while keeping the
+single milestone open until its real outcome works; a merge/hash/artifact is not a
+new completion criterion. Reconcile newer main incrementally and preserve foreign
+compiler/runtime/staging/docs edits. Use the existing coordinator if applicable;
+this planning request launches no worker or implementation timer.
+
+A blocked activity names the exact missing output and owner, releases unrelated
+files/commands and continues other ready work in the same milestone/other stream.
+No lane waits for another lane's final adoption/retirement decision when its needed
+source interface is available. Resolve actual difficult new design choices through
+the existing balanced JEV process inside implementation; do not create speculative
+policy consultations or review-of-review chains around accepted requirements.
+
+One final validation of each changed behavior, one independent critical review and
+its concrete repairs suffice. Reuse existing accepted evidence. Freeze consumed
+producer/outputs for captures; use compatible caches and serialized target writers;
+clean only explicitly released owned rebuildable resources. Missing host/toolchain
+coverage is a named external outcome, not permission to fabricate a pass. Known
+unrelated fixture/typecheck failures remain disclosed rather than becoming a new
+cross-programme blocker.
+
+Progress is reported as **working end-to-end / implementing / concrete blocked
+output**, with which TS computation the selected path no longer relies on. It is
+not reported as historical checkbox totals, code presence or a misleading percentage.
+
+At the end of all four, every required selected Rust mechanism/consumer/host profile
+has an outcome and original-scope qualification; any required missing result stays
+explicitly open. Record measured resource/rollback and supported-host/profile limits
+in the original P/A/V/W/C ledgers. Keep implementation completion separate from
+held public deployment/default/retirement and conditional scope. Retained TS is
+listed by duty, not treated as evidence that Rust itself is unfinished.
+
+## Planning evidence and limits
+
+Current committed native producer/facts/job/digest/plan/publication and current
+Values/validation/Work bindings/owners were reviewed, reusing accumulated coverage.
+Three independent read-only reviewers challenged native completion, Values/validation
+and Work boundaries. Their source findings are incorporated above. No product test,
+build, benchmark, new JEV decision or implementation occurred in this planning pass.
+The original task ledgers, defining owners and complete stale filetree checkpoint
+are retained. Planning checks pass: four consistent outcome records, all 230
+unique original lane allocations retained, canonical task ledgers unchanged,
+added local destinations resolved and `git diff --check` clean. This is a complete outcome plan for the four selected responsibilities,
+not a new whole-repository correctness audit or expansion to every TypeScript file.
+
+
+## Historical accepted work and execution evidence
+
+Earlier releases and detailed packet records below retain their scope. They are
+not a second execution queue; the four outcomes above supersede packet dispatch.
 
 ## Active implementation release — native preparation and Work helpers
 

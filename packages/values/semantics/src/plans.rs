@@ -35,6 +35,7 @@ pub enum PlanCode {
     RegistryFull,
     InactiveGeneration,
     UnknownDispatch,
+    UnknownTarget,
 }
 
 impl PlanCode {
@@ -52,6 +53,7 @@ impl PlanCode {
             PlanCode::RegistryFull => "registry-full",
             PlanCode::InactiveGeneration => "inactive-generation",
             PlanCode::UnknownDispatch => "unknown-dispatch",
+            PlanCode::UnknownTarget => "unknown-target",
         }
     }
 }
@@ -129,6 +131,24 @@ pub struct FieldInput {
     pub trim: Option<bool>,
     pub server_only: bool,
     pub default_origin: Option<String>,
+    /// Carried `format` duty. Only `"name"` is admissible; anything else
+    /// is a malformed owner schema, never a silently dropped constraint.
+    pub format: Option<String>,
+    /// Carried `distinctBy` duty. Only `true` (`"id"`) is admissible, and
+    /// only on arrays of a nominal (declared-contract) base.
+    pub distinct_by: bool,
+    /// Carried `excludedIds` duty as lossless UTF-16 units. Requires
+    /// `distinct_by`; entries must be distinct NAME ids of 1–80 scalars.
+    pub excluded_ids: Vec<Vec<u16>>,
+}
+
+/// One input text alias: bounded text with NAME format (`type`/`format`
+/// are pinned by the registration gate, so only bounds are stored).
+#[derive(Debug, Clone, PartialEq)]
+pub struct AliasInput {
+    pub name: String,
+    pub length_min: f64,
+    pub length_max: f64,
 }
 
 /// One input contract / enum / operation.
@@ -158,6 +178,7 @@ pub enum SchemaInput {
         contracts: Vec<ContractInput>,
         enums: Vec<EnumInput>,
         operations: Vec<OperationInput>,
+        aliases: Vec<AliasInput>,
     },
     /// Unknown string wrappers stay on the legacy path (never plans).
     LegacyWrapper(String),
@@ -212,6 +233,9 @@ pub struct FieldPlan {
     pub server_only: bool,
     pub default_origin: Option<String>,
     pub refs: Vec<String>,
+    pub format: Option<String>,
+    pub distinct_by: bool,
+    pub excluded_ids: Vec<Vec<u16>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -237,6 +261,14 @@ pub struct OperationPlan {
     pub mutation: bool,
 }
 
+/// One registered text alias: bounded text with NAME format.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AliasPlan {
+    pub name: String,
+    pub length_min: f64,
+    pub length_max: f64,
+}
+
 /// One registered immutable plan, with its once-resolved dispatch table:
 /// `(dotted type path, ordered union arms)`.
 #[derive(Debug, Clone, PartialEq)]
@@ -252,6 +284,8 @@ pub struct Plan {
     pub enum_order: Vec<String>,
     pub operations: Vec<OperationPlan>,
     pub operation_order: Vec<String>,
+    pub aliases: Vec<AliasPlan>,
+    pub alias_order: Vec<String>,
     pub dispatch: Vec<(String, Vec<String>)>,
 }
 
@@ -293,6 +327,93 @@ fn reject_reserved(where_: &str, name: &str) -> Result<(), PlanError> {
         ));
     }
     Ok(())
+}
+
+/// Can NAME test over UTF-16 units: `^[A-Za-z_][A-Za-z0-9_]*$`
+/// (mirrors `NAME_RE`; lone surrogates never match).
+pub fn is_name_units(units: &[u16]) -> bool {
+    let mut chars = units.iter();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    let head = *first;
+    if !(head == b'_' as u16
+        || (head >= b'A' as u16 && head <= b'Z' as u16)
+        || (head >= b'a' as u16 && head <= b'z' as u16))
+    {
+        return false;
+    }
+    chars.all(|unit| {
+        *unit == b'_' as u16
+            || (*unit >= b'A' as u16 && *unit <= b'Z' as u16)
+            || (*unit >= b'a' as u16 && *unit <= b'z' as u16)
+            || (*unit >= b'0' as u16 && *unit <= b'9' as u16)
+    })
+}
+
+/// Unicode scalar count over UTF-16 units: surrogate pairs count 1,
+/// lone surrogates each count 1 (mirrors `scalarLength` iteration).
+pub fn scalar_len_units(units: &[u16]) -> usize {
+    let mut count = 0;
+    let mut index = 0;
+    while index < units.len() {
+        let unit = units[index];
+        if (0xD800..0xDC00).contains(&unit)
+            && units
+                .get(index + 1)
+                .is_some_and(|trail| (0xDC00..0xE000).contains(trail))
+        {
+            index += 2;
+        } else {
+            index += 1;
+        }
+        count += 1;
+    }
+    count
+}
+
+/// Validates one carried `excludedIds` entry: distinct NAME id of
+/// 1–80 scalars (mirrors the factory gate; `NAME_RE` implies non-empty).
+fn check_excluded_id(
+    where_: &str,
+    units: &[u16],
+    seen: &mut Vec<Vec<u16>>,
+) -> Result<(), PlanError> {
+    if !is_name_units(units) || scalar_len_units(units) > 80 || seen.contains(&units.to_vec()) {
+        return Err(PlanError::new(
+            PlanCode::MalformedSchema,
+            format!("{where_} excludedIds must contain distinct NAME ids of 1-80 scalars"),
+        ));
+    }
+    seen.push(units.to_vec());
+    Ok(())
+}
+
+/// Copies one input field into its immutable plan, carrying the full
+/// current duties (bounds, trim, carried format/distinctBy/excludedIds).
+fn plan_field(field: &FieldInput) -> FieldPlan {
+    FieldPlan {
+        name: field.name.clone(),
+        type_id: field.type_id.clone(),
+        base: field.base.clone(),
+        array: field.array,
+        nullable: field.nullable,
+        required_array: field.required_array,
+        required: field.required,
+        has_default: field.has_default,
+        default_ref: None,
+        length_min: field.length_min,
+        length_max: field.length_max,
+        value_min: field.value_min.clone(),
+        value_max: field.value_max.clone(),
+        trim: field.trim,
+        server_only: field.server_only,
+        default_origin: field.default_origin.clone(),
+        refs: type_refs(&field.base),
+        format: field.format.clone(),
+        distinct_by: field.distinct_by,
+        excluded_ids: field.excluded_ids.clone(),
+    }
 }
 
 impl Plans {
@@ -373,6 +494,7 @@ impl Plans {
                 contracts,
                 enums,
                 operations,
+                aliases,
             } = schema
             else {
                 return Err(PlanError::new(
@@ -398,9 +520,10 @@ impl Plans {
                     "schema provenance revision does not match the owner scope",
                 ));
             }
-            // Shape gates (reserved names, default presence) run before
-            // the bound so malformed input never consumes capacity.
-            Self::check_schema(contracts, enums, operations)?;
+            // Shape gates (reserved names, duplicates, default presence,
+            // carried format/distinctBy/excludedIds/alias duties) run
+            // before the bound so malformed input never consumes capacity.
+            Self::check_schema(contracts, enums, operations, aliases)?;
             let live = state.plans.iter().filter(|p| p.is_some()).count();
             if live >= state.bound {
                 return Err(PlanError::new(
@@ -425,6 +548,7 @@ impl Plans {
             contracts,
             enums,
             operations,
+            aliases,
         } = schema
         else {
             unreachable!("wrapper rejected above");
@@ -457,25 +581,9 @@ impl Plans {
                 if let TypeBase::Union { arms } = &field.base {
                     dispatch.push((path.clone(), arms.clone()));
                 }
-                fields.push(FieldPlan {
-                    name: field.name.clone(),
-                    type_id: field.type_id.clone(),
-                    base: field.base.clone(),
-                    array: field.array,
-                    nullable: field.nullable,
-                    required_array: field.required_array,
-                    required: field.required,
-                    has_default: field.has_default,
-                    default_ref,
-                    length_min: field.length_min,
-                    length_max: field.length_max,
-                    value_min: field.value_min.clone(),
-                    value_max: field.value_max.clone(),
-                    trim: field.trim,
-                    server_only: field.server_only,
-                    default_origin: field.default_origin.clone(),
-                    refs: type_refs(&field.base),
-                });
+                let mut built = plan_field(field);
+                built.default_ref = default_ref;
+                fields.push(built);
                 allowed.push(field.name.clone());
                 if field.required {
                     required.push(field.name.clone());
@@ -525,25 +633,9 @@ impl Plans {
                 if let TypeBase::Union { arms } = &field.base {
                     dispatch.push((path.clone(), arms.clone()));
                 }
-                inputs.push(FieldPlan {
-                    name: field.name.clone(),
-                    type_id: field.type_id.clone(),
-                    base: field.base.clone(),
-                    array: field.array,
-                    nullable: field.nullable,
-                    required_array: field.required_array,
-                    required: field.required,
-                    has_default: field.has_default,
-                    default_ref,
-                    length_min: field.length_min,
-                    length_max: field.length_max,
-                    value_min: field.value_min.clone(),
-                    value_max: field.value_max.clone(),
-                    trim: field.trim,
-                    server_only: field.server_only,
-                    default_origin: field.default_origin.clone(),
-                    refs: type_refs(&field.base),
-                });
+                let mut built = plan_field(field);
+                built.default_ref = default_ref;
+                inputs.push(built);
                 allowed.push(field.name.clone());
                 if field.required {
                     required.push(field.name.clone());
@@ -558,6 +650,16 @@ impl Plans {
                 mutation: operation.mutation,
             });
         }
+        let mut alias_plans = Vec::with_capacity(aliases.len());
+        let mut alias_order = Vec::with_capacity(aliases.len());
+        for alias in aliases {
+            alias_order.push(alias.name.clone());
+            alias_plans.push(AliasPlan {
+                name: alias.name.clone(),
+                length_min: alias.length_min,
+                length_max: alias.length_max,
+            });
+        }
         let plan = Plan {
             id: id.clone(),
             profile: profile.to_string(),
@@ -570,21 +672,95 @@ impl Plans {
             enum_order,
             operations: operation_plans,
             operation_order,
+            aliases: alias_plans,
+            alias_order,
             dispatch,
         };
         state.plans.push(Some(plan));
         Ok(id)
     }
 
+    /// Carried-duty gate for one field: `format` is only `"name"`,
+    /// `distinctBy` only applies to arrays of a nominal base, and
+    /// `excludedIds` requires `distinctBy` with distinct 1–80-scalar
+    /// NAME ids. Anything else is malformed owner metadata, never a
+    /// silently dropped constraint.
+    fn check_field_duties(where_: &str, field: &FieldInput) -> Result<(), PlanError> {
+        if field.format.as_deref().is_some_and(|format| format != "name") {
+            return Err(PlanError::new(
+                PlanCode::MalformedSchema,
+                format!("{where_} format must be \"name\""),
+            ));
+        }
+        // Mirrors the factory gate exactly: nominal base only (a
+        // declared contract, model or alias array carries ids).
+        let nominal_array = field.array && matches!(field.base, TypeBase::Nominal { .. });
+        if field.distinct_by && !nominal_array {
+            return Err(PlanError::new(
+                PlanCode::MalformedSchema,
+                format!("{where_} distinctBy=id applies only to declared-contract arrays"),
+            ));
+        }
+        if !field.excluded_ids.is_empty() && !field.distinct_by {
+            return Err(PlanError::new(
+                PlanCode::MalformedSchema,
+                format!("{where_} excludedIds requires distinctBy=id"),
+            ));
+        }
+        let mut seen: Vec<Vec<u16>> = Vec::with_capacity(field.excluded_ids.len());
+        for units in &field.excluded_ids {
+            check_excluded_id(where_, units, &mut seen)?;
+        }
+        for bound in [field.length_min, field.length_max] {
+            if bound.is_some_and(|limit| !limit.is_finite()) {
+                return Err(PlanError::new(
+                    PlanCode::MalformedSchema,
+                    format!("{where_} length bounds must be finite numbers"),
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn check_schema(
         contracts: &[ContractInput],
         enums: &[EnumInput],
         operations: &[OperationInput],
+        aliases: &[AliasInput],
     ) -> Result<(), PlanError> {
+        // Declaration names share one namespace with loader models
+        // (models are factory-checked); duplicates here are malformed.
+        let mut declared: Vec<&str> = Vec::new();
+        for name in contracts
+            .iter()
+            .map(|contract| contract.name.as_str())
+            .chain(enums.iter().map(|enum_def| enum_def.name.as_str()))
+            .chain(operations.iter().map(|operation| operation.name.as_str()))
+            .chain(aliases.iter().map(|alias| alias.name.as_str()))
+        {
+            if declared.contains(&name) {
+                return Err(PlanError::new(
+                    PlanCode::MalformedSchema,
+                    format!("duplicate declaration {name:?}"),
+                ));
+            }
+            declared.push(name);
+        }
         for contract in contracts {
             reject_reserved("contract", &contract.name)?;
+            let mut fields: Vec<&str> = Vec::new();
             for field in &contract.fields {
                 reject_reserved("field", &field.name)?;
+                if fields.contains(&field.name.as_str()) {
+                    return Err(PlanError::new(
+                        PlanCode::MalformedSchema,
+                        format!(
+                            "duplicate field {}.{}",
+                            contract.name, field.name
+                        ),
+                    ));
+                }
+                fields.push(field.name.as_str());
                 if field.has_default && field.default.is_none() {
                     return Err(PlanError::new(
                         PlanCode::MalformedSchema,
@@ -594,15 +770,74 @@ impl Plans {
                         ),
                     ));
                 }
+                Self::check_field_duties(
+                    &format!("field {}.{}", contract.name, field.name),
+                    field,
+                )?;
             }
         }
         for enum_def in enums {
             reject_reserved("enum", &enum_def.name)?;
         }
+        for alias in aliases {
+            reject_reserved("alias", &alias.name)?;
+            for bound in [alias.length_min, alias.length_max] {
+                if !bound.is_finite() {
+                    return Err(PlanError::new(
+                        PlanCode::MalformedSchema,
+                        format!("alias {} bounds must be finite numbers", alias.name),
+                    ));
+                }
+            }
+            if alias.length_min > alias.length_max {
+                return Err(PlanError::new(
+                    PlanCode::MalformedSchema,
+                    format!("alias {} bounds cannot be empty", alias.name),
+                ));
+            }
+        }
+        // Receiving length bounds must intersect the declared text alias
+        // they resolve through (mirrors the factory intersection gate).
+        let alias_bounds = |path: &str| -> Option<(f64, f64)> {
+            aliases.iter().find_map(|alias| {
+                (alias.name == path).then_some((alias.length_min, alias.length_max))
+            })
+        };
+        let check_alias_bounds =
+            |where_: &str, base: &TypeBase, min: Option<f64>, max: Option<f64>| {
+                let TypeBase::Nominal { path } = base else {
+                    return Ok(());
+                };
+                let Some((alias_min, alias_max)) = alias_bounds(path) else {
+                    return Ok(());
+                };
+                let minimum = min.unwrap_or(0.0).max(alias_min);
+                let maximum = max
+                    .unwrap_or(f64::INFINITY)
+                    .min(alias_max);
+                if minimum > maximum {
+                    return Err(PlanError::new(
+                        PlanCode::MalformedSchema,
+                        format!("{where_} receiving bounds cannot satisfy the declared text alias"),
+                    ));
+                }
+                Ok(())
+            };
         for operation in operations {
             reject_reserved("operation", &operation.name)?;
+            let mut inputs: Vec<&str> = Vec::new();
             for field in &operation.inputs {
                 reject_reserved("input", &field.name)?;
+                if inputs.contains(&field.name.as_str()) {
+                    return Err(PlanError::new(
+                        PlanCode::MalformedSchema,
+                        format!(
+                            "duplicate input {}.{}",
+                            operation.name, field.name
+                        ),
+                    ));
+                }
+                inputs.push(field.name.as_str());
                 if field.has_default && field.default.is_none() {
                     return Err(PlanError::new(
                         PlanCode::MalformedSchema,
@@ -612,6 +847,26 @@ impl Plans {
                         ),
                     ));
                 }
+                Self::check_field_duties(
+                    &format!("input {}.{}", operation.name, field.name),
+                    field,
+                )?;
+                check_alias_bounds(
+                    &format!("input {}.{}", operation.name, field.name),
+                    &field.base,
+                    field.length_min,
+                    field.length_max,
+                )?;
+            }
+        }
+        for contract in contracts {
+            for field in &contract.fields {
+                check_alias_bounds(
+                    &format!("field {}.{}", contract.name, field.name),
+                    &field.base,
+                    field.length_min,
+                    field.length_max,
+                )?;
             }
         }
         Ok(())
@@ -781,6 +1036,9 @@ mod tests {
             trim: None,
             server_only: false,
             default_origin: None,
+            format: None,
+            distinct_by: false,
+            excluded_ids: Vec::new(),
         }
     }
 
@@ -799,6 +1057,7 @@ mod tests {
                 inputs: vec![field("name")],
                 mutation: true,
             }],
+            aliases: Vec::new(),
         }
     }
 
@@ -814,6 +1073,7 @@ mod tests {
             }],
             enums: vec![],
             operations: vec![],
+            aliases: Vec::new(),
         }
     }
 
@@ -909,6 +1169,7 @@ mod tests {
             }],
             enums: vec![],
             operations: vec![],
+            aliases: Vec::new(),
         };
         assert_eq!(
             plans
@@ -926,6 +1187,7 @@ mod tests {
             }],
             enums: vec![],
             operations: vec![],
+            aliases: Vec::new(),
         };
         assert_eq!(
             plans
@@ -950,6 +1212,7 @@ mod tests {
             }],
             enums: vec![],
             operations: vec![],
+            aliases: Vec::new(),
         };
         let id = plans
             .register(&owner, "v", &input, Some(&provenance()))
@@ -1023,6 +1286,7 @@ mod tests {
             }],
             enums: vec![],
             operations: vec![],
+            aliases: Vec::new(),
         };
         let id = plans
             .register(&owner, "v", &input, Some(&provenance()))

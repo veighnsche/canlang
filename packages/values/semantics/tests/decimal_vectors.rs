@@ -31,7 +31,7 @@ fn money(minor: &str, currency: &str) -> Value {
     ])
 }
 
-fn parts(value: Result<DecimalParts, values_semantics::failures::Failure>) -> (String, u8) {
+fn parts(value: Result<DecimalParts, values_semantics::failures::Failure>) -> (String, f64) {
     let parts = value.unwrap();
     (parts.coef.to_string(), parts.scale)
 }
@@ -40,11 +40,11 @@ fn parts(value: Result<DecimalParts, values_semantics::failures::Failure>) -> (S
 fn add_aligns_at_max_scale_without_rounding() {
     assert_eq!(
         parts(add_decimal(&dec("1", 0.0), &dec("5", 1.0))),
-        ("15".to_string(), 1)
+        ("15".to_string(), 1.0)
     );
     assert_eq!(
         parts(add_decimal(&bi("2"), &dec("25", 2.0))),
-        ("225".to_string(), 2)
+        ("225".to_string(), 2.0)
     );
     // 38-digit result is fine; 39 digits overflow.
     let max38 = "9".repeat(38);
@@ -58,7 +58,7 @@ fn add_aligns_at_max_scale_without_rounding() {
 fn subtract_and_promotion() {
     assert_eq!(
         parts(subtract_decimal(&dec("100", 2.0), &bi("1"))),
-        ("0".to_string(), 2)
+        ("0".to_string(), 2.0)
     );
     let err = subtract_decimal(&Value::Str("1".to_string()), &bi("1")).unwrap_err();
     assert_eq!(err.code.as_str(), "invalid-construction");
@@ -69,12 +69,12 @@ fn subtract_and_promotion() {
 fn multiply_rounds_only_past_18_places() {
     assert_eq!(
         parts(multiply_decimal(&dec("1", 1.0), &dec("1", 1.0))),
-        ("1".to_string(), 2)
+        ("1".to_string(), 2.0)
     );
     // Exact scale 20 > 18: half-even to 18 places.
     let wide = "1".to_string() + &"0".repeat(19);
     let out = multiply_decimal(&dec(&wide, 10.0), &dec(&wide, 10.0)).unwrap();
-    assert_eq!(out.scale, 18);
+    assert_eq!(out.scale, 18.0);
     // 40-digit exact product overflows even at a fitting scale.
     let d20 = "9".repeat(20);
     let err = multiply_decimal(&dec(&d20, 0.0), &dec(&d20, 0.0)).unwrap_err();
@@ -85,29 +85,29 @@ fn multiply_rounds_only_past_18_places() {
 fn divide_keeps_terminating_minimal_scale() {
     assert_eq!(
         parts(divide_decimal(&bi("1"), &bi("2"))),
-        ("5".to_string(), 1)
+        ("5".to_string(), 1.0)
     );
     assert_eq!(
         parts(divide_decimal(&bi("1"), &bi("8"))),
-        ("125".to_string(), 3)
+        ("125".to_string(), 3.0)
     );
     assert_eq!(
         parts(divide_decimal(&bi("6"), &bi("3"))),
-        ("2".to_string(), 0)
+        ("2".to_string(), 0.0)
     );
     assert_eq!(
         parts(divide_decimal(&dec("1", 2.0), &dec("4", 2.0))),
-        ("25".to_string(), 2)
+        ("25".to_string(), 2.0)
     );
 }
 
 #[test]
 fn divide_rounds_repeating_half_even_at_18() {
     let (coef, scale) = parts(divide_decimal(&bi("1"), &bi("3")));
-    assert_eq!(scale, 18);
+    assert_eq!(scale, 18.0);
     assert_eq!(coef, "3".repeat(18));
     let (coef, scale) = parts(divide_decimal(&bi("2"), &bi("3")));
-    assert_eq!(scale, 18);
+    assert_eq!(scale, 18.0);
     assert_eq!(coef, "6".repeat(17) + "7");
     let err = divide_decimal(&bi("1"), &bi("0")).unwrap_err();
     assert_eq!(err.code.as_str(), "division-by-zero");
@@ -118,7 +118,7 @@ fn money_ratio_branch_is_structurally_weak() {
     // Same-currency minors divide like integers; no table check here.
     assert_eq!(
         parts(divide_decimal(&money("1", "ZZZ"), &money("2", "ZZZ"))),
-        ("5".to_string(), 1)
+        ("5".to_string(), 1.0)
     );
     let err = divide_decimal(&money("1", "USD"), &money("2", "EUR")).unwrap_err();
     assert_eq!(err.code.as_str(), "currency-mismatch");
@@ -130,7 +130,7 @@ fn money_ratio_branch_is_structurally_weak() {
 fn divide_duration_narrows_inputs_first() {
     assert_eq!(
         parts(divide_duration_ms(&bi("1"), &bi("2"))),
-        ("5".to_string(), 1)
+        ("5".to_string(), 1.0)
     );
     let err = divide_duration_ms(&bi("9223372036854775808"), &bi("1")).unwrap_err();
     assert_eq!(err.code.as_str(), "overflow");
@@ -143,21 +143,21 @@ fn divide_duration_narrows_inputs_first() {
 
 #[test]
 fn negate_abs_round() {
-    assert_eq!(parts(negate_decimal(&dec("5", 3.0))), ("-5".to_string(), 3));
-    assert_eq!(parts(abs_decimal(&dec("-5", 3.0))), ("5".to_string(), 3));
+    assert_eq!(parts(negate_decimal(&dec("5", 3.0))), ("-5".to_string(), 3.0));
+    assert_eq!(parts(abs_decimal(&dec("-5", 3.0))), ("5".to_string(), 3.0));
     // Ties to even at scale 0.
     assert_eq!(
         parts(round_decimal(&dec("25", 1.0), &Value::Num(0.0))),
-        ("2".to_string(), 0)
+        ("2".to_string(), 0.0)
     );
     assert_eq!(
         parts(round_decimal(&dec("35", 1.0), &Value::Num(0.0))),
-        ("4".to_string(), 0)
+        ("4".to_string(), 0.0)
     );
     // Rounding up rescales exactly; breaching rescales overflow.
     assert_eq!(
         parts(round_decimal(&dec("1", 0.0), &Value::Num(18.0))).1,
-        18
+        18.0
     );
     let err = round_decimal(&dec(&"9".repeat(38), 0.0), &Value::Num(1.0)).unwrap_err();
     assert_eq!(err.code.as_str(), "overflow");
@@ -181,15 +181,15 @@ fn compare_and_equal_cross_scales() {
 fn parse_grammar_and_bounds() {
     assert_eq!(
         parts(parse_decimal(&Value::Str("1.50".to_string()))),
-        ("150".to_string(), 2)
+        ("150".to_string(), 2.0)
     );
     assert_eq!(
         parts(parse_decimal(&Value::Str("-0".to_string()))),
-        ("0".to_string(), 0)
+        ("0".to_string(), 0.0)
     );
     assert_eq!(
         parts(parse_decimal(&Value::Str("007".to_string()))),
-        ("7".to_string(), 0)
+        ("7".to_string(), 0.0)
     );
     for bad in ["1e3", "+1", "1,000", "1.", ".5", "", "-", "abc", "1.5.5"] {
         let err = parse_decimal(&Value::Str(bad.to_string())).unwrap_err();
@@ -207,7 +207,7 @@ fn parse_grammar_and_bounds() {
 fn integer_construction_and_canonical_text() {
     assert_eq!(
         parts(decimal_from_integer(&bi("123"))),
-        ("123".to_string(), 0)
+        ("123".to_string(), 0.0)
     );
     // Representation breach at construction: out-of-range, never overflow.
     let err = decimal_from_integer(&bi(&"9".repeat(39))).unwrap_err();

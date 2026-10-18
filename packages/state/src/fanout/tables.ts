@@ -44,6 +44,8 @@ import {
   RowsStateError,
   withFanoutRowData as leafWithFanoutRowData,
 } from '@canlang/work-kernel/rows';
+import { tsWorkKernel } from '@canlang/work-kernel';
+import type { WorkKernel } from '@canlang/work-kernel';
 
 /** State-owned fanout table models (structural literals, cf. F2 constants). */
 export const FANOUT_INTENT_MODEL = 'work.fanout_intent';
@@ -121,8 +123,9 @@ function own<T>(action: () => T): T {
 export function checkFanoutIdentitySet(
   value: unknown,
   what: string,
+  kernel: WorkKernel = tsWorkKernel,
 ): ReadonlyArray<string> {
-  return own(() => leafCheckFanoutIdentitySet(value, what, 'state'));
+  return own(() => kernel.rows.checkFanoutIdentitySet(value, what, 'state'));
 }
 
 /**
@@ -136,13 +139,14 @@ export function fanoutIntentRowId(
   sourceOccurrence: string,
   handler: string,
   cohort: FanoutCohortKind,
+  kernel: WorkKernel = tsWorkKernel,
 ): FanoutId {
-  return own(() => leafFanoutIntentRowId(sourceOccurrence, handler, cohort, 'state'));
+  return own(() => kernel.rows.fanoutIntentRowId(sourceOccurrence, handler, cohort, 'state'));
 }
 
 /** Checkpoint row id: exactly one checkpoint row per fanout id. */
-export function fanoutCheckpointRowId(fanoutId: FanoutId): string {
-  return own(() => leafFanoutCheckpointRowId(fanoutId, 'state'));
+export function fanoutCheckpointRowId(fanoutId: FanoutId, kernel: WorkKernel = tsWorkKernel): string {
+  return own(() => kernel.rows.fanoutCheckpointRowId(fanoutId, 'state'));
 }
 
 /**
@@ -156,8 +160,9 @@ export function fanoutChildRowId(
   parentOccurrence: string,
   handler: string,
   recordId: string,
+  kernel: WorkKernel = tsWorkKernel,
 ): string {
-  return own(() => leafFanoutChildRowId(parentOccurrence, handler, recordId, 'state'));
+  return own(() => kernel.rows.fanoutChildRowId(parentOccurrence, handler, recordId, 'state'));
 }
 
 /**
@@ -168,8 +173,9 @@ export function withFanoutRowData(
   row: StoredRow,
   data: Readonly<Record<string, unknown>>,
   meta: FanoutRowMeta,
+  kernel: WorkKernel = tsWorkKernel,
 ): StoredRow {
-  return own(() => leafWithFanoutRowData(row, data, meta));
+  return own(() => kernel.rows.withFanoutRowData(row, data, meta));
 }
 
 /** Producer-side insert: the committed fanout intent row. */
@@ -181,8 +187,9 @@ export function newFanoutIntentRow(
     readonly members: ReadonlyArray<string>;
   },
   meta: FanoutRowMeta,
+  kernel: WorkKernel = tsWorkKernel,
 ): StoredRow {
-  return own(() => leafNewFanoutIntentRow(input, meta, 'state'));
+  return own(() => kernel.rows.newFanoutIntentRow(input, meta, 'state'));
 }
 
 /** Producer-side insert: the checkpoint row (explicit completed + cursor). */
@@ -193,8 +200,9 @@ export function newFanoutCheckpointRow(
     readonly cursor?: string | null;
   },
   meta: FanoutRowMeta,
+  kernel: WorkKernel = tsWorkKernel,
 ): StoredRow {
-  return own(() => leafNewFanoutCheckpointRow(input, meta, 'state'));
+  return own(() => kernel.rows.newFanoutCheckpointRow(input, meta, 'state'));
 }
 
 /**
@@ -208,8 +216,9 @@ export function nextFanoutCheckpointData(
   current: FanoutCheckpointData,
   addCompleted: ReadonlyArray<string>,
   cursor: string | null,
+  kernel: WorkKernel = tsWorkKernel,
 ): FanoutCheckpointData {
-  return own(() => leafNextFanoutCheckpointData(current, addCompleted, cursor, 'state'));
+  return own(() => kernel.rows.nextFanoutCheckpointData(current, addCompleted, cursor, 'state'));
 }
 
 /** Producer-side insert: one admitted child row (default pending, zero attempts). */
@@ -225,28 +234,29 @@ export function newFanoutChildRow(
     readonly causeReason?: FanoutSkippedReason | FanoutFailedReason | null;
   },
   meta: FanoutRowMeta,
+  kernel: WorkKernel = tsWorkKernel,
 ): StoredRow {
-  return own(() => leafNewFanoutChildRow(input, meta, 'state'));
+  return own(() => kernel.rows.newFanoutChildRow(input, meta, 'state'));
 }
 
 /** Read one fanout intent row's data, failing closed on any shape drift. */
-export function readFanoutIntentRow(row: StoredRow): FanoutIntentData {
-  return own(() => leafReadFanoutIntentRow(row, 'state'));
+export function readFanoutIntentRow(row: StoredRow, kernel: WorkKernel = tsWorkKernel): FanoutIntentData {
+  return own(() => kernel.rows.readFanoutIntentRow(row, 'state'));
 }
 
 /** Read one fanout checkpoint row's data, failing closed on any shape drift. */
-export function readFanoutCheckpointRow(row: StoredRow): FanoutCheckpointData {
-  return own(() => leafReadFanoutCheckpointRow(row, 'state'));
+export function readFanoutCheckpointRow(row: StoredRow, kernel: WorkKernel = tsWorkKernel): FanoutCheckpointData {
+  return own(() => kernel.rows.readFanoutCheckpointRow(row, 'state'));
 }
 
 /** Read one fanout child row's data, failing closed on any shape drift. */
-export function readFanoutChildRow(row: StoredRow): FanoutChildData {
-  return own(() => leafReadFanoutChildRow(row, 'state'));
+export function readFanoutChildRow(row: StoredRow, kernel: WorkKernel = tsWorkKernel): FanoutChildData {
+  return own(() => kernel.rows.readFanoutChildRow(row, 'state'));
 }
 
 /** Rebuild the contract child identity from a child row's flat fields. */
-export function fanoutChildIdOf(row: FanoutChildData) {
-  return leafFanoutChildIdOf(row);
+export function fanoutChildIdOf(row: FanoutChildData, kernel: WorkKernel = tsWorkKernel) {
+  return kernel.rows.fanoutChildIdOf(row);
 }
 
 /**
@@ -257,8 +267,9 @@ export function fanoutChildIdOf(row: FanoutChildData) {
 export function fanoutChildPageQuery(
   fanoutId: FanoutId,
   opts: { readonly cursor: string | null; readonly limit: number },
+  kernel: WorkKernel = tsWorkKernel,
 ): QuerySpec {
-  return own(() => leafFanoutChildPageQuery(fanoutId, opts, 'state'));
+  return own(() => kernel.rows.fanoutChildPageQuery(fanoutId, opts, 'state'));
 }
 
 /** One bounded child page: rows plus the honest resume signal. */
@@ -279,6 +290,7 @@ export interface FanoutChildPage {
 export function fanoutChildPageResult(
   rows: ReadonlyArray<StoredRow>,
   limit: number,
+  kernel: WorkKernel = tsWorkKernel,
 ): FanoutChildPage {
-  return own(() => leafFanoutChildPageResult(rows, limit, 'state'));
+  return own(() => kernel.rows.fanoutChildPageResult(rows, limit, 'state'));
 }

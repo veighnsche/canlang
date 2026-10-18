@@ -125,3 +125,32 @@ export function closeSourceValidationCatalog(catalog: SchemaCatalog): void {
   for (const registration of state.registered.values()) registration.values?.close();
   state.registered.clear();
 }
+
+/**
+ * Explicit installed owned-validation selection for the HTTP profile
+ * (`values/v1`).
+ *
+ * Production catalog factories never hand-inject `ownedValidationFor`
+ * per request: they wrap the dispatch catalog ONCE with
+ * `wrapCatalogWithOwnedValidation`, supplying `resolve` from the installed
+ * native glue (the shipped `validationBackend` over the installed
+ * `values_semantics` artifact) plus the released owner/plan pair,
+ * the admitted budgets, and the fixed exact-codec capability bound
+ * from the installed exact backend. Each operation resolves to its
+ * handle or null (legacy path); operations without a handle validate
+ * exactly as before. The wrapper delegates `shapeFor`/`derivedFor`
+ * untouched, so framing, binding and source validation keep their
+ * contracts — only the owned channel is added.
+ */
+export function wrapCatalogWithOwnedValidation(
+  base: SchemaCatalog,
+  resolve: (operation: string) => import('../ports.js').OwnedOperationValidation | null,
+): SchemaCatalog {
+  if (typeof resolve !== 'function') throw new TypeError('Installed owned validation requires its selection.');
+  const catalog: SchemaCatalog = Object.freeze({
+    shapeFor: (operation: string) => base.shapeFor(operation),
+    ...(base.derivedFor === undefined ? {} : { derivedFor: (operation: string) => base.derivedFor!(operation) }),
+    ownedValidationFor: (operation: string) => resolve(operation),
+  });
+  return catalog;
+}

@@ -28,6 +28,7 @@
  */
 
 import type { DateValue, DatetimeValue } from "@canlang/contracts/values";
+import { NOT_ROUTED, routeExact } from "../bindings/exact-route.js";
 import { ValueError } from "./errors.js";
 import { daysFromCivil, daysInMonth } from "./internal/gregorian.js";
 import { isDatetime, isDateValue, makeDate, makeDatetime } from "./kinds.js";
@@ -75,6 +76,8 @@ function civilFromDays(z: number): { year: number; month: number; day: number } 
  * reconstruction); pure civil math, no Date use.
  */
 export function dateToEpochDays(value: DateValue): number {
+  const routedEpoch = routeExact<number>("date-to-epoch-days", [value]);
+  if (routedEpoch !== NOT_ROUTED) return routedEpoch;
   if (!isDateValue(value)) {
     throw new ValueError("invalid-construction", "expected a date value");
   }
@@ -83,6 +86,8 @@ export function dateToEpochDays(value: DateValue): number {
 
 /** Civil date of epoch days. Range-checked to 0001-9999. */
 export function epochDaysToDate(days: number): DateValue {
+  const routedDate = routeExact<DateValue>("epoch-days-to-date", [days]);
+  if (routedDate !== NOT_ROUTED) return routedDate;
   if (!Number.isInteger(days)) {
     throw new ValueError("invalid-construction", "epoch days must be an integer");
   }
@@ -151,6 +156,8 @@ const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
  * years 0001-9999. Malformed text fails; year 0000 fails as out-of-range.
  */
 export function date(value: string): DateValue {
+  const routedDate = routeExact<DateValue>("parse-date", [value]);
+  if (routedDate !== NOT_ROUTED) return routedDate;
   if (typeof value !== "string") {
     throw new ValueError("invalid-construction", "date() requires text");
   }
@@ -244,6 +251,8 @@ function instantFromParts(parts: DatetimeParts): bigint {
 }
 
 export function datetime(value: string): DatetimeValue {
+  const routedDatetime = routeExact<DatetimeValue>("parse-datetime", [value]);
+  if (routedDatetime !== NOT_ROUTED) return routedDatetime;
   if (typeof value !== "string") {
     throw new ValueError("invalid-construction", "datetime() requires text");
   }
@@ -268,6 +277,8 @@ const EPOCH_DAYS_MAX = 2932896;
  * Overflow past 0001-9999 fails.
  */
 export function add_days(value: DateValue, days: bigint): DateValue {
+  const routedAdd = routeExact<DateValue>("add-days", [value, days]);
+  if (routedAdd !== NOT_ROUTED) return routedAdd;
   const start = requireDate(value, "add_days value");
   const delta = requireInt(days, "add_days days");
   const target = BigInt(daysFromCivil(start.year, start.month, start.day)) + delta;
@@ -294,6 +305,8 @@ function floorDivMod(index: bigint): { year: number; monthIndex: number } {
  * (Jan 31 +1 = Feb 28/29; the same anchor +2 = Mar 31). Overflow fails.
  */
 export function add_months(value: DateValue, months: bigint): DateValue {
+  const routedAdd = routeExact<DateValue>("add-months", [value, months]);
+  if (routedAdd !== NOT_ROUTED) return routedAdd;
   const start = requireDate(value, "add_months value");
   const delta = requireInt(months, "add_months months");
   const startIndex = BigInt((start.year - 1) * 12 + (start.month - 1));
@@ -311,11 +324,15 @@ export function add_months(value: DateValue, months: bigint): DateValue {
 
 /** `date_year(value:date) -> int`: Gregorian year. */
 export function date_year(value: DateValue): bigint {
+  const routedYear = routeExact<bigint>("date-year", [value]);
+  if (routedYear !== NOT_ROUTED) return routedYear;
   return BigInt(requireDate(value, "date_year value").year);
 }
 
 /** `weekday(value:date) -> int`: ISO Monday=1 through Sunday=7. */
 export function weekday(value: DateValue): bigint {
+  const routedWeekday = routeExact<bigint>("weekday", [value]);
+  if (routedWeekday !== NOT_ROUTED) return routedWeekday;
   const current = requireDate(value, "weekday value");
   const days = daysFromCivil(current.year, current.month, current.day);
   const normalized = ((days + 3) % 7 + 7) % 7;
@@ -331,6 +348,8 @@ export function weekday(value: DateValue): bigint {
  * Inclusive business intervals pass add_days(until,1) explicitly.
  */
 export function dates(from: DateValue, until: DateValue, limit: bigint): ReadonlyArray<DateValue> {
+  const routedDates = routeExact<ReadonlyArray<DateValue>>("dates", [from, until, limit]);
+  if (routedDates !== NOT_ROUTED) return routedDates;
   const start = requireDate(from, "dates from");
   const end = requireDate(until, "dates until");
   const bound = requireInt(limit, "dates limit");
@@ -388,6 +407,8 @@ export function overlaps(
   bEnd: DatetimeValue,
 ): boolean;
 export function overlaps(aStart: unknown, aEnd: unknown, bStart: unknown, bEnd: unknown): boolean {
+  const routedOverlaps = routeExact<boolean>("overlaps", [aStart, aEnd, bStart, bEnd]);
+  if (routedOverlaps !== NOT_ROUTED) return routedOverlaps;
   const args = [aStart, aEnd, bStart, bEnd];
   if (isAllDates(args)) {
     const [as, ae, bs, be] = args;
@@ -422,6 +443,8 @@ export function addDuration(a: bigint, b: bigint): bigint;
 export function addDuration(a: bigint, b: DatetimeValue): DatetimeValue;
 export function addDuration(a: DatetimeValue, b: bigint): DatetimeValue;
 export function addDuration(a: unknown, b: unknown): bigint | DatetimeValue {
+  const routedAdd = routeExact<bigint | DatetimeValue>("add-duration", [a, b]);
+  if (routedAdd !== NOT_ROUTED) return routedAdd;
   if (typeof a === "bigint" && typeof b === "bigint") {
     return checkInt64(a + b, "duration addition");
   }
@@ -441,6 +464,8 @@ export function addDuration(a: unknown, b: unknown): bigint | DatetimeValue {
 export function subtractDuration(a: bigint, b: bigint): bigint;
 export function subtractDuration(a: DatetimeValue, b: bigint): DatetimeValue;
 export function subtractDuration(a: unknown, b: unknown): bigint | DatetimeValue {
+  const routedSubtract = routeExact<bigint | DatetimeValue>("subtract-duration", [a, b]);
+  if (routedSubtract !== NOT_ROUTED) return routedSubtract;
   if (typeof a === "bigint" && typeof b === "bigint") {
     return checkInt64(a - b, "duration subtraction");
   }
@@ -452,6 +477,8 @@ export function subtractDuration(a: unknown, b: unknown): bigint | DatetimeValue
 
 /** Duration * int (either order at the Can level; commutative here). */
 export function multiplyDuration(a: bigint, b: bigint): bigint {
+  const routedMultiply = routeExact<bigint>("multiply-duration", [a, b]);
+  if (routedMultiply !== NOT_ROUTED) return routedMultiply;
   const left = requireDuration(a, "duration factor");
   const right = requireInt(b, "duration factor");
   return checkInt64(left * right, "duration multiplication");
@@ -462,6 +489,8 @@ export function multiplyDuration(a: bigint, b: bigint): bigint {
  * a zero divisor fails with division-by-zero.
  */
 export function divideDurationByInt(a: bigint, b: bigint): bigint {
+  const routedDivide = routeExact<bigint>("divide-duration-by-int", [a, b]);
+  if (routedDivide !== NOT_ROUTED) return routedDivide;
   const left = requireDuration(a, "duration dividend");
   const right = requireInt(b, "duration divisor");
   if (right === 0n) {
@@ -478,6 +507,8 @@ export function divideDurationByInt(a: bigint, b: bigint): bigint {
  * sign); a zero divisor fails.
  */
 export function remainderDuration(a: bigint, b: bigint): bigint {
+  const routedRemainder = routeExact<bigint>("remainder-duration", [a, b]);
+  if (routedRemainder !== NOT_ROUTED) return routedRemainder;
   const left = requireDuration(a, "duration dividend");
   const right = requireDuration(b, "duration divisor");
   if (right === 0n) {
@@ -488,6 +519,8 @@ export function remainderDuration(a: bigint, b: bigint): bigint {
 
 /** Duration comparator: -1, 0, or 1. */
 export function compareDuration(a: bigint, b: bigint): -1 | 0 | 1 {
+  const routedCompare = routeExact<-1 | 0 | 1>("compare-duration", [a, b]);
+  if (routedCompare !== NOT_ROUTED) return routedCompare;
   const left = requireDuration(a, "duration comparison");
   const right = requireDuration(b, "duration comparison");
   if (left < right) return -1;
@@ -497,12 +530,16 @@ export function compareDuration(a: bigint, b: bigint): -1 | 0 | 1 {
 
 /** Unary duration negation; signed-minimum negation overflows. */
 export function negateDuration(value: bigint): bigint {
+  const routedNegate = routeExact<bigint>("negate-duration", [value]);
+  if (routedNegate !== NOT_ROUTED) return routedNegate;
   const current = requireDuration(value, "duration negation");
   return checkInt64(-current, "duration negation");
 }
 
 /** Duration absolute value; signed-minimum abs overflows. */
 export function absDuration(value: bigint): bigint {
+  const routedAbs = routeExact<bigint>("abs-duration", [value]);
+  if (routedAbs !== NOT_ROUTED) return routedAbs;
   const current = requireDuration(value, "duration abs");
   return checkInt64(current < 0n ? -current : current, "duration abs");
 }
@@ -516,6 +553,8 @@ export function absDuration(value: bigint): bigint {
  * binary `-` operator the helper lowers.
  */
 export function durationBetween(a: DatetimeValue, b: DatetimeValue): bigint {
+  const routedBetween = routeExact<bigint>("duration-between", [a, b]);
+  if (routedBetween !== NOT_ROUTED) return routedBetween;
   const left = requireDatetime(a, "durationBetween");
   const right = requireDatetime(b, "durationBetween");
   return checkInt64(left.ms - right.ms, "datetime subtraction");
@@ -523,6 +562,8 @@ export function durationBetween(a: DatetimeValue, b: DatetimeValue): bigint {
 
 /** §13 compareInstant(a,b): -1, 0, or 1 by UTC instant. */
 export function compareInstant(a: DatetimeValue, b: DatetimeValue): -1 | 0 | 1 {
+  const routedCompare = routeExact<-1 | 0 | 1>("compare-instant", [a, b]);
+  if (routedCompare !== NOT_ROUTED) return routedCompare;
   const left = requireDatetime(a, "compareInstant");
   const right = requireDatetime(b, "compareInstant");
   if (left.ms < right.ms) return -1;
@@ -532,6 +573,8 @@ export function compareInstant(a: DatetimeValue, b: DatetimeValue): -1 | 0 | 1 {
 
 /** §13 compareDate(a,b): -1, 0, or 1 by civil date. */
 export function compareDate(a: DateValue, b: DateValue): -1 | 0 | 1 {
+  const routedCompare = routeExact<-1 | 0 | 1>("compare-date", [a, b]);
+  if (routedCompare !== NOT_ROUTED) return routedCompare;
   const left = requireDate(a, "compareDate");
   const right = requireDate(b, "compareDate");
   if (left.year !== right.year) return left.year < right.year ? -1 : 1;
