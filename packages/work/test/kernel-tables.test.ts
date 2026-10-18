@@ -6,6 +6,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { FrameworkFilePayloadOrigin, ModelName, RecordId, StoredRow } from '@canlang/contracts';
+import { RowsKernelError } from '@canlang/work-kernel/rows';
 import {
   KernelTableError,
   WORK_DISPATCH_MODEL,
@@ -18,6 +19,9 @@ import {
   everySlotRowId,
   newDispatchRow,
   newEverySlotRow,
+  newFanoutCheckpointRow,
+  newFanoutChildRow,
+  newFanoutIntentRow,
   newOccurrenceRow,
   newScheduleRow,
   newSupersessionRow,
@@ -26,6 +30,7 @@ import {
   readDispatchImageControlPin,
   dispatchGenerationTargetProfile,
   readEverySlotRow,
+  readFanoutIntentRow,
   readOccurrenceRow,
   readScheduleRow,
   readSupersessionRow,
@@ -435,6 +440,125 @@ describe('kernel tables: every-slot and supersession rows', () => {
     assert.equal(readEverySlotRow(first).scopeKey, 'team:team_1');
   });
 
+  it('propagates caller-thrown leaf-class sentinels untouched (identity)', () => {
+    // W-REPAIR-010: a caller getter throwing an instance of the public
+    // leaf class is NOT a genuine leaf failure: the exact sentinel must
+    // propagate, never a projected KernelTableError.
+    const sentinel = new RowsKernelError('caller getter sentinel');
+    const data = Object.defineProperty({}, 'scope', {
+      get() {
+        throw sentinel;
+      },
+    });
+    try {
+      readEverySlotRow({ data } as StoredRow);
+      assert.fail('must throw the caller sentinel');
+    } catch (error) {
+      assert.equal(error, sentinel);
+    }
+  });
+
+  it('propagates a retained genuine leaf error rethrown by a caller getter (identity)', () => {
+    // W-REPAIR-010 final: a genuine owning error retained from an
+    // earlier call and rethrown through a caller getter is a non-leaf
+    // throw at this invocation — the exact object must propagate.
+    let retained: unknown;
+    try {
+      readEverySlotRow(
+        rowWithData({
+          scopeKey: 'k',
+          app: 'a',
+          handler: 'h',
+          scope: 'root',
+          owner: 'o',
+          slot: 1,
+        }),
+      );
+      assert.fail('must throw');
+    } catch (error) {
+      retained = error;
+    }
+    assert.ok(retained instanceof KernelTableError);
+    const data = Object.defineProperty({}, 'scope', {
+      get() {
+        throw retained;
+      },
+    });
+    try {
+      readEverySlotRow({ data } as StoredRow);
+      assert.fail('must throw the retained error');
+    } catch (error) {
+      assert.equal(error, retained);
+    }
+  });
+
+  it('keeps genuine leaf error shape and ignores spoofed brand fields', () => {
+    // Genuine leaf failures carry no caller-visible marker…
+    try {
+      readEverySlotRow(
+        rowWithData({
+          scopeKey: 'k',
+          app: 'a',
+          handler: 'h',
+          scope: 'root',
+          owner: 'o',
+          slot: 1,
+        }),
+      );
+      assert.fail('must throw');
+    } catch (error) {
+      assert.ok(error instanceof KernelTableError);
+      assert.ok(!Object.keys(error).includes('__canlangWorkKernelLeafError'));
+    }
+    // …and a caller-forged marker field never projects.
+    const forged = new RowsKernelError('forged marker');
+    (forged as unknown as Record<string, unknown>).__canlangWorkKernelLeafError = true;
+    const data = Object.defineProperty({}, 'scope', {
+      get() {
+        throw forged;
+      },
+    });
+    try {
+      readEverySlotRow({ data } as StoredRow);
+      assert.fail('must throw the forged error');
+    } catch (error) {
+      assert.equal(error, forged);
+    }
+  });
+
+  it('projects genuine leaf validation and propagates engine throws', () => {
+    // Ordinary leaf validation still projects onto the owning class…
+    assert.throws(
+      () =>
+        readEverySlotRow(
+          rowWithData({
+            scopeKey: 'k',
+            app: 'a',
+            handler: 'h',
+            scope: 'root',
+            owner: 'o',
+            slot: 1,
+          }),
+        ),
+      (error: unknown) =>
+        error instanceof KernelTableError &&
+        (error as Error).message.includes('work.every_slot.scope must be team or app'),
+    );
+    // …while engine/primitive caller throws propagate as-is.
+    const engine = new TypeError('caller engine sentinel');
+    const data = Object.defineProperty({}, 'scope', {
+      get() {
+        throw engine;
+      },
+    });
+    try {
+      readEverySlotRow({ data } as StoredRow);
+      assert.fail('must throw the engine sentinel');
+    } catch (error) {
+      assert.equal(error, engine);
+    }
+  });
+
   it('round-trips supersession marks', () => {
     const row = newSupersessionRow(
       { outboxId: 'op_1#0', byOccurrenceId: 'occ_2', markedAtMs: META.nowMs },
@@ -563,5 +687,73 @@ describe('kernel tables: updates and queries', () => {
     assert.equal(WORK_OCCURRENCE_MODEL, 'work.occurrence');
     assert.equal(WORK_EVERY_SLOT_MODEL, 'work.every_slot');
     assert.equal(WORK_SUPERSESSION_MODEL, 'work.supersession');
+  });
+});
+
+describe('kernel tables: fanout owning errors (W-011)', () => {
+  const META2 = { nowMs: 1, actor: 'a' };
+  const INTENT = { sourceOccurrence: 'o', handler: 'h', cohort: 'model' as const, members: ['r', 'r'] };
+
+  it('constructs nested validation failures as the owning error', () => {
+    // Reported 011 case: duplicate members fail inside the nested
+    // identity-set check, which must carry the factory through.
+    try {
+      newFanoutIntentRow(INTENT, META2);
+      assert.fail('must throw');
+    } catch (error) {
+      assert.ok(error instanceof KernelTableError);
+      assert.ok(!(error instanceof RowsKernelError));
+      assert.equal((error as Error).name, 'KernelTableError');
+      assert.deepEqual(Object.keys(error), ['name']);
+      assert.match((error as Error).message, /duplicate identity/);
+    }
+  });
+
+  it('constructs nested read failures as the owning error', () => {
+    const row = {
+      id: 'x', version: 1, created: 1, updated: 1, createdBy: 'a', updatedBy: 'a',
+      archivedAt: null, parent: null,
+      data: { fanoutId: 'f', sourceOccurrence: 'o', handler: 'h', cohort: 'model', members: ['r', 'r'], memberCount: 2 },
+    } as unknown as StoredRow;
+    try {
+      readFanoutIntentRow(row);
+      assert.fail('must throw');
+    } catch (error) {
+      assert.ok(error instanceof KernelTableError);
+      assert.ok(!(error instanceof RowsKernelError));
+    }
+  });
+
+  it('constructs nested checkpoint/child failures as the owning error', () => {
+    try {
+      newFanoutCheckpointRow({ fanoutId: 'f', completed: ['c', 'c'], cursor: null }, META2);
+      assert.fail('must throw');
+    } catch (error) {
+      assert.ok(error instanceof KernelTableError);
+    }
+    try {
+      newFanoutChildRow(
+        { fanoutId: 'f', parentOccurrence: '', handler: 'h', recordId: 'r', state: 'pending' },
+        META2,
+      );
+      assert.fail('must throw');
+    } catch (error) {
+      assert.ok(error instanceof KernelTableError);
+    }
+  });
+
+  it('propagates caller sentinels through nested fanout helpers untouched', () => {
+    const sentinel = new RowsKernelError('caller fanout sentinel');
+    const input = Object.defineProperty(
+      { sourceOccurrence: 'o', handler: 'h', cohort: 'model' },
+      'members',
+      { get() { throw sentinel; } },
+    );
+    try {
+      newFanoutIntentRow(input as never, META2);
+      assert.fail('must throw the caller sentinel');
+    } catch (error) {
+      assert.equal(error, sentinel);
+    }
   });
 });
