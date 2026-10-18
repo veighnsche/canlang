@@ -69,6 +69,18 @@ async function readRecords() {
   return value.result.structuredContent.records;
 }
 async function access() {
+  // Ready selects the new generation; the prior generation may still be retiring.
+  // Observe its normal release without bypassing admission or retrying cleanup.
+  const started = performance.now();
+  let observation;
+  for (let i = 0; i < 200; i++) {
+    observation = (await control('status')).result.observation;
+    if (!observation.admission.reasons.includes('cleanup_required')) break;
+    await sleep(50);
+  }
+  require(!observation.admission.reasons.includes('cleanup_required'),
+    `preview access waits for confirmed retirement: ${JSON.stringify(observation)}`);
+  report.timings.retirementWaitMs = (report.timings.retirementWaitMs ?? 0) + performance.now() - started;
   const opened = (await control('preview.open')).result;
   origin = new URL(opened.url).origin;
   assert.equal((await request(opened.url)).status, 303, 'single-use bootstrap');
@@ -168,7 +180,9 @@ try {
 
   await writeFile(source, saved.replace('Persistent preview', 'Repaired persistent preview'));
   const repaired = await check('repairCheckMs');
-  require(repaired.state === 'valid' && repaired.preview === 'ready' && repaired.revision !== first.revision, 'repair replaces generation');
+  report.repair = repaired;
+  require(repaired.state === 'valid' && repaired.preview === 'ready' && repaired.revision !== first.revision,
+    `repair replaces generation: ${JSON.stringify(repaired)}`);
   await access();
   assert.deepEqual(await readRecords(), [record], 'same login/grant/data after replacement');
   const historical = (await control('diagnostic.detail', ['--revision', invalid.revision, '--index', '0'])).result;
