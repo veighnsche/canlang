@@ -1,5 +1,14 @@
 # Rust migration: current implementation and prioritized remainder
 
+**Accepted native module/plan source slice:** `6fb752375` joins retained-job
+module gates, plan/prior-plan order and deterministic review outputs with matching
+host payloads. Present-null, parse diagnostics, optional KV nulls and lone UTF16
+canonical JSON are preserved; current-main complexity checks pass. This is an
+early private source slice; full host/CLI/integrity/staging/installed native
+acceptance remains open under the same finite checklist. Public deployment,
+default changes and TS retirement remain held.
+
+
 ## Current execution view — 2026-10-18
 
 **Current release overrides the historical holds below:** Vince released native
@@ -15,7 +24,7 @@ are superseded for source implementation; no accepted component is reopened.
 with explicit owning error factories, including corrected nested fanout forwards.
 Independent actual installed Work Node/Worker qualification passes. See the
 [accepted slice](rust-port-orchestration/current-plan.md#accepted-work-helper-slice--18-october-2026).
-Native module/plan/host/CLI work continues and is still uncommitted; no native
+Native host/CLI work continues after the accepted private module/plan source slice; no native
 parent/default/public-release completion is inferred. Older proposed-W wording
 below is historical and superseded by this acceptance.
 

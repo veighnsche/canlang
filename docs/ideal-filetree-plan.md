@@ -7,6 +7,23 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Native module/plan source intake, 2026-10-18:** `6fb752375` changes only
+13 preparation crate/job, matching TS host/payload and owning test files. Existing
+Cloudflare preparation ownership remains; no package, backend default or public
+release changes. Independent review repairs preserve ordered host demands,
+sidecar diagnostics/null admission, KV sections and canonical UTF16 plan JSON.
+Focused native10/26/22/22 and host11/typecheck results are retained; the current
+complexity policy passes the released source. Full P05.4/P06.3/CLI/installed
+criteria remain partial; hot P07/scanner changes are excluded.
+
+Incremental reconciliation since f5f67b097 accounts for all48 newer-main paths
+through `3bb610962`: retain the compiler owner's typed-filter, consumed-query,
+native-hook/State and board source/consumer reviews; complexity tooling/CI/dev
+documentation retain their defining maintenance owner and are consumed for this
+slice's actual gate. Combine those retained records with this13-source/eight-doc
+intake. Foreign notes and every newer commit remain preserved. Keep the complete
+historical checkpoint and stale notice unchanged; no whole-tree review is claimed.
+
 **Work helper integration, 2026-10-18:** `cd2651c5e` covers exactly the existing
 Work-kernel rows owner, Work kernel-table facade and owning regression tests.
 Explicit defaulted error factories preserve owning class construction without
