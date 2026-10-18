@@ -1,14 +1,13 @@
 # Bounded ICU grammar and shared-parser plan
 
-**18 October 2026 · approved grammar profile; TS sharing and compiler consolidation complete.**
+**18 October 2026 · approved grammar; TS sharing, compiler consolidation and UI usage complete.**
 The source investigation below retains its historical baseline at
 `0bb480bef36b8a4aa9dafd932a06443f5543d33c` (inspected product files unchanged from
 `08dc8c392`). The user approved the grammar profile, then separately released
-Shared TS syntax and compiler parse/usage consolidation for
+Shared TS syntax, compiler parse/usage consolidation and UI full-signature usage for
 [package-audit candidate 1](README.md#1-shared-bounded-message-syntax--strongest-semantic-consistency-opportunity).
-Both packets are complete at their recorded scopes. UI full-signature usage
-remains unreleased; joined completion remains pending. Native preparation remains
-**HUMAN HOLD**.
+The three implementation packets and their finite joined checks are complete at
+the recorded scopes below. Native preparation remains **HUMAN HOLD**.
 
 **Accepted profile and staged direction:** use the Values grammar as the explicitly
 documented baseline. Values and UI share its TS parser; compiler syntax and
@@ -36,8 +35,8 @@ grammar column below.
 
 | Owner | Actual entry and responsibility | Preserve at the adapter boundary |
 | --- | --- | --- |
-| Values | [`src/icu-syntax.ts`](../../../packages/values/src/icu-syntax.ts): shared syntax/normalization/diagnostics; [`src/icu.ts`](../../../packages/values/src/icu.ts): public `parseMessageFormat`, `validateMessagePattern`, descriptors and rendering; root exports in `src/index.ts` | Public AST/node shapes and exact bigint selectors; `ValueError`; own-key binding checks; numeric admission; locale/Intl and formatting |
-| UI | [`src/messages.ts`](../../../packages/ui/src/messages.ts): shared Values syntax consumer; `message`, `formatMessageResult`, captions/components; former private parser removed | Contracts descriptors, optional owning `sourceLocale`, resolved type IDs/native operands, public error family, locale selection, exact rendering, HTML escaping and `lang`/direction |
+| Values | [`src/icu-syntax.ts`](../../../packages/values/src/icu-syntax.ts): shared syntax/normalization/diagnostics; [`src/icu.ts`](../../../packages/values/src/icu.ts): public parser, `messageUsages` AST traversal, validation, descriptors and rendering; root exports in `src/index.ts` | Public AST/node shapes and exact bigint selectors; `ValueError`; own-key binding checks; numeric admission; locale/Intl and formatting |
+| UI | [`src/messages.ts`](../../../packages/ui/src/messages.ts): shared syntax/usage consumer; `message`, `formatMessageResult`, captions/components; former private parser removed | Contracts descriptors, optional owning `sourceLocale`, resolved type IDs/native operands, public error family, locale selection, exact rendering, HTML escaping and `lang`/direction |
 | Compiler | [`analysis/icu.rs`](../../../compiler/src/analysis/icu.rs): syntax, ordered valid-pattern usages and declaration/type checkpoints; [`analysis/examples.rs`](../../../compiler/src/analysis/examples.rs): `IcuType` mapping and `icu_error` adapter; [`analysis/types.rs`](../../../compiler/src/analysis/types.rs): coverage, anonymous binding and static-caption consumers | Source signatures, explicit binding, disclosure/provenance, source/variant ownership, diagnostic codes/order and whole authored-literal spans |
 
 UI already imports and depends on Values; Values depends on Contracts, so parser
@@ -127,28 +126,30 @@ historical Pass9 wording that all anonymous descriptors are structural-only is
 no longer current. Keep plain `scan_format_template` for the separate machine
 template overload outside this migration.
 
-UI still converts every supplied operand, then validates usage only while
-rendering the selected branch in `formatMessageResult`/`renderArgument`. Thus
-`{s,select,a{ok} other{{missing}}}` with `s="a"` succeeds. Values checks all
-branches before rendering. UI `message()` also leaves source/variant syntax
-unchecked. These are separate full-signature gaps under DESIGN, not evidence
-that importing an AST alone completes the task.
+Before the UI usage packet, supplied operands were converted eagerly but usage
+was checked only in the rendered branch. Thus `{s,select,a{ok} other{{missing}}}`
+with `s="a"` succeeded; `message()` also left source/variant syntax unchecked.
+Those full-signature gaps are now closed at the selected scope.
 
-Propose a separate finite UI usage join: validate syntax and declared usage in
-source and every present variant, including unselected branches, while keeping
-actual rendering on the selected locale/branch. Reuse the shared parse output
-for usage; do not introduce another scanner. The factory may check grammar and
-type declarations after its existing metadata/wrapper checks without converting
-operand values. A formatting call receiving a structural descriptor must also
-perform the checks after its existing locale and eager supplied-value admission;
-do not rely on factory branding. Within that call parse each needed pattern once.
-Earlier factory rejection of malformed/unbound variants is an explicit proposed
-change. Literal captions and already resolved text are never reparsed as ICU.
-Keep unbound factory use valid: when `params` is absent, construction checks
-syntax only and binding waits for formatting. At formatting, the effective
-signature remains `options.args ?? descriptor.params`; explicit arguments keep
-their existing override behavior. Do not impose Values' constructor-specific
-reserved-name policy on UI merely because the parser is shared.
+UI validates syntax and declared usage in source and every present variant,
+including unselected branches, using Values' existing traversal exposed as
+`messageUsages`. Rendering stays on the selected locale/branch. Construction
+performs metadata/wrapper checks first, then syntax and type-only usage checks
+without converting operand values. With absent `params`, construction remains
+syntax-only and binding waits until formatting. Formatting also checks structural
+descriptors after locale resolution and eager conversion of every supplied value;
+it relies on no factory brand. A per-call pattern map reuses the selected AST and
+parses each distinct needed pattern once, in source then present-variant order.
+Earlier factory/all-branch failures are intentional changes under this release.
+Literal captions and already resolved text are never reparsed.
+
+The effective formatting signature remains `options.args ?? descriptor.params`;
+explicit arguments keep their complete override behavior. UI retains own-key
+handling, including own `__proto__`, without Values' reserved-name constructor
+rule. Inline `enum(...)` declaration metadata uses Values' existing type-ID parser
+at construction so descriptor carriers still reach their working Values formatter.
+UI's formatting sink keeps its existing ownerless-enum value-admission refusal;
+this packet does not broaden renderer admission or validate enum case membership.
 
 ## What sharing must preserve
 
@@ -175,26 +176,25 @@ numeric behavior satisfies the intended language contract.
 
 ## Finite packets and dependencies
 
-The grammar profile is approved. Shared TS syntax and compiler consolidation are
-released and complete at the scopes recorded below. UI full-signature usage and
-joined completion remain **proposed, unreleased**. Any later
-packet requires its own release and named producer output; it does not wait for
-whole A/V/W programmes.
+The grammar profile and all three finite implementation packets are released and
+complete at the scopes recorded below. Their joined criteria are satisfied by
+validation of the released UI packet and retained producer evidence; no additional
+intake or unchanged qualification run is required. A future single-Rust-core
+evaluation remains dormant and requires its own release, not whole A/V/W completion.
 
 | Packet / existing scope | Defining owner and concrete prerequisite | Remaining change and observable acceptance |
 | --- | --- | --- |
-| Profile and witness decision — candidate 1; existing `I-POUND-POLICY` | Language/Values + Compiler/UI; this matrix, owner tests and existing C09I cases | **Grammar profile approved**, including literal outside-plural `#` and the listed lexical changes. TS and compiler implementation were separately released; UI full-signature behavior remains proposed. |
+| Profile and witness decision — candidate 1; existing `I-POUND-POLICY` | Language/Values + Compiler/UI; this matrix, owner tests and existing C09I cases | **Grammar profile approved**, including literal outside-plural `#` and the listed lexical changes. TS, compiler and UI implementation were separately released and completed. |
 | Shared TS syntax — candidate 1 | Values writer then UI writer; approved profile/change list | **Released and complete.** Values owns shared syntax/selector normalization and narrow diagnostics; its existing wrapper preserves ValueError/AST behavior. UI consumes the AST in its own renderer; `PatternParser` and `PatternNode` are removed. Approved grammar, UI offset projection, nearest `#` and existing message/caption consumers pass as recorded below. |
 | One compiler parse/usage owner — existing C09I `I-COVERAGE`, `I-TAGS`, `I-PLURAL`, `I-SELECT`, `I-DEPTH`, `I-EXACT-LEXICAL`, `I-POUND-POLICY` | Compiler; approved profile/cases, existing IcuType mapping and current anonymous-schema outputs | **Released and complete.** Private `analysis/icu.rs` owns syntax and ordered valid-pattern usages. All listed consumers share it; the permissive slot walkers and old examples parser are removed. Narrow declaration/type callbacks preserve the original checkpoints, whole authored-literal spans and malformed recovery. Original finite criteria and named/anonymous formatter consumers pass below. Accepted `I-TYPE` stays a regression check. |
-| UI full-signature usage — existing candidate 1 / DESIGN §9.1 consumer obligation | UI with Values usage producer; shared TS syntax result and type-only usage traversal available | Add the source/present-variant and all-branch checks described above using UI's existing type-ID mapping and operand adapter. Missing/invalid usage in an unselected branch/variant refuses; valid differing branch schemas, native operands and resolved text retain their contracts. No duplicate parsing in one formatting call; no new descriptor carrier. |
-| Joined completion — consumes the three outputs above | Values/UI/Compiler owners; exact changed producer closure | Run shared cases through actual public TS entries and compiler checks; one existing compiled-to-installed UI/formatter consumer covers anonymous/named messages and fallback. Verify unchanged literal captions, own-key handling, exact large/fractional branch selection, offsets and dual-fault ordering. Credit each outcome once; do not replay unrelated locale, numeric or full compiler qualification. Stop when selected grammar/usage scopes pass and duplicate parsers/scanners are removed. |
+| UI full-signature usage — existing candidate 1 / DESIGN §9.1 consumer obligation | UI with Values usage producer; shared TS syntax result and type-only AST traversal | **Released and complete.** Source/present-variant/all-branch syntax and declared usage checks use the shared AST traversal and UI's type/error adapters. Unselected invalid usage refuses; differing signature subsets, native operands and resolved text retain their contracts. Rendering, eager value admission and per-call AST reuse are preserved, with no new descriptor carrier. |
+| Joined completion — consumes the three outputs above | Values/UI/Compiler owners; exact changed producer closure | **Selected criteria satisfied.** Current TS shared cases/usage tests and the two existing compiled formatter consumers pass; unchanged compiler profile and diagnostic checks are retained. Literal captions, own keys, exact large/fractional branches, offsets and dual-fault ordering are covered. Each outcome is credited once; broader formatter parity, ownerless UI enum adoption and host/native qualification remain outside this scope. |
 
-The completed TS and compiler packets share the approved profile and cases.
-UI usage can consume the TS syntax result
-but remains unreleased; joined completion waits only for its named outputs. One
-Values writer owns syntax/usage/export edits; one Compiler writer owns
-`examples.rs`/`types.rs` integration. No heavy cache, native
-preparation slot, installer programme or additional worktree is allocated here.
+The completed TS, compiler and UI packets share the approved profile and cases.
+Their finite handoffs are consumed; no remaining assignment is created by this
+completion record. Values owns syntax/usage exports, UI owns its validation and
+rendering adapters, and Compiler owns its analysis integration. No heavy cache,
+native preparation slot, installer programme or additional worktree is allocated.
 
 Use the existing real consumer entries, not a new integration harness:
 `localized_format_preserves_checked_owners_and_runtime_arguments` in
@@ -212,7 +212,8 @@ existing selected-usage boundary; reuse them for any later usage packet.
 
 Implemented TS and compiler allocation remains small:
 
-- Values keeps `src/icu.ts` for public wrappers, descriptor/usage/formatting;
+- Values keeps `src/icu.ts` for public wrappers, shared `messageUsages` traversal,
+  descriptor validation and formatting;
   private `src/icu-syntax.ts` now owns syntax/normalization and diagnostic data.
   Root `parseMessageSyntax` is the narrow shared entry; existing exports remain compatible.
 - UI keeps its descriptor/resolver/renderer in `src/messages.ts`; it now consumes
@@ -234,9 +235,9 @@ single TS grammar, exact-selector normalization and narrow diagnostics;
 contracts. UI consumes that syntax result once after its existing locale and
 eager supplied-operand admission, projects ordinary Error messages with UTF16
 offsets, and renders nodes with its existing exact numeric and Intl behavior.
-Descriptors, operand admission and selected-branch usage remain unchanged apart
-from the approved grammar changes. Full-signature/all-branch/all-variant usage is
-still a separate unreleased packet.
+At that TS checkpoint, descriptors, operand admission and selected-branch usage
+remained unchanged apart from approved grammar changes. The separately released
+full-signature packet is completed below.
 
 Contracts, Values and UI emitted and typechecked. The focused ICU, locale,
 messages and components run passed 241 tests. After diagnostic fixes, the affected
@@ -282,9 +283,38 @@ Implementation and validation stayed in the isolated worktree. Main then
 fast-forwarded `7700621fa` to `22b66ab20`, preserving bytes/modes of its 47
 pre-existing modified/untracked files and leaving foreign staging unchanged.
 The living plan and DECISIONS reconcile all 13 incoming paths against retained
-coverage; unchanged validation is reused. UI full-signature usage and its joined
-completion remain unreleased, the complete review checkpoint is unchanged, and
-native preparation remains **HUMAN HOLD**.
+coverage; unchanged validation is reused. At that compiler checkpoint UI usage
+and its joined completion were still unreleased; their later completion follows.
+The complete review checkpoint and native-preparation **HUMAN HOLD** are unchanged.
+
+## UI full-signature usage and finite join completion — 18 October 2026
+
+The user released UI usage against `1255fc11f`. Values' existing AST walk is now
+available as `messageUsages`/`MessageUsage`/`MessageUsageSite`; its own ValueError,
+AST, validation and rendering contracts remain. UI's factory and formatting sink
+both validate source and every present variant across every branch. Construction
+checks declared types only; formatting retains locale then all supplied values
+before syntax/usage. Type errors keep the existing UI messages, syntax errors keep
+ordinary Error/JSON-pattern/UTF16 contracts, and rendering limits stay selected-only.
+
+Validation covers **255 distinct TS tests**: initial 254 focused Values ICU/locale
+and UI messages/usage/components tests passed, then an added inline-enum regression
+and the affected UI scope passed 50 tests, reusing the unchanged 205 results.
+Contracts/Values/UI emitted and typechecked. Independent source review covered the
+factory/sink ordering, traversal, mapping, own keys and AST reuse. Both existing
+named/anonymous formatter scripts pass with the unchanged frozen compiler producer
+and current Values/UI output. The anonymous consumer exposed an inline-enum carrier
+regression; reusing the type-ID parser for declaration checks corrected it, with
+failure/pass evidence and a focused regression. The named non-enum result is reused.
+
+Together with retained compiler checks (68 Rust tests, including the shared
+63-case scalar-string corpus), these results satisfy the listed joined criteria
+at the grammar/usage scope. No extra compiler rebuild or unchanged qualification
+is required. Source-loaded Cloudflare, cached dependencies, Node24 transform-types
+and the existing ownerless UI enum refusal retain their precise limits. These
+checks do not certify full tarballs, browser/hosted/native delivery or complete
+formatter parity. No merge, canonical Rust task closure or complete checkpoint
+advance occurs here. Native preparation remains **HUMAN HOLD**.
 
 ## Optional single-Rust-parser follow-up
 
@@ -340,6 +370,6 @@ The original investigation changed and executed no product code or tests;
 its source matrix and historical C09I results retain their recorded pins. The
 subsequent released TS implementation and focused checks are recorded above.
 No performance or joined compiler/installed-host claim follows from those TS
-checks. Compiler consolidation is now separately completed above. UI
-full-signature usage and any later shared Rust adoption remain proposals;
-native preparation remains held.
+checks. Compiler consolidation and UI full-signature usage are now separately
+completed above, including finite joined validation at their selected scope.
+A later shared Rust adoption remains dormant; native preparation remains held.

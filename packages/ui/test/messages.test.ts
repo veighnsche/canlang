@@ -90,13 +90,15 @@ describe("native scalar presentation join", () => {
       ["datetime", date("2024-01-01")],
       ["decimal", 1.5],
       ["date", null], ["datetime", null], ["decimal", null],
-      ["duration", 1n],
     ] as const;
     for (const [type, value] of malformed) {
       const descriptor = message("{x}", {}, { x: { type, value } });
       assert.equal(descriptor.params?.x?.value, value);
       assert.throws(() => formatMessage(descriptor, { appDefaultLocale: "en" }), TypeError);
     }
+    assert.throws(() => message("{x}", {}, { x: { type: "duration", value: 1n } }),
+      { name: "TypeError", message: 'message argument "x": unsupported message parameter type duration' });
+    assert.throws(() => formatMessage({ source: "{x}", variants: {}, params: { x: { type: "duration", value: 1n } } }), TypeError);
     const outOfRange = { kind: "datetime", ms: 253402300800000n };
     const descriptor = message("{x}", {}, { x: { type: "datetime", value: outOfRange } });
     assert.equal(descriptor.params?.x?.value, outOfRange);
@@ -558,16 +560,14 @@ describe("shared ICU syntax consumer", () => {
     }
   });
 
-  it("retains eager supplied-value admission before syntax and selected-branch usage", () => {
+  it("retains eager supplied-value admission before syntax and full-signature usage", () => {
     const args = { unused: { type: "int", value: 1.5 } };
     for (const pattern of ["}", "literal", "{s,select,yes {ok} other {{missing}}}"]) {
       assert.throws(() => formatMessage(pattern, { args }),
         { name: "TypeError", message: 'message argument "unused": int number value must be a safe integer' });
     }
-    // Full-signature and all-branch usage checks remain a separate packet.
-    const descriptor = message("{s,select,yes {ok} other {{missing}}}", { nl: "}" },
-      { s: { type: "text", value: "yes" } });
-    assert.equal(formatMessage(descriptor, { appDefaultLocale: "en" }), "ok");
+    assert.throws(() => message("{s,select,yes {ok} other {{missing}}}", { nl: "}" },
+      { s: { type: "text", value: "yes" } }), /undeclared argument "missing"/);
   });
 
   it("uses only own supplied bindings while accepting own special-looking names", () => {

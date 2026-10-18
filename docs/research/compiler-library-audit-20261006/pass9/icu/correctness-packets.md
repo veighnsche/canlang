@@ -30,9 +30,15 @@ The two existing named/anonymous Node fixture consumers passed with frozen
 compiler binary `can-652cd12b506421fc`, `--experimental-transform-types`, current
 worktree Values/UI emitted output, cached dependency outputs and source-loaded
 Cloudflare assembler modules. This does not establish full tarball, browser or
-native-host qualification; the ownerless-enum UI refusal remains. UI
-full-signature usage and joined full completion remain unreleased, and no
-cross-language Rust/Wasm parser migration is selected. Native preparation remains
+native-host qualification; the ownerless-enum UI refusal remains.
+
+The subsequent UI usage release on `1255fc11f` completes source/present-variant/
+all-branch checks and the finite joined criteria in the current plan. Its 255
+TS tests and two formatter consumers reuse the unchanged compiler evidence above.
+An inline-enum carrier correction preserves the existing Values formatter path
+without broadening UI operand admission. Full formatter parity, tarball/browser/
+hosted/native qualification and a common Rust core remain separate. No new
+compiler implementation or qualification is inferred. Native preparation remains
 **HUMAN HOLD**. The [shared-parser plan](../../../../ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md)
 records the current scope; the original table and limits below remain historical
 evidence at their original pins. No new queue or canonical task IDs are created.

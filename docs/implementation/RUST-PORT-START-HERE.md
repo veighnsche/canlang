@@ -2,7 +2,7 @@
 
 ## Current execution view — 2026-10-18
 
-This is the single current execution view for the existing Rust migration. Source inspection: main `ede59d051`; later accepted package outcomes are credited below. The original task IDs, dependencies, acceptance clauses and defining owners remain in [tasks.json](remaining-work/tasks.json) and the [subsystem plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md). The numbered historical sequence below is evidence, not another dispatch queue. Unreleased implementation remains stopped and existing holds remain in force; the separately released Shared TS syntax and compiler parse/usage completions are credited below.
+This is the single current execution view for the existing Rust migration. Source inspection: main `ede59d051`; later accepted package outcomes are credited below. The original task IDs, dependencies, acceptance clauses and defining owners remain in [tasks.json](remaining-work/tasks.json) and the [subsystem plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md). The numbered historical sequence below is evidence, not another dispatch queue. Unreleased implementation remains stopped and existing holds remain in force; the separately released Shared TS syntax, compiler parse/usage and UI full-signature completions are credited below.
 
 ### Finite packet detail reconciled after origin sync
 
@@ -16,7 +16,7 @@ Current-byte Node binding smoke recorded below is already credited; it does not
 replace installed/vendor/workerd delivery evidence. No accepted recovery work is
 reopened. All native-preparation/source-adoption/default/publication holds remain.
 
-### Additional package opportunities — TS syntax and compiler parse/usage completed
+### Additional package opportunities — message syntax and usage completed
 
 The [full packages opportunity audit](../ideal-filetree-plan/rust-package-audit/README.md)
 at merged source `08dc8c392` covers all 13 packages and 1,511 tracked paths.
@@ -24,7 +24,7 @@ It retains the priorities below and proposes finite contract/cost evaluations
 for message syntax, exact Judgment response decoding, State batch ordering and
 generation diffing. Files byte analysis is conditional on actual workload demand.
 These add no canonical tasks or prerequisites for existing A/V/W/C04 outcomes.
-The separately released TS syntax and compiler parse/usage packets below are
+The separately released TS syntax, compiler parse/usage and UI usage packets below are
 complete; other candidates remain unreleased. Native preparation and all original holds remain in force as
 recorded below.
 
@@ -49,12 +49,28 @@ The [current C09I completion note](../research/compiler-library-audit-20261006/p
 records the reused packet IDs and focused verification, including 68 distinct Rust
 tests and two named/anonymous Node fixture consumers.
 
-UI full-signature/all-branch/all-variant usage and joined full completion remain
-**unreleased proposals**. The consumer checks above do not close those gaps or
-establish full tarball, browser or native-host qualification. A single Rust/Wasm
-parser serving TS and compiler remains a separate dormant evaluation. This adds
-no dependency to the three current port packets and does not release native
-preparation.
+The user released **UI full-signature usage** on base `1255fc11f`; that packet
+and its finite joined checks are complete. Values exports its existing AST usage
+traversal as `messageUsages` without changing Values validation or rendering.
+UI construction checks source and every present variant/all branches after
+metadata and wrapper checks, using declared types without converting values;
+absent params remain syntax-only. Formatting resolves locale, eagerly admits all
+supplied values, then checks all patterns against `options.args ?? params`,
+reusing parsed ASTs within the call. UI rendering/error ownership and own
+`__proto__` bindings remain intact. Construction admits existing inline enum
+declarations carried to Values; UI formatting still refuses ownerless enums.
+
+Contracts/Values/UI emitted and typechecked. The focused TS run initially passed
+254 tests; after the inline-enum correction, 50 affected UI tests passed and 205
+unchanged Values/locale/components results were reused (255 distinct tests).
+Both existing named/anonymous Node formatter consumers pass with the unchanged
+frozen compiler and current Values/UI outputs; the anonymous inline-enum failure
+was reproduced before the correction. The 68 compiler tests and 63 shared scalar
+corpus cases above remain unchanged and are reused. This closes the selected join
+without another intake assignment. Full tarball, browser, hosted/native delivery
+and formatter parity are not established. A single Rust/Wasm parser remains a
+separate dormant evaluation. No Rust build, installation, adoption or native
+preparation was released; native preparation remains **HUMAN HOLD**.
 
 ### Implemented and credited
 

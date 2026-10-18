@@ -1,5 +1,34 @@
 # Living ideal file-tree plan for Canlang
 
+**UI full-signature usage and finite ICU join, 2026-10-18 (base `1255fc11f`):**
+the human released the UI usage packet in the
+[current finite ICU plan](ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md).
+Values' `src/icu.ts` exposes its existing ordered all-branch AST traversal as
+`messageUsages`, retaining its own validation and rendering behavior. UI's
+`src/messages.ts` checks source and every present variant against one signature
+at construction and formatting. Construction stays type-only after metadata and
+wrapper checks; absent params remains syntax-only. Formatting retains locale
+resolution, eager admission of all supplied operands, all-pattern usage checks,
+then selected rendering, reusing each parsed pattern within that call.
+
+Five package paths are covered: those two source owners, their existing ICU/
+message tests and new `packages/ui/test/message-usage.test.ts`. Seven documentation
+paths update this plan, the current ICU packet, package audit, Rust navigation,
+C09I backlink, DESIGN and DECISIONS together. Existing Values/UI/Compiler owners
+remain; no grammar duplication, dependency, public descriptor carrier or native
+owner is added. Inline enum declarations retain their Values formatter path via
+the existing type-ID parser; UI's renderer admission remains unchanged.
+
+Validation covers 255 distinct TS tests, with the affected 50 UI tests rerun after
+the inline-enum carrier correction and 205 unchanged results reused. TypeScript
+emit/typechecks and the two existing compiled named/anonymous formatter consumers
+pass. Retain the unchanged compiler's 68-test/shared-corpus evidence at its pin.
+These results satisfy the finite joined grammar/usage criteria without another
+intake assignment; broader formatter parity, ownerless UI enum adoption and full
+tarball/browser/host/native qualification are not inferred. Newer main-checkout
+compiler/runtime work was untouched. No merge or complete checkpoint advance
+occurs; native preparation remains **HUMAN HOLD**.
+
 **Compiler ICU parse/usage consolidation, 2026-10-18 (base `7700621fa`):**
 the human released the compiler packet in the
 [current finite ICU plan](ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md).
