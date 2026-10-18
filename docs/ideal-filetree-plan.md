@@ -1,5 +1,14 @@
 # Living ideal file-tree plan for Canlang
 
+**Integrated release closure, 2026-10-18:** the unchanged100-path native
+integration and accepted16-path compiler intake are measured at maincdf26e070.
+Rebuilt actual release compilers and affected installed manual workflows pass on
+both hosts; reuse unchanged native94/profile and installed23 criteria. This final
+three-doc record updates the existing development execution view, decision and
+coverage together. No new responsibility, package, source change or verification
+framework is introduced. Foreign24 tracked inputs and untracked work remain
+preserved; the complete historical checkpoint remains unchanged.
+
 **Native development main integration, 2026-10-18:** integrate the released
 native development100-path closure through659b90f2b atop main9e9b1c7c4. Retain
 all earlier dev/runtime/distribution ownership and94 native release/23 installed

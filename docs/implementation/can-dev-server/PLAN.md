@@ -1,5 +1,52 @@
 # `can dev` implementation plan
 
+**Integrated release acceptance and final measurement, 2026-10-18:** native
+manual development is integrated in local main at `cdf26e070`. The accepted
+compiler-context batch9e9b1c7c4 is included, all24 foreign tracked source/test/AGENTS
+files remained byte-identical across integration, and untracked foreign work stayed
+in place. Both original dev planning notes are retained/reconciled. Stopped old
+TS/cache/UI inputs are preserved in named stash
+`c587f365e0333ea185a6be58545a3f9f1d270f4d`, excluding artifacts and foreign work.
+
+The actual integrated release compiler rebuilt on both hosts using the existing
+compatible caches. Canonical checksum installation and the affected installed
+manual workflow pass again on each platform: login/grants/D1, isolated failed
+examples and exact rerun, JSON compatibility, invalid edit/last good, repair,
+safe HTTP refusal and stop/restart preserving login/data. Reuse native94 release
+and installed23 qualification per host above for unchanged server/package/installer
+criteria; no repeated whole suite or broader compiler claim follows.
+
+| Integrated installed observation | macOS arm64 | Linux x86_64 |
+| --- | ---: | ---: |
+| PreviewPersistence start → serving |9.901s|14.797s|
+| Owner/control |161ms|41ms|
+| Invalid check |1.204s|1.289s|
+| Repaired generation |8.331s|11.795s|
+| Confirmed stop |173ms|160ms|
+| Restart check |8.586s|12.729s|
+
+The final ModelFreePreview macOS phase run is **9.270s** start → serving,
+**82ms** owner/control, **37ms** authenticated HTTP and **182ms** confirmed stop.
+Sampled check phases: capture about1.47s, compiler/currentness .36s, runtime
+preparation7.24s and final currency .11s. Sampling is80ms; runtime preparation
+remains dominant. These are single warm-dependency/fresh-app observations, not
+statistical latency claims or a causal percentage against older source/profile
+samples. ModelFreePreview bytes retain SHA
+`f54fd4c9ed820a59d3fd3f19d24b222ab37adefe2aec8fa763836748ed5fbf98`.
+
+Integrated compiler SHA is
+`d448d36d440d7e9bedf1f7428921de29dcae9acc24d3faa0ab912b44b6232f20` on macOS,
+`b7a768109e5ff11cf234ffd91fd541833ce7e1669cd6457472295af0ad4b3bce` on Linux.
+Native server SHA remains
+`71e2736f06224becf437c9fc9a01364a807c8b9e7bcee96ab2f8d6d23275143f` / Linux
+`973be1ffd0d1ce9309173083c4fc244d23904624e5d2ffa88e1e85070697ccb9`.
+Linux records glibc2.39 as the actual native minimum. Artifacts and concise reports
+are retained in the owned local output/private qualification directories and Linux
+packet. Rebuildable owned caches are released after inactive-consumer checks;
+shared primary caches are untouched. No public publishing or GitHub workflow run
+was performed. Later automatic features and the documented Miniflare internal
+restart notification limitation retain their separate scope.
+
 **Release-profile platform qualification, 2026-10-18:** the locked Rust1.99
 release compiler and native server build on macOS arm64 and Linux x86_64. Native94
 release checks pass on both; macOS reuses64 sandbox-valid checks and retries only

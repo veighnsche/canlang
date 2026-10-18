@@ -1,5 +1,21 @@
 # Canlang language design decisions
 
+## 2026-10-18 — accept the integrated native release manual workflow
+
+**Accepted finite result.** Maincdf26e070 includes the native manual server and
+released compiler context fixes while preserving24 foreign dirty tracked inputs
+byte-for-byte. Rebuild the actual integrated release compiler and checksum-install
+its archive on macOS arm64 and Linux x86_64; the affected real manual workflow
+passes on both. Reuse unchanged native94 release and installed23 criteria per
+host. Normal retired-generation waits remain observations, with cleanup admission
+unchanged. Final macOS ModelFreePreview is9.270s ready/.082s control/.182s stop;
+PreviewPersistence is9.901s macOS and14.797s Linux ready. Runtime preparation
+remains dominant; no older-tuple percentage or statistical claim. Linux requires
+glibc2.39 at the recorded host scope. Retain binaries/artifacts/evidence and the
+stopped-U stash; release owned rebuild caches only after consumers finish.
+Publication, later automation and stronger Miniflare restart controls remain
+separate from this completed integration/qualification request.
+
 ## 2026-10-18 — integrate the qualified native manual development server
 
 **Accepted main integration.** The released native100-path closure through
