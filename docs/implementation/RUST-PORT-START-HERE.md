@@ -2,7 +2,7 @@
 
 ## Current execution view — 2026-10-18
 
-This is the single current execution view for the existing Rust migration. Source inspection: main `ede59d051`; later accepted package outcomes are credited below. The original task IDs, dependencies, acceptance clauses and defining owners remain in [tasks.json](remaining-work/tasks.json) and the [subsystem plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md). The numbered historical sequence below is evidence, not another dispatch queue. Unreleased implementation remains stopped and existing holds remain in force; the separately released Shared TS syntax, compiler parse/usage and UI full-signature completions are credited below.
+This is the single current execution view for the existing Rust migration. Post-ICU refresh: committed source `d9abbd942`, reusing the earlier `ede59d051` investigation and retained source comparison at their recorded scopes. The original task IDs, dependencies, acceptance clauses and defining owners remain in [tasks.json](remaining-work/tasks.json) and the [subsystem plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md). The numbered historical sequence below is evidence, not another dispatch queue. Unreleased implementation remains stopped and existing holds remain in force; the separately released Shared TS syntax, compiler parse/usage and UI full-signature completions are credited below.
 
 ### Finite packet detail reconciled after origin sync
 
@@ -15,6 +15,25 @@ TS integration includes only its actual consumer graph and installer handoff.
 Current-byte Node binding smoke recorded below is already credited; it does not
 replace installed/vendor/workerd delivery evidence. No accepted recovery work is
 reopened. All native-preparation/source-adoption/default/publication holds remain.
+
+**Next finite packet: `ports:V02.6`, ordinary TS serving qualification in the
+actual staged isolated Worker.** Values/Interfaces already supply trusted
+registration, copied defaults, source checks and lifetime cleanup; R3/Dev supplies
+the missing Worker fixture/result using the existing staged D1/production-session
+setup. Stop when the typed-operation path preserves canonical defaults/error and
+admission order, real issuer/catalog correspondence refusals before effects, and
+catalog closure on success/failure. Reuse accepted Node mutation/stale-file checks;
+the immutable portable issuer has no generation-revocation API. This finishes only
+the selected ordinary TS PH2/PH4 evidence, with no Rust validator or native join.
+
+All three queued packets' named prerequisite paths are unchanged by the ICU
+consolidation. `ports:C04.values-assets` remains independently ready for current
+installed/vendor/workerd delivery; `ports:W02.5` retains its bounded consumer,
+graph and installer join. Their exact stop conditions are in the finite detail.
+Ready means source/contract-ready after a new finite release; missing local
+dependencies/Cloudflare output/compiler capture are activation setup. No further
+ICU implementation is queued: retain the two parsers, with a shared Rust core
+dormant pending actual drift/cost or a named native-consumer need.
 
 ### Additional package opportunities — message syntax and usage completed
 

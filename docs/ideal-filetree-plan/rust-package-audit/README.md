@@ -42,6 +42,17 @@ new finite implementation release. Their original acceptance and setup limits
 are unchanged. Unreleased candidates below have decision or measurement
 prerequisites; none becomes implementation-ready merely because a pure function exists.
 
+**Post-ICU refresh at `d9abbd942`:** the next recommended finite release remains
+`ports:V02.6`, the missing ordinary TS serving linkage/correspondence/lifetime
+qualification in the actual staged isolated Worker. Its producers exist; the
+default-Worker/D1/production-session fixture supplies a concrete starting point.
+`C04.values-assets` can qualify installed/vendor/workerd bytes independently;
+`W02.5` still needs only its named fanout consumer/graph/installer join. Their
+prerequisite paths are unchanged by the ICU changes. The consolidated two-parser
+arrangement satisfies the released consistency scope; a common Rust parser and
+candidates 2–5 remain conditional evaluations. No new Rust owner, dependency or
+implementation release follows from this refresh.
+
 ## Package-by-package allocation
 
 Counts at the historical audit baseline include production, tests, fixtures,
