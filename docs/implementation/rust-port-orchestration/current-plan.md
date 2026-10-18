@@ -1,5 +1,40 @@
 # Rust-port completion plan
 
+## Wind-down closeout — 18 October 2026
+
+Vince requests **no new tasks or workers**: finish the current batch, commit it,
+and merge while preserving newer main changes. The current assignments are
+released for final review/integration; the original four full outcomes below are
+acceptance references, not permission to continue dispatching. Public deployment,
+automatic defaults and physical TS retirement remain held. The broad native goal
+is left incomplete because its recorded residuals remain; no implementation runs
+in the background after closeout.
+
+The batch adds the full selected exact-operation binding and public/stdlib routing,
+lossless carriers and targeted diagnostic repairs; a structural validation
+interpreter, explicit exact-codec context, constraint/shape handling, stack-safe
+framing/parsing/destruction and optional installed-selection helpers; all seven
+Work-family call transport, pure consumers and a selected-kernel durable store;
+and native preparation parser/staging/assembly/publication protocol mechanisms.
+These mechanisms retain their scoped passing checks. They do not establish the
+full production outcomes merely by existing or by passing synthetic callers.
+
+**Still incomplete after this batch:** the preparation host must serve native
+layers/facts and consume the native publication/plan outputs through the actual
+installed CLI; State and ordinary MCP/HTTP production selection joins and remaining
+required validation duties remain open; Work's actual Cloudflare/F5/F7 production
+joins and complete installed-consumer/resource/adoption coverage remain open.
+Public arbitrary-JavaScript admission/evaluation parity beyond the specifically
+qualified exact-operation cases is not claimed. The original conditional SDK/form
+and unused mixed-Wasm dispositions remain unchanged. None of these residuals
+creates a new wind-down assignment or closes a canonical task automatically.
+
+Final affected checks and known broad failures are recorded with the committed
+batch in DECISIONS. Earlier progress notes below are historical. Canonical-main
+integration is owned by the existing integration chat; this worktree releases its
+commits without mutating main's index or foreign dirty inputs. The complete stale
+filetree checkpoint remains unchanged.
+
 ## Implementation release — fresh Muse completion run
 
 Vince explicitly invokes the Muse implementation skill for this plan and requests
@@ -82,7 +117,7 @@ forms and unused preparation Wasm profiles are not hidden prerequisites.
 | Owned validation complete | Rust interpreter/codecs plus required HTTP/State/ordinary-MCP profiles, with actual selected handlers and durable admission. | Structural implementation can start now; numeric branches consume the exact specific Values codec outputs, not the whole Values parent. Runtime joins consume released writer outputs. |
 | Work transition kernel complete | All seven selected data-only families execute through real Work/State/Cloudflare callers and installed Wasm. | Registered families and accepted recovery/graph exist. Needs exact final family binary and released runtime writer handoff, not all validation acceptance. Can run with preparation/Values. |
 
-### Live outcome progress (coordinator, 2026-10-18T12:23Z)
+### Historical outcome progress (coordinator, 2026-10-18T12:23Z)
 
 - Preparation: module-construction slice done (ownership checks, assembly
   `sourceMaps`, full frozen-registration staged render, inline map suffix,

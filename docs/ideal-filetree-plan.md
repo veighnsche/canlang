@@ -1,5 +1,20 @@
 # Living ideal file-tree plan for Canlang
 
+**Rust completion wind-down intake, 2026-10-18:** retain the current batch in
+its defining owners: Values owns exact carriers/binding/routing and the owned
+interpreter/profile/transport with generated Wasm; Interfaces owns optional
+installed selection and HTTP/MCP projections; State owns token admission; Work
+kernel owns seven-family ABI/graph/error transport and Work owns pure callers
+and its optional selected-kernel durable store. Cloudflare preparation owns ordered
+JSON, staging/maps/native-layer/publication protocol and host adapters; its
+synthetic installed probe stays qualification, not a production consumer claim.
+Adjacent tests, manifests, existing fixture metadata and planning docs retain
+those owners. Reuse recorded focused checks and accepted ICU/int-CSV/recovery/
+CLI-integrity results; the full host/production-consumer/adoption residuals remain
+open in the one current Rust checklist. Stop new dispatches under human wind-down.
+This bounded coverage preserves all earlier compiler/runtime/Work review and the
+complete historical checkpoint; it does not assert all Rust outcomes complete.
+
 **Rust completion main sync, 2026-10-18:** incorporate committed main
 `69d45c33c` into the active completion branch after all current writers and
 commands released for the sync window. Reuse main's existing coverage for all132

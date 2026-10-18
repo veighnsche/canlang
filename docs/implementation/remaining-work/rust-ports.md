@@ -1,5 +1,14 @@
 # Rust ports and shared delivery gates
 
+**Current authorization (18 October 2026): wind down.** Finish only the active
+preparation and three repair assignments, validate and integrate the resulting
+batch; do not dispatch new tasks or workers. The single
+[current execution view](../rust-port-orchestration/current-plan.md) owns the
+actual handoffs and residuals. Historical holds, task counts and accepted components
+below retain their recorded scope; they do not reopen accepted work or authorize
+new implementation. Public deployment/defaults/TS retirement remain held.
+
+
 Baseline: main `7fd8c6b` on 2026-10-06; scoped Rust source reconciliation at `ede59d051` on 2026-10-18. Use the [single current execution view](../RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) for implementation credit, priorities and holds. Baseline counts are not a current completion percentage. [Index](../REMAINING-WORK.md) · [Exact ledger](tasks.json).
 
 This is the historical canonical task catalog, not a microtask dispatch queue.

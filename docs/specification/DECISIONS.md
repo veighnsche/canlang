@@ -19743,3 +19743,36 @@ resource behavior are inputs to native preparation, not behavior to overwrite.
 Continue original full outcomes and independent review; public deployment,
 automatic defaults and TS retirement remain held. The complete historical
 filetree checkpoint is unchanged.
+
+
+### Rust completion wind-down (18 October 2026)
+
+Vince requests no new tasks: finish the current preparation and Values/Work/
+validation repair assignments, then commit and merge their work. Stop new dispatches
+and scope expansion; preserve unfinished source and report remaining original
+acceptance honestly. This does not claim the four Rust outcomes complete or lift
+public deployment, automatic defaults or TS-retirement holds. Required affected
+checks and merge reconciliation remain part of closing the current batch; unchanged
+accepted results are reused. The complete historical filetree checkpoint stays
+unchanged. Canonical-main integration is coordinated with the existing integration
+owner so newer compiler/runtime history and foreign dirty inputs are preserved.
+
+The released batch preserves the explicit TS default and adds scoped Rust mechanisms;
+it does not complete the production host/State/MCP/Cloudflare consumer outcomes.
+Final passing checks: preparation266 (vectors26, modules131); validation native47
+and lib21, actual-Wasm binding15 plus the12,000-level malformed-input cleanup
+probe; Values join/backends32; Interfaces owned18; State admission65; Work-kernel
+conformance464, Work dispatch23 and durable17. The current Work recurrence error
+constructor regression is corrected and every11 passes. Final Values artifact
+inventory and all four emitted mirrors agree. Codex regenerated the existing
+string-escape correspondence metadata only after confirming identical semantic
+observations; its focused contract2 passes. Reuse unaffected earlier results.
+
+The broader suite was not declared green: descriptor mail-field, command14-vs13
+and relation17-vs16 pins disagree with committed content; timeout cases remain
+reported rather than silently fixed during wind-down. The host layer/facts/PUBLISH
+and installed deployment consumer, production validation profile joins, actual
+Cloudflare Work durable integration and remaining adoption/resource criteria stay
+open in the current plan. The earlier claimed all-four completion was withdrawn.
+The reviewed/repaired source is saved as this finite batch, with no new dispatch
+or default/public/retirement release.

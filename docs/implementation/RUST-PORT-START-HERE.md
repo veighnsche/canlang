@@ -2,11 +2,17 @@
 
 ## Current execution view — 2026-10-18
 
-Vince's priority is **finish Rust**, with TypeScript retirement allowed to remain
-held. Refreshed against fetched origin/main `ab516f39b`; this checkout has the same
-committed tree. Vince now releases implementation through the Muse skill and requests a fresh
-coordinator. The four outcomes below are the active scope; no per-subtask approval
-gates apply. Public deployment/defaults/TS retirement remain held.
+Vince has requested wind-down: finish the already-active preparation and three
+repair assignments, validate the changed batch, then commit and merge. **No new
+tasks, workers or scope expansion are authorized by this queue.** Current source
+handoffs and residuals live in the single completion plan. The original four
+outcomes below retain their acceptance definitions; partial implementation does
+not close them. Public deployment/defaults/TS retirement remain held.
+
+The implementation began at main `ab516f39b`; the branch incorporated
+`69d45c33c`. Final integration preserves newer committed compiler/runtime changes
+and foreign unfinished inputs. Those source pins are historical, not a claim that
+the current main tree is unchanged.
 
 The [single completion plan](rust-port-orchestration/current-plan.md#current-execution-view--four-finished-rust-responsibilities)
 replaces tiny packet dispatch with four substantial end-to-end outcomes:
@@ -18,14 +24,11 @@ replaces tiny packet dispatch with four substantial end-to-end outcomes:
 | Owned validation | The missing Rust interpreter/codecs and required HTTP/State/ordinary-MCP profiles are implemented, and actual protected handler/durable admission consumers execute them with original order/identity/lifetime. |
 | Work transition kernel | All seven selected data-only families reach actual Work/State/Cloudflare callers through the shipped Wasm, preserving live authority and atomicity with their host owners. |
 
-**Next implementation milestone: complete native preparation**, including module
-construction, source maps, browser package, final identity, plan/review/publication
-and installed produced Worker/MCP qualification. The former digest-only proposal
-is absorbed inside this outcome. It is no longer a separate approval/dispatch stop.
-Exact Values and Work are independent ready streams; validation core can overlap
-and consume specific exact-codec/runtime handoffs as they become available. Use
-available capacity and one writer per shared assembly/runtime/output, not a global
-wave barrier.
+The original native preparation outcome includes module construction, source maps,
+browser packaging, final identity, plan/review/publication and actual installed
+consumers. Its uncompleted parts and any consumer/adoption gaps remain recorded
+for later authorization; wind-down does not create a new dispatch or a claim of
+finished Rust. Current assigned work uses one writer per assembly/runtime/output.
 
 Each outcome includes implementation, its actual consumer, focused qualification,
 one independent critical review/repairs and coherent integration. Ordinary internal
@@ -45,9 +48,9 @@ The [machine queue](rust-port-orchestration/next-packets.json) and
 [task identities](remaining-work/tasks.json) and subsystem contracts remain intact;
 counts and historical boxes are not current effort percentages or dispatch units.
 See the completion plan for exact code owners, current gaps, dependencies,
-acceptance and supported-profile/resource/rollback boundaries. No product source,
-tests, builds, new implementation workers, merge, push or complete filetree
-checkpoint advance is part of this planning pass.
+acceptance and supported-profile/resource/rollback boundaries. The complete
+filetree checkpoint remains unchanged; the current source batch is integrated
+only with its actual scoped results and residuals.
 
 ### Historical scope and evidence
 
