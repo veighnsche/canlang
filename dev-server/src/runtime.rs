@@ -57,6 +57,7 @@ const REQUIRED_COMMANDS: &[&str] = &[
     "bundle.assert",
     "testkit.load",
     "testkit.row",
+    "testkit.stage",
     "testkit.report",
     "testkit.dispose",
     "browser.executable",

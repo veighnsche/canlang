@@ -9,7 +9,7 @@ const cf=owner(bootstrapRequire.resolve('@canlang/cloudflare/worker/main'));
 const require=createRequire(join(cf,'package.json'));
 const sdk=specifier=>import(pathToFileURL(require.resolve(specifier)).href);
 const module=path=>import(pathToFileURL(join(cf,'dist',path)).href);
-export const COMMANDS=['node.resolve','runtime.constants','metadata.parse','mf.create','mf.dispose','mf.scheduled','d1.query','r2.put','r2.get','r2.delete','identity.ensureSchema','identity.createTeam','identity.createUser','identity.createMembership','identity.findUserByEmail','identity.findTeamById','identity.setMemberRole','identity.hashPassword','identity.csrf','identity.resolve','state.ensureSchema','state.ownerScoped','state.hashInputs','semantic.activate','semantic.appDefinition','bundle.build','bundle.assert','testkit.load','testkit.row','testkit.report','testkit.dispose','browser.executable','browser.launch','browser.newContext','browser.newPage','browser.goto','browser.request','browser.cookies','browser.locator','browser.submit','browser.title','browser.close'];
+export const COMMANDS=['node.resolve','runtime.constants','metadata.parse','mf.create','mf.dispose','mf.scheduled','d1.query','r2.put','r2.get','r2.delete','identity.ensureSchema','identity.createTeam','identity.createUser','identity.createMembership','identity.findUserByEmail','identity.findTeamById','identity.setMemberRole','identity.hashPassword','identity.csrf','identity.resolve','state.ensureSchema','state.ownerScoped','state.hashInputs','semantic.activate','semantic.appDefinition','bundle.build','bundle.assert','testkit.load','testkit.row','testkit.stage','testkit.report','testkit.dispose','browser.executable','browser.launch','browser.newContext','browser.newPage','browser.goto','browser.request','browser.cookies','browser.locator','browser.submit','browser.title','browser.close'];
 function binary(value){
   if(typeof value==='string')return Buffer.from(value,'base64');
   const bytes=Array.isArray(value)?value:value?.type==='Buffer'?value.data:undefined;
@@ -126,6 +126,10 @@ export async function createApi(registry){
       case 'testkit.row':{
         const suite=find(parent,p.suite,'suite'),runtime=find(parent,p.handle,'mf');
         return tracked(suite,()=>suite.value.row(p.row,{getD1Database:binding=>runtime.value.getD1Database(binding,runtime.workerName)},p.resources));
+      }
+      case 'testkit.stage':{
+        const runtime=find(parent,p.handle,'mf'),kit=await module('runtime/example-bindings.js');
+        return kit.stageClosureFixtures({...p.input,artifactBytes:binary(p.input.artifactBytes)},{getD1Database:binding=>runtime.value.getD1Database(binding,runtime.workerName)},p.databases);
       }
       case 'testkit.report':return (await module('runtime/example-bindings.js')).buildExampleReport(p.applicationRoot,p.artifactDigest,p.sourceRevision,p.cases);
       case 'testkit.dispose':await dispose(find(parent,p.suite,'suite'));return {released:true};
