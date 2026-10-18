@@ -28,7 +28,21 @@ Recover its residual identity correspondence before bulk continuation, preservin
 the original threshold and eligibility. Neither a new current-tree census nor a
 grandfathered enforcement pass substitutes for reducing a selected residual.
 
-This is documentation preparation only. Implementation remains paused; no new
+**Effort-reduction priority:** start the next available compiler/capture owner with
+the existing one-shot post-release original24 result, since the last complete
+diagnostics predate accepted repairs. Use its actual roots to choose the first
+shared source repair, then release checked composed-app membership to native Dev
+and exercise released producer outputs in one complete app/regression path.
+Ready service foundations remain independent. Automatic save-to-page work can
+reduce repeated operator/browser steps, while further caching requires evidence
+of remaining repeated cost; accepted no-op reuse is not scheduled again. Native
+ownership completion has a concrete delivery benefit but no assumed speedup.
+The canonical priority section records relative cost/risk and branches, without
+new IDs, scores, benchmarks or a universal tooling prerequisite. It does not
+preempt a user's active local Muse unit or authorize implementation. Expected
+downstream savings remain hypotheses until the corresponding consumer proves them.
+
+This is documentation preparation only. It starts no implementation; no new
 semantic choice, runtime qualification, public activation or complete file-tree
 checkpoint is claimed.
 

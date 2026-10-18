@@ -22,7 +22,71 @@ extraction or released consumer recipe; use an experienced executor for compiler
 authority, transactions, recovery and architecture decisions. Model suitability
 is not an additional gate or a reason to invent certainty.
 
-### Order of executable work
+### Recommended priority for the next available work
+
+**Start with CAN18 outcome14 / challenge:T41's one post-release original24
+capture.** The last complete 212-diagnostic result predates later accepted source
+repairs. The [existing capture recipe](#next-original24-composition-capture--outcome14--t41)
+has the exact operands and a historically roughly ten-minute run. With a coherent
+current compiler/catalog/input tuple, this is a bounded way to avoid assigning
+already-fixed roots or repeatedly rediscovering the same failure in downstream
+apps. It produces current attribution, not runtime speed or whole-app acceptance.
+Stop after the complete result and attribution; an incomplete run is not a new
+diagnostic count. This capture is a prerequisite for claims about that corpus,
+not a barrier to an independently reproduced defect or ready service unit.
+
+The order below selects among the existing next units; it adds no task IDs,
+acceptance conditions or authorization. It applies to the next available owner,
+not to a user's already-running local Muse unit. Preserve that writer and its
+inputs through the coherent stop boundary. If the capture closure is being
+changed, take DFE-01's mapping or a disjoint ready unit below instead of interrupting
+the writer or accepting an unstable capture. Cost descriptions are comparative
+scope judgments, not delivery estimates; only the capture has the retained timing
+above. Downstream savings are hypotheses until the affected consumer demonstrates them.
+
+| Priority | Existing bounded unit and stop boundary | Why this order; readiness, cost and risk |
+| --- | --- | --- |
+| 1 | **CAN18 outcome14 / T41:** the one complete current original24 capture and root attribution. | Available recipe and released inputs; no new architecture. It supplies shared diagnosis for original source/CALL/hook/UI and qualification consumers, reducing repeated attribution. Requires a stable consumed closure and a current executable/catalog; refresh only stale producers. Stop at the recorded result, with no automatic repair sweep. |
+| 2 | **CAN18 outcome5 / C02/C04/C19:** first reproduce positive stored ANY→first, then repair only its demonstrated owning mismatch and run the original affected consumer. Substitute the capture's other repeated source root if it has stronger actual consumer evidence. | Query/body outputs feed original invocation, conditional forms and application workflows; one owner repair can replace several downstream workarounds. Existing `scenario_receipts.rs`, `scenario_first_query_sources` and native consumers make the discriminator bounded. The complete repair may cross Compiler/State/runtime and is higher-risk than the probe. Release the exact query/context/child-plan output; do not wait for all compiler outcomes. |
+| 3 | **DFE-01 → DFE-02:** map CanTable's original reservation/seating journey and exact closure, then supply checked selected-app identity/source membership and admit/watch that closure in native Dev. | The current [`admit_single_app_profile`](../../dev-server/src/compiler.rs) rejects `use` and anything other than one app; the selected-app compiler handoff is missing. This shared boundary can remove repeated per-app admission work for later composed drafts. Mapping is a small independent start; compiler/native membership and freshness are a larger, riskier join. Stop with one genuine selected composed app and invalidation/refusal controls. Do not merely remove the guard or claim all drafts work. |
+| 4 | **Shared service foundations:** take challenge:T25 / D3B Q4-C's actual bundled receipt-read route first; then FP.SOURCE-MAPPINGS / FP.AW-SOURCE-CONNECTOR’s authenticated binding and TECH-F01 / FP.FILES-DURABLE separate-store publication for their first ready consumers. | Q4-C reuses Q1–Q3 and existing seeded tests, so it is a bounded route/packaging join with useful denial/stale controls. Binding and File outputs have broader receiving Files/Mailbox/Payments/Onboard consumers, but greater authority and atomicity risk. They are independent of the compiler capture and of each other except where a row names the consumed output. Release one route/binding/publication contract with its real consumer; do not implement all service families together. |
+| 5 | **DFE-03/04 → FP.QUALIFY/DFE-05 → DFE-06/07:** finish the first ready app's resources, actual generation, meaningful functional/visual journey and saved-output CI. | This turns the earlier producer outputs into one reusable regression path and catches integration drift before repeating work across the corpus. It is a multi-owner integration unit, not a cheap screenshot job. Use the selected app's exact source/resource outputs; generation needs its real Sol/medium host, and live providers only where declared. If those are absent, move to the next ready unit rather than fabricating output or blocking unrelated work. Stop after one app and its no-model regression job. |
+| 6 | **dev-server:T18 → T19 → T20 → T21:** stable protected origin, coalesced demand, authenticated generation delivery and one same-tab edit/error/recovery journey. | This can reduce repeated browser reopening, login/setup and manual check/reload actions during later frontend work. It is a moderate-to-large lifecycle/browser join with freshness and authority risks, not demonstrated compiler acceleration. Start on an already supported app; composed-app support is needed only for that consumer. Reuse accepted Rust/Ratatui/manual lifecycle behavior. These tools improve the loop independently; they are not prerequisites for ranks 2–5. |
+| 7 | **ports:P04–P08**, then its **P09/C04.preparation-join** installed consumer; take an independently ready exact/validation/Work consumer in the same tier when its owner is free. | Native construction has an explicit remaining ownership gap: [`host.ts`](../../packages/cloudflare/src/preparation/host.ts) still calls `ensureBundle` at `LOAD_MODULES`, while the native protocol already accepts raw facts. Raw host facts → Rust output → publication is a larger integration change with ordering/cancellation risk. Finishing it removes that duplicate construction responsibility and releases the changed installed constructor; it does not yet prove a faster complete build. Avoid native work whose only justification is assumed speed. |
+| 8 | **Other ready original consumers**, selected by their exact released input: remaining source/UI/Testkit leaves, receiving resources, reservation → settlement, configured admission → its Ping/maintenance consumer, mounted CSV/export, reports and remaining app journeys. | Follow the dependency streams below within this tier. Prefer the next consumer that exercises an already-released shared output, or a bounded independently reproduced defect, over starting another broad parent. Use the accepted export backend and closed component evidence. Cost and risk vary by selected consumer; provider/account or policy leaves hold only the matching branch. Changed installed/recovery qualification follows its actual released bytes; FP.FULL consumes results once at the end. |
+| 9 | **Complexity:T00–T04**, FP.DOC-REQUIREDNESS, description:D08 and migration:C01/C02: one mapped residual/body, one reproduced reference mismatch, or one exact remaining handoff. | These are legitimate bounded maintenance/correctness units with lower demonstrated cross-task acceleration. They suit disjoint available ownership and need not wait for all higher rows. Recover the original residual correspondence before bulk complexity work; no broad refactor is a prerequisite to compiler/native delivery. Preserve any user's active unit. Close satisfied handoffs without runtime reruns; review actual unresolved diffs, not prior review verdicts. |
+
+The existing CAN18 outcome10 / challenge:T24/T32 Maintain retry consumer has a
+recorded timeout beyond 600 seconds. If that same case is repeatedly blocking the
+next consumer, its already-scoped compiler/setup/admission/replay/Workerd phase
+attribution moves into rank 2 alongside the source discriminator. Repair the
+actual stalled or repeated stage and qualify that case; do not expand the timeout,
+run a broad performance survey, or infer that every compiler check has that cost.
+
+**Conditional acceleration:** promote a *specific* T22 producer-bundle reuse or
+T23 capture/staging unit ahead of ranks 3–8 only when retained phase evidence or
+the next normal affected run shows material repeated work that it will actually
+remove. T22 consumes T16/T17's seam/evidence; T23 also consumes T19's shared check
+admission. Existing [`Loop::reuse_serving`](../../dev-server/src/owner.rs) and the
+[accepted unchanged-check decision](../specification/DECISIONS.md#2026-10-18--bound-unchanged-check-and-inventory-path-reuse)
+already avoid a compiler spawn for an admitted no-op. Do not schedule that accepted
+mechanism again. The historical installed startup result of 7.248 seconds is a
+different measurement from warm-edit compiler/bundler time and cannot rank another
+cache. Use one affected comparison when making a real change, not a broad benchmark
+programme. Without a remaining material cost, defer the optimization. T24–T26
+follow T18/T20 and their own compatibility facts when frontend continuity is the
+next useful output; T27–T29 remain conditional on the recorded measured decision.
+
+**Decision/input requests are early side work, not serial gates:** the Identity/State
+participant decision, SEQ-045 reversible-effect choice, FP.APP-ADJUDICATION policy
+questions and actual BGI-06 operator/tool inputs can be resolved while independent
+ready work proceeds. No priority here selects their semantics or manufactures
+credentials. A newly available exact output can move its consumer forward; a
+named blocker moves only that consumer back. The ranking is deliberately revisable
+after the first current capture or a completed unit, without reopening unchanged
+accepted scope or requiring a new planning pass.
+
+### Dependency streams within that priority
 
 These are dependency streams, not additional tasks or a serial all-repository plan:
 
