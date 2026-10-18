@@ -19783,3 +19783,13 @@ focused getter/cleanup probes preserve prior behavior. The ten owned file-consum
 suites pass 157/157 with raw exit 0, and package no-emit typing exits 0 using the
 existing pinned hash dependency. All changed bodies score within 20. Provider-output
 and scenario-wide qualification remain unrun; no full-package pass is claimed.
+
+
+## 2026-10-18 — extract scenario suite loading phases
+
+Accepted implementation: split suite and scenario loading into private phases,
+closing one original above-20 body. Capture invoke, observation and fixture hooks
+once per suite at their original read sites, and append mapped specifications by
+iteration to avoid argument-count limits. Independent diff and repair review plus
+exact-source hook probes accept the behavior; existing loader/fixture tests pass
+31/31 and package no-emit typing exits 0. All changed bodies score within 20.
