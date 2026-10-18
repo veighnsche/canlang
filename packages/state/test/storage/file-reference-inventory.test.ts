@@ -636,6 +636,46 @@ describe('complete original opaque contract admission (no source qualification)'
     assert.equal(set.valueDefaults.find(item => item.field === 'trimmed')!.value, ' padded ');
   });
 
+  it('admits the compiler exported visibility marker on original contracts', () => {
+    const set = originalContractSet();
+    Object.assign(set.originalContracts['App.Packet'], { exported: true });
+    const bound = admit(set).get(set.id)!;
+    assert.deepEqual(bound.declarationSet.originalContracts, set.originalContracts);
+    for (const exported of ['true', 1, null]) {
+      const changed = structuredClone(set);
+      Object.assign(changed.originalContracts['App.Packet'], { exported });
+      assert.throws(() => admit(changed));
+    }
+  });
+
+  it('admits the compiler caption wire on original contracts', () => {
+    for (const label of ['Packet', { text: 'Packet', nl: 'Pakket' }]) {
+      const set = originalContractSet();
+      Object.assign(set.originalContracts['App.Packet'], { label });
+      const bound = admit(set).get(set.id)!;
+      assert.deepEqual(bound.declarationSet.originalContracts, set.originalContracts);
+    }
+    for (const label of [['Packet'], 7, null]) {
+      const set = originalContractSet();
+      Object.assign(set.originalContracts['App.Packet'], { label });
+      assert.throws(() => admit(set));
+    }
+  });
+
+  it('admits the compiler caption wire on original contract fields', () => {
+    for (const label of ['Label', { text: 'Label', nl: 'Etiket' }]) {
+      const set = originalContractSet();
+      Object.assign(set.originalContracts['App.Packet'].fields.required, { label });
+      const bound = admit(set).get(set.id)!;
+      assert.deepEqual(bound.declarationSet.originalContracts, set.originalContracts);
+    }
+    for (const label of [['Label'], 7]) {
+      const set = originalContractSet();
+      Object.assign(set.originalContracts['App.Packet'].fields.required, { label });
+      assert.throws(() => admit(set));
+    }
+  });
+
   it('admits canonical int64 wire text for array and text length bounds while retaining the raw map', () => {
     const set = originalContractSet();
     Object.assign(set.originalContracts['App.Packet'].fields.attachments, { max: '4' });

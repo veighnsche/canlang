@@ -108,7 +108,7 @@ function scalarType(type: unknown): CanTypeId {
   try {
     const parsed = parseTypeId(type);
     if (printTypeId(parsed) !== type || parsed.requiredArray ||
-        !(parsed.base.kind === 'enum' || /^(int|datetime|text|bool|decimal|money|date|duration|currency|user)(\[\])?\??$/.test(type))) {
+        !(parsed.base.kind === 'enum' || /^(int|datetime|text|email|bool|decimal|money|date|duration|currency|user)(\[\])?\??$/.test(type))) {
       return invalid(`unsupported disclosure type ${JSON.stringify(type)}; defining composite/lifetime join required.`);
     }
   } catch (error) {
@@ -2065,12 +2065,14 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
     for (const { name, profile, row, sourcePresence } of models) {
       const read = reads.get(profile.model);
       if (read === undefined || !('grants' in read)) return invalid('SEND model requires original ordered source field grants.');
+      const policyDomains = ownerPolicyDomains(owner, healthy);
       const project = async (current: StoredRow, observed: ByContext, load: (model: ModelName, id: RecordId) => Promise<StoredRow | null>,
-        assertHealthy: () => void) => {
+        assertHealthy: () => void, policyQuery = policyDomains.capture) => {
         try {
           return await projectInstalledSourceRowAndAncestors({ model: profile.model, row: current,
             readPolicies: reads, policy: producer.policy, context: observed, revision: call.revision, fence: undefined,
-            store: owner.store, rows: new Map([[`${profile.model}\0${current.id}`, current]]), ownerRows: { read: load, assertHealthy } });
+            store: owner.store, rows: new Map([[`${profile.model}\0${current.id}`, current]]),
+            ownerRows: { read: load, assertHealthy, policyQuery } });
         } catch (error) {
           if (error instanceof FenceConflictError) throw new StateError('conflict', 'SEND model authority moved beyond its checkpoint.');
           throw error;
@@ -2099,7 +2101,8 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
         };
         const current = await load(profile.model, row.id);
         if (current === null || !sameModelLifetime(row, current)) throw new StateError('forbidden', 'SEND model lifetime is unavailable at commit.');
-        const projected = await observeRowGrantAuthority(context, observed => project(current, observed, load, finalHealthy));
+        const projected = await observeRowGrantAuthority(context, observed => project(current, observed, load, finalHealthy,
+          policyDomains.retained(finalHealthy, final.writes)));
         finalHealthy();
         if (projected.value.record === null || stableStringify(projectSourceRowFields(snapshot, projected.value.grants, read.secretFields).data) !==
             stableStringify(snapshot.data)) throw new StateError('forbidden', 'Original SEND model fields are no longer readable at commit.');
@@ -5543,7 +5546,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       ? dataCopy(receipt.outcome.result) : null, records };
   };
   const project = async (member: Awaited<ReturnType<typeof membership>>) => {
-    try { return await projectOnce(member); }
+    try { const outcome = await projectOnce(member);
+      return outcome; }
     catch (error) {
       // A current row grant can lose its complete Identity facts during an
       // awaited row projection. No partial retained influence escapes it.

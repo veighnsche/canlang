@@ -543,13 +543,27 @@ function bindOriginalValueDefaults(set: FrameworkOpaqueDeclarationSet, values: F
   const reusable: Record<string, unknown> = Object.create(null);
   const expected = new Map<string, { readonly field: CanonicalNominalLeaf; readonly value: WireValue }>();
   for (const contract of set.valueTypes.contracts) {
-    const original = record(contracts[contract.name], ['fields']);
+    // The compiler contract declaration carries its long-standing
+    // visibility and caption wire alongside the fields; field
+    // correspondence below is unchanged.
+    const original = record(contracts[contract.name], ['fields'], ['exported', 'label']);
+    if (Object.hasOwn(original, 'exported') && typeof original.exported !== 'boolean') {
+      return refuse('original contract visibility marker required.');
+    }
+    if (Object.hasOwn(original, 'label') && !(typeof original.label === 'string' ||
+        (typeof original.label === 'object' && original.label !== null && !Array.isArray(original.label)))) {
+      return refuse('original contract caption wire required.');
+    }
     const fields = record(original.fields, contract.fields.map(field => field.name));
     const reusedFields: Record<string, unknown> = Object.create(null);
     const originalFields: Record<string, unknown> = Object.create(null);
     for (const field of contract.fields) {
       const raw = record(fields[field.name], ['type'], ['array', 'nullable', 'trim', 'min', 'max', 'format', 'distinctBy', 'excludedIds',
-        'default', 'server', 'derived']);
+        'default', 'server', 'derived', 'label']);
+      if (Object.hasOwn(raw, 'label') && !(typeof raw.label === 'string' ||
+          (typeof raw.label === 'object' && raw.label !== null && !Array.isArray(raw.label)))) {
+        return refuse('original contract field caption wire required.');
+      }
       const array = Object.hasOwn(raw, 'array') ? boolean(raw.array) : undefined;
       const nullable = Object.hasOwn(raw, 'nullable') ? boolean(raw.nullable) : undefined;
       const spelling = `${string(raw.type)}${array === true ? '[]' : ''}${nullable === true ? '?' : ''}`;
@@ -562,7 +576,8 @@ function bindOriginalValueDefaults(set: FrameworkOpaqueDeclarationSet, values: F
         base.kind === 'nominal' && Object.hasOwn(canonicalSchema.aliases ?? {}, base.path);
       // Native wrappers remain in the original journal; Values owns their
       // grammar through the equivalent type spelling in this local schema.
-      const { array: _array, nullable: _nullable, ...schemaField } = raw;
+      // Display captions are compiler wire, never schema: strip them here.
+      const { array: _array, nullable: _nullable, label: _label, ...schemaField } = raw;
       const forSchema: Record<string, unknown> = { ...schemaField, type: canonicalType };
       // Native integer metadata retains its int64 wire in the journal. Values'
       // schema API takes exact numeric lengths; decode only those bounds here.

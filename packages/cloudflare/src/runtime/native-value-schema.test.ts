@@ -64,6 +64,25 @@ test('raw copied and unbound objects do not acquire native reference identities'
     assert.equal(resolver(value(candidate), []), undefined);
   }
   assert.equal(issued.reads(), 0);
+  const queued = Object.freeze({ id: 'queued-id' });
+  bindNativeReference(queued, makeRecordRef(CUSTOMER, 'queued-id'));
+  const queuedResolver = nativeValueReferenceEncoder(CUSTOMER, schema, queued);
+  assert.deepEqual(encodeValue(CUSTOMER, value(queued), queuedResolver), { id: 'queued-id' });
+  const copiedQueue = { ...queued };
+  assert.equal(queuedResolver(value(copiedQueue), []), undefined);
+  assert.throws(() => encodeValue(CUSTOMER, value(copiedQueue),
+    nativeValueReferenceEncoder(CUSTOMER, schema, copiedQueue, true)));
+  const nested = { customer: queued };
+  assert.deepEqual(encodeValue('Inputs.Contact', value(nested),
+    nativeValueReferenceEncoder('Inputs.Contact', schema, nested, true)), { customer: { id: 'queued-id' } });
+  const copiedNested = { customer: copiedQueue };
+  assert.throws(() => encodeValue('Inputs.Contact', value(copiedNested),
+    nativeValueReferenceEncoder('Inputs.Contact', schema, copiedNested, true)));
+  const nullable = [queued];
+  assert.deepEqual(encodeValue(`${CUSTOMER}[]?`, value(nullable),
+    nativeValueReferenceEncoder(`${CUSTOMER}[]?`, schema, nullable, true)), [{ id: 'queued-id' }]);
+  assert.equal(encodeValue(`${CUSTOMER}[]?`, null,
+    nativeValueReferenceEncoder(`${CUSTOMER}[]?`, schema, null, true)), null);
 });
 
 test('genuine references require proven Model slots and their actual original occurrence', () => {

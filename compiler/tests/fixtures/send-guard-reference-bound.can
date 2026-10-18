@@ -1,0 +1,28 @@
+app SendGuardReferenceBound
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Node {name:text,peer:Node?}
+ policy Node read=members
+When
+ scenario seed(name:text) -> Node by=members
+  do
+   create Node {name=name} as node
+   return node
+ scenario link(name:text,peer:Node) -> Node by=members
+  do
+   create Node {name=name,peer=peer} as node
+   return node
+ scenario relink(node:Node,peer:Node) by=members
+  do
+   set node {peer=peer}
+ scenario probe2(node:Node) -> int by=members
+  do
+   require node.name != ""
+   send Mail.send {to="bound@example.test",subject="Bound",body="Bound"} when=node?.peer?.peer?.peer==null as attempt
+   return 1
+ scenario probe(node:Node) -> int by=members
+  do
+   require node.name != ""
+   send Mail.send {to="bound@example.test",subject="Bound",body="Bound"} when=node?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer?.peer!=null as attempt
+   return 1
+Then

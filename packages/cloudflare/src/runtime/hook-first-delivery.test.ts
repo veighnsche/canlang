@@ -848,6 +848,102 @@ async function seedInspectionCancellation(world: OriginalHandlerWorld) {
   return ids;
 }
 
+test('whole original asset retirement emits its genuine queued cancellation and preserves distinct mutation lifetimes',
+  { timeout: 120_000 }, async () => {
+    const app = 'OriginalQueuedCancellation';
+    const original = await originalHandlerSource('maintain', 'retire_asset', app,
+      [{ owner: 'maintain', name: 'cancel_inspection_step' }]);
+    const maintain = await readFile(join(root, 'draft/apps/CanMaintain/CanMaintain.can'), 'utf8');
+    const crud = maintain.match(/^  crud Asset[^\n]*\n/m)?.[0];
+    assert.ok(crud);
+    original.source = originalOwnerScenarios(original.source, 'maintain', crud);
+    const world = await originalHandlerWorld('maintain', 'retire_asset', app, original);
+    try {
+      const ids = await seedInspectionCancellation(world);
+      const load = (model: string, id: string) => world.store.load(asModel(`maintain.${model}`), asId(id));
+      const seeded = (await load('Asset', ids.asset))!;
+      await world.store.commit(makeBatch(await world.store.readRevision(), { writes: [{ kind: 'update',
+        model: asModel('maintain.Asset'), id: seeded.id, expectedVersion: seeded.version,
+        row: { ...seeded, version: (seeded.version + 1) as StoredRow['version'], data: { ...seeded.data, retired: false } } }] }));
+      const membership = await world.identities.createMembership({ team_id: world.team.team_id,
+        user_id: world.person.user_id, is_owner: true, roles: [{ role: 'maintain.maintenance_manager',
+          granted_at: new Date(FIXED_NOW).toISOString(), granted_by: world.person.user_id }] });
+      await world.seed('employee.Employee', uuidv7(FIXED_NOW, 1201), {
+        user: { id: world.person.user_id }, name: 'Original maintenance manager', home: { id: ids.site },
+        locations: [{ id: ids.site }], operator_wide: false, active: true, start: '2020-01-01',
+        end: null, manager: null, role: 'manager', skills: [], private_notes: null, document: null });
+      const identity = makeIdentity({ membership, team: world.team, email: world.person.email });
+      const invoker = buildInvoker(world.artifact, world.asm, world.store, { memberships: world.identities, now: () => FIXED_NOW });
+      const invoke = (version: number, retired: boolean, operationId = asOperationId(uuidv7(FIXED_NOW, ++sequence))) =>
+        invoker.invokeMutation({ operation: 'maintain.Asset.update', operation_id: operationId,
+          inputs: { record: { id: ids.asset, version: String(version) }, retired } }, identity);
+      const committed = (outcome: Awaited<ReturnType<typeof invoke>>) =>
+        assert.ok('result' in outcome && outcome.result.status === 'committed', JSON.stringify(outcome));
+      const event = 'maintain.CancellationStep';
+      const domain = async () => Promise.all(['Asset', 'Plan', 'Inspection', 'Cancellation'].map(async name => ({ name,
+        rows: await world.store.query({ model: asModel(`maintain.${name}`), authority: 'owner' }) })));
+      const before = await domain(), asset = (await load('Asset', ids.asset))!;
+      let failedCommit = false;
+      const unavailable: StoragePort = { ...world.store, commit: async batch => {
+        if (batch.writes.some(write => write.model === asModel('maintain.Asset'))) {
+          failedCommit = true; throw new Error('Temporary queued source commit failure');
+        }
+        return world.store.commit(batch);
+      } };
+      const failure = await buildInvoker(world.artifact, world.asm, unavailable,
+        { memberships: world.identities, now: () => FIXED_NOW }).invokeMutation({ operation: 'maintain.Asset.update',
+        operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)),
+        inputs: { record: { id: ids.asset, version: String(asset.version) }, retired: true } }, identity).catch(error => ({ error }));
+      assert.ok('error' in failure && failedCommit);
+      assert.deepEqual(await domain(), before);
+      assert.deepEqual(await emittedSources(world, event), []);
+      const firstOperation = asOperationId(uuidv7(FIXED_NOW, ++sequence));
+      committed(await invoke(asset.version, true, firstOperation));
+      const [first] = await emittedSources(world, event);
+      assert.ok(first);
+      const firstId = (first.source.payload as { cancellation: { id: string } }).cancellation.id;
+      assert.ok(firstId.includes(firstOperation), 'actual State operation identity owns the queued ID');
+      assert.deepEqual(first.source.payload, { cancellation: { id: firstId } }, 'queued reference has no invented version');
+      const firstRow = (await load('Cancellation', firstId))!;
+      assert.ok(firstRow);
+      assert.equal(firstRow.parent?.id, ids.asset);
+      assert.equal(firstRow.data.reason, 'asset_retired');
+      assert.equal(firstRow.data.phase, 'plans');
+      assert.equal(firstRow.data.through, asset.data.inspection_epoch);
+      assert.deepEqual(firstRow.data.author, { id: world.person.user_id });
+      assert.equal(firstRow.data.at, new Date(FIXED_NOW).toISOString());
+      const afterFirst = await domain();
+      await invoke(asset.version, true, firstOperation);
+      assert.deepEqual(await domain(), afterFirst);
+      assert.equal((await emittedSources(world, event)).length, 1);
+      let current = (await load('Asset', ids.asset))!;
+      committed(await invoke(current.version, false));
+      assert.equal((await emittedSources(world, event)).length, 1);
+      current = (await load('Asset', ids.asset))!;
+      const secondOperation = asOperationId(uuidv7(FIXED_NOW, ++sequence));
+      committed(await invoke(current.version, true, secondOperation));
+      const sources = await emittedSources(world, event);
+      assert.equal(sources.length, 2);
+      const second = sources.find(source => source.row.id !== first.row.id)!;
+      const secondId = (second.source.payload as { cancellation: { id: string } }).cancellation.id;
+      assert.notEqual(firstId, secondId, 'distinct owner mutations cannot reuse an earlier queued identity');
+      assert.ok(secondId.includes(secondOperation));
+      assert.ok(await load('Cancellation', secondId));
+      const { invokeRetainedHandlerOccurrenceCanonical } = await import('./invoke.js');
+      const selector = { sourceOccurrence: first.row.id, handler: 'maintain.cancel_inspection_step', event,
+        scope: { app, owner: world.team.team_id, ownerPackage: 'maintain' } };
+      const consume = () => invokeRetainedHandlerOccurrenceCanonical({ asm: world.asm, artifact: world.artifact,
+        app, selector, store: world.store, identities: world.identities, now: () => FIXED_NOW });
+      assert.partialDeepStrictEqual(await consume(), { status: 'completed' });
+      assert.equal((await load('Plan', ids.firstPlan))!.data.active, false);
+      assert.equal((await load('Cancellation', firstId))!.data.after, ids.firstPlan);
+      assert.equal((await load('Cancellation', secondId))!.data.after, null, 'later consumer resolves only its genuine emitted child');
+      const revision = await world.store.readRevision();
+      assert.partialDeepStrictEqual(await consume(), { status: 'replayed' });
+      assert.equal(await world.store.readRevision(), revision);
+    } finally { await world.worker.dispose(); await rm(world.dir, { recursive: true, force: true }); }
+  });
+
 test('whole original inspection cancellation persists emissions atomically and advances through real retained handlers once',
   { timeout: 120_000 }, async () => {
     const world = await originalHandlerWorld('maintain', 'cancel_inspection_step', 'OriginalInspectionCancellation');

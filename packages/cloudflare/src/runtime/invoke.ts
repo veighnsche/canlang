@@ -125,6 +125,7 @@ import { receiverFromIdentity } from '@canlang/interfaces';
 import type { AsyncGuardEvaluator, attemptDispatchAsync } from "@canlang/work/dispatch";
 import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
 import { isResourceSendTarget, resolveResourceSend, resourceSendOwner } from './resource-dispatch.js';
+import { mailHumanText } from './bound-mail.js';
 import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/receipt/tables";
@@ -3518,6 +3519,10 @@ async function loadNativeSendModelSnapshots(loaded: LoadedCanonicalDescriptors, 
       if (reference !== undefined && row.parent != null) Object.defineProperty(view, 'parent', {
         enumerable: true, get: () => { healthy(); return reference(row.parent!.model, row.parent!.id); },
       });
+      // The owning conversion binds this fresh view to its exact row
+      // identity, so stdlib `same` (reference normalization) compares model
+      // slots by identity instead of refusing bound views as non-refs.
+      bindNativeRecord(view, type, row.id, row.version);
       healthy(); return Object.freeze(view);
     },
   });
@@ -3585,14 +3590,20 @@ async function prepareNativeSendGuardReferences(input: {
       observe(parent, new Set([...path, identity]));
     }
   };
-  const reference = (model: string, id: string, path = new Set<string>()): unknown => {
+  const reference = (model: string, id: string, depth = 0): unknown => {
     try {
       const identity = key(model, id), entry = entries.get(identity);
-      if (path.has(identity) || path.size >= 32) throw new StateError('validation', 'SEND reference path exceeds its defining bound.');
+      // Traversed hops (not distinct identities) bound the traversal:
+      // converging reference paths (diamonds such as
+      // `notice.parent.parent.assignment` revisiting the assignment
+      // already reached through `notice.parent`) are legitimate
+      // authored traversals and must not trip the bound, while genuine
+      // reference cycles (whose identity set never grows) still fail
+      // closed at this same finite hop bound.
+      if (depth >= 32) throw new StateError('validation', 'SEND reference path exceeds its defining bound.');
       if (entry === undefined) throw new StateError('validation', 'SEND target is outside its prepared declaration.');
       observe(entry);
-      const next = new Set([...path, identity]);
-      return snapshots.view(model, entry.row!, healthy, (model, id) => reference(model, id, next));
+      return snapshots.view(model, entry.row!, healthy, (model, id) => reference(model, id, depth + 1));
     } catch (error) { input.failure(error); throw error; }
   };
   return Object.freeze({ reference, finalizedReader: (writes: readonly DomainWrite[], physical: typeof input.read) => {
@@ -4323,6 +4334,22 @@ interface InvocationSourceReadContext {
   readonly preferences?: HandlerContext['preferences'];
 }
 
+/** A grant-free preload cannot supply viewer policy for reference owners
+ * outside the policy table: ruled models are omitted fail-closed by design
+ * and rule-less models transcribe no grants. Such defs defer to invocation
+ * binding with genuine context instead of failing closed here. */
+export function nativeScenarioReferenceBindingDefersGrantFree(
+  plan: { readonly returns: ReadonlyArray<{ readonly dependencies: ReadonlyArray<{ readonly type: string; readonly model: string }> }> },
+  models: ReadonlyArray<{ readonly name: string }>,
+  policyHas: (model: string) => boolean,
+): boolean {
+  return plan.returns.some(returned => returned.dependencies.some(dependency => {
+    const parsed = parseTypeId(dependency.type);
+    const modelName = parsed.base.kind === 'nominal' ? parsed.base.path : undefined;
+    return modelName !== undefined && models.some(model => model.name === modelName) && !policyHas(dependency.model);
+  }));
+}
+
 /** Stored reference influence uses State's actual current viewer policy. The
  * checked type selects its owning producer; a Values reference grants nothing. */
 async function bindNativeScenarioReferences(asm: AssembledModules, artifact: CompileArtifact,
@@ -4342,10 +4369,14 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     // authority; the invocation-local registry binds their genuine context.
     // Parent queries need their ancestors' genuine grants, so they defer
     // alongside file and model-result profiles instead of binding grant-free.
+    // Stored references on owners outside the policy table defer the same
+    // way: no grant-free bind could supply their viewer policy.
     if (context === undefined && ((nativeScenarioNominalFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
         returned.dependencies.some(dependency => dependency.type === 'file[]')) ||
         loaded.models.some(model => model.name === def.descriptor.result?.type) ||
-        plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dependency => dependency.field === 'parent')))) continue;
+        plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dependency => dependency.field === 'parent')) ||
+        nativeScenarioReferenceBindingDefersGrantFree(plan, loaded.models,
+          model => (loaded.policy as ReadonlyMap<string, unknown>).has(model)))) continue;
     if (context === undefined ? !plan.returns.some(entry => entry.dependencies.some(dependency => {
       const parsed = parseTypeId(dependency.type);
       const modelName = parsed.base.kind === 'nominal' ? parsed.base.path : undefined;
@@ -5827,6 +5858,19 @@ function createSourceReadPolicyAdapter(input: {
         await checkpoint();
         return values;
       };
+      // Predicates that close over several admitted models re-project every
+      // non-anchor slot through this same evaluation: readSource checkpoints
+      // the live revision, re-evaluates current row+field grants, registers
+      // issued views in this observer, and refuses revoked access closed.
+      const projectAdmittedRow = async (model: string, id: string, expectedVersion: unknown): Promise<Record<string, unknown>> => {
+        const values = await readSource(model, id);
+        if (values.length !== 1) throw new StateError('validation', 'Source projection requires its single admitted row.');
+        const entry = values[0]!;
+        if (entry.record.id !== id || entry.record.version !== expectedVersion) {
+          throw new StateError('conflict', 'Source projection differs from its admitted row.');
+        }
+        return entry.view;
+      };
       const readRecords = async (model: string, query: CanonicalReadQuery) => {
         try {
           if (!isUnknownRecord(query) || Reflect.ownKeys(query).some(key => typeof key !== 'string' ||
@@ -5870,12 +5914,72 @@ function createSourceReadPolicyAdapter(input: {
           return Object.freeze(ordered.map(record => matched.find(candidate => candidate.record === record)!.view));
         } catch (error) { failure ??= error; throw error; }
       };
+      // Delivery observation for records already bound in this evaluation
+      // reuses the confined receipt-join read: prepared navigation bindings
+      // first (they join revalidation), then owning-runtime views created
+      // here, then references remembered inside those views; declared
+      // delivery field, caller grants with existence-hiding, fence-join
+      // revision first, record-version enroll. Anything else keeps the
+      // original refusal, so predicates gain no new probing authority,
+      // effects, storage or diagnostics access. Denied stays forbidden
+      // (fail closed, never absence); only legitimately absent reads null.
+      const observeDelivery = async (locator: { readonly record: unknown; readonly field: string },
+        selected: readonly ReceiptProperty[]): Promise<Readonly<Partial<Record<ReceiptProperty, unknown>>> | null> => {
+        try {
+          await checkpoint();
+          const record: unknown = locator.record;
+          const navigated = isUnknownRecord(record) ? navigation.resolveRecord(record) : undefined;
+          const viewed = typeof record === 'object' && record !== null
+            ? sourceViews.get(record) : undefined;
+          const remembered = typeof record === 'object' && record !== null &&
+            sourceReferences.has(record) && isRecordRef(record) ? record : undefined;
+          const reference = navigated ?? (viewed === undefined ? undefined
+            : { model: viewed.model, id: viewed.row.id }) ?? remembered ?? refuse();
+          const fence: SelectedReceiptFence = {
+            revision: currentRevision,
+            enroll: dependency => {
+              currentFence?.enroll({ kind: 'record', model: dependency.model as ModelName,
+                id: dependency.id as RecordId, version: dependency.version as RecordVersion });
+            },
+          };
+          // Live compiled source-read policies for this exact admitted
+          // evaluation (the defining installed adapter's map). The
+          // receipt read consults them ONLY when the static policy
+          // table has no entry for the owning model (ruled omission);
+          // when the live map cannot be built the read keeps its exact
+          // static behavior. Never a proof token: the join still runs
+          // its own leaf checks, fencing and denial-before-presence.
+          let sourceReadPolicies: SelectedReceiptReadOpts['sourceReadPolicies'];
+          try {
+            sourceReadPolicies = policies(reference.model);
+          } catch { sourceReadPolicies = undefined; }
+          const observed = await invokeSelectedReceiptRead({
+            asm: input.opts.asm, artifact: input.opts.artifact, operation: RECEIPT_READ_OPERATION,
+            inputs: { recordId: reference.id, field: locator.field, selected: [...selected] },
+            boundModel: reference.model, identity: input.opts.identity, store: input.opts.store,
+            memberships: context.memberships, fence, now: input.now,
+            ...(sourceReadPolicies === undefined ? {} : { sourceReadPolicies }),
+          });
+          if (await input.opts.store.readRevision() !== currentRevision) {
+            throw new StateError('conflict', 'State changed during the read predicate delivery observation.');
+          }
+          await checkpoint();
+          if (observed.outcome === 'denied') {
+            throw new StateError('forbidden', 'Delivery observation is not authorized.');
+          }
+          if (observed.outcome !== 'observed') return null;
+          const declaration = input.opts.artifact.models?.find(model => model.name === reference.model)?.fields
+            .find(field => field.name === locator.field)?.field;
+          return sourceReceiptProjection(observed.projection, [...selected],
+            declaration?.kind === 'delivery' ? declaration.result : undefined);
+        } catch (error) { failure ??= error; throw error; }
+      };
       const ctx = createContext({ caller: { userId: context.actorUserId ?? 'anonymous', roles },
       memberships: roles, store: readonlyStore, clock: input.now,
       ...(input.preferences === undefined ? {} : { preferences: input.preferences }),
       canonical: { operation: `${sourceModel}.read`, builtinRoles: Object.freeze(builtinRoles),
         stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
-        readModel: refuse, readRecords, observeDelivery: refuse, observeGenerationCallbackDiagnostics: refuse },
+        readModel: refuse, readRecords, observeDelivery, observeGenerationCallbackDiagnostics: refuse },
       sendDeferred: refuse, scheduleDeferred: refuse, cancelDeferred: refuse,
       qualified: { actor: actor === null ? null : { userId: context.actorUserId!, email: actor.email, emailVerified: actor.email_verified },
         team: team === null ? null : { teamId: context.teamId!, timezone: team.timezone }, now: input.now(), source: input.opts.source ?? 'worker' },
@@ -5922,7 +6026,13 @@ function createSourceReadPolicyAdapter(input: {
       const membershipFrame = openNativeReadMembershipFrame(ctx, installed, observation, owner,
         actualReadTeam, error => { failure ??= error; });
       let verdict: unknown;
-      try { verdict = await predicate(ctx, nativeRow); membershipFrame.assertCompleted(); }
+      try {
+        verdict = await (predicate as (
+          context: HandlerContext, row: Record<string, unknown>,
+          project: (model: string, id: string, expectedVersion: unknown) => Promise<Record<string, unknown>>,
+        ) => unknown)(ctx, nativeRow, projectAdmittedRow);
+        membershipFrame.assertCompleted();
+      }
       finally { active = false; membershipFrame.close(); }
       if (failure !== undefined) throw failure;
       if (typeof verdict !== 'boolean') throw new StateError('validation', 'Source read predicates must return bool.');
@@ -6239,8 +6349,36 @@ async function createContainmentNavigation(input: {
       if (await store.readRevision() !== input.revision) {
         throw new StateError('conflict', 'State changed during parent navigation.');
       }
-      if (input.authority === 'viewer' && JSON.stringify(current) !== JSON.stringify(entry.row)) {
-        throw new StateError('forbidden', 'Parent read authority changed during the operation.');
+      if (input.authority === 'viewer') {
+        // Separate original observed values from current authority: the
+        // served field set must keep every originally served field (late
+        // revocation, narrowing or deletion refuses) and gain no
+        // originally-present-but-denied field (widening refuses), while
+        // own-write values and newly added fields keep their original
+        // snapshot. The containment link itself must still resolve.
+        const served = entry.row as StoredRow | ProjectedRecord;
+        const servedData = (served?.data ?? {}) as Record<string, unknown>;
+        const currentData = ((current as StoredRow | ProjectedRecord)?.data ?? {}) as Record<string, unknown>;
+        const servedKeys = new Set(Object.keys(servedData));
+        const currentKeys = new Set(Object.keys(currentData));
+        const presence = sourcePresence.get(served);
+        const basis = projectionSources.get(served);
+        const originalKeys = presence ?? new Set(Object.keys((basis?.data ?? servedData) as Record<string, unknown>));
+        const servedParent = (served?.parent ?? null) as { model?: unknown; id?: unknown } | null;
+        const currentParent = ((current as StoredRow | ProjectedRecord)?.parent ?? null) as { model?: unknown; id?: unknown } | null;
+        const sameLink = servedParent === null
+          ? currentParent === null
+          : currentParent !== null && servedParent.model === currentParent.model && servedParent.id === currentParent.id;
+        let changed = !sameLink;
+        if (!changed) for (const key of servedKeys) {
+          if (!currentKeys.has(key)) { changed = true; break; }
+        }
+        if (!changed) for (const key of currentKeys) {
+          if (!servedKeys.has(key) && originalKeys.has(key)) { changed = true; break; }
+        }
+        if (changed || current === null || current === undefined) {
+          throw new StateError('forbidden', 'Parent read authority changed during the operation.');
+        }
       }
       input.fence?.enroll({ kind: 'record', model: entry.model as ModelName, id: entry.row!.id, version: entry.row!.version });
       input.fence?.enroll({ kind: 'query', model: entry.model as ModelName, authority: 'viewer' });
@@ -6451,6 +6589,14 @@ function nativeScenarioQueryRecord(loaded: NativeRecordScope, model: string, row
   return Object.freeze(view);
 }
 
+interface HookQueuedCreate {
+  readonly model: ModelName; readonly id: RecordId; readonly parent: { readonly model: ModelName; readonly id: RecordId } | null;
+}
+interface HookSourceFrame {
+  readonly events: import('@canlang/work').DeclaredEventSourceInput[];
+  readonly creates: HookQueuedCreate[];
+}
+type HookCreateRetainer = (created: HookQueuedCreate) => void;
 type HookDeclaredEmitter = (definition: unknown, event: string, payload: unknown) => Promise<void>;
 
 /** This private control is not an executor option or a public context factory. */
@@ -6461,7 +6607,7 @@ interface LocalOwnerPolicyControl {
   /** Install attaches the read-grant policy table once it exists; per-fire value projection reads it. */
   setParentValuePolicies(policy: import('@canlang/state/policy/grants').PolicyTable): void;
   verifyAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void>;
-  createOwnerFrame(input: { readonly deploymentBase?: string; readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter }): { close(): void };
+  createOwnerFrame(input: { readonly deploymentBase?: string; readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter; readonly retainQueuedCreate?: HookCreateRetainer }): { close(): void };
   createFixtureFrame(input: { readonly deploymentBase?: string; readonly context: InvocationContext; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
 }
 const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
@@ -6630,7 +6776,7 @@ async function loadLocalOwnerPolicyControl(input: {
       throw new Error('Local owner policies require nonempty claims.');
     }
   }
-  const activeFrames = new WeakMap<InvocationContext, { active: boolean; readonly deploymentBase?: string; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter }>();
+  const activeFrames = new WeakMap<InvocationContext, { active: boolean; readonly deploymentBase?: string; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter; readonly retainQueuedCreate?: HookCreateRetainer }>();
   const hookCallables = new Set<string>();
   const hookOperations = new Set<string>();
   // Install-attached read-grant policy table (set once from the canonical
@@ -6891,8 +7037,9 @@ async function loadLocalOwnerPolicyControl(input: {
             freezeScenarioSnapshot(c);
             const bridge = Object.freeze({ before: view(original.before), after,
               triggerId: original.triggerId, triggerModel: original.triggerModel, op: original.op,
+              operationId: original.operationId, hookOccurrence: original.hookOccurrence,
               actor: c.actor, now: c.now,
-              stage: (value: unknown): void => guarded(() => {
+              stage: (value: unknown): Readonly<Record<string, unknown>> | undefined => guarded(() => {
                 const staged = localPolicyObject(value, ['op', 'model', 'id', 'parent', 'data']);
                 if (typeof staged.model !== 'string' || typeof staged.id !== 'string' || staged.id === '' ||
                     !['create', 'update'].includes(String(staged.op))) {
@@ -6907,6 +7054,17 @@ async function loadLocalOwnerPolicyControl(input: {
                 original.stage({ op: staged.op as 'create' | 'update', model: staged.model as ModelName, id: staged.id as RecordId,
                   ...(checkedParent === undefined ? {} : { parent: { model: checkedParent.model as ModelName, id: checkedParent.id as RecordId } }),
                   data: encodeFields(staged.model, localPolicyMember(staged, 'data')) });
+                if (staged.op !== 'create') return undefined;
+                if (frame.retainQueuedCreate === undefined) {
+                  throw new input.native.producers.errors('validation', 'Hook create reference requires its original source finalizer.');
+                }
+                frame.retainQueuedCreate({ model: staged.model as ModelName, id: staged.id as RecordId,
+                  parent: checkedParent === undefined ? null : { model: checkedParent.model as ModelName, id: checkedParent.id as RecordId } });
+                // The genuine State stage acknowledgement owns this queued
+                // identity. No version or business fields exist before flush.
+                const reference = Object.freeze({ id: staged.id });
+                bindNativeReference(reference, makeRecordRef(staged.model, staged.id));
+                return reference;
               }),
               schedule: (value: unknown): void => guarded(() => {
                 const replacement = localPolicyObject(value, ['key', 'at', 'event', 'payload']);
@@ -7267,14 +7425,15 @@ async function loadLocalOwnerPolicyControl(input: {
   // carrier is verified. The issuer checks the whole JS/map closure even
   // when this module namespace is already in the ESM import cache.
   const verificationPath = modules[0]!.path;
-  const openFrame = ({ context: source, session, deploymentBase, memberships, emitDeclared }: { readonly deploymentBase?: string; readonly context: InvocationContext;
-    readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter }) => {
+  const openFrame = ({ context: source, session, deploymentBase, memberships, emitDeclared, retainQueuedCreate }: { readonly deploymentBase?: string; readonly context: InvocationContext;
+    readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter; readonly retainQueuedCreate?: HookCreateRetainer }) => {
     const context = session.views.context;
     if (!Object.isFrozen(context) || localPolicyContextFacts(context) !== localPolicyContextFacts(source) || activeFrames.has(context)) {
       throw new input.native.producers.errors('validation', 'Owner model frame requires its exact fresh session context.');
     }
     const frame = { active: true, ...(deploymentBase === undefined ? {} : { deploymentBase }),
-      ...(memberships === undefined ? {} : { memberships }), ...(emitDeclared === undefined ? {} : { emitDeclared }) };
+      ...(memberships === undefined ? {} : { memberships }), ...(emitDeclared === undefined ? {} : { emitDeclared }),
+      ...(retainQueuedCreate === undefined ? {} : { retainQueuedCreate }) };
     activeFrames.set(context, frame);
     return Object.freeze({ close() { frame.active = false; } });
   };
@@ -7288,9 +7447,10 @@ async function loadLocalOwnerPolicyControl(input: {
     catch {
       throw new input.native.producers.errors('validation', 'Native owner assembly no longer matches its captured artifact or module closure.');
     }
-  }, createOwnerFrame({ call, session, deploymentBase, memberships, emitDeclared }: { readonly deploymentBase?: string; call: CanonicalSeamCall; session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter }) {
+  }, createOwnerFrame({ call, session, deploymentBase, memberships, emitDeclared, retainQueuedCreate }: { readonly deploymentBase?: string; call: CanonicalSeamCall; session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader; readonly emitDeclared?: HookDeclaredEmitter; readonly retainQueuedCreate?: HookCreateRetainer }) {
     return openFrame({ context: call.context, session, ...(deploymentBase === undefined ? {} : { deploymentBase }),
-      ...(memberships === undefined ? {} : { memberships }), ...(emitDeclared === undefined ? {} : { emitDeclared }) });
+      ...(memberships === undefined ? {} : { memberships }), ...(emitDeclared === undefined ? {} : { emitDeclared }),
+      ...(retainQueuedCreate === undefined ? {} : { retainQueuedCreate }) });
   }, createFixtureFrame({ context, session, deploymentBase }: { readonly deploymentBase?: string; context: InvocationContext;
     session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) {
     if (context.kind !== 'test' || session.views.context.kind !== 'test') {
@@ -8647,6 +8807,7 @@ async function runScenarioExecution(
   const ctx = createContext({
     ...(opts.preferences === undefined ? {} : { preferences: opts.preferences }),
     ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
+    ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
     caller:
       actorUserId === null
         ? { userId: "anonymous", roles: [] }
@@ -8889,7 +9050,12 @@ async function runScenarioExecution(
           const wire: Record<string, unknown> = Object.create(null);
           for (const [name, value] of Object.entries(request)) {
             const field = member(inputs, name) as FieldDescriptor | undefined;
-            wire[name] = field === undefined || value === undefined ? value : encodeValue(field.type, value as CanValue, nativeValueReferenceEncoder(field.type, schema, value), schema);
+            // Frozen `{text,locale}` carriers unwrap only at the exact Email
+            // human-text slots, through the same gate the provider adapter
+            // uses; a structural carrier anywhere else keeps its value so
+            // normal field validation still refuses it.
+            const admitted = mailHumanText(source, name, value);
+            wire[name] = field === undefined || admitted === undefined ? admitted : encodeValue(field.type, admitted as CanValue, nativeValueReferenceEncoder(field.type, schema, admitted), schema);
           }
           const checked = validateOperationInput(schema, source, wire);
           const args: Record<string, unknown> = Object.create(null);
@@ -9553,8 +9719,11 @@ async function runScenarioExecution(
         });
         const suppliedValues = localPolicyObject(supplied, parameters.map(parameter => parameter.name));
         const modelParameters = parameters.filter(parameter => loaded.models.some(model => model.name === parameter.typeId));
+        // The first model parameter anchors the observed row; any further
+        // model parameters flow as admitted rows (the observer tracks reads
+        // per model). A require with no model parameter has no row to bind.
         if (parameters.length !== declared.length || Object.keys(suppliedValues).length !== parameters.length ||
-            new Set(parameters.map(parameter => parameter.name)).size !== parameters.length || modelParameters.length !== 1) {
+            new Set(parameters.map(parameter => parameter.name)).size !== parameters.length || modelParameters.length === 0) {
           throw new AssemblyCorrespondenceError('Scenario Require needs its complete parameters and one original admitted model.');
         }
         for (const [index, parameter] of parameters.entries()) {
@@ -9587,8 +9756,25 @@ async function runScenarioExecution(
             const predicate: import('@canlang/state/receipt').InstalledSourceQueryPredicate = async (_record, observation) => {
               if (observation === undefined) throw new AssemblyCorrespondenceError('Scenario Require lacks its genuine owner-stage observation.');
               return adapter.evaluate(modelParameters[0]!.typeId, [{ owner: original.owner,
-                predicate: (context, row) => Reflect.apply(fn, undefined, [context,
-                  Object.freeze({ ...admittedParameters, [parameter]: row })]) }], observation, predicate);
+                predicate: async (context: HandlerContext, row: Record<string, unknown>,
+                  project?: (model: string, id: string, expectedVersion: unknown) => Promise<Record<string, unknown>>) => {
+                  const args: Record<string, unknown> = { ...admittedParameters, [parameter]: row };
+                  // Every further admitted model slot is re-projected through
+                  // this same evaluation in parameter order: foreign admitted
+                  // views stay out, current grants and the live revision apply.
+                  if (project === undefined && modelParameters.some(modelParameter => modelParameter.name !== parameter)) {
+                    throw new AssemblyCorrespondenceError('Scenario Require needs its current-stage source projection.');
+                  }
+                  for (const modelParameter of modelParameters) {
+                    if (modelParameter.name === parameter) continue;
+                    const ref = actualCall.recordRefs.find(entry => entry.param === modelParameter.name);
+                    if (ref === undefined || ref.model !== modelParameter.typeId) {
+                      throw new AssemblyCorrespondenceError('Scenario Require lacks its exact admitted model reference.');
+                    }
+                    args[modelParameter.name] = await project!(modelParameter.typeId, ref.id, ref.row.version);
+                  }
+                  return Reflect.apply(fn, undefined, [context, Object.freeze(args)]);
+                } }], observation, predicate);
             };
             if (original.sites.some(site => site.calls.some(call =>
               call.target.kind === 'builtin' && call.target.id === 'active_member'))) {
@@ -10035,7 +10221,7 @@ function hookDeclaredPayload(loaded: LoadedCanonicalDescriptors, definition: unk
       throw new loaded.producers.errors('validation', 'Hook emit payload lacks its typed value or opaque File lineage.');
     }
     wire[name] = encodeValue(field.type, part as CanValue,
-      nativeValueReferenceEncoder(field.type, schema, part), schema);
+      nativeValueReferenceEncoder(field.type, schema, part, true), schema);
   }
   const { captured } = checkedSourceEvent(definition, event, wire, loaded.valueSchema);
   const encoded: Record<string, unknown> = Object.create(null);
@@ -10069,13 +10255,13 @@ async function captureHookDeclaredEvent(loaded: LoadedCanonicalDescriptors, opts
 /** Apps without checked native hooks retain their existing CRUD finalizer. */
 function nativeHookSourceQueue(loaded: LoadedCanonicalDescriptors) {
   if ((localOwnerPolicyControls.get(loaded)?.hookCallables.size ?? 0) === 0) return undefined;
-  return new WeakMap<InvocationContext, readonly import('@canlang/work').DeclaredEventSourceInput[]>();
+  return new WeakMap<InvocationContext, HookSourceFrame>();
 }
 
 /** Opaque source ordinals belong to the actual admitted operation. A cohort
  * body may serve several children; only retries of the same child reuse IDs. */
 async function canonicalCommittedSourceStage(loaded: LoadedCanonicalDescriptors,
-  hookEvents?: WeakMap<InvocationContext, readonly import('@canlang/work').DeclaredEventSourceInput[]>): Promise<{
+  hookEvents?: WeakMap<InvocationContext, HookSourceFrame>): Promise<{
   readonly stageSources?: OwnerMutationSourceStager;
 }> {
   if (loaded.committedChanges.size === 0 && hookEvents === undefined) return {};
@@ -10106,8 +10292,17 @@ async function canonicalCommittedSourceStage(loaded: LoadedCanonicalDescriptors,
             event: { id: change.recordId, version: change.version } }) } : {}) })) };
     },
     })(token);
-    const events = hookEvents?.get(context) ?? [];
+    const frame = hookEvents?.get(context);
+    const events = frame?.events ?? [];
     if (events.length === 0) return committed;
+    const stage = readStage(token);
+    for (const created of frame!.creates) {
+      const row = await stage.final.get(created.model, created.id);
+      if (row === null || row.id !== created.id || row.archivedAt !== null
+          || stableStringify(row.parent ?? null) !== stableStringify(created.parent)) {
+        throw new loaded.producers.errors('validation', 'Hook emitted create lacks its exact final State row and parent.');
+      }
+    }
     const declared = await stageDeclaredEventSources(token, events,
       { maxSources: 200, maxHandlers: 200, maxMembers: 1_000, chunkSize: 100 });
     return [...committed, ...declared];
@@ -10206,8 +10401,10 @@ async function invokeCanonicalMutation(
         ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
         createOwnerFrame: async ({ call, session }) => {
           const events: import('@canlang/work').DeclaredEventSourceInput[] = [];
-          hookEvents?.set(session.views.context, events);
+          const creates: HookQueuedCreate[] = [];
+          hookEvents?.set(session.views.context, { events, creates });
           const ordinary = ownerControl?.createOwnerFrame({ call, session, memberships: opts.memberships,
+            retainQueuedCreate: created => { creates.push(created); },
             emitDeclared: async (definition, event, payload) => {
               if (events.length >= 200) throw new StateError('limit', 'Hook domain event bound exceeded.');
               const captured = await captureHookDeclaredEvent(loaded, opts, call, definition, event, payload);
@@ -12989,6 +13186,15 @@ export interface SelectedReceiptReadOpts {
   readonly artifact: CompileArtifact;
   /** Source-only bound record model; never part of the client envelope. */
   readonly boundModel?: string;
+  /**
+   * Live compiled source-read policies for the caller's own admitted
+   * evaluation (the defining installed adapter's map). Consulted ONLY
+   * when the static policy table has no entry for the owning model;
+   * standalone fenceless reads never carry it and keep exact
+   * existence-hiding. The join still performs its own leaf checks,
+   * association agreement, fencing and denial-before-presence.
+   */
+  readonly sourceReadPolicies?: ReadonlyMap<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy>;
   /** Q2: injected observer wins over module resolution (production leg). */
   readonly observer?: SelectedReceiptObserverBinding;
   /** Must be `Receipt.read` (routing assert — skew tripwire otherwise). */
@@ -13013,6 +13219,7 @@ interface StateReceiptJoinProducer {
     readonly model: string;
     readonly schema: ReadonlyMap<string, ReadonlySet<string>>;
     readonly policy: unknown;
+    readonly sourceReadPolicies?: unknown;
     readonly caller: { readonly actorUserId: string | null; readonly teamId: string | null };
     readonly memberships: CanonicalMembershipReader;
     readonly store: StoragePort;
@@ -13388,11 +13595,17 @@ export async function invokeSelectedReceiptRead(
       // (existence-hiding — denied-vs-missing must never leak).
       throw new StateError("not_found", "Receipt owner record not found.");
     }
-  } else {
+  } else if (opts.sourceReadPolicies === undefined) {
     // No policy entry grants nothing (engine precedent: deny, never
     // error) — identical text, same hiding.
     throw new StateError("not_found", "Receipt owner record not found.");
   }
+  // Ruled-model installed fallback: the static table cannot transcribe
+  // source-predicate grants, so a ruled owning model has no entry.
+  // Fall through to the join with the caller's own live compiled
+  // policies; the join still performs its exact selected leaf checks,
+  // association agreement, fencing and denial-before-presence, and a
+  // live denial surfaces as forbidden at predicate boundaries.
   if (opts.fence !== undefined) {
     opts.fence.enroll({ kind: "record", model, id: owner.id, version: owner.version });
   }
@@ -13422,6 +13635,7 @@ export async function invokeSelectedReceiptRead(
     model,
     schema: loaded.deliveryFields,
     policy: loaded.policy,
+    ...(opts.sourceReadPolicies === undefined ? {} : { sourceReadPolicies: opts.sourceReadPolicies }),
     caller: { actorUserId, teamId },
     memberships: opts.memberships,
     store: opts.store,

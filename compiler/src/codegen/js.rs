@@ -11366,6 +11366,16 @@ impl<'a> Emitter<'a> {
         let id_value = format!(
             "$hookCtx.triggerId+\"/staged/\"+(($hookCtx.operationId??\"0\"))+\"/\"+{site}+\"/\"+(($hookCtx.hookOccurrence??0))+({slot}===0?\"\":\"/\"+{slot})"
         );
+        if self.hook_native() {
+            let call = format!("$hookCtx.stage({{op:\"create\",model:{},id:{id_value}{parent_text},data:{data}}})", js_string(model));
+            return vec![
+                (format!("{pad}const {slot}=$stagedNext++;"), span),
+                (match id_ref {
+                    Some(name) => format!("{pad}const {name}={call};"),
+                    None => format!("{pad}{call};"),
+                }, span),
+            ];
+        }
         let mut lines: Vec<(String, Span)> = match &id_ref {
             Some(name) => {
                 vec![

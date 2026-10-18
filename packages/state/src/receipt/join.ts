@@ -61,6 +61,13 @@ import {
   type JoinContentPolicyPort,
   type JoinGrantPort,
 } from './grants.js';
+import type { ByContext } from '../policy/grants.js';
+import { observeRowGrantAuthority } from '../policy/membership-facts.js';
+import {
+  captureSourceReadPolicies,
+  projectInstalledSourceRowAndAncestors,
+  type ViewerSourceReadPolicy,
+} from '../query/source-policy.js';
 
 /**
  * Structural mirror of the work-side `StoredReceipt`: the retained
@@ -218,6 +225,14 @@ export interface SelectedReceiptJoinInput {
   readonly declaredContext?: ReceiptResultContext;
   /** Grant source: the declared per-model policy table. */
   readonly policy: PolicyTable;
+  /**
+   * Live compiled source-read policies for ruled models the static
+   * table cannot transcribe (source-predicate grants). Consulted
+   * ONLY when the static table has no entry for the owning model;
+   * a static entry (hit or deny) always governs. The caller supplies
+   * the defining installed adapter's map for its own evaluation.
+   */
+  readonly sourceReadPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
   readonly caller: JoinCaller;
   readonly memberships: MembershipReader;
   readonly store: StoragePort;
@@ -301,6 +316,84 @@ export async function observeOwnerSelectedReceiptJoin(
   return observeReceiptJoin(input, input);
 }
 
+/**
+ * Live grant paths for a ruled owning model the static table cannot
+ * transcribe. Runs the defining installed adapter's compiled grants
+ * through the source-policy projector — the same projector the query
+ * layer uses for installed source rows, so owner containment and
+ * ancestor authority hold exactly as defined there — for this exact
+ * row as an independent lifetime at the join's own read revision
+ * (same caller, same fence, same store): revision moves conflict,
+ * denial yields no paths, and no row data is retained, only the
+ * allowed grant fields. Complete Identity is pinned through the
+ * defining row-grant authority (membership facts re-checked, never
+ * just refreshed); the final check re-authorizes the actual paths
+ * and refuses narrowed authority. Denial-before-presence holds
+ * exactly as on the static path; the join still performs its own
+ * leaf checks, association agreement and final revision assert.
+ */
+async function observeLiveSourceGrantPaths(input: {
+  readonly readPolicies: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
+  readonly policy: PolicyTable;
+  readonly model: ModelName;
+  readonly caller: JoinCaller;
+  readonly memberships: MembershipReader;
+  readonly row: StoredRow;
+  readonly revision: Revision;
+  readonly fence: FenceScope | undefined;
+  readonly store: StoragePort;
+}): Promise<{ readonly paths: ReadonlySet<string>; readonly revalidate: () => Promise<void> }> {
+  // Boundary-validate the caller-supplied live map exactly as the
+  // query layer does; a malformed map refuses as validation, never guesses.
+  const reads = captureSourceReadPolicies(input.readPolicies);
+  const live = reads.get(input.model);
+  if (live === undefined || !('grants' in live)) return { paths: new Set(), revalidate: async () => {} };
+  const base = async (): Promise<ByContext> => {
+    const membership = input.caller.actorUserId !== null && input.caller.teamId !== null
+      ? await input.memberships.findMembership(input.caller.teamId, input.caller.actorUserId)
+      : null;
+    return {
+      actorUserId: input.caller.actorUserId,
+      teamId: input.caller.teamId,
+      membership,
+      memberships: input.memberships,
+    };
+  };
+  const run = async (context: ByContext): Promise<ReadonlySet<string>> => {
+    const rows = new Map<string, StoredRow>();
+    rows.set(`${input.model as string}\0${input.row.id}`, input.row);
+    const projected = await projectInstalledSourceRowAndAncestors({
+      model: input.model, row: input.row, readPolicies: reads, policy: input.policy,
+      context, revision: input.revision, fence: input.fence, store: input.store, rows,
+    });
+    const paths = new Set<string>();
+    if (projected.record !== null) {
+      for (const grant of projected.grants) for (const field of grant.fields) paths.add(field);
+    }
+    return paths;
+  };
+  const initial = await observeRowGrantAuthority(await base(), run);
+  return {
+    paths: initial.value,
+    revalidate: async () => {
+      // Revalidate the RETAINED original authority first: drift in the
+      // originally observed Identity facts refuses here even when a
+      // fresh snapshot alone cannot see the change. Then pin Identity
+      // fresh (role/row-dependent revocation refuses, never just
+      // refreshes membership) and re-authorize the actual paths:
+      // narrowed authority refuses, widening never adds.
+      await initial.revalidate();
+      const final = await observeRowGrantAuthority(await base(), run);
+      await final.revalidate();
+      for (const path of initial.value) {
+        if (!final.value.has(path)) {
+          throw new StateError('forbidden', 'Row grant authority changed during its complete observation.');
+        }
+      }
+    },
+  };
+}
+
 async function observeReceiptJoin(
   input: SelectedReceiptJoinInput | OwnerSelectedReceiptJoinInput,
   ownerExecution?: OwnerSelectedReceiptJoinInput,
@@ -341,7 +434,27 @@ async function observeReceiptJoin(
       memberships: viewer.memberships, row: owner,
     });
     revalidateAuthority = authority.revalidate;
-    const policyGrants = createSelectedGrants({ field, paths: authority.paths });
+    let leafPaths: ReadonlySet<string> = authority.paths;
+    if (authority.paths.size === 0 && viewer.sourceReadPolicies !== undefined &&
+        viewer.policy.get(input.model) === undefined) {
+      // Ruled-model installed fallback: the static table cannot
+      // transcribe source-predicate grants, so a ruled owning model
+      // has no entry. Evaluate the defining installed adapter's live
+      // compiled grants for this exact row at the current revision;
+      // denial still denies (forbidden at predicate boundaries).
+      const live = await observeLiveSourceGrantPaths({
+        readPolicies: viewer.sourceReadPolicies, policy: viewer.policy, model: input.model,
+        caller: viewer.caller, memberships: viewer.memberships, row: owner,
+        revision: readRevision, fence: input.fence, store: input.store,
+      });
+      if (live.paths.size !== 0) {
+        const merged = new Set<string>(authority.paths);
+        for (const path of live.paths) merged.add(path);
+        leafPaths = merged;
+      }
+      revalidateAuthority = live.revalidate;
+    }
+    const policyGrants = createSelectedGrants({ field, paths: leafPaths });
     for (const property of new Set(input.selected)) {
       selectedVerdicts.set(property,
         policyGrants.mayObserve(property, { field, deliveryId: null, revision: null }));

@@ -19684,3 +19684,17 @@ revision fences or failure handling. The focused regression and retained-IR
 field refusal pass; an actual CLI-compiled Can fixture has zero diagnostics.
 The original24 observer/membership reduction and complete Maintain retry are
 still unverified. Reuse unchanged retained checks and runtime requirements.
+
+
+### Wind-down: preserve current runtime implementation and unresolved consumers (2026-10-18)
+
+Save the released marker-free compiler/State/Cloudflare scope on main, including
+original compiled-Can regression consumers that expose remaining failures. The
+implemented boundaries keep slot-qualified Email text conversion, per-evaluation
+source grants, retained Identity revalidation, containment/lifetime/revision checks
+and a counted 32-hop SEND reference bound. No cross-row policy cache or speculative
+performance fix is accepted. Focused checks and clean builds pass as recorded in
+the current compiler-completion execution view; complete Maintain retry/replay,
+retirement-hook compilation and a fresh original24 capture remain unaccepted.
+The human requested wind-down and preservation of all work; this snapshot is not
+an assertion that every included original workflow passes. Muse remains stopped.

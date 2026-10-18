@@ -1072,6 +1072,63 @@ impl HookProfile<'_> {
         }
     }
 
+    /// Null literals for declared nullable fields stage no stored model
+    /// reference, so hook inputs admit them even when the field itself is
+    /// not hook-writable (stored references stay out of hook inputs).
+    /// Owning State resolves the omission/default. Only the null literal
+    /// qualifies: server-owned, machine, undeclared, or non-nullable
+    /// fields refuse, exactly like any non-null staged reference.
+    fn nullable_reference_null(
+        &self,
+        model: SymbolId,
+        name: &str,
+        value: &TypedExpr,
+    ) -> bool {
+        if !matches!(&value.expr, IrExpr::Null) || value.ty != ResolvedType::Null {
+            return false;
+        }
+        let Some(target) = self
+            .program
+            .items
+            .get(model.0 as usize)
+            .filter(|item| item.id == model)
+        else {
+            return false;
+        };
+        let IrItemKind::Model { fields, .. } = &target.kind else {
+            return false;
+        };
+        // Same declared membership as `field`: only this model's own field
+        // items qualify, resolved through owning identity, never position.
+        fields.iter().any(|id| {
+            let Some(field) = self
+                .program
+                .items
+                .get(id.0 as usize)
+                .filter(|item| item.id == *id)
+            else {
+                return false;
+            };
+            if field.name != name || field.module != self.module {
+                return false;
+            }
+            let IrItemKind::Field {
+                owner,
+                ty: IrType::Known(ty),
+                server,
+                modifiers,
+                ..
+            } = &field.kind
+            else {
+                return false;
+            };
+            *owner == model
+                && server.is_none()
+                && !modifiers.machine
+                && ty.nullable_inner().is_some()
+        })
+    }
+
     fn input(
         &mut self,
         model: SymbolId,
@@ -1109,6 +1166,13 @@ impl HookProfile<'_> {
                     return None;
                 }
                 self.expr(value, locals, aliases, depth + 1)?;
+                continue;
+            }
+            // A null literal for a declared nullable field stages no model
+            // reference: owning State resolves the omission/default. Only
+            // the null literal qualifies here; any other value for a field
+            // outside hook-writable leaves still refuses below.
+            if self.nullable_reference_null(model, name, value) {
                 continue;
             }
             let ty = self.field(model, name, true)?;
@@ -1233,10 +1297,10 @@ impl HookProfile<'_> {
                         item.canonical == *model && matches!(item.kind, IrItemKind::Model { .. })
                     });
                     let target = targets.next()?;
-                    if targets.next().is_some()
-                        || target.id == self.model
-                        || !self.model_supported(target.id)
-                    {
+                    if targets.next().is_some() || target.id == self.model {
+                        return None;
+                    }
+                    if !self.model_supported(target.id) {
                         return None;
                     }
                     self.input(target.id, input, locals, aliases, depth + 1)?;
@@ -3590,5 +3654,110 @@ for(const binding of dependencies){{
                 );
             }
         }
+    }
+}
+#[cfg(test)]
+mod hook_input_null_reference_tests {
+    use super::*;
+    use crate::analysis::{
+        catalog::{CatalogRequest, load_catalog},
+        check_program,
+    };
+    use crate::codegen::{ir, js};
+    use crate::source::{SourceDb, Span};
+    use std::path::Path;
+
+    const SOURCE: &str = r#"app NullRefRules
+Given
+ Plan {name:text}
+ Asset {epoch:int}
+ Cancellation {plan:Plan?,fixed:Plan,note:text?}
+When
+ scenario ping()->bool by=members
+  do
+   return true
+Then
+"#;
+
+    #[test]
+    fn hook_input_admits_null_for_declared_nullable_reference() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let mut db = SourceDb::new();
+        let file = db.add("null-ref-rules.can".into(), SOURCE.into());
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let model = ir
+            .items
+            .iter()
+            .find(|item| item.name == "Cancellation" && matches!(item.kind, IrItemKind::Model { .. }))
+            .unwrap();
+        let (model_id, module) = (model.id, model.module);
+        let mut profile = HookProfile {
+            program: &ir,
+            model: model_id,
+            op: CrudOp::Update,
+            module,
+            remaining: 4096,
+            hook_body_derives: Vec::new(),
+        };
+        let span = Span::new(file, 0, 0);
+        let null = TypedExpr {
+            expr: IrExpr::Null,
+            ty: ResolvedType::Null,
+            span,
+        };
+        // Nullable stored reference + null literal: no reference is staged.
+        assert!(profile.nullable_reference_null(model_id, "plan", &null));
+        // Nullable leaf + null literal: same outcome as the writable path.
+        assert!(profile.nullable_reference_null(model_id, "note", &null));
+        // Non-nullable stored reference + null literal: still refused.
+        assert!(!profile.nullable_reference_null(model_id, "fixed", &null));
+        // Undeclared field: still refused.
+        assert!(!profile.nullable_reference_null(model_id, "missing", &null));
+        // Non-null value for the nullable reference: still refused here;
+        // genuine staged references stay out of hook inputs.
+        let boolean = TypedExpr {
+            expr: IrExpr::Bool(true),
+            ty: ResolvedType::Scalar(Scalar::Bool),
+            span,
+        };
+        assert!(!profile.nullable_reference_null(model_id, "plan", &boolean));
+        // End-to-end through `input`: `{plan=null}` admits, `{fixed=null}` refuses.
+        let mut locals = HashMap::new();
+        let mut aliases = HashMap::new();
+        for entry in ["plan", "note"] {
+            let object = TypedExpr {
+                expr: IrExpr::Object(vec![(entry.into(), null.clone())]),
+                ty: ResolvedType::Unknown,
+                span,
+            };
+            assert!(
+                profile
+                    .input(model_id, &object, &mut locals, &mut aliases, 0)
+                    .is_some(),
+                "{entry}"
+            );
+        }
+        let object = TypedExpr {
+            expr: IrExpr::Object(vec![("fixed".into(), null.clone())]),
+            ty: ResolvedType::Unknown,
+            span,
+        };
+        assert!(
+            profile
+                .input(model_id, &object, &mut locals, &mut aliases, 0)
+                .is_none()
+        );
     }
 }

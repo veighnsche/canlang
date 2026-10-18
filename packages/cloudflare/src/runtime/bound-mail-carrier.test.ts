@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { OperationId, OperationName, OutboxIntent } from '@canlang/contracts';
-import { createBoundMailAdapter } from './bound-mail.js';
+import { createBoundMailAdapter, mailHumanText } from './bound-mail.js';
 import type { BoundMailAdapterOptions } from './bound-mail.js';
 
 const BINDING = {
@@ -167,5 +167,41 @@ test('malformed carriers and non-strings still refuse', () => {
     });
     assert.equal(adapter.available(mail), false, name);
   }
+  assert.equal(seen.length, 0);
+});
+
+test('slot gate unwraps only mail subject and body', () => {
+  const carrier = Object.freeze({ text: 'Bonjour', locale: 'fr' });
+  for (const target of ['std.EmailV1.send', 'std.EmailV1.send_user']) {
+    for (const slot of ['subject', 'body']) {
+      assert.equal(mailHumanText(target, slot, carrier), 'Bonjour', `${target} ${slot}`);
+    }
+  }
+  // Plain strings at mail slots pass through unchanged.
+  assert.equal(mailHumanText('std.EmailV1.send', 'subject', 'Plain'), 'Plain');
+  // A structural carrier at an unrelated slot, source, or malformed shape
+  // keeps its value so normal field validation still refuses it.
+  const unrelated: Array<[string, string, unknown]> = [
+    ['std.EmailV1.send', 'to', carrier],
+    ['std.EmailV1.send', 'attachments', carrier],
+    ['std.TextGenerationV1.generate', 'subject', carrier],
+    ['std.EmailV1.send', 'subject', { text: 'x' }],
+    ['std.EmailV1.send', 'subject', { text: 'x', locale: 'en', tag: 'z' }],
+  ];
+  for (const [target, slot, value] of unrelated) {
+    assert.equal(mailHumanText(target, slot, value), value, `${target} ${slot}`);
+  }
+});
+
+test('structural carrier at an unrelated mail slot refuses admission', () => {
+  const seen: unknown[] = [];
+  const adapter = createBoundMailAdapter(options(seen));
+  const mail = intent('std.EmailV1.send', {
+    to: Object.freeze({ text: 'reader@example.test', locale: 'en' }),
+    subject: 'Plain',
+    body: 'Still plain',
+    attachments: [],
+  });
+  assert.equal(adapter.available(mail), false);
   assert.equal(seen.length, 0);
 });

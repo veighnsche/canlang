@@ -28,7 +28,7 @@ function member(value: unknown, key: string): unknown {
  * selected text reaches the provider; the locale stays informational.
  * Mirrors `resolvedText` without resolving or parsing anything else.
  */
-function carrierText(value: unknown): string | null {
+export function carrierText(value: unknown): string | null {
   if (!closed(value, ["text", "locale"])) return null;
   const text = value["text"], locale = value["locale"];
   if (typeof text !== "string" || typeof locale !== "string") return null;
@@ -36,6 +36,21 @@ function carrierText(value: unknown): string | null {
     if (normalizeTag(locale) !== locale) return null;
   } catch { return null; }
   return text;
+}
+
+/**
+ * Single slot-qualified carrier gate shared by the mail provider adapter
+ * and generic bound-capability staging. Only the exact Email human-text
+ * slots (`subject`/`body` on either mail send target) unwrap to their
+ * selected text; every other slot or source keeps its value unchanged so
+ * normal field validation still refuses a structural `{text,locale}`.
+ */
+export function mailHumanText(source: string, name: string, value: unknown): unknown {
+  if ((source === TARGET || source === USER_TARGET) && (name === "subject" || name === "body")) {
+    const carried = carrierText(value);
+    if (carried !== null) return carried;
+  }
+  return value;
 }
 
 export interface BoundMailAdapterOptions {
@@ -123,8 +138,7 @@ export function createBoundMailAdapter(options: BoundMailAdapterOptions): BoundM
       if (rawArguments === null) return null;
       const sendArguments: Record<string, unknown> = { ...rawArguments };
       for (const name of ["subject", "body"] as const) {
-        const carried = carrierText(sendArguments[name]);
-        if (carried !== null) sendArguments[name] = carried;
+        sendArguments[name] = mailHumanText(intent.target, name, sendArguments[name]);
       }
       // Values owns normalization and wire admission against the exact emitted
       // operation declaration. Only its nested encoded arguments reach Services.

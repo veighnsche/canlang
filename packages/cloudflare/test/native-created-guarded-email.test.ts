@@ -4,7 +4,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, mkdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -15,6 +15,7 @@ import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, ModelName, MutationEnvelope, ProviderBinding, ReceiptIdentity } from '@canlang/contracts';
 import type { InstalledMailSender } from '@canlang/services';
+import { originalScenarioSource } from '../src/runtime/original-source.testing.js';
 import type { SqliteFileStore } from '@canlang/files/host/sqlite';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
@@ -238,5 +239,118 @@ test('original populated Create, two Sets and guarded Email retain the same mode
         try { await worker?.dispose(); } finally { await rm(directory, {recursive: true, force: true}); }
       }
     }
+  }
+ });
+
+
+test('original Maintain assignment and failed-notice retry retain genuine Mail receipts and current grants',
+ {timeout: 600000}, async () => {
+  const selected = await originalScenarioSource('maintain', 'assign', 'OriginalMaintainMail', [{owner: 'maintain', name: 'retry_notice'}]);
+  const APP = selected.app;
+  await mkdir(join(root, '.can/tmp'), {recursive: true});
+  const directory = await mkdtemp(join(root, '.can/tmp/maintain-mail-'));
+  let worker: Miniflare | undefined, physical: SqliteFileStore | undefined;
+  try {
+    const require = createRequire(import.meta.url);
+    const {createD1IdentityStore, ensureIdentitySchema, issueMcpGrant, resolveIdentity} = await nodeImport(pathToFileURL(require.resolve('@canlang/identity')).href) as typeof import('@canlang/identity');
+    const {ensureSchema} = await nodeImport(pathToFileURL(require.resolve('@canlang/state/storage/d1')).href) as typeof import('@canlang/state/storage/d1');
+    const {asModel, asOperationId, uuidv7} = await nodeImport(pathToFileURL(require.resolve('@canlang/state/testing/invocation/fixtures')).href) as typeof import('@canlang/state/testing/invocation/fixtures');
+    const {RECEIPT_MODEL, readReceiptRow} = await nodeImport(pathToFileURL(require.resolve('@canlang/state/receipt/tables')).href) as typeof import('@canlang/state/receipt/tables');
+    const {createSqliteFileStore} = await nodeImport(pathToFileURL(require.resolve('@canlang/files/host/sqlite')).href) as typeof import('@canlang/files/host/sqlite');
+    const {assembleModules, importVerifiedAssemblyModule} = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
+    const {buildInvoker} = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
+    const {createNativeFileRetirementBinding} = await nodeImport(installed('dev/file-retirement.js')) as typeof import('../src/dev/file-retirement.js');
+    const {bindNativeEmailDispatchGuards, materializeCanonicalExampleSnapshots} = await nodeImport(installed('runtime/invoke.js')) as typeof import('../src/runtime/invoke.js');
+    const {createBoundMailAdapter} = await nodeImport(installed('runtime/bound-mail.js')) as typeof import('../src/runtime/bound-mail.js');
+    const {createBoundMailDispatcher} = await nodeImport(installed('runtime/bound-dispatch.js')) as typeof import('../src/runtime/bound-dispatch.js');
+    const {WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchClaimCommand} = await nodeImport(pathToFileURL(require.resolve('@canlang/work/kernel/commands')).href) as typeof import('@canlang/work/kernel/commands');
+    const {classifyFailure} = await nodeImport(pathToFileURL(require.resolve('@canlang/work/receipt')).href) as typeof import('@canlang/work/receipt');
+    const source = join(directory, 'maintain.can'), compiler = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
+    const catalog = process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json');
+    await writeFile(source, selected.source);
+    const paths = [source, compiler, catalog], originals = await Promise.all(paths.map(path => readFile(path)));
+    const {stdout} = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', `--catalog=${catalog}`, source],
+      {cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024});
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    assert.deepEqual(artifact.operations?.filter(operation => operation.kind !== 'read').map(operation => operation.name).sort(), ['maintain.assign', 'maintain.retry_notice']);
+    for (const operation of artifact.operations!.filter(operation => operation.kind !== 'read')) {
+      assert.equal(operation.result?.type, 'void'); assert.ok(operation.result.disclosure);
+    }
+    const asm = await assembleModules({artifact, sourcePath: source}, {workDir: join(directory, 'modules'), stdlibUrl: installed('runtime/stdlib.js')});
+    const callable = artifact.callables.find(callable => callable.id === 'maintain.assign'); assert.ok(callable);
+    const definition = object(object(await importVerifiedAssemblyModule(asm, callable.module, artifact)).appDefinition);
+    worker = new Miniflare({compatibilityDate: '2026-07-15', modules: true, script: 'export default {fetch(){return new Response("ok")}}',
+      d1Databases: {IDENTITY: 'maintain-mail-identity', OWNER: 'maintain-mail-owner'}, d1Persist: join(directory, 'd1')});
+    const identityDb = await worker.getD1Database('IDENTITY') as unknown as D1Database, db = await worker.getD1Database('OWNER') as unknown as D1Database;
+    await ensureIdentitySchema(identityDb); await ensureSchema(db);
+    const now = Date.parse('2026-10-18T12:00:00Z'), clock = {nowMs: () => now}; let sequence = 1000;
+    const nextId = () => asOperationId(uuidv7(now, ++sequence));
+    const identities = createD1IdentityStore(identityDb, {clock}), team = await identities.createTeam({timezone: 'UTC'});
+    const user = await identities.createUser({email: 'maintain-mail@example.test', password_hash: 'unused', email_verified: true});
+    const membership = await identities.createMembership({user_id: user.user_id, team_id: team.team_id, is_owner: false,
+      roles: ['maintain.maintenance_manager', 'supplier.buyer'].map(role => ({role, granted_at: new Date(now).toISOString(), granted_by: user.user_id}))});
+    const grant = await issueMcpGrant(identities, {user_id: user.user_id, team_id: team.team_id, client_id: 'maintain-mail'}, {clock});
+    const current = () => resolveIdentity(identities, {mcp_grant_token: grant.token}, {clock});
+    physical = createSqliteFileStore(join(directory, 'files.sqlite'));
+    const scope = {app: APP, ownerPackage: 'maintain', owner: team.team_id};
+    const native = await createNativeFileRetirementBinding({artifact, asm, scope, identities, db, stateStoreId: 'native-maintain-mail',
+      physicalSqliteFileStore: physical, initializeFresh: true, clock, intentTtlMs: 60000, urlBase: 'https://maintain.invalid',
+      retention: {unattachedHorizonMs: 120000, retentionMs: 600000}, maxRows: 100, maxReferences: 100});
+    const store = native.store, siteId = nextId(), supplierId = nextId(), assetId = nextId(), repairId = nextId();
+    await materializeCanonicalExampleSnapshots({asm, artifact, store, identity: await current(), now, operationId: nextId(), snapshots: [
+      {model: asModel('rent_catalog.Location'), id: siteId, data: {name: 'Main', address: '1 Example Road', timezone: 'Europe/Brussels', currency: 'EUR', hours: '09:00–18:00', arrival: 'Reception', active: true}},
+      {model: asModel('employee.Employee'), id: nextId(), data: {user: {id: user.user_id}, home: {id: siteId}, locations: [{id: siteId}], operator_wide: false, active: true, start: '2026-10-01', role: 'technician', skills: []}},
+      {model: asModel('supplier.Supplier'), id: supplierId, data: {name: 'Repairs', contact: 'vendor@example.test', locations: [{id: siteId}], active: true}},
+      {model: asModel('maintain.Asset'), id: assetId, data: {location: {id: siteId}, identifier: 'ASSET-1', name: 'Door', category: 'Building'}},
+      {model: asModel('maintain.Repair'), id: repairId, parent: {model: asModel('maintain.Asset'), id: assetId}, data: {title: 'Repair door', description: 'Replace lock', state: 'open'}},
+    ]});
+    const invoker = buildInvoker(artifact, asm, store, {appId: APP, memberships: identities, now: clock.nowMs, ownerStorage: native.ownerStorage});
+    const query = (model: string) => store.query({model: asModel(model), authority: 'owner', archived: 'include', order: [{field: 'id', direction: 'asc'}]});
+    const ref = async (model: string, id: string) => { const row = (await query(model)).find(row => row.id === id); assert.ok(row); return {id: row.id, version: String(row.version)}; };
+    const invoke = async (envelope: MutationEnvelope) => invoker.invokeMutation(envelope, await current());
+    const assign: MutationEnvelope = {operation: 'maintain.assign', operation_id: nextId(), inputs: {repair: await ref('maintain.Repair', repairId), supplier: await ref('supplier.Supplier', supplierId), reason: 'Original contractor assignment'}};
+    const assigned = await invoke(assign); assert.ok('result' in assigned, JSON.stringify(assigned)); assert.equal(assigned.result.status, 'committed');
+    const assignments = await query('maintain.Assignment'); assert.equal(assignments.length, 1);
+    const repairs = await query('maintain.Repair'); assert.deepEqual(repairs[0]!.data.assignment, {id: assignments[0]!.id}); assert.equal(repairs[0]!.data.state, 'assigned');
+    assert.equal((await query('maintain.Notice')).length, 1);
+    const binding: ProviderBinding = {deployment: 'deployment.mail', capability: 'std.EmailV1', capabilityVersion: 1, account: 'maintain-control'};
+    let sends = 0;
+    const sender: InstalledMailSender = {binding, mail: {send: async (request, options) => {
+      assert.equal(request.to, 'vendor@example.test'); assert.equal(request.subject, 'Repair assignment'); assert.equal(request.body, 'Replace lock'); sends++;
+      return sends === 1 ? {delivery_id: options.deliveryId, status: 'failed', result: null, error: {code: 'provider_rejected', message: 'Original delivery rejected'}}
+        : {delivery_id: options.deliveryId, status: 'succeeded', result: {reference: 'accepted'}, error: null};
+    }, reconcile: async () => {throw new Error('No recovery transport required');}}};
+    const dispatcher = await createBoundMailDispatcher({store, adapter: createBoundMailAdapter({appDefinition: definition, binding, resolveInstalledMailSender: () => sender}),
+      workCommands: WORK_SYSTEM_COMMANDS, stageCommands: WORK_DISPATCH_STAGE_COMMANDS, createClaimCommand: createWorkDispatchClaimCommand});
+    const fenceFor = await bindNativeEmailDispatchGuards({asm, artifact, store, identities, scope,
+      revalidateAuthority: async () => (await identities.findTeamById(team.team_id))?.team_id === team.team_id});
+    const drive = async () => {
+      const pending = await store.outboxPending(); assert.equal(pending.length, 1);
+      const retained = await store.outboxGet(pending[0]!.intentId); assert.ok(retained);
+      return dispatcher.drive({intentId: retained.intent.intentId, actor: user.user_id, operation: 'native.Email.drive', nowMs: clock.nowMs,
+        nextClaimId: () => `maintain-claim-${++sequence}`, maxClaimAgeMs: 60000, claimOperationId: nextId(), recordOperationId: nextId(), classifyFailure,
+        evaluateGuard: () => {throw new Error('Original native guard must use installed preclaim fence');}, readStateSnapshot: () => null, fence: fenceFor(retained.intent)});
+    };
+    await drive(); assert.equal(sends, 1);
+    assert.equal((await query(RECEIPT_MODEL)).map(row => readReceiptRow(row)).filter(row => row.receipt.status === 'failed').length, 1);
+    const notice = (await query('maintain.Notice'))[0]!;
+    const retry: MutationEnvelope = {operation: 'maintain.retry_notice', operation_id: nextId(), inputs: {notice: {id: notice.id, version: String(notice.version)}}};
+    const retried = await invoke(retry); assert.ok('result' in retried, JSON.stringify(retried)); assert.equal(retried.result.status, 'committed');
+    assert.equal((await query('maintain.Notice')).length, 2);
+    const committed = await snapshot(db);
+    const replayed = await invoke(retry);
+    assert.ok('result' in replayed); assert.equal(replayed.result.status, 'replayed'); assert.deepEqual(await snapshot(db), committed);
+    const duplicate = await invoke({...retry, operation_id: nextId()});
+    assert.ok('error' in duplicate, JSON.stringify(duplicate)); assert.equal(duplicate.error.code, 'rule_failed');
+    await drive();
+    assert.equal(sends, 2); assert.deepEqual(await store.outboxPending(), []);
+    await identities.removeMembership(membership.membership_id);
+    const revoked = await invoke({...assign, operation_id: nextId()});
+    assert.ok('error' in revoked, JSON.stringify(revoked)); assert.equal(revoked.error.code, 'forbidden');
+    assert.equal((await query('maintain.Assignment')).length, 1); assert.equal((await query('maintain.Notice')).length, 2);
+    assert.deepEqual(await Promise.all(paths.map(async path => hash(await readFile(path)))), originals.map(hash));
+    assert.equal((await originalScenarioSource('maintain', 'assign', APP, [{owner: 'maintain', name: 'retry_notice'}])).source, selected.source);
+  } finally {
+    try {physical?.close();} finally {try {await worker?.dispose();} finally {await rm(directory, {recursive: true, force: true});}}
   }
  });

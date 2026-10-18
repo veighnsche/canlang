@@ -1,3 +1,15 @@
+> **Wind-down, 2026-10-18:** Muse is stopped and its writers/commands are released.
+> Save the marker-free source and original regression consumers on main; this is
+> preservation of the current implementation, not completion of CanCRM. Reuse the
+> passing focused checks (mail carriers 6/6, disclosure email 2/2, reference preload
+> 3/3, file inventory 24/24, compiled SEND hop-bound consumer 1/1) and clean State/
+> Cloudflare builds. Maintain ASSIGN and genuine failed-mail receipt pass; retry
+> commits but the complete retry/replay consumer still exceeds 600s. The parent
+> CPU profile cannot attribute its child/workerd cost, so no speculative speed fix
+> was applied. The original retirement hook consumer still refuses compilation;
+> full original24 after 465bb1ba5, runtime complexity and remaining compiler/UI
+> roots are open. No new issues or captures are authorized during wind-down.
+
 # Can18 remaining work — proposed root-cause plan
 
 ### Accepted receipt-read observer census repair — 2026-10-18

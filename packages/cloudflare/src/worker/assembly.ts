@@ -1153,6 +1153,12 @@ export function buildInvoker(
         );
         const selectedApp = opts.appInfo ?? (opts.appId === undefined ? await loadAppInfo(artifact, asm) : undefined);
         const app = selectedApp?.appId ?? opts.appId!;
+        // An explicitly selected app still formats with its checked entry
+        // locale: the entry bundle carries the same app, defaulting to en.
+        // A mismatched entry keeps today's absent formatting (fail closed).
+        const entryApp = selectedApp === undefined && app !== undefined ? await loadAppInfo(artifact, asm) : undefined;
+        const formatting = selectedApp !== undefined ? { appDefault: selectedApp.appDefaultLocale }
+          : entryApp !== undefined && entryApp.appId === app ? { appDefault: entryApp.appDefaultLocale } : undefined;
         if (opts.ownerStorage !== undefined && opts.ownerStorage.app !== app) throw new Error('assembly: owner storage app disagrees');
         const selectedStore = opts.ownerStorage === undefined ? store : await opts.ownerStorage.forIdentity(identity);
         const result = await invokeCanonical({
@@ -1166,7 +1172,7 @@ export function buildInvoker(
           inputs: envelope.inputs,
           identity,
           app,
-          ...(selectedApp === undefined ? {} : { formatting: { appDefault: selectedApp.appDefaultLocale } }),
+          ...(formatting === undefined ? {} : { formatting }),
           source: opts.source ?? "worker",
           store: selectedStore,
           memberships: opts.memberships as CanonicalMembershipReader,

@@ -1,5 +1,15 @@
 # Living ideal file-tree plan for Canlang
 
+**Wind-down source preservation, 2026-10-18:** account for all nineteen remaining
+compiler/runtime/State source, fixture and test paths. Existing owners retain hook
+staging and nullable inputs, source predicate/receipt authority and SEND reference
+bounds, mail text normalization, disclosure/schema adapters and original workflow
+consumers. All changed code has substantive incremental review; temporary tracing
+is removed. Focused passing checks and clean builds do not accept the timed-out
+Maintain retry or refused retirement-hook consumer. Preserve those regression
+consumers and their named failures; the complete historical checkpoint does not
+advance. Muse is stopped, with no further issue intake.
+
 **Receipt observer intake, 2026-10-18:** reconcile the two released compiler
 paths: `codegen/scenario_decisions.rs` owns checked delivery-read traversal;
 `codegen/source_require_retained_tests.rs` owns the source-Require regression
