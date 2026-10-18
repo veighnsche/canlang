@@ -1,5 +1,12 @@
 # Living ideal file-tree plan for Canlang
 
+**Released foreign development notes, 2026-10-18:** retain the two-doc paused-stage
+planning refinement and historical startup provenance in their existing owners.
+Current resume/implementation evidence governs activation; proposed host relocation,
+further helper decomposition and stronger Miniflare restart controls stay separate
+from accepted native manual/profile qualification. No source or new package changes.
+The complete historical checkpoint remains unchanged.
+
 **Native release and newer planning intake, 2026-10-18:** account for all7
 committed planning paths from a28335e6b through ab516f39b. Preparation's remaining
 P05 packet stays proposed, with public deployment/default/TS-retirement holds;

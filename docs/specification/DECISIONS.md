@@ -1,5 +1,17 @@
 # Canlang language design decisions
 
+## 2026-10-18 — retain development planning notes at their declared scope
+
+**Accepted reconciliation.** Preserve the foreign paused-stage ownership,
+protocol, supervision and older38.48s provenance notes. Subsequent user resume
+instructions govern the current execution view. Proposed host relocation and
+further target/qualification helper decomposition do not reopen accepted manual
+criteria. The implemented bounded Cloudflare host remains the installed entry.
+Miniflare's internal restart has no pre-spawn veto or immediate stable notification;
+current owner health observes the host transport and preparation probes the real
+runtime. Stronger inner-restart observation remains a named limitation/proposal,
+without weakening the qualified owned-host/process-group release contract.
+
 ## 2026-10-18 — qualify native release profiles without weakening retirement
 
 **Accepted qualification.** Locked release compiler/server builds and native94
@@ -129,7 +141,6 @@ D1 consumers2/2; joint hooks13/13 include SET-to-query, revocation and rollback.
 Focused Compiler/State checks pass. Declared-event schedules retain their existing
 atomic queue and typed source payload. These finite consumers are accepted;
 remaining hook effects, guarded SEND and complete original24 acceptance stay open.
-
 
 
 ## 2026-10-18 — accept shared fanout and selected recovery delivery
@@ -18972,6 +18983,26 @@ pass; the owner-session loss test was corrected to mutate the store-scoped
 registry actually consumed by the runtime and still refuses before writes/receipt.
 This is a two-operation batch, not whole CanCRM completion. Muse stays stopped;
 implementation remains on main with no new worktree or branch.
+
+
+## 2026-10-18 — observed local development-server startup
+
+Reported by the “Prevent Miniflare instance accumulation” task: one current
+contributor-build run reached an authenticated Todos page (HTTP 200) in **38.48 s**.
+Owner startup took **17.50 s**; checking, compilation, bundling, database/actor
+provisioning and runtime readiness took **20.55 s**; protected access, login and
+page response took **0.42 s**. One-time build preparation was approximately
+**33 s**, excluded from server startup.
+
+Runtime packages 0.1.1 were freshly emitted from `1527ed1e8` plus the task's
+lifecycle fixes. The reused local debug compiler reported `3059a36af`; its
+compiler inputs were frozen from main `5d81e2a8`. No published-release assets
+were used. Dependencies and OS caches were warm; application data was fresh.
+This is one observed run, not a cold-machine benchmark or latency guarantee.
+The task reported its owned daemon exited and temporary state, outputs and
+links were removed, with generated binding files restored. The earlier roughly
+20-second result used the older October 15 standalone installation and is not
+a current-source comparison. No additional run was performed to record this note.
 
 
 ## 2026-10-18 — reuse fixed D1 revision query preparation
