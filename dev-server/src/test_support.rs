@@ -109,6 +109,7 @@ fn synthetic(
         input_inventory: None,
         generated_closure: None,
         source_snapshot: None,
+        provider_snapshot: None,
     })
 }
 fn declared(capture: &Capture) -> Inventory {

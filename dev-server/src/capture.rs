@@ -69,6 +69,16 @@ pub struct GeneratedFile {
     pub sha256: String,
 }
 
+/// One `use`-package provider captured into the closure, keyed by the
+/// imported package name. Discovery proposes from owning `use`/`package`
+/// declarations; the compiler's own verdict on the staged closure disposes.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSource {
+    pub package: String,
+    pub snapshot: SourceSnapshot,
+}
+
 /// Node's Buffer JSON representation preserves the existing private bridge DTO.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BufferBytes {
@@ -105,6 +115,50 @@ pub struct Capture {
     pub generated_closure: Option<GeneratedClosure>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_snapshot: Option<Vec<SourceSnapshot>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_snapshot: Option<Vec<ProviderSource>>,
+}
+
+/// Owning profile declarations: the `app` count plus each `use` package
+/// import with its source line. Same line discipline as admission: `#`
+/// comment lines skipped, `export` prefixes transparent, keyword
+/// boundaries exact (so `uses=` never reads as `use`).
+pub(crate) fn profile_declarations(source_text: &str) -> (usize, Vec<(usize, String)>) {
+    let mut apps = 0;
+    let mut uses = Vec::new();
+    for (index, line) in source_text.lines().enumerate() {
+        let line = line.trim_start();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let after_export = line
+            .strip_prefix("export")
+            .filter(|tail| tail.starts_with(char::is_whitespace))
+            .map(str::trim_start)
+            .unwrap_or(line);
+        if is_keyword(after_export, "use") {
+            let name: String = after_export["use".len()..]
+                .trim_start()
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                uses.push((index + 1, name));
+            }
+        }
+        if is_keyword(line, "app") {
+            apps += 1;
+        }
+    }
+    (apps, uses)
+}
+
+fn is_keyword(line: &str, word: &str) -> bool {
+    line.strip_prefix(word).is_some_and(|tail| {
+        tail.chars()
+            .next()
+            .is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_')
+    })
 }
 
 pub(crate) fn check_cancel(cancel: &AtomicBool) -> Result<()> {
@@ -430,6 +484,7 @@ pub fn capture_with_phases(
         input_inventory: request.input_inventory.clone(),
         generated_closure: None,
         source_snapshot: None,
+        provider_snapshot: None,
     };
     phase("capturing_producer_bytes");
     captured.inputs = map_inputs(paths.len(), &|index| {
@@ -438,6 +493,25 @@ pub fn capture_with_phases(
     })?;
     phase("capturing_generated_inputs");
     capture_generated(&mut captured, cancel)?;
+    phase("capturing_provider_closure");
+    capture_provider_closure(&mut captured, cancel)?;
+    captured.source_revision = digest(&{
+        let mut parts = vec![
+            "can.dev.source-set.v1".into(),
+            captured.compiler_operand.clone(),
+            captured.source_sha256.clone(),
+        ];
+        if let Some(providers) = &captured.provider_snapshot {
+            for provider in providers {
+                parts.extend([
+                    provider.package.clone(),
+                    provider.snapshot.path.clone(),
+                    provider.snapshot.sha256.clone(),
+                ]);
+            }
+        }
+        parts
+    });
     finish_capture(&mut captured, &paths, inventory, cancel, phase)?;
     Ok(captured)
 }
@@ -535,6 +609,149 @@ fn capture_generated(capture: &mut Capture, cancel: &AtomicBool) -> Result<()> {
     Ok(())
 }
 
+/// Resolve every `use` package of the app source (transitively) to the
+/// selectable `.can` file declaring it, and freeze the providers into the
+/// capture. Exactly one declaring file must exist; zero or several refuse.
+/// A `use` of the app's own package needs no extra operand. Discovery is
+/// bounded and proposes only: the compiler's verdict on the staged closure
+/// (plus `verify_compiler_sources`) is the membership authority.
+pub(crate) fn capture_provider_closure(captured: &mut Capture, cancel: &AtomicBool) -> Result<()> {
+    let (_, uses) = profile_declarations(&captured.source_text);
+    if uses.is_empty() {
+        return Ok(());
+    }
+    let mut own = BTreeSet::new();
+    for line in captured.source_text.lines() {
+        let line = line.trim_start();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if is_keyword(line, "package") {
+            let name: String = line["package".len()..]
+                .trim_start()
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                own.insert(name);
+            }
+        }
+    }
+    let mut resolved: Vec<ProviderSource> = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut pending: Vec<String> = uses.into_iter().map(|(_, name)| name).collect();
+    let mut rounds = 0usize;
+    while let Some(package) = pending.pop() {
+        if !seen.insert(package.clone()) {
+            continue;
+        }
+        rounds += 1;
+        if rounds > 64 {
+            return Err("provider closure did not converge".into());
+        }
+        if own.contains(&package) {
+            continue;
+        }
+        check_cancel(cancel)?;
+        let canonical = locate_package_provider(&captured.root, &package)?;
+        let read = stable_read(&canonical, true, u32::MAX as u64, cancel)?;
+        let relative = operand(&captured.root, &read.path)?;
+        if relative == captured.compiler_operand {
+            continue;
+        }
+        let provider_text = String::from_utf8(read.bytes.clone())
+            .map_err(|_| format!("provider source {relative} is not valid UTF-8"))?;
+        let (_, nested) = profile_declarations(&provider_text);
+        pending.extend(nested.into_iter().map(|(_, name)| name));
+        resolved.push(ProviderSource {
+            package,
+            snapshot: SourceSnapshot {
+                path: relative,
+                sha256: read.sha256,
+                bytes: BufferBytes {
+                    kind: "Buffer".into(),
+                    data: read.bytes,
+                },
+            },
+        });
+    }
+    resolved.sort_by(|a, b| a.snapshot.path.cmp(&b.snapshot.path));
+    captured.provider_snapshot = Some(resolved);
+    Ok(())
+}
+
+/// Provider discovery inside the established selectable-source universe:
+/// `<root>/draft/apps/*/*.can` plus `<root>/draft/shared/*.can`, mirroring
+/// the accepted `discoverDraftSources`/`selectedInventory` inventory. Scratch,
+/// build output, fixtures and frozen evidence elsewhere in the checkout are
+/// never selectable preview inputs. Proposes a candidate path; the compiler's
+/// own verdict on the staged closure is the membership authority, and any
+/// remaining ambiguity refuses explicitly.
+fn locate_package_provider(root: &str, package: &str) -> Result<String> {
+    let mut candidates = Vec::new();
+    let apps = Path::new(root).join("draft").join("apps");
+    if let Ok(entries) = fs::read_dir(&apps) {
+        let mut dirs: Vec<_> = entries.filter_map(|entry| entry.ok()).collect();
+        dirs.sort_by_key(|entry| entry.file_name());
+        for dir in dirs {
+            if dir.metadata().is_ok_and(|meta| meta.is_dir()) {
+                candidates.extend(app_dir_sources(&dir.path()));
+            }
+        }
+    }
+    candidates.extend(app_dir_sources(
+        &Path::new(root).join("draft").join("shared"),
+    ));
+    let mut hits = Vec::new();
+    for path in candidates {
+        let source = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        for line in source.lines() {
+            let line = line.trim_start();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if is_keyword(line, "package") {
+                let declared: String = line["package".len()..]
+                    .trim_start()
+                    .chars()
+                    .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                    .collect();
+                if declared == package {
+                    hits.push(text(canonical(
+                        path.to_str().ok_or("provider path is not UTF-8")?,
+                    )?)?);
+                    break;
+                }
+            }
+        }
+    }
+    match hits.len() {
+        0 => Err(format!(
+            "imported package {package} has no provider source in the checkout"
+        )),
+        1 => Ok(hits.into_iter().next().unwrap()),
+        _ => Err(format!(
+            "imported package {package} is ambiguous across provider sources"
+        )),
+    }
+}
+
+/// Top-level `.can` files of one source directory, sorted for determinism.
+fn app_dir_sources(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut files: Vec<_> = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_file() && path.extension().is_some_and(|extension| extension == "can")
+        })
+        .collect();
+    files.sort();
+    files
+}
+
 pub fn is_current(
     capture: &Capture,
     inventory: &InventoryProvider<'_>,
@@ -552,10 +769,22 @@ pub fn is_current_with_phases(
         return false;
     }
     phase("verifying_source_bytes");
-    stable_read(&capture.requested_app_path, false, u32::MAX as u64, cancel).is_ok_and(|r| {
+    if !stable_read(&capture.requested_app_path, false, u32::MAX as u64, cancel).is_ok_and(|r| {
         r.path == capture.app_path
             && r.size == capture.source_bytes
             && r.sha256 == capture.source_sha256
+    }) {
+        return false;
+    }
+    phase("verifying_provider_bytes");
+    let Some(providers) = &capture.provider_snapshot else {
+        return true;
+    };
+    providers.iter().all(|provider| {
+        text(absolute(&capture.root, &provider.snapshot.path))
+            .ok()
+            .and_then(|path| stable_read(&path, false, u32::MAX as u64, cancel).ok())
+            .is_some_and(|read| read.sha256 == provider.snapshot.sha256)
     })
 }
 pub fn producer_inputs_current(
@@ -1048,6 +1277,14 @@ pub fn verify_compiler_sources(
             expected.insert(path.clone(), hash);
         }
     }
+    if let Some(providers) = &capture.provider_snapshot {
+        for provider in providers {
+            expected.insert(
+                provider.snapshot.path.clone(),
+                provider.snapshot.sha256.clone(),
+            );
+        }
+    }
     let sources = report["sources"]
         .as_array()
         .ok_or("source_membership_mismatch")?;
@@ -1104,6 +1341,52 @@ pub(crate) mod tests {
     }
     pub(crate) fn empty_inventory() -> Result<Inventory> {
         Ok(Inventory::default())
+    }
+    fn closure_fixture(app: &str, files: &[(&str, &str)]) -> (tempfile::TempDir, CaptureRequest) {
+        let (root, mut request) = fixture();
+        fs::create_dir_all(root.path().join("draft/apps/Demo")).unwrap();
+        fs::create_dir_all(root.path().join("draft/shared")).unwrap();
+        fs::write(root.path().join("draft/apps/Demo/app.can"), app).unwrap();
+        for (path, bytes) in files {
+            fs::write(root.path().join(path), bytes).unwrap();
+        }
+        request.app_path = "draft/apps/Demo/app.can".into();
+        (root, request)
+    }
+    #[test]
+    fn provider_closure_captures_transitive_providers() {
+        let (root, request) = closure_fixture(
+            "app First\nuse Mid {A}\n",
+            &[
+                ("draft/shared/mid.can", "package Mid\nuse Leaf {B}\n"),
+                ("draft/shared/leaf.can", "package Leaf\n"),
+            ],
+        );
+        let captured = capture(&request, &empty_inventory, &no_cancel()).unwrap();
+        let providers = captured.provider_snapshot.as_ref().unwrap();
+        let names: Vec<_> = providers.iter().map(|p| p.package.as_str()).collect();
+        assert_eq!(names, ["Leaf", "Mid"]);
+        for provider in providers {
+            assert_eq!(provider.snapshot.bytes.kind, "Buffer");
+            let read = fs::read(root.path().join(&provider.snapshot.path)).unwrap();
+            assert_eq!(hash(&read), provider.snapshot.sha256);
+        }
+    }
+    #[test]
+    fn provider_closure_refuses_missing_and_ambiguous() {
+        let (_root, request) = closure_fixture("app First\nuse Ghost {A}\n", &[]);
+        let reason = capture(&request, &empty_inventory, &no_cancel()).unwrap_err();
+        assert!(reason.contains("no provider source"), "{reason}");
+        let (root, request) = closure_fixture(
+            "app First\nuse Dup {A}\n",
+            &[
+                ("draft/apps/Demo/dup-a.can", "package Dup\n"),
+                ("draft/shared/dup-b.can", "package Dup\n"),
+            ],
+        );
+        let reason = capture(&request, &empty_inventory, &no_cancel()).unwrap_err();
+        assert!(reason.contains("ambiguous"), "{reason}");
+        let _ = root;
     }
     fn no_cancel() -> AtomicBool {
         AtomicBool::new(false)

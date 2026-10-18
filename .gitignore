@@ -5,6 +5,7 @@ __pycache__/
 
 # Generated Rust build output and packaged editor extensions
 /compiler/target
+/dev-server/target
 
 # Package-local Cargo/native/Wasm build output
 /packages/**/target/

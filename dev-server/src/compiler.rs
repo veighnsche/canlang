@@ -41,27 +41,7 @@ pub enum CompileResult {
     },
 }
 pub fn admit_single_app_profile(source: &str) -> Result<()> {
-    let mut apps = 0;
-    for (index, line) in source.lines().enumerate() {
-        let line = line.trim_start();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let after_export = line
-            .strip_prefix("export")
-            .filter(|tail| tail.starts_with(char::is_whitespace))
-            .map(str::trim_start)
-            .unwrap_or(line);
-        if keyword(after_export, "use") {
-            return Err(format!(
-                "line {}: imported members are outside the first profile",
-                index + 1
-            ));
-        }
-        if keyword(line, "app") {
-            apps += 1;
-        }
-    }
+    let (apps, _) = capture::profile_declarations(source);
     if apps == 1 {
         Ok(())
     } else {
@@ -70,12 +50,21 @@ pub fn admit_single_app_profile(source: &str) -> Result<()> {
         ))
     }
 }
-fn keyword(line: &str, word: &str) -> bool {
-    line.strip_prefix(word).is_some_and(|tail| {
-        tail.chars()
-            .next()
-            .is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_')
-    })
+
+/// Admit `use` imports only when every imported package resolves to a
+/// captured closure provider. Discovery proposes; the compiler's own
+/// verdict on the staged closure (plus `verify_compiler_sources`) is the
+/// membership authority.
+pub fn admit_use_closure(source: &str, providers: &[String]) -> Result<()> {
+    let (_, uses) = capture::profile_declarations(source);
+    for (line, name) in uses {
+        if !providers.iter().any(|package| package == &name) {
+            return Err(format!(
+                "line {line}: imported package {name} is outside the captured closure"
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub fn compile(
@@ -90,9 +79,31 @@ pub fn compile(
     if let Err(reason) = admit_single_app_profile(&captured.source_text) {
         return CompileResult::ProfileUnsupported { reason };
     }
-    if Path::new(&captured.compiler_operand)
-        .file_name()
-        .is_some_and(|s| s.to_string_lossy().starts_with('-'))
+    let providers: Vec<String> = captured
+        .provider_snapshot
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .map(|provider| provider.package.clone())
+        .collect();
+    if let Err(reason) = admit_use_closure(&captured.source_text, &providers) {
+        return CompileResult::ProfileUnsupported { reason };
+    }
+    if [captured.compiler_operand.clone()]
+        .into_iter()
+        .chain(
+            captured
+                .provider_snapshot
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .map(|provider| provider.snapshot.path.clone()),
+        )
+        .any(|operand| {
+            Path::new(&operand)
+                .file_name()
+                .is_some_and(|s| s.to_string_lossy().starts_with('-'))
+        })
     {
         return CompileResult::CaptureIncomplete {
             reason: "source filename cannot be a compiler option".into(),
@@ -121,13 +132,21 @@ fn compile_inner(
     stage_sources(captured, staging.path(), cancel)?;
     capture::check_cancel(cancel)?;
     phase("compiler");
-    let args = vec![
+    let mut args = vec![
         "compile".into(),
         "--format=json".into(),
         "--native-scenario-receipts".into(),
         format!("--catalog={}", catalog.display()),
         captured.compiler_operand.clone(),
     ];
+    if let Some(providers) = &captured.provider_snapshot {
+        let mut operands: Vec<&str> = providers
+            .iter()
+            .map(|provider| provider.snapshot.path.as_str())
+            .collect();
+        operands.sort_unstable();
+        args.extend(operands.into_iter().map(str::to_owned));
+    }
     let run = match run_owned(
         &executable,
         &args,
@@ -171,6 +190,22 @@ fn stage_sources(captured: &Capture, staging: &Path, cancel: &AtomicBool) -> Res
                 return Err("captured source snapshot app mismatch".into());
             }
             write_source(staging, &source.path, &source.bytes.data)?;
+        }
+    }
+    if let Some(providers) = &captured.provider_snapshot {
+        for provider in providers {
+            capture::check_cancel(cancel)?;
+            capture::validate_relative(&provider.snapshot.path)?;
+            if provider.snapshot.bytes.kind != "Buffer"
+                || capture::hash(&provider.snapshot.bytes.data) != provider.snapshot.sha256
+            {
+                return Err("captured provider snapshot hash mismatch".into());
+            }
+            write_source(
+                staging,
+                &provider.snapshot.path,
+                &provider.snapshot.bytes.data,
+            )?;
         }
     }
     Ok(())
@@ -503,15 +538,28 @@ mod tests {
     #[test]
     fn preserves_first_source_profile() {
         assert!(admit_single_app_profile("app First uses=[Catalog]\npackage Catalog\n").is_ok());
-        for source in [
-            "app First\nuse Other {Thing}\n",
-            "app First\nexport use Other {Thing}\n",
-            "app First\napp Second\n",
-            "package Catalog\n",
-        ] {
+        assert!(admit_single_app_profile("app First\nuse Other {Thing}\n").is_ok());
+        for source in ["app First\napp Second\n", "package Catalog\n"] {
             assert!(admit_single_app_profile(source).is_err());
         }
         assert!(admit_single_app_profile("app First\n## use ignored\n appending\n").is_ok());
+    }
+    #[test]
+    fn admits_only_captured_use_closure() {
+        let resolved = ["Other".to_string()];
+        assert!(
+            admit_use_closure("app First uses=[Catalog]\npackage Catalog\n", &resolved).is_ok()
+        );
+        assert!(admit_use_closure("app First\nuse Other {Thing}\n", &resolved).is_ok());
+        assert!(admit_use_closure("app First\nexport use Other {Thing}\n", &resolved).is_ok());
+        assert!(admit_use_closure("app First\n## use ignored\n appending\n", &[]).is_ok());
+        for source in [
+            "app First\nuse Other {Thing}\n",
+            "app First\nexport use Other {Thing}\nuse Missing {Nope}\n",
+        ] {
+            let reason = admit_use_closure(source, &[]).unwrap_err();
+            assert!(reason.contains("outside the captured closure"), "{reason}");
+        }
     }
     #[test]
     fn accepts_only_source_bound_artifact_and_exit_ten_diagnostics() {
@@ -536,7 +584,8 @@ mod tests {
                 "verifying_compiler_inputs",
                 "verifying_inventory",
                 "verifying_producer_bytes",
-                "verifying_source_bytes"
+                "verifying_source_bytes",
+                "verifying_provider_bytes"
             ]
         );
         let diagnostic = serde_json::json!({"complete":true,"sources":[{"path":"app.can","sha256":hash}],"diagnostics":[{"code":"E2005"}]});
@@ -585,6 +634,69 @@ mod tests {
         assert!(
             matches!(result, CompileResult::CaptureIncomplete {reason} if reason.contains("catalog changed"))
         );
+    }
+    #[test]
+    fn compiles_composed_closure_with_provider_operands() {
+        let (root, mut request) = fixture();
+        fs::create_dir_all(root.path().join("draft/apps/Demo")).unwrap();
+        fs::create_dir_all(root.path().join("draft/shared")).unwrap();
+        fs::write(
+            root.path().join("draft/apps/Demo/app.can"),
+            "app First\nuse Prov {Thing}\npackage Mine\n",
+        )
+        .unwrap();
+        fs::write(root.path().join("draft/shared/prov.can"), "package Prov\n").unwrap();
+        request.app_path = "draft/apps/Demo/app.can".into();
+        let app_hash =
+            capture::hash(&fs::read(root.path().join("draft/apps/Demo/app.can")).unwrap());
+        let prov_hash =
+            capture::hash(&fs::read(root.path().join("draft/shared/prov.can")).unwrap());
+        let encoded = serde_json::json!({"artifact_version":1,"tool_version":"test","language_version":"test",
+            "sources":[{"path":"draft/apps/Demo/app.can","sha256":app_hash},{"path":"draft/shared/prov.can","sha256":prov_hash}],
+            "modules":[{"path":"app.js","js":"export {}","map":{"version":3}}],"callables":[],
+            "requires":[{"capability":"canlang.builtins","min_version":0}]})
+        .to_string();
+        script(
+            &root.path().join("compiler"),
+            &format!(
+                "test \"$5\" = draft/apps/Demo/app.can || exit 8\ntest \"$6\" = draft/shared/prov.can || exit 8\ntest \"$(cat draft/shared/prov.can)\" = 'package Prov' || exit 8\nprintf '%s' '{encoded}'"
+            ),
+        );
+        let cancel = AtomicBool::new(false);
+        let captured = capture::capture(&request, &empty_inventory, &cancel).unwrap();
+        let providers = captured.provider_snapshot.as_ref().unwrap();
+        assert_eq!(providers.len(), 1);
+        assert_eq!(providers[0].package, "Prov");
+        assert_eq!(providers[0].snapshot.path, "draft/shared/prov.can");
+        assert_eq!(providers[0].snapshot.sha256, prov_hash);
+        let result = compile(&captured, &empty_inventory, &cancel, &|_| {});
+        assert!(
+            matches!(result, CompileResult::Artifact { .. }),
+            "{result:?}"
+        );
+        // A provider edit invalidates the captured closure.
+        fs::write(
+            root.path().join("draft/shared/prov.can"),
+            "package Prov\n// changed\n",
+        )
+        .unwrap();
+        assert!(!capture::is_current(&captured, &empty_inventory, &cancel));
+        // Corrupt snapshot bytes refuse before the compiler runs.
+        let mut tampered = captured.clone();
+        let snapshot = tampered.provider_snapshot.as_mut().unwrap();
+        snapshot[0].snapshot.bytes.data = b"tampered".to_vec();
+        assert!(
+            matches!(compile(&tampered, &empty_inventory, &cancel, &|_| {}),
+                CompileResult::CaptureIncomplete {reason} if reason.contains("provider snapshot hash mismatch"))
+        );
+        // An import with no provider refuses at capture without compiling.
+        fs::write(
+            root.path().join("draft/apps/Demo/app.can"),
+            "app First\nuse Ghost {Thing}\n",
+        )
+        .unwrap();
+        let reason = capture::capture(&request, &empty_inventory, &cancel).unwrap_err();
+        assert!(reason.contains("no provider source"), "{reason}");
     }
     #[test]
     fn refuses_result_when_source_changes_during_execution() {

@@ -20250,3 +20250,18 @@ lib/integration failures (lib 5, decision_source_facts 2, model_hook_profile
 2, predicate_reuse 1, query_order 3) verified identical on base. Remainder:
 the positive dual's full execute matrix (absence, mismatch, denial, rollback,
 replay, recovery) through the runtime.
+
+### DFE-02 provider-closure admission (2026-10-18)
+
+The dev-server admits multi-file app closures by resolving `use` packages to
+captured providers instead of refusing imports lexically. Discovery is scoped
+to the established selectable-source universe (`draft/apps/*/*.can` plus
+`draft/shared/*.can`, mirroring `discoverDraftSources`/`selectedInventory`);
+a whole-checkout scan was rejected after it proved ambiguous (16 declarers
+per package from scratch, output, fixtures and frozen evidence). Discovery
+proposes only: exactly one declarer required, else explicit refusal; the
+compiler's own verdict on the staged operands plus `verify_compiler_sources`
+membership enforcement is the authority. Providers are hashed into the
+capture, watched by freshness, covered by the source revision, and passed as
+sorted operands. Single-file behavior is unchanged (`provider_snapshot`
+absent end to end).
