@@ -19720,4 +19720,9 @@ above-20 functions. Scoped type/complexity checks and direct before/after getter
 probes support this release. The joined emitted consumer check passed 3/4 cases;
 the remaining generation admission failure also appeared in the reported HEAD
 comparison, so full consumer qualification is not claimed for that case. Image/text
-adapter declaration-order repairs and their tests remain a separate unfinished scope.
+adapters are also accepted after restoring binding, version and result guards before
+the reads each guard gates, and reusing the once-validated finalized file. Six focused
+adapter ordering probes pass with targeted typing clean; independent repair review
+confirmed the original result-getter mutation now rejects in both adapters. This
+closes eight further original above-20 bodies; full failed-consumer qualification
+remains outside the accepted result above.

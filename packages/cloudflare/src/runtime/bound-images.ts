@@ -97,111 +97,195 @@ interface Resolved {
   readonly context: ReceiptResultContext;
 }
 
+type FinalizedOutput = Extract<ProviderOutputOutcome, { readonly status: 'finalized' | 'repeated' }>;
+
 export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImagesAdapter {
   const expected = Object.freeze({ ...options.binding });
   const finalizeOutput = options.finalizeOutput, observeOutput = options.observeOutput, revalidateOutput = options.revalidateOutput;
   const issued = new WeakSet<object>();
   const originalOutputPorts = (): boolean => options.finalizeOutput === finalizeOutput && options.observeOutput === observeOutput &&
     options.revalidateOutput === revalidateOutput;
+  const readControlDeclaration = (intent: OutboxIntent, bindingName: string) => {
+    const app = member(options.appDefinition, 'id');
+    const binding = member(member(options.appDefinition, 'bindings'), bindingName);
+    const capability = member(member(options.appDefinition, 'capabilities'), CAPABILITY);
+    const version = member(capability, 'version');
+    const operation = member(member(capability, 'operations'), intent.target.slice(`${CAPABILITY}.`.length));
+    const inputs = member(operation, 'inputs');
+    const contracts = member(options.appDefinition, 'contracts');
+    const enums = member(options.appDefinition, 'enums') ?? {};
+    const leaves = deliveryResultLeaves('ImageRun');
+    const fields = member(member(contracts, 'ImageRun'), 'fields');
+    return { app, binding, capability, version, operation, inputs, contracts, enums, leaves, fields };
+  };
+  const checkControlIdentity = (
+    intent: OutboxIntent, carrier: OutboxIntent['arguments'], reads: ReturnType<typeof readControlDeclaration>,
+  ): boolean => {
+    if (typeof reads.app !== 'string' || reads.app === '' ||
+        member(member(options.appDefinition, 'operations'), intent.operation) === undefined ||
+        member(reads.binding, 'capability') !== CAPABILITY || member(reads.binding, 'from') !== carrier.from ||
+        expected.capability !== CAPABILITY || expected.capabilityVersion !== STD_IMAGES_V1_VERSION ||
+        expected.account === '' || expected.deployment === '' ||
+        (reads.version !== STD_IMAGES_V1_VERSION && reads.version !== BigInt(STD_IMAGES_V1_VERSION))) return false;
+    return true;
+  };
+  const checkControlShape = (reads: ReturnType<typeof readControlDeclaration>): boolean => {
+    if (member(member(reads.operation, 'result'), 'type') !== 'ImageRun' || !record(reads.inputs) ||
+        Object.keys(reads.inputs).length !== 2 || member(member(reads.inputs, 'source'), 'type') !== 'text' ||
+        member(member(reads.inputs, 'revision'), 'type') !== 'int' || !record(reads.contracts) || !record(reads.enums) ||
+        reads.leaves === null || !record(reads.fields) || Object.keys(reads.fields).length !== reads.leaves.length ||
+        !reads.leaves.every(leaf => member(member(reads.fields, leaf.name), 'type') === leaf.type)) return false;
+    return true;
+  };
+  const checkControlDeclaration = (
+    intent: OutboxIntent, carrier: OutboxIntent['arguments'], reads: ReturnType<typeof readControlDeclaration>,
+  ): boolean => checkControlIdentity(intent, carrier, reads) && checkControlShape(reads);
+  const checkControlInstalled = (installed: ReturnType<ResolveInstalledImages>): boolean => {
+    if (installed === null || installed.binding.deployment !== expected.deployment || installed.binding.account !== expected.account ||
+        installed.binding.capability !== CAPABILITY || installed.binding.capabilityVersion !== expected.capabilityVersion ||
+        !Number.isSafeInteger(installed.policy.maxObservationDurationMs) || installed.policy.maxObservationDurationMs <= 0 ||
+        typeof installed.images.cancel !== 'function' || typeof installed.images.reconcile !== 'function') return false;
+    return true;
+  };
   const resolveControl = (intent: OutboxIntent) => {
     try {
       if (!['std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(intent.target) || intent.intentId === '' ||
           !closed(intent.arguments, ['binding', 'from', 'arguments'])) return null;
       const carrier = intent.arguments;
       if (typeof carrier.binding !== 'string' || carrier.from !== expected.deployment || !record(carrier.arguments)) return null;
-      const app = member(options.appDefinition, 'id');
-      const binding = member(member(options.appDefinition, 'bindings'), carrier.binding);
-      const capability = member(member(options.appDefinition, 'capabilities'), CAPABILITY);
-      const version = member(capability, 'version');
-      const operation = member(member(capability, 'operations'), intent.target.slice(`${CAPABILITY}.`.length));
-      const inputs = member(operation, 'inputs');
-      const contracts = member(options.appDefinition, 'contracts');
-      const enums = member(options.appDefinition, 'enums') ?? {};
-      const leaves = deliveryResultLeaves('ImageRun');
-      const fields = member(member(contracts, 'ImageRun'), 'fields');
-      if (typeof app !== 'string' || app === '' ||
-          member(member(options.appDefinition, 'operations'), intent.operation) === undefined ||
-          member(binding, 'capability') !== CAPABILITY || member(binding, 'from') !== carrier.from ||
-          expected.capability !== CAPABILITY || expected.capabilityVersion !== STD_IMAGES_V1_VERSION ||
-          expected.account === '' || expected.deployment === '' ||
-          (version !== STD_IMAGES_V1_VERSION && version !== BigInt(STD_IMAGES_V1_VERSION)) ||
-          member(member(operation, 'result'), 'type') !== 'ImageRun' || !record(inputs) ||
-          Object.keys(inputs).length !== 2 || member(member(inputs, 'source'), 'type') !== 'text' ||
-          member(member(inputs, 'revision'), 'type') !== 'int' || !record(contracts) || !record(enums) ||
-          leaves === null || !record(fields) || Object.keys(fields).length !== leaves.length ||
-          !leaves.every(leaf => member(member(fields, leaf.name), 'type') === leaf.type)) return null;
-      const schema = normalizeSchema({ contracts, enums, operations: { [intent.target]: { inputs } } } as SchemaDescriptor);
+      const reads = readControlDeclaration(intent, carrier.binding);
+      if (!checkControlDeclaration(intent, carrier, reads)) return null;
+      // Type narrowing only; all conditions were already rejected above.
+      if (typeof reads.app !== 'string' || reads.leaves === null ||
+          !record(reads.contracts) || !record(reads.inputs)) return null;
+      const schema = normalizeSchema({ contracts: reads.contracts, enums: reads.enums,
+        operations: { [intent.target]: { inputs: reads.inputs } } } as SchemaDescriptor);
       const checked = validateOperationInput(schema, intent.target, carrier.arguments);
       if (typeof checked.source !== 'string' || checked.source === '') return null;
       const revision = encodeValue('int', BigInt(safeInt(checked.revision, 0))) as string;
       const installed = options.resolveInstalledImages(expected.deployment);
-      if (installed === null || installed.binding.deployment !== expected.deployment || installed.binding.account !== expected.account ||
-          installed.binding.capability !== CAPABILITY || installed.binding.capabilityVersion !== expected.capabilityVersion ||
-          !Number.isSafeInteger(installed.policy.maxObservationDurationMs) || installed.policy.maxObservationDurationMs <= 0 ||
-          typeof installed.images.cancel !== 'function' || typeof installed.images.reconcile !== 'function') return null;
-      return { app, binding: carrier.binding, from: carrier.from,
-        context: Object.freeze({ source: intent.target, declaredResult: Object.freeze({ name: 'ImageRun', fields: leaves }),
+      if (!checkControlInstalled(installed)) return null;
+      return { app: reads.app, binding: carrier.binding, from: carrier.from,
+        context: Object.freeze({ source: intent.target,
+          declaredResult: Object.freeze({ name: 'ImageRun', fields: reads.leaves }),
           request: Object.freeze({ source: checked.source, revision }) }) satisfies ReceiptResultContext };
     } catch { return null; }
+  };
+  const readSubmitBinding = (bindingName: string) =>
+    member(member(options.appDefinition, 'bindings'), bindingName);
+  const checkSubmitBinding = (
+    carrier: OutboxIntent['arguments'], declared: ReturnType<typeof readSubmitBinding>,
+  ): boolean => {
+    if (member(declared, 'capability') !== CAPABILITY || member(declared, 'from') !== carrier.from ||
+        expected.capability !== CAPABILITY || expected.capabilityVersion !== STD_IMAGES_V1_VERSION ||
+        expected.account === '' || expected.deployment === '') return false;
+    return true;
+  };
+  const readSubmitCapability = () => {
+    const capability = member(member(options.appDefinition, 'capabilities'), CAPABILITY);
+    return { capability, version: member(capability, 'version') };
+  };
+  const checkSubmitVersion = (reads: ReturnType<typeof readSubmitCapability>): boolean =>
+    reads.version === STD_IMAGES_V1_VERSION || reads.version === BigInt(STD_IMAGES_V1_VERSION);
+  const readSubmitResult = (capability: unknown) => {
+    const operation = member(member(capability, 'operations'), 'submit');
+    return { operation, resultType: member(member(operation, 'result'), 'type') };
+  };
+  const checkSubmitResult = (reads: ReturnType<typeof readSubmitResult>): boolean => reads.resultType === 'ImageRun';
+  const readSubmitDescriptor = (operation: unknown) => {
+    const inputs = member(operation, 'inputs');
+    const contracts = member(options.appDefinition, 'contracts');
+    const enums = member(options.appDefinition, 'enums') ?? {};
+    const leaves = deliveryResultLeaves('ImageRun');
+    const fields = member(member(contracts, 'ImageRun'), 'fields');
+    return { inputs, contracts, enums, leaves, fields };
+  };
+  const checkSubmitDescriptor = (reads: ReturnType<typeof readSubmitDescriptor>): boolean => {
+    if (!record(reads.inputs) || !record(reads.contracts) || !record(reads.enums) || reads.leaves === null || !record(reads.fields) ||
+        Object.keys(reads.fields).length !== reads.leaves.length ||
+        !reads.leaves.every(leaf => member(member(reads.fields, leaf.name), 'type') === leaf.type)) return false;
+    return true;
+  };
+  interface CheckedSubmitValue {
+    readonly source: string;
+    readonly validation: string;
+    readonly prompt: string;
+    readonly negative: string;
+    readonly workflow: Record<string, unknown>;
+    readonly max_duration: bigint;
+    readonly revision: unknown;
+    readonly width: unknown;
+    readonly height: unknown;
+    readonly max_outputs: unknown;
+  }
+  const readSubmitValue = (
+    carrier: OutboxIntent['arguments'], contracts: Record<string, unknown>, enums: unknown,
+    inputs: Record<string, unknown>,
+  ): CheckedSubmitValue | null => {
+    const schema = normalizeSchema({ contracts, enums,
+      operations: { [TARGET]: { inputs } } } as SchemaDescriptor);
+    const value = validateOperationInput(schema, TARGET, carrier.arguments)['value'];
+    if (!record(value) || typeof value.source !== 'string' || value.source === '' ||
+        typeof value.validation !== 'string' || typeof value.prompt !== 'string' || typeof value.negative !== 'string' ||
+        !record(value.workflow) || typeof value.max_duration !== 'bigint' || value.max_duration <= 0n) return null;
+    return value as unknown as CheckedSubmitValue;
+  };
+  const buildImageRequest = (value: CheckedSubmitValue): ImageRequest | null => {
+    const workflow = value.workflow;
+    const destination = (name: string) => {
+      const slot = workflow[name];
+      if (!closed(slot, ['node', 'key']) || typeof slot.node !== 'string' || typeof slot.key !== 'string') {
+        throw new Error('Image workflow destination is malformed.');
+      }
+      return { node: slot.node, key: slot.key };
+    };
+    const graph = encodeValue('file', workflow.graph as Parameters<typeof encodeValue>[1]);
+    if (!record(graph) || typeof graph.id !== 'string') return null;
+    return {
+      source: value.source, revision: safeInt(value.revision, 0),
+      workflow: { graph: graph.id, prompt: destination('prompt'), negative: destination('negative'),
+        width: destination('width'), height: destination('height') } satisfies WorkflowDefinition,
+      validation: value.validation, prompt: value.prompt, negative: value.negative,
+      width: safeInt(value.width, 1), height: safeInt(value.height, 1), max_outputs: safeInt(value.max_outputs, 1),
+      max_duration: value.max_duration,
+    };
+  };
+  const checkSubmitInstalled = (installed: ReturnType<ResolveInstalledImages>, input: ImageRequest): boolean => {
+    if (installed === null || installed.binding.deployment !== expected.deployment ||
+        installed.binding.capability !== CAPABILITY || installed.binding.capabilityVersion !== expected.capabilityVersion ||
+        installed.binding.account !== expected.account || input.validation !== installed.validation ||
+        input.workflow.graph !== installed.workflow.graph ||
+        !(['prompt', 'negative', 'width', 'height'] as const).every(name =>
+          input.workflow[name].node === installed.workflow[name].node && input.workflow[name].key === installed.workflow[name].key) ||
+        input.max_outputs > installed.policy.maxOutputs || input.max_duration > BigInt(installed.policy.maxDurationMs) ||
+        !Number.isSafeInteger(installed.policy.maxOutputBytes) || installed.policy.maxOutputBytes <= 0 ||
+        typeof installed.images.submit !== 'function' || typeof installed.images.reconcile !== 'function' ||
+        typeof installed.images.cancel !== 'function') return false;
+    return true;
   };
   const resolve = (intent: OutboxIntent): Resolved | null => {
     try {
       if (intent.target !== TARGET || intent.intentId === '' || !closed(intent.arguments, ['binding', 'from', 'arguments'])) return null;
       const carrier = intent.arguments;
       if (typeof carrier.binding !== 'string' || carrier.from !== expected.deployment || !record(carrier.arguments)) return null;
-      const declared = member(member(options.appDefinition, 'bindings'), carrier.binding);
-      if (member(declared, 'capability') !== CAPABILITY || member(declared, 'from') !== carrier.from ||
-          expected.capability !== CAPABILITY || expected.capabilityVersion !== STD_IMAGES_V1_VERSION ||
-          expected.account === '' || expected.deployment === '') return null;
-      const capability = member(member(options.appDefinition, 'capabilities'), CAPABILITY);
-      const version = member(capability, 'version');
-      if (version !== STD_IMAGES_V1_VERSION && version !== BigInt(STD_IMAGES_V1_VERSION)) return null;
-      const operation = member(member(capability, 'operations'), 'submit');
-      if (member(member(operation, 'result'), 'type') !== 'ImageRun') return null;
-      const inputs = member(operation, 'inputs');
-      const contracts = member(options.appDefinition, 'contracts');
-      const enums = member(options.appDefinition, 'enums') ?? {};
-      const leaves = deliveryResultLeaves('ImageRun');
-      const fields = member(member(contracts, 'ImageRun'), 'fields');
-      if (!record(inputs) || !record(contracts) || !record(enums) || leaves === null || !record(fields) ||
-          Object.keys(fields).length !== leaves.length ||
-          !leaves.every(leaf => member(member(fields, leaf.name), 'type') === leaf.type)) return null;
-      const schema = normalizeSchema({ contracts, enums, operations: { [TARGET]: { inputs } } } as SchemaDescriptor);
-      const value = validateOperationInput(schema, TARGET, carrier.arguments)['value'];
-      if (!record(value) || typeof value.source !== 'string' || value.source === '' ||
-          typeof value.validation !== 'string' || typeof value.prompt !== 'string' || typeof value.negative !== 'string' ||
-          !record(value.workflow) || typeof value.max_duration !== 'bigint' || value.max_duration <= 0n) return null;
-      const workflow = value.workflow;
-      const destination = (name: string) => {
-        const slot = workflow[name];
-        if (!closed(slot, ['node', 'key']) || typeof slot.node !== 'string' || typeof slot.key !== 'string') {
-          throw new Error('Image workflow destination is malformed.');
-        }
-        return { node: slot.node, key: slot.key };
-      };
-      const graph = encodeValue('file', workflow.graph as Parameters<typeof encodeValue>[1]);
-      if (!record(graph) || typeof graph.id !== 'string') return null;
-      const input: ImageRequest = {
-        source: value.source, revision: safeInt(value.revision, 0),
-        workflow: { graph: graph.id, prompt: destination('prompt'), negative: destination('negative'),
-          width: destination('width'), height: destination('height') } satisfies WorkflowDefinition,
-        validation: value.validation, prompt: value.prompt, negative: value.negative,
-        width: safeInt(value.width, 1), height: safeInt(value.height, 1), max_outputs: safeInt(value.max_outputs, 1),
-        max_duration: value.max_duration,
-      };
+      const declared = readSubmitBinding(carrier.binding);
+      if (!checkSubmitBinding(carrier, declared)) return null;
+      const capabilityReads = readSubmitCapability();
+      if (!checkSubmitVersion(capabilityReads)) return null;
+      const resultReads = readSubmitResult(capabilityReads.capability);
+      if (!checkSubmitResult(resultReads)) return null;
+      const descriptor = readSubmitDescriptor(resultReads.operation);
+      if (!checkSubmitDescriptor(descriptor)) return null;
+      // Type narrowing only; all three conditions were already rejected above.
+      if (!record(descriptor.contracts) || !record(descriptor.inputs) || descriptor.leaves === null) return null;
+      const value = readSubmitValue(carrier, descriptor.contracts, descriptor.enums, descriptor.inputs);
+      if (value === null) return null;
+      const input = buildImageRequest(value);
+      if (input === null) return null;
       const installed = options.resolveInstalledImages(expected.deployment);
-      if (installed === null || installed.binding.deployment !== expected.deployment ||
-          installed.binding.capability !== CAPABILITY || installed.binding.capabilityVersion !== expected.capabilityVersion ||
-          installed.binding.account !== expected.account || input.validation !== installed.validation ||
-          input.workflow.graph !== installed.workflow.graph ||
-          !(['prompt', 'negative', 'width', 'height'] as const).every(name =>
-            input.workflow[name].node === installed.workflow[name].node && input.workflow[name].key === installed.workflow[name].key) ||
-          input.max_outputs > installed.policy.maxOutputs || input.max_duration > BigInt(installed.policy.maxDurationMs) ||
-          !Number.isSafeInteger(installed.policy.maxOutputBytes) || installed.policy.maxOutputBytes <= 0 ||
-          typeof installed.images.submit !== 'function' || typeof installed.images.reconcile !== 'function' ||
-          typeof installed.images.cancel !== 'function') return null;
+      if (installed === null || !checkSubmitInstalled(installed, input)) return null;
       return { installed, input, context: Object.freeze({ source: TARGET,
-        declaredResult: Object.freeze({ name: 'ImageRun', fields: leaves }),
+        declaredResult: Object.freeze({ name: 'ImageRun', fields: descriptor.leaves }),
         request: Object.freeze({ source: input.source, revision: encodeValue('int', BigInt(input.revision)) as string }) }) };
     } catch { return null; }
   };
@@ -227,61 +311,99 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
     const jobId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20)}`;
     return { deliveryId: intent.intentId, jobId, deadlineMs, ...(observation === undefined ? {} : { observation }) };
   };
-  const observe = async (intent: OutboxIntent, resolved: Resolved, original: InstalledImageOptions,
-    call: BoundImagesCallOptions, method: 'reconcile' | 'cancel'): Promise<DispatchProviderOutcome> => {
+  const readRunCompletion = async (
+    intent: OutboxIntent, resolved: Resolved, original: InstalledImageOptions, method: 'reconcile' | 'cancel',
+  ): Promise<ImageRun | null> => {
     const completion = await resolved.installed.images[method](resolved.input, original);
     if (completion.delivery_id !== intent.intentId || completion.status !== 'succeeded' || completion.error !== null ||
-        completion.result === null) return { kind: 'uncertain' };
+        completion.result === null) return null;
     const run: ImageRun = completion.result;
     if (run.job !== original.jobId || !STATES.has(run.state) || !Array.isArray(run.outputs) ||
         run.outputs.length > resolved.input.max_outputs ||
-        (run.detail !== null && typeof run.detail !== 'string')) return { kind: 'uncertain' };
+        (run.detail !== null && typeof run.detail !== 'string')) return null;
+    return run;
+  };
+  const totalRunBytes = (run: ImageRun, resolved: Resolved): number | null => {
     let totalBytes = 0;
     for (const output of run.outputs) {
-      if (!(output.bytes instanceof Uint8Array)) return { kind: 'uncertain' };
+      if (!(output.bytes instanceof Uint8Array)) return null;
       totalBytes += output.bytes.byteLength;
-      if (!Number.isSafeInteger(totalBytes) || totalBytes > resolved.installed.policy.maxOutputBytes) {
-        return { kind: 'uncertain' };
-      }
+      if (!Number.isSafeInteger(totalBytes) || totalBytes > resolved.installed.policy.maxOutputBytes) return null;
     }
+    return totalBytes;
+  };
+  const checkRunOutputShape = (
+    output: ImageRun['outputs'][number], resolved: Resolved, slots: Set<string>,
+  ): string | null => {
+    if (typeof output.node !== 'string' || output.node === '' || !Number.isSafeInteger(output.position) || output.position < 0 ||
+        !(output.bytes instanceof Uint8Array) || output.bytes.byteLength !== output.sizeBytes ||
+        output.sizeBytes > resolved.installed.policy.maxOutputBytes) return null;
+    const slot = `${output.node}/${output.position}`;
+    if (slots.has(slot)) return null;
+    slots.add(slot);
+    return `outputs/${encodeURIComponent(output.node)}/${output.position}`;
+  };
+  const verifyFinalizedFile = (
+    intent: OutboxIntent, resolved: Resolved, call: BoundImagesCallOptions,
+    output: ImageRun['outputs'][number], resultPath: string, finalized: FinalizedOutput,
+    file: FinalizedOutput['file'],
+  ): boolean => {
+    if (file.id !== finalized.result.file || file.provenance.kind !== 'request' ||
+        file.provenance.adapter !== expected.deployment || file.provenance.deliveryId !== intent.intentId ||
+        file.provenance.resultPath !== resultPath || file.sizeBytes !== output.bytes.byteLength) return false;
+    if (call.originalScope !== undefined && (file.provenance.app !== call.originalScope.app ||
+        file.provenance.owner !== call.originalScope.owner || file.provenance.principal !== call.originalScope.principal)) {
+      return false;
+    }
+    return true;
+  };
+  const observeFinalizedOutput = async (
+    finalization: FinalizeOutputInput, finalized: FinalizedOutput, file: FinalizedOutput['file'],
+    outputs: ImageRunWire['outputs'][number][],
+    files: { path: readonly (string | number)[]; observation: unknown }[],
+  ): Promise<void> => {
+    if (observeOutput === undefined) return;
+    if (revalidateOutput === undefined || !originalOutputPorts()) throw new Error('Images output receiving port changed.');
+    const observation = await observeOutput(finalization, finalized);
+    const saved = readFinalizedFileObservation(observation);
+    if (!originalOutputPorts() || saved === null || saved.ref !== file.id ||
+        saved.contentType !== file.contentType || saved.sizeBytes !== file.sizeBytes ||
+        saved.bytesDigest !== file.bytesDigest || stableStringify(saved.provenance) !== stableStringify(file.provenance)) {
+      throw new Error('Images output requires its genuine original Files observation.');
+    }
+    issued.add(observation as object);
+    files.push(Object.freeze({ path: Object.freeze(['outputs', outputs.length, 'image']), observation }));
+  };
+  const finalizeRunOutput = async (
+    intent: OutboxIntent, resolved: Resolved, call: BoundImagesCallOptions,
+    output: ImageRun['outputs'][number], slots: Set<string>,
+    outputs: ImageRunWire['outputs'][number][],
+    files: { path: readonly (string | number)[]; observation: unknown }[],
+  ): Promise<boolean> => {
+    const resultPath = checkRunOutputShape(output, resolved, slots);
+    if (resultPath === null) return false;
+    const finalization = Object.freeze({ intent, output, resultPath,
+      ...(call.originalScope === undefined ? {} : { originalScope: call.originalScope }) });
+    if (observeOutput !== undefined && !originalOutputPorts()) throw new Error('Images output receiving port changed.');
+    const finalized = await finalizeOutput(finalization);
+    if (finalized.status !== 'finalized' && finalized.status !== 'repeated') return false;
+    const file = finalized.file;
+    if (!verifyFinalizedFile(intent, resolved, call, output, resultPath, finalized, file)) return false;
+    await observeFinalizedOutput(finalization, finalized, file, outputs, files);
+    outputs.push({ position: encodeValue('int', BigInt(output.position)) as string,
+      image: encodeValue('file', decodeValue('file', { id: finalized.result.file })) as { id: string } });
+    return true;
+  };
+  const observe = async (intent: OutboxIntent, resolved: Resolved, original: InstalledImageOptions,
+    call: BoundImagesCallOptions, method: 'reconcile' | 'cancel'): Promise<DispatchProviderOutcome> => {
+    const run = await readRunCompletion(intent, resolved, original, method);
+    if (run === null) return { kind: 'uncertain' };
+    if (totalRunBytes(run, resolved) === null) return { kind: 'uncertain' };
     const outputs: ImageRunWire['outputs'][number][] = [];
     const files: { path: readonly (string | number)[]; observation: unknown }[] = [];
     const slots = new Set<string>();
     for (const output of run.outputs) {
-      if (typeof output.node !== 'string' || output.node === '' || !Number.isSafeInteger(output.position) || output.position < 0 ||
-          !(output.bytes instanceof Uint8Array) || output.bytes.byteLength !== output.sizeBytes ||
-          output.sizeBytes > resolved.installed.policy.maxOutputBytes) return { kind: 'uncertain' };
-      const slot = `${output.node}/${output.position}`;
-      if (slots.has(slot)) return { kind: 'uncertain' };
-      slots.add(slot);
-      const resultPath = `outputs/${encodeURIComponent(output.node)}/${output.position}`;
-      const finalization = Object.freeze({ intent, output, resultPath,
-        ...(call.originalScope === undefined ? {} : { originalScope: call.originalScope }) });
-      if (observeOutput !== undefined && !originalOutputPorts()) throw new Error('Images output receiving port changed.');
-      const finalized = await finalizeOutput(finalization);
-      if (finalized.status !== 'finalized' && finalized.status !== 'repeated') return { kind: 'uncertain' };
-      const file = finalized.file;
-      if (file.id !== finalized.result.file || file.provenance.kind !== 'request' ||
-          file.provenance.adapter !== expected.deployment || file.provenance.deliveryId !== intent.intentId ||
-          file.provenance.resultPath !== resultPath || file.sizeBytes !== output.bytes.byteLength) return { kind: 'uncertain' };
-      if (call.originalScope !== undefined && (file.provenance.app !== call.originalScope.app ||
-          file.provenance.owner !== call.originalScope.owner || file.provenance.principal !== call.originalScope.principal)) {
-        return { kind: 'uncertain' };
-      }
-      if (observeOutput !== undefined) {
-        if (revalidateOutput === undefined || !originalOutputPorts()) throw new Error('Images output receiving port changed.');
-        const observation = await observeOutput(finalization, finalized);
-        const saved = readFinalizedFileObservation(observation);
-        if (!originalOutputPorts() || saved === null || saved.ref !== file.id ||
-            saved.contentType !== file.contentType || saved.sizeBytes !== file.sizeBytes ||
-            saved.bytesDigest !== file.bytesDigest || stableStringify(saved.provenance) !== stableStringify(file.provenance)) {
-          throw new Error('Images output requires its genuine original Files observation.');
-        }
-        issued.add(observation as object);
-        files.push(Object.freeze({ path: Object.freeze(['outputs', outputs.length, 'image']), observation }));
-      }
-      outputs.push({ position: encodeValue('int', BigInt(output.position)) as string,
-        image: encodeValue('file', decodeValue('file', { id: finalized.result.file })) as { id: string } });
+      if (!await finalizeRunOutput(intent, resolved, call, output, slots, outputs, files)) return { kind: 'uncertain' };
     }
     const prior = call.sequence === undefined ? 0n : decodeValue('int', call.sequence);
     if (typeof prior !== 'bigint' || prior < 0n) return { kind: 'uncertain' };
