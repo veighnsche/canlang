@@ -360,7 +360,7 @@ test('native typed File downloads select the current D1 owner without fallback a
 test('native File retirement guards every owner writer and resumes original SQLite deletion after interruption and reopen',
   {timeout:120000}, async () => {
     const fixture=fileURLToPath(new URL('./fixtures/native-file-retirement.can',import.meta.url));
-    const compiler=join(root,'compiler/target/debug/can'),catalog=fileURLToPath(distribution.catalog);
+    const compiler=process.env.CAN_COMPILER_BIN??join(root,'compiler/target/debug/can'),catalog=fileURLToPath(distribution.catalog);
     const paths=[fixture,compiler,catalog],digest=(bytes:Uint8Array)=>createHash('sha256').update(bytes).digest('hex');
     const hashes=await Promise.all(paths.map(async path=>digest(await readFile(path))));
     const dir=await mkdtemp(join(tmpdir(),'can-native-file-retirement-'));
@@ -473,8 +473,9 @@ test('native File retirement guards every owner writer and resumes original SQLi
         assert.equal(finalized.status,200,await finalized.clone().text());
         return (await finalized.json() as {file:string}).file;
       };
+      const originalFiles=createCanonicalFileBinding(kernel,retention);
       let invoker=buildInvoker(artifact,asm,binding.store,{appId:app,memberships:identities,now:clock.nowMs,
-        files:createCanonicalFileBinding(kernel,retention),ownerStorage:binding.ownerStorage});
+        files:originalFiles,ownerStorage:binding.ownerStorage});
       const invoke=async(operation:string,inputs:MutationEnvelope['inputs'],id=nextId())=>{
         const result=await invoker.invokeMutation({operation:`${app}.${operation}`,operation_id:id,inputs},identity);
         assert.ok('result' in result,JSON.stringify(result));return result.result;
@@ -593,9 +594,17 @@ test('native File retirement guards every owner writer and resumes original SQLi
         inspection.exec('DROP TRIGGER interrupt_retired_bytes');
       } finally {inspection.close();}
       const originalDecision=await binding.store.readFinalizedFileRetirement(interrupted),beforeReopen=await resources();
+      const originalBinding=binding;
+      // The owner router opens a genuine port per selection. Pin one literal
+      // store registry with the original File port through a saved replay.
+      const originalPort=buildInvoker(artifact,asm,originalBinding.store,{appId:app,memberships:identities,now:clock.nowMs,
+        files:originalFiles});
+      const originalReplay=await originalPort.invokeMutation({operation:`${app}.attach`,operation_id:sharedFirst.operationId,
+        inputs:sharedFirst.inputs},identity);
+      assert.ok('result' in originalReplay);assert.deepEqual(await resources(),beforeReopen);
       const fileStoreId=physical.fileStoreId;physical.close();physical=createSqliteFileStore(filePath);
-      // A restarted host receives a freshly verified issuing assembly. Reusing
-      // the old issuer cannot substitute its already installed receiving port.
+      // A restarted host receives a freshly verified issuing assembly and a new
+      // store registry. The original registry retains its installed File port.
       const reopenedArtifact=JSON.parse(originalArtifact) as CompileArtifact;
       const reopenedAssembly=await assembleModules({artifact:reopenedArtifact,sourcePath:fixture},{workDir:join(dir,'reopened-modules'),
         stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
@@ -614,8 +623,8 @@ test('native File retirement guards every owner writer and resumes original SQLi
       assert.deepEqual(await resources(),completed,'durable terminal retry advances neither State nor physical stores');
       const reopenedKernel=createFileJourneyKernel(binding.bindings);
       const reopenedFiles=createCanonicalFileBinding(reopenedKernel,retention);
-      const replacedPort=buildInvoker(artifact,asm,binding.store,{appId:app,memberships:identities,now:clock.nowMs,
-        files:reopenedFiles,ownerStorage:binding.ownerStorage});
+      const replacedPort=buildInvoker(artifact,asm,originalBinding.store,{appId:app,memberships:identities,now:clock.nowMs,
+        files:reopenedFiles});
       const reopenedBefore=await resources(),originalPortRow=await binding.store.load(model,asId(first));assert.ok(originalPortRow);
       const portRefusal=await replacedPort.invokeMutation({operation:`${app}.attach`,operation_id:nextId(),
         inputs:{entry:{id:first,version:String(originalPortRow.version)},attachment:{id:replacement},accept:true}},identity);
