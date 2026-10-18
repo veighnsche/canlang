@@ -135,8 +135,12 @@ pre-intake producer scope; this removes the old build-ok version skew. It does
 not qualify the remaining native CLI/packaged-publication contracts.
 
 Review019 continues exact executable binding and prebuilt/installed delivery.
-Review020 repairs introduced scanner parameter/default and regex-context
-differences. Review021 restores host read/error/cancellation/build admission and
+Review020 exposed parameter/default and regex-context differences; decision025
+retains the existing host-library syntax/scope frontend explicitly, with minimal
+source-bound facts consumed by Rust module policy. See the
+[three-question decision](../../design/jev/native-module-boundary-20261018/README.md).
+The ad-hoc recognizer is not accepted as full JS parity or a completed native
+syntax port. Review021 restores host read/error/cancellation/build admission and
 the original reviewed-byte/confirmed mocked-apply outcomes. Those hot files are
 excluded from this early source commit. Original parent gates remain partial.
 A named Linux host lacks Rust, but configured infra is Linux x64/glibc with the
