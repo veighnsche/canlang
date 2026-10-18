@@ -1,5 +1,10 @@
 # Additional Rust opportunities across packages
 
+**Execution update, 18 October 2026:** selected Rust int/ASCII plus explicit CSV,
+shared fanout TS and selected installed recovery asset delivery are now accepted.
+See the [single current execution view](../../implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18)
+for scope and retained limits; this adds no opportunity or whole-parent acceptance.
+
 **18 October 2026 — audit baseline `08dc8c3928f53c7a06984136ac52ff944360075c`; candidate 1 message syntax/usage and finite joined completion recorded below.**
 All **13 packages / 1,511 tracked paths** were accounted for at the historical
 baseline. The checkout was clean at intake. That planning audit started no

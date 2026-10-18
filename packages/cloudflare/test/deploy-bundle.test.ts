@@ -3,7 +3,7 @@ import { encode } from "@jridgewell/sourcemap-codec";
 import { lookup } from "../src/runtime/sourcemap.js";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, posix, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { ActivationVerdict, CompileArtifact, SourceMap } from "@canlang/contracts";
@@ -99,6 +99,12 @@ function fakeWorkerDist(): string {
     ].join("\n"),
   );
   writeFileSync(join(dir, "helper.js"), `export function helper() { return "from-helper"; }\n`);
+  // Pre-existing skew (already at base 1527ed1e8): the pinned real runtime
+  // set includes resource-dispatch.js importing ../worker/assembly.js, which
+  // this stub predates. Keep the fixture's declared stub scope: a seam-only
+  // module so link resolution covers the edge without depending on the
+  // sibling worker packet's transitive closure.
+  writeFileSync(join(dir, "assembly.js"), `export function assembleDispatchCommands() { return []; }\n`);
   return dir;
 }
 
@@ -1243,6 +1249,24 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
       expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
     } finally { rmSync(fixture, { recursive: true, force: true }); }
+  });
+
+  it("vendors the work-kernel leaf rows and rewrites wrapper bare imports", () => {
+    // The work/state wrappers import the package-exported leaf; the deploy
+    // map must carry that runtime closure, not leave a bare specifier.
+    // Relative edges resolve against their importing module, so compare
+    // normalized link targets, not raw specifier suffixes.
+    const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
+    expect(Object.keys(bundle.modules)).toContain("vendor/work-kernel/src/rows.js");
+    expect(bundle.modules["vendor/work-kernel/src/rows.js"]).toContain("export class RowsKernelError");
+    for (const key of ["vendor/work/kernel/tables.js", "vendor/state/fanout/tables.js"]) {
+      const edges = scanModuleImports(bundle.modules[key]!, key).map(record => record.specifier);
+      expect(edges).not.toContain("@canlang/work-kernel/rows");
+      const targets = edges.filter(edge => edge.startsWith(".")).map(edge => posix.normalize(posix.join(posix.dirname(key), edge)));
+      expect(targets).toContain("vendor/work-kernel/src/rows.js");
+    }
+    expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+    expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
   });
 
   it("refuses each missing genuine Files finalizer closure entry", () => {

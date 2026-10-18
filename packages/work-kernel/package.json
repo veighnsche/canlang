@@ -17,6 +17,10 @@
     "./distribution": {
       "types": "./dist/src/distribution.d.ts",
       "default": "./dist/src/distribution.js"
+    },
+    "./rows": {
+      "types": "./dist/src/rows.d.ts",
+      "default": "./dist/src/rows.js"
     }
   },
   "scripts": {

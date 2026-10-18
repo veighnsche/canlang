@@ -1,5 +1,30 @@
 # Canlang language design decisions
 
+## 2026-10-18 — accept shared fanout and selected recovery delivery
+
+**Accepted implementation and integration decision.** Work and State delegate
+their existing intent/checkpoint/child mechanics to the contracts-only TS leaf,
+retaining owning errors, sync order, persisted fields/defaults and Work's
+JSON-safety-before-clone versus State's clone-only replacement. Add the actual
+production edges, package-exported rows, dist-root recovery source/bindings
+closure and producer-owned Wasm inventory. Cloudflare gathers verified bytes,
+rewrites the real package imports and carries the binary under its owning
+vendor key; missing/corrupt assets fail before dispatch. This changes delivery
+and selected consumer integration, not the accepted recovery algorithm or
+backend defaults.
+
+Source `f4e067414` is independently reviewed with the newer compiler/runtime/
+State main `69212ec1f`. The actual installed CF gather/bundle output supplies
+288 modules and recovery Wasm to two fresh Worker isolates/four requests; the
+owning Work/State consumers and native plan agree with installed Node TS output.
+Reuse the recorded focused row, wrapper, integrity and module-map results.
+Keep broader deploy-bundle fixture/environment failures visible without
+claiming whole-suite acceptance. Reconcile fourteen source/build/test/manifest
+paths and seven planning records using retained coverage; do not advance the
+complete filetree checkpoint or remove its stale-plan warning. Original broader
+Rust parents remain partial. Native preparation P04–P11/C04.native-release,
+default switches, TS retirement and production/public release remain held.
+
 ## 2026-10-18 — accept the selected Rust integer and CSV consumer slice
 
 **Accepted implementation and integration decision.** Adopt the existing Rust

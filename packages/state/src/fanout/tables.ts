@@ -3,15 +3,13 @@
  * fanout rows (`work.fanout_intent`, `work.fanout_checkpoint`,
  * `work.fanout_child`).
  *
- * LAYERING (T24a/T25-L3 precedent): this file NEVER imports work sources
- * (runtime or types). Every derivation, data shape, and validation rule
- * below re-states the F2 contract field-for-field from the committed F1
- * vocabulary (`@canlang/contracts`), and the fanout tests prove
- * byte-compatibility in BOTH directions against the REAL F2
- * constructors/readers loaded via computed-URL dynamic import (see
- * `work-loader.ts`). A work-side conformance pin (F2 tests reading
- * state-staged rows) is REPORTED as remainder — F5 cannot write work
- * files.
+ * LAYERING: this file NEVER imports work sources (runtime or types).
+ * All row mechanics live in the contracts-only shared leaf
+ * (`@canlang/work-kernel/rows`, invoked with the explicit 'state'
+ * direction); this facade only projects leaf `RowsStateError` failures
+ * onto the owning `StateError` class so `instanceof StateError` and the
+ * `(code, message)` shape keep working. Non-leaf thrown values (engine
+ * URIError, DataCloneError) propagate untouched.
  *
  * Q4 (t34-plan.md open question 4): the owning producer RETAINS the
  * frozen identity set. Membership is the complete sorted canonical
@@ -20,19 +18,32 @@
  */
 
 import type {
-  ModelName,
-  QuerySpec,
-  RecordId,
-  RecordVersion,
-  StoredRow,
-} from '@canlang/contracts';
-import type {
   FanoutCohortKind,
   FanoutFailedReason,
   FanoutId,
   FanoutSkippedReason,
+  QuerySpec,
+  StoredRow,
 } from '@canlang/contracts';
 import { StateError } from '../errors.js';
+import {
+  checkFanoutIdentitySet as leafCheckFanoutIdentitySet,
+  fanoutCheckpointRowId as leafFanoutCheckpointRowId,
+  fanoutChildIdOf as leafFanoutChildIdOf,
+  fanoutChildPageQuery as leafFanoutChildPageQuery,
+  fanoutChildPageResult as leafFanoutChildPageResult,
+  fanoutChildRowId as leafFanoutChildRowId,
+  fanoutIntentRowId as leafFanoutIntentRowId,
+  newFanoutCheckpointRow as leafNewFanoutCheckpointRow,
+  newFanoutChildRow as leafNewFanoutChildRow,
+  newFanoutIntentRow as leafNewFanoutIntentRow,
+  nextFanoutCheckpointData as leafNextFanoutCheckpointData,
+  readFanoutCheckpointRow as leafReadFanoutCheckpointRow,
+  readFanoutChildRow as leafReadFanoutChildRow,
+  readFanoutIntentRow as leafReadFanoutIntentRow,
+  RowsStateError,
+  withFanoutRowData as leafWithFanoutRowData,
+} from '@canlang/work-kernel/rows';
 
 /** State-owned fanout table models (structural literals, cf. F2 constants). */
 export const FANOUT_INTENT_MODEL = 'work.fanout_intent';
@@ -85,80 +96,20 @@ export interface FanoutRowMeta {
   readonly actor: string;
 }
 
-const FANOUT_CHILD_STATES: ReadonlySet<string> = new Set([
-  'pending',
-  'running',
-  'completed',
-  'skipped',
-  'failed',
-]);
-
-const FANOUT_SKIPPED_REASONS: ReadonlySet<string> = new Set(['deleted', 'non-applicable']);
-
-const FANOUT_FAILED_REASONS: ReadonlySet<string> = new Set([
-  'business-rejection',
-  'terminal',
-  'exhausted',
-  'missing-record',
-  'inaccessible-record',
-  'infra-read-failure',
-]);
-
-function checkComponent(value: string, what: string): string {
-  if (typeof value !== 'string' || value === '') {
-    throw new StateError('validation', `Fanout ${what} must be a non-empty string.`);
+/**
+ * Run one leaf call in the state direction, projecting leaf state
+ * failures onto the owning StateError class. Every other thrown value
+ * propagates as-is.
+ */
+function own<T>(action: () => T): T {
+  try {
+    return action();
+  } catch (error) {
+    if (error instanceof RowsStateError) {
+      throw new StateError('validation', error.message);
+    }
+    throw error;
   }
-  return value;
-}
-
-function checkCohort(value: unknown): FanoutCohortKind {
-  if (value !== 'model' && value !== 'anchored-collection') {
-    throw new StateError(
-      'validation',
-      `Fanout cohort must be model or anchored-collection, got ${JSON.stringify(value)}.`,
-    );
-  }
-  return value;
-}
-
-function checkRecord(value: unknown, what: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new StateError('validation', `${what} must be an object.`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function checkDataString(
-  record: Record<string, unknown>,
-  field: string,
-  what: string,
-): string {
-  const value = record[field];
-  if (typeof value !== 'string' || value === '') {
-    throw new StateError('validation', `${what}.${field} must be a non-empty string.`);
-  }
-  return value;
-}
-
-function checkNullableString(
-  record: Record<string, unknown>,
-  field: string,
-  what: string,
-): string | null {
-  const value = record[field];
-  if (value === null) return null;
-  if (typeof value !== 'string') {
-    throw new StateError('validation', `${what}.${field} must be a string or null.`);
-  }
-  return value;
-}
-
-function checkCount(record: Record<string, unknown>, field: string, what: string): number {
-  const value = record[field];
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    throw new StateError('validation', `${what}.${field} must be an integer >= 0.`);
-  }
-  return value;
 }
 
 /**
@@ -171,23 +122,7 @@ export function checkFanoutIdentitySet(
   value: unknown,
   what: string,
 ): ReadonlyArray<string> {
-  if (!Array.isArray(value)) {
-    throw new StateError('validation', `${what} must be an array of canonical record ids.`);
-  }
-  const seen = new Set<string>();
-  for (const entry of value) {
-    if (typeof entry !== 'string' || entry === '') {
-      throw new StateError('validation', `${what} entries must be non-empty strings.`);
-    }
-    if (seen.has(entry)) {
-      throw new StateError(
-        'validation',
-        `${what} contains a duplicate identity: ${JSON.stringify(entry)}.`,
-      );
-    }
-    seen.add(entry);
-  }
-  return [...seen].sort();
+  return own(() => leafCheckFanoutIdentitySet(value, what, 'state'));
 }
 
 /**
@@ -202,15 +137,12 @@ export function fanoutIntentRowId(
   handler: string,
   cohort: FanoutCohortKind,
 ): FanoutId {
-  checkComponent(sourceOccurrence, 'sourceOccurrence');
-  checkComponent(handler, 'handler');
-  checkCohort(cohort);
-  return `fanout/v1/${encodeURIComponent(sourceOccurrence)}/${encodeURIComponent(handler)}/${cohort}`;
+  return own(() => leafFanoutIntentRowId(sourceOccurrence, handler, cohort, 'state'));
 }
 
 /** Checkpoint row id: exactly one checkpoint row per fanout id. */
 export function fanoutCheckpointRowId(fanoutId: FanoutId): string {
-  return checkComponent(fanoutId, 'fanoutId');
+  return own(() => leafFanoutCheckpointRowId(fanoutId, 'state'));
 }
 
 /**
@@ -225,34 +157,7 @@ export function fanoutChildRowId(
   handler: string,
   recordId: string,
 ): string {
-  checkComponent(parentOccurrence, 'parentOccurrence');
-  checkComponent(handler, 'handler');
-  checkComponent(recordId, 'recordId');
-  return `fanout-child/v1/${encodeURIComponent(parentOccurrence)}/${encodeURIComponent(handler)}/${encodeURIComponent(recordId)}`;
-}
-
-function checkMeta(meta: FanoutRowMeta, what: string): void {
-  if (!Number.isFinite(meta.nowMs) || meta.nowMs < 0) {
-    throw new StateError('validation', `${what}: nowMs must be finite epoch ms >= 0.`);
-  }
-  if (typeof meta.actor !== 'string' || meta.actor === '') {
-    throw new StateError('validation', `${what}: actor must be a non-empty string.`);
-  }
-}
-
-function newRow(id: string, data: Readonly<Record<string, unknown>>, meta: FanoutRowMeta): StoredRow {
-  checkMeta(meta, 'fanout');
-  return {
-    id: id as RecordId,
-    version: 1 as RecordVersion,
-    created: meta.nowMs,
-    updated: meta.nowMs,
-    createdBy: meta.actor,
-    updatedBy: meta.actor,
-    archivedAt: null,
-    parent: null,
-    data: structuredClone(data),
-  };
+  return own(() => leafFanoutChildRowId(parentOccurrence, handler, recordId, 'state'));
 }
 
 /**
@@ -264,14 +169,7 @@ export function withFanoutRowData(
   data: Readonly<Record<string, unknown>>,
   meta: FanoutRowMeta,
 ): StoredRow {
-  checkMeta(meta, 'fanout');
-  return {
-    ...row,
-    version: (row.version + 1) as RecordVersion,
-    updated: meta.nowMs,
-    updatedBy: meta.actor,
-    data: structuredClone(data),
-  };
+  return own(() => leafWithFanoutRowData(row, data, meta));
 }
 
 /** Producer-side insert: the committed fanout intent row. */
@@ -284,17 +182,7 @@ export function newFanoutIntentRow(
   },
   meta: FanoutRowMeta,
 ): StoredRow {
-  const members = checkFanoutIdentitySet(input.members, 'work.fanout_intent.members');
-  const fanoutId = fanoutIntentRowId(input.sourceOccurrence, input.handler, input.cohort);
-  const data: FanoutIntentData = {
-    fanoutId,
-    sourceOccurrence: input.sourceOccurrence,
-    handler: input.handler,
-    cohort: input.cohort,
-    members,
-    memberCount: members.length,
-  };
-  return newRow(fanoutId, data as unknown as Record<string, unknown>, meta);
+  return own(() => leafNewFanoutIntentRow(input, meta, 'state'));
 }
 
 /** Producer-side insert: the checkpoint row (explicit completed + cursor). */
@@ -306,19 +194,7 @@ export function newFanoutCheckpointRow(
   },
   meta: FanoutRowMeta,
 ): StoredRow {
-  const data: FanoutCheckpointData = {
-    fanoutId: checkComponent(input.fanoutId, 'fanoutId'),
-    completed: checkFanoutIdentitySet(input.completed ?? [], 'work.fanout_checkpoint.completed'),
-    cursor: input.cursor ?? null,
-  };
-  if (data.cursor !== null && data.cursor === '') {
-    throw new StateError('validation', 'work.fanout_checkpoint.cursor must be non-empty or null.');
-  }
-  return newRow(
-    fanoutCheckpointRowId(data.fanoutId),
-    data as unknown as Record<string, unknown>,
-    meta,
-  );
+  return own(() => leafNewFanoutCheckpointRow(input, meta, 'state'));
 }
 
 /**
@@ -333,62 +209,7 @@ export function nextFanoutCheckpointData(
   addCompleted: ReadonlyArray<string>,
   cursor: string | null,
 ): FanoutCheckpointData {
-  if (cursor !== null && cursor === '') {
-    throw new StateError('validation', 'work.fanout_checkpoint.cursor must be non-empty or null.');
-  }
-  for (const entry of addCompleted) {
-    if (typeof entry !== 'string' || entry === '') {
-      throw new StateError(
-        'validation',
-        'work.fanout_checkpoint.completed entries must be non-empty strings.',
-      );
-    }
-  }
-  return {
-    fanoutId: current.fanoutId,
-    completed: [...new Set([...current.completed, ...addCompleted])].sort(),
-    cursor,
-  };
-}
-
-function checkChildCause(
-  state: string,
-  causeKind: 'completed' | 'skipped' | 'failed' | null,
-  causeReason: string | null,
-): void {
-  if (state === 'pending' || state === 'running') {
-    if (causeKind !== null || causeReason !== null) {
-      throw new StateError(
-        'validation',
-        `work.fanout_child cause must be null until terminal, got ${JSON.stringify(causeKind)}.`,
-      );
-    }
-    return;
-  }
-  if (state === 'completed') {
-    if (causeKind !== 'completed' || causeReason !== null) {
-      throw new StateError(
-        'validation',
-        'work.fanout_child completed cause must be kind completed with no reason.',
-      );
-    }
-    return;
-  }
-  if (state === 'skipped') {
-    if (causeKind !== 'skipped' || !FANOUT_SKIPPED_REASONS.has(causeReason ?? '')) {
-      throw new StateError(
-        'validation',
-        `work.fanout_child skipped cause needs a closed reason, got ${JSON.stringify(causeReason)}.`,
-      );
-    }
-    return;
-  }
-  if (causeKind !== 'failed' || !FANOUT_FAILED_REASONS.has(causeReason ?? '')) {
-    throw new StateError(
-      'validation',
-      `work.fanout_child failed cause needs a closed reason, got ${JSON.stringify(causeReason)}.`,
-    );
-  }
+  return own(() => leafNextFanoutCheckpointData(current, addCompleted, cursor, 'state'));
 }
 
 /** Producer-side insert: one admitted child row (default pending, zero attempts). */
@@ -405,122 +226,27 @@ export function newFanoutChildRow(
   },
   meta: FanoutRowMeta,
 ): StoredRow {
-  const state = input.state ?? 'pending';
-  if (!FANOUT_CHILD_STATES.has(state)) {
-    throw new StateError(
-      'validation',
-      `work.fanout_child.state is unknown: ${JSON.stringify(state)}.`,
-    );
-  }
-  const attempts = input.attempts ?? 0;
-  if (!Number.isInteger(attempts) || attempts < 0) {
-    throw new StateError('validation', 'work.fanout_child.attempts must be an integer >= 0.');
-  }
-  const causeKind = input.causeKind ?? null;
-  const causeReason = (input.causeReason ?? null) as string | null;
-  checkChildCause(state, causeKind, causeReason);
-  const childId = fanoutChildRowId(input.parentOccurrence, input.handler, input.recordId);
-  const data: FanoutChildData = {
-    fanoutId: checkComponent(input.fanoutId, 'fanoutId'),
-    parentOccurrence: input.parentOccurrence,
-    handler: input.handler,
-    recordId: input.recordId,
-    childId,
-    state,
-    attempts,
-    causeKind,
-    causeReason,
-  };
-  return newRow(childId, data as unknown as Record<string, unknown>, meta);
+  return own(() => leafNewFanoutChildRow(input, meta, 'state'));
 }
 
 /** Read one fanout intent row's data, failing closed on any shape drift. */
 export function readFanoutIntentRow(row: StoredRow): FanoutIntentData {
-  const data = checkRecord(row.data, 'work.fanout_intent data');
-  const cohort = checkCohort(data['cohort']);
-  const members = checkFanoutIdentitySet(data['members'], 'work.fanout_intent.members');
-  const memberCount = checkCount(data, 'memberCount', 'work.fanout_intent');
-  if (memberCount !== members.length) {
-    throw new StateError(
-      'validation',
-      `work.fanout_intent.memberCount ${memberCount} mismatches members length ${members.length}.`,
-    );
-  }
-  const fanoutId = checkDataString(data, 'fanoutId', 'work.fanout_intent');
-  const sourceOccurrence = checkDataString(data, 'sourceOccurrence', 'work.fanout_intent');
-  const handler = checkDataString(data, 'handler', 'work.fanout_intent');
-  if (fanoutId !== fanoutIntentRowId(sourceOccurrence, handler, cohort)) {
-    throw new StateError(
-      'validation',
-      'work.fanout_intent.fanoutId is not the cutoff+cohort derivation.',
-    );
-  }
-  if (row.id !== fanoutId) {
-    throw new StateError('validation', 'work.fanout_intent row id must equal its fanoutId.');
-  }
-  return { fanoutId, sourceOccurrence, handler, cohort, members, memberCount };
+  return own(() => leafReadFanoutIntentRow(row, 'state'));
 }
 
 /** Read one fanout checkpoint row's data, failing closed on any shape drift. */
 export function readFanoutCheckpointRow(row: StoredRow): FanoutCheckpointData {
-  const data = checkRecord(row.data, 'work.fanout_checkpoint data');
-  const fanoutId = checkDataString(data, 'fanoutId', 'work.fanout_checkpoint');
-  const completed = checkFanoutIdentitySet(data['completed'], 'work.fanout_checkpoint.completed');
-  const cursor = checkNullableString(data, 'cursor', 'work.fanout_checkpoint');
-  if (cursor !== null && cursor === '') {
-    throw new StateError('validation', 'work.fanout_checkpoint.cursor must be non-empty or null.');
-  }
-  if (row.id !== fanoutId) {
-    throw new StateError('validation', 'work.fanout_checkpoint row id must equal its fanoutId.');
-  }
-  return { fanoutId, completed, cursor };
+  return own(() => leafReadFanoutCheckpointRow(row, 'state'));
 }
 
 /** Read one fanout child row's data, failing closed on any shape drift. */
 export function readFanoutChildRow(row: StoredRow): FanoutChildData {
-  const data = checkRecord(row.data, 'work.fanout_child data');
-  const state = checkDataString(data, 'state', 'work.fanout_child');
-  if (!FANOUT_CHILD_STATES.has(state)) {
-    throw new StateError(
-      'validation',
-      `work.fanout_child.state is unknown: ${JSON.stringify(state)}.`,
-    );
-  }
-  const causeKind = data['causeKind'];
-  if (causeKind !== null && causeKind !== 'completed' && causeKind !== 'skipped' && causeKind !== 'failed') {
-    throw new StateError(
-      'validation',
-      `work.fanout_child.causeKind is unknown: ${JSON.stringify(causeKind)}.`,
-    );
-  }
-  const typedState = state as FanoutChildData['state'];
-  const causeReason = checkNullableString(data, 'causeReason', 'work.fanout_child');
-  checkChildCause(typedState, causeKind, causeReason);
-  const fanoutId = checkDataString(data, 'fanoutId', 'work.fanout_child');
-  const parentOccurrence = checkDataString(data, 'parentOccurrence', 'work.fanout_child');
-  const handler = checkDataString(data, 'handler', 'work.fanout_child');
-  const recordId = checkDataString(data, 'recordId', 'work.fanout_child');
-  const childId = checkDataString(data, 'childId', 'work.fanout_child');
-  if (childId !== fanoutChildRowId(parentOccurrence, handler, recordId)) {
-    throw new StateError(
-      'validation',
-      'work.fanout_child.childId is not the parent+handler+record derivation.',
-    );
-  }
-  if (row.id !== childId) {
-    throw new StateError('validation', 'work.fanout_child row id must equal its childId.');
-  }
-  return {
-    fanoutId,
-    parentOccurrence,
-    handler,
-    recordId,
-    childId,
-    state: typedState,
-    attempts: checkCount(data, 'attempts', 'work.fanout_child'),
-    causeKind,
-    causeReason,
-  };
+  return own(() => leafReadFanoutChildRow(row, 'state'));
+}
+
+/** Rebuild the contract child identity from a child row's flat fields. */
+export function fanoutChildIdOf(row: FanoutChildData) {
+  return leafFanoutChildIdOf(row);
 }
 
 /**
@@ -532,29 +258,7 @@ export function fanoutChildPageQuery(
   fanoutId: FanoutId,
   opts: { readonly cursor: string | null; readonly limit: number },
 ): QuerySpec {
-  checkComponent(fanoutId, 'fanoutId');
-  if (opts.cursor !== null && opts.cursor === '') {
-    throw new StateError('validation', 'Fanout page cursor must be non-empty or null.');
-  }
-  if (!Number.isInteger(opts.limit) || opts.limit < 1) {
-    throw new StateError('validation', 'Fanout page limit must be an integer >= 1.');
-  }
-  return {
-    model: FANOUT_CHILD_MODEL as ModelName,
-    where:
-      opts.cursor === null
-        ? { op: 'eq', field: 'fanoutId', value: fanoutId }
-        : {
-            op: 'and',
-            args: [
-              { op: 'eq', field: 'fanoutId', value: fanoutId },
-              { op: 'gt', field: 'id', value: opts.cursor },
-            ],
-          },
-    order: [{ field: 'id', direction: 'asc' }],
-    limit: opts.limit,
-    authority: 'owner',
-  };
+  return own(() => leafFanoutChildPageQuery(fanoutId, opts, 'state'));
 }
 
 /** One bounded child page: rows plus the honest resume signal. */
@@ -576,21 +280,5 @@ export function fanoutChildPageResult(
   rows: ReadonlyArray<StoredRow>,
   limit: number,
 ): FanoutChildPage {
-  if (!Number.isInteger(limit) || limit < 1) {
-    throw new StateError('validation', 'Fanout page limit must be an integer >= 1.');
-  }
-  if (rows.length > limit) {
-    throw new StateError(
-      'validation',
-      `Fanout page returned ${rows.length} rows past limit ${limit}.`,
-    );
-  }
-  if (rows.length < limit) {
-    return { rows, done: true, cursor: null };
-  }
-  const last = rows[rows.length - 1];
-  if (last === undefined) {
-    throw new StateError('validation', 'Fanout page is unreachable: full page has no last row.');
-  }
-  return { rows, done: false, cursor: last.id as string };
+  return own(() => leafFanoutChildPageResult(rows, limit, 'state'));
 }

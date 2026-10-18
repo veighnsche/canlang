@@ -1,8 +1,14 @@
 # Codex subagent execution plan for the Rust-port queues
 
-Finite source-ready packet details are in [current-plan.md](rust-port-orchestration/current-plan.md) and [next-packets.json](rust-port-orchestration/next-packets.json), subordinate to the canonical priorities below. The selected `ports:V02.6` ordinary TS Worker qualification is complete at its recorded scope; no further packet is authorized.
-
-**Current source reconciliation — 2026-10-18:** use the [single current execution view](RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) for implementation credit, priorities and exact holds. Values has a broad Rust core with a qualified six-operation comparison profile; public helpers still use TS. Validation has structural Rust scaffolding and newer ordinary TS serving, but no Rust validator. Work now has a real recovery Wasm producer/facade and accepted selected durable `planRecoveryScan` use; other families and full original delivery/consumer gates remain open. Native preparation/CLI integration remains incomplete and **HUMAN HOLD**. Selected int/ASCII source/adoption, default/TS-retirement, activation and publication holds remain. The selected ordinary TS serving packet now has installed isolated Worker correspondence/cleanup evidence; broader native validation remains unfinished. Future implementation and supervision remain unreleased.
+The [single current execution view](RUST-PORT-START-HERE.md#current-execution-view--2026-10-18),
+[finite checklist](rust-port-orchestration/current-plan.md) and
+[machine queue](rust-port-orchestration/next-packets.json) record completion of the
+released selected Values assets/int-ASCII/CSV and shared fanout/recovery delivery
+run. The Rust integer slice is explicit opt-in; default public callers remain TS.
+Actual installed package gather/bundle output reaches the selected Worker consumer.
+Broader codec/validation/Work parents remain partial. Native preparation P04–P11 /
+C04.native-release, default switches, TS retirement and production/public release
+remain held; no next packet is dispatched.
 
 The October 7 [step9 acceptance](rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json) and [prerequisite map](rust-port-orchestration/runs/codex-step9-20261007T012914Z/gate-map.json) retain their historical scopes; their Work-TS-only observations are superseded by the later selected recovery acceptance. The dispatch/release narrative below is historical procedure and evidence, not a second current queue or renewed authorization. Step8 D04 remains credited.
 

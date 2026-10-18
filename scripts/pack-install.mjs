@@ -211,7 +211,7 @@ for (const [name, entry] of [['can-platform', 'node_modules/@canlang/cloudflare/
 }
 const components = {};
 for (const { group, bytes } of files.values()) components[group] = (components[group] ?? 0) + bytes;
-const forbidden = new Set(['@playwright/test', 'playwright', 'playwright-core', 'typescript', 'turbo', 'vitest', 'happy-dom', '@canlang/work-kernel']);
+const forbidden = new Set(['@playwright/test', 'playwright', 'playwright-core', 'typescript', 'turbo', 'vitest', 'happy-dom']);
 for (const pkg of packages.values()) { assert.ok(!forbidden.has(pkg.name), `Development-only package leaked into production: ${pkg.name}`); for (const destination of pkg.destinations) assert.ok(!('devDependencies' in json(join(stage, destination, 'package.json'))), `Development metadata leaked: ${pkg.id}`); }
 assert.ok(!existsSync(join(stage, 'libexec/bun')), 'Production install must use one JavaScript host runtime');
 assert.ok(!existsSync(join(stage, 'browsers')), 'Production install must not contain browsers');

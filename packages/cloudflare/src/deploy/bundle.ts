@@ -49,8 +49,9 @@ import { LocalCommandInterrupted, type LocalCommandLifetime } from "../cli/comma
  *   modules resolve correctly). Pages and callables reference staged
  *   modules by name and are validated, never silently dropped.
  * - `vendor/…` trees: package-owned exported distributions for contracts,
- *   ui, identity, stdlib, state, values. Producer imports become relative
- *   vendor keys; sorted staging excludes colocated tests and metadata.
+ *   ui, identity, stdlib, state, values, work-kernel. Producer imports
+ *   become relative vendor keys; sorted staging excludes colocated tests
+ *   and metadata.
  *   Worker/MCP/HTTP entries resolve through package exports, so installed
  *   consumers use the same build artifacts as checkout consumers.
  *   Nonliteral dynamic imports remain checked behaviorally by with-DB boot
@@ -99,6 +100,7 @@ import { distribution as workDistribution } from "@canlang/work/distribution";
 import { distribution as valuesDistribution } from "@canlang/values/distribution";
 import { distribution as interfacesDistribution } from "@canlang/interfaces/distribution";
 import { distribution as servicesDistribution } from "@canlang/services/distribution";
+import { distribution as workKernelDistribution } from "@canlang/work-kernel/distribution";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import type {
   ActivationVerdict,
@@ -277,6 +279,7 @@ const VENDOR_TREES: readonly VendorTree[] = [
   { directory: stdlibDistribution.modules, prefix: "vendor/stdlib", buildCommand: "bun run --filter @canlang/stdlib build" },
   { directory: stateDistribution.modules, prefix: "vendor/state", buildCommand: "bun run --filter @canlang/state build" },
   { directory: valuesDistribution.modules, prefix: "vendor/values", buildCommand: "bun run --filter @canlang/values build" },
+  { directory: workKernelDistribution.modules, prefix: "vendor/work-kernel", buildCommand: "bun run --filter @canlang/work-kernel build" },
 ];
 
 /**
@@ -286,6 +289,9 @@ const VENDOR_TREES: readonly VendorTree[] = [
 const TEST_ONLY_VENDOR_KEYS: ReadonlySet<string> = new Set([
   "vendor/state/fanout/work-loader.js",
   "vendor/state/receipt/work-loader.js",
+  // Emitted work-kernel conformance module: node:test-only, and its
+  // `.wasm-test.js` name slips the shared `.test.js` suffix filter.
+  "vendor/work-kernel/conformance/native-recovery.wasm-test.js",
   // Shared Memory/D1/DO assertions have only maintained test importers.
   "vendor/state/storage/history-bounded-fixtures.js",
   // D3b Q3: the receipt join + worker-safe observer producers are
@@ -358,6 +364,10 @@ const WORK_DISPATCH_SOURCE_SPECIFIER = "@canlang/work/kernel/dispatch-staging";
 const WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER = "@canlang/work/dispatch";
 const WORK_DISPATCH_EXECUTION_VENDOR_ENTRY = "vendor/work/dispatch/index.js";
 const WORK_SOURCE_SPECIFIER = "@canlang/work";
+/** Package-exported leaf rows + recovery planners backing the work/state wrappers. */
+const WORK_KERNEL_SOURCE_SPECIFIER = "@canlang/work-kernel";
+const WORK_KERNEL_ROWS_SOURCE_SPECIFIER = "@canlang/work-kernel/rows";
+const WORK_KERNEL_ROWS_VENDOR_ENTRY = "vendor/work-kernel/src/rows.js";
 const WORK_INTENT_STAGING_SOURCE_SPECIFIER = "@canlang/work/intent/staging";
 const WORK_INTENT_STAGING_VENDOR_ENTRY = "vendor/work/intent/staging.js";
 /** Selected root export; the public barrel also exposes Node-only producers. */
@@ -768,6 +778,9 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
       return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
     }
     if (spec.startsWith("@canlang/state/")) return relativeSpecifier(moduleKey, `vendor/state/${spec.slice("@canlang/state/".length)}.js`);
+    if (spec === WORK_KERNEL_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, "vendor/work-kernel/src/index.js");
+    if (spec === WORK_KERNEL_ROWS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_KERNEL_ROWS_VENDOR_ENTRY);
+    if (spec.startsWith("@canlang/work-kernel/")) return relativeSpecifier(moduleKey, `vendor/work-kernel/src/${spec.slice("@canlang/work-kernel/".length)}.js`);
     return spec;
   };
   let out = rewriteModuleImports(js, moduleKey, mapped, { profile: "trusted-producer" }).js;
@@ -945,6 +958,9 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === "@noble/hashes/sha2.js" || spec === "@noble/hashes/utils.js") {
       return relativeSpecifier(moduleKey, `vendor/noble-hashes/${spec.slice("@noble/hashes/".length)}`);
     }
+    if (spec === WORK_KERNEL_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, "vendor/work-kernel/src/index.js");
+    if (spec === WORK_KERNEL_ROWS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_KERNEL_ROWS_VENDOR_ENTRY);
+    if (spec.startsWith("@canlang/work-kernel/")) return relativeSpecifier(moduleKey, `vendor/work-kernel/src/${spec.slice("@canlang/work-kernel/".length)}.js`);
     if (spec === "@canlang/contracts/values") return relativeSpecifier(moduleKey, "vendor/contracts/values.js");
     if (spec === "@canlang/state/effects/transition") return relativeSpecifier(moduleKey, "vendor/state/effects/transition.js");
     if (spec === "@canlang/state/effects/guards") return relativeSpecifier(moduleKey, "vendor/state/effects/guards.js");

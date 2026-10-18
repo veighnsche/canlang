@@ -931,70 +931,71 @@ export function scheduleByKeyQuery(scope: WorkScope, key: string): QuerySpec {
   };
 }
 
-/* -- T34-F2 durable fanout tables (L4 work-kernel slice). -- */
+/* -- T34-F2 durable fanout tables: work-direction leaf facade. -- */
 
 /**
  * Adopted T33-A durable per-child fanout rows, stored as `StoredRow`
- * data payloads on three narrow lane-04-owned tables:
+ * data payloads on three narrow lane-04-owned tables (models below).
  *
- * - `work.fanout_intent` (id = deterministic cutoff+cohort id): the
- *   committed fanout intent — cutoff marker plus cohort kind plus the
- *   frozen admitted member set. The store primary key enforces
- *   insert-once per cutoff+cohort: a second intent for the same
- *   source-occurrence/handler/cohort is a PK conflict, never a
- *   redefinition of the frozen set.
- * - `work.fanout_checkpoint` (id = fanout id): the durable checkpoint
- *   — completed-child set plus enumeration cursor. Inserted once, then
- *   advanced by conditional update in the same owner transaction as
- *   each child's effects (F5 join owns that atomicity; this file only
- *   shapes the row).
- * - `work.fanout_child` (id = full FanoutChildId encoding): one row
- *   per admitted child, keyed by parent occurrence + handler +
- *   record. The handler component keeps Commitment/Swap (or any two
- *   handlers on one source event) from colliding.
+ * LAYERING: this section NEVER re-states row mechanics. All fanout row
+ * mechanics live in the contracts-only shared leaf
+ * (`@canlang/work-kernel/rows`, invoked with the explicit 'work'
+ * direction, including work JSON-safety-before-clone); this facade only
+ * projects leaf `RowsKernelError` failures onto the owning
+ * `KernelTableError` class so `instanceof` and messages keep working.
+ * Non-leaf thrown values propagate untouched.
  *
- * Query notes: all join/claim fields are flat (bare `FIELD_NAME`s);
- * only row ids and flat data fields are addressed, never nested
- * paths. Child enumeration is bounded id-sorted paging
- * (`fanoutChildPageQuery` + `fanoutChildPageResult`).
- *
- * Deliberately absent: no quota/capacity field (the adopted contract
- * forbids a fabricated numeric deployment quota), no authoring
- * syntax, no skipping/suppression rule, no dispatch claim, recovery
- * scan, membership, or compiler logic (F3–F6 own those).
+ * Identity/commit rules (unchanged): the deterministic cutoff+cohort id
+ * keeps insert-once per source-occurrence/handler/cohort; the frozen
+ * member set is the complete sorted canonical identity set committed
+ * in the intent row (Q4: no proven-equivalent substitute); checkpoints
+ * advance by conditional update; retries reuse child rows (F5 join owns
+ * that atomicity).
  */
+import {
+  checkFanoutIdentitySet as leafCheckFanoutIdentitySet,
+  fanoutCheckpointRowId as leafFanoutCheckpointRowId,
+  fanoutChildIdOf as leafFanoutChildIdOf,
+  fanoutChildPageQuery as leafFanoutChildPageQuery,
+  fanoutChildPageResult as leafFanoutChildPageResult,
+  fanoutChildRowId as leafFanoutChildRowId,
+  fanoutIntentRowId as leafFanoutIntentRowId,
+  newFanoutCheckpointRow as leafNewFanoutCheckpointRow,
+  newFanoutChildRow as leafNewFanoutChildRow,
+  newFanoutIntentRow as leafNewFanoutIntentRow,
+  nextFanoutCheckpointData as leafNextFanoutCheckpointData,
+  readFanoutCheckpointRow as leafReadFanoutCheckpointRow,
+  readFanoutChildRow as leafReadFanoutChildRow,
+  readFanoutIntentRow as leafReadFanoutIntentRow,
+  RowsKernelError,
+} from '@canlang/work-kernel/rows';
 
-/** Lane-04-owned fanout table models (branded casts, mirroring L3 usage). */
+/** Lane-04-owned fanout table models (branded casts, mirroring F2 usage). */
 export const WORK_FANOUT_INTENT_MODEL = 'work.fanout_intent' as ModelName;
 export const WORK_FANOUT_CHECKPOINT_MODEL = 'work.fanout_checkpoint' as ModelName;
 export const WORK_FANOUT_CHILD_MODEL = 'work.fanout_child' as ModelName;
 
-/**
- * Committed fanout intent row: cutoff + cohort + frozen members.
- * `fanoutId` is the deterministic cutoff+cohort row id (see
- * `fanoutIntentRowId`): opaque to callers, minted by the runtime as
- * this derivation so the store enforces insert-once.
- */
+/** Row metadata stamp for staged fanout rows. */
+export interface FanoutRowMeta {
+  /** UTC epoch ms for created/updated. */
+  readonly nowMs: number;
+  /** Actor identity for createdBy/updatedBy. */
+  readonly actor: string;
+}
+
+/** Committed fanout intent data: cutoff + cohort + frozen members. */
 export interface FanoutIntentRowData {
   readonly fanoutId: FanoutId;
   readonly sourceOccurrence: OccurrenceId;
   readonly handler: string;
   readonly cohort: FanoutCohortKind;
-  /**
-   * Frozen canonical admitted record identities in sorted canonical
-   * order. The complete set for this occurrence: never truncated,
-   * never extended by late inserts.
-   */
+  /** Frozen canonical admitted record identities in sorted canonical order. */
   readonly members: ReadonlyArray<string>;
   /** Flat duplicate of `members.length` for querying. */
   readonly memberCount: number;
 }
 
-/**
- * Durable fanout checkpoint row: completed-child set plus enumeration
- * cursor. `completed` holds canonical record ids with a recorded
- * terminal child outcome, scoped by `fanoutId`.
- */
+/** Durable fanout checkpoint data: completed-child set plus cursor. */
 export interface FanoutCheckpointRowData {
   readonly fanoutId: FanoutId;
   /** Completed record ids in sorted canonical order (deduped set). */
@@ -1006,120 +1007,79 @@ export interface FanoutCheckpointRowData {
   readonly cursor: string | null;
 }
 
-/**
- * Per-child row. `childId` duplicates the row id (the full
- * FanoutChildId encoding) as a flat field; `fanoutId` scopes the
- * bounded page scans. Cause fields are flat (nested cause records
- * are not store-addressable): null until the child is terminal.
- */
+/** Per-child row data. Cause fields are flat: null until terminal. */
 export interface FanoutChildRowData {
   readonly fanoutId: FanoutId;
   readonly parentOccurrence: OccurrenceId;
   readonly handler: string;
   readonly recordId: string;
   readonly childId: string;
-  readonly state: FanoutChildState;
+  readonly state: 'pending' | 'running' | 'completed' | 'skipped' | 'failed';
   /** Committed child attempts so far. */
   readonly attempts: number;
   readonly causeKind: 'completed' | 'skipped' | 'failed' | null;
   readonly causeReason: string | null;
 }
 
-const FANOUT_CHILD_STATES: ReadonlySet<string> = new Set([
-  'pending',
-  'running',
-  'completed',
-  'skipped',
-  'failed',
-]);
-
-const FANOUT_SKIPPED_REASONS: ReadonlySet<string> = new Set(['deleted', 'non-applicable']);
-
-const FANOUT_FAILED_REASONS: ReadonlySet<string> = new Set([
-  'business-rejection',
-  'terminal',
-  'exhausted',
-  'missing-record',
-  'inaccessible-record',
-  'infra-read-failure',
-]);
-
-function checkIdComponent(value: string, what: string): string {
-  if (typeof value !== 'string' || value === '') {
-    throw new KernelTableError(`${what} must be a non-empty string.`);
-  }
-  return value;
-}
-
-function checkCohort(value: unknown): FanoutCohortKind {
-  if (value !== 'model' && value !== 'anchored-collection') {
-    throw new KernelTableError(
-      `fanout cohort must be model or anchored-collection, got ${JSON.stringify(value)}.`,
-    );
-  }
-  return value;
-}
-
-function checkIdentitySet(
-  value: unknown,
-  what: string,
-): ReadonlyArray<string> {
-  if (!Array.isArray(value)) {
-    throw new KernelTableError(`${what} must be an array of canonical record ids.`);
-  }
-  const seen = new Set<string>();
-  for (const entry of value) {
-    if (typeof entry !== 'string' || entry === '') {
-      throw new KernelTableError(`${what} entries must be non-empty strings.`);
+/**
+ * Run one leaf call in the work direction, projecting leaf work
+ * failures onto the owning KernelTableError class. Every other thrown
+ * value propagates as-is.
+ */
+function ownFanout<T>(action: () => T): T {
+  try {
+    return action();
+  } catch (error) {
+    if (error instanceof RowsKernelError) {
+      throw new KernelTableError(error.message);
     }
-    if (seen.has(entry)) {
-      throw new KernelTableError(`${what} contains a duplicate identity: ${JSON.stringify(entry)}.`);
-    }
-    seen.add(entry);
+    throw error;
   }
-  return [...seen].sort();
 }
 
 /**
- * Deterministic fanout intent row id under FanoutCutoff + cohort.
- * Components are encoded so `/` separators stay unambiguous (the
- * `everySlotRowId` precedent). A second insert for the same
- * source-occurrence/handler/cohort collides on the store primary key,
- * which is exactly the insert-once rule: the frozen member set can
- * never be redefined for an admitted cutoff.
+ * Validate one frozen identity set: an array of non-empty canonical
+ * record ids, deduped, returned in sorted canonical order. Duplicates
+ * fail closed (a frozen set with a duplicate is store disagreement,
+ * never silently deduped at commit).
+ */
+export function checkFanoutIdentitySet(
+  value: unknown,
+  what: string,
+): ReadonlyArray<string> {
+  return ownFanout(() => leafCheckFanoutIdentitySet(value, what, 'work'));
+}
+
+/**
+ * Deterministic fanout intent row id under FanoutCutoff + cohort —
+ * collision is the insert-once rule that keeps the frozen set
+ * unredefinable (see section header).
  */
 export function fanoutIntentRowId(
   sourceOccurrence: OccurrenceId,
   handler: string,
   cohort: FanoutCohortKind,
 ): FanoutId {
-  checkIdComponent(sourceOccurrence, 'fanout sourceOccurrence');
-  checkIdComponent(handler, 'fanout handler');
-  checkCohort(cohort);
-  return `fanout/v1/${encodeURIComponent(sourceOccurrence)}/${encodeURIComponent(handler)}/${cohort}`;
+  return ownFanout(() => leafFanoutIntentRowId(sourceOccurrence, handler, cohort, 'work'));
 }
 
 /** Checkpoint row id: exactly one checkpoint row per fanout id. */
 export function fanoutCheckpointRowId(fanoutId: FanoutId): string {
-  return checkIdComponent(fanoutId, 'fanout fanoutId');
+  return ownFanout(() => leafFanoutCheckpointRowId(fanoutId, 'work'));
 }
 
 /**
- * Per-child row id: the full FanoutChildId (parent occurrence +
- * handler + record), encoded so `/` separators stay unambiguous.
- * Same parent+record under different handlers yields different ids;
- * the same triple always yields the same id, so retries reuse the
- * row and duplicate deliveries replay instead of minting.
+ * Per-child row id: the full FanoutChildId (parent occurrence + handler
+ * + record). Same parent+record under different handlers yields
+ * different ids; the same triple always yields the same id, so retries
+ * reuse the row and duplicate deliveries replay. Byte-identical to F2.
  */
 export function fanoutChildRowId(
-  parentOccurrence: OccurrenceId,
+  parentOccurrence: string,
   handler: string,
   recordId: string,
 ): string {
-  checkIdComponent(parentOccurrence, 'fanout parentOccurrence');
-  checkIdComponent(handler, 'fanout handler');
-  checkIdComponent(recordId, 'fanout recordId');
-  return `fanout-child/v1/${encodeURIComponent(parentOccurrence)}/${encodeURIComponent(handler)}/${encodeURIComponent(recordId)}`;
+  return ownFanout(() => leafFanoutChildRowId(parentOccurrence, handler, recordId, 'work'));
 }
 
 /** Producer-side insert: the committed fanout intent row. */
@@ -1130,113 +1090,35 @@ export function newFanoutIntentRow(
     readonly cohort: FanoutCohortKind;
     readonly members: ReadonlyArray<string>;
   },
-  meta: NewRowMeta,
+  meta: FanoutRowMeta,
 ): StoredRow {
-  const members = checkIdentitySet(input.members, 'work.fanout_intent.members');
-  const fanoutId = fanoutIntentRowId(input.sourceOccurrence, input.handler, input.cohort);
-  const data: FanoutIntentRowData = {
-    fanoutId,
-    sourceOccurrence: input.sourceOccurrence,
-    handler: input.handler,
-    cohort: input.cohort,
-    members,
-    memberCount: members.length,
-  };
-  return newRow(fanoutId, data as unknown as Record<string, unknown>, meta, 'work.fanout_intent');
+  return ownFanout(() => leafNewFanoutIntentRow(input, meta, 'work'));
 }
 
-/** Producer-side insert: the initial checkpoint row (empty set, null cursor). */
+/** Producer-side insert: the checkpoint row (explicit completed + cursor). */
 export function newFanoutCheckpointRow(
   input: {
     readonly fanoutId: FanoutId;
     readonly completed?: ReadonlyArray<string>;
     readonly cursor?: string | null;
   },
-  meta: NewRowMeta,
+  meta: FanoutRowMeta,
 ): StoredRow {
-  const data: FanoutCheckpointRowData = {
-    fanoutId: checkIdComponent(input.fanoutId, 'fanout fanoutId'),
-    completed: checkIdentitySet(input.completed ?? [], 'work.fanout_checkpoint.completed'),
-    cursor: input.cursor ?? null,
-  };
-  if (data.cursor !== null && data.cursor === '') {
-    throw new KernelTableError('work.fanout_checkpoint.cursor must be non-empty or null.');
-  }
-  return newRow(
-    fanoutCheckpointRowId(data.fanoutId),
-    data as unknown as Record<string, unknown>,
-    meta,
-    'work.fanout_checkpoint',
-  );
+  return ownFanout(() => leafNewFanoutCheckpointRow(input, meta, 'work'));
 }
 
 /**
- * Pure checkpoint advance for the conditional-update upsert: unions
- * newly completed record ids into the completed set (deduped, sorted
- * canonical order) and carries the next cursor. Re-adding an
- * already-completed identity is an idempotent no-op, never a
- * duplicate error: crash recovery replays at most the
- * un-checkpointed child and must be able to re-advance over an
- * overlapping set. Callers stage the result with `withRowData`
- * under `expectedVersion: row.version`, so concurrent advances
- * serialize on the store fence instead of silently merging.
+ * Pure checkpoint advance: unions newly completed record ids into the
+ * completed set (deduped, sorted canonical order) and carries the next
+ * cursor. Re-adding an already-completed identity is an idempotent
+ * no-op for crash-recovery replay.
  */
 export function nextFanoutCheckpointData(
   current: FanoutCheckpointRowData,
   addCompleted: ReadonlyArray<string>,
   cursor: string | null,
 ): FanoutCheckpointRowData {
-  if (cursor !== null && cursor === '') {
-    throw new KernelTableError('work.fanout_checkpoint.cursor must be non-empty or null.');
-  }
-  for (const entry of addCompleted) {
-    if (typeof entry !== 'string' || entry === '') {
-      throw new KernelTableError(
-        'work.fanout_checkpoint.completed entries must be non-empty strings.',
-      );
-    }
-  }
-  return {
-    fanoutId: current.fanoutId,
-    completed: [...new Set([...current.completed, ...addCompleted])].sort(),
-    cursor,
-  };
-}
-
-function checkChildCause(
-  state: FanoutChildState,
-  causeKind: 'completed' | 'skipped' | 'failed' | null,
-  causeReason: string | null,
-): void {
-  if (state === 'pending' || state === 'running') {
-    if (causeKind !== null || causeReason !== null) {
-      throw new KernelTableError(
-        `work.fanout_child cause must be null until terminal, got ${JSON.stringify(causeKind)}.`,
-      );
-    }
-    return;
-  }
-  if (state === 'completed') {
-    if (causeKind !== 'completed' || causeReason !== null) {
-      throw new KernelTableError(
-        'work.fanout_child completed cause must be kind completed with no reason.',
-      );
-    }
-    return;
-  }
-  if (state === 'skipped') {
-    if (causeKind !== 'skipped' || !FANOUT_SKIPPED_REASONS.has(causeReason ?? '')) {
-      throw new KernelTableError(
-        `work.fanout_child skipped cause needs a closed reason, got ${JSON.stringify(causeReason)}.`,
-      );
-    }
-    return;
-  }
-  if (causeKind !== 'failed' || !FANOUT_FAILED_REASONS.has(causeReason ?? '')) {
-    throw new KernelTableError(
-      `work.fanout_child failed cause needs a closed reason, got ${JSON.stringify(causeReason)}.`,
-    );
-  }
+  return ownFanout(() => leafNextFanoutCheckpointData(current, addCompleted, cursor, 'work'));
 }
 
 /** Producer-side insert: one admitted child row (default pending, zero attempts). */
@@ -1246,166 +1128,46 @@ export function newFanoutChildRow(
     readonly parentOccurrence: OccurrenceId;
     readonly handler: string;
     readonly recordId: string;
-    readonly state?: FanoutChildState;
+    readonly state?: 'pending' | 'running' | 'completed' | 'skipped' | 'failed';
     readonly attempts?: number;
     readonly causeKind?: 'completed' | 'skipped' | 'failed' | null;
     readonly causeReason?: FanoutSkippedReason | FanoutFailedReason | null;
   },
-  meta: NewRowMeta,
+  meta: FanoutRowMeta,
 ): StoredRow {
-  const state = input.state ?? 'pending';
-  if (!FANOUT_CHILD_STATES.has(state)) {
-    throw new KernelTableError(`work.fanout_child.state is unknown: ${JSON.stringify(state)}.`);
-  }
-  const attempts = input.attempts ?? 0;
-  if (!Number.isInteger(attempts) || attempts < 0) {
-    throw new KernelTableError('work.fanout_child.attempts must be an integer >= 0.');
-  }
-  const causeKind = input.causeKind ?? null;
-  const causeReason = (input.causeReason ?? null) as string | null;
-  checkChildCause(state, causeKind, causeReason);
-  const childId = fanoutChildRowId(input.parentOccurrence, input.handler, input.recordId);
-  const data: FanoutChildRowData = {
-    fanoutId: checkIdComponent(input.fanoutId, 'fanout fanoutId'),
-    parentOccurrence: input.parentOccurrence,
-    handler: input.handler,
-    recordId: input.recordId,
-    childId,
-    state,
-    attempts,
-    causeKind,
-    causeReason,
-  };
-  return newRow(childId, data as unknown as Record<string, unknown>, meta, 'work.fanout_child');
+  return ownFanout(() => leafNewFanoutChildRow(input, meta, 'work'));
 }
 
 /** Read one fanout intent row's data, failing closed on any shape drift. */
 export function readFanoutIntentRow(row: StoredRow): FanoutIntentRowData {
-  const data = checkRecord(row.data, 'work.fanout_intent data');
-  const cohort = checkCohort(data['cohort']);
-  const members = checkIdentitySet(data['members'], 'work.fanout_intent.members');
-  const memberCount = checkCount(data, 'memberCount', 'work.fanout_intent');
-  if (memberCount !== members.length) {
-    throw new KernelTableError(
-      `work.fanout_intent.memberCount ${memberCount} mismatches members length ${members.length}.`,
-    );
-  }
-  const fanoutId = checkString(data, 'fanoutId', 'work.fanout_intent');
-  const sourceOccurrence = checkString(data, 'sourceOccurrence', 'work.fanout_intent');
-  const handler = checkString(data, 'handler', 'work.fanout_intent');
-  if (fanoutId !== fanoutIntentRowId(sourceOccurrence, handler, cohort)) {
-    throw new KernelTableError('work.fanout_intent.fanoutId is not the cutoff+cohort derivation.');
-  }
-  if (row.id !== fanoutId) {
-    throw new KernelTableError('work.fanout_intent row id must equal its fanoutId.');
-  }
-  return { fanoutId, sourceOccurrence, handler, cohort, members, memberCount };
+  return ownFanout(() => leafReadFanoutIntentRow(row, 'work'));
 }
 
 /** Read one fanout checkpoint row's data, failing closed on any shape drift. */
 export function readFanoutCheckpointRow(row: StoredRow): FanoutCheckpointRowData {
-  const data = checkRecord(row.data, 'work.fanout_checkpoint data');
-  const fanoutId = checkString(data, 'fanoutId', 'work.fanout_checkpoint');
-  const completed = checkIdentitySet(data['completed'], 'work.fanout_checkpoint.completed');
-  const cursor = checkNullableString(data, 'cursor', 'work.fanout_checkpoint');
-  if (cursor !== null && cursor === '') {
-    throw new KernelTableError('work.fanout_checkpoint.cursor must be non-empty or null.');
-  }
-  if (row.id !== fanoutId) {
-    throw new KernelTableError('work.fanout_checkpoint row id must equal its fanoutId.');
-  }
-  return { fanoutId, completed, cursor };
+  return ownFanout(() => leafReadFanoutCheckpointRow(row, 'work'));
 }
 
 /** Read one fanout child row's data, failing closed on any shape drift. */
 export function readFanoutChildRow(row: StoredRow): FanoutChildRowData {
-  const data = checkRecord(row.data, 'work.fanout_child data');
-  const state = checkString(data, 'state', 'work.fanout_child');
-  if (!FANOUT_CHILD_STATES.has(state)) {
-    throw new KernelTableError(`work.fanout_child.state is unknown: ${JSON.stringify(state)}.`);
-  }
-  const causeKind = data['causeKind'];
-  if (causeKind !== null && causeKind !== 'completed' && causeKind !== 'skipped' && causeKind !== 'failed') {
-    throw new KernelTableError(
-      `work.fanout_child.causeKind is unknown: ${JSON.stringify(causeKind)}.`,
-    );
-  }
-  const typedState = state as FanoutChildState;
-  const causeReason = checkNullableString(data, 'causeReason', 'work.fanout_child');
-  checkChildCause(typedState, causeKind, causeReason);
-  const fanoutId = checkString(data, 'fanoutId', 'work.fanout_child');
-  const parentOccurrence = checkString(data, 'parentOccurrence', 'work.fanout_child');
-  const handler = checkString(data, 'handler', 'work.fanout_child');
-  const recordId = checkString(data, 'recordId', 'work.fanout_child');
-  const childId = checkString(data, 'childId', 'work.fanout_child');
-  if (childId !== fanoutChildRowId(parentOccurrence, handler, recordId)) {
-    throw new KernelTableError('work.fanout_child.childId is not the parent+handler+record derivation.');
-  }
-  if (row.id !== childId) {
-    throw new KernelTableError('work.fanout_child row id must equal its childId.');
-  }
-  return {
-    fanoutId,
-    parentOccurrence,
-    handler,
-    recordId,
-    childId,
-    state: typedState,
-    attempts: checkCount(data, 'attempts', 'work.fanout_child'),
-    causeKind,
-    causeReason,
-  };
+  return ownFanout(() => leafReadFanoutChildRow(row, 'work'));
 }
 
 /** Rebuild the contract child identity from a child row's flat fields. */
 export function fanoutChildIdOf(row: FanoutChildRowData): FanoutChildId {
-  return {
-    parentOccurrence: row.parentOccurrence,
-    handler: row.handler,
-    recordId: row.recordId,
-  };
+  return leafFanoutChildIdOf(row);
 }
 
 /**
  * Bounded id-sorted child page query for one fanout. `cursor` is the
- * last-seen child row id (exclusive lower bound); `limit` is the page
- * transport bound (>= 1, the `schedulesDue` precedent: a page must
- * return at least one row to make sense).
- *
- * §C9 — chunk size is not cohort size. The page `limit` bounds one
- * transport round-trip only; the admitted cohort is the frozen intent
- * member set, and varying the chunk size never changes which
- * identities are visited. There is intentionally no cohort-size or
- * capacity field anywhere in these rows: resource admission stays an
- * explicit pre-admission decision (F7), never a silent truncation.
+ * last-seen child row id (exclusive lower bound); `limit` bounds one
+ * transport round-trip only (chunk size is not cohort size — §C9).
  */
 export function fanoutChildPageQuery(
   fanoutId: FanoutId,
   opts: { readonly cursor: string | null; readonly limit: number },
 ): QuerySpec {
-  checkIdComponent(fanoutId, 'fanout fanoutId');
-  if (opts.cursor !== null && opts.cursor === '') {
-    throw new KernelTableError('fanout page cursor must be non-empty or null.');
-  }
-  if (!Number.isInteger(opts.limit) || opts.limit < 1) {
-    throw new KernelTableError('fanout page limit must be an integer >= 1.');
-  }
-  return {
-    model: WORK_FANOUT_CHILD_MODEL,
-    where:
-      opts.cursor === null
-        ? { op: 'eq', field: 'fanoutId', value: fanoutId }
-        : {
-            op: 'and',
-            args: [
-              { op: 'eq', field: 'fanoutId', value: fanoutId },
-              { op: 'gt', field: 'id', value: opts.cursor },
-            ],
-          },
-    order: [{ field: 'id', direction: 'asc' }],
-    limit: opts.limit,
-    authority: 'owner',
-  };
+  return ownFanout(() => leafFanoutChildPageQuery(fanoutId, opts, 'work'));
 }
 
 /** One bounded child page: rows plus the honest resume signal. */
@@ -1413,41 +1175,22 @@ export interface FanoutChildPage {
   /** Id-sorted rows of this page (at most the requested limit). */
   readonly rows: ReadonlyArray<StoredRow>;
   /**
-   * True only when the store returned fewer rows than the limit, i.e.
-   * no further page can exist. False means the caller MUST resume
-   * with `cursor` — never silent truncation, never a complete label.
-   * (An exact-multiple cohort ends with one full page at done:false
+   * True only when the store returned fewer rows than the limit. False
+   * means the caller MUST resume with `cursor` — never silent
+   * truncation, never a complete label.
+   * An exact-multiple cohort ends with one full page at done:false
    * followed by an empty page at done:true; the empty page is the
-   * honest completion signal, not a wasted round-trip to optimize
-   * away by guessing.)
+   * honest completion signal, not a reason to guess away a round-trip.
    */
   readonly done: boolean;
   /** Resume cursor (last row id) when done:false; null when done:true. */
   readonly cursor: string | null;
 }
 
-/**
- * Fold one store page into the resume signal. Fails closed when the
- * store over-returns past the limit.
- */
+/** Fold one store page into the resume signal. Fails closed on over-return. */
 export function fanoutChildPageResult(
   rows: ReadonlyArray<StoredRow>,
   limit: number,
 ): FanoutChildPage {
-  if (!Number.isInteger(limit) || limit < 1) {
-    throw new KernelTableError('fanout page limit must be an integer >= 1.');
-  }
-  if (rows.length > limit) {
-    throw new KernelTableError(
-      `fanout page returned ${rows.length} rows past limit ${limit}.`,
-    );
-  }
-  if (rows.length < limit) {
-    return { rows, done: true, cursor: null };
-  }
-  const last = rows[rows.length - 1];
-  if (last === undefined) {
-    throw new KernelTableError('fanout page is unreachable: full page has no last row.');
-  }
-  return { rows, done: false, cursor: last.id as string };
+  return ownFanout(() => leafFanoutChildPageResult(rows, limit, 'work'));
 }

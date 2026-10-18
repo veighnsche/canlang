@@ -7,6 +7,27 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Selected fanout and recovery delivery integration, 2026-10-18:** source
+`f4e067414` adds fourteen owning code/test/build/manifest paths. Work-kernel
+owns the unchanged shared TS row mechanisms and selected Wasm distribution;
+Work/State retain their owning facades and error classes. Cloudflare owns
+vendor/import rewriting and integrity gather; the installer derives the new
+production edges. Seven planning/navigation records are reconciled together.
+No new package, Rust algorithm or generalized profile is introduced.
+
+The final combined source includes newer main `69212ec1f`, preserving the
+compiler/runtime/State history and prior R acceptance. Reuse retained coverage
+and owner review for those changes; review the fourteen delivery paths plus
+seven planning records incrementally, with the source scopes stated in the
+current checklist. Keep the stale-plan notice and complete checkpoint unchanged.
+Package-assets16/16 and genuine Work-map checks pass; the final actual installed
+CF gather/bundle supplies 288 modules and the verified recovery binary to two
+fresh Worker isolates/four requests, with corrupt/missing refusal. Broader
+deploy-bundle fixture/environment failures are retained explicitly; no whole-suite
+clearance is claimed. Native preparation, defaults, retirement and public release
+remain held. Run-owned private/debug resources are released; unique artifacts,
+viewer and compatible/foreign caches are preserved.
+
 **Accepted selected Rust integer/CSV integration, 2026-10-18:** merge
 `05f326154` onto newer main `eb4997001` preserves the compiler, Cloudflare
 runtime and State changes in `92a3281be`, `5d81e2a84` and `eb4997001`.

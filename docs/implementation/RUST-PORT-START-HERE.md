@@ -2,45 +2,38 @@
 
 ## Current execution view — 2026-10-18
 
-This is the single current execution view for the existing Rust migration. Selected Worker qualification: committed source `3059a36af` plus the local finite fixture/delivery changes, reusing the earlier `ede59d051` investigation and retained source comparison at their recorded scopes. The original task IDs, dependencies, acceptance clauses and defining owners remain in [tasks.json](remaining-work/tasks.json) and the [subsystem plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md). The numbered historical sequence below is evidence, not another dispatch queue. Unreleased implementation remains stopped and existing holds remain in force; the separately released ICU and ordinary TS Worker serving completions are credited below.
+This is the single current execution view. The finite continuous run released by
+Vince on 18 October is complete at its selected scopes; its original canonical
+IDs, parent dependencies and wider unmet criteria remain in
+[tasks.json](remaining-work/tasks.json) and the subsystem plans. Historical
+numbered queues below are evidence, not additional assignments.
 
-### Finite packet detail reconciled after origin sync
+The [finite checklist](rust-port-orchestration/current-plan.md#continuous-authorized-execution--18-october-2026)
+and [machine queue](rust-port-orchestration/next-packets.json) record the result:
 
-The [finite packet detail](rust-port-orchestration/current-plan.md) and
-[machine packet queue](rust-port-orchestration/next-packets.json) refine the
-priorities below. They add no canonical tasks or implementation permission.
-Ordinary TS isolated-Worker serving qualification is complete at its selected
-scope. Current-byte Values installed/vendor/workerd qualification is next after
-a finite release. Shared fanout TS integration includes only its actual consumer graph and installer handoff.
-Current-byte Node binding smoke recorded below is already credited; it does not
-replace installed/vendor/workerd delivery evidence. No accepted recovery work is
-reopened. All native-preparation/source-adoption/default/publication holds remain.
+- Ordinary TS `ports:V02.6` Worker correspondence and request cleanup remain
+  accepted unchanged; they were not rerun.
+- `ports:C04.values-assets` has genuine installed Node and isolated Worker
+  delivery evidence at the selected bytes/bootstrap scope.
+- Selected `TECH-V04 / A04.5 / A07.3` int/ASCII source and its explicit CSV
+  consumer are accepted: bounded admission, signed64 lexical preflight,
+  ordered owning SchemaError violations, original raw rows and no native retry.
+  Source `05f326154` was merged/pushed as `69212ec1f`.
+- The selected `W02.5` fanout TS join preserves Work/State error ownership,
+  sync order, defaults, metadata and their distinct clone policies.
+  Source `f4e067414` also supplies its production graph and selected recovery
+  distribution, integrity and actual installed vendor/module-map closure.
+  The final combined installed gather/bundle produced 288 modules and the
+  recovery binary for two fresh Worker isolates/four requests; corrupt and
+  missing bytes refused before dispatch.
 
-**Completed `ports:V02.6`: ordinary TS serving in the staged isolated Worker.**
-The new `prepared-validation.workerd.test.ts` runs current packed package contents
-outside the checkout through the real deploy bundler, workerd/D1 and a production
-Identity session. The unmodified default Worker preserves State defaults, receipt/
-replay, diagnostic order and auth/CSRF/body admission without refusal effects. A
-same-graph test-only adapter observes the original catalog's closure after success
-and validation failure and rejects copied readers, copied assembly, mismatched
-artifacts and a stale derived catalog with its exact correspondence diagnostic.
-The run exposed one missing existing runtime module; `deploy/bundle.ts` now stages
-`native-scenario-require.js`, without changing admission or helper semantics.
-
-All 12 consumed packages emitted/typechecked; the fixture passed strict typecheck.
-Two distinct Worker tests pass, reusing the default result after affected adapter
-fixture corrections. Existing Node final-await mutation/stale-file proof remains
-credited. This demonstrates ordinary TS source/operation/catalog correspondence
-and request cleanup portions of PH2/PH4; HTTP still uses `runPreparedHttpPlan`.
-Full PH2/native identity, PH3, protected parser-to-Rust/state/resource/other-profile
-and whole parent acceptance remain separate. Canonical tasks stay partial.
-
-**Next finite packet: `ports:C04.values-assets`**, current-byte installed/vendor/
-workerd asset qualification. Its existing producer/bootstrap are ready; no asset
-regeneration or direct Node binding-smoke replay is needed. `ports:W02.5` remains
-independently ready for its bounded fanout consumer/graph/installer join. Both
-require a new finite release. No further ICU implementation is queued; a common
-Rust parser remains dormant. Native preparation remains **HUMAN HOLD**.
+The default public backend remains TypeScript. Full Unicode/other codecs,
+Rust validation, other Work families and whole parent acceptance remain separate.
+The existing message syntax/compiler/UI ICU completions remain accepted.
+No new packet is queued by this completion. Native preparation P04–P11 /
+C04.native-release remains **HUMAN HOLD**; default switches, TS retirement and
+production/public release remain held. See the checklist for focused validation,
+retained broader-suite failures, resource closure and source/integration bounds.
 
 ### Additional package opportunities — message syntax and usage completed
 
