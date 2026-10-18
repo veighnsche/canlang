@@ -1,0 +1,33 @@
+app ScalarTableFilters
+Given
+ Employee {user:user}
+ Location {name:text}
+ Partner {name:text}
+ Sale in Partner {source:text,qualified_at:datetime,amount:money,reversed:bool=false}
+ Invoice {location:Location,state:enum(draft,issued)=draft,currency:currency,due:date}
+ Expense in Employee {location:Location,category:text,business_date:date,status:enum(draft,approved)=draft,purpose:text,amount:money,receipt:text}
+ Allowance in Employee {year:int,bucket:text,days:int,remaining:int}
+ derive next_year(value:int):int = value+1
+ policy Employee read=members
+ policy Location read=members
+ policy Partner read=members
+ policy Sale read=members where=not row.reversed
+ policy Invoice read=members
+ policy Expense read=members
+ policy Allowance read=members
+When
+Then
+ preferences {year:int?,bucket:text?,currency:currency?,location:Location?,reversed:bool?}
+ page /affiliate title="Sales"
+  list Partner
+   table row.Sale columns=source,qualified_at,amount,reversed filter=reversed,qualified_at,amount.currency defaults={reversed=preferences.reversed}
+   table row.Sale columns=source,qualified_at,amount,reversed filter=reversed,qualified_at,amount.currency defaults={reversed=preferences.reversed}
+ page /invoice title="Invoices"
+  table Invoice columns=location,state,currency,due filter=location,state,currency,due defaults={location=preferences.location,currency=preferences.currency}
+ page /expense title="Reimbursements"
+  table Expense as expense where expense.status==approved columns=parent,location,purpose,amount,receipt,status filter=parent,location,category,business_date
+ page /allowance title="Annual allowance"
+  text next_year(preferences.year ?? 0)
+  table Allowance as allowance where allowance.parent.user==actor columns=year,bucket,days,remaining filter=year,bucket defaults={year=preferences.year,bucket=preferences.bucket}
+ page /allowances title="Allowances"
+  table Allowance columns=year,bucket,days,remaining filter=year,bucket

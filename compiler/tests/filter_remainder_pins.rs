@@ -115,16 +115,12 @@ fn assert_lowers(source: &str) {
     assert!(diags.is_empty(), "unexpected diagnostics: {diags:?}");
 }
 
-/// Recorded CanInvoice shape (`currency:currency` on Invoice in
-/// Customer with a matching `currency?` preference default): a currency
-/// scalar is not a finite-choice selector, so the list keeps its exact
-/// E6008 refusal. No currency-equality primitive is admitted here.
+/// Recorded CanInvoice currency equality preserves the exact validated
+/// currency codec and its owned nullable saved preference.
 #[test]
-fn currency_selector_refuses() {
-    assert_refuses(
+fn currency_selector_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Customer { name:text, currency:currency }\n policy Customer read=public\nWhen\nThen\n preferences { currency:currency? }\n page /customers title=\"Customers\"\n  list Customer columns=name,currency filter=currency defaults={currency=preferences.currency}\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 
@@ -155,16 +151,12 @@ fn derived_bool_selector_refuses() {
     );
 }
 
-/// Recorded CanExpense shape (`filter=parent,...` on contained
-/// Expense): containing-parent linkage is not an owned field selector,
-/// so the table keeps its exact E6008 refusal. No parent-linkage
-/// filter rule is admitted here.
+/// Recorded CanExpense parent equality consumes only its declared containing
+/// model identity, using the existing typed-reference filter contract.
 #[test]
-fn parent_linkage_selector_refuses() {
-    assert_refuses(
+fn parent_linkage_selector_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Employee { name:text }\n Expense in Employee { purpose:text }\n policy Employee read=public\n policy Expense read=public\nWhen\nThen\n page /expenses title=\"Expenses\"\n  table Expense columns=purpose filter=parent\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 

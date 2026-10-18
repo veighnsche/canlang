@@ -14,7 +14,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import type { CanValue, CompileArtifact, ListQueryArgs, ListQueryResult, PageSourceContext } from '@canlang/contracts';
 import { collectionFilterName } from '@canlang/contracts';
 import { distribution } from '@canlang/values/distribution';
-import { decodeValue, encodeValue } from '@canlang/values';
+import { decodeValue, encodeValue, makeUserRef, makeRecordRef } from '@canlang/values';
 import { buildSessionCookie, createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText } from '@canlang/identity';
 import { buildContext } from '@canlang/state/invocation';
 import { runMutationWrites, type ModelTable, type MutationWrite } from '@canlang/state/mutation';
@@ -198,4 +198,113 @@ test('unchanged native TableFilters page preserves order, nullable defaults and 
       assert.equal(JSON.stringify(artifact), originalArtifact); assert.deepEqual(await hashes(), captured);
       await importVerifiedAssemblyModule(asm, entry, artifact);
     } finally { await worker?.dispose(); await rm(dir, { recursive: true, force: true }); }
+  });
+
+/** The six frozen original selector/default combinations, compiled together.
+ * Model data is finite fixture data; no runtime filter descriptor is transcribed. */
+test('compiled original scalar and contained-parent table filters reach current State projections',
+  {timeout: 120000}, async () => {
+    const dir = await realpath(await mkdtemp(join(tmpdir(), 'can-scalar-table-page-')));
+    let worker: Miniflare | undefined;
+    try {
+      const fixture = join(root, 'compiler/tests/fixtures/scalar-table-filters.can');
+      const {stdout} = await promisify(execFile)(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', process.env.CAN_NATIVE_CATALOG ?? fileURLToPath(distribution.catalog), fixture],
+        {cwd: root, timeout: 120000, maxBuffer: 32 * 1024 * 1024});
+      const artifact = JSON.parse(stdout) as CompileArtifact;
+      assert.ok(!('diagnostics' in artifact));
+      // Keep the actual original filter lists/default reads in this consumer.
+      const selectorSource = await readFile(fixture, 'utf8');
+      for (const [path, clause] of [
+        ['CanAffiliate', 'filter=reversed,qualified_at,amount.currency defaults={reversed=preferences.reversed}'],
+        ['CanInvoice', 'filter=location,state,currency,due'],
+        ['CanExpense', 'filter=parent,location,category,business_date'],
+        ['CanLeave', 'filter=year,bucket defaults={year=preferences.year,bucket=preferences.bucket}'],
+      ]) {
+        assert.ok((await readFile(join(root, `draft/apps/${path}/${path}.can`), 'utf8')).includes(clause!));
+        assert.ok(selectorSource.includes(clause!));
+      }
+      worker = new Miniflare({compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default {fetch(){return new Response("ok")}}',
+        d1Databases: {IDENTITY: 'scalar-filter-identity', STATE: 'scalar-filter-state'}});
+      const identityDb = await worker.getD1Database('IDENTITY') as unknown as D1Database;
+      const db = await worker.getD1Database('STATE') as unknown as D1Database;
+      await ensureIdentitySchema(identityDb); await ensureSchema(db); await ensurePagePreferencesSchema(identityDb);
+      const identities = createD1IdentityStore(identityDb, {clock: {nowMs: () => FIXED_NOW}});
+      const team = await identities.createTeam({timezone: 'UTC'});
+      const user = await identities.createUser({email: 'scalar-filter@example.test', password_hash: 'unused', email_verified: true});
+      await identities.createMembership({team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: []});
+      const token = 'scalar-filter-session';
+      await identities.createSession({user_id: user.user_id, token_sha256: await sha256HexText(token),
+        last_team_id: team.team_id, expires_at: new Date(FIXED_NOW + 3600000).toISOString()});
+      const identity = await resolveIdentity(identities, {session_token: token}, {clock: {nowMs: () => FIXED_NOW}});
+      const store = createD1Storage(db), preferences = createD1PagePreferenceStore(identityDb);
+      const asm = await assembleModules({artifact, sourcePath: fixture}, {workDir: join(dir, 'modules'),
+        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib')});
+      const loaded = await loadCanonicalDescriptors(asm, artifact);
+      const name = (leaf: string) => asModel(`ScalarTableFilters.${leaf}`);
+      const employee = asId(uuidv7(FIXED_NOW, 601)), location = asId(uuidv7(FIXED_NOW, 602)), partner = asId(uuidv7(FIXED_NOW, 603));
+      const ids = [604, 605, 606].map(index => asId(uuidv7(FIXED_NOW, index)));
+      const clock = {nowMs: () => FIXED_NOW};
+      const writes: MutationWrite[] = [
+        {op: 'create', model: name('Employee'), id: employee, data: {user: makeUserRef(user.user_id)}},
+        {op: 'create', model: name('Location'), id: location, data: {name: 'Site'}},
+        {op: 'create', model: name('Partner'), id: partner, data: {name: 'Partner'}},
+        ...ids.map((id, index): MutationWrite => ({op: 'create', model: name('Sale'), id,
+          parent: {model: name('Partner'), id: partner}, data: {source: `sale-${index}`, reversed: index === 2,
+            qualified_at: decodeValue('datetime', '2026-10-18T09:30:00.000Z'),
+            amount: decodeValue('money', {minor: '100', currency: index === 1 ? 'USD' : 'EUR'})}})),
+        {op: 'create', model: name('Invoice'), id: asId(uuidv7(FIXED_NOW, 607)), data: {location: makeRecordRef(name('Location'), location), state: 'issued', currency: 'EUR', due: decodeValue('date', '2026-10-18')}},
+        {op: 'create', model: name('Expense'), id: asId(uuidv7(FIXED_NOW, 608)), parent: {model: name('Employee'), id: employee},
+          data: {location: makeRecordRef(name('Location'), location), category: 'travel', business_date: decodeValue('date', '2026-10-18'), status: 'approved', purpose: 'Travel', amount: decodeValue('money', {minor: '100', currency: 'EUR'}), receipt: 'evidence'}},
+        {op: 'create', model: name('Allowance'), id: asId(uuidv7(FIXED_NOW, 609)), parent: {model: name('Employee'), id: employee}, data: {year: 2026n, bucket: 'vacation', days: 20n, remaining: 19n}},
+      ];
+      const effects = await runMutationWrites({store, table: loaded.table as ModelTable, writes,
+        context: buildContext({identity, app: 'ScalarTableFilters', operation: asOperation('ScalarTableFilters.seed'),
+          operationId: asOperationId(uuidv7(FIXED_NOW, 610)), source: 'worker', now: FIXED_NOW}),
+        secretFields: new Map(loaded.models.map(model => [model.name, loaded.secretFields.get(model.name)!])),
+        encodeField: (type, value) => encodeValue(type, value as CanValue)});
+      await store.commit({...effects, outbox: [], expectedRevision: await store.readRevision(), receipt: null});
+      const queries: Array<{model: string; args: ListQueryArgs; result: ListQueryResult}> = [];
+      const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(54), 'scalar-table-page');
+      const served = await assembleWorker(artifact, asm, {store, identityStore: identities, now: clock.nowMs,
+        pageReads: {scope: {app: 'ScalarTableFilters', owner: team.team_id, ownerPackage: 'ScalarTableFilters'}, sourceIdentity: 'scalar-filter-fixture'},
+        http: {formBindings, preferences, createPageHandler: deps => {
+          const pageDeps = deps as unknown as PageHttpDeps, original = pageDeps.createReadScope!;
+          return request => handlePageRequest({...pageDeps, createReadScope: async (...args) => {
+            const scope = await original(...args);
+            return {...scope, ...(scope.onQueryBound === undefined ? {} : {onQueryBound: scope.onQueryBound.bind(scope)}), query: async (caller, model, selection) => {
+              const result = await scope.query(caller, model, selection); queries.push({model, args: selection, result}); return result;
+            }};
+          }}, request);
+        }}}, {active: true});
+      const cookie = buildSessionCookie(token, {secure: false, maxAgeSeconds: 3600}).split(';')[0]!;
+      const render = async (path: string, params = new URLSearchParams()) => {
+        queries.length = 0;
+        const response = await served.fetch(new Request(`https://scalar-filter.example.test${path}?${params}`, {headers: {'hx-request': 'true', cookie}}));
+        const html = await response.text(); assert.equal(response.status, 200, html); return html;
+      };
+      await render('/affiliate');
+      const sales = queries.filter(query => query.model === name('Sale'));
+      assert.equal(sales.length, 2); assert.ok(sales.every(query => query.result.rows.length === 2), 'denied reversed row never reaches filters');
+      const occurrence = sales[0]!.args.occurrence!;
+      const params = new URLSearchParams([[collectionFilterName(occurrence, 'amount.currency'), 'EUR'],
+        [collectionFilterName(occurrence, 'qualified_at'), '2026-10-18T09:30:00.000Z']]);
+      await render('/affiliate', params);
+      const selectedSales = queries.filter(query => query.model === name('Sale'));
+      assert.deepEqual(selectedSales.find(query => query.args.occurrence === occurrence)!.result.rows.map(row => row.id), [ids[0]]);
+      assert.deepEqual(selectedSales.find(query => query.args.occurrence !== occurrence)!.result.rows.map(row => row.id), [ids[0], ids[1]]);
+      await render('/invoice'); assert.equal(queries.find(query => query.model === name('Invoice'))!.result.rows.length, 1);
+      await render('/expense'); const expense = queries.find(query => query.model === name('Expense'))!;
+      await render('/expense', new URLSearchParams([[collectionFilterName(expense.args.occurrence!, 'parent'), employee]]));
+      assert.equal(queries.find(query => query.model === name('Expense'))!.result.rows.length, 1);
+      await preferences.save({appId: 'ScalarTableFilters', actorUserId: user.user_id, teamId: team.team_id,
+        owner: 'ScalarTableFilters', field: 'year', value: '2026', expectedVersion: '0'});
+      const allowanceHtml = await render('/allowance'); assert.match(allowanceHtml.replaceAll(',', ''), /2027/);
+      const allowance = queries.find(query => query.model === name('Allowance'))!;
+      assert.equal(allowance.result.rows.length, 1); assert.ok(JSON.stringify(allowance.args.where).includes('2026'));
+      await render('/allowance', new URLSearchParams([[collectionFilterName(allowance.args.occurrence!, 'year'), '2027']]));
+      assert.equal(queries.find(query => query.model === name('Allowance'))!.result.rows.length, 0);
+      await render('/allowances'); assert.equal(queries.find(query => query.model === name('Allowance'))!.result.rows.length, 1);
+    } finally {await worker?.dispose(); await rm(dir, {recursive: true, force: true});}
   });

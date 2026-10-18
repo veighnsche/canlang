@@ -1,11 +1,57 @@
 # Living ideal file-tree plan for Canlang
 
+**Development integration, 2026-10-18:** merge committed main `0ec2ee9a5` into
+the development branch through `dbedbb249`. Incoming33 paths retain main's
+recorded Compiler query/filter correspondence, Contracts/UI/Interfaces/State
+typed-filter owners, Cloudflare native consumer and Work-kernel/Work row-helper
+owners, tests and planning coverage. Reuse their retained acceptance; ongoing
+foreign compiler/runtime work is excluded until its commit handoff.
+
+The branch's37 changed paths since `61334d958` stay with existing Cloudflare
+deployment/dev owners: owned bundle child/entry and execution controls; retryable
+cleanup/local runtime/builder/host controls; captured inputs/compiler adapter;
+core/service/daemon/socket and focused lifecycle/capture tests. New observation
+and terminal/presenter modules belong to development control and presentation,
+with their adjacent focused tests. Three JEV files remain design advice; the
+current dev plan, public guide and decision log retain their documentation owners.
+No new package or general supervisor/cache framework is introduced. Reuse the
+recorded lifecycle68, capture31, affected daemon/service and subsequent finite
+state/terminal/automatic/path/no-op checks. Actual current-build terminal/browser
+integration remains open. Preserve accumulated coverage, target allocations and
+the held complete checkpoint; this bounded merge is not a whole-tree audit.
+
 > **Stale plan — not verified against the current repository.** This document
 > is historical planning guidance, not a reliable current description of the
 > repository or an independent mandate to implement changes. Current source and
 > explicit user decisions take precedence. Historical checkpoints, accepted
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
+
+**Work helper integration, 2026-10-18:** `cd2651c5e` covers exactly the existing
+Work-kernel rows owner, Work kernel-table facade and owning regression tests.
+Explicit defaulted error factories preserve owning class construction without
+intercepting caller throws, including nested fanout calls. Existing package/target
+allocation and newer dispatch/occurrence/schedule provenance duties are retained.
+Reuse the focused257-test source checks and independent actual installed Node plus
+288-module Work-facade Worker capture (two cold/warm requests). No new package,
+native algorithm or complete parent gate is introduced. Native preparation source
+release and current partial progress are reconciled in the eight existing docs.
+Preserve newer main71885872b handler-emission/runtime/Work ownership, 94e43ecc0
+development-state-machine planning and 61334d958 computed-order ownership/review:
+all24 distinct paths since d240246c2 are accounted for through their defining
+records plus this three-source/eight-doc slice. Foreign working notes stay intact;
+complete checkpoint/stale notice remain unchanged. Native implementation continues;
+public release/default switches/TS retirement remain held.
+
+**Native preparation source release, 2026-10-18:** verified human voice turn
+`01a14d5b-34bb-7880-b29b-63081f49cedd` lifts the previous implementation hold.
+Existing preparation crate/job, TS host/CLI, protocol, packaging and local consumer
+owners remain; two lanes cover Work's matching W02.5 helpers and native host →
+module → plan → executable/installed joins under the current finite checklist.
+No new package, compiler ownership or default/public release decision follows.
+Current source/target coverage remains bounded; preserve the stale notice,
+accumulated owner review and complete checkpoint. No acceptance gate closes merely
+from the release, and foreign compiler/runtime/Work writers stay untouched.
 
 **Rust readiness refresh, 2026-10-18, committed main `46cb113ad`:** the fifteen
 new compiler/runtime/advice/planning paths retain the defining owners and review
@@ -1317,3 +1363,22 @@ reuse canonical reads and existing Values comparison; source/test hunks reviewed
 focused actual compiled D1 and compiler checks pass. Concurrent hook/filter work
 is excluded until accepted. Reuse retained coverage; the complete historical
 checkpoint stays held. The full212-error goal continues on main; Muse is stopped.
+
+
+### 2026-10-18 — typed filter intake
+
+Retain Compiler UI/preference ownership and the existing Contracts DTO, Interfaces
+request/preference/context adapters, UI controls, State grant/predicate engine and
+Cloudflare projection/consumer owners. Their changed source/tests were reviewed;
+the compiled D1 consumer and focused checks pass, with the separate pre-existing
+caption failure recorded. Bounded reconciliation since61334d958; unfinished hook
+changes and foreign work remain outside this intake. No new carrier/package or
+complete-checkpoint advance. Full212-error work continues on main; Muse is stopped.
+
+### 2026-10-18 — consumed query declaration boundaries
+
+Compiler `scenario_queries.rs` retains this responsibility: scoped backend-gap
+filtering covers whole consumed declarations, not only symbol names. Reviewed
+its production change and existing primary/related body-span cases; focused unit
+1/1 passes, unrelated siblings and missing-analysis refusal remain. No new owner
+or package. This bounded intake leaves the complete historical checkpoint fixed.

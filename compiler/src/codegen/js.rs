@@ -3467,20 +3467,25 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             let Some(name) = text("field") else {
                 return false;
             };
-            let Some(item) = field(name) else {
-                return false;
+            let (item, ty) = if name == "parent" && field("parent").is_none() {
+                let IrItemKind::Model { owner: IrOwner::ChildOf(parent), .. } = model.kind else { return false; };
+                if field("parent").is_some() { return false; }
+                let Some(target) = ir.items.get(parent.0 as usize).filter(|item| matches!(item.kind, IrItemKind::Model { .. })) else { return false; };
+                (target, ResolvedType::Record { symbol: parent, stored: true })
+            } else if let Some(base) = name.strip_suffix(".currency").filter(|base| !base.contains('.')) {
+                let Some(item) = field(base) else { return false; };
+                if !matches!(&item.kind, IrItemKind::Field { ty: IrType::Known(ResolvedType::Scalar(Scalar::Money)), .. }) { return false; }
+                (item, ResolvedType::Scalar(Scalar::Currency))
+            } else {
+                let Some(item) = field(name) else { return false; };
+                let IrItemKind::Field { ty: IrType::Known(ty), .. } = &item.kind else { return false; };
+                (item, ty.clone())
             };
             // A filter column selects a distinct owned finite-choice model
             // field: an owned enum or a plain bool toggle. Anything else
             // keeps the refusal below.
-            let IrItemKind::Field {
-                ty: IrType::Known(ty),
-                ..
-            } = &item.kind
-            else {
-                return false;
-            };
-            let expected_cases: Option<&[String]> = match ty {
+            let _ = item;
+            let expected_cases: Option<&[String]> = match &ty {
                 ResolvedType::Enum {
                     owner: Some(owner),
                     cases,
@@ -3516,7 +3521,7 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 // table): a plain `date` column carries no value labels,
                 // exactly like text/a reference. Datetime keeps the
                 // refusal below: no symmetry generalization.
-                ResolvedType::Scalar(Scalar::Date) if text("type") == Some("date") => None,
+                ResolvedType::Scalar(scalar @ (Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency)) if text("type") == Some(scalar.as_str()) => None,
                 _ => return false,
             };
             // A reference column compares by typed opaque identity
@@ -3532,8 +3537,8 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                     | ResolvedType::Scalar(Scalar::User | Scalar::Member)
             );
             let is_text = matches!(ty, ResolvedType::Scalar(Scalar::Text));
-            let is_date = matches!(ty, ResolvedType::Scalar(Scalar::Date));
-            if selected.insert(name, ty).is_some() {
+            let is_date = matches!(ty, ResolvedType::Scalar(Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency));
+            if selected.insert(name, ty.clone()).is_some() {
                 return false;
             }
             let Some((_, labels)) = parts.iter().find(|(key, _)| key == "valueLabels") else {
@@ -3590,7 +3595,7 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 ResolvedType::Scalar(Scalar::Text) => None,
                 // C3 civil-date equality rule: no case inventory (None,
                 // like text/references); other shapes keep the refusal.
-                ResolvedType::Scalar(Scalar::Date) => None,
+                ResolvedType::Scalar(Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency) => None,
                 _ => return false,
             };
             // C2 text-equality rule (DESIGN 975 scalar): a text-typed
@@ -3605,7 +3610,7 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             // literal, a direct saved date read, or null lower.
             let date_default = matches!(expected, ResolvedType::Scalar(Scalar::Date));
             let date_literal = date_default
-                && value.ty == **expected
+                && value.ty == *expected
                 && (matches!(&value.expr, IrExpr::Date(_))
                     || matches!(&value.expr, IrExpr::Call { target, args }
                         if matches!(&target, IrCallTarget::Builtin { id, .. } if id == "date")
@@ -3614,20 +3619,22 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 IrExpr::Text(case) => {
                     enum_cases.is_some_and(|cases| {
                         cases.contains(case)
-                            && (value.ty == **expected
+                            && (value.ty == *expected
                                 || matches!(value.ty, ResolvedType::Scalar(Scalar::Text)))
                     }) || (bool_default
                         && (case == "true" || case == "false")
-                        && (value.ty == **expected
+                        && (value.ty == *expected
                             || matches!(value.ty, ResolvedType::Scalar(Scalar::Text))))
-                        || (text_default && value.ty == **expected)
+                        || ((text_default || *expected == ResolvedType::Scalar(Scalar::Currency)) && value.ty == *expected)
                 }
+                IrExpr::Int(_) if *expected == ResolvedType::Scalar(Scalar::Int) && value.ty == *expected => true,
+                IrExpr::Datetime(_) if *expected == ResolvedType::Scalar(Scalar::Datetime) && value.ty == *expected => true,
                 _ if date_literal => true,
-                IrExpr::Bool(_) => bool_default && value.ty == **expected,
+                IrExpr::Bool(_) => bool_default && value.ty == *expected,
                 IrExpr::Null => true,
                 IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Name(name) if name == "preferences") => {
-                    value.ty == **expected
-                        || matches!(&value.ty, ResolvedType::Nullable(inner) if inner.as_ref() == *expected)
+                    value.ty == *expected
+                        || matches!(&value.ty, ResolvedType::Nullable(inner) if inner.as_ref() == expected)
                 }
                 _ if bool_default => bool_filter_default_shape(ir, value),
                 // B14: computed enum defaults mirror the bool shape
@@ -7323,6 +7330,13 @@ impl<'a> Emitter<'a> {
                             "(value=>{{if(value===true)return true;if(value===false)return false;if(value===\"true\")return true;if(value===\"false\")return false;throw{{code:\"validation\",message:\"Invalid bool preference.\"}}}})({member})"
                         )
                     }
+                } else if matches!(&base.expr, IrExpr::Name(name) if name == "preferences")
+                    && expr.ty.nullable_inner().unwrap_or(&expr.ty) == &ResolvedType::Scalar(Scalar::Int)
+                {
+                    self.stdlib.insert("decodeValue".into());
+                    self.stdlib.insert("int64".into());
+                    let absence = if expr.ty.nullable_inner().is_some() { "if(value==null)return null;" } else { "" };
+                    format!("(value=>{{try{{{absence}return typeof value===\"bigint\"?int64(value):decodeValue(\"int\",value);}}catch{{throw{{code:\"validation\",message:\"Invalid int preference.\"}}}}}})({member})")
                 } else {
                     member
                 };
@@ -13295,7 +13309,7 @@ impl<'a> Emitter<'a> {
                         labels.push_str(&format!(",optionLabels:{{{values}}}"));
                     }
                     format!(
-                        "{{name:{},options:[{}],defaultValue:{}{}{}{}{labels}}}",
+                        "{{name:{},options:[{}],defaultValue:{}{}{}{}{}{labels}}}",
                         js_string(&field.name),
                         field
                             .options
@@ -13317,6 +13331,7 @@ impl<'a> Emitter<'a> {
                         // options; the default/saved values are civil
                         // dates validated downstream.
                         if field.date { ",date:true" } else { "" },
+                        field.scalar_type.as_ref().map(|ty| format!(",scalarType:{}", js_string(ty))).unwrap_or_default(),
                     )
                 })
                 .collect::<Vec<_>>()

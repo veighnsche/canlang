@@ -240,7 +240,7 @@ export function withPolicyRow(policy: InterimModelPolicy, byCtx: ByContext, row:
  * untraversable paths yield `undefined` (missing); an explicit `null` leaf is
  * returned as `null`.
  */
-export function resolveRowPath(row: StoredRow, path: string): unknown {
+export function resolveRowPath(row: StoredRow, path: string, implicitParent = false): unknown {
   const segments = path.split('.');
   const head = segments[0];
   if (head === undefined || head === '') {
@@ -268,6 +268,12 @@ export function resolveRowPath(row: StoredRow, path: string): unknown {
       break;
     case 'archivedAt':
       current = row.archivedAt;
+      break;
+    case 'parent':
+      // An authored stored field keeps its ordinary data/grant semantics.
+      // Only the exact implicit identity may consume the containing envelope.
+      current = Object.hasOwn(row.data, 'parent') ? row.data.parent :
+        implicitParent && segments.length === 1 ? row.parent ?? null : undefined;
       break;
     default: {
       const data = row.data as Readonly<Record<string, unknown>>;
@@ -552,24 +558,25 @@ export function evalPredicateForRow(
   predicate: QueryPredicate,
   row: StoredRow,
   intFields?: ReadonlySet<string>,
+  implicitParent = false,
 ): boolean {
   switch (predicate.op) {
     case 'and':
       for (const arg of predicate.args) {
-        if (!evalPredicateForRow(arg, row, intFields)) {
+        if (!evalPredicateForRow(arg, row, intFields, implicitParent)) {
           return false;
         }
       }
       return true;
     case 'or':
       for (const arg of predicate.args) {
-        if (evalPredicateForRow(arg, row, intFields)) {
+        if (evalPredicateForRow(arg, row, intFields, implicitParent)) {
           return true;
         }
       }
       return false;
     case 'not':
-      return !evalPredicateForRow(predicate.arg, row, intFields);
+      return !evalPredicateForRow(predicate.arg, row, intFields, implicitParent);
     case 'eq':
     case 'ne':
     case 'lt':
@@ -578,7 +585,7 @@ export function evalPredicateForRow(
     case 'gte': {
       checkPredicateField(predicate.op, predicate.field);
       checkComparisonOperand(predicate.op, predicate.field, predicate.value);
-      const actual = resolveRowPath(row, predicate.field);
+      const actual = resolveRowPath(row, predicate.field, implicitParent);
       if (isNullish(actual)) {
         return false;
       }
@@ -607,7 +614,7 @@ export function evalPredicateForRow(
     case 'between': {
       checkPredicateField(predicate.op, predicate.field);
       checkBetweenBounds(predicate.field, predicate.lo, predicate.hi);
-      const actual = resolveRowPath(row, predicate.field);
+      const actual = resolveRowPath(row, predicate.field, implicitParent);
       if (isNullish(actual)) {
         return false;
       }
@@ -622,10 +629,10 @@ export function evalPredicateForRow(
     }
     case 'is_null':
       checkPredicateField(predicate.op, predicate.field);
-      return isNullish(resolveRowPath(row, predicate.field));
+      return isNullish(resolveRowPath(row, predicate.field, implicitParent));
     case 'not_null':
       checkPredicateField(predicate.op, predicate.field);
-      return !isNullish(resolveRowPath(row, predicate.field));
+      return !isNullish(resolveRowPath(row, predicate.field, implicitParent));
     default: {
       const op = (predicate as QueryPredicate).op;
       throw new StateError('validation', `Unknown query predicate: ${JSON.stringify(op)}.`);

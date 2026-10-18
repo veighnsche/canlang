@@ -1,5 +1,95 @@
 # Rust-port finite packet detail
 
+## Active implementation release — native preparation and Work helpers
+
+Vince's direct voice message in New voice chat, turn
+`01a14d5b-34bb-7880-b29b-63081f49cedd`, says **“Yeah, put it in scope for the Rust
+port”** after native preparation was explained. Codex verified that human message.
+It supersedes the previous native-preparation implementation HOLD and the
+planning-only state below. Source implementation, local integration and validation
+are released continuously; no per-packet release is needed within this scope.
+Public publication/deployment, automatic backend-default switches and TS retirement
+remain separately held. Local contained staging/preview and mocked apply tests are
+implementation validation, not public release.
+
+Base: pushed main `d240246c2`. Use the same existing Contributor/XHIGH coordinator
+`01a14c86-b1c3-7011-a8e1-15a876abc891`, socket
+`/private/tmp/can-rust-muse-4s0v2_1s/tmux.sock`, pane `%0`. The prior goals are
+complete and their workers/commands released; establish a new native goal under
+this coordinator. Two logical lanes fit single-instance mode: native subagents or
+coordinator direct work, with exact file custody. No new CLI, human-ready gate or
+Muse recurring worker timer. Codex owns 25-minute supervision and independent
+review/Git. Current main's active compiler/runtime/Work edits remain foreign; this
+isolated checkout consumes committed source only. Reconcile later commits before
+integration without changing foreign files or outputs.
+
+| Step / original IDs | Owner, concrete inputs and remaining implementation | Finite acceptance / handoff |
+| --- | --- | --- |
+| W / selected W02.5 — complete | Work lane: the ten matching helpers enumerated below; existing `/rows`, independent fixtures and package edge. Only Work `kernel/tables.ts` and affected owning tests. | Preserve owning errors, evaluation/clone order, row bytes and real every-slot/supersession stages; affected installed Node/Worker calls. Keep newer dispatch/occurrence/schedule codecs intact; no new Rust family. |
+| N1 / P05.2, P05.3 | Native host lane: inspect retained two-phase adapter against current owning `deploy/bundle.ts` exports and stage contract; delete stale adapter copies and join actual MCP/Bun/catalog phases in `src/preparation/{host,build-adapter}.ts`. Existing C04.preparation-join is accepted; verify consumed exports, not a whole C04 rerun. | Actual host phases exactly once, original module/page-before-worker, vendor-before-Bun, verdict-before-catalog and loadability-before-links order. Legacy worker-missing path invokes neither phase. No mocked host output substitutes real Bun/catalog evidence. |
+| N2 / P05.4 | P-session owner consumes N1 and existing registered Rust modules; wire module buffers, import/graph checks and typed host resumes into `preparation/src/{job,protocol}.rs` plus necessary matching TS protocol. | Real native job returns full module output with legacy-main fallback, cross-stage identity and original ordered failure behavior; one open resume, abort/EOF/duplicate-token semantics retained. |
+| N3 / P06.3 | Same job owner consumes N2 and existing `plan.rs`, `render.rs`, `review.rs`; join plan/prior-plan/render/review into the real job. | Deterministic outputs, existing prior-plan failure stage, preview+yes still previews, reviewed mismatch refuses after preparation and before writes; compiler gate stays at its original observable position. |
+| N4 / P07/P08 source and local validation | Host/CLI owner consumes real N2/N3; integrate executable resolution/verification with `src/preparation/{executable,executable-manifest,publication,host}.ts` and existing CLI. Repair `conformance/preparation/{workloads,differential}.mjs`: backend currently labels results without selecting native. | Explicit native actually launches the genuine binary; real CLI native/prepared comparison; no native-error TS retry; reviewed-byte contained local staging and mocked apply preserve rollback/failure/order. Defaults stay unchanged, no real Wrangler/provider deployment. |
+| N5 / P09.1, C04.native-release, P09.2 available-host slice | Native packaging owner consumes completed executable and existing build/package scripts, manifest/release/notices rules. Genuine local prebuilt package and installed consumer; one writer for release/manifest joins. | Verifier connected to launch, current release/toolchain/lock/binary identity, no user compiler required at installed launch and no executable in Worker maps. Claim only actual supported hosts exercised; name missing external host/toolchain outputs rather than calling them human-held. No public artifact upload. |
+| N6 / P10/P11 bounded disposition | Coordinator consumes accepted native/Work outputs and original budget/rollback/mixed rules. | Focused complete-job resource/rollback checks at proved scope; explicit JS-only/mixed and supported-host residuals under original criteria. No invented broad scope, no automatic default/retirement decision. Stop each satisfied component and hand it off promptly. |
+| R/G/C | Codex independently reviews released critical stages/errors/module identities/no-fallback/executable custody/reviewed bytes, integrates coherent accepted slices preserving newer main and reconciles living plan/DECISIONS; cleans only released owned resources. | Exact source/results and writer/command release; matching heartbeat retired only when no finishable authorized work remains. Parent gates close only on their original full evidence. |
+
+Native source writer scope is the existing `packages/cloudflare/preparation/` crate,
+`src/preparation/`, necessary `src/cli/platform.ts`, owning preparation tests,
+conformance and build/package scripts. `deploy/bundle.ts`, manifests, locks and
+release roots have one coordinator writer only if a demonstrated required join
+needs them; runtime/invoke/compiler/State are not native lane writers. Keep host
+activation, Bun/catalog/Wrangler/FS authority host-owned; Rust owns the already
+selected pure preparation algorithms and retained job protocol. No replacement
+compiler, ABI framework or unbounded generic port is selected.
+
+Use existing compatible caches after lock/toolchain/features/workspace-link checks;
+17GiB free at release. At most two heavy commands; serialized output/target
+writers; default CARGO_INCREMENTAL=0 and DEV/TEST_DEBUG=0, BUILD_JOBS=2. Freeze
+producer/output closure for sensitive captures. Reuse accepted ICU/V02.6/int/CSV/
+fanout/recovery and unchanged checks; no proof chains or broad replay solely because
+the hold changed. Exact new difficult design questions use the repository's balanced
+triple JEV process; existing accepted requirements need no new design permission.
+
+Initial actual step is W's matching facade implementation and N1's current-owner
+adapter/host join. Native job module/plan wiring follows those concrete outputs;
+other available native steps continue independently when a lane waits on review.
+Startup ACK/model/native goal and active command handles are required in the
+run-owned continuation status; saved prompts or send acceptance alone are not work.
+
+### Accepted Work helper slice — 18 October 2026
+
+Source commit `cd2651c5e` completes the selected ten-helper W02.5 remainder and its
+necessary owning-error repair. The shared leaf receives an explicit defaulted
+error factory; Work constructs KernelTableError at genuine failure sites. Nested
+fanout calls forward that factory. Catch-and-project and global error branding
+are absent, so caller getters rethrowing public or retained leaf errors preserve
+the exact object. State/default leaf behavior, JSON-safety-before-clone,
+metadata/version/query order and newer provenance codecs retain their owners.
+
+Reuse final leaf rows140/140, owning tables27/27 and commands90/90 plus clean
+leaf/Work emits/typechecks. Independent source review identified and repaired the
+nested factory omission; actual final probes confirm owning instanceof/ownkeys
+and retained caller identity. The final independent installed capture uses genuine
+private Work/Work-kernel packs whose JS matches the released emitted bytes, real
+installed CF buildDeployBundleWithAssets output (288 modules), and the actual
+Work facade in one fresh Worker/two cold-warm requests. All ten helpers, nested
+owning refusal, direct/retained caller throws and JSON-before-clone agree with
+installed Node. Fixture:
+`/private/tmp/can-rust-muse-4s0v2_1s/can-work-rows-w011factory/consumer/codex-work-facade.mjs`.
+This corrects the handoff's claim that the Work facade was absent from that map.
+Reuse accepted earlier fanout/recovery/ICU/V02.6 results; no repeated full scope.
+
+W writers/commands are released and Codex owns the central docs under ACK012.
+Native source remains active/uncommitted: module-buffer vectors20/20 and host
+payload tests are narrow progress, not complete P05.4/CLI/installed acceptance.
+The TS adapter alias alone closes no native port. Next coherent native commit
+requires its real job/plan/host stage join and focused source/command handoff;
+public deployment/default changes/TS retirement remain separately held.
+Original W02.5/W02 and native parent gates remain partial. The newer compiler
+filter commit boundary is still pending; its required worktree intake happens
+after that actual completion and a safe native input handoff.
+
 ## Planning refresh against current main — 18 October 2026
 
 **Planning only; implementation is not released.** Source is local main

@@ -35,8 +35,8 @@ fn checked_table_filters_defaults_and_protected_rows_reach_installed_consumers()
         ),
         ("bare-filter", source.replace("filter=state", "filter")),
         (
-            "nonenum-filter",
-            source.replace("filter=state", "filter=rank"),
+            "unsupported-member-filter",
+            source.replace("filter=state", "filter=from.hour"),
         ),
         (
             "undeclared-default",

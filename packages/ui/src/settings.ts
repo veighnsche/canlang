@@ -202,7 +202,7 @@ export function renderEnumPreferenceSettings(props: {
   // Reference preference leaves carry no save control (storage accepts
   // enum cases only): they keep their filter defaults but no settings
   // panel entry.
-  const fields = props.fields.filter(field => field.reference !== true);
+  const fields = props.fields.filter(field => field.reference !== true && field.scalarType === undefined);
   if (fields.length === 0) return { sections: [] };
   requireText('renderEnumPreferenceSettings', 'owner', props.owner);
   requireText('renderEnumPreferenceSettings', 'postTo', props.postTo);
