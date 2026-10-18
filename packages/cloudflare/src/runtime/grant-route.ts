@@ -131,6 +131,103 @@ function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });
 }
 
+async function resolveGrantActor(
+  identity: GrantIdentityProducer,
+  cookie: string | null,
+  getStore: () => IdentityStore,
+): Promise<{ sessionToken: string; resolved: ResolvedIdentity } | Response> {
+  const sessionToken = identity.parseSessionCookie(cookie ?? undefined);
+  if (sessionToken === null) {
+    return jsonError("mcp-grant needs a session", 401);
+  }
+  let resolved: ResolvedIdentity;
+  try {
+    resolved = await identity.resolveIdentity(getStore(), { session_token: sessionToken });
+  } catch (err) {
+    const failure = readIdentityFailure(identity, err);
+    if (failure !== null) {
+      return jsonError(failure.message, 401);
+    }
+    console.log("[mcp-grant] session resolve failed", err instanceof Error ? err.message : String(err));
+    return jsonError("grant issuance failed", 500);
+  }
+  if (
+    resolved.actor === null ||
+    resolved.team === null ||
+    resolved.membership === null ||
+    resolved.membership.status !== "active"
+  ) {
+    return jsonError("mcp-grant needs an active team membership", 403);
+  }
+  return { sessionToken, resolved };
+}
+
+async function readGrantBody(req: Request, identity: GrantIdentityProducer): Promise<unknown> {
+  const mediaType = (req.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase();
+  if (mediaType !== 'application/json') return jsonError('grant body must be JSON', 400);
+  try {
+    return await parseJsonBody(req, JSON_BODY_MAX_BYTES);
+  } catch (err) {
+    if (readIdentityFailure(identity, err)?.code === 'limit') return jsonError('grant body too large', 429);
+    return jsonError("grant body must be JSON", 400);
+  }
+}
+
+async function verifyGrantCsrf(
+  identity: GrantIdentityProducer,
+  sessionToken: string,
+  req: Request,
+  body: unknown,
+): Promise<Response | null> {
+  const presented = req.headers.get('x-csrf-token') ?? (isRecord(body) && typeof body[CSRF_FIELD] === 'string' ? body[CSRF_FIELD] : null);
+  try {
+    if (presented === null || !(await identity.verifyCsrfToken(sessionToken, presented))) {
+      return jsonError('Invalid or missing CSRF token.', 403);
+    }
+  } catch {
+    return jsonError('grant issuance failed', 500);
+  }
+  return null;
+}
+
+function readGrantClientId(body: unknown): string | Response {
+  const clientId: unknown = isRecord(body) ? body["client_id"] : undefined;
+  if (typeof clientId !== "string" || clientId.trim() === "") {
+    return jsonError("client_id is required", 400);
+  }
+  return clientId;
+}
+
+async function issueGrantResponse(
+  identity: GrantIdentityProducer,
+  ctx: { identityStore: IdentityStore },
+  resolved: ResolvedIdentity,
+  clientId: string,
+): Promise<Response> {
+  try {
+    const issued = await identity.issueMcpGrant(ctx.identityStore, {
+      user_id: resolved.actor!.user_id,
+      team_id: resolved.team!.team_id,
+      client_id: clientId,
+    });
+    // ONLY the four documented keys — never hashes, never internals.
+    // The raw token is returned once and never stored or logged.
+    return Response.json({
+      token: issued.token,
+      grant_id: issued.grant.grant_id,
+      user_id: issued.grant.user_id,
+      team_id: issued.grant.team_id,
+    });
+  } catch (err) {
+    const failure = readIdentityFailure(identity, err);
+    if (failure !== null) {
+      return jsonError(failure.message, 400);
+    }
+    console.log("[mcp-grant] issuance failed", err instanceof Error ? err.message : String(err));
+    return jsonError("grant issuance failed", 500);
+  }
+}
+
 /**
  * Production grant issuance (PINNED contract). `ctx.identityStore` is
  * the D1-backed store from `buildProductionDeps`; the route itself is
@@ -156,72 +253,17 @@ export async function handleMcpGrant(
     return jsonError("grant issuance is unavailable", 500);
   }
 
-  const sessionToken = identity.parseSessionCookie(req.headers.get("cookie") ?? undefined);
-  if (sessionToken === null) {
-    return jsonError("mcp-grant needs a session", 401);
-  }
-  let resolved: ResolvedIdentity;
-  try {
-    resolved = await identity.resolveIdentity(ctx.identityStore, { session_token: sessionToken });
-  } catch (err) {
-    const failure = readIdentityFailure(identity, err);
-    if (failure !== null) {
-      return jsonError(failure.message, 401);
-    }
-    console.log("[mcp-grant] session resolve failed", err instanceof Error ? err.message : String(err));
-    return jsonError("grant issuance failed", 500);
-  }
-  if (
-    resolved.actor === null ||
-    resolved.team === null ||
-    resolved.membership === null ||
-    resolved.membership.status !== "active"
-  ) {
-    return jsonError("mcp-grant needs an active team membership", 403);
-  }
+  const actor = await resolveGrantActor(identity, req.headers.get("cookie"), () => ctx.identityStore);
+  if (actor instanceof Response) return actor;
 
-  const mediaType = (req.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase();
-  if (mediaType !== 'application/json') return jsonError('grant body must be JSON', 400);
-  let body: unknown;
-  try {
-    body = await parseJsonBody(req, JSON_BODY_MAX_BYTES);
-  } catch (err) {
-    if (readIdentityFailure(identity, err)?.code === 'limit') return jsonError('grant body too large', 429);
-    return jsonError("grant body must be JSON", 400);
-  }
-  const presented = req.headers.get('x-csrf-token') ?? (isRecord(body) && typeof body[CSRF_FIELD] === 'string' ? body[CSRF_FIELD] : null);
-  try {
-    if (presented === null || !(await identity.verifyCsrfToken(sessionToken, presented))) {
-      return jsonError('Invalid or missing CSRF token.', 403);
-    }
-  } catch {
-    return jsonError('grant issuance failed', 500);
-  }
-  const clientId: unknown = isRecord(body) ? body["client_id"] : undefined;
-  if (typeof clientId !== "string" || clientId.trim() === "") {
-    return jsonError("client_id is required", 400);
-  }
+  const body = await readGrantBody(req, identity);
+  if (body instanceof Response) return body;
 
-  try {
-    const issued = await identity.issueMcpGrant(ctx.identityStore, {
-      user_id: resolved.actor.user_id,
-      team_id: resolved.team.team_id,
-      client_id: clientId,
-    });
-    // ONLY the four documented keys — never hashes, never internals.
-    // The raw token is returned once and never stored or logged.
-    return Response.json({
-      token: issued.token,
-      grant_id: issued.grant.grant_id,
-      user_id: issued.grant.user_id,
-      team_id: issued.grant.team_id,
-    });
-  } catch (err) {
-    const failure = readIdentityFailure(identity, err);
-    if (failure !== null) {
-      return jsonError(failure.message, 400);
-    }
-    console.log("[mcp-grant] issuance failed", err instanceof Error ? err.message : String(err));
-    return jsonError("grant issuance failed", 500);
-  }
+  const csrfFailure = await verifyGrantCsrf(identity, actor.sessionToken, req, body);
+  if (csrfFailure !== null) return csrfFailure;
+
+  const clientId = readGrantClientId(body);
+  if (clientId instanceof Response) return clientId;
+
+  return issueGrantResponse(identity, ctx, actor.resolved, clientId);
 }

@@ -19695,3 +19695,15 @@ results: query fences 8/8, uniqueness 25/25 and old/new differential cases 20/19
 Four original above-20 functions are reduced without threshold or allowance changes.
 Full-package typecheck remains limited by missing worktree dependency types; the
 released changed files had no reported type errors. No wider State behavior changes.
+
+
+## 2026-10-18 — preserve grant-route boundaries during extraction
+
+Accepted implementation: split production MCP grant handling into private actor,
+JSON-body, CSRF, client-id and issuance helpers. Keep membership reads outside the
+identity-resolution catch and defer IdentityStore access until its original position
+inside resolution/issuance catches; independent review found and repaired both
+boundary regressions before acceptance. Existing route tests 7/7 and four new
+getter/error-order probes passed; repaired probe typing passes targeted strict
+NodeNext checking. The original above-20 handler is reduced without changing
+permissions, responses, body limits or complexity configuration.
