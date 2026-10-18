@@ -14,7 +14,7 @@ import { createD1IdentityStore, ensureIdentitySchema, hashPassword, setMemberRol
 import { checkActivationInventory } from "@canlang/state/migration/activate";
 import { buildWorkInventory } from "@canlang/work/recovery";
 import { activate } from "../deploy/activate.js";
-import { buildDeployBundleWithAssets } from "../deploy/bundle.js";
+import { buildOwnedDeployBundleWithAssets } from "../deploy/owned-bundle.js";
 import { probeInstalledRuntime } from "../deploy/installed.js";
 import { RELEASE_VERSION } from "../release/stamp.js";
 import { startLocalDev } from "./local-run.js";
@@ -210,8 +210,10 @@ function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvide
 /** Build the real portable module map from the captured installed outputs. */
 export async function produceInstalledPortableBundle(request: LocalPreviewBundleRequest & {
   readonly commandLifetime?: LocalCommandLifetime;
+  readonly signal?: AbortSignal;
 }): Promise<PortableBundleEvidence> {
   const { artifact, capture, verdict, assets, commandLifetime } = request;
+  request.signal?.throwIfAborted();
   commandLifetime?.checkpoint("installed bundle inputs");
   const consumedInputs = checkedInstalledInputs(capture);
   if (!(await captureIsCurrent(capture))) {
@@ -219,21 +221,15 @@ export async function produceInstalledPortableBundle(request: LocalPreviewBundle
   }
   commandLifetime?.checkpoint("installed bundle source check");
   const nativeBinary = consumedInputs.find(input => input.name === "extra:esbuild")!.canonicalPath!;
-  const previousBinary = process.env.ESBUILD_BINARY_PATH;
-  let bundle: ReturnType<typeof buildDeployBundleWithAssets>;
-  try {
-    // The build is synchronous, so no other preview can observe this pin
-    // between its installation and restoration. Every child inherits it.
-    process.env.ESBUILD_BINARY_PATH = nativeBinary;
-    bundle = buildDeployBundleWithAssets(artifact, { verdict, assets,
-      ...(commandLifetime === undefined ? {} : { commandLifetime }) });
-  } finally {
-    if (previousBinary === undefined) delete process.env.ESBUILD_BINARY_PATH;
-    else process.env.ESBUILD_BINARY_PATH = previousBinary;
-  }
+  const bundle = await buildOwnedDeployBundleWithAssets(artifact, { verdict, assets,
+    esbuildBinaryPath: nativeBinary,
+    ...(request.signal === undefined ? {} : { signal: request.signal }),
+    ...(commandLifetime === undefined ? {} : { commandLifetime }),
+  });
   if (!(await captureIsCurrent(capture))) {
     throw new PreviewAdmissionError("SOURCE_CHANGED", "installed package input changed during portable bundling");
   }
+  request.signal?.throwIfAborted();
   commandLifetime?.checkpoint("installed bundle result");
   return {
     bundle, captureEpochMaterial: capture.epochMaterial,

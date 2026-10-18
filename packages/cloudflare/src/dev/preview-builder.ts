@@ -71,6 +71,7 @@ export interface PortableBundleEvidence {
 }
 
 export interface LocalPreviewBundleRequest {
+  readonly signal?: AbortSignal;
   readonly artifact: CompileArtifact;
   readonly capture: SingleFileCapture;
   /** Derived only after source, capability and resource admission. */
