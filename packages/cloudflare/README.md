@@ -1,6 +1,6 @@
 # @canlang/cloudflare
 
-Lane-07 Cloudflare delivery. Two sides with a hard boundary:
+Cloudflare delivery. Two sides with a hard boundary:
 
 - **Node side** (`@canlang/cloudflare`): deploy-plan generation, compatibility
   checks, install/upgrade orchestration and shared application runtime APIs.
@@ -9,12 +9,8 @@ Lane-07 Cloudflare delivery. Two sides with a hard boundary:
   Must import no Node builtins or Node-only packages; enforced by
   `test/worker-boundary.test.ts`.
 
-`src/build/` (artifact packaging) and `src/upgrade/` (activation/recovery)
-land when compiler artifacts and producer inventory contracts exist; the
-directories are created with their first real module, not before.
-
 `can dev` is implemented in the Rust `dev-server` owner. It owns capture,
-compilation, configuration, retained preview state, examples and qualification.
+compilation, configuration, retained preview state, examples and construct help.
 `dev-server/host` makes fixed JavaScript SDK calls for Miniflare, module/AST facts
 and browser access. The former TypeScript development controller and helpers are
 removed. Private native-backed SDK fixtures support semantic tests and are
@@ -52,8 +48,7 @@ and WASM belong to the Worker inventory; browser scripts/CSS are separate
 `bundle.resources` entries for host asset serving. Selection does not initialize
 or change the backend. The writer verifies both inventories before writing and
 requires canonical output parents, rejecting existing symlinks. Browser routing
-is still the serving host's responsibility. See the
-[installed regression evidence](../../docs/implementation/installed-worker-assets/README.md).
+is still the serving host's responsibility.
 
 ## Explicit native builtin catalog
 

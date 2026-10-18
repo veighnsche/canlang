@@ -1,8 +1,7 @@
 # W01.1 — Work-transitions caller profiles
 
 Task: W01.1 (lane `work-contracts`, wave 1, after `C01.ready`). Produced
-2026-10-06T09:36:24Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9.
-Planning record only; no implementation authorized.
+2026-10-06T09:36:24Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9. Planning record only; no implementation authorized.
 
 - Head verified: `bb479c2fd9a1e0a3604f946aff0205c7bdf45e06`
 - Companion: `callers.json` (tables, shells, callers, delivery schema).

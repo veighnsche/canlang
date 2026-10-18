@@ -1,8 +1,7 @@
 # V01.3 — State sequencing and bridge contract
 
 Task: V01.3 (lane `V-state`, wave 1, after `C01.ready`). Produced
-2026-10-06T08:39:11Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9.
-Historical planning record; refreshed by finite packet B below. No product source implementation.
+2026-10-06T08:39:11Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9. Historical planning record; refreshed by finite packet B below. No product source implementation.
 
 - Head verified: `bb479c2fd9a1e0a3604f946aff0205c7bdf45e06`
 - Line anchors refer to head; the implementation must refresh them rather
@@ -43,8 +42,7 @@ respect the fence on contention (T32b-wire rule).
 Read auth-first is frozen: `evaluateBy(def.by, ...)` precedes
 `validateCallInputs(def, ...)` (verified order). Reads reject through
 the shared implementation so reads and writes agree; read operations
-cannot run through mutation `invoke` (explicit `validation` refusal).
-Generated reads route via `invokeReadCanonical`
+cannot run through mutation `invoke` (explicit `validation` refusal). Generated reads route via `invokeReadCanonical`
 (cloudflare `runtime/invoke.ts`); generated mutations via
 `invokeMutationCanonical` — both are existing canonical bridges, not
 new seams.
@@ -70,8 +68,7 @@ new seams.
   inject) never receives a transferable token — inputs through an
   unverified callback use legacy state validation.
 - No provenance inference: TypeScript types, freezing, schema tags,
-  property inspection, or structural validity never grant provenance.
-  Loader-derived channels (incl. delivery-field membership) stay with
+  property inspection, or structural validity never grant provenance. Loader-derived channels (incl. delivery-field membership) stay with
   the state owner; public `ReadonlyMap` types/copies do not establish
   immutable private provenance.
 
@@ -80,8 +77,7 @@ new seams.
 Unproven inputs; generated-handler/internal calls (`invokeFanoutChild`,
 executor callbacks, internal direct `invoke`/`invokeRead` callers);
 forms; SDK objects without producer evidence; interim identity paths;
-model-pipeline/emitted-callable defaults; receipt replay/hash itself.
-These are explicit scope boundaries, not migration debt.
+model-pipeline/emitted-callable defaults; receipt replay/hash itself. These are explicit scope boundaries, not migration debt.
 
 ## Owner review status
 
@@ -105,8 +101,7 @@ frozen defs, but `isGeneratedOperationDef` only checks the structural
 `generated` tag. Neither the tag nor presence of `preparedInputs` is a
 private producer capability. The loader builds defs during a loop and
 can fail on later operations or final `inputArrays` checks; future
-private registry records must remain staged until whole-set success.
-Bind exact load/def/descriptor identities and copied array/delivery
+private registry records must remain staged until whole-set success. Bind exact load/def/descriptor identities and copied array/delivery
 metadata to the state owner, never operation-name/version alone. `by` and
 `when` factory callbacks retain their current metadata calls, never
 receive protected request data or mint request provenance.

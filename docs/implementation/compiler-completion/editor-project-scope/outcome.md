@@ -16,8 +16,7 @@ project-reference API was found. Generic navigation/refactoring feature bullets
 in the extension README remain, with their document scope now explicit.
 
 `editors/vscode/src/extension.ts::startClient` selects the starting Can
-document's owning local folder, falling back to the first local folder.
-The extension starts one client and replays all open Can documents to it.
+document's owning local folder, falling back to the first local folder. The extension starts one client and replays all open Can documents to it.
 `client.ts::start` passes that cwd to the child, sends `rootUri:null` without
 workspace folders, and supplies no catalog watcher. Restart stops the child and
 selects cwd again from the active document. `RealAnalysis::from_process` reads

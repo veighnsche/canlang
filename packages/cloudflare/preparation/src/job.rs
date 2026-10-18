@@ -453,7 +453,9 @@ fn module_entries(
         Failure::for_stage(command, stage, crate::failures::transport::BAD_NODE, detail)
     };
     let Node::Arr(items) = tree else {
-        return Err(bad(format!("LOAD_MODULES resume: {field} must be an array")));
+        return Err(bad(format!(
+            "LOAD_MODULES resume: {field} must be an array"
+        )));
     };
     let mut buffers = Vec::with_capacity(items.len());
     for item in items {
@@ -465,19 +467,16 @@ fn module_entries(
             .ok_or_else(|| bad(format!("LOAD_MODULES resume: {field}[*].js must be text")))?;
         let facts = match crate::input::obj_get(item, "facts") {
             None => None,
-            Some(node) => Some(
-                crate::modules::decode_module_facts(node)
-                    .map_err(|detail| {
-                        // The `modules` field keeps the shared decoder's
-                        // historical detail byte-identical (pinned by
-                        // vectors); layer fields name their own array.
-                        if field == "modules" {
-                            bad(detail)
-                        } else {
-                            bad(format!("LOAD_MODULES resume: {field}[*].facts {detail}"))
-                        }
-                    })?,
-            ),
+            Some(node) => Some(crate::modules::decode_module_facts(node).map_err(|detail| {
+                // The `modules` field keeps the shared decoder's
+                // historical detail byte-identical (pinned by
+                // vectors); layer fields name their own array.
+                if field == "modules" {
+                    bad(detail)
+                } else {
+                    bad(format!("LOAD_MODULES resume: {field}[*].facts {detail}"))
+                }
+            })?),
         };
         buffers.push(ModuleBuffer {
             key: key.clone(),
@@ -525,9 +524,8 @@ fn native_layers(
         ));
     }
     let bytes = serde_json::to_vec(raw).unwrap_or_default();
-    let node = decode_tree(&bytes).map_err(|e| {
-        Failure::for_stage(command, ST_LOAD_MODULES, e.code, e.detail)
-    })?;
+    let node = decode_tree(&bytes)
+        .map_err(|e| Failure::for_stage(command, ST_LOAD_MODULES, e.code, e.detail))?;
     let layer = |name: &str| -> Result<Vec<ModuleBuffer>, Failure> {
         let field = format!("layers.{name}");
         match crate::input::obj_get(&node, name) {
@@ -572,7 +570,12 @@ fn authored_maps(
     command: &str,
 ) -> Result<Option<Vec<AuthoredMap>>, Failure> {
     let bad = |detail: String| {
-        Failure::for_stage(command, ST_LOAD_MODULES, crate::failures::transport::BAD_NODE, detail)
+        Failure::for_stage(
+            command,
+            ST_LOAD_MODULES,
+            crate::failures::transport::BAD_NODE,
+            detail,
+        )
     };
     let raw = match payload.get("authoredMaps") {
         None | Some(serde_json::Value::Null) => return Ok(None),
@@ -582,13 +585,17 @@ fn authored_maps(
     let node = decode_tree(&bytes)
         .map_err(|error| Failure::for_stage(command, ST_LOAD_MODULES, error.code, error.detail))?;
     let Node::Arr(items) = node else {
-        return Err(bad("LOAD_MODULES resume: authoredMaps must be an array".to_string()));
+        return Err(bad(
+            "LOAD_MODULES resume: authoredMaps must be an array".to_string()
+        ));
     };
     let mut out = Vec::with_capacity(items.len());
     for item in &items {
         let field = |name: &str| {
             obj_get(item, name).ok_or_else(|| {
-                bad(format!("LOAD_MODULES resume: authoredMaps[*].{name} is required"))
+                bad(format!(
+                    "LOAD_MODULES resume: authoredMaps[*].{name} is required"
+                ))
             })
         };
         let path = field("path")
@@ -603,8 +610,10 @@ fn authored_maps(
             node => Some(
                 as_text(node)
                     .ok_or_else(|| {
-                        bad("LOAD_MODULES resume: authoredMaps[*].mapJson must be text or null"
-                            .to_string())
+                        bad(
+                            "LOAD_MODULES resume: authoredMaps[*].mapJson must be text or null"
+                                .to_string(),
+                        )
                     })
                     // WHATWG parity with the host `Buffer.from(json,
                     // "utf8")`: lone surrogates ride as U+FFFD on both
@@ -612,12 +621,11 @@ fn authored_maps(
                     .map(|units| String::from_utf16_lossy(units))?,
             ),
         };
-        let (bits, _) = field("stages")
-            .and_then(|node| {
-                as_num(node).ok_or_else(|| {
-                    bad("LOAD_MODULES resume: authoredMaps[*].stages must be a number".to_string())
-                })
-            })?;
+        let (bits, _) = field("stages").and_then(|node| {
+            as_num(node).ok_or_else(|| {
+                bad("LOAD_MODULES resume: authoredMaps[*].stages must be a number".to_string())
+            })
+        })?;
         let stages = f64::from_bits(bits);
         if !(stages >= 0.0 && stages.fract() == 0.0) {
             return Err(bad(
@@ -632,7 +640,9 @@ fn authored_maps(
         let facts = match obj_get(item, "facts") {
             None | Some(Node::Null) => None,
             Some(node) => Some(crate::modules::decode_module_facts(node).map_err(|detail| {
-                bad(format!("LOAD_MODULES resume: authoredMaps[*].facts {detail}"))
+                bad(format!(
+                    "LOAD_MODULES resume: authoredMaps[*].facts {detail}"
+                ))
             })?),
         };
         out.push(AuthoredMap {
@@ -663,10 +673,19 @@ fn stage_authored(
     command: &str,
 ) -> Result<crate::modules::StagedBundle, Failure> {
     let refused = |message: String| {
-        Failure::for_stage(command, ST_LOAD_MODULES, crate::failures::semantic::BUNDLE_FAILED, message)
+        Failure::for_stage(
+            command,
+            ST_LOAD_MODULES,
+            crate::failures::semantic::BUNDLE_FAILED,
+            message,
+        )
     };
     for entry in maps {
-        if !artifact.modules.iter().any(|module| module.path == entry.path.as_slice()) {
+        if !artifact
+            .modules
+            .iter()
+            .any(|module| module.path == entry.path.as_slice())
+        {
             return Err(refused(format!(
                 "LOAD_MODULES resume: authoredMaps carries unknown module {} (host skew)",
                 crate::input::json_quote(&entry.path)
@@ -1075,8 +1094,7 @@ fn load_native_layers(
     // artifact, trailing) so multi-failure precedence matches the
     // composed-map gate order.
     let pre = factored_layer(&layers.pre, writer)?;
-    let mut staged_layer =
-        Vec::with_capacity(staged.staged.len());
+    let mut staged_layer = Vec::with_capacity(staged.staged.len());
     for (key, js) in &staged.staged {
         let facts = match maps
             .iter()
@@ -1174,8 +1192,7 @@ fn load_native_layers(
             return Err(1);
         }
     };
-    let staged_paths: Vec<Vec<u16>> =
-        staged.staged.iter().map(|(path, _)| path.clone()).collect();
+    let staged_paths: Vec<Vec<u16>> = staged.staged.iter().map(|(path, _)| path.clone()).collect();
     let path_refs: Vec<&[u16]> = staged_paths.iter().map(|path| path.as_slice()).collect();
     let assembly = match crate::modules::portable_assembled_modules(&path_refs, &source_maps) {
         Ok(assembly) => assembly,
@@ -1192,21 +1209,22 @@ fn load_native_layers(
             return Err(1);
         }
     };
-    let rendered = match crate::modules::render_staged_deployment(tree, &assembly, &staged_paths, &verdict) {
-        Ok(rendered) => rendered,
-        Err(error) => {
-            let _ = refuse(
-                writer,
-                Failure::for_stage(
-                    COMMAND,
-                    ST_LOAD_MODULES,
-                    semantic::BUNDLE_FAILED,
-                    error.message,
-                ),
-            );
-            return Err(1);
-        }
-    };
+    let rendered =
+        match crate::modules::render_staged_deployment(tree, &assembly, &staged_paths, &verdict) {
+            Ok(rendered) => rendered,
+            Err(error) => {
+                let _ = refuse(
+                    writer,
+                    Failure::for_stage(
+                        COMMAND,
+                        ST_LOAD_MODULES,
+                        semantic::BUNDLE_FAILED,
+                        error.message,
+                    ),
+                );
+                return Err(1);
+            }
+        };
     let artifact_key: Vec<u16> = crate::modules::ARTIFACT_MODULE.encode_utf16().collect();
     let artifact_facts = match payload.get("artifactFacts") {
         None | Some(serde_json::Value::Null) => {
@@ -1256,7 +1274,8 @@ fn load_native_layers(
         artifact_facts,
     )];
     let trailing = factored_layer(&layers.trailing, writer)?;
-    let merged = crate::modules::merge_factored_layers(&[pre, staged_layer, post, artifact_layer, trailing]);
+    let merged =
+        crate::modules::merge_factored_layers(&[pre, staged_layer, post, artifact_layer, trailing]);
     for binary in &binary_keys {
         if merged.iter().any(|(key, _, _)| key == binary) {
             let _ = refuse(
@@ -1278,7 +1297,12 @@ fn load_native_layers(
         if let Err(detail) = crate::modules::validate_module_facts(key, js, facts) {
             let _ = refuse(
                 writer,
-                Failure::for_stage(COMMAND, ST_LOAD_MODULES, crate::failures::transport::BAD_NODE, detail),
+                Failure::for_stage(
+                    COMMAND,
+                    ST_LOAD_MODULES,
+                    crate::failures::transport::BAD_NODE,
+                    detail,
+                ),
             );
             return Err(1);
         }
@@ -1340,7 +1364,13 @@ fn load_modules(
     activation: Option<&serde_json::Value>,
 ) -> Result<LoadModulesOutcome, i32> {
     *token += 1;
-    let payload = match exchange(reader, writer, *token, ST_LOAD_MODULES, serde_json::json!({})) {
+    let payload = match exchange(
+        reader,
+        writer,
+        *token,
+        ST_LOAD_MODULES,
+        serde_json::json!({}),
+    ) {
         Exchange::Payload(payload) => payload,
         Exchange::Done(code) => return Err(code),
     };
@@ -1503,7 +1533,12 @@ fn load_modules(
         if let Err(detail) = crate::modules::validate_module_facts(&buffer.key, &buffer.js, facts) {
             let _ = refuse(
                 writer,
-                Failure::for_stage(command, ST_LOAD_MODULES, crate::failures::transport::BAD_NODE, detail),
+                Failure::for_stage(
+                    command,
+                    ST_LOAD_MODULES,
+                    crate::failures::transport::BAD_NODE,
+                    detail,
+                ),
             );
             return Err(1);
         }
@@ -1963,7 +1998,7 @@ fn run_deploy_tail(
                     "deploy",
                     GATE_COMPILER,
                     semantic::COMPILER_MISMATCH,
-                    format!("{detail} (release lockstep: rebuild with the pinned toolchain)"),
+                    format!("{detail} (release mismatch: rebuild the preparation binary)"),
                 ),
             );
         }
@@ -2102,7 +2137,10 @@ mod tests {
             "valid pair rides planJson as one scalar"
         );
         assert!(
-            review.lines.iter().any(|line| line == "+ worker w1 main=./dist/worker/entry.js compat=2026-07-15"),
+            review
+                .lines
+                .iter()
+                .any(|line| line == "+ worker w1 main=./dist/worker/entry.js compat=2026-07-15"),
             "worker line projected"
         );
     }

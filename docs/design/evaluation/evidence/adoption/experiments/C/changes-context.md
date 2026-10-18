@@ -24,8 +24,7 @@ This is one later-change attempt per variant, with ordinary self-checks recorded
 # Request departmental equipment privately, manage your unresolved requests, and review only departments you manage.
 app EquipmentRequests
 Given
- ## Department assignments are business data; canonical teams still owns authentication and team membership.
- Employee { user:user unique label="Employee", department:enum(A,B,C) label={text="Department",values={A="Department A",B="Department B",C="Department C"}}, manager:bool=false label="Department manager", enabled:bool=true } label="Department assignment"
+ ## Department assignments are business data; canonical teams still owns authentication and team membership. Employee { user:user unique label="Employee", department:enum(A,B,C) label={text="Department",values={A="Department A",B="Department B",C="Department C"}}, manager:bool=false label="Department manager", enabled:bool=true } label="Department assignment"
  policy Employee read=members where=owner or row.user==actor
  lock Employee fields=user
  Request { title:text trim min=1 max=200, note:text? label="Note", submitted_by:user server=actor label="Request owner", department:Employee.department? server=first(Employee as employee where employee.user==actor and employee.enabled)?.department label="Department" } label="Equipment request"

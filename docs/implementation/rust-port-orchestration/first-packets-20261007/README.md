@@ -2,7 +2,7 @@
 
 **Planning is complete. Stop here until the human releases implementation.** The same 15-minute supervisor remains **PAUSED**, `execution_authorized=false`, and preparation/native-release remains **HUMAN HOLD**. No product worker, role, goal, timer, worktree, output root or source lease was launched by this step.
 
-The authoritative [machine queue](../packets.json) replaces the provisional R1-FIRST/R2-FIRST/R3-FIRST records. It names exact task references, consumed source inputs, future writable paths, acceptance, model/effort, assembly requests and private output templates. The [source checkpoint](source-checkpoint.json) pins each existing input and marks proposed new outputs absent. The committed five-profile contract baseline is `653cb2a`; current source includes the independent compiler agent's later commit `74f7271`. Refresh the actual consumed hashes again at activation.
+The authoritative machine queue replaces the provisional R1-FIRST/R2-FIRST/R3-FIRST records. It names exact task references, consumed source inputs, future writable paths, acceptance, model/effort, assembly requests and private output templates. The source checkpoint pins each existing input and marks proposed new outputs absent. The committed five-profile contract baseline is `653cb2a`; current source includes the independent compiler agent's later commit `74f7271`. Refresh the actual consumed hashes again at activation.
 
 ## First three finite packets after release
 
@@ -12,13 +12,13 @@ The authoritative [machine queue](../packets.json) replaces the provisional R1-F
 | B / R2 | `first:R2:V01-consumed-owner-contracts`; `ports:V01.1–V01.4`, including borrowed state contract | Eight named contract/inventory/review files; no product source writes | **Sol high**: unresolved private provenance/core-call/evaluation seam. Approved receipt extraction is **Luna low**. |
 | C / R3 | `first:R3:N03-work-number-maintenance`; narrower correction/witnesses for `ports:W04.1/W04.3` | Four decision leaves, shared package-local formatter, named oracle/fixture/test/evidence | **Sol medium** for the frozen leaf. **Sol high** for independent four-harness/assembly-boundary review or an actual harness contradiction. |
 
-These are three future packets within four dispatcher slots including Codex, not four permanent coordinators. R1 remains the only values arithmetic/validation common assembly owner; R3 owns work/global delivery. R4 can borrow released disjoint capacity, while native preparation stays held. Every actual dispatch rechecks the cheapest supported reliable model/effort and records its reason. [Dispatch record](model-dispatches.json) links checked official model documentation; choices are task judgments, not measured savings.
+These are three future packets within four dispatcher slots including Codex, not four permanent coordinators. R1 remains the only values arithmetic/validation common assembly owner; R3 owns work/global delivery. R4 can borrow released disjoint capacity, while native preparation stays held. Every actual dispatch rechecks the cheapest supported reliable model/effort and records its reason. Dispatch record links checked official model documentation; choices are task judgments, not measured savings.
 
 N03 explicitly replaces affected standalone `rustc` test routes with four private Cargo projects under its own run root. Each copies an exact candidate leaf and helper, uses the frozen `ryu-js` pin, isolated lock/target, original vectors and independent new witnesses. Record copy/source equality and any test-only wrapper. This proves compiled leaf sources only. Product Cargo dependency/root registration, ABI, installed consumer and W04.4 acceptance remain separate R3 tasks; the actual current product root exports a version constant only.
 
 ## Ready inventory and successor selection
 
-All **17 original direct-dependency-ready records** are preserved in the machine queue with unchanged status, prerequisites and original acceptance. Direct graph readiness does not mean source dispatch approval. The full [ready/blocked/held inventory](../preflight-20261007/scope-queue.json) still governs all 333 canonical records and the selected 230 port identities. The 220 required port records retain 54 narrow credits and 166 open items; conditional/deferred routes and held preparation remain distinct.
+All **17 original direct-dependency-ready records** are preserved in the machine queue with unchanged status, prerequisites and original acceptance. Direct graph readiness does not mean source dispatch approval. The full ready/blocked/held inventory still governs all 333 canonical records and the selected 230 port identities. The 220 required port records retain 54 narrow credits and 166 open items; conditional/deferred routes and held preparation remain distinct.
 
 Seven successor candidates have exact future paths and acceptance:
 
@@ -43,6 +43,6 @@ Priority follows useful prerequisite release, not equal lane hours or a global w
 5. Each worker releases exact files, hashes, immutable expected data, logs/exits/negative controls and owners/commands. Codex independently reviews, stages explicit owned paths and commits coherent slices early. Candidate/source-ready status stays distinct from parent/native/Wasm/installed/default acceptance.
 6. An actual merge requires living-filetree reconciliation of all changes since its checkpoint. This planning commit is not a merge and advances no checkpoint.
 
-[Technical review](technical-readiness.md), [independent queue review](independent-review.md) and [verification](verification.json) record only planning checks. Canonical status/DAG/counts and package source bytes stay unchanged. Shared `DECISIONS.md` is owned by the concurrent compiler writer; [owned decision records](residual-decisions.md) are saved here and shared integration waits for exact-file handoff.
+[Technical review](technical-readiness.md), [independent queue review](independent-review.md) and verification record only planning checks. Canonical status/DAG/counts and package source bytes stay unchanged. Shared `DECISIONS.md` is owned by the concurrent compiler writer; [owned decision records](residual-decisions.md) are saved here and shared integration waits for exact-file handoff.
 
 **No implementation starts from this queue, its commit, a scheduled wake, or elapsed time. Planning stops here.**

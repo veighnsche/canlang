@@ -5,8 +5,7 @@
  * Reuses the owning launch-time verifiers against one stage dir —
  * default `dist/preparation/<host triple>` — with no compiler, Cargo,
  * or source crate involved:
- *   1. `verifyExecutableManifest` (triple, executable bit, sha256+bytes,
- *      pinned toolchain),
+ *   1. `verifyExecutableManifest` (triple, executable bit, sha256+bytes),
  *   2. owning `RELEASE_VERSION` skew check (same comparison the launch
  *      guard enforces before any spawn),
  *   3. `probeReadiness` handshake on a fresh process (bounded deadline).

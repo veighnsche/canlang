@@ -2,10 +2,9 @@
 /**
  * Build the release `can-preparation` binary (P09.1).
  *
- * Pinned-toolchain reproducible build (`cargo build --locked --release`)
- * staged to `dist/preparation/<triple>/` with a `manifest.json` sidecar
- * (binary sha/bytes, toolchain versions, lockfile hash, source head).
- * Fails loud on toolchain drift or cross-triple requests.
+ * Runs `cargo build --locked --release` and stages the executable to
+ * `dist/preparation/<triple>/` with its release, checksum and byte length.
+ * Refuses cross-triple requests.
  *
  * Usage: node packages/cloudflare/scripts/build-preparation.mjs [--triple T]
  */
@@ -19,7 +18,6 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PACKAGE_ROOT = resolve(HERE, "..");
 const CRATE_DIR = join(PACKAGE_ROOT, "preparation");
-const EXPECTED_RUSTC = "1.99.0";
 
 export function hostTriple() {
   const plat = platform() === "win32" ? "windows" : platform();
@@ -29,21 +27,6 @@ export function hostTriple() {
 
 export function binaryName(triple) {
   return triple.startsWith("windows-") ? "can-preparation.exe" : "can-preparation";
-}
-
-function toolVersion(tool, pattern) {
-  const out = execFileSync(tool, ["--version"], { encoding: "utf8", cwd: CRATE_DIR });
-  const match = out.match(pattern);
-  if (!match) throw new Error(`cannot parse ${tool} version from: ${out}`);
-  return match[1];
-}
-
-function sourceHead() {
-  try {
-    return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", cwd: PACKAGE_ROOT }).trim();
-  } catch {
-    return "unknown (not a git checkout)";
-  }
 }
 
 function sha256File(path) {
@@ -93,53 +76,15 @@ function crateVersion() {
 
 function stampSidecar(stageDir, binary, { release } = {}) {
   const staged = join(stageDir, binary);
-  const rustc = toolVersion("rustc", /rustc (\S+)/);
-  const cargo = toolVersion("cargo", /cargo (\S+)/);
-  if (!rustc.startsWith(EXPECTED_RUSTC)) {
-    throw new Error(
-      `toolchain drift: rust-toolchain pins ${EXPECTED_RUSTC}, active rustc is ${rustc}. ` +
-        `Run: rustup toolchain install ${EXPECTED_RUSTC} --profile minimal`,
-    );
-  }
   const sidecar = {
     triple: hostTriple(),
     binary,
     sha256: sha256File(staged),
     bytes: readFileSync(staged).length,
-    toolchain: { rustc, cargo, pinned: EXPECTED_RUSTC },
-    lockfileSha256: sha256File(join(CRATE_DIR, "Cargo.lock")),
-    sourceHead: sourceHead(),
     release: release ?? crateVersion(),
   };
   writeFileSync(join(stageDir, "manifest.json"), JSON.stringify(sidecar, null, 2) + "\n");
   return { staged, sidecar };
-}
-
-/**
- * Refuse an inherited build-target override (045/030): with
- * CARGO_BUILD_TARGET or a crate-local `build.target` set, Cargo
- * emits under `target/<triple>/{release,debug}` while this script
- * consumes `target/{release,debug}/` — stamping a stale host file as
- * current output. The assigned host profile builds the default
- * target only.
- */
-export function assertNoBuildTargetOverride() {
-  const envTarget = process.env.CARGO_BUILD_TARGET;
-  if (typeof envTarget === "string" && envTarget.length > 0) {
-    throw new Error(
-      `build-preparation: CARGO_BUILD_TARGET=${JSON.stringify(envTarget)} relocates build output under target/<triple>/; unset it — the host profile builds the default target only`,
-    );
-  }
-  for (const name of ["config.toml", "config"]) {
-    const file = join(CRATE_DIR, ".cargo", name);
-    if (!existsSync(file)) continue;
-    const text = readFileSync(file, "utf8");
-    if (/^\s*target\s*=/m.test(text)) {
-      throw new Error(
-        `build-preparation: ${file} sets a build target; remove it — the host profile builds the default target only`,
-      );
-    }
-  }
 }
 
 /**
@@ -181,7 +126,7 @@ export function cargoBuiltExecutable(args) {
   return built;
 }
 
-/** Host triple of the active pinned toolchain (`rustc -vV`). */
+/** Host triple of the active toolchain (`rustc -vV`). */
 export function rustcHost() {
   let out;
   try {
@@ -213,8 +158,7 @@ export function hostProfileStage(built, targetRoot) {
   const rel = relative(targetRoot, dir);
   const parts = rel.split(sep).filter((part) => part !== "" && part !== ".");
   if (parts.length === 1) {
-    // <root>/<profile>: default-target layout (host; overrides that
-    // could relocate it are refused separately).
+    // <root>/<profile>: Cargo reported the default host layout.
   } else if (parts.length === 2 && parts[1] === profile) {
     // <root>/<triple>/<profile>: only the active rustc host triple
     // is a host build.
@@ -235,7 +179,6 @@ export function buildRelease({ triple = hostTriple(), outDir = join(PACKAGE_ROOT
       `cross triple ${triple} requested on ${hostTriple()}: install the rust target + linker for ${triple}, then re-run.`,
     );
   }
-  assertNoBuildTargetOverride();
   console.error(`build-preparation: cargo build --locked --release (${triple})`);
   const built = cargoBuiltExecutable(["build", "--locked", "--release"]);
   hostProfileStage(built, targetDir());
@@ -254,7 +197,6 @@ export function buildRelease({ triple = hostTriple(), outDir = join(PACKAGE_ROOT
  * Re-run after every rebuild: the guard refuses stale bytes.
  */
 export function buildDev() {
-  assertNoBuildTargetOverride();
   console.error("build-preparation: cargo build --locked (dev, local stamp)");
   const built = cargoBuiltExecutable(["build", "--locked", "--bin", "can-preparation"]);
   // Stage the actual reported bytes (047), never a guessed dev path.

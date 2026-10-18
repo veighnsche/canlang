@@ -1,8 +1,7 @@
 # V01.1 — Input-validation caller contracts and workload registry
 
 Task: V01.1 (lane `V-evidence`, wave 1, after `C01.ready`). Produced
-2026-10-06T08:33:31Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9.
-Historical planning record; refreshed by finite packet B on 2026-10-07 below. No product implementation authorized by this record.
+2026-10-06T08:33:31Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9. Historical planning record; refreshed by finite packet B on 2026-10-07 below. No product implementation authorized by this record.
 
 - Planning checkpoint: `3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5`
 - Inventory head: `bb479c2fd9a1e0a3604f946aff0205c7bdf45e06` (current main)
@@ -36,8 +35,7 @@ Historical planning record; refreshed by finite packet B on 2026-10-07 below. No
 - `http-input/v1`: first unknown in JS enumeration order, then first missing
   required in shape order (own presence), then first bound failure in derived
   input order. Explicit own null/undefined differs from values. No
-  normalization/default fill — return submitted raw business inputs.
-  Catalog-without-derived framing-only behavior kept. Interfaces
+  normalization/default fill — return submitted raw business inputs. Catalog-without-derived framing-only behavior kept. Interfaces
   digits-only versions admit zero/leading zeros/arbitrary magnitude.
 - `mcp-ordinary/v1`: host mutation-ID framing first; closedness precedes
   descriptor ref-shape checks, which precede derived binding. Nullable ref
@@ -62,8 +60,7 @@ Historical planning record; refreshed by finite packet B on 2026-10-07 below. No
 - **HTTP operations**: the current `AssemblyDeps.http.createOperationHandler`
   seam and real-handler delegation exist; `worker/main.ts` loads the default
   sibling built by `deploy/bundle.ts`. An absent factory retains explicit
-  interim 501. Auth/pages/uploads/ingress remain outside this operation join.
-  Source wiring, injected package-handler proof, actual workerd/native proof
+  interim 501. Auth/pages/uploads/ingress remain outside this operation join. Source wiring, injected package-handler proof, actual workerd/native proof
   and deployed adoption are separate claims; see refreshed adoption gate.
 - **Forms**: `packages/ui` generated forms (`projectGeneratedInputs`) plus
   `parseFormBody` coercion — fully legacy TS until V10 declares a faithful
@@ -109,8 +106,7 @@ The current finite PH1–PH4 proposal in `prepared-hook-review.md` supersedes
 older universal `artifact-1`/public-wrapper hook assumptions: private core
 calls do not recurse through public prepared wrappers; public unknown
 entries stay legacy; only true success-only producer identity and complete
-schema/descriptor/request/owner lifetime binding admits private requests.
-The canonical schema default reference remains the identity authority.
+schema/descriptor/request/owner lifetime binding admits private requests. The canonical schema default reference remains the identity authority.
 
 Actual R1 values PH1–PH3 future-contract ACK is recorded in `v01-review.md`
 at the exact hook hash; Codex state/interfaces acceptance remains pending. This

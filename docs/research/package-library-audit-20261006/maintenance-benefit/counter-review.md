@@ -1,9 +1,7 @@
 # Opposing maintenance review
 
 A finite Sol medium review challenged the Values and adapter assessments against
-primary source, verified baseline rows and the largest duplicate-body envelopes.
-It could see prior conclusions; this is not cleanroom or a new security acceptance.
-[Detailed record](counter-review.json) retains source hashes and qualifications.
+primary source, verified baseline rows and the largest duplicate-body envelopes. It could see prior conclusions; this is not cleanroom or a new security acceptance. Detailed record retains source hashes and qualifications.
 
 The gross duplicate-envelope arithmetic checks out for DR01/DR02/DR03/DR04/DR09:
 212/62/198/104/89 physical source lines respectively. These figures exclude nested
@@ -19,9 +17,7 @@ must remain separately qualified. A test-only or generated-code move is not a
 production saving.
 
 Root corrected two copied input ranges to actual EOF before measuring:
-schema.ts `1–60` → `1–34`; preparation/inputs.ts `120–210` → `120–127`.
-Whole-file hashes already matched; no savings were credited to out-of-range lines.
-Root independently verifies the historical formatter and quoting bodies against
+schema.ts `1–60` → `1–34`; preparation/inputs.ts `120–210` → `120–127`. Whole-file hashes already matched; no savings were credited to out-of-range lines. Root independently verifies the historical formatter and quoting bodies against
 their old/new frozen Git blobs, rather than accepting the numerical claim alone.
 
 Mixed calendar/Intl replacement portions remain subject to the strict reduction

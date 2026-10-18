@@ -1,10 +1,8 @@
 # Cloudflare: additional Rust benefit audit
 
-Source: `08dc8c3928f53c7a06984136ac52ff944360075c`, 18 October 2026.
-Planning only. [Coverage](cloudflare-coverage.json) accounts for all 565 tracked
+Source: `08dc8c3928f53c7a06984136ac52ff944360075c`, 18 October 2026. Planning only. Coverage accounts for all 565 tracked
 paths. Production imports/function responsibilities were screened; candidate
-bodies, representative host/authority joins and their control tests were read.
-This is portfolio and responsibility coverage, not exhaustive line-by-line
+bodies, representative host/authority joins and their control tests were read. This is portfolio and responsibility coverage, not exhaustive line-by-line
 correctness certification. Tests/fixtures and held preparation artifacts are
 inventoried separately; no behavior, performance or build was executed.
 
@@ -42,8 +40,7 @@ new compiler integration and authority boundaries were inspected internally.
 `native-records.ts` binds originals in WeakMaps; receipt rows retain an owner and
 live row resolver. Snapshot admission rejects getters, hidden members, holes and
 non-finite data without executing accessors and preserves immutable protected row
-identity. `native-value-schema.ts` walks only demanded original reference paths.
-These are concrete reasons not to serialize whole rows into a generic Rust engine.
+identity. `native-value-schema.ts` walks only demanded original reference paths. These are concrete reasons not to serialize whole rows into a generic Rust engine.
 
 ## Additional candidate: generation text diff
 
@@ -65,8 +62,7 @@ name that decision separately; don't silently tighten public acceptance.
 Owner remains Cloudflare generation. First finite output: workload/compatibility
 and cost comparison ending in retain-TS or one exact language proposal. A later
 candidate must join the actual `diff` command, include input/output copying and
-serialization, startup/asset cost and worst permitted repeated/unequal lines.
-Current `controls.test.ts` has real diff control cases and basic binary/large
+serialization, startup/asset cost and worst permitted repeated/unequal lines. Current `controls.test.ts` has real diff control cases and basic binary/large
 `textHunks` checks, not a complete tie oracle. Do not port leases, saved-group
 ownership, candidate authorization or journal promotion. There is no accepted
 new native delivery owner for this candidate; don't hide it in held preparation
@@ -97,6 +93,5 @@ or add it to Values solely to obtain a Wasm loader.
   exact ownership is often a better first comparison than language replacement.
 
 Independent source challenge of these candidates is in
-[adapters-ui.md](adapters-ui.md#independent-challenge-of-selected-cloudflare-seams).
-The candidate is optional and unmeasured. No existing complete review checkpoint,
+[adapters-ui.md](adapters-ui.md#independent-challenge-of-selected-cloudflare-seams). The candidate is optional and unmeasured. No existing complete review checkpoint,
 canonical task acceptance, backend default or release changes here.

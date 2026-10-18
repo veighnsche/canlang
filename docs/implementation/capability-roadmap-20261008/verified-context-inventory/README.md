@@ -2,7 +2,7 @@
 
 **Source-current preparation:** SEQ-010 remains open. This inventory retains existing selected user-scenario qualification and identifies the remaining used-scope gaps; it changes no acceptance or task count.
 
-Inputs are Capability source `6e8692fe` and the published draft checkout `5a12eb9ebb136ffa4e5ce352663f92affba25bc2` (2026-10-09). The source-publisher prerequisite is cleared. [map.json](map.json) lists every user scenario, CRUD declaration, mutation hook, trusted handler and page in the current Creative/Chat/Approve sources, with source locators and separate shared dependencies.
+Inputs are Capability source `6e8692fe` and the published draft checkout `5a12eb9ebb136ffa4e5ce352663f92affba25bc2` (2026-10-09). The source-publisher prerequisite is cleared. map.json lists every user scenario, CRUD declaration, mutation hook, trusted handler and page in the current Creative/Chat/Approve sources, with source locators and separate shared dependencies.
 
 | Used scope | Current defining carrier / binding | Qualification limit and remaining owner |
 |---|---|---|

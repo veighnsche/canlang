@@ -11,7 +11,7 @@ These four plans turn the package migration evaluation into tasks an implementer
 | [Work transitions](work-transitions.md) | Shared rows, schedule/retry/recovery decisions, receipt projection and conditional-batch linkage | A work-owned `work-kernel` leaf package, with live host evidence and fenced commits retained. Full scheduler orchestration is separately gated. |
 | [Artifact preparation](artifact-preparation.md) | Artifact/release/compatibility/module graph/plan/render/review preparation | One retained native job and coarse ordered host stages. Bun, catalog producers, activation, publication and Wrangler remain with existing owners. |
 
-The four checklists contain 205 work items and gates, plus 25 shared items: 220 required and 10 conditional/deferred items in total. All boxes remain unchecked. Each has explicit dependencies, file ownership and acceptance; the [combined execution manifest](execution-manifest.json) also checks the required-scope and accepted-branch dispatch profiles.
+The four checklists contain 205 work items and gates, plus 25 shared items: 220 required and 10 conditional/deferred items in total. All boxes remain unchecked. Each has explicit dependencies, file ownership and acceptance; the combined execution manifest also checks the required-scope and accepted-branch dispatch profiles.
 
 Arithmetic and validation are separate task lanes in one shared core. They must not create separate decimal, money, type or wire authorities. Four plans do not imply four new general-purpose engines. The previous [ratings and scope comparison](../boundary-options.md) remain estimates; these plans do not raise scores without implementation evidence.
 
@@ -33,7 +33,7 @@ Artifact preparation uses one native process session with demand-driven coarse h
 
 ## Shared requirement identities
 
-[shared.tasks.json](shared.tasks.json) preserves the original actions, write ownership and acceptance. The canonical remaining-work units select the unmet output; historical wave numbers do not impose new barriers.
+shared.tasks.json preserves the original actions, write ownership and acceptance. The canonical remaining-work units select the unmet output; historical wave numbers do not impose new barriers.
 
 ## Common acceptance and rollout
 
@@ -49,7 +49,7 @@ Source inspection and tests make the plan concrete, but no plan can promise perf
 
 ## Architectural consultation and evidence
 
-Following repository instructions, three independently worded equivalent JEV `choice` requests used verified package/build/consumer constraints and compared alternatives at the same outcomes. Full requests, exact responses, confidence and probability distributions are saved in [planning evidence](../evidence/implementation-plans/).
+Full requests, exact responses, confidence and probability distributions are saved in planning evidence.
 
 | Decision | Request 1 probability and confidence | Request 2 | Request 3 |
 | --- | --- | --- | --- |

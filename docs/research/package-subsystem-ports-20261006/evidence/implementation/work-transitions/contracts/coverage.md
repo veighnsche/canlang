@@ -1,8 +1,7 @@
 # W01.4 — Supported-profile ledger: retained paths, limits, and non-narrowing rules
 
 Task: W01.4 (lane `work-contracts`, wave 1, after `W01.1`, `W01.2`,
-`W01.3`, `C05.ready`). Head: `2071631` (main tip at authoring).
-Planning record only; no implementation authorized.
+`W01.3`, `C05.ready`). Head: `2071631` (main tip at authoring). Planning record only; no implementation authorized.
 
 Companions: `workloads.json` (frozen workload shapes),
 `budgets.json` (pre-registered dimensions + unratified cutoffs +

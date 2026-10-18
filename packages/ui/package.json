@@ -50,14 +50,14 @@
   "dependencies": {
     "@canlang/contracts": "workspace:*",
     "@canlang/values": "workspace:*",
-    "csv-parse": "7.0.3"
+    "csv-parse": "^7.0.3"
   },
   "devDependencies": {
-    "@types/node": "26.6.4",
-    "daisyui": "5.7.47",
-    "esbuild": "0.28.2",
-    "happy-dom": "20.14.5",
-    "typescript": "5.9.3"
+    "@types/node": "^26.6.4",
+    "daisyui": "^5.7.47",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^20.14.5",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=22"

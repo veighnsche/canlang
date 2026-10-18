@@ -1,8 +1,7 @@
 # D07 integration evidence — description/reference delivery
 
 Writer: D07 integration verifier (supplemental lane). Revision: `1ea28ed`
-(clean tree at start) + 1-line postbuild fix (see §6). Date: 2026-10-05.
-Frozen producers were READ ONLY: `compiler/src/docs.rs`, `compiler/src/cli.rs`,
+(clean tree at start) + 1-line postbuild fix (see §6). Date: 2026-10-05. Frozen producers were READ ONLY: `compiler/src/docs.rs`, `compiler/src/cli.rs`,
 `compiler/src/ide/queries.rs`, `packages/interfaces/src/docs/reference.ts`,
 `packages/cloudflare/src/cli/docs.ts`. No D02–D06 producer file was modified.
 
@@ -13,8 +12,7 @@ via `mkdir` (acquired, never held by sibling during this run), released with
 E2E platform: the REAL installed producer
 `node_modules/.bin/can-platform -> ../@canlang/cloudflare/dist/cli/platform.js`
 (a workspace symlink to the freshly built dist; no shims, no stubs).
-`can` = `compiler/target/debug/can` (`cargo build --bin can`, exit 0).
-Catalog: `--catalog=packages/values/dist/catalog.json` (the documented flag;
+`can` = `compiler/target/debug/can` (`cargo build --bin can`, exit 0). Catalog: `--catalog=packages/values/dist/catalog.json` (the documented flag;
 fixtures live in `/tmp/d07-e2e`, outside the repo's catalog search paths).
 `CAN_PLATFORM_BIN` was left unset for all e2e except the missing-runtime probe.
 
@@ -35,8 +33,7 @@ Total: 380 compiler + 318 interfaces + 743 values + 28 vitest = 1469 tests, 0 fa
 ## 2. E2E `.can` → reference (exit codes observed, not inferred)
 
 Fixture `/tmp/d07-e2e/shop.can` = docs.rs SHOP_SRC (model + contract, field/
-param descriptions, `nl` variants, one `fr=null`, one `desc=""`, scenarios).
-All runs: `can docs --catalog=$CAT [FLAGS] shop.can`, PATH prefixed with
+param descriptions, `nl` variants, one `fr=null`, one `desc=""`, scenarios). All runs: `can docs --catalog=$CAT [FLAGS] shop.can`, PATH prefixed with
 `node_modules/.bin`.
 
 | Case | Flags | Exit | Observed |
@@ -99,8 +96,7 @@ Golden-shape tests (all in green codegen 46/0):
 zien.` leak + seam retains variant),
 `d03_message_reference_resolves_to_source`,
 `d03_attached_and_legacy_feed_same_slot` (byte-identical legacy member),
-`d03_undescribed_inputs_omit_member`, `d03_empty_desc_stays_present`.
-Ports stay plain-string: `packages/interfaces/src/ports.ts:167`
+`d03_undescribed_inputs_omit_member`, `d03_empty_desc_stays_present`. Ports stay plain-string: `packages/interfaces/src/ports.ts:167`
 (`readonly description?: string`), `:194` (`readonly description: string`).
 
 ## 4. Retained negative controls
@@ -188,8 +184,7 @@ Fixed in reservation (1):
 
 Historical finding; resolved by the later independent acceptance linked below:
 
-- ROOT-BUILD-SKIPS-POSTBUILD: `tsc -b` path emits 644 (§6, last paragraph).
-  Subsequently repaired and independently verified from a clean snapshot; see [independent acceptance](../review.md#independent-acceptance--2230-utc-heartbeat). No root-build repair remains in this D scope.
+- ROOT-BUILD-SKIPS-POSTBUILD: `tsc -b` path emits 644 (§6, last paragraph). Subsequently repaired and independently verified from a clean snapshot; see [independent acceptance](../review.md#independent-acceptance--2230-utc-heartbeat). No root-build repair remains in this D scope.
 
 Historical interpretation, superseded by R-D07-06 and its accepted repair:
 

@@ -4,12 +4,10 @@ Durable work kernel: staged outbox intents with an explicit commit gate,
 idempotent occurrence admission, keyed and recurring schedules, guarded
 dispatch claims, outcome receipts with retry/backoff/reconcile, and
 recovery scans. Pure kernel logic plus port interfaces; durable fencing
-and storage belong to the lane-3 owner, and the public surface assembles
+and storage belong to State, and the public surface assembles
 in `@canlang/stdlib`.
 
-Ownership per `docs/implementation/PLAN.md`: lane 04
-(`work/`, `services/`, `files/`) owns this package. Internal only:
-`private: true`, no app-facing API.
+This package is internal; apps use the public standard library.
 
 ## Install
 
@@ -106,7 +104,7 @@ bun run --filter @canlang/work test
 The filtered root build schedules this package and its declared producer
 dependencies. It emits only each owner’s outputs, cleaning them before execution
 or cache restoration. Package `typecheck` and `test` use the same graph, then
-run the owning TypeScript check or compiled `node:test` suite uncached. Cross-producer state/work integration proofs run from work’s test suite.
+run the owning TypeScript check or compiled `node:test` suite uncached. State/Work integration checks run from Work’s test suite.
 Internal `build:emit`, `typecheck:check`, and `test:unit` tasks are execution
 steps; use the public commands above to prepare dependencies.
 
@@ -145,7 +143,7 @@ packages/work/
     receipt/index.ts    # outcomes, backoff, reconcile, dead-letter
     recovery/index.ts   # inventory, due scans, claim expiry
     observation/        # receipt projection + association matching
-    kernel/             # lane-04 tables + fenced system commands
+    kernel/             # tables + fenced system commands
   test/                 # one *.test.ts per module above
 ```
 

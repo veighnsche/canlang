@@ -24,8 +24,7 @@ is preserved; no all-V01 barrier or canonical task-status edit is made.
 The older hook proposal's `artifact-${ARTIFACT_VERSION}` is a format-version
 input, not universal identity. Current prepared wrappers call public TS
 entries and add candidate schema reads; redirecting public entries to them
-is unsafe. Current plan default-copy identity/Decimal coverage is incomplete.
-These gaps are proposals to resolve before the successor, not product fixes
+is unsafe. Current plan default-copy identity/Decimal coverage is incomplete. These gaps are proposals to resolve before the successor, not product fixes
 or native acceptance claims.
 
 ## Actual owner acceptance ledger
@@ -47,23 +46,17 @@ remain unapproved. Codex has accepted PH2/PH4 as a future contract with the
 explicit loader-context and protected-graph qualifications in
 `state-contract.md`; this is not successor dispatch.
 `next:R2:V02.6-hooks-conditional` still needs its exact source-owner transfer,
-finite assignment and implementation trace gates.
-Source owner transfer and C03/schema/wire receipts remain separate even
+finite assignment and implementation trace gates. Source owner transfer and C03/schema/wire receipts remain separate even
 when a reviewer accepts these semantics. Coordinator owns release.
 
 ## Advice, checks and limits
 
-Three independently worded equivalent JEV `choice` consultations compared
-private-only core, public identity selection with separated core, and
-postponing all hooks. `jev-1.13.0` chose private-only all three times with
-0.96/0.97/0.97 confidence; no disagreement. Full request/response and
+Full request/response and
 uncertainty remain in private receipts. Advice is not owner acceptance.
 
-B performed static source/order/hash inspections and JSON parsing only.
-No heavy fixture gate was needed or requested. No native build, tests,
+B performed static source/order/hash inspections and JSON parsing only. No heavy fixture gate was needed or requested. No native build, tests,
 workerd/deployment run, CI, Git, compiler work, product-source changes,
-shared DECISIONS changes, task status or filetree checkpoint edits.
-Future parity/trace fixtures must cover recursion/extra getter and proxy
+shared DECISIONS changes, task status or filetree checkpoint edits. Future parity/trace fixtures must cover recursion/extra getter and proxy
 traces, unsupported defaults/canonical identity, stale/foreign/released
 capabilities, failed whole-producer registration, protected arbitrary
 invoker exclusion, replay bypass, auth-first and ordered refs.

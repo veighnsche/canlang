@@ -2,7 +2,7 @@
 
 **Verdict:** the selected core mechanisms have no remaining obsolete private engine or unused direct dependency demonstrated by this review. No source deletion is recommended. The remaining handwritten paths described below are active compatibility, source-language, policy, or test adapters. This is a static retirement verdict, not fresh test, release, installed-package, or cross-host qualification.
 
-Reviewed current production source and raw working-tree production diffs before predecessor receipts/verdicts. Read `AGENTS.md`, the implementation programme, Pass 0 protocol contracts and file/hash/serialization/map witnesses, then the Pass 9 promoted correctness queue for outstanding scope. At inventory capture HEAD was `ed82712c30acb39ebf73cd31a84a03e13356d3cd`. Concurrent formatting edits change line numbers; exact source hashes and reproducible `rg` caller output are in [retirement-callers.json](retirement-callers.json). No builds, source/package edits, Git operations, decisions, or plan maintenance were performed by this reviewer. Sol medium sufficed; no escalation.
+Reviewed current production source and raw working-tree production diffs before predecessor receipts/verdicts. Read `AGENTS.md`, the implementation programme, Pass 0 protocol contracts and file/hash/serialization/map witnesses, then the Pass 9 promoted correctness queue for outstanding scope. At inventory capture HEAD was `ed82712c30acb39ebf73cd31a84a03e13356d3cd`. Concurrent formatting edits change line numbers; exact source hashes and reproducible `rg` caller output are in retirement-callers.json. No builds, source/package edits, Git operations, decisions, or plan maintenance were performed by this reviewer. Sol medium sufficed; no escalation.
 
 ## Selected mechanism closure
 

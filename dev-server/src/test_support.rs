@@ -2,7 +2,7 @@
 //! CLI consumers. All decisions execute in the defining native modules.
 use crate::{
     capture::{self, Capture, CaptureRequest, GeneratedClosure, Inventory, NamedInputPath},
-    compiler, construct, inventory, preview, qualification,
+    compiler, inventory, preview,
     runtime::Bridge,
     sdk,
 };
@@ -291,21 +291,6 @@ fn perform(request: &Value, cancel: &AtomicBool) -> Result<Value> {
                     .unwrap_or_default(),
                 input_inventory: Some("installed-local-preview".into()),
             });
-        }
-        if operation == "qualify" {
-            let capture = capture.as_ref().ok_or("capture DTO absent")?;
-            let index = construct::run(capture, &json!({"action":"index"}), cancel)?;
-            let parent = format!("native-qualification-{}", preview::random_id()?);
-            let result = qualification::run(
-                capture,
-                &index["request"],
-                &parent,
-                &call,
-                &inventory,
-                cancel,
-            );
-            sdk::release(&bridge, &resources, &parent)?;
-            return result;
         }
         execute(
             operation,

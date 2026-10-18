@@ -1,6 +1,6 @@
 # Shared N01 oracle, dependency and qualification definitions
 
-This reference is shared specification, not a combined library approval. Values, work and Rust-str packets have independent releases. Source hash references are kept once in the [machine record](numeric-contracts.json). The captured exact primitive oracle is separate from unexecuted donor/native/Wasm/installed recipes.
+This reference is shared specification, not a combined library approval. Values, work and Rust-str packets have independent releases. The captured exact primitive oracle is separate from unexecuted donor/native/Wasm/installed recipes.
 
 ## 4. Independent JavaScript number-oracle recipe (future execution)
 
@@ -33,7 +33,7 @@ Documentation/API/no_std claims support the selected mechanism; they do not cert
 
 ## 6. Native/Wasm recipes and release gates (all unexecuted)
 
-Future commands require implementation release, exact finite leases, original inputs at the scope consumed and command grants. Use private target/output directories; do not install missing toolchains during this planning step. The observed computer is arm64 macOS; obtain the actual native host triple using `rustc -vV` at qualification. Qualify that explicit host and wasm32-unknown-unknown; supported Linux/other-host release claims require their own executions. BUILD.json's historical rustc1.99.0/wasm-bindgen0.2.129 is recorded metadata, not a current tool observation.
+Use private build/output directories and preserve the supported semantics and host behavior.
 
 **Values actual package:** after R1's dependency join, `cargo test --locked --manifest-path packages/values/Cargo.toml -p values-semantics --test numeric_text_contract` and separately `--test string_escape_contract`; run existing directly affected scalar/arithmetic/error vectors. Check resolved features and build the actual values-bindings package with `cargo build --locked --manifest-path packages/values/bindings/Cargo.toml --target wasm32-unknown-unknown --release`. Existing build-semantics.mjs requires wasm-bindgen CLI exactly matching locked0.2.129, writes generated artifacts and dist mirror; lease it to R1/R3 for regeneration only at the proper join. Record source, Cargo lock, Wasm, glue, ABI and distribution inventory hashes; add the semantics source hashes externally because existing BUILD.json lists only binding source filenames. Instantiate the actual regenerated web glue, verify ABI and run reachable decode-value/encode-value/date/round/money diagnostic cases through exact_call. The six-operation TS smoke backend is not full registry parity. JSON transport/NaN/-0/roundtrip and lossless UTF-16 limits remain explicit; a raw helper witness cannot close those gates.
 

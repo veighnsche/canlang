@@ -1,16 +1,13 @@
 # T32a prep: authoritative predicate reads — alternatives for the JEV gate
 
-Status: **PROPOSED / PREP — adopts NOTHING.** Decision requires the
-coordinator-run JEV protocol (three fresh, equivalent, independently worded
-requests with saved advice/uncertainty) plus full-scope evidence. Every
+Every
 alternative below carries explicit **JEV-PENDING** markers. No T32b
 implementation (state/work/identity code) may begin before the gate accepts
 one rule.
 
 Scope note (T32 brief): read/snapshot/revalidation contract — permission,
 revision, and revocation fences, stale reads, revocation between read and
-effect, no cached snapshot silently authorizing spend, transitive effects.
-Done when all claimed contexts preserve revocation/stale-state boundaries
+effect, no cached snapshot silently authorizing spend, transitive effects. Done when all claimed contexts preserve revocation/stale-state boundaries
 and transitive effects.
 
 ## Settled context (read-only inputs, not decisions)
@@ -21,8 +18,7 @@ and transitive effects.
   fact `person!=null` never reaches the call; T03/T05 consequence, T06
   admission facts). Layer 2 is bucket **c** (conditional on fencing):
   even non-null, `active_member` (cataloged state-read) is rejected from
-  pure positions, with **no adopted bounded-authoritative-read contract**.
-  Confidence medium-high on layer 1, medium on layer 2 pending the fence
+  pure positions, with **no adopted bounded-authoritative-read contract**. Confidence medium-high on layer 1, medium on layer 2 pending the fence
   design. Opposing (retained): actor is genuinely nullable in public
   operations, trusted handlers, and preauthorization defaults; a role test
   on another subject cannot prove caller authentication; stale predicates
@@ -55,8 +51,7 @@ and transitive effects.
   uses a database-wide optimistic revision fence: read the primary
   revision before all state-dependent reads, evaluate bounded pure DSL,
   assert the same revision in one batch, retry at most three times;
-  submitted stale record versions still produce `conflict` (L551-558).
-  Pure read operations validate the revision again after dependent
+  submitted stale record versions still produce `conflict` (L551-558). Pure read operations validate the revision again after dependent
   reads; changed revisions retry rather than return a mixed
   authorization snapshot. A successful mutation rechecks current read
   permission before serializing its result (L558).
@@ -232,8 +227,7 @@ and are statically barred from authorization decisions and spends.
   against current state (as A for authority, as pins for data).
 - Revision fence: pins narrow the settled database-wide assertion —
   only pinned records + the authority tables must be unchanged, so an
-  unrelated write elsewhere does not void the operation.
-  **JEV-PENDING**: whether a narrowed assertion is implementable on
+  unrelated write elsewhere does not void the operation. **JEV-PENDING**: whether a narrowed assertion is implementable on
   the D1 batch contract (L551-556) or the database-wide revision is
   the only checkable unit.
 - Revocation fence: authority pins (membership/role rows) are always
@@ -242,8 +236,7 @@ and are statically barred from authorization decisions and spends.
   nothing.
 - Stale reads: two statically separated kinds — pinned reads (fresh
   by assertion, `conflict` on change) and declared-eventual reads
-  (may be stale, must be labeled, can never authorize or spend).
-  **JEV-PENDING**: the exact declaration syntax/label for eventual
+  (may be stale, must be labeled, can never authorize or spend). **JEV-PENDING**: the exact declaration syntax/label for eventual
   reads and whether any current draft read needs it.
 - Read→effect gap: bridged by pins — the effect trusts the snapshot
   exactly when the pins hold, and the pins are rechecked atomically
@@ -309,8 +302,7 @@ where authority is required.
 - Workflows preserved: bar items hold semantically, but every
   authorizing read→effect path needs grant plumbing — either
   compiler-inferred (invisible, must be proven sound) or
-  source-visible (new syntax on every guarded effect).
-  **JEV-PENDING**: inferred vs declared grants, and the migration
+  source-visible (new syntax on every guarded effect). **JEV-PENDING**: inferred vs declared grants, and the migration
   shape for Chat/Check/Creative sites.
 - Costs: largest new surface — grant type, minting/consumption
   rules, revocation list storage + retention, expiry semantics,
@@ -323,8 +315,7 @@ where authority is required.
   surface. Grants reintroduce exactly the ambient-authority risk
   they claim to fix if the compiler infers them invisibly, or a
   crushing annotation burden if declared. The revocation list is a
-  new hot table that every commit must consult.
-  **JEV-PENDING**: whether any workflow needs grant-shaped
+  new hot table that every commit must consult. **JEV-PENDING**: whether any workflow needs grant-shaped
   evidence (portable, expirable, auditable authorization) rather
   than fence-shaped evidence, and who pays the annotation or
   soundness-proof cost.
@@ -356,34 +347,27 @@ where authority is required.
 ## What the gate still needs (evidence checklist)
 
 1. Full enumeration of purity-gate read sites: only Chat:15 and
-   Creative:103 are sampled for R26-layer-2 (E3010 purity shape).
-   Every `active_member`/role-predicate/authoritative-read rejection
+   Creative:103 are sampled for R26-layer-2 (E3010 purity shape). Every `active_member`/role-predicate/authoritative-read rejection
    across all 52 sources needs per-site classification (derive guard
    / `when=` guard / policy predicate / page gate / review input)
-   with per-site fence context.
-   [COMPLETE — enumeration writer: see "Gate evidence enumeration §1" below.]
+   with per-site fence context. [COMPLETE — enumeration writer: see "Gate evidence enumeration §1" below.]
 2. Spend-effect inventory: every effect that moves money, consumes a
    capped allowance, or dispatches to a provider (Chat spend+send,
    payment `collect`, image/LLM sends, delivery claims) with its
    current guard→effect read path — the gate must see each path its
-   rule has to fence.
-   [COMPLETE — enumeration writer: see "Gate evidence enumeration §2" below.]
+   rule has to fence. [COMPLETE — enumeration writer: see "Gate evidence enumeration §2" below.]
 3. Grant L93 role-revocation note: "Static user grants are not a
-   live role-revocation event" is ledger-silent with no T01 root.
-   Adjudicate what revocation timeliness the Grant workflow intends
-   (immediate vs eventual) before the gate picks a revocation fence.
-   [COMPLETE — revocation-note writer: see "Revocation-timeliness adjudication (gate evidence)" below.]
+   live role-revocation event" is ledger-silent with no T01 root. Adjudicate what revocation timeliness the Grant workflow intends
+   (immediate vs eventual) before the gate picks a revocation fence. [COMPLETE — revocation-note writer: see "Revocation-timeliness adjudication (gate evidence)" below.]
 4. R29 input from T23: whether behavior examples may observe through
    input bindings or must reload stored state — every alternative's
    T32b proof tests inherit this.
 5. T06 admission-fact input: the R26-layer-1 rule (which admitted
    expressions carry non-null actor facts into which calls) so the
-   gate judges fence rules, not missing narrowing.
-   [COMPLETE — admission-fact writer: see "T06 admission-fact input (gate evidence)" below.]
+   gate judges fence rules, not missing narrowing. [COMPLETE — admission-fact writer: see "T06 admission-fact input (gate evidence)" below.]
 6. T28/T29 ownership input where reads cross package boundaries
    (policies reading `row.parent.*` on imported parents) — a fence
-   scoped to one owner must say what an imported-parent read enrolls.
-   [QUALIFIED — ownership-input writer: see "T28-ownership input (gate evidence)" below.]
+   scoped to one owner must say what an imported-parent read enrolls. [QUALIFIED — ownership-input writer: see "T28-ownership input (gate evidence)" below.]
 7. Durable-fence evidence plan: per T32 acceptance, memory evidence
    cannot prove fence behavior. Memory stores lack the properties
    the gate must verify — no D1 batch/commit boundary, no revision
@@ -392,11 +376,8 @@ where authority is required.
    D1/DO-backed execution evidence (T16/T17 canonical runtime), not
    memory-store tests; the gate must say which alternative's proof
    runs where. DECISIONS #138 (consistency guarantees unspecified)
-   stays open until that evidence exists.
-   [COMPLETE — durable-fence writer: see "Durable-fence evidence plan (gate evidence)" below.]
-8. Coordinator-run JEV protocol: three fresh equivalent independently
-   worded formulations, saved responses + uncertainty, disagreement
-   investigated. **No JEV was run for this prep file; tools/jev.py
+   stays open until that evidence exists. [COMPLETE — durable-fence writer: see "Durable-fence evidence plan (gate evidence)" below.]
+8. **No JEV was run for this prep file; tools/jev.py
    untouched.**
 
 ## Handoff
@@ -429,8 +410,7 @@ venue_covers manage`); **T3** adjacent business-state reads in pure positions
 excluded. Quantifiers/aggregates (`any all count`), `first`, `now`,
 constructors (`money date`), `input` (pure local prompt-builder derive) are
 assumed pure builtins — the gate must confirm. Self-name matches on
-`derive`/`scenario` definition lines and `##` comments excluded.
-Caveat: no build was run (enumeration brief); classes below are
+`derive`/`scenario` definition lines and `##` comments excluded. Caveat: no build was run (enumeration brief); classes below are
 syntactic-position candidates for the R26-layer-2 E3010 purity shape. The
 exact compiler rejection set needs a coordinator-owned checker run; every
 line below is independently re-grepable (commands in §3).
@@ -518,25 +498,21 @@ Affiliate: 35,37,39,41(can_work). Approve: 18(can_work×2),22,23,25,26
 41,42,43,45,46(customer_staff; :46 ×2), 31(has_role×3,owns), 35,36,38
 (has_role), 44(has_role,owns). Decide: 30,31,32(can_read). Desk: 27,29
 (can_work). Discover: 38-45(can_work). Do: 30-34(can_work,staff). Event:
-40-44(can_work). Expense: 20,24,25,27,29,30(can_work), 26(can_work×2).
-Field: 33,35,36(can_work). Gallery: 20(can_review), 21(can_read). Grant:
+40-44(can_work). Expense: 20,24,25,27,29,30(can_work), 26(can_work×2). Field: 33,35,36(can_work). Gallery: 20(can_review), 21(can_read). Grant:
 34,35,37-43(can_work). Hire: 36,38,40,41,42(can_work). Inbox: 36
 (queue_access×3), 38-43(queue_access). Invoice: 64,65,83,85,110,134,136,
 138,140,142,144,146,152(can_work), 84,86,135,137,139,141,143,145,147,153
 (has_role,owns). Knowledge: 34(readership,editorial), 36(readership,
 editorial,live), 37(editorial), 38(readership), 45(readership,live). Learn:
-28,29,30,32,34,36(can_work), 33(eligible). Leave: 39,41,44(can_work).
-Loyalty: 38,41,43,45,47,49(can_work). Mail: 32,41,46,48,50(can_work), 42,43
+28,29,30,32,34,36(can_work), 33(eligible). Leave: 39,41,44(can_work). Loyalty: 38,41,43,45,47,49(can_work). Mail: 32,41,46,48,50(can_work), 42,43
 (manage), 47,49(recipient). Maintain: 45-50,52-55(can_work). Member: 171,
 174,176,179,180,182,184,186(can_work), 169(has_role,owns), 172(has_role×2),
-175,177,178,183,185(has_role), 181(eligible_term). Onboard: 21,22(can_work).
-Propose: 46,47,49(can_work). Purchase: 48,49,51-61(can_work). Reception:
+175,177,178,183,185(has_role), 181(eligible_term). Onboard: 21,22(can_work). Propose: 46,47,49(can_work). Purchase: 48,49,51-61(can_work). Reception:
 46,48,50,51,52(can_work). Refer: 38,40,42,44,46,48(can_work), 241(has_role
 ×2,owns). Rent: 142,198,201,203,204,218,232-235,252,253,258-263,265,266,
 269,270,272,274(can_work), 143(has_location_role,owns), 257
 (can_read_booking_details). Report: 34(can_work). Shift: 60,62,64,67
-(can_work). Stock: 37,47,48(can_work). Success: 28,35,36,37(can_work).
-Table: 18,19,20(can_work). Time: 26,28,30,32(can_work). Trade: 24
+(can_work). Stock: 37,47,48(can_work). Success: 28,35,36,37(can_work). Table: 18,19,20(can_work). Time: 26,28,30,32(can_work). Trade: 24
 (eligible), 25(eligible×2). Volunteer: 31,32,34(can_work). Workbench: 31,
 33(eligible). shared/Employees: 11(staff). shared/Suppliers: 9,10(can_work).
 
@@ -575,8 +551,7 @@ Table:24(available T3).
 Page gates: Gallery:94(list,can_read) Gallery:125(gallery,can_review)
 Knowledge:305(list,readership,live) Knowledge:317(table,editorial) Expense:
 365(list,can_work) Creative:199(list,can_view) Hire:426(list,can_work)
-Invoice:888(list,owns,has_role). Corpus: Knowledge:25(where=live(row)).
-Example observations (`->` asserting predicate outcomes): Affiliate:79,113,
+Invoice:888(list,owns,has_role). Corpus: Knowledge:25(where=live(row)). Example observations (`->` asserting predicate outcomes): Affiliate:79,113,
 118,197(available) Stock:68,146,151(available) Approve:187 Expense:159
 Grant:184(can_work,reviewer) Expense:91(reviewer) Inbox:184(queue_access×2)
 Mail:142,155(delegate_eligible) Mail:159(recipient,live) Mail:169
@@ -619,15 +594,13 @@ B must rule `let` re-reads or force rewrites; A/C/D preserve verbatim.
 
 Status: **PREP — adopts NOTHING.** Every effect that moves money, consumes
 a capped allowance, or dispatches to a provider, with its current
-guard→effect read path (`scn=name@line gate=by=…|on=… req=[…]`).
-Legend: `[auth]` send guard holds T1/T2 calls (§1d) · `[data]` guard is
+guard→effect read path (`scn=name@line gate=by=…|on=… req=[…]`). Legend: `[auth]` send guard holds T1/T2 calls (§1d) · `[data]` guard is
 data-only · `[nowhen]` no guard (scenario require/by only).
 
 Counts: **236 send lines** (231 line-initial + 5 `do send`; zero lines hold
 2+ sends) across **39/52 files** (zero-send: Board CRM Expense Feedback
 Gallery Learn Onboard Stock Table Trade + 3 shared) to **69 targets**: 68
-with `when=` (31 authority + 37 data-only), **168 unguarded**.
-Money-record creates **22**; capped-allowance sets **27** + bucket creates
+with `when=` (31 authority + 37 data-only), **168 unguarded**. Money-record creates **22**; capped-allowance sets **27** + bucket creates
 **3**. Out of scope (noted, not inventoried): `emit` (internal events),
 `schedule` (timers), `call` (internal scenario calls), delivery-attempt
 counters (Purchase:163/188/307/315/319/326/330 `attempts=`, retry state not
@@ -659,19 +632,14 @@ WebDimensions.write 1, WebJobs.publish 1, WorkSources.work 1, Writer.draft 1.
 Affiliate:104(create Sale amount/commission ← qualification req 86,87,92,
 94,98,102) :109(create Adjustment reversal ← req +106). Chat:78(create Run
 reserved ← ask/members req 67-70,73,75). Expense:215(create Decision amount
-← decide/reviewer req 213) :272(create Reimbursement ← finance req 270).
-Invoice:366(Attempt ← collect req 361,362) :421(refund Attempt ← finance req
+← decide/reviewer req 213) :272(create Reimbursement ← finance req 270). Invoice:366(Attempt ← collect req 361,362) :421(refund Attempt ← finance req
 417-419) :620(auto-collection Attempt, on=CollectionDue, NO require — timer
-path) :799/:806(source_refund ← on=BillingRequests.refund req 792,795,796).
-Loyalty:84(create Redemption ← redeem/authenticated req 82) :176/:181
+path) :799/:806(source_refund ← on=BillingRequests.refund req 792,795,796). Loyalty:84(create Redemption ← redeem/authenticated req 82) :176/:181
 (Earning ← on=Sales.qualification req 164,166,172). Member:278(term/price ←
-on=RenewalDue req 259,268,273,275) :371(reserve ← req 345-370 ×13).
-Refer:83(Settlement ← settle/finance req 70,74,76) :119/:125(qualify ←
+on=RenewalDue req 259,268,273,275) :371(reserve ← req 345-370 ×13). Refer:83(Settlement ← settle/finance req 70,74,76) :119/:125(qualify ←
 on=Sales.qualification req 99-123) :153(reject_source ← program_manager req
 148). Rent:584(Adjustment overage ← on=MovementObserved req 566,571) :1093
-(extend Adjustment ← authenticated/reception/billing req 1086-1092).
-Time:151(Correction amount/collected ← project_manager req 146,149).
-Money-moving sends without local create (claim-only): Payments.collect
+(extend Adjustment ← authenticated/reception/billing req 1086-1092). Time:151(Correction amount/collected ← project_manager req 146,149). Money-moving sends without local create (claim-only): Payments.collect
 Invoice:367/:621, Payments.refund Invoice:422/:807 + Member:536 + Rent:636/
 641/777/1136/1149 + Time:222 + Event:436, Billing.refund×8 / charge×13 /
 cancel×17 / reconcile×10 (paths in §2c), Commissions.settle Affiliate:75.
@@ -684,8 +652,7 @@ reply_progressed req 158,159). Creative:102(held/running+ ← generate req 98,
 100) :140-141(release ← req 138) :165-168(spent+= ← image_progressed req
 162,163). Knowledge:154(create DailyUsage ← ask req 148,152) :156
 (requests+1). Inbox:115/140(create DailyUsage) :117/:142(requests+1 ←
-received req 105,108 / classify req 133,134,138; cap check :113/:138).
-Discover:163(requests+1 ← fetch_page on=PageDue, NO require — capped at
+received req 105,108 / classify req 133,134,138; cap check :113/:138). Discover:163(requests+1 ← fetch_page on=PageDue, NO require — capped at
 :223 max_pages on a LATER scenario). Member:377-378(reserve held ← req
 345-370) :420-421(consume ← req 415,417). Rent:1270/1272/1290(allowance
 snapshot/consume ← on=AllowanceObserved req 1251,1252,1266) :597
@@ -698,44 +665,32 @@ host req 70). Guard pattern: `let x=first(Allowance…)` + require
 
 Affiliate(5): 75:Commissions.settle[nowhen] settle@72 by=finance req73.
 125:onboard[nowhen] req123. 137:Commissions.account[nowhen] req134,135.
-205/211:Commissions.reconcile[nowhen] (211 on=SettlementCheck, NO req).
-Approve(1): 268:Mail.send[auth] notify@264 on=Notice.created, NO req.
-Book(11): 75:StaffSchedule.reserve + 79:Rooms.hold [nowhen] book@67
+205/211:Commissions.reconcile[nowhen] (211 on=SettlementCheck, NO req). Approve(1): 268:Mail.send[auth] notify@264 on=Notice.created, NO req. Book(11): 75:StaffSchedule.reserve + 79:Rooms.hold [nowhen] book@67
 req68-71. 99:stage + 102:Rooms.stage [nowhen] reschedule@90 req91-94,97.
 202/217/275:Rooms.confirm[nowhen] (on=completed/changed +1 req each).
 313/369:Mail.send[data] (on=AttemptProgress/Reminder). 338:release +
-342:Rooms.release [nowhen] cleanup@333.
-Catch(3): 96:ErrorJobs.publish[nowhen] DO-SEND accepted@94
-on=ErrorIntake.accepted req95. 151/154:Alerts.notify[data] notify@147.
-Chat(5): 81:LLM.generate[auth] ask@66 by=members req67-70,73,75. 120/126/
-141/148:cancel/reconcile/cancel/cancel[nowhen] (148 on=member_removed).
-Check(3): 76/120/130:Alerts.notify[data] (on=Pings/Check.update/Deadline).
-Contract(2): 130/144:Mail.send[data] (on=Notice/ObligationDue, NO req).
-Creative(7): 68:inspect + 76:validate [nowhen] by=creative_manager. 103:
+342:Rooms.release [nowhen] cleanup@333. Catch(3): 96:ErrorJobs.publish[nowhen] DO-SEND accepted@94
+on=ErrorIntake.accepted req95. 151/154:Alerts.notify[data] notify@147. Chat(5): 81:LLM.generate[auth] ask@66 by=members req67-70,73,75. 120/126/
+141/148:cancel/reconcile/cancel/cancel[nowhen] (148 on=member_removed). Check(3): 76/120/130:Alerts.notify[data] (on=Pings/Check.update/Deadline). Contract(2): 130/144:Mail.send[data] (on=Notice/ObligationDue, NO req). Creative(7): 68:inspect + 76:validate [nowhen] by=creative_manager. 103:
 Images.submit[auth] generate@93 req94,95,98,100. 128/134/148/155:
-cancel/reconcile/cancel/cancel[nowhen] (148/155 on=revoked/removed).
-Customer(1): 129:Mail.send[nowhen] invite@123 req124,125. Decide(2): 60:
+cancel/reconcile/cancel/cancel[nowhen] (148/155 on=revoked/removed). Customer(1): 129:Mail.send[nowhen] invite@123 req124,125. Decide(2): 60:
 Writer.draft[data] generate@53 req54,55. 107:Judge.evaluate[auth]
 evaluate@101 by=reviewer req102-104. Desk(1): 96:Mail.send[nowhen] reply@91
 req92. Discover(3): 161:Sources.page[auth] on=PageDue NO req. 244/251:
 Analysis.extract[auth] (244 by=researcher req241,242; 251 on=Evidence.
 create). Do(2): 85:WorkSources.work[nowhen] refresh@79 req80,81. 115:
-Catch.report[nowhen] DO-SEND report_error on=instrumentation.error.
-Enrich(3): 68/106/127:Sources.lookup[auth] (106 on=Assess NO req). Event
+Catch.report[nowhen] DO-SEND report_error on=instrumentation.error. Enrich(3): 68/106/127:Sources.lookup[auth] (106 on=Assess NO req). Event
 (21): 88:Billing.charge[nowhen] register@75 req76-80,87. 129:Rooms.stage +
 132:hold [nowhen] change@115. 146/158:release[nowhen]. 223:Rooms.confirm
 [data]. 253:release[nowhen]. 274:Billing.cancel[nowhen] cancel@266. 284/
 299/311/341/358:reconcile[nowhen]. 292/400/415/484:cancel[nowhen]. 436:
-Billing.refund[nowhen] on=RefundCheck. 512/524:Mail.send[data].
-Field(9): 48:reserve[nowhen] dispatch@44 req45. 75/85/102:release/stage/
+Billing.refund[nowhen] on=RefundCheck. 512/524:Mail.send[data]. Field(9): 48:reserve[nowhen] dispatch@44 req45. 75/85/102:release/stage/
 reserve[nowhen]. 77:Mail.send[data]. 172/175/179:release[nowhen]
 on=every(1m). Grant(1): 283:Mail.send[nowhen] decide@275 by=reviewer
 req276,279. Hire(13): 90:reserve 98:stage 111/116/127/150/181:release
 [nowhen] by=recruiter/authenticated. 206/219/236/251/257:release[nowhen]
-(on=completed/changed/accepted). 283:Mail.send[auth] on=Reminder req281.
-Inbox(5): 120/145:Judge.evaluate[data]. 212/241:Post.reply[auth]
-submit/resubmit by=mail_staff|inbox_admin. 227:Post.reconcile[nowhen].
-Invoice(15): 296:Mail.send[data] issue@287. 302:Documents.invoice[nowhen].
+(on=completed/changed/accepted). 283:Mail.send[auth] on=Reminder req281. Inbox(5): 120/145:Judge.evaluate[data]. 212/241:Post.reply[auth]
+submit/resubmit by=mail_staff|inbox_admin. 227:Post.reconcile[nowhen]. Invoice(15): 296:Mail.send[data] issue@287. 302:Documents.invoice[nowhen].
 328:Documents.receipt[nowhen]. 367:Payments.collect[data] collect@360
 req361,362. 404/456:Payments.cancel[nowhen] by=finance. 422:Payments.
 refund[nowhen] refund@416 req417-419. 496/753:Mail.send[data]. 571/605:
@@ -743,23 +698,19 @@ Payments.reconcile[nowhen]. 621:Payments.collect[data] on=CollectionDue NO
 req. 635:Mail.send[data] DO-SEND on=Overdue req634. 770:cancel[nowhen].
 807:refund[nowhen] on=BillingRequests.refund req792,795,796. Knowledge(4):
 145:Handbook.refresh[nowhen] DO-SEND reindex req144. 159:Handbook.answer
-[auth] ask@147 req148,152. 213:cancel + 223:reconcile [nowhen].
-Leave(3): 131:reserve[data] decide@124 req125,129. 154/181:release[data]
+[auth] ask@147 req148,152. 213:cancel + 223:reconcile [nowhen]. Leave(3): 131:reserve[data] decide@124 req125,129. 154/181:release[data]
 cancel/retry_release by=hr|leave_reviewer. Loyalty(1): 85:Mail.send
 [nowhen] redeem@81 req82. Mail(7): 120/177/305/324:Mail.send[auth] (305
 on=Reminder NO req). 211/293:Billing.charge[nowhen]. 264:Billing.reconcile
 [nowhen]. Maintain(8): 181/187/355:Mail.send[data/data/auth] (355 on=
-Reminder). 202/216/363/367:downtime/restore[nowhen]. 404:affected[nowhen].
-Member(4): 279:Billing.charge[data] on=RenewalDue req259,268,273,275.
+Reminder). 202/216/363/367:downtime/restore[nowhen]. 404:affected[nowhen]. Member(4): 279:Billing.charge[data] on=RenewalDue req259,268,273,275.
 536:Billing.refund[nowhen] refund_term@526 req527. 558:charge[data]. 583:
 reconcile[nowhen] on=PaymentCheck. Propose(5): 94:Mail.send + 100:
 Documents.quote + 181:hold_offer + 221:accept_offer [nowhen] by=
-salesperson/authenticated. 348:release_offer[nowhen] on=HoldProgress.
-Purchase(5): 162/187/325/329:Stock.post[nowhen] (325/329 on=every(5m)).
+salesperson/authenticated. 348:release_offer[nowhen] on=HoldProgress. Purchase(5): 162/187/325/329:Stock.post[nowhen] (325/329 on=every(5m)).
 306:Accounting.record[nowhen] by=budget_manager req304. Reception(13):
 91/167/186/203:Membership.eligibility[nowhen]. 103/358/363:Mail.send[auth].
-253/263/279/321/328/342:Devices.apply×4/reconcile/apply[auth on 253,328].
-Refer(1): 126:Mail.send[nowhen] qualify@95 on=Sales.qualification req99-
+253/263/279/321/328/342:Devices.apply×4/reconcile/apply[auth on 253,328]. Refer(1): 126:Mail.send[nowhen] qualify@95 on=Sales.qualification req99-
 123.
 
 Rent(51, ZERO authority guards — all Mail sends data-only): 525/538:
@@ -771,8 +722,7 @@ refund_movement_credit@629 req630,631,635(+640). 692/1238/1315/1431:
 reconcile[nowhen]. 720:reserve + 725:charge[nowhen] prepare@716.
 777/1136/1149:refund[nowhen]. 942/1035/1050/1082/1095/1275:charge/consume/
 charge[nowhen]. 1045:reserve + 1050/1281/1345:consume[nowhen]. 1198/1205/
-1212:Mail.send[data] on=ReservationChanged/Reminder. 1218:Mail.send[nowhen].
-Report(1): 45:Reports.reports[nowhen] refresh@42 req43. Shift(1): 251:
+1212:Mail.send[data] on=ReservationChanged/Reminder. 1218:Mail.send[nowhen]. Report(1): 45:Reports.reports[nowhen] refresh@42 req43. Shift(1): 251:
 Mail.send[auth] duty_notice@249 on=DutyNotice NO req. Stats(3): 50:
 WebJobs.publish[nowhen] DO-SEND intake on=Tracker.accepted req48,49. 63:
 WebDimensions.write[nowhen] on=WebJobs req59. 128:Dimensions.read[nowhen]
@@ -787,10 +737,8 @@ by=members req64,65.
 ### §2d — guard→effect path patterns + alternatives discrimination
 
 - Dominant path (168/236 = 71%): NO send guard — authorization lives
-entirely in scenario `by=` + `require` evaluated before the `do` block.
-Under B every such send needs its own effect-time re-read ruling (168
-rulings); under A/C/D the scenario checkpoint + commit fence covers them.
-Highest-exposure unguarded money sends: Payments.collect Invoice:621
+entirely in scenario `by=` + `require` evaluated before the `do` block. Under B every such send needs its own effect-time re-read ruling (168
+rulings); under A/C/D the scenario checkpoint + commit fence covers them. Highest-exposure unguarded money sends: Payments.collect Invoice:621
 (timer, NO require at all), Billing.charge ×13, Billing.refund ×8.
 - Guarded money path: Payments.collect Invoice:367 has a DATA-only guard —
 no authority revalidation at claim time in source today. Under A the commit
@@ -839,8 +787,7 @@ Invoice:220 Customer:82/89; CRM imports customer's).
 
 Checklist items 1–2 are COMPLETE per the gate-needs text; items 3–8
 untouched (coordinator-owned). Alternatives A–D, fairness record, and all
-other checklist text UNCHANGED (two pointer lines added only).
-Prep status preserved: adopts NOTHING; no code, no normative-doc, no
+other checklist text UNCHANGED (two pointer lines added only). Prep status preserved: adopts NOTHING; no code, no normative-doc, no
 tasks/monitor/inbox edits.
 
 Release: docs/implementation/challenge-audit-run/evidence/read-decision.md is
@@ -925,8 +872,7 @@ Sequence Grant:169-201 (seed includes `colleague`, `replacement_worker`,
   transition. The workflow contemplates role-loss as a recovery trigger
   but never models it as an event.
 - No in-flight timing: nothing revokes between admission/read and
-  commit within one operation; no concurrent/interleaved shape exists.
-  Stale-version conflicts ARE asserted (Grant:192,231,291,310: wrong
+  commit within one operation; no concurrent/interleaved shape exists. Stale-version conflicts ARE asserted (Grant:192,231,291,310: wrong
   `request.*.version` → `error(conflict)`) but those are version
   fencing, not revocation. DESIGN L291 "already admitted may finish"
   therefore remains UNANSWERED by Grant — genuine partial silence,
@@ -1002,8 +948,7 @@ normative-doc, no tasks/monitor/inbox edits.
 
 Verdict: **COMPLETE — R26-layer-1 actor rule CONFIRMED as landed
 (T06 ticked COMPLETE in tasks.md).** No narrowing semantics
-invented: every clause below cites landed code lines or tasks.md.
-Absences carry exact grep evidence.
+invented: every clause below cites landed code lines or tasks.md. Absences carry exact grep evidence.
 
 ### §1 — the landed R26-layer-1 rule (which admitted expressions carry non-null actor facts into which calls)
 
@@ -1098,8 +1043,7 @@ t06_bounded_read_stays_gated (b4_check.rs:958-965): a
 state-reading call in a pure position STILL yields E3010 until
 T32 adopts.
 
-- A (single-checkpoint fenced reads): obligations UNCHANGED.
-  T06 feeds A: admitted-actor typing already reaches every guard
+- A (single-checkpoint fenced reads): obligations UNCHANGED. T06 feeds A: admitted-actor typing already reaches every guard
   predicate A evaluates at the checkpoint (policy `where=`,
   CRUD `when=`, require chains, AND-right calls). A must still
   define checkpoint enrollment, commit-time revalidation, and
@@ -1419,8 +1363,7 @@ containment-decision.md:344-353), and creation defaults reading
    LIVE membership state (`Employee.active` / `can_work` /
    `active_member`), never static role atoms alone — imported-parent
    reads of membership state enroll live rows.
-4. Bound rejected: no bound-parent containment read exists to fence.
-   Bound (`from=`) parents stay rejected as containment targets
+4. Bound rejected: no bound-parent containment read exists to fence. Bound (`from=`) parents stay rejected as containment targets
    (JEV outcome, containment-decision.md:1108-1111). Corpus verdict:
    zero bound parents anywhere — all 76 `from=` lines bind only
    capability interfaces or value types, none binds
@@ -1506,8 +1449,7 @@ grant semantics.
 - A (single-checkpoint fenced reads + commit revalidation):
   inherits settled — imported-parent reads enroll in the single
   owner checkpoint + database-wide revision fence + commit-time
-  `by`/guard revalidation exactly as local reads; no second fence.
-  Owes: T29 checker + T16/T17 D1/DO proof that cross-package
+  `by`/guard revalidation exactly as local reads; no second fence. Owes: T29 checker + T16/T17 D1/DO proof that cross-package
   parent/child rows actually share one fence (revision assertion
   covers both; parent-policy reads revalidate at commit;
   reverse-collection reads enroll). The L291 in-flight question
@@ -1744,8 +1686,7 @@ R3. `draft/CanCheck.can:60-64` (T31a contract input 3 —
 hook-decision.md:1204-1212). CONTRACT: header L61 observes the
 server-owned field `check.armed` through input binding `check`
 (row L62 `... -> true,new,now,now+5m,2`), instantiating the R29
-question on a revision-carrying observation (`check.revision`).
-Caveat retained: executability **UNVERIFIED** (R27
+question on a revision-carrying observation (`check.revision`). Caveat retained: executability **UNVERIFIED** (R27
 ordinary-path rejection site — hook-decision.md:1210-1212).
 
 R4. `draft/CanLeave.can:135-138` (the R29 site itself; T31a
@@ -1789,23 +1730,19 @@ post-revocation; denied follow-up calls L185-188 (`rule_failed`
 ×2, `forbidden`, `rule_failed`); stale-version re-submit L192
 `request={application={version=submitted_version}} ->
 error(conflict)` (the `submitted_version` was `let`-captured at
-L180 before the intervening commit).
-S2. `draft/CanApprove.can:171-195` (block opener L171-172):
+L180 before the intervening commit). S2. `draft/CanApprove.can:171-195` (block opener L171-172):
 `call deactivate ...` L184, then L187
 `reviewer_worker.active,reviewer(reviewer_user),can_work(reviewer_user,test_site)
 -> false,true,false` — same post-revocation predicate shape as
 S1; denied `decide` L188; stale `assign` L192
-`request={submission={version=review_version}} -> error(conflict)`.
-S3. `draft/CanExpense.can:85-91` (block opener L85-86): `call
+`request={submission={version=review_version}} -> error(conflict)`. S3. `draft/CanExpense.can:85-91` (block opener L85-86): `call
 reviewer_choices ...` L87, `call deactivate ...` L89, then L91
 `count(after),reviewer(reviewer_user),reviewer_worker.active ->
 0,true,false` — a read (`reviewer_choices`) re-executed after
-revocation returns the narrowed set.
-S4. `draft/CanMember.can:653-659` (block opener L653-654): `call
+revocation returns the narrowed set. S4. `draft/CanMember.can:653-659` (block opener L653-654): `call
 remove_company_role ...` L656, then L659
 `entitled(other,...),has_location_role(other,...) -> false,false`
-— cross-package authority predicates observed post-removal.
-S5. `draft/CanMail.can:130-169` (block opener L130-131):
+— cross-package authority predicates observed post-removal. S5. `draft/CanMail.can:130-169` (block opener L130-131):
 `call Contact.update ...` L143 clears verification (observed
 L144 `-> false,null`); denied `collect` L145
 (`rule_failed`, no-change L148); history observation L155 with
@@ -1813,8 +1750,7 @@ L144 `-> false,null`); denied `collect` L145
 L159 `expired_route.active,live(expired_route),recipient(self,expired_route)
 -> false,false,true`; final recipient split L169
 (`recipient(self,...) -> true`, `recipient(nominee,...) ->
-false`).
-S6. `draft/CanKnowledge.can:178-207` — four read-after-change
+false`). S6. `draft/CanKnowledge.can:178-207` — four read-after-change
 sequences on `read_answer` (a `read=true` scenario, L171):
 revoked readership L178-184 (`hidden==null -> true` L184),
 withdrawn source L185-191 (`hidden==null -> true` L191),
@@ -1831,8 +1767,7 @@ Invoice:210/239/271, Maintain:305, Grant:192/231/291/310,
 Book:299, Propose:115/328 (pattern `error\(conflict\)`,
 mode regex, paths draft/). Two stale-submit mechanisms: table
 `request.*.version` selectors (DESIGN:403; e.g. Discover:278-280)
-and sequence `request={...version...}` call envelopes (e.g.
-Approve:156/165/192, Expense:163/317, Maintain:305, Grant:192,
+and sequence `request={...version...}` call envelopes (e.g. Approve:156/165/192, Expense:163/317, Maintain:305, Grant:192,
 Invoice:210). All observe the write-write fence, not the
 read→effect gap — usable as conflict-proof candidates, silent on
 which read rule produced the fenced read.
@@ -1847,8 +1782,7 @@ post-commit predicate re-reads in sequences (Inbox:184
 ...,false,true,...` after a queue move L183; Maintain:288
 `inspection_pending(future) -> ...false...` and Maintain:303
 `plan_eligible(renewed),inspection_pending(future) ->
-true,...,false` after re-reads via `first(...)` L286/290/294/298/301).
-Every `do` sequence re-queries with `first(...)` after each
+true,...,false` after re-reads via `first(...)` L286/290/294/298/301). Every `do` sequence re-queries with `first(...)` after each
 committed call before observing (Grant:172/175/178/190,
 Maintain:286/290/294/298/301, Mail:133/136/140/146/149/153,
 Approve:174/177/180, Member:661) — the drafts' own inter-op
@@ -1919,8 +1853,7 @@ observed mid-operation in any example (see absence A3 below).
 - All: the R29 flip (R1-R5 + Chat:84-90 observation style)
   governs what observation style ANY alternative's T32b proof
   tests may use; DESIGN:405's "freshly reloaded" sentence is a
-  settled-text input the JEV must reconcile with those drafts.
-  No input recommends an alternative.
+  settled-text input the JEV must reconcile with those drafts. No input recommends an alternative.
 
 ### JEV-PENDING markers added by this section
 

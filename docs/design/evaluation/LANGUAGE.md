@@ -4,19 +4,11 @@ Status: all 47 assigned items have evidence-backed results below. E102 is comple
 
 ## Scope and methods
 
-Evidence is the frozen [baseline](baseline-20261004T041647Z/README.md), with current live EVALUATION rules. Requirements own product goals, DESIGN owns semantics and GRAMMAR owns exact syntax. Desired MJS is handwritten. Compiler/library/infrastructure absence is recorded here once as the declared stage; execution-dependent claims remain **unverified**, not failed tests or reasons to abandon Can.
+Evidence is the frozen baseline, with current live EVALUATION rules. Requirements own product goals, DESIGN owns semantics and GRAMMAR owns exact syntax. Desired MJS is handwritten. Compiler/library/infrastructure absence is recorded here once as the declared stage; execution-dependent claims remain **unverified**, not failed tests or reasons to abandon Can.
 
 B manually traced signatures, actual `by`, guards, authority queries, ordered effects, invariants, versions and expected observations for A's P/W journeys. Static corpus inventory confirms 44 Can sources, 39 app requirement pairs and 21 desired MJS targets. Counts are text observations: 52 section triples, 100 CRUD declarations, 585 scenarios, 305 examples blocks, 235 fixtures, 221 imports (65 bound), 12 retention declarations and 214 bounded loops. Five periodic handlers and 35 source lines over 1,000 characters were located. These counts are neither semantic acceptance nor measured token savings. Root independently checked key causal findings; C supplies interface/target/provider evidence and A owns authoring/economic measurements.
 
 Evidence files:
-
-- [Rule authority and conflicts](evidence/language/rules.md) — E007 handoff used by A/C.
-- [Behavior traces and operating/change handoff](evidence/language/traces.md) — actual J1–J4 paths and limits.
-- [Consolidated findings L1–L8](evidence/language/findings.md) — cause, smallest proposed improvement, company benefit, tradeoff and same-criteria reevaluation for every negative.
-- [Static corpus inventory](evidence/language/corpus.json) — reproducible counts and per-file/periodic-handler locations.
-- [E102 alternatives and adviser uncertainty](evidence/language/alternatives.md) — finite recommendations, three fresh consultations and disagreement investigation.
-- [Independent Can generation semantic review](evidence/language/experiment-c-review.md) — same eight J1 outcomes, no source repair requested, narrow test-contract uncertainties.
-- [Final ordinary-change and layout semantic review](evidence/language/experiment-final-review.md) — authority/order/history/threshold inspection, no mandatory source repair, shared three-account example-contract limit.
 
 All source references in the item table use prefix `baseline-20261004T041647Z/snapshot/`; path plus line is the citation. “Supported” means a coherent, directly inspectable contract or path, with execution unverified. “Gap” identifies a concrete missing/contradictory required behavior, not absent implementation. “Conditional” distinguishes audience/scale assumptions from a demonstrated universal defect.
 

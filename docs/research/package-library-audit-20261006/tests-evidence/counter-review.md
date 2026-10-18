@@ -3,8 +3,7 @@
 Sol high performed a finite primary-source challenge of all 29 Values/Work and
 State/Identity claim IDs. It could see preceding conclusions; this is not a
 cleanroom or a new critical security acceptance. Root separately reconciled the
-13 delivery challenges with actual source and prior stronger installed evidence.
-The detailed [review record](counter-review.json) retains source anchors and advice.
+13 delivery challenges with actual source and prior stronger installed evidence. The detailed review record retains source anchors and advice.
 
 The main source-derived gaps survived, with five qualifications applied:
 

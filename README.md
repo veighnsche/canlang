@@ -6,7 +6,7 @@ The goal is to help companies replace expensive SaaS subscriptions with applicat
 
 Its scope is CRUD-centered business software: tasks, approvals, bookings, invoicing, reporting, files, scheduling, and external synchronization. Bounded provider-backed workflows, such as reviewed model output and authorized company-document answers, belong within the same records, permissions, and business rules.
 
-**Status:** active development. The repository includes a Rust compiler with JavaScript and BDD artifact emission, language-server/editor tooling, and TypeScript runtime packages. Qualified standalone releases are available through the installer below; complete application workflows still need their own integration and qualification. The [living ideal file-tree plan](docs/ideal-filetree-plan.md) describes the intended finished product; the architecture below follows that target.
+**Status:** active development. The repository includes a Rust compiler with JavaScript and BDD artifact emission, language-server/editor tooling, and TypeScript runtime packages. Standalone releases are available through the installer below; application workflows are still under development. The [living ideal file-tree plan](docs/ideal-filetree-plan.md) describes the intended finished product; the architecture below follows that target.
 
 ## A small app
 
@@ -54,9 +54,9 @@ The selected target compiles `.can` applications to JavaScript for **workerd**, 
 | `packages/work-kernel/`, `packages/work/`, `packages/files/`, and `packages/services/` | A work-owned Rust leaf for shared pure decisions; TypeScript durable scheduling, delivery, progress, provider integration, and file lifecycle coordination. |
 | `packages/ui/` and `packages/interfaces/` | TypeScript browser presentation, forms, HTTP/MCP adapters, and shared operation schemas and errors. |
 | `packages/cloudflare/` | Platform assembly, local execution, build, release, deployment, and upgrades; a separate Rust native process prepares artifacts while host orchestration and publication remain TypeScript. |
-| `packages/testkit/` and `tests/` | Isolated fixtures, canonical operation examples, cross-package checks, browser journeys, and original-application qualification. |
+| `packages/testkit/` and `tests/` | Isolated fixtures, canonical operation examples, cross-package checks, browser journeys, and application integration tests. |
 
-The Rust package ports are selected targets with adoption gates. Observable JavaScript object traversal, callbacks, storage authority, and host integrations retain their TypeScript owners. Rust/Wasm parity, complete-call performance, installed assets, and supported hosts must be verified before adoption. Native artifact preparation is opt-in on qualified hosts.
+The Rust package ports are selected targets. Observable JavaScript object traversal, callbacks, storage authority, and host integrations retain their TypeScript owners. Check behavior, performance, installed assets, and host compatibility when adopting a port. Native artifact preparation is opt-in on supported hosts.
 
 The [living plan](docs/ideal-filetree-plan.md) brings together original application intent, challenge and reference work, remaining implementation, and the four subsystem-port plans. Its [selected file tree](docs/ideal-filetree-plan/finished-product/target-tree.md), [ownership boundaries](docs/ideal-filetree-plan/finished-product/ownership.md), and [dependency-ordered work](docs/implementation/REMAINING-WORK.md) are the detailed codebase direction.
 
@@ -74,7 +74,7 @@ The bundle contains the compiler, language catalog, private Node runtime, local 
 
 ## Getting the source (optional, for contributors)
 
-Current contributor tasks, dependencies and finite acceptance are in the [remaining-work list](docs/implementation/REMAINING-WORK.md). Implementation remains paused after the recorded wind-down.
+Current implementation gaps are in the [remaining-work list](docs/implementation/REMAINING-WORK.md). Follow the current user request and [development guidance](AGENTS.md).
 
 The remaining setup and build instructions are for changing CanLang itself. Application authors can use the installation command above without cloning or building this repository. The handbook has a dedicated [optional contributor guide](docs/public/01-Getting-started/03-contributor-setup.md).
 
@@ -89,10 +89,10 @@ For an existing checkout, run `git submodule update --init --recursive` after pu
 
 ## Build and explore (optional, for contributors)
 
-The workspace uses **Bun 1.4.2**, **Turbo 2.11.7**, **Node.js 22+** (Node 24 for the verified runtime test profile), and **Rust 1.99+**. From the repository root:
+The workspace uses **Bun**, **Turbo**, **Node.js 22+**, and **Rust 1.99+**. From the repository root:
 
 ```sh
-bun install --frozen-lockfile
+bun install
 bun run build
 bun run typecheck
 bun run check:boundaries
@@ -100,18 +100,17 @@ bun run build:compiler
 ./compiler/target/debug/can --help
 ```
 
-Turbo schedules the 13 package producers through their declared dependencies. Builds use a local cache with verified host, Node and Bun identities; cleanup before restoration removes obsolete outputs. `bun run build --filter=@canlang/values` builds one owner's dependency closure, and `bun run build:uncached` executes producers with cache reads and writes disabled. [The scheduling and cache report](docs/implementation/turbo-scheduling/README.md) records the proof and its limits.
+Turbo schedules the 13 package producers through their declared dependencies. Builds use a local cache keyed by host and tool versions; cleanup before restoration removes obsolete outputs. `bun run build --filter=@canlang/values` builds one owner's dependency closure, and `bun run build:uncached` executes producers with cache reads and writes disabled.
 
-Use `bun run test` for the root integration suites, `bun run test:all` for those suites plus owning package and Cloudflare runtime tests, and `bun run test:compiler` for compiler tests. Test suites run uncached; `test:all` schedules them sequentially. Native builds and release verification also run uncached through explicit adapters. See [developer setup](docs/dev-setup.md), [compiler commands](compiler/README.md), and [installation](docs/install.md) for details. `can check`, `compile`, `lint`, `fmt`, `policy`, and `lsp` provide compiler and authoring services; platform commands delegate to `can-platform`, while `can dev` delegates to the native development owner and terminal entry.
+Use `bun run test` for the root integration suites, `bun run test:all` for those suites plus owning package and Cloudflare runtime tests, and `bun run test:compiler` for compiler tests. Test suites run uncached; `test:all` schedules them sequentially. Native builds and release checks also run uncached. See [developer setup](docs/dev-setup.md), [compiler commands](compiler/README.md), and [installation](docs/install.md) for details. `can check`, `compile`, `lint`, `fmt`, `policy`, and `lsp` provide compiler and authoring services; platform commands delegate to `can-platform`, while `can dev` delegates to the native development owner and terminal entry.
 
 `bun run release` validates the prepared package outputs. `bun run release:pack`
 also writes all 13 workspace tarballs, including private dependencies, to
 `output/release-artifacts/`, with hashes and internal runtime dependency closure
 in its manifest. Packing preserves private flags and does not publish packages
-or qualify native hosts. `bun run verify:installed-types` checks the installed
-Can declarations and consumer fixture from tarballs; its scoped strict check
-passes while retaining 797 Miniflare SDK declaration errors. See
-[developer setup](docs/dev-setup.md) for the exact limits.
+or test native host compatibility. `bun run verify:installed-types` checks the installed
+Can declarations and a consumer fixture from installed tarballs. See
+[developer setup](docs/dev-setup.md) for details.
 
 The [VS Code-compatible extension](editors/vscode/README.md) provides highlighting and compiler-backed diagnostics, navigation, and completion. The separate Python parser remains a syntax prototype with known corpus drift; it does not establish type, permission, compilation, or runtime correctness. See [language tools](tools/README.md) for its scope.
 
@@ -122,12 +121,11 @@ The [VS Code-compatible extension](editors/vscode/README.md) provides highlighti
 - [Grammar](docs/specification/GRAMMAR.md): exact syntax and layout rules, including one-space indentation.
 - [Decisions](docs/specification/DECISIONS.md): accepted choices, rationale, uncertainty, and superseded proposals.
 - [Can dev server design](docs/design/can-dev-server.md): living proposal for agent onboarding through Jev-ranked keyword help, deterministic debugging, examples, and preview.
-- [Completed evaluation plan](docs/design/evaluation/PLAN.md): the design study, its reports, frozen baseline, and verification limits.
-- [Living ideal file-tree plan](docs/ideal-filetree-plan.md): unified finished-product architecture, responsibility owners, required workflows, and future work. After every merge, its handler reconciles accumulated changes and advances the checkpoint only after complete review; plan maintenance does not authorize implementation.
-- [Approved UI vocabulary](docs/design/UI-COMPONENTS.md): all 68 pinned daisyUI components, typed bindings, and the shared shell.
+- [Living ideal file-tree plan](docs/ideal-filetree-plan.md): unified finished-product architecture, responsibility owners, required workflows, and future work.
+- [Approved UI vocabulary](docs/design/UI-COMPONENTS.md): the daisyUI components, typed bindings, and the shared shell.
 - [Subsystem-port plans](docs/research/package-subsystem-ports-20261006/implementation-plans/README.md): exact values, owned input validation, work transitions, and artifact preparation.
 - [Application drafts](https://github.com/veighnsche/canlang-drafts/blob/main/README.md): larger business sources and their companion requirements; [coverage and remaining gaps](https://github.com/veighnsche/canlang-drafts/blob/main/MIGRATION.md) records unfinished behavior.
 
-The handwritten JavaScript targets in `draft/` illustrate desired output. They are design witnesses, not compiler-generated artifacts or evidence that their proposed imports and complete applications run.
+The handwritten JavaScript targets in `draft/` illustrate desired output. They illustrate desired output; they are not compiler-generated applications.
 
 Draft companion groups now live under `draft/apps/<CanApp>/`, with shared packages under `draft/shared/`. Each group keeps its `.can` source, requirements and legacy `.mjs` witness together, plus clearly marked drafted implementation units under `can.generated/`. The [draft generation index](draft/GENERATION_DRAFTS.md) shows the adopted prompt syntax and saved-file sketches; the [organizer](draft/tools/organize.py) is a dry-run-first authoring helper, not the generation engine.

@@ -1,6 +1,6 @@
 # Step 8 semantic evidence
 
-Bounded audit of resolution, typing, effects, permissions and owning value policies. This directory supports the shared `../coverage.jsonl`; it is not a second coverage ledger. No compiler/package implementation changes or new policy selections are authorized by these planning results.
+Bounded audit of resolution, typing, effects, permissions and owning value policies. No compiler/package implementation changes or new policy selections are authorized by these planning results.
 
 `inputs.json` pins the collection baseline and rechecks the previous compiler/runtime manifests. `resolution.json`, `authority.json` and `values.json` contain separate source review slices, not executed-result claims. `cases.json` defines independent contracts before execution; disagreement with a runtime library is an observation rather than a sole correctness oracle.
 

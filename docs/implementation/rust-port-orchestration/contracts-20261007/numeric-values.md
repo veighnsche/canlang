@@ -1,6 +1,6 @@
 # 1. Values numeric text: `n01.values-number-text.v1`
 
-Frozen planning contract; implementation deferred. This packet releases independently of the other N01 profiles. Target/caller qualification and original prerequisites remain open. Source hashes, dependency requests and complete envelope templates are in [numeric-contracts.json](numeric-contracts.json); the shared recipe is in [numeric-common.md](numeric-common.md). The exact JS primitive planning capture is indexed separately in [oracles/manifest.json](oracles/manifest.json); it does not certify native/Wasm/public-envelope parity.
+Frozen planning contract; implementation deferred. This packet releases independently of the other N01 profiles. Target/caller qualification and original prerequisites remain open. Source hashes, dependency requests and complete envelope templates are in [numeric-contracts.json](numeric-contracts.json); the shared recipe is in [numeric-common.md](numeric-common.md). The exact JS primitive planning capture is indexed separately in oracles/manifest.json; it does not certify native/Wasm/public-envelope parity.
 
 **Owner/release:** R1, with R2 reviewing changed violation consumers. Independently releasable to N02; work N03 and escaping N04 are not prerequisites. Contract-planning dependency is `library-sequence:P02`. N02 is a maintenance delta on credited `ports:A03.1` (complete; original dependencies A02/C03.ready), not a redispatch of its foundation. Full caller/installed claims retain their own A04/A07/V prerequisites.
 

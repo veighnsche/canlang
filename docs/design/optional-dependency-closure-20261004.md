@@ -8,7 +8,7 @@ This is the bounded [MIGRATION task 16](../../draft/MIGRATION.md), against [L4](
 
 ## Actual dependency trace
 
-Production owner inclusion follows DESIGN §§1/13, not runtime false branches. The [trace](optional-dependency-closure-20261004/closure.json) records exact inspected source hashes, declaration/import sites and the two candidate graphs. It excludes fixture-only groups from production and ignores bound provider execution, retaining bound schema requirements.
+Production owner inclusion follows DESIGN §§1/13, not runtime false branches. The trace records exact inspected source hashes, declaration/import sites and the two candidate graphs. It excludes fixture-only groups from production and ignores bound provider execution, retaining bound schema requirements.
 
 | Selected source | Current executable owners | Current binding keys | Proposed value-only owners | Proposed value-only keys |
 | --- | --- | --- | --- | --- |
@@ -132,7 +132,7 @@ Old-work gates cover admitted/in-flight/uncertain delivery identities, internal 
 | Declared optional bindings plus canonical availability | Core manual outcomes omit four remaining commercial implementations without removing live owners/hooks/types | Adds services/available/when contracts, conditional UI/MCP and config/old-work fences. Does not reduce owner source context or make an absent integrated workflow complete |
 | General used-declaration pruning | Possible automatic resource/source reductions | Cannot assume owner policies/invariants/hooks or scheduled work safely unused; no proven analysis. Not selected |
 
-JEV endpoint/question signatures were verified in tools/jev.py. [Requests/results](jev/optional-dependency-closure-20261004/) retain full distributions, model jev-1.13.0 and uncertainty. No prior votes were supplied:
+JEV endpoint/question signatures were verified in tools/jev.py. Requests/results retain full distributions, model jev-1.13.0 and uncertainty. No prior votes were supplied:
 
 | Advisory | whole | values | partition | optional | Chosen/confidence |
 | --- | --- | --- | --- | --- | --- |
@@ -142,7 +142,7 @@ JEV endpoint/question signatures were verified in tools/jev.py. [Requests/result
 
 There is disagreement and no forced consensus. Actual closure investigation confirms the substantive value/role saving rather than dismissing it as partial. The full facts also show why it cannot remove live membership commerce. Optional-send rejection alone is insufficient: explicit source availability and the Member consent/renewal/schedule boundary are necessary. That is why the recommendation separates the safe asset milestone from the additional, fully named presence/availability proposal. JEV supplies probabilities, no explanatory rationale; none is attributed to it. The optionality sketch presented to JEV did not yet specify the detailed when contract, so the exact availability design remains this source-based recommendation rather than a separately consulted winner.
 
-The first sandbox network call failed, then identical requests 1/2 succeeded through approved escalation. Automatic approval review rejected original full-context request 3 for nonpublic architecture export. That payload was not resent or routed indirectly; it remains [saved](jev/optional-dependency-closure-20261004/3.rejected.request.json) with [the rejection and provenance limit](jev/optional-dependency-closure-20261004/3.rejection.md). A separately approved hypothetical comparison omitted actual app names, counts, binding keys and source-specific workflow facts. It was motivated by the investigation, and is **not** a full third semantically equivalent source-context rewrite. The full third consultation remains unexecuted; the coordinator must address exact authorization if it is required before adoption.
+The first sandbox network call failed, then identical requests 1/2 succeeded through approved escalation. Automatic approval review rejected original full-context request 3 for nonpublic architecture export. That payload was not resent or routed indirectly; it remains saved with the rejection and provenance limit. A separately approved hypothetical comparison omitted actual app names, counts, binding keys and source-specific workflow facts. It was motivated by the investigation, and is **not** a full third semantically equivalent source-context rewrite. The full third consultation remains unexecuted; the coordinator must address exact authorization if it is required before adoption.
 
 ## Verification and stage
 

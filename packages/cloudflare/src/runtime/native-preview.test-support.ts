@@ -132,7 +132,7 @@ export async function openNativePreview(artifact:CompileArtifact,capture:SingleF
 
 export function resolvePreviewRoles(roles:Readonly<Record<string,readonly string[]>>,definition:unknown):Promise<Record<string,string[]>> { return policy('roles',{roles,definition}); }
 
-/** Physical-browser semantic test hook; plans and assertions execute in qualification.rs. */
+/** Physical-browser semantic test hook; plans and assertions execute in browser_test.rs. */
 export function runNativeBrowser(artifact:CompileArtifact,capture:SingleFileCapture,artifactBytes:Uint8Array,handlers:Record<string,Handler>):Promise<unknown> {
   return policy('browser',{artifact,capture,artifactJson:Buffer.from(artifactBytes).toString('utf8')},{},handlers);
 }

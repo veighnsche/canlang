@@ -5,8 +5,7 @@ The source investigation below retains its historical baseline at
 `0bb480bef36b8a4aa9dafd932a06443f5543d33c` (inspected product files unchanged from
 `08dc8c392`). The user approved the grammar profile, then separately released
 Shared TS syntax, compiler parse/usage consolidation and UI full-signature usage for
-[package-audit candidate 1](README.md#1-shared-bounded-message-syntax--strongest-semantic-consistency-opportunity).
-The three implementation packets and their finite joined checks are complete at
+[package-audit candidate 1](README.md#1-shared-bounded-message-syntax--strongest-semantic-consistency-opportunity). The three implementation packets and their finite joined checks are complete at
 the recorded scopes below. Native preparation remains **HUMAN HOLD**.
 
 **Accepted profile and staged direction:** use the Values grammar as the explicitly
@@ -41,8 +40,7 @@ grammar column below.
 
 UI already imports and depends on Values; Values depends on Contracts, so parser
 reuse adds no package cycle. Compiler already depends on `values-semantics` for
-other work; a later shared Rust core would not inherently require another crate.
-Neither fact supplies the missing cross-language parser transport or adoption.
+other work; a later shared Rust core would not inherently require another crate. Neither fact supplies the missing cross-language parser transport or adoption.
 
 ## Historical grammar differences and approved disposition
 
@@ -81,8 +79,7 @@ checking compiler syntax so undeclared-name diagnostics do not obscure the case.
 | Missing `other`, duplicate ordinary key, choice/custom/skeleton style | Reject | Reject | Reject | Preserve the bounded refusals. |
 
 Whitespace is the finite set U+0009–000D, U+0020, U+00A0, U+1680,
-U+2000–200A, U+2028–2029, U+202F, U+205F, U+3000 and U+FEFF.
-The approved profile adds no Unicode normalization or case folding. Literal text, including
+U+2000–200A, U+2028–2029, U+202F, U+205F, U+3000 and U+FEFF. The approved profile adds no Unicode normalization or case folding. Literal text, including
 supplementary characters, is retained. Values/UI accept JS strings containing
 lone surrogate code units; a future Rust boundary must preserve them or obtain
 an explicit public-domain change, not silently replace them during UTF8 conversion.
@@ -106,13 +103,9 @@ differed from its ICU checker:
   argument. Unicode/digit-start names can produce coverage noise before the
   stricter ICU checker rejects the grammar.
 - The implemented consolidation derives names and usage kinds from the same
-  parser that validates syntax, retaining source order and all branches.
-  Selectors, quoted text and branch prose are not arguments. Malformed patterns
-  supply no speculative slots; E5007 retains syntax/type failure ownership.
-  Removal of malformed-input E3016/E3013 noise is an explicit approved change.
-  Anonymous binding retains admitted supplied schemas for typed checkpoints;
-  a malformed pattern cannot establish that a supplied argument is unused.
-  Duplicate binding and value-admission errors remain unconditional.
+  parser that validates syntax, retaining source order and all branches. Selectors, quoted text and branch prose are not arguments. Malformed patterns
+  supply no speculative slots; E5007 retains syntax/type failure ownership. Removal of malformed-input E3016/E3013 noise is an explicit approved change. Anonymous binding retains admitted supplied schemas for typed checkpoints;
+  a malformed pattern cannot establish that a supplied argument is unused. Duplicate binding and value-admission errors remain unconditional.
 
 The completed compiler consumer list is finite: named source/present variants; explicitly
 bound anonymous descriptors; selected raw format leaves through checked
@@ -120,16 +113,14 @@ aliases/choices; remaining inline structural checks; static contributed-field
 captions; and the four former `message_slots` call sites for source/variant
 coverage, page context-free checks and anonymous binding unions. The first three
 use the shared valid-only name helper; anonymous binding consumes the same parse
-result directly so it can preserve its schema on malformed input.
-Anonymous typed schemas already reach `IcuParser` (`examples.rs:293–316`);
+result directly so it can preserve its schema on malformed input. Anonymous typed schemas already reach `IcuParser` (`examples.rs:293–316`);
 historical Pass9 wording that all anonymous descriptors are structural-only is
 no longer current. Keep plain `scan_format_template` for the separate machine
 template overload outside this migration.
 
 Before the UI usage packet, supplied operands were converted eagerly but usage
 was checked only in the rendered branch. Thus `{s,select,a{ok} other{{missing}}}`
-with `s="a"` succeeded; `message()` also left source/variant syntax unchecked.
-Those full-signature gaps are now closed at the selected scope.
+with `s="a"` succeeded; `message()` also left source/variant syntax unchecked. Those full-signature gaps are now closed at the selected scope.
 
 UI validates syntax and declared usage in source and every present variant,
 including unselected branches, using Values' existing traversal exposed as
@@ -139,16 +130,13 @@ without converting operand values. With absent `params`, construction remains
 syntax-only and binding waits until formatting. Formatting also checks structural
 descriptors after locale resolution and eager conversion of every supplied value;
 it relies on no factory brand. A per-call pattern map reuses the selected AST and
-parses each distinct needed pattern once, in source then present-variant order.
-Earlier factory/all-branch failures are intentional changes under this release.
-Literal captions and already resolved text are never reparsed.
+parses each distinct needed pattern once, in source then present-variant order. Earlier factory/all-branch failures are intentional changes under this release. Literal captions and already resolved text are never reparsed.
 
 The effective formatting signature remains `options.args ?? descriptor.params`;
 explicit arguments keep their complete override behavior. UI retains own-key
 handling, including own `__proto__`, without Values' reserved-name constructor
 rule. Inline `enum(...)` declaration metadata uses Values' existing type-ID parser
-at construction so descriptor carriers still reach their working Values formatter.
-UI's formatting sink keeps its existing ownerless-enum value-admission refusal;
+at construction so descriptor carriers still reach their working Values formatter. UI's formatting sink keeps its existing ownerless-enum value-admission refusal;
 this packet does not broaden renderer admission or validate enum case membership.
 
 ## What sharing must preserve
@@ -190,8 +178,7 @@ evaluation remains dormant and requires its own release, not whole A/V/W complet
 | UI full-signature usage — existing candidate 1 / DESIGN §9.1 consumer obligation | UI with Values usage producer; shared TS syntax result and type-only AST traversal | **Released and complete.** Source/present-variant/all-branch syntax and declared usage checks use the shared AST traversal and UI's type/error adapters. Unselected invalid usage refuses; differing signature subsets, native operands and resolved text retain their contracts. Rendering, eager value admission and per-call AST reuse are preserved, with no new descriptor carrier. |
 | Joined completion — consumes the three outputs above | Values/UI/Compiler owners; exact changed producer closure | **Selected criteria satisfied.** Current TS shared cases/usage tests and the two existing compiled formatter consumers pass; unchanged compiler profile and diagnostic checks are retained. Literal captions, own keys, exact large/fractional branches, offsets and dual-fault ordering are covered. Each outcome is credited once; broader formatter parity, ownerless UI enum adoption and host/native qualification remain outside this scope. |
 
-The completed TS, compiler and UI packets share the approved profile and cases.
-Their finite handoffs are consumed; no remaining assignment is created by this
+The completed TS, compiler and UI packets share the approved profile and cases. Their finite handoffs are consumed; no remaining assignment is created by this
 completion record. Values owns syntax/usage exports, UI owns its validation and
 rendering adapters, and Compiler owns its analysis integration. No heavy cache,
 native preparation slot, installer programme or additional worktree is allocated.
@@ -200,13 +187,10 @@ Use the existing real consumer entries, not a new integration harness:
 `localized_format_preserves_checked_owners_and_runtime_arguments` in
 [`compiler/tests/localized_format.rs`](../../../compiler/tests/localized_format.rs),
 and `anonymous_messages_compile_and_execute_native_date_time_and_plural_bindings`
-in [`compiler/tests/anonymous_message_bindings.rs`](../../../compiler/tests/anonymous_message_bindings.rs).
-Together they exercise compiled named/anonymous formatting, installed Values/UI
-package consumers, source/app fallback, native operands and capture order.
-Their Cloudflare assembler modules are source-loaded; do not claim a fully
+in [`compiler/tests/anonymous_message_bindings.rs`](../../../compiler/tests/anonymous_message_bindings.rs). Together they exercise compiled named/anonymous formatting, installed Values/UI
+package consumers, source/app fallback, native operands and capture order. Their Cloudflare assembler modules are source-loaded; do not claim a fully
 installed Cloudflare-loader qualification. The anonymous consumer's explicit
-ownerless-enum UI refusal remains a gap, not newly supported enum coverage.
-Keep the existing Values ICU and UI message suites for their adapter behavior;
+ownerless-enum UI refusal remains a gap, not newly supported enum coverage. Keep the existing Values ICU and UI message suites for their adapter behavior;
 UI's message suite now includes own-versus-inherited binding regressions at the
 existing selected-usage boundary; reuse them for any later usage packet.
 
@@ -214,16 +198,14 @@ Implemented TS and compiler allocation remains small:
 
 - Values keeps `src/icu.ts` for public wrappers, shared `messageUsages` traversal,
   descriptor validation and formatting;
-  private `src/icu-syntax.ts` now owns syntax/normalization and diagnostic data.
-  Root `parseMessageSyntax` is the narrow shared entry; existing exports remain compatible.
+  private `src/icu-syntax.ts` now owns syntax/normalization and diagnostic data. Root `parseMessageSyntax` is the narrow shared entry; existing exports remain compatible.
 - UI keeps its descriptor/resolver/renderer in `src/messages.ts`; it now consumes
   Values nodes and diagnostics without importing Values rendering.
 - Compiler's private `src/analysis/icu.rs` owns one grammar/usage implementation
   and validation checkpoints, consumed by `examples.rs`/`types.rs`. It adds no
   crate, dependency, public transport or rendering owner.
 - The shared plain corpus at `packages/values/test/fixtures/icu-profile.json`
-  contains 24 accepted and 40 refused syntax cases consumed by Values and UI.
-  Compiler tests reuse its 63 Unicode-scalar cases; the lone-surrogate TS witness
+  contains 24 accepted and 40 refused syntax cases consumed by Values and UI. Compiler tests reuse its 63 Unicode-scalar cases; the lone-surrogate TS witness
   remains explicitly outside Rust authored-string input. Existing owner suites
   cover host errors, rendering and depth; C09I remains the historical baseline.
 
@@ -234,8 +216,7 @@ single TS grammar, exact-selector normalization and narrow diagnostics;
 `icu.ts` preserves the existing public parser, ValueError messages and AST
 contracts. UI consumes that syntax result once after its existing locale and
 eager supplied-operand admission, projects ordinary Error messages with UTF16
-offsets, and renders nodes with its existing exact numeric and Intl behavior.
-At that TS checkpoint, descriptors, operand admission and selected-branch usage
+offsets, and renders nodes with its existing exact numeric and Intl behavior. At that TS checkpoint, descriptors, operand admission and selected-branch usage
 remained unchanged apart from approved grammar changes. The separately released
 full-signature packet is completed below.
 
@@ -258,8 +239,7 @@ before delimiter parsing; number style precedes numeric type checks, while
 date/time and plural/select types precede their later syntax checks. `examples.rs`
 retains the existing type mapping and E5007 adapter. `types.rs` retains E3016
 coverage, E3013 static-sink restrictions, E3005 explicit binding and E5009 value
-admission; syntax failures no longer create speculative slot diagnostics.
-For a malformed bound anonymous pattern, supplied types still reach E5007's
+admission; syntax failures no longer create speculative slot diagnostics. For a malformed bound anonymous pattern, supplied types still reach E5007's
 checkpoints rather than being discarded as unused bindings. Valid patterns
 retain the ordinary extra-binding refusal.
 
@@ -268,8 +248,7 @@ and ordered usage kinds; 38 existing check tests, 10 ICU-profile tests, six name
 coverage tests, three temporal-message tests and nine anonymous-binding checks
 pass (68 distinct Rust tests). The alias/choice test passed again after adding
 unselected/nested choice and unchanged machine-template controls. Unchanged
-parser/check results were reused after the isolated anonymous-schema correction.
-That correction has a confirmed failing-before/passing-after regression.
+parser/check results were reused after the isolated anonymous-schema correction. That correction has a confirmed failing-before/passing-after regression.
 
 The two existing named/anonymous formatter consumer scripts also pass using a
 frozen current compiler binary, local Values/UI emitted output, cached dependency
@@ -281,11 +260,9 @@ Cloudflare tarball, browser, hosted or native-preparation qualification.
 
 Implementation and validation stayed in the isolated worktree. Main then
 fast-forwarded `7700621fa` to `22b66ab20`, preserving bytes/modes of its 47
-pre-existing modified/untracked files and leaving foreign staging unchanged.
-The living plan and DECISIONS reconcile all 13 incoming paths against retained
+pre-existing modified/untracked files and leaving foreign staging unchanged. The living plan and DECISIONS reconcile all 13 incoming paths against retained
 coverage; unchanged validation is reused. At that compiler checkpoint UI usage
-and its joined completion were still unreleased; their later completion follows.
-The complete review checkpoint and native-preparation **HUMAN HOLD** are unchanged.
+and its joined completion were still unreleased; their later completion follows. The complete review checkpoint and native-preparation **HUMAN HOLD** are unchanged.
 
 ## UI full-signature usage and finite join completion — 18 October 2026
 
@@ -299,8 +276,7 @@ ordinary Error/JSON-pattern/UTF16 contracts, and rendering limits stay selected-
 
 Validation covers **255 distinct TS tests**: initial 254 focused Values ICU/locale
 and UI messages/usage/components tests passed, then an added inline-enum regression
-and the affected UI scope passed 50 tests, reusing the unchanged 205 results.
-Contracts/Values/UI emitted and typechecked. Independent source review covered the
+and the affected UI scope passed 50 tests, reusing the unchanged 205 results. Contracts/Values/UI emitted and typechecked. Independent source review covered the
 factory/sink ordering, traversal, mapping, own keys and AST reuse. Both existing
 named/anonymous formatter scripts pass with the unchanged frozen compiler producer
 and current Values/UI output. The anonymous consumer exposed an inline-enum carrier
@@ -316,8 +292,7 @@ checks do not certify full tarballs, browser/hosted/native delivery or complete
 formatter parity.
 
 Integration fast-forwarded main from `1255fc11f` to `8ad70d468`, covering the
-five package and seven planning/decision paths recorded in the living plan.
-Retain accumulated coverage, defining owners and target allocations. Newer
+five package and seven planning/decision paths recorded in the living plan. Retain accumulated coverage, defining owners and target allocations. Newer
 compiler/runtime source edits and foreign staging were preserved; concurrent
 untracked database writes remain with their owner. No semantic integration edits
 require renewed qualification. No canonical Rust task closure or complete
@@ -333,10 +308,8 @@ the total tradeoff must be explicit.
 
 The candidate owner would be a small message-syntax module in the existing
 Values `semantics` crate, consumed natively by compiler and through the existing
-Values binding/delivery owners for TS. Keep type/disclosure/Intl/rendering outside.
-Do not add a full ICU dependency or reopen the completed
-[FormatJS 0.3.1 retain assessment](../../research/compiler-library-audit-20261006/pass9/icu/candidate-assessment.md).
-That pinned result failed exact-selector/parse-time-depth gates; it is not a
+Values binding/delivery owners for TS. Keep type/disclosure/Intl/rendering outside. Do not add a full ICU dependency or reopen the completed
+[FormatJS 0.3.1 retain assessment](../../research/compiler-library-audit-20261006/pass9/icu/candidate-assessment.md). That pinned result failed exact-selector/parse-time-depth gates; it is not a
 claim about every future library version.
 
 The finite evaluation compares this candidate against the then-shared TS parser
@@ -348,8 +321,7 @@ plus compiler implementation on the same corpus and real caller paths. Check:
    do not by themselves establish this domain. Choose an exact boundary only
    if needed; do not invent a general text ABI in this planning task.
 3. Required installed Node/Worker/UI consumer asset closure, cold startup,
-   complete parse/validate/render cost, copies, allocation and shipped bytes.
-   Compare both fresh patterns and repeated patterns; a parser-only timing does
+   complete parse/validate/render cost, copies, allocation and shipped bytes. Compare both fresh patterns and repeated patterns; a parser-only timing does
    not choose adoption, and a cache is not assumed necessary.
 4. Compiler diagnostic precedence/usage consumers and deletion of both replaced
    grammar implementations. No semantic-error retry through a second parser.
@@ -363,20 +335,15 @@ switch. Native preparation `P04–P11`/`C04.native-release` remains separately h
 
 Three focused read-only source reviews covered Values, UI and compiler. Root
 reconciled the profile against DESIGN, existing C09I acceptance, package
-dependencies and current bindings. The [JEV consultation](icu-consultation.json)
-contains three independently worded equivalent Choice requests over verified
-public source facts. All chose staged TS sharing/compiler consolidation
+dependencies and current bindings. All chose staged TS sharing/compiler consolidation
 (probability .96–.99) and literal outside-plural `#` (.79–.94). The third pound
 answer left .17 on defer because the written rule was incomplete at investigation
 time. The literal rule was an explicit proposal then; user approval, not model
-agreement, now establishes the grammar decision.
-No categorical disagreement required another consultation. Advice does not
+agreement, now establishes the grammar decision. No categorical disagreement required another consultation. Advice does not
 establish correctness, performance or implementation permission.
 
 The original investigation changed and executed no product code or tests;
 its source matrix and historical C09I results retain their recorded pins. The
-subsequent released TS implementation and focused checks are recorded above.
-No performance or joined compiler/installed-host claim follows from those TS
+subsequent released TS implementation and focused checks are recorded above. No performance or joined compiler/installed-host claim follows from those TS
 checks. Compiler consolidation and UI full-signature usage are now separately
-completed above, including finite joined validation at their selected scope.
-A later shared Rust adoption remains dormant; native preparation remains held.
+completed above, including finite joined validation at their selected scope. A later shared Rust adoption remains dormant; native preparation remains held.

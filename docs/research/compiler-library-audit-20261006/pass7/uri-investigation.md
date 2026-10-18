@@ -43,8 +43,6 @@ Release matrix `.github/workflows/release.yml` lines 18–20 ships Linux x86_64 
 
 Contract-compatible candidate (proposal, not accepted decision): keep authored URI in docs and all wire outputs; parse separately only to derive a display String; guard `scheme == "file"`; use native `to_file_path`; use exact UTF-8 extraction; on parse/conversion/string failure retain authored URI. Ordinary non-file strings retain authored bytes. Decide file query/fragment treatment and permissive file forms explicitly, because Url normalization changes more than decoding.
 
-Consequential alternatives needing three independently worded equivalent verified-context JEV consultations if owner/root wants to choose them:
-
 - Display semantics: native platform path with raw fallback vs portable URI-derived file display preserving authority. Compare readability, supported local/remote documents, cross-platform stable metadata, exact byte preservation, and future path indexing. Neither implies real filesystem loading.
 - Accepted file forms/normalization: adopt all Url file canonicalization (case, file:/, dot segments, relative-looking file: form, query/fragment omission) vs retain narrow historical file:// contract and treat exceptional forms as raw URI. Compare same corpus and retain exact wire URI under either.
 - Encoded separators / NUL / nonUTF8: dependency-native conversion vs explicit conservative string-only fallback on problematic components. The Unicode exactness requirement is straightforward, but introducing rejection rules for separators/NUL is a semantic contract choice.

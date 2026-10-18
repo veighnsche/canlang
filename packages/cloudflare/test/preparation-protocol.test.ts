@@ -239,9 +239,6 @@ describe("preparation launcher: failure mapping", () => {
         binary: "can-preparation",
         sha256: createHash("sha256").update(bytes).digest("hex"),
         bytes: bytes.length,
-        toolchain: { rustc: "1.99.0", cargo: "1.99.0", pinned: "1.99.0" },
-        lockfileSha256: "0".repeat(64),
-        sourceHead: "test",
         release: "0.1.1",
       }),
     );
@@ -558,9 +555,6 @@ describe("preparation launcher: failure mapping", () => {
         binary: basename(binPath),
         sha256: manifestSha,
         bytes: binaryBytes.length,
-        toolchain: { rustc: "1.99.0", cargo: "1.99.0", pinned: "1.99.0" },
-        lockfileSha256: "0".repeat(64),
-        sourceHead: "test",
         release: "0.1.1",
       }),
     );
@@ -643,9 +637,6 @@ describe("preparation launcher: failure mapping", () => {
         binary: "other-binary",
         sha256: createHash("sha256").update(otherBytes).digest("hex"),
         bytes: otherBytes.length,
-        toolchain: { rustc: "1.99.0", cargo: "1.99.0", pinned: "1.99.0" },
-        lockfileSha256: "0".repeat(64),
-        sourceHead: "test",
         release: "0.1.1",
       }),
     );
@@ -678,9 +669,6 @@ describe("preparation launcher: failure mapping", () => {
         binary: "can-preparation",
         sha256: createHash("sha256").update(bytes).digest("hex"),
         bytes: bytes.length,
-        toolchain: { rustc: "1.99.0", cargo: "1.99.0", pinned: "1.99.0" },
-        lockfileSha256: "0".repeat(64),
-        sourceHead: "test",
         release: "0.1.0",
       }),
     );

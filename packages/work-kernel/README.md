@@ -51,5 +51,5 @@ RangeErrors and demand order.
 Native whole-call checks use the actual staged module and retained original
 recovery expectations through explicit `test:recovery-wasm`; a missing asset
 fails. The existing ordinary `test:unit` inventory remains unchanged. Genuine installed/durable sweep
-adoption and its owner effects remain Dev's consumer qualification. This producer
-alone does not complete TECH-W03 or authorize serving, publication or activation.
+adoption and its owner effects are checked by Dev. Kernel execution alone
+does not authorize serving, publication or activation.

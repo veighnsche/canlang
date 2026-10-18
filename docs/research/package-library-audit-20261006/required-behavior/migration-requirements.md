@@ -25,8 +25,7 @@ not automatically a new protocol or database transformation.
    installed host. Test fixtures and narrow helper receipts do not prove a joined
    workflow, concurrent winner or durable migration.
 5. **Define rollback and retirement.** Retain a compatible old reader/release
-   while needed, without resurrecting expired credentials or replaying effects.
-   State what irreversible data changes preclude rollback. Remove superseded
+   while needed, without resurrecting expired credentials or replaying effects. State what irreversible data changes preclude rollback. Remove superseded
    mechanics only after their actual callers switch; preserve TS/backend retirement
    and native preparation HOLD gates.
 
@@ -49,5 +48,4 @@ not automatically a new protocol or database transformation.
 The open classification is a finite decision obligation, not a reason to build a
 permanent adapter. Obtain concrete domain/caller/persisted evidence, compare the
 simpler alternatives against the same outcome, and consult repository JEV for a
-new difficult choice. Record that later decision with its owner and uncertainty.
-Do not turn this audit into an adoption, TS deletion or implementation command.
+new difficult choice. Record that later decision with its owner and uncertainty. Do not turn this audit into an adoption, TS deletion or implementation command.

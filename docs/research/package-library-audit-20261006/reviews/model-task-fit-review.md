@@ -12,9 +12,7 @@ The local [model-selection skill](/Users/vince/.codex/skills/model-selection/SKI
 
 Prepared fixtures means a specified generator/corpus or extraction procedure; inventing the oracle or interpreting contradictions belongs to the technical packet. Critical review can be a separate short packet rather than raising every worker's model.
 
-| Unit | Economical worker selection | Required decomposition or stronger review; concrete reason |
-|---|---|---|
-| P01 | Luna low inventory/hash extraction; Sol medium source/caller reconciliation | Source-ready versus installed acceptance and dirty/frozen evidence require technical interpretation. Sol high only if credited evidence conflicts with changed source. |
+Sol high only if credited evidence conflicts with changed source. |
 | P02 | Luna low crosswalk transcription; Sol medium scope/ownership analysis | Original prerequisites, aliases, corrective scope, HOLD and sole writers must agree; do not hand the whole scope decision to a bookkeeping worker. |
 | N01 | Luna medium specified seeded fixture generation; Sol high oracle/contract design | IEEE-754 boundaries, negative-zero bits, distinct JSON nonfinite rules, error envelopes, and Rust-str versus lone-surrogate domains require independent semantic proof. Medium understates the full unsplit contract packet. |
 | N02 | Sol medium adapter and caller parity | Small single helper with frozen oracle; no arithmetic engine change. Luna medium may prepare fixtures. Review Sol medium; raise to high if carrier/diagnostic inconsistencies arise. |

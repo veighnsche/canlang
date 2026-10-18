@@ -71,8 +71,7 @@ verified layout first), exported from `identity/src/index.ts`.
 - Policy source (verified by reading the tree, documented in the module):
   NO per-operation L3 surface is reachable (`policy/grants.ts` is row
   visibility; `crud.ts by` defs have no worker supplier — J2 unlanded;
-  artifact operations carry no policy field; `requires[]` = library caps).
-  Owning policy read = team-membership (`members` semantics mirroring
+  artifact operations carry no policy field; `requires[]` = library caps). Owning policy read = team-membership (`members` semantics mirroring
   `evaluateBy('members')` line-by-line) + closed operation world from
   P1 `operations[]`. Unknown op / anonymous / app-only / missing / removed /
   foreign-team / principal-mismatch / malformed → deny. NEVER fail-open.

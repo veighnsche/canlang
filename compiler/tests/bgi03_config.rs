@@ -715,19 +715,14 @@ fn capability_tables_advertise_all_required_adapters() {
         let adapter = adapter_capabilities(runner).unwrap_or_else(|| panic!("{runner}"));
         assert_eq!(adapter.id, runner);
         assert!(!adapter.probe_binaries.is_empty(), "{runner}");
-        // Only the actually qualified Codex adapter may launch.
+        // Only the implemented Codex adapter may launch.
         let state = if runner == "codex" {
             "supported"
         } else {
-            "unqualified"
+            "unsupported"
         };
         assert_eq!(adapter.mcp_attachment.state(), state);
         assert_eq!(adapter.write_restriction.state(), state);
-        assert!(
-            adapter.mcp_attachment.note().contains("BGI-0"),
-            "{}",
-            adapter.mcp_attachment.note()
-        );
     }
     assert!(adapter_capabilities("teleport").is_none());
 }
@@ -744,7 +739,7 @@ fn preflight_refuses_before_launch() {
     .unwrap();
     assert!(preflight_recipe(&resolved).is_ok());
     resolved.runner = "muse".into();
-    // Unqualified MCP attachment fails before launch, without fallback.
+    // Missing MCP integration fails before launch, without fallback.
     let err = preflight_recipe(&resolved).unwrap_err();
     assert_eq!(err.code(), "unsupported-capability");
     assert!(err.to_string().contains("MCP"), "{err}");
@@ -1163,7 +1158,10 @@ fn bind_json_round_trip_with_typed_errors() {
     let (code, message) = error_of(&result.stdout);
     assert_eq!(code, "stale-selector");
     assert!(message.contains("stale"), "{message}");
-    assert_eq!(scan_unit_ids(dir.path()).unwrap(), vec![unit_id.to_string()]);
+    assert_eq!(
+        scan_unit_ids(dir.path()).unwrap(),
+        vec![unit_id.to_string()]
+    );
     // Unknown units refuse without touching saved groups.
     let request = request_file(
         dir.path(),

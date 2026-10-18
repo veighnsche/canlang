@@ -1,6 +1,6 @@
 # Original-app delivery intent review
 
-Planning only. Independently read the entire `.can` and companion `.md` for these 17 applications, plus all three shared sources. Exact bytes, SHA256, declaration sites, every named scenario/CRUD and detailed workflow/authority/failure duties are in [apps-delivery.json](apps-delivery.json). Source and companion state desired contracts. Historical syntax/correspondence checks are preserved as historical evidence; none were rerun, and no app was qualified by this audit. Existing compiler invocation/delivery types, canonical state admission/query, work scheduling/fanout and interface schemas are source-present partial mechanisms, not absent wholesale.
+Planning only. Independently read the entire `.can` and companion `.md` for these 17 applications, plus all three shared sources. Exact bytes, SHA256, declaration sites, every named scenario/CRUD and detailed workflow/authority/failure duties are in apps-delivery.json. Source and companion state desired contracts. Historical syntax/correspondence checks are preserved as historical evidence; none were rerun, and no app was qualified by this audit. Existing compiler invocation/delivery types, canonical state admission/query, work scheduling/fanout and interface schemas are source-present partial mechanisms, not absent wholesale.
 
 ## Reconstructed complete journeys
 

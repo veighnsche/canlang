@@ -1,6 +1,6 @@
-//! Captured construct help, proof joins and local ranking eligibility.
-//! The native owner retains revisions and qualification jobs. External advice
-//! remains disabled; no source projection leaves this process.
+//! Captured construct help and local ranking eligibility.
+//! Support comes from the authored reference and owning package catalogs.
+//! External advice remains disabled; no source projection leaves this process.
 use crate::capture::{self, Capture, CapturedInput};
 use crate::files::{self, FileRef};
 use serde_json::{Value, json};
@@ -13,59 +13,9 @@ use std::path::Path;
 use std::sync::atomic::AtomicBool;
 
 type Result<T> = std::result::Result<T, String>;
-pub const FIRST_PROFILE: &str = "office-supplies-local-v1";
 const DOCUMENT: &str = "docs/specification/CONSTRUCT-HELP.md";
 const VALUES_SOURCE: &str = "packages/values/src/catalog.ts";
 const UI_SOURCE: &str = "packages/ui/src/catalog.ts";
-const INCLUDED: &[&str] = &[
-    "can.v1.app.implicit",
-    "can.v1.section.given",
-    "can.v1.section.when",
-    "can.v1.section.then",
-    "can.v1.model",
-    "can.v1.schema",
-    "can.v1.field",
-    "can.v1.field.default",
-    "can.v1.field.trim",
-    "can.v1.field.min",
-    "can.v1.field.max",
-    "can.v1.type.nullable",
-    "can.v1.type.enum",
-    "can.v1.type.builtin.text",
-    "can.v1.type.builtin.int",
-    "can.v1.type.builtin.bool",
-    "can.v1.policy",
-    "can.v1.invariant",
-    "can.v1.lock",
-    "can.v1.derive.function",
-    "can.v1.fixture.model",
-    "can.v1.fixture.user",
-    "can.v1.when.crud",
-    "can.v1.when.scenario.user",
-    "can.v1.when.scenario.read",
-    "can.v1.examples.table.crud",
-    "can.v1.examples.table.scenario",
-    "can.v1.examples.table.error",
-    "can.v1.then.preferences-schema",
-    "can.v1.then.page",
-    "can.v1.then.form",
-    "can.v1.then.edit",
-    "can.v1.then.delete",
-    "can.v1.then.text",
-    "can.v1.ui.card",
-    "can.v1.ui.input",
-    "can.v1.ui.tabs-selector",
-    "can.v1.ui.list",
-    "can.v1.ui.table",
-    "can.v1.ui.stat",
-    "can.v1.builtin.count",
-];
-const OUTSIDE: &[&str] = &[
-    "can.v1.import",
-    "can.v1.import.alias",
-    "can.v1.import.bound",
-    "can.v1.when.scenario.periodic",
-];
 const FLAGS: &[&str] = &[
     "exactSourceSpan",
     "structuralRecovery",
@@ -87,9 +37,6 @@ fn array(value: &Value) -> &[Value] {
 }
 fn sha(bytes: &[u8]) -> String {
     capture::hash(bytes)
-}
-fn json_bytes<T: serde::Serialize>(value: &T) -> Result<Vec<u8>> {
-    serde_json::to_vec(value).map_err(|e| e.to_string())
 }
 fn digest(parts: &[String]) -> String {
     let mut hash = Sha256::new();
@@ -212,12 +159,6 @@ fn number(value: Option<&Value>) -> f64 {
 }
 fn js_space(c: char) -> bool {
     matches!(c,'\u{9}'..='\u{d}'|'\u{20}'|'\u{a0}'|'\u{1680}'|'\u{2000}'..='\u{200a}'|'\u{2028}'|'\u{2029}'|'\u{202f}'|'\u{205f}'|'\u{3000}'|'\u{feff}')
-}
-
-/// Preserve the CapturedInput DTO field order used by JSON.stringify in the
-/// original private runtime contract; converting through Value sorts keys.
-pub fn producer_inputs_digest(capture: &Capture) -> Result<String> {
-    Ok(sha(&json_bytes(&capture.inputs)?))
 }
 
 fn decode(value: &str) -> String {
@@ -397,7 +338,7 @@ fn parse_card(line: &str, table: &str, width: usize, ids: &mut BTreeSet<String>)
     Ok(
         json!({"id":id,"section":card_section(id,table),"signature":signature,"meaning":meaning,
         "example":example,"availability":availability,
-        "status":if availability.to_lowercase().contains("proposed") {"planned"} else {"unavailable"},
+        "status":if availability.to_lowercase().contains("proposed") {"planned"} else {"working"},
         "link":format!("{DOCUMENT}{stable}"),"sourceLink":source}),
     )
 }
@@ -437,7 +378,6 @@ struct Index {
     compiler: String,
     document: String,
     cards: Vec<Value>,
-    policy: bool,
 }
 fn ui_name(id: &str) -> &str {
     let suffix = id.strip_prefix("can.v1.ui.").unwrap_or(id);
@@ -497,10 +437,6 @@ fn create_index(input: &Value) -> Result<Index> {
             return Err(format!("missing captured {name} source hash"));
         }
     }
-    let policy = input.get("profilePolicy").is_some();
-    if policy && !hash_valid(string(&input["profilePolicy"]["sha256"])) {
-        return Err("missing captured profile-policy source hash".into());
-    }
     if input["languageVersion"] != "1.0" {
         return Err(format!(
             "unsupported help language version: {}",
@@ -518,24 +454,8 @@ fn create_index(input: &Value) -> Result<Index> {
         .as_array()
         .ok_or("captured UI catalog facts are required")?;
     apply_catalog(&mut cards, values, ui)?;
-    for id in INCLUDED {
-        if !cards.iter().any(|v| v["id"] == *id) {
-            return Err(format!("first-profile construct is absent from help: {id}"));
-        }
-    }
-    for id in OUTSIDE {
-        if !cards.iter().any(|v| v["id"] == *id) {
-            return Err(format!(
-                "outside-profile construct is absent from help: {id}"
-            ));
-        }
-    }
     let document = sha(markdown.as_bytes());
     let compiler = string(&input["compiler"]["sha256"]).to_owned();
-    let mut included = INCLUDED.to_vec();
-    included.sort_unstable();
-    let mut outside = OUTSIDE.to_vec();
-    outside.sort_unstable();
     let revision = digest(&[
         "can.dev.construct-help.v1".into(),
         "1.0".into(),
@@ -544,50 +464,17 @@ fn create_index(input: &Value) -> Result<Index> {
         string(&input["grammar"]["sha256"]).into(),
         string(&input["values"]["sha256"]).into(),
         string(&input["ui"]["sha256"]).into(),
-        FIRST_PROFILE.into(),
-        String::from_utf8(json_bytes(&included)?).map_err(|e| e.to_string())?,
-        String::from_utf8(json_bytes(&outside)?).map_err(|e| e.to_string())?,
-        if policy {
-            string(&input["profilePolicy"]["sha256"]).into()
-        } else {
-            "profile-policy-unavailable".into()
-        },
     ]);
     Ok(Index {
         revision,
         compiler,
         document,
         cards,
-        policy,
     })
 }
 impl Index {
-    fn card(&self, id: &str, proof: Option<&Value>) -> Option<Value> {
-        let mut card = self.cards.iter().find(|v| v["id"] == id)?.clone();
-        if INCLUDED.contains(&id)
-            && card["status"] != "planned"
-            && proof.is_some_and(|p| {
-                p["id"] == id
-                    && p["indexRevision"] == self.revision
-                    && p["profile"] == FIRST_PROFILE
-                    && p["compilerSha256"] == self.compiler
-                    && truthy(&p["compilerCheck"])
-                    && truthy(&p["runtimeCheck"])
-                    && (!id.starts_with("can.v1.examples.") || truthy(&p["exampleCheck"]))
-            })
-        {
-            card["status"] = json!("working");
-        }
-        Some(card)
-    }
-}
-fn truthy(v: &Value) -> bool {
-    match v {
-        Value::Null => false,
-        Value::Bool(v) => *v,
-        Value::String(v) => !v.is_empty(),
-        Value::Number(n) => n.as_f64().is_some_and(|n| n != 0.),
-        _ => true,
+    fn card(&self, id: &str) -> Option<Value> {
+        self.cards.iter().find(|v| v["id"] == id).cloned()
     }
 }
 
@@ -651,13 +538,13 @@ fn routing(value: &Value) -> Value {
     )
 }
 fn unknown(reason: &str) -> Value {
-    json!({"grammarCoverage":"unknown","candidateCoverage":"unknown","reason":reason,"cards":[],"classification":[]})
+    json!({"grammarCoverage":"unknown","candidateCoverage":"unknown","reason":reason,"cards":[]})
 }
-fn join(index: &Index, value: &Value, proofs: &[Value]) -> Value {
+fn join(index: &Index, value: &Value) -> Value {
     let route = routing(value);
     let disposition = string(&route["disposition"]);
     let mut out = if disposition == "none" && route["complete"] == true {
-        json!({"grammarCoverage":"complete","candidateCoverage":"complete","cards":[],"classification":[]})
+        json!({"grammarCoverage":"complete","candidateCoverage":"complete","cards":[]})
     } else if disposition != "exact" {
         unknown(if disposition == "structural" {
             "structural recovery needs a source edit"
@@ -670,7 +557,7 @@ fn join(index: &Index, value: &Value, proofs: &[Value]) -> Value {
         let mut cards = Vec::new();
         let mut missing = None;
         for id in array(&route["ids"]).iter().map(string) {
-            if let Some(card) = index.card(id, proofs.iter().rev().find(|p| p["id"] == id)) {
+            if let Some(card) = index.card(id) {
                 cards.push(card);
             } else {
                 missing = Some(format!("unknown construct ID: {id}"));
@@ -680,15 +567,10 @@ fn join(index: &Index, value: &Value, proofs: &[Value]) -> Value {
         if let Some(reason) = missing {
             unknown(&reason)
         } else {
-            let classification: Vec<_> = cards.iter().map(|v| {
-                let id = string(&v["id"]);
-                json!({"id":id,"profile":if INCLUDED.contains(&id) {"included"} else if index.policy && OUTSIDE.contains(&id) {"outside"} else {"unknown"},
-                    "working":if v["status"] == "working" {"qualified"} else {"unqualified"}})
-            }).collect();
             let complete = cards.iter().all(|v| v["status"] == "working");
-            let mut value = json!({"grammarCoverage":"complete","candidateCoverage":if complete {"complete"} else {"unknown"},"cards":cards,"classification":classification});
+            let mut value = json!({"grammarCoverage":"complete","candidateCoverage":if complete {"complete"} else {"unknown"},"cards":cards});
             if !complete {
-                value["reason"] = json!("one or more candidates lack exact profile qualification");
+                value["reason"] = json!("one or more candidates are not implemented");
             }
             value
         }
@@ -869,17 +751,9 @@ fn load_inputs(capture: &Capture, cancel: &AtomicBool) -> Result<Value> {
     captured_bytes(grammar, cancel)?;
     captured_bytes(values, cancel)?;
     captured_bytes(ui, cancel)?;
-    let mut inputs = json!({"languageVersion":"1.0","markdown":markdown,"compiler":{"sha256":compiler.sha256},
+    let inputs = json!({"languageVersion":"1.0","markdown":markdown,"compiler":{"sha256":compiler.sha256},
         "grammar":{"sha256":grammar.sha256},"values":{"sha256":values.sha256,"entries":catalog["values"]},
         "ui":{"sha256":ui.sha256,"entries":catalog["ui"]}});
-    let policy: Vec<_> = capture
-        .inputs
-        .iter()
-        .filter(|v| v.name == "extra:dev-server" && v.state == "present" && v.sha256.is_some())
-        .collect();
-    if policy.len() == 1 {
-        inputs["profilePolicy"] = json!({"sha256":policy[0].sha256});
-    }
     let index = create_index(&inputs)?;
     validate_links(
         &index,
@@ -897,25 +771,8 @@ fn read_json(reference: &Value) -> Result<Value> {
     serde_json::from_slice(&files::read(&reference)?).map_err(|e| e.to_string())
 }
 
-/// Execute against a captured index or load one from captured pure catalog JSON.
-/// Saved indexes/qualification use the same private, bounded FileRef contract.
-fn qualified_proofs<'a>(
-    qualification: &'a Value,
-    index: &Index,
-    profile: &str,
-    producer: &str,
-) -> &'a [Value] {
-    if qualification["indexRevision"] == index.revision
-        && qualification["compilerSha256"] == index.compiler
-        && qualification["authoringProfile"] == FIRST_PROFILE
-        && qualification["resourceProfile"] == profile
-        && qualification["producerInputsDigest"] == producer
-    {
-        array(&qualification["proofs"])
-    } else {
-        &[]
-    }
-}
+/// Execute against a captured index or load one from captured catalog JSON.
+/// Saved indexes use the same private, bounded FileRef contract.
 pub fn run(capture: &Capture, payload: &Value, cancel: &AtomicBool) -> Result<Value> {
     capture::check_cancel(cancel)?;
     let inputs = if let Some(reference) = payload.get("index") {
@@ -935,16 +792,7 @@ pub fn run(capture: &Capture, payload: &Value, cancel: &AtomicBool) -> Result<Va
     {
         return Err("captured help identity mismatch".into());
     }
-    let qualification = if let Some(reference) = payload.get("qualification") {
-        read_json(reference)?
-    } else {
-        Value::Null
-    };
-    let producer = producer_inputs_digest(capture)?;
-    let proofs = qualified_proofs(&qualification, &index, &capture.profile, &producer);
-    let mut out = json!({"index_revision":index.revision,"compiler_sha256":index.compiler,"authoring_profile":FIRST_PROFILE,
-        "producer_inputs_digest":producer,"request":{"resourceProfile":capture.profile,"authoringProfile":FIRST_PROFILE,"indexRevision":index.revision,
-            "compilerSha256":index.compiler,"producerInputsDigest":producer,"inputs":capture.inputs}});
+    let mut out = json!({"index_revision":index.revision,"compiler_sha256":index.compiler});
     match string(&payload["action"]) {
         "index" => {
             out["inputs"] = inputs;
@@ -952,17 +800,13 @@ pub fn run(capture: &Capture, payload: &Value, cancel: &AtomicBool) -> Result<Va
         }
         "help" => {
             let id = runtime_string(&payload["id"])?;
-            out["card"] = index
-                .card(id, proofs.iter().find(|v| v["id"] == id))
-                .ok_or("construct ID unavailable")?;
-            out["unqualified_card"] = index.card(id, None).unwrap();
+            out["card"] = index.card(id).ok_or("construct ID unavailable")?;
         }
         "detail" => {
-            out["construct_help"] = join(&index, &payload["candidates"], proofs);
-            out["unqualified_construct_help"] = join(&index, &payload["candidates"], &[]);
+            out["construct_help"] = join(&index, &payload["candidates"]);
         }
         "rank" => {
-            out["result"] = rank(capture, payload, &index, &qualification, proofs)?;
+            out["result"] = rank(capture, payload, &index)?;
         }
         _ => return Err("unknown construct action".into()),
     }
@@ -1190,13 +1034,7 @@ fn valid_ranked_card(card: &Value) -> bool {
         && !control(string(&card["signature"]))
         && !control(string(&card["meaning"]))
 }
-fn rank(
-    capture: &Capture,
-    payload: &Value,
-    index: &Index,
-    bundle: &Value,
-    proofs: &[Value],
-) -> Result<Value> {
+fn rank(capture: &Capture, payload: &Value, index: &Index) -> Result<Value> {
     let diagnostic = &payload["diagnostic"];
     if !diagnostic.is_object() {
         return Err("invalid runtime object".into());
@@ -1242,13 +1080,7 @@ fn rank(
             "diagnostic or source capture is incomplete",
         ));
     }
-    if proofs.is_empty() || !array(&bundle["messageKinds"]).contains(&ctx["messageKind"]) {
-        return Ok(outcome(
-            "candidate_coverage_unknown",
-            "host profile or diagnostic branch qualification is unavailable",
-        ));
-    }
-    rank_candidates(capture, payload, index, ctx, &route, proofs, (start, end))
+    rank_candidates(capture, payload, index, ctx, &route, (start, end))
 }
 
 fn rank_candidates(
@@ -1257,12 +1089,11 @@ fn rank_candidates(
     index: &Index,
     ctx: &Value,
     route: &Value,
-    proofs: &[Value],
     span: (usize, usize),
 ) -> Result<Value> {
     let (start, end) = span;
     let diagnostic = &payload["diagnostic"];
-    let selected = join(index, &route, proofs);
+    let selected = join(index, &route);
     let cards = array(&selected["cards"]);
     let evidence = if ctx["messageKind"] == "unknown_collection_presentation" {
         evidence(
@@ -1309,7 +1140,7 @@ fn rank_choice(
     {
         return Ok(outcome(
             "candidate_coverage_unknown",
-            "working construct candidates are not fully qualified",
+            "one or more construct candidates are not implemented",
         ));
     }
     if cards.is_empty() {
@@ -1373,9 +1204,6 @@ mod tests {
 
     const HELP: &str = include_str!("../../docs/specification/CONSTRUCT-HELP.md");
     fn inputs() -> Value {
-        // The tests below exercise help identities and proof gates. Catalog
-        // validation uses the authored signatures, independently of runtime
-        // availability: it never supplies qualification evidence.
         let cards = parse_cards(HELP).unwrap();
         let values: Vec<_>=cards.iter().filter_map(|v|string(&v["id"]).strip_prefix("can.v1.builtin.")
             .map(|id|json!({"id":id,"kind":"builtin","signature":v["signature"],"availability":"implemented"}))).collect();
@@ -1386,12 +1214,7 @@ mod tests {
             .collect();
         json!({"languageVersion":"1.0","markdown":HELP,"compiler":{"sha256":sha(b"compiler")},
             "grammar":{"sha256":sha(b"grammar")},"values":{"sha256":sha(b"values"),"entries":values},
-            "ui":{"sha256":sha(b"ui"),"entries":ui.into_iter().map(|id|json!({"id":id,"kind":"component","availability":"implemented"})).collect::<Vec<_>>()},
-            "profilePolicy":{"sha256":sha(b"native guards")}})
-    }
-    fn proof(index: &Index, id: &str) -> Value {
-        json!({"id":id,"indexRevision":index.revision,"profile":FIRST_PROFILE,"compilerSha256":index.compiler,
-            "compilerCheck":"source-current compiler case","runtimeCheck":"source-current consumer case","exampleCheck":"executed row"})
+            "ui":{"sha256":sha(b"ui"),"entries":ui.into_iter().map(|id|json!({"id":id,"kind":"component","availability":"implemented"})).collect::<Vec<_>>()}})
     }
     fn capture(source: &str, index: &Index) -> Capture {
         serde_json::from_value(json!({"requestedRoot":"/tmp","root":"/tmp","requestedAppPath":"/tmp/app.can","appPath":"/tmp/app.can",
@@ -1414,7 +1237,7 @@ mod tests {
         let source = inputs();
         let index = create_index(&source).unwrap();
         assert_eq!(index.cards.len(), 278);
-        let policy = index.card("can.v1.policy", None).unwrap();
+        let policy = index.card("can.v1.policy").unwrap();
         assert_eq!(
             policy["signature"],
             "policy path read=expr [where=expr] [fields=selectors]"
@@ -1424,10 +1247,7 @@ mod tests {
             policy["link"],
             "docs/specification/CONSTRUCT-HELP.md#can-v1-policy"
         );
-        assert_eq!(
-            index.card("can.v1.when.crud", None).unwrap()["section"],
-            "When"
-        );
+        assert_eq!(index.card("can.v1.when.crud").unwrap()["section"], "When");
         assert_eq!(index.document, sha(HELP.as_bytes()));
         let mut changed = source.clone();
         changed["grammar"]["sha256"] = json!(sha(b"changed grammar"));
@@ -1454,54 +1274,26 @@ mod tests {
     }
 
     #[test]
-    fn exact_candidates_keep_grammar_coverage_and_reject_stale_or_outside_proofs() {
+    fn candidate_support_comes_from_the_authored_reference_and_package_catalogs() {
         let source = inputs();
         let index = create_index(&source).unwrap();
-        let ids = [
-            "can.v1.policy",
-            "can.v1.invariant",
-            "can.v1.import",
-            "can.v1.context.queue",
-        ];
-        let selected = join(
-            &index,
-            &route(&ids),
-            &[proof(&index, ids[0]), proof(&index, ids[2])],
-        );
+        let selected = join(&index, &route(&["can.v1.policy", "can.v1.import"]));
         assert_eq!(selected["grammarCoverage"], "complete");
-        assert_eq!(selected["candidateCoverage"], "unknown");
-        assert_eq!(
-            selected["classification"],
-            json!([
-            {"id":ids[0],"profile":"included","working":"qualified"},
-            {"id":ids[1],"profile":"included","working":"unqualified"},
-            {"id":ids[2],"profile":"outside","working":"unqualified"},
-            {"id":ids[3],"profile":"unknown","working":"unqualified"}])
+        assert_eq!(selected["candidateCoverage"], "complete");
+        assert_eq!(selected["cards"][0]["status"], "working");
+        let mut planned = source;
+        planned["ui"]["entries"][0]["availability"] = json!("proposed");
+        let unavailable_id = format!(
+            "can.v1.ui.{}",
+            planned["ui"]["entries"][0]["id"].as_str().unwrap()
         );
-        let one = route(&[ids[0]]);
-        let current = proof(&index, ids[0]);
+        let index = create_index(&planned).unwrap();
         assert_eq!(
-            join(&index, &one, std::slice::from_ref(&current))["candidateCoverage"],
-            "complete"
-        );
-        for key in ["indexRevision", "compilerSha256", "profile", "id"] {
-            let mut stale = current.clone();
-            stale[key] = json!("old");
-            assert_eq!(
-                join(&index, &one, &[stale])["cards"][0]["status"],
-                "unavailable"
-            );
-        }
-        let mut no_policy = source;
-        no_policy.as_object_mut().unwrap().remove("profilePolicy");
-        let unbound = create_index(&no_policy).unwrap();
-        assert_ne!(unbound.revision, index.revision);
-        assert_eq!(
-            join(&unbound, &route(&[ids[2]]), &[])["classification"][0]["profile"],
+            join(&index, &route(&[&unavailable_id]))["candidateCoverage"],
             "unknown"
         );
         assert_eq!(
-            join(&index, &route(&["can.v1.fake"]), &[])["grammarCoverage"],
+            join(&index, &route(&["can.v1.fake"]))["grammarCoverage"],
             "unknown"
         );
     }
@@ -1510,11 +1302,11 @@ mod tests {
     fn routing_preserves_structural_none_and_malformed_context_without_inventing_candidates() {
         let index = create_index(&inputs()).unwrap();
         let structural = json!({"version":1,"disposition":"structural","ids":[],"complete":false});
-        assert_eq!(join(&index, &structural, &[])["disposition"], "structural");
-        assert_eq!(join(&index, &structural, &[])["grammarCoverage"], "unknown");
+        assert_eq!(join(&index, &structural)["disposition"], "structural");
+        assert_eq!(join(&index, &structural)["grammarCoverage"], "unknown");
         let none =
             json!({"version":1,"disposition":"none","slot":"given.rule","ids":[],"complete":true});
-        assert_eq!(join(&index, &none, &[])["candidateCoverage"], "complete");
+        assert_eq!(join(&index, &none)["candidateCoverage"], "complete");
         let exact = route(&["can.v1.policy"]);
         for malformed in [
             Value::Null,
@@ -1573,7 +1365,7 @@ mod tests {
     }
 
     #[test]
-    fn saved_index_file_refs_bind_qualification_and_local_ranking_policy() {
+    fn saved_index_file_refs_preserve_help_identity_and_local_ranking_policy() {
         let inputs = inputs();
         let index = create_index(&inputs).unwrap();
         let capture = capture("rules", &index);
@@ -1581,17 +1373,8 @@ mod tests {
         let saved = files.json(&json!({"inputs":inputs})).unwrap();
         let cancel = AtomicBool::new(false);
         let mut request = json!({"action":"help","index":saved,"id":"can.v1.policy"});
-        assert_eq!(
-            run(&capture, &request, &cancel).unwrap()["card"]["status"],
-            "unavailable"
-        );
-        let bundle = json!({"indexRevision":index.revision,"compilerSha256":index.compiler,"authoringProfile":FIRST_PROFILE,
-            "resourceProfile":capture.profile,"producerInputsDigest":producer_inputs_digest(&capture).unwrap(),
-            "messageKinds":["unrecognized_keyword"],"proofs":[proof(&index,"can.v1.policy"),proof(&index,"can.v1.invariant")]});
-        request["qualification"] = json!(files.json(&bundle).unwrap());
         let help = run(&capture, &request, &cancel).unwrap();
         assert_eq!(help["card"]["status"], "working");
-        assert_eq!(help["unqualified_card"]["status"], "unavailable");
         let mut candidates = route(&["can.v1.policy", "can.v1.invariant"]);
         candidates["context"] = ranking_context("rules");
         request["action"] = json!("rank");
@@ -1611,12 +1394,12 @@ mod tests {
             run(&capture, &request, &cancel).unwrap()["result"]["state"],
             "deterministic"
         );
-        let mut stale = bundle;
-        stale["producerInputsDigest"] = json!(sha(b"stale"));
-        request["qualification"] = json!(files.json(&stale).unwrap());
-        assert_eq!(
-            run(&capture, &request, &cancel).unwrap()["result"]["state"],
-            "candidate_coverage_unknown"
+        let mut stale_capture = capture.clone();
+        stale_capture.inputs[0].sha256 = Some(sha(b"stale compiler"));
+        assert!(
+            run(&stale_capture, &request, &cancel)
+                .unwrap_err()
+                .contains("captured help identity mismatch")
         );
         request["diagnostic"]["construct_candidates"] =
             json!({"version":1,"disposition":"none","ids":[],"complete":true});
@@ -1629,26 +1412,6 @@ mod tests {
         assert_eq!(
             run(&capture, &request, &cancel).unwrap()["result"]["state"],
             "structural"
-        );
-    }
-
-    #[test]
-    fn producer_digest_keeps_the_private_captured_input_json_order() {
-        let index = create_index(&inputs()).unwrap();
-        let capture = capture("rules", &index);
-        let expected = format!(
-            "[{{\"name\":\"compiler\",\"requestedPath\":\"/compiler\",\"canonicalPath\":\"/compiler\",\"sha256\":\"{}\",\"bytes\":1,\"state\":\"present\"}},{{\"name\":\"help-index\",\"requestedPath\":\"/help\",\"canonicalPath\":\"/help\",\"sha256\":\"{}\",\"bytes\":{},\"state\":\"present\"}}]",
-            index.compiler,
-            index.document,
-            HELP.len()
-        );
-        assert_eq!(
-            producer_inputs_digest(&capture).unwrap(),
-            sha(expected.as_bytes())
-        );
-        assert_ne!(
-            producer_inputs_digest(&capture).unwrap(),
-            sha(&json_bytes(&serde_json::to_value(&capture.inputs).unwrap()).unwrap())
         );
     }
 }

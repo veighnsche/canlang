@@ -12,10 +12,10 @@ Acceptance covers the original 64/512/1024/2048/3000 arithmetic ladder through e
 
 A separate attempt to import a full emitted scenario module reached the existing facade gap: the real `@canlang/stdlib` exports neither `require` nor `hasRole`. Runtime acceptance therefore executes unmodified actual compiled **derive** modules and real stdlib arithmetic. Original scenario sources retain stage/check/compile/destruction qualification. Full scenario/application execution remains an open consumer integration obligation; no package source or facade is changed here.
 
-The saved three independently worded JEV requests compare long-only statement emission, all-binary statement emission and retaining host stack requirements. All selected long-only emission, with confidence 0.76/0.92/0.85 and selected probability 0.84/0.95/0.90. This agreement is advice, not semantic proof. The first sandboxed connection attempt could not reach the endpoint; the preauthorized network call then returned all three saved responses. No new language admission policy or representation redesign was selected.
+All selected long-only emission, with confidence 0.76/0.92/0.85 and selected probability 0.84/0.95/0.90. This agreement is advice, not semantic proof. The first sandboxed connection attempt could not reach the endpoint; the preauthorized network call then returned all three saved responses. No new language admission policy or representation redesign was selected.
 
 ## Proposed decision text for the shared decision owner
 
 Accept ordered explicit binary-consumer traversal and long-tree statement emission for FAIL-R01. Preserve parser association/precedence, context-sensitive typing, lazy RHS, once/source-order evaluation, checked arithmetic at each node, unsupported-child skipping, and ordinary ownership/recovery behavior. Use the 64-depth emission switch solely as an internal output strategy. Retained native debug/release and real arithmetic consumer controls qualify the bounded repaired closure through 3000 authored terms; they do not declare a portable depth/resource contract. Async IIFE continuation interleaving and full scenario facade/application integration remain explicit qualification gaps.
 
-The coordinating goal accepted this bounded packet after [independent review](review.md) and records the decision/completion joins separately. This packet performs no merge or living-plan checkpoint advance.
+The coordinating goal accepted this bounded packet after [independent review](review.md) and records the decision/completion joins separately.

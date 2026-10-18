@@ -32,8 +32,7 @@ An illustrative response could say:
 Unknown When construct: manage
 Closest supported construct: crud
 Signature: crud path by=expr fields=selectors
-Meaning: generate create, update and delete operations for a model.
-Reference: docs/specification/DESIGN.md#5-canonical-operations
+Meaning: generate create, update and delete operations for a model. Reference: docs/specification/DESIGN.md#5-canonical-operations
 Alternative: scenario (a custom operation with an authored body)
 ```
 
@@ -97,9 +96,9 @@ The first response is a compact summary. The agent can request the trace, source
 - Use Jev within eligible syntax errors to rank finite, context-eligible Can construct IDs by likely author intent. Preserve “none/intent unclear” and alternative probabilities. The help index supplies the winning construct's signature, meaning, example and link. Also expose Jev as an explicit development tool over a bounded failure or design evidence packet from the current revision. Other suitable questions rank plausible causes, choose the next discriminating check, or assess narrow alternatives against declared criteria.
 - Use the typed System One question that fits the task: Noul for a defined yes/no property, Choice for finite alternatives, Score for an ordered rubric. Batch independent questions that share one state. Return the model identity, complete probabilities, confidence where defined, usage, exact question/evidence IDs and source revision.
 - Keep Jev's judgment visibly separate from compiler errors, runtime observations, test results and human approval. The agent runs the chosen check and verifies any fix. Jev does not edit `.can`, authorize an operation, decide that company intent is approved, or turn an incomplete build green.
-- Keep credentials server-side. Bound and redact source/trace material sent to the remote provider; make provider unavailability explicit without blocking deterministic checking or local preview. Consequential project design choices continue to use the project's three independently worded consultations and preserved uncertainty.
+- Keep credentials server-side. Bound and redact source/trace material sent to the remote provider; make provider unavailability explicit without blocking deterministic checking or local preview.
 
-This development use is separate from a Can application's source-declared `judgment` capability and its authenticated business `/mcp` tools. The recorded consultations cover [contextual failure explanation](jev/can-dev-explanation-20261008/assessment.md) and an earlier [patch-first repair comparison](jev/can-dev-repair-20261008/assessment.md). The latter does not evaluate this clarified keyword-first requirement; neither establishes agent speed or correctness gains.
+This development use is separate from a Can application's source-declared `judgment` capability and its authenticated business `/mcp` tools. The recorded consultations cover contextual failure explanation and an earlier patch-first repair comparison. The latter does not evaluate this clarified keyword-first requirement; neither establishes agent speed or correctness gains.
 
 ### Change impact and verification
 
@@ -141,13 +140,11 @@ Two inspected implementation facts constrain the design:
   group is the implemented `setsid` scope for the qualified macOS/Linux profile;
   retained host-loss/termination checks require direct-child reap and observed
   group absence. Launch strips inherited debugger injection variables because
-  this pin can otherwise create detached VS Code watchdogs.
-  No PID-by-name killing, private Miniflare handle access or unqualified Linux-only
+  this pin can otherwise create detached VS Code watchdogs. No PID-by-name killing, private Miniflare handle access or unqualified Linux-only
   subreaper assumption is part of this plan.
 - `Miniflare.#handleWorkerdCrash` internally recreates Workerd. The exposed
   `unsafeHandleRuntimeRestart` callback runs **after** successful restart; it is
-  not a veto, and the inspected public options provide no restart-disable switch.
-  No immediate stable exit notification is promised. Supported readiness/dispatch
+  not a veto, and the inspected public options provide no restart-disable switch. No immediate stable exit notification is promised. Supported readiness/dispatch
   probes and owner timeouts remain required evidence; optional unsafe callbacks
   cannot be the sole correctness mechanism.
 
@@ -181,22 +178,18 @@ framework. Exact encoding details cannot transfer orchestration back into JS.
   assertion, cancel and release/retry. Concrete `prepare` retains the existing
   target builder without a second session controller or publication authority;
   further splitting of its internal target phases remains proposed. Requests carry session,
-  operation/generation and Rust-assigned resource identities before allocation.
-  Results carry the corresponding identity,
+  operation/generation and Rust-assigned resource identities before allocation. Results carry the corresponding identity,
   actual readiness/failure and outstanding resource-release state. Rust verifies
   authority and correlation and alone promotes a current ready candidate. Late
   or superseded results cannot publish, but any reported allocations or retained
   release outcomes still require ownership reconciliation; never drop a resource
-  handle merely because its check operation is obsolete.
-  A ready process is not a ready app; a ready app is not a browser-applied update.
+  handle merely because its check operation is obsolete. A ready process is not a ready app; a ready app is not a browser-applied update.
 - Graceful shutdown first closes Rust's work/access admission, then cancels or
   joins owned jobs and releases runtimes. Retain ownership handles through failed
   cleanup: JS retains actual Miniflare instances/retry closures, Rust their opaque
   IDs and verified host/supervision-scope identity. Request supported `dispose()`
   cooperatively before bounded escalation against only that owned OS scope; Rust
-  waits for its direct child. Qualify descendant containment/termination separately.
-  A host exit, reported PID or endpoint disappearance alone is not release proof.
-  Scope granularity must allow cancelling a candidate/job without silently killing
+  waits for its direct child. Qualify descendant containment/termination separately. A host exit, reported PID or endpoint disappearance alone is not release proof. Scope granularity must allow cancelling a candidate/job without silently killing
   a serving generation; no general worker pool is implied.
 - Release results distinguish runtime/listener release, host termination and
   owned scratch removal. In this pin Miniflare's temporary removal is asynchronous;
@@ -208,8 +201,7 @@ framework. Exact encoding details cannot transfer orchestration back into JS.
   backend's readiness while Rust remains able to report state and accept recovery
   commands. Preserve the primary error, last verified
   facts and retained data. Uncertain prepare/release results require ownership
-  reconciliation before retry/new allocation; never replay application mutations.
-  Automatic session recovery, when selected in T19, is bounded and obeys no-growth
+  reconciliation before retry/new allocation; never replay application mutations. Automatic session recovery, when selected in T19, is bounded and obeys no-growth
   gates; it does not describe or disable Miniflare's internal restart behavior.
 - Logs/events identify their session/generation, operation and source; drain them
   with bounded retention and explicit dropped/unavailable counts so they cannot
@@ -226,8 +218,7 @@ framework. Exact encoding details cannot transfer orchestration back into JS.
   through its same owners. External ranking remains separately policy-gated, with
   no retained JS pending-job/cache/retry controller.
 - Persistence retains its existing compatibility and isolation rules. Rust owns
-  scope/lifetime admission; the adapter reports actual Workerd/schema/readiness facts.
-  Do not activate conflicting writable owners during replacement or erase data on
+  scope/lifetime admission; the adapter reports actual Workerd/schema/readiness facts. Do not activate conflicting writable owners during replacement or erase data on
   source/schema failure. Recovery/reset choices remain explicit, with uncertain
   in-flight effects preserved rather than retried blindly.
 
@@ -243,8 +234,7 @@ requires T15/T17 verification. The UI requests admitted actions from the one own
 
 T15 carries that research into one presentation contract:
 
-- Identify the app/source, manual or automatic mode, and owned or attached view.
-  Keep the active phase and elapsed time, latest check with its captured revision,
+- Identify the app/source, manual or automatic mode, and owned or attached view. Keep the active phase and elapsed time, latest check with its captured revision,
   serving preview with its freshness, and any blocking recovery action visible
   together. “Control connected” never substitutes for “Preview ready.”
 - Append completed outcomes and bounded diagnostic excerpts to history once;
@@ -274,8 +264,7 @@ This contract becomes the **Rust development server's state machine**. The curre
 `DevSessionCore`, service, daemon and socket are behavioral references for the port:
 preserve input epochs, capture/check ordering, cancellation, retained checks,
 serving identity, admission and root/process ownership. Rust owns those mechanisms
-after cutover; one controller accepts compiler/adapter facts and applies transitions.
-Ratatui only renders that state and converts input into events. Do not retain a
+after cutover; one controller accepts compiler/adapter facts and applies transitions. Ratatui only renders that state and converts input into events. Do not retain a
 competing TypeScript controller or reconstruct state from terminal logs.
 
 The retained lifecycle handoff owner is **Prevent Miniflare instance accumulation**;
@@ -304,8 +293,7 @@ carry it without reinterpreting existing JSON envelopes. Consumers reconnect wit
 a snapshot, discard events from another session or an already applied sequence,
 and resnapshot after a gap. Operation identity scopes check/phase updates; it does
 not discard a newer owner update about an older retained cleanup handle. That
-update must still change cleanup/admission without overwriting the active check.
-No unbounded event log or durable workflow engine is needed.
+update must still change cleanup/admission without overwriting the active check. No unbounded event log or durable workflow engine is needed.
 
 For example, this is a valid simultaneous state, **not a single `error` state that
 turns off the preview**:
@@ -318,8 +306,7 @@ admission: check/open allowed; current application authorization still applies
 terminal: “Check r15 failed. Preview r14 is still serving. Fix and check again.”
 ```
 
-A source-valid r16 with failed preview preparation likewise leaves r14 serving.
-A check failure against identical inputs does not by itself prove the preview is
+A source-valid r16 with failed preview preparation likewise leaves r14 serving. A check failure against identical inputs does not by itself prove the preview is
 older. The current check response's `preview: unavailable` describes the requested
 candidate; it must not overwrite actual serving availability from owner status.
 
@@ -362,11 +349,9 @@ resource release. Do not add a persistent status file solely for that display.
 | Ctrl+C in attached view; second Ctrl+C in stopping owned view | Detach that presenter and abort its own in-flight request where present, using the existing request-cancellation contract; print last verified session/recovery action. Observation detach alone is not session stop. | Cancelled request work releases its owned resources without late publication; another client's work and the owner/queue remain usable. Never kill an unrelated owner or claim shutdown completion. New start remains subject to the existing root claim while the old owner is retained. |
 
 Read-only status/help and retained diagnostics are available whenever the verified
-owner can serve them, including cleanup failure, with retention limits stated.
-Check/example/rank work and access issuance remain subject to their existing
+owner can serve them, including cleanup failure, with retention limits stated. Check/example/rank work and access issuance remain subject to their existing
 revision/authority predicates plus lifecycle admission; the service must enforce
-these guards even if a client sends a command absent from its displayed menu.
-No terminal-derived guard substitutes for owner enforcement. This adds lifecycle
+these guards even if a client sends a command absent from its displayed menu. No terminal-derived guard substitutes for owner enforcement. This adds lifecycle
 gating to existing commands, not new example/ranking work or wider feature scope.
 
 #### Lifecycle ownership and terminal observation
@@ -374,8 +359,7 @@ gating to existing commands, not new example/ranking work or wider feature scope
 The Rust owner is the only transition and action-admission authority. Exclusive
 session claims bind publication and cleanup to the acquired ownership; a stale
 starter cannot release a successor's resources. Failed cleanup retains enough
-ownership for retry, and endpoint disappearance alone does not prove child release.
-The subordinate host reports readiness, cancellation and release facts. It cannot
+ownership for retry, and endpoint disappearance alone does not prove child release. The subordinate host reports readiness, cancellation and release facts. It cannot
 publish a serving generation or declare the owner stopped.
 
 Ratatui, plain and JSON controls consume the same typed snapshot/events. They

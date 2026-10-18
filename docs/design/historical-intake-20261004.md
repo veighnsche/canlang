@@ -18,7 +18,7 @@ DESIGN's installed-schema `backfill` maps corresponding records from an exact in
 
 ## Advice and uncertainty
 
-Three fully rewritten facts-only briefs and full responses are in [the JEV evidence folder](jev/historical-intake-20261004). No full source or credentials were attached.
+No full source or credentials were attached.
 
 | Request | Evidence records | Domain historical constructor | Retained source | Confidence |
 | --- | ---: | ---: | ---: | ---: |

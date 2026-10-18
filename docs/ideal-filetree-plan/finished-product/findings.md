@@ -1,6 +1,6 @@
 # Shared findings and boundary queue
 
-Requirements, source observations, inference, recommendations and performed proof are kept distinct. These are current planning gates. The complete checkpoint stays unchanged; old blanket absence claims must be read with [late-source reconciliation](late-source.md). [Machine queue](findings.json) preserves exact app verdicts/sites and uncertainty.
+Requirements, source observations, inference, recommendations and performed proof are kept distinct. These are current planning gates. [Machine queue](findings.json) preserves exact app verdicts/sites and uncertainty.
 
 | Finding | Boundary / observed gap | Exact owner or acceptance gate | Evidence state |
 | --- | --- | --- | --- |
@@ -42,4 +42,4 @@ No new business policy was chosen for Mail, Event, Reception, Rent, Stock, Disco
 
 ## Consolidated source availability — October 6, 2026
 
-The [consolidation review](consolidation-review.json) adds current structural availability and retained unfinished work to the queue. BOUND-CONSOLIDATION distinguishes source integration from W01/D HOLD/native/backend/browser/installed acceptance; FP.SOURCE-CLOSURE stays open.
+The consolidation review adds current structural availability and retained unfinished work to the queue. BOUND-CONSOLIDATION distinguishes source integration from W01/D HOLD/native/backend/browser/installed acceptance; FP.SOURCE-CLOSURE stays open.

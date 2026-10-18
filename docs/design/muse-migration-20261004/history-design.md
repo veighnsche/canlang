@@ -1,7 +1,6 @@
 # A04 handoff — Rent retained-history application (explicit per-entity facts)
 
-User-authorized 2026-10-04 (coordinator-authored; no prior A04 history design existed).
-Codex review pending. Design only; no app file has been changed by this handoff.
+User-authorized 2026-10-04 (coordinator-authored; no prior A04 history design existed). Codex review pending. Design only; no app file has been changed by this handoff.
 
 Status: **COORDINATOR DESIGN for A04 implementation.** Baseline: current
 `draft/CanRent.can` (1466 lines, 52 `create ResourcePolicy` sites),
@@ -26,8 +25,7 @@ create+update, `:269-292`) plus 46 explicit scenario captures after committed
 relevant state (holds, moves, occupancy, downtime, venues, quotes,
 settlement branches). Two same-admission coalescings are already committed
 (`movement_result` 3→1 at `:515`; quote acceptance 2→1): only final committed
-state is promised, never intermediate same-clock statements (MIGRATION.md).
-Verified 2026-10-04: no `on=ResourcePolicy` handler, no `policy_snapshot_*`
+state is promised, never intermediate same-clock statements (MIGRATION.md). Verified 2026-10-04: no `on=ResourcePolicy` handler, no `policy_snapshot_*`
 consumer, and no internal `call resource_report` exists in any draft source;
 `resource_report` is invoked only through its registry/page form. J05 verified
 the 4 CRUD declarations and disabled identities; D09's Notice association is
@@ -119,8 +117,7 @@ items marked [new] are genuine coordinator decisions with rationale:
   fields=sequence,key`, all fields locked, reservation-manager + `can_work`
   read policies, and sequence-existence invariants.
 - D8 [new, mechanical]: keep `saved_saleable(policy,opening,left,right)`
-  signature; its body resolves facts via `policy.parent/policy.sequence`.
-  Rationale: zero call-site churn; scalar-only captures still cannot change
+  signature; its body resolves facts via `policy.parent/policy.sequence`. Rationale: zero call-site churn; scalar-only captures still cannot change
   saleability inputs silently.
 - D9 [new]: preserve current future-range semantics exactly (`checked_out ??
   now`, unclosed-occupancy provisional rule). The typed-history route added
@@ -184,8 +181,7 @@ the `ResourcePolicy` lock; keep its read policy (`:181`) unchanged:
 ```
 
 `key` is the source entity's opaque canonical record ID. Facts copy only the
-existing report value — no billing amounts, contact data, or whole records.
-No CRUD or user-callable fact writer is declared (ResourcePolicy precedent);
+existing report value — no billing amounts, contact data, or whole records. No CRUD or user-callable fact writer is declared (ResourcePolicy precedent);
 source code, not caller input, sets keys and sequences. Uniqueness rejects
 accidental duplicate facts for one identity/capture; the owner operation
 commits marker and facts atomically.

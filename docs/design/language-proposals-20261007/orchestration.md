@@ -8,7 +8,7 @@ Coordinate the selected capability roadmap through bounded dependency packets an
 
 This is a proposed orchestration plan, requested on October 7, 2026. It builds on [the evaluation](README.md) and [per-proposal implementation plans](implementation-plan.md). Packet definitions, scheduling, ownership and acceptance appear below; current file owners and relevant acceptance scope must be checked before execution.
 
-For individual work items and completion checks, see the [detailed 63-step sequence](task-sequence.md) and [structured task graph](task-sequence.json). These elaborate the packets below without assigning active authors or adding canonical jobs.
+For individual work items and completion checks, see the [detailed 63-step sequence](task-sequence.md) and structured task graph. These elaborate the packets below without assigning active authors or adding canonical jobs.
 
 ## Outcomes and first milestone
 
@@ -17,29 +17,6 @@ The first product milestone is a private image-generation journey authored in `.
 Prepare two source improvements alongside that work: enum-only exhaustiveness and a dependent-input binding to an authorized read operation. Their implementation does not wait for the whole image provider programme. Each needs its own narrow execution/form seam, value comparison and shared-file handoff.
 
 The next milestone is concrete approval and accounting reuse, with current-authority evidence and a proved transaction-owner mapping. Specialized invocation, judgment and corpus completion continues through its existing tasks. Bulk authoring reuses the accepted cohort design. Conditional presentation/calendar/transport work enters only when its recorded trigger occurs.
-
-## Current work and ownership
-
-The orchestration and earlier evaluation record historical source observations. They are snapshots, not permanent leases or proof of current completion. Source/task inventory statements about stopped historical workers do not override the two currently active coding chats.
-
-| Current owner | Observed active scope | Orchestration treatment |
-| --- | --- | --- |
-| Existing compiler chat | Compiler type/IR/emitter work, selected calls/defaults/formatting and session history | Reuse reviewed commits and explicit descriptor/context handoffs. Queue new grammar mutations behind the actual shared-file owner. |
-| Existing package coordinator and its metadata author | State registry and Cloudflare invocation provenance/selected-read fixes; later fanout fix waits for that release | No new worker edits these files. A metadata repair is not a broad canonical result/replay API release. |
-| Existing package coordinator | Git integration, run state and living file-tree records; bundle/provider candidates under independent acceptance | Keep its integration ownership. Provider cap/cancel-identity corrections are useful incoming fixes, not full generation/cancellation qualification. |
-| This planning chat | Capability evaluation, plans and orchestration artifacts | Preparation and direct validation only in this turn. The short decision append was completed and its shared-file lease handed back. |
-
-Refresh these observations before each packet. A quiet chat, an expired timer or a clean-looking worktree cannot release another writer's files.
-
-## Working arrangement
-
-Use one coordinator to maintain readiness, request narrow owner handoffs, reconcile acceptance and arrange integration. Keep the two existing coding chats on their authorized scopes; they are incoming producers and defining owners, not extra workers to reassign without a handoff.
-
-Within this chat's four available slots, retain the coordinator and use up to three implementation workers as useful. Another chat's agents have their own reported capacity; do not treat the app as a single shared pool of four. When shared files are unavailable, use author capacity for complete app comparisons, failure vectors or an unrelated released packet rather than duplicate fixes.
-
-Use model-selection guidance: Sol medium for normal bounded implementation; Sol high for cross-file contracts or uncertain failures. Luna light/medium fits repeatable inventory checks with an established rubric. Use Astra for an actual difficult or consequential authority/recovery decision, rather than every packet. Existing reviewed compiler/package work retains its own allocation. Model costs and task durations are not measured here.
-
-An author owns one bounded vertical slice at a time. The author checks the changed behavior against its contract and expected results, and the coordinator records the accepted scope. Disjoint authoring can overlap; shared schema/IR/runtime mutations cannot.
 
 ## Waves and dependency flow
 
@@ -94,7 +71,7 @@ The enum branch uses the smallest already available compiled local-scenario seam
 
 ## Bounded work packets
 
-Packet IDs below are scheduling labels. [The machine-readable plan](orchestration.json) records their dependency graph, conditions, ownership groups, canonical references and handoffs. It is an overlay on the existing task ledger, not another count of canonical implementation jobs. Preparation, implementation, qualification and reconsideration are distinguished.
+Packet IDs below are scheduling labels. The machine-readable plan records their dependency graph, conditions, ownership groups, canonical references and handoffs. It is an overlay on the existing task ledger, not another count of canonical implementation jobs. Preparation, implementation, qualification and reconsideration are distinguished.
 
 | Packet | Scope and prerequisites | Deliverable and bounded completion |
 | --- | --- | --- |
@@ -130,50 +107,7 @@ Packet IDs below are scheduling labels. [The machine-readable plan](orchestratio
 | H3 | Deferred compensation-grammar reconsideration only | Two real recovery protocols establish repeated semantics. Settle definite-success registration, crash gaps, separate authority, ordering and uncertain recovery before any source effect. |
 | H13 | Deferred richer-statechart reconsideration only | A real nested/parallel workflow demonstrates a simpler complete representation than qualified flat machines. Settle target resolution, conflicts, entry/exit/history/order and migrations together before implementation. |
 
-For every packet, use the per-proposal plan's full acceptance and the original task's complete acceptance at its declared scope. This table does not replace them with shorter checklists. The JSON names required outputs on each dependency edge and conditional outputs separately. A consumer waits for those exact accepted outputs, bound to the selected app/operation/type/backend, rather than the whole producer packet. Original canonical prerequisites remain in [the reference crosswalk](orchestration-canonical-references.json); each narrow release still needs defining-owner acceptance. Generic file transfer, read-only push, enum handling and calendar calculation do not inherit unrelated feature prerequisites.
-
-## Contract and file handoffs
-
-Producer handoffs identify the integrated change; exact supported schema/types and canonical IDs; relevant actor/team/clock/operation context; permission/read-fence/owner rules; replay, unknown result, file/lifetime and upgrade behavior; positive/negative vectors; concise direct check results; known baseline failures; and the next owner. A source sketch or unreviewed dirty patch is not a handoff.
-
-For new semantics, prepare a complete equivalent comparison first. Consequential unresolved choices require three independently worded equivalent JEV consultations using verified context. Prior JEV advice is reused only at its recorded scope. Design advice alone cannot release code or mark a runtime join complete.
-
-| Serialized ownership group | Shared paths or surfaces | Ordering rule |
-| --- | --- | --- |
-| Compiler language and emission | Syntax/CST/parser, resolution/type/effect analysis, IR/JS/artifact and editor/formatter/lint support | Existing corrections first. N8 and N9 may prepare together; their shared-file implementations have one writer and queue by ready contract. Rebase and directly validate each changed result. |
-| Public descriptors/contracts | Artifact, presentation, state/provider/corpus canonical schemas | A defining owner releases compatibility and capability/version behavior before consumers join. Older runtimes must not silently ignore required semantics. |
-| Canonical runtime/state | Cloudflare invoke/context/artifact/assembly, State registry and mutation pipeline | Metadata and pending fanout owners retain current leases. New foundation/domain features consume or request narrow changes; no parallel rewrite of the invocation seam. |
-| Forms and partial rendering | UI forms/controls/bootstrap/polling; HTTP presentation/actions; lookup and CSV boundaries | F3 releases stable identities/context first. N9, wizard/action-bearing views and push queue shared changes. Isolated fixtures can prepare independently. |
-| Work/provider/file integration | Dispatch registration, schedule/receipt/progress, provider adapters, file finalization and bundle assembly | Separate pure helpers/vectors can overlap. Release original target identities and durable semantics before claiming provider execution. |
-| Shared records and Git | DECISIONS, grammar/design, task evidence, living file-tree and shared index | One named integration owner stages/commits. Workers submit exact diffs and concise check results; no full-file staging of foreign notes. Checkpoint advances after coverage and decisions are reconciled. |
-
-Worktrees isolate working changes but do not solve semantic conflicts in shared files. At execution time, inspect existing attached worktrees, reuse a suitable checkout, or create an isolated `codex/` branch from the owner-approved committed base. Do not copy another worker's unaccepted changes into an allegedly clean baseline. Workers never reset/stash foreign work or take over the shared Git index.
-
-## Dispatch and validation loop
-
-1. Inspect current source, relevant accepted work and file owners. Resolve aliases to existing canonical tasks and schedule only missing slices.
-2. Prepare disjoint comparison/specification/vector work immediately where useful. Mark unsupported sketches as proposed; do not add them as supposedly supported fixtures.
-3. Release implementation only when the packet's exact prerequisite outputs, conditional value trigger, semantic contract and file handoff are present. Reserve the smallest write set. If any condition is missing, record that specific dependency and work on another ready slice.
-4. Assign one economical author with a packet brief. Consumers may prepare against a released versioned contract before producer integration, but actual generated-path acceptance waits for the integrated producer and supported runtime.
-5. Inspect the changed source and run one proportionate direct check of changed behavior. Fix failures. Reuse unchanged accepted checks; repeat only after a relevant change, failure or concrete unresolved risk. Resolve consequential authority, effect and upgrade questions at their actual scope.
-6. The integration owner applies accepted changes on the current base, reuses unchanged check results, and creates focused Conventional Commits. Source/API activation stays gated until its consumer/runtime is supported. A narrow successful commit is not whole-feature acceptance.
-7. Record accepted output scope, actual route, concise check result and remaining gaps. Wake only dependent packets whose required outputs now pass. On regression, withdraw the affected release and suspend its consumers; preserve durable work/unknown outcomes and unrelated accepted slices.
-8. After every merge, its handling agent reconciles all changes since the living-plan checkpoint and updates coverage/decisions together. Do not advance the complete checkpoint merely because this feature or bookkeeping passed. Installed/native/original-app parents retain their full gates.
-
-No recurring automation, deadline or background supervisor is created by this plan. Its initial machine state is planning-only with no assigned authors or active implementation leases.
-
-## Packet brief and completion status
-
-Each future assignment should state: “Complete packet ID for the selected operation/app. Here are its defining owner, released contracts, exact allowed paths, expected cases, canonical task aliases, direct check, exclusions and next consumer.” Include a bounded fallback task if its file handoff is delayed. Do not send workers the whole research history or an ambiguous request to finish the language.
-
-The completion status records:
-
-- Packet and canonical task identities; integrated source/contract version; exact changed paths and file-lease handback.
-- Actual source → compiler → loader/admission → runtime/storage/provider/interface route exercised.
-- Expected positive/negative outcomes, concise check result, and scope such as unit, simulated provider, durable, browser or installed behavior.
-- Failures corrected and remaining gaps; upgrade/capability treatment; reusable outputs and named next owners.
-
-Acceptance states are `prepared`, `contract_released`, `implemented`, `scope_verified`, and `integrated`. Conditional/deferred items remain gated when their trigger is absent. Existing tasks can retain `partial` broad status while a named output is `scope_verified`. A missing dependency is not a reason to inflate progress or label a whole goal blocked.
+For every packet, use the per-proposal plan's full acceptance and the original task's complete acceptance at its declared scope. This table does not replace them with shorter checklists. The JSON names required outputs on each dependency edge and conditional outputs separately. A consumer waits for those exact accepted outputs, bound to the selected app/operation/type/backend, rather than the whole producer packet. Original canonical prerequisites remain in the reference crosswalk; each narrow release still needs defining-owner acceptance. Generic file transfer, read-only push, enum handling and calendar calculation do not inherit unrelated feature prerequisites.
 
 ## Qualification and stop conditions
 
@@ -182,20 +116,3 @@ Every packet tests the seams it changes. Source features need parser/checker/emi
 The first image milestone passes only when all declared selected lifecycle behavior and required negatives work on its promised route. Wider original-app release additionally requires its complete intent ledger and relevant T37–T40/FP.QUALIFY/FP.INSTALLED-RELEASE evidence. Preserve native artifact-preparation HOLD and all existing backend/default/retirement gates. This plan cannot resume them.
 
 Reconsider a candidate when complete-source savings vanish, it hides domain policy, its owner mapping needs forbidden atomicity, it duplicates an existing durable engine, or measured runtime benefit does not justify its cost. Record the reason and retain a working complete alternative. Do not expand match into exceptions/pattern programming, dependent forms into arbitrary JS, wizards into inferred persistence, or flat machines into statecharts during a bounded packet.
-
-## First dispatch queue
-
-When capability execution begins, the coordinator's first queue is:
-
-1. O0/O1: refresh current handoffs and select the smallest real compiled app slices, consuming existing compiler/package commits.
-2. Two independent preparation assignments: N8 finite-handler comparison/vectors and N9 typed authorized-read binding comparison/vectors. These can proceed without changing leased compiler/runtime files.
-3. Release the first missing F1/F3/F4 producer slices to their defining owners, then advance their consumers F2/F5/F6/F7 as narrow contracts pass. Use free slots for approval/accounting ownership comparisons and original-app failure expectations.
-4. Qualify J0 and the actual N8/N9 vertical paths. Continue D4/D5 and specialized existing joins only on their ready dependencies.
-
-Calendar pure work and read-only view preparation can move independently when their triggers exist. Native installation gates, unrelated provider families and all 68 UI components are never artificial prerequisites for a narrower proven slice.
-
-## Validation policy
-
-Use one direct, proportionate validation of changed behavior and record a concise result. Reuse unchanged accepted checks. Repeat only after a relevant change, failure or concrete unresolved risk. Do not create nested verification, review receipts, checks of checks, duplicated snapshots or hash-manifest chains. Functional acceptance still requires the actual behavior and scope stated by each packet and original task.
-
-Recommended worker models and reasoning efforts for all 63 detailed tasks appear in [the allocation table](model-allocation.md) and each [task record](task-sequence.json). This remains proposed dispatch guidance.

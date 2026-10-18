@@ -30,7 +30,7 @@ Inline operation examples exercise canonical business admission in the isolated 
 
 Turning delete off loses the required canonical call. Adding archive_reason to CRUD writable inputs creates a separate committed reason-edit phase and changes the original atomic/immutable explanation behavior; it is not an equal-outcome simplification. Merely omitting a delete button leaves the selected-package MCP/default route exposure unchanged. Caption changes do not change publication. A general unsatisfiable-guard/invariant solver is not assumed decidable and cannot infer this exception. No successful alternate source-only one-line rule was found.
 
-Three full independently worded equivalent requests, including rewritten facts, questions and all alternative prose, are saved in [the evidence directory](jev/canonical-exposure-20261004/). Only stable alternative IDs remain repeated. The existing tools/jev.py choice contract and endpoint were verified; generic minimal language facts were sent, without app records or credentials.
+Three full independently worded equivalent requests, including rewritten facts, questions and all alternative prose, are saved in the evidence directory. Only stable alternative IDs remain repeated. The existing tools/jev.py choice contract and endpoint were verified; generic minimal language facts were sent, without app records or credentials.
 
 | Request | Keep default | CRUD allowlist | Presentation selection | Confidence |
 | --- | ---: | ---: | ---: | ---: |

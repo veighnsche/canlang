@@ -1,6 +1,6 @@
 # C02 admission contract — accepted October 7, 2026
 
-This freezes the byte/envelope packet, not the shared JSON migration or framework transport. The [Pass 0 receipt](../pass0/protocol-contracts.md) stays historical. Comparison inputs and host are pinned in [profile.json](profile.json) and [baseline-input-manifest.json](baseline-input-manifest.json).
+This freezes the byte/envelope packet, not the shared JSON migration or framework transport. The [Pass 0 receipt](../pass0/protocol-contracts.md) stays historical. Comparison inputs and host are pinned in profile.json and baseline-input-manifest.json.
 
 ## Owning caller closure
 

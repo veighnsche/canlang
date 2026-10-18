@@ -1,6 +1,6 @@
 # Integration dispositions
 
-Planning review at `780ab04ca60bad2e30f47ae4e7ae63e5ee838bb9`. Each row has one selected disposition; no implementation or policy transition is accepted. See [common gates](common-gates.json) and [machine records](dispositions.jsonl) for full uncertainty, contract/caller and retirement conditions.
+Planning review at `780ab04ca60bad2e30f47ae4e7ae63e5ee838bb9`. Each row has one selected disposition; no implementation or policy transition is accepted. See common gates and [machine records](dispositions.jsonl) for full uncertainty, contract/caller and retirement conditions.
 
 ## Audited integration families
 

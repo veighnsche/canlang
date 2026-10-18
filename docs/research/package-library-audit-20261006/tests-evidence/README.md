@@ -1,7 +1,6 @@
 # Tests and evidence challenge
 
-Planning audit, 2026-10-07, at source `449563a30e33c312fcc0e47750bba4a24cb84f4c`.
-This records 42 finite evidence challenges, a [17-group verification plan](focused-verification.md)
+Planning audit, 2026-10-07, at source `449563a30e33c312fcc0e47750bba4a24cb84f4c`. This records 42 finite evidence challenges, a 17-group verification plan
 and a [gated cleanup list](cleanup.md). A challenge may identify a missing test,
 a weak comparator, an overbroad claim or evidence worth retaining; it is not a count
 of confirmed product defects. All new mutants, interleavings and consumer checks
@@ -16,13 +15,11 @@ publication test named “detects on-disk drift” compares hashes without calli
 review/refusal API. These are source-derived harness gaps, not newly executed failures.
 
 The [claim index](claim-index.md) links the full source, opposing evidence,
-original IDs and proposed decisive checks in [claims.jsonl](claims.jsonl).
-The [counter-review](counter-review.md) narrows conclusions before they become
+original IDs and proposed decisive checks in [claims.jsonl](claims.jsonl). The [counter-review](counter-review.md) narrows conclusions before they become
 future tasks. In particular, a failed file-finalization stage does not establish
 a universal rollback/unreadability requirement; a late intent write may fail
 after an authorized readable file exists. The supplied CSV reorder example makes
-a formerly valid selection invalid, rather than proving a wrong-valid-row write.
-Callback demand order and odd frozen compatibility behavior require their actual
+a formerly valid selection invalid, rather than proving a wrong-valid-row write. Callback demand order and odd frozen compatibility behavior require their actual
 owner/contract authority before a new assertion is imposed.
 
 ## What remains valuable
@@ -51,7 +48,7 @@ mounted HTTP, production Work fanout, crash, rollback and original app journeys.
 
 ## Duplication and retention
 
-The [reproducible inventory](inventory-summary.json) selects 629 frozen tracked
+The reproducible inventory selects 629 frozen tracked
 package test/conformance/generated-name candidates and orchestration records:
 19,352,046 bytes (18.46 MiB). This is not a test count, a production classification
 or a whole-repository inventory. Compiler/editor trees, working-tree-only files
@@ -86,24 +83,19 @@ and historical-consumer provenance. No corpus or receipt was deleted.
    historical scope correspondence is proved; review each released finite scope.
 
 These are dependency-ordered verification proposals, not a new implementation
-ledger or a global waiting wave. [Machine packets](focused-verification.json) name
-producer, real consumer, independent oracle, negatives, readiness, acceptance
-limits and economical model/effort per group. Sol medium/high handles source and
-joined judgments; Luna medium handles mechanical factoring after semantic gates.
-Recheck the least expensive supported reliable choice for each finite dispatch.
+ledger or a global waiting wave. Sol medium/high handles source and
+joined judgments; Luna medium handles mechanical factoring after semantic gates. Recheck the least expensive supported reliable choice for each finite dispatch.
 
 Original T08 same-context parity, T26 real receipt/notification lifecycle, F7,
-durable lifetime and pristine app-journey gates remain original obligations.
-Tests do not select persisted security policy or bless accidental compatibility.
-The separate critical Astra review remains approval-pending. No policy, package,
+durable lifetime and pristine app-journey gates remain original obligations. Tests do not select persisted security policy or bless accidental compatibility. The separate critical Astra review remains approval-pending. No policy, package,
 canonical task status, backend default/retirement, compiler source, deployment,
 merge or living-filetree checkpoint was changed.
 
 ## Verification of this audit
 
-[Source index](sources.json), [inventory scanner](inventory.py) and
-[metadata verifier](verify.py) make the hashes, anchors, projection, coverage and
-document links reproducible. [Verification receipt](verification.json) covers
+Source index, inventory scanner and
+metadata verifier make the hashes, anchors, projection, coverage and
+document links reproducible. Verification receipt covers
 source/metadata checks only. Three Sol high source packets and a finite Sol high
 opposing review were combined with Luna medium mechanical exploration; root
 corrected the initial inventory's overbroad compiler/editor scope. No product

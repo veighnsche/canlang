@@ -1,6 +1,6 @@
 # Package boundaries and build/cache contracts
 
-B01–B08 package/build migration is accepted at its recorded scope; reuse [final acceptance](turbo-scheduling/evidence/final-acceptance/README.md). Current native/release gaps are in [REMAINING-WORK.md](REMAINING-WORK.md). This document preserves the package, output and cache contracts, not a rollout queue.
+B01–B08 package/build migration is accepted at its recorded scope; reuse final acceptance. Current native/release gaps are in [REMAINING-WORK.md](REMAINING-WORK.md). This document preserves the package, output and cache contracts, not a rollout queue.
 
 ## Outcome and scope
 

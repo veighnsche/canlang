@@ -1,6 +1,6 @@
 # Advisory assessment and investigation
 
-Three fresh independently worded context/question/criteria requests ran through the preauthorized JEV API after initial sandboxed network failures. Saved model: jev-1.13.0. Advice is uncertain, not an oracle.
+Saved model: jev-1.13.0. Advice is uncertain, not an oracle.
 
 | Request | Engine choice (confidence; probabilities A/B/C) | Error choice (confidence; probabilities owned/static/mapped) |
 | --- | --- | --- |

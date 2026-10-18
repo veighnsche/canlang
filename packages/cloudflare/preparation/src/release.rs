@@ -28,8 +28,6 @@ pub const LOCKSTEP_EXEMPT_PACKAGES: [(&str, &str); 3] = [
     ("@canlang/services", "0.0.0"),
     ("@canlang/work", "0.0.0"),
 ];
-/// Pinned toolchain every packaged binary must record.
-pub const PINNED_TOOLCHAIN: &str = "1.99.0";
 /// Dist manifest sidecar name.
 pub const DIST_MANIFEST_NAME: &str = "dist-manifest.json";
 
@@ -301,11 +299,6 @@ pub struct ExecutableManifestFacts<'a> {
     pub sha256: &'a [u16],
     pub bytes_value: f64,
     pub bytes_spelling: &'a str,
-    pub toolchain_rustc: &'a [u16],
-    pub toolchain_cargo: &'a [u16],
-    pub toolchain_pinned: &'a [u16],
-    pub lockfile_sha256: &'a [u16],
-    pub source_head: &'a [u16],
     pub release: &'a [u16],
 }
 
@@ -345,10 +338,6 @@ pub fn manifest_facts<'a>(
     if !matches!(node, Node::Obj(_)) {
         return Err(malformed());
     }
-    let toolchain = match obj_get(node, "toolchain") {
-        Some(node @ Node::Obj(_)) => node,
-        _ => return Err(malformed()),
-    };
     let bytes_node = obj_get(node, "bytes");
     let (bytes_bits, bytes_spelling) = match bytes_node {
         Some(node) => match as_num(node) {
@@ -364,11 +353,6 @@ pub fn manifest_facts<'a>(
             sha256: shape_text(node, "sha256")?,
             bytes_value: f64::from_bits(bytes_bits),
             bytes_spelling,
-            toolchain_rustc: shape_text(toolchain, "rustc")?,
-            toolchain_cargo: shape_text(toolchain, "cargo")?,
-            toolchain_pinned: shape_text(toolchain, "pinned")?,
-            lockfile_sha256: shape_text(node, "lockfileSha256")?,
-            source_head: shape_text(node, "sourceHead")?,
             release: shape_text(node, "release")?,
         })
     })();
@@ -379,8 +363,7 @@ pub fn manifest_facts<'a>(
 }
 
 /// Verify a staged/installed bundle: sidecar triple match, binary present
-/// and executable (host `stat`/`access` fact), sha and bytes match,
-/// toolchain pin match. `binary_path` is the host-joined `<dir>/<binary>`.
+/// and executable (host `stat`/`access` fact), sha and bytes match. `binary_path` is the host-joined `<dir>/<binary>`.
 pub fn check_executable_manifest(
     facts: &ExecutableManifestFacts,
     want_triple: &[u16],
@@ -420,15 +403,6 @@ pub fn check_executable_manifest(
                 render_text(facts.sha256),
                 facts.bytes_spelling,
                 binary_bytes.len()
-            ),
-        ));
-    }
-    if !units_eq_ascii(facts.toolchain_pinned, PINNED_TOOLCHAIN) {
-        return Err(manifest_failure(
-            "manifest-toolchain",
-            format!(
-                "pinned toolchain {}, want {PINNED_TOOLCHAIN}",
-                render_text(facts.toolchain_pinned)
             ),
         ));
     }

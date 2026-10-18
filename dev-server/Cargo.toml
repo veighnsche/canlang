@@ -11,24 +11,24 @@ name = "can-dev"
 path = "src/main.rs"
 
 [dependencies]
-serde = { version = "=1.0.229", features = ["derive"] }
-serde_json = { version = "=1.0.151", features = ["raw_value"] }
-sha2 = { version = "=0.10.9", default-features = false }
-getrandom = { version = "=0.4.3", default-features = false }
-tempfile = { version = "=3.27.0", default-features = false, features = ["getrandom"] }
-base64 = { version = "=0.22.1", default-features = false, features = ["std"] }
-libc = "=0.2.190"
-url = { version = "=2.5.8", default-features = false, features = ["std"] }
-ratatui = { version = "=0.30.2", default-features = false, features = ["crossterm", "scrolling-regions"] }
-notify = "=8.2.0"
-hyper = { version = "=1.11.1", default-features = false, features = ["client", "server", "http1"] }
-hyper-util = { version = "=0.1.20", default-features = false, features = ["tokio"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.151", features = ["raw_value"] }
+sha2 = { version = "0.10.9", default-features = false }
+getrandom = { version = "0.4.3", default-features = false }
+tempfile = { version = "3.27.0", default-features = false, features = ["getrandom"] }
+base64 = { version = "0.22.1", default-features = false, features = ["std"] }
+libc = "0.2.190"
+url = { version = "2.5.8", default-features = false, features = ["std"] }
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm", "scrolling-regions"] }
+notify = "8.2.0"
+hyper = { version = "1.11.1", default-features = false, features = ["client", "server", "http1"] }
+hyper-util = { version = "0.1.20", default-features = false, features = ["tokio"] }
 http-body-util = "0.1"
-tokio = { version = "=1.53.1", default-features = false, features = ["rt", "net", "time", "sync", "macros", "io-util"] }
+tokio = { version = "1.53.1", default-features = false, features = ["rt", "net", "time", "sync", "macros", "io-util"] }
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 # sha2 0.10 gates its runtime-detected ARM SHA instructions behind this feature.
-sha2 = { version = "=0.10.9", default-features = false, features = ["asm"] }
+sha2 = { version = "0.10.9", default-features = false, features = ["asm"] }
 
 [profile.release]
 strip = true

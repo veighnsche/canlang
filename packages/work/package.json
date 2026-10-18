@@ -20,8 +20,8 @@
     "@canlang/identity": "workspace:*",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0",
-    "miniflare": "4.20260730.0",
-    "@cloudflare/workers-types": "5.20261004.1"
+    "miniflare": "^4.20260730.0",
+    "@cloudflare/workers-types": "^5.20261004.1"
   },
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",

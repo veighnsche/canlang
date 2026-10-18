@@ -1,6 +1,6 @@
 # 3. Rust-valid-str escaping: `n01.rust-str-escape.v1`
 
-Frozen planning contract; implementation deferred. This packet releases independently of the other N01 profiles. Target/caller qualification and original prerequisites remain open. Source hashes, dependency requests and complete envelope templates are in [numeric-contracts.json](numeric-contracts.json); the shared recipe is in [numeric-common.md](numeric-common.md). The exact JS primitive planning capture is indexed separately in [oracles/manifest.json](oracles/manifest.json); it does not certify native/Wasm/public-envelope parity.
+Frozen planning contract; implementation deferred. This packet releases independently of the other N01 profiles. Target/caller qualification and original prerequisites remain open. Source hashes, dependency requests and complete envelope templates are in [numeric-contracts.json](numeric-contracts.json); the shared recipe is in [numeric-common.md](numeric-common.md). The exact JS primitive planning capture is indexed separately in oracles/manifest.json; it does not certify native/Wasm/public-envelope parity.
 
 **Owner/release:** R1; independent of both numeric profiles. N04's original A04.5 depends on A04.1/A04.3/C03.ready, with A04.1 and A04.3 currently partial. A helper-only contract/proof can release independently; it cannot close A04.5 or default native scalar adoption.
 

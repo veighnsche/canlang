@@ -12,7 +12,7 @@ Current CanCRM exports `Deal`, `salesperson`, `ResearchLead` and `promote_resear
 
 ## Orchestration comparison and advice
 
-Three independently rewritten requests and complete replies are saved under [complex-discover evidence](../jev/complex-discover-20261004). All are new normal-approved calls; no previously rejected payload was retried or rerouted.
+All are new normal-approved calls; no previously rejected payload was retried or rerouted.
 
 | Request | Explicit page state | New resumable syntax | Delegated research job | Selected / confidence |
 | --- | ---: | ---: | ---: | --- |

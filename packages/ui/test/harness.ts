@@ -2,8 +2,7 @@
  * Shared DOM harness for interaction tests (S5+).
  *
  * happy-dom supplies document/focus/keyboard semantics under node --test;
- * linkedom was disqualified because focus() leaves activeElement undefined
- * (see docs/implementation/evidence/jev/lane-05-s5-20261004/review.md).
+ * it supports focus() and activeElement for keyboard interaction checks.
  * Test-only helper: never imported by src/.
  */
 import { Window } from "happy-dom";

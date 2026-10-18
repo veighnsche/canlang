@@ -112,7 +112,7 @@ These steps can improve architectural feasibility and confidence. Higher confide
 
 ## Independent advice and evidence
 
-Three focused source reviews covered values/ingress, work/state lifecycle and local preparation. Three independently worded equivalent JEV `choice` consultations compared the same bounded alternatives against compatibility, workflow preservation, ownership, interop and maintenance. All chose the owned values pipeline, shared transition core and local preparation job. [Request/response 1](evidence/boundary-options/result-1.json), [2](evidence/boundary-options/result-2.json), [3](evidence/boundary-options/result-3.json).
+Three focused source reviews covered values/ingress, work/state lifecycle and local preparation. All chose the owned values pipeline, shared transition core and local preparation job. Request/response 1, 2, 3.
 
 | Selected strategy: probability / confidence | Consultation 1 | Consultation 2 | Consultation 3 |
 | --- | --- | --- | --- |
@@ -122,4 +122,4 @@ Three focused source reviews covered values/ingress, work/state lifecycle and lo
 
 There was no selected-option disagreement. The third values consultation assigned .11 to TS preparation; the second work consultation assigned .08 to resumable commands. These alternatives remain substantive: prepared TS can solve much repeated dispatch work, and sessions can reduce later orchestration copies at extra complexity. Near-unanimous model advice does not establish measured cost or implementation parity. Choices compare conditional designs; they are not adoption approval or calibrated feasibility scores. Raw uncertainty is retained without averaging. The model was `jev-1.13.0`; reported usage was 5,871 input and 456 output tokens.
 
-Compared with the earlier evaluation, current artifact/bundle code also derives operation metadata through interfaces; the earlier helper boundary cannot be assumed unchanged. This round traced current source and consulted primary API documentation; it did not rerun the previous 431 baseline tests or claim they validate these proposals. [Source snapshot and evidence checks](evidence/boundary-options/verification.json) identify the inspected files and retained requests. No production source or living file-tree checkpoint was changed.
+Compared with the earlier evaluation, current artifact/bundle code also derives operation metadata through interfaces; the earlier helper boundary cannot be assumed unchanged. This round traced current source and consulted primary API documentation; it did not rerun the previous 431 baseline tests or claim they validate these proposals. Source snapshot and evidence checks identify the inspected files and retained requests.

@@ -772,18 +772,6 @@ fn compiler_source_inputs(
             )?;
         }
     }
-    for (name, leaf) in [
-        ("compiler-test", "compiler/tests/construct_help.rs"),
-        (
-            "fixture",
-            "compiler/tests/fixtures/construct-help-first-profile.can",
-        ),
-    ] {
-        let path = references.join(leaf);
-        if path.is_file() {
-            add(sources, format!("construct-profile:{name}"), &path)?;
-        }
-    }
     Ok(())
 }
 fn installation_inputs(

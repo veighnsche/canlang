@@ -13,12 +13,11 @@ persisted-security findings F03/F04/F07 remain inputs rather than repeated work.
 
 The numeric assessment correctly distinguishes String zero/nonfinite formatting
 from JSON's null channel. Canonical JSON retains its admission/hash-profile gate;
-a package that sorts keys cannot resolve normalization or historical identities.
-CSV parser fit does not supply private consent, owning per-row business review or
+a package that sorts keys cannot resolve normalization or historical identities. CSV parser fit does not supply private consent, owning per-row business review or
 receipt-first replay. No library was credited with these joins.
 
-[Raw finite review](independent-review.json) retains source anchors, an
-unexecuted map witness and limits. [Reconciliation](review-reconciliation.json)
+Raw finite review retains source anchors, an
+unexecuted map witness and limits. Reconciliation
 records all three corrections. The assessments include the corrections; the
 earlier report hashes identify the reviewed inputs. No product code, candidate
 installation, build/test, policy selection or JEV design round occurred.

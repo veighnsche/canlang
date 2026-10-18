@@ -35,24 +35,20 @@ async function verifyConsumer(checkout) {
   assert.equal(installConfiguration, '[install]\nlinker = "isolated"\n');
   const directPackageBindings = readdirSync(join(consumer, 'node_modules/@canlang')).sort();
   assert.deepEqual(directPackageBindings, ['cloudflare'], 'Transitive packages must not acquire consumer-root bindings');
-  const locations = [];
   function installedFile(url) {
     const file = realpathSync(fileURLToPath(url));
     assert.ok(inside(file, consumer), `producer escapes installed consumer: ${file}`);
     assert.ok(!inside(file, checkout));
-    locations.push(relative(consumer, file));
     return file;
   }
   const ownerEntry = pathToFileURL(installedFile(import.meta.resolve('@canlang/cloudflare/deploy/bundle')));
   assert.ok(inside(fileURLToPath(ownerEntry), join(consumer, 'node_modules/.bun')), 'Installed owner must use Bun isolated storage');
   const ownerRequire = createRequire(ownerEntry);
-  const ownerResolutions = {};
   // The consumer declares only Cloudflare. Its transitive proof modules resolve
   // from that installed owner's context, just as the owning bundler does.
   function ownerModule(specifier) {
     const url = pathToFileURL(ownerRequire.resolve(specifier));
     const file = installedFile(url);
-    ownerResolutions[specifier] = file;
     return pathToFileURL(file);
   }
   for (const specifier of ['@canlang/cloudflare/worker', '@canlang/cloudflare/worker/main', '@canlang/cloudflare/runtime/mcp-registry', '@canlang/interfaces/mcp/server', '@canlang/interfaces/http/operations']) {
@@ -419,7 +415,6 @@ async function verifyConsumer(checkout) {
 
   // Mutate only installed scratch copies. Default Worker builds remain usable;
   // opted-in inventory must reject missing/corrupt producer bytes explicitly.
-  const negativeCases = [];
   for (const [file, name] of [
     [fileURLToPath(new URL('generated/values_semantics_bg.wasm', distributions.values.bindings)), 'values_semantics_bg.wasm'],
     [fileURLToPath(new URL('can-style.css', distributions.ui.browser)), 'can-style.css'],
@@ -429,21 +424,15 @@ async function verifyConsumer(checkout) {
       rmSync(file);
       api.buildDeployBundle(artifact, { verdict: options.verdict });
       assert.throws(() => api.buildDeployBundleWithAssets(artifact, options), error => error.message.includes(name), `missing ${name} must fail closed`);
-      negativeCases.push(`missing ${name}`);
       const corrupt = Buffer.from(saved);
       corrupt[0] ^= 1;
       writeFileSync(file, corrupt);
       assert.throws(() => api.buildDeployBundleWithAssets(artifact, options), error => error.message.includes(name) && /integrity|digest|hash|mismatch/i.test(error.message), `corrupt ${name} must fail closed`);
-      negativeCases.push(`corrupt ${name}`);
     } finally {
       writeFileSync(file, saved);
     }
   }
-  const evidence = { node: process.version, checkoutRead: 'ERR_ACCESS_DENIED', bunPermissionLimit: 'Bun and workerd subprocesses do not inherit Node filesystem permissions; resolved producer entries and emitted runtime bytes are checked.', directDependencies: Object.keys(manifest.dependencies), linker: 'isolated', installConfiguration, directPackageBindings, ownerEntryRealpath: fileURLToPath(ownerEntry), ownerResolutions, installedLocations: locations, esmCondition: 'import.js', workerModules: first.moduleCount, productionWorker: { initializeStatus: 401, body: productionBody }, wasm: { key: wasmKey, bytes: first.binaries[wasmKey].length, sha256: digest(first.binaries[wasmKey]), compiledModule: 'ABI accepted; add-int(1,2)=3', workerd: wasmWorkerResult }, browser: Object.fromEntries(Object.entries(first.resources).map(([key, resource]) => [key, { bytes: resource.bytes.length, sha256: digest(resource.bytes), contentType: resource.contentType }])), negativeCases, observer: { optionalState: 'exact absent module remains fail-closed', work: 'genuine public functions and uninjected installed Node serving passed', workClosure, staleResidue: 'unchanged ordinary bundle', missingProducers: 3 }, files: { closure: filesClosure, missingProducers: 5, stateImports: 'actual scenario-file-assignment finalizer and ports edges', portableWorkerd: wasmWorkerResult.files, authority: 'Portable producer primitives only; no State/native workflow acceptance' }, acorn: { key: acornKey, publicEntry: acornManifest.module, missingProducers: 1, portableWorkerd: wasmWorkerResult.acorn, authority: 'Parser staging and execution only; Dev owns source verification and current G1' } };
-  evidence.committedSource = { key: committedKey, actualConsumer: 'runtime/invoke.js named factory import/call and canonical State lifetime loader', canonicalState: 'vendor/state/mutation/source-finalization.js', missingProducers: 1, corruptProducer: 'contextual syntax guard refused malformed genuine bytes', workerd: wasmWorkerResult.committedSource, authority: 'Actual portable consumer edge, defining producer and private State identity only; Dev owns complete checked/native workflow acceptance' };
-  evidence.dispatch = { key: dispatchKey, consumers: ['runtime/native-membership.js', 'runtime/invoke.js'], canonicalState: 'vendor/state/index.js', missingProducers: 1, authority: 'Genuine producer staging and private identity correspondence only; original guarded dispatch qualification remains with its owners' };
-  writeFileSync(join(consumer, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
-  console.log(JSON.stringify(evidence, null, 2));
+  console.log(`Installed Worker verification passed: ${first.moduleCount} modules, ${Object.keys(first.resources).length} browser resources, values Wasm and production Worker execution.`);
 }
 
 if (process.argv[2] === '--consumer') {
@@ -482,5 +471,5 @@ if (process.argv[2] === '--consumer') {
   const script = join(consumer, 'verify.mjs');
   copyFileSync(fileURLToPath(import.meta.url), script);
   execFileSync(process.execPath, [permissionFlag, `--allow-fs-read=${scratch}`, `--allow-fs-write=${scratch}`, '--allow-child-process', script, '--consumer', checkout, ...(minimumNode22 ? ['--minimum-node22'] : [])], { cwd: consumer, env: { ...process.env, TMPDIR: scratch }, stdio: 'inherit' });
-  console.log(`Installed Worker verification passed. Evidence: ${join(consumer, 'evidence.json')}`);
+  rmSync(scratch, { recursive: true, force: true });
 }

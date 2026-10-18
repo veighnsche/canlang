@@ -111,18 +111,14 @@ Coded against `src/worker/main.ts`' sibling-join map:
 1. **Staged verdicts are inactive by construction.** The dist CLI cannot
    import a store or the state/work producer gates, so deploy-time
    `activate()` always reports `activation-incomplete` (gates 3-4) and
-   fresh deploys serve the refusal worker (`500 activation-refused`).
-   Main blesses this state explicitly; preview/`--yes` report it loudly.
-   End-to-end serving needs the store/producer joins (activation story
+   fresh deploys serve the refusal worker (`500 activation-refused`). Main blesses this state explicitly; preview/`--yes` report it loudly. End-to-end serving needs the store/producer joins (activation story
    for fresh installs is undecided cross-packet).
 2. **P-C dynamic specifiers are not map-resolvable.**
    `runtime/env-assembly.js` imports `../../../state/dist/…` (escapes
    any deploy root) and bare `@canlang/identity` (unresolvable in
-   workerd module maps); same bare specifier in `grant-route.js`.
-   P-B stages the files (keeping the sibling specifiers resolvable is
+   workerd module maps); same bare specifier in `grant-route.js`. P-B stages the files (keeping the sibling specifiers resolvable is
    P-B's contract) but cannot satisfy what those modules import —
    P-C owns that gap.
 3. **`deploy --yes` exits 0 with `applied: false`** when wrangler fails
-   (frozen `deploy-cli` test requires exit 0 on the write path).
-   Documented here and in the envelope (`applied`, `applyStatus`,
+   (frozen `deploy-cli` test requires exit 0 on the write path). Documented here and in the envelope (`applied`, `applyStatus`,
    `manualApply`); worth revisiting once the deploy UX stabilizes.

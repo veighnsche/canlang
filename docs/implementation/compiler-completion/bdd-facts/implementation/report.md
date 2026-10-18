@@ -49,11 +49,9 @@ were reread after factory capture; that expectation was corrected, while actual
 caller identities remain checked. Accepted property-carrier/order controls are
 reused rather than rerun.
 
-This closes request evaluation/forwarding through the invocation port only.
-Canonical application version application, real result payload/inspection/as
+This closes request evaluation/forwarding through the invocation port only. Canonical application version application, real result payload/inspection/as
 semantics, live record refresh, helper composition and wider platform joins remain
-open under their existing owning contracts and narrow BDD consultation hold.
-Canonical completion remains **48/67**.
+open under their existing owning contracts and narrow BDD consultation hold. Canonical completion remains **48/67**.
 
 ## Finite imported-helper link
 

@@ -18,8 +18,8 @@ Opposing evidence: a canonical-only library profile could simplify the implement
 
 ## Advisory process and uncertainty
 
-Three independently worded equivalent two-question JEV requests are preserved in [jev/](jev/). All three recommend decoded-compatible lexical imports (reported confidence 0.84, 0.84, 0.71) and retaining the raw contract with an adoption gate (0.99, 0.95, 0.98). The responses are advice, not a target test or three independent product implementations. Remaining uncertainty includes actual bundled computed-import coverage, map compatibility adapter cost and composition through raw identities. No library is accepted merely from upstream documentation or these responses.
+All three recommend decoded-compatible lexical imports (reported confidence 0.84, 0.84, 0.71) and retaining the raw contract with an adoption gate (0.99, 0.95, 0.98). The responses are advice, not a target test or three independent product implementations. Remaining uncertainty includes actual bundled computed-import coverage, map compatibility adapter cost and composition through raw identities. No library is accepted merely from upstream documentation or these responses.
 
 ## Shared decision-record handoff
 
-`docs/specification/DECISIONS.md` has a concurrent foreign writer and dirty changes. This owned record retains the choice, rationale and uncertainty without modifying that writer's bytes. Copying/linking these entries into the shared record is a pending exact-file handoff before affected implementation activation. This planning step neither advances the living file-tree checkpoint nor grants permission to implement its broader backlog.
+`docs/specification/DECISIONS.md` has a concurrent foreign writer and dirty changes. This owned record retains the choice, rationale and uncertainty without modifying that writer's bytes. Copying/linking these entries into the shared record is a pending exact-file handoff before affected implementation activation.

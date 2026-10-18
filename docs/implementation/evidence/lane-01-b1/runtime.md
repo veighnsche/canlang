@@ -1,7 +1,6 @@
 # B1 evidence — runtime consumption (closeout sprint)
 
-Branch: `muse/closeout/runtime-b1`. Base: `origin/main` e93adeb.
-Status: **B1 runtime half PROVEN** (compiled op + page + model consumed
+Branch: `muse/closeout/runtime-b1`. Base: `origin/main` e93adeb. Status: **B1 runtime half PROVEN** (compiled op + page + model consumed
 by the lane-7 runtime path); three follow-ups filed below, none hidden.
 
 ## What this branch adds
@@ -106,8 +105,7 @@ spy store implementing the fenced protocol, labeled in-script):
    dispatcher supplies a real pctx (F2 design: the real L6 dispatcher
    already builds it inline — dedupe task in `packages/interfaces`,
    NOT this lane). CSRF: lane-6 mint, `''`-for-anonymous (fails
-   closed, already the real-path behavior) — needs Vince's approval.
-   Open item for lane 6: pre-session login-CSRF story.
+   closed, already the real-path behavior) — needs Vince's approval. Open item for lane 6: pre-session login-CSRF story.
 3. **`await records` + form fields — DONE on
    `muse/closeout/b1-followups`.** `lower_query` emits
    `await records(` (+ `expr_uses_async` Query arm, 3 golden pins);

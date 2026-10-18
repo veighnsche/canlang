@@ -63,7 +63,7 @@
     "@canlang/contracts": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "5.9.3"
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=22"

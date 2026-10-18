@@ -16,8 +16,7 @@ Date: 2026-10-05. Branch: `muse/closeout/mcp`. Packet: `/tmp/mcp-scope.md` §c-P
 - `tests/e2e/fixtures/mcp-grants.ts` — `mintMcpGrant(baseUrl,
   sessionToken, clientId)` fixture: drives the TEST-ONLY
   `POST /__e2e/mcp-grant` worker endpoint (session cookie in, `{token,
-  grant_id, user_id, team_id}` out), the same pattern as `seedTeamUsers`.
-  The endpoint mints via real L6 `issueMcpGrant`; this module only
+  grant_id, user_id, team_id}` out), the same pattern as `seedTeamUsers`. The endpoint mints via real L6 `issueMcpGrant`; this module only
   transports and never invents identity semantics.
 - `tests/e2e/apps/teamtasks-mcp.spec.ts` — B1 MCP leg: real workerd/D1,
   two team users (alice, bob) plus a second-team outsider; grant →
@@ -37,8 +36,7 @@ a missing MCP piece:
    through to `not found`). This is scope §b.3.
 2. `tools/list contains the .can operation with its closed schema` —
    `e2e mcp-grant: worker answered 404 (needs the TEST-ONLY
-   POST /__e2e/mcp-grant endpoint, which mints via real L6 issueMcpGrant)`.
-   This is scope §b.5; past it, the test would exercise the route (§b.3)
+   POST /__e2e/mcp-grant endpoint, which mints via real L6 issueMcpGrant)`. This is scope §b.5; past it, the test would exercise the route (§b.3)
    and descriptors (§b.1–2).
 3. `tools/call round-trips through the same worker as HTTP (parity row)` —
    same grant-endpoint 404.

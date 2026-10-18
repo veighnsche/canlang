@@ -2,10 +2,8 @@
 
 Status: **PROPOSED** for the broad mutation fence below. The bounded read
 producer in the current-source addendum is implemented; downstream consumption
-and whole J2 acceptance remain open.
-Author: Lane E session 01a10fab-d0e7-7ab2-aadc-901f4712454f. Base: main
-`f6d5fb4`-era lane tip (post-N1 `b84b0e0` merge of main `04d5806`).
-Task row: `tasks.md` FP.IDENTITY-CONTRACT (deps T04; gates FP.IDENTITY).
+and whole J2 acceptance remain open. Author: Lane E session 01a10fab-d0e7-7ab2-aadc-901f4712454f. Base: main
+`f6d5fb4`-era lane tip (post-N1 `b84b0e0` merge of main `04d5806`). Task row: `tasks.md` FP.IDENTITY-CONTRACT (deps T04; gates FP.IDENTITY).
 
 ## Current-source addendum — 2026-10-10 bounded membership observation
 
@@ -15,19 +13,16 @@ new lifecycle queue. Current Identity `storage/d1.ts` implements
 `removeMemberWithOccurrence` and conditional last-owner writes. Preserve their
 accepted results. The next Identity/State design unit enumerates only remaining
 ordinary-removal cascades/lifecycle variants, identifies each actual table and
-whether a business-State mutation is required, and chooses the transaction owner.
-Compare an Identity-local conditional batch against any demonstrated cross-owner
+whether a business-State mutation is required, and chooses the transaction owner. Compare an Identity-local conditional batch against any demonstrated cross-owner
 participation using the existing consultation requirement. Do not force accepted
-local commands through a new shared fence or assert cross-database atomicity.
-That precise participant decision releases one remaining variant's D1 race,
+local commands through a new shared fence or assert cross-database atomicity. That precise participant decision releases one remaining variant's D1 race,
 rollback/replay consumer; it is an engineering decision, not an account gate.
 
 The human-authorized TECH-I01 reconciliation supersedes the historical shared
 database premise for this read prerequisite. Production Identity uses global
 `env.DB`; concrete team State uses `STATE_DB` or owner-routed databases. The
 singular methods, wall-clock `updated_at`, and State fence do not supply a
-coherent conjunction of multiple membership reads or a shared revision.
-OAuth authorization-code consumption already has the explicit one-winner
+coherent conjunction of multiple membership reads or a shared revision. OAuth authorization-code consumption already has the explicit one-winner
 consumed/unavailable correction (`33f12d62`); it is not a remaining void-return
 gap. Recovery cascades, last-owner guards and broad J2 remain unimplemented.
 
@@ -39,16 +34,14 @@ becomes one bound primary D1 SELECT with a LEFT JOIN, never per-user reads or
 chunks. The limit leaves one of D1's 100 bound parameters for the team. Memory
 collects and detaches the complete observation synchronously, without awaiting
 or executing supplied getters. Both producers freeze the returned facts and
-refuse malformed requests, corrupt facts and incomplete/skewed correspondence.
-This observation can precede Promise settlement; it is not a reusable token,
+refuse malformed requests, corrupt facts and incomplete/skewed correspondence. This observation can precede Promise settlement; it is not a reusable token,
 revision, latest-at-return assertion or cross-database transaction.
 
 For §4's four questions, the bounded read needs no shared database/fence bump,
 mutation count guard or statement-list execution boundary; Memory needs one
 synchronous detached capture rather than simulated fence aborts. These answers
 resolve only the read prerequisite. The broader mutation choices still require
-placement, guard, batch ownership and native/Memory semantics reconciliation.
-State/Capability must use this one observation for every distinct caller/subject
+placement, guard, batch ownership and native/Memory semantics reconciliation. State/Capability must use this one observation for every distinct caller/subject
 membership in the decision, while retaining its owning row/revision, policy
 evaluation order and authority lifetime checks. Dev owns the runtime mirror,
 adapter and real native consumer qualification. Until these are connected and
@@ -59,8 +52,7 @@ owned revision covering all writers, a colocated shared mutation fence and
 deferral. JEV `jev-1.13.0` selects bounded read three times: probabilities
 .99/.97/.97, confidence .99/.96/.96, residual deferral .01/.03/.03. Raw requests
 and responses live in the existing `state.json` TECH-I01 record. No disagreement
-arose; advice does not prove SQL/native concurrency or downstream authority.
-The exact payloads were explicitly approved by the human after automatic
+arose; advice does not prove SQL/native concurrency or downstream authority. The exact payloads were explicitly approved by the human after automatic
 approval review rejected generic preauthorization. No earlier State payload
 approval was reused.
 
@@ -81,8 +73,7 @@ Verified by reading sources (all paths below at base):
 
 - Contexts (STABLE, already implemented): `resolveIdentity` admits
   exactly three binding kinds — `none` (anonymous), `session`,
-  `mcp_grant` (`packages/identity/src/authentication/context.ts`).
-  Interfaces consume them incl. commit-time fences (B4
+  `mcp_grant` (`packages/identity/src/authentication/context.ts`). Interfaces consume them incl. commit-time fences (B4
   `assertCredentialLive`). The contract RETAINS these kinds unchanged.
 - Conditional gaps (all check-then-act across store calls, no
   atomicity): `removeMember` last-owner count guard
@@ -102,8 +93,7 @@ Verified by reading sources (all paths below at base):
   as one batch (join J2)"; `d1.ts` labels the gap a loud FENCE
   LIMITATION. State D1 commits are one `db.batch()` opened by a dense
   `fence_log` revision insert; pre-reads plus fence abort is the
-  proven pattern (`checkWriteVersions`, `state/src/storage/d1.ts`).
-  D1 has no interactive read/branch/write transaction.
+  proven pattern (`checkWriteVersions`, `state/src/storage/d1.ts`). D1 has no interactive read/branch/write transaction.
 - Live guarantee today: the MCP path rechecks current facts per call,
   which is exactly what the unfenced store guarantees.
 
@@ -165,8 +155,7 @@ Difficult mechanism choice consulted per AGENTS.md with
 `tools/jev.py` (endpoint `https://api.typesafe.ai/v1/systemone`,
 model `jev-1.13.0`), question type `choice`, three independently
 worded equivalent requests (verified state + balanced criteria; no
-source code attached, file:line anchors only; no PII or secrets).
-Full request payloads are embedded below; responses saved verbatim.
+source code attached, file:line anchors only; no PII or secrets). Full request payloads are embedded below; responses saved verbatim.
 
 | # | Winner (equivalent) | Confidence | P(winner) | P(others) |
 | --- | --- | --- | --- | --- |

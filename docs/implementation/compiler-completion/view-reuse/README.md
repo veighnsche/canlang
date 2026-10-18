@@ -7,9 +7,7 @@ controls include the show location and row path. No callable, page or public UI
 factory is created, and definitions capture no caller bindings.
 
 The current installed native case passed1/1(0.59s) after correcting the real
-contained-list model/parent payload omission found in its first0/1(0.61s) run.
-It verifies two uses, localization, distinct controls and projected nested rows.
-After the owning releases, the changed case passed1/1(4.75s) with native bool
+contained-list model/parent payload omission found in its first0/1(0.61s) run. It verifies two uses, localization, distinct controls and projected nested rows. After the owning releases, the changed case passed1/1(4.75s) with native bool
 status and omitted-empty shared default on actual empty nested queries. Later sections qualify protected actions/forms, split selection, page markers
 and bound row edits. Nested show definitions and the wider CanBook application
 contract remain open; this finite producer result grants no full original52/compiler-reference credit.
@@ -19,8 +17,7 @@ The source-side final check `cargo clippy --manifest-path compiler/Cargo.toml
 handle `61090`). Its first run reported five warnings: the view namespace map
 entry, two judgment nested-if cases, and oversized public inline `IrGuard` and
 `IrStmt` enums. The owning fixes use `HashMap::entry`, equivalent judgment
-let-chain conditions, and documented local allows on those existing IR enums.
-No semantic native case was rerun; the existing affected-case **1/1** (4.75s)
+let-chain conditions, and documented local allows on those existing IR enums. No semantic native case was rerun; the existing affected-case **1/1** (4.75s)
 remains qualified at its recorded scope, with no whole-closure or reference-count
 credit.
 
@@ -28,8 +25,7 @@ credit.
 
 The same `local_views_bind_rows_once_and_keep_native_occurrences_distinct`
 case's final result is **1/1** (0.69s) through the real compiler/artifact, installed
-Interfaces `catalogFromArtifactOperations`/preparer/seal path, and native UI.
-The actual source binds `card.visit` and nested `detail.attempt`: the outer Card
+Interfaces `catalogFromArtifactOperations`/preparer/seal path, and native UI. The actual source binds `card.visit` and nested `detail.attempt`: the outer Card
 action and nested Detail action seal only their own row identity/version, retain
 authored labels, and keep distinct stable DOM prefixes, bindings and drafts
 across locale change and requery. The source uses omitted fields/display
@@ -47,8 +43,7 @@ catalog, then assumed a bare note field name instead of
 `ui.fieldInputName('scenario','note')`. With both harness assumptions corrected,
 the case passed **1/1** (0.31s); after adding the action-content refusal control,
 the same final case passed **1/1** (0.69s). Focused builds passed (13.19s,
-5.88s, and final changed-source build 9.76s); no unrelated cases were run.
-This qualifies only the protected nested
+5.88s, and final changed-source build 9.76s); no unrelated cases were run. This qualifies only the protected nested
 action/form slice; `by`/`for` availability, full original52/11/CanBook/table
 and split behavior, and held BDD3/public-wire semantics remain open. Completion
 stays **58/67**.
@@ -98,8 +93,7 @@ and preserves distinct stable controls/binding/draft identities. Generated
 preparation is once per source expansion. Outside-row, disabled-update and
 unsupported edit fields/headers/attributes/bodies refuse. The controlled
 query-port scope remains: current grant/version dispatch, full State/D1 paging
-and complete CanBook/dev-server acceptance are not qualified by this case.
-The two affected goldens pass after correcting their protected-form and
+and complete CanBook/dev-server acceptance are not qualified by this case. The two affected goldens pass after correcting their protected-form and
 admitted pagination/split expectations; the exposed multiline source-map
 writer bug is fixed with unchanged emitted JavaScript. Focused lib/bin Clippy
 and scoped formatting pass. Compiler completion remains **58/67**.

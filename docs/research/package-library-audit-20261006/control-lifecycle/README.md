@@ -1,7 +1,6 @@
 # Control flow, lifecycle and concurrency audit
 
-Planning-only source checkpoint: `fecf84196e38679646d221ee18aa4383ed0d0e83`.
-Implementation remains deferred. The audit records **93 resource families,
+Planning-only source checkpoint: `fecf84196e38679646d221ee18aa4383ed0d0e83`. Implementation remains deferred. The audit records **93 resource families,
 119 invariant statements and 140 failure-scenario groups** across all 13 package
 owners. Counts include safeguards, conditional/unjoined paths and tooling;
 they are **not counts of production bugs**. Three Sol high reviewers challenged
@@ -12,8 +11,7 @@ record lifecycle, cleanup responsibility, restart rule, required invariants,
 minimal failure scenarios, stage, sources and limits for each family. The
 [395-file crosswalk](file-coverage.tsv) and [316-duty crosswalk](duty-coverage.tsv)
 retain the earlier caller inventory, refreshed to this pin. Lexical signals in
-142 files are review prompts, not proof of ownership or exhaustive behavior.
-Contextual owner-family links do not prove every inherited duty is implemented.
+142 files are review prompts, not proof of ownership or exhaustive behavior. Contextual owner-family links do not prove every inherited duty is implemented.
 
 ## Material scenarios and their limits
 
@@ -45,28 +43,24 @@ host bug have different receipt/retry behavior; neither permits blanket replay.
 
 The [12-group proposed queue](fix-queue.json) releases each seam independently,
 then fixes fanout facts/cursors, credential consumption/cascades, durable files
-and browser progress, total cleanup, prepared ownership and host lifecycle.
-File-disjoint repairs can proceed in parallel after their own inputs release;
-held native work and unrelated adapter families are not a blanket dependency.
-[Proposed constraints](proposed-decisions.md) protect original requirements and
+and browser progress, total cleanup, prepared ownership and host lifecycle. File-disjoint repairs can proceed in parallel after their own inputs release;
+held native work and unrelated adapter families are not a blanket dependency. [Proposed constraints](proposed-decisions.md) protect original requirements and
 avoid adding more generic adapters. Every repair requires its own actual supported
 consumer/negative/crash gate; this audit executes none of them.
 
 ## Evidence and limitations
 
-[Source manifest](sources.json) pins repository inputs plus a separate exact local
-installed SDK copy. [SDK evidence](sdk-evidence.json) explains normal cleanup and
-unsettled-handler limits. [Review index](reviews.json) links independent source
-challenges; their corrections are reflected in the normalized catalog and table.
-[Scope](scope.json) and [static verification](verification.json) distinguish source
+Source manifest pins repository inputs plus a separate exact local
+installed SDK copy. SDK evidence explains normal cleanup and
+unsettled-handler limits. Review index links independent source
+challenges; their corrections are reflected in the normalized catalog and table. Scope and static verification distinguish source
 checks from product acceptance. Run `python3` on the local `verify.py` to reproduce
 metadata, source hash, anchor, crosswalk and link checks; it imports/runs no Can
 package or SDK.
 
 No product source, dependency, build, test, runtime, installation, Wasm instance,
 network, CI, schedule, Muse session, compiler, canonical task acceptance or living
-filetree checkpoint changed. No new product mechanism/security policy was selected.
-Existing narrow accepted asset/backend/control receipts remain narrow; original
+filetree checkpoint changed. No new product mechanism/security policy was selected. Existing narrow accepted asset/backend/control receipts remain narrow; original
 T08/T26, durable/authority/notification/app and installed consumer duties close only
 through their own evidence. Preparation holds and TS backend retirement gates stay
 intact. This is source-derived planning evidence, not proof of deployed incidents

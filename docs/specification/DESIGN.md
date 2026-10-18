@@ -3,8 +3,7 @@
 Status: normative v1 language contract, reconciled 15 October 2026. This document
 defines behavior, not universal implementation readiness. [REQUIREMENTS.md](REQUIREMENTS.md)
 owns product goals and [GRAMMAR.md](GRAMMAR.md) exact syntax; §0 states their common
-conformance boundary. [DECISIONS.md](DECISIONS.md) records rationale and supersession.
-The [completion record](../implementation/REMAINING-WORK.md#compiler-source-constraints)
+conformance boundary. [DECISIONS.md](DECISIONS.md) records rationale and supersession. The [completion record](../implementation/REMAINING-WORK.md#compiler-source-constraints)
 owns current implementation gaps and qualified consumers. An implemented slice,
 parsed source or handwritten JavaScript target is not complete language conformance.
 
@@ -21,16 +20,14 @@ also normative for those named primitives; their surrounding app sketches are
 not. Shared schema definitions live at their owning contract, not in each app.
 §§1–11 are normative source/runtime semantics.
 §12 defines qualification and staff review. §13 illustrates JavaScript lowering;
-its suggested helper names and metadata are not an independently implemented API.
-Historical decisions and app sketches cannot override these rules by example.
+its suggested helper names and metadata are not an independently implemented API. Historical decisions and app sketches cannot override these rules by example.
 
 A conforming implementation preserves a program's typed meaning, canonical owners,
 permissions, evaluation order, committed effects, failure identity and recovery
 across supported interfaces. Equivalent helper extraction/import and file moves
 preserve that meaning; a different consuming authority site still has its own
 explicit rules. Generated async functions, storage optimizations, result types and
-backend support profiles introduce no source-level authority or alternative semantics.
-An unavailable backend path must diagnose its missing support without publishing
+backend support profiles introduce no source-level authority or alternative semantics. An unavailable backend path must diagnose its missing support without publishing
 an apparently successful incomplete artifact. That is an implementation gap, not
 an inferred language prohibition. Unsupported application foundations and the
 explicit v1 exclusions remain outside the contract.
@@ -99,22 +96,18 @@ not authorize a read or replace the original failure.
 
 For fresh mutations, establish authentic principal/app/team and original typed
 input/reference context, apply canonical admission, resolve omitted parameter
-defaults in declaration order, then execute authored leading guards/body in order.
-CRUD creation defaults construct its normalized candidate before its own `when`
+defaults in declaration order, then execute authored leading guards/body in order. CRUD creation defaults construct its normalized candidate before its own `when`
 and staging. Local calls retain the caller and transaction while applying the
 callee's canonical admission. Validate final invariants, locks, references,
 attachments and schedules before the one fenced owner commit. Failure publishes
-no provisional domain change, event, schedule, delivery intent or attachment link.
-Diagnostic/technical rejection records may still exist. Already committed source
+no provisional domain change, event, schedule, delivery intent or attachment link. Diagnostic/technical rejection records may still exist. Already committed source
 work and completed independent child transactions are not undone by a later
 asynchronous child/provider failure.
 
 A matching receipt is located and checked after authentication and canonical
-supplied-input identity, before stale versions, defaults or authored execution.
-Replay uses the recorded outcome; it is not a fresh invocation of `by`, guards or
+supplied-input identity, before stale versions, defaults or authored execution. Replay uses the recorded outcome; it is not a fresh invocation of `by`, guards or
 the body. Current identity/owner access, disclosure and expiry may withhold saved
-content without changing the committed outcome or granting fresh authority.
-Changing supplied input under the same identity conflicts. External uncertainty
+content without changing the committed outcome or granting fresh authority. Changing supplied input under the same identity conflicts. External uncertainty
 requires the original delivery identity and reconciliation, never a guessed
 failure or a newly minted retry. §§4–8 specify the owning revocation/fence and
 recovery boundaries in full.
@@ -249,7 +242,7 @@ A bare scalar without a default/server expression is required and non-null, matc
 
 For a contained model, creation defaults and server initializers additionally bind `parent` to its required, resolved containing record. For example, `Step in Checklist {assignee:user=parent.parent.user}` defaults to the checklist employee's user. The normal parent/team/storage checks precede evaluation; this binding supplies no new read or write authority. Parent/reference reads use the current creation authority and the same transaction fence as other business reads. Every canonical CRUD, internal `create` and fixture creation path uses the same default. A supplied value replaces an ordinary default; explicit null still fails a nonnullable type. Defaults do not run on update, and later parent changes never rewrite stored children.
 
-There is no partially initialized `row` or implicit sibling-field scope in an initializer. `parent` is available only for actual containment, including nested parent navigation; a top-level model, contract or event does not gain it. It is a contextual binding protected from authored shadowing while active. Evaluate missing field initializers in declaration order after resolving the parent, using the invocation's fixed facts; normal type/normalization checks and candidate guards still apply. Failed evaluation rolls back that creation transaction. Existing receipt replay retains the originally resolved values rather than rerunning defaults. The [parent-default consultation and witness](../design/jev/parent-field-default-20261004/review.md) records the alternatives; no dependent-sibling initialization language is introduced.
+There is no partially initialized `row` or implicit sibling-field scope in an initializer. `parent` is available only for actual containment, including nested parent navigation; a top-level model, contract or event does not gain it. It is a contextual binding protected from authored shadowing while active. Evaluate missing field initializers in declaration order after resolving the parent, using the invocation's fixed facts; normal type/normalization checks and candidate guards still apply. Failed evaluation rolls back that creation transaction. Existing receipt replay retains the originally resolved values rather than rerunning defaults. The parent-default consultation and witness records the alternatives; no dependent-sibling initialization language is introduced.
 
 `derive Model.field:T = expr` defines a read-only computed field in scope `row:Model`. `derive name(p:T,...):R = expr` defines a pure function. Parameters and result types are explicit; obvious local values and generated CRUD schemas are inferred. Derived model fields accept the same caption/value label map as stored fields, with checked resolved enum/bool cases and shared nullable presentation; labels supply no initializer or grant. Field type references remove repeated enum/bound definitions. Derived definitions cannot recurse, perform effects, or depend on incidental UI state.
 
@@ -467,8 +460,7 @@ Omitted deletion mode means archive: delete archives the row and its contained s
 
 A scenario declares every parameter's type. `p:T` is required; `p:T?` defaults to null; `p:T=expr` has a default. `Model.field` inherits value constraints, not its storage default/server ownership. There is no inference from parameter spelling or later prose. Parameter defaults are pure and evaluated at invocation. A mutation's record parameters carry expected versions; read parameters need only IDs.
 
-For a fresh user operation, evaluate `by` before any declared parameter default.
-An explicit-default parameter (`p:T=expr`) is therefore unavailable to `by`,
+For a fresh user operation, evaluate `by` before any declared parameter default. An explicit-default parameter (`p:T=expr`) is therefore unavailable to `by`,
 directly or through a helper dependency, even when a particular caller supplies
 it; reject such a declaration during checking. This keeps one meaning for the
 public signature and preserves denied-call order. Required inputs, the schema's implicit null/empty-array absence values,
@@ -804,7 +796,7 @@ The bridge v1 contract has three steps, shared with generated browser controls:
 
 Bridge authentication uses an app-audience runtime authorization for the same principal/team as the MCP connection; MCP tokens are not blindly forwarded to another audience or origin. The shared runtime authorization layer establishes that relationship, with no identity/team arguments or reusable public upload URLs. Existing readable attachments can be used directly without reuploading, under the same final attachment rules. Hosts that do not implement this extension must offer the generated browser upload handoff and return its authorized finalized reference, or report that a new attachment cannot be supplied. They cannot silently omit a required file or claim an upload succeeded. MCP [resource retrieval](https://modelcontextprotocol.io/specification/2025-11-25/server/resources) is not a client upload mechanism. Unsupported hosts do not become attachment-capable merely because they support tools.
 
-For CanExpense, a supporting host binds the existing `expense.Expense.create` receipt slot and Employee parent through the canonical schema, transfers selected receipt bytes, then calls that same create operation with its finalized file and business inputs. Oversized/malformed/partial transfers yield no file; a different team's reference or a newly revoked caller fails ordinary admission; a valid completed receipt follows the declared Expense workflow. No `.can` upload lines, second MCP server, binary business tool or hand-authored per-app transfer contract is required. [Three consultations and the contract reasoning](../design/jev/mcp-file-handoff-20261004/README.md#source-assessment) record the design boundary. Bridge, host-adapter and end-to-end task support require their actual consumer qualification; a supporting upload kernel alone does not establish them.
+For CanExpense, a supporting host binds the existing `expense.Expense.create` receipt slot and Employee parent through the canonical schema, transfers selected receipt bytes, then calls that same create operation with its finalized file and business inputs. Oversized/malformed/partial transfers yield no file; a different team's reference or a newly revoked caller fails ordinary admission; a valid completed receipt follows the declared Expense workflow. No `.can` upload lines, second MCP server, binary business tool or hand-authored per-app transfer contract is required. Three consultations and the contract reasoning record the design boundary. Bridge, host-adapter and end-to-end task support require their actual consumer qualification; a supporting upload kernel alone does not establish them.
 
 Bound file-valued results become successful typed completions only after canonical receiving-app finalization has checked immutable bytes, content/MIME, size and quota. A foreign ID, URL, structural file object or transport success is insufficient. Internal provenance binds receiving app/team/storage owner, verified originating principal/source, adapter, delivery and result path. That completion may attach only its own finalized result, under current destination limits and authored correlation/owner guards; its handler retains `actor=null`. Finalization identity is stable per delivery/result path and ordered item position; retries reuse immutable content, and conflicting content fails. Existing receiving-store content is reusable only with verified provenance. Transfer occurs before the completion transaction, not atomically with it; rejected handlers leave no attachment link and orphan content follows the existing cleanup horizon. No new transfer DTO, per-app download helper or blanket attachment privilege is introduced. Adapters and runtimes must establish this provenance and finalization boundary before advertising typed file completions.
 
@@ -958,15 +950,13 @@ Read-form children render its typed `result`; siblings have no result scope. A p
 
 A confirmed rejected mutation keeps its original receipt immutable. Correcting
 that form starts a new attempt: the server may issue a fresh operation identity
-in the denial response only after State confirms the exact rejected receipt.
-For a protected form it rechecks the unexpired original proof and preserves its
-selected records, observed versions and editable inputs in a replacement proof.
-The browser adopts the complete identity/proof pair while retaining editable
+in the denial response only after State confirms the exact rejected receipt. For a protected form it rechecks the unexpired original proof and preserves its
+selected records, observed versions and editable inputs in a replacement proof. The browser adopts the complete identity/proof pair while retaining editable
 values, feedback and focus. Ordinary error codes do not establish rejection:
 unknown transport, storage and post-commit failures retain the original identity
 for safe replay. Expired receipt-only proofs never authorize a new attempt.
 
-Here `page` is the full-page declaration; an HTMX partial is a generated response containing its authorized render regions. A partial is not another page type. The current catalog has no `fragment`/`render` declarations or independently declared fragment routes. [JEV's fragment consultation](../design/jev/README.md#named-fragments-versus-automatic-partial-responses) recommends retaining inline automatic regions for the current apps and considering typed named reuse when a concrete app demonstrates repeated UI content. That proposal has not added a second rendering form to v1.
+Here `page` is the full-page declaration; an HTMX partial is a generated response containing its authorized render regions. A partial is not another page type. The current catalog has no `fragment`/`render` declarations or independently declared fragment routes. JEV's fragment consultation recommends retaining inline automatic regions for the current apps and considering typed named reuse when a concrete app demonstrates repeated UI content. That proposal has not added a second rendering form to v1.
 
 `list`/`table display=split` gives the selected authorized row one adjacent detail pane; mobile uses a drawer with the same row bindings and current grants. Without a selected/readable row the pane is empty, not a guessed record. `details display=drawer` opens only the activated record, never every repeated row. `open=` applies only to Collapse details and cannot accompany drawer display. These groups retain row/parent aliases and do not create business operations.
 

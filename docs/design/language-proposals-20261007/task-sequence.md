@@ -6,13 +6,13 @@ Use one direct, proportionate validation of changed behavior and a concise resul
 
 The first deliverable is a working private image-generation app whose frontend follows current authorized state. Prepare enum exhaustiveness and dependent forms alongside that work, then build concrete domain reuse and qualify a whole approval app. Conditional and deferred features enter only when their original value gates pass.
 
-These 63 steps expand the existing 31 [orchestration packets](orchestration.md); they are not 63 new canonical jobs. [The structured sequence](task-sequence.json) carries packet references and inherited gates. Every task remains proposed. Numbers indicate priority and suggested order; only named prerequisites and required released outputs impose waiting. Tasks 60–63 repeat for each applicable slice rather than waiting for every conditional idea.
+These 63 steps expand the existing 31 [orchestration packets](orchestration.md); they are not 63 new canonical jobs. The structured sequence carries packet references and inherited gates. Every task remains proposed. Numbers indicate priority and suggested order; only named prerequisites and required released outputs impose waiting. Tasks 60–63 repeat for each applicable slice rather than waiting for every conditional idea.
 
 Keep one coordinator and implementation workers within this chat's four slots. Authors use direct focused checks; do not reserve a standing reviewer lane. The two existing coding chats keep their own work and file ownership. Consume their exact reviewed releases; do not reimplement or stage their dirty candidates. No fixed dates or measured effort estimates are assumed.
 
 This sequence initially observed source 3403dc71; the shared checkout continues changing under its current coding owners. Confirm selected-call acceptance and the card-title correction at their current integrated scope in task 1. The required card-title rendering correction is incoming work owned by that chat. Neither observation proves all canonical calls/forms or original apps are complete.
 
-The existing proposed roadmap decision covers this elaboration; no new grammar or API choice is adopted. Per-proposal contracts and full original acceptance remain in [the implementation plans](implementation-plan.md), [canonical reference crosswalk](orchestration-canonical-references.json) and packet graph. Consequential unsettled semantic choices use the preauthorized JEV triple before adoption.
+The existing proposed roadmap decision covers this elaboration; no new grammar or API choice is adopted. Per-proposal contracts and full original acceptance remain in [the implementation plans](implementation-plan.md), canonical reference crosswalk and packet graph. Consequential unsettled semantic choices use the preauthorized JEV triple before adoption.
 
 
 Parent packet references retain full acceptance and canonical prerequisites. They do not force preparation of every subtask to wait for the full packet. The structured plan marks preparation, qualification, conditional pilots, reconsideration and the repeated release cycle separately.
@@ -20,7 +20,7 @@ Parent packet references retain full acceptance and canonical prerequisites. The
 
 Shared dispatcher and receipt steps are scoped per consumer/provider. Recovery, judgments and corpus work may use separate accepted instances of tasks 18/20; they do not wait for image-provider completion, and image evidence cannot certify them. Enum/form comparisons prepare from their own witnesses before the full app outcome matrix finishes.
 
-Model and reasoning defaults are attached to every task below. The [allocation table](model-allocation.md) gives all 63 selections, pricing basis, rationale and escalation policy. These are future worker recommendations; conditional gates and active owners are unchanged.
+Model and reasoning defaults are attached to every task below. The allocation table gives all 63 selections, pricing basis, rationale and escalation policy. These are future worker recommendations; conditional gates and active owners are unchanged.
 
 ## Source and design preparation
 
@@ -808,13 +808,11 @@ For each release claim, run actual outside-checkout package/artifact/browser/bac
 
 **Repeat:** A relevant change, failure or concrete unresolved risk. This is not a global barrier after task 59.
 
-### 62 Reconcile coverage and decisions after integration
-
 **Owner:** Handling integrator. **After:** An integration or merge happened; the handling integrator owns reconciliation of all changes since the checkpoint.. **Packet:** O0, O1. 
 
-**Recommended worker:** gpt-6.1-sol · `medium` reasoning. Reconcile actual changes against the living checkpoint and decisions.
+**Recommended worker:** gpt-6.1-sol · `medium` reasoning.
 
-Record qualified outputs and original task acceptance. After every merge, reconcile all changes since the living checkpoint with coverage/decisions; advance the checkpoint when reconciliation is complete.
+Record qualified outputs and original task acceptance.
 
 **Deliverable:** Current coverage/decision/task crosswalk and retained historical pins.
 
@@ -846,7 +844,7 @@ With contracts stable, work 18–24 progresses through durable/provider owners w
 
 Approval40 and specialized judgment46/corpus47 consume only their actual needed contracts; they do not inherit unrelated image generation or optional view/wizard improvements. Preparation of accounting41 and conditional pure calendar53 can use free capacity. Conditional55 push consumes read-only15; editable consumers additionally consume16.
 
-Repeat60–63 only for a relevant change, failure or concrete unresolved risk. A task may release a narrowly proved output while its broad original parent remains partial. Complete whole-app or installed-release claims only against all original required acceptance. Preserve native preparation HOLD and the complete living-plan checkpoint until their own requirements are met.
+Repeat60–63 only for a relevant change, failure or concrete unresolved risk. A task may release a narrowly proved output while its broad original parent remains partial. Complete whole-app or installed-release claims only against all original required acceptance.
 
 
 

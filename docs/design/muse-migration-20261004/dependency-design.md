@@ -50,7 +50,7 @@ Full actual optional-provider omission and the proposed static-role/value-only i
 
 ## Consultation boundary
 
-The original detailed-project third JEV request was automatically rejected for insufficient authorization to export nonpublic architecture/workflow context. The [saved rejection](../jev/optional-dependency-closure-20261004/3.rejection.md) remains authoritative. Its later abstract hypothetical was explicitly nonequivalent and does not complete the required three equivalent consultations. Root confirmed that no later specific user approval covers the rejected export. No JEV request was made during this C3 assignment, and none was resent/reworded around that rejection. This is advice/approval evidence, not proof of any alternative's semantics.
+The original detailed-project third JEV request was automatically rejected for insufficient authorization to export nonpublic architecture/workflow context. The saved rejection remains authoritative. Root confirmed that no later specific user approval covers the rejected export. No JEV request was made during this C3 assignment, and none was resent/reworded around that rejection. This is advice/approval evidence, not proof of any alternative's semantics.
 
 On handoff, `/root/astra_progress_handoff` was informed that Mail stays required, outage does not alter entitlement, and existing pending work requires its actual compatible contract. No C5 recovery API or receipt field was introduced here.
 

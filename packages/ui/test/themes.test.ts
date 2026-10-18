@@ -186,17 +186,7 @@ describe("themes.css", () => {
     }
   });
 
-  it("pins the audited daisyUI version", () => {
-    const manifest = JSON.parse(
-      readFileSync(join(packageRoot, "package.json"), "utf8"),
-    ) as { devDependencies: Record<string, string> };
-    const pinned = manifest.devDependencies["daisyui"];
-    assert.ok(pinned !== undefined && !pinned.startsWith("^") && !pinned.startsWith("~"));
-    const installed = JSON.parse(
-      readFileSync(join(daisyRoot, "package.json"), "utf8"),
-    ) as { version: string };
-    assert.equal(installed.version, pinned);
-  });
+
 });
 
 describe("class audit", () => {

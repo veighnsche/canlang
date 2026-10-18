@@ -1,7 +1,6 @@
 # TS, Rust and Wasm ownership audit
 
-Planning-only audit at `b40b59e32381465faacb387df4a2ae73b0654b74`.
-Implementation remains deferred. The package inventory is fully crosswalked;
+Planning-only audit at `b40b59e32381465faacb387df4a2ae73b0654b74`. Implementation remains deferred. The package inventory is fully crosswalked;
 finite native surfaces are enumerated rather than inferred from package names,
 Cargo registration, `cdylib`, generated assets or test counts.
 
@@ -23,17 +22,15 @@ normal CLI remains TS. These are different stages, with different acceptance.
 | UI and testkit | UI renderer/browser code and testkit runner remain TS. Testkit's dependency-free Rust version/add fixture is loader capability evidence. | No UI native renderer or testkit native semantic core is implemented. | Real browser mount/start/lifecycle and emitted-suite consumers retain their own product gates. Fixture Wasm cannot qualify values, validation, Work or renderer adoption. |
 | Remaining package duties | Contracts, files, interfaces, identity, services, state and stdlib retain their recorded TS/type/host owners, with caller stages carried forward. | No additional Can-owned Rust backend was found. Native host primitives/libraries do not constitute a package port. | Existing authority, durable, installed and application gates remain at their declared scope. No no-caller result authorizes public API removal. |
 
-See [values](values.json), [Work](work.json) and
-[preparation/UI/testkit](preparation.json) for operation-level defining sources,
-registration, representations, caller anchors and original gate crosswalks.
-[Responsibility coverage](coverage.jsonl) maps all 316 prior responsibility IDs;
+See values, Work and
+preparation/UI/testkit for operation-level defining sources,
+registration, representations, caller anchors and original gate crosswalks. Responsibility coverage maps all 316 prior responsibility IDs;
 [file coverage](file-coverage.tsv) preserves the 395-file inventory. This is not a
 claim that every possible JS input or every branch has been runtime qualified.
 
 ## Conversion and error costs that cannot be hidden
 
-- The exact JSON channel and the structural lossless channel are different.
-  Exact bigint parts use decimal strings; scalar carriers reconstruct through
+- The exact JSON channel and the structural lossless channel are different. Exact bigint parts use decimal strings; scalar carriers reconstruct through
   public TS constructors. Ordinary numeric `-0` is erased by JSON, Decimal
   scale `-0` is explicitly refused, and Rust `String` cannot carry lone UTF-16
   surrogates. Structural frames preserve UTF-16 units and f64 bits but reject
@@ -58,10 +55,8 @@ claim that every possible JS input or every branch has been runtime qualified.
   registries. Native supplied factory/revision strings do not prove TS factory
   lineage. Retirement/live-count behavior differs. Lifecycle scaffolding cannot
   be credited as validation or request authority.
-- Work families intentionally use different clone/value/error profiles.
-  Random, derivation, supplier and evidence callbacks are demand-ordered. Native
-  `Fn`/trait signatures are not a JS/Wasm callback or thrown-value contract.
-  Already-demanded planning facts cannot replace later act-time evidence,
+- Work families intentionally use different clone/value/error profiles. Random, derivation, supplier and evidence callbacks are demand-ordered. Native
+  `Fn`/trait signatures are not a JS/Wasm callback or thrown-value contract. Already-demanded planning facts cannot replace later act-time evidence,
   membership, revision, authority or conditional commit checks.
 - Native preparation preserves a tagged UTF-16/number-bit tree through framed
   IPC, but its current deploy prefix refuses at a different stage from the full
@@ -94,8 +89,8 @@ decision is called; other integrity algorithms are separate. The current executa
 resolver is not integrity-checked by the manifest helper. These corrections narrow
 caller claims without deleting code or changing any canonical task status.
 
-[Evidence reconciliation](evidence-reconciliation.json) and the independent
-[values/preparation](review-values-preparation.json) and [Work](review-work.json)
+Evidence reconciliation and the independent
+values/preparation and Work
 reviews preserve accepted scope and opposing evidence. Reviews had access to the
 initial conclusions; they are independent source challenges, not clean-room audits.
 
@@ -103,8 +98,7 @@ initial conclusions; they are independent source challenges, not clean-room audi
 
 For future qualified work, keep one package-owned public TS surface and one selected
 semantic implementation per admitted operation. Keep conversion, selection, registry,
-initialization and failure projection beside that owner, shared by its real callers.
-Choose a synchronous, already-supported operation family before considering a wider
+initialization and failure projection beside that owner, shared by its real callers. Choose a synchronous, already-supported operation family before considering a wider
 bridge. Do not create a generic cross-package value framework or an adapter per caller.
 
 Values is the first real exact backend seam. Work's first possible native slice is

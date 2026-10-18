@@ -1,6 +1,6 @@
 # Remaining work after selected release review
 
-This is a source-current finite acceptance overlay, not a new independent task count or a whole-program completion claim. [Selected scope ledger](selected-scope-ledger.json) preserves the 27 library-sequence units as crosswalks; [residual task index](residual-task-index.json) keeps exact original IDs, acceptance clauses and dependencies. The historical canonical ledger still has 333 parent/gate/source records and is unchanged. Its old 234 required-remaining count is not presented as a refreshed number of coding jobs.
+This is a source-current finite acceptance overlay, not a new independent task count or a whole-program completion claim. Selected scope ledger preserves the 27 library-sequence units as crosswalks; residual task index keeps exact original IDs, acceptance clauses and dependencies. The historical canonical ledger still has 333 parent/gate/source records and is unchanged. Its old 234 required-remaining count is not presented as a refreshed number of coding jobs.
 
 The main unfinished selected Rust progression is:
 
@@ -13,4 +13,4 @@ Other original obligations remain separate: `challenge:T08` same-context/compile
 
 All 22 historical held records remain held, including native preparation/native-release. Optional W09/deferred routes are unchanged. Conditional H02 was exercised because a real quota violation was found and repaired. C04 export evaluation retains its small serializer/formula policy; E01 retains eleven uncertain candidates with concrete reopening inputs. No blanket library replacement or TS deletion follows.
 
-Shared decision/filetree reconciliation awaits the current document owner's exact-file handoff; its contribution is recorded locally. No complete checkpoint advances. Future product dispatch, deployment/publication and default adoption remain unauthorized after this finite review. A next packet should select an exact original ready prerequisite and source-current contract; this document does not launch it.
+Shared decision/filetree reconciliation awaits the current document owner's exact-file handoff; its contribution is recorded locally. Future product dispatch, deployment/publication and default adoption remain unauthorized after this finite review. A next packet should select an exact original ready prerequisite and source-current contract; this document does not launch it.

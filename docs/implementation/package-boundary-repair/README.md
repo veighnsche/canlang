@@ -1,6 +1,6 @@
 # Package-boundary repair evidence
 
-Implemented 2026-10-06 against `7fd8c6bf4717feeffc70b46819377b74b353e117` plus local planning changes. This is an uncommitted repair round, with product/runner byte identities in [source-hashes.json](evidence/source-hashes.json). No merge, publication or Turbo orchestration cutover occurred.
+Implemented 2026-10-06 against `7fd8c6bf4717feeffc70b46819377b74b353e117` plus local planning changes. This is an uncommitted repair round, with product/runner byte identities in source-hashes.json. No merge, publication or Turbo orchestration cutover occurred.
 
 ## Implemented behavior
 
@@ -20,9 +20,9 @@ Local tool scope: Bun 1.4.2, Node 24.21.0, TypeScript from the existing Bun lock
 | --- | --- |
 | Delete every producer `dist` and incremental metadata; `bun run build` | All 13 producers pass; [clean-build.log](evidence/clean-build.log). Own dist layout and no stale sibling mirrors verified. |
 | `bun install --ignore-scripts --frozen-lockfile` | Pass; [frozen.log](evidence/frozen.log). Lock refreshed for declared relationships/test deps. |
-| Root and e2e typechecks with source aliases removed | Pass; [typecheck.log](evidence/typecheck.log), [e2e-typecheck.log](evidence/e2e-typecheck.log). Historical playback exclusion removed. |
+| Root and e2e typechecks with source aliases removed | Pass; typecheck.log, [e2e-typecheck.log](evidence/e2e-typecheck.log). Historical playback exclusion removed. |
 | Turbo 2.11.7 boundaries, original external probe config, native flags off | 631 files / 13 packages / no issues; [turbo.log](evidence/turbo.log). Earlier run had 566 diagnostics. Turbo remains external probe tooling. |
-| Supplemental `bun run check:boundaries` | 671 JS/TS files / 13 packages / zero violations; [check.log](evidence/check.log), [structured audit](evidence/boundary-audit.json). |
+| Supplemental `bun run check:boundaries` | 671 JS/TS files / 13 packages / zero violations; [check.log](evidence/check.log), structured audit. |
 | `bun run test:boundaries` | 12 adversarial fixtures pass; [check-tests.log](evidence/check-tests.log). Covers type queries, const/template/helper loads, aliases, escaped paths, filesystem reads, exports and manifest cycles. |
 | Root Vitest suites with existing preparation test binary | 62 files / 597 tests, all pass; [vitest.log](evidence/vitest.log). Nine contracts consumer cases moved into owning suites, retaining their assertions. |
 | Emitted Cloudflare tests | 265/265, zero skipped; [cloudflare-tests.log](evidence/cloudflare-tests.log). Includes real D1, DO, receipt, invocation and fanout joins. |
@@ -36,7 +36,7 @@ Services' unchanged cancellation/socket assertion fails under Node 26.10.0 in bo
 
 ## Installed consumption
 
-[Installed summary](evidence/installed-summary.txt), [detailed evidence](evidence/installed-evidence.json), [tarball pins](evidence/installed-pack-log.json) and [probe source](evidence/installed-verify.mjs) retain the result. Scratch-only overrides mapped the thirteen unpublished `@canlang/*` versions to their local tarballs; Bun's packed manifests retained normal version-substituted dependencies. The initial registry 404 and successful override install were kept in `/private/tmp/canlang-installed-verification/`.
+Installed summary, detailed evidence, tarball pins and [probe source](evidence/installed-verify.mjs) retain the result. Scratch-only overrides mapped the thirteen unpublished `@canlang/*` versions to their local tarballs; Bun's packed manifests retained normal version-substituted dependencies. The initial registry 404 and successful override install were kept in `/private/tmp/canlang-installed-verification/`.
 
 A consumer outside the checkout, with production dependencies and lifecycle scripts disabled:
 
@@ -54,4 +54,4 @@ The supplemental guard checks manifest versions/cycles, existing export targets,
 
 `--audit` / `--json` retain 381 runtime/context expressions, including 20 module loads. Arbitrary runtime paths, generated module strings, shell/YAML/Rust and native command semantics remain outside AST proof. Caller-owned artifact/Can inputs and release compiler-version reads have distinct ownership; they are not blanket sibling-source exceptions. The real runtime/package probes cover affected producer joins, while review and existing owning tests remain necessary.
 
-Bun still orders producer builds explicitly. The B02–B06 repair deliverables are implemented for this TS graph; Turbo task/cache qualification (B07), the complete mixed-toolchain command inventory and broader rollout (B08) remain next work under the [implementation plan](../PACKAGE-BOUNDARIES-AND-TURBO.md). Original ledger identities/counts and the living file-tree checkpoint remain unchanged.
+Bun still orders producer builds explicitly. The B02–B06 repair deliverables are implemented for this TS graph; Turbo task/cache qualification (B07), the complete mixed-toolchain command inventory and broader rollout (B08) remain next work under the [implementation plan](../PACKAGE-BOUNDARIES-AND-TURBO.md).

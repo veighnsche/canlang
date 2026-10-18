@@ -17,26 +17,21 @@ curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
 
 The public website serves the byte-identical installer from the qualified [v0.1.1 release](https://github.com/veighnsche/canlang/releases/tag/v0.1.1). It detects macOS Apple Silicon or Linux x86-64 with glibc, resolves one release version, and downloads the matching archive and SHA-256 checksum from that tag. The v0.1.1 Linux bundle requires glibc 2.39 or newer.
 
-The installer configures your shell PATH. Open a new terminal, then run `can --version`. Write and run applications in your own folder; no source checkout, catalog build or runtime overrides are required. Follow the [first application tutorial](public/01-Getting-started/02-installation.md) and [local development guide](public/03-Build-and-operate/01-local-development.md).
-The script supports pinned versions with `bash -s -- --version VERSION` after
+The installer configures your shell PATH. Open a new terminal, then run `can --version`. Write and run applications in your own folder; no source checkout, catalog build or runtime overrides are required. Follow the [first application tutorial](public/01-Getting-started/02-installation.md) and [local development guide](public/03-Build-and-operate/01-local-development.md). The script supports pinned versions with `bash -s -- --version VERSION` after
 the pipe. See the [website agent handoff](implementation/lean-install/website-handoff.md)
 for the exact source, publication gates and copy-ready deployment prompt.
 
 ### Published standalone v0.1.1 — 2026-10-15
 
-Tag `v0.1.1` pins commit `97bb83d925ffb7cb5cfb95494b3fd60626337caa`.
-[Preflight](https://github.com/veighnsche/canlang/actions/runs/38799215069) and
+Tag `v0.1.1` pins commit `97bb83d925ffb7cb5cfb95494b3fd60626337caa`. [Preflight](https://github.com/veighnsche/canlang/actions/runs/38799215069) and
 [the tagged release workflow](https://github.com/veighnsche/canlang/actions/runs/38800630072) pass. All nine tagged jobs succeed:
 both native compiler builds, library packing, editor assembly, both standalone
-qualifications, draft publication and both public streamed-install checks.
-Publication retains all seven existing assets, including the two separately
+qualifications, draft publication and both public streamed-install checks. Publication retains all seven existing assets, including the two separately
 optional browser-tool sidecars; `v0.1.0` is preserved unchanged.
 
 Both native qualifications pass all 21 checks: macOS 26.6.2 Apple Silicon and
 Ubuntu 24.04.5 x86_64/glibc 2.39. The published Linux native symbols require glibc 2.39
-or newer; other distributions and older hosts are not newly qualified.
-The core retains private Node 24.22.0 and production runtime dependencies.
-Browser automation remains a separate opt-in installation.
+or newer; other distributions and older hosts are not newly qualified. The core retains private Node 24.22.0 and production runtime dependencies. Browser automation remains a separate opt-in installation.
 
 | Published platform | Download bytes | Installed regular-file bytes, including checksum marker |
 | --- | ---: | ---: |
@@ -54,8 +49,7 @@ so default resolution selects the one latest tag `v0.1.1`, then fetches its own
 matching archive/checksum. Temporary HOME, install and ZDOTDIR paths contain
 spaces; Bash or Zsh sources the newly written shell configuration and runs
 `can --version`. The installed manifest confirms exact version/platform and
-private Node execution. The temporary directories are removed afterward.
-The public installer is byte-identical to the tagged canonical source and passes
+private Node execution. The temporary directories are removed afterward. The public installer is byte-identical to the tagged canonical source and passes
 `bash -n`. The website deployed its static copy on 2026-10-15; an unauthenticated GET returns HTTP 200, the bytes match the pinned asset with `cmp`, and `bash -n` passes on the downloaded public script.
 
 ### Optional local artifact installation (contributors)
@@ -72,13 +66,11 @@ For the locally assembled artifact in this checkout, the same one-command entry 
 sh output/install/install-local.sh
 ```
 
-The helper supplies its adjacent archive and pinned checksum to the installer.
-Installation defaults to `~/.can`, configures the shell PATH, and retains the
+The helper supplies its adjacent archive and pinned checksum to the installer. Installation defaults to `~/.can`, configures the shell PATH, and retains the
 previous version during upgrades. Open a new terminal afterward. Set
 `CAN_INSTALL_DIR` on the command to choose another installation directory.
 
-The macOS arm64 artifact has passed the complete external-app verification.
-Linux x64 qualification and compatibility limits are recorded below; arbitrary
+The macOS arm64 artifact has passed the complete external-app verification. Linux x64 qualification and compatibility limits are recorded below; arbitrary
 Linux distributions are not qualified. GitHub Release hosting is verified above;
 a Homebrew tap is not published. The website curl command still awaits its static
 installer deployment.
@@ -88,8 +80,7 @@ Earlier local macOS arm64 artifact (retained pre-release measurement): **90,087,
 (265.0 MiB on this filesystem)**. Filesystem allocation varies. App data,
 package-manager caches and retained older versions are additional.
 `output/install/size-report.json` is the generated breakdown. The previous
-core used 404.1 MiB on this filesystem; this build is **34.4% smaller**.
-Bun is now a contributor build dependency only. Dynamic application bundles use
+core used 404.1 MiB on this filesystem; this build is **34.4% smaller**. Bun is now a contributor build dependency only. Dynamic application bundles use
 Node and the same esbuild 0.28.1 already required by Wrangler. The assembler
 removes local native symbols from Node/workerd (preserving dynamic exports),
 re-signs the modified macOS binaries ad hoc, and verifies their execution.
@@ -104,9 +95,7 @@ state and retained older versions are additional. Allocation varies by filesyste
 ### Linux x64 qualification — 2026-10-15
 
 The existing Linux/glibc target was built and tested on **Rocky Linux 10.2
-(Red Quartz), x86_64, glibc 2.39**, kernel `6.12.0-211.64.1.el10_2.x86_64`.
-The local artifact is `can-0.1.0-linux-x64.tar.gz`; no version was changed.
-All **21 installed qualification checks pass**, including installation through
+(Red Quartz), x86_64, glibc 2.39**, kernel `6.12.0-211.64.1.el10_2.x86_64`. The local artifact is `can-0.1.0-linux-x64.tar.gz`; no version was changed. All **21 installed qualification checks pass**, including installation through
 Bash stdin in a disposable HOME with no host language tools on PATH, ordinary
 check/build, original inline examples, protected local preview, automatic
 R2/Durable Objects and model-free member-queue State provisioning. Chrome,
@@ -127,12 +116,10 @@ Native execution checks cover compiler 0.1.0 with its matching catalog, private 
 esbuild 0.28.1, workerd 1.20260730.1, Miniflare 4.20260730.0,
 Sharp 0.35.2 with libvips 8.18.3, and Wrangler 4.116.0. The verifier checks
 Linux x64 ELF headers and package OS/CPU/libc constraints, runs esbuild,
-workerd and Sharp, and exercises Miniflare through real D1/Worker execution.
-Wrangler bundling uses a dry run without account credentials.
+workerd and Sharp, and exercises Miniflare through real D1/Worker execution. Wrangler bundling uses a dry run without account credentials.
 
 This locally built compiler requires **glibc 2.39 or newer**. Node requires
-2.28 and workerd 2.35; the compiler sets this archive's highest requirement.
-The report lists required system shared libraries. Other distributions and CPU
+2.28 and workerd 2.35; the compiler sets this archive's highest requirement. The report lists required system shared libraries. Other distributions and CPU
 generations have not been exercised; a matching glibc version alone is not a
 qualification. Linux musl, Linux ARM and Windows are outside the existing
 standalone targets. macOS assembly/signing support and its retained measurements
@@ -143,26 +130,20 @@ remain intact; macOS and the Linux browser add-on were not rerun here.
 Browser automation is a separate opt-in installation, using Can's private Node. Core checks, inline examples and previews need no browser tooling and no manual Node, Bun or npm installation.
 
 Public releases supply these sidecars in the separate
-`can-browser-development-tools-VERSION.tar.gz` archive and its `.sha256` checksum.
-Download both from the same release, verify the checksum with
+`can-browser-development-tools-VERSION.tar.gz` archive and its `.sha256` checksum. Download both from the same release, verify the checksum with
 `shasum -a 256 -c can-browser-development-tools-VERSION.tar.gz.sha256` (or
 `sha256sum -c` on Linux), and extract the archive into an empty directory. Run
 `sh install-browser-tools.sh` from that directory. The workflow artifact set
 also contains the unpacked installer and adjacent `browser-development`
 manifest/lock. This installer puts Playwright,
 Chromium headless shell and ffmpeg under
-`~/.local/share/can/development/browser/1.63.0`, outside the production install.
-Measured additional files: **225,846,579 bytes (215.4 MiB)**; allocated disk:
+`~/.local/share/can/development/browser/1.63.0`, outside the production install. Measured additional files: **225,846,579 bytes (215.4 MiB)**; allocated disk:
 **226,373,632 bytes (215.9 MiB)**, excluding package-manager caches. Browser
-automation may require OS libraries on Linux; this add-on is verified on macOS arm64.
-The installer verifies pinned package SHA-512 values using Node; no Bun or npm
+automation may require OS libraries on Linux; this add-on is verified on macOS arm64. The installer verifies pinned package SHA-512 values using Node; no Bun or npm
 executable is required. Set `CAN_BROWSER_TOOLS_ROOT` to select another separately installed tool root.
 
-Core check/build, inline examples and local preview work without this add-on.
-Mandatory browser acceptance reports missing development tools and stays failed
-until they are installed; it never silently skips browser checks. Contributors working with a locally assembled artifact set can use `sh output/install/install-browser-tools.sh` instead of downloading the sidecars.
-Service credentials and authored browser tests remain application inputs.
-Git is needed only for explicitly requested `git:<revision>` rollback.
+Core check/build, inline examples and local preview work without this add-on. Mandatory browser acceptance reports missing development tools and stays failed
+until they are installed; it never silently skips browser checks. Contributors working with a locally assembled artifact set can use `sh output/install/install-browser-tools.sh` instead of downloading the sidecars. Service credentials and authored browser tests remain application inputs. Git is needed only for explicitly requested `git:<revision>` rollback.
 
 See [the bounded shipping audit](implementation/lean-install/README.md) for
 retained files, dependency choices, verification and release gates.
@@ -213,8 +194,7 @@ The build uses the pinned Turbo 2.11.7 graph for all 13 TypeScript producers.
 integrity checks without packing or publishing. `release:pack` performs that
 preparation and validation, then writes all 13 workspace tarballs, including
 private dependencies, to `output/release-artifacts/`. Its manifest records
-hashes and internal runtime dependency closure; private flags are preserved.
-These are package artifacts only. The
+hashes and internal runtime dependency closure; private flags are preserved. These are package artifacts only. The
 [release workflow](../.github/workflows/release.yml) separately assembles the
 Rust binary and editor extension. Neither command publishes packages or
 qualifies complete applications or supported native hosts.
@@ -287,15 +267,13 @@ covered all 13 package builds and the original 18 installed checks, including
 API-only previews which provision R2/Durable Objects and a model-free member queue
 automatically. The published release above passes the current 21 checks on both
 native hosts. The verifier also checks that PATH contains no external language tools,
-measures the actual installation and directly exercises the private native tools.
-It supplies the canonical installer to Bash on stdin in a disposable HOME with
+measures the actual installation and directly exercises the private native tools. It supplies the canonical installer to Bash on stdin in a disposable HOME with
 spaces, then runs the existing external-app checks. On Linux, the report records
 ELF architecture, required shared libraries and maximum referenced glibc version.
 
 The release workflow consumes the matching platform compiler artifact, assembles
 and qualifies the standalone archive, and retains its checksum, size report,
-verification report and canonical installer. Both Linux stages use Ubuntu 24.04.
-The tagged v0.1.1 workflow passes both native qualifications, uploads the complete
+verification report and canonical installer. Both Linux stages use Ubuntu 24.04. The tagged v0.1.1 workflow passes both native qualifications, uploads the complete
 asset set to a draft, then publishes it. Post-publication jobs verify all five core
 URLs and streamed installation on both hosts. Local qualification and manual
 dispatch do not publish. Website deployment and Homebrew remain separate.

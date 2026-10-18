@@ -787,7 +787,7 @@ Desired JS for the added sequence descriptor (append to the existing flat `examp
 
 ## Advice, checks, and remaining limits
 
-No JEV consultation was run for this handoff: the extension reuses settled file/money/version/delivery contracts and existing owners, and every new choice is flagged above for Codex review instead of advised by model vote. If Codex requires JEV for any D-choice, the three-request procedure applies before application.
+No JEV consultation was run for this handoff: the extension reuses settled file/money/version/delivery contracts and existing owners, and every new choice is flagged above for Codex review instead of advised by model vote.
 
 Handoff verification: `node --check` on the assembled new JS witness blocks (wrapped with the existing import names); Can witness blocks use only precedented shapes with the citations above (no new syntax, no new builtin, no provider/adapter contract). These are snippet checks, not whole-target application.
 

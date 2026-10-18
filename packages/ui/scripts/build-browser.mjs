@@ -2,7 +2,7 @@
 /**
  * FP.BROWSER browser-asset build: installs the real CSS/client path.
  *
- * Reads (pinned, verified): daisyUI `daisyui.css`, `ui/themes.css`,
+ * Reads: daisyUI `daisyui.css`, `ui/themes.css`,
  * `ui/src/browser/style.css`, and the tsc-compiled browser client
  * (`dist/src/browser/*.js`). Writes `dist/browser/`:
  *
@@ -10,13 +10,11 @@
  *   the page loads `bootstrap.js` as a module.
  * - `can-style.css` — assembled stylesheet: daisyUI + themes +
  *   browser source layer, in that order (source layer wins ties).
- * - `manifest.json` — installed files with sha256, pinned daisyUI +
+ * - `manifest.json` — installed files with sha256, installed daisyUI +
  *   catalog versions, and the binder ids this client registers.
  *
  * Build joins (fail closed):
  *
- * - daisyUI version MUST equal the pinned version (bump
- *   deliberately, never blindly — see themes.css header).
  * - esbuild resolves and bundles the actual compiled client closure
  *   for the browser, including shared form projection. Unresolved
  *   imports, Node-only dependencies, and runtime external imports
@@ -44,9 +42,6 @@ const distUi = join(packageRoot, "dist", "src");
 const distBrowserSrc = join(distUi, "browser");
 const outDir = join(packageRoot, "dist", "browser");
 
-/** Pinned daisyUI version (mirrors package.json devDependency + themes.css). */
-const PINNED_DAISYUI_VERSION = "5.7.47";
-
 /** Public browser entrypoint URLs retained by the installed asset contract. */
 const INSTALLED_CLIENT_MODULES = ["bootstrap.js", "polling.js"];
 
@@ -59,7 +54,7 @@ function sha256Hex(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-// 1. Pinned daisyUI (resolve through node_modules, never a hoisted guess).
+// 1. Installed daisyUI (resolve through node_modules, never a hoisted guess).
 const pkgRequire = createRequire(join(packageRoot, "package.json"));
 let daisyRoot;
 try {
@@ -68,9 +63,6 @@ try {
   fail("cannot resolve daisyui/package.json — install devDependencies first");
 }
 const daisyPkg = JSON.parse(readFileSync(join(daisyRoot, "package.json"), "utf8"));
-if (daisyPkg.version !== PINNED_DAISYUI_VERSION) {
-  fail(`daisyUI version is ${daisyPkg.version}, pinned is ${PINNED_DAISYUI_VERSION} — bump deliberately`);
-}
 const daisyCssPath = join(daisyRoot, "daisyui.css");
 if (!existsSync(daisyCssPath)) {
   fail(`daisyUI has no daisyui.css at ${daisyCssPath}`);
@@ -154,7 +146,7 @@ const themesCss = readFileSync(join(packageRoot, "themes.css"), "utf8");
 const sourceCss = readFileSync(join(packageRoot, "src", "browser", "style.css"), "utf8");
 const styleCss =
   `/* Installed CanLang browser stylesheet (FP.BROWSER).\n` +
-  ` * Assembled by ui/scripts/build-browser.mjs: daisyUI ${PINNED_DAISYUI_VERSION} + themes.css + src/browser/style.css.\n` +
+  ` * Assembled by ui/scripts/build-browser.mjs: daisyUI ${daisyPkg.version} + themes.css + src/browser/style.css.\n` +
   ` * Catalog bound against: ${catalogVersion}. Do not edit — edit the sources.\n` +
   ` */\n${daisyCss}\n${themesCss}\n${sourceCss}`;
 writeFileSync(join(outDir, "can-style.css"), styleCss);
@@ -173,7 +165,7 @@ writeFileSync(
   JSON.stringify(
     {
       generator: "ui/scripts/build-browser.mjs (FP.BROWSER-UI)",
-      daisyui: PINNED_DAISYUI_VERSION,
+      daisyui: daisyPkg.version,
       catalog: catalogVersion,
       binderIds: boundIds.sort(),
       files,
@@ -185,5 +177,5 @@ writeFileSync(
 
 console.log(
   `build-browser: installed ${Object.keys(files).join(", ")} + manifest.json ` +
-    `(daisyui ${PINNED_DAISYUI_VERSION}, catalog ${catalogVersion}, binders ${boundIds.sort().join(",")})`,
+    `(daisyui ${daisyPkg.version}, catalog ${catalogVersion}, binders ${boundIds.sort().join(",")})`,
 );

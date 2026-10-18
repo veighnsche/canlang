@@ -4,7 +4,7 @@ Step 2 of the simplification audit, 2026-10-07. This is a read-only source and
 caller inventory. Implementation remains deferred; native preparation HOLD,
 backend adoption and TS retirement gates remain unchanged.
 
-Start with the [coverage map](coverage-map.md). It assigns one current package
+Start with the coverage map. It assigns one current package
 owner and a caller status to each maintained responsibility. Mixed files have
 separate duties rather than one misleading whole-file adoption label. Detailed
 [records](responsibilities.jsonl) retain source locations, caller kinds, entry
@@ -18,12 +18,10 @@ snapshot `8f33aa5e29d25bf3ea4d6035c7b2e3ddc0427854`. Concurrent compiler work is
 preserved; this audit does not claim adoption of later compiler changes.
 
 **316 responsibilities across all 13 packages** are mapped, with **395 files**
-including 30 packaging/public-support records outside the production denominator.
-[File coverage](file-coverage.tsv) includes every
+including 30 packaging/public-support records outside the production denominator. [File coverage](file-coverage.tsv) includes every
 baseline implementation, generated asset, runtime-data, build-tooling and asset
 file: **365 production/delivery files**. Packaging declarations, public fixtures
-and test-support exports needed to describe the boundary are included separately.
-[Verification](verification.json) records exact final counts and hashes.
+and test-support exports needed to describe the boundary are included separately. Verification records exact final counts and hashes.
 
 Every one of **156 npm export keys** is explicitly mapped in
 [public APIs](public-apis.tsv), with conditions, declared output targets, owning
@@ -53,19 +51,16 @@ legitimate test-support responsibilities, not product adoption failures.
 **No code is declared dead and no deletion is authorized.** An unreachable-path
 claim needs affirmative entry/dispatch/condition evidence. No observed caller is
 weaker evidence. Public retirement requires explicit interface, external-consumer,
-compatibility, target-host and deprecation consideration before implementation.
-The TS backend and semantic/authority owners remain protected by their own gates.
+compatibility, target-host and deprecation consideration before implementation. The TS backend and semantic/authority owners remain protected by their own gates.
 
 ## Concrete entry-chain findings
 
-- **Commands:** `can-platform` dispatches run/test/build/deploy/activate/docs.
-  Normal build/deploy calls the TypeScript prepared host. Explicit native
+- **Commands:** `can-platform` dispatches run/test/build/deploy/activate/docs. Normal build/deploy calls the TypeScript prepared host. Explicit native
   selector/job APIs and the registered `can-preparation` binary remain a separate
   unadopted path. CLI `run` assembles modules and reports an entry URL; `test`
   boots a local scope but reports zero rows until its artifact loader is joined.
 - **Mounted HTTP/MCP:** the portable Worker main lazily assembles real D1/identity
-  producers, an artifact registry, MCP handlers and HTTP operation handlers.
-  Canonical mutation/read uses real owning state producers. Ordinary reads use
+  producers, an artifact registry, MCP handlers and HTTP operation handlers. Canonical mutation/read uses real owning state producers. Ordinary reads use
   `createReadInvoker` and its bound reader; nested scenario reads separately call
   `invokeRead` directly. Full HTTP composition is not mounted by this worker:
   `/auth` returns an interim 501, file routes are interim, and file-kernel/ingress
@@ -78,8 +73,7 @@ The TS backend and semantic/authority owners remain protected by their own gates
   join. `startBrowserClient` needs an actual call; staging bytes is insufficient.
 - **Receipt/work:** selected receipt fallback resolves the real public
   `@canlang/work/receipt` functions in the repository Node profile. The portable
-  bundle rewrites/stages state receipt producers but not that work specifier.
-  This leaves an installed receipt-consumer gap. Observation does not establish
+  bundle rewrites/stages state receipt producers but not that work specifier. This leaves an installed receipt-consumer gap. Observation does not establish
   cancellation, resume or related-progress mutation adoption.
 - **Dispatch/fanout:** Cloudflare dynamically loads state producers. Work command
   arrays, planners/providers and authority ports are supplied at composition
@@ -104,27 +98,24 @@ remain outside the narrow credited receipts.
 
 The read-only TypeScript 5.9.3 index reads pinned Git blobs for packages, root
 commands, scripts, tests, tools, CI JavaScript and examples. It records **707 code
-files, 4,295 import/reexport edges and 55,596 symbol-bound import-use candidates**.
-Those are discovery candidates, not executed statements or adoption counts.
-Manual traces cover dynamic producer loads and compiler-generated strings.
+files, 4,295 import/reexport edges and 55,596 symbol-bound import-use candidates**. Those are discovery candidates, not executed statements or adoption counts. Manual traces cover dynamic producer loads and compiler-generated strings.
 
 [Dynamic imports](dynamic-imports.tsv) preserves all 60 statically unresolved
 expressions. They include support/conformance loaders and input-dependent module
 URLs. No unresolved expression is silently counted as dead. The index omits
 Rust call binding, YAML workflow execution and generated string reparsing;
 namespace aliases, callback forwarding, reexports and dynamic destructuring need
-manual review. It is conservative, not a compiler/runtime reachability engine.
-The current npm targets map, but generalized wildcard/config-extends and
+manual review. It is conservative, not a compiler/runtime reachability engine. The current npm targets map, but generalized wildcard/config-extends and
 `.mts`/`.cts` output mapping limitations remain documented.
 
-[Independent Sol medium reviews](independent-review.json) challenged the handler,
+Independent Sol medium reviews challenged the handler,
 browser, state/work, Rust adoption and installed claims, and exercised synthetic
 index controls for lexical shadowing, types, aliases, constant dynamics and asset
 mapping. Precision corrections added real test constructors, executable barrels,
 the canonical read-factory chain, injected work/state distinctions and actual
 release-manifest command callers.
 
-[Prior receipts](prior-receipts.json) rehash **15 checked-in raw logs**, compare
+Prior receipts rehash **15 checked-in raw logs**, compare
 **37 selected source rows** and **55 Cloudflare bridge rows** with this pin, and
 retain their exact selected Node/workerd/installed diagnostic profile. They do
 not establish new authenticated receipt/page/browser/provider workflows. No new
@@ -147,7 +138,6 @@ python3 docs/research/package-library-audit-20261006/responsibility-callers/veri
 The map is maintained reviewed data. These commands reproduce discovery/baseline
 inputs and verify source pins, all file/API/owner associations, evidence locations
 and retained log digests; they do not automatically rediscover the human-reviewed
-semantic duties. Regenerating the caller index twice produced identical bytes.
-Detailed source/use dumps remain temporary instead of being copied into another
+semantic duties. Regenerating the caller index twice produced identical bytes. Detailed source/use dumps remain temporary instead of being copied into another
 committed source tree. Economical technical delegation used **Sol medium**, as
 requested, for finite source groups and independent challenges.

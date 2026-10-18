@@ -51,6 +51,6 @@ Remaining work: finish the three-way-versus-whole-projection comparison, exact s
 
 ## Accepted comparison and uncertainty
 
-Three independently reworded balanced JEV requests favored field-wise preservation over restarting the whole projection: 0.96/0.04, 0.95/0.05 and 0.57/0.43; the third confidence was only 0.13. This is directionally consistent advice, not performance proof or a universal policy. The app therefore exposes the exact approved delta and an explicit reviewer-triggered, three-attempt maximum rebase; overlapping edits fail visibly. Evidence is in `docs/design/jev/complex-sync-20261004/`.
+This is directionally consistent advice, not performance proof or a universal policy. The app therefore exposes the exact approved delta and an explicit reviewer-triggered, three-attempt maximum rebase; overlapping edits fail visibly. Evidence is in `docs/design/jev/complex-sync-20261004/`.
 
 An observed match after an unknown write records convergence but deliberately does not release the mutation hold. A read alone cannot prove an older request will never execute. Only definitive ordinary receipt evidence releases that hold. If the provider cannot resolve it, staff can keep reading or pause the link; this adapter limitation is explicit rather than a fake safe retry. Other accounts continue independently. No local compensation pretends to undo an external write.

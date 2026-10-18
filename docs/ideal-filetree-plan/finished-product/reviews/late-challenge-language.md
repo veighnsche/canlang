@@ -1,6 +1,6 @@
 # Independent late-source challenge — language
 
-Scope: exact `cf36983c768c32e0a63ac33c3b45a94dc75dc2d3` → `fa5c8e3df2606a70615387beed9f4041d5516d60` nine-path delta. Both root late-source records were read completely; both new files and all changed hunks were read, with only focused unchanged defining/caller sites. Exact pinned hashes and reviewed artifact hashes are in [the companion ledger](late-challenge-language.json). No checker, tests, build, install, provider, deployment, source edit or checkpoint advancement.
+Scope: exact `cf36983c768c32e0a63ac33c3b45a94dc75dc2d3` → `fa5c8e3df2606a70615387beed9f4041d5516d60` nine-path delta. Both root late-source records were read completely; both new files and all changed hunks were read, with only focused unchanged defining/caller sites. Exact pinned hashes and reviewed artifact hashes are in the companion ledger. No checker, tests, build, install, provider, deployment, source edit or checkpoint advancement.
 
 ## LCL-01 — context producer is also unqualified for actor/now
 

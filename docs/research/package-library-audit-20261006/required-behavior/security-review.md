@@ -2,7 +2,7 @@
 
 Clean-room **Astra high** review at `16def5f95f51dbfb158d0ac086323ac256ee1c6d`: 20 finite rule groups, 10 findings. Root rechecked cited source and retained the scope limits. No runtime, race, deployed-state or infrastructure execution occurred. This is not full package security acceptance.
 
-[Raw review](independent-security-review.json) retains exact authority stage, compatibility verdict, migration/rollback and uncertainty. [Reconciliation](security-reconciliation.json) links findings to the main classified records. [Anchor hashes](security-citations.tsv) are independently reproducible.
+Raw review retains exact authority stage, compatibility verdict, migration/rollback and uncertainty. Reconciliation links findings to the main classified records. [Anchor hashes](security-citations.tsv) are independently reproducible.
 
 | Finding | Required action in a later selected packet | Source-evidence limit |
 | --- | --- | --- |

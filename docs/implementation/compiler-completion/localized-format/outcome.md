@@ -50,11 +50,8 @@ asserted as `0001`, a creation missing `as`, and a read scenario without its
 required result declaration. Assertions were corrected at those boundaries;
 unaffected checks were reused. Scoped Rust formatting and diff whitespace pass.
 
-This completes the original finite SEM-R03 signature/binding owner mismatch.
-The finite native text presentation/source-language carrier is qualified below.
-S9-Q01 remains open for wider human sinks, outbound freezing, capability,
-timezone and serving profiles.
-Deployment/browser/application qualification and the historical full suite are
+This completes the original finite SEM-R03 signature/binding owner mismatch. The finite native text presentation/source-language carrier is qualified below. S9-Q01 remains open for wider human sinks, outbound freezing, capability,
+timezone and serving profiles. Deployment/browser/application qualification and the historical full suite are
 separately scoped.
 
 The contextual `label` parameter profile is separately qualified by

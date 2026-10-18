@@ -92,8 +92,7 @@ deploy failures (T21-owned), separate D closure and cleanup.
 
 - Files: OWNING L3 WRITER handoff — T18 owns state invoke/admission/
   models/pipeline/crud (tasks.md:177-182). Coordinator assigns exact
-  paths at T18 release; this plan reserves the JOIN, not the files.
-  Expected surface: staging/transact child-intent join, invoke child
+  paths at T18 release; this plan reserves the JOIN, not the files. Expected surface: staging/transact child-intent join, invoke child
   admission, authoritative membership mechanism, query/engine reads.
 - Deps: F1–F4, T18-RELEASED (strictly after), T32-done.
 - Acceptance: §M1 (exact membership across bounded enumeration +
@@ -110,8 +109,7 @@ deploy failures (T21-owned), separate D closure and cleanup.
 ### F6 — L1 compiler join: check + emit both spellings (AFTER T18)
 
 - Files: OWNING L1 WRITER handoff — T18 owns compiler effects/ir/js/
-  artifact + contracts/artifact.ts + codegen.rs (tasks.md:177-182).
-  Coordinator assigns exact paths at T18 release.
+  artifact + contracts/artifact.ts + codegen.rs (tasks.md:177-182). Coordinator assigns exact paths at T18 release.
 - Deps: F1, T18-RELEASED (strictly after).
 - Acceptance: §M9 checker half (Shift commitment/swap + Volunteer
   refresh/cancel bodies, guards, notices accepted without trimming),

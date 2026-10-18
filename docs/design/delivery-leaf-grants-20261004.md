@@ -14,7 +14,7 @@ GRAMMAR already defines `selector = path`, but DESIGN does not assign leaf-grant
 
 ## Advice and disagreement
 
-Three independently rewritten, facts-only choice briefs and full responses are retained under [docs/design/jev/delivery-leaf-grants-20261004](jev/delivery-leaf-grants-20261004). No source files or credentials were attached. The first sandboxed connection failed without an HTTP result; the same caller and request succeeded after ordinary reviewed network escalation under standing human authorization.
+No source files or credentials were attached. The first sandboxed connection failed without an HTTP result; the same caller and request succeeded after ordinary reviewed network escalation under standing human authorization.
 
 | Request | Leaf grants | Authority read | Stored mirror | Selected | Confidence |
 | --- | ---: | ---: | ---: | --- | ---: |

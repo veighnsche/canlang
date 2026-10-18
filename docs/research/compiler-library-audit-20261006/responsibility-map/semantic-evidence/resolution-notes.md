@@ -1,6 +1,6 @@
 # Step 8 — resolution, catalog, binding and type joins
 
-The compact [slice map](resolution.json) pins inspected source, contracts and prior witnesses. Compiler source remains `1fd07722090fe70228a6b661e3c6e136275ca84b`; initial audit HEAD is `1db4516c`. This lane writes evidence only. Root owns executed probe receipts and the common ledger, README and decisions. References to existing tests are inspected witness definitions, not claims of fresh execution.
+The compact slice map pins inspected source, contracts and prior witnesses. Compiler source remains `1fd07722090fe70228a6b661e3c6e136275ca84b`; initial audit HEAD is `1db4516c`. This lane writes evidence only. Root owns executed probe receipts and the common ledger, README and decisions. References to existing tests are inspected witness definitions, not claims of fresh execution.
 
 `check_program` parses, resolves declarations/imports/ownership/uses, types, emits deferred unresolved diagnostics, then checks effects/examples. Its `CheckedProgram` keeps modules, symbols and type tables, but drops lexical scopes and per-use bindings. The actual analysis join consumes `ResolveTables.node_binding`, `node_typeref`, `expr_scope` and contextual identities; returning a type without a diagnostic sometimes means explicit opacity or light checking, not full admission.
 
@@ -31,4 +31,4 @@ A concrete source lead needs root qualification: `type_array` strips each elemen
 
 ## Existing findings and limits
 
-Step 7 malformed owner/sibling suppression, source metadata loss, Corpus/Judgment support and UI profile/order findings remain open; this lane neither reruns nor overwrites them. Prior Step 4 compatibility constraints and Step 5 cohort/binding facts remain binding. Pass 9 correctness queue is context, not fresh runtime evidence. No compiler/library/package/API changes, cache or binder architecture, semantic policy revision, JEV-triggering design choice, merge or living-plan checkpoint advancement occurred.
+Step 7 malformed owner/sibling suppression, source metadata loss, Corpus/Judgment support and UI profile/order findings remain open; this lane neither reruns nor overwrites them. Prior Step 4 compatibility constraints and Step 5 cohort/binding facts remain binding. Pass 9 correctness queue is context, not fresh runtime evidence.

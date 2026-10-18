@@ -1,8 +1,7 @@
 # Finite V01 consumed hook contract — B, 2026-10-07
 
 Packet `first:R2:V01-consumed-owner-contracts`; activation base
-`c6896fd2dea782d8ed6412769337b76eb899ca53`. Static source review only.
-This is a **proposal pending actual R1 values and Codex state/interfaces
+`c6896fd2dea782d8ed6412769337b76eb899ca53`. Static source review only. This is a **proposal pending actual R1 values and Codex state/interfaces
 review**, not a V02.6 implementation, public adoption API, native parity
 claim, owner ACK, or all-V01 gate. Original direct V02.1/V02.2 credit stays.
 
@@ -29,14 +28,12 @@ current prepared wrappers recurses. Running their cross-check first adds
 schema property reads/ownKeys/parse operations and may change the first
 exception on arbitrary schemas. Getter-safe comparison is not a proof of
 proxy inertness: descriptor/prototype/ownKeys operations can trap, array
-snapshotting uses `.map`, and error digesting reads `constructor`.
-These wrappers/comparators remain explicit opt-in preparation/oracles;
+snapshotting uses `.map`, and error digesting reads `constructor`. These wrappers/comparators remain explicit opt-in preparation/oracles;
 they are not the production admission gateway or unknown trace oracle.
 
 ## Selected private boundary (proposal PH1)
 
-Keep every existing public export/signature and its full unknown TS path.
-No public entry selects a prepared plan in V02.6. The eventual private
+Keep every existing public export/signature and its full unknown TS path. No public entry selects a prepared plan in V02.6. The eventual private
 entry accepts only a values-owned opaque request capability, not arbitrary
 owner/schema/plan/wire arguments and not a caller-provided evaluator.
 
@@ -45,8 +42,7 @@ The finite non-recursive implementation contract is:
 1. A **non-public values-owned core module** holds the four whole existing
    bodies: `validateValueTsCore`, `validateOperationInputTsCore`,
    `decodeValueTsCore`, `encodeValueTsCore`. Existing exported functions
-   delegate once to the corresponding core with original arguments.
-   Core validation retains schema assertion → mode → type parse →
+   delegate once to the corresponding core with original arguments. Core validation retains schema assertion → mode → type parse →
    evaluation; operation retains schema assertion → operation lookup →
    argument framing/evaluation; wire retains parse → conversion. Helpers
    and schema-default normalization call these same non-dispatching
@@ -81,8 +77,7 @@ Factory lineage and adoption eligibility are separate records. Record the
 exact fresh normalized schema only after all existing validation/freezing
 succeeds. Use an internal identity-only recorder, with no read of the
 source descriptor, output `kind`, or revision accessor. Never automatically
-register a plan or impose plan-copy/budget errors on public normalization.
-If native preparation cannot support a valid schema, keep public success
+register a plan or impose plan-copy/budget errors on public normalization. If native preparation cannot support a valid schema, keep public success
 and abstain before evaluation. Only genuine owner producer code can mint
 capabilities; exported `recordFactoryProvenance(schema, revision)` is a
 preparation test seam today, not sufficient production authority.
@@ -116,20 +111,17 @@ record with exact scalar representation (including f64 bits), not branded
 by boxing or a public shape. Standalone public unknown calls remain legacy
 and do not automatically adopt or create transferable request authority.
 
-Commit provenance/plan registries only after the whole producer succeeds.
-State `loadExecutionDescriptorSet` builds individual defs before it checks
+Commit provenance/plan registries only after the whole producer succeeds. State `loadExecutionDescriptorSet` builds individual defs before it checks
 late `inputArrays` keys; future private registration must stage these
 records and publish only at its final successful return. A failed later
-operation or policy/array-marker check grants no surviving capability.
-Loader `by`/`when` callbacks may see ordinary metadata at their existing
+operation or policy/array-marker check grants no surviving capability. Loader `by`/`when` callbacks may see ordinary metadata at their existing
 positions; they may never see protected request graphs or mint authority.
 
 ## Defaults and canonical owner authority (proposal PH3)
 
 The canonical schema's literal default is the identity authority:
 `omittedField` returns `field.default`; implicit arrays use `EMPTY_ARRAY`;
-update omissions use `UPDATE_OMITTED`; server/derived omissions drop keys.
-A private `DefaultRef` must resolve the **same canonical factory-produced
+update omissions use `UPDATE_OMITTED`; server/derived omissions drop keys. A private `DefaultRef` must resolve the **same canonical factory-produced
 immutable object**, not merely a structurally equal copy, across repeated
 calls/plans for that schema while its owner lives. Copy metadata, but keep
 canonical-default handles in the owning registry. Only audited canonical
@@ -140,9 +132,7 @@ objects never become shared default references.
 Current plan registration copies default objects, and `copyFrozenValue`
 rejects class instances (including canonical Decimal) and numbers. Its
 same-ref repeated resolution tests do not establish equality with the
-schema's fallback identity or coverage of all successful schema carriers.
-PH3 is a required integration correction, not a newly implemented fact.
-Exact-values owns Decimal/numeric/carrier codecs; no second authority is
+schema's fallback identity or coverage of all successful schema carriers. PH3 is a required integration correction, not a newly implemented fact. Exact-values owns Decimal/numeric/carrier codecs; no second authority is
 created. Default pass-2 accessor order, trim-before-bounds, explicit nested
 completeness and normalized result freeze/identity all remain unchanged.
 
@@ -180,18 +170,13 @@ fill, strict version parsing, and ordinary shallow-copy output stay exact.
 ## Review and advice receipts
 
 Actual acceptance is **pending** R1 values review (through worker A) and
-Codex state/interfaces review of PH1–PH4. No ACK is inferred from content.
-C03/native lifetime/transport and later V08/C04 delivery proof are separate
+Codex state/interfaces review of PH1–PH4. No ACK is inferred from content. C03/native lifetime/transport and later V08/C04 delivery proof are separate
 consumers and remain unreleased. This finite record does not revoke direct
 V02.1/V02.2 credit or invent an all-V01 barrier.
 
-JEV advice: three independently worded equivalent `choice` requests with
-verified balanced facts compared private-only core entry, public identity
-selection with separated core, and deferring all hooks. All chose
-`private_only`, confidences 0.96/0.97/0.97 (probabilities 0.97/0.98/0.98).
-Model `jev-1.13.0`; no disagreement. Advice supports PH1, does not approve
+All chose
+`private_only`, confidences 0.96/0.97/0.97 (probabilities 0.97/0.98/0.98). Model `jev-1.13.0`; no disagreement. Advice supports PH1, does not approve
 PH2–PH4 or replace owners/tests. Full requests/responses and source hashes:
-`/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/`.
-Remaining uncertainty: exact internal source factoring/placement and all
+`/private/tmp/canlang-rust-port-codex-first-20261006T231809Z/packets/R2-V01/`. Remaining uncertainty: exact internal source factoring/placement and all
 native admission/carrier/transport compatibility need owner review and
 future trace gates; none are claimed implemented here.

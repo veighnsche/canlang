@@ -2,7 +2,7 @@
 
 The compiler should use focused libraries for standardized infrastructure: JSON, URL and locale parsing, SHA-256, temporary-file ownership, LSP wire types and source-map encoding. Can should continue to own its grammar, semantic rules, authorization analysis and lowering. Several handwritten utilities already cause observable errors; replacing them is more valuable than a broad compiler-framework migration.
 
-The detailed audit below preserves the **original proposals and observations** from October 6, 2026. It is historical baseline evidence; its source line numbers and reproduced old failures do not describe the final compiler. Baseline: `309644a6881909d8dba32560bc6711f67e00a7ab`. The [inventory](evidence/baseline.json) pins all 81 tracked compiler files, including 39 source files and 71,473 source lines. Line counts describe scope, not removable code. At that frozen baseline Cargo declared no dependencies and the compiler README described it as dependency-free; no inspected governing requirement prohibited libraries. Current manifests and compiler documentation describe the selected pinned library adapters.
+The detailed audit below preserves the **original proposals and observations** from October 6, 2026. It is historical baseline evidence; its source line numbers and reproduced old failures do not describe the final compiler. Baseline: `309644a6881909d8dba32560bc6711f67e00a7ab`. The inventory pins all 81 tracked compiler files, including 39 source files and 71,473 source lines. Line counts describe scope, not removable code. At that frozen baseline Cargo declared no dependencies and the compiler README described it as dependency-free; no inspected governing requirement prohibited libraries. Current manifests and compiler documentation describe the selected pinned library adapters.
 
 ## Implementation and qualification status
 
@@ -12,11 +12,11 @@ The [Pass10 final receipt](pass10/README.md) integrates selected core substituti
 
 The user's clarified production-reduction goal remains open beyond that frozen correctness qualification. The [bounded reduction ledger](production-reduction/README.md) requires smaller complete implementation closures at equivalent outcomes and records the first checked 51-line LSP projection reduction. Tests/metadata growth and binary footprint do not substitute for that measure.
 
-The proposed [compiler correctness, ownership and simplicity audit](compiler-correctness-simplicity-audit.md) broadens the next review beyond utility callers: complete responsibility/workflow coverage, compatibility obligations, semantic authority, generated execution, editor lifecycle, resource limits and test-oracle quality. It specifies sixteen ordered steps and economical allocations, with a planning exit before implementation. Its preparation corrects the aggregate line-count method; it is not a completed whole-compiler audit or a second living plan.
+The proposed [compiler correctness, ownership and simplicity audit](compiler-correctness-simplicity-audit.md) broadens the next review beyond utility callers: complete responsibility/workflow coverage, compatibility obligations, semantic authority, generated execution, editor lifecycle, resource limits and test-oracle quality. Its preparation corrects the aggregate line-count method; it is not a completed whole-compiler audit or a second living plan.
 
-[Audit Step 1 is executed](baseline-verification/README.md): current inputs and category counts are pinned, historical receipts are classified, and a fresh native debug build plus six-test consumer replay qualifies its bounded scope. The evidence ledger preserves current/full-suite/product/host and temporal-provenance limits.
+Audit Step 1 is executed: current inputs and category counts are pinned, historical receipts are classified, and a fresh native debug build plus six-test consumer replay qualifies its bounded scope. The evidence ledger preserves current/full-suite/product/host and temporal-provenance limits.
 
-[Audit Step 2 is executed](responsibility-map/README.md): one coverage ledger accounts for every tracked compiler path, large-file responsibility bands, named API declarations, test/fixture roles and tool/editor/runtime interfaces. Fresh independent review accepts structural inventory; semantic/test-adequacy audit remains open.
+Fresh independent review accepts structural inventory; semantic/test-adequacy audit remains open.
 
 [Audit Step 3 is executed](responsibility-map/workflows.md): the same ledger traces checking, emission, transforms/reports, generated tests, editor behavior, all five platform forwarding paths and public library families through actual consumers. Economical independent cross-review accepts bounded source/control-flow scope. Fresh native replay reports 209/15 harness passes with one permission-body skip, plus real-compiler capability and freshly compiled/mocked extension checks. Staging, test execution, active/applied verdicts and original/installed application acceptance remain distinct; no implementation or policy changes land here.
 
@@ -50,7 +50,7 @@ The proposed [compiler correctness, ownership and simplicity audit](compiler-cor
 |9 |[Separate candidate retain/defer results](pass9/README.md); finite correctness/policy queue, no blanket adoption |
 |10 |[Final checks, retired-path review and release closure](pass10/README.md); product-parent gaps stay explicit |
 
-These pass labels remain local programme references. T15/T37, FP.QUALIFY and FP.INSTALLED-RELEASE keep their original owner/acceptance contracts; utility qualification is not complete product or installed-host acceptance. No merge/living-plan checkpoint advancement follows from this receipt.
+These pass labels remain local programme references. T15/T37, FP.QUALIFY and FP.INSTALLED-RELEASE keep their original owner/acceptance contracts; utility qualification is not complete product or installed-host acceptance.
 
 ## Original recommended replacements
 
@@ -95,7 +95,7 @@ The LSP's [URI display adapter](../../../compiler/src/lsp/server.rs), `uri_to_pa
 
 ## LSP and file writes
 
-**Reproduced on the CLI:** invalid UTF-8 in an LSP request ID becomes U+FFFD and receives a successful initialization response. `server.rs:1256` uses lossy UTF-8 before JSON parsing. A request with `"jsonrpc":"1.0","id":true` also initializes, while an explicit null-ID initialization receives no response. [Exact request bytes and replies](evidence/protocol-cli/probe-results.json), [reproducer](evidence/protocol-cli/probe.py).
+**Reproduced on the CLI:** invalid UTF-8 in an LSP request ID becomes U+FFFD and receives a successful initialization response. `server.rs:1256` uses lossy UTF-8 before JSON parsing. A request with `"jsonrpc":"1.0","id":true` also initializes, while an explicit null-ID initialization receives no response. Exact request bytes and replies, [reproducer](evidence/protocol-cli/probe.py).
 
 `transport.rs:106` checks only the method, ignores the protocol version, accepts unrelated ID types and merges explicit null IDs with absent IDs. [JSON-RPC](https://www.jsonrpc.org/specification) defines the version, parameter and identifier constraints. Strict byte decoding and an explicit envelope validator are required even after adopting library wire types.
 
@@ -162,9 +162,9 @@ Three focused Rust reviews covered protocol/CLI/foundation, codegen/output utili
 
 At the original audit stage, executed baseline checks passed: **89 library tests**, and **45 integration tests** across `foundation`, `authoring` and `exe`. The additional 17 LSP unit tests reported by the protocol reviewer overlap the 89 and are not counted again. Saved probes establish the uncovered string, URL, locale, LSP and file-mode behavior. Candidate crates were researched through primary documentation/source; none was integrated, benchmarked or cross-platform qualified. At that audit stage compiler/build/test sources and manifests were unchanged. The living plan checkpoint is unchanged; no merge occurred.
 
-The detailed pass sequence received a separate independent scheduling review. Its [planning-only verification](evidence/pass-sequence-verification.json) checks preserved compiler hashes, local links and documentation whitespace; it reruns no product tests and qualifies no candidate dependency.
+The detailed pass sequence received a separate independent scheduling review. Its planning-only verification checks preserved compiler hashes, local links and documentation whitespace; it reruns no product tests and qualifies no candidate dependency.
 
-As required by AGENTS.md, three independently worded equivalent JEV choice requests compared focused libraries, retaining custom utilities with repairs, and broad framework migration. [Requests and responses](evidence/jev/) returned:
+Requests and responses returned:
 
 | Variant | Choice | Confidence | Focused libraries | Custom repairs | Broad framework |
 | --- | --- | --- | --- | --- | --- |

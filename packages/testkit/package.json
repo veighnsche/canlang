@@ -56,14 +56,14 @@
     "@canlang/services": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "24.19.1",
-    "esbuild": "0.28.2",
-    "miniflare": "4.20260730.0",
+    "@types/node": "^24.19.1",
+    "esbuild": "^0.28.2",
+    "miniflare": "^4.20260730.0",
     "@canlang/values": "workspace:*",
     "@canlang/work": "workspace:*",
     "@canlang/identity": "workspace:*",
     "@canlang/state": "workspace:*",
     "vitest": "^3.2.4",
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "^1.63.0"
   }
 }

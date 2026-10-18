@@ -1,6 +1,6 @@
 # CanLang compiler
 
-A Rust compiler with pinned, focused infrastructure libraries: library crate
+A Rust compiler using focused infrastructure libraries: library crate
 `canlang_compiler` plus the `can` binary. Sixteen subcommands, one dispatch
 (`src/cli.rs`), exit
 0 clean / 10 errors reported / 2 tool failure:
@@ -224,20 +224,6 @@ Run from this directory with `cargo run -- --help`. Check with
 release binary with `docs/install.md` at the repo root. Local build
 output in `target/` is ignored.
 
-The [final compiler qualification](../docs/research/compiler-library-audit-20261006/pass10/README.md)
-records the locked dependency/features, supported host/consumer scope, release
-measurements and retired predecessor engines. URL admission uses `url` while
-retaining authored values; JSON output uses `serde`/`serde_json`. Destination
-policy, protocol IDs/bounds, grammar and value rules remain compiler-owned.
-
-The [production-reduction follow-up](../docs/research/compiler-library-audit-20261006/production-reduction/README.md)
-requires smaller owned implementations as well as faithful behavior. Its first
-packet consolidates URI-bearing LSP output into one authored-identity projection
-while retaining the library's ranges, diagnostics, edits and action fields.
-
-Conditional locale, CLI framework, ICU, temporal, graph and position-library
-mechanisms have explicit retain/defer results. The [locale candidate gate](../docs/research/compiler-library-audit-20261006/pass3/README.md)
-and [remaining ICU/graph packets](../docs/research/compiler-library-audit-20261006/pass9/correctness/QUEUE.md) stay explicit;
-compiler qualification does not complete original-app or installed-release
-product gates. See the [pass sequence](../docs/research/compiler-library-audit-20261006/implementation-passes.md)
-for task/acceptance links.
+HTTP(S) values use `url`, JSON uses `serde`/`serde_json`, and source maps use
+`sourcemap`. Can owns language semantics, destination policy, protocol bounds,
+and the adapters between these libraries and compiler data.

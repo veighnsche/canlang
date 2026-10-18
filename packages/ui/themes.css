@@ -1,5 +1,5 @@
 /**
- * Pinned CanLang themes for daisyUI 5.7.47 (lane 05 owned).
+ * CanLang themes for daisyUI.
  *
  * The `mode`/`accent` theme tokens map to `data-theme="can-{mode}-{accent}"`
  * names emitted by renderPage. Only --color-primary/--color-primary-content
@@ -14,8 +14,8 @@
  *
  * Density is separate from color: `density-comfortable` is the default and
  * needs no rules; `density-compact` tightens repeated shell/control padding.
- * test/themes.test.ts audits theme-name coverage and variable names against
- * the installed daisyUI; bump the pinned version deliberately, never blindly.
+ * test/themes.test.ts checks theme coverage and CSS compatibility against
+ * the installed daisyUI.
  */
 
 /* can-light-blue */

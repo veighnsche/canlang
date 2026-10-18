@@ -34,8 +34,7 @@ native-host qualification; the ownerless-enum UI refusal remains.
 
 The subsequent UI usage release on `1255fc11f` completes source/present-variant/
 all-branch checks and the finite joined criteria in the current plan. Its 255
-TS tests and two formatter consumers reuse the unchanged compiler evidence above.
-An inline-enum carrier correction preserves the existing Values formatter path
+TS tests and two formatter consumers reuse the unchanged compiler evidence above. An inline-enum carrier correction preserves the existing Values formatter path
 without broadening UI operand admission. Full formatter parity, tarball/browser/
 hosted/native qualification and a common Rust core remain separate. No new
 compiler implementation or qualification is inferred. Native preparation remains

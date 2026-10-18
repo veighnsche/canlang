@@ -3,10 +3,7 @@
 Type-only shared boundaries between CanLang producers. No execution engine,
 no catalog, no runtime behavior lives here (CONTRACTS.md).
 
-Ownership per `docs/implementation/PLAN.md`: lane 07 assembles this manifest and
-`src/index.ts`. Each `src/*.ts` boundary module is owned by its producer
-lane; only `deployment.ts` and `examples.ts` exist until producers land
-theirs. Consumers must not guess imports or duplicate these definitions.
+Each `src/*.ts` module defines a producer boundary shared by its consumers.
 
 Build: `bun run build --filter=@canlang/contracts` emits deterministic `dist/`
 (JS + declarations + source maps) from `src/`.

@@ -6,9 +6,6 @@ envelopes: mail, models (Ollama chat), judgments (SystemOne), and media
 `@canlang/stdlib`. The root entry and explicit package subpaths load emitted
 modules; consumers do not import package source paths.
 
-Ownership per `docs/implementation/PLAN.md`: lane 4 (provider adapters,
-durable events/schedules/deliveries, file lifecycle, observable runs).
-
 Install (workspace, from the repo root):
 
 ```sh
@@ -92,6 +89,4 @@ Source layout:
   `mapping.ts`.
 - `test/` — `node:test` suites, one per adapter area.
 
-Lane note: provider behavior and its fixtures stay in lane 4; do not
-reimplement adapters or harnesses elsewhere. The package is private
-(`"private": true`); the repo has no top-level license file.
+Provider behavior and its fixtures live in this private package.

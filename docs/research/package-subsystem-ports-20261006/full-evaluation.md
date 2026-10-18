@@ -1,6 +1,6 @@
 # Full evaluation of package subsystem ports
 
-October 6, 2026. Evaluation checkpoint: `011fced78cbb3762ce838066295468bdd23e5b8a`. Values verification started at `2c9da87f6a20b74020f5a63e7abe465189633a93`; the inspected sources were unchanged through the checkpoint. Concurrent work subsequently advanced HEAD; [the source snapshot](evidence/full-evaluation/source-snapshot.json) records file hashes and confirms no changes to the inspected files through `96cf12f5509f96286f171a13e5a1e372f857959f`.
+October 6, 2026. Evaluation checkpoint: `011fced78cbb3762ce838066295468bdd23e5b8a`. Values verification started at `2c9da87f6a20b74020f5a63e7abe465189633a93`; the inspected sources were unchanged through the checkpoint. Concurrent work subsequently advanced HEAD; the source snapshot records file hashes and confirms no changes to the inspected files through `96cf12f5509f96286f171a13e5a1e372f857959f`.
 
 All four candidates are technically credible, but a complete port is more work than translating their algorithms. Arithmetic is the best first Rust experiment. Full wire/schema API parity is the hardest candidate. Work decisions and artifact calculations are smaller cores with less demonstrated payoff. No inspected evidence establishes that any of these is currently a performance bottleneck.
 
@@ -139,7 +139,7 @@ The following selected existing tests passed, **431 tests total**. They validate
 
 | Verification | Result | Saved evidence |
 | --- | --- | --- |
-| Values build | Passed | [Build log](evidence/full-evaluation/values-build.log) |
+| Values build | Passed | Build log |
 | Values int/decimal/oracle/money/array/schema/wire/conformance | 284 passed, 59 suites | [Test log](evidence/full-evaluation/values-tests.log) |
 | Work every/receipt/recovery/fanout decision scans | 69 passed, 19 suites | [Test log](evidence/full-evaluation/work-decision-tests.log) |
 | Work related-progress resume | 5 passed | [Test log](evidence/full-evaluation/work-progress-tests.log) |
@@ -163,7 +163,7 @@ bun docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/valu
 bun docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/work-artifact-probe.mjs
 ```
 
-The [values probe results](evidence/full-evaluation/values-boundary-probe.result.json), [work/artifact results](evidence/full-evaluation/work-artifact-probe.result.json) and earlier [wide arithmetic probe](evidence/arithmetic-probe.result.json) preserve targeted observations. These probes do not cover all proxies, malformed schemas, cycles, callback traces or loader behavior. Existing oracle tests check numeric agreement but do not alone prove scale, error or identity parity. Full durable restart/dispatch and compiler suites were not rerun. Values tests were a selected subset, not the entire package suite.
+The values probe results, work/artifact results and earlier wide arithmetic probe preserve targeted observations. These probes do not cover all proxies, malformed schemas, cycles, callback traces or loader behavior. Existing oracle tests check numeric agreement but do not alone prove scale, error or identity parity. Full durable restart/dispatch and compiler suites were not rerun. Values tests were a selected subset, not the entire package suite.
 
 Observed local tools: Node `v24.21.0`, Bun `1.4.2`, Rust `1.99.0`; only `aarch64-apple-darwin` was installed as a Rust target. The absent Wasm target is routine setup, not evidence of a fundamental blocker. No target/tooling installation or production-source implementation was performed.
 
@@ -173,7 +173,7 @@ Profile actual callers before selecting workloads or numeric acceptance threshol
 
 ## JEV advice and disagreement review
 
-Three fresh independently worded consultations assessed all four candidates using the same bounded scopes, inspected source facts, baseline tests and alternative next steps. The `score` primitive was appropriate for feasibility and `choice` for ordering the next investigation. Exact [requests](evidence/full-evaluation/request-1.json) and [responses](evidence/full-evaluation/result-1.json), together with variants [2](evidence/full-evaluation/result-2.json) and [3](evidence/full-evaluation/result-3.json), retain full rubrics, distributions and uncertainty. The earlier arithmetic/backend consultations remain separate historical evidence.
+The `score` primitive was appropriate for feasibility and `choice` for ordering the next investigation. Exact requests and responses, together with variants 2 and 3, retain full rubrics, distributions and uncertainty. The earlier arithmetic/backend consultations remain separate historical evidence.
 
 The API uses zero-based score levels; the following table adds one to the reported score to display the requested 1–10 scale. These are advisory outputs, not the final engineering ratings or calibrated probabilities of success. Recomputing scores from returned probability entries differs by up to .04, and two returned distributions sum to .99. The table preserves reported values; raw evidence is unchanged. Rounding is a possible explanation, not verified. [TypeSafe score/choice semantics](https://docs.typesafe.ai/api).
 

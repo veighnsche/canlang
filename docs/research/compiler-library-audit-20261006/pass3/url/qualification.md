@@ -60,7 +60,7 @@ Accepted owner values below retain exactly the displayed input. Escapes are JSON
 
 ## Limits / JEV need
 
-This is finite admission parity, not proof of every WHATWG string or equivalence between ICU4X Unicode data and Node ICU78.3. No policy conflict appeared: established ordinary-value owner contract determines permissive HTTP(S) admission; trusted-origin policy stays separate. No difficult design decision requires high/JEV on these observations. If a later vector reveals Unicode-data admission disagreement, preserve raw evidence, escalate owner-policy choice to high + three equivalent independent JEV consultations rather than inventing stricter host rules or adding a local Unicode table. JEV advice cannot replace executable parity evidence.
+This is finite admission parity, not proof of every WHATWG string or equivalence between ICU4X Unicode data and Node ICU78.3. No policy conflict appeared: established ordinary-value owner contract determines permissive HTTP(S) admission; trusted-origin policy stays separate. No difficult design decision requires high/JEV on these observations. JEV advice cannot replace executable parity evidence.
 
 Artifacts: vectors.json (expected independent cases), public-probe.mjs, public-results.json, src/main.rs, rust-results.tsv, comparison.json, Cargo.toml/Cargo.lock, dependency-profile.json. All remain isolated under scratch; no repository files changed/staged/committed and no package builds run.
 

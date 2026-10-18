@@ -2,8 +2,7 @@
 
 User-authorized outcome: derive R2 and the other declared bindings from Can source,
 complete the missing compiler/runtime implementations, and include the local engine
-in the one-command production install. Browser development tools remain opt-in.
-This qualifies the finite profiles below; it does not invent external service
+in the one-command production install. Browser development tools remain opt-in. This qualifies the finite profiles below; it does not invent external service
 implementations or credentials.
 
 ## Finite acceptance
@@ -18,8 +17,7 @@ implementations or credentials.
 
 No parallel writer mutates a consumed producer closure during a capture. Root
 qualification uses the same source with retained coherent outputs plus the exact
-corrective leaves; the final installed run consumes the integrated package build.
-The qualified production compiler is included at `output/install/can/libexec/can`,
+corrective leaves; the final installed run consumes the integrated package build. The qualified production compiler is included at `output/install/can/libexec/can`,
 with verified notices. No new third-party production package is added by these implementations.
 
 ## Accepted behavior and evidence
@@ -30,11 +28,9 @@ with verified notices. No new third-party production package is added by these i
   `cloudflare.runtime-bindings@1`; older hosts cannot silently substitute D1.
 - Real local R2/KV/DO/queue/service controls pass, including persistence and
   namespace isolation. Thirty original planner/preview controls pass; the new
-  model-free ownership planner passes eight focused controls and strict typing.
-  A real model-free member invocation and replay use the actual team database,
+  model-free ownership planner passes eight focused controls and strict typing. A real model-free member invocation and replay use the actual team database,
   durable queue intake and handler completion; no business State is placed in
-  the Identity database.
-  One real workerd check covers the private scheduled recovery wake-up.
+  the Identity database. One real workerd check covers the private scheduled recovery wake-up.
 - The actual compiled imported-feature queue/analytics host passes guarded void
   sends, requirement rollback, no external effects before commit, exact maximum
   integer/38-digit decimal payloads, durable handler effects, broker duplication,
@@ -50,8 +46,7 @@ with verified notices. No new third-party production package is added by these i
   effects and the original persisted R2 bytes remain. This test took 148.4s;
   nested full-source validation was reduced only where the unchanged State
   revision already pins the source. File availability is still checked freshly.
-- Actual root CRUD, protected root Files and same-root queue workflows pass.
-  These cover source rejection, child writes, original credential checks,
+- Actual root CRUD, protected root Files and same-root queue workflows pass. These cover source rejection, child writes, original credential checks,
   cross-team/root refusal, MCP discovery, restart, queue recovery after broker
   loss, replay without duplicate effects, and absence of D1 business-row copies.
 - Existing Work/framework compatibility controls pass 48 cases. Legacy Files
@@ -74,8 +69,7 @@ a finite limitation shared with the existing business-field attachment path;
 markers are never backdated and expired files are never revived.
 
 Published-byte deletion still requires the existing complete authoritative State
-reference census. One root cannot authorize deleting another root's reference.
-The bounded R2 journal reclaims only unpublished objects. No automatic cross-root
+reference census. One root cannot authorize deleting another root's reference. The bounded R2 journal reclaims only unpublished objects. No automatic cross-root
 published-byte garbage collector is claimed.
 
 ## Explicit profile limits
@@ -100,10 +94,7 @@ published-byte garbage collector is claimed.
 
 ## Decisions
 
-The accepted choices and uncertainty are recorded in `docs/specification/DECISIONS.md`.
-Three equivalent JEV binding-inventory requests disagree; existing pre-import
-activation and same-IR correspondence justify the artifact inventory choice.
-Root advice favors whole-invocation actor execution; Files advice favors the
+The accepted choices and uncertainty are recorded in `docs/specification/DECISIONS.md`. Root advice favors whole-invocation actor execution; Files advice favors the
 bounded D1/R2 adapter. Queue File advice is uncertain: inspection favored the
 existing dispatch pair over a separate model/lifetime. Advice is not acceptance
 evidence; the actual controls above are.
@@ -111,16 +102,13 @@ evidence; the actual controls above are.
 
 ## Final standalone artifact
 
-The final macOS arm64 archive is `output/install/can-0.1.0-darwin-arm64.tar.gz`.
-Download: 90,087,787 bytes (85.9 MiB); installed contents: 260,139,952 bytes
+The final macOS arm64 archive is `output/install/can-0.1.0-darwin-arm64.tar.gz`. Download: 90,087,787 bytes (85.9 MiB); installed contents: 260,139,952 bytes
 (248.1 MiB); allocated disk here: 277,823,488 bytes (265.0 MiB). It contains
 3,698 files and 156 package identities. This is 34.4% smaller on disk than the
 original 404.1 MiB core, with no Bun, browser or new third-party resource package.
 
 All 18 installed checks pass. The integrated source build passes all 13 packages;
-production dependency ownership passes 1,276 JS/TS files with zero violations.
-The original four Office inline examples pass with the matching rebuilt compiler.
-That compiler emits byte-identical complete artifacts for the already-qualified
+production dependency ownership passes 1,276 JS/TS files with zero violations. The original four Office inline examples pass with the matching rebuilt compiler. That compiler emits byte-identical complete artifacts for the already-qualified
 File queue and three root cases; unchanged resource results are reused. Actual
 installed root/File and root/queue journeys also pass outside checkout with only
 the bundled Node/compiler and clean PATH. API-only preview checks require actual

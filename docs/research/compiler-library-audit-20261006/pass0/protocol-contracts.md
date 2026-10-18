@@ -1,6 +1,6 @@
 # Protocol and JSON input contracts — bounded Pass 0
 
-Local packets **C02 (LSP admission)** and **C06 (JSON input)** are labels, not canonical task statuses or implementation authorization. This preparation pins inspected sources at the HEAD recorded in [profile](evidence/protocol/profile.json). It adds no product code, dependency or compiler test. No consequential unresolved policy is selected here; consultation remains a gate before choosing among alternatives.
+Local packets **C02 (LSP admission)** and **C06 (JSON input)** are labels, not canonical task statuses or implementation authorization. This preparation pins inspected sources at the HEAD recorded in profile. It adds no product code, dependency or compiler test. No consequential unresolved policy is selected here; consultation remains a gate before choosing among alternatives.
 
 ## Defining ownership and actual caller closure
 
@@ -11,7 +11,7 @@ Local packets **C02 (LSP admission)** and **C06 (JSON input)** are labels, not c
 | `compiler/src/lsp/server.rs:513–950,1134–1170,1215–1275` | `Server`, `LanguageAnalysis`, `StubAnalysis`, `RealAnalysis`, lifecycle, document snapshots, `pump`, method params, wire output. `cli.rs:213–222` hands real stdio to `run_stdio`; `main.rs` invokes CLI. `source.rs::LineIndex` and `ide/queries.rs` own UTF-16 conversion and queries. | Authoring lines 686–769 checks stale versions, close, full sync; line 899 unknown method. Server unit tests cover lifecycle, shutdown, kinds, range negatives and identical changes. `ide.rs:669–883` tests real analysis in process. |
 | `compiler/tests/common/lsp_driver.rs::LspDriver`; VS Code process consumer | `b3_authoring_join.rs:277` and `b3_s4.rs:218` spawn the binary, exercise changes/rename/completion/actions and shutdown. `editors/vscode/test/lsp-capabilities.cjs` verifies advertised capability results through real framing; these use ordinary generated IDs. | Preserve those workflows; they do not independently cover malformed bytes, all legal ID boundaries or duplicate admission. Driver counters are `u64`; that implementation detail does not expand LSP request IDs. |
 
-Exact source hashes, host/tool profile and commands are saved in [profile.json](evidence/protocol/profile.json). Read-only `rg` and source inspection traced the closure above. Fresh binary evidence uses the root's locked lib+can build under `/private/tmp/canlang-compiler-pass0-38c0370`; no source is linked to an unqualified old binary. A separately compiled parsing/framing-only harness includes the defining modules directly; its unreachable renderer stub makes no claim about string serialization. No broad suite was rerun.
+Exact source hashes, host/tool profile and commands are saved in profile.json. Read-only `rg` and source inspection traced the closure above. Fresh binary evidence uses the root's locked lib+can build under `/private/tmp/canlang-compiler-pass0-38c0370`; no source is linked to an unqualified old binary. A separately compiled parsing/framing-only harness includes the defining modules directly; its unreachable renderer stub makes no claim about string serialization. No broad suite was rerun.
 
 ## Supported protocol and independent expectations
 
@@ -48,7 +48,7 @@ Exit after shutdown gives 0, otherwise 1. EOF/torn body flushes and returns stor
 
 ## Witnesses and packet readiness
 
-[Machine-readable outcome vectors](witnesses/lsp.json) separate independent expected outcomes, observed broken behavior and gates. [26 fresh framed-process observations](evidence/protocol/process-observations.json) pin raw input/output bytes; [parser/framing observations](evidence/protocol/parser-observations.txt) cover raw lexemes, duplicate lookup, surrogate pairs, exact depth edges, unsupported charset, duplicate lengths and cap+1 without allocating a capped body. The earlier [audit probes](../evidence/protocol-cli/probe-results.json) independently recorded lossy UTF-8, wrong version/bool ID and null-ID behavior; this is refresh evidence, not a new acceptance oracle.
+Machine-readable outcome vectors separate independent expected outcomes, observed broken behavior and gates. 26 fresh framed-process observations pin raw input/output bytes; parser/framing observations cover raw lexemes, duplicate lookup, surrogate pairs, exact depth edges, unsupported charset, duplicate lengths and cap+1 without allocating a capped body. The earlier audit probes independently recorded lossy UTF-8, wrong version/bool ID and null-ID behavior; this is refresh evidence, not a new acceptance oracle.
 
 **C02 ready portions:** strict UTF-8 non-dispatch, version `2.0`, valid ID boundaries/strings, no reply to valid notifications, preserve 64 MiB cap, lifecycle request negatives, preinit notification drop. **C02 gates:** invalid-envelope/ID response correlation and error order, params classification, integral alternate spelling, method-level strictness, charset/framing recovery. No replacement framework selected: retain transport for admission repair; typed DTO/library choice is later qualification.
 

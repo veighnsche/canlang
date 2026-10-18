@@ -1,8 +1,8 @@
 # Compiler responsibility coverage — audit Steps 2–8 and 10–12
 
-The structural inventory accounts for every tracked compiler path. The single authoritative [coverage ledger](coverage.jsonl) records current responsibility bands, named API declarations, test families and interfaces. A fresh Sol medium reviewer accepted the inventory after bounded corrections; [review receipts](review.json) preserve the initial findings and final delta checks. Structural inventory maps duties and review scope; it does not qualify semantic correctness or test adequacy. [Step 3 workflow tracing](workflows.md) extends this same ledger with actual consumers and bounded executed witnesses. [Step 4 compatibility challenge](compatibility.md) distinguishes owning outcomes, current public byte promises, migration guards and incidental mechanisms. [Step 5 representations](representations.md) traces stage authorities, conversions, reconstructed facts and source/catalog coherence. [Step 6 integrations](integrations.md) records complete scoped library caller/adapter closures and conditional retirement results. [Step 7 syntax/recovery](syntax.md) maps finite admitted forms through stage owners and records independently corroborated recovery/meaning-loss findings.
+The structural inventory accounts for every tracked compiler path. A fresh Sol medium reviewer accepted the inventory after bounded corrections; review receipts preserve the initial findings and final delta checks. Structural inventory maps duties and review scope; it does not qualify semantic correctness or test adequacy. [Step 3 workflow tracing](workflows.md) extends this same ledger with actual consumers and bounded executed witnesses. [Step 4 compatibility challenge](compatibility.md) distinguishes owning outcomes, current public byte promises, migration guards and incidental mechanisms. [Step 5 representations](representations.md) traces stage authorities, conversions, reconstructed facts and source/catalog coherence. [Step 6 integrations](integrations.md) records complete scoped library caller/adapter closures and conditional retirement results. [Step 7 syntax/recovery](syntax.md) maps finite admitted forms through stage owners and records independently corroborated recovery/meaning-loss findings.
 
-Compiler source remains pinned to `1fd07722090fe70228a6b661e3c6e136275ca84b`. The Step 2 inventory observation head is `16def5f95f51dbfb158d0ac086323ac256ee1c6d`; intervening commits changed documentation. All 107 compiler file hashes match the [Step 1 inventory](../baseline-verification/compiler-inventory.jsonl). Dependency/catalog/runtime/toolchain inputs and earlier executed evidence remain in [Step 1](../baseline-verification/README.md). The additional 31 supporting interface files have hashes in the ledger. They are narrow cross-owner references, not a new package/editor audit.
+Compiler source remains pinned to `1fd07722090fe70228a6b661e3c6e136275ca84b`. The Step 2 inventory observation head is `16def5f95f51dbfb158d0ac086323ac256ee1c6d`; intervening commits changed documentation. All 107 compiler file hashes match the Step 1 inventory. Dependency/catalog/runtime/toolchain inputs and earlier executed evidence remain in Step 1. The additional 31 supporting interface files have hashes in the ledger. They are narrow cross-owner references, not a new package/editor audit.
 
 | Inventory | Mapped scope |
 | --- | --- |
@@ -48,7 +48,7 @@ The ledger's scope row defines separate structural, workflow, semantic, independ
 - Assess test independence and coverage, optional prerequisite skips, macro-generated tests, mocks and actual consumer execution. Test names and API calls only identify intended witnesses.
 - Reconcile task recipes/CI headers with executable steps and qualify declared profiles separately. Package/editor sources remain with their owners.
 
-The ignored `compiler/target/` tree contains generated build/cache artifacts, whose provenance is handled by Step 1 receipts. The ignored `.DS_Store` is OS metadata. Neither is omitted compiler implementation. Independent inventory review is accepted; semantic acceptance and the Step 3 consumer gaps remain open. The [Step 2 validation receipt](validation.json) preserves its historical ledger hash. [Current extended-ledger validation](workflow-validation.json) checks exact paths, hashes, bands/API/interface anchors, workflow anchors, input pins, slice joins and evidence links.
+The ignored `compiler/target/` tree contains generated build/cache artifacts, whose provenance is handled by Step 1 receipts. The ignored `.DS_Store` is OS metadata. Neither is omitted compiler implementation. Independent inventory review is accepted; semantic acceptance and the Step 3 consumer gaps remain open. The Step 2 validation receipt preserves its historical ledger hash. Current extended-ledger validation checks exact paths, hashes, bands/API/interface anchors, workflow anchors, input pins, slice joins and evidence links.
 
 Luna low mapped paths/test families; Sol medium mapped technical boundaries and large-test bands. Root integrated the ledger and coordinates the single documentation writer. Future packets must release one writer per defining file; `types.rs`, `cli.rs`, shared JSON/serializers and Cargo changes require serialized ownership. Escalation was unnecessary.
 
@@ -57,46 +57,43 @@ The [existing living plan](../../../ideal-filetree-plan.md) and [compiler review
 
 ## Workflow coverage — Step 3
 
-[Workflow navigation](workflows.md) covers all 15 named CLI commands and public module families in 18 routes, including five platform forwarding paths and actual downstream artifact/BDD/docs/policy/editor consumers. The authoritative ledger retains 322 current source anchors and 85 source-trace input pins. Independent economical cross-review and final artifact challenge are captured in [workflow review](workflow-review.json).
+[Workflow navigation](workflows.md) covers all 15 named CLI commands and public module families in 18 routes, including five platform forwarding paths and actual downstream artifact/BDD/docs/policy/editor consumers. The authoritative ledger retains 322 current source anchors and 85 source-trace input pins. Independent economical cross-review and final artifact challenge are captured in workflow review.
 
 Fresh focused native replay reports 209 passes across 15 harnesses with one mode `4750` body skip. Separate receipts record 39 actual-compiler LSP capability checks, 11 freshly compiled/mocked extension startup checks and actual built-platform help/error/staging/count/verdict/refusal probes. Source and emitted runtime inputs are pinned separately; no package rebuild, GUI, positive generated-suite/workerd test, installed-release or remote apply qualification is inferred. Client versions, generated test execution, report endpoints, subprocess/replacement policies and library provenance remain explicit next-step contract/semantic questions.
 
 
 ## Compatibility authority — Step 4
 
-[Compatibility findings](compatibility.md) classify 83 bounded requirements and crosswalk all 26 prior claim groups in the same ledger. All 16 core packets and 18 workflows are linked; 82 supporting source/contract inputs are pinned. Per-path `compatibility_refs` are navigation, not every-branch or every-public-API acceptance. [Independent review](compatibility-review.json) records current public byte promises, corrected docs no-op scope, ICU admission ownership and migration-check coverage; [mechanical validation](compatibility-validation.json) checks the extended ledger.
+[Compatibility findings](compatibility.md) classify 83 bounded requirements and crosswalk all 26 prior claim groups in the same ledger. All 16 core packets and 18 workflows are linked; 82 supporting source/contract inputs are pinned. Per-path `compatibility_refs` are navigation, not every-branch or every-public-API acceptance. Independent review records current public byte promises, corrected docs no-op scope, ICU admission ownership and migration-check coverage; mechanical validation checks the extended ledger.
 
 Required exact values, hashes, URI/source identities, coordinates and deliberately accepted file policy remain distinct from wider ordered/raw carriers and old serializer punctuation. Explicit public reference/fix order and formatter literal/newline guarantees cannot be silently waived. Test-only repository helpers still need an owning public-support decision. Existing migration guards remain in force until explicitly revised; candidate simplifications remain proposals. No source/API/dependency change or fresh execution was made; later semantic/integration/resource/oracle steps and original/installed product prerequisites remain open.
 
 
 ## Representation authority and provenance — Step 5
 
-[Stage/owner navigation](representations.md) maps 35 duties from immutable source/token/CST through resolution, checked tables, IR, JS/BDD/artifacts, reports and actual runtime/testkit admission. Eight selected carrier groups and18 workflow joins stay in the same ledger. These are selected stage duties, not every type field or semantic branch; per-path `representation_refs` remain navigation. [Independent review](representation-review.json) separates necessary stage information from reconstructed names/types/bindings and corrects the emission-only migration checker. [Validation](representation-validation.json) checks37 new supporting pins alongside prior inventory/contract/workflow inputs.
+[Stage/owner navigation](representations.md) maps 35 duties from immutable source/token/CST through resolution, checked tables, IR, JS/BDD/artifacts, reports and actual runtime/testkit admission. Eight selected carrier groups and18 workflow joins stay in the same ledger. These are selected stage duties, not every type field or semantic branch; per-path `representation_refs` remain navigation. Independent review separates necessary stage information from reconstructed names/types/bindings and corrects the emission-only migration checker. Validation checks37 new supporting pins alongside prior inventory/contract/workflow inputs.
 
 Eight fresh public-API emission cases expose deliberately mixed source/catalog cohorts without rejection, with coherent and immutable-append controls;108 compiler/catalog pins remain unchanged. The normal CLI owned analysis and private borrowed snapshot are distinct. No generated JS, full suite, GUI, installed application or other host was exercised. Repeated parsing, carrier projections and rule differences are inspection leads, without measured workload/reduction or selected public enforcement/cache/API design. Source, dependency and package implementation remain unchanged; package-owner documentation changes are preserved.
 
 ## Step 6 integration/retirement status
 
-All seven direct dependency pins are accounted for in 22 result records: 15 retain, six defer, one bounded simplify; no unqualified replacement is selected. The linked closure union covers 383 source units/25 compiler source files/15,841 inclusive physical lines, including domain/caller context rather than library overhead. [Counts](integration-counts.json), [independent review](integration-review.json) and [validation](integration-validation.json) distinguish necessary projections and file/URI/value policy from private reader/registration coupling, legacy views, raw-default revalidation and incidental source-map extraction. Conditional targets include replacements and current public support; no production code is deleted. Fresh published-tool replay and independent arithmetic retain current69,255/original69,119, gross2067removed/2203added/net+136. Support pins and prior source/workflow/representation evidence remain linked; no compiler behavior/build, merge or living checkpoint advancement occurs.
+All seven direct dependency pins are accounted for in 22 result records: 15 retain, six defer, one bounded simplify; no unqualified replacement is selected. The linked closure union covers 383 source units/25 compiler source files/15,841 inclusive physical lines, including domain/caller context rather than library overhead. Counts, independent review and validation distinguish necessary projections and file/URI/value policy from private reader/registration coupling, legacy views, raw-default revalidation and incidental source-map extraction. Conditional targets include replacements and current public support; no production code is deleted. Fresh published-tool replay and independent arithmetic retain current69,255/original69,119, gross2067removed/2203added/net+136.
 
 
 ## Syntax, stage coverage and recovery — Step 7
 
-[Syntax findings](syntax.md) add 27 finite stage families, eight open repair packets
-and a registry to the same coverage ledger. All 186 full EBNF productions, 119 CST
+All 186 full EBNF productions, 119 CST
 kinds and four NodeDetail variants are accounted for; custom HeaderKind and
 parser-specific key scopes are separate. Fresh native evidence comprises 345
 selected harness passes, 50 public stage cases, all 54 corpus stage projections,
-16 actual CLI calls and six executed decoded-string/testkit witnesses.
-[Independent review](syntax-evidence/cross-review.json) and
-[integrated validation](syntax-validation.json) preserve source/execution limits.
+16 actual CLI calls and six executed decoded-string/testkit witnesses. Independent review and
+integrated validation preserve source/execution limits.
 
 The independent-sibling contract still fails in effects and source-tag metadata
 collection. Tab captions/children, structured order and corpus declarations can
 be lost with compile success. Delimiter synchronization and new feature/profile
 support remain separately gated. Whole semantics and per-branch emitted execution
-are not certified; these open defects do not invalidate the finite source map.
-No compiler/package/dependency/policy change or merge/checkpoint advance occurs.
+are not certified; these open defects do not invalidate the finite source map. No compiler/package/dependency/policy change or merge/checkpoint advance occurs.
 
 ## Resolution, types, effects and permissions — Step 8
 
@@ -105,7 +102,7 @@ repair/qualification records to the same ledger. Resolution/imports/overloads,
 binding/inference/nullability/context, effects/authority, actual value owners,
 graph scopes, catalog availability and diagnostic aggregation have named source
 and consumer ownership, sampled witnesses and explicit gaps. Source cross-review
-and [receipt review](semantic-evidence/receipt-review.json) distinguish observed
+and receipt review distinguish observed
 defects from policy disagreements, copied catalog controls and unexecuted joins.
 
 Fresh native execution has 440 selected passes, 73 retained public API inputs,
@@ -113,7 +110,7 @@ Fresh native execution has 440 selected passes, 73 retained public API inputs,
 format functions. Nullable arrays depend incorrectly on element order; recurring
 scope misses derives; named format binding and the positional runtime signature
 fail. Owner email/temporal/data/presentation disagreements and existing graph/JEV
-gates remain visible. [Validation](semantic-validation.json) checks the joined
+gates remain visible. Validation checks the joined
 ledger and captures without converting sampled execution to universal semantic
 acceptance. No production/package implementation, merge or checkpoint change
 occurs; broader Step 9 execution and later resource/oracle/product scope remain.
@@ -130,10 +127,8 @@ Fresh native evidence has 113 harness passes with one `4750` fixture branch skip
 61 source cases, 18 actual CLI calls and five Node syntax checks. Legal reserved
 and context-colliding parameters compile into invalid JS. A tags-only public
 diagnostic tie and standards-derived downstream docs escaping defects are
-classified separately from comment preservation and unsupported profile gates.
-[Independent review](output-evidence/review-transforms.json) and
-[validation](output-validation.json) retain corrections and evidence limits.
-Structural preservation and selected consumers do not certify all semantics,
+classified separately from comment preservation and unsupported profile gates. Independent review and
+validation retain corrections and evidence limits. Structural preservation and selected consumers do not certify all semantics,
 runtime attribution or the final release. Step 9 and Steps 12 onward remain
 proposed; Step 11 has its bounded execution below; no production/package implementation, merge or checkpoint changes.
 
@@ -149,27 +144,23 @@ Fresh native evidence comprises 128 selected Rust passes, 11 existing startup
 mock passes, 17 actual server processes, two CLI controls and 129 RealAnalysis
 callbacks. Freshly compiled actual client/providers install old/closed diagnostics,
 drop rename document versions and misconvert completion kinds. References false
-and workspace-edit capabilities are ignored; server close has no clear publication.
-Static catalog and single-document editor analysis are supported-scope contrasts;
-retained history, public batched epochs and startup races have separate gates.
-[Independent client review](editor-evidence/review-client.md),
+and workspace-edit capabilities are ignored; server close has no clear publication. Static catalog and single-document editor analysis are supported-scope contrasts;
+retained history, public batched epochs and startup races have separate gates. [Independent client review](editor-evidence/review-client.md),
 [process/resource review](editor-evidence/review-process.md) and
-[verification](editor-evidence/outcome-verification.json) preserve controls and
+verification preserve controls and
 failed observer attempts. Selective host stand-ins qualify module behavior,
-not GUI/application; no RSS/benchmark/other-host/full-release conclusion follows.
-Step 9 and Steps 13 onward remain proposed. Production and package implementation,
-merge and the living-plan checkpoint are unchanged.
+not GUI/application; no RSS/benchmark/other-host/full-release conclusion follows. Step 9 and Steps 13 onward remain proposed.
 
 
 ## Failure, resources and host boundaries — Step 12
 
 [Failure findings](failure.md) join 44 finite duties, seven proposed repair/qualification packets and retained native debug receipts to the same ledger (537→591 rows). Five actual check/compile stack aborts follow clean parsing of small legal flat arithmetic; exact downstream stage remains unlocalized. Parser-frame depth bounds do not bound structural tree height. JSON/catalog ladders survive at tested limits; header/body allocation and global width/representability policies remain gates.
 
-Resource43 commands/42 observations and filesystem41 commands/21 observations retain all raw hashes. File17 harness passes include one4750 body skip; direct4750 fixtures also remain unqualified. C04F guarantees are supported at the declared profile. Actual Git/Cargo consumers falsify the predicted stale commit while demonstrating missing-path repeated rebuilds. [Independent reviews](failure-evidence/review-resources.md), [packet registry](failure-evidence/registry.json) and [mechanical validation](failure-evidence/validation.json) distinguish defects, survivals, hypotheses and policy. No production change, new limit/redesign, workload/RSS/release/otherhost/GUI claim, merge or living checkpoint advance occurs. Step9 and Steps13 onward remain proposed.
+Resource43 commands/42 observations and filesystem41 commands/21 observations retain all raw hashes. File17 harness passes include one4750 body skip; direct4750 fixtures also remain unqualified. C04F guarantees are supported at the declared profile. Actual Git/Cargo consumers falsify the predicted stale commit while demonstrating missing-path repeated rebuilds. [Independent reviews](failure-evidence/review-resources.md), packet registry and mechanical validation distinguish defects, survivals, hypotheses and policy. Step9 and Steps13 onward remain proposed.
 
 
 ## Resumed lowering, oracles, costs and released qualification
 
 [The resumption](../resumption/README.md) completes finite Step 9 and Steps 13–15, then qualifies explicitly released Step-16 repairs. Eleven lowering duties, eight owner follow-ups, twelve oracle/dependency/cost/architecture follow-ups and current outcome/disposition joins extend this same ledger; historical ranges and receipt source pins remain unchanged. Independent priority/scope and runtime reviews retain all historical findings and explicit unexecuted gates.
 
-The final source has 1,070 compiler harness passes, one explicit mode-4750 body skip, formatting and Clippy success, actual generated/consumer and typed/process controls, plus separate editor/testkit results. [Counts](../resumption/production-counts.json) show compiler production +161 this round (+297 versus original); complete bounded simplifications remove 26 lines without an aggregate reduction claim. [Final stage/release controls](../resumption/README.md#failure-localization-and-design-advice) localize native-debug arithmetic aborts, while all six retained 1024/2048/3000 release check/compile controls succeed. No language limit, broad cache/API/framework, full application/GUI/other-host qualification, merge or living checkpoint advance is selected.
+The final source has 1,070 compiler harness passes, one explicit mode-4750 body skip, formatting and Clippy success, actual generated/consumer and typed/process controls, plus separate editor/testkit results. Counts show compiler production +161 this round (+297 versus original); complete bounded simplifications remove 26 lines without an aggregate reduction claim. [Final stage/release controls](../resumption/README.md#failure-localization-and-design-advice) localize native-debug arithmetic aborts, while all six retained 1024/2048/3000 release check/compile controls succeed.

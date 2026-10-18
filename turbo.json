@@ -43,7 +43,6 @@
     "//#typecheck:root": { "dependsOn": ["^build"], "cache": false },
     "//#typecheck:e2e:check": { "dependsOn": ["^build"], "cache": false },
     "//#test:root": { "dependsOn": ["^build"], "cache": false },
-    "//#test:ci:run": { "cache": false },
     "//#test:e2e:run": { "dependsOn": ["^build"], "cache": false },
     "//#release:stamp": { "dependsOn": ["^build"], "cache": false },
     "//#release:manifest": { "dependsOn": ["release:stamp"], "cache": false },

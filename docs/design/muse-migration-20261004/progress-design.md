@@ -6,7 +6,7 @@ The immediate result is a bounded candidate that covers Shift eligibility reconc
 
 ## Evidence and decision boundary
 
-Read [the current workload split](../../../draft/MIGRATION.md), [the earlier investigation](../owner-fanout-20261004.md), [the saved consultation](../jev/owner-fanout-20261004/review.md), [DESIGN §§2–7 and §13](../../specification/DESIGN.md), and the current [Shift source](../../../draft/CanShift.can), [target](../../../draft/CanShift.mjs), [requirements](../../../draft/CanShift.md), [Volunteer source](../../../draft/CanVolunteer.can), [target](../../../draft/CanVolunteer.mjs) and [requirements](../../../draft/CanVolunteer.md). Employee identity/current membership was checked against [Employees.can](../../../draft/shared/Employees.can).
+Read [the current workload split](../../../draft/MIGRATION.md), [the earlier investigation](../owner-fanout-20261004.md), the saved consultation, [DESIGN §§2–7 and §13](../../specification/DESIGN.md), and the current [Shift source](../../../draft/CanShift.can), [target](../../../draft/CanShift.mjs), [requirements](../../../draft/CanShift.md), [Volunteer source](../../../draft/CanVolunteer.can), [target](../../../draft/CanVolunteer.mjs) and [requirements](../../../draft/CanVolunteer.md). Employee identity/current membership was checked against [Employees.can](../../../draft/shared/Employees.can).
 
 Verified constraints:
 
@@ -17,7 +17,7 @@ Verified constraints:
 - Shift's five owner-wide handlers have two independent populations, Commitment and Swap. Availability hooks currently put both loops inside the availability write itself. Volunteer has direct user-operation loops, a reminder hook and a nested venue-event loop; these are not all equivalent to asynchronous notification delivery.
 - Current admission and dispatch predicates remain essential while reconciliation is pending. A conflict flag is retained evidence, not permission to release a reservation or automatically restore work.
 
-The required three-call JEV round is incomplete: completed requests 1 and 3 chose shared enumeration with probabilities 0.78 and 0.88; [request 2](../jev/owner-fanout-20261004/2.request.json) has no provider response. [The rejection record](../jev/owner-fanout-20261004/2.blocked.json) says automatic approval review required specific authorization for that exact nonpublic payload. No request was sent or rephrased during this handoff. Two advisory outcomes do not adopt syntax or establish correctness.
+The required three-call JEV round is incomplete: completed requests 1 and 3 chose shared enumeration with probabilities 0.78 and 0.88; request 2 has no provider response. The rejection record says automatic approval review required specific authorization for that exact nonpublic payload. No request was sent or rephrased during this handoff. Two advisory outcomes do not adopt syntax or establish correctness.
 
 The earlier alternatives remain fairly distinguishable: authored continuation can use the same indexed cohort machinery but repeats app state; periodic review can use the same complete initialization machinery but adds unchanged recurring work and detection lag; shared enumeration centralizes that repeated lifecycle while adding a language/runtime contract. None has implementation or performance evidence. This handoff supplies a shared-enumeration witness for review; it does not resolve the blocked consultation by declaring another alternative settled.
 

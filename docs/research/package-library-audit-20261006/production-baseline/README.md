@@ -8,8 +8,7 @@ The comparison is the **pre-library-adoption source** at
 `309644a6881909d8dba32560bc6711f67e00a7ab` versus
 `8f33aa5e29d25bf3ea4d6035c7b2e3ddc0427854`. The original already contains Rust
 port candidates: this is not a before/after comparison of the entire Rust-port
-programme. Both snapshots include every committed blob under `packages/`.
-Compiler and editor work is outside this denominator.
+programme. Both snapshots include every committed blob under `packages/`. Compiler and editor work is outside this denominator.
 
 ## Reproduce
 
@@ -31,10 +30,10 @@ run or Git state changed. The script reads immutable Git blobs. Its output is:
 - `interfaces.tsv`: exported source declarations and reexport candidates, retaining type/signature distinctions.
 - `moves.tsv`: reviewed implementation transfers with identical-line matching.
 
-Only the small [summary](summary.json), classification rules, tool and
+Only the small summary, classification rules, tool and
 [mechanism inventory](mechanisms.jsonl) are committed. Detailed indices are
 regenerated on demand; source, fixture and manifest contents are not copied
-into another evidence tree. [Verification](verification.json) records output
+into another evidence tree. Verification records output
 hashes and independent classification checks.
 
 ## Measurement
@@ -93,8 +92,7 @@ file moves.
 
 The old six-line version-only work-kernel Rust root is scaffold; the current
 root registers real decision modules: its runtime candidate contribution is
-0 → 9 lines, with three other current lines excluded as an inline test module.
-The native preparation probe
+0 → 9 lines, with three other current lines excluded as an inline test module. The native preparation probe
 script and fixed six-operation values smoke table are separately measured
 scaffold ranges. They still contain executable, maintained compatibility
 behavior. Other native preparation stages and structural validation remain
@@ -128,8 +126,7 @@ six TS donor/kernel overlaps, deliberately coexisting TS/Rust decision and
 preparation responsibilities, repeated Rust JSON/UTF16 support, and the CSV
 grammar duplication that has been removed. Namespaced producer/error profiles
 and required fallback paths remain relevant. These are observed maintenance
-overlaps, not permission to delete code or proof of interchangeable behavior.
-The list is a baseline of verified families, not an exhaustive semantic clone
+overlaps, not permission to delete code or proof of interchangeable behavior. The list is a baseline of verified families, not an exhaustive semantic clone
 detector; unknown overlaps remain for the responsibility/caller audit.
 
 ## Limits and review
@@ -148,8 +145,7 @@ included. A publication-time check separately verifies package dirty/untracked
 overlays and package equality with the pinned current source; other agents'
 compiler/editor commits do not change these package counts.
 
-Runtime candidates have not all been demonstrated shipped or reachable.
-Values' opt-in six-operation backend, broader Rust validation/work consumers,
+Runtime candidates have not all been demonstrated shipped or reachable. Values' opt-in six-operation backend, broader Rust validation/work consumers,
 native preparation and installed/durable/rollback qualifications keep their
 existing limits. Planned catalog entries are not implemented APIs. No task
 parent, release checkpoint or whole-programme acceptance advances from this

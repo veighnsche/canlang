@@ -42,8 +42,7 @@ can dev preview.open --app Tasks
 
 The control adapter returns JSON. Read the check diagnostics and resolve any source errors before continuing. If preview status is still preparing, request status again after preparation; if it reports failure, inspect that result before opening the preview.
 
-File watching marks the session dirty; `can dev check` performs the rebuild.
-After saving an edit, run the check again. When preview is ready, run
+File watching marks the session dirty; `can dev check` performs the rebuild. After saving an edit, run the check again. When preview is ready, run
 `can dev preview.open` and open its returned URL; a replacement preview can use
 a new local port. Display-only edits retain the application's saved data and login.
 
@@ -59,8 +58,7 @@ separate Miniflare or runtime installation is needed. API-only apps can preview
 their checked operations without declaring a page. Inspect the check response's
 `preview` and `preview_error` before opening a failed build.
 
-Local upload links expire after one hour, and unattached files after 24 hours.
-Attached files remain available until explicitly deleted. Published-byte cleanup
+Local upload links expire after one hour, and unattached files after 24 hours. Attached files remain available until explicitly deleted. Published-byte cleanup
 still requires the authoritative reference census; deleting an association does
 not promise immediate physical byte reclamation. See the
 [binding scope and limits](https://github.com/veighnsche/canlang/blob/main/docs/implementation/lean-install/local-bindings.md)

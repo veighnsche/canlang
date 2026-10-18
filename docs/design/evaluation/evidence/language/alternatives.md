@@ -56,7 +56,7 @@ Retain canonical auth/team controls and no invented general staff-admin app. Cla
 
 ## 6. JEV consultation evidence, disagreement and investigation
 
-Requests use existing tools/jev.py with standing authorization. Three sandbox calls failed to connect and produced no answer or saved result; the same saved requests were then sent through the allowed network escalation. All successful raw requests/responses are saved at [a](jev/e102-a.result.json), [b](jev/e102-b.result.json), [c](jev/e102-c.result.json). Model reported `jev-1.13.0`. [Preflight](jev/wording.md) records full-request rewriting, semantic equivalence, costs/counterevidence and Root's independent framing corrections before sending. No prior votes were supplied.
+Requests use existing tools/jev.py with standing authorization. Three sandbox calls failed to connect and produced no answer or saved result; the same saved requests were then sent through the allowed network escalation. All successful raw requests/responses are saved at a, b, c. Model reported `jev-1.13.0`. Preflight records full-request rewriting, semantic equivalence, costs/counterevidence and Root's independent framing corrections before sending. No prior votes were supplied.
 
 | Question | Request a | Request b | Request c |
 | --- | --- | --- | --- |

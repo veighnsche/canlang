@@ -1,8 +1,7 @@
 # Before/after maintenance assessment
 
 Planning assessment, 2026-10-07, at
-`d253b2f1a91ad3ce9259f9aa57aa33be291fd289`. Implementation remains deferred.
-The prior library batch has **not demonstrated a net production reduction**:
+`d253b2f1a91ad3ce9259f9aa57aa33be291fd289`. Implementation remains deferred. The prior library batch has **not demonstrated a net production reduction**:
 implementation-bearing source rose by 113 lines and maintained declarations by
 83, a combined 196 lines. That historical batch also contains correction,
 assembly and capability work; the whole increase cannot honestly be attributed
@@ -37,7 +36,7 @@ are separately classified. Runtime candidates include unadopted native code and
 are not a claim of shipped size. Dependency counts measure declared libraries,
 not transitive closure, release cadence, safety or license-compliance acceptance.
 
-[Historical details](historical-before-after.json) include every package owner
+Historical details include every package owner
 and affected-file envelope. Cloudflare grew by 241 implementation/declaration
 lines; Values by 98; Identity by 22. Interfaces fell by 73, Services by 47,
 Work-kernel by 44 and UI by one. Schema/wire implementation transfers earn no
@@ -68,16 +67,14 @@ different files produces zero reduction. Removing required TS/reference/owner
 paths before their original retirement gates is not an eligible remedy.
 
 Already-adopted CSV, scure codecs, native comparison, cookie and AbortSignal.any
-seams contain legitimate owner policies; another wrapper does not help them.
-Import/Unicode recovery and raw source-map compensation have no demonstrated
+seams contain legitimate owner policies; another wrapper does not help them. Import/Unicode recovery and raw source-map compensation have no demonstrated
 further reduction. A parser/SDK that needs a second semantic engine remains a
 poor simplification candidate. CSV-stringify's four-line quote-leaf opportunity
-must pay all new options, adapters, exports, declarations and dependency burden.
-Retain-now remains reasonable where a simpler same-outcome candidate is absent.
+must pay all new options, adapters, exports, declarations and dependency burden. Retain-now remains reasonable where a simpler same-outcome candidate is absent.
 
 ## The replacement acceptance gate
 
-[Machine gate](acceptance-gate.json) applies the human's requirement to every
+Machine gate applies the human's requirement to every
 replacement-only packet, including a replacement subpiece of mixed work:
 
 1. Freeze the same required outcomes and the complete affected owner/caller scope.
@@ -93,15 +90,14 @@ replacement-only packet, including a replacement subpiece of mixed work:
 5. Credit real deletion/consolidation, never source compression, file moves,
    generated output or relocation into tests/support code.
 
-No prospective remedy has a concrete changed-source candidate in this round.
-Future exact implementation/declaration totals are therefore `null`, and all
+No prospective remedy has a concrete changed-source candidate in this round. Future exact implementation/declaration totals are therefore `null`, and all
 proposed net-reduction acceptance flags are false. The assessment measures the
 before state and historical local changes, and states the conditional after
 obligations without pretending a forecast is an executed result.
 
 ## Separate capabilities, corrections and evidence
 
-[Separate scope/budget register](separate-budgets.json) cross-references all 69
+Separate scope/budget register cross-references all 69
 existing protocol/security/lifecycle/runtime/test/evidence queue groups. They
 overlap each other and the 76 assessment records; they are not additional
 canonical obligations or additive cost estimates. Safety/correctness repairs
@@ -110,15 +106,13 @@ may legitimately grow code but cannot be billed as replacement savings.
 Full Values/validation consumers, native Work delivery, held preparation and real
 mounted product joins require separately finite scopes and source, dependency,
 representation, lifecycle/runtime and qualification budgets. Those growth
-budgets are explicitly **unallocated**, not assumed zero-cost or approved.
-Before future dispatch, choose the actual packet, inputs, owners and ceilings;
+budgets are explicitly **unallocated**, not assumed zero-cost or approved. Before future dispatch, choose the actual packet, inputs, owners and ceilings;
 do not smuggle the capability into a reduction-only change. No person-hour or
 net-LOC estimate is invented without a candidate.
 
 Test/corpus/document reduction is a separate maintenance benefit. Preserve
 independent oracles, red/excluded results, real D1/DO/workerd/installed controls
-and exact provenance. It does not satisfy the production-reduction gate.
-The [480 adapter groups](branch-coverage.json) are scoped classifications, not
+and exact provenance. It does not satisfy the production-reduction gate. The 480 adapter groups are scoped classifications, not
 cyclomatic complexity; proposed branch dispositions are not measured after counts.
 
 Three bounded Sol medium assessments and a finite Sol medium opposing review

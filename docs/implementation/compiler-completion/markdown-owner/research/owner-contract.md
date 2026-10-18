@@ -1,8 +1,6 @@
 # OUT-R03 downstream Markdown owner qualification
 
-Status: verified failure and research proposal; production implementation unreleased.
-Observed HEAD: `b7e18b9b7da7af07ec7e0672347e2d6f173b3ae2`.
-The source hash and complete 28-case Markdown/HTML/DOM observations are in `raw.json`.
+Status: verified failure and research proposal; production implementation unreleased. Observed HEAD: `b7e18b9b7da7af07ec7e0672347e2d6f173b3ae2`. The source hash and complete 28-case Markdown/HTML/DOM observations are in `raw.json`.
 
 ## Owner and complete helper family
 

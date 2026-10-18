@@ -1,6 +1,6 @@
 # Scoped source reconciliation
 
-Initial semantic review `cf36983c768c32e0a63ac33c3b45a94dc75dc2d3`; refreshed structural catalog `5edc3bac2a341fbda0bb432649e90ba70d3c05db`. The initial nine-path delta is reread/reconciled without advancing complete checkpoint `8249342`. Earlier review pins retain their actual scope; changed source availability is superseded only as stated below.
+Initial semantic review `cf36983c768c32e0a63ac33c3b45a94dc75dc2d3`; refreshed structural catalog `5edc3bac2a341fbda0bb432649e90ba70d3c05db`. Earlier review pins retain their actual scope; changed source availability is superseded only as stated below.
 
 ## LATE-C3
 
@@ -42,7 +42,7 @@ Remaining: Adopt owner-released per-scope verified actor/team/now/operation lowe
 
 Required gates: T04, T15, FP.CONTEXT.
 
-[Exact hashes and path ledger](late-source.json); [independent source challenge](reviews/late-challenge-language.md). No test, build, install, deployment, provider call or source edit was performed. Active implementation records are evidence owned elsewhere, not acceptance imported by this audit.
+Exact hashes and path ledger; [independent source challenge](reviews/late-challenge-language.md). No test, build, install, deployment, provider call or source edit was performed. Active implementation records are evidence owned elsewhere, not acceptance imported by this audit.
 
 A subsequent test-only merge `1f5c1b5` adds `packages/work/test/b3-mirror-conformance.test.ts` (902 lines). It is structurally catalogued and receives a separate independent [work-test review](reviews/late-work-tests.md). Production authority/ownership and receipt qualification gates remain unchanged; reported merge-owner suite counts are not audit execution.
 
@@ -54,4 +54,4 @@ The independent dispatch challenge found the concrete host gap: Cloudflare mirro
 
 ## Consolidated source availability — October 6, 2026
 
-The [consolidation review](consolidation-review.json) records the full accumulated checkpoint delta and current availability of work-kernel extraction, native preparation, values bindings, asset handler and browser bootstrap/polling. These supersede only the matching earlier source-absence observations. Historical primary/app/challenger/test-body reviews retain their exact pins; current authority, installed consumers and deep source closure remain required.
+The consolidation review records the full accumulated checkpoint delta and current availability of work-kernel extraction, native preparation, values bindings, asset handler and browser bootstrap/polling. These supersede only the matching earlier source-absence observations. Historical primary/app/challenger/test-body reviews retain their exact pins; current authority, installed consumers and deep source closure remain required.

@@ -14,18 +14,15 @@ resolve, not permission for a compiler or app to choose either interpretation.
 
 The specification describes the supported language contract, not a claim that
 every compiler/backend path is delivered. Required but unimplemented behavior
-remains a conformance gap in the [single completion record](../implementation/REMAINING-WORK.md#compiler-source-constraints).
-An implementation must report an unsupported contract explicitly rather than
+remains a conformance gap in the [single completion record](../implementation/REMAINING-WORK.md#compiler-source-constraints). An implementation must report an unsupported contract explicitly rather than
 silently changing its meaning. Handwritten target JavaScript and historical
 app sketches illustrate intent; neither establishes a language rule or API.
 
 Implicit means derived by a defined language rule from owning declarations and
 version-pinned defaults. It never means guessed from app names, field spelling,
-neighboring files, prose, a particular caller or unvalidated AI output.
-Checked build-generation extensions obey their declared owner contracts; they
+neighboring files, prose, a particular caller or unvalidated AI output. Checked build-generation extensions obey their declared owner contracts; they
 cannot silently redefine built-in primitives or grant authority. Business permissions,
-conditions, independent expected outcomes and actual differences remain authored.
-[DESIGN §0](DESIGN.md#0-conformance-and-implicit-behavior) is the index of those
+conditions, independent expected outcomes and actual differences remain authored. [DESIGN §0](DESIGN.md#0-conformance-and-implicit-behavior) is the index of those
 rules, defaults and failure boundaries. It gives the language one contract across
 inline expressions, reusable helpers, imports, selected compositions and interfaces.
 

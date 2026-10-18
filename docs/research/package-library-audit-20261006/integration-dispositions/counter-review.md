@@ -13,4 +13,4 @@ Sol 6.1 high, with proposals visible; this is not a clean-room security/runtime 
 | CR-07 | Added finite owner/programme genuine-lineage/gate retirement route; WeakSet neither authority nor perpetual test requirement. |
 | CR-08 | DR04 Date.UTC year0-99 behavior relabeled baseline discrepancy; correctness is separately owned/budgeted. |
 
-Full evidence, preserved observations and limitations: [review](counter-review.json).
+Full evidence, preserved observations and limitations: review.

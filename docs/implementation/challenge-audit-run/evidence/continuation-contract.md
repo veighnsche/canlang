@@ -2,8 +2,7 @@
 
 Task T03 (L1). RQ02. Status: **proposed evidence only** — DESIGN.md, GRAMMAR.md, and
 DECISIONS.md are READ-ONLY in this task; the "Proposed wording" section drafts normative
-text for later reserved application, and adopts nothing by itself.
-Base: branch `codex/challenge-audit-implementation`, HEAD `c4a9775`, draft `2d67312`.
+text for later reserved application, and adopts nothing by itself. Base: branch `codex/challenge-audit-implementation`, HEAD `c4a9775`, draft `2d67312`.
 
 Companion: [root-causes.md](root-causes.md) sites R01-R06, R26(layer 1), R28 and chains
 C1/C2/C4/C5/C7 are the evidence this contract must explain with one rule.
@@ -24,8 +23,7 @@ For a path `p` of nullable type tested against `null`:
 - Reversed operands (`null == p`, `null != p`) and parentheses change nothing: facts key on
   the resolved tested path, not on surface order. `not (p == null)` is `p != null`;
   `not (p != null)` is `p == null`; double negation cancels.
-- Only direct null tests qualify: `==`/`!=` with exactly one side the `null` literal.
-  Ordered/arithmetic operators on null remain type errors (DESIGN L165);
+- Only direct null tests qualify: `==`/`!=` with exactly one side the `null` literal. Ordered/arithmetic operators on null remain type errors (DESIGN L165);
   cross-nullable comparisons (`p == q` with both nullable) establish no presence fact.
 - Null equals null: in a true-`==null` continuation the path's value is exactly null, so
   dereference there is still an error (it is a known-null use, not a non-null proof).
@@ -47,15 +45,13 @@ DESIGN L163: `and`/`or` short-circuit left to right. Facts follow evaluation ord
 - `not` swaps the true/false fact sets of its operand.
 - Worked consequence: in `x == null or f(x)` the right arm receives left-false facts,
   i.e. `x != null`, so `f(x)` checks. The rejected mirrors are `x != null or f(x)`
-  (right arm gets `x == null`) and `x == null and f(x)` (right arm gets `x == null`).
-  Invalid controls in §11 pin all four shapes.
+  (right arm gets `x == null`) and `x == null and f(x)` (right arm gets `x == null`). Invalid controls in §11 pin all four shapes.
 
 ## 4. Branches, joins, and loops
 
 - `if c` body receives the true-facts of `c`; the `else` body receives the false-facts.
   `if prior == null` ... `else` therefore proves `prior` non-null in the else body (R01).
-- After the join, only facts valid on **every** reaching path survive (intersection).
-  Contradictory branches (`x` non-null on one arm, null on the other) yield no fact —
+- After the join, only facts valid on **every** reaching path survive (intersection). Contradictory branches (`x` non-null on one arm, null on the other) yield no fact —
   see invalid control IC5.
 - `for` loops: facts established inside the body do not survive the loop (zero-iteration
   control IC6); facts from before the loop survive only if no invalidation occurs on any
@@ -255,8 +251,7 @@ PROPOSED DECISIONS entry (records the ruling, not the mechanism):
   costs (§12).
 - Checks run: repro from [root-causes.md](root-causes.md) (exit 10, 4524 diagnostics,
   identities match); read-only envelope + span analysis; DESIGN L129/L163/L165/L167/L171/
-  L593, GRAMMAR L238/L393, and DECISIONS narrowing/queue/secret lines consulted read-only.
-  No normative file was modified. Revision: `c4a9775` + draft `2d67312`.
+  L593, GRAMMAR L238/L393, and DECISIONS narrowing/queue/secret lines consulted read-only. No normative file was modified. Revision: `c4a9775` + draft `2d67312`.
 - Consumer: T05 implements this contract; T05 acceptance re-runs the §10 positives and §11
   negatives as checker tests.
 

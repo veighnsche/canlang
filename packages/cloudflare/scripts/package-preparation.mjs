@@ -117,9 +117,6 @@ export function packageBundle({ triple = hostTriple(), outDir = join(PACKAGE_ROO
     protocol: { name: "can-preparation", version: 1 },
     release: sidecar.release,
     binary: { file: binaryName(triple), sha256: sidecar.sha256, bytes: sidecar.bytes },
-    toolchain: sidecar.toolchain,
-    lockfileSha256: sidecar.lockfileSha256,
-    sourceHead: sidecar.sourceHead,
     licenseFiles: ["licenses.json"],
     workerVendoringGuard: { scannedRoots: workerRootsScanned, hits: 0 },
   };

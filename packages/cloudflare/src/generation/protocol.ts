@@ -1008,21 +1008,15 @@ export function progressEvent(
 /** Advertisement state of one required adapter capability. */
 export type CapabilityStatus =
   | {
-      /** Qualified with the named evidence; the capability may launch. */
+      /** Implemented by this adapter; the capability may launch. */
       readonly state: "supported";
-      /** What qualifies the claim (evidence pointer). */
+      /** How the adapter implements this capability. */
       readonly note: string;
     }
   | {
       /** The adapter cannot provide this capability. */
       readonly state: "unsupported";
       /** Why the adapter cannot provide it. */
-      readonly note: string;
-    }
-  | {
-      /** Claimed by neither success nor failure yet. */
-      readonly state: "unqualified";
-      /** Owning gate and release condition. */
       readonly note: string;
     };
 
@@ -1058,11 +1052,7 @@ export interface AdapterCapabilities {
   native_options: readonly NativeOptionSpec[];
 }
 
-/**
- * Codex is qualified by the retained native run and filesystem boundary
- * observations. Other required adapters remain prelaunch-gated until
- * their own MCP/write restrictions are qualified. Unknown native keys refuse.
- */
+/** Implemented adapter capabilities; unknown native keys refuse before launch. */
 export const ADAPTERS: readonly AdapterCapabilities[] = [
   {
     id: "codex",
@@ -1070,11 +1060,11 @@ export const ADAPTERS: readonly AdapterCapabilities[] = [
     probe_binaries: ["codex"],
     mcp_attachment: {
       state: "supported",
-      note: "BGI-05 native macOS Codex 0.162.0-alpha.17.2, gpt-6.1-sol/medium: three host MCP submissions; output/prompt-pipeline/codex-qualification.json",
+      note: "Codex attaches the generation host MCP server",
     },
     write_restriction: {
       state: "supported",
-      note: "BGI-05 native read-only sandbox denies source/current/candidate writes; isolated host tools; output/prompt-pipeline/codex-qualification.json",
+      note: "Read-only sandbox denies source/current/candidate writes; isolated host tools",
     },
     session_resume: {
       state: "unsupported",
@@ -1090,16 +1080,16 @@ export const ADAPTERS: readonly AdapterCapabilities[] = [
     label: "Muse Code",
     probe_binaries: ["muse"],
     mcp_attachment: {
-      state: "unqualified",
-      note: "BGI-06 qualifies the Muse MCP attachment with observed bounded runs",
+      state: "unsupported",
+      note: "Muse MCP attachment is not implemented",
     },
     write_restriction: {
-      state: "unqualified",
-      note: "BGI-06 qualifies Muse no-write enforcement over protected roots",
+      state: "unsupported",
+      note: "Muse protected-write enforcement is not implemented",
     },
     session_resume: {
-      state: "unqualified",
-      note: "BGI-06 qualifies Muse recorded-session resume",
+      state: "unsupported",
+      note: "Muse session resume is not implemented",
     },
     native_options: [],
   },
@@ -1108,16 +1098,16 @@ export const ADAPTERS: readonly AdapterCapabilities[] = [
     label: "Claude Code",
     probe_binaries: ["claude", "claude-code"],
     mcp_attachment: {
-      state: "unqualified",
-      note: "BGI-06 qualifies the Claude Code MCP attachment with observed bounded runs",
+      state: "unsupported",
+      note: "Claude Code MCP attachment is not implemented",
     },
     write_restriction: {
-      state: "unqualified",
-      note: "BGI-06 qualifies Claude Code no-write enforcement over protected roots",
+      state: "unsupported",
+      note: "Claude Code protected-write enforcement is not implemented",
     },
     session_resume: {
-      state: "unqualified",
-      note: "BGI-06 qualifies Claude Code recorded-session resume",
+      state: "unsupported",
+      note: "Claude Code session resume is not implemented",
     },
     native_options: [],
   },
@@ -1126,16 +1116,16 @@ export const ADAPTERS: readonly AdapterCapabilities[] = [
     label: "OpenCode",
     probe_binaries: ["opencode"],
     mcp_attachment: {
-      state: "unqualified",
-      note: "BGI-06 qualifies the OpenCode MCP attachment with observed bounded runs",
+      state: "unsupported",
+      note: "OpenCode MCP attachment is not implemented",
     },
     write_restriction: {
-      state: "unqualified",
-      note: "BGI-06 qualifies OpenCode no-write enforcement over protected roots",
+      state: "unsupported",
+      note: "OpenCode protected-write enforcement is not implemented",
     },
     session_resume: {
-      state: "unqualified",
-      note: "BGI-06 qualifies OpenCode recorded-session resume",
+      state: "unsupported",
+      note: "OpenCode session resume is not implemented",
     },
     native_options: [],
   },
@@ -1162,23 +1152,17 @@ export class PreflightError extends Error {
 
 function checkLaunchCapability(runner: string, what: string, status: CapabilityStatus): void {
   if (status.state === "supported") return;
-  if (status.state === "unsupported") {
-    throw new PreflightError(
-      "unsupported-capability",
-      `runner \`${runner}\` cannot launch: ${what} is unsupported (${status.note}); refusing before launch without a direct-file fallback`,
-    );
-  }
   throw new PreflightError(
     "unsupported-capability",
-    `runner \`${runner}\` cannot launch: ${what} is unqualified (${status.note}); refusing before launch without a direct-file fallback`,
+    `runner \`${runner}\` cannot launch: ${what} is unsupported (${status.note}); refusing before launch without a direct-file fallback`,
   );
 }
 
 /**
  * Pre-launch gate for one effective recipe: the adapter must affirm
  * supported MCP attachment and enforceable write restrictions, and
- * every native key must be documented by that adapter. Unqualified
- * and unsupported capabilities fail identically before launch, with
+ * every native key must be documented by that adapter. Unsupported
+ * capabilities fail before launch, with
  * no direct-file fallback. BGI-05 runs this per compatible-recipe
  * job before spawning any runner; the dispatcher runs it during
  * admission for single-recipe execution requests.

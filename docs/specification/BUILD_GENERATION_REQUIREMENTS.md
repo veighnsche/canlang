@@ -52,8 +52,7 @@ contributions as saved `implementation.js`. The source-derived contract fixes
 `contributions.can` template may specify only `value:text` when there are no extra
 native constraints. State checks the normalized, hook-adjusted candidate on every
 create/update before publishing state, history or key claims; only strict `true`
-succeeds. False, exceptions and other return types produce canonical validation.
-Desired migration checks cover staged and retained rows. Implementation/import
+succeeds. False, exceptions and other return types produce canonical validation. Desired migration checks cover staged and retained rows. Implementation/import
 bytes are fingerprinted separately from the contribution carrier. Model traits,
 nullable and other field types do not admit this executable profile. Saved modules
 retain the existing trusted-code boundary; no general JavaScript sandbox is implied.
@@ -64,8 +63,7 @@ money, user, file and inline enum associations, optionally one array wrapper and
 outer nullability. Explicit defaults are required, including null and empty-array
 defaults. Unsupported native associations and nested arrays diagnose instead of
 producing an artifact State cannot install. Literal field labels use the receiving
-source locale and checked ICU syntax; other generated caption forms diagnose.
-Field constraints preserve authored labels and translations.
+source locale and checked ICU syntax; other generated caption forms diagnose. Field constraints preserve authored labels and translations.
 
 A prompted row-bound view may declare canonical `card` roots, checked `edit`,
 `delete`, `form`, `action`, `actions` and `button` controls, `text`, `content` and
@@ -76,13 +74,11 @@ source-owned card is passed whole as one opaque binding, including its content,
 primary footer and secondary heading menu. The generated renderer must preserve
 that complete binding; it cannot extract or reposition nested controls. A view
 is not an action owner: `primary` and `secondary` need a canonical owner such as
-a card, and existing form-submission and placement restrictions still apply.
-Slots, nested `show`, arbitrary props, caller capture and cross-package view
+a card, and existing form-submission and placement restrictions still apply. Slots, nested `show`, arbitrary props, caller capture and cross-package view
 exports remain excluded at any depth.
 
 The compiler evaluates the row once, applies whole-view guards before rendering,
-and pre-renders direct children in source order through their canonical factories.
-Bindings use the source child kind (`card`, `edit`, `delete`, `form`, `action`,
+and pre-renders direct children in source order through their canonical factories. Bindings use the source child kind (`card`, `edit`, `delete`, `form`, `action`,
 `actions`, `button`, `text`, `content`, `history`), with repeated names suffixed
 `2`, `3`, and so on. An action button retains `button` even when its factory
 implementation is a protected form. A local guard may produce an empty binding;
@@ -272,12 +268,6 @@ The human clarification removes dedicated prompted When generation: ordinary sce
 | D4 | Accepted constraints: compiler-visible contracts, trusted application JS targeting workerd, checked wrappers, canonical authority/storage/transaction/replay, ordered admitted effects, exact values, truthful maps and finite actual-target checks. Codex-selected checked owner-versioned producer schemas, exact contracts and canonical wrapper admission; initial `state.unique-key@1` does not limit future owner-integrated producers |
 | D5 | Existing-element ownership/part hooks, scoped selectors with ordinary inheritance and explicit child-host boundaries; checked-use graph inspection |
 | D6 | Versioned JSON dispatcher and `accept=true`, custom build-time MCP submission without direct generator file writes, cooperative leases and snapshotting build readers retained. Manual retry is full fresh active-app regeneration without per-prompt selection. Codex-selected compatible-recipe jobs with whole-Then context, all-required-output validation/acceptance and one run journal; partial failure preserves current groups; earlier selected-attempt retry and unit-only batch assumptions are superseded for retry |
-
-### Consultation history
-
-All six groups were consulted on 13 October 2026 through three independently worded requests each: 18 requests covering 25 subchoices and returning 75 judgments. The [consultation summary](../design/jev/build-generation-decisions-20261013/summary.md) records the complete scope, probabilities, confidence, source-based disagreement investigation and original requests/responses.
-
-The consultation consistently favored five concrete alternatives, left two subchoices open and split on 18. The human subsequently adopted the concrete design above, including explicit trust/inheritance/concurrency boundaries. Advice remains historical evidence; adoption is the human's decision, not a claim of JEV consensus or implementation qualification. The earlier consultation addressed a narrower Given question and does not establish authority for the corrected keyword requirement or resolve the subsequently frozen D1/D4 design. Its prompted When advice is also superseded by the human requirement to author ordinary bodies in Can. Earlier adoption of targeted same-capture retry is historical and superseded by the full fresh retry revision; it did not resolve D6 regrouping. The [launch consultation](../design/jev/build-generation-launch-20261013/summary.md) separately advises the Codex-selected v1 contract; its weak/split keyword-surface advice is not consensus or implementation qualification.
 
 ## Initial exclusions
 

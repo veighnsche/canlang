@@ -1,25 +1,15 @@
 # Developer setup (fresh machine)
 
-Repository organization is tracked in the [living ideal file-tree plan](ideal-filetree-plan.md). After every merge, its handler reconciles changes since the checkpoint and updates the plan; its proposals remain deferred until separately authorized.
+The [architecture guide](ideal-filetree-plan.md) explains repository responsibilities and implementation direction.
 
-Verified verbatim on macOS on 2026-10-04 from a clean clone (commit
-`173e4b6`, lane-07 status holds the evidence log; bun-workspace commands
-re-verified locally the same day during the npm-to-bun migration). Linux
-CI runs the same commands via `.github/workflows/integration.yml`.
-
-The 2026-10-06 [Turbo scheduling round](implementation/turbo-scheduling/README.md)
-updates the workspace commands below. Its cache proof and runtime results have
-their own source/tool pins; the original fresh-clone qualification above remains
-historical evidence.
+Use the workspace commands below for local development. [Build scheduling](implementation/turbo-scheduling/README.md) explains producer dependencies and cache ownership.
 
 ## Prerequisites
 
 - Bun 1.4.2 (`bun --version`) for installs and script runs, plus
   Node.js >= 22 (`node --version`) as the JS runtime: builds and tests
-  still execute under Node, invoked through `bun run`.
-  Node 24 is the verified runtime test profile. Turbo 2.11.7 installs from
-  the frozen Bun lock; public tasks verify the Bun and Turbo pins.
-  The workerd binary downloads on first install; no Cloudflare account or
+  still execute under Node, invoked through `bun run`. Node 24 is the verified runtime test profile. Turbo 2.11.7 installs from
+  the frozen Bun lock; public tasks verify the Bun and Turbo pins. The workerd binary downloads on first install; no Cloudflare account or
   credentials are needed for local build/test/dev.
 - Rust toolchain 1.99.0 for the `can` compiler (`rustup toolchain install 1.99.0`).
 - Python 3.12+ for the language tools (`python3 --version`).
@@ -46,8 +36,7 @@ are cacheable. Run one producer closure with
 
 `bun run verify:turbo-cache` creates an isolated snapshot and frozen install,
 then verifies the actual graph, restoration of every output byte and file mode,
-upstream invalidation, source rollback/deletion and failed-producer blocking.
-It preserves its raw evidence in the temporary directory printed on completion.
+upstream invalidation, source rollback/deletion and failed-producer blocking. It preserves its raw evidence in the temporary directory printed on completion.
 `bun run build:uncached` disables both cache reads and writes for reproducibility
 checks. Cached builds use `.turbo/cache` locally; remote caching is disabled.
 
@@ -104,13 +93,12 @@ compiler build, against the PR base or previous push commit; a manual CI run use
 the initial baseline commit. Missing parsers, incompatible versions and reported
 parse errors fail the check.
 
-[`complexity-baseline.json`](../scripts/complexity-baseline.json) freezes existing
+`complexity-baseline.json` freezes existing
 scores above 20 at commit `68c826de7c6e3fbd50fc7cfba9865ebea4213e13`. Only changed
 function bodies are checked. An existing hotspot may stay or shrink, but its
 allowance is capped by both the frozen baseline and its score at the comparison
 commit, so reductions cannot regress within that comparison. New identities have
-no legacy allowance. Scores 11–20 are advisory; violations exit nonzero.
-[`complexity-exceptions.json`](../scripts/complexity-exceptions.json) accepts
+no legacy allowance. Scores 11–20 are advisory; violations exit nonzero. `complexity-exceptions.json` accepts
 entries with `file`, the exact `identity` printed by the check, integer `max`, and
 a specific `reason`. Review that rationale and cap with the implementation; do
 not raise/reseed the baseline to silence new violations. Existing debt is not a
@@ -120,8 +108,7 @@ Both metrics start at one per concrete function/method/closure, counting nested
 bodies separately. Rust adds `if`, `while`, `for`, `?`, `&&`, `||`, match guards
 and match-arm count minus one; unconditional `loop` and or-pattern alternatives
 add nothing. **Macros, including `matches!`, are unexpanded**; non-test platform
-cfg branches are counted together, and `cfg_attr` is conservatively retained.
-Rust-analyzer's source parser does not expose every recovery diagnostic, so this
+cfg branches are counted together, and `cfg_attr` is conservatively retained. Rust-analyzer's source parser does not expose every recovery diagnostic, so this
 check does not replace compilation. TypeScript adds conditionals, loops, catch,
 nondefault switch cases, `&&`/`||`/`??`, logical assignments, optional-chain hops
 and parameter/destructuring defaults. Module/class-field/static initialization
@@ -149,8 +136,7 @@ bun run verify:installed-types
 builds, then checks version lockstep, writes the release manifest, and verifies
 both the recorded digest and byte count for each file uncached. The manifest
 builder records each path once across repeated or overlapping selected roots
-and refuses conflicting captures; verification refuses duplicate recorded paths.
-It validates the package tree without packing or publishing.
+and refuses conflicting captures; verification refuses duplicate recorded paths. It validates the package tree without packing or publishing.
 `release:stamp`, `release:manifest`, and `release:verify` are direct
 checks of an already built tree; use `release` to prepare it.
 
@@ -169,7 +155,7 @@ in an outside-checkout consumer with Bun’s isolated linker, then uses TypeScri
 export must resolve inside that consumer, expose symbols and use declared owned
 dependencies. Can declarations and the consumer fixture must have no diagnostics;
 missing/corrupt declaration controls must fail the same gate. Add `--skip-build`
-to check existing outputs. The [installed type evidence](implementation/turbo-scheduling/evidence/final-acceptance/types/README.md)
+to check existing outputs. The installed type evidence
 records the scope: 150 typed exports across 13 owners pass, while all 797
 Miniflare 4.20260730.0 SDK declaration diagnostics remain visible. This is a
 scoped Can/consumer result; whole-program strict library checking does not pass.
@@ -186,8 +172,7 @@ does not establish other hosts or original native application acceptance.
 ## Run one example app locally
 
 For current protected dev-preview screenshots and the complete draft inventory,
-use the [draft frontend validation runbook](draft-frontend-validation.md).
-It separates source checking, live browser smoke checks and still-open full-app acceptance.
+use the [draft frontend validation runbook](draft-frontend-validation.md). It separates source checking, live browser smoke checks and still-open full-app acceptance.
 
 The [prompt pipeline fixture](../tests/fixtures/prompt-pipeline/README.md)
 uses the native `can` CLI for generation and full app validation:
@@ -203,10 +188,8 @@ can validate PromptStudio.can
 ```
 
 Its committed recipes request Codex `gpt-6.1-sol` with medium reasoning for
-Given contributions and frontend code. Generation requires native Codex login.
-Set `CAN_CODEX_BIN` to an absolute executable path when selecting a supported
-installed client explicitly; doctor and execution use the same selection.
-There is no automatic model substitution. Ordinary compilation and the dev
+Given contributions and frontend code. Generation requires native Codex login. Set `CAN_CODEX_BIN` to an absolute executable path when selecting a supported
+installed client explicitly; doctor and execution use the same selection. There is no automatic model substitution. Ordinary compilation and the dev
 server consume saved outputs without invoking a coding agent.
 
 The generator receives an immutable source snapshot and submits logical outputs
@@ -220,8 +203,7 @@ are retained under the app's `.can/gen/checks/` directory. Submissions alone nev
 overwrite working code.
 `can gen PromptStudio.can --retry` deliberately regenerates all prompts in this
 app. Default generation reuses fresh saved units and validates the whole app
-without AI; `can validate` always checks saved output without generation.
-Both commands work from the repository root with the full source path, discover
+without AI; `can validate` always checks saved output without generation. Both commands work from the repository root with the full source path, discover
 the built platform automatically, and accept `--format=json`. The platform's
 JavaScript runtime remains an internal dependency; users do not invoke it or a
 fixture wrapper. Acceptance screenshots remain with their `.can/gen/checks/`

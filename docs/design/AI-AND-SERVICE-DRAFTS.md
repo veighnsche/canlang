@@ -130,7 +130,7 @@ This is a broad developer-platform coverage map, not every Cloudflare account pr
 
 ## JEV comparison and next experiments
 
-Three fully reworded consultations compared provider-shaped typed interfaces, standard domain contracts and dedicated core syntax. Choices were **shared, generic, shared**. Returned probabilities and confidence, all requests/responses, the framing correction and disagreement analysis are in [the consultation record](jev/business-ai-boundary-20261004/review.md). No majority vote settled the grammar.
+Choices were **shared, generic, shared**. Returned probabilities and confidence, all requests/responses, the framing correction and disagreement analysis are in the consultation record. No majority vote settled the grammar.
 
 The useful next draft round is three independent lanes:
 

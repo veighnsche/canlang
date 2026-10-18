@@ -2,7 +2,7 @@
 
 Planning only, inspected at `08dc8c3928f53c7a06984136ac52ff944360075c` (18 October 2026). No product edit, build, dependency install, test execution, Git mutation, native-preparation release or JEV call. The parent owns cross-package decisions. Existing selected recovery and original Images durable acceptance are credited, not reopened.
 
-The companion [coverage inventory](state-work-coverage.json) enumerates all **402 tracked paths**: 139 production-source artifacts, 246 test/fixture artifacts and 17 package/build artifacts. All production named-function/import outlines and the supporting test inventory were inspected; larger mixed-file bodies were inspected at the candidate and authority/serialization/demand seams, with ranges recorded. This is a complete responsibility inventory with targeted source-body inspection, not a claim that every line or every test assertion was reviewed. No runtime behavior or performance was executed here.
+The companion coverage inventory enumerates all **402 tracked paths**: 139 production-source artifacts, 246 test/fixture artifacts and 17 package/build artifacts. All production named-function/import outlines and the supporting test inventory were inspected; larger mixed-file bodies were inspected at the candidate and authority/serialization/demand seams, with ranges recorded. This is a complete responsibility inventory with targeted source-body inspection, not a claim that every line or every test assertion was reviewed. No runtime behavior or performance was executed here.
 
 ## Recommendation
 

@@ -8,11 +8,9 @@ records. Library suitability and later implementation remain separate work.
 Audit method: tests are observed behavior; required outcomes need explicit
 product, public-interface, persisted-protocol or security authority. Exported
 APIs need compatibility consideration, but do not normatively freeze every body
-quirk. A temporary selected parity gate is scoped, not a permanent requirement.
-Equivalent mechanism replacement is distinct from an incompatible transition.
+quirk. A temporary selected parity gate is scoped, not a permanent requirement. Equivalent mechanism replacement is distinct from an incompatible transition.
 
-Root review corrects conservative classification and citation precision only.
-Deliberate unjoined auth/query/test-loader scaffolds are required product gaps,
+Root review corrects conservative classification and citation precision only. Deliberate unjoined auth/query/test-loader scaffolds are required product gaps,
 not accidental bugs. State JSON stringify normalization is observed, but an
 actual admitted corrupted payload was not demonstrated; its input-domain policy
 remains unresolved. No new redesign was selected and no JEV round was repeated.

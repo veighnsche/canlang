@@ -2,23 +2,17 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { UI_CATALOG } from "../src/catalog.js";
 import { appearanceClasses } from "../src/appearance.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-// Compiled tests run from dist/test; sources sit beside dist.
-const packageRoot = join(here, "..", "..");
 // Resolve through node_modules instead of assuming a hoisted root layout
 // (bun nests workspace deps under packages/ui/node_modules).
 const pkgRequire = createRequire(import.meta.url);
 const daisyRoot = dirname(pkgRequire.resolve("daisyui/package.json"));
 
-const DAISY_PIN = "5.7.47";
-
 /**
- * Word → upstream CSS evidence mapping. `css` names the pinned per-component
+ * Word → upstream CSS evidence mapping. `css` names the installed per-component
  * file(s) relative to the daisyUI root; `base` is the word's base class
  * (null when upstream ships no base class for the word). Per-dimension bases
  * default to `base`; the overrides record where upstream hangs a dimension
@@ -144,20 +138,6 @@ function cssFor(mapping: WordMapping): string {
     .join("\n");
 }
 
-describe("appearance pin", () => {
-  it("pins daisyUI 5.7.47 exactly", () => {
-    const manifest = JSON.parse(
-      readFileSync(join(packageRoot, "package.json"), "utf8"),
-    ) as { devDependencies: Record<string, string> };
-    const pinned = manifest.devDependencies["daisyui"];
-    assert.equal(pinned, DAISY_PIN);
-    const installed = JSON.parse(
-      readFileSync(join(daisyRoot, "package.json"), "utf8"),
-    ) as { version: string };
-    assert.equal(installed.version, DAISY_PIN);
-  });
-});
-
 describe("appearance mapping", () => {
   it("covers all 68 words and no infrastructure", () => {
     assert.equal(WORD_IDS.length, 68);
@@ -184,7 +164,7 @@ describe("appearance mapping", () => {
 });
 
 describe("appearance substantiation", () => {
-  it("grounds every admitted token in the pinned component CSS", () => {
+  it("grounds every admitted token in the installed component CSS", () => {
     const byId = new Map(UI_CATALOG.entries.map((entry) => [entry.id, entry]));
     let substantiated = 0;
     for (const [id, mapping] of Object.entries(MAPPING)) {

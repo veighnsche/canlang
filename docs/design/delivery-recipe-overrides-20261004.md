@@ -1,6 +1,6 @@
 # Initial delivery recipe selectors
 
-This is a focused draft-contract decision, with a [Can witness](jev/delivery-recipe-overrides-20261004/witness.can), [desired JavaScript witness](jev/delivery-recipe-overrides-20261004/witness.mjs), and [three saved consultations](jev/delivery-recipe-overrides-20261004/README.md#source-wording-check). Shared DESIGN/GRAMMAR and application files are deliberately unchanged in this lane. Nothing here implements provisioning or a runner.
+This is a focused draft-contract decision, with a Can witness, desired JavaScript witness, and three saved consultations. Shared DESIGN/GRAMMAR and application files are deliberately unchanged in this lane. Nothing here implements provisioning or a runner.
 
 ## Verified problem and alternatives
 
@@ -20,13 +20,11 @@ The third is an existing local optimization, not a smaller general solution. A m
 
 Adopt **direct initial selectors for the whole `status`, `result` and `error` attributes of a named delivery recipe in an ordinary isolated table**. Reuse the existing path notation and simultaneous override rules. This revises the explicit recipe restriction; it is not a claim that the current contract already permits it.
 
-All three independently rewritten JEV requests choose `initial_selectors`:
-
 | Run | Confidence | Initial selectors | Separate recipes | Factor existing fields |
 | --- | ---: | ---: | ---: | ---: |
-| [1](jev/delivery-recipe-overrides-20261004/1.result.json) | 0.72 | 0.81 | 0.14 | 0.04 |
-| [2](jev/delivery-recipe-overrides-20261004/2.result.json) | 0.91 | 0.94 | 0.05 | 0.01 |
-| [3](jev/delivery-recipe-overrides-20261004/3.result.json) | 0.93 | 0.95 | 0.03 | 0.02 |
+| 1 | 0.72 | 0.81 | 0.14 | 0.04 |
+| 2 | 0.91 | 0.94 | 0.05 | 0.01 |
+| 3 | 0.93 | 0.95 | 0.03 | 0.02 |
 
 There is no categorical disagreement. The first response retains material preference for the simpler existing setup contract; its probabilities total 0.99 and are preserved without renormalization. No confidence threshold was applied. The remaining concern is whether an implementation can make baseline planning and final provisioning explicit without accidentally editing an already-published receipt. The exact phase boundary below addresses the design issue; it is not implementation evidence. JEV supplies advice, not proof.
 
@@ -65,7 +63,7 @@ An implementation may prepare internal views or isolated staging differently, bu
 
 ## Source and desired target correspondence
 
-The [witness](jev/delivery-recipe-overrides-20261004/witness.can) uses one Mail recipe and one file-result recipe, each with a complete fixed request and pending defaults. Two ordinary guarded read operations return the current associated status or file result. Three tables have ten independent expected rows: all five transport states, unknown with/without a safe diagnostic, no selected receipt, and successful/failed/unknown file results. Every row also asserts that the immutable approved domain decision remains unchanged. File success uses the existing finalized `file {}` fixture; successful setup still depends on the provenance checks above.
+The witness uses one Mail recipe and one file-result recipe, each with a complete fixed request and pending defaults. Two ordinary guarded read operations return the current associated status or file result. Three tables have ten independent expected rows: all five transport states, unknown with/without a safe diagnostic, no selected receipt, and successful/failed/unknown file results. Every row also asserts that the immutable approved domain decision remains unchanged. File success uses the existing finalized `file {}` fixture; successful setup still depends on the provenance checks above.
 
 The JavaScript has the same canonical targets and `delivery` recipe discriminator, dependencies, deferred normalized request `values`, table `selectors`, row `values` and independent `expected` callbacks. There is no new override descriptor or helper. `s.mail_attempt` remains a protected typed reference once final setup is provisioned; the selector string is declaration metadata interpreted by the test planner, not a JavaScript property assignment. Production reads retain `delivery(c,{record:item,field:"notice"},["status"])` and the analogous explicit result property set, with existing record/leaf authorization and receipt fences. Production operations contain no recipe-write capability.
 

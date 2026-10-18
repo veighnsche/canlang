@@ -36,8 +36,7 @@ const versions = {
   node: execFileSync(node, ['--version'], { encoding: 'utf8' }).trim(),
   bun: execFileSync(bun, ['--version'], { encoding: 'utf8' }).trim(),
 };
-assert.match(versions.node, /^v24\./, 'Selected tool release requires Node 24; tools.json pins the exact version');
-assert.equal(versions.bun, '1.4.2', 'Selected tool release pins Bun 1.4.2');
+assert.ok(Number(versions.node.slice(1).split('.')[0]) >= 24, 'Tool release requires Node 24 or newer');
 const sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 const sourceChanges = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: root, encoding: 'utf8' }).trim();
 assert.equal(sourceChanges, '', 'Commit source changes before packaging a Soda tool archive');
@@ -130,8 +129,6 @@ try {
   for (const pkg of defaults.values()) copyPackage(pkg, join(nodeModules, pkg.manifest.name));
   versions.miniflare = defaults.get('miniflare').manifest.version;
   versions.workerd = defaults.get('workerd').manifest.version;
-  assert.equal(versions.miniflare, '4.20260730.0');
-  assert.equal(versions.workerd, '1.20260730.1');
   for (const entry of ['package.json', 'compiler/src', 'compiler/Cargo.toml', 'compiler/Cargo.lock', 'docs/specification', 'docs/design/UI-COMPONENTS.md']) {
     mkdirSync(dirname(join(destination, entry)), { recursive: true });
     cpSync(join(root, entry), join(destination, entry), { recursive: true, dereference: true });

@@ -8,31 +8,25 @@ without a compile error: tab captions/children, preference ordering and corpus
 declarations. These are open compiler correctness findings, not successful
 qualification of those workflows.
 
-The single authoritative [coverage ledger](coverage.jsonl) adds 27 syntax-family
-rows, eight finding/repair rows and their current source, witness and review joins.
-[Complete production inventory](syntax-evidence/inventory.json),
-[family/stage view](syntax-evidence/forms.json) and
-[recovery trace](syntax-evidence/recovery.json) are supporting views.
-All 186 named normative EBNF productions (including full multiline alternatives),
-119 `SyntaxKind` variants and four `NodeDetail` variants are accounted for.
-The 68 declared catalog words, 75 `HeaderKind` attribute-rule lines and 21 custom
-key-form records have explicit admission/stage owners and limitations.
-Abstract grammar notation, contextual alternatives and recovery carriers are
-distinguished from executable forms. No unassigned production or kind remains.
-This maps every finite form through subsequent ownership; it does not claim
+Complete production inventory,
+family/stage view and
+recovery trace are supporting views. All 186 named normative EBNF productions (including full multiline alternatives),
+119 `SyntaxKind` variants and four `NodeDetail` variants are accounted for. The 68 declared catalog words, 75 `HeaderKind` attribute-rule lines and 21 custom
+key-form records have explicit admission/stage owners and limitations. Abstract grammar notation, contextual alternatives and recovery carriers are
+distinguished from executable forms. No unassigned production or kind remains. This maps every finite form through subsequent ownership; it does not claim
 independent execution of every grammar branch or attribute/value/context
 cross-product.
 
 Compiler source remains `1fd07722090fe70228a6b661e3c6e136275ca84b`; collection HEAD
 was `f3dd798c`, followed by early audit commit `b2f22749`. All 107 compiler inputs
-match Step 1. [Collection inputs](syntax-evidence/inputs.json) pin 119
+match Step 1. Collection inputs pin 119
 compiler/corpus/catalog/contracts/allocation files; source, catalog and corpus
 remain unchanged. The recorded DECISIONS prefix is historical context before the
-isolated Step 7 append. [Runtime prerequisites](syntax-evidence/runtime-inputs.json)
+isolated Step 7 append. Runtime prerequisites
 pin 550 installed workspace files and package link destinations separately from
 source/build parity. Economical Sol medium workers trace forms/recovery and
 independently challenge the conclusions; Luna medium inventories and mechanically
-validates facts. The same-day [researched allocation](../model-allocation-20261007.md)
+validates facts. The same-day researched allocation
 is reused. No stronger worker setting or comparative model/cost measurement was
 needed.
 
@@ -59,8 +53,7 @@ gaps. A source reference is navigation; the row's limits determine its acceptanc
 General source string interpolation has no grammar production. ICU interpolation
 belongs to later message-pattern checking. `each=` is recovered with E1203; the
 two draft exceptions are not supported fanout admission. Source query `limit` has
-no production even though downstream IR contains a corresponding branch.
-Prototype deferral prose and DESIGN's original “unimplemented” status do not
+no production even though downstream IR contains a corresponding branch. Prototype deferral prose and DESIGN's original “unimplemented” status do not
 describe current Rust admission; the independent Python prototype has its own
 bounded role.
 
@@ -80,8 +73,7 @@ and string payloads. See
 [`flat_expression_runtime.rs`](../../../../compiler/tests/flat_expression_runtime.rs),
 [`selected_calls.rs`](../../../../compiler/tests/selected_calls.rs),
 [`bdd_binding_runtime.rs`](../../../../compiler/tests/bdd_binding_runtime.rs), and
-[`string_payload_runtime.rs`](../../../../compiler/tests/string_payload_runtime.rs).
-These witnesses qualify named native callable/recorded profiles; they do not
+[`string_payload_runtime.rs`](../../../../compiler/tests/string_payload_runtime.rs). These witnesses qualify named native callable/recorded profiles; they do not
 establish full backend, transport, UI, host or all-source behavior. The Python
 parser remains a separate syntax prototype with known corpus drift; its
 historical 44-source count does not establish current syntax parity.
@@ -102,8 +94,7 @@ captions; transient tabs;
 `fieldset` and `join`; named slots for modal, drawer and `chat_bubble`; named
 main/action children for FAB; forms through the existing `prepareForm` runtime
 path; and `list`/`table` under a named model and query scope. Structural `slot`
-and tab-item nodes are internal carriers, not standalone imported factories.
-The generic catalog fallback and incomplete legacy `action`, `actions`,
+and tab-item nodes are internal carriers, not standalone imported factories. The generic catalog fallback and incomplete legacy `action`, `actions`,
 `edit`, `history`, `copy`, `metrics`, `breadcrumbs` and `pagination` profiles
 now fail explicitly with E6008. Source options the owning factory does not
 consume, along with unavailable header and child forms, are diagnosed rather
@@ -147,20 +138,17 @@ tests were repeated or new evidence packets created.
 
 ## Executed witnesses
 
-[Execution receipt](syntax-evidence/execution.json) captures a fresh
+Execution receipt captures a fresh
 `cargo build --locked --offline --manifest-path compiler/Cargo.toml --lib --bin can`
 and selects Cargo-reported rlibs for the audit observer. Native Rust/Cargo/Node
-versions, command arguments/cwd, stdout/stderr/exits and library hashes are saved.
-The observer uses the real catalog, `CatalogAnalyzer` owned result and production
+versions, command arguments/cwd, stdout/stderr/exits and library hashes are saved. The observer uses the real catalog, `CatalogAnalyzer` owned result and production
 `EmitOptions`; it never manually asserts complete analysis or emits through an
 analysis-error gate.
 
 - Eight focused suites (`syntax`, `b4_parse`, `analysis`, `check`, `effects`,
   `codegen`, `format`, `string_payload_runtime`): **330 harness passes, zero
-  failures, no reported SKIP**. A separate `--lib syntax::` run adds **15 passes**.
-  This is 345 selected passes, not the whole current suite or every optional branch.
-- The real compiler/testkit fixture prints all six executed string witness lines.
-  Defaults, metadata and example setup/observation closures retain independent
+  failures, no reported SKIP**. A separate `--lib syntax::` run adds **15 passes**. This is 345 selected passes, not the whole current suite or every optional branch.
+- The real compiler/testkit fixture prints all six executed string witness lines. Defaults, metadata and example setup/observation closures retain independent
   controls/BMP/supplementary scalar expectations. App operations, full application
   admission and installed release are outside this fixture.
 - [Forty initial cases](syntax-evidence/cases.json) use pre-execution independent
@@ -170,17 +158,15 @@ analysis-error gate.
 - [Ten added controls](syntax-evidence/extra-cases.json) qualify policy/source
   metadata, tab/order/corpus/judgment through public stages. Fourteen actual CLI
   `check`/`compile` calls corroborate their results. Two more CLI byte-ingress calls
-  reject malformed UTF8 as E7002/exit2 stderr tool errors, even with `--format=json`.
-  This differs deliberately from the public lexer error. The initial capture
+  reject malformed UTF8 as E7002/exit2 stderr tool errors, even with `--format=json`. This differs deliberately from the public lexer error. The initial capture
   mistakenly assumed JSON stdout for an early tool error; its output and capture
-  correction are preserved in [byte admission](syntax-evidence/byte-cli-admission.json).
-- [Post-observation outcome checks](syntax-evidence/outcome-verification.json)
+  correction are preserved in byte admission.
+- Post-observation outcome checks
   add independent E1 rejection, Unicode byte anchors, exact default/description
   values, raw owner prose and clean-result emission assertions after reviewer
   challenge: **76 checks, 69 passes, seven intentional defect mismatches**. These
-  are explicitly later assertions, not claimed as pre-execution expectations.
-  Tab checks inspect executable JS, excluding source-map `sourcesContent`.
-- [Fresh corpus stage replay](syntax-evidence/corpus-observations.json) covers all
+  are explicitly later assertions, not claimed as pre-execution expectations. Tab checks inspect executable JS, excluding source-map `sourcesContent`.
+- Fresh corpus stage replay covers all
   54 pinned files: 54 full byte coverage, 52 parse-clean, two check-clean; emission
   is attempted only for those two. ExpenseFlow has no emission diagnostic;
   TeamTasks reports two E6008s. The two parse failures retain their known
@@ -196,12 +182,10 @@ checked unchanged after execution. This host is macOS arm64 only.
 
 ## Findings and bounded repair packets
 
-The landed resolver/header recovery fix `4ecd991a` is retained and freshly covered.
-Closed malformed declarations, bad Unicode/code characters, invalid units,
+The landed resolver/header recovery fix `4ecd991a` is retained and freshly covered. Closed malformed declarations, bad Unicode/code characters, invalid units,
 unknown/lone-surrogate escapes, bad description references/indentation and
 mismatched closers preserve E3002 at `1 + true` and E2001 at `nope`. CRLF and final
-implicit newline variants also pass. ICU E5007 survives a malformed sibling.
-These successes do not cover the residual per-pass gates below.
+implicit newline variants also pass. ICU E5007 survives a malformed sibling. These successes do not cover the residual per-pass gates below.
 
 | ID / priority | Demonstrated outcome and exact writer | Required outcome / allocation |
 | --- | --- | --- |
@@ -214,8 +198,7 @@ These successes do not cover the residual per-pass gates below.
 | SYN-R07 / next admission packet | Generic UI accepts arbitrary words/attributes; mystery component checks clean then emits E6008. Only 20/68 catalog words directly match the JS factory whitelist after spelling adaptation; this is availability, not complete profiles. | Qualify finite component/option/header/child profiles with actual owners. Known unavailable forms must report clearly; adding factory words alone cannot complete semantics. Sol medium; parser/types/IR/JS writers and producer profile release coordinated. Preserve fail-closed emission. |
 | SYN-R08 / maintenance and witnesses (historical finding at pinned audit source) | At the pinned Step 7 source, Decimal expressions were checked but emitted E6008; other partial families/consumer joins and prototype prose had explicit gaps. Green source goldens did not prove execution. | Maintenance update above reconciles the landed Decimal and named runtime witnesses with current prose. Remaining partial families and consumer joins retain their stated gaps; this historical row does not claim their completion. |
 
-SYN-R01 and R02 are independent of delimiter policy and new language features.
-R03/R04 share the IR writer and must serialize. R05/R07 require released owner
+SYN-R01 and R02 are independent of delimiter policy and new language features. R03/R04 share the IR writer and must serialize. R05/R07 require released owner
 boundaries; unresolved support blocks that packet, not independent correctness
 repairs. Repair acceptance is about restored outcomes and retired masking/loss
 mechanisms, with the existing complete-closure production-reduction goal still
@@ -223,12 +206,12 @@ binding. No large compatibility or secondary recovery engine is proposed.
 
 ## Review and limits
 
-[Independent Sol review](syntax-evidence/cross-review.json) records its own
+Independent Sol review records its own
 source/raw-outcome trace before consulting the primary conclusions, then verifies
 corrected full grammar ranges, actual import owners, custom key scopes, negative
-admission and positive artifact assertions. [Luna checks](syntax-evidence/validation-luna.json)
+admission and positive artifact assertions. Luna checks
 validate finite inventories, ranges, source/corpus hashes and links;
-[integrated validation](syntax-validation.json) validates the extended shared
+integrated validation validates the extended shared
 ledger and final evidence. Source mapping, executed evidence, independent review
 and proposed writer/allocation are separate dimensions. Complete finite mapping
 and bounded execution/review are accepted; whole semantic/oracle/resource/host
@@ -237,6 +220,5 @@ and installed/original-app qualification remain open.
 No compiler, package, dependency, public API, grammar or policy implementation is
 changed. These fixtures are saved audit regression candidates; promotion is part
 of their repair packet. No JEV decision was needed to expose existing contract
-violations; new consequential synchronization/support alternatives remain gated.
-Whole compiler production remains 69,255 versus original 69,119 (+136), with zero
-Step 7 production change. No merge or living-plan checkpoint advancement occurs.
+violations; new consequential synchronization/support alternatives remain gated. Whole compiler production remains 69,255 versus original 69,119 (+136), with zero
+Step 7 production change.

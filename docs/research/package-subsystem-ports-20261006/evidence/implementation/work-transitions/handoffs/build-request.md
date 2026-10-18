@@ -1,7 +1,6 @@
 # W02.1 — Build/bun.lock request to the shared graph owner (C04.graph)
 
-From: work-transitions W02.1 (session 01a10fab-cc9d-7331).
-Head at authoring: `2071631`. No shared manifest, platform
+From: work-transitions W02.1 (session 01a10fab-cc9d-7331). Head at authoring: `2071631`. No shared manifest, platform
 global, or consumer file was edited by W02.1; the changes below
 are requested, not made.
 

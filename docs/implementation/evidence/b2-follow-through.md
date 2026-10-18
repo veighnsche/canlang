@@ -1,7 +1,6 @@
 # B2 follow-through evidence (sole-implementer sprint)
 
-Branch: `muse/closeout/lane6-e2e`. Base: `origin/main` 8249342 (#123).
-Context: Vince dissolved lane boundaries — all ex-lane-6/7 + B2 work
+Branch: `muse/closeout/lane6-e2e`. Base: `origin/main` 8249342 (#123). Context: Vince dissolved lane boundaries — all ex-lane-6/7 + B2 work
 done here. Six workstreams, four subagents + coordinator fixes.
 
 ## F2: PresentationContext constructor (ex-lane-6)

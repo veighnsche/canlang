@@ -1,6 +1,6 @@
 # C04F verified-context policy consultation
 
-Three independently worded equivalent `choice` requests compared the same caller closure, published candidate APIs, macOS/Linux profile, observed old behavior and balanced alternatives. They used `jev-latest`, returned `jev-1.13.0`, and are saved as request/response 1–3 beside this assessment. Their advice selects project policy; it is not regression or library-qualification evidence.
+They used `jev-latest`, returned `jev-1.13.0`, and are saved as request/response 1–3 beside this assessment. Their advice selects project policy; it is not regression or library-qualification evidence.
 
 | Boundary | Requests 1 / 2 / 3 | Reported confidence | Selected policy |
 | --- | --- | --- | --- |

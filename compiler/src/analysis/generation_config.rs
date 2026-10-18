@@ -722,8 +722,7 @@ fn resolve_base_row(
                 Ok(shared_base(&found.settings.shared, &describe_settings))
             }
             None => {
-                let known: Vec<&str> =
-                    found.settings.profiles.keys().map(String::as_str).collect();
+                let known: Vec<&str> = found.settings.profiles.keys().map(String::as_str).collect();
                 let hint = if known.is_empty() {
                     "the settings define no profiles".to_string()
                 } else {
@@ -861,10 +860,9 @@ fn check_native_scalars(native: &BTreeMap<String, serde_json::Value>) -> Result<
 /// Advertisement state of one required adapter capability.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CapabilityStatus {
-    /// Qualified with the named evidence (adapter help/docs plus an
-    /// observed bounded run); the capability may launch.
+    /// Implemented by this adapter; the capability may launch.
     Supported {
-        /// What qualifies the claim (evidence pointer).
+        /// How the adapter provides the capability.
         detail: &'static str,
     },
     /// The adapter cannot provide this capability; selection fails
@@ -872,13 +870,6 @@ pub enum CapabilityStatus {
     Unsupported {
         /// Why the adapter cannot provide it.
         reason: &'static str,
-    },
-    /// Claimed by neither success nor failure yet: the owning
-    /// qualification gate has not released it, so selection fails
-    /// before launch exactly like an unsupported capability.
-    Unqualified {
-        /// Owning gate and release condition.
-        gate: &'static str,
     },
 }
 
@@ -888,16 +879,14 @@ impl CapabilityStatus {
         match self {
             CapabilityStatus::Supported { .. } => "supported",
             CapabilityStatus::Unsupported { .. } => "unsupported",
-            CapabilityStatus::Unqualified { .. } => "unqualified",
         }
     }
 
-    /// Evidence, reason, or gate text for envelopes.
+    /// Implementation detail or unsupported reason for envelopes.
     pub fn note(&self) -> &'static str {
         match self {
             CapabilityStatus::Supported { detail } => detail,
             CapabilityStatus::Unsupported { reason } => reason,
-            CapabilityStatus::Unqualified { gate } => gate,
         }
     }
 
@@ -961,19 +950,18 @@ impl AdapterCapabilities {
     }
 }
 
-/// Codex is qualified by retained native MCP and protected-write observations.
-/// Other required adapters remain gated until their own qualification; unknown
-/// native keys refuse before launch. See output/prompt-pipeline/codex-qualification.json.
+/// Implemented runner capabilities. Unsupported integrations fail before launch;
+/// generation requires both MCP attachment and protected-write enforcement.
 pub static ADAPTERS: &[AdapterCapabilities] = &[
     AdapterCapabilities {
         id: "codex",
         label: "Codex CLI",
         probe_binaries: &["codex"],
         mcp_attachment: CapabilityStatus::Supported {
-            detail: "BGI-05 native macOS Codex 0.162.0-alpha.17.2, gpt-6.1-sol/medium: three host MCP submissions; output/prompt-pipeline/codex-qualification.json",
+            detail: "Codex attaches the generation host MCP server",
         },
         write_restriction: CapabilityStatus::Supported {
-            detail: "BGI-05 native read-only sandbox denies source/current/candidate writes; isolated host tools; output/prompt-pipeline/codex-qualification.json",
+            detail: "Read-only sandbox denies source/current/candidate writes; isolated host tools",
         },
         session_resume: CapabilityStatus::Unsupported {
             reason: "Isolated ephemeral Codex generation has no persisted session; explicit new work is required",
@@ -988,14 +976,14 @@ pub static ADAPTERS: &[AdapterCapabilities] = &[
         id: "muse",
         label: "Muse Code",
         probe_binaries: &["muse"],
-        mcp_attachment: CapabilityStatus::Unqualified {
-            gate: "BGI-06 qualifies the Muse MCP attachment with observed bounded runs",
+        mcp_attachment: CapabilityStatus::Unsupported {
+            reason: "Muse MCP attachment is not implemented",
         },
-        write_restriction: CapabilityStatus::Unqualified {
-            gate: "BGI-06 qualifies Muse no-write enforcement over protected roots",
+        write_restriction: CapabilityStatus::Unsupported {
+            reason: "Muse protected-write enforcement is not implemented",
         },
-        session_resume: CapabilityStatus::Unqualified {
-            gate: "BGI-06 qualifies Muse recorded-session resume",
+        session_resume: CapabilityStatus::Unsupported {
+            reason: "Muse session resume is not implemented",
         },
         native_options: &[],
     },
@@ -1003,14 +991,14 @@ pub static ADAPTERS: &[AdapterCapabilities] = &[
         id: "claude-code",
         label: "Claude Code",
         probe_binaries: &["claude", "claude-code"],
-        mcp_attachment: CapabilityStatus::Unqualified {
-            gate: "BGI-06 qualifies the Claude Code MCP attachment with observed bounded runs",
+        mcp_attachment: CapabilityStatus::Unsupported {
+            reason: "Claude Code MCP attachment is not implemented",
         },
-        write_restriction: CapabilityStatus::Unqualified {
-            gate: "BGI-06 qualifies Claude Code no-write enforcement over protected roots",
+        write_restriction: CapabilityStatus::Unsupported {
+            reason: "Claude Code protected-write enforcement is not implemented",
         },
-        session_resume: CapabilityStatus::Unqualified {
-            gate: "BGI-06 qualifies Claude Code recorded-session resume",
+        session_resume: CapabilityStatus::Unsupported {
+            reason: "Claude Code session resume is not implemented",
         },
         native_options: &[],
     },
@@ -1018,14 +1006,14 @@ pub static ADAPTERS: &[AdapterCapabilities] = &[
         id: "opencode",
         label: "OpenCode",
         probe_binaries: &["opencode"],
-        mcp_attachment: CapabilityStatus::Unqualified {
-            gate: "BGI-06 qualifies the OpenCode MCP attachment with observed bounded runs",
+        mcp_attachment: CapabilityStatus::Unsupported {
+            reason: "OpenCode MCP attachment is not implemented",
         },
-        write_restriction: CapabilityStatus::Unqualified {
-            gate: "BGI-06 qualifies OpenCode no-write enforcement over protected roots",
+        write_restriction: CapabilityStatus::Unsupported {
+            reason: "OpenCode protected-write enforcement is not implemented",
         },
-        session_resume: CapabilityStatus::Unqualified {
-            gate: "BGI-06 qualifies OpenCode recorded-session resume",
+        session_resume: CapabilityStatus::Unsupported {
+            reason: "OpenCode session resume is not implemented",
         },
         native_options: &[],
     },
@@ -1038,9 +1026,8 @@ pub fn adapter_capabilities(runner: &str) -> Option<&'static AdapterCapabilities
 
 /// Pre-launch gate for one effective recipe: the adapter must affirm
 /// supported MCP attachment and enforceable write restrictions, and
-/// every native key must be documented by that adapter. Unqualified
-/// and unsupported capabilities fail identically before launch, with
-/// no direct-file fallback. BGI-05 runs this per compatible-recipe
+/// every native key must be supported by that adapter. Unsupported
+/// capabilities fail before launch, with no direct-file fallback. BGI-05 runs this per compatible-recipe
 /// job before spawning any runner; the dispatcher runs it during
 /// admission for single-recipe execution requests.
 pub fn preflight_recipe(recipe: &EffectiveRecipe) -> Result<(), ConfigError> {
@@ -1129,12 +1116,6 @@ fn check_launch_capability(
             "unsupported-capability",
             format!(
                 "runner `{runner}` cannot launch: {what} is unsupported ({reason}); refusing before launch without a direct-file fallback"
-            ),
-        )),
-        CapabilityStatus::Unqualified { gate } => Err(ConfigError::new(
-            "unsupported-capability",
-            format!(
-                "runner `{runner}` cannot launch: {what} is unqualified ({gate}); refusing before launch without a direct-file fallback"
             ),
         )),
     }

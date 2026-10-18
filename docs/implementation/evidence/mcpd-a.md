@@ -7,8 +7,7 @@ Date: 2026-10-05. Branch: `muse/closeout/mcp-deploy`. Packet: `/tmp/mcpd-scope.m
 New:
 
 - `packages/cloudflare/src/worker/main.ts` — deploy worker main. Default-exports
-  `{ fetch }`; P-B bundles the compiled `dist/worker/main.js` as the deploy main.
-  The fetch is the REAL `createWorkerApp` binding gate (`./entry.js`, dynamic
+  `{ fetch }`; P-B bundles the compiled `dist/worker/main.js` as the deploy main. The fetch is the REAL `createWorkerApp` binding gate (`./entry.js`, dynamic
   import) in front of the REAL `assembleWorker` dispatch (`./assembly.js`,
   dynamic import like P2's `loadSiblingFn` pattern), plus `POST /mcp/grants`
   routed to P-C's pinned `handleMcpGrant`. Loader injection
@@ -41,8 +40,7 @@ Untouched per scope: `src/deploy/*`, `src/cli/*`, `src/runtime/*`, `src/dev/*`,
 
 Load order inside assembly (staged first: no store is constructed — no DDL
 migrate — for a deploy whose payload never staged): staged deployment →
-`buildProductionDeps(env)` → MCP factory (optional) → `assembleWorker`.
-Assembly is cached per `env` object (production isolates reuse one `env`, so
+`buildProductionDeps(env)` → MCP factory (optional) → `assembleWorker`. Assembly is cached per `env` object (production isolates reuse one `env`, so
 they assemble once); loader failures evict so the next request retries.
 
 ## requiredBindings

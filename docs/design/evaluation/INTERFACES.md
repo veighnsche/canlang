@@ -4,18 +4,18 @@
 
 ## Scope, evidence and method
 
-Authority: live [EVALUATION.md](../../EVALUATION.md), [AGENTS.md](../../../AGENTS.md), C's [assignment brief](briefs/INTERFACES.md); evaluated product: [frozen snapshot](baseline-20261004T041647Z/snapshot/) captured 2026-10-04. Parent verified all 115 baseline hashes. Current source meaning uses B's later [E007 rules](evidence/language/rules.md); company conditions use A's later [journeys](evidence/adoption/journeys.md). P is a 25-person services company with J1 equipment requests and J2 private expenses; W is the workspace company requiring the whole composed service workflow, including J3 customer/quote/rental/invoice and J4 physical mail; S's required offline/maps work is explicitly outside the current CRUD scope. CanTable is a café case, not P's equipment register.
+Authority: live [EVALUATION.md](../../EVALUATION.md), [AGENTS.md](../../../AGENTS.md), C's assignment brief; evaluated product: frozen snapshot captured 2026-10-04. Parent verified all 115 baseline hashes. Current source meaning uses B's later [E007 rules](evidence/language/rules.md); company conditions use A's later [journeys](evidence/adoption/journeys.md). P is a 25-person services company with J1 equipment requests and J2 private expenses; W is the workspace company requiring the whole composed service workflow, including J3 customer/quote/rental/invoice and J4 physical mail; S's required offline/maps work is explicitly outside the current CRUD scope. CanTable is a café case, not P's equipment register.
 
-Methods: static declarations/desired-target tracing; all 21 available MJS syntax/text inventories; primary provider/interface documentation retrieved 2026-10-04; bounded evidence-only locale and single-caption edits measured with **tiktoken 0.12.0 o200k_base/cl100k_base reference encodings**, not GPT-6 billing; three fully reworded actual JEV consultations with raw probability/uncertainty saved. C also reviewed the later independent J1 draft without editing it. No compiler, standard library, UI, adapter or infrastructure was implemented; no generated app, runtime, migration, user trial or benchmark executed. `.can`/`.md` and `.mjs` are product drafts. Their missing implementation is **unverified**, never an adoption defect or rejection basis.
+C also reviewed the later independent J1 draft without editing it. No compiler, standard library, UI, adapter or infrastructure was implemented; no generated app, runtime, migration, user trial or benchmark executed. `.can`/`.md` and `.mjs` are product drafts. Their missing implementation is **unverified**, never an adoption defect or rejection basis.
 
 Evidence shorthand used below:
 
 - **D/R/G**: snapshot DESIGN.md / REQUIREMENTS.md / GRAMMAR.md, with exact lines or section. Relative `draft/...` citations also mean snapshot files.
-- **T**: [target correspondence](evidence/interfaces/target-correspondence.md) and [corpus scan](evidence/interfaces/corpus-scan.json): all 21 syntax checks pass; one definition/factory each; 38,438 target lines. Text patterns are not complete semantic verification.
+- **T**: [target correspondence](evidence/interfaces/target-correspondence.md) and corpus scan: all 21 syntax checks pass; one definition/factory each; 38,438 target lines. Text patterns are not complete semantic verification.
 - **P**: [dated provider facts, costs and recovery](evidence/interfaces/provider-facts.md); **X**: [primary interface documentation](evidence/interfaces/external-interface-facts.md).
-- **L**: [locale measurements](evidence/interfaces/locale-measurements.json), [DE addition](evidence/interfaces/TeamTasks-de.can), [parameterized-message edit](evidence/interfaces/TeamTasks-de-message-edit.can), [reproduction script](evidence/interfaces/locale-experiment.py).
-- **M**: [named-message scan](evidence/interfaces/message-scan.json), [bounded private-caption measurements](evidence/interfaces/inline-caption-measurements.json), [equivalent scratch source](evidence/interfaces/CanCRM-inline-caption.can).
-- **J**: [actual JEV requests/responses, probability table and disagreement investigation](evidence/interfaces/jev/README.md).
+- **L**: locale measurements, [DE addition](evidence/interfaces/TeamTasks-de.can), [parameterized-message edit](evidence/interfaces/TeamTasks-de-message-edit.can), [reproduction script](evidence/interfaces/locale-experiment.py).
+- **M**: named-message scan, bounded private-caption measurements, [equivalent scratch source](evidence/interfaces/CanCRM-inline-caption.can).
+- **J**: actual JEV requests/responses, probability table and disagreement investigation.
 - **C1**: [independent J1 initial draft interface review](evidence/interfaces/C-initial-review.md). B owns source semantic acceptance; A owns accepted-output effort/company conclusions.
 
 “Contract fit” below means the declared outcome is expressible and the selected draft has the binding; execution/user-use claims remain unverified. “Clarify” identifies a bounded contract/documentation question and its same-criteria reevaluation, not a missing implementation penalty. Confirmed negative findings are consolidated once below rather than counted again for every affected ID.
@@ -80,7 +80,7 @@ Evidence shorthand used below:
 
 **Smallest improvement:** clarify the existing authorized directory-grant boundary and compare a bounded selection exercise using current authorized IDs/roster versus existing Employee-reference labels. No global directory/new primitive is established as necessary. Preserve full ID disambiguation/current eligibility/private HR boundary and historical reviewer actor in both. Potential benefit is fewer staff selection mistakes and fewer steward lookups; costs are explicit roster maintenance or migration/label data plus trial effort. Reevaluate correct eligible-person selection, disclosed fields, stale/revoked/duplicate-name choices and complete browser/MCP steps under P's same task.
 
-**Advice uncertainty:** actual JEV winners are bounded_directory (.44/.24 confidence), unresolved (.33/.11), employee_reference (.44/.25); full distributions in [J](evidence/interfaces/jev/README.md). Three different winners do not justify majority voting or a primitive. C's unresolved recommendation follows investigated missing grants/staff evidence; it is not a JEV consensus or adoption rejection.
+**Advice uncertainty:** actual JEV winners are bounded_directory (.44/.24 confidence), unresolved (.33/.11), employee_reference (.44/.25); full distributions in J. Three different winners do not justify majority voting or a primitive. C's unresolved recommendation follows investigated missing grants/staff evidence; it is not a JEV consensus or adoption rejection.
 
 ### C-I03 — Operating-contract clarity: fenced maintenance and composed recovery
 
@@ -92,7 +92,7 @@ Evidence shorthand used below:
 
 ### C-P01 — Measured polish: inline a proven private single-use caption
 
-CRM.can:17 uses private message :40 exactly once; no other baseline `.can` refers/imports it. [M](evidence/interfaces/inline-caption-measurements.json) substitutes the same complete EN/NL inline label and removes only that declaration: **−70 bytes, −1 line, −16 o200k /−15 cl100k tokens**. Benefit is less indirection/context at the same label/translation meaning; tradeoff is losing a name if genuine reuse later appears. Reevaluate caption variants/reference resolution and identical staff-facing label; runtime equivalence remains unexecuted. Other lexical candidates require their own reachability check. This is source-draft polish, not an authoring mandate or adoption barrier.
+CRM.can:17 uses private message :40 exactly once; no other baseline `.can` refers/imports it. M substitutes the same complete EN/NL inline label and removes only that declaration: **−70 bytes, −1 line, −16 o200k /−15 cl100k tokens**. Benefit is less indirection/context at the same label/translation meaning; tradeoff is losing a name if genuine reuse later appears. Reevaluate caption variants/reference resolution and identical staff-facing label; runtime equivalence remains unexecuted. Other lexical candidates require their own reachability check. This is source-draft polish, not an authoring mandate or adoption barrier.
 
 ### B-owned costs and bounded interface clarifications
 

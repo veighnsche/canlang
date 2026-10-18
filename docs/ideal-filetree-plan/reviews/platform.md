@@ -1,6 +1,6 @@
 # Platform, identity and interface refresh
 
-This is a planning review of the literal `/Users/vince/Projects/canlang` checkout. The comparison is `8249342707d3280e88e39e8c911b7e457828f31f..350163ad661e61b667809a5f78b608c23812a5f0`; the dirty `runtime/invoke.ts` overlay is a separate runtime-primary input. A bounded tracked-path comparison to `9830ba93951ded193b13bcbfb9eaea04e6252d24` found no further deltas in these platform prefixes; other owners review that drift. New expanding dirty T18/T32 inputs remain separately pending deep review. No test, build, installed journey, Git change or source implementation was performed. [The path ledger](platform-coverage.json) distinguishes current source/delta reading, structural test decoding, delegated primary evidence and unchanged evidence reused from the prior checkpoint. Reading a test does not establish that it passed.
+This is a planning review of the literal `/Users/vince/Projects/canlang` checkout. The comparison is `8249342707d3280e88e39e8c911b7e457828f31f..350163ad661e61b667809a5f78b608c23812a5f0`; the dirty `runtime/invoke.ts` overlay is a separate runtime-primary input. A bounded tracked-path comparison to `9830ba93951ded193b13bcbfb9eaea04e6252d24` found no further deltas in these platform prefixes; other owners review that drift. New expanding dirty T18/T32 inputs remain separately pending deep review. No test, build, installed journey, Git change or source implementation was performed. The path ledger distinguishes current source/delta reading, structural test decoding, delegated primary evidence and unchanged evidence reused from the prior checkpoint. Reading a test does not establish that it passed.
 
 ## Requirements and connected scope
 
@@ -146,12 +146,8 @@ The invoked skill's referenced procedure/records/scheduling files and checker ar
 ## Main merge reconciliation, 2026-10-06
 
 All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
-their hashes and the exact source tree. The [merge record](../main-merge-20261006.json)
-accounts for all 487 changed paths since the complete checkpoint and registers
-44 newer source inputs with exact defining owners/targets. Current structural
-coverage is updated; primary audit evidence remains pinned to its historical source.
-The complete checkpoint stays at `8249342`: deep joined-path review and product
-qualification remain unfinished. This bookkeeping is not implementation acceptance.
+their hashes and the exact source tree. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source. This bookkeeping is not implementation acceptance.
 
 F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
 T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are

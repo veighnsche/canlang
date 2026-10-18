@@ -1,6 +1,4 @@
-# Pass 10 economical dispatch
-
-Follow the [researched allocation](../model-allocation-20261007.md#pass-10) and `model-selection` skill. Settings are starting choices justified by released task scope, not measured model optima or subscription savings.
+Follow the researched allocation and `model-selection` skill. Settings are starting choices justified by released task scope, not measured model optima or subscription savings.
 
 | Packet | Model / reasoning | Actual scope and result |
 | --- | --- | --- |

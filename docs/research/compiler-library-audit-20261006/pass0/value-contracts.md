@@ -1,6 +1,6 @@
 # Value contracts and caller closure
 
-Preparation date: 2026-10-07. Local packets C03U/C03L are compiler packet labels, not canonical product task statuses. [Input pins](evidence/root/input-manifest.json) record the compiler, catalog, owning source and current built public exports; [export results](evidence/values/export-results.json) execute those exports on Node 24.21.0 / ICU 78.3. These are workspace outputs, not a clean package rebuild or installed tarball qualification.
+Preparation date: 2026-10-07. Local packets C03U/C03L are compiler packet labels, not canonical product task statuses. Input pins record the compiler, catalog, owning source and current built public exports; export results execute those exports on Node 24.21.0 / ICU 78.3. These are workspace outputs, not a clean package rebuild or installed tarball qualification.
 
 ## URL ownership and live paths
 
@@ -10,7 +10,7 @@ The owning language table is [DESIGN §3](../../../specification/DESIGN.md); the
 
 `packages/values/src/stdlib-pure.ts::parseTrustedOrigin:210` is separate. `app_url:252` calls it after checking the app-relative path. Trusted origins reject credentials and query/fragment, and canonicalize origin/mount prefix for construction. The public API probe exercises the actual `app_url`; this packet changes ordinary value validation, not deployment-origin or path authority policy.
 
-[28 combined URL/locale/origin vectors](witnesses/values.json) have independently authored expectations. All public owner observations match them. Selected compiler failures remain demonstrated by the earlier probes: emoji panic, malformed bracket/port admission and credential rejection. Rust `url` is a proposed parser adapter; full vector parity, feature/version selection and Linux/macOS release closure are implementation qualifications. The compiler retains authored URL strings after admission. URI display/filesystem conversion belongs to C07URI, not C03U.
+28 combined URL/locale/origin vectors have independently authored expectations. All public owner observations match them. Selected compiler failures remain demonstrated by the earlier probes: emoji panic, malformed bracket/port admission and credential rejection. Rust `url` is a proposed parser adapter; full vector parity, feature/version selection and Linux/macOS release closure are implementation qualifications. The compiler retains authored URL strings after admission. URI display/filesystem conversion belongs to C07URI, not C03U.
 
 **C03U contract ready:** existing owner policy, E3001/source span retention and no panics are specified. **Library still unqualified:** no Rust dependency is added or proved equivalent here. A narrowly bounded Unicode panic repair may release while parser qualification proceeds.
 

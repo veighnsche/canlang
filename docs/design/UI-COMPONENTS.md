@@ -159,8 +159,7 @@ openers and safe destinations. Labels are explicit and localizable. No raw
 endpoint, callback, per-action styling or bare priority container is admitted.
 
 The shared UI supplies a consistent filled primary button, a compact secondary
-menu entry, touch sizing, focus, pending behavior and canonical form feedback.
-An action's owner is explicit and checked; visual wrappers cannot inherit action
+menu entry, touch sizing, focus, pending behavior and canonical form feedback. An action's owner is explicit and checked; visual wrappers cannot inherit action
 ownership merely because a page or card appears farther up the source tree.
 
 | Action owner | Primary placement | Secondary placement |
@@ -173,8 +172,7 @@ ownership merely because a page or card appears farther up the source tree.
 | Canonical `form` / `edit` | Submit footer, `submit=true` only | Not admitted |
 
 For a list/table using `display=split`, the selected row owns a detail panel: its
-primary actions use the panel footer and secondary actions its heading menu.
-Unselected rows do not evaluate their detail actions.
+primary actions use the panel footer and secondary actions its heading menu. Unselected rows do not evaluate their detail actions.
 
 Declare form submit primitives directly in their owning form/edit suite, outside
 fieldsets. Independent operation, navigation and panel-opener primitives cannot
@@ -189,10 +187,8 @@ its card then owns its actions. Tooltip descendants cannot introduce priority
 actions, including through nested cards or expanded views. Use an ordinary checked button where a component's trigger/menu contract
 calls for a control rather than a prioritized owner action.
 
-Nonvisual permission guards remain in the current owner and evaluation scope.
-No action moves across a row, guard, panel or form boundary. Action controls
-evaluate in authored order before the owner places their completed markup.
-Multiple secondary actions share one owning menu, preserving their forms.
+Nonvisual permission guards remain in the current owner and evaluation scope. No action moves across a row, guard, panel or form boundary. Action controls
+evaluate in authored order before the owner places their completed markup. Multiple secondary actions share one owning menu, preserving their forms.
 
 A standard card has one surface, compact typography and spacing, and a footer
 connected to its content. A generated view is not an action owner: its source
@@ -377,7 +373,7 @@ Mockups, effects and navigation components are not excluded merely because the f
 
 ## Review and implementation sequence
 
-The approved direct-keyword design matches the user's requested discoverability and authoring model. [Three JEV consultations](jev/daisyui-catalog-20261004/README.md#source-assessment) compared direct headers, a single typed component header and semantic display selections with a residual header. All selected direct names; their distributions differ materially, particularly the first near split. This is advice, not approval or proof.
+The approved direct-keyword design matches the user's requested discoverability and authoring model. Three JEV consultations compared direct headers, a single typed component header and semantic display selections with a residual header. All selected direct names; their distributions differ materially, particularly the first near split. This is advice, not approval or proof.
 
 Implement the approved binding contracts and finish the pinned appearance-option matrix against small complete source examples, retaining complete default forms and existing authority. Lane 5 owns the presentation catalog and shared UI library; lane 1 consumes that catalog for syntax/checking, emission, diagnostics/completion and highlighting. The migration coordinator replans each app's entire frontend against the full vocabulary and writes complete active authored sources and faithful desired-output witnesses first. A badge-insertion pass or minimal wrapper substitution is not that design process. Those reviewed drafts drive lane 5's UI contracts/renderers and lane 1's compiler; missing implementation is a downstream task, not a restriction on drafting. Check representative parent/field/slot errors and real accessible rendering as those implementations land. Track approved-but-unimplemented profiles explicitly; never substitute the old small subset for the completion criteria.
 

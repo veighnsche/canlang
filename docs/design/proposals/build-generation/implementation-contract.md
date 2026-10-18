@@ -2,7 +2,7 @@
 
 Status: Codex-selected implementation choices for the human-authorized Muse run on 13 October 2026. Required outcomes remain owned by [BUILD_GENERATION_REQUIREMENTS.md](../../../specification/BUILD_GENERATION_REQUIREMENTS.md); [implementation-plan.md](implementation-plan.md) remains the single execution checklist. These interfaces are frozen for that run. A demonstrated contract gap requires an explicit, recorded handoff before affected writers continue; it does not authorize silent narrowing of the feature.
 
-The [three JEV requests and results](../../jev/build-generation-launch-20261013/summary.md) advise these choices. The keyword surface has weak, split advice; the choice below follows verified parser shapes and concise authoring rather than claiming consensus. Other choices have consistent preferences with remaining uncertainty. The human selected the required outcomes; Codex selects this finite implementation under the explicit implementation authorization.
+The three JEV requests and results advise these choices. The keyword surface has weak, split advice; the choice below follows verified parser shapes and concise authoring rather than claiming consensus. Other choices have consistent preferences with remaining uncertainty. The human selected the required outcomes; Codex selects this finite implementation under the explicit implementation authorization.
 
 ## Source and discovery
 
@@ -57,8 +57,7 @@ contributions as saved `implementation.js`. The source-derived contract fixes
 `contributions.can` template may specify only `value:text` when there are no extra
 native constraints. State checks the normalized, hook-adjusted candidate on every
 create/update before publishing state, history or key claims; only strict `true`
-succeeds. False, exceptions and other return types produce canonical validation.
-Desired migration checks cover staged and retained rows. Implementation/import
+succeeds. False, exceptions and other return types produce canonical validation. Desired migration checks cover staged and retained rows. Implementation/import
 bytes are fingerprinted separately from the contribution carrier. Model traits,
 nullable and other field types do not admit this executable profile. Saved modules
 retain the existing trusted-code boundary; no general JavaScript sandbox is implied.

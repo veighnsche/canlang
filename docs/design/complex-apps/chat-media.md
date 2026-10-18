@@ -53,7 +53,7 @@ Every finalized image output is unique by run and position. An output is availab
 
 ## Consultation and release
 
-All three independently rewritten requests completed. JEV 1.13.0 selected `typed_snapshots` at confidence 0.92/0.72/0.91, probabilities 0.95/0.81/0.94; first-class-run probabilities were 0.04/0.17/0.06, event-log 0.01/0.02/0.00. The lower-confidence second result is retained; agreement does not establish implementation or prove correctness. This supports ordinary typed adapter snapshots plus existing authorized UI polling. Exact files: `../jev/complex-chat-media-20261004/{1,2,3}.{request,result}.json`. None reuses or retries the rejected C1/owner-fanout payload.
+JEV 1.13.0 selected `typed_snapshots` at confidence 0.92/0.72/0.91, probabilities 0.95/0.81/0.94; first-class-run probabilities were 0.04/0.17/0.06, event-log 0.01/0.02/0.00. The lower-confidence second result is retained; agreement does not establish implementation or prove correctness. This supports ordinary typed adapter snapshots plus existing authorized UI polling. Exact files: `../jev/complex-chat-media-20261004/{1,2,3}.{request,result}.json`. None reuses or retries the rejected C1/owner-fanout payload.
 
 ## Standard schemas and adapter normalization
 
@@ -157,7 +157,7 @@ The nine owned app files are complete requirements/source/desired-JavaScript dra
 
 The demonstrated language reduction is one shared associated-progress extension: ten app lifecycle handlers became two domain handlers, with no app Observation events or persisted protocol mirrors. The accepted shared gallery component replaces repeated image widget authoring. Standard schemas and JSON file fixtures are catalog/test contracts, not adapter implementations. No chat-specific transport or generic new run language was added.
 
-Verification: all three JavaScript files pass Node syntax checks; descriptor inspection matches source model/scenario/handler/page/fixture inventories and all referenced rule functions. The prototype Can parser lacks accepted delivery types, sequence examples, polling and galleries. Syntax-only projections documenting those four substitutions parse all three files; this is not acceptance of full source by the current parser. Detailed commands/results and all six JEV request/results remain in [the evidence directory](../jev/complex-chat-media-20261004/assessment.md).
+Verification: all three JavaScript files pass Node syntax checks; descriptor inspection matches source model/scenario/handler/page/fixture inventories and all referenced rule functions. The prototype Can parser lacks accepted delivery types, sequence examples, polling and galleries. Syntax-only projections documenting those four substitutions parse all three files; this is not acceptance of full source by the current parser. Detailed commands/results and all six JEV request/results remain in the evidence directory.
 
 There is no unresolved design blocker for these drafts and no pending JEV call or approval. Provider bindings, shared delivery-progress durability/authority, gallery renderer, compiler/type checking and the example runner remain implementation/proof obligations. Earlier blocked C1 and paused C5 work was not adopted or retried. No Git mutation, shared-document edit, Muse launch or compiler/library implementation was performed by this writer. Writer released to root.
 

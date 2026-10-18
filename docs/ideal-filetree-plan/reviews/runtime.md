@@ -1,6 +1,6 @@
 # Runtime ownership review
 
-Planning only, for `/Users/vince/Projects/canlang`. Reconciliation baseline: `8249342707d3280e88e39e8c911b7e457828f31f`; reviewed committed revision: `350163ad661e61b667809a5f78b608c23812a5f0`. The working copies of `packages/state/src/mutation/index.ts` and `packages/cloudflare/src/runtime/invoke.ts` were inspected as overlays, not incorporated into the committed checkpoint. [The coverage record](runtime-coverage.json) identifies read modes, exact paths, hashes and evidence limits.
+Planning only, for `/Users/vince/Projects/canlang`. Reconciliation baseline: `8249342707d3280e88e39e8c911b7e457828f31f`; reviewed committed revision: `350163ad661e61b667809a5f78b608c23812a5f0`. The working copies of `packages/state/src/mutation/index.ts` and `packages/cloudflare/src/runtime/invoke.ts` were inspected as overlays, not incorporated into the committed checkpoint. The coverage record identifies read modes, exact paths, hashes and evidence limits.
 
 The primary scope is S05 state and S06 work/services/files. The additional S09 scope is Cloudflare's actual canonical invocation, context, stdlib, executor and dispatch composition. Compiler review independently challenged the source-policy and clock joins; platform review independently covered Worker assembly and installed callers. This report challenges the platform identity, activation, bundle and error-mapping findings. It does not replace either owner's report.
 
@@ -152,12 +152,8 @@ R07 above is historical evidence for the original fixed pin and its incomplete c
 ## Main merge reconciliation, 2026-10-06
 
 All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
-their hashes and the exact source tree. The [merge record](../main-merge-20261006.json)
-accounts for all 487 changed paths since the complete checkpoint and registers
-44 newer source inputs with exact defining owners/targets. Current structural
-coverage is updated; primary audit evidence remains pinned to its historical source.
-The complete checkpoint stays at `8249342`: deep joined-path review and product
-qualification remain unfinished. This bookkeeping is not implementation acceptance.
+their hashes and the exact source tree. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source. This bookkeeping is not implementation acceptance.
 
 F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
 T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are

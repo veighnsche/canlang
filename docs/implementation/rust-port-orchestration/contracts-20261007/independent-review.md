@@ -1,6 +1,6 @@
 # Independent N01 / D01 planning contract review
 
-2026-10-07. Read-only source/manifests/contracts/published-release inspection; no Git, product execution, tests, builds, installs or source edits. The only write is this private review. All source hashes and packet/document hashes in the two supplied contract JSON records matched the inspected files.
+2026-10-07. Read-only source/manifests/contracts/published-release inspection; no Git, product execution, tests, builds, installs or source edits. The only write is this private review.
 
 ## Verdict
 
@@ -33,4 +33,4 @@ Owner acknowledgment, exact source/lease handoffs, immutable full owning-caller 
 
 ## Root resolution of the conditional evidence issue
 
-The supplemental subset is not included in this release. The exact frozen source SHA256 `e82c385cce4f9ae87589017df852b0e65fcfbcf29838ff3a417aee84a5a91e2d` ran under Node v24.21.0 with exit0; [saved manifest](oracles/manifest.json) records 10,000 distinct seeded observations, 213 distinct boundaries and 93 strings. Root independently verified the exact generator hash, compressed/uncompressed byte hashes, seed sequence, quoted63/64/65 lengths, four unpaired inputs with null UTF8 and the one valid Rust-str/split-output residual. This resolves the capture-definition mismatch only. Full caller, candidate/native/Wasm/installed acceptance remains unexecuted.
+The supplemental subset is not included in this release. The exact frozen source SHA256 `e82c385cce4f9ae87589017df852b0e65fcfbcf29838ff3a417aee84a5a91e2d` ran under Node v24.21.0 with exit0; saved manifest records 10,000 distinct seeded observations, 213 distinct boundaries and 93 strings. Root independently verified the exact generator hash, compressed/uncompressed byte hashes, seed sequence, quoted63/64/65 lengths, four unpaired inputs with null UTF8 and the one valid Rust-str/split-output residual. This resolves the capture-definition mismatch only. Full caller, candidate/native/Wasm/installed acceptance remains unexecuted.

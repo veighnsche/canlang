@@ -61,8 +61,7 @@ L3-owned intake in `state.ts` (new, additive; engine behavior unchanged):
   maps generated policy.
 - `CanonicalInputDef`: `ref` (model, `versioned` flag, required) or scalar
   (`CanonicalScalarKind`, mirrors the non-`ref` L1 `ArtifactOperationField`
-  members). `enumValues` present exactly for `enum`, in declaration order.
-  Admission stays closed: unknown members and missing required inputs
+  members). `enumValues` present exactly for `enum`, in declaration order. Admission stays closed: unknown members and missing required inputs
   reject with `validation`.
 - `CanonicalModelDescriptor`: fields, `deleteMode`, optional unique keys.
   `CanonicalFieldDef`: required, serverOnly (caller-supplied values
@@ -75,8 +74,7 @@ L3-owned intake in `state.ts` (new, additive; engine behavior unchanged):
 ## 4. Invocation rules (verified identity)
 
 - One canonical path: L6 `ResolvedIdentity` -> frozen `InvocationContext`
-  (`invoke.ts` `buildContext`) -> `admit()` -> execute -> fenced commit.
-  No second interpreter or alternate state engine.
+  (`invoke.ts` `buildContext`) -> `admit()` -> execute -> fenced commit. No second interpreter or alternate state engine.
 - Admission order is frozen as implemented: read revision, hash inputs,
   receipt check (replay saved outcome; hash mismatch on the same identity
   is `conflict`), operation-id age for unseen identities, `by` authorization
@@ -146,8 +144,7 @@ schemas, hooks/invariants/locks in descriptors.
 Recursive/nested descriptors, provider/bound schemas and recipes, hook /
 invariant / lock descriptor joins, generated-policy mapping for
 authorization predicates, richer scalar/struct kinds, file/progress/receipt
-observation extensions, and full compatibility matrix beyond the §1 pins.
-T16/T17 runtime joins are explicitly out of scope for T04a.
+observation extensions, and full compatibility matrix beyond the §1 pins. T16/T17 runtime joins are explicitly out of scope for T04a.
 
 ## 10. T04b-p provider-descriptor ratification (L3-led contract join)
 
@@ -247,8 +244,7 @@ Landed (this slice): `CanonicalInputDef` delivery member +
 Recorded remainder (NOT decided): the L6 `McpSchemaField` mirror
 (`ports.ts` has no `delivery` member; `fieldSchema`'s switch is
 exhaustive over the nine existing kinds). Delivery inputs are
-MCP-unsuppliable until T16/T19 decide admit vs precise-reject.
-The `artifact.ts` JSON-identical doc invariant therefore holds
+MCP-unsuppliable until T16/T19 decide admit vs precise-reject. The `artifact.ts` JSON-identical doc invariant therefore holds
 for the non-delivery members only until L6 decides. No MCP
 admission decision was made here.
 
@@ -350,8 +346,7 @@ limitation, not a silent gap.
 ### 11.4 File/progress/receipt observation extensions — DELIVERED elsewhere
 
 file: T27 kind + T19b file claims; progress: T34 F2/F3 tracking +
-fanout-proof; receipt: T25; table observations: T23 (29/29 + 10/10).
-No T04b work remains.
+fanout-proof; receipt: T25; table observations: T23 (29/29 + 10/10). No T04b work remains.
 
 ### 11.5 Mcp mirror — DECIDED by T19b (ticked)
 

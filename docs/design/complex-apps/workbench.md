@@ -12,7 +12,7 @@ Official [Ollama tool calling](https://docs.ollama.com/capabilities/tool-calling
 
 ## Comparison and advice
 
-Three independently reworded complete briefs/replies are saved in [complex-workbench evidence](../jev/complex-workbench-20261004). A first ordinary sandbox connection failed without sending a successful request; the subsequent normal reviewed endpoint call and the two other calls succeeded. No previously rejected private payload was used.
+Three independently reworded complete briefs/replies are saved in complex-workbench evidence. A first ordinary sandbox connection failed without sending a successful request; the subsequent normal reviewed endpoint call and the two other calls succeeded. No previously rejected private payload was used.
 
 | Request | Explicit variants/dispatch | Full invocation value | Toolset/lifecycle declaration | Confidence |
 | --- | ---: | ---: | ---: | ---: |
@@ -76,4 +76,4 @@ Negative setup obligations remain explicit: unknown or disabled target, incompat
 
 Independent final correspondence review corrected the missing `std.DeliveryResult` source import, model-local `derived` metadata plus the callable `derives` registry, `requiredArray` markers, complete result descriptors, canonical action spelling, and explicit seeds folded into the one `dependencies` field. Page children use the shared deferred builder. The redundant viewer-mode eligibility card guard was removed: its evaluation could demand hidden Run location/targets after scope loss, defeating safe-status recovery. Existing field grants now withhold private cells directly while canonical operation guards retain current authority. This introduces no privileged display helper or new shared primitive. The extra connected sequence specifies business recovery after a real scope change; renderer withholding remains a runtime verification obligation.
 
-[Final static evidence](../jev/complex-workbench-20261004/final-verification.json) records passing JavaScript syntax, twenty resolved handler/rule references, matching source/target inventories, and passing supported-syntax projection. The full source remains unsupported by the unchanged prototype at `invocation(...)`. The [descriptor inspection](../jev/complex-workbench-20261004/final-descriptor-review.cjs) is repeatable and executes no business body or example.
+Final static evidence records passing JavaScript syntax, twenty resolved handler/rule references, matching source/target inventories, and passing supported-syntax projection. The full source remains unsupported by the unchanged prototype at `invocation(...)`. The descriptor inspection is repeatable and executes no business body or example.

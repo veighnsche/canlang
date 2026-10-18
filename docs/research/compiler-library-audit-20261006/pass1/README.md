@@ -2,7 +2,7 @@
 
 **C01IR and C01A completed within the released source/string contract, 2026-10-07.** IR and analysis consume `Token.string_value` retained by `SyntaxNode::token()`. The two secondary JSON-body decoders, IR's `decode_string` wrapper and analysis's decoder-only `hex4` helper are removed. No dependency, grammar, JS AST, serializer or package change is needed. The source-aware lexer and its diagnostic spans are unchanged.
 
-The first checked IR repair was committed as `9bb5bbd`. The completion commit includes analysis consolidation, recovery witnesses, production CLI/testkit execution, this receipt and removal of incidental formatting changes from the first commit. [Verification](verification.json) pins the final working compiler inputs, host, catalog and checks; [input manifest](input-manifest.json) pins 665 compiler, package manifest/lock and built runtime files. The baseline compiler binary is the fresh Pass 0 build at `38c0370087909dc89386849fec48e6f937aa0d13`, whose compiler code matches `309644a6881909d8dba32560bc6711f67e00a7ab`.
+The first checked IR repair was committed as `9bb5bbd`. The completion commit includes analysis consolidation, recovery witnesses, production CLI/testkit execution, this receipt and removal of incidental formatting changes from the first commit. Verification pins the final working compiler inputs, host, catalog and checks; input manifest pins 665 compiler, package manifest/lock and built runtime files. The baseline compiler binary is the fresh Pass 0 build at `38c0370087909dc89386849fec48e6f937aa0d13`, whose compiler code matches `309644a6881909d8dba32560bc6711f67e00a7ab`.
 
 ## Caller closure and ownership
 
@@ -24,7 +24,7 @@ This accounts for **both IR decoder callers and all eight analysis decoder uses*
 | Quotes, slash/backslash, BMP and raw supplementary Unicode, line controls, empty strings | **Preserved values:** independent code points and fixed JS spellings are permanent witnesses. This pass keeps output layouts/field ordering and the existing encoder. |
 | Valid analysis values and semantic rejection | **Preserved contract:** date/time/template/locale/slot/key rules are unchanged; diagnostics continue to use source byte spans. Analysis's former decoder was correct for valid input; this is consolidation rather than a new valid-input analysis repair. |
 | Missing payload versus empty and explicit-null values | **Distinct:** an invalid token contributes no decoded value; authored `""` remains present and duplicate empty schedule keys still diagnose; explicit `null` message variants remain absent translations. |
-| Malformed source and secondary analysis diagnostics | **Source errors preserved; false value-based recovery corrected:** every baseline `E1006` message/span in the seven CLI comparisons is unchanged. Checks no longer invent an empty schedule key/status or a value/type complaint for the already invalid token. Valid sibling declarations, variants and payloads retain independent diagnostics. [Before/intermediate/final comparison](invalid-recovery-comparison.json) makes these differences explicit. |
+| Malformed source and secondary analysis diagnostics | **Source errors preserved; false value-based recovery corrected:** every baseline `E1006` message/span in the seven CLI comparisons is unchanged. Checks no longer invent an empty schedule key/status or a value/type complaint for the already invalid token. Valid sibling declarations, variants and payloads retain independent diagnostics. Before/intermediate/final comparison makes these differences explicit. |
 | Expression evaluation and source-aware lexing | **Preserved:** no statement/argument evaluation, AST/CST grammar, lexer algorithm, effect, permission or runtime implementation changed. Existing compiler suites cover surrounding routes. |
 
 Recovery is deliberately local to string-consuming checks. A shared recursive `has_error` change was rejected in review because it could suppress an entire module or declaration and hide valid siblings. The permanent full-analysis witnesses cover raw controls, unknown escapes and lone surrogates, false schedule collisions, independent default/name errors, a valid variant error and an independent delivery payload error. This applies the existing lexer-owner/error-recovery contract; it selects no new admission or library policy requiring JEV consultation.
@@ -47,7 +47,7 @@ A first combined member-gated entry failed to link because the existing built st
 - Full locked compiler suite: **915 passed, 0 failed** before the final delivery-status guard/test and IR test-module relocation; [raw log](full-suite.log).
 - After the final recovery correction: complete analysis and B4 suites **32 + 279 passed**; [raw log](final-analysis.log). Final C01 IR unit/codegen/syntax checks: **3 passed**; [raw log](final-focused.log).
 - Final `cargo clippy --all-targets -- -D warnings`: **passed**; [raw log](clippy.log).
-- `git diff --check`: **passed**. Full `cargo fmt --check` still reports **88 pre-existing hunks**. A fresh baseline tree at `d855e0a` reports exactly the same normalized differences; [comparison](fmt-comparison.json). Formatting was applied to changed regions and unrelated churn was removed.
+- `git diff --check`: **passed**. Full `cargo fmt --check` still reports **88 pre-existing hunks**. A fresh baseline tree at `d855e0a` reports exactly the same normalized differences; comparison. Formatting was applied to changed regions and unrelated churn was removed.
 
 IR implementation used **GPT-6.1 Sol low** as planned. A second worker dispatch was rejected by the session's thread limit, so analysis/integration stayed with the coordinator and independent review reused an existing inherited worker. That worker's model/effort is not exposed; it is not represented as Sol medium. No stronger IR worker was requested, and no task token savings are claimed. Review found and resolved the missing-payload diagnostic/identity recovery issues and verified the final delivery-status correction.
 
@@ -59,4 +59,4 @@ cargo test --locked --manifest-path compiler/Cargo.toml --test string_payload_ru
 cargo clippy --locked --manifest-path compiler/Cargo.toml --all-targets -- -D warnings
 ```
 
-The frozen Pass 0 receipt is unchanged. No merge was performed and the living file-tree checkpoint is not advanced. Passes 2 onward keep their existing contracts, gates and task-specific economical-model reminders.
+The frozen Pass 0 receipt is unchanged. Passes 2 onward keep their existing contracts, gates and task-specific economical-model reminders.

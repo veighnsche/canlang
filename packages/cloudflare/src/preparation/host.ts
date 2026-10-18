@@ -590,7 +590,7 @@ export async function publishDeployAndApply(inputs: DeployPublishInputs): Promis
     fail(
       "deploy",
       "compiler-mismatch",
-      `${inputs.compilerDetail} (release lockstep: rebuild with the pinned toolchain)`,
+      `${inputs.compilerDetail} (release mismatch: rebuild the preparation binary)`,
     );
   }
   // Check both sidecars before any bundle or sidecar output. The same
@@ -751,7 +751,7 @@ export interface NativeJobResult {
 /**
  * Integrity before any launch (P07/P09): every resolved binary —
  * packaged, dev or explicit-env — verifies against the manifest
- * beside it (triple, executable bit, sha/bytes, toolchain pin)
+ * beside it (triple, executable bit, sha/bytes)
  * before the readiness probe may even start a process. The manifest
  * must name the EXACT executable to be launched (canonical-path
  * bound): a manifest validating another file while the resolved

@@ -47,8 +47,7 @@ The adapter accepts exactly this contract (`inputs` object with a
 before landing) and mirrors P1's dotted-path error vocabulary
 (`operations[0].inputs.fields[2].field.values must be a non-empty
 array of strings`, …). It additionally rejects duplicate operation
-names and duplicate input names (ambiguous mappings fail loud).
-Residual risk: if P1's LANDED contracts type spells anything
+names and duplicate input names (ambiguous mappings fail loud). Residual risk: if P1's LANDED contracts type spells anything
 differently from its own tests, the route answers 500 `mcp-registry`
 naming the entry (contained to `/mcp`; pages keep serving) until the
 two are reconciled — the failure is loud, never silent.

@@ -87,14 +87,13 @@ binding helpers are not automatically unnecessary wrappers. All 67 duplicate gro
 map to reviewed records; no count is a deletion or production-LOC estimate.
 
 Finite investigations and independent cross-family challenges used **Sol medium**
-(`gpt-6.1-sol`), as requested. The [review record](review.json) contains 23 findings across
-three challenges; conclusions were visible, so these were not clean-room reviews.
-Corrections include a false scenario parser caller, type-only import reachability,
+(`gpt-6.1-sol`), as requested. The review record contains 23 findings across
+three challenges; conclusions were visible, so these were not clean-room reviews. Corrections include a false scenario parser caller, type-only import reachability,
 getter-order differences, readonly shape/public-plan observations, duplicate-range
 accounting and permissive numeric spellings. The authoritative candidates incorporate
 them; reviews retain the correction history.
 
-[Verification](verification.json) checks 459 repository inputs, two pinned upstream
+Verification checks 459 repository inputs, two pinned upstream
 inputs, 476 candidate/caller ranges and 150 screen ranges. Package inputs equal the
 frozen/current source at verification. There are no builds, tests, installations,
 runtime probes, benchmarks or new host qualification. Static observations cannot prove
@@ -109,6 +108,4 @@ node docs/research/package-library-audit-20261006/duplication-layers/screen.cjs 
 ```
 
 The screen requires the existing TypeScript dependency; it imports only the parser and
-reads frozen source. Neither command imports or executes package implementation.
-The [decision record](decision-record.md) preserves proposed ownership and gates.
-No living file-tree checkpoint or canonical task acceptance advances from this audit.
+reads frozen source. Neither command imports or executes package implementation. The [decision record](decision-record.md) preserves proposed ownership and gates.

@@ -17,12 +17,10 @@ preparation remains active source work; this closes no broad parent or release g
 **Current scope change:** direct human voice turn `01a14d5b-34bb-7880-b29b-63081f49cedd`
 releases native preparation source implementation/integration/validation and the
 Work ten-helper continuation through the existing Muse coordinator. The active
-Rust checklist governs; prior native implementation holds below are historical.
-Public release/deployment, default changes and TS retirement remain separate.
+Rust checklist governs; prior native implementation holds below are historical. Public release/deployment, default changes and TS retirement remain separate.
 
 **Execution update, 18 October 2026:** selected Rust int/ASCII plus explicit CSV,
-shared fanout TS and selected installed recovery asset delivery are now accepted.
-See the [single current execution view](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
+shared fanout TS and selected installed recovery asset delivery are now accepted. See the [single current execution view](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 for scope and retained limits; this adds no opportunity or whole-parent acceptance.
 
 **18 October 2026 — audit baseline `08dc8c3928f53c7a06984136ac52ff944360075c`; candidate 1 message syntax/usage and finite joined completion recorded below.**
@@ -32,20 +30,17 @@ implementation, build, product test, benchmark, dependency install, default swit
 or native preparation. A subsequent user release approved the message grammar
 profile and completed the Shared TS syntax packet; a further release on base
 `7700621fa` completed compiler parse/usage consolidation. The UI full-signature
-packet released on base `1255fc11f` and its finite joined checks are also complete.
-Findings concern the
+packet released on base `1255fc11f` and its finite joined checks are also complete. Findings concern the
 complete package portfolio and candidate workflows; this is not exhaustive
 line-by-line correctness/security certification of all source, tests or generated binaries.
 
 **Recommendation:** finish the existing Values/validation/Work consumer and
 asset work first. Additional Rust is most plausible for a few whole, bounded
-computations, especially where compiler and runtime currently duplicate semantics.
-No additional whole-package rewrite is justified by this audit. Source inspection
+computations, especially where compiler and runtime currently duplicate semantics. No additional whole-package rewrite is justified by this audit. Source inspection
 identifies possibilities; it does not establish faster execution or cheaper
 maintenance after transport, error compatibility and distribution are included.
 
-This is a subject record under the [living file-tree plan](../../ideal-filetree-plan.md).
-The [Rust start guide](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
+This is a subject record under the [living file-tree plan](../../ideal-filetree-plan.md). The [Rust start guide](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 remains the **single execution view**. Its original IDs, accepted components and
 three [finite packet details](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 remain intact. Optional investigations below are not another dispatch queue and
@@ -87,8 +82,7 @@ Rust owner, parser, dependency or native-preparation release is selected. Candid
 
 Counts at the historical audit baseline include production, tests, fixtures,
 hidden/build/configuration files and generated artifacts. They are coverage
-counts, not updated implementation totals, runtime size or priority.
-All existing leaves retain their current defining owner unless an original plan
+counts, not updated implementation totals, runtime size or priority. All existing leaves retain their current defining owner unless an original plan
 already selects a successor. No new Rust successor leaf/package is accepted here.
 
 | Package | Paths | Keep / use existing scope | Additional possibility |
@@ -118,8 +112,7 @@ Detailed owners, callers and source evidence:
 This ordering is an engineering judgment about potential consistency/portability
 and total cost, not a measured throughput ranking. For unreleased candidates,
 “first output” is the finite remaining decision/evaluation; it is not approval
-to implement a pilot now. Candidate 1 records its separately released TS, compiler and UI completions.
-A retain-TS decision completes an evaluation successfully. No generic new ABI,
+to implement a pilot now. Candidate 1 records its separately released TS, compiler and UI completions. A retain-TS decision completes an evaluation successfully. No generic new ABI,
 package, carrier, library or native executable is selected in advance.
 
 ### 1. Shared bounded message syntax — strongest semantic consistency opportunity
@@ -139,8 +132,7 @@ Values still parses first.
 syntax/normalization/narrow diagnostics in `src/icu-syntax.ts`, with the existing
 `icu.ts` wrapper preserving ValueError/AST contracts and root `parseMessageSyntax`
 exported for UI. UI uses those nodes in its own renderer; its duplicate parser
-and AST are removed. The shared corpus has 24 accepted and 40 refused cases.
-Contracts/Values/UI emitted and typechecked; the focused run passed 241 tests,
+and AST are removed. The shared corpus has 24 accepted and 40 refused cases. Contracts/Values/UI emitted and typechecked; the focused run passed 241 tests,
 then the affected ICU/messages scope passed 165 after diagnostic fixes with the
 unchanged 76 results reused. This closes the TS syntax packet.
 
@@ -195,8 +187,7 @@ plus the installed, source-ordered specification and returns a canonical result
 or refusal. Its legacy Number-based mapping is a different API/profile.
 
 **Concrete seam:** the static path requires numeric lexemes from
-`JSON.parse` reviver `context.source` and explicitly refuses when unavailable.
-A supported-host failure is **not established** by this audit. Exact exponent,
+`JSON.parse` reviver `context.source` and explicitly refuses when unavailable. A supported-host failure is **not established** by this audit. Exact exponent,
 scale, int64 usage, distribution/winner/score/legend and tolerance rules already
 exist; no new result schema is needed.
 
@@ -208,14 +199,12 @@ raw-response-to-result operation. Stop with retain-now when no required gap exis
 **If selected:** preserve JSON duplicate-last-wins and string/surrogate behavior,
 source order, portable decimals, all invalid-to-null/error classification, exact
 probability/tolerance and token counts through real `evaluateStatic` and installed
-host delivery. HTTP, source binding, tokenizer, provider state and retries stay TS.
-Do not turn this into a general JSON/validation engine or reopen existing V.
+host delivery. HTTP, source binding, tokenizer, provider state and retries stay TS. Do not turn this into a general JSON/validation engine or reopen existing V.
 
 ### 3. State total-order batch — plausible only after complete-cost comparison
 
 **Owner:** State `query/engine.ts:orderSourceReadRecords`, using Values exact
-primitive contracts and the existing Cloudflare original-source read consumer.
-Input rows have already passed their owning authority/projection/source checks.
+primitive contracts and the existing Cloudflare original-source read consumer. Input rows have already passed their owning authority/projection/source checks.
 
 **First finite output:** a declared total-comparison profile and TS baseline
 comparison for already materialized rows. The current engine already decodes
@@ -224,8 +213,7 @@ Rust sorting. Compare prepared TS/key vectors before choosing a Wasm boundary.
 
 **If selected:** copy only demanded typed keys/null tags/UTF16 IDs and return
 permutation indices; retain original rows in JS. Preserve field-major/row-major
-decode and singleton errors, null/missing/tie ordering and exact numeric results.
-Money/mixed throwing comparators stay TS unless original comparison-demand and
+decode and singleton errors, null/missing/tie ordering and exact numeric results. Money/mixed throwing comparators stay TS unless original comparison-demand and
 first failure are proved; a different sort algorithm can change errors. Source
 predicates, protected reads, fences and post-transform authority checks keep their
 original positions. Do not unify State's two-valued policy with SQL's three-valued
@@ -239,8 +227,7 @@ occurs before output truncation; the line-product fallback is not a universal
 memory bound. No latency/memory failure was measured here.
 
 **First finite output:** representative current diff workloads and an exact hunk
-compatibility table, then compare bounded TS algorithm work with a Rust leaf.
-Any changed work/input limit or hunk output policy is a separate explicit choice.
+compatibility table, then compare bounded TS algorithm work with a Rust leaf. Any changed work/input limit or hunk output policy is a separate explicit choice.
 
 **If selected:** preserve strict UTF8 classification, LF/CR/trailing-empty-line
 behavior, ties, context, indexes, fallback, 50-hunk/500-line truncation, and the
@@ -282,8 +269,7 @@ needs an explicit defining build/export/distribution owner.
   and JS admission/error order remains. Consider only for measured large/repeated
   graph work or a real native consumer. Do not merge distinct canonical serializers.
 - **UI HTML scans or CSV batch parsing:** actual scans exist, but DOM/render
-  callbacks remain JS and CSV already has one shared library plus bounded preflight.
-  First establish a complete SSR/browser/review workload advantage. CSV typed
+  callbacks remain JS and CSV already has one shared library plus bounded preflight. First establish a complete SSR/browser/review workload advantage. CSV typed
   binding remains original V/TECH-V04 scope, not a new port.
 
 Keep arbitrary structural equality, raw replay JSON, source authority/projection,
@@ -309,8 +295,7 @@ closures during qualification. No new workers, cache trees or heavy command slot
 are allocated here. Do not gate the current three packets on these proposals.
 
 The existing [finished target tree](../finished-product/target-tree.md) remains
-canonical. Coverage catalogs retain each current leaf and its responsibility.
-Conditional candidates name exact defining sources and consumed outputs; their
+canonical. Coverage catalogs retain each current leaf and its responsibility. Conditional candidates name exact defining sources and consumed outputs; their
 Rust successor filenames/package dependencies remain deliberately unresolved
 until their stated decision selects an owner and demonstrates a need. This is a
 complete additional-opportunity audit, not a completed executable design for every
@@ -325,7 +310,7 @@ ICU implementations. Material corrections retained above include money compariso
 failure order, profile-specific ICU semantics, native hashing already present in
 media, synchronous Files constraints and the test-only association importer.
 
-[JEV advice](consultation.json) records three independently worded equivalent
+JEV advice records three independently worded equivalent
 Choice requests using verified public source facts and the live
 [TypeSafe API](https://docs.typesafe.ai/api) / [Choice](https://docs.typesafe.ai/primitives/choice)
 contract. It selected **evaluate first** for ICU, query, diff and Judgment in all
@@ -337,8 +322,7 @@ probabilities or authorization.
 Files disagreement was investigated against actual source/callers: large repeated
 buffers create a plausible workload, but magic checks are tiny, text decoding is
 already native, sync transactions constrain alternatives and no CPU measurements
-exist. Resolution: keep it lower and trigger an evaluation only on actual demand.
-No repeated consultation or invented benchmark was needed. Root retains the
+exist. Resolution: keep it lower and trigger an evaluation only on actual demand. No repeated consultation or invented benchmark was needed. Root retains the
 engineering judgment. The first consultation attempt was blocked by automatic
 review for sensitive-payload concerns; after verifying the repository and exact
 source URLs are public, a reduced public-facts-only request was approved and
@@ -347,10 +331,9 @@ completed. No private instructions, local paths or secrets were sent as context.
 ## Coverage, verification and limits
 
 - **Structural coverage:** 1,511/1,511 tracked package paths, each exactly once
-  across [Cloudflare](cloudflare-coverage.json),
-  [Values/Interfaces](values-interfaces-coverage.json),
-  [State/Work](state-work-coverage.json), and [adapters/UI](adapters-ui-coverage.json).
-  No in-scope untracked product source at intake. Binary/generated/test evidence
+  across Cloudflare,
+  Values/Interfaces,
+  State/Work, and adapters/UI. No in-scope untracked product source at intake. Binary/generated/test evidence
   is distinguished from handwritten production logic.
 - **Workflow tracing:** candidate producers and real consumers/error/authority
   boundaries were inspected. Complete symbol/responsibility inventory is separate

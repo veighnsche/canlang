@@ -1925,7 +1925,7 @@ fn test_preview(
             .set_backend(prepared.backend.clone())
             .map_err(|e| e.to_string())?;
         if operation == "browser" {
-            return crate::qualification::test_browser(
+            return crate::browser_test::test_browser(
                 &prepared,
                 artifact,
                 &captured,

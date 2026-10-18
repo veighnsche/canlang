@@ -10,8 +10,7 @@ The [Rust compiler](../../compiler/README.md) is the supported implementation; i
 indexes all implicit behavior and its conformance rules. This grammar owns source
 structure, not backend coverage. Semantic constraints in DESIGN still apply to
 parsed forms: for example, an operation `by` cannot depend on an explicitly
-defaulted parameter, and a typed nullable URL is an admitted link destination.
-Neither rule needs additional syntax. A missing checker/renderer path is a
+defaulted parameter, and a typed nullable URL is an admitted link destination. Neither rule needs additional syntax. A missing checker/renderer path is a
 reported implementation gap, not an alternative grammar or an inferred grant.
 
 ## Notation
@@ -317,8 +316,7 @@ judgment_option = NAME "=" caption ;
 Here and below, `attributes` expands only the row for that header in the closed table; it is not a generic NAME/value bag. `given_items` consists of leaf lines, capability compounds and judgment compounds. `judgment_items` is nonempty. NOUL has either both named criteria in the shown order or neither; static choice options, any authored runtime-choice option map and ordered score levels are nonempty and uniquely named. `options=runtime` is confined to choice questions; its optional map contributes fixed choices, and its generated runtime input must produce a combined 2–26 distinct options. Empty dynamic arrays are valid only when the fixed choices already satisfy that total. The marker does not make question instructions or score rubrics mutable. Captions are static literal/message values; result shapes, generated type paths, bounds and binding behavior are specified in DESIGN §8.2. Judgment items cannot be mixed with Given declarations or effects. `capability_items` is a nonempty sequence of capability items. A field derive target must resolve to `Model.field`; syntactically its path need not be classified by length. A pure function is distinguished by its parameter parentheses. `invariant path: expr` is the sole stored-model invariant spelling in Given; the former `require path: expr` is invalid. Its target path, colon, expression and `row` scope are unchanged. Execution/mapper guards and presentation gates retain `require`. Both words remain contextual names in name slots. `in team`, a role scope attribute, and arbitrary resource declarations in Given are invalid. `in app` is the explicit app scope; a model path denotes explicit containment. `at` and containment compatibility are semantic.
 
 Trait definitions and custom keyword definitions are local Given leaves with
-static generation prompts; they cannot be exported or redefine built-in words.
-Named traits apply by their bare name after the model schema or stored-field
+static generation prompts; they cannot be exported or redefine built-in words. Named traits apply by their bare name after the model schema or stored-field
 modifiers; `trait Name` is not an attachment. Inline attachments use
 `trait [agent=profile] $"..."`. Multiple attachments retain authored order and end before the field
 terminator or label/description. Parameters and non-model schemas cannot
@@ -407,8 +405,7 @@ mutation_target = path ;
 ```
 
 The optional trusted-header `each=cohort [as NAME]` selects a same-package
-stored model or a nonnullable event-rooted parent's contained collection.
-Its optional alias is a stored child reference in the handler's lexical
+stored model or a nonnullable event-rooted parent's contained collection. Its optional alias is a stored child reference in the handler's lexical
 scope and cannot hide a contextual fact. Omission adds no authored child
 binding. Frozen membership, bounded child transactions, verified source
 authority and replay follow DESIGN §6. Parsing does not establish support
@@ -535,11 +532,9 @@ caption and exactly one checked binding. For example,
 `primary "Approve" action=approve arguments={request=row}` and
 `secondary "Archive" action=Request.delete arguments={record=row}`. CRUD create,
 update and delete targets reuse their owning canonical operation; `fields=` and
-authored input controls and fieldsets may configure an operation's prepared input form.
-A primitive's suite is limited to those canonical input controls and `require`
+authored input controls and fieldsets may configure an operation's prepared input form. A primitive's suite is limited to those canonical input controls and `require`
 guards; it cannot contain other actions or arbitrary presentation groups. Existing inline,
-read-result, import/review and dynamic-action forms retain their owning flow.
-Panel openers, form submits and safe destinations reuse the existing exclusive
+read-result, import/review and dynamic-action forms retain their owning flow. Panel openers, form submits and safe destinations reuse the existing exclusive
 `opens=`, `submit=true` and `target=` contracts. No raw callback or endpoint binding
 is introduced. Captions support the ordinary localization syntax.
 
@@ -552,8 +547,7 @@ versioning or confirmation. Input and confirmation dialogs retain canonical
 cancel/focus behavior. The checked owners are page, card, list/table record row,
 modal/drawer `slot actions`, and `details ... display=drawer`. Canonical form/edit
 accepts only a directly owned `primary ... submit=true`; secondary and independent
-targets inside a form are invalid. Nonvisual guards retain the current owner.
-Tooltip, tab, fieldset, join, hero, disclosure, generic slot and other visual
+targets inside a form are invalid. Nonvisual guards retain the current owner. Tooltip, tab, fieldset, join, hero, disclosure, generic slot and other visual
 wrappers do not inherit action ownership. Tooltip descendants reject priority
 actions even through nested cards or expanded views. A generated view is not an owner;
 source declares a canonical card and its renderer preserves the complete opaque

@@ -43,7 +43,7 @@ The full sources contain 34 Expense example blocks (10 connected sequences, 119 
 
 ## Ordinary composition versus proposed package/template
 
-The existing [three general approval consultations](../../../design/language-proposals-20261007/jev/) split: response 1 preferred deferral (probability .48, confidence .22), response 2 package (.74/.61), response 3 package (.54/.31). They support comparing reuse after complete witnesses, not declaring a stable package accepted. The later [three concrete review-organization requests and responses](../../../design/jev/capability-approval-protocols-20261009/) consistently advise named roster (.99/.99/.97; confidence .98/.98/.95), over a frozen pool or staged concurrence under the same complete outcomes. This is advisory policy selection; it neither resolves the new unpaid recovery policy nor qualifies runtime enforcement.
+The existing three general approval consultations split: response 1 preferred deferral (probability .48, confidence .22), response 2 package (.74/.61), response 3 package (.54/.31). They support comparing reuse after complete witnesses, not declaring a stable package accepted. The later three concrete review-organization requests and responses consistently advise named roster (.99/.99/.97; confidence .98/.98/.95), over a frozen pool or staged concurrence under the same complete outcomes. This is advisory policy selection; it neither resolves the new unpaid recovery policy nor qualifies runtime enforcement.
 
 | Route, assessed at its actual stage | Reuse and authoring benefit | Obligations and costs for the same complete outcomes |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ A common Request/Vote kernel is visible, but the differing finalizers, immutable
 
 One bounded read-only source comparison passed locally: all 10 original Expense scenarios and 12 original Creative scenarios remain. Original guard/`do` bodies are unchanged except Expense `decide`/`reimburse` and Creative `publish`. All original page paths remain; Expense's three original page bodies are unchanged, while Creative changes only its workflow page to add request entry. The check counted source example blocks/calls and checked those intended preservation deltas; it did not parse, compile or execute either workflow. No heavy build, replacement worker, cloud activity or duplicate verification artifact was created.
 
-The authoritative outstanding findings are in [execution-state.json](../execution-state.json). Compiler's exact released52e9e375 request-identity admission was consumed as9083997c. Full local provider-closure checking now removes all eight Expense/six Creative `request.operation_id` errors while retaining Expense's two original Employee `E3010` diagnostics and Creative's seven original diagnostics. The historical emergency-checkpoint findings remain recorded; source admission is implemented and checked, while authored runtime replay remains unqualified.
+The authoritative outstanding findings are in execution-state.json. Compiler's exact released52e9e375 request-identity admission was consumed as9083997c. Full local provider-closure checking now removes all eight Expense/six Creative `request.operation_id` errors while retaining Expense's two original Employee `E3010` diagnostics and Creative's seven original diagnostics. The historical emergency-checkpoint findings remain recorded; source admission is implemented and checked, while authored runtime replay remains unqualified.
 
 Required joins, without expanding selected earlier receipts into whole-task acceptance:
 

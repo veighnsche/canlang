@@ -17,7 +17,7 @@ Actual peer recipe inspected: `editors/vscode/src/client.ts` spawns `can lsp`, c
 
 ## JEV advice and uncertainty
 
-Three independently worded equivalent choice requests and complete responses are saved as `jev-{a,b,c}.{request,response}.json` (jev-1.13.0). All selected 64 KiB headers plus incremental body storage, and all selected equal-only duplicates. Duplicate confidence varies from 0.37 to 0.83; the result is advice, not a compatibility survey.
+All selected 64 KiB headers plus incremental body storage, and all selected equal-only duplicates. Duplicate confidence varies from 0.37 to 0.83; the result is advice, not a compatibility survey.
 
 Lifecycle advice is split and low confidence: a and b select close_failure (confidence 0.32/0.27), c selects close_lifecycle (0.21). In b the displayed probability for either closure is 0.45; c gives 0.41 to lifecycle closure and 0.40 to failure closure. This is not unanimous evidence for exit 1. Investigation compared the actual server exit path and explicit shutdown/exit tests: existing clean/torn EOF uses lifecycle status, while malformed framing previously had no qualified recovery boundary. Both closure choices prevent further interpretation; exit 1 was chosen to expose a failed transport rather than classify it as successful disconnect, including after shutdown. Complete-body parse recovery and clean/torn EOF are preserved and independently exercised. No external evidence establishes unusual clients that rely on malformed framing or conflicting duplicate lengths; their intentional refusal is a compatibility change.
 

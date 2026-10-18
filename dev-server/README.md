@@ -1,16 +1,13 @@
 # Native development server
 
-This independent crate implements the Rust owner and Ratatui presenter described
-in [T14–T17](../docs/implementation/REMAINING-WORK.md#development-extension-contracts). The existing installer
-now packages this native entry beside the compiler and bundled runtime host.
-Release builds and installed manual workflows are qualified on macOS arm64 and
-Linux x86_64; the hosted release workflow has not been dispatched or published.
+This crate implements the Rust development-session owner and Ratatui presenter.
+The installer packages this native entry beside the compiler and bundled runtime host.
 
 From this checkout, build the Cloudflare producer closure and Values catalog,
-then build this crate with the repository's resource settings:
+then build this crate:
 
 ```sh
-CARGO_TARGET_DIR="$PWD/compiler/target" CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=2 cargo build --locked --manifest-path dev-server/Cargo.toml
+CARGO_TARGET_DIR="$PWD/compiler/target" cargo build --locked --manifest-path dev-server/Cargo.toml
 CAN_DEV_BIN="$PWD/compiler/target/debug/can-dev" compiler/target/debug/can dev ui --source App.can
 ```
 
@@ -27,9 +24,9 @@ new allocation until an explicit retry succeeds. Plain and redirected output
 use stderr; explicit JSON controls use stdout. Routine status exposes only the
 non-secret origin; `preview.open` explicitly mints private browser access.
 The JSON and terminal controls share captured diagnostics, safe failure lookup,
-isolated examples and retained single-row reruns, construct help and gated ranking.
-Unavailable qualification remains unqualified; external disclosure is disabled
-by default. Automatic scheduling belongs to T19.
+isolated examples and retained single-row reruns, construct help and local ranking.
+Construct support follows the authored reference and owning package catalogs;
+external disclosure is disabled by default.
 
 The owner loop selects generations, captures and checks inputs, and retains
 cleanup handles. Blocking work returns identified facts to that loop. The

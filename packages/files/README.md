@@ -6,9 +6,8 @@ afterwards; every byte and metadata read re-verifies the caller against
 the bound owner and fails closed. Internal package; the public surface
 assembles in `@canlang/stdlib`.
 
-Ownership per `docs/implementation/PLAN.md`: lane 04
-(`prompts/04-work-services-files.md`) owns the file lifecycle. There is
-a root entry and explicit exported subpaths; import the capability you need.
+The package has a root entry and explicit exported subpaths; import the
+capability you need.
 
 ## Install
 
@@ -56,7 +55,7 @@ Key exports by module:
   `TestOnlyCounterIntentIds`, `TestOnlyCounterFileIds`,
   `TestOnlyFixedPrincipal`)
 - `src/catalog.ts`: `filesCatalog`, `FILES_CATALOG_VERSION`
-- `src/scenarios.ts`: `FILES_SCENARIO_TABLES` (pinned empty, by design)
+- `src/scenarios.ts`: `FILES_SCENARIO_TABLES` (empty)
 - `src/host/sqlite.ts`: `createSqliteFileStore`, `createSqliteFileBindings`
   (explicit Node host; metadata and bytes share one transaction)
 
@@ -222,7 +221,7 @@ src/
   bridge.ts            # host bridge v1: intent auth, _meta ads, fallback
   catalog.ts           # additive versioned capability entries
   ports.ts             # port interfaces + TEST-ONLY doubles
-  scenarios.ts         # scenario tables (none, pinned empty)
+  scenarios.ts         # scenario tables (none)
   finalize/index.ts    # finalize, ingest, attach, finalized reads
   provenance/index.ts  # request/event provenance binding
   retention/index.ts   # GC horizon, redaction, receipt projections

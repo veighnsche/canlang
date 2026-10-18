@@ -27,7 +27,7 @@ This does not establish mathematical impossibility of a smaller internal impleme
 
 ## Exact matching qualification reused
 
-`inventory.py` is reproducible from the checkout and writes only this evidence directory. Its source pins verify **11 relevant compiler/test/package-dist/manifest inputs** against the historical after-decimal-materialization manifests. All eleven match. Full raw public layout tests, actual consumer test, current policy/json/CLI ownership, actual built policy page and catalog are retained under `raw/`; those copies are evidence, not changed fixtures or executable production edits.
+`inventory.py` is reproducible from the checkout and writes only this evidence directory. All eleven match. Full raw public layout tests, actual consumer test, current policy/json/CLI ownership, actual built policy page and catalog are retained under `raw/`; those copies are evidence, not changed fixtures or executable production edits.
 
 The historical profile receipt lists 1,154 passed, 0 failed/ignored with 121 compiler, 1,770 package producer/dist/manifest, and 5 external Can fixture inputs. The raw log at 1734–1753 records all four `typed_policy` tests passed and the actual fresh policy CLI test passed without a consumer skip. Only the matching relevant bodies are reused here. This is not qualification of all current compiler sources, current Git HEAD, or future IR/JS edits. The optional mode4750 skip and profile limits remain in the copied original receipt.
 
@@ -37,6 +37,6 @@ The Pass5 raw consumer receipt and released contract are also preserved. Its ind
 
 ## Future boundary and acceptance
 
-An owning revision that changes supported byte/readability/layout behavior is still a proposal. It must explicitly decide public `policy_dump_json`, declared layout and CLI newline compatibility, preserve schema/order/omission/predicates and actual policy rendering outcomes, then measure the whole replacement/import/shared-helper closure against 120 net. A consequential API/layout choice needs verified balanced alternatives and the project's three equivalent JEV requests before selection. No such choice was made or released here; unchanged support retention needs no new JEV decision.
+An owning revision that changes supported byte/readability/layout behavior is still a proposal. It must explicitly decide public `policy_dump_json`, declared layout and CLI newline compatibility, preserve schema/order/omission/predicates and actual policy rendering outcomes, then measure the whole replacement/import/shared-helper closure against 120 net. No such choice was made or released here; unchanged support retention needs no new JEV decision.
 
-This packet is acceptable as **current support disposition complete / RETAIN**, with conditional cleanup **unimplemented and unaccepted**. It is unacceptable as evidence of 120-net-line simplification or complete application/GUI/deployment/support closure. Root decisions/status/coverage, living file-tree checkpoint and Git remain untouched by this packet.
+This packet is acceptable as **current support disposition complete / RETAIN**, with conditional cleanup **unimplemented and unaccepted**. It is unacceptable as evidence of 120-net-line simplification or complete application/GUI/deployment/support closure.

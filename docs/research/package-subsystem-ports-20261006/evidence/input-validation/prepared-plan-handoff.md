@@ -1,7 +1,6 @@
 # V02.1 — Prepared owner-plan handoff (TS)
 
-Task: V02.1 (lane `V-plan`, wave 2, after `V01` + `C02.ready`).
-Implementation record; the V02.6 hook patch below is a specification for
+Task: V02.1 (lane `V-plan`, wave 2, after `V01` + `C02.ready`). Implementation record; the V02.6 hook patch below is a specification for
 V-integrator, not an applied edit.
 
 - Head verified: `6388bb414c2f789ccd28ec621b7f359fb1eeda64` (lane F, merged
@@ -94,8 +93,7 @@ single success return at the frozen `Object.freeze({kind:
    imports schema.ts types only.)
 2. Bind the frozen output to a local, then call
    `recordFactoryProvenance(normalized,
-   \`artifact-${ARTIFACT_VERSION}\`)` immediately before returning it.
-   Record ONLY on the success path — every `throw new
+   \`artifact-${ARTIFACT_VERSION}\`)` immediately before returning it. Record ONLY on the success path — every `throw new
    SchemaError(...)` path stays untouched so failed normalizations
    never gain provenance.
 3. Owners bind scopes with the identical revision string

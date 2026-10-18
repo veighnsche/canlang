@@ -17,7 +17,7 @@ pub mod owner;
 pub mod policy;
 pub mod presentation;
 pub mod preview;
-pub mod qualification;
+mod browser_test;
 pub mod refusals;
 pub mod runtime;
 pub mod sdk;

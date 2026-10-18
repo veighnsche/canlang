@@ -1,7 +1,6 @@
 # Authoring demo: format → rename → complete → fix
 
-One file, four authoring legs, all through the real `can` binary.
-The executable version is `compiler/tests/b3_authoring_join.rs`
+One file, four authoring legs, all through the real `can` binary. The executable version is `compiler/tests/b3_authoring_join.rs`
 (`cargo test --test b3_authoring_join`); this page narrates it.
 
 ## The fixture

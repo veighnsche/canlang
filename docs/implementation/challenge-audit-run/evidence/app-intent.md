@@ -4,9 +4,7 @@
 - Revisions: main checkout `e22b59f` (branch codex/challenge-audit-implementation, base c681d86);
   draft submodule `2d67312` (clean, heads/main). No builds run; read-only inspection only.
 - T01 status: `docs/implementation/challenge-audit-run/evidence/root-causes.md` LANDED (T01 ticked
-  complete: 30 roots R01-R30, buckets a-e, chains C1-C7, base c4a9775 + draft 2d67312).
-  Every disposition below is reconciled against that ledger; nothing is a placeholder.
-  Where the ledger is silent, the exact blocker is recorded instead of a guess.
+  complete: 30 roots R01-R30, buckets a-e, chains C1-C7, base c4a9775 + draft 2d67312). Every disposition below is reconciled against that ledger; nothing is a placeholder. Where the ledger is silent, the exact blocker is recorded instead of a guess.
 - Plan inputs: `docs/implementation/CHALLENGE-AUDIT-PLAN.md` observed baseline (4524 diagnostics /
   52 sources; 830 runtime error expectations; no explicit whole-file compile-negative intent),
   Executable-examples section (accept-workflow-intent recommendation, runtime negatives
@@ -14,8 +12,7 @@
 
 ## Method (reproducible greps, all run from `draft/`)
 
-- Runtime error expectations: `grep -o "-> error(" *.can` → **830**, matching the audit count.
-  Kinds: `rule_failed`=613, `forbidden`=182, `conflict`=31, `validation`=2, `not_found`=2.
+- Runtime error expectations: `grep -o "-> error(" *.can` → **830**, matching the audit count. Kinds: `rule_failed`=613, `forbidden`=182, `conflict`=31, `validation`=2, `not_found`=2.
 - Shared-state `do` example blocks: lines matching `^    do$` (4-space indent; validated by
   sampling that each directly follows an `examples seed=[...]` line) → 25 files contain them.
 - Proposal markers: `##` comments using proposed/parser/grammar/pending/desired/yet/support,
@@ -84,8 +81,7 @@ verdict, and flip evidence without restructuring this file.
 
 - Intent: sales teams turn inquiries into tours, quotes, and office/coworking sales.
 - Disposition: ACCEPTED-WORKFLOW-INTENT — source defects R05/R09/R10 (b); leaning draft defect R22 (a).
-- Observations: `-> error(` x21 (rule_failed=14, forbidden=7); `do` blocks x0.
-  Multi-package app; Proposal/Revision forms are imported CanPropose-owned (domain use).
+- Observations: `-> error(` x21 (rule_failed=14, forbidden=7); `do` blocks x0. Multi-package app; Proposal/Revision forms are imported CanPropose-owned (domain use).
 - Proposal markers: none observed.
 - Unavailable-implementation markers: none observed (beyond run-wide T21-T23 note).
 - Runtime negatives: 21 retained, never erased.
@@ -482,8 +478,7 @@ verdict, and flip evidence without restructuring this file.
 - Proposal markers: none observed.
 - Unavailable-implementation markers: `each=` fanout at L237
   (`scenario review_commitment on=EligibilityReview each=Commitment as commitment`)
-  and L243 (`scenario review_swap on=EligibilityReview each=Swap as swap`).
-  Plan confirms `each=` unadopted (Scoped-fanout section; T33/T34 own the decision).
+  and L243 (`scenario review_swap on=EligibilityReview each=Swap as swap`). Plan confirms `each=` unadopted (Scoped-fanout section; T33/T34 own the decision).
 - Runtime negatives: 14 retained, never erased.
 - T01: R11(b,T12/T13) L12 std; R20-family(a,T36) L83 fixture cycle; R19(d,T33→T34) L237/L243 `each=` fanout (primary sites; medium; flip: continuation design with equal completeness/recovery at lower cost, or adopted finite durable fanout contract → b work). Verdict: workflow accepted; fanout implementation unavailable pending T33 JEV decision.
 
@@ -590,8 +585,7 @@ verdict, and flip evidence without restructuring this file.
 
 - Coverage: 49/49 apps present, each with intent + observations + T01-pending marker.
 - Runtime negatives: 830/830 `-> error(` expectations inventoried per file and marked
-  retained (rule_failed=613, forbidden=182, conflict=31, validation=2, not_found=2).
-  Zero erased, zero reclassified.
+  retained (rule_failed=613, forbidden=182, conflict=31, validation=2, not_found=2). Zero erased, zero reclassified.
 - Whole-file negatives: 0 recorded — no explicit whole-file compile-negative intent
   found by direct grep; matches plan baseline.
 - Explicit proposal markers found in 6 files: CanApprove L117, CanExpense L39+L114,
@@ -605,8 +599,7 @@ verdict, and flip evidence without restructuring this file.
   for T01; no inference drawn.
 - Multi-app files (second composing `app` at L5): Customer, Hire, Invoice, Maintain,
   Refer, Rent, Shift.
-- T01 reconciliation pending for ALL 49 apps (root-causes.md absent at prep time).
-  No dispositions invented. No other path touched; no heavy commands run (lock never
+- T01 reconciliation pending for ALL 49 apps (root-causes.md absent at prep time). No dispositions invented. No other path touched; no heavy commands run (lock never
   acquired — none needed).
 
 ## T02 reconciliation summary (T01 landed — read with the prep record above)

@@ -4,11 +4,8 @@ CanLang public standard library façade: a thin export assembly from
 producer packages. It re-exports producer surfaces verbatim — no
 wrappers, no synonyms, no back-imports.
 
-v0 fulfills exactly one filed request: lane-02's FACADE REQUEST
-(groups (a)–(d) in `src/index.ts`), 139 runtime names plus the
-`@canlang/values` barrel's 66 TS types, guarded by the assembly test.
-App-level record/query/mutation/send/schedule builtins are not in v0:
-owning producers implement them, then request assembly.
+The exports in `src/index.ts` assemble the Values API and shared producer
+contracts. App-level behavior remains in its owning producer.
 
 ## Install
 
@@ -101,11 +98,6 @@ steps; use the public commands above to prepare dependencies.
 - `package.json`, `tsconfig.json` — manifest (emits `dist/`) and
   strict TS config.
 
-## Ownership
-
-Per `docs/implementation/PLAN.md`: lane 03 owns this package (L3 thin
-`@canlang/stdlib` export assembly, `src/index.ts` + `package.json`).
-Each lane owns its package manifests. No dependency may import back
-through the public façade.
+Dependencies must not import back through the public façade.
 
 The `./distribution` export locates the built module tree after installation.

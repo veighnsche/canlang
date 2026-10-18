@@ -2,25 +2,7 @@
 
 ## Current consolidated list — 18 October 2026
 
-**77 canonical outcomes reviewed; 76 remain open.** The second source-grounded pass found that FP.COMPILED-DECIMAL's exact expression-lowering scope was already accepted; its row is retained as closed traceability, not a new job. Canonical IDs are retained; multiple IDs on one row name the same shared output or its consumers, not extra assignments. **Nine proposed/conditional groups** and **five actual human/external gate groups** follow separately. No completion percentage is derived from historical task counts.
-
-Reconciled against main476347fdd and the four final owning handoffs. All four efforts are stopped, their released work is committed/pushed, their supervision is retired, and secondary task worktrees/branches are removed. This documentation reconciliation starts no implementation worker, application/model generation, automation or test programme. “Ready” below means dependency-ready if later work is requested.
-
-**Execution preparation at `104d87b63`, 18 October:** **50** outcomes have a
-directly actionable next bounded unit (**D**), **22** consume a specific missing
-engineering output (**E**), **4** first need a named decision or external input
-(**B**), and **1** is already satisfied (**C**). These mutually exclusive labels
-describe the **next unit**, not full-parent completion or current authorization.
-Later provider/host/publication leaves still apply to matching consumers; the five
-shared gate groups are not counted again. No implementation, builds or runtime tests ran.
-
-The next-unit column adds the starting point and order that the original contract
-columns lacked. A large row is a parent: perform its stated first unit, release the
-concrete output, then its next listed consumer. Do not dispatch the entire parent
-as one undifferentiated rewrite. Luna is suitable for a well-defined fixture,
-extraction or released consumer recipe; use an experienced executor for compiler
-authority, transactions, recovery and architecture decisions. Model suitability
-is not an additional gate or a reason to invent certainty.
+This list describes functional gaps, dependencies and proposed work. Existing task IDs identify related requirements; multiple IDs may refer to one shared implementation. Reuse satisfied behavior and check the affected consumer when it changes.
 
 ### Recommended priority for the next available work
 
@@ -35,27 +17,23 @@ Dev's `bundle.build` reaches those calls through
 and its fresh one-build child. The [retained phase observation](../specification/DECISIONS.md#2026-10-18--reduce-repeated-local-dev-capture-work)
 puts **total portable bundling near two seconds per check** on its historical
 TypeScript tuple. Current source proves the repeated producer work remains; that
-aggregate timing does not prove the pair's current cost or promise two seconds saved.
-This is the first concrete repeated-work reduction supported by the current
+aggregate timing does not prove the pair's current cost or promise two seconds saved. This is the first concrete repeated-work reduction supported by the current
 findings, ahead of fresh corpus capture and feature work. The broader objective is
 less repeated build/test/setup/capture/integration and manual work; it does not
 limit future priority to build time alone.
 
 **The finite T22 unit:** use the accepted T16 owned-build boundary and T17 evidence;
 retain only completed, validated MCP/HTTP producer bytes under an exact consumed
-source/resolution/tool/options identity, with bounded owner lifetime and cleanup.
-Reuse must cross the fresh child boundary: a module-local map inside
+source/resolution/tool/options identity, with bounded owner lifetime and cleanup. Reuse must cross the fresh child boundary: a module-local map inside
 `owned-bundle-entry` would disappear after every build. Keep artifact-dependent
 assembly, source-current admission, permissions, cancellation and publication
 fresh. Reuse the existing process/ownership contract rather than introducing a
 repository-wide cache service. Required controls are unchanged-producer hit,
 changed dependency/resolution/tool/options miss, missing/corrupt/partial-output
-refusal, cancellation and owned release, with actual output equivalence/loadability.
-Extend the existing `bundle-execution`, `owned-bundle` and `bundle-entry-cleanup`
+refusal, cancellation and owned release, with actual output equivalence/loadability. Extend the existing `bundle-execution`, `owned-bundle` and `bundle-entry-cleanup`
 fixtures; refresh only the changed Cloudflare producer closure and run those
 focused tests plus one existing real edit/build consumer. In that normal affected
-comparison, count the avoided producer builds and record their elapsed cost once.
-The **remaining uncertainty** is the current pair's share of a repeated bundle build
+comparison, count the avoided producer builds and record their elapsed cost once. The **remaining uncertainty** is the current pair's share of a repeated bundle build
 when its closure is unchanged. If it is immaterial or no meaningful reuse occurs,
 record the existing T22 no-go and stop; do not start a benchmark project or broader cache.
 
@@ -104,8 +82,7 @@ run a broad performance survey, or infer that every compiler check has that cost
 bytes in [`compile_inner`](../../dev-server/src/compiler.rs), but its remaining
 staging cost is not isolated in retained evidence; basic no-op compiler-spawn
 avoidance is already accepted in [`Loop::reuse_serving`](../../dev-server/src/owner.rs)
-and the [unchanged-check decision](../specification/DECISIONS.md#2026-10-18--bound-unchanged-check-and-inventory-path-reuse).
-After T22, advance only the specifically measured remaining T23 duplication ahead
+and the [unchanged-check decision](../specification/DECISIONS.md#2026-10-18--bound-unchanged-check-and-inventory-path-reuse). After T22, advance only the specifically measured remaining T23 duplication ahead
 of corpus/feature work, consuming T19's shared check admission where its contract
 requires it. Compiler execution and Cargo compilation are different costs; staging
 reuse claims neither. The native P04–P08 construction join still needs raw host
@@ -143,8 +120,7 @@ These are dependency streams, not additional tasks or a serial all-repository pl
    separate-store File serialization and the shared authenticated source binding
    have concrete local starts. Feed only the needed producer output to receiving
    Files/Mailbox/Payments/Onboard. Same-owner reservation precedes settlement;
-   canonical configured admission precedes the matching Ping/maintenance consumer.
-   Mounted CSV/export consumers reuse their already accepted backends now.
+   canonical configured admission precedes the matching Ping/maintenance consumer. Mounted CSV/export consumers reuse their already accepted backends now.
 3. **Native ports:** raw preparation host → native constructed output → installed
    final constructor; exact/validation/Work consumer joins can proceed independently
    except at shared assembly/runtime files. Package a released owner output, then
@@ -156,17 +132,14 @@ These are dependency streams, not additional tasks or a serial all-repository pl
    T27–T29 stay conditional on their own measured decision.
 5. **Drafts and release:** CanTable requirements → exact source closure → native
    preview/resources → genuine generation → functional/visual acceptance → first
-   saved-output CI job. Repeat per app; CanPromptLab adds its generation categories.
-   FP.QUALIFY consumes those same journeys. Final installed/upgrade/full release
+   saved-output CI job. Repeat per app; CanPromptLab adds its generation categories. FP.QUALIFY consumes those same journeys. Final installed/upgrade/full release
    uses the matching changed artifacts and results, not another universal rerun.
 
 Resolve the three decision-held outcomes early with their defining owners while
 independent work continues: remaining Identity/State transaction participants;
 SEQ045's concrete reversible effect/protocol; and the recorded original-app policy
-discrepancies, especially Partner lock editing and Volunteer material changes.
-Their existing contracts name the competing meanings; difficult selections use
-the existing JEV procedure. This preparation does not select those semantics.
-BGI06's fourth **B** row needs the actual authenticated tool/model/operator inputs.
+discrepancies, especially Partner lock editing and Volunteer material changes. Their existing contracts name the competing meanings; difficult selections use
+the existing JEV procedure. This preparation does not select those semantics. BGI06's fourth **B** row needs the actual authenticated tool/model/operator inputs.
 
 ### Focused validation entry points
 
@@ -182,12 +155,11 @@ State/UI/Interfaces use their existing `dist/test/` layout. The [DFE batches](#d
 [native units](#native-port-unit-contracts),
 [dev extension order](#development-extension-contracts) and
 [integration units](#service-and-integration-contracts)
-give their actual commands. Existing resource rules and accepted results apply.
-If a named required output is absent or its contract conflicts with current code,
+give their actual commands. Existing resource rules and accepted results apply. If a named required output is absent or its contract conflicts with current code,
 stop only that consumer and return the exact symbol/behavior to its defining owner;
 do not weaken the fixture, infer a passing result or reopen unrelated scope.
 
-This is the **one current remaining-work list**. The absorbed contracts and consumer recipes appear below under the same IDs. Original source manifests and qualification records retain their requirement identities and observations; they do not supply another execution queue or current task count. Old native-source preparation holds were lifted; public deployment, automatic defaults and TS retirement have separate remaining holds.
+This is the **one current remaining-work list**. The absorbed contracts and consumer recipes appear below under the same IDs. Old native-source preparation holds were lifted; public deployment, automatic defaults and TS retirement have separate remaining holds.
 
 ### Accepted work to reuse
 
@@ -229,7 +201,7 @@ No broad plan completion is a prerequisite. A row with its named input already a
 | SEQ-011; challenge:T17/T18/T29/T31/T32 | Complete the original ordered rule/hook/lock/invariant/reverse/nested/delete graph and imported lifetime/parent joins. | **Compiler + State + runtime.** Used graph metadata and exact owning session/transaction output. | Actual D1/DO where claimed: late rollback, one commit/version, replay, parent/lifetime/cycle and current authority. Existing State core and selected graph proofs are reused. | [Source](capability-roadmap-20261008/README.md) | **D** — The accepted `model-rule-contract.md` selects native callbacks and one owner mutation finalization. Start `beginOwnerMutation` / `bindArtifactOwnerModelPolicies`; find one original graph's missing emitted `modelPolicies`/binding dependency, repair that owner and run `composed_rule_owners` plus the affected `native-local-rules-d1` consumer. Imported lifetime/reverse/delete are separate units, not a second interpreter. |
 | FP.IDENTITY-CONTRACT / FP.IDENTITY | Finish the remaining typed J2/conditional identity lifecycle and durable proof at its original scope. | **Identity + State conditional participant + Interfaces.** Exact unresolved transaction participants/context/fence decision, then only the dependent lifecycle variant. | One winner and atomic rollback/replay for remaining token/last-owner/role/recovery/membership cases. Reuse accepted ordinary store, presession, invitation, recovery, signed/internal removal and mounted-admission profiles. | [Source](#service-and-integration-contracts) | **B** — Identity/State owner must settle the remaining transaction participants after excluding accepted invitation/recovery/signed-removal and local last-owner commands in Identity `storage/d1.ts`. Compare Identity-local conditional batch against actually required business-State participation; do not promise cross-database atomicity. Then implement one remaining variant with D1 race/rollback tests. The historical J2 proposal alone is not a current absence inventory. |
 | challenge:T22/T23; LG02 | Finish rich compiled examples: genuine finalized-file/provider/delivery fixtures and original table/sequence execution. | **Testkit + Compiler + relevant provider/file owners.** Specific fixture producer and dispatch/observation/CallOutcome/query-cell output. | Actual emitted callers/prior commits assert independent values, denial/no-change and false-expectation failures; setup failure cannot count as business rejection. Accepted native example qualification is reused. | [Source](#current-consolidated-list--18-october-2026) | **D** — Extend Testkit `fixtures/recipes.ts`, `runner/loader.ts::prepareRowCells` and dispatch hooks with one genuine finalized File fixture, then a controlled actual delivery/observation fixture. Run changed `test/loader.test.ts` / `dispatch.test.ts`, followed by the original compiled row/sequence and a false-expectation negative. Setup failure is never business rejection; only recipient-specific BDD3 actions remain held. |
-| FP.INVOCATION; SEQ-039 | Finish original Workbench context/approval, Task.update/complete, publication and transcript/ANY/call consumers. | **Compiler + State/Interfaces + runtime.** Frozen allowlisted typed arguments/reference provenance, current protected preview and target admission; supported TextGeneration File[] output only for that original consumer. | Same-owner approval/effects commit or roll back together; current roles/version/defaults/refusal/replay hold. Accepted State/current337 components remain closed. | [Source](capability-roadmap-20261008/README.md) | **E** — First release Workbench `context`'s actual Fact[] projection; then its unchanged approve sequence rereads facts, invokes stored call and checks late invariants in one owner session. Start `CanWorkbench.can`, State `bindScenarioReceiptCallProducer` / `invokeScenarioReceiptCall`, compiler `invocation_references`. Task and publication consumers follow separately; TextGeneration File[] is required only by its matching branch. |
+| FP.INVOCATION; SEQ-039 | Finish original Workbench context/approval, Task.update/complete, publication and transcript/ANY/call consumers. | **Compiler + State/Interfaces + runtime.** Frozen allowlisted typed arguments/reference provenance, current protected preview and target admission; supported TextGeneration File[] output only for that original consumer. | Same-owner approval/effects commit or roll back together; current roles/version/defaults/refusal/replay hold. Accepted State/current337 components remain closed. | [Source](capability-roadmap-20261008/README.md) | **E** — First release Workbench `context`'s actual Fact[] projection; then its unchanged approve sequence rereads facts, invokes stored call and checks late invariants in one owner session. Start `CanWorkbench.can`, State `bindScenarioReceiptCallProducer` / `invokeScenarioReceiptCall`, compiler `invocation_references`. Task and publication consumers follow separately; TextGeneration File[] is required only by its matching branch. WorkbenchPlannerV1 output additionally consumes FP.SERVICE-CATALOG’s original typed planner join; retain normalized finite invocation/reference provenance before protected preview and approval. |
 | FP.POLICY-REVIEW | Qualify staff-facing business review derived from checked owner facts. | **Compiler/reference + Interfaces/UI.** Actual permissions/actions/exceptions/defaults/assumptions/examples, plus truthful provider availability. | A real consumer displays unresolved intent and source-owned policy without a second copied prose policy. | [Source](#service-and-integration-contracts) | **D** — Extract one owner's checked permission/action/guard/default/example facts at compiler/reference ownership, then mount a real staff review. `contracts/reference.ts` currently excludes policy inventories; UI `review.ts` only renders supplied slots. Extend the owning facts, not copied prose or a presumed nonexistent `review.rs`. Source changes must update the projection; experienced compiler ownership is appropriate. |
 | FP.DOC-REQUIREDNESS | Resolve the recorded ordinary-array versus required-array creation-reference discrepancy if still demonstrated. | **Compiler docs + Values + Forms/MCP/State.** Compare the exact current stored-field facts; parameter requiredness stays separate. | Reference and actual creation consumers agree: ordinary omitted arrays default empty and required arrays differ. Repair only a reproduced disagreement. | [Source](#service-and-integration-contracts) | **D** — Reproduce the specific stored-array mismatch: `compiler/src/docs.rs` lacks the ordinary-array exclusion used by Values `internal/schema-core.ts`. Add ordinary `text[]` beside `text[]!` in `compiler/tests/docs.rs`, repair only stored-field extraction, and compare genuine creation/reference behavior. Operation-parameter requiredness stays separate; use affected docs/docs-reference tests. |
 | FP.PREFERENCES | Qualify remaining self/owner/app/team reference preference/default/reset/conflict/cancel/bound-tab profiles. | **Compiler metadata + UI/Interfaces + preference storage.** Exact current source-owned preference key and reference fallback. | Real consumer preserves current identity, save/reset/cancel/revocation without granting business authority. Inline bool/text/int nullable/CAS/save-reload profiles are closed. | [Source](#service-and-integration-contracts) | **D** — Trace one original reference preference through Interfaces `pages.ts::{loadPreferenceField,handlePagePreferencePost}`, UI settings/bootstrap and runtime `page-preferences.ts::createD1PagePreferenceStore`. Existing scoped key and version CAS are available. Qualify reference fallback/reset/cancel/conflict, then other remaining scopes; reuse scalar editors. Historical State preferences and separate HTTP preferences paths are absent. |
@@ -242,12 +214,12 @@ No broad plan completion is a prerequisite. A row with its named input already a
 | challenge:T25; D3B Q4-C | Qualify the real bundled selected-receipt observer route without test injection. | **State/Work observer + Cloudflare bundle/transport.** Specific worker-safe observer/B-half output; Q1–Q3 foundations already exist. | Bundled /mcp receipt-read returns authorized projection, denied-as-missing, stale-fence and closed-input refusals; dropping observer bytes fails. Reuse Node/checkout and selected observer proofs. | [Source](#durable-work-receiving-resources-and-application-services) | **D** — Boot the actual deploy bundle and call `/mcp` without observer injection, reusing `typed-delivery-observer.test.ts` / `d3b-selected-receipt.test.ts` seeds. Trace State receipt join and portable Work receipt loader only for a demonstrated bundle gap. Add authorized/denied/stale/closed-input plus one dropped-bundle negative; stop at Q4-C, not all T26. |
 | challenge:T26 | Complete durable observable relation/progress/notification consumers. | **Work + State association/receipt + runtime.** Matching producer/receipt association and the selected authorized observer output. | For each declared relation, duplicates/cancel/late usage/restart/terminal immutability and notification correlation hold on the actual durable path. | [Source](#current-consolidated-list--18-october-2026) | **D** — One real durable relation first through Work `observation/association.ts::applyRetainedRelatedProgress` and runtime `receipt-progress.ts::stageReceiptProgress`; then remaining unqualified relation families. `T26_KNOWN_RELATION_TARGETS` lists17 targets, but shape tests do not establish durable behavior. Extend existing durable recovery/observer fixtures with notification correlation and reopen/late cases. |
 | FP.DISPATCH-AVAILABILITY | Finish actual deployment target/capability availability and durable terminal dispatch mapping. | **Work/Services + Cloudflare physical driver.** Owning target binding/availability contract and matching W01/W04/W06/W07 profiles. | Lifecycle→availability→guard→revalidation→claim ordering, missing/broken/temporary outcomes, persisted terminal receipts and recovery execute without unsafe redrive. Pure kernel return is not enough. | [Source](#service-and-integration-contracts) | **D** — Wire existing Work `TargetAvailabilityPort` into runtime `DriveDispatchFenceInput`/`bound-dispatch.ts`, preserving lifecycle→availability→guard→revalidation→claim, then persist unavailable terminal receipts. `invoke.ts::runFenceGate` is the actual ordering seam. Extend `t24b-dispatch-{execution,durable}` and `dispatch-unavailable` with short-circuit negatives. This is local transactional engineering, requiring an experienced executor, not provider credentials. |
-| TECH-F01; FP.FILES-DURABLE | Finish original multiple-owner separate-store file publication serialization and interruption/reopen. | **Files producer + physical host consumer.** Exact serialization primitive and original interruption witness; no new R2/hardware-power-loss matrix. | Final identity/immutable bytes survive; malformed/partial/foreign/refused writes never publish. Existing two-connection SQLite and serial FS/SQLite criteria stay closed. | [Source](../research/package-library-audit-20261006/repair-queue/queue.json) | **D** — Define one same-intent/publication serialization primitive for the selected separate-store host, then its two-owner interruption/reopen witness. Start Files `ports.ts`, `createSqliteFileBindings`, `createFsBlobStore`, `finalizeUpload` and existing finalize tests. Reuse serial/SQLite acceptance; no new finalization algorithm, R2 or power-loss matrix. |
+| TECH-F01; FP.FILES-DURABLE | Finish original multiple-owner separate-store file publication serialization and interruption/reopen. | **Files producer + physical host consumer.** Exact serialization primitive and original interruption witness; no new R2/hardware-power-loss matrix. | Final identity/immutable bytes survive; malformed/partial/foreign/refused writes never publish. Existing two-connection SQLite and serial FS/SQLite criteria stay closed. | Source | **D** — Define one same-intent/publication serialization primitive for the selected separate-store host, then its two-owner interruption/reopen witness. Start Files `ports.ts`, `createSqliteFileBindings`, `createFsBlobStore`, `finalizeUpload` and existing finalize tests. Reuse serial/SQLite acceptance; no new finalization algorithm, R2 or power-loss matrix. |
 | TECH-F02; SEQ-024; challenge:T27 | Finish authenticated receiving-file request/source/revision and once/replay/lifetime joins, including required image outputs. | **Files/Services + Compiler + receiving runtime.** Exact supported provider event, immutable bytes/digest/MIME/size and receiving authority. | Cumulative/foreign/partial/replayed/retired inputs refuse correctly; genuine receiving finalization occurs once and survives restart. Provider-void remains explicitly unsupported. | [Source](capability-roadmap-20261008/README.md) | **E** — Take the selected authenticated namespace/request binding from FP.SOURCE-MAPPINGS, then connect `ingestVerifiedEventBytes` / `finalizeProviderOutput` through runtime callback origin/file staging to one receiving occurrence. Extend `native-generation-receiving.test.ts`; local fixtures precede the exact real provider event. Preserve source/revision/digest/cumulative identity and provider-void refusal. |
 | FP.LIFETIME | Implement and qualify remaining owner expiry/sensitive-copy disposal. | **State lifetime + Work/Files retention owners.** Declared archival/lock/subtree/reference lifetime and safe replay identity contract. | Expired/archived/locked access refuses; history/receipt/outbox/private copies and blobs are disposed with honest delay/restart behavior. File GC alone does not close it. | [Source](#service-and-integration-contracts) | **D** — One authored expiry consumer first: CanCheck Transition/Notice or CanStats AcceptedEvent. Carry its checked lifetime to canonical admission/read, then bounded restartable disposal using existing Files retention/file-retirement inventory; proposed State retention directories do not exist. Join sensitive copies/tombstones afterward without creating a generic carrier before finding a metadata gap. |
 | FP.CSV / FP.AW-REPLAY-IMPORT | Finish original source-derived import operation/current File/reference and replay qualification. | **Interfaces/CSV + State + actual app consumer.** Specific canonical review/commit operation and receiving File authority. | Per-row replay-safe outcomes preserve invalid/excluded/unknown/failed rows, changed-candidate renewed consent and historical nullable facts. Accepted public browser review/confirm consumer DEL-C02 stays retired. | [Source](#service-and-integration-contracts) | **D** — Choose one original import, e.g. CanInvoice `retain_legacy`, and connect actual File/reference review-confirm to its replay-safe operation. Reuse Interfaces `http/csv.ts`, UI CSV helpers, `reviewed-csv` and accepted native browser setup. Add only the selected actual source consumer, preserving changed-candidate consent and historical nullable semantics. |
 | FP.EXPORT; DEL-B02 | Finish the original compiled mounted File/browser export/Print consumer; durable descriptor/status/download/expiry backend is accepted. | **Interfaces + Files + runtime/browser.** Accepted durable D1 status/read/download backend and existing browser helpers; consume actual compiled File/page authority. | Guarded current row/field/file access, completeness/limits/currency/ID/version/formula rules, cancel/restart/replay/expiry and source-declared Print hold at the original mounted scope. | [Source](#service-and-integration-contracts) | **D** — Backend already accepted: use runtime `export-downloads.ts`, Interfaces `http/{export,print}.ts` and UI browser owners. Next is the original compiled mounted File/page: actual finalized bytes → descriptor/status/download/Print with current authority and failure cleanup. Consume DEL-B02's released backend; do not rebuild or rerun its unchanged CAS/reopen suite. |
-| SEQ-021; FP.SERVICE-CATALOG | Finish original real production text/media/service model/account/tokenizer/limit consumers. | **Services/provider + Capability + runtime.** Required supported provider/account/profile and genuine output/progress/usage. | Original CC/CH vectors prove exact request/result association, limits, terminal/order/late/unknown/restart behavior. Harness/export presence and successful packaging are insufficient. | [Source](capability-roadmap-20261008/README.md) | **D** — Select one original CC/CH profile and wire source request/progress/usage to the existing Ollama/ComfyUI/SystemOne/catalog owner and its exact installation limits/tokenizer. Controlled owner results are reused; real profile qualification then needs that provider/account. Do not call local packaging or a substituted model production acceptance. |
+| SEQ-021; FP.SERVICE-CATALOG | Finish original production text/media profiles and declared structured runtime-AI capability consumers. | **Services/provider + Capability + runtime.** Required supported provider/account/profile and genuine output/progress/usage. | Original CC/CH vectors and the declared Decide/Discover/Workbench consumers preserve request/result association, input/output limits, schema/provenance, terminal/order/late/unknown/restart behavior. Harness/export presence and packaging are insufficient; runtime-AI joins are distinct from build-generation acceptance. | [Source](capability-roadmap-20261008/README.md) | **D** — Select one original CC/CH profile and wire source request/progress/usage to the existing Ollama/ComfyUI/SystemOne/catalog owner and its exact installation limits/tokenizer. Controlled owner results are reused; real profile qualification then needs that provider/account. Do not call local packaging or a substituted model production acceptance. Also release the declared SynthesizerV1.draft, DiscoveryAnalysisV1.extract and WorkbenchPlannerV1.next request/result adapters one consumer at a time; see [original provider joins](#original-provider-consumer-criteria). Their owning Can schemas and invocation provenance constrain output; generic text/Images success does not close them. |
 | SEQ-022 | Finish current-guarded provider attempt stop/reconcile/deadline behavior. | **Work/Compiler + runtime + selected provider.** The original supported cancel/reconcile protocol and current receipt association. | Actual provider races/unknown/idempotency/deadlines preserve current authority and immutable terminal state. Accepted component APIs are reused. | [Source](capability-roadmap-20261008/README.md) | **E** — Take only CanChat/CanCreative's missing source rule/context/SEND outputs, then join existing bound TextGeneration/Images cancel/reconcile and retained dispatch controls to those original scenarios. Qualify original attempt/deadline/stop-success races; real protocol evidence waits on the selected provider. Do not build another control API or infer zero usage from stop. |
 | SEQ-042 | Finish original same-owner Chat/Knowledge admission, reservation and outbox atomicity. | **App/Compiler + State/runtime.** Only used context/rule/invocation outputs from SEQ010/011/039. | Concurrent last-slot/cap/overflow/stale/revoked/later-failure/replay/crash cases cannot dispatch a rejected request; reservation and owning commit agree. | [Source](capability-roadmap-20261008/README.md) | **E** — Compile one unchanged original Chat/Knowledge ask with its exact query/context/rule outputs, then prove last-slot/later-failure atomic request+reservation+outbox on D1. Start original ask and State owner sessions. `native-original-canchat.pending.ts` is unfinished, not a runnable passing suite; diagnose its timeout before promoting it. This output releases SEQ043's reservation identity. |
 | SEQ-043 | Finish associated exactly-once settlement and late usage/release. | **Accounting/Work + provider + runtime.** SEQ042 reservation identity and genuine provider usage output. | Duplicate/forged/unknown/late/restart cases settle the correct original request, preserve terminal-null→late usage and never refund consumed slots. | [Source](capability-roadmap-20261008/README.md) | **E** — Consume SEQ042's exact admitted reservation plus associated usage. Join original Chat `reply_progressed` through runtime `text-generation-progress.ts` / receipt progress in the same fence; test duplicate/forged/late/restart observations. Terminal-null may receive late usage; running-slot release is distinct from consumed daily charge. Genuine accounting remains the provider-specific final leaf. |
@@ -257,7 +229,7 @@ No broad plan completion is a prerequisite. A row with its named input already a
 | FP.MAILBOX / FP.AW-MAILBOX | Finish MailboxV1 owning catalog/coordinator and authenticated installed MIME receiving/reply/reconcile. | **Services/Mailbox + Files + private receiving owner.** Configured authenticated namespace/cause and genuine receiving-file contract. | Bounded passive IncomingEmail reports honest original attachment count/completeness; frozen reply, conflicting redelivery, retry and terminal not_sent never create a later original send. | [Source](#service-and-integration-contracts) | **D** — Contracts already define IncomingEmail/MailReply/Outcome; Services catalog has no Mailbox. Add the owner-derived catalog/coordinator, then one authenticated MIME receiving producer using the shared binding/File outputs. Start CanInbox received/sent/reconciled and `mailbox_source_producer`. Send-only Email is not Mailbox; exact provider configuration gates only its real observation. |
 | FP.AW-PAYMENTS | Finish verified payment account/provider event and original financial reconciliation. | **Payments/Services + Work + app owner.** Concrete account/transport and original attempt/amount/currency/revision/consent identities. | Checkout cancellation, mandate consent, exact refund identity and late real funds preserve original authority/replay; unknown is not fabricated failure. | [Source](#service-and-integration-contracts) | **D** — Start Contracts Payment inputs/states, CanInvoice Payments and `payment_completion_handlers` / `payment_state_identity`. Prepare one actual account/transport adapter's verified-event/original-attempt mapping, then join durable dispatch and original source. No Services payment adapter exists. Name unavailable profile/configuration exactly; local association work remains possible, and decimal lowering is already available. |
 | FP.AW-DOCUMENTS | Finish immutable issued/receipt snapshot PDF and receiving-file download. | **Documents renderer/provider + Files + app.** Exact source/revision snapshot and bounded renderer output. | Real finalized bytes/provenance/current download grant pass missing/wrong artifact, restart and replay controls; no success placeholder. | [Source](#service-and-integration-contracts) | **D** — Implement one bounded renderer for CanInvoice's immutable DocumentsV1 issued snapshot, then receipt, using actual PDF bytes and Files provenance/finalization. Connect `bound-files.ts` current download authority; validate missing/wrong bytes/restart/replay. Renderer selection is local engineering; separate-store concurrency is required only if that host claim uses it. |
-| FP.SOURCE-MAPPINGS / FP.AW-SOURCE-CONNECTOR | Finish configured versioned source namespaces and reusable cross-app cause/outcome binding. | **Contracts/Services + source/receiving apps + runtime.** Exact approved producer/app/team/customer/resource namespace, request digest and operation contract. | Only matching committed outcome associates to delivery; source-domain changes/reversals/null/precreation fences stay distinct; receiving Can operation owns authority, with no cross-owner transaction claim. | [Source](#service-and-integration-contracts) | **D** — One configured versioned BillingIngress/SalesIngress binding first using Interfaces `IngressBinding/Verifier/Sink` and `ingress/mapping.ts::mapVerifiedIngress`; then matching committed-outcome correlation. Existing mapper keeps actor null; proposed provider source modules are absent. This shared output releases receiving/file/mailbox/payment/onboarding consumers once, without cross-owner atomicity or name guessing. |
+| FP.SOURCE-MAPPINGS / FP.AW-SOURCE-CONNECTOR | Finish configured source namespaces, cross-app cause/outcome binding and original outward source/read/conditional-write adapters. | **Contracts/Services + source/receiving apps + runtime.** Exact approved producer/app/team/customer/resource namespace, request digest and operation contract. | Only matching committed outcomes associate to delivery; original source lookup/page/CAS results preserve whole-contract identity, truthful coverage, current audience, revisions and unknown/recovery semantics. Inbound mapping alone does not close outbound provider criteria; receiver Can operations retain authority without cross-owner atomicity. | [Source](#service-and-integration-contracts) | **D** — One configured versioned BillingIngress/SalesIngress binding first using Interfaces `IngressBinding/Verifier/Sink` and `ingress/mapping.ts::mapVerifiedIngress`; then matching committed-outcome correlation. Existing mapper keeps actor null; proposed provider source modules are absent. This shared output releases receiving/file/mailbox/payment/onboarding consumers once, without cross-owner atomicity or name guessing. Follow with the selected app’s DiscoverySourceV1.page, Enrich SourcesV1.lookup, Sync AccountsV1.read/replace or CanDo WorkSourcesV1 consumer under [original provider joins](#original-provider-consumer-criteria). These are finite declared contracts, not an arbitrary connector platform; optional Reception DeviceV1 remains conditional on its existing configured-device scope. |
 | FP.AW-ONBOARD-HANDOFF | Finish verified HR→onboard and delegated course-progress handoff. | **HR/Onboard source owners + Identity + runtime.** Genuine caller and exact employee/template/candidate match. | Canonical onboard.start creates one handoff; queued continuations reauthorize without staff grants or private CV copying. | [Source](#service-and-integration-contracts) | **E** — Take FP.SOURCE-MAPPINGS' exact authenticated cause, then genuine CanHire→CanOnboard `start` with employee/template/candidate and once-only reference; later join CanLearn delegated progress. Existing State canonical admission owns authority. `CanHR.can` is not a current source. Test mismatch/replay and membership removal between queued steps; no staff grant or CV copy. |
 | FP.MAINTENANCE | Finish configured trusted maintenance through canonical owner admission. | **Cloudflare transport + State maintenance owner.** Configured source/team/version and exact maintenance operation contract. | Constraints/hooks/fence/history/replay/outbox commit together; Check/Catch use the same authority, with no direct SQL or invented configuration tools. | [Source](#service-and-integration-contracts) | **D** — Implement one configured source/team/version maintenance admission from an actual CanCheck/CanCatch need over existing State `ports/system.ts` and canonical owner constraints/hooks. Proposed maintenance modules are absent. Join history/outbox/fence to that commit and test D1 bad binding, late failure and replay; no direct SQL bypass or general settings UI. |
 | FP.PING | Finish provisioned heartbeat ingress and health lifecycle. | **Ingress/Services + State/Work + app.** Configured namespace/secret and canonical ping source. | Bounded noncached GET/POST acknowledges only after durable ping; key/revision/unknown/revoked/restart/due/pause/recovery races hold. Notice acceptance does not reset health. | [Source](#service-and-integration-contracts) | **E** — Consume only the needed configured binding/admission output, then implement bounded noncached Ping GET/POST for original CanCheck PingV1/Heartbeat. Resolve trusted namespace/token and wait for durable canonical ping before ACK. Test revoked key/current revision/restart and ping-deadline-pause races; notification acceptance is not recovered health. |
@@ -314,9 +286,7 @@ No broad plan completion is a prerequisite. A row with its named input already a
 | FP.QUALIFY; challenge:T37–T40/G3/G4; SEQ-025/026/040; DFE-05 | Finish full original app/companion required workflow matrices once each. | **Application integration + actual defining producer/receiver owners.** Only each app’s missing exact source/provider/file/context output, not every unrelated parent. | 49 intent ledgers plus original Chat/Creative/Approve/Email/Loan and127 frontend journeys prove required actors/grants/callback snapshots/history/denial/unknown/stale/rollback/replay/recovery. Reuse accepted Customer recover/Purchase/native examples; no reduced projections. | [Source](#service-and-integration-contracts) | **E** — Take one original app's specific emitted source/resource/provider outputs, then implement its missing role/fixture consumer and complete that app's required journeys. Start CanTable only after its selected closure/preview. Use existing app specs and [integration units](#service-and-integration-contracts); FP.QUALIFY and DFE-05 consume the same result once. Each original bound capability consumes its actual declared provider result/receipt before that workflow closes; [original provider joins](#original-provider-consumer-criteria) prevents counting a generic adapter, inbound binding or substituted fixture as those missing consumers. |
 | FP.INSTALLED-RELEASE; ports:C04.complete | Finish changed final source/producer/dependency/browser/vendor/native full installed release closure. | **Delivery + exact producing subsystem.** Final assets from the Rust delivery/native-constructor rows and explicitly claimed host. | Outside-checkout cold/full CLI/Worker and actual selected Values/Work binaries load correctly. Reuse accepted TS/runtime/manual/macOS/Linux inventories at their proved versions, without reopening package/Turbo cutover. | [Source](#service-and-integration-contracts) | **E** — Consume the exact changed final native/Values/Work assets, update `scripts/pack-install.mjs` and actual producer/package inventory, then run `node scripts/verify-install.mjs <archive>` for one claimed host. [Current owners](#service-and-integration-contracts) replace absent historical release paths. Public upload/default/retirement stays separate. |
 | FP.UPGRADE-JOIN; SEQ-027; CAN18 outcome15/C21/S9-Q08 | Finish original predecessor→desired schema/default/lock/retained-work staged upgrade and recovery. | **Migration/lineage + State/Work + Dev.** Exact predecessor/desired output and pending-work inventory; only actual activation is separately held. | Bounded complete-state/work inventory, compatibility/refusal, fenced staging, interruption/recovery/rollback and source-current consumer pass with truthful online limits. | [Source](#service-and-integration-contracts) | **D** — `upgrade/apply.ts::applyUpgrade` is dry-run only; implement one persisted owner/predecessor/desired coordinator over State `migration/index.ts` first, then pending-work inventory and installed interruption/recovery. Existing State engine supplies staging/fences/recovery. Follow [integration units](#service-and-integration-contracts); live activation alone is held, not local backend engineering. |
-| FP.SOURCE-CLOSURE | Finish only the still-unreviewed accumulated source/body/test-expectation and mixed-duty coverage. | **Defining source owners + independent review owner.** Exact retained unreviewed delta; accepted58 compiler-audit references and nine current consumer aliases are reused. | Caller/authority/failure/termination and ownership coverage resolves substantive findings; complete filetree checkpoint advances only after its original review is complete. No review-of-review work. | [Source](#service-and-integration-contracts) | **D** — Choose one actually unreviewed owner/delta from retained filetree and consolidation coverage, inspect code and expectations, resolve substantive findings, then the next. Reuse incremental accepted coverage; do not reconstruct all history or review verdicts. Missing precise coverage is an owner reconciliation item, not a new full-repository audit. |
-| FP.FULL; challenge:G1/G2/G5/R01; ports:A11/V12/W08.3/P11/C01–C05.complete; SEQ-060–063 | Finish the remaining supported-release acceptance/reporting at the declared full scope. | **Integration/release + defining reviewers.** Concrete missing original outputs from the rows above; aggregate review never circularly blocks producers. | Required/conditional/deferred/declined duties, source/artifact/examples/runtime/installed/economics/upgrade evidence and unresolved findings are reconciled. This is one final consumer of prior results, not repeated tests or new intake packets. | [Source](#service-and-integration-contracts) | **E** — Consume each missing original app, installed, economics, upgrade and source-coverage result once in the existing finished-product record. Complete the original final release disposition after those outputs, without circularly blocking producers or launching another verification programme. Conditional/declined outcomes stay explicit. |
-| description:D08 supplement | Complete the remaining supplemental description handoff/owned-resource closure. | **Description/reference owner; final handoff unassigned.** D01–07 behavior and all six independent findings are accepted; stale locale/root-build annotation is corrected in this reconciliation. | Record final truthful supplemental handoff/cleanup using existing records; no new parser/renderer/IDE/MCP source-repair assignment. | [Source](DESCRIPTION-REFERENCE-PLAN.md) | **D** — Description maintainer reconciles `description-reference-run/{tasks,review}.md` and `evidence/integration.md` with accepted six repairs and wind-down. Record the exact supplemental output/remaining owned viewer limitation or close it if none. No behavior rerun, source feature or historical-session restart. |
+| FP.FULL; challenge:G1/G2/G5/R01; ports:A11/V12/W08.3/P11/C01–C05.complete; SEQ-060–063 | Deliver the required original application workflows through the supported installed release, with safe upgrades and recovery. | **Application/runtime + release owners.** The specific missing app, artifact, provider and migration behavior above. | Required workflows preserve permissions, data, effects, replay and recovery on the claimed supported hosts; installation and upgrade use the shipped artifacts. | [Source](#service-and-integration-contracts) | **E** — Implement the missing behavior in its defining owner, then exercise its actual installed consumer. Reuse applicable results. Keep unsupported workflows and remaining operating-cost uncertainty explicit; no final ledger reconciliation or review-of-review task is required. |
 | muse-migration:C01/C02 | Finish finite legacy draft/desired-output migration acceptance and final owned closure. | **Draft migration source + independent acceptance/closure owner.** Actual released migration diffs and existing findings; the Volunteer material-change decision is counted only under FP.APP-ADJUDICATION. | Substantive actual-diff acceptance and exact remaining cleanup/retained-viewer limitation are recorded; no old Muse session restarts and runtime acceptance remains separate. | [Source](#legacy-draft-and-description-closure) | **D** — Review only unaccepted A02–A06/N10 actual app/design diffs, one coherent unit at a time, against existing accepted designs; root paths moved to `draft/apps/`. Resolve substantive findings with the current source owner. Reconcile C02 cleanup against completed wind-down, preserving any precisely identified viewer; Volunteer semantics belong solely to FP.APP-ADJUDICATION. |
 
 
@@ -350,10 +320,8 @@ Engineering decisions are not silently escalated into human gates: J2’s exact 
 
 ## Defining contracts and evidence
 
-This document alone owns current outcomes, order, status, dependency handoffs and acceptance.
-The former product/challenge/port snapshots, lane launches, run checklists and duplicated
-README plans are removed; Git history preserves their historical execution narrative.
-The detailed sections below are part of this same execution view, not another set of jobs.
+This document alone owns current outcomes, order, status, dependency handoffs and acceptance. The former product/challenge/port snapshots, lane launches, run checklists and duplicated
+README plans are removed; Git history preserves their historical execution narrative. The detailed sections below are part of this same execution view, not another set of jobs.
 
 Retain distinct technical responsibilities:
 
@@ -361,7 +329,7 @@ Retain distinct technical responsibilities:
 - [Development state/protocol](../design/can-dev-server.md), session/error contracts and the benchmark protocol define interfaces and the exact held experiment; they contain no independent remaining-work queue.
 - [Generation requirements](../specification/BUILD_GENERATION_REQUIREMENTS.md), [implementation contract](../design/proposals/build-generation/implementation-contract.md) and [frontend validation runbook](../draft-frontend-validation.md) define producer interfaces and how to run their consumers.
 - [Description/reference representation](DESCRIPTION-REFERENCE-PLAN.md) remains because compiler source names this frozen contract. It has no status checklist.
-- Original package-port manifests, capability contract/source records, [finished-product requirements](../ideal-filetree-plan/finished-product/requirements.json) and [workflow ledgers](../ideal-filetree-plan/finished-product/workflows.md) preserve detailed scope/identity and observations. They do not dispatch work or supply current totals.
+- Original package-port manifests, capability contract/source records, finished-product requirements and [workflow ledgers](../ideal-filetree-plan/finished-product/workflows.md) preserve detailed scope/identity and observations. They do not dispatch work or supply current totals.
 - [DECISIONS.md](../specification/DECISIONS.md) owns choices/rationale; [filetree coverage](../ideal-filetree-plan.md) owns accumulated source/merge coverage. Neither is a second backlog. Raw qualification evidence remains at its original scope; deleted historical-plan citations use their Git version where evidence requires it.
 
 One short compatibility pointer remains at the old build-generation plan path because
@@ -372,6 +340,51 @@ One short compatibility pointer remains at the old build-generation plan path be
 The first reconciliation used tracked plan inventories, owning records, final handoffs and accepted results. This preparation then inspected current source/test entry points for all77 rows, with focused read-only help for source, services and native/dev families. It corrected retired/proposed paths, existing exact Decimal lowering, accepted durable export storage, later Identity commands and native dev ownership. The original complexity cleanup census was found; its exact221 residual mapping remains the first finite reconciliation unit, with one unchanged deferred function identified. No broad source audit, compiler build, application test, generation/JEV call or historical replay was performed. Documentation checks preserved all77 row IDs/order and the50D/22E/4B/1C totals, resolved81 added/migrated local links and anchors, and checked whitespace plus syntax of the three adjusted historical documentation scripts. Forty-six redundant files are removed. Three source comments now point to retained contracts; executable product code is unchanged. Historical source readers retain pinned Git inputs; the generator no longer writes a competing task Markdown list. These checks do not establish runtime readiness.
 
 Counts describe this consolidated list’s distinct outputs, not a refreshed333-task status census. Historical base failures/timeouts (compiler20 fixture/catalog/qualification cases, TS base-matching191 failures/64 environment errors, UI resolution uncertainty, saved-result and staged recovery-module cases) remain qualification limitations at their recorded tuples; they do not prove current-main failures and are not221 extra complexity tasks. The specific Maintain timeout, retirement-hook refusal and absent post-batch original24 capture remain named current gaps. No full-application, full-port, full-host or complete semantic-review claim is made.
+
+### Focused accepted-scope coverage correction — 18 October
+
+The check used the 114-duty requirement inventory,
+its three original app-intent ledgers, retained port contracts and current source
+entry points. These are scope inputs, not 114 new jobs or fresh runtime proof. No wholly unowned major subsystem was established. Two concrete **consumer-criteria
+gaps** were found in the current wording: FP.SOURCE-MAPPINGS could be read as ending
+at inbound Billing/Sales correlation, and FP.SERVICE-CATALOG at CC/CH standard AI
+profiles. Original accepted apps also require outward lookup/page/CAS adapters and
+structured runtime-AI adapters. Their original IDs already belong to these parents;
+the rows and [provider criteria](#original-provider-consumer-criteria) now name the
+missing outputs, dependencies and finite controls. FP.INVOCATION and FP.QUALIFY
+consume the same results once. **Counts remain 77 outcomes / 76 open**; no accepted
+component or T22 priority is reopened.
+
+Coverage was traced at the following joins, rather than inferred from directory names:
+
+- Language/source → checked facts/IR → actual callers: CAN18 outcomes3–13,
+  SEQ-005/010/011 and the existing example/query/hook/form consumers. Description
+  D01–07 and their repaired CLI/IDE/reference scope stay accepted. Current CLI and
+  completion sources already include dev/gen/validate; no missing command subsystem
+  was found. Changed installed/editor tuples retain FP.INSTALLED-RELEASE and their
+  existing host gate, without requalifying unchanged tools.
+- Values/native ABI → HTTP/MCP/State admission → durable mutation/recovery:
+  ports:A/V/W, FP.IDENTITY-CONTRACT, FP.INVOCATION, dispatch/receipt/progress/fanout,
+  Files and FP.LIFETIME retain actual authority, replay-before-normalization,
+  rollback, late results, sensitive disposal and owned cleanup criteria. The
+  Identity participant decision remains exact; no cross-database atomicity is assumed.
+- Original business sources → browser/MCP/examples → external effects and current
+  disclosure: the original app ledgers feed FP.QUALIFY/DFE-05, with source policies,
+  preferences, CSV/export/Print, provider/file/corpus and cross-app producer tasks. The provider gaps corrected here are joins within this scope, not permission to
+  replace full workflows with initial-page or synthetic-result checks.
+- Build-generation → saved accepted output and native dev → changed installed
+  delivery/upgrade: BGI/DFE and T18–T30 retain their distinct consumers; P04–P09,
+  C04 assets, FP.INSTALLED-RELEASE and FP.UPGRADE-JOIN cover actual bytes, selected
+  hosts, persisted pending work, interruption and rollback. Public activation,
+  automatic defaults and retirement remain separately held, not silently complete.
+
+Exact remaining uncertainties include the already recorded business-policy and
+Identity/reversal decisions, actual provider/account availability, and Discover's
+real continuation/snapshot guarantees. Unavailable or partial source coverage is
+not completeness. Optional device adoption, additional providers/hosts, broad
+connector discovery and new compensation/statechart syntax are not added as
+requirements. This was a focused scope/owner check, not a new body-by-body audit,
+execution pass or proof that no future defect or omitted edge case can exist.
 
 ## Compiler source constraints
 
@@ -499,8 +512,7 @@ The [five shared gate groups](#actual-human-and-external-leaves--five-gate-group
 
 The next bounded unit is one complete capture of the released producer changes,
 not another source-repair batch. Freeze the actual compiler, catalog and these
-original operands; reuse compatible built output, rebuilding only if stale.
-The retained argv at `/private/tmp/cancrm-helper-invariants-card-20261015-argv.json`
+original operands; reuse compatible built output, rebuilding only if stale. The retained argv at `/private/tmp/cancrm-helper-invariants-card-20261015-argv.json`
 was present during planning. Its durable operand spelling is below so removal of
 that temporary file does not become an external blocker. `CAN_COMPILER` must name
 the selected current compiler executable, not the obsolete temporary binary from
@@ -525,8 +537,7 @@ the historical argv.
 
 Retain the actual child exit and complete diagnostic/artifact envelope in the
 existing capture location; record completeness/omissions and root attribution in
-this record. A tool timeout or incomplete output is not a new diagnostic total.
-Allow the recorded roughly ten-minute capture scope; do not substitute the
+this record. A tool timeout or incomplete output is not a new diagnostic total. Allow the recorded roughly ten-minute capture scope; do not substitute the
 30-second all-draft audit or reduce operands to get a passing result. Stop after
 the one valid capture and assign any changed source root to its existing owner;
 this outcome does not authorize silently repairing all discovered errors. No
@@ -540,14 +551,12 @@ sweep was started and no source root was changed by the capture.
 
 ## Native port unit contracts
 
-These unit contracts belong to the rows above. Implementation remains paused.
-Keep the original outcome IDs and acceptance, with these coherent internal units:
+These unit contracts belong to the rows above. Implementation remains paused. Keep the original outcome IDs and acceptance, with these coherent internal units:
 
 1. **P04–P08:** start in `packages/cloudflare/src/preparation/host.ts`
    (`runNativeDeploy`, `ensureBundle`, `finishNativeDeploy`). `LOAD_MODULES`
    currently obtains a completed TS bundle. The Rust job already accepts ordered
-   `layers`, `authoredMaps`, `artifactFacts` and `PUBLISH_NATIVE_MODULES`.
-   First wire actual raw layer/bundler observations into that input; next add the
+   `layers`, `authoredMaps`, `artifactFacts` and `PUBLISH_NATIVE_MODULES`. First wire actual raw layer/bundler observations into that input; next add the
    required frontend/browser/resource facts at their demand positions; finally
    consume Rust constructed bytes/digest/plan/publication through
    `PublicationSession` and `publishDeployAndApply`. Remove the duplicate finished
@@ -577,9 +586,7 @@ Keep the original outcome IDs and acceptance, with these coherent internal units
    `prepared-validation.workerd.test.ts` are the focused consumer anchors. Reuse
    accepted HTTP27/27; do not wait for every Values profile.
 4. **W02–W06:** thread `createWorkKernel({backend:'wasm',module})` through one
-   actual F5/F7 durable consumer whose helpers currently default to `tsWorkKernel`.
-   Extend selection to the remaining required families after that real join.
-   Use Work's `test/state-fanout/t34-f5-*`, `test/dispatch/t34-f7-*` and Cloudflare
+   actual F5/F7 durable consumer whose helpers currently default to `tsWorkKernel`. Extend selection to the remaining required families after that real join. Use Work's `test/state-fanout/t34-f5-*`, `test/dispatch/t34-f7-*` and Cloudflare
    `src/runtime/t34c-work-installed.integration.test.ts`; preserve transaction and
    authority ownership. Pure family/facade tests are already accepted components.
 5. **P09 / C04 assets:** package the specific final producer output and matching
@@ -590,14 +597,11 @@ Keep the original outcome IDs and acceptance, with these coherent internal units
    earlier selected helper binary. One claimed host is a finite unit, not a demand
    for an invented platform matrix.
 6. **C05 / rollback:** choose one original complete-call workload and its TS
-   comparator/budget before measurement, then compare the final selected tuple.
-   Preparation's existing `conformance/preparation/differential.mjs` supports
-   `--run --cli … --backend native|prepared-ts --out …` and `--compare … …`.
-   Old proposed Values/Work `measurement/` runners do not exist; add only the
+   comparator/budget before measurement, then compare the final selected tuple. Preparation's existing `conformance/preparation/differential.mjs` supports
+   `--run --cli … --backend native|prepared-ts --out …` and `--compare … …`. Old proposed Values/Work `measurement/` runners do not exist; add only the
    smallest owner-local observer needed. Record retain-TS/native-reuse/adoption
    disposition, then exercise explicit selection → operation → disposal →
-   restart/TS reselection against unchanged persisted bytes for that subsystem.
-   No semantic-error fallback, automatic default or public deployment follows.
+   restart/TS reselection against unchanged persisted bytes for that subsystem. No semantic-error fallback, automatic default or public deployment follows.
 
 Use experienced executors for raw construction, admission ordering and durable
 joins; a released single-profile fixture, packaging or measurement recipe can be
@@ -606,22 +610,19 @@ executed by Luna. No tests or comparisons were run by this preparation update.
 ### Native preparation completion criteria
 
 **Original scope:** P04–P09, remaining P10/P11 implementation/qualification/disposition,
-with C04.preparation-join and C04.native-release consumed at their actual outputs.
-Accepted CLI/integrity source `4ed0d38fe`, facts `1e018e714`, module/plan wiring
+with C04.preparation-join and C04.native-release consumed at their actual outputs. Accepted CLI/integrity source `4ed0d38fe`, facts `1e018e714`, module/plan wiring
 `6fb752375` and release alignment `c105bf2c4` remain inputs, not repeat assignments.
 
 **Outcome:** real installed `build`, `deploy --preview` and contained confirmed
 mocked apply use one retained Rust job for the current admitted preparation
-policy, module/package construction, final identities, plan and reviewed bytes.
-The host no longer gives Rust a finished TS bundle or supplies an independent TS
+policy, module/package construction, final identities, plan and reviewed bytes. The host no longer gives Rust a finished TS bundle or supplies an independent TS
 bundle for publication. Current selected scope includes JS and browser resources;
 Values/recovery Wasm in preparation remains an explicitly conditional mixed profile.
 
 **One coherent implementation, with internal activities rather than new gates:**
 
 - Complete native-route semantic artifact/companion admission, indexes, compiled
-  identity, lockstep and preparation compatibility from host-read lossless data.
-  Preserve filesystem/JSON syntax attribution and original lazy reads, including
+  identity, lockstep and preparation compatibility from host-read lossless data. Preserve filesystem/JSON syntax attribution and original lazy reads, including
   the current local-defaults reload. Remove native-route dependence on TS semantic
   loader/lockstep work; retain activation's own compatibility/authority gate.
 - Complete current module construction: ordered layers, path/reserved/alias rules,
@@ -648,8 +649,7 @@ Values/recovery Wasm in preparation remains an explicitly conditional mixed prof
 `packages/cloudflare/preparation/src/{artifact,modules,job,plan,render,review}.rs`,
 necessary existing protocol/input modules and matching
 `packages/cloudflare/src/preparation/`. The same stream owns the necessary pure/host
-split in `deploy/{bundle,module-maps}.ts`, CLI and package-local conformance/scripts.
-Shared bundle/release edits have this one delivery writer; compiler/runtime business
+split in `deploy/{bundle,module-maps}.ts`, CLI and package-local conformance/scripts. Shared bundle/release edits have this one delivery writer; compiler/runtime business
 changes remain foreign. Existing source-map, frontend and UI producer contracts
 are inspected at the actual cutover; no optional producer project is added.
 
@@ -665,8 +665,7 @@ record the original P10/P11 scope ledger, and stop. No public provider call occu
 **TS intentionally retained:** file/package reads, exact-source parser/scope
 libraries, actual bundlers, owning catalog/UI/browser producers, activation, CLI
 presentation, executable bootstrap, contained filesystem publication and external
-apply. Public synchronous TS preparation helpers may remain for reference/rollback.
-Keeping a whole TS module constructor behind a renamed callback fails this outcome.
+apply. Public synchronous TS preparation helpers may remain for reference/rollback. Keeping a whole TS module constructor behind a renamed callback fails this outcome.
 
 ### Exact Values completion criteria
 
@@ -702,8 +701,7 @@ A10/A11 paperwork to receive an already proved numeric codec.
 **Finish once:** whole selected operation differential over the actual binding,
 carrier/error/evaluation/identity controls, supported generated/stdlib caller and
 the real whole-input HTTP consumer (qualified with validation, counted once), final
-installed Node/Worker assets, complete-call resources and persisted/profile rollback.
-Use existing fixtures/observers and accepted int/CSV results; do not replay unchanged
+installed Node/Worker assets, complete-call resources and persisted/profile rollback. Use existing fixtures/observers and accepted int/CSV results; do not replay unchanged
 ICU/Work/preparation suites. Report remaining host-observable compatibility domains.
 
 **TS intentionally retained:** public guards/getter order, construction/freezing/
@@ -735,8 +733,7 @@ execution claim. No new HTTP server or SDK-provenance project blocks ready HTTP/
   comparator, not the native implementation.
 - Complete current owner-plan information: lossless names/text/default metadata,
   aliases and currently owned format/distinctBy/excludedIds duties that the old
-  prepared plan rejects. No current full-owner claim may silently drop them.
-  Preserve default/array/Decimal identity and absence/null distinctions. Host URL,
+  prepared plan rejects. No current full-owner claim may silently drop them. Preserve default/array/Decimal identity and absence/null distinctions. Host URL,
   Intl/locale/timezone predicates run only when demanded at the original position.
 - Join existing HTTP framing/binding, State generated input validation and ordinary
   MCP profile actions to genuine Rust execution, preserving distinct errors and
@@ -745,8 +742,7 @@ execution claim. No new HTTP server or SDK-provenance project blocks ready HTTP/
   age/auth, ordered reference loads, revision/archive/fence checks and atomic commit
   retain their owners. Selected mode is fixed before evaluation, no TS retry.
 - Finish ownership generations, bounded input/plans/calls, stale/foreign/disposed
-  refusal and success/error/cancel disposal at the actual request/call seams.
-  Preserve legacy unknown-input behavior through declared preselected compatibility
+  refusal and success/error/cancel disposal at the actual request/call seams. Preserve legacy unknown-input behavior through declared preselected compatibility
   routing; never use a new bound to silently reject a previously valid legacy call.
 
 **Owners:** `packages/values/semantics/src/{input,plans,profiles}.rs` and the
@@ -762,8 +758,7 @@ interfaces/edits as soon as ready, not entire parent plans.
 create/update/codec profiles through genuine installed Wasm; actual HTTP operation
 and State mutation/read plus durable receipt/backend-swap replay; competing-error,
 default/clone/ref/permission/source/lifetime controls at the changed seams; complete-
-handler resources and rollback. Share the numeric whole-input result with Values.
-Report any genuinely unexercised optional SDK/form branch separately. No default
+handler resources and rollback. Share the numeric whole-input result with Values. Report any genuinely unexercised optional SDK/form branch separately. No default
 activation or TS deletion is necessary for the explicit selected Rust route.
 
 **TS intentionally retained:** parser/transport ownership, WHATWG/Intl predicates,
@@ -787,10 +782,8 @@ asset delivery and runtime writers; separate tiny family gates would strand halv
 **One coherent implementation:** finish current closed facts/error/opaque-reference
 joins; extend the existing producer/bootstrap/transport to the full selected families;
 route actual Work receipt/commands/every, State row/outcome/checkpoint/linkage and
-F5/F7 durable consumer calculations; deliver one genuine final asset/import closure.
-Carry current generation/queue/mail/File provenance and State Text/Image/Judgment
-receipt contexts. Old historical row codecs cannot wholesale replace these owners.
-Retain original pending-pin versus executed-attempt policies, callback/RNG/evidence
+F5/F7 durable consumer calculations; deliver one genuine final asset/import closure. Carry current generation/queue/mail/File provenance and State Text/Image/Judgment
+receipt contexts. Old historical row codecs cannot wholesale replace these owners. Retain original pending-pin versus executed-attempt policies, callback/RNG/evidence
 short-circuit order, original thrown identity, sync signatures, Work JSON-safety-
 before-clone versus State clone-only, and call-local opaque result identity.
 
@@ -798,8 +791,7 @@ before-clone versus State clone-only, and call-local opaque result identity.
 producer, matching pure joins in Work kernel/receipt/commands, State fanout/receipt/
 ports and Cloudflare's owning runtime seam. State retains live lifecycle/member/
 history reads, grants, retention, admission and transaction authority; Cloudflare
-retains guard/authority rechecks, clocks/provider effects, fenced claims and commits.
-Claim and child execution stay separate units; child outcome/checkpoint and its
+retains guard/authority rechecks, clocks/provider effects, fenced claims and commits. Claim and child execution stay separate units; child outcome/checkpoint and its
 existing domain/history/replay/outbox/schedule effects remain one atomic unit.
 
 **Finish once:** changed-family Rust/TS differential and fault/identity traces,
@@ -812,8 +804,7 @@ relevant source change invalidates them. No optional scheduler or new loader pro
 
 **Concrete dependencies:** final matching ABI/binary/export asset output under
 C04.work-assets and a stable released `invoke.ts` capture closure. W06.runtimehandoff
-and V09.1 sequence shared writers; neither requires all validation acceptance.
-C04.complete/C05.complete consume these outcomes and cannot block them circularly.
+and V09.1 sequence shared writers; neither requires all validation acceptance. C04.complete/C05.complete consume these outcomes and cannot block them circularly.
 
 ## Development extension contracts
 
@@ -833,8 +824,7 @@ The accepted native state/protocol contract is in [the development design](../de
   resources. No backend at startup means unavailable. Token issuance stays explicit.
 - **Checks / completion:** same origin across two valid replacements; protected
   bootstrap/expiry, Identity/CSRF/host refusal and independent-session isolation;
-  in-flight read/mutation, failed/superseded candidate, asset mismatch and retirement.
-  Never replay uncertain mutation or reuse permission results. E1 is consumed for
+  in-flight read/mutation, failed/superseded candidate, asset mismatch and retirement. Never replay uncertain mutation or reuse permission results. E1 is consumed for
   repeated failure admission. Done for one session lifetime; restart scope is explicit.
 
 #### T19 — Coalesced automatic checks and recovery
@@ -892,13 +882,11 @@ The accepted native state/protocol contract is in [the development design](../de
 #### T22 — Reuse invariant producer bundles
 
 - **Owner:** target build producer, `deploy/bundle.ts` MCP/HTTP builders and its
-  adapter cache implementation; Rust owns process/cache-scope lifetime and admission.
-  Same target producer writer as T16; A owns the Rust cache-policy integration.
+  adapter cache implementation; Rust owns process/cache-scope lifetime and admission. Same target producer writer as T16; A owns the Rust cache-policy integration.
 - **Prerequisite output:** T16 isolated build seam and T17 phase evidence showing
   whether repeated producer bundling is material; current captured installed closure.
 - **Remaining change / observable outcome:** first candidate is bounded exact-key
-  reuse of invariant MCP/HTTP bundles, leaving artifact-dependent assembly fresh.
-  Key the actual consumed closure/resolution plus esbuild binary/version/options,
+  reuse of invariant MCP/HTTP bundles, leaving artifact-dependent assembly fresh. Key the actual consumed closure/resolution plus esbuild binary/version/options,
   target/config and producer identities. Admit only completed coherent output,
   bound memory/disk ownership and eviction. A retained rebuild context is an
   alternative only if evidence favors it; do not implement both speculatively.
@@ -919,12 +907,10 @@ The accepted native state/protocol contract is in [the development design](../de
 - **Remaining change / observable outcome:** reuse already coherent captures only
   across a valid generation boundary; retain verified compiler/catalog staging by
   identity. For an exact unchanged full input identity, reuse bounded successful
-  check/artifact output before another compiler spawn. No broader semantic cache.
-  Preserve current evidence and diagnostics provenance; a watcher alone is insufficient.
+  check/artifact output before another compiler spawn. No broader semantic cache. Preserve current evidence and diagnostics provenance; a watcher alone is insufficient.
 - **Checks / completion:** no-op hit plus source membership/add/delete/symlink,
   compiler/catalog/flag/profile/producer change and mid-capture mutation invalidate
-  correctly. Refuse incomplete/stale identity; never promote failed/superseded output.
-  One direct no-op/copy-edit comparison proves the specific avoided work. Reuse E1
+  correctly. Refuse incomplete/stale identity; never promote failed/superseded output. One direct no-op/copy-edit comparison proves the specific avoided work. Reuse E1
   acceptance; implement only the uncovered measured duplication, or record deferral.
 
 #### T24 — Checked change classification and compatibility facts
@@ -934,8 +920,7 @@ The accepted native state/protocol contract is in [the development design](../de
 - **Prerequisite output:** T18/T20 generation/asset shape and existing emitted style,
   browser, route, model/policy/binding identities. Coordinate bundle writer after T22.
 - **Remaining change / observable outcome:** compare validated outputs to classify
-  no page change, CSS-only, candidate compatible page update, or reload/restart.
-  Include locales, dependencies, executable/client and authority/form identity;
+  no page change, CSS-only, candidate compatible page update, or reload/restart. Include locales, dependencies, executable/client and authority/form identity;
   unknown is incompatible. Publish the smallest checked facts consumers need.
 - **Checks / completion:** representative style, message/template, behavior/query,
   route, policy/binding, schema and producer changes choose their declared path;
@@ -996,11 +981,9 @@ The accepted native state/protocol contract is in [the development design](../de
 - **Remaining change / observable outcome:** compare full-check retention, persistent
   process/parse reuse and one dependency-aware declaration/query or emitted-unit cache
   against the same edits and correctness needs. Select the smallest material win,
-  exact dependency/invalidation key, bounded memory/cancellation and fallback contract.
-  Disk persistence is a separate decision, not implied by a persistent process.
+  exact dependency/invalidation key, bounded memory/cancellation and fallback contract. Disk persistence is a separate decision, not implied by a persistent process.
 - **Checks / completion:** bounded experiment on unchanged, one local edit and one
-  importer/interface invalidation, preserving diagnostics/spans/source membership.
-  Record measured go/no-go and the exact T29 boundary. Stop on a no-go; never open
+  importer/interface invalidation, preserving diagnostics/spans/source membership. Record measured go/no-go and the exact T29 boundary. Stop on a no-go; never open
   an unlimited “incremental compiler” prerequisite. Existing JEV sequencing advice
   does not decide a new compiler architecture.
 
@@ -1015,8 +998,7 @@ The accepted native state/protocol contract is in [the development design](../de
   source evidence, evaluation order or authority. Cold/full fallback remains available.
 - **Checks / completion:** compare selected cached and full results on the bounded
   edit set, invalidation, error/correction, cancellation and bounded repeated requests;
-  one real dev consumer proves current generated output. Record speed/memory observations.
-  Close this slice without a whole-compiler rewrite, portable cache or universal latency claim.
+  one real dev consumer proves current generated output. Record speed/memory observations. Close this slice without a whole-compiler rewrite, portable cache or universal latency claim.
 
 #### T30 — Final changed-scope interaction, latency and recovery join
 
@@ -1059,8 +1041,7 @@ not another copy of the same app journey.
   closure and attribute its emission errors to existing compiler owners. Then
   extend native `dev-server/src/compiler.rs::admit_single_app_profile` / `compile`
   and `capture.rs::{CaptureRequest,capture_with_phases,is_current_with_phases}`
-  to consume compiler-resolved source membership and selected app identity.
-  The current guard rejects `use` and multiple app declarations; the old blanket
+  to consume compiler-resolved source membership and selected app identity. The current guard rejects `use` and multiple app declarations; the old blanket
   package/`app uses=` refusal description is historical. No checked app-selection
   CLI/interface is assumed to exist: the compiler/native owners must expose the
   selected declaration plus complete operand/generated closure before the browser
@@ -1069,12 +1050,10 @@ not another copy of the same app journey.
   missing inputs and stale candidates are the focused negative cases.
 - **DFE-03/04:** for that selection, join only the resource bindings actually
   declared, then generate its required style through the accepted native
-  `can gen` / `can validate` lifecycle. Preserve the specified Sol/medium recipe.
-  Missing authenticated runner capability holds the real-generation observation,
+  `can gen` / `can validate` lifecycle. Preserve the specified Sol/medium recipe. Missing authenticated runner capability holds the real-generation observation,
   not local closure/resource work. Do not regenerate accepted PromptStudio output.
 - **DFE-06:** after the same app's functional journey passes, inspect its actual
-  populated/empty/error desktop/mobile states with `tests/e2e/drafts/visual.ts`.
-  Finish that app's reference/functional comparison before widening to the next
+  populated/empty/error desktop/mobile states with `tests/e2e/drafts/visual.ts`. Finish that app's reference/functional comparison before widening to the next
   batch. Existing 108 reference mappings remain the eventual corpus denominator.
 - **DFE-07:** add one accepted app's saved-output run to existing CI first, then
   extend selection as each app is accepted. Do not make all 828 discovered cases
@@ -1085,8 +1064,7 @@ The existing focused commands are
 `bun run test:draft -- CanTable/playwright/app.spec.ts --project=coverage`, then
 the same file with `--project=examples`, `--project=desktop` and `--project=mobile`
 as their inputs become available. Use `bun run typecheck:draft` after shared helper
-edits. These are future validation commands, not results of this planning update.
-The [runbook](../draft-frontend-validation.md) owns setup and capture details;
+edits. These are future validation commands, not results of this planning update. The [runbook](../draft-frontend-validation.md) owns setup and capture details;
 refresh only affected producers and freeze their consumed closure for execution.
 
 ### DFE-01 — Map requirements and correct the original sources
@@ -1097,7 +1075,7 @@ refresh only affected producers and freeze their consumed closure for execution.
 
 **Prerequisite output:** current source inventory and companion requirements for the selected batch. Semantic closure checks additionally need the relevant compiler/BGI-01 output; initial requirement mapping can start immediately.
 
-**Change:** connect each selected app's requirements, routes, operations, examples and declared resources to its existing tests or a concrete missing journey. Once source carriers are supported, compile each selected app closure and classify failures as source mistakes, missing compiler/runtime capability, missing generation, or missing binding. Fix demonstrated source mistakes without erasing intent, weakening permissions or replacing the original app. Record an actual ambiguity as the exact decision needed. A difficult new design choice follows the repository's three-request JEV policy; this ordering of accepted work needs no new architecture consultation.
+**Change:** connect each selected app's requirements, routes, operations, examples and declared resources to its existing tests or a concrete missing journey. Once source carriers are supported, compile each selected app closure and classify failures as source mistakes, missing compiler/runtime capability, missing generation, or missing binding. Fix demonstrated source mistakes without erasing intent, weakening permissions or replacing the original app. Record an actual ambiguity as the exact decision needed.
 
 **Done when:** every selection in the batch has complete, source-current analysis and a requirement-to-test/result mapping. Each demonstrated source defect is corrected with its focused check, or remains explicitly open. Undefined/unsupported behavior cannot count as a successful check. Reuse shared rows and their evidence across consumers; do not create a second authored app registry or one ticket per cascading diagnostic.
 
@@ -1181,44 +1159,93 @@ Image-bearing apps additionally use genuine admitted test image files through th
 
 ## Service and integration contracts
 
+### Original provider consumer criteria
+
+These clauses complete existing FP.SOURCE-MAPPINGS / FP.AW-SOURCE-CONNECTOR and
+FP.SERVICE-CATALOG scope. The original language-app intent record
+requires Discover and Enrich's source adapters; the delivery-app intent record
+requires Sync's read/CAS and Workbench's typed planner joins. Current
+[`SERVICES_CATALOG`](../../packages/services/src/catalog.ts) lists Email, Chat,
+SystemOne and Images; their exports do not prove these app-owned signatures are
+bound or executed. Preserve their actual declared schemas and deployment binding
+identity; module paths for missing adapters are implementation choices, not existing APIs.
+
+- **FP.SOURCE-MAPPINGS — one outward source consumer at a time.** Start with the
+  selected app's checked declaration and configured binding at the existing
+  Services/runtime dispatch boundary, then its genuine durable caller and receipt. [Discover](../../draft/apps/CanDiscover/CanDiscover.can)'s `DiscoverySourceV1.page`
+  freezes source/query/UTC publication interval and opaque continuation, with one
+  page plus at most20 detail fetches. Whole-page validation must reject excess or
+  mismatched data rather than truncate it; snapshot/live/uncertain, terminal and
+  partial/unavailable meanings remain truthful. [Enrich](../../draft/apps/CanEnrich/CanEnrich.can)'s
+  `SourcesV1.lookup` preserves the requested legal-company number/provider, exact
+  fact provenance, missing facts and complete/partial distinction; fallback needs
+  the original consent and current run, and provider data cannot silently mutate
+  canonical Customer. Prove one actual normalized result plus malformed/mismatched,
+  unknown, superseded and replay controls, then hand that result to FP.QUALIFY.
+- **Same parent, conditional writes and federated reads.**
+  [Sync](../../draft/apps/CanSync/CanSync.can)'s `AccountsV1.read/replace` needs a
+  configured remote identity, whole-contract opaque revision and conditional write;
+  applied/conflict/missing/rejected/unknown are distinct. Qualify the original
+  bounded reviewed rebase and retained-attempt recovery; equality after an unknown
+  write is not proof of causation. [CanDo](../../draft/apps/CanDo/CanDo.can)'s
+  `WorkSourcesV1` must consume the configured owners' currently authorized work
+  projections and required instructions without copying grants or replacing typed
+  actions with string dispatch. Neither an inbound event mapper nor canonical
+  local CRUD proves these consumers. The configured-device branch of
+  [Reception](../../draft/apps/CanReception/CanReception.can) stays optional at its
+  recorded scope: if selected, `DeviceV1.apply/reconcile/changed` preserves intent
+  revision, monotone observation and unknown/revoked evidence separately from
+  physical credential custody. No new hardware/provider matrix is required.
+- **FP.SERVICE-CATALOG — one structured runtime-AI consumer.** Start with
+  [Decide](../../draft/apps/CanDecide/CanDecide.can)'s `SynthesizerV1.draft`,
+  Discover's `DiscoveryAnalysisV1.extract`, or
+  [Workbench](../../draft/apps/CanWorkbench/CanWorkbench.can)'s `WorkbenchPlannerV1.next`,
+  whichever selected original caller's checked source/input is ready. Join its
+  declared input/output and token bounds to the existing provider/dispatch machinery;
+  validate the complete returned schema and original source/request/revision before
+  the current callback. Decide retains evidence versus assumptions and human final
+  decision; Discover retains citations and uncertain claims; Workbench accepts only
+  the finite owner-derived invocation/reference domain and leaves execution to the
+  existing approval transaction. Reject malformed/oversized/forged/stale output,
+  preserve unknown/late/replayed outcomes, and demonstrate one real original caller. JEV Judgment and build-time BGI generation do not substitute for these adapters.
+
+These units use existing priority5 service ownership and priority6 app acceptance,
+without waiting for all providers or interrupting active T22. Checked source/schema,
+versioned configured binding and the matching durable caller are engineering
+prerequisites. Authentic provider access is a leaf for its real-profile observation;
+controlled contract tests do not close that leaf. Source selection and provider
+capability uncertainty remain explicit; no universal adapter platform, new app
+policy or additional provider is selected by this correction.
+
 **Prepared decision boundary, 18 October:** SEQ-045 first requires the app/provider
 owner to name one originally required definite-success reversible effect, its
-original-attempt identity and reconciliation output. Compare an original-payment
-refund with an actually required withdrawal/repair alternative using verified
-source/provider contracts and the existing three-request JEV procedure. Compare
+original-attempt identity and reconciliation output. Compare
 unknown outcomes, irreversibility, current authority and crash/replay recovery on
 equal terms. No effect is selected by this preparation; Payments is a dependency
 only if selected, and Email acceptance is not reversible. This finite experienced
-owner decision can proceed independently of ordinary source/service producers.
-The canonical list supplies their order; do not adopt compensation syntax or a
+owner decision can proceed independently of ordinary source/service producers. The canonical list supplies their order; do not adopt compensation syntax or a
 generic reversal framework to avoid this concrete choice.
 
 The canonical list selects the next unit; these recipes clarify the large
-parents without creating more outcomes. Paths below were checked at `104d87b63`.
-Earlier “defining-owner paths from the old plan” are historical suggestions where
+parents without creating more outcomes. Paths below were checked at `104d87b63`. Earlier “defining-owner paths from the old plan” are historical suggestions where
 they differ from these current owners.
 
 - **FP.QUALIFY:** select one original app from
   `docs/ideal-filetree-plan/finished-product/workflows.md` and its original
   `draft/apps/<app>/` source/companion. Map only its unmet workflow to existing
   canonical producer outputs. First implement the missing fixture/role/operation
-  consumer, then run that app's complete required positive and negative journey.
-  Start frontend integration with CanTable after DFE-02's actual closure/preview
+  consumer, then run that app's complete required positive and negative journey. Start frontend integration with CanTable after DFE-02's actual closure/preview
   output. The existing entry is `draft/apps/CanTable/playwright/app.spec.ts` using
   `tests/e2e/drafts/suite.ts::defineDraftAppSuite`; the old proposed
   `tests/e2e/journeys/original-corpus.spec.ts` and delivery/analytics siblings do
-  not exist. Extend existing app entries rather than require a new master suite.
-  Keep the 49 original intent ledgers and the distinct frontend selections intact;
+  not exist. Extend existing app entries rather than require a new master suite. Keep the 49 original intent ledgers and the distinct frontend selections intact;
   neither count substitutes for the other. Consume the same result for DFE-05.
 - **FP.INSTALLED-RELEASE:** take one changed final native/Values/Work artifact
   closure, integrate its inventory in `scripts/pack-install.mjs`,
   `packages/cloudflare/src/deploy/producer-files.ts` / `package-assets.ts` and
-  `src/release/manifest.ts`, then qualify one explicitly claimed installed host.
-  Use `node scripts/verify-install.mjs <archive>` on the assembled archive;
+  `src/release/manifest.ts`, then qualify one explicitly claimed installed host. Use `node scripts/verify-install.mjs <archive>` on the assembled archive;
   `verify-installed-worker.mjs` owns the Worker-specific seam. Supply the final
-  changed artifacts first; do not rerun unrelated accepted installer profiles.
-  Old `src/release/inputs.ts` and `deploy/producer-inventory.ts` paths do not exist.
-  Local packaging does not authorize public upload, default selection or retirement.
+  changed artifacts first; do not rerun unrelated accepted installer profiles. Old `src/release/inputs.ts` and `deploy/producer-inventory.ts` paths do not exist. Local packaging does not authorize public upload, default selection or retirement.
 - **FP.UPGRADE-JOIN:** local engineering starts at
   `packages/cloudflare/src/upgrade/apply.ts::applyUpgrade`, which currently walks
   dry-run states and explicitly refuses live staged-store application. The
@@ -1235,22 +1262,9 @@ they differ from these current owners.
   emitted `packages/state/dist/test/migration/{stage,resume,activate,recover}.test.js`
   under `node --test` after the owning build. Those unit checks alone do not close
   installed acceptance. Live activation remains a separate action-specific hold.
-- **FP.SOURCE-CLOSURE:** use retained coverage in `docs/ideal-filetree-plan.md`
-  and `finished-product/consolidation-review.json` to select one genuinely
-  unreviewed source delta/owner, inspect its actual code and expectations, and
-  record substantive findings in the existing owner record. Reuse the incremental
-  compiler/native/complexity merge coverage; do not review verdicts or reconstruct
-  every accepted diff from the old complete checkpoint. Escalate an actual missing
-  coverage boundary; do not silently advance the complete checkpoint.
-- **FP.FULL:** after each exact missing producer/consumer result arrives, reconcile
-  its duty once in the existing finished-product record. Final release disposition
-  consumes original-app, installed, economics, upgrade and source-coverage outputs;
-  it starts no new implementation queue or universal retest. Keep unresolved
-  required outcomes open and optional/declined outcomes explicit. A review of
-  this reconciliation is not another prerequisite.
+- **FP.FULL:** Join missing producer and consumer behavior into the required original-app, installed, economics and upgrade workflows. Preserve unresolved functional gaps and distinguish optional work.
 
-These commands and sequences are prepared work, not newly executed validation.
-Security/transaction and cross-subsystem integration units warrant an experienced
+These commands and sequences are prepared work, not newly executed validation. Security/transaction and cross-subsystem integration units warrant an experienced
 executor; repetitive single-app/fixture or inventory follow-through can use Luna.
 
 **Prepared decision units:** handle one recorded source discrepancy at a time
@@ -1258,10 +1272,8 @@ using the current `draft/apps/` source/companion and existing delivery/work revi
 findings. Mail frozen/latest address, Reception repeat/guest destination, Rent
 historical denominator, Discover committed hook, Catch cumulative/daily counts,
 Affiliate cancellation, Event public availability and Stock reverse conservation
-need an explicit intended-policy/defect/negative/missing-implementation disposition.
-Partner additionally needs a legitimate original lock-edit operation or an explicit
-immutable-case test correction; inventing update grants is not a repair.
-Volunteer material changes remain in the existing
+need an explicit intended-policy/defect/negative/missing-implementation disposition. Partner additionally needs a legitimate original lock-edit operation or an explicit
+immutable-case test correction; inventing update grants is not a repair. Volunteer material changes remain in the existing
 [progress design](../design/muse-migration-20261004/progress-design.md): compare
 preserving historical recipients through bounded capture/freezing with a fully
 specified current-recipient/consent-generation alternative. Both must immediately
@@ -1307,8 +1319,7 @@ CAN-COMPLEXITY-SCOPE-003 remains one
 outcome. Its actual cleanup census is
 `/private/tmp/can-complexity-muse-20261018/baseline.json` (same rows in
 `eligible.json`), base `69d45c33c65dd0627ff9f38c02fe3dcacbd560bb`, 1070 explicit
-identities (630 TS/440 Rust), TypeScript 5.9.3 / rust-analyzer 1.99.0 eligibility.
-The tracked `scripts/complexity-baseline.json` is the older enforcement allowance
+identities (630 TS/440 Rust), TypeScript 5.9.3 / rust-analyzer 1.99.0 eligibility. The tracked `scripts/complexity-baseline.json` is the older enforcement allowance
 set, not this cleanup queue. `monitor.json` records 849 resolved/221 deferred at
 `01c5e8b3fe3338ac3379a771ac369c2236f21cd4`, after TS `3ac71ab6e`.
 
@@ -1323,8 +1334,7 @@ of the original scope.
 
 One verified starting body is
 `packages/state/src/invocation/registry.ts#compareGivenBounds`: the original
-score21 body is unchanged between the census base, closeout and inspected main.
-Refactor that one owner closure, preserving left/right decode and error order and
+score21 body is unchanged between the census base, closeout and inspected main. Refactor that one owner closure, preserving left/right decode and error order and
 the shared `malformed_descriptor` catch. For each subsequent mapped body, use
 existing `analyzeSources(new Map([[file, source]]))` and `keyOf` exports from
 `scripts/check-complexity.mjs` to require ≤20 for the selected residual and its
@@ -1372,7 +1382,6 @@ These original technical constraints elaborate the same canonical outcomes above
 | SEQ-059 — statecharts reconsideration | SEQ-011 qualified flat alternative plus one actual workflow whose flat composition fails the simplicity/value comparison. | Finite semantics/value record for target/conflict/order/history/entry-exit/migration together, JEV3 before separate implementation. No shared-graph prerequisite when irrelevant; no statechart coding task yet. |
 | SEQ-060 — integrate each slice | Author supplies focused diff/direct result; coordinator performs authorized local integration and necessary review only. | Owning source/tests/related docs together, preserved foreign index/holds and file handback. Retire the slice once met; no standing reviewer, review-of-review or unrelated full-plan wait. |
 | SEQ-061 — claimed installed/durable scope | Installed/backend owners select exact outside-checkout release/profile and unmet acceptance criteria; preserve preparation HOLD. | Actual package/artifact/browser/backend and relevant provider/crash/upgrade outcomes for that claim only. Reuse unchanged accepted rows and distinguish mock/native/deployed. Whole-app claims consume 026/040 matrices; other 49-app FP.QUALIFY scope is not this worker's invented global prerequisite. |
-| SEQ-062 — coverage/decision reconciliation | Handling integrator reconciles accumulated changes against living checkpoint using existing registration plus new/uncovered delta. | Coverage and decisions retain all changes since checkpoint, both-parent ownership/allocations and real remaining gaps. Advance complete checkpoint only when review is complete. No repeated full-history reconstruction or maintenance-of-maintenance proof chains. |
 | SEQ-063 — status/handback | Coordinator updates existing 21-proposal/task status from direct outcomes, accepted stages and exact remaining/deferred gates. | Claims name actual source/runtime/provider/profile stage; conditional no-pilot/defer is explicit; release leases/workers. Remote publication stays held; local status is not permission to deploy/push. |
 
 Guarded SEND remains unfinished at `SEQ-039/worker_update/preclaim_original_stage_join/authored_send` only for its original Compiler/Dev native join. The retained lexical census and genuine same-store pending/skipped receipt preparation are coordinator-reviewed CLEAR and integrated in LOCALmain7a1a4125; retire those finite criteria at their existing State/Work scope. Original model SEND0a4 is also reviewed/integrated at LOCALad7. Exact reviewed Packages1ac now supplies the installed static Generation profile; the State/Work matcher and actual installed pending/null/skipped/rich receipt-to-completion consumer are implemented/tested in `SEQ-039/worker_update/model_call_result/related_send_prerequisites/generation_origin`, awaiting coordinator review. Dev derives each exact runtime request from the genuine original native frame and connects the full existing origin; original workflow acceptance remains unfinished. Reviewed Deva61 per-physical-store registry is a released finite prerequisite, with its unchanged owning result reused. Exact f715 receipt-only origin preserves zero skipped dispatch/outbox. Provider-void is explicitly unsupported until defining Contracts/Compiler release an actual delivery result representation; caller-void metadata does not substitute. Continue exact Compiler/Dev intake and original workflow qualification within the existing holds.

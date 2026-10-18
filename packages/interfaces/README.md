@@ -1,13 +1,9 @@
 # @canlang/interfaces
 
 HTTP/MCP/upload/provider-ingress interfaces for CanLang: routing, envelope
-validation, error envelopes, projection, and the dependency ports the L7
-worker assembly binds at B1. Production bindings come from L1 (registry,
-catalog, app facts), L3 (canonical invocation), and L4 (file kernel,
-ingress verifier); this package ships the shell, not the engines.
-
-Ownership per `docs/implementation/PLAN.md`: lane 06 (account/session/team
-identity, HTTP/MCP routing, canonical request/result and upload transport).
+validation, error envelopes, projection, and dependency ports bound by the
+Worker assembly. Production bindings come from Compiler (registry, catalog,
+app facts), State (canonical invocation), Files and provider ingress adapters.
 
 An admitted `PageReadScope` can install `observeGenerationCallbackDiagnostics`
 on the frozen page `canonical` context. Full and partial page paths forward the
@@ -155,17 +151,6 @@ All paths under `packages/interfaces/`:
 - `src/projection/project.ts` — granted-path field projection
 - `src/testing.ts` — test-only doubles (never production)
 - `test/` — fixtures (copied into `dist/` by `build`) and tests
-
-## Ownership / lane note
-
-Lane 06 per `docs/implementation/PLAN.md` (row: lane
-`prompts/06-identity-interfaces.md`; tree slot `interfaces/ # L6`).
-Downstream joins bind the ports: L1 operation/page registry and catalog
-(join J3), L3 canonical invocation (join J2), L4 file kernel (join J6)
-and typed ingress verification (S8), L7 worker assembly at B1.
-
-No `LICENSE` file or `license` field exists in the repo, so no license
-pointer is given.
 
 ## Distribution API
 

@@ -2,7 +2,7 @@
 
 Current Rust-port dispatch planning is in the [18 October source refresh](../../implementation/REMAINING-WORK.md#native-port-unit-contracts). This dated sequence and its finite releases are evidence; they are not a second execution queue.
 
-**Historical planning sequence with recorded finite implementation releases. Future execution remains deferred.** This sequence turns the [package audit](README.md) into finite work and acceptance units. It supplements the existing challenge, Rust-port and ideal file-tree plans; it is not a replacement master plan, a live assignment or a new canonical task count. The [machine sequence](adoption-sequence.json) records dependencies, candidate files and original-task references.
+**Historical planning sequence with recorded finite implementation releases. Future execution remains deferred.** This sequence turns the [package audit](README.md) into finite work and acceptance units. It supplements the existing challenge, Rust-port and ideal file-tree plans; it is not a replacement master plan, a live assignment or a new canonical task count. The machine sequence records dependencies, candidate files and original-task references.
 
 Source baseline: `309644a6881909d8dba32560bc6711f67e00a7ab`, with the package inventory and current remaining-work ledger as evidence. Refresh at actual activation. Keep credited results and their exact scope; fixes to credited source are corrective changes with affected requalification, not a redispatch of old work. `A03.1` is credited complete; `A04.5` is partial; `W04.1–W04.3` are `needs_verification`; `W04.4` is `not_started`. Standalone source/vector history does not establish compiled work-kernel acceptance.
 
@@ -272,7 +272,7 @@ Review exact candidate/base/files and actual dependency/tool/artifact identities
 
 Integrate dependency-complete commits in small joins; requalify affected source after rebase/integration. Remove the superseded scanner/formatter only when its actual callers have switched and negative controls pass. Keep the explicit TS backend until its separate parity/measurement/rollback gates permit retirement.
 
-After each actual merge, reconcile the living file-tree plan against **all** accumulated changes since checkpoint, coverage and decisions together; advance only after complete review. Preserve unique history and other writers. Send exact integrated source/export/asset hashes back to consumers; no dirty-tree SHA certification or mutable-output sharing.
+Preserve unique history and other writers. Send exact integrated source/export/asset hashes back to consumers; no dirty-tree SHA certification or mutable-output sharing.
 
 **Exit:** integrated source/coverage and true task status at the accepted scope. No implementation merge or checkpoint advancement is performed by this planning document.
 

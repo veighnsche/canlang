@@ -981,4 +981,4 @@ Escaping projection clone/probe assertions. **Assessment:** retain.
 
 **Unresolved authority/domain:** SW-064
 
-Every verdict is an assessment proposal. Retention is scoped to the named outcomes; it neither legitimizes defects nor freezes every historical quirk. See the [focused review](review.md), [upstream evidence](upstream-evidence.json), and [dependency receipts](dependency-evidence.json).
+Every verdict is an assessment proposal. Retention is scoped to the named outcomes; it neither legitimizes defects nor freezes every historical quirk. See the [focused review](review.md), upstream evidence, and dependency receipts.

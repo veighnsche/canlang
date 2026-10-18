@@ -16711,6 +16711,63 @@ impl<'a> Sites<'a> {
                             // producer, never ordinary parent field observations.
                             continue;
                         }
+                        if std::env::var("CAN_ZZ_ANY").is_ok()
+                            && matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "any")
+                        {
+                            if let Some(facts) = ir
+                                .scenario_disclosures
+                                .get(&owner.id)
+                                .and_then(|value| value.source_facts())
+                            {
+                                for query in facts.queries.as_deref().unwrap_or_default() {
+                                    eprintln!(
+                                        "ZZANY {} expr={:?} qnode={:?} first={} count={} proj={} arch={} alias={} pred={}",
+                                        owner.name,
+                                        node_span(expression.span),
+                                        node_span(query.node),
+                                        query.first.is_some(),
+                                        query.count.is_some(),
+                                        query.projection.is_some(),
+                                        query.archived,
+                                        query.alias.is_some(),
+                                        query.predicate.is_some()
+                                    );
+                                }
+                            }
+                        }
+                        if matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "any")
+                            && let Some(facts) = ir
+                                .scenario_disclosures
+                                .get(&owner.id)
+                                .and_then(|value| value.source_facts())
+                            && let Some(query) = facts.queries.as_deref().and_then(|queries| {
+                                queries.iter().find(|query| {
+                                    query.first.is_none()
+                                        && query.count.is_none()
+                                        && query.projection.is_none()
+                                        && query.cardinality_guard.is_none()
+                                        && query.limit.is_none()
+                                        && query.order.is_empty()
+                                        && !query.archived
+                                        && query.alias.is_some()
+                                        && query.predicate.is_some()
+                                        && node_span(query.node) == expression.span
+                                })
+                            })
+                        {
+                            let [domain, predicate] = args.as_slice() else {
+                                return None;
+                            };
+                            if node_span(query.domain) != domain.span
+                                || query.predicate.is_some_and(|node| node_span(node) != predicate.span)
+                            {
+                                return None;
+                            }
+                            // A recorded plain boolean emptiness query observes
+                            // its own domain and predicate through the native
+                            // query path; neither is an ordinary parent row read.
+                            continue;
+                        }
                         if matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "first")
                             && let Some(facts) = ir
                                 .scenario_disclosures

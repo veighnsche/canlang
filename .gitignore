@@ -10,12 +10,12 @@ __pycache__/
 # Package-local Cargo/native/Wasm build output
 /packages/**/target/
 
-# Node workspace output (lane 07)
+# Node workspace output
 node_modules/
 /.pnpm-store/
 .turbo/
 # Stray tsc emits next to sources (no package emits outside dist/;
-# PR22 pollution guard — test/ keeps one tracked .js worker, untouched)
+# test/ keeps one tracked .js worker)
 packages/*/src/**/*.js
 packages/*/src/**/*.d.ts
 packages/*/src/**/*.js.map
@@ -28,17 +28,16 @@ coverage/
 miniflare.sqlite*
 *.tsbuildinfo
 editors/vscode/out/
-# Playwright run output; keep authored references and approved baselines.
+# Playwright run output; keep authored references and screenshot baselines.
 test-results/
 playwright-report/
 **/playwright/.cache/
 **/playwright/results/
 **/playwright/screenshots/
 
-
 # Ad hoc browser previews; curated captures live beside the app's tests.
 
-# B5 release verification artifact (regenerate: bun run release)
+# Generated release inventory
 dist-manifest.json
 
 # Local worker worktrees
@@ -46,20 +45,6 @@ dist-manifest.json
 
 # Build-generation tooling state (candidates, journals, leases, ledgers)
 .can/
-
-# Generated artifacts removed by the 2026-10-14 history cleanup.
-/docs/implementation/compiler-completion/corpus-admission/independent-review/probe
-/docs/research/**/*.log
-/docs/research/**/*.stdout
-/docs/research/**/*.stderr
-/docs/implementation/**/*.log
-/docs/implementation/**/*.stdout
-/docs/implementation/**/*.stderr
-/docs/implementation/compiler-completion/lsp-support/raw-callers.txt
-/editors/vscode/audit-astra/*tokens.json
-
-# Owned standalone-install assembly and private release-tool dependencies
-
 
 # Offline Soda tool archives and disposable integration state
 /.artifacts/

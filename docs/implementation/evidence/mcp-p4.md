@@ -12,8 +12,7 @@ omission permits all):
 
 - Syntax (`compiler/src/syntax/parser.rs`): `expose=` joins the scenario
   attribute vocabulary; the value parses with the same `parse_selectors`
-  production as CRUD `expose=` (`Selectors` of single-segment words).
-  Trusted handlers reject it (`E1200`, alongside params/result/read/scope).
+  production as CRUD `expose=` (`Selectors` of single-segment words). Trusted handlers reject it (`E1200`, alongside params/result/read/scope).
 - Checking (`compiler/src/analysis/types.rs`, `check_scenario_expose`,
   `E3009`): closed set `{none}` — sole `none` excludes the operation from
   publication, omission exposes it. Unknown selectors fail with

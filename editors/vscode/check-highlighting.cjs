@@ -195,19 +195,11 @@ const onig = require(base + 'vscode-oniguruma');
  at(invariantScopes,4,'invariant','keyword.declaration.invariant.can');at(invariantScopes,4,'require','entity.name.type.can');at(invariantScopes,4,'invariant','keyword.declaration.invariant.can',2);at(invariantScopes,6,'invariant','keyword.declaration.invariant.can');
  at(invariantScopes,8,'require','variable.parameter.can');at(invariantScopes,8,'invariant','variable.parameter.can');at(invariantScopes,9,'require','keyword.control.structure.can');at(invariantScopes,9,'invariant','variable.other.readwrite.can');at(invariantScopes,10,'require','variable.other.readwrite.can');at(invariantScopes,13,'require','keyword.control.guard.can');at(invariantScopes,16,'require','keyword.control.structure.can');
  const oldInvariant=tokenLines(['Given',' require Item: row.valid','When'])[1];assert(!oldInvariant.filter(t=>t.text.trim()==='require').some(t=>t.scopes.some(s=>s.startsWith('keyword.'))),'old Given require no longer introduces a declaration');
- console.log('Audit regression probes passed for F1–F8/F10, callable messages and capability semicolons.');
- // Check rendered token foregrounds with the existing Cursor theme and Antigravity default.
+ console.log('Syntax highlighting regression checks passed.');
+ // Check token colors and styles using the checked-in palette.
  const palette=JSON.parse(fs.readFileSync('editors/vscode/token-colors.json','utf8')).textMateRules;
- const jsonc=require('/Applications/Cursor.app/Contents/Resources/app/node_modules/jsonc-parser');
- const themeRules=file=>{const data=jsonc.parse(fs.readFileSync(file,'utf8'));return [...(data.include?themeRules(path.resolve(path.dirname(file),data.include)):[]),...(data.tokenColors||[])];};
- for(const [editor,themeFile] of [
-  ['Cursor','/Applications/Cursor.app/Contents/Resources/app/extensions/theme-cursor/themes/cursor-dark-hc-color-theme.json'],
-  ['Antigravity IDE','/Applications/Antigravity IDE.app/Contents/Resources/app/extensions/theme-defaults/themes/dark_modern.json']
- ]) {
-  const settings=JSON.parse(fs.readFileSync('/Users/vince/Library/Application Support/'+editor+'/User/settings.json','utf8'));
-  const custom=settings['editor.tokenColorCustomizations'].textMateRules;
-  assert.deepEqual(custom.filter(r=>r.name?.startsWith('Canlang ')),palette,editor+' installed palette differs');
-  registry.setTheme({settings:[...themeRules(themeFile),...custom]});
+ for(const editor of ['Can palette']) {
+  registry.setTheme({settings:palette});
   const foreground=(line,word,state=/^ *page \//.test(line)?grammar.tokenizeLine('Then',tm.INITIAL).ruleStack:tm.INITIAL)=>{const pos=line.indexOf(word),tokens=grammar.tokenizeLine2(line,state).tokens,colors=registry.getColorMap();for(let i=0;i<tokens.length;i+=2)if(tokens[i]<=pos&&(i+2===tokens.length||tokens[i+2]>pos))return colors[(tokens[i+1]>>>15)&511];throw new Error('Missing token '+word);};
   const fontStyle=(line,word,state=/^ *page \//.test(line)?grammar.tokenizeLine('Then',tm.INITIAL).ruleStack:tm.INITIAL)=>{const pos=line.indexOf(word),tokens=grammar.tokenizeLine2(line,state).tokens;for(let i=0;i<tokens.length;i+=2)if(tokens[i]<=pos&&(i+2===tokens.length||tokens[i+2]>pos))return (tokens[i+1]>>>11)&15;throw new Error('Missing token '+word);};
   // The same translation suffix has the same scopes/colors after literal prose and STRING.
@@ -258,7 +250,7 @@ const onig = require(base + 'vscode-oniguruma');
    [' Model {Given:text}','Given','#9CDCFE'],[' do return row.When','When','#9CDCFE'],[' do return true','true','#B5CEA8']
   ]) assert.equal(foreground(line,word),color,editor+' '+word);
  }
- console.log('Verified bold italic white section markers, bold-only white structural words and conventional palette against both IDE settings/themes.');
+ console.log('Token roles and Can palette checks passed.');
  const collect=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(x=>x.isDirectory()?collect(dir+'/'+x.name):x.name.endsWith('.can')?[dir+'/'+x.name]:[]);
  const files=['draft','examples'].flatMap(collect);
  let lines=0;

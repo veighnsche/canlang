@@ -1,7 +1,6 @@
 # T34-F8 fanout matrix proof (M1–M10)
 
-Owner: session 01a13580 coordinator (goal-01a13581), per t34-plan.md §F8.
-Each row names its witness tests, substrate, and the verification result
+Owner: session 01a13580 coordinator (goal-01a13581), per t34-plan.md §F8. Each row names its witness tests, substrate, and the verification result
 re-run in this session. All suites below re-ran green on builds from
 current source (contracts + cloudflare rebuilt fresh; work/state rebuilt
 fresh with no source edits since; compiler tests run on current source).

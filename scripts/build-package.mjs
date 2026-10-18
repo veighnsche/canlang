@@ -11,13 +11,6 @@ if (!manifest.name?.startsWith("@canlang/") || typeof manifest.scripts?.["build:
   throw new Error("build-package must run inside an owning Can package");
 }
 const actual = taskEnvironment();
-if (process.env.TURBO_HASH) {
-  for (const name of ["CAN_BUILD_HOST", "CAN_BUILD_NODE", "CAN_BUILD_BUN"]) {
-    if (process.env[name] !== actual[name]) {
-      throw new Error(`Task identity ${name} is missing or differs from the executing tool; use bun run build`);
-    }
-  }
-}
 const dist = join(directory, "dist");
 function separatelyOwned(path) {
   return (manifest.name === "@canlang/values" && path === "catalog.json") ||

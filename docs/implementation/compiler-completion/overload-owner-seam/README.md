@@ -30,8 +30,7 @@ facade: overlap and touching-edge cases return true/false, and record getter
 receivers, once/order (`bEnd,aEnd,bStart,aStart`) and original constructor
 references are preserved. One isolated case passed **1/1 (0.54s)**; six
 unchanged selected-call tests were filtered/reused. This establishes a bounded
-consumer outcome, not a prior defect or full alias/scalar-provenance closure.
-Unknown dotted nominal matching remains open: current catalog still has zero
+consumer outcome, not a prior defect or full alias/scalar-provenance closure. Unknown dotted nominal matching remains open: current catalog still has zero
 dotted nominal signatures; its real `Team` case is the separately recorded
 external/static-refusal outcome above. No catalog/API/matcher or authority
 change is claimed.

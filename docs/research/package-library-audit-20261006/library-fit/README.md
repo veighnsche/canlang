@@ -4,13 +4,11 @@ Step 4 of the package simplification audit, 2026-10-07. **Planning only.**
 
 The [assessment](assessments.md) compares **27 integration slices covering all 25 historical library findings** against the [classified contracts](../required-behavior/contracts.md). Those slices are audit units, not 27 new implementation tasks or an inventory of every transitive dependency. Each comparison includes current source, library plus minimum owner wrapper, platform primitive and retention, with the same required outcomes, selected API/options, initialization, hosts, license and dependency burden.
 
-Source is frozen at `f8e9e73b11f19a7d59ac62487033a5bc189c46a1`. The package tree is unchanged at verification. Current compiler documentation work is separate and preserved. The [source index](source-index.json) records repository and read-only dependency hashes. No dependency installation, product build/test, policy change, backend adoption or implementation was performed.
+Source is frozen at `f8e9e73b11f19a7d59ac62487033a5bc189c46a1`. The package tree is unchanged at verification. Current compiler documentation work is separate and preserved. The source index records repository and read-only dependency hashes. No dependency installation, product build/test, policy change, backend adoption or implementation was performed.
 
 The subsequent [adapter branch audit](../adapter-branches/README.md) traces the selected
-normalization, conversion, retry, sort, escape and output-rearrangement mechanisms.
-It also reconciles historical source-matched identity host receipts: a missing current
-local installation or unavailable private log does not erase finite committed acceptance.
-Its source findings and conditional dispositions remain planning inputs, not new runtime proof.
+normalization, conversion, retry, sort, escape and output-rearrangement mechanisms. It also reconciles historical source-matched identity host receipts: a missing current
+local installation or unavailable private log does not erase finite committed acceptance. Its source findings and conditional dispositions remain planning inputs, not new runtime proof.
 
 ## Findings that change the simplification plan
 
@@ -39,11 +37,11 @@ Its source findings and conditional dispositions remain planning inputs, not new
 
 Three focused **Sol medium** assessments use versioned primary source and pinned repository contracts. A finite **Sol high** challenge reviews consequential serializer/CSV/source-map/numeric compatibility claims; prior independent persisted-security findings are reused rather than replayed. No new persisted policy or difficult design choice was selected, so JEV adjudication is left for the finite decision that actually changes an owning contract.
 
-Ten exact npm publication artifacts were retrieved into private audit storage, checked for package name/version and SHA512 integrity, and read without installation or scripts. Eight are selected lock inputs; CSV stringify and Ollama are evaluation-only. [Dependency evidence](dependency-evidence.json) preserves compact hashes/metadata rather than committing third-party sources. Cached Rust manifests/source and exact installed MCP/decimal.js/esbuild metadata were also read. Their source/API fit does not establish actual native/Wasm/Node/workerd/browser support, a shipped closure, security acceptance or footprint savings.
+Ten exact npm publication artifacts were retrieved into private audit storage, checked for package name/version and SHA512 integrity, and read without installation or scripts. Eight are selected lock inputs; CSV stringify and Ollama are evaluation-only. Dependency evidence preserves compact hashes/metadata rather than committing third-party sources. Cached Rust manifests/source and exact installed MCP/decimal.js/esbuild metadata were also read. Their source/API fit does not establish actual native/Wasm/Node/workerd/browser support, a shipped closure, security acceptance or footprint savings.
 
 Maintenance comparisons cover algorithms removed/retained, wrapper obligations, dependency/features/host initialization and upgrade witnesses. No claim is made about current maintainer response, security advisories, transitive vulnerability status, measured bundle size or release cadence. License metadata/available notices are recorded; this is not a full license-compliance review. Retention is temporary where the owning contract remains unresolved, not a decision to preserve every historical quirk.
 
-[Machine records](assessments.jsonl), [finding crosswalk](finding-crosswalk.tsv), [upstream references](upstream-evidence.json), [review](review.md) and [decision record](decision-record.md) preserve exact scope and residuals. Continue planning with the named profile questions and minimum-wrapper opportunities; implementation remains deferred.
+[Machine records](assessments.jsonl), [finding crosswalk](finding-crosswalk.tsv), upstream references, [review](review.md) and [decision record](decision-record.md) preserve exact scope and residuals. Continue planning with the named profile questions and minimum-wrapper opportunities; implementation remains deferred.
 
 Reproduce the audit structure and repository hashes from the root:
 

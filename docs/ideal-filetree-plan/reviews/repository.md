@@ -1,6 +1,6 @@
 # Product, provenance and repository-graph review
 
-Primary: root coordinator. Independent challenger: platform reviewer for install/build/test wiring; runtime reviewer for the product fanout gate. Baselines and moving overlay are pinned in [inputs](../baseline.md). This record is planning-only.
+Primary: root coordinator. Independent challenger: platform reviewer for install/build/test wiring; runtime reviewer for the product fanout gate. Baselines and moving overlay are pinned in inputs. This record is planning-only.
 
 ## Inputs and review method
 
@@ -8,7 +8,7 @@ The product contract delta was read against the prior reconciliation: governing 
 
 New root/developer/implementation/evidence Markdown was catalogued internally by headings, explicit owners, task IDs, gates, reported commands/negative controls and evidence level; focused product/decision/acceptance sections were read. Large decision records retain separate alternative, requirement, observed producer and deferred workflow sections. This is structural review of narrative evidence, not independent repetition of all old producer measurements or a fresh business audit of every draft.
 
-All new JEV request/result JSON was structurally decoded, matching question/answer types and choices to criteria. Saved description advice is divided: optional shared/source only/optional shared, confidence .31/.71/.82. The adopted optional shared-reference delivery and source-language IDE/MCP boundary are already recorded; no new localized MCP API is inferred. T28 containment, T31 staged-flat hooks and T32 checkpoint-fence each have three saved equivalent requests/results; T33 remains mixed A/B/A (.27/.19/.20). No new difficult owner policy was adopted here, so no new JEV call was made. This is reuse at the same decision scope, with disagreements retained.
+All new JEV request/result JSON was structurally decoded, matching question/answer types and choices to criteria. Saved description advice is divided: optional shared/source only/optional shared, confidence .31/.71/.82. The adopted optional shared-reference delivery and source-language IDE/MCP boundary are already recorded; no new localized MCP API is inferred. No new difficult owner policy was adopted here, so no new JEV call was made. This is reuse at the same decision scope, with disagreements retained.
 
 The two added independent description acceptance JSON files were decoded for revision, command, exit, output identity, counts, scope and cleanup. They describe narrow previously performed source/reference/locale verification at `d736b9c` and `6fbf445`; the latter reused a checksum-recorded compiler binary and was not a new Rust build. The acceptance Markdown separately identifies static IDE/MCP inspection and producer-run evidence. These records do not close original canonical state/platform or full app workflows.
 

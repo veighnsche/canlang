@@ -1,6 +1,6 @@
 # Pass10 independent final review
 
-**Verdict: accepted at the declared selected-core compiler scope.** Required checks, independently asserted outcomes, actual current/installed consumers and matched native/local-Linux release artifacts support that qualification. No unresolved correctness or retirement finding blocks this scope. This verdict does not close the locale/Pass9 policy queues or original-product/installed-release parents, authorize additional implementation, or advance the living-plan checkpoint.
+**Verdict: accepted at the declared selected-core compiler scope.** Required checks, independently asserted outcomes, actual current/installed consumers and matched native/local-Linux release artifacts support that qualification. No unresolved correctness or retirement finding blocks this scope.
 
 ## Method and frozen inputs
 

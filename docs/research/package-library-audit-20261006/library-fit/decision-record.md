@@ -9,8 +9,7 @@ their declared scope.
 The audit method compares the same required outcomes across current source,
 minimum library wrapper, platform primitive and retention. Count the complete
 mechanism and dependency/host burden. A good integration should retire an
-algorithm; it need not remove owning semantics, authority, bytes or disclosure.
-Tests and a temporary parity oracle do not make every historical quirk permanent.
+algorithm; it need not remove owning semantics, authority, bytes or disclosure. Tests and a temporary parity oracle do not make every historical quirk permanent.
 
 | Finite question | Evidence / owner boundary | Required next decision |
 | --- | --- | --- |
@@ -29,9 +28,6 @@ semantic owner core, tagged transport and small policy mechanisms remain fair
 retention alternatives where replacing them would reproduce their code in an
 adapter or add an unqualified platform/service dependency.
 
-No new difficult design choice or persisted policy was selected. Such a future
-choice must be recorded in `docs/specification/DECISIONS.md` through the active
-owner handoff, with JEV's balanced three equivalent questions when required.
-That shared file is maintained by the concurrent compiler workflow; this packet
+No new difficult design choice or persisted policy was selected. That shared file is maintained by the concurrent compiler workflow; this packet
 does not overwrite it. The LF correction is factual audit maintenance, not an
-output migration. No merge or living file-tree checkpoint advancement occurred.
+output migration.

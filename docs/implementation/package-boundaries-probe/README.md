@@ -1,6 +1,6 @@
 # Turbo discovery and boundary coverage: verified probe results
 
-Executed 2026-10-06 (Europe/Brussels) against source HEAD `7fd8c6bf4717feeffc70b46819377b74b353e117`. Primary pin: **Turbo 2.11.7**, Bun **1.4.2**, Node **24.21.0**, macOS arm64. Exact installer lock, native binary/schema hashes and all available language-tool versions are in [toolchain.json](evidence/tooling/toolchain.json). Installations and synthetic/native-source copies were isolated under `/private/tmp`; the real repository boundary command used an external scratch configuration. Telemetry and update checking were disabled for the probes.
+Executed 2026-10-06 (Europe/Brussels) against source HEAD `7fd8c6bf4717feeffc70b46819377b74b353e117`. Primary pin: **Turbo 2.11.7**, Bun **1.4.2**, Node **24.21.0**, macOS arm64. Exact installer lock, native binary/schema hashes and all available language-tool versions are in toolchain.json. Installations and synthetic/native-source copies were isolated under `/private/tmp`; the real repository boundary command used an external scratch configuration. Telemetry and update checking were disabled for the probes.
 
 ## Conclusion for the implementation plan
 
@@ -19,11 +19,11 @@ The two requested B01 probes are complete. **Use explicit package/root command a
 
 Cargo's shipped guide requires a repository-root virtual workspace. Our separate compiler, private values workspace, work-kernel and nested preparation/fixture crates do not meet that shape; `ports:C04.graph` also excludes introducing a compiler Cargo workspace. Preserve native manifests and schedule their existing commands through explicit adapters. No fake npm identity is needed for every native crate. Go/Python fixtures are controls, not new Can projects or qualified language execution. Python standard-library scripts retain their existing runners.
 
-[Native raw evidence, fixture sources and reproduction](evidence/native/README.md) preserve setup failures, corrected controls, command envelopes, warnings and tool interception. Bundled version-specific guides/schema are saved under [tooling](evidence/tooling/). No actual Rust/Go/Python native build, Wasm/glue generation, native port change or release qualification ran.
+[Native raw evidence, fixture sources and reproduction](evidence/native/README.md) preserve setup failures, corrected controls, command envelopes, warnings and tool interception. Bundled version-specific guides/schema are saved under tooling. No actual Rust/Go/Python native build, Wasm/glue generation, native port change or release qualification ran.
 
 ## Boundary checker coverage
 
-All **24 isolated cases** completed on 2.11.7: 13 detected violations and 11 passes, including two positive controls. Raw command exits/stdout/stderr and fixture inputs are in [the case report](evidence/boundaries/RESULTS.md) and [results.json](evidence/boundaries/results.json). No ignore suppressions or CLI crashes occurred.
+All **24 isolated cases** completed on 2.11.7: 13 detected violations and 11 passes, including two positive controls. Raw command exits/stdout/stderr and fixture inputs are in [the case report](evidence/boundaries/RESULTS.md) and results.json. No ignore suppressions or CLI crashes occurred.
 
 | Form tested | Result and required action |
 | --- | --- |
@@ -41,10 +41,10 @@ This is measured coverage for these fixtures and this pin, not a general proof t
 
 The real checkout command exited **1**, reporting **612 files in 13 packages and 566 issues**: **509 outside-package imports** and **57 undeclared-package imports**. The parsed diagnostic total matches the CLI total, including wrapped messages. This includes workspace tests; diagnostics still require site/ownership triage, including deliberate test fixtures and root-owned runner consumption. They are not 566 independent product defects and do not include unsupported loading forms or the non-workspace editor/root tooling.
 
-[Raw command and source-preservation result](evidence/repository/result.json), [diagnostic sites](evidence/repository/diagnostics.json), [stdout](evidence/repository/stdout.txt) and [stderr](evidence/repository/stderr.txt) are retained. SHA-256 comparison confirmed **946 tracked product/configuration files unchanged** after the probe; independent review checked their current hashes again. Product manifests, source, lockfile and build/CI configuration were not migrated. The only repository writes are probe evidence and planning/decision navigation.
+Raw command and source-preservation result, diagnostic sites, stdout and stderr are retained. SHA-256 comparison confirmed **946 tracked product/configuration files unchanged** after the probe; independent review checked their current hashes again. Product manifests, source, lockfile and build/CI configuration were not migrated. The only repository writes are probe evidence and planning/decision navigation.
 
 ## Review, limits and next work
 
-[Independent assessment](evidence/review/ASSESSMENT.md), [cold-filter replay](evidence/review/cold-denied-results.json) and [actual package-list replay](evidence/review/actual-ls-pinned.json) remove the warm-metadata/interception confounder for the conclusions above. Fixture expectations, raw outcomes and tool hashes were independently inspected.
+[Independent assessment](evidence/review/ASSESSMENT.md), cold-filter replay and actual package-list replay remove the warm-metadata/interception confounder for the conclusions above. Fixture expectations, raw outcomes and tool hashes were independently inspected.
 
-Next, finish B01's complete import/task/artifact inventory and command baseline, then implement B02's API/distribution contracts and supplemental checker. Keep experimental native flags off for the currently unsupported Can topology. Revisit discovery only with evidence that a pinned implementation preserves existing ownership. Build ordering, output restoration, cache invalidation, compiler commit stamps, executable modes, installed Worker assets, parity/economics and C04/C05 product acceptance remain unverified. The preparation HOLD and living-plan checkpoint are unchanged.
+Next, finish B01's complete import/task/artifact inventory and command baseline, then implement B02's API/distribution contracts and supplemental checker. Keep experimental native flags off for the currently unsupported Can topology. Revisit discovery only with evidence that a pinned implementation preserves existing ownership. Build ordering, output restoration, cache invalidation, compiler commit stamps, executable modes, installed Worker assets, parity/economics and C04/C05 product acceptance remain unverified.

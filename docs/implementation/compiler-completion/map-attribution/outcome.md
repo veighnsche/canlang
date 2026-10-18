@@ -23,8 +23,7 @@ mapper returns the exact error `Division by zero` and original absolute
 `failure.can` identity at **4:8**, including `Attribution.remainder` as the
 mapped name. The first result (0/1, 0.55s) exposed an omitted expected name;
 the existing public `MappedPosition.name` contract determined that observer
-correction. Only this affected new case repeated, using the same executable.
-The accepted DEP-02 Node/decoder outcomes remain reused.
+correction. Only this affected new case repeated, using the same executable. The accepted DEP-02 Node/decoder outcomes remain reused.
 
 At the time of the callable-registry result above, canonical
 `runScenarioSeam` converted `InvokeResult.error` to a State error and discarded
@@ -42,8 +41,7 @@ catalog, refreshed Cloudflare invoke/stdlib assembly and real State Memory.
 `StateError.details` for fresh canonical `rule_failed` errors; existing
 `engineFailures` are retained. Public code, message, operation ID and
 `retryable:false` stay unchanged. A real `Attempt.create` rolls back; its
-receipt has no mapped field. Same-ID rejected replay exposes no attribution.
-A fresh artifact with raw maps removed, `sourceMaps`/`mapUrls` empty, returns
+receipt has no mapped field. Same-ID rejected replay exposes no attribution. A fresh artifact with raw maps removed, `sourceMaps`/`mapUrls` empty, returns
 `details:null`.
 
 The original 0/1 (0.36s) fixture had a missing required `as` binding; the next

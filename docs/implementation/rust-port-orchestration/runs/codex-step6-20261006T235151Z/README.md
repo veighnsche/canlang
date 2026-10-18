@@ -14,7 +14,7 @@ Codex's combined current values build passes strict compilation, 214 Node tests 
 
 Use the saved review files and completion.json for the accepted scope; raw failed/successful receipts, original sources and emitted witnesses remain under `/private/tmp/canlang-rust-port-codex-step6-20261006T235151Z`, owned by Codex. No shared cache or foreign resource cleanup occurred. Run-owned disposable outputs have recorded pending cleanup ownership.
 
-Economical dispatch used Sol high for actual N05/N06 cross-file joins and independent reviews, and Luna low for a fixed ledger/count extraction. Reasons, actual agents and official model/pricing sources are recorded in model-dispatches.json. These choices are risk judgments, not measured optimal settings or Codex subscription savings.
+Reasons, actual agents and official model/pricing sources are recorded in model-dispatches.json. These choices are risk judgments, not measured optimal settings or Codex subscription savings.
 
 The canonical ledger credits A07.2 and A07.foundation at their complete finite scaffold outcomes and records V02.6/W04.4 as partial. All original IDs/dependencies/holds and other statuses remain. Counts include parent and gate records: 85 complete, 234 required records remaining, not independent coding-job or hour estimates. Broad Rust-port/challenge/product acceptance is unfinished.
 

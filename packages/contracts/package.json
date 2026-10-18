@@ -35,7 +35,7 @@
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "peerDependencies": {
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "^1.63.0"
   },
   "peerDependenciesMeta": {
     "@playwright/test": {
@@ -43,7 +43,7 @@
     }
   },
   "devDependencies": {
-    "@types/node": "24.19.1",
+    "@types/node": "^24.19.1",
     "vitest": "^3.2.4"
   }
 }

@@ -1,8 +1,6 @@
 # T33 prep: scoped durable fanout — alternatives for the JEV gate
 
-Status: **PROPOSED / PREP — adopts NOTHING.** Decision requires the
-coordinator-run JEV protocol (three fresh, equivalent, independently worded
-requests with saved advice/uncertainty) plus full-scope evidence. Every
+Every
 alternative below carries explicit **JEV-PENDING** markers. No T34
 implementation may begin before the gate accepts one rule; a scoped
 disposition is explicitly deferred, never implemented, never ticked as done.
@@ -69,12 +67,7 @@ reasons. Done when the gate records adopt-vs-scope for each facet with costs.
   negative that ordinary bounded loops still reject overflow.
 - App-intent dispositions: Shift and Volunteer are ACCEPTED-WORKFLOW-INTENT
   with R19 as the T33-gated blocker; all runtime negatives retained
-  (Shift 14, Volunteer 13). T40 qualifies Shift/Volunteer only on adopted
-  T34; without adoption they remain explicit gaps.
-- T33 acceptance bar: explicit adopt-or-scope with reasons for
-  cohort/checkpoint/identity/concurrent-change/failure/supersession plus
-  costs; three equivalent JEV formulations saved and investigated; every
-  required-but-unsupported fanout app remains blocked, never silently cut.
+  (Shift 14, Volunteer 13).
 
 ## Workflows each alternative must preserve (acceptance bar)
 
@@ -93,19 +86,16 @@ reasons. Done when the gate records adopt-vs-scope for each facet with costs.
 
 ## Alternative A — Durable checkpointed fanout with per-child occurrences
 
-Rule: adopt a finite durable fanout contract for both cohort spellings.
-Triggering commits a fanout intent with a frozen cohort cutoff; each member
+Rule: adopt a finite durable fanout contract for both cohort spellings. Triggering commits a fanout intent with a frozen cohort cutoff; each member
 becomes an independently admitted child occurrence with its own receipt and
 bounded transaction; a durable checkpoint records completed children so
 crash recovery resumes without re-executing them.
 
 - Cohort/cutoff: membership is frozen at trigger commit (snapshot of
   matching record identities under the cohort expression — bare model or
-  reverse collection). Late inserts do not join the in-flight fanout.
-  Cohort-size bound is a declared deployment quota (**JEV-PENDING** value
+  reverse collection). Late inserts do not join the in-flight fanout. Cohort-size bound is a declared deployment quota (**JEV-PENDING** value
   and overflow behavior: reject trigger vs admit-and-truncate-never).
-- Identity: child identity = parent occurrence identity + stable record id.
-  Duplicated trigger deliveries replay the parent receipt and mint no new
+- Identity: child identity = parent occurrence identity + stable record id. Duplicated trigger deliveries replay the parent receipt and mint no new
   children (L520 precedent).
 - Checkpoint/admission atomicity: checkpoint advance commits in the same
   owner batch as each child's domain effects (L555 batch shape); a crash
@@ -138,8 +128,7 @@ crash recovery resumes without re-executing them.
   per-child receipt correlation; T24 dispatch must stage fanout intents
   atomically with the trigger commit; T34 must prove 499/500/501/1000
   cohort completeness, crash resume, duplicate-trigger replay, concurrent
-  insert/move/remove, rejected children, retry horizons, and supersession.
-  Largest implementation cost of the four.
+  insert/move/remove, rejected children, retry horizons, and supersession. Largest implementation cost of the four.
 - Strongest opposing case: this builds a mini-workflow engine for four
   draft sites — checkpoint tables, recovery scans, and per-child receipts
   are heavy machinery whose failure modes (lost checkpoints, repeated
@@ -165,8 +154,7 @@ retries the whole occurrence as one unit with receipt replay.
 - Checkpoint/admission atomicity: no checkpoint — atomicity IS the
   trigger transaction (L555 batch). Either every child commits or none do.
 - Concurrent change: ordinary transaction conflict rules apply; a
-  concurrent write to any touched row fails the whole fanout for retry.
-  No insert/move/remove policy beyond snapshot isolation.
+  concurrent write to any touched row fails the whole fanout for retry. No insert/move/remove policy beyond snapshot isolation.
 - Child authority: children run inline in the trigger's transaction and
   context; `send`/`schedule`/`emit` stage intents for post-commit dispatch
   exactly like today's bodies. Same-transaction `send ... when` guards
@@ -184,8 +172,7 @@ retries the whole occurrence as one unit with receipt replay.
 - Workflows preserved: bar items 1–4 hold only for cohorts within the cap
   — Volunteer reminder/cancel sweeps (per-opportunity signups) plausibly
   fit; Shift whole-model sweeps fit only if `Commitment`/`Swap` populations
-  stay small (**JEV-PENDING**: no draft evidence pins real cohort sizes).
-  Atomicity changes observable behavior vs A: no partial completion exists.
+  stay small (**JEV-PENDING**: no draft evidence pins real cohort sizes). Atomicity changes observable behavior vs A: no partial completion exists.
 - Costs: checker + codegen work only; no checkpoint storage, no recovery
   scan, no per-child receipts; T24 join is the ordinary already-planned
   outbox staging. T34 proof burden shrinks to cap enforcement, overflow
@@ -243,8 +230,7 @@ as a language feature, with a supported remodeling idiom.
   mid-sweep failures silently partial, and the drafts' plain traversal
   intent ("review every commitment on eligibility change") rewritten into
   verbose query plumbing; the R19 flip burden demands a continuation
-  design with EQUAL completeness/recovery, not merely fewer features.
-  **JEV-PENDING**: whether the remodeling idiom can demonstrate equal
+  design with EQUAL completeness/recovery, not merely fewer features. **JEV-PENDING**: whether the remodeling idiom can demonstrate equal
   completeness/recovery at lower total cost, and whether four-site
   migration violates minimal-intervention.
 
@@ -319,8 +305,7 @@ contract exists. This is partial adoption with an explicit deferred remainder.
 
 1. T24 dispatch evidence: atomic trigger-commit/outbox-staging shape and
    recovery-scan behavior that A/D fanout intents would ride on (T24
-   pending — applicable slices must land before the gate can accept A/D).
-   **[GATE-COMPLETE 2026-10-06: T24 TICKED COMPLETE — landed shape
+   pending — applicable slices must land before the gate can accept A/D). **[GATE-COMPLETE 2026-10-06: T24 TICKED COMPLETE — landed shape
    transcribed in "T33 gate-input refresh" §R1; fanout-specific substrate
    still T34-owed and remainders recorded there, adopts nothing.]**
 2. T28 ownership input: `swap.parent.parent` navigation (Shift:245),
@@ -331,8 +316,7 @@ contract exists. This is partial adoption with an explicit deferred remainder.
 3. T32 read-fence input: child bodies re-read current state (version
    guards, `eligible()`, `can_work()`); per-child staleness/revocation
    boundaries come from the accepted T32a rule (T32a prep done, gate
-   pending).
-   **[GATE-COMPLETE 2026-10-06: T32a ADOPTED checkpoint_fence A +
+   pending). **[GATE-COMPLETE 2026-10-06: T32a ADOPTED checkpoint_fence A +
    T32b fence+wire LANDED — rule + wired boundaries transcribed in
    "T33 gate-input refresh" §R3; standing obligations recorded there,
    adopts nothing.]**
@@ -358,9 +342,7 @@ contract exists. This is partial adoption with an explicit deferred remainder.
 8. Syntax-after-guarantees ordering (audit plan): the gate compares `each=`
    spellings only after the completeness contract is concrete; no syntax
    vote precedes the semantics decision.
-9. Coordinator-run JEV protocol: three fresh equivalent independently
-   worded formulations, saved responses + uncertainty, disagreement
-   investigated. **No JEV was run for this prep file; tools/jev.py
+9. **No JEV was run for this prep file; tools/jev.py
    untouched.**
 10. T34 proof plan for the adopted alternative (or scoping record with
     deferred reasons for C / the bare-model remainder of D): sizes,
@@ -622,14 +604,6 @@ diagnostic is owed; B's coupling objection is the retained opposing case for
 T29 review. Normative recording (DECISIONS entry) left for Codex review; no
 normative doc edited here."
 
-JEV README gate outcome (evidence/jev-t28-20261005/README.md:69-76,
-verbatim in substance): ADOPT Alternative A (plain_import_containment),
-unanimous across three independently worded equivalent requests, C rejected
-everywhere, D at noise level in two of three; standing obligations carried
-forward, not waived (same-store atomic proof + split diagnostic); T29 needs
-matching T15/T16/T17 facts still pending; normative recording left for Codex
-review.
-
 Local-containment reference semantics (DESIGN, read-only via
 containment-decision.md:30-36, verbatim): "`Model in Parent` creates an
 implicit required immutable `parent:Parent`; the child inherits the parent's
@@ -684,8 +658,7 @@ binding; creation defaults may read `parent`."
   CommercialHistory, CommercialSale, Invoice, Calendar, Allowance, Service,
   Membership, BenefitRequest, BenefitFence, AccessWatch, Checklist, Proposal,
   Visit, GuestPolicy, HostPresence, Capture, Account, Entry, PeriodReview —
-  none is Commitment, Swap, Signup, Opportunity, Roster, Duty, or Community.
-  Zero overlap (table census).
+  none is Commitment, Swap, Signup, Opportunity, Roster, Duty, or Community. Zero overlap (table census).
 - Bound parents: zero corpus-wide (containment-decision.md:312-328: all 76
   `from=` lines bind capability interfaces or value types only; Employee,
   Customer, Location never bound). Shift/Volunteer `from=` lines bind only
@@ -693,8 +666,7 @@ binding; creation defaults may read `parent`."
   parents. T28-A's bound-rejection clause is inapplicable to all four sites,
   and untested by draft evidence in both directions per its own record
   (containment-decision.md:330-336).
-- Imported-containment facets traversed by current cohort language: NONE.
-  Conditional only: if the adopted cohort language later traverses an
+- Imported-containment facets traversed by current cohort language: NONE. Conditional only: if the adopted cohort language later traverses an
   imported parent, T28-A governs (plain allowed with full local semantics;
   bound rejected with diagnostic).
 - Parent-selector legibility: R07 parent selectors accepted via T08
@@ -709,8 +681,7 @@ binding; creation defaults may read `parent`."
   legibility: `event.opportunity.Signup` traverses a `parentRecord.Child`
   typed collection confirmed for local containment
   (containment-decision.md:30-36) and extended to plain imports by T28-A
-  (containment-decision.md:67-72); confirmatory for site 4 (local), not new.
-  CONSTRAINS A's proof: checkpoint-advance-in-same-owner-batch
+  (containment-decision.md:67-72); confirmatory for site 4 (local), not new. CONSTRAINS A's proof: checkpoint-advance-in-same-owner-batch
   (fanout-decision.md:110-112) relies on same-store atomic batch — spec YES,
   engine proof owed via T16/T17 (T29's cross-package part unneeded for these
   same-package sites; T17b remainder per tasks.md:175 still owed). NEUTRAL on
@@ -862,8 +833,7 @@ adopted T33 plus T24 plus applicable T28/T29/T32.
   fanout-specific substrate (intent staging atomically with trigger commit —
   fanout-decision.md:138-139; checkpoint table; recovery scan —
   fanout-decision.md:137-141). Per checklist item 1's own text, applicable
-  slices must land before the gate can accept A (fanout-decision.md:320-322).
-  Absence kills nothing (no evidence against A's design); it bars ACCEPTANCE,
+  slices must land before the gate can accept A (fanout-decision.md:320-322). Absence kills nothing (no evidence against A's design); it bars ACCEPTANCE,
   not consideration. A's T34 proof burden (crash resume, duplicate-trigger
   replay, retry horizons — fanout-decision.md:139-141) presupposes T24
   recovery machinery.
@@ -1018,8 +988,7 @@ once it exists — "Until T24 lands, spend-fence claims are UNPROVEN — not
 memory-proven" (read-decision.md:1275-1285). STALENESS NOTE: the plan's
 runtime-status sentence ("T16, T17, T24 all OPEN with Evidence: pending" —
 read-decision.md:1214-1220) predates T16 COMPLETE plus T17a; current status is
-tasks.md:168 (T16 COMPLETE) plus tasks.md:175 (T17a done / T17b remainder).
-Substrate mapping stands; status sentence superseded.
+tasks.md:168 (T16 COMPLETE) plus tasks.md:175 (T17a done / T17b remainder). Substrate mapping stands; status sentence superseded.
 
 F8. T28-ownership input, item 6 QUALIFIED (read-decision.md:1356-1360,
 verbatim verdict): "**QUALIFIED — T28 half CONFIRMED (adopted rule + JEV +
@@ -1057,8 +1026,7 @@ T12 counts — tasks.md:280); per-site rows not transcribed.
   isolation" premise inherits this exact gap (see §3).
 - No in-flight revocation ruling: DESIGN L291 "already admitted may finish" vs
   mid-flight revocation voids commit — open under every T32a alternative
-  (read-decision.md:136-139, marked pending there; F5 partial silence).
-  Fanout A/D per-child admission plus B whole-occurrence commit inherit it.
+  (read-decision.md:136-139, marked pending there; F5 partial silence). Fanout A/D per-child admission plus B whole-occurrence commit inherit it.
 - No T23/R29 observation rule (item 4 open): fanout T34 proof observations
   (per-child outcomes, checkpoint state) inherit this blocker under EVERY
   alternative's proof tests, not just C's.
@@ -1109,8 +1077,7 @@ T12 counts — tasks.md:280); per-site rows not transcribed.
   needs no T32a evidence — same decision-vs-execution split as the T24 input;
   C's EXECUTION plus PROOF need the deepest stack (adopted T32a rule + T23 +
   T24).
-- Alternative D — as A within adopted cohorts (fanout-decision.md:263-266).
-  Inherits A's mapping EXACTLY within each adopted cohort (per-child receipts,
+- Alternative D — as A within adopted cohorts (fanout-decision.md:263-266). Inherits A's mapping EXACTLY within each adopted cohort (per-child receipts,
   frozen cutoff, version-guarded admission, per-child retry — same F5/F6/F7/F8
   constraints and proofs). Anchored-collection reads enroll the same-owner
   fence per F8 (settled rule, owed proof). D's bare-model remainder interacts
@@ -1146,8 +1113,7 @@ T12 counts — tasks.md:280); per-site rows not transcribed.
   file); T32a-read-rule QUALIFIED (F1-F8 fragments transcribed; items 4/8
   open; no adopted rule).
 - Pending markers added: 5 (T28-to-A/D x2; T24-to-B x1; T32a-to-A/D x1;
-  T32a-to-B x1). File total now 18 (13 prep + 5 here, verified by rg census).
-  Zero adoption language: no fanout alternative recommended, ranked, or
+  T32a-to-B x1). File total now 18 (13 prep + 5 here, verified by rg census). Zero adoption language: no fanout alternative recommended, ranked, or
   killed; T32a alternatives unranked.
 - Gate fully fed? NO. Remaining: T24 applicable slices (blocking A/D
   acceptance per item 1); adopted T32a rule (item 3 qualified; ordering
@@ -1167,8 +1133,7 @@ T12 counts — tasks.md:280); per-site rows not transcribed.
 Writer: L4 T33 gate-input writer (refresh slice). Status: **PREP —
 adopts NOTHING.** APPEND-ONLY: all prior sections byte-identical except
 the items 1+3 checklist markers above; items 2/4/5 markers, the four
-alternatives, fairness record, and all prior appends untouched.
-Read-only transcription + census + analysis; no builds, no tests run,
+alternatives, fairness record, and all prior appends untouched. Read-only transcription + census + analysis; no builds, no tests run,
 no JEV (`tools/jev.py` untouched), no Git, no tasks/monitor/inbox
 edits. Every cited line/number was read in this slice.
 
@@ -1191,8 +1156,7 @@ here).
 ### §R1 — Item-1 REFRESH: T24 COMPLETE (landed shape A/D intents ride on)
 
 tasks.md:224: "T24 TICKED COMPLETE: atomic staging + dispatch join +
-origins/guards/skips/rollback/retry/recovery proven (memory + D1/DO)".
-Commits (tasks.md:224): T24a staging join `468f20e`, T24b execution
+origins/guards/skips/rollback/retry/recovery proven (memory + D1/DO)". Commits (tasks.md:224): T24a staging join `468f20e`, T24b execution
 wiring `45aa7c7`, root-gate fix `215023f` (unreachable-by-construction
 guard, zero behavior change).
 
@@ -1220,8 +1184,7 @@ R1.1 Atomic trigger-commit/outbox-staging shape:
   (packages/state/src/effects/staging.ts:84-147): intent
   `operationId` MUST equal the invoking operation (103-108), ids
   unique in batch (132-135), JSON-safe cloned arguments.
-  `stageDispatchJoin` (263-283) derives origins + `when`-guard refs.
-  SINGLE-OWNER SCOPE ONLY — cross-store atomicity is NOT claimed and
+  `stageDispatchJoin` (263-283) derives origins + `when`-guard refs. SINGLE-OWNER SCOPE ONLY — cross-store atomicity is NOT claimed and
   must not be inferred (237-241).
 - Join linkage assertion
   (packages/state/src/ports/transact.ts:198-249): exactly one
@@ -1290,8 +1253,7 @@ R1.3 Execution wiring + durable substrates (T24b):
   `uncertain` (3329-3332). Delivered + terminal ack the L3 intent;
   transient + uncertain are left for the sweeper (3358).
 - `runRecoverySweep` (3582+): recover batch -> per-state scans ->
-  `planRecoveryScan` -> per-intent release/requeue/reconcile acts.
-  Uncertain rows re-attest at act time; moved evidence skips with
+  `planRecoveryScan` -> per-intent release/requeue/reconcile acts. Uncertain rows re-attest at act time; moved evidence skips with
   `evidence-changed` (3700-3708). Truncation flags on every scan —
   bounded sweeps never silently truncate
   (`RecoverySweepResult`, 3437-3469).
@@ -1305,8 +1267,7 @@ R1.4 Fanout-carried, not fanout-decided: `FanoutLineage`
   (cohortId/parentOccurrence/childIndex/checkpointId,
   intent/index.ts:196-201) is documented "opaque carriers only ...
   applies NO fanout rule" (188-195); shape-validated and echoed in
-  the planner (262-284) and the stage command (commands.ts:1067-1083).
-  Two effects sharing a cohort stage/skip/dispatch as independent
+  the planner (262-284) and the stage command (commands.ts:1067-1083). Two effects sharing a cohort stage/skip/dispatch as independent
   intents. T33 policy still undecided — carriers change no
   alternative's standing.
 
@@ -1320,12 +1281,10 @@ R1.5 Remainders (owed, not waived — tasks.md:224): bound sends (B8
 
 R1.6 Mapping delta vs the ABSENT record: A/D acceptance is no longer
   barred by missing basic staging/recovery — applicable T24 slices
-  landed; what remains fanout-specific is T34's to build and prove.
-  B's "ordinary already-planned outbox staging"
+  landed; what remains fanout-specific is T34's to build and prove. B's "ordinary already-planned outbox staging"
   (fanout-decision.md:190-191) exists, so the §5 T24-to-B ordering
   marker is MOOT as a wait question (nothing left to wait for on the
-  T24 side) — recorded as resolved-by-landing, not as B adoption.
-  C-as-language-decision still needs no T24 evidence; C's remodeled
+  T24 side) — recorded as resolved-by-landing, not as B adoption. C-as-language-decision still needs no T24 evidence; C's remodeled
   execution can now ride landed dispatch.
 
 ### §R3 — Item-3 REFRESH: T32a ADOPTED checkpoint_fence A + fence+wire LANDED
@@ -1454,8 +1413,7 @@ Census (rg + reads of both draft files):
 - Largest observed cohort-adjacent counts: Shift `assign` examples
   expect `count(roster.Commitment)` → 2 (CanShift.can:111-113);
   `count(Roster)` → 1 (CanShift.can:97-99); Volunteer `reactivate`
-  expects `count(mentoring.Signup)` → 1 (CanVolunteer.can:107-109).
-  Fixture populations: 14 fixtures in CanShift.can, 3 in
+  expects `count(mentoring.Signup)` → 1 (CanVolunteer.can:107-109). Fixture populations: 14 fixtures in CanShift.can, 3 in
   CanVolunteer.can (`rg -c "fixture "`); the mentoring fixture sets
   `capacity=1` (CanVolunteer.can:39). No draft example, fixture, or
   companion text exhibits a cohort above 2 records.
@@ -1484,8 +1442,7 @@ the sizes; B's cap fit is still unevidenced either way.
 
 Question (checklist item 7): can the EligibilityReview sweeps be
 faithfully remodeled per-roster/per-location/per-employee, or does
-the null-or-match broadcast filter require whole-model coverage?
-What follows is evidence + analysis. The gate decides; D's pending
+the null-or-match broadcast filter require whole-model coverage? What follows is evidence + analysis. The gate decides; D's pending
 markers (fanout-decision.md:271-275) stay pending.
 
 Evidence:
@@ -1517,8 +1474,7 @@ Evidence:
 Analysis verdict: on current draft shapes, NO single parent anchor
 covers all five emitters — per-roster remodeling covers only
 availability-sourced reviews (2/5); per-employee/per-location/
-per-account anchors have no containment collection to traverse.
-Whole-model coverage is what the null-or-match filter text describes
+per-account anchors have no containment collection to traverse. Whole-model coverage is what the null-or-match filter text describes
 when keys are absent. Whether the gate accepts partial anchoring,
 requires emitter remodeling to always supply roster, or keeps
 whole-model coverage is the gate's decision (feeds D's markers +
@@ -1565,8 +1521,7 @@ after the completeness contract is concrete.
 
 Status: SKELETON ONLY — what ANY proof plan must witness,
 independent of which alternative the gate adopts. Any
-alternative-specific plan needs adoption and is NOT written here.
-Sources: T34 acceptance (tasks.md:293), T34 scoping branch
+alternative-specific plan needs adoption and is NOT written here. Sources: T34 acceptance (tasks.md:293), T34 scoping branch
 (tasks.md:292,294), audit-plan proof sentence
 (CHALLENGE-AUDIT-PLAN.md:398), T40 consequences (tasks.md:332,336),
 T33 bar (fanout-decision.md:74-77, workflows 79-92).
@@ -1650,8 +1605,7 @@ adopted decision. APPEND-ONLY: all prior sections byte-identical, no
 checklist-marker edits.
 
 Adoption record (t33-resolution.md:13, verbatim): "[INFERRED] Adopt A's
-durable per-child direction for both existing cohort spellings.
-Preserve the complete finite admitted-cohort contract through bounded
+durable per-child direction for both existing cohort spellings. Preserve the complete finite admitted-cohort contract through bounded
 execution units. Do not adopt a fixed 500-row or transaction-sized
 semantic fanout cap from tiny examples. No infinite storage/resource
 promise is made: resource admission must be explicit and fail before
@@ -1678,8 +1632,7 @@ and process failures. Late inserts are excluded from that occurrence;
 an eventual owner directory or unsupported high-water assumption is
 insufficient. Retain the complete frozen identity set or another proven
 equivalent authoritative membership mechanism. Failure to establish it
-is a capability/admission failure, not successful partial enumeration.
-Do not claim that current live D1 fencing alone provides historical
+is a capability/admission failure, not successful partial enumeration. Do not claim that current live D1 fencing alone provides historical
 snapshots."
 
 §C2. Source versus child success (t33-resolution.md:18): "parent/source
@@ -1690,8 +1643,7 @@ effective while stored child updates/notices are pending or fail."
 §C3. Stable identities (t33-resolution.md:19): "derive child occurrence
 identity from parent/source occurrence, canonical handler identity and
 canonical record identity. The handler component prevents
-Commitment/Swap or other handlers on one source event from colliding.
-Duplicate delivery replays existing parent/child outcomes; compatible
+Commitment/Swap or other handlers on one source event from colliding. Duplicate delivery replays existing parent/child outcomes; compatible
 release rules must preserve identities under the established
 event/receipt contract."
 
@@ -1708,8 +1660,7 @@ domain/history/replay changes, emitted events, keyed
 schedules/cancellations, outbox/dispatch intents, terminal outcome and
 checkpoint advancement must commit together in one supported owner
 transaction. Never acknowledge a child before its effects are durable;
-never re-execute committed effects after checkpoint-crash recovery.
-Cross-store atomicity remains unsupported until independently
+never re-execute committed effects after checkpoint-crash recovery. Cross-store atomicity remains unsupported until independently
 supplied."
 
 §C6. Failures and progress (t33-resolution.md:22): "isolate business
@@ -1731,8 +1682,7 @@ failure cannot masquerade as deletion. Preserve data minimization on
 operator progress."
 
 §C8. Supersession default (t33-resolution.md:24): "retain independent
-source occurrences and evaluate their children against current guards.
-Do not automatically discard an older sweep merely because a newer
+source occurrences and evaluate their children against current guards. Do not automatically discard an older sweep merely because a newer
 filtered event exists: employee/location/account/roster coverage can
 differ. Duplicate occurrence replay is distinct from semantic
 supersession. Skipping undispatched children for a successor requires
@@ -1820,8 +1770,7 @@ grant, partial checkpoint and ordinary overflow remain failing."
   RELEASED (landed 9830ba9, both writers released) — T34 joins need
   not serialize behind it (T18 still active and preserved)." T24 is
   ticked COMPLETE (tasks.md:224); T32 is ticked COMPLETE
-  (tasks.md:280); T18 is ACTIVE (tasks.md:177-182, Evidence: pending).
-  T34 work-kernel slices may precede T18; L1/L3 T34 joins serialize
+  (tasks.md:280); T18 is ACTIVE (tasks.md:177-182, Evidence: pending). T34 work-kernel slices may precede T18; L1/L3 T34 joins serialize
   AFTER T18 release. See `t34-plan.md` for the ordered slice plan.
 - Writer: T34-prep evidence writer. APPENDED this section ONLY to
   `docs/implementation/challenge-audit-run/evidence/fanout-decision.md`;

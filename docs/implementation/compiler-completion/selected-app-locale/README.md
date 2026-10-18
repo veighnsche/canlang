@@ -1,13 +1,11 @@
 # Selected-app locale producer
 
 Implemented the bounded SEM-R03/S9-Q01 compiler producer under the accepted
-[format-context policy](../selected-calls/format-context-policy/decision.md).
-The existing effects module table retains raw explicit `locale_default` and
+[format-context policy](../selected-calls/format-context-policy/decision.md). The existing effects module table retains raw explicit `locale_default` and
 publishes a separate checked `app_default_locale`: fold the app's explicit
 context and recursive resolved app membership, coalesce identical values,
 diagnose incompatible values with `E2002` and both declaration spans, then
-apply pinned `en`. Package selections and symbol imports contribute no context.
-Diamond membership is deduplicated.
+apply pinned `en`. Package selections and symbol imports contribute no context. Diamond membership is deduplicated.
 
 IR carries that checked value into the existing primary and authored
 composition `appDefinition.appDefaultLocale` records. Authored identities and

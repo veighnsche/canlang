@@ -10,4 +10,4 @@ Required compiler tests, fmt, all-target Clippy and release must pass; applicabl
 
 Audit real callers before deletion. Compatibility views, source-aware lexing, domain admission, mapping/positions and JS expressions are not automatically obsolete engines. No intentional permanent dual predecessor. Any concrete residual unused path is released as a separate bounded root-reviewed removal, with appropriate rerun. No current semantics/policy change is authorized by formatting/docs/checks.
 
-Exact writer outputs: format worker compiler Rust whitespace + pass10/format; check worker pass10/checks; consumer worker pass10/consumers; reviewer pass10/review; root pass10/profile/README/starting/final pins and compiler/audit README/task references. Other AI owns packages/shared living plan; stage only own changes/appended decisions, no merge or living checkpoint advancement.
+Exact writer outputs: format worker compiler Rust whitespace + pass10/format; check worker pass10/checks; consumer worker pass10/consumers; reviewer pass10/review; root pass10/profile/README/starting/final pins and compiler/audit README/task references.

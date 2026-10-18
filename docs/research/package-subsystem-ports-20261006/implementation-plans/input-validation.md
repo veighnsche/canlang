@@ -151,11 +151,11 @@ docs/research/package-subsystem-ports-20261006/
   implementation-plans/input-validation.md
 ```
 
-When wiring imports/builds, include `bindings/**/*.ts` in the relevant values TS build or keep all imports rooted so current package emission includes them; verify declarations and release inventory rather than assuming `tsconfig.json`'s existing `src/test` includes cover a new sibling. Package public exports and public contracts do not gain handle types. Native/Wasm tests and generated binding assets must be reachable through C04 release inventory and CI. Living file-tree reconciliation occurs after each actual merge, with coverage and decisions updated together; writing this plan does not advance its checkpoint.
+When wiring imports/builds, include `bindings/**/*.ts` in the relevant values TS build or keep all imports rooted so current package emission includes them; verify declarations and release inventory rather than assuming `tsconfig.json`'s existing `src/test` includes cover a new sibling. Package public exports and public contracts do not gain handle types. Native/Wasm tests and generated binding assets must be reachable through C04 release inventory and CI.
 
 ## Executable waves and parallel lanes
 
-The machine-readable companion is [input-validation.tasks.json](input-validation.tasks.json). Every checkbox is initially unchecked. `V01`–`V12` remain parent **completion** gates over their children; use the smaller child readiness gates to start independent work. `C01.ready`–`C05.ready` are the shared README's readiness milestones, not aggregate completion. External arithmetic milestones are `A03.foundation` (workspace, representations, failures and shared contracts), `A04.5`, `A05.3`, `A04.2`, `A07.foundation` and `A07`; they are evidence gates, not scaffolding. A03.foundation permits schema preparation, provenance and structural ABI work before the whole arithmetic tranche. Exact scalar codec execution waits for A04.5/A05.3; general values bounds additionally require A04.2 decimal comparison; initial binding assembly consumes A07.foundation and publishes V03.5 back to final exact A07 assembly. Full profile bindings/consumers then consume A07. W06.runtimehandoff is a source-writer handoff only for canonical runtime/invoke.ts; pure state work has no work-kernel semantic dependency.
+The machine-readable companion is input-validation.tasks.json. Every checkbox is initially unchecked. `V01`–`V12` remain parent **completion** gates over their children; use the smaller child readiness gates to start independent work. `C01.ready`–`C05.ready` are the shared README's readiness milestones, not aggregate completion. External arithmetic milestones are `A03.foundation` (workspace, representations, failures and shared contracts), `A04.5`, `A05.3`, `A04.2`, `A07.foundation` and `A07`; they are evidence gates, not scaffolding. A03.foundation permits schema preparation, provenance and structural ABI work before the whole arithmetic tranche. Exact scalar codec execution waits for A04.5/A05.3; general values bounds additionally require A04.2 decimal comparison; initial binding assembly consumes A07.foundation and publishes V03.5 back to final exact A07 assembly. Full profile bindings/consumers then consume A07. W06.runtimehandoff is a source-writer handoff only for canonical runtime/invoke.ts; pure state work has no work-kernel semantic dependency.
 
 Dispatch at most one active task per lane and one dependency-sized patch at a time; a wave is an earliest-ready grouping, not an all-lanes barrier. Prefer 0.5–2 working-day allocations. Each task closes with evidence or a bounded blocked/adoption decision; do not silently weaken acceptance. The C01 inventory takes at most the first two working days; ABI/pin decisions take one working day; consumer/SDK/predicate/copy-cost spikes take at most two. Preserve the architecture, source map, profiles, matrix, commands and rollout below. All source/API/test additions remain proposed.
 
@@ -891,26 +891,6 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
     - Acceptance:
       - No unexplained new diagnostic, public handle/export drift or hidden retained TS; complete source/output/lifetime ledger is reviewable.
       - Rollback/release bytes and raw receipt digest/schema remain unchanged; missing gate reported explicitly.
-
-- **Parallel lane V-evidence — Fixtures, resource harness and acceptance ledger**
-  - [ ] **V12.2 — Reconcile living filetree after actual merges.**
-    - Start: `V12.1`.
-    - Files/output: `docs/ideal-filetree-plan.md`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/filetree-review.md`.
-    - Actions:
-      - Review all changes since living plan checkpoint after each actual implementation merge, updating coverage and decisions together.
-      - Advance checkpoint only after complete review; bookkeeping requires no recursive self-update and authorizes no new implementation.
-    - Acceptance:
-      - Merged implementation coverage/checkpoint reflects complete reviewed changes; this planning conversion itself does not advance it.
-      - Final source list distinguishes implemented, proposed, unsupported and retained TS with ownership.
-  - [ ] **V12.3 — Review declared-port completion and gaps.**
-    - Start: `V12.1`, `V12.2`.
-    - Files/output: `docs/research/package-subsystem-ports-20261006/evidence/input-validation/rollout-decision.md`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/completion-ledger.md`.
-    - Actions:
-      - Review C01–C05 contributions and all V01–V12 evidence against definition of done, fixture/binding/resource/durable/default identity/lossless UTF-16 proofs.
-      - Explicitly record package completion, HTTP default join status, state enabled proof, SDK/forms deferred branches and full legacy TS scope.
-    - Acceptance:
-      - Declared owned port is complete only with supported real binding and actual handler workerd proof plus rollback/resources/source review.
-      - Blocked adoption or deferred optional branches stay labelled; never claim complete legacy validator/MCP/forms migration.
 
 - **Integration review lane V-evidence — parent completion gates**
   - [ ] **V12 — Final declared owned-port completion review.**

@@ -1,8 +1,6 @@
 # T01 root-cause ledger
 
-Task T01 (L1). RQ01/RQ02. Status: evidence for review; no draft or checker edits made here.
-Base: branch `codex/challenge-audit-implementation`, HEAD `c4a9775` (plan base `c681d86`).
-Draft submodule: `2d67312` (clean, read-only in this task).
+Task T01 (L1). RQ01/RQ02. Status: evidence for review; no draft or checker edits made here. Base: branch `codex/challenge-audit-implementation`, HEAD `c4a9775` (plan base `c681d86`). Draft submodule: `2d67312` (clean, read-only in this task).
 
 ## Repro command and result
 
@@ -85,8 +83,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
   conjunct must not certify code that never runs (facts apply only where evaluation reached).
 - Confidence high. Flip: a use site provably unreachable-after-success, or a mutation of
   `allowance` between L73 and L80.
-- Positive: L72-L83 clean under T03 (except separate E2001/E3019 std/capability roots).
-  Negative: use-before-require ordering still fails.
+- Positive: L72-L83 clean under T03 (except separate E2001/E3019 std/capability roots). Negative: use-before-require ordering still fails.
 
 ### R04 — Check require-continuation on lookups (E3003 + E3001)
 
@@ -185,8 +182,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
 ### R09 — ordinary array omission in fixtures (E3015)
 
 - Site: [CanApprove.can](/Users/vince/Projects/canlang/draft/CanApprove.can:36)
-  `reviewer_worker=Employee {...}` — `missing required field 'skills'`.
-  Same at [CanCRM.can](/Users/vince/Projects/canlang/draft/CanCRM.can:32).
+  `reviewer_worker=Employee {...}` — `missing required field 'skills'`. Same at [CanCRM.can](/Users/vince/Projects/canlang/draft/CanCRM.can:32).
 - Intent: construct a valid employee fixture while omitting the ordinary (non-`!`) array.
 - Root: fixture requiredness diverges from the declared default (`T[]` omits to `[]`;
   only `T[]!` requires input). Emission agrees with the wrong side (all non-null arrays
@@ -221,8 +217,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
 ### R11 — `use std` unresolvable everywhere (E2005 x24)
 
 - Primary site: [CanBook.can](/Users/vince/Projects/canlang/draft/CanBook.can:9)
-  `use std {DeliveryResult}` — `import provider 'std' names no known app or package`.
-  Identical failure in all 24 files importing `std`
+  `use std {DeliveryResult}` — `import provider 'std' names no known app or package`. Identical failure in all 24 files importing `std`
   (Book, Catch:10, Chat:5, Creative:8, Decide:5, Desk:13, Event:12, Gallery:8, Grant:8,
   Hire:13, Inbox:10, Invoice:13, Knowledge:7, Loyalty:9, Mail:11, Maintain:13, Member:77,
   Purchase:11, Reception:9, Rent:80, Shift:12, Stock:9, Success:11, Workbench:6).
@@ -258,8 +253,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
   protected-handle fabrication must keep failing after schemas land.
 - Confidence high on missing production; medium per recipe.
 - Flip: a named operation conflicts with its actual accepted owner contract.
-- Positive: sends/recipes validate against owner request/result/error/effect schemas.
-  Negative: incompatible bindings, wrong associations, forged handles still fail.
+- Positive: sends/recipes validate against owner request/result/error/effect schemas. Negative: incompatible bindings, wrong associations, forged handles still fail.
 
 ### R13 — declared queue not wired to send/event resolution (E2001 + E3010)
 
@@ -315,8 +309,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
 - Root: mutation checking routes paths beginning with `event` into hook-snapshot handling
   regardless of resolved provenance. Renaming the parameter must change no validity (T30
   acceptance), and verified declared references are not snapshots.
-- Bucket: **b** for the spelling correction. Owner: L1 with L3/L4 review, T30.
-  Permitted secondary-hook writes are a separate medium-confidence semantic package (T31a
+- Bucket: **b** for the spelling correction. Owner: L1 with L3/L4 review, T30. Permitted secondary-hook writes are a separate medium-confidence semantic package (T31a
   decision + T31), not implied by this fix.
 - Opposing: hook snapshots must stay immutable; pending-source deletion and recursive
   triggering CRUD are dangerous; secondary writes need real owner fencing and revision
@@ -324,8 +317,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
 - Confidence high for the spelling correction; medium for secondary-write semantics.
 - Flip: an accepted prohibition with a supported replacement preserving revision invalidation.
 - Positive: L73 and resolved-reference writes check; provenance distinguishes ordinary
-  parameters, verified references, before/input data, pending after, and stored records.
-  Negative: writes to immutable snapshots/pending data, recursion, and deletion still fail.
+  parameters, verified references, before/input data, pending after, and stored records. Negative: writes to immutable snapshots/pending data, recursion, and deletion still fail.
 
 ### R16 — integral literals in decimal bounds (E3012)
 
@@ -367,14 +359,12 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
 - Intent: compare the same conceptual milestone across the intake boundary and the partner row.
 - Root: no rule defines comparison between distinct enum types (DESIGN comparison matrix
   covers typed equality/membership within a type, not across types).
-- Bucket: **c** (directionally right rejection, needs a defined mapping or comparison rule).
-  Owner: draft owner T36 with L2/L1 (T10-adjacent).
+- Bucket: **c** (directionally right rejection, needs a defined mapping or comparison rule). Owner: draft owner T36 with L2/L1 (T10-adjacent).
 - Opposing: nominal enums may mean different things per owner; silent cross-type comparison
   could equate unrelated cases.
 - Confidence low. Flip either way: an adopted nominal-enum rule makes this bucket a (draft
   maps explicitly); a demonstrated structural-compatibility rule makes it bucket b.
-- Positive under either fix: valid comparisons check with explicit mapping or adopted rule.
-  Negative: unrelated-enum comparison still fails.
+- Positive under either fix: valid comparisons check with explicit mapping or adopted rule. Negative: unrelated-enum comparison still fails.
 
 ### R19 — unadopted fanout attribute (E1203 x4)
 
@@ -419,8 +409,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
   (also Refer:65 `join`).
 - Intent: handle settlement observations under a short business name.
 - Root: the authored scenario name collides with the closed value-builtin namespace.
-- Bucket: **a** (leaning; residual decision per plan: closed builtin operation names).
-  Owner: draft owner, T36.
+- Bucket: **a** (leaning; residual decision per plan: closed builtin operation names). Owner: draft owner, T36.
 - Opposing: scenario and value-builtin namespaces could in principle be separated (bucket c
   reading), but no such scoping rule is adopted, and shadowing `money(...)` at business
   scope risks silent misreads.
@@ -442,8 +431,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
   declared input name; the current spelling claims the server-owned field itself.
 - Confidence medium. Flip: an adopted server-owned-input exception with demonstrated value,
   or proof `owner` is not server-owned on this model.
-- Positive: CRUD inputs exclude server-owned fields (or use an adopted exception shape).
-  Negative: server-owned inputs still rejected; fixture/setup authority stays a separate
+- Positive: CRUD inputs exclude server-owned fields (or use an adopted exception shape). Negative: server-owned inputs still rejected; fixture/setup authority stays a separate
   explicit decision.
 
 ### R23 — imported CRUD update/delete not enabled (E5006)
@@ -536,8 +524,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
   side is the hole to close).
 - Confidence medium. Flip: an adopted default/server/update/hook rule assigning `armed`
   writes to exactly one mechanism.
-- Positive: actual creation/null/parent/actor/time/replay cases agree on one rule.
-  Negative: update omission vs explicit null, protected fields, and replay-once behavior
+- Positive: actual creation/null/parent/actor/time/replay cases agree on one rule. Negative: update omission vs explicit null, protected fields, and replay-once behavior
   stay enforced.
 
 ### R28 — query domain over else-narrowed array (E3006)
@@ -574,8 +561,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
   stale or ambiguous, so rejecting them could be correct (bucket a reading).
 - Confidence low. Flip: the adopted emitted-example contract explicitly allows or forbids
   input-alias observations.
-- Positive: the example's intent (new state + remainder) expressible in one adopted shape.
-  Negative: setup failures still cannot satisfy business expectations; wrong-identity
+- Positive: the example's intent (new state + remainder) expressible in one adopted shape. Negative: setup failures still cannot satisfy business expectations; wrong-identity
   observations still fail.
 
 ### R30 — multi-root convergence on one line (method note)
@@ -617,8 +603,7 @@ heavy command was run. No `cargo`/`npm`/`tsc` invocation was needed (evidence-on
 ## Family coverage
 
 Sampled roots cover E1203, E2001, E2002, E2005, E2008, E2013, E2017, E3001, E3002, E3003,
-E3005, E3006, E3009, E3010, E3011, E3012, E3013, E3015, E3016, E3019, E5002, E5006, E5008.
-Unsampled low-count families deferred to T02/T41 with no verdict here: E5001 (2, Table:59),
+E3005, E3006, E3009, E3010, E3011, E3012, E3013, E3015, E3016, E3019, E5002, E5006, E5008. Unsampled low-count families deferred to T02/T41 with no verdict here: E5001 (2, Table:59),
 E5004 (2, trusted-handler `as` caller), E2008 beyond containment-target shape (none observed
 beyond the one message). E3010 appears both as unknown-event (R13) and purity-gate (R26)
 roots — never treat the code as one defect.
@@ -633,6 +618,5 @@ roots — never treat the code as one defect.
 - No draft file was modified (draft owner only, later, per T36). No diagnostic was
   reclassified by code alone; every bucket above is site-evidenced.
 - Checks run: repro command above (exit 10, 4524 diagnostics, identities match); read-only
-  envelope analysis in `/tmp` (no repo writes); source reads of all cited draft spans.
-  Revision: `c4a9775` + draft `2d67312`.
+  envelope analysis in `/tmp` (no repo writes); source reads of all cited draft spans. Revision: `c4a9775` + draft `2d67312`.
 

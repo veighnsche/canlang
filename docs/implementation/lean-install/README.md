@@ -93,7 +93,7 @@ Linux browser add-on run is claimed. See the [installation reference](../../inst
 for the exact Linux bytes, native versions and glibc 2.39 minimum. CI execution
 and public publication remain pending.
 
-The earlier `jev-{1,2,3}.json` advised preserving both runtimes for the initial bounded assembly. The user's follow-up explicitly authorized consolidation work. Three fresh equivalent Choice requests in `jev-reduction-{1,2,3}.json` favored Node + existing esbuild (probabilities 0.99/1.00/0.99; confidence 0.98/1.00/0.98). There was no directional disagreement. Advice does not establish compatibility: the actual four-family execution and installed archive checks do. Replacing Node host execution with Bun remains separately proposed, not required for this reduction.
+The earlier `jev-{1,2,3}.json` advised preserving both runtimes for the initial bounded assembly. The user's follow-up explicitly authorized consolidation work. There was no directional disagreement. Advice does not establish compatibility: the actual four-family execution and installed archive checks do. Replacing Node host execution with Bun remains separately proposed, not required for this reduction.
 
 ## Public shell bootstrap handoff
 
@@ -102,15 +102,13 @@ https://sodaos.dev/CanLang/install.sh | bash`, fetching platform archives and
 checksums from GitHub Releases. The website is maintained externally; the
 [copy-ready website agent prompt](website-handoff.md) records its exact route,
 release link and deployment checks. All 12 installer checks pass, including
-streamed Bash/sh input, truncated bootstrap refusal and latest GitHub selection.
-A real existing macOS archive installs through Bash with a clean PATH and runs
+streamed Bash/sh input, truncated bootstrap refusal and latest GitHub selection. A real existing macOS archive installs through Bash with a clean PATH and runs
 `can --version`. The tag release workflow publishes qualified standalone assets; no hosted download or website deployment is claimed here.
 
 ## Cleanup reconciliation
 
 The 2026-10-15 source review and integrated package validation are recorded in
-[the reconciliation record](../compiler-completion/cleanup-2026-10-15.md).
-The measured archive and18 installed checks above describe the retained archive,
+the reconciliation record. The measured archive and18 installed checks above describe the retained archive,
 not a newly repackaged cleanup build. Current source passes the integrated26
 build tasks, owning installer/host controls and resource native checks. Review
 also fixed selected composed Files ownership, event mutation/root placement and

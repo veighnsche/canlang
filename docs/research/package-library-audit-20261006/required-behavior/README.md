@@ -5,8 +5,7 @@ No product code, runtime policy, frozen profile, database, backend default or
 implementation authorization changes in this checkpoint.
 
 The [contract index](contracts.md) and [full records](contracts.jsonl) classify
-**400 records across all 316 previously inventoried responsibilities and 13 packages**.
-A behavior can span several responsibilities and one responsibility can contain
+**400 records across all 316 previously inventoried responsibilities and 13 packages**. A behavior can span several responsibilities and one responsibility can contain
 several independently changeable rules. These are classification records, not
 400 new tasks or a claim to have proved every branch. The [crosswalk](responsibility-contracts.tsv)
 records 301 duties with rules and 15 test/support duties with an explicit
@@ -34,7 +33,7 @@ accepted library/host receipts do not close their parent workflows.
 
 This analysis uses frozen source `16def5f95f51dbfb158d0ac086323ac256ee1c6d`. The package tree remains equal to
 that pin. Concurrent compiler documentation commits are preserved; compiler
-caller evidence is interpreted at the recorded pin. [Source hashes](source-index.json)
+caller evidence is interpreted at the recorded pin. Source hashes
 and [citation anchors](authority-index.tsv) make the basis inspectable.
 
 ## What preservation actually requires
@@ -51,10 +50,9 @@ and [citation anchors](authority-index.tsv) make the basis inspectable.
 - Keep frozen selected compatibility profiles at their proved scope until the
   owner selects a change. Exact prose, unusual source-map inputs, getter traces,
   alias/object identity and arbitrary host-object behavior are not automatically
-  permanent requirements. The [open questions](unresolved.json) identify these
+  permanent requirements. The open questions identify these
   separately from necessary product semantics.
-- Retain fail-closed interim behavior while joining required capabilities.
-  Deliberate `/auth`/query/test-loader placeholders are incomplete product joins,
+- Retain fail-closed interim behavior while joining required capabilities. Deliberate `/auth`/query/test-loader placeholders are incomplete product joins,
   not accidental bugs and not final behavior promises. Native preparation HOLD,
   opt-in backend limits, default-TS policy and backend retirement gates remain.
 

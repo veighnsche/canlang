@@ -93,8 +93,7 @@ them to different resource IDs in the environment. An example environment is:
 }
 ```
 
-`CAN_AUTH_ORIGIN` must be a canonical origin, with no path or trailing slash.
-File receivers require HTTPS. Environment variables here are non-secret values;
+`CAN_AUTH_ORIGIN` must be a canonical origin, with no path or trailing slash. File receivers require HTTPS. Environment variables here are non-secret values;
 placing credentials in `vars` is not a secret delivery mechanism. A typed
 deferred event such as the `Due` event in
 [`soda-runtime.can`](../scripts/fixtures/soda-runtime.can) does not create an
@@ -120,8 +119,7 @@ image.
 
 The current target serves exactly one concrete, bootstrapped team. App-global
 models, mixed app/team storage and routing multiple teams' State databases are
-refused. Team policies still govern ordinary owner/member application access.
-Soda or Forgejo accounts are not substituted for Canlang application users.
+refused. Team policies still govern ordinary owner/member application access. Soda or Forgejo accounts are not substituted for Canlang application users.
 
 Create separate private retained storage and credential locations:
 
@@ -130,8 +128,7 @@ install -d -m 0700 /home/canlang-builder/Apps/board/data
 install -d -m 0700 /home/canlang-builder/Apps/board/credentials
 ```
 
-Write `owner.json` privately using an editor or credential delivery process.
-Its exact input fields are:
+Write `owner.json` privately using an editor or credential delivery process. Its exact input fields are:
 
 ```json
 {
@@ -142,12 +139,9 @@ Its exact input fields are:
 ```
 
 `email` and `password` are required strings. `timezone` is optional, defaults to
-`UTC`, and must be a supported timezone. Passwords must contain 8–512 characters.
-Choose a unique private password for each account. The placeholders here are
-documentation, not generated account credentials or shared deployment defaults.
-The credentials file must be an account-owned regular file, not a symlink,
-with no group/world permissions (normally mode 0600), and at most 64 KiB.
-Pass its pathname, rather than the password, on the command line.
+`UTC`, and must be a supported timezone. Passwords must contain 8–512 characters. Choose a unique private password for each account. The placeholders here are
+documentation, not generated account credentials or shared deployment defaults. The credentials file must be an account-owned regular file, not a symlink,
+with no group/world permissions (normally mode 0600), and at most 64 KiB. Pass its pathname, rather than the password, on the command line.
 
 ```sh
 can-soda bootstrap \
@@ -157,8 +151,7 @@ can-soda bootstrap \
 ```
 
 Success returns JSON with `ok`, `command`, `userId` and `teamId`. Save the
-returned `teamId` for `--owner`; it is the State owner, not the user's ID.
-Bootstrap transactionally claims the first verified application user, team and
+returned `teamId` for `--owner`; it is the State owner, not the user's ID. Bootstrap transactionally claims the first verified application user, team and
 owner membership. A retry with the same credentials/timezone returns the saved
 claim; different credentials, populated unclaimed Identity data or an incomplete
 claim refuse. Bootstrap does not reset existing accounts or send verification
@@ -211,21 +204,16 @@ applications. Binding another host requires an explicit connectivity choice;
 the implemented default is loopback.
 
 Only Canlang's `can_session` and `can_presession` request cookies cross the host
-gateway. Forgejo or parent-domain cookies do not become application authority.
-The public listener rejects internal `/__soda_` control routes. There are no
-development fixture, preview bootstrap or generation routes in this target.
-Outbound application networking is denied in the current profile. Registration
+gateway. Forgejo or parent-domain cookies do not become application authority. The public listener rejects internal `/__soda_` control routes. There are no
+development fixture, preview bootstrap or generation routes in this target. Outbound application networking is denied in the current profile. Registration
 mail, password reset delivery and external identity federation are not configured.
 
 ## Storage and supported scope
 
-Each data root has one kernel `flock` writer covering serve and administration.
-Keep its mode private and its effective runtime user able to read/write it.
-Storage includes Identity/State D1 files, target-owned actor SQLite (including
+Each data root has one kernel `flock` writer covering serve and administration. Keep its mode private and its effective runtime user able to read/write it. Storage includes Identity/State D1 files, target-owned actor SQLite (including
 File bytes), a retained form-binding key and storage identity. `storage.json`
 pins the app, exact artifact digest and resource assignments. A changed artifact
-or mapping refuses that data instead of silently opening another database.
-Stop the application before copying or restoring it; do not delete metadata or
+or mapping refuses that data instead of silently opening another database. Stop the application before copying or restoring it; do not delete metadata or
 select a new database to bypass a refusal. Migrating a release over retained
 data requires a separately qualified upgrade procedure.
 
@@ -255,8 +243,7 @@ checks; scheduled handlers and migrations still require their owning runtime.
 
 Run the repository scripts from a built Canlang checkout. They are integration
 drivers, not startup dependencies. Keep their state under `/home`, freeze their
-consumed producer inputs during execution and use disposable private test roots.
-Set the checkout and installed-tool locations to the paths used for your run:
+consumed producer inputs during execution and use disposable private test roots. Set the checkout and installed-tool locations to the paths used for your run:
 
 ```sh
 CANLANG_REPO="$PWD"
@@ -284,8 +271,7 @@ retains real sessions and MCP grants across the stable application origin.
 
 The G1 command above checks the native process path. Add `--containers` for its
 container checks; that experimental driver pulls its selected Rocky base into
-the task-owned store under `--state`. It does not describe serving-image startup.
-The locally qualified runtime/application recipes can be exercised from the
+the task-owned store under `--state`. It does not describe serving-image startup. The locally qualified runtime/application recipes can be exercised from the
 canonical Soda checkout, using the already retained images and admitted assets:
 
 ```sh
@@ -322,30 +308,24 @@ The 2026-10-14 evidence has distinct accepted scopes:
 - **Stopped recovery:** the owning Soda storage tool copied and checked the
   stopped snapshot, restored it, and the real application reopened the restored
   data. Ordinary owner login/MCP read observed one saved Entry with `ticks=1`,
-  exact authorized File bytes, no duplication after a wake and graceful stop.
-  Receipt and command:
+  exact authorized File bytes, no duplication after a wake and graceful stop. Receipt and command:
   `$SODA_REPO/.artifacts/canlang-soda-full-v4-20261014/recovery-results.json`.
 
-- **D1 exhaustion:** a bounded task-owned 32 MiB filesystem actually filled.
-  A valid mutation failed visibly without committing; full storage refused
+- **D1 exhaustion:** a bounded task-owned 32 MiB filesystem actually filled. A valid mutation failed visibly without committing; full storage refused
   startup. After freeing space, the prior acknowledged record survived restart,
   the failed write was absent and the same input succeeded. No shared filesystem
   was filled. Exact commands and results:
   `$SODA_REPO/.artifacts/canlang-enospc-20261014/{README.md,results.json}`.
 - **Fresh Project image:** the complete current Soda Project recipe built with
-  real current helpers, verified public tools and the final Canlang closure.
-  An ordinary account in a fresh network-disabled container compiled, checked,
+  real current helpers, verified public tools and the final Canlang closure. An ordinary account in a fresh network-disabled container compiled, checked,
   linted/formatted, served an authenticated persistent preview, ran isolated
-  examples and used LSP. No Canlang checkout or startup downloads were present.
-  Receipt and exact commands:
-  `$SODA_REPO/.artifacts/canlang-fresh-project-20261014/{results.json,commands.sh}`.
-  This local image check does not substitute a matching-release appliance's
+  examples and used LSP. No Canlang checkout or startup downloads were present. Receipt and exact commands:
+  `$SODA_REPO/.artifacts/canlang-fresh-project-20261014/{results.json,commands.sh}`. This local image check does not substitute a matching-release appliance's
   Project Create/systemd boot.
 - **G3 component evidence:** a fresh disposable CoreOS VM used older public
   media with current native components. Actual install/start/stop, same-artifact
   image replacement, stale-generation and selected runtime/tools refusal before
-  effects, Project-stop independence and two genuine guest reboots passed.
-  Trusted private-host HTTPS reopened D1/File/session/MCP/work state; explicit
+  effects, Project-stop independence and two genuine guest reboots passed. Trusted private-host HTTPS reopened D1/File/session/MCP/work state; explicit
   stopped intent survived the later boot. A stopped snapshot restored into fresh
   storage and reopened in real workerd. The retained Project compiled, served a
   persistent preview, executed isolated examples and passed explicit same-root
@@ -355,12 +335,10 @@ The 2026-10-14 evidence has distinct accepted scopes:
   administration qualification.
 
 The final tool archive SHA-256 is
-`f97a6cbe09f1383065ed1b1663e7dca16b64e5ea1f1496d882889aa7e85a5e8a`.
-The initial G2 witness used a predecessor qualified archive. Preview/compiler/LSP
+`f97a6cbe09f1383065ed1b1663e7dca16b64e5ea1f1496d882889aa7e85a5e8a`. The initial G2 witness used a predecessor qualified archive. Preview/compiler/LSP
 consumer files remain byte-identical in the current archive; the earlier focused
 delta passed in a Rocky container with networking disabled, without a
-`.wrangler` metadata cache, and with explicit File/missing-State refusals.
-Installed compiler LSP diagnostics, completion, navigation and formatting also
+`.wrangler` metadata cache, and with explicit File/missing-State refusals. Installed compiler LSP diagnostics, completion, navigation and formatting also
 passed. The current archive's changed Soda writer launcher passed actual installed
 CLI/D1 private-lock and exclusion checks in
 `$SODA_REPO/.artifacts/canlang-lock-20261014/`, followed by the complete current

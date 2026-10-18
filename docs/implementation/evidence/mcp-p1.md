@@ -85,8 +85,7 @@ A CRUD entry from the same artifact:
 - CRUD inputs flatten the `fields=` allowlist (dotted paths match on
   the first segment): create takes the fields (`required` from
   no-default + non-nullable), update takes `record` + optional fields,
-  delete takes `record` only. `server=`-owned fields are never inputs.
-  An empty allowlist means all non-server fields (defensive: analysis
+  delete takes `record` only. `server=`-owned fields are never inputs. An empty allowlist means all non-server fields (defensive: analysis
   requires `fields=` and E3009 bars server-owned fields from it).
 - Scalar mapping: text/email/url/locale/timezone/currency/secret/
   date/user/member → `string`; int → `integer`; decimal → `decimal`;
@@ -100,8 +99,7 @@ A CRUD entry from the same artifact:
 - Name collisions omit too: a model field literally named `record`
   collides with the synthesized `record` ref on update, so update is
   omitted (create keeps the field; delete takes only the ref). The
-  compiler therefore never emits duplicate operation or input names.
-  The loader rejects duplicates anyway (`operations repeats operation
+  compiler therefore never emits duplicate operation or input names. The loader rejects duplicates anyway (`operations repeats operation
   "…"`, `operations[i] repeats input "…"` — same vocabulary as P2's
   adapter, which fails the whole `/mcp` registry build on them).
 - The entrypoint `canApp()` registry carries the same descriptor

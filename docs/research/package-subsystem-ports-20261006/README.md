@@ -203,7 +203,7 @@ Resource limits for opaque JSON remain unresolved in the existing wire module; a
 
 ## JEV advice and uncertainty
 
-Three independently worded equivalent choice consultations used the verified source/library context and equal parity goals. [Requests and exact responses](evidence/) retain full distributions, model identity and usage.
+[Requests and exact responses](evidence/) retain full distributions, model identity and usage.
 
 | Question | Consultation 1 | Consultation 2 | Consultation 3 |
 | --- | --- | --- | --- |
@@ -218,6 +218,6 @@ All selected BigInt-first and the Can interpreter, but the third arithmetic resu
 
 The requests are equivalent by subject, constraints, option identities, benefits/costs and acceptance criteria, with rewritten state, question and criterion prose. This checks wording sensitivity, not absence of framing bias. The model was jev-1.13.0; total reported usage was 3,552 input and 282 output tokens. Advice is not an approval threshold.
 
-Investigation of the close arithmetic result included [a reproducible source probe](evidence/arithmetic-probe.mjs) and [its observations](evidence/arithmetic-probe.result.json). Bun imported the current TypeScript source directly. Fifteen targeted assertions passed, including helpers with 10^1000 operands that cancel to valid results, wide Decimal multiplication/division, retained-scale aggregate cancellation, and minimum-int64 remainder. Mathematical checks measured 127 coefficient bits, 187 aligned bits, 253 product bits, 246 scaled-division bits and 251 aggregate-bound bits. This verifies current TS behavior and the stated magnitude calculations; it does not verify a Rust implementation or replace the full package suites.
+Investigation of the close arithmetic result included [a reproducible source probe](evidence/arithmetic-probe.mjs) and its observations. Bun imported the current TypeScript source directly. Fifteen targeted assertions passed, including helpers with 10^1000 operands that cancel to valid results, wide Decimal multiplication/division, retained-scale aggregate cancellation, and minimum-int64 remainder. Mathematical checks measured 127 coefficient bits, 187 aligned bits, 253 product bits, 246 scaled-division bits and 251 aggregate-bound bits. This verifies current TS behavior and the stated magnitude calculations; it does not verify a Rust implementation or replace the full package suites.
 
 This historical design round added research documentation and consultation evidence without changing source behavior. The later [full evaluation](full-evaluation.md#evidence-limitations-and-adoption-gates) built the current values package, ran 431 selected existing tests, checked work/Cloudflare types, and added boundary probes. No Rust implementation, target-runtime feasibility spike or comparative benchmark was executed.

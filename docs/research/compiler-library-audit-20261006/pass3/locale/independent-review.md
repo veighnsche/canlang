@@ -1,6 +1,6 @@
 # C03L independent review and finite next packet
 
-2026-10-07. Sol high was used only after Sol medium qualification demonstrated an owner-profile conflict. The reviewer independently reran all 53 inputs against the pinned full `icu_locale_core::Locale` binary and all four owning APIs, and all six duplicate-pair descriptors. Admission, canonical identities, error families and duplicate outcomes agreed with the initial observations. The coordinator then replayed `probe.mjs` through the bare `@canlang/values` package export; [results.json](results.json) preserves that final replay, including its entry and binary hashes.
+2026-10-07. Sol high was used only after Sol medium qualification demonstrated an owner-profile conflict. The reviewer independently reran all 53 inputs against the pinned full `icu_locale_core::Locale` binary and all four owning APIs, and all six duplicate-pair descriptors. Admission, canonical identities, error families and duplicate outcomes agreed with the initial observations. The coordinator then replayed `probe.mjs` through the bare `@canlang/values` package export; results.json preserves that final replay, including its entry and binary hashes.
 
 ## Candidate fails the existing owner contract
 
@@ -50,4 +50,4 @@ The next C03L packet needs one `types.rs` writer and a coordinated codegen write
 3. Use the qualified canonical identity across scalar, context, source and message-variant consumers; preserve E3001/E3016, authored text and anchors, and avoid secondary duplicate errors for an invalid owner source.
 4. Emit quoted locale keys and execute production metadata with the actual `makeMessageDescriptor` export. Promote independent expected outcomes into permanent compiler regressions at those boundaries.
 
-No new policy alternative was selected. Keeping the explicit failed-candidate gate requires no new JEV decision. Choosing a native ICU adapter, relaxing owner identity, or introducing a compatibility adapter would require three independently worded, equivalent verified-context JEV consultations under AGENTS.md. Advice would not substitute for executable qualification. C03U proceeds independently; no broader sequence rewrite is needed.
+No new policy alternative was selected. Keeping the explicit failed-candidate gate requires no new JEV decision. Advice would not substitute for executable qualification. C03U proceeds independently; no broader sequence rewrite is needed.

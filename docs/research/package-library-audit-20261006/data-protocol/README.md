@@ -1,15 +1,12 @@
 # Data and protocol correctness audit
 
-Planning-only source checkpoint: `f3dd798c866916b526b72e0a53c1ddf257748587`.
-Implementation remains deferred. This step adds no product code or acceptance credit.
+Planning-only source checkpoint: `f3dd798c866916b526b72e0a53c1ddf257748587`. Implementation remains deferred. This step adds no product code or acceptance credit.
 
 The [32-record witness ledger](witnesses.jsonl) examines representation and identity at
 actual producer/consumer seams. Nine identity/CSV/privacy records describe gaps against
-existing required outcomes; two additional records describe exported parser key loss.
-Their caller stages differ: a source handler or supported adapter is not evidence of an
+existing required outcomes; two additional records describe exported parser key loss. Their caller stages differ: a source handler or supported adapter is not evidence of an
 installed, mounted or exercised production deployment. The other records distinguish
-private/native joins, declared profile limits, compatibility controls and held prototypes.
-They must not be counted as 32 newly demonstrated production defects.
+private/native joins, declared profile limits, compatibility controls and held prototypes. They must not be counted as 32 newly demonstrated production defects.
 
 ## Findings that should drive the next selected repairs
 
@@ -39,9 +36,7 @@ witnesses are **source-derived and unexecuted**.
 | PV08 | Correct native violation fields are discarded by `wasmBackend` into a generic ValueError. | Qualify the complete owning public projection before selecting native codecs. Raw native payload tests and the six-operation host profile are different gates. |
 | PV02, PV07 | `input.digest` echoes root shape/text and collides for changed children; opaque JSON preserves authored order rather than universal canonical bytes. | Echo is explicitly not a content hash. Choose identity/disclosure only for a real consumer; canonical shape, byte identity and value equality are distinct. |
 
-Current matching `f587…` Wasm and Step9/12 finite qualification credit is retained.
-It proves neither broad codec/validation adoption nor automatic default selection.
-Decimal scale `-0` refusal is an intentional profile boundary (PVC01). TS/native plan
+Current matching `f587…` Wasm and Step9/12 finite qualification credit is retained. It proves neither broad codec/validation adoption nor automatic default selection. Decimal scale `-0` refusal is an intentional profile boundary (PVC01). TS/native plan
 retirement capacity differs, but those halves have no joined current public protocol
 (PVC02); choose the lifecycle bound at that real join.
 
@@ -49,19 +44,14 @@ retirement capacity differs, but those halves have no joined current public prot
 
 * **PDW-01:** live Work counts use represented f64; JSON persistence normalizes `-0`
   and already rounds unsafe numeric input bytes. Exact integer wire codecs use strings
-  and BigInt. Tightening legacy count admission needs its own migration.
-* **PDW-02:** Work's safety-before-clone rejects repeated aliases as cyclic; State's
+  and BigInt. Tightening legacy count admission needs its own migration. * **PDW-02:** Work's safety-before-clone rejects repeated aliases as cyclic; State's
   clone helper preserves aliases and cycles. A later JSON durable sink still rejects
-  cycles. This does not prove persisted-cycle support or a common clone contract.
-* **PDW-03:** completion consistency accepts succeeded NaN, but receipt production
+  cycles. This does not prove persisted-cycle support or a common clone contract. * **PDW-03:** completion consistency accepts succeeded NaN, but receipt production
   rejects own undefined/nonfinite before copying. Omitted result is an arbitrary-JS
-  helper witness; the TypeScript row interface requires that member.
-* **PDW-04–06:** recovery duplicate claims are ordered last-wins; empty cursor differs
+  helper witness; the TypeScript row interface requires that member. * **PDW-04–06:** recovery duplicate claims are ordered last-wins; empty cursor differs
   from absence/null; callback demand/throw order precedes output sorting. Native
-  closed facts do not authorize eager host reads or remove act-time fences.
-* **PDW-11–12:** digest v1 JSON UTF-16 identity and v2 published UTF-8 byte identity
-  differ deliberately. Map own-undefined suppresses a fallback that absence permits.
-  Retain digest versions, exact submitted bytes and map presence.
+  closed facts do not authorize eager host reads or remove act-time fences. * **PDW-11–12:** digest v1 JSON UTF-16 identity and v2 published UTF-8 byte identity
+  differ deliberately. Map own-undefined suppresses a fallback that absence permits. Retain digest versions, exact submitted bytes and map presence.
 
 Other positive controls: HTTP/owned parsers both use default nonfatal UTF-8 decoding;
 integer/ref codecs retain exact string/range guards; collection limits use safe-integer
@@ -81,8 +71,7 @@ for own undefined. Choose and enforce the owning host domain before deleting con
 disagree; foreign duplicate keys disagree between lookup and JSON rendering; its
 framing cap occurs after some TS allocations; PublicationSession compares retained
 metadata rather than the actual bytes it later publishes. These are bounded gates,
-not current CLI incidents. The publication gap was already recorded as blocked P07.1.
-Bare integer module-key ordering disagreement lies outside actual prefixed deployment
+not current CLI incidents. The publication gap was already recorded as blocked P07.1. Bare integer module-key ordering disagreement lies outside actual prefixed deployment
 keys. Normal host encoders produce coherent numbers and unique keys. Releasing the
 human-held preparation scope remains a prerequisite.
 
@@ -112,18 +101,13 @@ backend retirement or accepted design decision is selected here.
 
 ## Evidence and reproducibility
 
-* [Coverage](coverage.tsv): every requested dimension and the relevant limit/control.
-* [Family packets](values.json), [identity/privacy](identity-privacy.json),
-  [work/delivery](work-delivery.json), [root witnesses](root-witnesses.json): detailed
+* [Coverage](coverage.tsv): every requested dimension and the relevant limit/control. * Family packets, identity/privacy,
+  work/delivery, root witnesses: detailed
   inputs and source-derived outcomes. Normalized ledger scope corrections and
-  independent reviews take precedence over broad wording in original packets.
-* [Independent challenges](reviews.json): Sol high source reviews with prior
-  conclusions visible; not cleanroom and not runtime acceptance.
-* [Sources](sources.json), [scope](scope.json), [verification](verification.json):
-  exact pin/current hashes, anchor checks and explicit execution limits.
-* `python3 verify.py`: source/metadata checks plus eight standalone ECMAScript
-  primitive facts from [reference-witnesses.mjs](reference-witnesses.mjs).
-  That script imports only `node:assert/strict`, executes no Can package, and is
+  independent reviews take precedence over broad wording in original packets. * Independent challenges: Sol high source reviews with prior
+  conclusions visible; not cleanroom and not runtime acceptance. * Sources, scope, verification:
+  exact pin/current hashes, anchor checks and explicit execution limits. * `python3 verify.py`: source/metadata checks plus eight standalone ECMAScript
+  primitive facts from [reference-witnesses.mjs](reference-witnesses.mjs). That script imports only `node:assert/strict`, executes no Can package, and is
   **not** an end-to-end consumer, product test or acceptance receipt.
 
 Concurrent compiler work and shared decision records remain untouched. The proposed

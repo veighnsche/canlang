@@ -98,7 +98,7 @@ Expected direct implementation cases, retained here rather than a separate verif
 | Unknown/cancel request/deadline; proved skipped | Unknown retains commitments; request intent is not provider termination. Only authoritative skipped evidence permits the declared never-dispatched release. |
 | Restart or incompatible upgrade | Preserve admission/evidence identity and pending commitments. Unsupported version changes refuse; same-version restart is not upgrade acceptance. |
 
-[Three JEV consultations](jev/accounting-owner-selection.json) select the local boundary with choice probabilities .99/1/1 and confidence .98/1/1. They agree on the choice; the confidence values remain uncalibrated advice, not evidence that the application or accounting implementation works. Current source/contracts support this owner mapping. Provider limits, full rule/query execution, concurrent races, upgrades and tasks 42–43 remain open; original approval holds are unchanged.
+Three JEV consultations select the local boundary with choice probabilities .99/1/1 and confidence .98/1/1. They agree on the choice; the confidence values remain uncalibrated advice, not evidence that the application or accounting implementation works. Current source/contracts support this owner mapping. Provider limits, full rule/query execution, concurrent races, upgrades and tasks 42–43 remain open; original approval holds are unchanged.
 
 ## 6 Durable bulk authoring
 

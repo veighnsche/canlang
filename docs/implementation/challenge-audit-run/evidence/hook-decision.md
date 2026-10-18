@@ -1,8 +1,6 @@
 # T31a prep: permitted secondary hook writes — alternatives for the JEV gate
 
-Status: **PROPOSED / PREP — adopts NOTHING.** Decision requires the
-coordinator-run JEV protocol (three fresh, equivalent, independently worded
-requests with saved advice/uncertainty) plus full-scope evidence. Every
+Every
 alternative below carries explicit **JEV-PENDING** markers. No T31
 implementation may begin before the gate accepts one rule, and T28 alone is
 insufficient (T31 prerequisites: accepted T31a + T30 + canonical runtime).
@@ -27,8 +25,7 @@ versions/history/replay and forbidden recursion/deletion are proved.
   source operation. Hook cycles are errors (DESIGN import section).
 - DESIGN version rule: a created row has version 1 throughout its creating
   transaction, including create-hook adjustments. An accepted `set`, CRUD
-  update or archive reserves `v+1`, even for a normalized same-value write.
-  Update-hook `event.before.version` is `v`, `event.after.version` is the
+  update or archive reserves `v+1`, even for a normalized same-value write. Update-hook `event.before.version` is `v`, `event.after.version` is the
   reserved `v+1`. A child write does not advance an unwritten parent. Failed
   operations advance nothing.
 - R15 ([root-causes.md](root-causes.md)): spelling-based event/provenance
@@ -173,8 +170,7 @@ retroactively reject its source operation.
   (CanCheck stages children and timers inside the hook body, guarded by the
   same `if` conditions as the pending adjustment) and pays atomicity + audit
   simplicity to preserve a narrow checker rule — the flip side must show
-  concrete unsafety in staging, not just smaller transactions.
-  **JEV-PENDING**: whether any staged workflow (deadline re-anchor with
+  concrete unsafety in staging, not just smaller transactions. **JEV-PENDING**: whether any staged workflow (deadline re-anchor with
   same-transaction Transition evidence) is inexpressible or unsafety-prone
   as committed handlers, and who owns the orphaned-parent gap when a
   handler fails.
@@ -293,9 +289,7 @@ triggering CRUD path stays forbidden.
    D1/DO-backed execution evidence (T16/T17 canonical runtime), not
    memory-store tests; the gate must say which alternative's proof runs
    where.
-7. Coordinator-run JEV protocol: three fresh equivalent independently worded
-   formulations, saved responses + uncertainty, disagreement investigated.
-   **No JEV was run for this prep file; tools/jev.py untouched.**
+7. **No JEV was run for this prep file; tools/jev.py untouched.**
 
 ## Handoff
 
@@ -355,8 +349,7 @@ Parented-child creates (`parent=event.after`, inside C-as-written):
   {parent=location...}` (location=`event.after`) parented-child.
 - `draft/CanRent.can:338,342` `snapshot_Resource_create/update`
   on=Resource.create/update — L341/L345 `create ResourcePolicy
-  {parent=resource...}` (resource=`event.after`) parented-child.
-  Discriminates: snapshot `sequence=count(...)+1` makes B-remodel
+  {parent=resource...}` (resource=`event.after`) parented-child. Discriminates: snapshot `sequence=count(...)+1` makes B-remodel
   atomicity loss concrete (concurrent commits can duplicate sequence);
   C keeps these four; D identical to A (no Policy hooks exist).
 
@@ -377,8 +370,7 @@ C-as-written allowlist, which names only `parent=event.after`):
   (Window/DayCalendar × create/update) — each `create ResourcePolicy
   {parent=resource...}` with resource=`event.after.parent`
   parented-child*; Window hooks additionally L350/L355 `create
-  WindowEvidence {parent=event.after.parent...}` parented-child*.
-  Discriminates: the `event.after`/`event.after.parent` line splits the
+  WindowEvidence {parent=event.after.parent...}` parented-child*. Discriminates: the `event.after`/`event.after.parent` line splits the
   snapshot family 4-inside/10-outside under C-as-written — the gate must
   say whether C's allowlist extends to trigger-parent parenting (then C
   keeps all 14 snapshots) or these 11 bodies remodel as B.
@@ -402,8 +394,7 @@ Pure pending-bound timer hooks (8 bodies, zero-edit under A/C/D):
 - Plus `draft/CanSuccess.can:93` `account_changed` on=Account.update —
   L95 `cancel` + L99 `schedule` timer (pending-bound) AND L100-103
   `for` loop over `event.after.FollowUp` children with `cancel
-  followup.id` + `schedule followup.id` timer (child-bound, fanned-out).
-  Discriminates: the L100-103 loop is outside C-as-written (bound to
+  followup.id` + `schedule followup.id` timer (child-bound, fanned-out). Discriminates: the L100-103 loop is outside C-as-written (bound to
   children, not the pending record) and directly implicates A's
   **JEV-PENDING** staged-write fan-out bound; B remodels the whole body.
 
@@ -420,8 +411,7 @@ Cross-row `set` hooks (all OUTSIDE C-as-written; A stages, B remodels):
   writes from delete hooks are unaddressed under A/B/C/D — gate gap.
 - `draft/CanLeave.can:72,74,76,78` `day_created/day_changed/
   category_created/category_changed` — L73/L75/L77/L79 `set
-  event.after.parent {revision=...+1}` cross-row (parent row).
-  Discriminates: B-remodel moves the revision bump post-commit, changing
+  event.after.parent {revision=...+1}` cross-row (parent row). Discriminates: B-remodel moves the revision bump post-commit, changing
   revision-visibility semantics the gate must rule on (bar item 3 fence
   input).
 - `draft/CanDiscover.can:247` `analyse_new` on=Evidence.create — L251
@@ -569,8 +559,7 @@ read-only code cites; no builds, no JEV, no Git.
   the landed rule. It touches only the already-flagged Onboard:51
   delete-hook parent-row gap, which no alternative addresses — it does
   not confound any A/B/C/D bar item.
-- ABSENT: no remaining payload-typing work blocks the gate.
-  Left-over `{opaque}` leaves (deployment-bound recipes, undeclared
+- ABSENT: no remaining payload-typing work blocks the gate. Left-over `{opaque}` leaves (deployment-bound recipes, undeclared
   members, delete-hook `after`) are genuine by the T30 differential,
   not clusters.
 
@@ -659,8 +648,7 @@ builds, no JEV, no Git.
   guard logic.
 - MAY NOT claim: durability, atomicity under crash, fencing under
   real concurrency, interleaving outcomes, cross-authority behavior,
-  or anything the item-6 checklist text names as a D1/DO property.
-  Any T31 proof citing memory-store results for those properties is
+  or anything the item-6 checklist text names as a D1/DO property. Any T31 proof citing memory-store results for those properties is
   miscategorized evidence, not a pass.
 
 ### Handoff
@@ -769,8 +757,7 @@ behavior; no T29 claim may be treated as landed. Precisely owed:
 - Alternative B (after-only + committed handlers): stages nothing,
   so the settled half applies only to committed-handler references
   (handlers creating children under imported parents or reading
-  `row.parent.*`) — same placement/authority/bound-rejection rule.
-  B avoids the owed staged-atomicity proof on the trigger path but
+  `row.parent.*`) — same placement/authority/bound-rejection rule. B avoids the owed staged-atomicity proof on the trigger path but
   does NOT escape T29: handler-side containment writes still need
   T29 checking/storage behavior, and the orphaned-parent gap must be
   analyzed with imported parents in view. B's 36-body remodel burden
@@ -785,8 +772,7 @@ behavior; no T29 claim may be treated as landed. Precisely owed:
   and stays **JEV-PENDING**.
 - Alternative D (bounded cascade): identical to A, extended over any
   cascaded hook that touches imported refs; owed proofs grow with
-  the cascade (same D1/DO scope as the durable-transaction plan).
-  D ≡ A on current drafts (no hooks on staged targets), so T28 adds
+  the cascade (same D1/DO scope as the durable-transaction plan). D ≡ A on current drafts (no hooks on staged targets), so T28 adds
   no new cascade evidence today.
 
 ### Verdict for item 4
@@ -922,8 +908,7 @@ staging (A) from after-only (B) from allowlist (C) from cascade
   descriptor-only tests."; Evidence: pending.
 - Join context (plan `:468`): "L2 defines and verifies exact
   values/input meaning once. L1 performs Rust and emission changes
-  for T09-T11, and L3 performs canonical runtime execution for T18.
-  Completion requires their joined evidence."
+  for T09-T11, and L3 performs canonical runtime execution for T18. Completion requires their joined evidence."
 
 Map to A-D: contributes no adopted content, so it supports,
 constrains, and kills none. The "update omission and protected
@@ -957,8 +942,7 @@ neutrally stated asymmetric proof obligation: under A/C/D the gate
 must say when defaults/server prep (DESIGN:332) runs for each
 staged secondary write; under B there are no staged writes, so
 that sentence adds no hook-side obligation — but B's committed
-handlers are ordinary-path operations where it applies in full.
-The no-new-client-parameters and no-callback sentences are the
+handlers are ordinary-path operations where it applies in full. The no-new-client-parameters and no-callback sentences are the
 settled ancestors of every alternative's recursion/negative bans
 (bar item 5, this file); no alternative proposes new parameters.
 
@@ -1217,8 +1201,7 @@ keep passing, not discriminators.
    hook (no Request hooks in the 44-body census — this file).
 5. `draft/CanDiscover.can:277-280` (`review` examples): header L278
    `as,test_worker.active,request.evidence.version -> result.evidence`
-   observes through the `request` input alias (rows L279-280).
-   Triggers no hook.
+   observes through the `request` input alias (rows L279-280). Triggers no hook.
 
 ### Analogy input — child-count observation shape (CanCheck:82-89, no CRUD hook)
 
@@ -1278,8 +1261,7 @@ path reaches the Check hooks.
   machinery (item-6 plan, this file). Input 2 holds.
 - C: input 1 fails C-as-written (trigger-parent parenting outside
   the allowlist) — the gate must extend the allowlist or accept
-  B-remodel for this body; no other input changes that question.
-  Input 2 holds.
+  B-remodel for this body; no other input changes that question. Input 2 holds.
 - D: identical to A on every input above (no hooks on any
   staged-create target — this file).
 - All: the R29 flip (inputs 3-5) governs what observation style
@@ -1327,8 +1309,7 @@ path reaches the Check hooks.
 - Writer: L3 T31a-item5. This section appended only; prior
   alternatives/fairness/checklist/enumeration/records/item-3
   section untouched (checklist item-5 marker left for the
-  coordinator per the append-only reservation).
-  DESIGN.md/GRAMMAR.md/DECISIONS.md, drafts, code, tools/jev.py,
+  coordinator per the append-only reservation). DESIGN.md/GRAMMAR.md/DECISIONS.md, drafts, code, tools/jev.py,
   tasks.md/monitor.md/inbox untouched (read or coordinator-owned);
   no JEV run; no Git.
 - Release: this file is RELEASED to the coordinator for gate scheduling.

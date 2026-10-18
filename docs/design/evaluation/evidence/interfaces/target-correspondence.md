@@ -1,6 +1,6 @@
 # Static source / desired-target correspondence
 
-2026-10-04. Baseline prefix: `docs/design/evaluation/baseline-20261004T041647Z/snapshot/`. Current E007 interpretation is in `../language/rules.md`. All MJS is handwritten desired output. The [corpus scan](corpus-scan.json) inventories all **21** available targets (**38,438** lines); all pass `node --check`, each has one `appDefinition` and one `canApp` factory, and the forbidden alternate helper/UI patterns scanned were absent. No imports or handlers executed. This establishes syntax/text patterns, not generated correctness, complete construct coverage, throughput, usability or optimal code.
+2026-10-04. Baseline prefix: `docs/design/evaluation/baseline-20261004T041647Z/snapshot/`. Current E007 interpretation is in `../language/rules.md`. All MJS is handwritten desired output. The corpus scan inventories all **21** available targets (**38,438** lines); all pass `node --check`, each has one `appDefinition` and one `canApp` factory, and the forbidden alternate helper/UI patterns scanned were absent. No imports or handlers executed. This establishes syntax/text patterns, not generated correctness, complete construct coverage, throughput, usability or optimal code.
 
 | Construct | Compared source / target anchors | Static result / boundary |
 | --- | --- | --- |

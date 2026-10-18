@@ -8,11 +8,10 @@ implementation, service operation, test/build, Git mutation or installation.
 
 ## Coverage and evidence boundaries
 
-[The path ledger](compiler-coverage.json) accounts for all 394 pinned paths in
+The path ledger accounts for all 394 pinned paths in
 `compiler`, `editors`, `packages/contracts`, `packages/values`, `packages/stdlib`
 and `tools`: 118 changed paths inspected (93 text and 25 PNG) and 276 unchanged
-paths reusing the earlier full-source responsibility review at identical bytes.
-Text inspection includes content/diffs, JSON shapes, symbol/field and test-family
+paths reusing the earlier full-source responsibility review at identical bytes. Text inspection includes content/diffs, JSON shapes, symbol/field and test-family
 decoding; it does not imply that every checker branch has been exhaustively
 proved correct. Oversized changed files were inspected by distinct symbol and
 responsibility families, with selected new joins traced through real consumers.
@@ -65,8 +64,7 @@ analysis pass because the file lives in `analysis`.
 
 The compiler provider tables in `analysis/catalog.rs:1190–2026` are current
 frozen producer transcriptions, with ratification tests at `2030–2702`. They
-are retained implementation debt, not a second permanent contract authority.
-The cutover is a versioned owner-generated catalog covering those same
+are retained implementation debt, not a second permanent contract authority. The cutover is a versioned owner-generated catalog covering those same
 capabilities, ordered inputs/results/nominal leaves and delivery observables;
 Rust consumes it through the existing catalog reader, parity/negative consumers
 switch together, then manual table bodies and their transcription-only tests
@@ -92,12 +90,10 @@ gap, not a resolved historical note.
 **Authority:** no policy means deny (`DESIGN.md:306`); callable-only
 `canApp()` is explicit (`1023`). **Recommendation:** make the actual authored
 manifest a validated, versioned input to canonical preload, distinguish absent
-policy from declared ungated operations, and fail closed while unavailable.
-Preserve `appDefinition` ownership rather than silently moving metadata into
+policy from declared ungated operations, and fail closed while unavailable. Preserve `appDefinition` ownership rather than silently moving metadata into
 the callable registry. Verify compiled protected CRUD and no-policy reads
 through actual canonical invocation, with unauthenticated, foreign-team,
-revoked and authorized actors, plus unchanged-state rejection observations.
-This review did not execute an exploit or a successful compiled journey.
+revoked and authorized actors, plus unchanged-state rejection observations. This review did not execute an exploit or a successful compiled journey.
 
 ### C2: form selection still does not produce renderer descriptors
 
@@ -109,8 +105,7 @@ server-owned/default/bound-argument input decisions. JS forwards those props
 directly (`2931–3003`). `FormProps` requires typed `FormFieldDef[]`, action,
 operation identity, mode, timezone, submit caption and id prefix
 (`packages/contracts/src/presentation.ts:768–788`); UI rendering reads
-`field.path` and type information (`packages/ui/src/forms.ts:633` onward).
-Handbuilt form registrations do not supply a compiler caller for that join.
+`field.path` and type information (`packages/ui/src/forms.ts:633` onward). Handbuilt form registrations do not supply a compiler caller for that join.
 
 **Recommendation:** owner-derived writable input schema → form selector
 resolution → dispatcher metadata → UI renderer, including explicit/default
@@ -125,8 +120,7 @@ Contextual integral-to-decimal literal checks and the exact bigint
 `decimalFromInteger` construction now exist (`types.rs:15129–15169`,
 `packages/values/src/decimal.ts:378–389`). JS's ordinary decimal literal arm
 still emits `E6008` and a throwing placeholder (`js.rs:1495–1504`). That is
-fail-closed missing emission support, not proof that the accepted source runs.
-The new decimal constructor is exported by the values wildcard barrel;
+fail-closed missing emission support, not proof that the accepted source runs. The new decimal constructor is exported by the values wildcard barrel;
 stdlib's deliberately enumerated facade has not automatically requested it.
 
 **Recommendation:** one catalog-backed exact constructor and literal-lowering
@@ -172,8 +166,7 @@ observe one live process and a settled final reference.
 Compound/expression operation gates still emit `E6008` in `by_member`
 (`js.rs:4097–4123`); manifest `guard_spellings:1104–1113` marks such content
 `gated`. Runtime transcription rejects gated/when/require entries. Once C1 is
-closed, that refusal must remain fail closed until full policy execution joins.
-It is separate from canonical state `ByPredicate` compound revalidation
+closed, that refusal must remain fail closed until full policy execution joins. It is separate from canonical state `ByPredicate` compound revalidation
 behavior: handbuilt state definitions can express predicates the compiler
 currently cannot emit. The runtime review owns its false-void membership edge.
 
@@ -186,8 +179,7 @@ reference permissions. Preserve known gaps and negative-case witnesses in
 ## Target owners and precise allocation changes
 
 All filenames below are proposed internal leaves. They are not implemented
-exports or promises of final file sizes. Existing public names/barrels remain.
-The previous allocations for parser productions, resolve/type/effects/examples
+exports or promises of final file sizes. Existing public names/barrels remain. The previous allocations for parser productions, resolve/type/effects/examples
 passes, IR/JS emitter, LSP backend/protocol/session and values
 schema/wire/ICU/temporal families remain coherent **responsibility seams**;
 their old numeric ranges and size ledger must not be reused as current proof.
@@ -271,8 +263,7 @@ versions/descriptors/observations/recipes. Record the values/UI equal-profile,
 locale/error/exactness and differential-coverage gate on their shared target
 allocations; the package-layout consultation does not settle that semantic
 decision. Keep R02 as sole writer of the shared values renderer/locale leaves,
-and assign C13 service/file catalog producer portions to their actual owners.
-Existing custom-client constraints remain selected; replacement needs a policy
+and assign C13 service/file catalog producer portions to their actual owners. Existing custom-client constraints remain selected; replacement needs a policy
 change rather than being a necessary unresolved migration. Dependency gates
 apply to affected families and consumers, so independent CLI/docs/LSP/editor
 and syntax work is not blanket-blocked by unrelated runtime joins. These are
@@ -281,12 +272,8 @@ planning corrections, with no product execution or implementation performed.
 ## Main merge reconciliation, 2026-10-06
 
 All 118 branch commits were fast-forwarded onto `main` through `1126544`, preserving
-their hashes and the exact source tree. The [merge record](../main-merge-20261006.json)
-accounts for all 487 changed paths since the complete checkpoint and registers
-44 newer source inputs with exact defining owners/targets. Current structural
-coverage is updated; primary audit evidence remains pinned to its historical source.
-The complete checkpoint stays at `8249342`: deep joined-path review and product
-qualification remain unfinished. This bookkeeping is not implementation acceptance.
+their hashes and the exact source tree. Current structural
+coverage is updated; primary audit evidence remains pinned to its historical source. This bookkeeping is not implementation acceptance.
 
 F1–F5 fanout mechanisms, T25 receipt persistence/fences, T18 engine initialization,
 T19 derivation and T20 form factories now exist in committed source. F6/F7/T26 are

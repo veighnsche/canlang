@@ -68,7 +68,7 @@ The existing form `arguments` contract carries `{parent: claimant, location: sit
 
 ## Consultation and uncertainty
 
-Three independently reworded equivalent requests and full responses are saved in `docs/design/jev/person-selection-20261004/`. All facts, questions and alternative prose were rewritten; stable alternative IDs remained fixed. The alternatives were (a) add an explicitly permitted Employee work name while retaining reviewer:user and ordinary queries, (b) define a scoped auth-directory grant/lookup, and (c) change reviewer to Employee and map back to user evidence. Each was assessed against recognizable eligible choice, collisions, revocation, private HR/email boundaries, external callers and UI/MCP parity.
+All facts, questions and alternative prose were rewritten; stable alternative IDs remained fixed. The alternatives were (a) add an explicitly permitted Employee work name while retaining reviewer:user and ordinary queries, (b) define a scoped auth-directory grant/lookup, and (c) change reviewer to Employee and map back to user evidence. Each was assessed against recognizable eligible choice, collisions, revocation, private HR/email boundaries, external callers and UI/MCP parity.
 
 | Request | Employee work label | Auth directory | Employee reviewer reference | Confidence |
 | --- | ---: | ---: | ---: | ---: |
@@ -80,8 +80,7 @@ No winner disagreement occurred. The third response's directory probability is m
 
 Still unverified: real staff recognition/selection success, duplicate-name usability, runtime field projection, live grant races, MCP reference serialization, and source/JS execution. This note proposes a concrete draft correction; it does not claim an implemented picker, compiler, fixture runner or measured token/performance benefit.
 
-Verification: the initial source-witness check rejected an unnecessary query-order suffix; the final witness removes it and uses the existing collection syntax. No parser or language change was made.
-The corrected source witness parses in a standalone syntax wrapper. The Employee name is optional after coordinator review: the selection contract supports unnamed identities without bulk fixture filler, while named records provide the improved recognition path. This does not change the consulted alternative or introduce a directory grant.
+Verification: the initial source-witness check rejected an unnecessary query-order suffix; the final witness removes it and uses the existing collection syntax. No parser or language change was made. The corrected source witness parses in a standalone syntax wrapper. The Employee name is optional after coordinator review: the selection contract supports unnamed identities without bulk fixture filler, while named records provide the improved recognition path. This does not change the consulted alternative or introduce a directory grant.
 
 
 ## Applied witness handoff

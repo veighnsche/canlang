@@ -1,6 +1,6 @@
 # Independent values/UI consumer review
 
-Nine bounded conclusions and source pins are recorded in [review-values.json](review-values.json). The primary lane correctly separates inspected source predictions from root execution and preserves previous ICU/locale/temporal packets. This reviewer performs no build, runtime probe, source/test/package change or policy selection; executed receipts belong to root.
+The primary lane correctly separates inspected source predictions from root execution and preserves previous ICU/locale/temporal packets. This reviewer performs no build, runtime probe, source/test/package change or policy selection; executed receipts belong to root.
 
 Generated browser message descriptors come from `@canlang/ui`: compiler `lower_message` imports that factory and supplies canonical resolved type IDs. UI accepts `url` and other stringlike tags. The narrower `@canlang/values.makeMessageDescriptor` tag domain is a direct public API difference; it cannot establish a generated browser URL failure. Outbound `format(c,descriptor,options)` has its own facade consumer seam, requiring Step9 execution qualification.
 

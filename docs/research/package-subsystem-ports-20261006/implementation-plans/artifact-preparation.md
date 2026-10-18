@@ -8,8 +8,7 @@ This is the original technical scope and action contract. Current status/order i
 credits the merged partial outcomes. Source observations, unchecked boxes, waves
 and release/HOLD instructions below retain their dated assessment/contract scope;
 they are not current completion claims or a dispatch queue. Native-source HOLD
-was lifted before the completed wind-down. No workers or supervision remain active.
-Public deployment/defaults/TS retirement remain separately held.
+was lifted before the completed wind-down. No workers or supervision remain active. Public deployment/defaults/TS retirement remain separately held.
 
 
 Prepare a complete local artifact, compatibility, bundle and review job in Rust while preserving the existing CLI and producer-owned build, activation and application stages. This is the fourth port plan, at source checkpoint `3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5` on October 6, 2026. It implements the larger boundary described in [boundary options](../boundary-options.md); it is not a rewrite of the compiler or the full platform CLI.
@@ -21,26 +20,21 @@ The proposed native process owns the semantic artifact tree, indexes, module inv
 The [single completion plan](../../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 replaces the digest-only next packet with one outcome: complete native preparation
 through the real installed explicit-native CLI, including current module/source-map/
-browser package construction, identities, plan/review and exact local publication.
-The host supplies raw data/frontend observations and actual producer results rather
+browser package construction, identities, plan/review and exact local publication. The host supplies raw data/frontend observations and actual producer results rather
 than a TS-computed final bundle. Internal P04–P11 activities retain their original
-contracts and require no separate dispatch/approval stops once implementation starts.
-Rust completion is independent of held public deployment/defaults/TS retirement.
-This is planning only; accepted CLI/integrity/rollback results remain credited.
+contracts and require no separate dispatch/approval stops once implementation starts. Rust completion is independent of held public deployment/defaults/TS retirement. This is planning only; accepted CLI/integrity/rollback results remain credited.
 
 ## Current bounded source and retained-owner ledger — 18 October 2026
 
 The [single current execution checklist](../../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 overrides historical planning/hold wording. Native source/local validation was
 released; the latest refresh pauses dispatch for planning. Public deployment,
-automatic defaults and TS retirement remain held.
-Accepted source `6fb752375`, `c105bf2c4` and `1e018e714` covers private retained-job
+automatic defaults and TS retirement remain held. Accepted source `6fb752375`, `c105bf2c4` and `1e018e714` covers private retained-job
 module/plan/review wiring, current release alignment and exact-source frontend
 facts. Linux x64 pinned1.99 producer/raw installed build-job qualification passes;
 the final installed Linux CLI build and corrupt/release/missing/wrong-architecture/
 protocol controls now pass after the actual EPIPE repair. Darwin installed native9/
-TS9, genuine native confirmed mocked apply and same-data TS/native rollback pass.
-These are selected local CLI/integrity outcomes, not full P01–P11 completion.
+TS9, genuine native confirmed mocked apply and same-data TS/native rollback pass. These are selected local CLI/integrity outcomes, not full P01–P11 completion.
 
 | Mechanism / original scope | Implemented or retained owner and acceptance boundary |
 | --- | --- |
@@ -152,7 +146,7 @@ Temporary staging is permitted where current Bun already uses temporary files. P
 
 ## Ordered implementation tasks
 
-This is an executable checklist: nested lanes contain work items and completion gates. Start an item only after its named dependencies are complete; wave numbers group useful readiness, not global barriers. Every box is initially unchecked. The original P01–P11 remain completion gates, with smaller handoffs that release parallel work early. The [machine-readable tasks](artifact-preparation.tasks.json) carry the same IDs, writes, dependencies and acceptance.
+This is an executable checklist: nested lanes contain work items and completion gates. Start an item only after its named dependencies are complete; wave numbers group useful readiness, not global barriers. Every box is initially unchecked. The original P01–P11 remain completion gates, with smaller handoffs that release parallel work early. The machine-readable tasks carry the same IDs, writes, dependencies and acceptance.
 
 ### Lane ownership and dispatch
 

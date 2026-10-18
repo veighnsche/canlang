@@ -2,7 +2,7 @@
 
 **Current disposition, 2026-10-18:** execution is stopped after final wind-down. The [consolidated list](../../../implementation/REMAINING-WORK.md) replaces dispatch/remaining counts here while retaining exact packet contracts and selected accepted results. DEL-C02, V05 and S04 consumer exits stay closed; F01/F02/B02 map to file publication/receiving/durable export, V03/V04 to current native selection, and D05 to native construction plus separate public/default holds. Native-source preparation HOLD was lifted; old preparation-only blockade wording below is historical. No source/task is restarted.
 
-Historical selected implementation and completed progress are recorded in [the existing execution record](../../../implementation/package-maintenance-repair/runs/codex-go-20261007/state.json), under `packet_state`. The planning flags, counts and source pins below are historical; they do not revoke Vince’s subsequent implementation authorization or certify current completion.
+Historical selected implementation and completed progress are recorded in the existing execution record, under `packet_state`. The planning flags, counts and source pins below are historical; they do not revoke Vince’s subsequent implementation authorization or certify current completion.
 
 Reviewed planning queue based on `3ff5fbd66324869ba2277fdbe4333fb95256810b`. This queue organizes existing obligations; its 48 packet labels are **not 48 new tasks**. The canonical task ledger remains at 333 identities, unchanged. The 76 integration dispositions are references and remain non-additive. The planning snapshot did not authorize execution (`execution_authorized: false`). Current authorization is recorded above.
 
@@ -18,7 +18,7 @@ Counts: **48 packets** — 20 ready, 27 blocked, 1 deferred. Ready means a finit
 
 ## Coverage and ownership
 
-The coverage ledger cross-references 333 canonical tasks, 114 finished-product duties, 316 responsibilities, 400 behavior contracts, 69 audit groups, 308 raw records, and 76 dispositions. These are accountability links; they do not prove behavior, runtime acceptance, or complete semantic coverage. DR08 is an alias of DC-01 (one candidate, not two obligations).
+These are accountability links; they do not prove behavior, runtime acceptance, or complete semantic coverage. DR08 is an alias of DC-01 (one candidate, not two obligations).
 
 The conflict index records 44 exact-file conflicts. Acknowledgments are not yet claimed. Only exact successor packet IDs/files in that index establish future handoffs; historical packet labels do not grant leases. DR01 reduction and SSW07 correctness retain separate budgets and receipts. Compiler source/docs/tests remain with the compiler agent; this queue grants no compiler lease. Native preparation/release remains held. Root owns queue/decision/living-plan planning refresh; package owners hold future finite code leases.
 
@@ -37,11 +37,11 @@ See [packets.md](packets.md) for packet-level task IDs, files, prerequisites, de
 
 ## Independent challenge and verification
 
-[Independent review](independent-review.md) verified seven corrections with no unresolved findings in its bounded planning scope. [Metadata verification](verification.json) passes 37/37 checks; rerun `python3 docs/research/package-library-audit-20261006/repair-queue/verify.py`. No product build/test was run.
+[Independent review](independent-review.md) verified seven corrections with no unresolved findings in its bounded planning scope. Metadata verification passes 37/37 checks; rerun `python3 docs/research/package-library-audit-20261006/repair-queue/verify.py`. No product build/test was run.
 
 Disposition records: 44 retained, 29 selected refinements and three human-held native simplifications. These are not added to the 48 packet count. Production reductions are unmeasured: replacement-only candidates must reduce both readable production implementation and implementation plus maintained declarations over the complete changed closure, or retain the current mechanism. Correctness/capability changes use a separate budget.
 
-[Owner reconciliation](../../../ideal-filetree-plan/package-repair-queue-refresh.json) preserves the complete checkpoint and foreign compiler owner. Decisions are recorded in [decision-record.md](decision-record.md).
+Decisions are recorded in [decision-record.md](decision-record.md).
 
 ## Packet status index
 
@@ -110,9 +110,6 @@ The names below are packet labels refining existing IDs. Follow each link for ex
 | --- | --- |
 | [DEL-D05](packets.md#del-d05) | HELD NATIVE PREPARATION · qualification |
 
+Per-packet implementation/review allocation covers all 48 packets. Each packet now has separate implementation/qualification and independent-review model/effort, with cheap prepared records/fixtures and concrete escalation gates. The old Sol/high field is historical planning evidence, not a blanket worker setting. Ordinary local review does not replace the existing critical gates. Three implementation lanes use finite packet-specific models; no implementation is released.
 
-## Economical dispatch settings
-
-[Per-packet implementation/review allocation](model-allocation.md) covers all 48 packets. Each packet now has separate implementation/qualification and independent-review model/effort, with cheap prepared records/fixtures and concrete escalation gates. The old Sol/high field is historical planning evidence, not a blanket worker setting. Ordinary local review does not replace the existing critical gates. Three implementation lanes use finite packet-specific models; no implementation is released.
-
-The 20 ready packets allocate four to Luna medium, five to Sol low, ten to Sol medium, and one to Sol high. Stronger blocked joins retain risk-matched settings; no model change releases their prerequisites. [Allocation consistency review](model-allocation-review.json) checks all 48 rows and preserves required critical reviews.
+The 20 ready packets allocate four to Luna medium, five to Sol low, ten to Sol medium, and one to Sol high. Stronger blocked joins retain risk-matched settings; no model change releases their prerequisites. Allocation consistency review checks all 48 rows and preserves required critical reviews.

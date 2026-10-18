@@ -7,24 +7,19 @@ compilations exit 0; Node rejects their emitted modules. The `value` control
 passes. This is a correctness repair with an existing language contract, rather
 than a reason to introduce another compatibility adapter.
 
-The audit adds **35 finite duties** to the existing [coverage ledger](coverage.jsonl):
-[15 serialization families](output-evidence/serialization.json),
-[13 transformations](output-evidence/transforms.json) and
-[7 coordinate/identity boundaries](output-evidence/coordinates.json).
 Each records defining declarations, callers, actual consumers, independent
-authority, witnesses and gaps. Independent [review](output-evidence/review-transforms.json)
+authority, witnesses and gaps. Independent review
 challenges root's probes; root challenges the serializer view and executes its
 leads. Navigation links do not certify every branch of a referenced file.
 
 Compiler source remains `1fd07722090fe70228a6b661e3c6e136275ca84b`; collection HEAD
-was `0edfde19`, with early baseline commit `eb5ca8d`. [Inputs](output-evidence/inputs.json)
+was `0edfde19`, with early baseline commit `eb5ca8d`. Inputs
 rehash historical compiler/runtime references and pin contracts, dependencies,
 catalog and actual docs consumers. The fresh Cargo command selects reported
 rlibs, rather than a stale glob. Installed dist and current source consumers are
-distinguished; neither a package rebuild nor an installed release is inferred.
-Sol 6.1 medium performs the bounded serializer scan and independent review;
+distinguished; neither a package rebuild nor an installed release is inferred. Sol 6.1 medium performs the bounded serializer scan and independent review;
 additional agent dispatch hit the thread limit, so root handles the remaining
-slices. The [researched allocation](../model-allocation-20261007.md) is reused
+slices. The researched allocation is reused
 without escalation or a cost/quality benchmark.
 
 ## Contracts and observed outcomes
@@ -53,7 +48,7 @@ preserves those source defaults correctly. The observed defect is downstream.
 
 ## Executed witnesses and provenance
 
-[Suite receipts](output-evidence/suites-execution.json) capture **113 harness
+Suite receipts capture **113 harness
 passes**: 97 across 18 selected integration suites, six source units, eight
 replacement units and two native URI units. There are zero harness failures or
 ignored tests, with **one reported `4750` branch skip**. These include real
@@ -61,23 +56,23 @@ artifact intake, public docs/policy consumers, source-map consumers, framed LSP
 and all six emitted-string/testkit witnesses. The full compiler suite, release
 footprint and other hosts were not rerun.
 
-[Observer receipts](output-evidence/observer-execution.json) join
+Observer receipts join
 [61 distinct source cases](output-evidence/cases.json) to
-[results](output-evidence/observations.json): 54 corpus inputs and seven focused
+results: 54 corpus inputs and seven focused
 format/fix inputs. They preserve fresh build selection, command/cwd, stdout,
-stderr, exits and hashes. [CLI receipts](output-evidence/cli-execution.json) add
+stderr, exits and hashes. CLI receipts add
 18 real compiler calls and five Node module syntax checks. Nineteen forward
 byte/human/UTF16 vectors and 32 inverse vectors have independently fixed expected
 coordinates; inside-scalar/clamped offsets are intentionally not bijective.
 
-[Later outcome verification](output-evidence/outcome-verification.json) records
+Later outcome verification records
 377 assertions: 367 pass; ten are nonpassing outcomes, separated into four
 compiler binding failures, one public diagnostic determinism failure, three
 standards-derived downstream Markdown failures, one comment preservation gate
 and one unqualified native mode branch. These later checks are labeled as such,
 rather than presented as pre-execution oracles.
 
-[Observer/review corrections](output-evidence/observer-corrections.json) preserve
+Observer/review corrections preserve
 a missing argument in the first audit-only probe compilation, a retracted
 receipt-collision warning caused by comparing different hash domains, and the
 tags-only diagnostic control. The original 61 case IDs were already unique;
@@ -96,9 +91,8 @@ are removed; saved recipes and inputs are reconstructable, not a hermetic bundle
 | OUT-R04 — comment preservation gate | Lint owner releases whether attached explanatory comments survive removal, move to retained context or deliberately leave with the removed statement. Preserve unrelated declarations and source anchors; consequential new policy requires verified-context JEV before selection. Current safe runtime meaning and comment preservation are separate claims. |
 | OUT-R05 — remaining qualification | Keep `4750`/other-host replacement branches, browser map navigation, full runtime Decimal emission, broader source attribution and client application explicitly scoped. Release each only when its actual owning profile and consumer can be exercised. This gate does not block the witnessed binding repair. |
 
-The same single ledger names exclusive writer closures and economical allocation.
 Shared `js.rs` and serializer/LSP files require serialized releases; package
 ownership is preserved. The existing complexity/complete-caller retirement gates
 still apply. This audit accepts evidence and proposes repairs; it changes no
 compiler/package implementation, dependencies, policy or API. Step 9 and Steps
-11 onward remain proposed. No merge or living-plan checkpoint advancement occurs.
+11 onward remain proposed.

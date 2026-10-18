@@ -19,9 +19,9 @@ All three independent, equivalent choice requests were sent successfully using `
 
 | Request | Selected advice | Confidence | P(runtime_only) | P(evidenced_resend) | P(acknowledged_resend) |
 | --- | --- | --- | --- | --- | --- |
-| [1](../jev/muse-mail-recovery-20261004/1.request.json) | acknowledged_resend | 0.30 | 0.45 | 0.02 | 0.53 |
-| [2](../jev/muse-mail-recovery-20261004/2.request.json) | runtime_only | 0.46 | 0.64 | 0.02 | 0.34 |
-| [3](../jev/muse-mail-recovery-20261004/3.request.json) | acknowledged_resend | 0.58 | 0.27 | 0.02 | 0.71 |
+| 1 | acknowledged_resend | 0.30 | 0.45 | 0.02 | 0.53 |
+| 2 | runtime_only | 0.46 | 0.64 | 0.02 | 0.34 |
+| 3 | acknowledged_resend | 0.58 | 0.27 | 0.02 | 0.71 |
 
 Raw result files are saved alongside each request. No mean, vote or confidence threshold is an adoption decision. The choices disagree; classifier responses provide no rationale. Manual wording review found the same settled facts, common safeguards and alternatives in each request. The substantive tension is useful in-app staff recovery versus deliberately permitting a possibly duplicate email when no provider reconciliation operation exists. Further investigation/review of that tradeoff remains open; it was not resolved before the priority change.
 
@@ -70,8 +70,7 @@ Same-delivery-identity runtime retry (existing bounded policy, frozen request, s
 ### Can witness (proposed, not applied)
 
 ```can
-## Immutable staff-only notice history; one row per admitted notice intent.
-Notice in Item { account:user label="Frozen account", address:text label="Frozen address", subject:text, body:text, receipt:delivery(Mail.send)? label="Notice receipt", kind:enum(initial,reminder,additional), number:int, predecessor:Notice?, reason:text?, acknowledged:bool=false label="Possible duplicate accepted", author:user server=actor label="Author" } label="Notice attempt"
+## Immutable staff-only notice history; one row per admitted notice intent. Notice in Item { account:user label="Frozen account", address:text label="Frozen address", subject:text, body:text, receipt:delivery(Mail.send)? label="Notice receipt", kind:enum(initial,reminder,additional), number:int, predecessor:Notice?, reason:text?, acknowledged:bool=false label="Possible duplicate accepted", author:user server=actor label="Author" } label="Notice attempt"
 policy Notice read=mail_staff and can_work(actor,row.parent.location)
 lock Notice fields=account,address,subject,body,receipt,kind,number,predecessor,reason,acknowledged,author
 ```

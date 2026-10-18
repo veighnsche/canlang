@@ -1,8 +1,8 @@
 # Representations and authoritative owners — audit Step 5
 
-The [single coverage ledger](coverage.jsonl) now maps 35 stage/boundary duties, eight selected carrier groups and all 18 existing workflow routes. Each stage row identifies defining declarations, authoritative facts, conversions, reconstructed work, source/catalog preconditions and evidence limits. These are responsibility slices, not an exhaustive list of every type or semantic rule. [Independent review](representation-review.json) distinguishes stage-specific information from duplication and qualifies the public-input witnesses below.
+Each stage row identifies defining declarations, authoritative facts, conversions, reconstructed work, source/catalog preconditions and evidence limits. These are responsibility slices, not an exhaustive list of every type or semantic rule. Independent review distinguishes stage-specific information from duplication and qualifies the public-input witnesses below.
 
-Compiler source remains `1fd07722090fe70228a6b661e3c6e136275ca84b`; the collection head is `2e8db234`. The ledger pins 37 supporting source/contract/probe inputs; the probe additionally records 108 unchanged compiler/catalog inputs. [Validation](representation-validation.json) checks the complete prior inventory, new anchors/joins/pins and saved evidence. Source/dependency/API behavior is unchanged.
+Compiler source remains `1fd07722090fe70228a6b661e3c6e136275ca84b`; the collection head is `2e8db234`. The ledger pins 37 supporting source/contract/probe inputs; the probe additionally records 108 unchanged compiler/catalog inputs. Validation checks the complete prior inventory, new anchors/joins/pins and saved evidence. Source/dependency/API behavior is unchanged.
 
 ```mermaid
 flowchart LR
@@ -52,7 +52,7 @@ The CST-to-IR reread is documented. The implementation also reconstructs some na
 
 ## Source/catalog coherence witnesses
 
-The [saved public-API probe](representation-evidence/provenance/probe.rs) uses actual `CatalogAnalyzer::analyze_owned` and `EmitOptions::new`, with complete clean analysis; no test-only bypass. Eight emission cases pass. Assertions independently specify literal values, hash differences, awaiting changes and model association. The [receipt](representation-evidence/provenance/receipt.json), raw output, catalog variants and artifacts preserve actual results.
+The [saved public-API probe](representation-evidence/provenance/probe.rs) uses actual `CatalogAnalyzer::analyze_owned` and `EmitOptions::new`, with complete clean analysis; no test-only bypass. Eight emission cases pass. Assertions independently specify literal values, hash differences, awaiting changes and model association. The receipt, raw output, catalog variants and artifacts preserve actual results.
 
 | Witness | Observed result | Meaning |
 | --- | --- | --- |
@@ -68,6 +68,6 @@ The first ordering fixture used invalid package-body grammar and the probe stopp
 
 ## Remaining scope
 
-Independent Sol 6.1 medium cross-review corrects source anchors, carrier fields, overload authority and migration timing, and adds actual runtime/testkit admission duties. Final integrated review accepts the bounded map and evidence after separating declared Rust fields from wire projections and clarifying execution/review scope. Luna 6 low supplies selected carrier/navigation facts; root handles source/catalog probes and the common ledger. The same-day [researched allocation](../model-allocation-20261007.md) is reused without escalation or a task-optimum claim.
+Independent Sol 6.1 medium cross-review corrects source anchors, carrier fields, overload authority and migration timing, and adds actual runtime/testkit admission duties. Final integrated review accepts the bounded map and evidence after separating declared Rust fields from wire projections and clarifying execution/review scope. Luna 6 low supplies selected carrier/navigation facts; root handles source/catalog probes and the common ledger. The same-day researched allocation is reused without escalation or a task-optimum claim.
 
-Source/cohort support, missing checked binding facts, recovery/order preconditions and map push attribution are explicit later packet questions. No source/API/policy/dependency change, parser/library choice or cache architecture is selected. Existing Step 4 compatibility promises stay binding. Whole semantic/resource/oracle review, full consumer closure, generated-JS execution, installed/original-app acceptance, GUI and other-host qualification remain open. No merge or living-plan checkpoint advancement occurs.
+Source/cohort support, missing checked binding facts, recovery/order preconditions and map push attribution are explicit later packet questions. No source/API/policy/dependency change, parser/library choice or cache architecture is selected. Existing Step 4 compatibility promises stay binding. Whole semantic/resource/oracle review, full consumer closure, generated-JS execution, installed/original-app acceptance, GUI and other-host qualification remain open.

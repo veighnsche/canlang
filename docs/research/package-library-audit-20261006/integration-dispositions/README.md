@@ -2,7 +2,7 @@
 
 Planning checkpoint, 2026-10-07, at source `780ab04ca60bad2e30f47ae4e7ae63e5ee838bb9`. Implementation remains deferred. All **27 audited integration families** and **49 existing subsidiary duplication/boundary records** now have one reviewed choice, rationale, uncertainty and retirement conditions. These records overlap; they are not 76 new implementation tasks. The 480 adapter groups retain their existing crosswalk, not a claim of executed branch coverage.
 
-[Readable choices](dispositions.md) · [Machine records](dispositions.jsonl) · [Contract decisions](decision-record.md) · [Common acceptance gates](common-gates.json) · [Opposing review](counter-review.md) · [Source/record verification](verification.json)
+[Readable choices](dispositions.md) · [Machine records](dispositions.jsonl) · [Contract decisions](decision-record.md) · Common acceptance gates · [Opposing review](counter-review.md) · Source/record verification
 
 | Disposition | Integration families | Subsidiary records |
 | --- | ---: | ---: |
@@ -24,9 +24,9 @@ Planning checkpoint, 2026-10-07, at source `780ab04ca60bad2e30f47ae4e7ae63e5ee83
 
 ## Difficult choices and uncertainty
 
-Three [fresh JEV requests](jev/README.md) considered URI ownership and exact locale display. URI advice split library/shared/library with materially different probabilities and confidence. Source investigation, rather than a majority, selects the narrow library candidate for qualification. Its extra temporary UTF8/output representations and upgrade/target costs remain open. Locale advice retained current output three times, with declining confidence; actual callers and host/data qualification are missing. Future localized digit/bidi/minimum-grouping output would be an explicit contract change.
+Three fresh JEV requests considered URI ownership and exact locale display. URI advice split library/shared/library with materially different probabilities and confidence. Source investigation, rather than a majority, selects the narrow library candidate for qualification. Its extra temporary UTF8/output representations and upgrade/target costs remain open. Locale advice retained current output three times, with declining confidence; actual callers and host/data qualification are missing. Future localized digit/bidi/minimum-grouping output would be an explicit contract change.
 
-The earlier raw-map JEV candidate gate and finite outside-checkout Node/workerd diagnostics are preserved at their actual scope. No repeat consultation, silent canonical-map refusal, API shrink or whole-host acceptance is inferred. The [opposing review](counter-review.json) corrected eight record issues, including oversized “thin” claims, carrier-profile conflation and test/observation authority. It is a review with proposals visible, not a clean-room security audit. The pre-existing critical Astra security review remains pending; it is not discharged here.
+The earlier raw-map JEV candidate gate and finite outside-checkout Node/workerd diagnostics are preserved at their actual scope. No repeat consultation, silent canonical-map refusal, API shrink or whole-host acceptance is inferred. The opposing review corrected eight record issues, including oversized “thin” claims, carrier-profile conflation and test/observation authority. It is a review with proposals visible, not a clean-room security audit. The pre-existing critical Astra security review remains pending; it is not discharged here.
 
 ## Retirement and maintenance acceptance
 

@@ -1,12 +1,11 @@
 /**
- * B5-J3 dist manifest: content-hash proof that a build is reproducible.
+ * Distribution manifest: content inventory for staged package files.
  *
  * `buildDistManifest` walks the given dist dirs (repo-root-relative),
  * hashes every emitted file with sha256, and returns the sorted manifest.
  * `writeDistManifest` persists it as `dist-manifest.json` at the repo
  * root; `verifyDistManifest` re-hashes and fails loud naming every
  * changed/missing/added file, including duplicate claims and false byte counts.
- * Rebuild twice -> byte-identical manifest.
  *
  * Composite `*.tsbuildinfo` files are EXCLUDED (they carry timestamps by
  * design); everything else under the scanned roots is covered, so an

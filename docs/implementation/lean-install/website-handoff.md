@@ -6,10 +6,8 @@ and GitHub release assets; the website owns the static public entry point.
 ## Published handoff — 2026-10-15
 
 Exact published tag: [`v0.1.1`](https://github.com/veighnsche/canlang/releases/tag/v0.1.1),
-commit `97bb83d925ffb7cb5cfb95494b3fd60626337caa`.
-[Release workflow](https://github.com/veighnsche/canlang/actions/runs/38800630072): all nine jobs pass, including 21 native qualification
-checks per platform and public streamed installs on macOS arm64 and Linux x64.
-All five public core asset URLs pass; browser development tools remain separate
+commit `97bb83d925ffb7cb5cfb95494b3fd60626337caa`. [Release workflow](https://github.com/veighnsche/canlang/actions/runs/38800630072): all nine jobs pass, including 21 native qualification
+checks per platform and public streamed installs on macOS arm64 and Linux x64. All five public core asset URLs pass; browser development tools remain separate
 optional sidecars. The bundled runtime is preserved. `v0.1.0` is unchanged.
 
 Copy this exact published installer, preserving its bytes:
@@ -29,8 +27,7 @@ Public command after deployment:
 curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
 ```
 
-Canonical file: `scripts/install.sh` in `veighnsche/canlang`.
-Release page: https://github.com/veighnsche/canlang/releases
+Canonical file: `scripts/install.sh` in `veighnsche/canlang`. Release page: https://github.com/veighnsche/canlang/releases
 Moving latest installer asset (the pinned URL above is the website handoff):
 https://github.com/veighnsche/canlang/releases/latest/download/install.sh
 
@@ -42,14 +39,11 @@ Each release publishes these core assets (`VERSION` excludes the `v` tag prefix)
 - `can-browser-development-tools-VERSION.tar.gz` and its `.sha256` (separate opt-in tooling)
 
 Downloads come directly from
-`https://github.com/veighnsche/canlang/releases/download/vVERSION/ASSET`.
-The website does not mirror the 86 MiB bundle or serve a dependency installer.
-The core contains its own runtime; Chrome/Playwright remain separately opt-in.
+`https://github.com/veighnsche/canlang/releases/download/vVERSION/ASSET`. The website does not mirror the 86 MiB bundle or serve a dependency installer. The core contains its own runtime; Chrome/Playwright remain separately opt-in.
 
 The published `v0.1.1` release contains all seven assets. The older `v0.1.0`
 release remains unchanged; use the pinned `v0.1.1` installer above for this
-website synchronization. Website deployment is a separate external action.
-Homebrew is outside this change.
+website synchronization. Website deployment is a separate external action. Homebrew is outside this change.
 
 ## Copy-ready prompt for the website agent
 
@@ -104,7 +98,6 @@ shell configuration. Report the deployed URL and exact GitHub release tag used.
 
 The shell installer tests cover Bash/sh stdin installation, truncated transfer
 refusal before any install mutation, latest GitHub resolution, pinned HTTPS
-assets, checksums, archive safety, upgrade preservation and shell PATH setup.
-A real existing macOS bundle was also streamed through Bash and its installed
+assets, checksums, archive safety, upgrade preservation and shell PATH setup. A real existing macOS bundle was also streamed through Bash and its installed
 `can --version` executed with a clean PATH. The published v0.1.1 hosted assets and
 both native streamed installations pass in the release workflow above. Website serving/deployment remains the external gate.

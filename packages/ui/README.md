@@ -5,8 +5,8 @@ factories with props/children; this library owns daisyUI markup/classes,
 escaping, HTMX behavior and locale formatting. No `h`/JSX, no hydration, no
 browser business-state store, no second CRUD/policy engine.
 
-Contract: `packages/contracts/src/presentation.ts` (lane 05 owned). Compiler
-emission (lane 1) and route dispatch (lane 6) consume that contract.
+Contract: `packages/contracts/src/presentation.ts`. Compiler emission and
+route dispatch consume that contract.
 
 ## Package boundaries
 
@@ -17,8 +17,7 @@ the dependency lockfile.
 
 The `@canlang/ui/distribution` API supplies the compiled module and browser
 asset directory URLs used by Worker staging. Browser assets remain in
-`dist/browser`; the browser build validates their local import closure and the
-pinned daisyUI version. Browser export and print consumers have explicit
+`dist/browser`; the browser build validates their local import closure. Browser export and print consumers have explicit
 `@canlang/ui/browser/export` and `@canlang/ui/browser/print` APIs.
 
 Generated operation forms emit `data-can-generated-form` and use the existing
@@ -51,26 +50,26 @@ and structural `data-can-once`/`can:settled` behavior remain unqualified.
 - `src/components.ts` — card/title/text/content, shared states, text values, row headings.
 - `src/collections.ts` — list/table renderers over the authorized query runner.
 - `src/catalog.ts` — versioned machine-readable component catalog.
-- `themes.css` — pinned `can-{mode}-{accent}` daisyUI themes + density rules.
+- `themes.css` — `can-{mode}-{accent}` daisyUI themes + density rules.
 - Later slices: `forms`, `htmx`, `settings`, `review` (+ controls in `collections`).
 
 ## Themes and class audit
 
-`themes.css` pins nine themes against daisyUI 5.7.47 (exact devDependency).
+`themes.css` defines nine themes based on daisyUI.
 `test/themes.test.ts` audits theme-name coverage, variable names against the
-installed daisyUI, the pinned version, and every markup class used in src
+installed daisyUI and every markup class used in src
 (daisyUI bundle, reviewed tailwind utilities, or `can-*` structural hooks).
 
-## Exactness seams (lane 2)
+## Exact values
 
 Integers travel as bigint or canonical decimal strings; naive numbers are
 accepted only when safe. Currency scales are an explicit formatting
-parameter from the pinned lane 2 table, never a default here. Datetimes are
+parameter from the Values currency table, never a default here. Datetimes are
 canonical RFC3339 UTC instants with explicit calendar/time validation
 (leap second `:60` rejected); civil dates never shift timezones.
 Grouping patterns and numbering-system digits are derived from Intl probes,
 so safe-range output matches platform ICU exactly while big values stay
-exact; negative plain numbers use a pinned ASCII hyphen-minus.
+exact; negative plain numbers use an ASCII hyphen-minus.
 
 ## Checks
 

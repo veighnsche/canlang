@@ -15,23 +15,18 @@ The later planning audit records the [production baseline](production-baseline/R
 [actual responsibilities/callers](responsibility-callers/README.md),
 [required-behavior authority](required-behavior/README.md),
 [library fit](library-fit/README.md), [adapter branch dispositions](adapter-branches/README.md),
-and [duplicated mechanisms/layers](duplication-layers/README.md).
-The [TS/Rust/Wasm ownership audit](language-boundaries/README.md) then maps
-the defining implementations, finite native surfaces and unfinished consumers.
-It distinguishes actual exact Wasm functions, validation scaffolds, registered
+and [duplicated mechanisms/layers](duplication-layers/README.md). The [TS/Rust/Wasm ownership audit](language-boundaries/README.md) then maps
+the defining implementations, finite native surfaces and unfinished consumers. It distinguishes actual exact Wasm functions, validation scaffolds, registered
 Work candidates and held preparation prefixes; it also reconciles current values
-asset receipts and narrows earlier preparation caller claims.
-The [data/protocol correctness audit](data-protocol/README.md) records 32 bounded
+asset receipts and narrows earlier preparation caller claims. The [data/protocol correctness audit](data-protocol/README.md) records 32 bounded
 source witnesses and compatibility controls, with concrete producer/consumer
 disagreements, privacy projections and an original-ID fix queue. It separates
 required-outcome gaps from unjoined/native/held domains and keeps implementation
-deferred; no new runtime or deployment acceptance is implied.
-The [control/lifecycle audit](control-lifecycle/README.md) records 93 resource
+deferred; no new runtime or deployment acceptance is implied. The [control/lifecycle audit](control-lifecycle/README.md) records 93 resource
 families with owner, restart/cleanup rules, 119 invariants and 140 source-derived
 scenario groups. It separates real transaction/cancellation controls from
 conditional crash, fanout, credential, browser and held-native ownership gaps;
-implementation remains deferred and no runtime acceptance is added.
-The branch audit covers 480 groups across the selected 27 integration seams, with exact
+implementation remains deferred and no runtime acceptance is added. The branch audit covers 480 groups across the selected 27 integration seams, with exact
 conditional change gates and independent source challenges. These later pinned records
 supersede historical unwired/source/qualification premises below where explicitly reconciled;
 they do not authorize new implementation or broaden finite acceptance.
@@ -42,7 +37,7 @@ assembly, authority checks and retained donor/oracle paths; implementation remai
 
 ## Coverage and evidence
 
-[Source inventory](source-inventory.json) records 684 TS/Rust files under all 13 package owners, excluding dependency/build-output directories. There are 341 source candidates and 343 test/example/fixture files. These are inventory categories, not a claim that every file is compiled or production code: values includes generated currency data, and work-kernel Rust decisions are currently outside its Cargo root. Review screened responsibilities/imports and inspected the relevant algorithm bodies and tests; it does not prove whole-package correctness.
+Source inventory records 684 TS/Rust files under all 13 package owners, excluding dependency/build-output directories. There are 341 source candidates and 343 test/example/fixture files. These are inventory categories, not a claim that every file is compiled or production code: values includes generated currency data, and work-kernel Rust decisions are currently outside its Cargo root. Review screened responsibilities/imports and inspected the relevant algorithm bodies and tests; it does not prove whole-package correctness.
 
 | Package | Source candidates | Test/example/fixture files | Responsibility reviewed |
 | --- | ---: | ---: | --- |
@@ -60,9 +55,9 @@ assembly, authority checks and retained donor/oracle paths; implementation remai
 | work | 16 | 40 | Ordered dispatch, claims/receipts, revocation, schedules |
 | work-kernel | 19 | 7 | Pure decision implementations and future Rust assembly |
 
-The detailed [values](reviews/values.md), [native/delivery](reviews/native-delivery.md), [adapters](reviews/adapters.md) and [identity/state/work](reviews/identity-state-work.md) reviews give source locations, primary upstream sources, deliberate incompatibilities and acceptance witnesses. [Findings](findings.json) provide audit IDs and existing-task crosswalks. Audit IDs are not new canonical implementation obligations. No package source, dependency, lockfile, task acceptance or living-plan checkpoint was changed. No build, test, installation, runtime or CI dispatch was performed.
+The detailed [values](reviews/values.md), [native/delivery](reviews/native-delivery.md), [adapters](reviews/adapters.md) and [identity/state/work](reviews/identity-state-work.md) reviews give source locations, primary upstream sources, deliberate incompatibilities and acceptance witnesses. [Findings](findings.json) provide audit IDs and existing-task crosswalks. Audit IDs are not new canonical implementation obligations. No build, test, installation, runtime or CI dispatch was performed.
 
-[Independent challenge](reviews/identity-state-challenge.md) narrowed the hex/cookie findings to their actual callers. [Consolidated review](reviews/consolidated-review.md) checked every finding and the original task/source inputs; root repaired ambiguous scope/readiness and unqualified-parser wording. [Planning verification](verification.json) confirms source hashes, locations, task references and local links; it is not product/runtime acceptance.
+[Independent challenge](reviews/identity-state-challenge.md) narrowed the hex/cookie findings to their actual callers. Consolidated review checked every finding and the original task/source inputs; root repaired ambiguous scope/readiness and unqualified-parser wording. Planning verification confirms source hashes, locations, task references and local links; it is not product/runtime acceptance.
 
 Upstream documentation/source was opened on the audit date. A `main`/`latest` API is an evaluation input; select and lock an actual version, inspect its license/dependencies, and qualify its delivered closure before adoption. Candidate libraries have not been benchmarked or independently supply-chain audited here.
 
@@ -117,26 +112,23 @@ These evaluations are not reasons to delay all four lanes. Keep uncertain calend
 
 The current execution plan links this audit as a planning input. Canonical task statuses/counts are unchanged; no new startup, runtime release or checkpoint advancement follows from this review.
 
-The proposed [detailed adoption sequence](adoption-sequence.md) and [machine task/dependency map](adoption-sequence.json) turn the findings into finite source, consumer and review units within the existing four-lane architecture. Values and work qualification stay separate; import and map leaves join only at composition/delivery; identity/CSV/service additions require explicit finite scope. Conditional investigations and human-held native preparation do not become global waiting waves.
+The proposed [detailed adoption sequence](adoption-sequence.md) and machine task/dependency map turn the findings into finite source, consumer and review units within the existing four-lane architecture. Values and work qualification stay separate; import and map leaves join only at composition/delivery; identity/CSV/service additions require explicit finite scope. Conditional investigations and human-held native preparation do not become global waiting waves.
 
-The [task-specific model allocation](model-allocation-20261007.md) applies current official guidance and independent task review to all 27 units and 12 macro steps. It separates cheap prepared work from compatibility, integration and security review. Choices remain proposals, with no model benchmark or implementation activation.
+The task-specific model allocation applies current official guidance and independent task review to all 27 units and 12 macro steps. It separates cheap prepared work from compatibility, integration and security review. Choices remain proposals, with no model benchmark or implementation activation.
 
 The planning-only [security and resource enforcement audit](security-limits/README.md) records actual guards and costly-operation bounds, with ranked conditional/source findings and library defaults. Critical Astra review remains approval-pending; no implementation or security acceptance follows.
 
 The planning-only [dependency and delivered-runtime audit](dependency-runtime/README.md) maps
-49 source/artifact execution profiles and 13 upgrade risks across all 13 owners.
-It separates stale outputs, public deep exports/layout coupling, vendor rewriting,
+49 source/artifact execution profiles and 13 upgrade risks across all 13 owners. It separates stale outputs, public deep exports/layout coupling, vendor rewriting,
 native host prerequisites and unfinished browser/port joins. Finite outside-checkout
 checks of existing copied artifacts retain their exact partial fixture and asset
-scope; they do not qualify current-source installed Worker/browser workflows.
-Implementation and the separate pending critical Astra review remain deferred.
+scope; they do not qualify current-source installed Worker/browser workflows. Implementation and the separate pending critical Astra review remain deferred.
 
 The planning-only [tests and evidence challenge](tests-evidence/README.md) records
 42 finite source/evidence challenges, 17 dependency-ordered verification groups
 and 10 gated retention/cleanup groups. It distinguishes actual comparator and
 discovery gaps from overbroad consumer claims, while preserving independent
-oracles, real transaction/host tests and stronger written diagnostic evidence.
-The reproducible package/orchestration inventory separates 770 exact duplicate
+oracles, real transaction/host tests and stronger written diagnostic evidence. The reproducible package/orchestration inventory separates 770 exact duplicate
 bytes from repeated corpus projections and receipt sections. No tests were run,
 evidence deleted or implementation/acceptance activated by this audit.
 
@@ -146,13 +138,11 @@ verified before/current production baseline. It separates gross deletion envelop
 from unmeasured future net savings, includes dependencies/compatibility/lifecycle
 and upgrade costs, and requires strict readable production reduction for every
 replacement-only candidate. Existing correctness/capability/evidence work receives
-separate scope and unallocated budget records; compression and moves earn no credit.
-No implementation or reduction acceptance follows from the assessment.
+separate scope and unallocated budget records; compression and moves earn no credit. No implementation or reduction acceptance follows from the assessment.
 
 The planning-only [integration dispositions](integration-dispositions/README.md)
 select one reviewed position for all 27 integration families and 49 existing
-subsidiary records, with owner policy, uncertainty and retirement gates.
-Sol high substantive reviews and an opposing review distinguish thin mechanics
+subsidiary records, with owner policy, uncertainty and retirement gates. Sol high substantive reviews and an opposing review distinguish thin mechanics
 from sizeable compatibility/protocol owners. Fresh JEV advice on URI ownership
 and locale display is saved with its split/confidence investigation; earlier
 raw-map advice is reused at its original scope. Candidate replacement still

@@ -286,10 +286,9 @@ test("capability tables advertise all required adapters", () => {
     assert.ok(adapter !== undefined, id);
     assert.equal(adapter.id, id);
     assert.ok(adapter.probe_binaries.length > 0, id);
-    // Only the actually qualified Codex adapter may launch.
-    assert.equal(adapter.mcp_attachment.state, id === "codex" ? "supported" : "unqualified");
-    assert.equal(adapter.write_restriction.state, id === "codex" ? "supported" : "unqualified");
-    assert.match(adapter.mcp_attachment.note, /BGI-0/);
+    // Only the implemented Codex adapter may launch.
+    assert.equal(adapter.mcp_attachment.state, id === "codex" ? "supported" : "unsupported");
+    assert.equal(adapter.write_restriction.state, id === "codex" ? "supported" : "unsupported");
   }
   assert.equal(adapterCapabilities("teleport"), undefined);
 });

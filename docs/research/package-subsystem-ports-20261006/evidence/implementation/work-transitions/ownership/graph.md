@@ -2,8 +2,7 @@
 
 Task: W01.2 (lane `work-contracts`, wave 1, after `C01.ready`; retry —
 prior native contained, no state taken from it). Produced
-2026-10-06T09:43:39Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9.
-Planning record only; no implementation authorized.
+2026-10-06T09:43:39Z by lane F session 01a10fab-d28b-7563-9d14-ebd2ddf4e8c9. Planning record only; no implementation authorized.
 
 - Head verified: `bb479c2fd9a1e0a3604f946aff0205c7bdf45e06`
 - Companion: `files.json` (pure-leaf file graph + writer assignment +
@@ -28,8 +27,7 @@ Planning record only; no implementation authorized.
   documents that it never imports work sources.
 - `cloudflare -> work`: **zero static edges**. `runtime/invoke.ts`
   documents that work helpers "arrive INJECTED — `@canlang/work` has
-  no dist build"; `activate.ts` receives gates by producer join.
-  The D3b edge is a dynamic `cloudflare -> state` producer read,
+  no dist build"; `activate.ts` receives gates by producer join. The D3b edge is a dynamic `cloudflare -> state` producer read,
   not a static edge; static-edge counts are unchanged.
 - Shared edges: all three packages statically import only
   `contracts/` (relative `../../../contracts/src/*.js`, types and
@@ -45,8 +43,7 @@ plan states.
 
 **Option A — contracts-only `work-kernel` leaf** (plan's direction):
 new `packages/work-kernel/` depending on contracts types only;
-state/stdlib/cloudflare/testkit consume the leaf, never full work.
-Enforcement: the explicit package DAG makes violations structurally
+state/stdlib/cloudflare/testkit consume the leaf, never full work. Enforcement: the explicit package DAG makes violations structurally
 visible (a `state -> work` import fails review; the leaf's manifest
 forbids state/commands/crypto imports). Costs: new package
 (manifests, tsconfig, build), vendor entry, release-stamp proof
@@ -68,8 +65,7 @@ review, not by the manifest graph.
 plan) is preserved **as advice**, not as decision. The source
 evidence above independently supports the leaf: the enforceable DAG
 removes the policing burden that Option B retains, and both options
-pay the build/vendor/release costs anyway. Recommendation: Option A.
-Final choice belongs to the work owner + coordinator at W02.1.
+pay the build/vendor/release costs anyway. Recommendation: Option A. Final choice belongs to the work owner + coordinator at W02.1.
 
 ## Single-writer assignment
 

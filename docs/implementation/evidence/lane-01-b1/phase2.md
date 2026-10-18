@@ -1,7 +1,6 @@
 # B1 evidence, lane-01 — Phase 2 (post-PR6 main)
 
-Branch: `muse/lane-01-language/b1-phase2`. Base: `origin/main` 08abe86 (PR #118 merged).
-Status: **lane-01 half PROVEN** (real artifact a runtime can consume);
+Branch: `muse/lane-01-language/b1-phase2`. Base: `origin/main` 08abe86 (PR #118 merged). Status: **lane-01 half PROVEN** (real artifact a runtime can consume);
 runtime consumption is lane 7's half (their `run` is still a
 missing-producer stub — see below).
 

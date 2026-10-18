@@ -1,14 +1,11 @@
 # T28 prep: imported-containment semantics — alternatives for the JEV gate
 
-Status: **PROPOSED / PREP — adopts NOTHING.** Decision requires the
-coordinator-run JEV protocol (three fresh, equivalent, independently worded
-requests with saved advice/uncertainty) plus full-scope evidence. Every
+Every
 alternative below carries explicit **JEV-PENDING** markers. No T29
 implementation may begin before the gate accepts one rule.
 
 Scope note (T28 brief): distinguish declaring identity, local/remote
-dependency, parent/storage/authority, reverse relationships, and migration.
-Done when an accepted rule preserves workflows and handles cycles/lifecycle.
+dependency, parent/storage/authority, reverse relationships, and migration. Done when an accepted rule preserves workflows and handles cycles/lifecycle.
 
 ## Settled context (read-only inputs, not decisions)
 
@@ -170,8 +167,7 @@ field (`employee:Employee` + policies/invariants/uniqueness spelled out);
   intent (R14 intent: "retain canonical Employee/Customer identities as
   parents instead of copying them") and pays the maximum migration price to
   preserve a checker limitation rather than a semantic necessity — the flip
-  side must show concrete unsafety, not just implementation convenience.
-  **JEV-PENDING**: whether any R14 workflow is inexpressible or
+  side must show concrete unsafety, not just implementation convenience. **JEV-PENDING**: whether any R14 workflow is inexpressible or
   unsafety-prone as references, and whether the migration volume violates
   minimal-intervention.
 
@@ -237,10 +233,7 @@ with a diagnostic pointing at the facet; bound parents rejected regardless.
 5. [QUALIFIED — see "Storage atomicity (gate evidence)" below]
    Storage-engine input: can cross-package subtree archive be atomic in the
    included-store case (A/D), and what fails if deployments split?
-6. [COMPLETE — see "JEV outcome (gate result)" below] Coordinator-run JEV
-   protocol: three fresh equivalent independently worded formulations, saved
-   responses + uncertainty, disagreement investigated (unanimous A; stable
-   winner, unstable margins — see outcome section).
+6.
 
 ## Handoff
 
@@ -365,8 +358,7 @@ site (or group) adds beyond that.
 - Sites 5-6 (Leave:22,25): three-level nesting (`Portion in Request in
   Calendar in Employee`, :26-27) with `parent.parent`/`parent.parent.parent`
   policies, invariants, and example projections (:32-46, :112-118), plus
-  a same-parent sibling reference (`Portion.allowance:Allowance?`, :27).
-  Stresses A's index-wide cycle detection and B's mixed-chain deletion
+  a same-parent sibling reference (`Portion.allowance:Allowance?`, :27). Stresses A's index-wide cycle detection and B's mixed-chain deletion
   behavior; C must rewrite the deepest chains in the corpus.
 - Site 7 (Mail:25): `Service in Customer` with its own lifecycle-ish
   state (`term`, `billing`, `active`). Deleting a customer while a mail
@@ -498,8 +490,7 @@ corpus is archive-style, never physical removal.
   1-341.
 - Site 7 (Mail:25, `Service in Customer`): **NO** (near-miss NM-1,
   see below). No Customer delete/archive scenario; `retain ... until`
-  (:57) and expiry journeys (:156-169) are child-side retention.
-  Read: full sweep 1-423; targeted read :95-204.
+  (:57) and expiry journeys (:156-169) are child-side retention. Read: full sweep 1-423; targeted read :95-204.
 - Sites 8-11 (Member:126,130,132,144): **NO.** `remove_company_role`
   (:656) revokes a role grant, not the parent; the "retain paid term"
   journey (:663-666) deactivates a *local* Seat row. `archived=include`
@@ -551,8 +542,7 @@ corpus is archive-style, never physical removal.
 
 - NM-1 — Mail:152-155 (reference survival, not containment):
   `call Contact.delete {record=delegate_contact}` then
-  `history!=null -> true` with `history.contact.archived_at!=null`.
-  Pins delete-means-archive plus referencing-row survival — but
+  `history!=null -> true` with `history.contact.archived_at!=null`. Pins delete-means-archive plus referencing-row survival — but
   Contact is a *reference-field* target, not the containment parent
   (Customer). Says nothing about `Service in Customer` lifecycle.
 - NM-2 — Onboard:111-112 (parent status flip, not delete/archive):
@@ -565,8 +555,7 @@ corpus is archive-style, never physical removal.
   ever observed. Does not pin cascade vs orphan.
 - NM-3 — Expense:159 (`claim.status -> ...submitted` after reviewer
   deactivation) and Member:663-666 ("retain paid term" after role
-  removal): child rows survive *non-parent* lifecycle transitions.
-  Discriminates nothing about the actual parent.
+  removal): child rows survive *non-parent* lifecycle transitions. Discriminates nothing about the actual parent.
 - NM-4 — Invoice:883 ("reachable after membership expiry") and
   Member:674,704 (`archived=include` child enumerations): readability
   of children across state changes, with no parent delete/archive in
@@ -731,8 +720,7 @@ expressiveness stays JEV-PENDING. `crud Customer` (:73) carries no
 `delete=` clause and `Customer.deleted` (:194–197) has zero observed
 child effects, so the cascade-vs-orphan bound is genuinely open.
 
-Willingness to export a facet and desired bounds: **UNKNOWABLE**.
-The non-exported roles show this owner withholds more than employee
+Willingness to export a facet and desired bounds: **UNKNOWABLE**. The non-exported roles show this owner withholds more than employee
 does — but that is about roles, not containment, and must not be
 over-read as facet reluctance. Stakes note: at 13/20 sites, a
 withholding customer owner strands most of D's consumers.
@@ -781,8 +769,7 @@ facet rule is identity-specific or general over plain imports.
   source-derived.
 - D vs C: without owner cooperation D's fallback IS C's 20-site
   remodel — and partial consent (some owners consent, others do
-  not) yields a mixed A/C corpus, a complexity none of A/B/C has.
-  Non-response/stranding risk is real and unquantifiable from
+  not) yields a mixed A/C corpus, a complexity none of A/B/C has. Non-response/stranding risk is real and unquantifiable from
   source; JEV must weigh it.
 - Gate impact: item 4 cannot become COMPLETE without owner
   testimony. The qualified record above is the most source honesty
@@ -898,8 +885,7 @@ time. Item 5 therefore cannot become COMPLETE without engine proof
 
 ### CONFIRMED: included-store co-location (the A/D case)
 
-- Plain imports include the owner package in the same deployment.
-  DESIGN.md:81: "A plain import of a production business symbol
+- Plain imports include the owner package in the same deployment. DESIGN.md:81: "A plain import of a production business symbol
   includes the whole owning executable package internally."
   DESIGN.md:19: "Every included package's resource references
   resolve through these defaults or the selected app's merged
@@ -918,8 +904,7 @@ time. Item 5 therefore cannot become COMPLETE without engine proof
   observation — see the qualification below.
 - The corpus exercises only this case. Zero `binding X
   DurableObject` / `Model at=Binding` declarations exist in any
-  `draft/*.can` or `draft/shared/*.can` (grep exit 1, zero hits).
-  The only six `context` blocks (CanCatch.can:3, CanCreative.can:3,
+  `draft/*.can` or `draft/shared/*.can` (grep exit 1, zero hits). The only six `context` blocks (CanCatch.can:3, CanCreative.can:3,
   CanGallery.can:3, CanInbox.can:3, CanKnowledge.can:3,
   CanStats.can:3) declare files/queue/analytics only — no storage
   bindings. All 20 R14 sites are therefore default-D1 team-scoped;
@@ -974,8 +959,7 @@ time. Item 5 therefore cannot become COMPLETE without engine proof
   (`docs/implementation/CHALLENGE-AUDIT-PLAN.md:504`), all pending.
 - Net: Alternative A's stated cost — "storage engine must prove
   same-store atomicity for cross-package subtrees"
-  (containment-decision.md:92-94) — stands CONFIRMED as open work.
-  The plan's standing caution applies verbatim: "Do not infer
+  (containment-decision.md:92-94) — stands CONFIRMED as open work. The plan's standing caution applies verbatim: "Do not infer
   cross-store atomicity" (`implementation/CHALLENGE-AUDIT-
   PLAN.md:572`; likewise "respect D1/DO boundaries" at :304).
 
@@ -1090,11 +1074,8 @@ time. Item 5 therefore cannot become COMPLETE without engine proof
 ## JEV outcome (gate result)
 
 Coordinator-run, 2026-10-05. Requests + saved responses + uncertainty:
-[jev-t28-20261005/](jev-t28-20261005/) (request-1/2/3.json,
-result-1/2/3.json, README.md with advice/disagreement analysis).
-Three fresh independently worded equivalent choice consultations via
-`tools/jev.py`, one attempt each, all exit 0, model jev-1.13.0, total
-3505 input / 195 output tokens. No retries, no workarounds; credential
+jev-t28-20261005/ (request-1/2/3.json,
+result-1/2/3.json, README.md with advice/disagreement analysis). No retries, no workarounds; credential
 from environment, never printed or saved.
 
 Results: 3/3 `plain_import_containment` — R1 conf .32 (A .49 / B .42 /
@@ -1112,6 +1093,5 @@ rejected as containment targets. Standing obligations (not waived):
 T29/T16/T17 must prove same-store atomic cross-package subtree
 commits; a deployment-split diagnostic is owed; B's coupling objection
 is the retained opposing case for T29 review. Normative recording
-(DECISIONS entry) left for Codex review; no normative doc edited here.
-Checklist item 6 marked COMPLETE above; all six gate items now
+(DECISIONS entry) left for Codex review; no normative doc edited here. Checklist item 6 marked COMPLETE above; all six gate items now
 COMPLETE (1/2/3) or QUALIFIED-with-design-choice-carried (4/5).

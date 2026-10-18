@@ -11,7 +11,7 @@ use crate::{
     gateway::{Backend, Gateway},
     inventory,
     model::*,
-    preview, qualification,
+    preview,
     runtime::{Allocation, Bridge, BridgeConfig},
     sdk, service,
     state::{CheckTicket, Inputs, Refusal, SessionState},
@@ -247,8 +247,6 @@ struct Loop {
     failures: service::Failures,
     recipes: BTreeMap<String, Arc<Recipe>>,
     recipe_order: Vec<String>,
-    qualifications: BTreeMap<String, Value>,
-    pending_qualifications: BTreeMap<String, String>,
     recovery_at: Instant,
     recovery_warning: bool,
     failure_omitted: u64,
@@ -300,8 +298,6 @@ impl Loop {
             failures: service::Failures::default(),
             recipes: BTreeMap::new(),
             recipe_order: vec![],
-            qualifications: BTreeMap::new(),
-            pending_qualifications: BTreeMap::new(),
             recovery_at: Instant::now(),
             recovery_warning: false,
             failure_omitted: 0,
@@ -1103,7 +1099,6 @@ impl Loop {
             let old = self.check_order.remove(0);
             self.checks.remove(&old);
             self.indexes.remove(&old);
-            self.qualifications.remove(&old);
         }
     }
     fn logs(&self) -> Value {
@@ -1366,7 +1361,6 @@ impl Loop {
             payload: payload.clone(),
             capture: None,
             index: None,
-            qualification: None,
             recipe: None,
             original: None,
             base: Value::Null,
@@ -1524,7 +1518,6 @@ impl Loop {
         }
         worker.capture = Some(c.capture.clone());
         worker.index = index;
-        worker.qualification = self.qualifications.get(revision).cloned();
         worker.payload["current"] = json!(self.rank_current(revision));
         worker.payload["session"] = json!(self.server.identity.session_id);
         if let Some(i) = payload["index"]
@@ -1625,10 +1618,6 @@ impl Loop {
             }
             return;
         }
-        if job.command == "qualify" {
-            self.finish_qualification(&job, fact);
-            return;
-        }
         let current = fact.current
             && job.hint == self.state.hint()
             && job.revision.as_ref().is_none_or(|r| self.rank_current(r));
@@ -1681,29 +1670,28 @@ impl Loop {
     fn finish_construct(&mut self, job: &ServiceJob, fact: &mut ServiceFact, current: bool) {
         if let Ok(value) = &mut fact.result {
             if !current {
-                for (extra, key) in [
-                    ("unqualified_card", "card"),
-                    ("unqualified_construct_help", "construct_help"),
-                ] {
-                    if let Some(unqualified) = value.get(extra).cloned() {
-                        value[key] = unqualified;
+                if value["card"]["status"] == "working" {
+                    value["card"]["status"] = json!("unavailable");
+                }
+                if let Some(help) = value.get_mut("construct_help") {
+                    if let Some(cards) = help["cards"].as_array_mut() {
+                        for card in cards.iter_mut() {
+                            if card["status"] == "working" {
+                                card["status"] = json!("unavailable");
+                            }
+                        }
+                        if !cards.is_empty() {
+                            help["candidateCoverage"] = json!("unknown");
+                            help["reason"] = json!("source or help revision changed");
+                        }
                     }
                 }
-            }
-            if let Some(o) = value.as_object_mut() {
-                o.remove("unqualified_card");
-                o.remove("unqualified_construct_help");
             }
             if job.command == "construct.rank" && !current {
                 value["result"] =
                     json!({"state":"stale","reason":"source or help revision changed"})
             } else if job.command != "construct.rank" {
                 value["current"] = json!(current)
-            }
-        }
-        if current {
-            if let Some(revision) = &job.revision {
-                self.start_qualification(revision)
             }
         }
     }
@@ -1789,59 +1777,6 @@ impl Loop {
             Err(_) => self.state.dirty(),
         }
     }
-    fn start_qualification(&mut self, revision: &str) {
-        if self.pending_qualifications.len() >= 4
-            || self.pending_qualifications.contains_key(revision)
-            || self.qualifications.contains_key(revision)
-        {
-            return;
-        }
-        let Some(index) = self.indexes.get(revision).cloned() else {
-            return;
-        };
-        let Some(c) = self.checks.get(revision) else {
-            return;
-        };
-        let Some(bridge) = self.bridge.clone() else {
-            return;
-        };
-        let id = request_id("qualification");
-        let worker = ServiceWorker {
-            resources: self.resources.clone(),
-            bridge,
-            command: "qualify".into(),
-            payload: json!({"revision":revision}),
-            capture: Some(c.capture.clone()),
-            index: Some(index),
-            qualification: None,
-            recipe: None,
-            original: None,
-            base: Value::Null,
-            run: None,
-            files: Arc::new(Mutex::new(vec![])),
-        };
-        self.pending_qualifications
-            .insert(revision.into(), id.clone());
-        self.spawn_service(
-            id,
-            "qualify".into(),
-            json!({"revision":revision}),
-            None,
-            Arc::new(AtomicBool::new(false)),
-            worker,
-        );
-    }
-    fn finish_qualification(&mut self, job: &ServiceJob, fact: ServiceFact) {
-        let Some(revision) = &job.revision else {
-            return;
-        };
-        self.pending_qualifications.remove(revision);
-        if fact.current && job.hint == self.state.hint() && self.rank_current(revision) {
-            // Failed qualification is cached as unqualified, avoiding an idle retry loop.
-            self.qualifications
-                .insert(revision.clone(), fact.result.unwrap_or(Value::Null));
-        }
-    }
     fn finish_refusals(&mut self, result: Result<Value>) {
         let Ok(value) = result else {
             self.failure_unavailable += 1;
@@ -1917,7 +1852,6 @@ impl Loop {
             payload: payload.clone(),
             capture: None,
             index: None,
-            qualification: None,
             recipe: None,
             original: None,
             base: Value::Null,
@@ -1947,16 +1881,6 @@ impl Loop {
         }
         self.example_queue = pending;
         self.prune_recipes();
-        let dirty = self.state.snapshot().capture != CaptureState::Confirmed;
-        if dirty {
-            for (revision, id) in &self.pending_qualifications {
-                if !self.current(revision) {
-                    if let Some(job) = self.service_jobs.get(id) {
-                        job.cancel.store(true, Ordering::Release)
-                    }
-                }
-            }
-        }
         self.refresh_refusals();
     }
     fn refresh_refusals(&mut self) {
@@ -2173,7 +2097,6 @@ struct ServiceWorker {
     payload: Value,
     capture: Option<Capture>,
     index: Option<Arc<ConstructIndex>>,
-    qualification: Option<Value>,
     recipe: Option<Arc<Recipe>>,
     original: Option<Value>,
     base: Value,
@@ -2227,7 +2150,6 @@ impl ServiceWorker {
                 }
                 Ok(result)
             }
-            "qualify" => self.qualify(cancel, current),
             "example.run" if !current => Err(error(
                 "REVISION_CONFLICT",
                 "example run requires the current admitted build",
@@ -2285,8 +2207,8 @@ impl ServiceWorker {
     fn construct(&self, cancel: &AtomicBool, current: bool) -> Result<Value> {
         let revision = self.payload["revision"].as_str().unwrap_or("");
         let session = self.payload["session"].as_str().unwrap_or("");
-        let qualified = current && self.payload["current"] == true;
-        if self.command == "construct.rank" && !qualified {
+        let current = current && self.payload["current"] == true;
+        if self.command == "construct.rank" && !current {
             return Ok(
                 json!({"schema":"can.dev.construct-rank.v1","session":session,"revision":revision,"index_revision":self.index.as_ref().map(|i|i.value["index_revision"].clone()),"result":{"state":"stale","reason":"source or help revision changed"}}),
             );
@@ -2305,7 +2227,7 @@ impl ServiceWorker {
                 "captured construct help is unavailable",
             ));
         };
-        let (payloads, mut payload) = self.construct_payload(cancel, qualified)?;
+        let (payloads, mut payload) = self.construct_payload()?;
         payload["index"] = json!(index.reference);
         self.files
             .lock()
@@ -2324,7 +2246,6 @@ impl ServiceWorker {
             "diagnostic.detail" => {
                 let mut base = self.base.clone();
                 base["construct_help"] = result["construct_help"].clone();
-                base["unqualified_construct_help"] = result["unqualified_construct_help"].clone();
                 Ok(base)
             }
             "construct.rank" => Ok(
@@ -2338,16 +2259,12 @@ impl ServiceWorker {
                     ));
                 }
                 Ok(
-                    json!({"schema":"can.dev.construct-help.v1","session":session,"revision":revision,"source_revision":source,"index_revision":index.value["index_revision"],"current":qualified,"card":result["card"],"unqualified_card":result["unqualified_card"],"candidate_coverage":"unknown"}),
+                    json!({"schema":"can.dev.construct-help.v1","session":session,"revision":revision,"source_revision":source,"index_revision":index.value["index_revision"],"current":current,"card":result["card"],"candidate_coverage":"unknown"}),
                 )
             }
         }
     }
-    fn construct_payload(
-        &self,
-        _cancel: &AtomicBool,
-        qualified: bool,
-    ) -> Result<(Payloads, Value)> {
+    fn construct_payload(&self) -> Result<(Payloads, Value)> {
         let mut files = Payloads::new().map_err(|e| error("CAPTURE_UNAVAILABLE", e))?;
         let capture = files
             .json(
@@ -2361,57 +2278,8 @@ impl ServiceWorker {
             "construct.rank" => "rank",
             _ => "help",
         };
-        let mut payload = json!({"capture":capture,"action":action,"id":self.payload["id"],"candidates":self.payload["diagnostic"]["construct_candidates"],"diagnostic":self.payload["diagnostic"],"complete":self.payload["complete"],"omitted":self.payload["omitted"],"authorIntent":self.payload["authorIntent"]});
-        if qualified {
-            if let Some(bundle) = self.qualification.as_ref().filter(|v| !v.is_null()) {
-                payload["qualification"] = json!(
-                    files
-                        .json(bundle)
-                        .map_err(|e| error("CAPTURE_UNAVAILABLE", e))?
-                )
-            }
-        }
+        let payload = json!({"capture":capture,"action":action,"id":self.payload["id"],"candidates":self.payload["diagnostic"]["construct_candidates"],"diagnostic":self.payload["diagnostic"],"complete":self.payload["complete"],"omitted":self.payload["omitted"],"authorIntent":self.payload["authorIntent"]});
         Ok((files, payload))
-    }
-    fn qualify(&self, cancel: &AtomicBool, current: bool) -> Result<Value> {
-        if !current {
-            return Ok(Value::Null);
-        }
-        let c = self
-            .capture
-            .as_ref()
-            .ok_or_else(|| error("CAPTURE_UNAVAILABLE", "capture unavailable"))?;
-        let i = self
-            .index
-            .as_ref()
-            .ok_or_else(|| error("HELP_UNAVAILABLE", "captured help unavailable"))?;
-        let request = i.value["request"].clone();
-        if request["resourceProfile"] != c.profile
-            || request["indexRevision"] != i.value["index_revision"]
-            || request["compilerSha256"] != i.value["compiler_sha256"]
-            || request["inputs"] != json!(c.inputs)
-        {
-            return Ok(Value::Null);
-        }
-        let parent = request_id("qualification-sdk");
-        let call = |command: &str, scope: Option<&str>, payload: Value, signal: &AtomicBool| {
-            sdk::call(
-                &self.bridge,
-                &self.resources,
-                command,
-                scope,
-                payload,
-                signal,
-            )
-        };
-        let inventory = || self.inventory(cancel);
-        let result = qualification::run(c, &request, &parent, &call, &inventory, cancel);
-        sdk::release(&self.bridge, &self.resources, &parent).map_err(native_error)?;
-        let bundle = result.map_err(native_error)?;
-        if !valid_qualification(&bundle, &request) {
-            return Ok(Value::Null);
-        }
-        Ok(bundle)
     }
     fn examples(&self, cancel: &AtomicBool) -> Result<Value> {
         let rerun = self.command == "example.rerun";
@@ -2534,82 +2402,6 @@ impl ServiceWorker {
             "replay":{"available":false,"reason":"no_restore_capsule"},"evidence":{"missing":["actor_projection_unavailable","runtime_detail_unreleased","trace_unavailable"]},"projections":result["projections"],"private_result":result}),
         )
     }
-}
-fn valid_qualification(bundle: &Value, request: &Value) -> bool {
-    if !only_keys(
-        bundle,
-        &[
-            "resourceProfile",
-            "authoringProfile",
-            "indexRevision",
-            "compilerSha256",
-            "producerInputsDigest",
-            "messageKinds",
-            "proofs",
-        ],
-        &[],
-    ) || [
-        "resourceProfile",
-        "authoringProfile",
-        "indexRevision",
-        "compilerSha256",
-        "producerInputsDigest",
-    ]
-    .iter()
-    .any(|key| bundle[*key] != request[*key])
-    {
-        return false;
-    }
-    let Some(proofs) = bundle["proofs"].as_array() else {
-        return false;
-    };
-    let Some(kinds) = bundle["messageKinds"].as_array() else {
-        return false;
-    };
-    let mut names = std::collections::BTreeSet::new();
-    let valid_kinds = kinds.len() <= 64
-        && kinds.iter().all(|k| {
-            k.as_str().is_some_and(|s| {
-                !s.is_empty()
-                    && s.len() <= 64
-                    && s.as_bytes()[0].is_ascii_lowercase()
-                    && s.bytes()
-                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_')
-                    && names.insert(s)
-            })
-        });
-    let mut ids = std::collections::BTreeSet::new();
-    valid_kinds
-        && proofs.len() <= 278
-        && proofs.iter().all(|p| {
-            only_keys(
-                p,
-                &[
-                    "id",
-                    "profile",
-                    "indexRevision",
-                    "compilerSha256",
-                    "compilerCheck",
-                    "runtimeCheck",
-                ],
-                &["exampleCheck"],
-            ) && valid_construct_id(&p["id"])
-                && ids.insert(p["id"].as_str().unwrap())
-                && p["profile"] == request["authoringProfile"]
-                && p["indexRevision"] == request["indexRevision"]
-                && p["compilerSha256"] == request["compilerSha256"]
-                && p["compilerCheck"].as_str().is_some_and(|s| !s.is_empty())
-                && p["runtimeCheck"].as_str().is_some_and(|s| !s.is_empty())
-                && p.get("exampleCheck")
-                    .is_none_or(|v| v.is_null() || v.is_string())
-        })
-}
-fn only_keys(value: &Value, required: &[&str], optional: &[&str]) -> bool {
-    value.as_object().is_some_and(|o| {
-        required.iter().all(|key| o.contains_key(*key))
-            && o.keys()
-                .all(|key| required.contains(&key.as_str()) || optional.contains(&key.as_str()))
-    })
 }
 fn source_app_matches(source: &str, selected: &str) -> bool {
     source
@@ -3005,23 +2797,6 @@ mod tests {
             check_preview_reason(SourceResult::Valid, PreviewResult::Ready, true),
             None
         );
-    }
-    #[test]
-    fn qualified_help_requires_exact_request_identity_and_unique_bounded_proofs() {
-        let request = json!({"resourceProfile":"local-d1-identity","authoringProfile":"office-supplies-local-v1","indexRevision":"index","compilerSha256":"compiler","producerInputsDigest":"producer"});
-        let proof = json!({"id":"can.v1.ui.table","profile":"office-supplies-local-v1","indexRevision":"index","compilerSha256":"compiler","compilerCheck":"passed","runtimeCheck":"passed"});
-        let mut bundle = request.clone();
-        bundle["messageKinds"] = json!(["unknown_collection_presentation"]);
-        bundle["proofs"] = json!([proof.clone()]);
-        assert!(valid_qualification(&bundle, &request));
-        bundle["producerInputsDigest"] = json!("other");
-        assert!(!valid_qualification(&bundle, &request));
-        bundle["producerInputsDigest"] = json!("producer");
-        bundle["proofs"] = json!([proof.clone(), proof]);
-        assert!(!valid_qualification(&bundle, &request));
-        bundle["proofs"] = json!([]);
-        bundle["messageKinds"] = json!(["valid", "valid"]);
-        assert!(!valid_qualification(&bundle, &request));
     }
     #[test]
     fn pending_rank_lookup_and_foreign_projection_are_not_admitted() {

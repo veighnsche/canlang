@@ -446,12 +446,12 @@ Additional required cases, with policy fixed here so Muse need not invent it:
 
 ## Advice, checks and remaining limits
 
-Three independently worded equivalent JEV requests completed with no approval rejection. Full requests, results and uncertainty are in [the C4 evidence directory](../jev/muse-feedback-20261004/). All prefer explicit snapshots and the ordinary typed Product projection. History A probabilities: 1.00, 0.99, 0.98; selector A: 0.99, 1.00, 0.99. This is advice, not evidence that policies, transactions, rendering or examples execute.
+Full requests, results and uncertainty are in the C4 evidence directory. All prefer explicit snapshots and the ordinary typed Product projection. History A probabilities: 1.00, 0.99, 0.98; selector A: 0.99, 1.00, 0.99. This is advice, not evidence that policies, transactions, rendering or examples execute.
 
-Handoff verification: the initial parser accepted an in-memory application of the changed Can blocks with the pre-existing shared-state sequence excluded; `node --input-type=module --check` accepted the wrapped new derive, handlers, public/private UI blocks and full added sequence descriptor. [Saved results](../jev/muse-feedback-20261004/syntax-checks.json) state the exact limits. These are snippet checks, not whole-target application.
+Handoff verification: the initial parser accepted an in-memory application of the changed Can blocks with the pre-existing shared-state sequence excluded; `node --input-type=module --check` accepted the wrapped new derive, handlers, public/private UI blocks and full added sequence descriptor. Saved results state the exact limits. These are snippet checks, not whole-target application.
 
 Application checks: parse the non-sequence Can subset; `node --check` the entire desired target; compare new Can/JS declaration schemas, guards/effects, selected result fields, explicit Product bindings and every added sequence step. Preserve the two existing private generic-history sites. Confirm no public Decision read grant and no generic history under the general public suggestion detail. Report full runtime/privacy/UI checks as unexecuted. No broad corpus audit is requested.
 
-One [bounded independent Astra review](../jev/muse-feedback-20261004/README.md#source-bounded-review) found no concrete application or disclosure blocker; it did not run the design.
+One bounded independent Astra review found no concrete application or disclosure blocker; it did not run the design.
 
 There is no unresolved business-policy question in this bounded handoff. Coordinator acceptance remains required before Muse applies this proposed design. The compiler, type checker, transaction engine, query budgets, actual reference-filter rendering, public-cache invalidation, direct-ID enforcement and BDD execution remain existing implementation gaps; this handoff does not close them.

@@ -81,8 +81,7 @@ A readable rendering of the JSON example is:
 
 ```text
 app.can:7:2 E1200 [s7/r18; source sha256:$short] expected scenario or crud declaration
-Likely: crud path by=expr fields=selectors — generate enabled create, update and delete operations.
-Can help: can.v1.when.crud (qualified in selected profile); alternative: can.v1.when.scenario.user
+Likely: crud path by=expr fields=selectors — generate enabled create, update and delete operations. Can help: can.v1.when.crud (qualified in selected profile); alternative: can.v1.when.scenario.user
 4 diagnostics reported; 0 omitted. Details: s7/r18/d0
 ```
 

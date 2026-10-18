@@ -8,8 +8,7 @@ This is the original technical scope and action contract. Current status/order i
 credits the merged partial outcomes. Source observations, unchecked boxes, waves
 and release/HOLD instructions below retain their dated assessment/contract scope;
 they are not current completion claims or a dispatch queue. Native-source HOLD
-was lifted before the completed wind-down. No workers or supervision remain active.
-Public deployment/defaults/TS retirement remain separately held.
+was lifted before the completed wind-down. No workers or supervision remain active. Public deployment/defaults/TS retirement remain separately held.
 
 
 Audited: 2026-10-06. Plan checkpoint: `3d1f8f0`. Audit head: `264de56`
@@ -53,8 +52,7 @@ names its check.
 2. **A-gate evidence absent; C04.ready absent** (high for schedule).
    `evidence/implementation/exact-values/` holds only `core/contracts.md` —
    no `A03.foundation`/`A04.5`/`A05.3`/`A04.2`/`A07.foundation`/`A07`
-   artifacts; `shared/` has C01/C02/C03/C05 ready but no `C04.ready.json`.
-   Blocked until those land: V03.1, V03.3, V03.5, V04.1, V06.1, V06.3,
+   artifacts; `shared/` has C01/C02/C03/C05 ready but no `C04.ready.json`. Blocked until those land: V03.1, V03.3, V03.5, V04.1, V06.1, V06.3,
    V06.8, V08.1, V10.3 (transitively everything Rust-side).
 3. **V10.1/V10.2 unstarted** (medium). No `mcp-provenance.md` or
    `forms-provenance.md`; both are C01.ready-gated Wave 1 tasks that could
@@ -66,8 +64,7 @@ names its check.
    belongs to the coordinator — but nothing distinguishes "evidence
    produced" from "accepted", so readiness is only determinable by
    evidence-tree spelunking (as done here).
-5. **Critical path**: V01 coordinator release + `A03.foundation` evidence.
-   Once V01 releases, C02/C05 readiness already present unlocks
+5. **Critical path**: V01 coordinator release + `A03.foundation` evidence. Once V01 releases, C02/C05 readiness already present unlocks
    V02.1/V02.3/V02.4/V02.5 (then V02.2, V11.1) — the prepared-TS chain can
    run ahead of all Rust gates.
 

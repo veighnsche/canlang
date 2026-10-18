@@ -1,7 +1,6 @@
 # Boundary audit proposals and retained ownership
 
-2026-10-07; source `b40b59e32381465faacb387df4a2ae73b0654b74`.
-Planning only. No implementation allocation, semantic change or backend adoption.
+2026-10-07; source `b40b59e32381465faacb387df4a2ae73b0654b74`. Planning only. No implementation allocation, semantic change or backend adoption.
 
 **Retained facts and evidence.** Public TS product owners remain. Values has actual
 native exact functions and explicit opt-in Wasm glue, with finite current-asset
@@ -9,8 +8,7 @@ installed/host credit. Native validation is an owner/plan/input scaffold rather
 than validators. Work has real registered native decision candidates without a
 semantic Wasm ABI or product route. Native preparation has a real accepted-tree
 decision prefix, an unjoined scaffold host driver, and registered unconsumed
-algorithms; normal CLI stays TS and native preparation remains HUMAN HOLD.
-Shared typed contracts and stdlib assembly are not extra semantic implementations.
+algorithms; normal CLI stays TS and native preparation remains HUMAN HOLD. Shared typed contracts and stdlib assembly are not extra semantic implementations.
 
 **Proposal: minimize each selected crossing by its actual admitted operation.**
 Keep one owning public surface and one package-private conversion/selection/lifecycle
@@ -31,8 +29,7 @@ factory or request authority. None of these proposals selects a new policy.
 **Acceptance and uncertainty.** Name registries, source algorithms, artifacts,
 bootstrap, installed profile, application consumer, full-port and default adoption
 are separate gates. The six values names have finite exact-arity/plain-carrier
-evidence; no ownership-token admission gate enforces that proof domain today.
-Unknown arbitrary callers, payload domains, error/trap behavior, whole-call benefit,
+evidence; no ownership-token admission gate enforces that proof domain today. Unknown arbitrary callers, payload domains, error/trap behavior, whole-call benefit,
 retirement and persisted/in-flight rollback remain open. Historical Step9/12 source
 and current-asset credit is retained; unavailable private runtime paths are not
 claimed replayed. No new builds/tests or runtime acceptance were performed.

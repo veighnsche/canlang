@@ -18,10 +18,8 @@ with output computed by the implementation under test.
 | EC09 | Receipt status/count/observation fields | Annotate historical scope rather than rewrite it: actual backend path, input bytes, named command, byte units, effect domain, source/handcrafted/emitted/mounted/installed stage and residuals. |
 | EC10 | Real transaction/host/installed controls | Retain D1/workerd/DO fences, independent SHA/RFC/Decimal/BigInt, localhost limits/redirects and written diagnostic/asset refusals. A helper test beside a real test does not invalidate either. |
 
-[Machine list](cleanup.json) provides claim cross-references and retention gates.
-[Inventory summary](inventory-summary.json) and [scanner](inventory.py) distinguish
-byte duplicates from repeated JSON sections and ordered numeric projections.
-They do not parse arbitrary generated TS/Rust arrays or prove equivalent semantic
+Machine list provides claim cross-references and retention gates. Inventory summary and scanner distinguish
+byte duplicates from repeated JSON sections and ordered numeric projections. They do not parse arbitrary generated TS/Rust arrays or prove equivalent semantic
 coverage. The full inventory can be reconstructed from frozen Git blobs instead
 of copying another 629-row manifest into this audit.
 

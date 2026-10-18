@@ -36,12 +36,12 @@
   },
   "dependencies": {
     "@canlang/contracts": "workspace:*",
-    "@scure/base": "2.4.0",
-    "cookie": "2.0.1"
+    "@scure/base": "^2.4.0",
+    "cookie": "^2.0.1"
   },
   "devDependencies": {
-    "@types/node": "26.6.4",
-    "typescript": "5.9.3"
+    "@types/node": "^26.6.4",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=22"

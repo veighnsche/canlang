@@ -39,8 +39,7 @@ The public e2e typecheck and test commands schedule the declared TypeScript
 producer graph automatically, including UI and identity. Compiled fixtures
 also require `compiler/target/debug/can`; `build:compiler` explicitly builds
 that native prerequisite through the uncached Cargo adapter. Browser installation
-and compiler compilation are separate from the cached TypeScript producers.
-The loader bundles real producer outputs and fails when an output or compiler
+and compiler compilation are separate from the cached TypeScript producers. The loader bundles real producer outputs and fails when an output or compiler
 is missing. A passing fixture or compiled suite proves only its asserted
 journeys; it does not qualify all applications or native preparation hosts.
 

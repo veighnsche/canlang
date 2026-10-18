@@ -2,7 +2,7 @@
 
 Before is measured source/current owning obligations. After is a proposal, not changed code. No future net savings are accepted. Full seven-dimension vectors, current ranges, historical envelopes, retained obligations and qualification costs are in [assessments.jsonl](assessments.jsonl). Overlapping family/candidate records are not additive.
 
-Replacement-only requires strict all-owner readable production reduction. Mixed correctness/capability subpieces use the [separate budget register](separate-budgets.json); tests, generated assets, compression and moves earn no production credit.
+Replacement-only requires strict all-owner readable production reduction. Mixed correctness/capability subpieces use the separate budget register; tests, generated assets, compression and moves earn no production credit.
 
 ## Library families
 

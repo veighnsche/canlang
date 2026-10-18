@@ -16,40 +16,40 @@ path = "src/main.rs"
 
 [dependencies]
 # Constant defaults share the private owning Values constructor and wire codec.
-values-semantics = { path = "../packages/values/semantics", version = "=0.1.0" }
+values-semantics = { path = "../packages/values/semantics", version = "0.1.0" }
 
 # Ordinary HTTP(S) value admission; keep authored values after parsing.
-url = { version = "=2.5.8", default-features = false, features = ["std"] }
+url = { version = "2.5.8", default-features = false, features = ["std"] }
 # Stable byte-hash adapter; no optional assembly or serialization features.
-sha2 = { version = "=0.10.9", default-features = false }
+sha2 = { version = "0.10.9", default-features = false }
 # Portable OS entropy for branch-independent generated implementation identities.
-getrandom = { version = "=0.4.3", default-features = false }
+getrandom = { version = "0.4.3", default-features = false }
 
 # Destination-local owned temporary files with the normal random-name profile.
-tempfile = { version = "=3.27.0", default-features = false, features = ["getrandom"] }
+tempfile = { version = "3.27.0", default-features = false, features = ["getrandom"] }
 
 # Shared library parsing and typed output with compatibility views.
-serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }
-serde_json = { version = "=1.0.151", default-features = false, features = ["std", "raw_value"] }
+serde = { version = "1.0.229", default-features = false, features = ["std", "derive"] }
+serde_json = { version = "1.0.151", default-features = false, features = ["std", "raw_value"] }
 
 # BGI-03: can.gen.toml v1 parsing for the `can gen` dispatcher. The
 # maintained `toml` crate (parse + serde only); never a hand-rolled parser.
-toml = { version = "=0.9.12", default-features = false, features = ["std", "parse", "serde"] }
+toml = { version = "0.9.12", default-features = false, features = ["std", "parse", "serde"] }
 
 # BGI-03: checked base64 payloads in MCP content submissions.
-base64 = { version = "=0.22.1", default-features = false, features = ["std"] }
+base64 = { version = "0.22.1", default-features = false, features = ["std"] }
 
 # BGI-10: maintained Servo CSS Syntax Level 3 parser for deterministic
 # scope/ownership checks of generated and directly edited CSS. Scoping
 # logic stays compiler-owned in `src/css_scope.rs`; never hand-rolled
 # tokenizing. (MPL-2.0, file-scope copyleft; linked, not modified.)
-cssparser = { version = "=0.38.0", default-features = false }
+cssparser = { version = "0.38.0", default-features = false }
 
 # Protocol output DTOs only; input IDs/admission and framing remain owned here.
-lsp-types = { version = "=0.97.0", default-features = false }
+lsp-types = { version = "0.97.0", default-features = false }
 
 # Standard source-map codec; Can retains its original byte-coordinate adapter.
-sourcemap = { version = "=9.3.2", default-features = false }
+sourcemap = { version = "9.3.2", default-features = false }
 
 # B5/J1 release profile: small stripped single-binary CLI. `panic` stays
 # `unwind` (the default): `main` catches panics into E7005/exit 2.

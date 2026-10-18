@@ -1,6 +1,6 @@
 # Verified-context JEV consultation — C02
 
-Three independently worded equivalent **choice** requests were sent through `tools/jev.py` under AGENTS.md authorization. The state pins the official LSP/JSON-RPC rules, owning parser/server behavior, supported production and test callers, compatibility constraints and limited scope. Each request asks seven separate boundary questions; it selects no individual dependency API. Results are advice rather than executable evidence.
+The state pins the official LSP/JSON-RPC rules, owning parser/server behavior, supported production and test callers, compatibility constraints and limited scope. Each request asks seven separate boundary questions; it selects no individual dependency API. Results are advice rather than executable evidence.
 
 | Boundary | Request 1 choice / confidence | Request 2 | Request 3 | Accepted choice |
 | --- | --- | --- | --- | --- |
@@ -22,8 +22,6 @@ The other five gates are unanimous. Reject reserved duplicates only at the LSP b
 
 Question framing was independently reworded but shares verified state and alternatives; these are not independent repositories or new empirical implementations. Saved results provide probability/confidence only, not rationales. No measured model-cost reduction is claimed.
 
-## Saved requests and responses
-
-- [Request 1](request-1.json), [response 1](response-1.json).
-- [Request 2](request-2.json), [response 2](response-2.json).
-- [Request 3](request-3.json), [response 3](response-3.json).
+- Request 1, response 1.
+- Request 2, response 2.
+- Request 3, response 3.

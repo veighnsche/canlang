@@ -4,7 +4,7 @@
 
 One defining writer owns `compiler/src/cli.rs`: `run_fmt` and `run_docs_with_platform` are the only production callers of `write_file_atomic`; both now use the same destination-local owned staging helper. `compiler/Cargo.toml` / `Cargo.lock` have one root integrator. Permanent outcome witnesses live in `compiler/tests/file_ownership.rs` and `cli::replacement_tests`.
 
-The original Pass 0 [file/hash witnesses](../../pass0/witnesses/files-hashes.json) reproduce `0600` source becoming `0644` under umask `0022`; this is the urgent defect. The predictable PID/sequence temp pathname and reopened pathname ownership are replaced by `tempfile::Builder::tempfile_in` and writes through its owned open handle.
+The original Pass 0 file/hash witnesses reproduce `0600` source becoming `0644` under umask `0022`; this is the urgent defect. The predictable PID/sequence temp pathname and reopened pathname ownership are replaced by `tempfile::Builder::tempfile_in` and writes through its owned open handle.
 
 `fmt` reads all inputs and parses/formats all before any write. Input failures remain E7002/exit 2; parse failures keep the aggregated diagnostics/exit 10 and no source writes. `--check`, stdin filtering and silent successful file writes remain unchanged. Changed operands are written in order, and a later failure can leave earlier operands completed. Write failures remain E7007/exit 2. Equal initial bytes stay untouched; an earlier write or concurrent writer that already produced the complete intended bytes is also a no-op, preserving repeated operands/aliases.
 

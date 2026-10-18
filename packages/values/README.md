@@ -1,8 +1,8 @@
 # @canlang/values
 
 Exact values, schemas, wire codecs and pure standard builtins for CanLang.
-Owner: lane 02. Internal package: the public facade is `@canlang/stdlib`
-(lane 03), which re-exports the canonical names defined in `src/catalog.ts`.
+Internal package: the public facade is `@canlang/stdlib`, which re-exports
+the canonical names defined in `src/catalog.ts`.
 
 ## Commands
 
@@ -13,8 +13,7 @@ bun run --filter @canlang/values test        # build + node:test over dist/test/
 bun run --filter @canlang/values catalog     # build + emit versioned catalog JSON to dist/catalog.json
 ```
 
-`node:test` is the package runner (the root vitest config explicitly leaves
-producer runners to their owners; lane 03 also uses `node:test`).
+`node:test` runs the package tests.
 
 ## Constraints
 
@@ -28,12 +27,8 @@ producer runners to their owners; lane 03 also uses `node:test`).
 - JS export names equal Can builtin names verbatim (`add_days`, not
   `addDays`); operator lowering uses the DESIGN §13 helper names
   (`addMoney`, `equalValue`, ...). See `src/catalog.ts`.
-- The catalog envelope implements the L1 IR-01 sketch
-  (`catalog_version`/`language_version`/`entries`); L1 acknowledgment pending.
-  Generated `dist/catalog.json` is a build artifact, not app config.
-- Normative detail, representation decisions (R1-R5) and the JEV round live in
-  `docs/implementation/status/lane-02.md` and
-  `docs/implementation/evidence/jev/values-20261004/`.
+- The catalog envelope contains `catalog_version`, `language_version` and
+  `entries`. Generated `dist/catalog.json` is a build artifact, not app config.
 
 Built JavaScript and declarations stay under this package: `dist/src/`,
 `dist/test/`, and `dist/bindings/`. The normal build validates and stages

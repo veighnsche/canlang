@@ -2,29 +2,25 @@
 
 Finite packet B, 2026-10-07; activation base
 `c6896fd2dea782d8ed6412769337b76eb899ca53`. Static source contract refresh;
-no build, workerd run, deployment, native port or source edit performed.
-This supersedes the historical `bb479c2` assessment that the typed seam
+no build, workerd run, deployment, native port or source edit performed. This supersedes the historical `bb479c2` assessment that the typed seam
 was absent. Exact source hashes are in `current-ts.json`.
 
 ## Source verdict
 
 The real `handleOperationRequest` exists in interfaces and is consumed by
 `assembly.ts`'s `HttpJoin.createOperationHandler` (line 380),
-`AssemblyDeps.http` (line 555), and `handleHttpOperationRequest` (1256+).
-The bridge uses the same `buildInvoker`, identity store, clock and
+`AssemblyDeps.http` (line 555), and `handleHttpOperationRequest` (1256+). The bridge uses the same `buildInvoker`, identity store, clock and
 artifact/derived catalog as MCP. Missing/nonfunction factory returns the
 explicit interim 501 (1261–1267). The typed operation seam is implemented.
 
 `worker/main.ts` declares the default sibling `./http-operations.js`,
 loads its `handleOperationRequest` export, and wires the factory into
 `AssemblyDeps.http` (528–555). `deploy/bundle.ts:663` builds the real
-handler bundle; the deploy bundle includes `worker/http-operations.js`.
-This is **source evidence for default operation wiring**, not evidence
+handler bundle; the deploy bundle includes `worker/http-operations.js`. This is **source evidence for default operation wiring**, not evidence
 that any currently running deployment contains it or that Rust ran.
 
 The operation join covers `/api/operations/*` POST handling only. Its
-assembly contract explicitly leaves auth/pages/uploads/ingress interim.
-The old proposed whole `createHttpHandler` route-factory join exceeds
+assembly contract explicitly leaves auth/pages/uploads/ingress interim. The old proposed whole `createHttpHandler` route-factory join exceeds
 this consumed implementation; it is not a missing obligation of this
 finite packet. `createHttpHandler` remains a real broader package handler.
 
@@ -33,8 +29,7 @@ finite packet. `createHttpHandler` remains a real broader package handler.
 Actual handler order stays identity/session → body parse → route/body and
 handle-mode rejection → redisplay snapshot → operation/inputs framing →
 CSRF → operation ID → catalog shape → `_csrf` removal → closedness →
-derived binding when present → credential liveness → invoker → response.
-Unknown/missing/bound messages, own presence and order stay profile-owned;
+derived binding when present → credential liveness → invoker → response. Unknown/missing/bound messages, own presence and order stay profile-owned;
 no default fill or values normalization is added at interfaces framing.
 
 `parseJsonBody` currently performs capped streaming, TextDecoder and host
@@ -42,8 +37,7 @@ JSON.parse; it has no private provenance record. A future success-only
 owner producer hook can capture the exact raw root without changing
 syntax/number/cap behavior. HTTP business-input stripping uses a new
 spread object; owner-internal derivation must bind its exact root, without
-sending a protected root/token through arbitrary injected invokers.
-Forms retain JSON-or-string coercion/assignment semantics. MCP SDK args
+sending a protected root/token through arbitrary injected invokers. Forms retain JSON-or-string coercion/assignment semantics. MCP SDK args
 have no demonstrated producer provenance. Neither shares HTTP lineage by
 shape. See PH2/PH4 in `prepared-hook-review.md`.
 

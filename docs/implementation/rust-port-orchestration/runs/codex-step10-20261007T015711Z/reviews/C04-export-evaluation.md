@@ -8,7 +8,7 @@ Fair alternatives: a pinned serializer with explicit record delimiter/quoting/he
 
 Source-current private Node24 CSV/export gate reports 45/45, including actual route-to-browser-adapter sink bytes, selected columns, formula neutralization/quoting/file IDs, secret refusal, live membership/CSRF refusal before reads, truncated descriptor/no-polling behavior and unknown/missing mount behavior. The route tests inject real subhandlers over memory identity/scripted reads. They do not prove a production deployed durable app export mount, a real browser download UI installation, or all original finished-product export duties. No new browser-export production claim follows from this evaluation. Evidence: `delivery/interfaces-final-tests.log` and `delivery/final-gates-commands.json` in the private step10 root.
 
-Economical allocation: Luna medium was selected for this frozen bounded inventory, but the dispatcher rejected that new packet and also the existing Sol-medium reuse with `agent thread limit reached`. Root completed only this finite evaluation; no cheap-worker progress is invented. C03/H full independent review remains the actual Sol-high report.
+Root completed only this finite evaluation; no cheap-worker progress is invented. C03/H full independent review remains the actual Sol-high report.
 
 ## Source pins
 

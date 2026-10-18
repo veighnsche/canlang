@@ -33,9 +33,6 @@ export interface ExecutableManifest {
   binary: string;
   sha256: string;
   bytes: number;
-  toolchain: { rustc: string; cargo: string; pinned: string };
-  lockfileSha256: string;
-  sourceHead: string;
   release: string;
 }
 
@@ -55,17 +52,8 @@ function isManifest(value: unknown): value is ExecutableManifest {
   if (typeof m["binary"] !== "string") return false;
   if (typeof m["sha256"] !== "string") return false;
   if (typeof m["bytes"] !== "number") return false;
-  if (typeof m["lockfileSha256"] !== "string") return false;
-  if (typeof m["sourceHead"] !== "string") return false;
   if (typeof m["release"] !== "string") return false;
-  const toolchain = m["toolchain"] as Record<string, unknown> | undefined;
-  return (
-    typeof toolchain === "object" &&
-    toolchain !== null &&
-    typeof toolchain["rustc"] === "string" &&
-    typeof toolchain["cargo"] === "string" &&
-    typeof toolchain["pinned"] === "string"
-  );
+  return true;
 }
 
 /** Load + shape-check a bundle's `manifest.json`. */
@@ -87,9 +75,8 @@ export async function loadExecutableManifest(dir: string): Promise<ExecutableMan
 
 /**
  * Verify a staged/installed bundle directory: sidecar triple match,
- * binary present + executable, sha + bytes match, toolchain pin
- * match. Returns the manifest. Liveness (readiness probe) stays in
- * `host.ts probeReadiness`, which takes the verified binary path.
+ * binary present + executable, sha + bytes match. Returns the manifest.
+ * Liveness stays in `host.ts probeReadiness`, which takes the verified path.
  */
 export async function verifyExecutableManifest(
   dir: string,
@@ -116,12 +103,6 @@ export async function verifyExecutableManifest(
     throw new ManifestError(
       "manifest-hash",
       `${binary}: want sha ${manifest.sha256} (${manifest.bytes} bytes), got ${sha} (${bytes.length})`,
-    );
-  }
-  if (manifest.toolchain.pinned !== "1.99.0") {
-    throw new ManifestError(
-      "manifest-toolchain",
-      `pinned toolchain ${manifest.toolchain.pinned}, want 1.99.0`,
     );
   }
   return manifest;

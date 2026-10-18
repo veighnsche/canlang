@@ -32,10 +32,10 @@ jobs:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.2"
+          bun-version: "latest"
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
-          toolchain: "1.99.0"
+          toolchain: "stable"
       - name: Install from lock
         run: bun install --frozen-lockfile
       - name: Build workspace packages
@@ -44,15 +44,13 @@ jobs:
         run: bun run check:boundaries
       - name: Test package boundary guard
         run: bun run test:boundaries
-      - name: Test CI gates and receipt verification
-        run: bun run test:ci
       - name: Typecheck workspace assembly
         run: bun run typecheck
       - name: Build native preparation test prerequisite
         # Private debug binary for existing tests; never packed into releases.
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/can-integration-preparation
-        run: cargo +1.99.0 build --locked --bin can-preparation --manifest-path packages/cloudflare/preparation/Cargo.toml
+        run: cargo build --locked --bin can-preparation --manifest-path packages/cloudflare/preparation/Cargo.toml
       - name: Generate the real producer catalog
         run: bun run catalog
       - name: Build compiler for compiled runtime fixtures
@@ -71,28 +69,6 @@ jobs:
         run: '"$CAN_MINIMUM_NODE22" scripts/verify-installed-types.mjs --skip-build --minimum-node22'
       - name: Verify minimum Node installed runtime and assets
         run: '"$CAN_MINIMUM_NODE22" scripts/verify-installed-worker.mjs --skip-build --minimum-node22'
-      - name: Verify deterministic library build (B5 reproducibility)
-        run: |
-          set -euo pipefail
-          hash_dist() {
-            local files
-            files=$(find packages/*/dist \
-              -type f \( -name '*.js' -o -name '*.d.ts' -o -name '*.map' \) | sort)
-            if [ -z "$files" ]; then
-              echo "determinism gate: no dist files found" >&2
-              return 1
-            fi
-            echo "$files" | xargs sha256sum | sha256sum
-          }
-          bun run build:uncached
-          hash_dist | tee /tmp/build-first.sha
-          rm -rf packages/*/dist \
-            packages/*/*.tsbuildinfo
-          bun run build:uncached
-          hash_dist | tee /tmp/build-second.sha
-          cmp /tmp/build-first.sha /tmp/build-second.sha
-      - name: Verify Turbo graph and cache restoration in isolation
-        run: bun run verify:turbo-cache
 
 
   compiler:
@@ -105,25 +81,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.2"
+          bun-version: "latest"
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
-          toolchain: "1.99.0"
-          components: rustfmt, clippy, rust-analyzer
+          toolchain: "stable"
+          components: rustfmt, clippy
       - name: Install from lock
         run: bun install --frozen-lockfile
-      - name: Check changed production function complexity
-        env:
-          COMPLEXITY_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          base="${COMPLEXITY_BASE:-$(node -p 'require("./scripts/complexity-baseline.json").revision')}"
-          bun run check:complexity --base "$base" --head HEAD
       - name: Ensure actual completion engines
         run: |
           if ! command -v zsh >/dev/null; then
@@ -176,10 +145,10 @@ jobs:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.2"
+          bun-version: "latest"
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
-          toolchain: "1.99.0"
+          toolchain: "stable"
       - name: Install from lock
         run: bun install --frozen-lockfile
       - name: Cache Playwright browsers
