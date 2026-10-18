@@ -1,14 +1,41 @@
 # C09I finite correctness packets (baseline evidence)
 
-These are evaluation proposals, not production edit authorization. Root releases each implementation packet. Inputs, executable probes and original diagnostics are retained in this directory. `fixtures/` contains all eight permanent type fixtures. Every result uses the public owner entry, and source/built owner results agree.
+The table below retains historical evaluation proposals and baseline evidence, not production edit authorization. Root releases each implementation packet. Inputs, executable probes and original diagnostics are retained in this directory. `fixtures/` contains all eight permanent type fixtures. Every baseline result uses the public owner entry, and source/built owner results agree.
 
-**Source-current follow-up, 2026-10-18:** the
-[shared-parser proposal](../../../../ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md)
-retains these packet IDs and the accepted I-TYPE repair, refreshes anonymous
-descriptor/usage callers, and proposes explicit resolutions for lexical and
-outside-plural pound policy. It supplies finite consolidation dependencies;
-these original results remain evidence at their original pins. No implementation
-release, parser-library adoption or new correctness queue is created.
+**Current completion, 2026-10-18:** after the approved grammar and Shared TS
+syntax packet, the user released compiler parse/usage consolidation on base
+`7700621fa`. The selected compiler scope is complete under existing I-COVERAGE,
+I-TAGS, I-PLURAL, I-SELECT, I-DEPTH, I-EXACT-LEXICAL and I-POUND-POLICY; accepted
+I-TYPE remains closed unchanged. Private `compiler/src/analysis/icu.rs` owns
+syntax and ordered usage discovery. Named source/variants, anonymous bound and
+selected raw descriptors, inline checks and static contributed captions consume
+that grammar. `examples.rs` retains IcuType mapping and narrow declaration/type
+hooks at the existing checkpoints; `types.rs` consumes valid-only usages instead
+of permissive scanners. Malformed patterns produce E5007 without speculative
+E3016/E3013 slot noise. Malformed anonymous bindings retain admitted supplied
+schemas and suppress speculative unknown-binding E3005; duplicate bindings and
+value admission remain checked, and valid patterns still reject extra bindings.
+
+Verification passed **68 distinct Rust tests**: two ICU unit tests, 38 existing
+check tests reused unchanged, ten ICU profile tests, six message-slot coverage
+tests, three temporal message tests and nine anonymous-binding checks. The unit
+tests consume 63 Unicode-scalar cases from the shared corpus and pin ordered
+usage kinds; the TS lone-surrogate case is explicitly outside Rust's authored
+string domain. After adding three choice cases, only the affected alias/choose
+and machine-template-overload test reran and passed. Initial source review found
+no findings; root subsequently reproduced and repaired an anonymous typed-error
+ordering regression, with its focused test failing before and passing after repair.
+
+The two existing named/anonymous Node fixture consumers passed with frozen
+compiler binary `can-652cd12b506421fc`, `--experimental-transform-types`, current
+worktree Values/UI emitted output, cached dependency outputs and source-loaded
+Cloudflare assembler modules. This does not establish full tarball, browser or
+native-host qualification; the ownerless-enum UI refusal remains. UI
+full-signature usage and joined full completion remain unreleased, and no
+cross-language Rust/Wasm parser migration is selected. Native preparation remains
+**HUMAN HOLD**. The [shared-parser plan](../../../../ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md)
+records the current scope; the original table and limits below remain historical
+evidence at their original pins. No new queue or canonical task IDs are created.
 
 | Packet | Defining writers / caller closure | Independent acceptance | Classification / uncertainty |
 | --- | --- | --- | --- |

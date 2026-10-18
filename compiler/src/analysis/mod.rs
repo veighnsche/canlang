@@ -35,6 +35,7 @@ pub mod generation_config;
 pub mod generation_intake;
 pub mod generation_protocol;
 pub(crate) mod generation_store;
+mod icu;
 pub mod migrate_check;
 pub mod resolve;
 pub mod scenario_disclosure;
