@@ -485,6 +485,8 @@ export interface LoginProps {
  */
 export interface RowView {
   readonly id: string;
+  /** Archive metadata from the authorized query owner. */
+  readonly archivedAt?: number | null;
   readonly version?: string;
   readonly fields: Record<string, unknown>;
 }
@@ -508,6 +510,7 @@ export type ColumnDeclaration = Pick<ColumnMeta, 'field' | 'type'>;
  * shape additively in the collections-controls slice.
  */
 export interface ListQueryArgs {
+  readonly archived?: 'exclude' | 'include';
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
   /** Source-checked signed selectors; the authorized query owner applies ordering. */
@@ -687,6 +690,7 @@ export interface SharedStateProps {
 }
 
 export interface ListProps {
+  readonly archived?: 'exclude' | 'include';
   readonly context: PresentationContext;
   readonly model: string;
   /** Ordered rendering selection from authorized column metadata and projected fields. */
@@ -731,6 +735,7 @@ export interface GalleryProps extends Omit<ListProps, "columns" | "display" | "r
 }
 
 export interface TableProps {
+  readonly archived?: 'exclude' | 'include';
   readonly context: PresentationContext;
   readonly model: string;
   readonly parent?: { readonly id: string };

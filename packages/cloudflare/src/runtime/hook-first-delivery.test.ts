@@ -710,6 +710,112 @@ async function emittedSources(world: Pick<OriginalHandlerWorld, 'store'>, event:
   });
 }
 
+test('whole original employee hook emits atomically into the original later shift handler',
+  { timeout: 120_000 }, async () => {
+    const app = 'OriginalEmployeeHookEmission';
+    const original = await originalHandlerSource('employee', 'changed', app,
+      [{ owner: 'shift', name: 'employee_changed' }]);
+    const employees = await readFile(join(root, 'draft/shared/Employees.can'), 'utf8');
+    const crud = employees.match(/^  crud Employee[^\n]*\n/m)?.[0];
+    assert.ok(crud, 'retain the actual original employee CRUD declaration');
+    original.source = originalOwnerScenarios(original.source, 'employee', crud);
+    const world = await originalHandlerWorld('employee', 'changed', app, original);
+    try {
+      const membership = await world.identities.createMembership({ team_id: world.team.team_id,
+        user_id: world.person.user_id, is_owner: true, roles: [{ role: 'employee.hr',
+          granted_at: new Date(FIXED_NOW).toISOString(), granted_by: world.person.user_id }] });
+      const identity = makeIdentity({ membership, team: world.team, email: world.person.email });
+      const site = await world.seed('rent_catalog.Location', uuidv7(FIXED_NOW, 1101), {
+        name: 'Employee source site', address: '1 Road', timezone: 'UTC', currency: 'EUR',
+        hours: '09:00–18:00', arrival: 'Reception', active: true });
+      const employee = await world.seed('employee.Employee', uuidv7(FIXED_NOW, 1102), {
+        user: { id: world.person.user_id }, name: 'Original employee', home: { id: site.id },
+        locations: [{ id: site.id }], operator_wide: false, active: true, start: '2020-01-01',
+        end: null, manager: null, role: 'operator', skills: [], private_notes: null, document: null });
+      const invoker = buildInvoker(world.artifact, world.asm, world.store,
+        { memberships: world.identities, now: () => FIXED_NOW });
+      const invoke = (inputs: MutationEnvelope['inputs'], operationId = asOperationId(uuidv7(FIXED_NOW, ++sequence))) =>
+        invoker.invokeMutation({ operation: 'employee.Employee.update', operation_id: operationId, inputs }, identity);
+      const committed = (outcome: Awaited<ReturnType<typeof invoke>>) =>
+        assert.ok('result' in outcome && outcome.result.status === 'committed', JSON.stringify(outcome));
+      const load = () => world.store.load(asModel('employee.Employee'), employee.id);
+      const event = 'employee.EmployeeChanged';
+      const { WORK_HANDLER_OCCURRENCE_MODEL, readHandlerOccurrenceRow } = await import('@canlang/work/kernel/handler-occurrence');
+      committed(await invoke({ record: { id: employee.id, version: '1' }, role: 'operator' }));
+      assert.deepEqual(await emittedSources(world, event), [], 'zero-net update does not satisfy the original change guard');
+      const before = await load();
+      assert.ok(before);
+      const inputs = { record: { id: employee.id, version: String(before.version) }, role: 'dispatcher' };
+      let failedCommit = false;
+      const unavailable: StoragePort = { ...world.store, commit: async batch => {
+        if (batch.writes.some(write => write.model === asModel('employee.Employee'))) {
+          failedCommit = true; throw new Error('Temporary employee source commit failure');
+        }
+        return world.store.commit(batch);
+      } };
+      const failing = buildInvoker(world.artifact, world.asm, unavailable,
+        { memberships: world.identities, now: () => FIXED_NOW });
+      const failure = await failing.invokeMutation({ operation: 'employee.Employee.update',
+        operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)), inputs }, identity).catch(error => ({ error }));
+      assert.ok('error' in failure && failedCommit, 'the real source commit failure was reached');
+      assert.deepEqual(await load(), before);
+      assert.deepEqual(await emittedSources(world, event), [], 'failed source commit publishes no event');
+      assert.deepEqual(await world.store.query({ model: WORK_HANDLER_OCCURRENCE_MODEL, authority: 'owner' }), [], 'failed source commit stages no later route');
+      const operationId = asOperationId(uuidv7(FIXED_NOW, ++sequence));
+      committed(await invoke(inputs, operationId));
+      const changed = await load();
+      assert.ok(changed);
+      const [source] = await emittedSources(world, event);
+      assert.ok(source);
+      const captured = { employee: { id: employee.id, version: String(changed.version) }, active: true, revision: String(changed.version) };
+      assert.deepEqual(source.source.payload, captured);
+      assert.equal(source.receipt.status, 'completed');
+      assert.deepEqual(source.source.scope, { app, owner: world.team.team_id, ownerPackage: 'employee' });
+      await invoke(inputs, operationId);
+      assert.equal((await emittedSources(world, event)).length, 1, 'source replay publishes no duplicate');
+      committed(await invoke({ record: { id: employee.id, version: String(changed.version) }, role: 'scheduler' }));
+      assert.deepEqual((await emittedSources(world, event)).find(row => row.row.id === source.row.id)!.source.payload, captured,
+        'retained typed payload remains its original emit snapshot');
+      const routes = (await world.store.query({ model: WORK_HANDLER_OCCURRENCE_MODEL, authority: 'owner' }))
+        .map(readHandlerOccurrenceRow).filter(route => route.sourceOccurrence === source.row.id);
+      assert.equal(routes.length, 1);
+      assert.equal(routes[0]!.handler, 'shift.employee_changed');
+      assert.deepEqual(routes[0]!.payload, captured);
+      assert.deepEqual(source.source.handlers, [{ handler: 'shift.employee_changed', kind: 'ordinary', occurrenceId: routes[0]!.occurrenceId }]);
+      const { invokeRetainedHandlerOccurrenceCanonical } = await import('./invoke.js');
+      const selector = { sourceOccurrence: source.row.id, handler: 'shift.employee_changed', event,
+        scope: { app, owner: world.team.team_id, ownerPackage: 'employee' } };
+      const consume = () => invokeRetainedHandlerOccurrenceCanonical({ asm: world.asm, artifact: world.artifact,
+        app, selector, store: world.store, identities: world.identities, now: () => FIXED_NOW });
+      for (const operation of ['employee.Employee.create', 'shift.employee_changed']) {
+        const revision = await world.store.readRevision();
+        const forged: StoragePort = { ...world.store, load: async (model, id) => {
+          const row = await world.store.load(model, id);
+          if (row === null || row.id !== source.row.id) return row;
+          return { ...row, data: { ...row.data, result: { ...source.source,
+            context: { ...(source.source.context as Record<string, unknown>), operation } } } };
+        } };
+        await assert.rejects(invokeRetainedHandlerOccurrenceCanonical({ asm: world.asm, artifact: world.artifact,
+          app, selector, store: forged, identities: world.identities, now: () => FIXED_NOW }),
+        /Declared event differs from its original owner/,
+        'a genuine but unrelated CRUD or user scenario cannot replace the original hook producer');
+        assert.equal(await world.store.readRevision(), revision);
+      }
+      const domain = await load();
+      assert.partialDeepStrictEqual(await consume(), { status: 'completed' });
+      const eligibility = await emittedSources(world, 'shift.EligibilityReview');
+      assert.equal(eligibility.length, 1);
+      // DESIGN: committed events freeze identities; resolving that identity
+      // in the later handler reads the current owner row, not history.
+      assert.deepEqual(eligibility[0]!.source.payload, {
+        employee: { id: employee.id, version: String(domain!.version) }, location: null, account: null, roster: null });
+      assert.deepEqual(await load(), domain, 'the original later handler does not rewrite the employee');
+      assert.partialDeepStrictEqual(await consume(), { status: 'replayed' });
+      assert.equal((await emittedSources(world, 'shift.EligibilityReview')).length, 1);
+      assert.deepEqual(await world.store.outboxPending(), []);
+    } finally { await world.worker.dispose(); await rm(world.dir, { recursive: true, force: true }); }
+  });
+
 async function seedInspectionCancellation(world: OriginalHandlerWorld) {
   const ids = { site: uuidv7(FIXED_NOW, 401), asset: uuidv7(FIXED_NOW, 402), otherAsset: uuidv7(FIXED_NOW, 403),
     firstPlan: uuidv7(FIXED_NOW, 404), secondPlan: uuidv7(FIXED_NOW, 405), otherPlan: uuidv7(FIXED_NOW, 406),

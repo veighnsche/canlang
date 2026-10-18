@@ -817,13 +817,11 @@ fn non_enum_helper_call_refuses() {
 }
 
 /// Recorded CanCRM/CanInvoice/CanRent shape (6 frozen occurrences):
-/// `archived=include` has no consumed factory profile.
+/// A stored collection retains its explicit archive selection and source WHERE.
 #[test]
-fn archived_include_refuses() {
-    assert_refuses(
+fn archived_include_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Customer { name:text, kind:enum(a,b)=a, active:bool=true }\n policy Customer read=public\nWhen\nThen\n page /p title=\"P\"\n  list Customer archived=include as customer where customer.active columns=name,kind\n",
-        "E6008",
-        "query clause archived has no consumed factory profile",
     );
 }
 

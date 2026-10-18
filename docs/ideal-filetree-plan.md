@@ -1400,3 +1400,15 @@ Since98dcb20b1, reviewed Compiler Board property/occurrence emission and source
 marker tests, Contracts BoardProps and the existing Cloudflare owner-page HTTP
 consumer. Reuse the UI/query/cursor owners unchanged; actual compiled pagination
 and scoped marker controls pass. No new owner or complete-checkpoint advance.
+
+### 2026-10-18 — native archive, grouped source and hook event intake
+
+Reviewed every changed production/test path in the finite archive/grouped-query
+and hook-emission batch since3bb610962, with concurrent unrelated integrations
+retaining their own coverage. Compiler owns checked clause/source/pure-count
+joins; Contracts/UI forward finite selection; State owns current grants,
+containment, bounds and atomic finalization; Cloudflare reuses native source
+binding and Work event routing. Actual compiled consumers and focused checks
+pass as recorded in the current execution view. No new package/owner or complete
+historical checkpoint advance. Guarded SEND, staged hook references, inline
+preferences and the whole original composition remain open; Muse stays stopped.

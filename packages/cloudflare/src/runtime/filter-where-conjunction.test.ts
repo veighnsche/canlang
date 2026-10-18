@@ -58,9 +58,12 @@ import { createPageCursorCodec } from './page-cursor.js';
 
 const SOURCE = `app FilterWhere
 Given
+ Shadow { name:text, archived_at:text }
+ policy Shadow read=authenticated fields=name,archived_at
  Ticket { subject:text, category:text, email:email, state:enum(open,closed)=open, priority:enum(low,high)=low, staff_note:text? }
  policy Ticket read=authenticated where=row.email==actor.email fields=subject,category,email,state,priority
 When
+ crud Shadow by=authenticated fields=name,archived_at
  crud Ticket by=authenticated fields=subject,category,email,state,priority,staff_note
 Then
  preferences { state:Ticket.state?, priority:Ticket.priority? }
@@ -73,6 +76,27 @@ Then
   table Ticket as report where report.subject!=report.category columns=subject,category,state,priority filter=state,priority defaults={priority=preferences.priority} empty="No own reports match"
    pagination
    badge row.state
+   text row.subject
+ page /archived title="Retained"
+  require authenticated
+  list Ticket archived=include as retained where retained.subject!=retained.category columns=subject,archived_at filter=state empty="No retained tickets"
+   pagination
+   text row.subject
+   text row.archived_at
+  table Ticket archived=include as retained where retained.subject!=retained.category columns=subject,archived_at empty="No retained tickets"
+   pagination
+ page /archive-shadow title="Declared archive field"
+  require authenticated
+  list Shadow archived=include as shadow where shadow.archived_at=="Business archive field" columns=name,archived_at
+   text row.archived_at
+  table Shadow archived=include columns=name,archived_at empty="None"
+ page /archive-overflow title="Retained overflow"
+  require authenticated
+  table Ticket archived=include columns=subject empty="None"
+ page /archive-leak title="Retained source order"
+  require authenticated
+  list Ticket archived=include as retained where retained.archived_at==null or retained.staff_note!=null filter=state empty="None"
+   pagination
    text row.subject
  page /leak title="Leak"
   require authenticated and actor.email_verified
@@ -388,6 +412,44 @@ test('assembled filter+lambda-where conjunction serves E5 collections with sourc
     const recoveredIds = listIdsOf(recovered);
     assert.equal(recoveredIds.length, 2, 'recovery follow serves the two tail rows');
     for (const id of recoveredIds) assert.ok(!refreshedIds.includes(id), 'recovery follow advances');
+
+    // Archive one of the same actual CRUD rows. Current viewer policies still
+    // apply, while explicit collection include selects the retained row too.
+    const cleanArchiveLeak = await page(cursor, '/archive-leak');
+    const archiveLeakState = controlFor(filterNamesOf(cleanArchiveLeak)[0]!, 'state');
+    const retained = (await cursor.store.query({ model: 'FilterWhere.Ticket' as import('@canlang/contracts').ModelName,
+      authority: 'owner' })).find(row => row.data.subject === 'Ck01')!;
+    const archiver = buildInvoker(artifact, asm, cursor.store, { memberships: identities, now: () => FIXED_NOW });
+    const archived = await archiver.invokeMutation({ operation: 'FilterWhere.Ticket.delete',
+      operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)),
+      inputs: { record: { id: retained.id, version: String(retained.version) } } }, cursor.identity);
+    assert.ok('result' in archived, JSON.stringify(archived));
+    assert.equal(archived.result.status, 'committed');
+    const liveOnly = await page(cursor, '/mine');
+    assert.ok(!tableSectionOf(liveOnly).includes('Ck01'), 'default excludes the archived row');
+    const archiveFirst = await page(cursor, '/archived');
+    assert.equal(listRowsOf(archiveFirst), 25);
+    assert.ok(listSectionOf(archiveFirst).includes('Ck01'), 'source predicate sees the archived row');
+    assert.ok(tableSectionOf(archiveFirst).includes('Ck01'), 'table includes the archived row');
+    assert.ok(archiveFirst.includes('archived_at'), 'archive metadata has owning column metadata');
+    assert.ok(!archiveFirst.includes('Foreign'), 'archive selection confers no foreign row grants');
+    const archiveNext = /<a rel="next" href="([^"]+)"/.exec(archiveFirst)?.[1]?.replaceAll('&amp;', '&');
+    assert.ok(archiveNext);
+    const archiveTail = await page(cursor, archiveNext);
+    assert.equal(listRowsOf(archiveTail), 2, 'included archive domain remains complete across continuation');
+    assert.equal((await pageJson(cursor, '/archive-overflow', 400)).code, 'validation');
+    assert.equal((await pageJson(cursor, `/archive-leak?${new URLSearchParams([[archiveLeakState, 'closed']])}`, 403)).code,
+      'forbidden', 'archived denied source operand runs before an excluding control');
+    const shadow = await archiver.invokeMutation({ operation: 'FilterWhere.Shadow.create',
+      operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)),
+      inputs: { name: 'Shadow row', archived_at: 'Business archive field' } }, cursor.identity);
+    assert.ok('result' in shadow, JSON.stringify(shadow));
+    assert.equal(shadow.result.status, 'committed');
+    const shadowHtml = await page(cursor, '/archive-shadow');
+    assert.ok(listSectionOf(shadowHtml).includes('Business archive field'), 'declared source field shadows native metadata');
+    assert.ok(tableSectionOf(shadowHtml).includes('Business archive field'), 'declared column retains text type and projected value');
+
+
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

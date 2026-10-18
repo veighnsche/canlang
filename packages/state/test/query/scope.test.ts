@@ -108,7 +108,7 @@ describe('scope', () => {
   it('caps materialized candidates before projection/filtering and refuses partial scans', async () => {
     const s = await setup();
     await seedRows(s.store, MODEL, Array.from({ length: 1001 }, (_, index) => ({
-      id: String(index).padStart(4, '0'), data: { title: String(index) },
+      id: String(index).padStart(4, '0'), archivedAt: index % 2 === 0 ? FIXED_NOW : null, data: { title: String(index) },
     })));
     let observedLimit: number | undefined;
     let pushedWhere = false;
@@ -119,7 +119,7 @@ describe('scope', () => {
     } };
     const error = await captureStateError(queryRecordsPage({
       ...viewerInput({ ...s.call, caller: s.std.alice }), store,
-      selection: { where: { op: 'eq', field: 'title', value: '0' }, limit: 1 },
+      selection: { archived: 'include', where: { op: 'eq', field: 'title', value: '0' }, limit: 1 },
     }));
     assert.equal(error.code, 'limit');
     assert.equal(observedLimit, 1001);

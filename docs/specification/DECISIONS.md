@@ -1,5 +1,23 @@
 # Canlang language design decisions
 
+## 2026-10-18 — retain native archive and hook event ownership
+
+**Accepted implementation.** List/Table archive inclusion reaches the existing
+current-authorized State scan, projection and cursor definition; containing
+ancestors remain live-only. Declared `archived_at` business fields retain their
+own values/types/grants. Parenthesized collection queries retain the exact
+original WHERE source identity through lowering and both source collectors.
+
+Native hook EMIT captures typed values at the authored statement and uses the
+existing atomic State source finalizer and Work event routing. Verified original
+CRUD hook producers may supply event provenance without acquiring trusted
+handler authority. Clause-free model COUNT uses the original checked pure call
+and model identity, including the complete Roster rule. Compiled original
+Employee→Shift D1 delivery, rollback/replay/forged-producer controls, existing
+trusted emission, compiled archive HTTP, and grouped-query owner HTTP pass.
+State archive checks46/46 and focused compiler checks pass. Newly staged hook
+references, guarded SEND and complete original24 runtime remain open.
+
 ## 2026-10-18 — use shared finite pagination for boards
 
 **Accepted implementation.** Board consumes the existing typed page flag and
