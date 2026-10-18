@@ -315,8 +315,8 @@ fn source_require_pipeline_preserves_unrelated_ir_refusal_and_rejects_changed_co
         };
         files.push(db.add(format!("separate-owner-{index}.can"), source));
     }
-    let unrelated = db.add("unrelated-archive.can".into(),
-        "package archive_noise\n Given\n  Entry {name:text}\n  policy Entry read=public\n When\n Then\n  page /archive-noise title=\"Archive\"\n   list Entry archived=include as row\n    text row.name\n".into());
+    let unrelated = db.add("unrelated-select.can".into(),
+        "package archive_noise\n Given\n  Entry {name:text}\n  policy Entry read=public\n When\n Then\n  page /archive-noise title=\"Archive\"\n   list Entry as row select row\n    text row.name\n".into());
     files.push(unrelated);
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let path = root.join("packages/cloudflare/dist/native-catalog.json");
@@ -336,7 +336,7 @@ fn source_require_pipeline_preserves_unrelated_ir_refusal_and_rejects_changed_co
             .iter()
             .any(|diagnostic| diagnostic.code == "E6008"
                 && diagnostic.primary.file == unrelated
-                && diagnostic.message.contains("query clause archived")),
+                && diagnostic.message.contains("query clause select")),
         "{diagnostics:?}"
     );
     let context = FreshSourceContext::prepare_queries(&program, &ir, &db, Some(&catalog)).unwrap();
@@ -374,7 +374,7 @@ fn source_require_pipeline_preserves_unrelated_ir_refusal_and_rejects_changed_co
             .iter()
             .any(|diagnostic| diagnostic.code == "E6008"
                 && diagnostic.primary.file == unrelated
-                && diagnostic.message.contains("query clause archived")),
+                && diagnostic.message.contains("query clause select")),
         "{diagnostics:?}"
     );
     assert!(

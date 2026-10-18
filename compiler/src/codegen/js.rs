@@ -1504,6 +1504,7 @@ pub fn emit_program_with_native_source_receipts(
 /// Complete query receipts. Source inventories alone cannot activate capture.
 #[derive(Default)]
 pub(super) struct EmitDecisionSources<'a> {
+    pub source_context: Option<&'a super::scenario_decisions::FreshSourceContext<'a>>,
     pub owner_handlers: Option<&'a HashSet<SymbolId>>,
     pub local_policies: Option<&'a LocalPolicies>,
     pub unique_conditions: Option<&'a [super::model_unique_conditions::CheckedUniqueCondition]>,
@@ -2446,6 +2447,7 @@ fn emit_program_with_sources(
                     &module_path(&entry_name),
                     emitter.value_types.as_ref(),
                     super::scenario_receipts::NativeReceiptSources {
+                        source_context: decisions.source_context,
                         db,
                         send_guards: emitter.send_guards,
                         query_plan: query_receipts

@@ -318,6 +318,7 @@ fn original_profile_pairs_publish_native_source_but_unprepared_source_still_refu
             "$can$m$536f7572636550726f66696c655363616c617273.mjs",
             None,
             NativeReceiptSources {
+                source_context: None,
                 db: Some(&db),
                 send_guards: None,
                 query_plan: None,

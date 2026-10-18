@@ -17,12 +17,73 @@ use super::ir::{
 };
 use super::js::{Emitter, JsModel, js_field_default, literal_json};
 
+/// Borrow the existing independently checked source cohort. Both the owning
+/// Model schema and complete non-stored member stay identical to fresh IR.
+/// Only a refusal that touches the borrowed owning Model or member vetoes the
+/// correspondence: unrelated IR refusals elsewhere (e.g. presentation-page
+/// E6007/E6008 gaps) must not orphan exactly-bound derives, while an affected
+/// model/member stays refused with its exact codes. This mirrors the
+/// membership bridge and query-diagnostic seals.
+fn checked_fresh_derived_member(context: &super::scenario_decisions::FreshSourceContext<'_>,
+    ir: &IrProgram, model: &IrItem, member: &IrItem, db: &SourceDb) -> Option<()> {
+    if !std::ptr::eq(context.ir(), ir) || !std::ptr::eq(context.db(), db) {
+        return None;
+    }
+    let expected_model = context.fresh().items.get(model.id.0 as usize)?;
+    let expected_member = context.fresh().items.get(member.id.0 as usize)?;
+    if format!("{model:?}") != format!("{expected_model:?}")
+        || format!("{member:?}") != format!("{expected_member:?}") {
+        return None;
+    }
+    let overlaps = |a: crate::source::Span, b: crate::source::Span| {
+        a.file == b.file && a.start <= b.end && b.start <= a.end
+    };
+    // IrItem.span covers only the declaration name, so a backend gap inside
+    // the consumed derived body would escape a name-only veto. The full
+    // declaration/body nodes below are the existing original source ranges:
+    // the derive declaration node, its body node, and the lowered body span.
+    // Diagnostics overlapping any of them veto, while unrelated refusals
+    // elsewhere (e.g. presentation-page gaps) still do not.
+    let mut veto = vec![model.span, member.span];
+    if let super::ir::IrItemKind::DeriveField { expr, .. } = &member.kind {
+        if let Some(body) = expr {
+            veto.push(body.span);
+        }
+    }
+    if let Some(derive) = context.program().effects.derives.get(&member.id) {
+        veto.push(crate::source::Span {
+            file: derive.node.file,
+            start: derive.node.start,
+            end: derive.node.end,
+        });
+        if let Some(body) = derive.expr {
+            veto.push(crate::source::Span {
+                file: body.file,
+                start: body.start,
+                end: body.end,
+            });
+        }
+    }
+    if context.ir_diagnostics().iter().any(|diagnostic| {
+        diagnostic.severity == crate::diagnostic::Severity::Error
+            && veto.iter().any(|span| {
+                overlaps(*span, diagnostic.primary)
+                    || diagnostic.related.iter().any(|related| overlaps(*span, related.span))
+            })
+    }) {
+        return None;
+    }
+    Some(())
+}
+
+
 pub(super) fn checked_created_schema(
     ir: &IrProgram,
     owner: &IrItem,
     models: &[JsModel],
     original: &CheckedScenarioCreate,
     db: &SourceDb,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<()> {
     let definition = &original.definition;
     let declaration = &definition.declaration;
@@ -67,28 +128,27 @@ pub(super) fn checked_created_schema(
             IrItemKind::DeriveField {
                 model: field_owner, ..
             } if *field_owner == model.id => {
-                // The original mixed ask returns an oversized conservative
-                // source inventory. Its mandatory private feasibility proof
-                // compares the entire member declaration/body to fresh IR.
-                // A derived member remains outside stored Create inputs.
-                let ScenarioDisclosure::Complete(checked) =
-                    ir.scenario_disclosures.get(&owner.id)?
-                else {
-                    return None;
+                // Derived members are excluded from stored constructor inputs.
+                // Their complete declaration/body must be the fresh owning
+                // member, never an operation-shape or conservative-path count.
+                let context = match source_context {
+                    Some(context) => context,
+                    None => {
+                        return None;
+                    }
                 };
-                let facts = checked.source_facts.as_deref()?;
-                if checked.returns.len() <= 200
-                    || super::scenario_receipts::checked_scenario_query_influences(facts)?.len()
-                        != 24
-                {
+                if checked_fresh_derived_member(context, ir, model, member, db).is_none() {
                     return None;
                 }
+                let facts = super::scenario_calls::checked_source(ir, owner, db)?;
                 let schema = facts
                     .stored_contracts
-                    .as_deref()?
-                    .iter()
-                    .find(|schema| schema.model && schema.id == model.id)?;
-                super::scenario_receipts::match_stored_contract_schema(ir, schema, db)?;
+                    .as_deref()
+                    .and_then(|schemas| schemas.iter().find(|schema| schema.model && schema.id == model.id));
+                if schema.is_none() {
+                    return None;
+                }
+                super::scenario_receipts::match_stored_contract_schema(ir, schema.unwrap(), db)?;
                 if member.canonical != format!("{}.{}", model.canonical, member.name) {
                     return None;
                 }
@@ -4353,6 +4413,101 @@ impl<'a> SourceExpressions<'a> {
         }
     }
 
+    fn literal_text_type(&self, actual: &TypedExpr) -> bool {
+        actual.ty == ResolvedType::Scalar(Scalar::Text)
+            || self.operands && actual.ty == ResolvedType::Scalar(Scalar::Email)
+    }
+
+    /// Exact authored scalar literals are shared by schema/default and operand
+    /// correspondence; contextual Email remains operand-only.
+    fn scalar_literal(&self, actual: &TypedExpr, node: &SyntaxNode) -> Option<bool> {
+        let token = |kind| node.children.iter().find(|child| child.kind == kind)
+            .and_then(|child| self.text.get(child.span.start as usize..child.span.end as usize));
+        let primitive = |scalar| actual.ty == ResolvedType::Scalar(scalar);
+        Some(match &actual.expr {
+            IrExpr::Int(value) => {
+                primitive(Scalar::Int)
+                    && token(SyntaxKind::Integer)?.parse::<i128>().ok()? == *value
+            }
+            IrExpr::Decimal(value) => {
+                primitive(Scalar::Decimal) && token(SyntaxKind::Decimal)? == value
+            }
+            IrExpr::Bool(value) => {
+                primitive(Scalar::Bool)
+                    && token(SyntaxKind::Name)? == if *value { "true" } else { "false" }
+            }
+            IrExpr::Null => {
+                actual.ty == ResolvedType::Null && token(SyntaxKind::Name)? == "null"
+            }
+            IrExpr::Text(value) => {
+                // Checked operand literals retain contextual Email identity.
+                // Schema/default matching keeps its existing Text-only path.
+                self.literal_text_type(actual)
+                    && node
+                        .children
+                        .iter()
+                        .find(|child| child.kind == SyntaxKind::String)?
+                        .token()?
+                        .string_value
+                        .as_ref()?
+                        == value
+            }
+            _ => return None,
+        })
+    }
+
+    fn literal_message(&self, actual: &TypedExpr, node: &SyntaxNode) -> Option<()> {
+        let IrExpr::Message(message) = &actual.expr else { return None; };
+        let source = node.children.iter().find(|child| child.kind == SyntaxKind::Literal)?;
+        let text = source.children.iter().find(|child| child.kind == SyntaxKind::String)?.token()?.string_value.as_ref()?;
+        let module = self.ir.modules.iter().find(|module| module.name == self.original.source.module)?;
+        let declaration = self.nodes.values().find(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package) && node.span == module.span)?;
+        let source_lang = crate::analysis::attribute_value(declaration, "source", self.text)
+            .and_then(|value| value.children.iter().find(|child| child.kind == SyntaxKind::String))
+            .and_then(|string| string.token()?.string_value.as_ref()).map(String::as_str).unwrap_or("en");
+        let variants = node.children.iter().filter(|child| child.kind == SyntaxKind::MessageVariant)
+            .map(|variant| {
+                let locale = variant.children.iter().find(|child| child.kind == SyntaxKind::Name)?.token()?.text(self.text).to_string();
+                let literal = variant.children.iter().find(|child| child.kind == SyntaxKind::Literal)?;
+                let value = match literal.children.iter().find(|child| child.kind == SyntaxKind::String) {
+                    Some(string) => Some(string.token()?.string_value.clone()?),
+                    None if self.text.get(literal.span.start as usize..literal.span.end as usize) == Some("null") => None,
+                    _ => return None,
+                };
+                Some((locale, value))
+            }).collect::<Option<Vec<_>>>()?;
+        (actual.ty == ResolvedType::InlineMessage && message.params.is_empty()
+            && message.source == *text && message.source_lang == source_lang && message.variants == variants).then_some(())
+    }
+
+    /// Localized formatting keeps written argument order and the two checked
+    /// descriptor/locale formal bindings; no absent catalog default is invented.
+    fn literal_format(&self, actual: &TypedExpr, node: &SyntaxNode, depth: usize) -> Option<()> {
+        let IrExpr::Format { args, descriptor_index, locale_index, schemas } = &actual.expr else { return None; };
+        let children = expressions(node);
+        if actual.ty != ResolvedType::Scalar(Scalar::Text) || source_path(children.first()?, self.text)? != "format" || args.len() != 2 {
+            return None;
+        }
+        let arguments: Vec<_> = node.children.iter().filter(|child| child.kind == SyntaxKind::Argument).collect();
+        if arguments.len() != 2 { return None; }
+        let mut slots = [None, None];
+        for (index, (argument, value)) in arguments.iter().zip(args).enumerate() {
+            let named = argument.children.iter().find(|child| child.kind == SyntaxKind::Name).and_then(|name| name.token()).map(|token| token.text(self.text));
+            let formal = match named { None => index, Some("descriptor") => 0, Some("locale") => 1, _ => return None };
+            if slots[formal].replace(index).is_some() { return None; }
+            let values = expressions(argument);
+            let [source] = values.as_slice() else { return None; };
+            self.expression(value, NodeKey::of(source), depth + 1)?;
+        }
+        if slots != [Some(*descriptor_index), Some(*locale_index)] { return None; }
+        let IrExpr::Message(descriptor) = &args.get(*descriptor_index)?.expr else { return None; };
+        let [schema] = schemas.as_slice() else { return None; };
+        let locale = &args.get(*locale_index)?.ty;
+        (schema.source_lang == descriptor.source_lang && schema.param_types.is_empty()
+            && matches!(locale, ResolvedType::Null | ResolvedType::Scalar(Scalar::Locale))
+            && descriptor.params.is_empty()).then_some(())
+    }
+
     fn expression(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
         if depth > 64 {
             return None;
@@ -4393,6 +4548,14 @@ impl<'a> SourceExpressions<'a> {
         };
         let primitive = |scalar| actual.ty == ResolvedType::Scalar(scalar);
         let matched = match (&actual.expr, node.kind) {
+            (IrExpr::Message(_), SyntaxKind::MessageValue) if self.operands => {
+                self.literal_message(actual, node)?;
+                true
+            }
+            (IrExpr::Format { .. }, SyntaxKind::Call) if self.operands => {
+                self.literal_format(actual, node, depth)?;
+                true
+            }
             (IrExpr::Query(_), SyntaxKind::Query) if self.operands => {
                 self.inline_selection_query(actual, NodeKey::of(node), depth)
                     .or_else(|| self.transcript_query(actual, NodeKey::of(node), depth))?;
@@ -4417,33 +4580,8 @@ impl<'a> SourceExpressions<'a> {
                 self.transcript_call(actual, NodeKey::of(node), depth)?;
                 true
             }
-            (IrExpr::Int(value), SyntaxKind::Literal) => {
-                primitive(Scalar::Int)
-                    && token(SyntaxKind::Integer)?.parse::<i128>().ok()? == *value
-            }
-            (IrExpr::Decimal(value), SyntaxKind::Literal) => {
-                primitive(Scalar::Decimal) && token(SyntaxKind::Decimal)? == value
-            }
-            (IrExpr::Bool(value), SyntaxKind::Literal) => {
-                primitive(Scalar::Bool)
-                    && token(SyntaxKind::Name)? == if *value { "true" } else { "false" }
-            }
-            (IrExpr::Null, SyntaxKind::Literal) => {
-                actual.ty == ResolvedType::Null && token(SyntaxKind::Name)? == "null"
-            }
-            (IrExpr::Text(value), SyntaxKind::Literal) => {
-                // Checked operand literals retain contextual Email identity.
-                // Schema/default matching keeps its existing Text-only path.
-                (primitive(Scalar::Text) || self.operands && primitive(Scalar::Email))
-                    && node
-                        .children
-                        .iter()
-                        .find(|child| child.kind == SyntaxKind::String)?
-                        .token()?
-                        .string_value
-                        .as_ref()?
-                        == value
-            }
+            (IrExpr::Int(_) | IrExpr::Decimal(_) | IrExpr::Bool(_) | IrExpr::Null
+                | IrExpr::Text(_), SyntaxKind::Literal) => self.scalar_literal(actual, node)?,
             (IrExpr::Text(value), SyntaxKind::NameRef) => {
                 single_name(node, self.text)? == value
                     && matches!(&actual.ty, ResolvedType::Enum {cases, ..} if cases.contains(value))
@@ -5243,6 +5381,7 @@ fn expressions(node: &SyntaxNode) -> Vec<&SyntaxNode> {
             matches!(
                 child.kind,
                 SyntaxKind::Literal
+                    | SyntaxKind::MessageValue
                     | SyntaxKind::NameRef
                     | SyntaxKind::Group
                     | SyntaxKind::Array
@@ -5342,9 +5481,51 @@ mod tests {
     use super::*;
     use crate::analysis::catalog::{CatalogRequest, load_catalog};
     use crate::analysis::{ResolvedType, Scalar, check_program};
+    use crate::diagnostic::Severity;
     use crate::source::Span;
 
     const SOURCE: &str = include_str!("../../tests/fixtures/native-authorization-can-use.can");
+
+    #[test]
+    fn created_schema_derives_require_fresh_complete_owned_members() {
+        let source = "app DerivedSchema\nGiven\n C {value:int}\n derive C.total:int = abs(row.value)\n policy C read=members\nWhen\n scenario make(value:int) by=members\n  do\n   create C {value} as row\nThen\n";
+        let mut db = SourceDb::new();
+        let file = db.add("derived-schema.can".into(), source.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path), env: None, cwd: root, primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let owner = ir.items.iter().find(|item| item.canonical == "DerivedSchema.make").unwrap();
+        let fact = &ir.scenario_disclosures[&owner.id].source_facts().unwrap().creates.as_deref().unwrap()[0];
+        let models = Emitter::source_models(&ir, &db).unwrap();
+        assert!(checked_created_schema(&ir, owner, &models, fact, &db, None).is_none(), "raw derive collection remains closed");
+        let context = super::super::scenario_decisions::FreshSourceContext::prepare_queries(&program, &ir, &db, Some(&catalog)).unwrap();
+        assert!(checked_created_schema(&ir, owner, &models, fact, &db, Some(&context)).is_some());
+        for mode in ["body", "header", "call"] {
+            let mut changed = ir.clone();
+            let member = changed.items.iter_mut().find(|item| item.canonical == "DerivedSchema.C.total").unwrap();
+            if mode == "header" {
+                member.name = "changed".into();
+            } else {
+                let IrItemKind::DeriveField { expr: Some(body), .. } = &mut member.kind else { panic!("derive body") };
+                if mode == "body" { body.expr = IrExpr::Int(7); }
+                else {
+                    let IrExpr::Call { target: IrCallTarget::Builtin { id, .. }, .. } = &mut body.expr else { panic!("abs call") };
+                    *id = "max".into();
+                }
+            }
+            let context = super::super::scenario_decisions::FreshSourceContext::prepare_queries(&program, &changed, &db, Some(&catalog)).ok();
+            assert!(context.as_ref().and_then(|context| checked_created_schema(&changed,
+                &changed.items[owner.id.0 as usize], &models, fact, &db, Some(context))).is_none(), "{mode}");
+        }
+    }
 
     #[test]
     fn created_schema_uniqueness_invariant_rejects_retained_query_and_predicate_changes() {
@@ -5363,7 +5544,7 @@ mod tests {
             .unwrap()[0]
             .clone();
         let models = Emitter::source_models(&original, &db).unwrap();
-        assert!(checked_created_schema(&original, owner, &models, &fact, &db).is_some());
+        assert!(checked_created_schema(&original, owner, &models, &fact, &db, None).is_some());
         for mutation in 0..2 {
             let mut retained = original.clone();
             let rule = retained
@@ -5405,7 +5586,7 @@ mod tests {
                     &retained.items[owner.id.0 as usize],
                     &models,
                     &fact,
-                    &db
+                    &db, None
                 )
                 .is_none(),
                 "retained invariant mutation {mutation}"
@@ -5574,7 +5755,7 @@ mod tests {
                     &candidate.items[owner.id.0 as usize],
                     &models,
                     &original,
-                    &db,
+                    &db, None,
                 )
             };
             let IrItemKind::Field {
@@ -5833,6 +6014,7 @@ mod tests {
                 "given-create.mjs",
                 None,
                 super::super::scenario_receipts::NativeReceiptSources {
+                    source_context: None,
                     db: Some(&db),
                     send_guards: None,
                     query_plan: None,
@@ -6964,5 +7146,185 @@ Then
                 "nested actor fact tamper {mutation} must refuse"
             );
         }
+    }
+
+    const DERIVE_SEAL_SOURCE: &str = "app GapProbe\nGiven\n Ticket {title:text,closed:bool}\n derive Ticket.open:bool = row.closed==false\n policy Ticket read=members\n Hook {title:text}\n policy Hook read=members\n Helper {x:bool}\n derive Helper.inner:bool = any(Ticket as t,t.closed)\n derive Helper.via:bool = row.inner and row.x\n policy Helper read=members\n Vault {secret:bool}\n policy Vault read=members\n Carrier {vault:Vault,x:bool}\n derive Carrier.leak:bool = row.vault.secret\n policy Carrier read=members\nWhen\n scenario make_ticket(name:text) by=members\n  do\n   create Ticket {title=name,closed=false} as ticket\n scenario h on=Hook.create\n  do\n   let value=actor\n scenario use_nested(h:Helper) by=members\n  require h.via\n  do\n   create Ticket {title=\"n\",closed=false} as ticket\n scenario use_foreign(c:Carrier) by=members\n  require c.leak\n  do\n   create Ticket {title=\"f\",closed=false} as ticket\nThen\n";
+
+    fn derive_seal_compilation() -> (
+        SourceDb,
+        crate::analysis::CheckedProgram,
+        crate::codegen::ir::IrProgram,
+        crate::analysis::catalog::Catalog,
+    ) {
+        let mut db = SourceDb::new();
+        let file = db.add("gap-probe.can".into(), DERIVE_SEAL_SOURCE.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path), env: None, cwd: root, primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.expect("native catalog");
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        // Exactly the unrelated hook refusal; nothing else may appear.
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(diagnostics[0].code, "E6008");
+        assert!(diagnostics[0].message.contains("hook contextual binding"), "{diagnostics:?}");
+        (db, program, ir, catalog)
+    }
+
+    fn ir_item<'a>(canonical: &str, ir: &'a crate::codegen::ir::IrProgram) -> &'a crate::codegen::ir::IrItem {
+        ir.items.iter().find(|item| item.canonical == canonical).unwrap_or_else(|| panic!("missing {canonical}"))
+    }
+
+    /// An unrelated hook refusal must not orphan an exactly-bound derive:
+    /// the occurrence-scoped seal admits the clean member while the
+    /// diagnostic pool still carries the unrelated error (a global
+    /// has_ir_errors veto would refuse here).
+    #[test]
+    fn unrelated_hook_gap_keeps_clean_derived_member() {
+        let (db, program, ir, catalog) = derive_seal_compilation();
+        let context = super::super::scenario_decisions::FreshSourceContext::prepare_queries(
+            &program, &ir, &db, Some(&catalog),
+        ).expect("query context tolerates the unrelated E6008");
+        assert!(context.has_ir_errors(), "pool must prove the unrelated refusal exists");
+        let model = ir_item("GapProbe.Ticket", &ir);
+        let member = ir_item("GapProbe.Ticket.open", &ir);
+        assert!(
+            checked_fresh_derived_member(&context, &ir, model, member, &db).is_some(),
+            "unrelated hook gap must not veto the clean derive: {:?}",
+            context.ir_diagnostics(),
+        );
+        // The unrelated diagnostic genuinely overlaps neither the model
+        // name, the member name, nor the derive declaration/body spans.
+        let derive = program.effects.derives.get(&member.id).expect("derive data");
+        let spans = [
+            model.span,
+            member.span,
+            Span::new(derive.node.file, derive.node.start, derive.node.end),
+        ];
+        for diagnostic in context.ir_diagnostics() {
+            for span in spans.iter().chain(
+                derive.expr.iter().map(|body| Span::new(body.file, body.start, body.end)).collect::<Vec<_>>().iter()
+            ) {
+                assert!(
+                    !(span.file == diagnostic.primary.file
+                        && span.start <= diagnostic.primary.end
+                        && diagnostic.primary.start <= span.end),
+                    "unrelated diagnostic overlaps a veto span: {diagnostic:?}",
+                );
+            }
+        }
+    }
+
+    /// Nested derived reads with unproven bodies (queries/calls) and reads
+    /// through foreign stored rows refuse their complete body closure, while
+    /// the unrelated clean scenario stays complete.
+    #[test]
+    fn nested_and_foreign_derived_reads_refuse_body_closure() {
+        use crate::analysis::scenario_disclosure::ScenarioDisclosure;
+        let (_db, _program, ir, _catalog) = derive_seal_compilation();
+        let owner = ir_item("GapProbe.make_ticket", &ir);
+        assert!(
+            matches!(ir.scenario_disclosures.get(&owner.id), Some(ScenarioDisclosure::Complete(_))),
+            "unrelated clean scenario stays complete",
+        );
+        for scenario in ["GapProbe.use_nested", "GapProbe.use_foreign"] {
+            let owner = ir_item(scenario, &ir);
+            match ir.scenario_disclosures.get(&owner.id) {
+                Some(ScenarioDisclosure::Declined(decline)) => assert_eq!(
+                    decline.reason,
+                    "derived field requires its complete body closure",
+                    "{scenario}",
+                ),
+                other => panic!("{scenario} must refuse its body closure: {other:?}"),
+            }
+        }
+    }
+
+    /// A model reference hidden inside an embedded contract value must not
+    /// be silently traversed: `row.box.vault.secret` refuses its body
+    /// closure. A scalar leaf of the same embedded value passes the
+    /// closure (the observation inventory proves it), but the disclosure
+    /// consumer still refuses: it has no contract-field ownership proof.
+    /// Both layers refuse with their precise reason; neither admits.
+    #[test]
+    fn embedded_contract_model_reference_refuses_closure() {
+        use crate::analysis::scenario_disclosure::ScenarioDisclosure;
+        let source = "app Boxed\nGiven\n Vault {secret:bool}\n policy Vault read=members\n contract Box {vault:Vault,flag:bool}\n Carrier {box:Box,x:bool}\n derive Carrier.leak:bool = row.box.vault.secret\n derive Carrier.ok:bool = row.box.flag==false\n policy Carrier read=members\nWhen\n scenario use_leak(c:Carrier,v:Vault) by=members\n  require c.leak\n  do\n   create Carrier {box=Box {vault=v,flag=false},x=false} as made\n scenario use_ok(c:Carrier,v:Vault) by=members\n  require c.ok\n  do\n   create Carrier {box=Box {vault=v,flag=false},x=false} as made\nThen\n";
+        let mut db = SourceDb::new();
+        let file = db.add("boxed.can".into(), source.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path), env: None, cwd: root, primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.expect("native catalog");
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let owner = ir_item("Boxed.use_leak", &ir);
+        match ir.scenario_disclosures.get(&owner.id) {
+            Some(ScenarioDisclosure::Declined(decline)) => assert_eq!(
+                decline.reason,
+                "derived field requires its complete body closure",
+                "embedded model reference must refuse",
+            ),
+            other => panic!("use_leak must refuse its body closure: {other:?}"),
+        }
+        let owner = ir_item("Boxed.use_ok", &ir);
+        match ir.scenario_disclosures.get(&owner.id) {
+            Some(ScenarioDisclosure::Declined(decline)) => assert_eq!(
+                decline.reason,
+                "missing stored field owner",
+                "embedded scalar passes closure but consumer refuses ownership",
+            ),
+            other => panic!("use_ok must refuse without contract ownership: {other:?}"),
+        }
+    }
+
+    /// A backend gap inside a consumed derived body is covered by the seal's
+    /// veto set: the error overlaps the full declaration/body spans the seal
+    /// checks, never just the declaration-name span.
+    #[test]
+    fn body_gap_overlaps_full_declaration_spans() {
+        let source = "app BodyGap\nGiven\n Ticket {title:text,closed:bool}\n derive Ticket.open:bool = row.bogus_member==false\n policy Ticket read=members\nWhen\n scenario make_ticket(name:text) by=members\n  do\n   create Ticket {title=name,closed=false} as ticket\nThen\n";
+        let mut db = SourceDb::new();
+        let file = db.add("body-gap.can".into(), source.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path), env: None, cwd: root, primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.expect("native catalog");
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        let member = program.symbols.iter().find(|symbol| symbol.canonical == "BodyGap.Ticket.open").expect("derive symbol");
+        let derive = program.effects.derives.get(&member.id).expect("derive data");
+        let decl = Span::new(derive.node.file, derive.node.start, derive.node.end);
+        let body = derive.expr.map(|body| Span::new(body.file, body.start, body.end));
+        let overlaps = |span: Span, other: Span| {
+            span.file == other.file && span.start <= other.end && other.start <= span.end
+        };
+        let mut covered = false;
+        for diagnostic in &diagnostics {
+            if diagnostic.severity != Severity::Error {
+                continue;
+            }
+            if overlaps(decl, diagnostic.primary)
+                || body.is_some_and(|body| overlaps(body, diagnostic.primary))
+            {
+                covered = true;
+                assert!(
+                    !overlaps(member.span, diagnostic.primary),
+                    "gap must escape the name-only span (the REVIEW-02 hole): {diagnostic:?}",
+                );
+            }
+        }
+        assert!(covered, "body gap must overlap the declaration/body spans: {diagnostics:?}");
     }
 }

@@ -1814,6 +1814,14 @@ struct Closure<'a> {
     source_facts: RefCell<ImmutableSourceFacts>,
 }
 
+/// A value observed while proving a derived body: plain data attached
+/// to an admitted row, or a row of the owning parent lineage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BodyValue {
+    Scalar,
+    Row(SymbolId),
+}
+
 impl<'a> Closure<'a> {
     fn authorization_expr(
         &mut self,
@@ -5847,6 +5855,14 @@ impl<'a> Closure<'a> {
         &self,
         scenario: &super::effects::ScenarioData,
     ) -> Option<Vec<CheckedStoredContractSchema>> {
+        let result = self.checked_stored_contracts_inner(scenario);
+        result
+    }
+
+    fn checked_stored_contracts_inner(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<CheckedStoredContractSchema>> {
         let is_contract = |id: SymbolId| {
             self.resolve
                 .symbols
@@ -5855,7 +5871,10 @@ impl<'a> Closure<'a> {
         };
         let mut pending = Vec::new();
         let current_revision = self.checked_current_revision_source(scenario);
-        let inline_selections = self.checked_inline_selection_sources(scenario)?;
+        let inline_selections = match self.checked_inline_selection_sources(scenario) {
+        Some(v) => v,
+        None => return None,
+        };
         if let Some(fact) = &current_revision {
             pending.push((fact.revision, true));
         }
@@ -7529,7 +7548,33 @@ impl<'a> Closure<'a> {
             return None;
         };
         let condition = guard.cond?;
-        let unary = self.nodes.get(&self.query_group(condition)?)?;
+        // A leading guard may conjoin several Requirements with `and`;
+        // descend to the conjunct carrying this call. Anything else (`or`,
+        // a bare call, double negation) keeps the established refusal below:
+        // the guard holds only if every conjunct holds, so the isolated
+        // `not any(...)` conjunct is proven on its own.
+        let mut cursor = condition;
+        let unary = loop {
+            let grouped = self.query_group(cursor)?;
+            if grouped == call {
+                return None;
+            }
+            let node = self.nodes.get(&grouped)?;
+            if node.kind == SyntaxKind::Unary {
+                break node;
+            }
+            let (left, right) = self.query_binary(grouped, "and")?;
+            let contains = |key: NodeKey| {
+                key.file == call.file && key.start <= call.start && call.end <= key.end
+            };
+            if contains(right) {
+                cursor = right;
+            } else if contains(left) {
+                cursor = left;
+            } else {
+                return None;
+            }
+        };
         let unary_values: Vec<_> = unary
             .children
             .iter()
@@ -7573,7 +7618,8 @@ impl<'a> Closure<'a> {
             || self.types.node_types.get(&call) != Some(&boolean)
             || self.types.node_types.get(predicate) != Some(&boolean)
             || self.types.node_types.get(&condition) != Some(&boolean)
-            || guard.verb != EffectVerb::Require
+            || { let hit = guard.verb != EffectVerb::Require;
+                hit }
             || self.nodes.get(&guard.node)?.kind != SyntaxKind::Require
             || unary.kind != SyntaxKind::Unary
             || unary_words != ["not"]
@@ -7587,15 +7633,28 @@ impl<'a> Closure<'a> {
             || scenario.read
             || scenario.on.is_some()
             || scenario.cohort.is_some()
-            || !matches!(self.query_binding(by), Some(Binding::Predicate))
-            || !matches!(
-                self.db
+            || {
+                let binding = self.query_binding(by);
+                let is_role = match &binding {
+                    Some(Binding::Symbol(id)) => self.resolve.symbols.get(id.0 as usize).is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Role)),
+                    _ => false,
+                };
+                !(matches!(&binding, Some(Binding::Predicate)) || is_role)
+            }
+            || {
+                // The census is a model inventory, not a membership proof:
+                // the observer bridge proves the actual membership
+                // separately. Genuine declared roles gate exactly like the
+                // built-in predicates; anything else keeps its refusal.
+                let text = self.db
                     .get(by.file)?
                     .text
                     .get(by.start as usize..by.end as usize)?
-                    .trim(),
-                "members" | "authenticated"
-            )
+                    .trim();
+                !(matches!(text, "members" | "authenticated")
+                    || matches!(self.query_binding(by), Some(Binding::Symbol(id))
+                        if self.resolve.symbols.get(id.0 as usize).is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Role))))
+            }
             || guard.node.file != scenario.node.file
             || call.file != guard.node.file
             || guard.node.start < scenario.node.start
@@ -7695,7 +7754,8 @@ impl<'a> Closure<'a> {
         let mut members: Vec<(NodeKey, SymbolId)> = Vec::new();
         for conjunct in &conjuncts {
             if let Some((member, operand)) = self.query_binary(*conjunct, "==") {
-                let field = self.query_member(member, alias.node, model)?;
+                let field = self.query_member(member, alias.node, model)
+                    .or_else(|| self.query_derived_member(member, alias.node, model))?;
                 let field_ty = self.types.symbol_types.get(&field)?.clone();
                 let operand = self.query_group(operand)?;
                 let case_operand = matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
@@ -7722,6 +7782,57 @@ impl<'a> Closure<'a> {
                         && !member_operand
                         && self.nodes.get(&operand)?.kind != SyntaxKind::NameRef)
                     || self.types.node_types.get(&operand) != Some(&field_ty)
+                    || self.types.node_types.get(conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
+                {
+                    return None;
+                }
+                members.push((member, field));
+            } else if let Some((member, array)) = self.query_binary(*conjunct, "in") {
+                // Literal array membership over a stored or derived row
+                // member (`i.state in [failed]`). The array contributes only
+                // checked literal scalar/enum alternatives; the leaf type
+                // pins every alternative, mirroring the source observer.
+                let field = match self.query_member(member, alias.node, model)
+                    .or_else(|| self.query_derived_member(member, alias.node, model)) {
+                    Some(field) => field,
+                    None => return None,
+                };
+                let field_ty = match self.types.symbol_types.get(&field) {
+                    Some(ty) => ty.clone(),
+                    None => return None,
+                };
+                let leaf = match &field_ty {
+                    ResolvedType::Nullable(inner) => inner.as_ref(),
+                    ty => ty,
+                };
+                if !(primitive_type(leaf)
+                    || matches!(leaf, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+                {
+                    return None;
+                }
+                if self.types.node_types.get(&self.query_group(member)?) != Some(&field_ty) {
+                    return None;
+                }
+                let array_node = match self.nodes.get(&self.query_group(array)?) {
+                    Some(node) => node,
+                    None => return None,
+                };
+                if array_node.kind != SyntaxKind::Array {
+                    return None;
+                }
+                let mut has_alternative = false;
+                for child in array_node.children.iter().filter(|child| expression(child.kind)) {
+                    let element = self.query_group(NodeKey::of(child))?;
+                    let literal = match &leaf {
+                        ResolvedType::Enum { .. } => self.types.resolved_cases.contains(&element),
+                        _ => self.nodes.get(&element).is_some_and(|node| node.kind == SyntaxKind::Literal),
+                    };
+                    if !literal {
+                        return None;
+                    }
+                    has_alternative = true;
+                }
+                if !has_alternative
                     || self.types.node_types.get(conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
                 {
                     return None;
@@ -7828,14 +7939,26 @@ impl<'a> Closure<'a> {
         let id = self.opaque("query", node, "").ok()?;
         let mut dependencies = Vec::new();
         for (member, field) in &members {
-            dependencies.push(self.query_dependency(
-                *member,
-                scenario.module,
-                model,
-                *field,
-                DependencyRole::Control,
-                &id,
-            )?);
+            dependencies.push(
+                self.query_dependency(
+                    *member,
+                    scenario.module,
+                    model,
+                    *field,
+                    DependencyRole::Control,
+                    &id,
+                )
+                .or_else(|| {
+                    self.query_derived_dependency(
+                        *member,
+                        scenario.module,
+                        model,
+                        *field,
+                        DependencyRole::Control,
+                        &id,
+                    )
+                })?,
+            );
         }
         let influences = [
             InfluenceKind::QueryExistence,
@@ -9129,6 +9252,27 @@ impl<'a> Closure<'a> {
         })
     }
 
+    /// Query-row derived member (`i.state`): the same row/alias proof as a
+    /// stored member, but the field keeps its exact owning DeriveField
+    /// declaration and complete body instead of a stored declaration.
+    fn query_derived_member(&self, key: NodeKey, alias: NodeKey, model: SymbolId) -> Option<SymbolId> {
+        let name = match self.query_member_name(key, alias, model) {
+            Some(name) => name,
+            None => return None,
+        };
+        let field = match self.resolve.symbols.iter().find(|field| {
+            field.name == name
+                && matches!(&field.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model)
+        }) {
+            Some(field) => field,
+            None => return None,
+        };
+        if self.admitted_derived_read(field.id, model, &mut Vec::new()).is_none() {
+            return None;
+        }
+        Some(field.id)
+    }
+
     /// Param-row member operand (`i.role`): the base binds to a
     /// default-free scenario param of stored-record type, and the final
     /// field belongs to that record. Returns the base param and the
@@ -9569,9 +9713,438 @@ impl<'a> Closure<'a> {
         })
     }
 
+    /// Query-row derived dependency (`i.state` in an ANY filter): the same
+    /// Control registration as a stored member, but the field keeps its
+    /// exact owning DeriveField declaration and complete body. Only scalar
+    /// and owned-enum leaves qualify; the leaf type pins the compared value.
+    fn query_derived_dependency(
+        &self,
+        node: NodeKey,
+        module: ModuleId,
+        model: SymbolId,
+        field: SymbolId,
+        role: DependencyRole,
+        query: &str,
+    ) -> Option<DisclosureDependency> {
+        let node = self.query_group(node)?;
+        let owner = self.resolve.symbols.get(model.0 as usize)?;
+        let declaration = self.resolve.symbols.get(field.0 as usize)?;
+        if !matches!(&declaration.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model) {
+            return None;
+        }
+        // Declaration/type-only admission is not closure proof: the body
+        // must transitively observe only its admitted row (above).
+        self.admitted_derived_read(field, model, &mut Vec::new())?;
+        let ty = self.types.symbol_types.get(&field)?;
+        let leaf = match ty {
+            ResolvedType::Nullable(inner) => inner.as_ref(),
+            ty => ty,
+        };
+        if !(primitive_type(leaf)
+            || matches!(leaf, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+        {
+            return None;
+        }
+        let type_id = match leaf {
+            ResolvedType::Enum { cases, .. } => format!("enum({})", cases.join(",")),
+            _ => self.field_type_id(node, field, ty).ok()?,
+        };
+        Some(DisclosureDependency {
+            query_id: None,
+            id: self
+                .opaque(
+                    if role == DependencyRole::Data {
+                        "query-data"
+                    } else {
+                        "query-control"
+                    },
+                    node,
+                    query,
+                )
+                .ok()?,
+            source: self.source(module, node).ok()?,
+            node,
+            calls: Vec::new(),
+            role,
+            model,
+            field,
+            model_name: owner.canonical.clone(),
+            field_name: declaration.name.clone(),
+            ty: ty.clone(),
+            type_id,
+        })
+    }
+
     /// Original leading guards whose imported helper query is evaluated by
     /// the scenario observer. This is a source inventory, not permission.
     /// Direct stored ANY retains its established query profile.
+    /// A direct ANY guard reads one declared child domain behind an original
+    /// required input's admitted parent path. Global scans keep their old profile.
+    fn source_require_contained_any(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        query: &super::types::CheckedQuery,
+        model: SymbolId,
+    ) -> Option<()> {
+        let (receiver, name) = self.count_member(query.domain)?;
+        let (parent, _) = scenario.params.iter().find_map(|parameter| {
+            self.checked_call_parent_path(receiver, parameter.param, 0)
+        })?;
+        let child = self.resolve.symbols.get(model.0 as usize)?;
+        (child.name == name
+            && child.module == scenario.module
+            && matches!(child.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(owner), .. } if owner == parent)
+            && self.effects.models.get(&model)?.owner == ModelOwner::ChildOf(parent))
+            .then_some(())
+    }
+
+    /// Literal scalar/owned-enum alternatives are data, never transported row,
+    /// File, delivery, Contract or copied lexical authority.
+    fn source_require_literal_array(&self, key: NodeKey) -> Option<()> {
+        let ResolvedType::Array { element, .. } = self.types.node_types.get(&key)? else {
+            return None;
+        };
+        let element = match element.as_ref() {
+            ResolvedType::Nullable(inner) => inner.as_ref(),
+            element => element,
+        };
+        if !primitive_type(element)
+            && !matches!(element, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+        {
+            return None;
+        }
+        self.nodes.get(&key)?.children.iter().filter(|node| expression(node.kind))
+            .all(|node| self.query_group(NodeKey::of(node)).is_some_and(|key| {
+                self.types.resolved_cases.contains(&key)
+                    || self.nodes.get(&key).is_some_and(|node| node.kind == SyntaxKind::Literal)
+            })).then_some(())
+    }
+
+    /// An admitted derived read: exact owning declaration, complete body,
+    /// and a body observing only its admitted row (below). `visited` guards
+    /// nested derived reads against dependency cycles; each top-level read
+    /// starts with its own empty guard.
+    fn admitted_derived_read(
+        &self,
+        field: SymbolId,
+        model: SymbolId,
+        visited: &mut Vec<(SymbolId, SymbolId)>,
+    ) -> Option<()> {
+        self.derived_member_body(field, model)?;
+        self.derived_body_row_closure(field, model, visited)
+    }
+
+    /// Classify one member-step result by its declared type. Stored
+    /// scalar/enum leaves, scalar arrays, embedded contract data and
+    /// row-attached receipt/native slots are plain data. A stored model
+    /// row is a different row's observation: only the owning parent
+    /// lineage (proven containment) stays admitted, foreign rows refuse.
+    fn classify_body_member_value(
+        &self,
+        ty: &ResolvedType,
+        row_model: SymbolId,
+    ) -> Option<BodyValue> {
+        let leaf = ty.nullable_inner().unwrap_or(ty);
+        if primitive_type(leaf)
+            || matches!(leaf, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+        {
+            return Some(BodyValue::Scalar);
+        }
+        match leaf {
+            ResolvedType::Array { element, .. } => {
+                let inner = element.nullable_inner().unwrap_or(element);
+                if primitive_type(inner)
+                    || matches!(inner, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+                {
+                    Some(BodyValue::Scalar)
+                } else {
+                    None
+                }
+            }
+            ResolvedType::Record { symbol, stored } => {
+                // Only a stored MODEL row is another row's observation.
+                // Embedded contract/record values are row-attached data;
+                // member steps inside them resolve through their declared
+                // type below.
+                let target = self.resolve.symbols.get(symbol.0 as usize)?;
+                if !matches!(&target.kind, SymbolKind::Model { .. }) {
+                    return Some(BodyValue::Scalar);
+                }
+                if !stored {
+                    return Some(BodyValue::Scalar);
+                }
+                let owner = self.resolve.symbols.get(row_model.0 as usize)?;
+                match &owner.kind {
+                    SymbolKind::Model {
+                        owner: ModelOwner::ChildOf(parent),
+                        ..
+                    } if *parent == *symbol => Some(BodyValue::Row(*symbol)),
+                    _ => None,
+                }
+            }
+            // Receipt/native slots (delivery observations, std nominals,
+            // opaque positions) are row-attached data, never another row.
+            // The existing consumer (exact-receipt census, codegen seal,
+            // emit lowering) still qualifies the actual read.
+            _ => Some(BodyValue::Scalar),
+        }
+    }
+
+    /// Resolve one member step against the row it reads: the named target
+    /// must be a stored leaf, the owning parent lineage, a receipt/native
+    /// slot, or a transitively admitted nested derive. Unresolved targets
+    /// and foreign rows keep their refusal.
+    fn admitted_body_member_step(
+        &self,
+        model: SymbolId,
+        name: &str,
+        visited: &mut Vec<(SymbolId, SymbolId)>,
+    ) -> Option<BodyValue> {
+        let owner = self.resolve.symbols.get(model.0 as usize)?;
+        let SymbolKind::Model {
+            owner: model_owner,
+            fields,
+            ..
+        } = &owner.kind
+        else {
+            return None;
+        };
+        // The owning parent link is synthetic (proven creation
+        // containment, not a declared field): ChildOf models step into
+        // their owner row, anything else refuses.
+        if name == "parent" {
+            match model_owner {
+                ModelOwner::ChildOf(parent) => return Some(BodyValue::Row(*parent)),
+                _ => return None,
+            }
+        }
+        let member = fields.iter().find_map(|field| {
+            let symbol = self.resolve.symbols.get(field.0 as usize)?;
+            (symbol.name == name).then_some(symbol)
+        })?;
+        match &member.kind {
+            SymbolKind::DeriveField { model: owner, .. } if *owner == model => {
+                if visited.contains(&(member.id, model)) {
+                    return None;
+                }
+                visited.push((member.id, model));
+                let admitted = self.admitted_derived_read(member.id, model, visited);
+                visited.pop();
+                admitted?;
+                let ty = self.types.symbol_types.get(&member.id)?;
+                self.classify_body_member_value(ty, model)
+            }
+            SymbolKind::Field { .. } => {
+                let ty = self.types.symbol_types.get(&member.id)?;
+                self.classify_body_member_value(ty, model)
+            }
+            _ => None,
+        }
+    }
+
+    /// Classify one embedded/native member value: scalar leaves and scalar
+    /// arrays are data, receipt slots stay admitted for the existing
+    /// consumer, and any stored model reference refuses (an unestablished
+    /// reference path, never silently traversed).
+    fn classify_data_member_value(&self, ty: &ResolvedType) -> Option<BodyValue> {
+        let leaf = ty.nullable_inner().unwrap_or(ty);
+        if primitive_type(leaf)
+            || matches!(leaf, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+        {
+            return Some(BodyValue::Scalar);
+        }
+        match leaf {
+            ResolvedType::Array { element, .. } => {
+                let inner = element.nullable_inner().unwrap_or(element);
+                if primitive_type(inner)
+                    || matches!(inner, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+                {
+                    Some(BodyValue::Scalar)
+                } else {
+                    None
+                }
+            }
+            ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. } => {
+                Some(BodyValue::Scalar)
+            }
+            // Embedded contract values stay data however stored; member
+            // steps inside them resolve through their declared type at
+            // the next level. Model-typed values refuse here.
+            ResolvedType::Record { symbol, .. } => {
+                let target = self.resolve.symbols.get(symbol.0 as usize)?;
+                (!matches!(&target.kind, SymbolKind::Model { .. }))
+                    .then_some(BodyValue::Scalar)
+            }
+            _ => None,
+        }
+    }
+
+    /// Resolve one member step inside already-admitted data through the
+    /// base's declared type.
+    fn admitted_data_member_step(&self, base: NodeKey, name: &str) -> Option<BodyValue> {
+        let leaf = self
+            .types
+            .node_types
+            .get(&base)
+            .map(|ty| ty.nullable_inner().unwrap_or(ty))?;
+        match leaf {
+            // Computed scalar data: the step stays inside admitted data.
+            ty if primitive_type(ty)
+                || matches!(ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()) =>
+            {
+                Some(BodyValue::Scalar)
+            }
+            ResolvedType::Array { element, .. } => self.classify_data_member_value(element),
+            // Embedded contracts resolve their named member; a stored
+            // model reference inside refuses below.
+            // Embedded contracts resolve their named member however the
+            // value is stored; a model-typed value here is unestablished.
+            ResolvedType::Record { symbol, .. } => {
+                let target = self.resolve.symbols.get(symbol.0 as usize)?;
+                if matches!(&target.kind, SymbolKind::Model { .. }) {
+                    return None;
+                }
+                let record = self.effects.records.get(symbol)?;
+                let member = record.fields.iter().find_map(|field| {
+                    let symbol = self.resolve.symbols.get(field.field.0 as usize)?;
+                    (symbol.name == name).then_some(field.field)
+                })?;
+                let ty = self.types.symbol_types.get(&member)?;
+                self.classify_data_member_value(ty)
+            }
+            // Native objects resolve their named member the same way.
+            ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
+                let (_, ty) = fields.iter().find(|(field, _)| field == name)?;
+                self.classify_data_member_value(ty)
+            }
+            // Receipt slots stay admitted: the exact-receipt census and
+            // the codegen seal still qualify the actual read.
+            ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. } => {
+                Some(BodyValue::Scalar)
+            }
+            _ => None,
+        }
+    }
+
+    /// Prove one body expression observes only admitted values: member
+    /// targets resolve (above), `row` grounds at the admitted row model,
+    /// literals/enum cases/booleans are data, operators combine proven
+    /// children. Calls, queries, branches and foreign names keep refusal.
+    fn admitted_body_value(
+        &self,
+        key: NodeKey,
+        row_model: SymbolId,
+        visited: &mut Vec<(SymbolId, SymbolId)>,
+        depth: usize,
+    ) -> Option<BodyValue> {
+        // Iterative worklist predecessors capped traversal steps; the
+        // recursive proof caps nesting instead, so adversarial deep
+        // expressions decline instead of overflowing the stack.
+        if depth > 128 || visited.len() > 32 {
+            return None;
+        }
+        let key = self.query_group(key)?;
+        let node = self.nodes.get(&key)?;
+        match node.kind {
+            SyntaxKind::Member => {
+                let (base, name) = self.count_member(key)?;
+                let grouped_base = self.query_group(base)?;
+                match self.admitted_body_value(base, row_model, visited, depth + 1)? {
+                    // Row steps resolve their named target (above):
+                    // foreign rows and unproven nested derives refuse.
+                    BodyValue::Row(model) => self.admitted_body_member_step(model, name, visited),
+                    // Steps inside already-admitted data resolve through
+                    // the base's declared type: computed scalar data stays
+                    // admitted, embedded contracts and native objects
+                    // resolve their named member, receipt slots stay
+                    // admitted for the existing consumer to qualify, and
+                    // unestablished reference paths (including model
+                    // references hidden inside embedded values) refuse.
+                    BodyValue::Scalar => self.admitted_data_member_step(grouped_base, name),
+                }
+            }
+            SyntaxKind::NameRef => {
+                let word = self.word(node)?;
+                if word == "row" {
+                    match self.query_binding(key) {
+                        Some(Binding::Context(ContextVar::RowModel(actual))) if *actual == row_model => {
+                            Some(BodyValue::Row(*actual))
+                        }
+                        _ => None,
+                    }
+                } else if word == "true" || word == "false" || word == "null"
+                    || self.types.resolved_cases.contains(&key)
+                {
+                    Some(BodyValue::Scalar)
+                } else {
+                    None
+                }
+            }
+            SyntaxKind::Literal => Some(BodyValue::Scalar),
+            SyntaxKind::Binary | SyntaxKind::Unary | SyntaxKind::Array | SyntaxKind::Group => {
+                for part in node.children.iter().filter(|part| expression(part.kind)) {
+                    self.admitted_body_value(NodeKey::of(part), row_model, visited, depth + 1)?;
+                }
+                Some(BodyValue::Scalar)
+            }
+            _ => None,
+        }
+    }
+
+    /// A derived body observes only its admitted row: member chains rooted
+    /// at `row` with resolved targets (above), literals, enum cases and
+    /// pure operators. Calls, queries, branches and foreign names keep
+    /// their refusal, so the recorded row read is the body's complete
+    /// observation.
+    fn derived_body_row_closure(
+        &self,
+        field: SymbolId,
+        model: SymbolId,
+        visited: &mut Vec<(SymbolId, SymbolId)>,
+    ) -> Option<()> {
+        let root = self.query_group(self.effects.derives.get(&field)?.expr?)?;
+        // The body's value may be data or (degenerately) the row itself;
+        // every member step inside already resolved above.
+        self.admitted_body_value(root, model, visited, 0).map(|_| ())
+    }
+
+    /// A derived member read keeps its exact owning declaration and complete
+    /// body. Only parameter-free bodies over the admitted row qualify; the
+    /// codegen seal re-verifies the complete member against fresh IR.
+    fn derived_member_body(&self, field: SymbolId, model: SymbolId) -> Option<()> {
+        let derive = self.effects.derives.get(&field)?;
+        let declaration = self.resolve.symbols.get(field.0 as usize)?;
+        let owner = self.resolve.symbols.get(model.0 as usize)?;
+        if derive.derive != field
+            || derive.model != Some(model)
+            || !derive.params.is_empty()
+            || declaration.module != derive.module
+            || owner.module != derive.module
+            || !matches!(&owner.kind, SymbolKind::Model { fields, .. } if fields.contains(&field))
+            || !matches!(&declaration.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model)
+        {
+            return None;
+        }
+        let body = self.query_group(derive.expr?)?;
+        if self.types.node_types.get(&body)? != self.types.symbol_types.get(&field)? {
+            return None;
+        }
+        Some(())
+    }
+
+    /// The source observer's expression grammar is independent of call/domain
+    /// ownership. Arrays contribute only the checked literal alternatives above.
+    fn source_require_expression_shape(&self, key: NodeKey) -> Option<()> {
+        let node = self.nodes.get(&key)?;
+        if node.kind == SyntaxKind::Array {
+            return self.source_require_literal_array(key);
+        }
+        (!expression(node.kind) || matches!(node.kind,
+            SyntaxKind::Literal | SyntaxKind::NameRef | SyntaxKind::Group
+                | SyntaxKind::Member | SyntaxKind::Call | SyntaxKind::Unary
+                | SyntaxKind::Binary | SyntaxKind::Query)).then_some(())
+    }
+
     fn checked_source_requires(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -9605,7 +10178,7 @@ impl<'a> Closure<'a> {
         }) || scenario.params.iter().filter(|param| {
             matches!(self.types.symbol_types.get(&param.param),
                 Some(ResolvedType::Record {stored: true, ..}))
-        }).count() != 1 {
+        }).count() == 0 {
             return Some(Vec::new());
         }
         let before_write =
@@ -9789,13 +10362,17 @@ impl<'a> Closure<'a> {
                                 value.node != *predicate || value.ty != *predicate_ty
                             })
                             || query.projection.is_some()
-                            || call.chain.is_empty()
                         {
                             supported = false;
                             break;
                         }
                         let domain_node = self.nodes.get(&query.domain)?;
-                        if domain_node.kind == SyntaxKind::Member {
+                        if call.chain.is_empty() {
+                            if self.source_require_contained_any(scenario, query, fact.model).is_none() {
+                                supported = false;
+                                break;
+                            }
+                        } else if domain_node.kind == SyntaxKind::Member {
                             let (base, name) = self.count_member(query.domain)?;
                             let Some(Binding::Symbol(parameter)) = self.query_binding(base) else {
                                 return None;
@@ -9911,23 +10488,15 @@ impl<'a> Closure<'a> {
                         && let Some(field) = self.resolve.symbols.iter().find(|field| field.name == name
                             && matches!(field.kind, SymbolKind::DeriveField { model: owner, .. } if owner == *model))
                     {
-                        if aggregate_field(field.id, *model).is_none() { supported = false; break; }
+                        if aggregate_field(field.id, *model).is_none()
+                            && self.admitted_derived_read(field.id, *model, &mut Vec::new()).is_none()
+                        {
+                            supported = false; break;
+                        }
                         helper_query = true;
                     }
                 }
-                if expression(node.kind)
-                    && !matches!(
-                        node.kind,
-                        SyntaxKind::Literal
-                            | SyntaxKind::NameRef
-                            | SyntaxKind::Group
-                            | SyntaxKind::Member
-                            | SyntaxKind::Call
-                            | SyntaxKind::Unary
-                            | SyntaxKind::Binary
-                            | SyntaxKind::Query
-                    )
-                {
+                if self.source_require_expression_shape(key).is_none() {
                     supported = false;
                     break;
                 }
@@ -10453,6 +11022,27 @@ impl<'a> Closure<'a> {
         result
     }
 
+    fn literal_message_descriptor(&self, key: NodeKey) -> bool {
+        self.types.node_types.get(&key) == Some(&ResolvedType::InlineMessage)
+            && self.nodes.get(&key).is_some_and(|node| {
+                node.kind == SyntaxKind::MessageValue
+                    && node.children.iter().filter(|child| expression(child.kind))
+                        .all(|child| child.kind == SyntaxKind::Literal)
+                    && node.children.iter().filter(|child| child.kind == SyntaxKind::MessageVariant)
+                        .all(|variant| variant.children.iter().filter(|child| expression(child.kind))
+                            .all(|child| child.kind == SyntaxKind::Literal))
+            })
+    }
+
+    fn literal_value(&self, key: NodeKey) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if self.nodes.get(&key).is_some_and(|node| node.kind == SyntaxKind::Literal)
+            || self.literal_message_descriptor(key) {
+            Ok(vec![ValuePath::default()])
+        } else {
+            Err(self.fail(key, "unsupported literal descriptor"))
+        }
+    }
+
     fn expr_inner(
         &mut self,
         key: NodeKey,
@@ -10485,7 +11075,7 @@ impl<'a> Closure<'a> {
             .filter(|n| expression(n.kind))
             .collect();
         match node.kind {
-            SyntaxKind::Literal => Ok(vec![ValuePath::default()]),
+            SyntaxKind::Literal | SyntaxKind::MessageValue => self.literal_value(key),
             SyntaxKind::NameRef | SyntaxKind::Path => {
                 // The checker may claim a builtin spelling as an enum case;
                 // that checked type wins over its non-value builtin binding.
@@ -11341,7 +11931,25 @@ impl<'a> Closure<'a> {
                 .get(&field.id)
                 .ok_or_else(|| self.fail(key, "missing stored field type"))?;
             if !matches!(field.kind, SymbolKind::Field { owner, .. } if owner == model) {
-                return Err(self.fail(key, "derived field requires its complete body closure"));
+                // Derived members keep their exact owning declaration and
+                // complete body over an exact required Model reference. The
+                // codegen seal re-verifies the complete member against fresh
+                // IR, so a changed body keeps its refusal there.
+                let leaf = match field_ty {
+                    ResolvedType::Nullable(inner) => inner.as_ref(),
+                    ty => ty,
+                };
+                if !matches!(field.kind, SymbolKind::DeriveField { model: owner, .. } if owner == model)
+                    || self.admitted_derived_read(field.id, model, &mut Vec::new()).is_none()
+                    || !(primitive_type(leaf)
+                        || matches!(leaf, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+                    || !calls.is_empty()
+                    || self.loop_node.is_some()
+                    || !matches!(&value.reference_origin, Some(ReferenceOrigin::Parameter(parameter))
+                        if matches!(self.query_binding(base_key), Some(Binding::Symbol(actual)) if actual == parameter))
+                {
+                    return Err(self.fail(key, "derived field requires its complete body closure"));
+                }
             }
             if field_ty != ty || field.module != owner.module {
                 return Err(self.fail(key, "stored field schema identity mismatch"));
@@ -12501,6 +13109,20 @@ impl<'a> Closure<'a> {
         Some(*argument)
     }
 
+    fn literal_format_arguments(&self, arguments: &[NodeKey], slots: &[Option<usize>]) -> Option<()> {
+        if arguments.len() != 2 || slots.len() != 2 || slots[0] == slots[1] { return None; }
+        let descriptor = self.query_group(*arguments.get(slots[0]?)?)?;
+        let locale = self.types.node_types.get(arguments.get(slots[1]?)?)?;
+        (self.literal_message_descriptor(descriptor)
+            && matches!(locale, ResolvedType::Null | ResolvedType::Scalar(Scalar::Locale))).then_some(())
+    }
+
+    fn settled_scalar_call(&self, id: &str, arguments: &[NodeKey], slots: &[Option<usize>]) -> bool {
+        (matches!(id, "date" | "datetime" | "money" | "abs" | "round" | "min" | "max" | "trim" | "starts_with")
+            || id == "format" && self.literal_format_arguments(arguments, slots).is_some())
+            && slots.iter().all(Option::is_some)
+    }
+
     fn call(
         &mut self,
         key: NodeKey,
@@ -13483,18 +14105,7 @@ impl<'a> Closure<'a> {
                 }
                 // These settled scalar constructors/math functions consume all
                 // explicit operands. Catalog defaults are not source defaults.
-                if !matches!(
-                    id.as_str(),
-                    "date"
-                        | "datetime"
-                        | "money"
-                        | "abs"
-                        | "round"
-                        | "min"
-                        | "max"
-                        | "trim"
-                        | "starts_with"
-                ) || selected.slots.iter().any(Option::is_none)
+                if !self.settled_scalar_call(&id, &selected.arguments, &selected.slots)
                 {
                     return Err(self.fail(key, "unsupported builtin closure"));
                 }
@@ -14883,6 +15494,53 @@ impl<'a> Closure<'a> {
         )
     }
 
+    /// SET references consume only an original required input or the immediately
+    /// preceding checked constructor. Copied rows keep their existing refusal.
+    fn set_reference_value(
+        &self,
+        effect: &Effect,
+        module: ModuleId,
+        key: NodeKey,
+        model: SymbolId,
+        value: &ValuePath,
+    ) -> bool {
+        value.record == Some(model)
+            && value.delivery.is_none()
+            && value.members.is_none()
+            && (matches!(value.reference_origin,
+                Some(ReferenceOrigin::Parameter(parameter))
+                if self.original_call_model_parameter(key, effect.node, module) == Some((parameter, model)))
+                || matches!(value.model_result,
+                    Some(DisclosureModelResult::Create { model: actual, node })
+                    if actual == model && self.preceding_call_create(effect, module, key, model, node)))
+    }
+
+    fn set_reference_type(&self, ty: &ResolvedType, calls: &[NodeKey]) -> Option<SymbolId> {
+        let ResolvedType::Record { symbol, stored: true } = ty else {
+            return None;
+        };
+        (calls.is_empty() && self.loop_node.is_none() && self.effects.models.contains_key(symbol))
+            .then_some(*symbol)
+    }
+
+    fn set_uses_scalar_inventory(&self, ty: &ResolvedType, calls: &[NodeKey]) -> bool {
+        !matches!(ty, ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. }
+            | ResolvedType::Scalar(Scalar::File)) && self.set_reference_type(ty, calls).is_none()
+    }
+
+    /// A SET consumes exactly one declared carrier family; scalar fields never
+    /// inherit row, delivery or object authority from their expression.
+    fn set_value_matches(&self, effect: &Effect, module: ModuleId, key: NodeKey,
+        base: &ResolvedType, calls: &[NodeKey], value: &ValuePath) -> bool {
+        if let Some(model) = self.set_reference_type(base, calls) {
+            self.set_reference_value(effect, module, key, model, value)
+        } else if matches!(base, ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. }) {
+            value.delivery.as_ref() == Some(base)
+        } else {
+            value.delivery.is_none() && value.record.is_none() && value.members.is_none()
+        }
+    }
+
     fn set(
         &mut self,
         effect: &Effect,
@@ -14978,12 +15636,8 @@ impl<'a> Closure<'a> {
                 ResolvedType::Nullable(inner) => inner.as_ref(),
                 ty => ty,
             };
-            let delivery = matches!(
-                base,
-                ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. }
-            );
             let file = matches!(base, ResolvedType::Scalar(Scalar::File));
-            if !delivery && !file {
+            if self.set_uses_scalar_inventory(base, calls) {
                 let source_reference_array = matches!(ty, ResolvedType::Array { .. })
                     && calls.is_empty() && self.loop_node.is_none()
                     && arg.value.is_some_and(|value| {
@@ -15021,13 +15675,8 @@ impl<'a> Closure<'a> {
                     None => self.lexical(arg.key_node, module, env, calls)?,
                 }
             };
-            if values.iter().any(|value| {
-                if delivery {
-                    value.delivery.as_ref() != Some(base)
-                } else {
-                    value.delivery.is_some() || value.record.is_some() || value.members.is_some()
-                }
-            }) {
+            if values.iter().any(|value| !self.set_value_matches(effect, module,
+                arg.value.unwrap_or(arg.key_node), base, calls, value)) {
                 return Err(self.fail(arg.key_node, "set carrier or scalar provenance mismatch"));
             }
             paths = self.product(effect.node, &paths, &values)?;
@@ -18065,8 +18714,8 @@ mod tests {
             .ends_with("and org.active"));
 
         let multiple_models = source.replace("org:Customer,reason:text", "org:Customer,other:Location,reason:text");
-        assert!(checked_query_source(&multiple_models).source_facts().unwrap()
-            .source_requires.as_ref().unwrap().is_empty());
+        assert_eq!(checked_query_source(&multiple_models).source_facts().unwrap()
+            .source_requires.as_ref().unwrap().len(), 1);
         let schemas = facts.stored_contracts.as_deref().unwrap();
         assert!(schemas.iter().any(|schema| schema.fields.iter().any(|field| {
             field.canonical == "Bounds.Customer.locations" && field.reuse.is_none()
@@ -18078,6 +18727,27 @@ mod tests {
         let direct = source.replace("customer_staff(actor,org) and customer_staff(actor,org)",
             "any(Employee as employee,employee.person==actor)");
         assert!(checked_query_source(&direct).source_facts().unwrap()
+            .source_requires.as_ref().unwrap().is_empty());
+    }
+
+    #[test]
+    fn source_require_inventory_keeps_required_models_literal_cases_and_direct_child_any() {
+        let source = "app Bounds\nGiven\n Location {name:text}\n Employee {person:user,location:Location,active:bool}\n Customer {locations:Location[],active:bool,state:enum(warm,cold)=warm}\n Item in Customer {state:enum(pending,done)=pending}\n derive can_work(person:user,location:Location):bool = any(Employee as employee,employee.person==person and employee.active and employee.location==location)\n policy Location read=public\n policy Employee read=members\n policy Customer read=members\n policy Item read=members\nWhen\n scenario probe(org:Customer,site:Location,reason:text) -> bool by=members\n  require can_work(actor,site) and org.state in [warm,cold] and reason in [\"ready\",\"ok\"] and not any(org.Item as item,item.state in [pending])\n  do\n   return true\nThen\n";
+        let disclosure = checked_query_source(source);
+        assert!(matches!(disclosure, ScenarioDisclosure::Complete(_)), "{disclosure:?}");
+        assert_eq!(disclosure.source_facts().unwrap().source_requires.as_ref().unwrap().len(), 1);
+        let nullable = source.replace("state:enum(pending,done)=pending", "state:enum(pending,done)?");
+        assert_eq!(checked_query_source(&nullable).source_facts().unwrap()
+            .source_requires.as_ref().unwrap().len(), 1,
+            "nullable enum case alternatives retain the exact checked source observer");
+        // A direct global ANY retains its existing profile; this extension
+        // establishes only the exact declared child domain of original inputs.
+        let global = source.replace("any(org.Item as item,item.state in [pending])",
+            "any(Item as item,item.state in [pending])");
+        assert!(checked_query_source(&global).source_facts().unwrap()
+            .source_requires.as_ref().unwrap().is_empty());
+        let defaulted = source.replace("reason:text)", "reason:text=\"ready\")");
+        assert!(checked_query_source(&defaulted).source_facts().unwrap()
             .source_requires.as_ref().unwrap().is_empty());
     }
 
@@ -18703,7 +19373,7 @@ mod tests {
     }
 
     #[test]
-    fn guarded_send_retains_dispatch_source_and_reference_writes_still_decline() {
+    fn guarded_send_retains_dispatch_source_and_admits_required_model_reference_set() {
         let send = "app Bounds\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\n Item {source:text,revision:int}\n policy Item read=members\nWhen\n scenario probe(item:Item) by=members\n  do\n   send LLM.cancel {source=item.source,revision=item.revision} when=false as stop\nThen\n";
         let ScenarioDisclosure::Complete(plan) = checked(send) else {
             panic!("original checked dispatch source must qualify")
@@ -18728,10 +19398,15 @@ mod tests {
         assert!(plan.returns[0].decisions.is_empty());
         assert_eq!(plan.returns[0].dependencies.len(), 2);
         let reference = "app Bounds\nGiven\n Other {value:int}\n Item {other:Other?}\n policy Other read=members\n policy Item read=members\nWhen\n scenario probe(item:Item,other:Other) by=members\n  do set item {other}\nThen\n";
-        assert!(matches!(
-            checked(reference),
-            ScenarioDisclosure::Declined(_)
-        ));
+        let ScenarioDisclosure::Complete(plan) = checked(reference) else {
+            panic!("required model reference SET must qualify")
+        };
+        assert_eq!(plan.effects.len(), 1);
+        let DisclosureEffectKind::Set { fields, .. } = &plan.effects[0].kind else {
+            panic!("reference SET must disclose its set effect")
+        };
+        assert_eq!(fields.len(), 1);
+        assert_eq!(plan.returns.len(), 1);
         let foreign = "package Other\n Given\n  export Item {value:int}\n  policy Item read=members\n When\n Then\napp Bounds\nuse Other {Item}\nGiven\nWhen\n scenario probe(item:Item) by=members\n  do set item {value=1}\nThen\n";
         let mut db = SourceDb::new();
         let file = db.add("foreign.can".into(), foreign.into());

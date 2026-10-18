@@ -1,5 +1,16 @@
 # Canlang language design decisions
 
+## 2026-10-18 — consume the released compiler batch in native integration
+
+**Accepted intake.** Incorporate9e9b1c7c4 and retain its checked source/context
+and failure/refusal rules, owning review and27+4+original-count1 checks. It does
+not change the native server or frozen package outputs. Final integrated release
+qualification rebuilds the actual compiler and checks its installed manual
+consumer; native94 and unchanged package/installer results remain reused. Preserve
+all unfinished foreign runtime/prefs sources in place and stopped U in its named
+stash. The bounded main write window authorizes only the released native closure
+and owning documentation reconciliation.
+
 ## 2026-10-18 — retain development planning notes at their declared scope
 
 **Accepted reconciliation.** Preserve the foreign paused-stage ownership,
@@ -92,6 +103,26 @@ failure references and construct help/ranking remain visible as unavailable.
 Automatic scheduling and stable-origin browser updates retain their later task
 owners. Full T14/T15 acceptance and installed T17 cutover remain open; the
 TypeScript installation entry and preserved lifecycle fixes remain in place.
+
+## 2026-10-18 — retain source context through finite receipt composition
+
+**Accepted compiler implementation.** Retain the exact fresh source context through
+query/count/ancestor receipt collection and native emission. A derived read must
+belong to the original checked declaration/body and its bounded transitive typed
+read closure; unrelated owner diagnostics do not orphan an otherwise checked
+member. Required-model guards and ordered create/SET/SEND receipt tails retain
+source correspondence. Foreign/nested unsupported model reads still refuse.
+
+The released compiler scope reuses focused source/context checks (27 passing),
+guarded-created-reference checks (4 passing), and the independent original
+six-query/count/ancestor witness (1 passing, 125.62 s). The actual compiled
+Maintain assignment progressed through commit, genuine mail and a failed receipt.
+This accepts the compiler mechanism, not the complete assignment/retry workflow:
+ruled-model delivery observation, staged-hook retirement and inline-preference
+HTTP materialization remain unfinished. The last complete original24 capture
+remains 212 E6008; no lower count is claimed. No app-specific exception or new
+worktree/cache was introduced.
+
 
 ## 2026-10-18 — retain native archive and hook event ownership
 

@@ -1,5 +1,15 @@
 # Living ideal file-tree plan for Canlang
 
+**Released compiler intake for development integration, 2026-10-18:** all16
+paths in9e9b1c7c4 retain Compiler ownership: checked source/disclosure closure,
+receipt/query context composition and13 defining source/test paths; its compiler
+execution record, decision and tree notes retain their owners. Reuse the owner's
+reviewed27+4+original-count1 results at that finite scope. No whole compiler-suite
+or original24 claim is inferred. Native server/producer closure is unchanged;
+rebuild the integrated release compiler and exercise the affected installed manual
+workflow/phase measurement. Foreign unfinished runtime/prefs work stays in place,
+excluded from committed capture. Complete historical checkpoint stays unchanged.
+
 **Released foreign development notes, 2026-10-18:** retain the two-doc paused-stage
 planning refinement and historical startup provenance in their existing owners.
 Current resume/implementation evidence governs activation; proposed host relocation,
@@ -84,6 +94,20 @@ recorded lifecycle68, capture31, affected daemon/service and subsequent finite
 state/terminal/automatic/path/no-op checks. Actual current-build terminal/browser
 integration remains open. Preserve accumulated coverage, target allocations and
 the held complete checkpoint; this bounded merge is not a whole-tree audit.
+
+**Compiler receipt-composition intake, 2026-10-18:** the existing compiler
+analysis owner retains finite typed derived-read closure; codegen create/query/
+receipt owners retain fresh-source joins, ordered effects and count/ancestor
+context. The thirteen released source/test paths include only the two context
+plumbing hunks in `codegen/js.rs`; preference UI and hook-staging edits remain
+unfinished and excluded. Existing current-revision/profile/text/transcript/source-
+require and guarded-created-reference tests remain with their defining compiler
+owners. Reuse the focused 27/4 checks and independent original six-query witness;
+retain the actual Maintain assignment progress without accepting its unfinished
+retry. Account for this complete finite intake and its decision together; retain
+all prior accepted coverage and the historical complete checkpoint unchanged.
+The development-server intake is separately owned and preserves these sources.
+
 
 > **Stale plan — not verified against the current repository.** This document
 > is historical planning guidance, not a reliable current description of the
