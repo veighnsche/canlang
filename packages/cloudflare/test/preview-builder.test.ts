@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ArtifactRuntimeBinding, CompileArtifact } from '@canlang/contracts';
 import type { SingleFileCapture } from '../src/dev/source-capture.js';
@@ -13,9 +14,10 @@ vi.mock('../src/dev/source-capture.js', () => ({ captureIsCurrent: async () => t
 vi.mock('../src/deploy/bundle.js', () => ({ assertLinksResolve: () => {}, assertWorkerdLoadable: () => {},
   bundleMixedSha256: () => 'mixed', inventorizeAssets: () => [], generatedStyleResources: () => ({}) }));
 import { createLocalPreviewBuilder } from '../src/dev/preview-builder.js';
+import { DevCleanupError } from '../src/dev/cleanup.js';
 
 const hash = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
-afterEach(() => vi.clearAllMocks());
+afterEach(() => vi.resetAllMocks());
 
 async function setup(models: unknown[] | undefined, active = true, operations: unknown[] = [{}], pages: unknown[] = [{}], runtimeBindings?: ArtifactRuntimeBinding[]) {
   const sourceBindings = runtimeBindings === undefined ? {} : { runtimeBindings, modules: [{ path: 'app.js', js:
@@ -74,6 +76,41 @@ it('model-free preview configures only global DB and confirms its real activatio
   expect(result.confirm).toHaveBeenCalledTimes(1);
   expect(result.confirm.mock.calls[0]![2]).toBe(result.dbs.get('DB'));
   expect(result.confirm.mock.calls[0]).toHaveLength(4);
+});
+
+it('retains failed provisioning cleanup and backing files until release succeeds', async () => {
+  mocks.dispose.mockRejectedValue(new Error('provisioning still alive'));
+  const result = await setup([]);
+  const persistence = mocks.start.mock.calls[0]![0].d1Persist;
+  try {
+    expect(result.failure).toBeInstanceOf(DevCleanupError);
+    expect(mocks.start).toHaveBeenCalledTimes(1);
+    expect(mocks.dispose).toHaveBeenCalledTimes(2);
+    expect(existsSync(persistence)).toBe(true);
+  } finally {
+    mocks.dispose.mockResolvedValue(undefined);
+    await result.failure.dispose();
+  }
+  expect(mocks.dispose).toHaveBeenCalledTimes(3);
+  expect(existsSync(persistence)).toBe(false);
+});
+
+it('retains failed serving startup cleanup and retries only unreleased resources', async () => {
+  mocks.dispose.mockResolvedValueOnce(undefined).mockRejectedValue(new Error('serving still alive'));
+  const result = await setup([]);
+  const persistence = mocks.start.mock.calls[1]![0].d1Persist;
+  try {
+    expect(result.failure).toBeInstanceOf(DevCleanupError);
+    expect(result.failure.cause).toBe(result.probeReached);
+    expect(mocks.close).toHaveBeenCalledTimes(1);
+    expect(existsSync(persistence)).toBe(true);
+  } finally {
+    mocks.dispose.mockResolvedValue(undefined);
+    await result.failure.dispose();
+  }
+  expect(mocks.dispose).toHaveBeenCalledTimes(3);
+  expect(mocks.close).toHaveBeenCalledTimes(1);
+  expect(existsSync(persistence)).toBe(false);
 });
 
 it('model-free preview refuses inactive serving global DB', async () => {

@@ -1,5 +1,6 @@
 import { statSync, watch, type FSWatcher } from "node:fs";
 import { stat } from "node:fs/promises";
+import { DevCleanupError } from "./cleanup.js";
 
 /** Immutable identities for one check. The producer hashes the actual inputs. */
 export interface DevInputs {
@@ -80,6 +81,8 @@ export class DevSessionCore<T, P extends DevPreview> {
   private checkRevision: string | null = null;
   private buildRevision: string | null = null;
   private serving: { revision: string; preview: P } | null = null;
+  private readonly pendingCleanup = new Set<{ dispose(): Promise<void> }>();
+  private stopping: Promise<void> | null = null;
   private lastPreviewReset = false;
   private readonly history = new Map<string, CapturedCheck<T>>();
   private readonly watchers = new Map<string, { watcher: FSWatcher | null; identity: string | null; retryAt: number }>();
@@ -279,6 +282,8 @@ export class DevSessionCore<T, P extends DevPreview> {
 
   private async checkOne(expectedRevision: string | undefined, signal: AbortSignal): Promise<CheckPublication<T>> {
     if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
+    // Never grow the runtime set while a previous build still needs release.
+    await this.cleanupPending();
     let inputs: DevInputs;
     try {
       inputs = await this.refresh(signal);
@@ -330,12 +335,14 @@ export class DevSessionCore<T, P extends DevPreview> {
     try {
       prepared = await this.hooks.preparePreview(inputs, check);
     } catch (error) {
+      if (error instanceof DevCleanupError) this.pendingCleanup.add(error);
       signal.throwIfAborted();
       return { kind: "build_failed", revision, check: structuredClone(captured), error: errorText(error) };
     }
     const current = !signal.aborted && await this.stillCurrent(inputs, revision, signal);
     if (!current || signal.aborted) {
-      await prepared.dispose();
+      this.pendingCleanup.add(prepared);
+      await this.cleanupPending();
       if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
       return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
     }
@@ -347,8 +354,9 @@ export class DevSessionCore<T, P extends DevPreview> {
     this.lastPreviewReset = old !== null;
     let cleanupError: string | undefined;
     if (old !== null) {
+      this.pendingCleanup.add(old.preview);
       try {
-        await old.preview.dispose();
+        await this.cleanupPending();
       } catch (error) {
         cleanupError = errorText(error);
       }
@@ -379,8 +387,18 @@ export class DevSessionCore<T, P extends DevPreview> {
     return false;
   }
 
-  async stop(): Promise<void> {
-    if (this.stopped) return;
+  private async cleanupPending(): Promise<void> {
+    const errors: unknown[] = [];
+    for (const preview of this.pendingCleanup) {
+      try { await preview.dispose(); this.pendingCleanup.delete(preview); }
+      catch (error) { errors.push(error); }
+    }
+    if (errors.length === 1) throw errors[0];
+    if (errors.length > 1) throw new AggregateError(errors, "preview cleanup failed");
+  }
+
+  stop(): Promise<void> {
+    if (this.stopping !== null) return this.stopping;
     this.stopped = true;
     this.changeSerial += 1;
     this.stopChecks.abort(new Error("session stopped"));
@@ -388,12 +406,15 @@ export class DevSessionCore<T, P extends DevPreview> {
     if (this.pollTimer !== null) clearInterval(this.pollTimer);
     for (const entry of this.watchers.values()) entry.watcher?.close();
     this.watchers.clear();
-    await this.checkQueue;
-    await this.captureQueue;
-    if (this.serving !== null) {
-      const serving = this.serving;
-      this.serving = null;
-      await serving.preview.dispose();
-    }
+    this.stopping = (async () => {
+      await this.checkQueue;
+      await this.captureQueue;
+      if (this.serving !== null) {
+        this.pendingCleanup.add(this.serving.preview);
+        this.serving = null;
+      }
+      await this.cleanupPending();
+    })().catch(error => { this.stopping = null; throw error; });
+    return this.stopping;
   }
 }

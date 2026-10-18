@@ -171,11 +171,13 @@ function resolveOwned(specifier: string, applicationRoot: string): string | null
   }
 }
 
-export function installedOwnedSourceInputs(applicationRoot = process.cwd()): readonly NamedInputPath[] {
+export function installedOwnedSourceInputs(
+  applicationRoot = process.cwd(),
+  installed: readonly NamedInputPath[] = installedPortableBundleInputs(applicationRoot),
+): readonly NamedInputPath[] {
   const paths = new Map<string, string>();
   const installation = installedRoot();
   const seen = new Set<string>();
-  const installed = installedPortableBundleInputs(applicationRoot);
   for (const specifier of OWNED_EXPORTS) {
     const entry = resolveOwned(specifier, applicationRoot);
     if (entry === null) continue;
@@ -488,14 +490,15 @@ export function installedLocalPreviewInputInventory(checkoutRoot: string, compil
   const toolRoot = installedToolRoot();
   const grammar = join(installedReferenceRoot(checkoutRoot), "docs", "specification", "GRAMMAR.md");
   if (!statSync(grammar).isFile()) throw new Error("preview inputs: installed grammar reference is unavailable");
+  const packageInputPaths = installedPortableBundleInputs(checkoutRoot);
   return {
-    packageInputPaths: installedPortableBundleInputs(checkoutRoot),
+    packageInputPaths,
     extraInputPaths: [
       ...bundlerExecutableInputs(),
       { name: "grammar", path: grammar },
       ...(installation === null ? [] : [{ name: "installation-manifest", path: join(installation, "manifest.json") }]),
       ...(toolRoot === null ? [] : [{ name: "tool-release-manifest", path: join(toolRoot, "tools.json") }]),
-      ...installedOwnedSourceInputs(checkoutRoot),
+      ...installedOwnedSourceInputs(checkoutRoot, packageInputPaths),
       ...compilerSourceInputs(checkoutRoot, compilerPath),
       ...firstProfileQualificationInputs(checkoutRoot),
     ],

@@ -134,13 +134,16 @@ function startupLimit(value: number | undefined): number {
   return selected;
 }
 
-function sendStart(child: ChildProcess, message: ChildStartMessage): Promise<void> {
+function validateStart(message: ChildStartMessage): void {
   let encoded: string;
   try { encoded = JSON.stringify(message); }
   catch { throw new SessionSocketError("INVALID_START", "daemon setup cannot be encoded"); }
   if (Buffer.byteLength(encoded) > MAX_INIT_BYTES) {
     throw new SessionSocketError("INVALID_START", "daemon setup exceeds the private IPC byte limit");
   }
+}
+
+function sendStart(child: ChildProcess, message: ChildStartMessage): Promise<void> {
   return new Promise((resolveSend, rejectSend) => {
     child.send(message, error => {
       if (error) rejectSend(new SessionSocketError("DAEMON_START_FAILED", "daemon setup could not be delivered"));
@@ -214,6 +217,15 @@ export async function startDevDaemon(
     profile: PROFILE,
     ...(options.runtimeDir === undefined ? {} : { runtimeDir: options.runtimeDir }),
   };
+  const request: ChildStartMessage = {
+    type: "start", selectedApp: options.selectedApp, capture: options.capture, previewRoles,
+    ...(options.runtimeDir === undefined ? {} : { runtimeDir: options.runtimeDir }),
+    expectedSourceRevision: expected.sourceRevision,
+    expectedEpochMaterial: expected.epochMaterial,
+  };
+  // Validate before spawning or installing reply listeners: a synchronous
+  // setup rejection must not strand a detached child or an unhandled reply.
+  validateStart(request);
   const child = spawn(dependencies.execPath ?? process.execPath, [entryPath, "--serve"], {
     cwd: expected.root,
     detached: true,
@@ -223,12 +235,7 @@ export async function startDevDaemon(
   let handedOff = false;
   try {
     const replyPromise = awaitReply(child, timeoutMs);
-    const delivery = sendStart(child, {
-      type: "start", selectedApp: options.selectedApp, capture: options.capture, previewRoles,
-      ...(options.runtimeDir === undefined ? {} : { runtimeDir: options.runtimeDir }),
-      expectedSourceRevision: expected.sourceRevision,
-      expectedEpochMaterial: expected.epochMaterial,
-    });
+    const delivery = sendStart(child, request);
     const [reply] = await Promise.all([replyPromise, delivery]);
     if (reply.type === "failed") throw new SessionSocketError(reply.code, reply.message);
     if (reply.identity.root !== expected.root || reply.identity.app !== options.selectedApp ||
@@ -240,8 +247,7 @@ export async function startDevDaemon(
         verified.identity.pid !== reply.identity.pid) {
       throw new SessionSocketError("SESSION_MISMATCH", "daemon startup reply differs from the verified owner");
     }
-    const current = await captureSingleFileSource(options.capture);
-    if (current.epochMaterial !== expected.epochMaterial || !(await captureIsCurrent(current))) {
+    if (!(await captureIsCurrent(expected))) {
       throw new SessionSocketError("CAPTURE_CHANGED", "source or installed inputs changed before daemon handoff");
     }
     handedOff = true;
@@ -343,9 +349,8 @@ export async function serveDevDaemonProcess(): Promise<void> {
     if (terminationRequested) {
       throw new SessionSocketError("DAEMON_START_FAILED", "launcher terminated during owner startup");
     }
-    const after = await captureSingleFileSource(request.capture);
     const status = owner.status();
-    if (after.epochMaterial !== captured.epochMaterial || !(await captureIsCurrent(after)) ||
+    if (!(await captureIsCurrent(captured)) ||
         status.source_revision !== captured.sourceRevision || status.capture_error !== null) {
       throw new SessionSocketError("CAPTURE_CHANGED", "source or installed inputs changed during owner startup");
     }

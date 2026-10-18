@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, readdir, rename, rm, writeFile } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DevRevisionConflictError, DevSessionCore, type DevPreview } from "../src/dev/session-core.js";
+import { DevCleanupError } from "../src/dev/cleanup.js";
 
 function preview(id: string, disposed: string[]): DevPreview {
   return { id, dispose: async () => { disposed.push(id); } };
@@ -137,13 +138,14 @@ describe("development session revision lifecycle", () => {
 
   it("keeps a newly promoted preview available when old preview cleanup fails", async () => {
     let source = "first";
+    let failCleanup = true, builds = 0;
     const session = new DevSessionCore({
       capture: async () => ({ sourceRevision: source, inputDigest: source }),
       check: async () => ({ complete: true, passed: true, detail: null }),
-      preparePreview: async inputs => ({
+      preparePreview: async inputs => { builds++; return ({
         id: inputs.sourceRevision,
-        dispose: async () => { if (inputs.sourceRevision === "first") throw new Error("old worker disposal failed"); },
-      }),
+        dispose: async () => { if (inputs.sourceRevision === "first" && failCleanup) throw new Error("old worker disposal failed"); },
+      }); },
     });
     try {
       await session.check();
@@ -151,9 +153,61 @@ describe("development session revision lifecycle", () => {
       const result = await session.check();
       expect(result).toMatchObject({ kind: "checked", revision: "r2", preview: "ready", cleanupError: "old worker disposal failed" });
       expect(session.status()).toMatchObject({ servingRevision: "r2", servingBuild: "second" });
+      source = "third";
+      await expect(session.check()).rejects.toThrow("old worker disposal failed");
+      expect(builds).toBe(2);
+      failCleanup = false;
+      expect(await session.check()).toMatchObject({ kind: "checked", preview: "ready" });
+      expect(builds).toBe(3);
     } finally {
+      failCleanup = false;
       await session.stop();
     }
+  });
+
+  it("retains failed canceled-preview and partial-start cleanup for stop retry", async () => {
+    for (const startupFailure of [false, true]) {
+      let failCleanup = true, disposals = 0;
+      const controller = new AbortController();
+      const dispose = async () => { disposals++; if (failCleanup) throw new Error("runtime still alive"); };
+      const session = new DevSessionCore({
+        capture: async () => ({ sourceRevision: "a", inputDigest: "a" }),
+        check: async () => ({ complete: true, passed: true, detail: null }),
+        preparePreview: async () => {
+          if (startupFailure) throw new DevCleanupError(new Error("startup failed"), new Error("runtime still alive"), dispose);
+          controller.abort(new Error("caller disconnected"));
+          return { id: "canceled", dispose };
+        },
+      });
+      if (startupFailure) expect(await session.check()).toMatchObject({ kind: "build_failed" });
+      else await expect(session.check(undefined, controller.signal)).rejects.toThrow("runtime still alive");
+      await expect(session.stop()).rejects.toThrow("runtime still alive");
+      failCleanup = false;
+      await session.stop();
+      expect(disposals).toBe(startupFailure ? 2 : 3);
+      expect(session.status().servingBuild).toBeNull();
+    }
+  });
+
+  it("concurrent stop callers await serving runtime release and can retry failure", async () => {
+    let release!: () => void, entered!: () => void, attempts = 0;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const disposing = new Promise<void>(resolve => { entered = resolve; });
+    const session = new DevSessionCore({
+      capture: async () => ({ sourceRevision: "a", inputDigest: "a" }),
+      check: async () => ({ complete: true, passed: true, detail: null }),
+      preparePreview: async () => ({ id: "serving", dispose: async () => {
+        attempts++; entered(); await gate;
+        if (attempts === 1) throw new Error("try cleanup again");
+      } }),
+    });
+    await session.check();
+    const first = session.stop(), second = session.stop();
+    expect(second).toBe(first);
+    const failures = Promise.allSettled([first, second]);
+    await disposing; expect(attempts).toBe(1); release();
+    expect((await failures).map(result => result.status)).toEqual(["rejected", "rejected"]);
+    await session.stop(); expect(attempts).toBe(2);
   });
 
   it("retains an old serving build across an invalid edit and resets data on repair", async () => {

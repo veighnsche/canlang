@@ -20,6 +20,7 @@ import {
 } from "../deploy/bundle.js";
 import { PINNED_COMPATIBILITY_DATE } from "./zero-config.js";
 import { startLocalDev, type LocalDev } from "./local-run.js";
+import { cleanupAfterFailure, DevCleanupError, retryableDispose } from "./cleanup.js";
 import type { D1Database } from "@cloudflare/workers-types";
 import { startProtectedPreview, type ProtectedPreview } from "./preview-bridge.js";
 import {
@@ -464,8 +465,24 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
     }
     if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview inputs changed during bundle production");
     let worker: LocalDev | null = null;
+    let provisioning: LocalDev | null = null;
     let bridge: ProtectedPreview | null = null;
     let persistence: string | null = null;
+    let failedStartup: DevCleanupError | null = null;
+    const dispose = retryableDispose(async () => {
+      const errors: unknown[] = [];
+      // Attempt every independent release, retaining only failed resources.
+      try { await bridge?.close(); bridge = null; } catch (error) { errors.push(error); }
+      try { await provisioning?.dispose(); provisioning = null; } catch (error) { errors.push(error); }
+      try { await worker?.dispose(); worker = null; } catch (error) { errors.push(error); }
+      try { await failedStartup?.dispose(); failedStartup = null; } catch (error) { errors.push(error); }
+      if (errors.length > 0) throw new AggregateError(errors, "preview resource cleanup failed");
+      // Never remove a runtime's backing files while it may still be alive.
+      if (persistence !== null && options.persistenceRoot === undefined) {
+        await rm(persistence, { recursive: true, force: true });
+      }
+      persistence = null;
+    });
     try {
       // The bridge is inaccessible until issueOpenUrl is returned after all
       // probes. Its chosen origin can therefore configure the real auth host.
@@ -486,7 +503,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
         fail("IDENTITY_UNAVAILABLE", "real local Identity seed producer is unavailable");
       }
       persistence = retained?.persistence ?? await mkdtemp(join(tmpdir(), "can-preview-d1-"));
-      const provisioning = await startLocalDev({
+      provisioning = await startLocalDev({
         workerName: `can-preview-provision-${randomUUID()}`,
         compatibilityDate: PINNED_COMPATIBILITY_DATE,
         mainModule: "provision.js",
@@ -508,7 +525,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
           await retained?.saveSeed(seed);
         }
       }
-      finally { await provisioning.dispose(); }
+      finally { await provisioning.dispose(); provisioning = null; }
       if (seed.actors.length !== 4 || !seed.actors.some(actor => actor.email === seed.probe.email && actor.password === seed.probe.password) ||
           seed.owners.length !== 2 || new Set(seed.owners.map(owner => owner.owner)).size !== 2 ||
           new Set(seed.owners.map(owner => owner.binding)).size !== 2 ||
@@ -559,13 +576,10 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
       await probeWorker(worker, bundle, bridge.url, seed, artifact);
       if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview inputs changed during startup");
       const protectedBridge = bridge;
-      const builtWorker = worker;
       const builtBundle = bundle;
-      const ownedPersistence = persistence;
       const exactArtifactBytes = new Uint8Array(artifactBytes);
       const workerName = `can-preview-examples-${randomUUID()}`;
       let actors: readonly LocalPreviewActor[] | null = seed.actors;
-      let disposing: Promise<void> | null = null;
       return {
         id: `preview-${randomUUID()}`,
         issueOpenUrl: () => protectedBridge.issueOpenUrl(),
@@ -592,21 +606,13 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
           };
         },
         dispose() {
-          if (disposing !== null) return disposing;
           actors = null;
-          disposing = (async () => {
-            try { await protectedBridge.close(); }
-            finally { try { await builtWorker.dispose(); } finally { if (options.persistenceRoot === undefined) await rm(ownedPersistence, { recursive: true, force: true }); } }
-          })();
-          return disposing;
+          return dispose();
         },
       };
     } catch (error) {
-      try { await bridge?.close(); }
-      finally { try { await worker?.dispose(); } finally {
-        if (persistence !== null && options.persistenceRoot === undefined) await rm(persistence, { recursive: true, force: true });
-      } }
-      throw error;
+      if (error instanceof DevCleanupError) failedStartup = error;
+      return cleanupAfterFailure(error, dispose);
     }
   };
 }

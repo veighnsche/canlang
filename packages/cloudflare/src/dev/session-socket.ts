@@ -662,22 +662,43 @@ export async function startSessionSocket(options: SessionSocketOptions): Promise
     await writeFile(temporaryDescriptor, JSON.stringify(identity), { mode: 0o600, flag: "wx" });
     await rename(temporaryDescriptor, paths.descriptorPath);
     let stopped = false;
+    let listenerClosed = false;
+    let stopping: Promise<void> | null = null;
     return {
       identity,
       descriptorPath: paths.descriptorPath,
-      async stop(): Promise<void> {
-        if (stopped) return;
-        stopped = true;
-        for (const controller of controllers) controller.abort();
-        for (const socket of sockets) socket.destroy();
-        await new Promise<void>(resolveClose => server!.close(() => resolveClose()));
-        const current = await lstat(paths.sessionDir).catch(() => null);
-        if (current && current.dev === ownedDirectory.dev && current.ino === ownedDirectory.ino) {
-          const claimNow = storedClaim(await readJson(paths.claimPath));
-          if (claimNow?.sessionId === identity.sessionId) {
-            await rm(paths.sessionDir, { recursive: true, force: true });
+      stop(): Promise<void> {
+        if (stopping !== null) return stopping;
+        if (stopped) return Promise.resolve();
+        stopping = (async () => {
+          for (const controller of controllers) controller.abort();
+          for (const socket of sockets) socket.destroy();
+          if (!listenerClosed) {
+            await new Promise<void>(resolveClose => server!.close(() => resolveClose()));
+            listenerClosed = true;
           }
-        }
+          const current = await lstat(paths.sessionDir).catch(error => {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+            throw error;
+          });
+          if (current && current.dev === ownedDirectory.dev && current.ino === ownedDirectory.ino) {
+            const claimNow = await readFile(paths.claimPath, "utf8").then(value => storedClaim(JSON.parse(value)))
+              .catch(error => {
+                if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+                throw error;
+              });
+            // A previous recursive removal may already have removed the
+            // claim. The retained directory identity still establishes ours.
+            if (claimNow === null || claimNow?.sessionId === identity.sessionId) {
+              await rm(paths.sessionDir, { recursive: true, force: true });
+            }
+          }
+          stopped = true;
+        })().catch(error => {
+          stopping = null;
+          throw error;
+        });
+        return stopping;
       },
     };
   } catch (error) {

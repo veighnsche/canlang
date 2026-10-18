@@ -342,6 +342,34 @@ describe("one-file source capture", () => {
     }
   });
 
+  it.each([0, 1, 256 * 1024 - 1, 256 * 1024, 256 * 1024 + 1])(
+    "hashes a %i-byte producer exactly and detects its changed contents",
+    async size => {
+      const request = fixture();
+      try {
+        const bytes = Buffer.from(Array.from({ length: size }, (_, index) => index % 251));
+        const binary = join(request.checkoutRoot, "boundary.bin");
+        writeFileSync(binary, bytes);
+        const selected = { ...request, packageInputPaths: [{ name: "boundary", path: binary }] };
+        const first = await captureSingleFileSource(selected);
+        expect(first.inputs.find(input => input.name === "package:boundary")).toMatchObject({
+          bytes: size, sha256: createHash("sha256").update(bytes).digest("hex"),
+        });
+        expect(await captureIsCurrent(first)).toBe(true);
+
+        const changedBytes = size === 0 ? Buffer.from([0xff]) : Buffer.from(bytes);
+        changedBytes[changedBytes.length - 1] = changedBytes[changedBytes.length - 1]! ^ 0xff;
+        writeFileSync(binary, changedBytes);
+        expect(await captureIsCurrent(first)).toBe(false);
+        const changed = await captureSingleFileSource(selected);
+        expect(changed.epochMaterial).not.toBe(first.epochMaterial);
+        expect(changed.inputs.find(input => input.name === "package:boundary")).toMatchObject({
+          bytes: changedBytes.length, sha256: createHash("sha256").update(changedBytes).digest("hex"),
+        });
+      } finally { rmSync(request.checkoutRoot, { recursive: true, force: true }); }
+    },
+  );
+
   it("pins a multi-chunk binary digest and detects a same-size final-byte change", async () => {
     const request = fixture();
     try {

@@ -87,6 +87,59 @@ test("separate worktrees cannot attach to each other's owner or data channel", a
   }
 });
 
+test("concurrent starts claim exactly one usable owner for the same root", async () => {
+  const { scratch, root, runtimeDir } = await fixture();
+  const options = { checkoutRoot: root, app: "OfficeSupplies", profile: "local-d1-identity", runtimeDir,
+    handle: () => "winner" };
+  const results = await Promise.allSettled([startSessionSocket(options), startSessionSocket(options)]);
+  const owners = results.filter(result => result.status === "fulfilled").map(result => result.value);
+  try {
+    assert.equal(owners.length, 1);
+    const losers = results.filter(result => result.status === "rejected");
+    assert.equal(losers.length, 1);
+    assert.ok(losers[0]!.reason instanceof SessionSocketError);
+    assert.ok(["SESSION_EXISTS", "CLAIM_IN_PROGRESS", "OWNER_UNRESPONSIVE", "RECOVERY_IN_PROGRESS"]
+      .includes(losers[0]!.reason.code));
+    const client = await discoverSessionSocket({ checkoutRoot: root, runtimeDir });
+    assert.equal(client.identity.sessionId, owners[0]!.identity.sessionId);
+    assert.equal(await client.request({ command: "status" }), "winner");
+  } finally {
+    await Promise.all(owners.map(owner => owner.stop()));
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("socket cleanup failure retains the claim and concurrent callers join a retry", {
+  skip: typeof process.getuid !== "function" || process.getuid() === 0,
+}, async () => {
+  const { scratch, root, runtimeDir } = await fixture();
+  const options = { checkoutRoot: root, app: "OfficeSupplies", profile: "local-d1-identity", runtimeDir,
+    handle: () => null };
+  const owner = await startSessionSocket(options);
+  const sessionDir = dirname(owner.descriptorPath);
+  try {
+    await chmod(sessionDir, 0o500);
+    const firstStop = owner.stop();
+    assert.equal(owner.stop(), firstStop);
+    await assert.rejects(firstStop, error => ["EACCES", "EPERM"].includes((error as NodeJS.ErrnoException).code ?? ""));
+    assert.equal(JSON.parse(await readFile(join(sessionDir, "claim.json"), "utf8")).sessionId, owner.identity.sessionId);
+    await assert.rejects(startSessionSocket(options), codeIs("OWNER_UNRESPONSIVE"));
+    await chmod(sessionDir, 0o700);
+    // A recursive removal may remove the claim before failing on a sibling.
+    await rm(join(sessionDir, "claim.json"));
+    const retry = owner.stop();
+    assert.equal(owner.stop(), retry);
+    await retry;
+    await assert.rejects(lstat(sessionDir), error => (error as NodeJS.ErrnoException).code === "ENOENT");
+    const replacement = await startSessionSocket(options);
+    await replacement.stop();
+  } finally {
+    await chmod(sessionDir, 0o700).catch(() => undefined);
+    await owner.stop();
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
 test("a dead owner's descriptor is reclaimed without accepting its old session", async () => {
   const { scratch, root, runtimeDir } = await fixture();
   const moduleUrl = new URL("./session-socket.js", import.meta.url).href;

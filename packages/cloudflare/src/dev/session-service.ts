@@ -144,6 +144,7 @@ export interface SessionServiceStatus {
   dirty: boolean;
   preview_reset: boolean;
   capture_error: string | null;
+  shutdown_error: "CLEANUP_FAILED" | null;
   preview: "ready" | "unavailable";
 }
 
@@ -611,8 +612,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         ...(preview.exampleInput === undefined ? {} : { exampleInput: () => preview.exampleInput!() }),
         async dispose() {
           unobserve?.();
-          if (previews.get(preview.id) === wrapped) previews.delete(preview.id);
           await preview.dispose();
+          if (previews.get(preview.id) === wrapped) previews.delete(preview.id);
         },
       };
       previews.set(preview.id, wrapped);
@@ -621,6 +622,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   }, { historyLimit: 8 });
   let socket: SessionSocketOwner | null = null;
   let stopping: Promise<void> | null = null;
+  let stopRequested = false;
+  let shutdownError: "CLEANUP_FAILED" | null = null;
 
   const status = (): SessionServiceStatus => {
     const state = core.status();
@@ -632,11 +635,13 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       serving_revision: state.servingRevision, serving_build: state.servingBuild,
       stale: state.stale, dirty: state.dirty, preview_reset: state.previewReset,
       capture_error: state.captureError === null ? null : short(state.captureError, MAX_REASON),
+      shutdown_error: shutdownError,
       preview: state.servingBuild !== null && previews.has(state.servingBuild) ? "ready" : "unavailable",
     };
   };
 
   const check = async (expectedRevision?: string, requestSignal?: AbortSignal): Promise<SessionCheckResponse> => {
+    if (stopRequested) throw new SessionSocketError("SESSION_STOPPING", "session shutdown has begun");
     let result: Awaited<ReturnType<typeof core.check>>;
     try {
       result = await core.check(expectedRevision, requestSignal);
@@ -663,27 +668,31 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
 
   const stop = (): Promise<void> => {
     if (stopping !== null) return stopping;
+    stopRequested = true;
     stopExamples.abort();
     invalidateQualifications();
     ranker.close();
     pendingRanks.clear();
     stopping = (async () => {
-      let stopError: unknown;
-      try { await core.stop(); } catch (error) { stopError = error; }
+      await core.stop();
       await exampleQueue;
       await Promise.allSettled([...pendingQualifications]);
       reruns.close();
       exampleCaptures.clear();
       exampleFailures.clear();
-      try { await socket?.stop(); } catch (error) { stopError ??= error; }
+      await socket?.stop();
       captures.clear();
       helpByDigest.clear();
       checkedHelp.clear();
       checkedCaptures.clear();
       artifacts.clear();
       previews.clear();
-      if (stopError !== undefined) throw stopError;
-    })();
+      shutdownError = null;
+    })().catch(error => {
+      shutdownError = "CLEANUP_FAILED";
+      stopping = null;
+      throw error;
+    });
     return stopping;
   };
 
@@ -890,6 +899,9 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   };
 
   const handle = async (command: SessionSocketCommand, requestSignal: AbortSignal): Promise<unknown> => {
+    if (stopRequested && command.command !== "status" && command.command !== "stop") {
+      throw new SessionSocketError("SESSION_STOPPING", "session shutdown has begun");
+    }
     const payload = record(command.payload);
     if (command.command === "help") {
       return {
@@ -1218,6 +1230,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         ...(preview.issueLocalActors === undefined ? {} : { actors: preview.issueLocalActors() }) };
     }
     if (command.command === "stop") {
+      stopRequested = true;
       // Let the socket write its acknowledgement before closing active peers.
       setTimeout(() => { void stop().catch(() => undefined); }, 100).unref();
       return { schema: "can.dev.stop.v1", session: socket?.identity.sessionId, stopping: true };

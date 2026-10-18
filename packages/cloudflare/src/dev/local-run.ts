@@ -5,6 +5,7 @@ import { isAbsolute, join } from "node:path";
 import { Miniflare, type DispatchFetch, type WorkerOptions } from "miniflare";
 import type { D1Database } from "@cloudflare/workers-types";
 import { COMPILED_WASM_MODULE_TYPE } from "@canlang/contracts";
+import { cleanupAfterFailure, retryableDispose } from "./cleanup.js";
 
 type DispatchInit = Parameters<DispatchFetch>[1];
 type DispatchResult = ReturnType<DispatchFetch>;
@@ -318,6 +319,7 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
   };
 
   let recovery: Promise<void> | undefined;
+  let startupFailure: unknown;
   let stopped = false;
   let reportedRecoveryFailure = false;
   const wake = (): void => {
@@ -328,11 +330,28 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
       if (result.outcome !== 'ok') throw new Error(`Local resource recovery failed (${result.outcome}).`);
       reportedRecoveryFailure = false;
     })().catch(error => {
+      if (stopped) return;
       if (!reportedRecoveryFailure) console.error('Can local resource recovery:', error);
       reportedRecoveryFailure = true;
     }).finally(() => { recovery = undefined; });
   };
-  const recoveryTimer = options.resourceRecovery === true ? setInterval(wake, 1_000) : undefined;
+  let recoveryTimer: ReturnType<typeof setInterval> | undefined;
+  const dispose = retryableDispose(async () => {
+    stopped = true;
+    if (recoveryTimer !== undefined) clearInterval(recoveryTimer);
+    // Start disposal even if a scheduled recovery dispatch never settles.
+    // Closing workerd aborts that dispatch; waiting first can deadlock stop.
+    try { await miniflare.dispose(); }
+    catch (error) {
+      // Pinned Miniflare rethrows its original init rejection after its
+      // disposal finally completes. A different error means cleanup failed.
+      if (startupFailure === undefined || error !== startupFailure) throw error;
+    }
+    await recovery;
+  });
+  try { await miniflare.ready; }
+  catch (error) { startupFailure = error; return cleanupAfterFailure(error, dispose); }
+  recoveryTimer = options.resourceRecovery === true ? setInterval(wake, 1_000) : undefined;
   recoveryTimer?.unref();
 
   return {
@@ -353,11 +372,10 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
       return text.split("\n").filter(Boolean).map(line => JSON.parse(line) as LocalAnalyticsDataPoint);
     },
     dispose: async () => {
-      stopped = true;
-      if (recoveryTimer !== undefined) clearInterval(recoveryTimer);
-      await recovery;
-      await miniflare.dispose();
-      if (analyticsFailure !== undefined) throw analyticsFailure;
+      await dispose();
+      const failure = analyticsFailure;
+      analyticsFailure = undefined;
+      if (failure !== undefined) throw failure;
     },
   };
 }

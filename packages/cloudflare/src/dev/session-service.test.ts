@@ -130,7 +130,7 @@ test("the frozen Office Supplies source gets revision-bound diagnostics and no i
   }
 });
 
-test("stop releases the owned socket even when preview disposal fails", async () => {
+test("failed preview cleanup retains ownership and concurrent stop callers join its retry", async () => {
   const scratch = await mkdtemp(join(tmpdir(), "cv-"));
   const root = join(scratch, "c");
   const runtimeDir = join(scratch, "r");
@@ -149,7 +149,10 @@ test("stop releases the owned socket even when preview disposal fails", async ()
     "  list Supply",
     "",
   ].join("\n"));
-  const owner = await startDevSessionService({
+  let disposals = 0;
+  let releaseCleanup!: () => void;
+  const cleanupReleased = new Promise<void>(resolve => { releaseCleanup = resolve; });
+  const options = {
     selectedApp: "OfficeSupplies", runtimeDir,
     capture: {
       checkoutRoot: root, appPath: "OfficeSupplies.can", profile: "local-d1-identity",
@@ -158,17 +161,41 @@ test("stop releases the owned socket even when preview disposal fails", async ()
       helpIndexPath: join(project, "docs/specification/CONSTRUCT-HELP.md"),
       packageInputPaths: [{ name: "cloudflare-worker", path: join(project, "packages/cloudflare/dist/worker/assembly.js") }],
     },
-    previewBuilder: async () => ({ id: "faulty-preview", dispose: async () => { throw new Error("dispose failed"); } }),
-  });
+    previewBuilder: async () => ({ id: "faulty-preview", dispose: async () => {
+      disposals += 1;
+      if (disposals === 1) throw new Error("dispose failed");
+      await cleanupReleased;
+    } }),
+  };
+  const owner = await startDevSessionService(options);
   try {
     const client = await attachDevSessionService({ checkoutRoot: root, runtimeDir });
     const checked = await client.request({ command: "check" }) as { state: string; preview: string };
     assert.equal(checked.state, "valid");
     assert.equal(checked.preview, "ready");
-    await client.request({ command: "stop" });
     await assert.rejects(owner.stop(), /dispose failed/);
+    assert.equal(disposals, 1);
+    assert.equal((await attachDevSessionService({ checkoutRoot: root, runtimeDir })).identity.sessionId,
+      owner.identity.sessionId);
+    assert.equal((await client.request({ command: "status" }) as { shutdown_error: string }).shutdown_error, "CLEANUP_FAILED");
+    await assert.rejects(client.request({ command: "check" }), error =>
+      error instanceof SessionSocketError && error.code === "SESSION_STOPPING");
+    await assert.rejects(owner.check(), error =>
+      error instanceof SessionSocketError && error.code === "SESSION_STOPPING");
+    await assert.rejects(startDevSessionService(options), error =>
+      error instanceof SessionSocketError && error.code === "SESSION_EXISTS");
+    const retry = owner.stop();
+    assert.equal(owner.stop(), retry);
+    let finished = false;
+    void retry.then(() => { finished = true; });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(disposals, 2);
+    assert.equal(finished, false);
+    releaseCleanup();
+    await retry;
     await assert.rejects(attachDevSessionService({ checkoutRoot: root, runtimeDir }));
   } finally {
+    releaseCleanup();
     await owner.stop().catch(() => undefined);
     await rm(scratch, { recursive: true, force: true });
   }

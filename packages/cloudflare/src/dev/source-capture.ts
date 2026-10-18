@@ -158,13 +158,15 @@ async function readStableFile(requestedPath: string): Promise<{ canonicalPath: s
 async function readStableIdentity(requestedPath: string): Promise<{ canonicalPath: string; bytes: number; sha256: string }> {
   const result = await readStable(requestedPath, async (handle, size) => {
     if (size > MAX_INPUT_BYTES) throw new Error("capture input exceeds the finite 1 GiB limit");
-    const hash = createHash("sha256"), chunk = Buffer.alloc(HASH_CHUNK_BYTES);
+    const hash = createHash("sha256");
+    const chunk = Buffer.alloc(Math.max(1, Math.min(size, HASH_CHUNK_BYTES)));
     let bytes = 0;
     while (true) {
       const read = await handle.read(chunk, 0, chunk.length, bytes);
       if (read.bytesRead === 0) break;
       bytes += read.bytesRead;
       if (bytes > MAX_INPUT_BYTES) throw new Error("capture input exceeds the finite 1 GiB limit");
+      if (bytes > size) throw new Error(`input changed during capture: ${requestedPath}`);
       hash.update(chunk.subarray(0, read.bytesRead));
     }
     return { value: { bytes, sha256: hash.digest("hex") }, bytes };
@@ -333,12 +335,13 @@ async function inventoryMatches(
   if (kind !== "installed-local-preview") return false;
   try {
     const inputs = await import("./preview-inputs.js");
-    const current = runtimeOnly
-      ? {
-          packageInputPaths: inputs.installedPortableBundleInputs(root),
-          extraInputPaths: inputs.installedOwnedSourceInputs(root),
-        }
-      : inputs.installedLocalPreviewInputInventory(root, compilerPath);
+    let current;
+    if (runtimeOnly) {
+      const packageInputPaths = inputs.installedPortableBundleInputs(root);
+      current = { packageInputPaths, extraInputPaths: inputs.installedOwnedSourceInputs(root, packageInputPaths) };
+    } else {
+      current = inputs.installedLocalPreviewInputInventory(root, compilerPath);
+    }
     const browserInputs = runtimeOnly ? [] : await inputs.installedBrowserQualificationInputs(root);
     const expected = [
       ...current.packageInputPaths.map(item => ({ name: `package:${item.name}`, path: item.path })),
