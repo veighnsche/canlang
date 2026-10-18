@@ -15,6 +15,61 @@ First priority is T14's authoritative state contract
 and T15's Ratatui experience, with T16 supplying the runtime boundary needed to
 qualify that manual workflow. Later automation and performance work stay separate.
 
+**Native implementation checkpoint, 2026-10-18:** `dev-server/` now supplies the
+typed authoritative state, one owner event loop, immutable capture/compiler
+adapter, private root claim/control, managed runtime bridge and process groups,
+protected gateway, watcher and Ratatui/plain foreground. The subordinate bridge
+is committed as `078366c48`; its minimal tracked changes exclude preserved U
+cache, stable-gateway, update-client producer and controller work. Real Workerd
+readiness and release pass. The Rust manual journey passes initial ready,
+authorized HTTP, invalid edit with retained r1 preview and r2 diagnostics,
+repair/replacement to r3, and confirmed endpoint/process retirement. A delayed
+watch hint exposed by that journey now triggers a bounded full byte/currentness
+confirmation rather than rejecting already-current bytes. The current compiler's
+valid capability minimum version zero is admitted.
+
+Native checks cover 80 source/state/transport/input/rendering/process/HTTP cases
+at their recorded scopes, plus actual 80/44-column PTY input/paste/resize/history,
+owned stop, attached detach and terminal restoration. Redirected stdout selects
+plain stderr before Crossterm can emit its stdout cursor query. Horizontal
+shrink preserves the visible screen in physical scrollback with an explicit
+historical-view marker before Ratatui redraws. No source or lifecycle authority
+is added to the renderer. Actual cross-controller checks pass: native UI attaches
+to a TS owner and detaches without stopping it; TS status/discover/stop control a
+native owner. The latter exposed idle-only maintenance starvation. Maintenance
+now follows an independent deadline, so status polling cannot defer retirement,
+watch reconciliation or runtime health checks; final-response draining remains.
+
+**Current local measurement:** one matched process-cold manual run uses the same
+ModelFreePreview source path/bytes, current compiler SHA
+`fcb86188b219f156915b5379cf6dc41e4cadf56e91d8db74083ecfacafe46746`
+and frozen emitted producer closure. Preserved TypeScript reaches serving in
+19.410s (owner/control 6.181s). The native full journey reaches serving in12.972s
+(control .080s); the final binary's startup-only measurement is16.857s (control
+.077s), about13% less than TS. Record both observations: runtime preparation
+varies from7.35s to10.77s and accounts for most of the difference. Final native
+capture completes around3.1s, compiler plus currency around1.7s and final currency
+around1.1s. Authorized HTTP is .023s final native/.019s TS; stop including actual
+endpoint/process retirement is .144s final native/1.854s TS. Final native binary
+SHA is `e20455897a8573d8307aa7c48c2f954ec6919f2414f9cb7eedbc4fca3ae90a31`.
+Control readiness is an earlier boundary
+than app readiness; capture was moved into an owned operation and also sped up.
+The original38.476s/17.503s was a different older tuple, not this matched baseline.
+ARM software hashing had dominated a failed native diagnostic run; maintained
+runtime-detected ARM SHA acceleration and eight bounded readers retain all byte,
+canonical-path, permission, membership and publication checks. Raw inventory
+enumeration is about.86s per request and was retained, including all three browser
+driver pins. Runtime preparation is now the largest remaining phase. These are
+single local observations, not a two-second or statistical latency claim.
+
+**Still open at the existing task IDs:** T14's complete JSON/result policy,
+retained failure/reference, example/rerun, explicit local-actor and construct
+help/ranking coordination; full T15 compatible-command qualification; T17 native
+installation/default resolution, complete retained-login/data journey and
+cutover. Native help lists unavailable command families. The installed TS entry
+remains in place; no public release, whole-plan completion, T18–T30 resumption or
+external gate release is inferred from this checkpoint.
+
 **Historical stopped TypeScript work, 2026-10-18:** these are U/source results,
 not implemented Rust T14/T15 acceptance or authorization to resume. E1/startup capture reduction is committed
 as `da726fc78`; T16's owned asynchronous bundle adapter is committed as
@@ -141,9 +196,9 @@ T14's native command/session entry, T15's controls and T16's installed bridge:
   security/inventory evidence; no new platform matrix or public release is implied.
 
 Packaging is resolved for this execution plan. No further user packaging decision
-is required. Implementation remains paused; the E1 source contract identified in
-the parity mapping is an input to Rust lifecycle acceptance, not a request to
-resume its former owner or a blocker to choosing this distribution shape.
+is required. Implementation is underway; cutover remains gated by T17. The E1
+source contract in the parity mapping is an input to Rust lifecycle acceptance;
+its former owner remains stopped.
 
 **Proposed narrow process contract (T14/T16):** Rust controls the Workerd integration
 through a private, versioned, bounded
@@ -229,11 +284,11 @@ machine-only. Ctrl+C stops an owned session or detaches an attached presenter;
 restore terminal state on supported exit/error/interrupt paths. The Rust owner can
 outlive an attached UI, so losing the presenter never implies runtime shutdown.
 
-### Finite migration within the existing task IDs (proposed, stopped)
+### Finite migration within the existing task IDs
 
 These are the current execution steps for the Rust direction, not a second plan
-or extra task IDs. E1's stopped work supplies behavior/evidence to inspect and port
-when implementation is released; it is not an instruction to resume that chat.
+or extra task IDs. E1's stopped work supplies behavior/evidence to inspect and port;
+its former chat remains stopped.
 
 | Order / existing task | Concrete output and finite acceptance |
 | --- | --- |

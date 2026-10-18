@@ -1,6 +1,23 @@
 # Living ideal file-tree plan for Canlang
 
-**Paused development-worktree intake, 2026-10-18:** current main `69eede1e8`
+**Resumed development implementation, 2026-10-18:** `f979867b2` completes the
+previously prepared `69eede1e8` intake. The user now authorizes the Rust owner and
+Ratatui implementation in dependency order. `dev-server/` owns its independent
+crate/lockfile, typed state and sole owner loop, capture/compiler adapter, private
+claim/control, bounded runtime supervision, protected HTTP gateway, watcher,
+CLI and terminal adapters with focused tests. Cloudflare owns the subordinate
+runtime host/protocol/target and actual service probes; existing shared runtime
+and business semantics retain their defining packages. The strict browser-asset
+validator admits only the producer's exact optional development resource.
+
+Reuse the recorded lifecycle results and the native 80-check scope; genuine
+current-build and terminal findings belong in the existing dev plan. New native
+files do not qualify the unavailable command families or authorize installation
+cutover. Preserved stopped TS capture/cache/browser/controller work remains
+separately identifiable in the worktree. This is bounded implementation coverage,
+not a complete tree review; the held complete checkpoint remains unchanged.
+
+**Historical paused development-worktree intake, 2026-10-18:** main `69eede1e8`
 is incorporated as an uncommitted merge into preserved `0970`/`b8c909700`;
 the user authorized sync and plan inspection only. The53 incoming paths since
 `0ec2ee9a5` retain main's Compiler/State/runtime, native preparation and complexity

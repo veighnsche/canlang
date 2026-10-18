@@ -1,5 +1,43 @@
 # Canlang language design decisions
 
+## 2026-10-18 — implement one native development owner and a subordinate runtime host
+
+**Accepted implementation at the manual core scope.** The independent
+`dev-server/` crate owns the authoritative lifecycle, capture/check operations,
+generation selection, protected access and retained cleanup. Ratatui consumes
+typed ordered observations; its connection and input state do not decide runtime
+readiness. Blocking compiler and runtime operations return correlated facts to
+one owner loop. Stop closes admission before waiting, joins work, confirms runtime
+and gateway release, flushes the final control response, and retires the private
+claim before reporting Stopped. Failed and late work cannot discard allocations
+or replace the last good preview.
+Maintenance uses an independent deadline: continuous control traffic cannot
+starve health checks or claim retirement. Actual TS/native interoperation exposed
+and verified this requirement without changing the final-response drain barrier.
+
+The bridge uses bounded `can.dev.runtime.v1` newline JSON and private byte/hash
+file references. It retains existing Miniflare/Workerd setup, actual service
+probes, explicit actor disclosure and retryable resource disposal. External-origin
+mode opens no TypeScript protected preview listener. POSIX supervision pins an
+owned private process-group leader until signaling is finished; whole-tree
+release requires observed group absence. This covers the supported non-detached
+profile, with inherited optional debugger hooks disabled; it is not a general
+container or arbitrary detached-process supervisor.
+
+[Retained JEV advice](../design/jev/dev-rust-runtime-20261018.json) records three
+equivalent bridge choices (agreement with low confidence .30/.33/.35) and three
+generic process-supervision choices (unanimous private pinned group, reported
+confidence 1.0). Advice does not establish correctness. Direct process, state,
+capture, control, terminal and HTTP checks establish their recorded finite scope.
+On ARM, enable the maintained hash dependency's runtime-detected SHA acceleration;
+bounded input readers still verify every byte and membership boundary.
+
+**Remaining uncertainty/work:** native command families for examples, retained
+failure references and construct help/ranking remain visible as unavailable.
+Automatic scheduling and stable-origin browser updates retain their later task
+owners. Full T14/T15 acceptance and installed T17 cutover remain open; the
+TypeScript installation entry and preserved lifecycle fixes remain in place.
+
 ## 2026-10-18 — use shared finite pagination for boards
 
 **Accepted implementation.** Board consumes the existing typed page flag and

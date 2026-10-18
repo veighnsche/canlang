@@ -1,0 +1,678 @@
+//! Exact captured compiler execution with bounded output and owned-child cleanup.
+use crate::capture::{self, Capture, InventoryProvider, Result};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::fs::{self, OpenOptions};
+use std::io::{Read, Write};
+use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::process::CommandExt;
+use std::path::Path;
+use std::process::{Child, Command, Stdio};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+    mpsc,
+};
+use std::thread;
+use std::time::{Duration, Instant};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CompileResult {
+    Artifact {
+        artifact: Value,
+        #[serde(rename = "artifactBytes")]
+        artifact_bytes: Vec<u8>,
+    },
+    Diagnostics {
+        envelope: Value,
+    },
+    ProfileUnsupported {
+        reason: String,
+    },
+    CaptureIncomplete {
+        reason: String,
+    },
+    ToolFailure {
+        reason: String,
+    },
+    Cancelled {
+        reason: String,
+    },
+}
+pub fn admit_single_app_profile(source: &str) -> Result<()> {
+    let mut apps = 0;
+    for (index, line) in source.lines().enumerate() {
+        let line = line.trim_start();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let after_export = line
+            .strip_prefix("export")
+            .filter(|tail| tail.starts_with(char::is_whitespace))
+            .map(str::trim_start)
+            .unwrap_or(line);
+        if keyword(after_export, "use") {
+            return Err(format!(
+                "line {}: imported members are outside the first profile",
+                index + 1
+            ));
+        }
+        if keyword(line, "app") {
+            apps += 1;
+        }
+    }
+    if apps == 1 {
+        Ok(())
+    } else {
+        Err(format!(
+            "first profile requires exactly one app declaration (found {apps})"
+        ))
+    }
+}
+fn keyword(line: &str, word: &str) -> bool {
+    line.strip_prefix(word).is_some_and(|tail| {
+        tail.chars()
+            .next()
+            .is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_')
+    })
+}
+
+pub fn compile(
+    captured: &Capture,
+    inventory: &InventoryProvider<'_>,
+    cancel: &AtomicBool,
+    phase: &dyn Fn(&str),
+) -> CompileResult {
+    if let Err(reason) = capture::check_cancel(cancel) {
+        return CompileResult::Cancelled { reason };
+    }
+    if let Err(reason) = admit_single_app_profile(&captured.source_text) {
+        return CompileResult::ProfileUnsupported { reason };
+    }
+    if Path::new(&captured.compiler_operand)
+        .file_name()
+        .is_some_and(|s| s.to_string_lossy().starts_with('-'))
+    {
+        return CompileResult::CaptureIncomplete {
+            reason: "source filename cannot be a compiler option".into(),
+        };
+    }
+    match compile_inner(captured, inventory, cancel, phase) {
+        Ok(result) => result,
+        Err(reason) if cancel.load(Ordering::Acquire) => CompileResult::Cancelled { reason },
+        Err(reason) => CompileResult::CaptureIncomplete { reason },
+    }
+}
+fn compile_inner(
+    captured: &Capture,
+    inventory: &InventoryProvider<'_>,
+    cancel: &AtomicBool,
+    phase: &dyn Fn(&str),
+) -> Result<CompileResult> {
+    let compiler = capture::verified_bytes(captured, "compiler", cancel)?;
+    let catalog_bytes = capture::verified_bytes(captured, "catalog", cancel)?;
+    phase("staging_compiler");
+    let staging = tempfile::tempdir().map_err(|e| e.to_string())?;
+    let executable = staging.path().join("can");
+    let catalog = staging.path().join("catalog.json");
+    write_executable(&executable, &compiler)?;
+    write_private(&catalog, &catalog_bytes, 0o600)?;
+    stage_sources(captured, staging.path(), cancel)?;
+    capture::check_cancel(cancel)?;
+    phase("compiler");
+    let args = vec![
+        "compile".into(),
+        "--format=json".into(),
+        "--native-scenario-receipts".into(),
+        format!("--catalog={}", catalog.display()),
+        captured.compiler_operand.clone(),
+    ];
+    let run = match run_owned(
+        &executable,
+        &args,
+        staging.path(),
+        &[(
+            "CAN_CATALOG",
+            catalog.to_str().ok_or("catalog path is not UTF-8")?,
+        )],
+        None,
+        cancel,
+        30,
+        16 * 1024 * 1024,
+    ) {
+        Ok(run) => run,
+        Err(reason) if cancel.load(Ordering::Acquire) => return Err(reason),
+        Err(reason) => return Ok(CompileResult::ToolFailure { reason }),
+    };
+    capture::check_cancel(cancel)?;
+    phase("verifying_compiler_inputs");
+    if !capture::is_current_with_phases(captured, inventory, cancel, phase) {
+        return Err("inputs changed during compiler execution".into());
+    }
+    capture::check_cancel(cancel)?;
+    Ok(interpret(captured, run))
+}
+fn stage_sources(captured: &Capture, staging: &Path, cancel: &AtomicBool) -> Result<()> {
+    capture::validate_relative(&captured.compiler_operand)?;
+    write_source(
+        staging,
+        &captured.compiler_operand,
+        captured.source_text.as_bytes(),
+    )?;
+    if let Some(snapshot) = &captured.source_snapshot {
+        for source in snapshot {
+            capture::check_cancel(cancel)?;
+            capture::validate_relative(&source.path)?;
+            if source.bytes.kind != "Buffer" || capture::hash(&source.bytes.data) != source.sha256 {
+                return Err("captured source snapshot hash mismatch".into());
+            }
+            if source.path == captured.compiler_operand && source.sha256 != captured.source_sha256 {
+                return Err("captured source snapshot app mismatch".into());
+            }
+            write_source(staging, &source.path, &source.bytes.data)?;
+        }
+    }
+    Ok(())
+}
+fn write_source(staging: &Path, relative: &str, bytes: &[u8]) -> Result<()> {
+    if matches!(relative, "can" | "catalog.json") {
+        return Err("source path collides with staged compiler inputs".into());
+    }
+    let path = staging.join(relative);
+    fs::create_dir_all(path.parent().ok_or("source path has no parent")?)
+        .map_err(|e| e.to_string())?;
+    write_private(&path, bytes, 0o600)
+}
+pub(crate) fn write_executable(path: &Path, bytes: &[u8]) -> Result<()> {
+    write_private(path, bytes, 0o700)
+}
+fn write_private(path: &Path, bytes: &[u8], mode: u32) -> Result<()> {
+    OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(mode)
+        .open(path)
+        .and_then(|mut file| file.write_all(bytes))
+        .map_err(|e| e.to_string())
+}
+fn interpret(captured: &Capture, run: ProcessOutput) -> CompileResult {
+    if run.code != Some(0) && run.code != Some(10) {
+        return CompileResult::ToolFailure {
+            reason: format!(
+                "compiler exited {:?}: {}",
+                run.code,
+                String::from_utf8_lossy(&run.stderr)
+                    .chars()
+                    .take(400)
+                    .collect::<String>()
+            ),
+        };
+    }
+    let parsed: Value = match serde_json::from_slice(&run.stdout) {
+        Ok(value) => value,
+        Err(_) => {
+            return CompileResult::ToolFailure {
+                reason: "compiler returned invalid JSON".into(),
+            };
+        }
+    };
+    if run.code == Some(0) {
+        if let Err(reason) = validate_artifact(&parsed) {
+            return CompileResult::ToolFailure { reason };
+        }
+    } else if !parsed.is_object() || !parsed["diagnostics"].is_array() {
+        return CompileResult::ToolFailure {
+            reason: "compiler diagnostics envelope or diagnostics are missing".into(),
+        };
+    }
+    let complete = run.code == Some(0) || parsed["complete"] == true;
+    if let Err(reason) = capture::verify_compiler_sources(captured, &parsed, complete) {
+        return CompileResult::CaptureIncomplete { reason };
+    }
+    if run.code == Some(0) {
+        CompileResult::Artifact {
+            artifact: parsed,
+            artifact_bytes: run.stdout,
+        }
+    } else {
+        CompileResult::Diagnostics { envelope: parsed }
+    }
+}
+/// Runtime-specific optional sections are validated by the existing bridge
+/// artifact loader. This boundary admits the compiler's executable envelope.
+fn validate_artifact(value: &Value) -> Result<()> {
+    if value["artifact_version"] != 1
+        || !nonempty(&value["tool_version"])
+        || !nonempty(&value["language_version"])
+    {
+        return Err("compiler returned an invalid artifact identity".into());
+    }
+    let modules = value["modules"]
+        .as_array()
+        .filter(|m| !m.is_empty())
+        .ok_or("artifact modules must be a nonempty array")?;
+    let mut paths = std::collections::BTreeSet::new();
+    for module in modules {
+        if !nonempty(&module["path"]) || !module["js"].is_string() || module["map"]["version"] != 3
+        {
+            return Err("artifact module is malformed".into());
+        }
+        paths.insert(module["path"].as_str().unwrap());
+    }
+    let callables = value["callables"]
+        .as_array()
+        .ok_or("artifact callables are missing")?;
+    for callable in callables {
+        validate_callable(callable, &paths)?;
+    }
+    let requires = value["requires"]
+        .as_array()
+        .ok_or("artifact requirements are missing")?;
+    for requirement in requires {
+        if !nonempty(&requirement["capability"]) || requirement["min_version"].as_u64().is_none() {
+            return Err("artifact capability requirement is malformed".into());
+        }
+    }
+    Ok(())
+}
+fn nonempty(value: &Value) -> bool {
+    value.as_str().is_some_and(|s| !s.is_empty())
+}
+fn validate_callable(value: &Value, modules: &std::collections::BTreeSet<&str>) -> Result<()> {
+    if !nonempty(&value["id"])
+        || !nonempty(&value["export"])
+        || !modules.contains(value["module"].as_str().unwrap_or(""))
+    {
+        return Err("artifact callable identity is malformed".into());
+    }
+    if !matches!(
+        value["kind"].as_str(),
+        Some("operation" | "pure" | "rule" | "handler" | "migration")
+    ) {
+        return Err("artifact callable kind is unsupported".into());
+    }
+    if !value["member"]
+        .as_array()
+        .is_some_and(|m| !m.is_empty() && m.iter().all(nonempty))
+    {
+        return Err("artifact callable member is malformed".into());
+    }
+    Ok(())
+}
+
+pub(crate) struct ProcessOutput {
+    pub code: Option<i32>,
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+}
+struct PipeRead {
+    bytes: Vec<u8>,
+    error: Option<String>,
+}
+fn read_pipe(mut pipe: impl Read, limit: usize, overflow: Arc<AtomicBool>) -> PipeRead {
+    let mut bytes = Vec::new();
+    let mut buffer = [0u8; 8192];
+    loop {
+        let len = match pipe.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(e) => {
+                return PipeRead {
+                    bytes,
+                    error: Some(e.to_string()),
+                };
+            }
+        };
+        if bytes.len().saturating_add(len) > limit {
+            overflow.store(true, Ordering::Release);
+        } else {
+            bytes.extend_from_slice(&buffer[..len]);
+        }
+    }
+    PipeRead { bytes, error: None }
+}
+fn signal_group(child: &Child, signal: i32) {
+    // process_group(0) below creates an exclusive group rooted in this exact
+    // spawn. Never accept a PID from an external message or process scan.
+    unsafe {
+        libc::kill(-(child.id() as i32), signal);
+    }
+}
+fn begin_termination(child: &Child, started: &mut Option<Instant>) {
+    if started.is_none() {
+        signal_group(child, libc::SIGTERM);
+        *started = Some(Instant::now());
+    }
+}
+fn await_owned(
+    child: &mut Child,
+    receiver: mpsc::Receiver<(bool, PipeRead)>,
+    overflow: &AtomicBool,
+    cancel: &AtomicBool,
+    timeout: Duration,
+) -> Result<ProcessOutput> {
+    let start = Instant::now();
+    let mut terminated = None;
+    let mut escalated = false;
+    let mut reason = None;
+    let mut code = None;
+    let mut exited = false;
+    let mut stdout = None;
+    let mut stderr = None;
+    loop {
+        for (out, read) in receiver.try_iter() {
+            if out {
+                stdout = Some(read);
+            } else {
+                stderr = Some(read);
+            }
+        }
+        if !exited {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    exited = true;
+                    code = status.code();
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    reason.get_or_insert(e.to_string());
+                    begin_termination(child, &mut terminated);
+                }
+            }
+        }
+        if cancel.load(Ordering::Acquire) {
+            reason.get_or_insert_with(|| "cancelled".into());
+        }
+        if overflow.load(Ordering::Acquire) {
+            reason.get_or_insert_with(|| "compiler output exceeded limit".into());
+        }
+        if start.elapsed() >= timeout {
+            reason.get_or_insert_with(|| "compiler timed out".into());
+        }
+        if reason.is_some() {
+            begin_termination(child, &mut terminated);
+        }
+        if !escalated && terminated.is_some_and(|time| time.elapsed() >= Duration::from_millis(250))
+        {
+            signal_group(child, libc::SIGKILL);
+            escalated = true;
+        }
+        if exited && stdout.is_some() && stderr.is_some() {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    // Child status and both pipe closures are observed before any caller can
+    // release staging. Escalation also reaps inherited-pipe descendants.
+    let _ = child.wait();
+    let stdout = stdout.unwrap();
+    let stderr = stderr.unwrap();
+    if let Some(error) = reason.or(stdout.error).or(stderr.error) {
+        return Err(error);
+    }
+    Ok(ProcessOutput {
+        code,
+        stdout: stdout.bytes,
+        stderr: stderr.bytes,
+    })
+}
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_owned(
+    executable: &Path,
+    args: &[String],
+    cwd: &Path,
+    env: &[(&str, &str)],
+    stdin: Option<Vec<u8>>,
+    cancel: &AtomicBool,
+    timeout_seconds: u64,
+    stdout_limit: usize,
+) -> Result<ProcessOutput> {
+    capture::check_cancel(cancel)?;
+    let mut command = Command::new(executable);
+    command
+        .args(args)
+        .current_dir(cwd)
+        .envs(env.iter().copied())
+        .stdin(if stdin.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .process_group(0);
+    let mut child = command.spawn().map_err(|e| e.to_string())?;
+    let overflow = Arc::new(AtomicBool::new(false));
+    let (sender, receiver) = mpsc::channel();
+    let out = child.stdout.take().unwrap();
+    let err = child.stderr.take().unwrap();
+    let output_sender = sender.clone();
+    let output_overflow = overflow.clone();
+    let stdout_reader = thread::spawn(move || {
+        let _ = output_sender.send((true, read_pipe(out, stdout_limit, output_overflow)));
+    });
+    let error_overflow = overflow.clone();
+    let stderr_reader = thread::spawn(move || {
+        let _ = sender.send((false, read_pipe(err, 8192, error_overflow)));
+    });
+    let writer = child.stdin.take().map(|mut pipe| {
+        thread::spawn(move || {
+            if let Some(bytes) = stdin {
+                let _ = pipe.write_all(&bytes);
+            }
+        })
+    });
+    let result = await_owned(
+        &mut child,
+        receiver,
+        &overflow,
+        cancel,
+        Duration::from_secs(timeout_seconds),
+    );
+    let _ = stdout_reader.join();
+    let _ = stderr_reader.join();
+    if let Some(writer) = writer {
+        let _ = writer.join();
+    }
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::capture::tests::{empty_inventory, fixture};
+    use std::os::unix::fs::PermissionsExt;
+
+    fn script(path: &Path, body: &str) {
+        fs::write(path, format!("#!/bin/sh\n{body}\n")).unwrap();
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    fn artifact(hash: &str) -> Value {
+        serde_json::json!({"artifact_version":1,"tool_version":"test","language_version":"test",
+            "sources":[{"path":"app.can","sha256":hash}],"modules":[{"path":"app.js","js":"export {}","map":{"version":3}}],"callables":[],"requires":[{"capability":"canlang.builtins","min_version":0}]})
+    }
+    fn compiler_output(root: &Path, output: &Value, code: i32) {
+        let encoded = output.to_string().replace('\'', "'\"'\"'");
+        script(
+            &root.join("compiler"),
+            &format!("printf '%s' '{encoded}'\nexit {code}"),
+        );
+    }
+    #[test]
+    fn preserves_first_source_profile() {
+        assert!(admit_single_app_profile("app First uses=[Catalog]\npackage Catalog\n").is_ok());
+        for source in [
+            "app First\nuse Other {Thing}\n",
+            "app First\nexport use Other {Thing}\n",
+            "app First\napp Second\n",
+            "package Catalog\n",
+        ] {
+            assert!(admit_single_app_profile(source).is_err());
+        }
+        assert!(admit_single_app_profile("app First\n## use ignored\n appending\n").is_ok());
+    }
+    #[test]
+    fn accepts_only_source_bound_artifact_and_exit_ten_diagnostics() {
+        let (root, request) = fixture();
+        let hash = capture::hash(&fs::read(root.path().join("app.can")).unwrap());
+        compiler_output(root.path(), &artifact(&hash), 0);
+        let cancel = AtomicBool::new(false);
+        let captured = capture::capture(&request, &empty_inventory, &cancel).unwrap();
+        let phases = std::cell::RefCell::new(Vec::new());
+        let result = compile(&captured, &empty_inventory, &cancel, &|p| {
+            phases.borrow_mut().push(p.to_string())
+        });
+        assert!(
+            matches!(result, CompileResult::Artifact { .. }),
+            "{result:?}"
+        );
+        assert_eq!(
+            *phases.borrow(),
+            [
+                "staging_compiler",
+                "compiler",
+                "verifying_compiler_inputs",
+                "verifying_inventory",
+                "verifying_producer_bytes",
+                "verifying_source_bytes"
+            ]
+        );
+        let diagnostic = serde_json::json!({"complete":true,"sources":[{"path":"app.can","sha256":hash}],"diagnostics":[{"code":"E2005"}]});
+        compiler_output(root.path(), &diagnostic, 10);
+        let captured = capture::capture(&request, &empty_inventory, &cancel).unwrap();
+        assert!(matches!(
+            compile(&captured, &empty_inventory, &cancel, &|_| {}),
+            CompileResult::Diagnostics { .. }
+        ));
+        compiler_output(root.path(), &artifact("wrong"), 0);
+        let captured = capture::capture(&request, &empty_inventory, &cancel).unwrap();
+        assert!(matches!(
+            compile(&captured, &empty_inventory, &cancel, &|_| {}),
+            CompileResult::CaptureIncomplete { .. }
+        ));
+    }
+    #[test]
+    fn artifact_requirements_accept_zero_but_refuse_negative_or_fractional_versions() {
+        let mut value = artifact(&"a".repeat(64));
+        assert!(validate_artifact(&value).is_ok());
+        for invalid in [serde_json::json!(-1), serde_json::json!(0.5), Value::Null] {
+            value["requires"][0]["min_version"] = invalid;
+            assert!(validate_artifact(&value).is_err());
+        }
+    }
+    #[test]
+    fn stages_exact_source_and_compiler_flags_then_refuses_mutated_catalog() {
+        let (root, request) = fixture();
+        let hash = capture::hash(&fs::read(root.path().join("app.can")).unwrap());
+        let encoded = artifact(&hash).to_string();
+        script(
+            &root.path().join("compiler"),
+            &format!(
+                "test \"$1\" = compile || exit 8\ntest \"$2\" = --format=json || exit 8\ntest \"$3\" = --native-scenario-receipts || exit 8\ntest \"$(cat app.can)\" = 'app Office\r\nGiven\r\nWhen\r\nThen\r' || exit 8\ntest \"$(cat \"$CAN_CATALOG\")\" = 'catalog A' || exit 8\nprintf '%s' '{encoded}'"
+            ),
+        );
+        let cancel = AtomicBool::new(false);
+        let captured = capture::capture(&request, &empty_inventory, &cancel).unwrap();
+        let result = compile(&captured, &empty_inventory, &cancel, &|_| {});
+        assert!(
+            matches!(result, CompileResult::Artifact { .. }),
+            "{result:?}"
+        );
+        fs::write(root.path().join("catalog.json"), "changed").unwrap();
+        let result = compile(&captured, &empty_inventory, &cancel, &|_| {});
+        assert!(
+            matches!(result, CompileResult::CaptureIncomplete {reason} if reason.contains("catalog changed"))
+        );
+    }
+    #[test]
+    fn refuses_result_when_source_changes_during_execution() {
+        let (root, request) = fixture();
+        let hash = capture::hash(&fs::read(root.path().join("app.can")).unwrap());
+        compiler_output(root.path(), &artifact(&hash), 0);
+        let cancel = AtomicBool::new(false);
+        let captured = capture::capture(&request, &empty_inventory, &cancel).unwrap();
+        let result = compile(&captured, &empty_inventory, &cancel, &|phase| {
+            if phase == "compiler" {
+                fs::write(root.path().join("app.can"), "app Changed\n").unwrap();
+            }
+        });
+        assert!(
+            matches!(result, CompileResult::CaptureIncomplete {reason} if reason.contains("inputs changed"))
+        );
+    }
+    #[test]
+    fn cancellation_escalates_owned_group_and_waits_for_pipe_close() {
+        let root = tempfile::tempdir().unwrap();
+        let executable = root.path().join("compiler");
+        script(&executable, "trap '' TERM\nwhile :; do sleep 1; done");
+        let cancel = AtomicBool::new(false);
+        let start = Instant::now();
+        thread::scope(|scope| {
+            scope.spawn(|| {
+                thread::sleep(Duration::from_millis(30));
+                cancel.store(true, Ordering::Release);
+            });
+            let error = run_owned(&executable, &[], root.path(), &[], None, &cancel, 30, 1024)
+                .err()
+                .unwrap();
+            assert_eq!(error, "cancelled");
+        });
+        assert!(start.elapsed() < Duration::from_secs(2));
+    }
+    #[test]
+    fn bounds_stdout_stderr_and_diagnostics_exit_contract() {
+        let root = tempfile::tempdir().unwrap();
+        let executable = root.path().join("compiler");
+        script(&executable, "while :; do printf '1234567890'; done");
+        let error = run_owned(
+            &executable,
+            &[],
+            root.path(),
+            &[],
+            None,
+            &AtomicBool::new(false),
+            30,
+            32,
+        )
+        .err()
+        .unwrap();
+        assert!(error.contains("exceeded limit"));
+        script(&executable, "while :; do printf '1234567890' >&2; done");
+        let error = run_owned(
+            &executable,
+            &[],
+            root.path(),
+            &[],
+            None,
+            &AtomicBool::new(false),
+            30,
+            1024,
+        )
+        .err()
+        .unwrap();
+        assert!(error.contains("exceeded limit"));
+        let (_root, request) = fixture();
+        let captured =
+            capture::capture(&request, &empty_inventory, &AtomicBool::new(false)).unwrap();
+        let malformed = ProcessOutput {
+            code: Some(10),
+            stdout: b"[]".to_vec(),
+            stderr: Vec::new(),
+        };
+        assert!(matches!(
+            interpret(&captured, malformed),
+            CompileResult::ToolFailure { .. }
+        ));
+        let invalid_exit = ProcessOutput {
+            code: Some(1),
+            stdout: b"{}".to_vec(),
+            stderr: Vec::new(),
+        };
+        assert!(matches!(
+            interpret(&captured, invalid_exit),
+            CompileResult::ToolFailure { .. }
+        ));
+    }
+}
