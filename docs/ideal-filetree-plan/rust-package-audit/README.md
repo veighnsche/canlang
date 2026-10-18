@@ -1,12 +1,14 @@
 # Additional Rust opportunities across packages
 
-**18 October 2026 — audit baseline `08dc8c3928f53c7a06984136ac52ff944360075c`; candidate 1 TS syntax and compiler parse/usage completions recorded below.**
+**18 October 2026 — audit baseline `08dc8c3928f53c7a06984136ac52ff944360075c`; candidate 1 message syntax/usage and finite joined completion recorded below.**
 All **13 packages / 1,511 tracked paths** were accounted for at the historical
 baseline. The checkout was clean at intake. That planning audit started no
 implementation, build, product test, benchmark, dependency install, default switch
 or native preparation. A subsequent user release approved the message grammar
 profile and completed the Shared TS syntax packet; a further release on base
-`7700621fa` completed compiler parse/usage consolidation. Findings concern the
+`7700621fa` completed compiler parse/usage consolidation. The UI full-signature
+packet released on base `1255fc11f` and its finite joined checks are also complete.
+Findings concern the
 complete package portfolio and candidate workflows; this is not exhaustive
 line-by-line correctness/security certification of all source, tests or generated binaries.
 
@@ -75,7 +77,7 @@ Detailed owners, callers and source evidence:
 This ordering is an engineering judgment about potential consistency/portability
 and total cost, not a measured throughput ranking. For unreleased candidates,
 “first output” is the finite remaining decision/evaluation; it is not approval
-to implement a pilot now. Candidate 1 records its separately released TS and compiler completions.
+to implement a pilot now. Candidate 1 records its separately released TS, compiler and UI completions.
 A retain-TS decision completes an evaluation successfully. No generic new ABI,
 package, carrier, library or native executable is selected in advance.
 
@@ -109,9 +111,32 @@ noise while retaining admitted explicit anonymous schemas. The
 [C09I completion note](../../research/compiler-library-audit-20261006/pass9/icu/correctness-packets.md)
 records 68 distinct Rust tests and the two frozen-compiler named/anonymous Node
 fixture checks, their consumer closure and limits. Accepted I-TYPE remains closed.
-UI full-signature/all-branch/all-variant usage and joined full completion remain
-unreleased proposals. A single Rust/Wasm implementation stays a separate dormant
-evaluation; native preparation remains **HUMAN HOLD**.
+
+**UI full-signature usage released and complete:** source/every present variant
+and all branches now receive syntax and declared-usage checks. Construction keeps
+metadata/wrapper checks first and performs no value conversion; absent params
+remain syntax-only. Formatting keeps locale resolution and eager admission of
+all supplied values before checking `options.args ?? params`, reusing each
+needed AST within the call. Values exports its existing traversal as
+`messageUsages`/`MessageUsage`/`MessageUsageSite`; Values validation/rendering and
+UI renderers/error families retain their owners. Own `__proto__` is admitted,
+null variants are skipped and empty variants remain valid. Construction accepts
+existing nonnullable, nonarray inline enum declarations used by Values formatter
+carriers; UI formatting retains its ownerless-enum refusal.
+
+Contracts/Values/UI emitted and typechecked. After the initial 254-test TS run,
+the inline-enum regression correction passed 50 affected UI tests, reusing 205
+unchanged Values/locale/components results (255 distinct tests). Both existing
+named/anonymous formatter consumers pass with unchanged frozen compiler
+`can-652cd12b506421fc`, current local Values/UI outputs, cached dependency
+outputs, source-loaded Cloudflare modules and Node's
+`--experimental-transform-types`. The anonymous constructor failure was observed
+before the correction; the unchanged named result and 68 compiler tests/63
+shared scalar cases are reused. These witnesses meet the finite joined checks of
+the released UI packet; no new intake-only assignment remains. Full tarball,
+browser, hosted/native delivery and formatter parity are not established. A
+single Rust/Wasm implementation stays a separate dormant evaluation; native
+preparation remains **HUMAN HOLD**.
 
 **If a single Rust implementation is later selected:** consume that agreed grammar/error profile; remove
 one actual duplicate parsing responsibility, keep host Intl/date/plural formatting,
@@ -227,10 +252,9 @@ the implementation language does not supply permissions, atomicity or security.
 
 ## Dependencies, ownership and future lanes
 
-The ICU grammar decision and separately released TS syntax and compiler
-parse/usage packets are complete at their recorded scope. Its remaining UI usage
-and joined completion packets, Judgment host-need
-check, State order profile comparison and generation diff workload comparison
+The ICU grammar decision, separately released TS syntax, compiler parse/usage,
+UI usage and finite joined checks are complete at their recorded scope. Judgment
+host-need check, State order profile comparison and generation diff workload comparison
 remain independent **unreleased planning/evaluation scopes**. They consume named
 source/consumer outputs, not another owner's entire plan. Files and other lower
 candidates remain dormant until a concrete trigger exists.
@@ -300,6 +324,7 @@ completed. No private instructions, local paths or secrets were sent as context.
 The original audit's documentation validation checked the exact inventory union,
 unique paths, source checkpoint, local references, JSON parsing, proposal/hold
 consistency and whitespace, with product source and original runtime/ledger
-manifests unchanged at that stage. The later TS and compiler implementations and focused checks
-are credited once under candidate 1 above. Other existing behavior checks retain
-their recorded scope; no performance or full joined-completion claim is added here.
+manifests unchanged at that stage. The later TS, compiler and UI implementations
+and finite joined checks are credited once under candidate 1 above. Other existing
+behavior checks retain their recorded scope; no performance, broader host or
+formatter-parity claim is added here.

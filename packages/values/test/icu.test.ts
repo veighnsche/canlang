@@ -6,6 +6,7 @@ import { ValueError } from "../src/errors.js";
 import {
   isMessageDescriptor,
   makeMessageDescriptor,
+  messageUsages,
   parseMessageFormat,
   renderMessage,
   validateMessagePattern,
@@ -54,6 +55,18 @@ describe("shared bounded grammar corpus", () => {
 });
 
 describe("public parser compatibility", () => {
+  it("exposes ordered usage kinds across every parsed branch without reparsing", () => {
+    const nodes = parseMessageFormat("{n,plural,one{{s,select,a{{d,date}} other{{t,time}}}} other{{i,number,integer}{x}}}");
+    assert.deepEqual(messageUsages(nodes), [
+      { name: "n", usage: "cardinal" },
+      { name: "s", usage: "select" },
+      { name: "d", usage: "date" },
+      { name: "t", usage: "time" },
+      { name: "i", usage: "integer" },
+      { name: "x", usage: "any" },
+    ]);
+  });
+
   it("keeps node shapes, default styles and exact ordered selectors", () => {
     assert.deepEqual(parseMessageFormat("Hi {name}{n,number}{i,number,integer}{d,date}{t,time}"), [
       { kind: "text", value: "Hi " },

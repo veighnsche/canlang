@@ -32,8 +32,12 @@ import {
   isDateValue,
   isDatetime,
   isDecimal,
+  messageUsages,
   parseMessageSyntax,
+  parseTypeId,
+  ValueError,
   type MessageNode,
+  type MessageUsage,
   type MessageSyntaxDiagnostic,
   type ParsedMessage,
 } from "@canlang/values";
@@ -56,7 +60,9 @@ export function normalizeTag(tag: string): string {
 
 /**
  * Construct an immutable message descriptor. Variant keys must be canonical
- * BCP 47 tags without duplicates; `null` marks an absent translation.
+ * BCP 47 tags without duplicates; `null` marks an absent translation. Validate
+ * source/present-variant syntax and every declared usage without converting
+ * operand values. With no params, binding waits until formatting.
  */
 export const message: MessageFactory = (
   source: string,
@@ -91,11 +97,12 @@ export const message: MessageFactory = (
     variants: Object.freeze(checked),
     ...(owningLocale === undefined ? {} : { sourceLocale: owningLocale }),
   };
+  let copied: MessageParams | undefined;
   if (params !== undefined) {
     if (params === null || typeof params !== "object" || Array.isArray(params)) {
       throw new TypeError("message params must be an object");
     }
-    const copied: MessageParams = {};
+    copied = {};
     for (const name of Object.keys(params)) {
       const param = params[name];
       if (param === null || typeof param !== "object" || Array.isArray(param)) {
@@ -106,9 +113,11 @@ export const message: MessageFactory = (
         enumerable: true,
       });
     }
-    return Object.freeze({ ...descriptor, params: Object.freeze(copied) });
   }
-  return Object.freeze(descriptor);
+  const declared = copied;
+  checkedPatterns(source, checked, declared === undefined ? undefined : (name) =>
+    Object.hasOwn(declared, name) ? declarationKind(name, declared[name]!.type) : undefined);
+  return Object.freeze(copied === undefined ? descriptor : { ...descriptor, params: Object.freeze(copied) });
 };
 
 /** Recognize an already resolved display value without resolving or parsing it. */
@@ -303,13 +312,38 @@ function isValidInstant(iso: string): boolean {
   return Number.isFinite(Date.parse(iso));
 }
 
+/** Descriptor carriers also serve Values' existing inline-enum formatter. */
+function declarationKind(name: string, type: string): ScalarOperand["kind"] {
+  if (typeof type === "string" && type.startsWith("enum(")) {
+    try {
+      const declared = parseTypeId(type);
+      if (declared.base.kind === "enum" && !declared.array && !declared.nullable) return "enum";
+    } catch (error) {
+      if (!(error instanceof ValueError)) throw error;
+    }
+    return fail(name, `unsupported message parameter type ${type}`);
+  }
+  return operandKind(name, type);
+}
+
+/** Preserve UI's existing value-admission mapping at the formatting sink. */
+function operandKind(name: string, type: string): ScalarOperand["kind"] {
+  if (STRING_LIKE.has(type)) return "string";
+  switch (type) {
+    case "bool": case "int": case "decimal": case "money": case "date": case "datetime":
+      return type;
+    default:
+      if (isEnumTypeId(type)) return "enum";
+      return fail(name, `unsupported message parameter type ${type}`);
+  }
+}
+
 function toOperand(name: string, param: MessageParamValue): ScalarOperand {
   const { type, value } = param;
-  if (STRING_LIKE.has(type)) {
-    if (typeof value !== "string") fail(name, `type ${type} needs a string value`);
-    return { kind: "string", value: value as string };
-  }
-  switch (type) {
+  switch (operandKind(name, type)) {
+    case "string":
+      if (typeof value !== "string") fail(name, `type ${type} needs a string value`);
+      return { kind: "string", value: value as string };
     case "bool":
       if (typeof value !== "boolean") fail(name, "type bool needs a boolean value");
       return { kind: "bool", value: value as boolean };
@@ -361,16 +395,13 @@ function toOperand(name: string, param: MessageParamValue): ScalarOperand {
       }
       return { kind: "datetime", iso: operand as string };
     }
-    default:
+    case "enum":
       // Qualified nominal enum identities (DESIGN §13, e.g.
       // "expense.Expense.status") arrive as dotted type ids. Non-string
       // values still fail closed below, so a mistyped record/array/object
       // can never be formatted as an enum case.
-      if (isEnumTypeId(type)) {
-        if (typeof value !== "string") fail(name, `type ${type} needs a stable case name`);
-        return { kind: "enum", value: value as string };
-      }
-      return fail(name, `unsupported message parameter type ${type}`);
+      if (typeof value !== "string") fail(name, `type ${type} needs a stable case name`);
+      return { kind: "enum", value: value as string };
   }
 }
 
@@ -738,9 +769,10 @@ export function formatMessageResult(
     }
     operands.set(name, toOperand(name, param));
   }
-  const parsed = parseMessageSyntax(text);
-  if (!parsed.ok) throw syntaxError(text, parsed.diagnostic);
-  const nodes = parsed.nodes;
+  const lookup: UsageLookup = (name) => operands.get(name)?.kind;
+  const nodes = typeof pattern === "string"
+    ? checkedPattern(text, lookup)
+    : checkedPatterns(pattern.source, pattern.variants, lookup).get(text) ?? checkedPattern(text, lookup);
   const state: FormatState = {
     operands,
     locale,
@@ -752,12 +784,67 @@ export function formatMessageResult(
   return Object.freeze({ text: renderNodes(nodes, state), locale });
 }
 
+type UsageLookup = (name: string) => ScalarOperand["kind"] | undefined;
+
+function undeclaredArgument(name: string, pattern: string): Error {
+  return new Error(`message pattern error: undeclared argument "${name}" in ${JSON.stringify(pattern)}`);
+}
+
+function checkedPattern(pattern: string, lookup?: UsageLookup): ParsedMessage {
+  if (typeof pattern !== "string") throw new TypeError("message pattern must be a string");
+  const parsed = parseMessageSyntax(pattern);
+  if (!parsed.ok) throw syntaxError(pattern, parsed.diagnostic);
+  if (lookup !== undefined) {
+    for (const { name, usage } of messageUsages(parsed.nodes)) {
+      const kind = lookup(name);
+      if (kind === undefined) throw undeclaredArgument(name, pattern);
+      checkUsage(name, kind, usage);
+    }
+  }
+  return parsed.nodes;
+}
+
+/** Source first, then present variants in declaration order; reuse selected AST. */
+function checkedPatterns(source: string, variants: MessageVariantMap, lookup?: UsageLookup): Map<string, ParsedMessage> {
+  const parsed = new Map<string, ParsedMessage>();
+  parsed.set(source, checkedPattern(source, lookup));
+  for (const key of Object.keys(variants)) {
+    const pattern = variants[key]!;
+    if (pattern !== null && !parsed.has(pattern)) parsed.set(pattern, checkedPattern(pattern, lookup));
+  }
+  return parsed;
+}
+
+/** Type-only checks use UI's established rendering error messages and order. */
+function checkUsage(name: string, kind: ScalarOperand["kind"], usage: MessageUsage): void {
+  let why: string | undefined;
+  switch (usage) {
+    case "any": break;
+    case "number": case "integer":
+      if (kind !== "int" && kind !== "decimal") why = "number needs int or decimal";
+      else if (usage === "integer" && kind !== "int") why = "number,integer needs int";
+      break;
+    case "date": case "time":
+      if (usage === "time" && kind === "date") why = "date-only values have no time";
+      else if (kind !== "date" && kind !== "datetime") why = `${usage} needs date or datetime`;
+      break;
+    case "cardinal":
+      if (kind !== "int" && kind !== "decimal") why = "plural needs int or decimal";
+      break;
+    case "ordinal":
+      if (kind !== "int") why = "selectordinal needs int";
+      break;
+    case "select":
+      if (kind !== "string" && kind !== "bool" && kind !== "enum") why = "select needs text, bool or enum";
+      break;
+  }
+  if (why !== undefined) throw new Error(`message argument "${name}": ${why}`);
+}
+
 function operandOf(state: FormatState, name: string): ScalarOperand {
   const operand = state.operands.get(name);
   if (operand === undefined) {
-    throw new Error(
-      `message pattern error: undeclared argument "${name}" in ${JSON.stringify(state.pattern)}`,
-    );
+    throw undeclaredArgument(name, state.pattern);
   }
   return operand;
 }

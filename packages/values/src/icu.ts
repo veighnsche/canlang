@@ -232,7 +232,7 @@ export function parseMessageFormat(pattern: string): ParsedMessage {
 // Usage validation
 // ---------------------------------------------------------------------------
 
-type IcuUsage =
+export type MessageUsage =
   | "any"
   | "number"
   | "integer"
@@ -242,12 +242,12 @@ type IcuUsage =
   | "ordinal"
   | "select";
 
-interface IcuUsageSite {
+export interface MessageUsageSite {
   readonly name: string;
-  readonly usage: IcuUsage;
+  readonly usage: MessageUsage;
 }
 
-function collectUsages(nodes: ReadonlyArray<MessageNode>, out: IcuUsageSite[]): void {
+function collectUsages(nodes: ReadonlyArray<MessageNode>, out: MessageUsageSite[]): void {
   for (const node of nodes) {
     if (node.kind === "arg") out.push({ name: node.name, usage: "any" });
     else if (node.kind === "number") out.push({ name: node.name, usage: node.integerOnly ? "integer" : "number" });
@@ -263,14 +263,21 @@ function collectUsages(nodes: ReadonlyArray<MessageNode>, out: IcuUsageSite[]): 
   }
 }
 
-function usageLabel(usage: IcuUsage): string {
+/** Ordered argument usages across every branch of an already parsed pattern. */
+export function messageUsages(ast: ParsedMessage): ReadonlyArray<MessageUsageSite> {
+  const sites: MessageUsageSite[] = [];
+  collectUsages(ast, sites);
+  return sites;
+}
+
+function usageLabel(usage: MessageUsage): string {
   if (usage === "cardinal") return "plural";
   if (usage === "ordinal") return "selectordinal";
   if (usage === "integer") return "number,integer";
   return usage;
 }
 
-function checkUsageCompatible(name: string, type: MessageParamType, usage: IcuUsage): void {
+function checkUsageCompatible(name: string, type: MessageParamType, usage: MessageUsage): void {
   const ok =
     usage === "any" ||
     ((usage === "number" || usage === "cardinal") && (type === "int" || type === "decimal")) ||
@@ -290,8 +297,7 @@ function checkUsagesBound(
   ast: ParsedMessage,
   lookup: (name: string) => MessageParamType | undefined,
 ): void {
-  const sites: IcuUsageSite[] = [];
-  collectUsages(ast, sites);
+  const sites = messageUsages(ast);
   for (const site of sites) {
     const type = lookup(site.name);
     if (type === undefined) {
@@ -461,8 +467,7 @@ export function renderMessage(
   requireArgs(args);
   const resolvedLocale = resolveLocale(locale);
   const timeZone = resolveTimeZone(resolvedLocale, options?.timeZone);
-  const sites: IcuUsageSite[] = [];
-  collectUsages(ast, sites);
+  const sites = messageUsages(ast);
   const resolved = new Map<string, ResolvedParam>();
   for (const site of sites) {
     if (resolved.has(site.name)) continue;
