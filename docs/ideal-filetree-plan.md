@@ -1,5 +1,19 @@
 # Living ideal file-tree plan for Canlang
 
+**Compiler receipt-composition intake, 2026-10-18:** the existing compiler
+analysis owner retains finite typed derived-read closure; codegen create/query/
+receipt owners retain fresh-source joins, ordered effects and count/ancestor
+context. The thirteen released source/test paths include only the two context
+plumbing hunks in `codegen/js.rs`; preference UI and hook-staging edits remain
+unfinished and excluded. Existing current-revision/profile/text/transcript/source-
+require and guarded-created-reference tests remain with their defining compiler
+owners. Reuse the focused 27/4 checks and independent original six-query witness;
+retain the actual Maintain assignment progress without accepting its unfinished
+retry. Account for this complete finite intake and its decision together; retain
+all prior accepted coverage and the historical complete checkpoint unchanged.
+The development-server intake is separately owned and preserves these sources.
+
+
 > **Stale plan — not verified against the current repository.** This document
 > is historical planning guidance, not a reliable current description of the
 > repository or an independent mandate to implement changes. Current source and

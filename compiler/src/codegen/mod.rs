@@ -293,6 +293,11 @@ pub fn emit(
         &query_sources,
         &query_receipts,
         js::EmitDecisionSources {
+            // Derived members carry their own occurrence-scoped seal, so the
+            // emit path borrows the unfiltered context: unrelated IR refusals
+            // elsewhere do not orphan exactly-bound derives. Strict consumers
+            // above keep the error-filtered context.
+            source_context: query_context,
             owner_handlers: Some(&owner_handlers),
             local_policies: local_policies.as_ref(),
             unique_conditions: unique_conditions.as_deref(),

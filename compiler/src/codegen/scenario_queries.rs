@@ -270,6 +270,15 @@ impl<'a> PreparedQuerySources<'a> {
     }
 
     fn plan(&self, owner: &IrItem, entry: &str) -> Option<ReceiptDisclosurePlan> {
+        self.plan_with_context(owner, entry, self.source_context)
+    }
+
+    fn plan_with_context(
+        &self,
+        owner: &IrItem,
+        entry: &str,
+        source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    ) -> Option<ReceiptDisclosurePlan> {
         let returned = if matches!(owner.kind, IrItemKind::Scenario { read: false, .. })
             && matches!(
                 self.program.scenario_disclosures().get(&owner.id)?,
@@ -287,6 +296,7 @@ impl<'a> PreparedQuerySources<'a> {
             self.catalog,
             entry,
             self,
+            source_context,
         )?;
         if let Some(returned) = returned {
             super::scenario_receipts::project_plan_returns(&mut plan, &returned)?;
@@ -372,6 +382,7 @@ pub fn serialize_query_sources(
         db,
         catalog,
         entry_module,
+        None,
     )?)
     .ok()
 }
@@ -399,7 +410,13 @@ pub(super) fn collect_transcript_query_source(
     {
         return None;
     }
-    checked_query_plan(program, ir, owner, db, catalog, entry_module)
+    // The count/create seal below needs the same freshly prepared owning
+    // context the final receipts use; an unpreparable owner stays closed.
+    let context = super::scenario_decisions::FreshSourceContext::prepare_queries(
+        program, ir, db, catalog,
+    )
+    .ok()?;
+    checked_query_plan(program, ir, owner, db, catalog, entry_module, Some(&context))
 }
 
 /// Literal intermediate selection metadata, authenticated through the same
@@ -419,7 +436,7 @@ pub(super) fn serialize_transcript_selections(
     if transcripts.is_empty() && inline.is_empty() {
         return None;
     }
-    checked_query_plan(program, ir, owner, db, catalog, entry_module)?;
+    checked_query_plan(program, ir, owner, db, catalog, entry_module, None)?;
     selection_metadata(ir, owner)
 }
 
@@ -1134,8 +1151,10 @@ fn checked_query_plan(
     db: &SourceDb,
     catalog: Option<&Catalog>,
     entry_module: &str,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
-    PreparedQuerySources::standalone(program, ir, db, catalog)?.plan(owner, entry_module)
+    PreparedQuerySources::standalone(program, ir, db, catalog)?
+        .plan_with_context(owner, entry_module, source_context)
 }
 
 fn checked_query_plan_full(
@@ -1146,6 +1165,7 @@ fn checked_query_plan_full(
     catalog: Option<&Catalog>,
     entry_module: &str,
     prepared: &PreparedQuerySources<'_>,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     program.validate_cohort(db, catalog).ok()?;
     if entry_module.is_empty() {
@@ -1174,7 +1194,15 @@ fn checked_query_plan_full(
         {
             return None;
         }
-        return checked_transcript_query_plan(program, ir, owner, db, entry_module, prepared);
+        return checked_transcript_query_plan(
+            program,
+            ir,
+            owner,
+            db,
+            entry_module,
+            prepared,
+            source_context,
+        );
     }
     if source
         .inline_selections
@@ -1228,7 +1256,15 @@ fn checked_query_plan_full(
                 let plan = checked_first_query_plan(program, ir, owner, query, db, entry_module);
                 plan
             } else if query.count.is_some() {
-                checked_count_query_plan(program, ir, owner, query, db, entry_module)
+                checked_count_query_plan(
+                    program,
+                    ir,
+                    owner,
+                    query,
+                    db,
+                    entry_module,
+                    source_context,
+                )
             } else {
                 let plan = super::scenario_receipts::checked_native_any_direct_query_plan(
                     ir,
@@ -1692,6 +1728,7 @@ fn checked_transcript_query_plan(
     db: &SourceDb,
     entry: &str,
     prepared: &PreparedQuerySources<'_>,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     use crate::analysis::scenario_disclosure::{DisclosureIntrinsicKind, ScenarioDisclosure};
     use crate::analysis::{ResolvedType, Scalar};
@@ -1892,9 +1929,10 @@ fn checked_transcript_query_plan(
         let any =
             super::scenario_receipts::checked_native_any_query_plan(ir, owner, any, db, entry)?;
         let mut ancestor =
-            checked_count_query_plan(program, ir, owner, ancestor, db, entry)?.queries;
+            checked_count_query_plan(program, ir, owner, ancestor, db, entry, source_context)?.queries;
         let mut selected = checked_first_query_plan(program, ir, owner, selected, db, entry)?.queries;
-        let mut counted = checked_count_query_plan(program, ir, owner, count, db, entry)?.queries;
+        let mut counted =
+            checked_count_query_plan(program, ir, owner, count, db, entry, source_context)?.queries;
         if ancestor.len() != 1 || selected.len() != 1 || counted.len() != 1 || queries.len() != 2 {
             return None;
         }
@@ -2076,9 +2114,16 @@ fn checked_count_query_plan(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
     db: &SourceDb,
     entry: &str,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
-    let plan =
-        super::scenario_receipts::checked_native_count_query_plan(ir, owner, query, db, entry)?;
+    let plan = super::scenario_receipts::checked_native_count_query_plan(
+        ir,
+        owner,
+        query,
+        db,
+        entry,
+        source_context,
+    )?;
     let count = query.count.as_ref()?;
     let selected = program.types.selected_calls.get(&count.call)?;
     if !matches!(&selected.target, SelectedCallTarget::Builtin {id,overload}
@@ -2899,7 +2944,7 @@ mod inline_selection_tests {
             matches!(proof, ScenarioDisclosure::Complete(_)),
             "original full regenerate source must be complete"
         );
-        let plan = checked_query_plan(&program, &ir, owner, &db, catalog.as_ref(), &module)
+        let plan = checked_query_plan(&program, &ir, owner, &db, catalog.as_ref(), &module, None)
             .expect("original sealed inline query plan");
         assert_eq!(plan.queries.len(), 1);
         assert_eq!(plan.queries[0].id, fact.query.id);
@@ -2923,6 +2968,7 @@ mod inline_selection_tests {
             super::super::scenario_feasibility::prepare(&program, &ir, &db, catalog.as_ref())
                 .expect("original same-IR successful paths");
         let native_sources = |plan| super::super::scenario_receipts::NativeReceiptSources {
+            source_context: None,
             db: Some(&db),
             send_guards: None,
             query_plan: plan,
@@ -2995,6 +3041,7 @@ mod inline_selection_tests {
                     &module,
                     Some(&value_types),
                     super::super::scenario_receipts::NativeReceiptSources {
+                        source_context: None,
                         db: Some(&db),
                         send_guards: None,
                         query_plan: Some(&changed)
@@ -3226,6 +3273,7 @@ mod helper_any_plan_tests {
                 None
             };
             let sources = |plan| super::super::scenario_receipts::NativeReceiptSources {
+                source_context: None,
                 db: Some(&db),
                 send_guards: None,
                 query_plan: Some(plan),
@@ -3276,7 +3324,7 @@ mod helper_any_plan_tests {
                 }
                 let owner = &changed.items[owner.id.0 as usize];
                 assert!(
-                    checked_query_plan(&program, &changed, owner, &db, Some(&catalog), &module)
+                    checked_query_plan(&program, &changed, owner, &db, Some(&catalog), &module, None)
                         .is_none(),
                     "source mutant {mutation}"
                 );
@@ -3298,7 +3346,8 @@ mod helper_any_plan_tests {
                     &changed_schema.items[owner.id.0 as usize],
                     &db,
                     Some(&catalog),
-                    &module
+                    &module,
+                    None
                 )
                 .is_none(),
                 "actual consumed schema mutation refuses source association"
@@ -3331,7 +3380,8 @@ mod helper_any_plan_tests {
                     changed_owner,
                     &db,
                     Some(&catalog),
-                    &module
+                    &module,
+                    None
                 )
                 .is_none(),
                 "changed helper body cannot use original query authority"
@@ -3442,7 +3492,7 @@ mod helper_any_plan_tests {
                 .is_some(),
                 "helper native plan"
             );
-            let plan = checked_query_plan(&program, &ir, owner, &db, Some(&catalog), &module)
+            let plan = checked_query_plan(&program, &ir, owner, &db, Some(&catalog), &module, None)
                 .expect("exact helper plan");
             assert_eq!(plan.queries.len(), 1);
             assert!(plan.queries[0].parent.is_none());
@@ -3494,6 +3544,7 @@ mod helper_any_plan_tests {
             };
             let receipt = super::super::scenario_receipts::collect_native_scenario_receipt_with_feasibility(
                 &ir,owner,&models,&module,values.as_ref(),super::super::scenario_receipts::NativeReceiptSources {
+                    source_context: None,
                     db:Some(&db),send_guards:None,query_plan:Some(&plan),
                 },None).expect("created-model effect collector joins helper query without parent candidate reads");
             assert_eq!(receipt.plan.queries.len(), 1);
@@ -3523,7 +3574,8 @@ mod helper_any_plan_tests {
                         changed_owner,
                         &db,
                         Some(&catalog),
-                        &module
+                        &module,
+                        None
                     )
                     .is_none(),
                     "mutant {mutation}"

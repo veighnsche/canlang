@@ -572,6 +572,17 @@ fn full_original_query_composition_keeps_six_queries_and_the_original_native_ret
         .expect("own source supplies the complete selected standard values");
     let send_guards = super::super::send_guards::prepare(&program, &ir, &db, Some(&catalog))
         .expect("the actual original SEND has its checked dispatch Rule");
+    // The final receipt seals created-model DeriveField members through the
+    // same freshly prepared owning context the query collector above uses;
+    // an unprepared receipt stays closed.
+    let receipt_context =
+        super::super::scenario_decisions::FreshSourceContext::prepare_queries(
+            &program,
+            &ir,
+            &db,
+            Some(&catalog),
+        )
+        .expect("the unchanged original owns its prepared source context");
     let recipe = collect_native_scenario_receipt_with_feasibility(
         &ir,
         owner,
@@ -579,6 +590,7 @@ fn full_original_query_composition_keeps_six_queries_and_the_original_native_ret
         &entry_module,
         Some(&value_types),
         NativeReceiptSources {
+            source_context: Some(&receipt_context),
             db: Some(&db),
             send_guards: send_guards.guards(&ir),
             query_plan: Some(&plan),

@@ -98,6 +98,7 @@ pub(super) fn query_plan_nodes(
 /// Original source and the independently prepared guards/query plan consumed
 /// together by the native receipt matcher. This is private compiler input.
 pub(super) struct NativeReceiptSources<'a> {
+    pub source_context: Option<&'a super::scenario_decisions::FreshSourceContext<'a>>,
     pub db: Option<&'a SourceDb>,
     pub send_guards: Option<&'a HashMap<Span, PreparedSendGuard>>,
     pub query_plan: Option<&'a ReceiptDisclosurePlan>,
@@ -1802,6 +1803,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
 ) -> Option<NativeScenarioReceipt> {
     let transcript = has_original_transcript_source(ir, item.id);
     let NativeReceiptSources {
+        source_context,
         db,
         send_guards,
         query_plan,
@@ -1892,10 +1894,18 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         entry_module,
         db,
         &returned_paths,
+        source_context,
     );
     let first_plan = first_plan?;
-    let sites = Sites::collect(ir, item, send_guards, db)?;
-    match_effect_proofs(ir, item, models, checked, &sites, db, send_guards)?;
+    let sites = match Sites::collect(ir, item, send_guards, db) {
+        Some(sites) => sites,
+        None => {
+            return None;
+        }
+    };
+    if match_effect_proofs(ir, item, models, checked, &sites, db, send_guards, source_context).is_none() {
+        return None;
+    }
     let mut profile_scalar_pairs = HashMap::new();
     let mut profile_source_pairs = HashMap::new();
     if created_model.is_some()
@@ -4673,6 +4683,7 @@ fn checked_native_first_query_plan<'a>(
     entry_module: &str,
     db: Option<&SourceDb>,
     returned_paths: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<Option<&'a ReceiptDisclosurePlan>> {
     let facts = checked.source_facts.as_deref()?;
     if facts
@@ -4704,6 +4715,7 @@ fn checked_native_first_query_plan<'a>(
             entry_module,
             returned_paths,
             db?,
+            source_context,
         )
         .map(Some);
     }
@@ -4739,7 +4751,7 @@ fn checked_native_first_query_plan<'a>(
     let db = db?;
     let mut expected = match queries {
         [query] if query.count.is_some() => {
-            checked_native_count_query_plan(ir, owner, query, db, entry_module)?
+            checked_native_count_query_plan(ir, owner, query, db, entry_module, source_context)?
         }
         [query] => {
             checked_native_first_query_source_plan(ir, owner, checked, query, entry_module, db)?
@@ -4752,11 +4764,11 @@ fn checked_native_first_query_plan<'a>(
         }
         [first, count] => merge_native_query_plans(
             checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db)?,
-            checked_native_count_query_plan(ir, owner, count, db, entry_module)?,
+            checked_native_count_query_plan(ir, owner, count, db, entry_module, source_context)?,
         )?,
         [ancestor, first, count] => merge_native_query_plans(
             merge_native_query_plans(
-                checked_native_count_query_plan(ir, owner, ancestor, db, entry_module)?,
+                checked_native_count_query_plan(ir, owner, ancestor, db, entry_module, source_context)?,
                 checked_native_first_query_source_plan(
                     ir,
                     owner,
@@ -4766,7 +4778,7 @@ fn checked_native_first_query_plan<'a>(
                     db,
                 )?,
             )?,
-            checked_native_count_query_plan(ir, owner, count, db, entry_module)?,
+            checked_native_count_query_plan(ir, owner, count, db, entry_module, source_context)?,
         )?,
         _ => return None,
     };
@@ -5135,6 +5147,7 @@ fn checked_native_transcript_plan<'a>(
     entry: &str,
     returned_paths: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
     db: &SourceDb,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<&'a ReceiptDisclosurePlan> {
     let facts = checked.source_facts.as_deref()?;
     let [first, later] = facts.transcripts.as_deref()? else {
@@ -5166,10 +5179,10 @@ fn checked_native_transcript_plan<'a>(
             return None;
         };
         let expected_any = checked_native_any_query_plan(ir, owner, any, db, entry)?;
-        let expected_ancestor = checked_native_count_query_plan(ir, owner, ancestor, db, entry)?;
+        let expected_ancestor = checked_native_count_query_plan(ir, owner, ancestor, db, entry, source_context)?;
         let expected_first =
             checked_native_first_query_source_plan(ir, owner, checked, first, entry, db)?;
-        let expected_count = checked_native_count_query_plan(ir, owner, count, db, entry)?;
+        let expected_count = checked_native_count_query_plan(ir, owner, count, db, entry, source_context)?;
         for (actual, expected) in [
             (1, &expected_any),
             (2, expected_ancestor.queries.first()?),
@@ -6230,6 +6243,7 @@ fn checked_native_ancestor_count_query_plan(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
     db: &SourceDb,
     entry: &str,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     checked_ancestor_count_query_operands(ir, owner, query, db)?;
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
@@ -6257,7 +6271,7 @@ fn checked_native_ancestor_count_query_plan(
             return None;
         }
         let models = super::js::Emitter::source_models(ir, db)?;
-        checked_scenario_create(ir, owner, &models, proof, create, statement, db)?;
+        checked_scenario_create(ir, owner, &models, proof, create, statement, db, source_context)?;
     }
     // In the triple, the owning contained-count plan and final effect
     // collector seal both constructors; ancestor operand validation does not
@@ -6350,10 +6364,11 @@ pub(super) fn checked_native_count_query_plan(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
     db: &SourceDb,
     entry: &str,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     let count = query.count.as_ref()?;
     if count.contained_parent.is_none() {
-        return checked_native_ancestor_count_query_plan(ir, owner, query, db, entry);
+        return checked_native_ancestor_count_query_plan(ir, owner, query, db, entry, source_context);
     }
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let expected_influences = checked_scenario_query_influences(facts)?;
@@ -6403,7 +6418,7 @@ pub(super) fn checked_native_count_query_plan(
                 .find(|proof| proof.node == created.node)?;
             let statement = effects.iter().find(|statement|
                 matches!(statement, IrStmt::Create {span, ..} if *span == node_span(created.node)))?;
-            checked_scenario_create(ir, owner, &models, checked, proof, statement, db)?;
+            checked_scenario_create(ir, owner, &models, checked, proof, statement, db, source_context)?;
         }
     }
     let IrExpr::Object(entries) = &input.expr else {
@@ -10391,6 +10406,7 @@ fn match_effect_proofs(
     sites: &Sites<'_>,
     db: Option<&SourceDb>,
     send_guards: Option<&HashMap<Span, PreparedSendGuard>>,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<()> {
     if checked.effects.len() > 200 || checked.effects.len() != sites.effects.len() {
         return None;
@@ -10432,6 +10448,7 @@ fn match_effect_proofs(
                         proof,
                         *sites.effects.get(&site)?,
                         db,
+                        source_context,
                     )
                     .is_some();
                     if !ok {
@@ -10922,7 +10939,9 @@ fn match_effect_proofs(
                 }
             }
             (DisclosureEffectKind::Send { .. }, statement @ IrStmt::Send { .. }) => {
-                checked_send_guard(ir, owner, proof, statement, send_guards)?;
+                if checked_send_guard(ir, owner, proof, statement, send_guards).is_none() {
+                    return None;
+                }
             }
             (
                 DisclosureEffectKind::ForMember {
@@ -11316,6 +11335,7 @@ fn root_effect_model<'a>(
 
 /// Match this scenario's original populated/contained constructor. The owning
 /// schema supplies defaults and server fields; source supplies explicit operands.
+
 fn checked_scenario_create(
     ir: &IrProgram,
     owner: &IrItem,
@@ -11324,6 +11344,7 @@ fn checked_scenario_create(
     proof: &crate::analysis::scenario_disclosure::DisclosureEffect,
     statement: &IrStmt,
     db: &SourceDb,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<()> {
     let DisclosureEffectKind::Create {
         model,
@@ -11368,7 +11389,7 @@ fn checked_scenario_create(
         return None;
     }
     let schema_ok =
-        super::scenario_create_sources::checked_created_schema(ir, owner, models, original, db)
+        super::scenario_create_sources::checked_created_schema(ir, owner, models, original, db, source_context)
             .is_some();
     if !schema_ok {
         return None;
@@ -11378,6 +11399,9 @@ fn checked_scenario_create(
         // rule — including void scenarios (no free pass): every other nesting
         // keeps its loud refusal (no receipt).
         conditional_branch_create_tail(ir, owner, checked, proof.node, binding)?;
+    } else if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) {
+        // Every void create keeps its own ordered effect/schema/source proof;
+        // no created-model result pair is consumed by this owner.
     } else if facts.creates.as_deref()?.len() == 2 {
         let (first, second) = checked_created_pair(ir, owner, db)?;
         if proof.node != first.node && proof.node != second.node {
@@ -11388,10 +11412,6 @@ fn checked_scenario_create(
         if ordered_created_model_effects(ir, owner, proof.node, *model, binding, db).is_none() {
             return None;
         }
-    } else if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) {
-        // Void scenarios own no result row; the individually checked create
-        // executes terminally in the same transaction in source order, so no
-        // call-consumption linkage applies.
     } else if terminal_create_then_literal_return(owner, proof.node) {
         // No model result, non-void result, terminal create directly
         // followed by one plain scalar-constant return: the same terminal
@@ -11470,6 +11490,45 @@ fn checked_scenario_create(
         )?;
     }
     Some(())
+}
+
+/// Model results consume their checked pair's result origin. Void owners
+/// instead validate each individual creation without manufacturing a result.
+fn checked_created_statement_origin<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    original: &'a crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedScenarioCreate> {
+    if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) {
+        return Some(original);
+    }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    if facts.creates.as_deref()?.len() == 2 {
+        Some(checked_created_pair(ir, owner, db)?.0)
+    } else {
+        Some(original)
+    }
+}
+
+/// A void constructor can accompany a SET of the original required input.
+/// This joins its declared slot and authored receiver rather than borrowing a
+/// created-result or selected-row proof from another source occurrence.
+fn checked_required_model_parameter_value(ir: &IrProgram, owner: &IrItem, record: &TypedExpr,
+    statement: Span, db: &SourceDb) -> Option<()> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let IrExpr::Name(name) = &record.expr else { return None; };
+    let parameter = facts.parameters.iter().find(|parameter| {
+        ir.items.get(parameter.parameter.0 as usize).is_some_and(|item| item.name == *name)
+    })?;
+    let item = ir.items.get(parameter.parameter.0 as usize)?;
+    if parameter.default.is_some() || parameter.ty != record.ty
+        || !matches!(&item.kind, IrItemKind::Param { owner: id, ty: IrType::Known(ty), default: None, default_node: None, default_copy_source: None, array_bounds: None, .. }
+            if *id == owner.id && *ty == record.ty)
+        || !matches!(record.ty, ResolvedType::Record { stored: true, .. }) {
+        return None;
+    }
+    created_record_name_matches(record, &parameter.ty, name, statement, db)
 }
 
 fn checked_created_statements(
@@ -11577,15 +11636,7 @@ fn checked_created_statements(
     if authored_guards.len() != guards.len() || authored_effects.len() != effects.len() {
         return None;
     }
-    let result_original = if facts.creates.as_deref()?.len() == 2 {
-        checked_created_pair(ir, owner, db)?.0
-    } else {
-        original
-    };
-    let guarded_created = effects
-        .iter()
-        .any(|statement| matches!(statement, IrStmt::Send { when: Some(_), .. }))
-        && checked_created_model_result(ir, owner) == Some(result_original.model);
+    let result_original = checked_created_statement_origin(ir, owner, original, db)?;
     let model_created = checked_created_model_result(ir, owner) == Some(result_original.model);
     // Void scenarios own no result row; a set on their individually checked
     // created row executes terminally in the same transaction in source
@@ -11640,8 +11691,7 @@ fn checked_created_statements(
                 changes,
                 when: None,
                 span,
-            } if guarded_created
-                || model_created
+            } if model_created
                 || void_owner
                 || (!is_top_level_create(owner, original.node)
                     && conditional_branch_create_tail(
@@ -11730,6 +11780,9 @@ fn checked_created_statements(
                     {
                         return None;
                     }
+                } else if void_owner
+                    && checked_required_model_parameter_value(ir, owner, record, *span, db).is_some() {
+                    // Required source input, independently checked above.
                 } else {
                     let selected = checked_first_query_row(ir, owner, record, db)?;
                     if record.ty
@@ -11781,7 +11834,7 @@ fn checked_created_statements(
                 binding: Some(binding),
                 span,
                 ..
-            } if guarded_created => {
+            } if model_created || void_owner => {
                 let names: Vec<_> = authored
                     .children
                     .iter()
@@ -12728,6 +12781,21 @@ pub(super) fn checked_created_reference_operand(
     if owners.next().is_some() {
         return None;
     }
+    if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) {
+        // Void inputs retain their own typed original occurrence; no result
+        // pair is borrowed. Earlier CreateAs values keep their actual binding.
+        let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+        for created in facts.creates.as_deref()? {
+            if created.node.end <= original.node.start
+                && actual.ty == (ResolvedType::Record { symbol: created.model, stored: true })
+                && matches!(&actual.expr, IrExpr::Name(name) if name == &created.binding)
+            {
+                return created_record_name_matches(actual, &actual.ty, &created.binding,
+                    node_span(original.node), db);
+            }
+        }
+        return checked_required_model_parameter_value(ir, owner, actual, node_span(original.node), db);
+    }
     let (first, second) = checked_created_pair(ir, owner, db)?;
     if original.node == second.node
         && actual.ty
@@ -13219,6 +13287,33 @@ fn closed_loop_changes(
     true
 }
 
+/// Stored references use their canonical declaring Model descriptor. Arrays
+/// retain the original required, non-null reference-array inventory separately.
+fn assignment_reference_inventory_matches(
+    ir: &IrProgram, base: &ResolvedType, nullable: bool, field: &JsModelField,
+) -> Option<bool> {
+    let (element, array) = match base {
+        ResolvedType::Array { element, .. } => (element.as_ref(), true),
+        ty => (ty, false),
+    };
+    if !matches!(element, ResolvedType::Record { stored: true, .. }) {
+        return None;
+    }
+    let Some(model) = reference_operand_type_id(ir, element) else {
+        return Some(false);
+    };
+    let expected = format!("{model}[]");
+    Some(matches!(&field.field, JsModelFieldType::Ref { model: actual } if actual == &model)
+        && field.nullable == nullable && field.machine.is_none()
+        && if array {
+            !nullable && reference_operand_type_id(ir, base).as_ref() == Some(&expected)
+                && field.value_type.as_ref() == Some(&expected) && field.array_required.is_some()
+        } else {
+            field.value_type.as_deref() == Some(format!("{model}{}", if nullable { "?" } else { "" }).as_str())
+                && field.array_required.is_none()
+        })
+}
+
 fn assignment_inventory_matches(ir: &IrProgram, ty: &ResolvedType, field: &JsModelField) -> bool {
     let (base, nullable) = match ty {
         ResolvedType::Nullable(inner) => (inner.as_ref(), true),
@@ -13247,23 +13342,13 @@ fn assignment_inventory_matches(ir: &IrProgram, ty: &ResolvedType, field: &JsMod
             && field.machine.is_none()
             && field.value_type.is_none();
     }
+    if let Some(matches) = assignment_reference_inventory_matches(ir, base, nullable, field) {
+        return matches;
+    }
     let (element, array) = match base {
         ResolvedType::Array { element, .. } => (element.as_ref(), true),
         ty => (ty, false),
     };
-    if array && !nullable && matches!(element, ResolvedType::Record { stored: true, .. }) {
-        let Some(expected) = reference_operand_type_id(ir, ty) else {
-            return false;
-        };
-        let Some(model) = expected.strip_suffix("[]") else {
-            return false;
-        };
-        return matches!(&field.field, JsModelFieldType::Ref {model: actual} if actual == model)
-            && field.value_type.as_deref() == Some(expected.as_str())
-            && field.array_required.is_some()
-            && !field.nullable
-            && field.machine.is_none();
-    }
     if let ResolvedType::Enum { cases, .. } = element {
         // Plain stored-enum assignment through the identical enum(...)
         // inventory as the declared field. Machine lifecycle enums keep
@@ -13503,14 +13588,7 @@ impl<'a> Sites<'a> {
         let mut visited = 0;
         while let Some((site, context)) = pending.pop() {
             visited += 1;
-            if visited > 16384 || pending.len() > 16384 {
-                return None;
-            }
-            if context.depth >= 64 {
-                return None;
-            }
-            let mut child = context.clone();
-            child.depth += 1;
+            let child = context.descend(visited, pending.len())?;
             macro_rules! push {
                 ($site:expr) => {
                     pending.push(($site, child.clone()))
@@ -13806,7 +13884,9 @@ impl<'a> Sites<'a> {
                         push!(Visit::Expression(left));
                         push!(Visit::Expression(right));
                     }
-                    IrExpr::Array(items) => extend!(items.iter().map(Visit::Expression)),
+                    IrExpr::Array(items) | IrExpr::Format { args: items, .. } => {
+                        extend!(items.iter().map(Visit::Expression))
+                    }
                     IrExpr::Object(entries) => {
                         let mut names = HashSet::new();
                         if entries
@@ -14018,7 +14098,8 @@ impl<'a> Sites<'a> {
                     | IrExpr::Money { .. }
                     | IrExpr::DurationMs(_)
                     | IrExpr::Date(_)
-                    | IrExpr::Datetime(_) => {}
+                    | IrExpr::Datetime(_)
+                    | IrExpr::Message(_) => checked_receipt_literal(expression)?,
                     IrExpr::Name(_) => {
                         out.names
                             .entry(context.site(expression.span))
@@ -14033,6 +14114,16 @@ impl<'a> Sites<'a> {
             }
         }
         Some(out)
+    }
+}
+
+/// Literal descriptors contain no evaluated arguments. Their wording, source
+/// language and variants are joined to the exact source by SourceExpressions.
+fn checked_receipt_literal(expression: &TypedExpr) -> Option<()> {
+    match &expression.expr {
+        IrExpr::Message(message) => (expression.ty == ResolvedType::InlineMessage
+            && message.params.is_empty()).then_some(()),
+        _ => Some(()),
     }
 }
 
@@ -14198,6 +14289,13 @@ struct Walk {
     depth: usize,
 }
 impl Walk {
+    fn descend(&self, visited: usize, pending: usize) -> Option<Self> {
+        if visited > 16384 || pending > 16384 || self.depth >= 64 { return None; }
+        let mut child = self.clone();
+        child.depth += 1;
+        Some(child)
+    }
+
     fn site(&self, span: Span) -> NativeSite {
         NativeSite {
             calls: self.calls.clone(),
@@ -14423,7 +14521,7 @@ mod root_pair_schema_tests {
             let models = crate::codegen::js::Emitter::source_models(&actual, &db).unwrap();
             assert_eq!(
                 crate::codegen::scenario_create_sources::checked_created_schema(
-                    &actual, owner, &models, second, &db
+                    &actual, owner, &models, second, &db, None
                 )
                 .is_some(),
                 corruption != 1

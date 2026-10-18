@@ -327,6 +327,7 @@ fn original_current_revision_emits_three_getters_and_promotes_at_actual_leaves()
         "SourceCurrentRevision.js",
         None,
         super::super::scenario_receipts::NativeReceiptSources {
+            source_context: None,
             db: Some(&db),
             send_guards: None,
             query_plan: None,
@@ -413,6 +414,7 @@ fn original_current_revision_emits_three_getters_and_promotes_at_actual_leaves()
             "SourceCurrentRevision.js",
             None,
             super::super::scenario_receipts::NativeReceiptSources {
+                source_context: None,
                 db: Some(&db),
                 send_guards: None,
                 query_plan: None

@@ -1,5 +1,25 @@
 # Canlang language design decisions
 
+## 2026-10-18 — retain source context through finite receipt composition
+
+**Accepted compiler implementation.** Retain the exact fresh source context through
+query/count/ancestor receipt collection and native emission. A derived read must
+belong to the original checked declaration/body and its bounded transitive typed
+read closure; unrelated owner diagnostics do not orphan an otherwise checked
+member. Required-model guards and ordered create/SET/SEND receipt tails retain
+source correspondence. Foreign/nested unsupported model reads still refuse.
+
+The released compiler scope reuses focused source/context checks (27 passing),
+guarded-created-reference checks (4 passing), and the independent original
+six-query/count/ancestor witness (1 passing, 125.62 s). The actual compiled
+Maintain assignment progressed through commit, genuine mail and a failed receipt.
+This accepts the compiler mechanism, not the complete assignment/retry workflow:
+ruled-model delivery observation, staged-hook retirement and inline-preference
+HTTP materialization remain unfinished. The last complete original24 capture
+remains 212 E6008; no lower count is claimed. No app-specific exception or new
+worktree/cache was introduced.
+
+
 ## 2026-10-18 — retain native archive and hook event ownership
 
 **Accepted implementation.** List/Table archive inclusion reaches the existing
