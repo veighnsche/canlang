@@ -31,6 +31,16 @@ copied outputs are released/cleaned; logs and original artifact are retained.
 No commit/merge/push/default/retirement or remote deployment occurs in this round.
 Native preparation remains **HUMAN HOLD**.
 
+Main integration scope: `125c4c540` adds only the two Cloudflare and seven
+planning paths above to `3059a36af`. Incremental reconciliation retains all
+earlier coverage and owner/target reviews, canonical partial statuses and the
+complete review checkpoint. The selected serving result is credited once;
+future asset/fanout work remains unreleased. No semantic integration edits
+require renewed product checks: reuse the recorded two Worker cases, package
+emits, fixture typecheck and unchanged Node controls at their actual scope.
+Newer main compiler/runtime work and appended compiler notes in this plan and
+DECISIONS remain local and unstaged. Native preparation stays **HUMAN HOLD**.
+
 **Post-ICU Rust-port planning refresh, 2026-10-18 (source `d9abbd942`):**
 the [single current Rust execution view](implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18)
 and its existing finite detail/queue now credit the completed TS/compiler/UI ICU
