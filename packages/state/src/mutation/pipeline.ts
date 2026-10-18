@@ -192,6 +192,12 @@ export interface OwnerMutationHookContext extends InterimHookContext {
    * requirement. Loader failures are hook failures: the batch voids.
    */
   readonly loadParent: OwnerMutationHookParentReads['load'];
+  /** Complete bounded child domain under this trigger or its actual ancestry.
+   * Value rows require the host's caller projection, as with loadParent. */
+  readonly queryContained: (
+    model: ModelName, parent: RecordParent, site: OwnerMutationHookParentSite,
+    archived?: 'exclude' | 'include',
+  ) => Promise<readonly OwnerMutationHookParentRead[]>;
   /**
    * CAN18-v1 referenced-row loader (file 14 `Account.location` first
    * shape): exact-ID loads over the trigger's declared stored references,
@@ -673,7 +679,10 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     return getEntry(model, id);
   };
 
-  const ownerQuery = async (spec: OwnerMutationQuery, side: 'entry' | 'final'): Promise<readonly StoredRow[]> => {
+  const ownerQuery = async (
+    spec: OwnerMutationQuery, side: 'entry' | 'final',
+    trigger?: { readonly model: ModelName; readonly id: RecordId; readonly after: StoredRow | null },
+  ): Promise<readonly StoredRow[]> => {
     consumeWork();
     if (spec.authority !== 'owner' || !table.has(spec.model) || !Number.isSafeInteger(spec.limit) ||
         spec.limit < 0 || spec.limit > (owner?.bounds.maxRows ?? Number.MAX_SAFE_INTEGER - 1) ||
@@ -700,19 +709,28 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     consumeWork(base.length);
     if (base.length > cap) throw new StateError('validation', 'Owner mutation query exceeds its row bound.');
     const merged = new Map<string, StoredRow>();
+    // All snapshot sources obey the same replacement and domain-membership
+    // rule, including removals and the hook's unpublished current candidate.
+    const applyDomainRow = (key: string, row: StoredRow | null | undefined): void => {
+      if (row != null && inDomain(row)) merged.set(key, row);
+      else merged.delete(key);
+    };
     for (const row of base) {
       const key = keyOf(spec.model, row.id);
       if (!entryRows.has(key)) entryRows.set(key, deepFreeze(structuredClone(row)));
-      const entry = entryRows.get(key);
-      if (entry != null && inDomain(entry)) merged.set(key, entry);
+      applyDomainRow(key, entryRows.get(key));
     }
     if (side === 'final') {
       for (const [key, entry] of provisional) {
         consumeWork();
         if (!key.startsWith(`${spec.model as string}\0`)) continue;
-        if (entry.status === 'row' && inDomain(entry.row)) merged.set(key, entry.row);
-        else merged.delete(key);
+        applyDomainRow(key, entry.status === 'row' ? entry.row : null);
       }
+    }
+    // The currently executing hook has not published its candidate into the
+    // provisional map. Overlay the same issued row before selection and bounds.
+    if (trigger?.model === spec.model) {
+      applyDomainRow(keyOf(trigger.model, trigger.id), trigger.after);
     }
     if (merged.size > cap) throw new StateError('validation', 'Owner mutation query exceeds its row bound.');
     const rows = [...merged.values()];
@@ -1175,6 +1193,19 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     return { op: 'cancel', key };
   };
 
+  /** Issue snapshots with one reserved version/metadata construction. The
+   * carrier retains its entry snapshot; contained reads snapshot the actual
+   * callback candidate after any business-field changes made by the hook. */
+  const issueHookCandidate = (
+    model: ModelName, id: RecordId, data: Record<string, unknown>,
+    before: StoredRow | null, parent: RecordParent | null,
+  ): StoredRow => deepFreeze({
+    id, version: before === null ? 1 as RecordVersion : nextVersion(model, id, before),
+    created: before?.created ?? now, updated: now, createdBy: before?.createdBy ?? actor,
+    updatedBy: actor, archivedAt: before?.archivedAt ?? null, parent: before?.parent ?? parent,
+    data: jsonClone(data, 'Hook after'),
+  });
+
   /**
    * Run matching hooks in written order; each gets a clone, returns next.
    * T31 (Rule A): each hook also gets a staging context — `before` is a
@@ -1370,6 +1401,39 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         return Object.freeze({ model, row: deepFreeze(structuredClone(row)) as StoredRow,
           withheld: Object.freeze(withheld) });
       })();
+      // This exact clone is passed to the callback. Contained reads may
+      // observe its live business fields without publishing provisional state.
+      const hookCandidate = jsonClone(current, 'Hook candidate');
+      const after = owner === undefined || op === 'remove' ? null :
+        issueHookCandidate(def.model, triggerId, current, before, pendingParent);
+      const queryContained: OwnerMutationHookContext['queryContained'] = (
+        model, parent, site, archived = 'exclude',
+      ) => guardedRead(async () => {
+        if (owner === undefined || !hookActive) throw new StateError('validation', 'Owner hook scope is closed.');
+        healthy();
+        consumeWork();
+        if (site !== 'decision' && site !== 'value' || archived !== 'exclude' && archived !== 'include') {
+          throw new StateError('validation', 'Hook contained query requires its decision or value site and archive selection.');
+        }
+        if (!table.has(model) || parent === null || typeof parent !== 'object' ||
+            typeof parent.model !== 'string' || typeof parent.id !== 'string' || parent.id === '' ||
+            table.get(model)!.containment?.parent !== parent.model) {
+          throw new StateError('validation', 'Hook contained query exceeds its trigger containment bound.');
+        }
+        parent = Object.freeze({ model: parent.model, id: parent.id });
+        // Only the trigger itself or an exact ancestor is a legal parent.
+        // The existing parent loader walks immutable stored containment links;
+        // declared reference edges confer no contained-query authority.
+        if (parent.model !== def.model || parent.id !== triggerId) {
+          await loadParent(parent.model, parent.id, 'decision');
+        }
+        const rows = await ownerQuery({ model, parent, authority: 'owner', archived,
+          limit: owner.bounds.maxRows }, 'final', { model: def.model, id: triggerId,
+          after: after === null ? null : issueHookCandidate(def.model, triggerId, hookCandidate, before, pendingParent) });
+        if (!hookActive) throw new StateError('validation', 'Owner hook scope is closed.');
+        return Object.freeze(rows.map(row => Object.freeze({ model, row,
+          withheld: Object.freeze(site === 'decision' ? new Set<string>() : new Set(Object.keys(row.data))) })));
+      });
       const ctx: InterimHookContext = {
         before: frozenBefore,
         op,
@@ -1424,17 +1488,11 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       // mutate the pipeline candidate nor smuggle uncloneable values forward
       // (or retain an alias and mutate it after returning).
       const carrier: InterimHookContext | OwnerMutationHookContext = owner === undefined ? ctx : Object.freeze({
-        ...ctx, context: stageContext, input: options.input!, loadParent, loadReference,
-        after: op === 'remove' ? null : deepFreeze({
-          id: triggerId, version: before === null ? 1 as RecordVersion : nextVersion(def.model, triggerId, before),
-          created: before?.created ?? now, updated: now, createdBy: before?.createdBy ?? actor,
-          updatedBy: actor, archivedAt: before?.archivedAt ?? null, parent: before?.parent ?? pendingParent,
-          data: jsonClone(current, 'Hook after'),
-        }),
+        ...ctx, context: stageContext, input: options.input!, loadParent, loadReference, queryContained, after,
       });
       if (owner !== undefined) ownerHookContexts.add(carrier);
       let next: Record<string, unknown>;
-      try { next = await hook.run(jsonClone(current, 'Hook candidate'), carrier); }
+      try { next = await hook.run(hookCandidate, carrier); }
       finally { hookActive = false; ownerHookContexts.delete(carrier); }
       healthy();
       if (typeof next !== 'object' || next === null || Array.isArray(next)) {

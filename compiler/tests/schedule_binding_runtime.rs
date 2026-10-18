@@ -120,7 +120,7 @@ fn ordinary_schedule_uses_checked_declaring_package() {
     let scratch = tempfile::tempdir().unwrap();
     let mut source = "app Composed uses=[alpha,beta]\n".to_string();
     for owner in ["alpha", "beta"] {
-        source.push_str(&format!("package {owner}\n Given\n  Entry {{timer:text,due:datetime,title:text}}\n  policy Entry read=members\n  contract Packet {{message:text}}\n  contract UnsupportedPacket {{entry:Entry,zone:timezone}}\n  event UnsupportedCompound {{plain:text,details:UnsupportedPacket}}\n  event Compound {{plain:text,details:Packet}}\n  event Due {{entry:Entry,note:text min=1 max=16 trim,tags:text[] max=3,count:int=17 min=0 max=20}}\n When\n  scenario compound on=Compound\n   do require event.details.message==\"Nested\"\n  scenario unsupported_compound on=UnsupportedCompound\n   do require true\n  scenario fire on=Due\n   do require event.entry.title==\"Authored\"\n  scenario arm(record:Entry) by=members\n   do schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n  scenario stop(record:Entry) by=members\n   do cancel record.timer\n  scenario later_failure(record:Entry) by=members\n   do\n    schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n    require false\n    cancel record.timer\n Then\n"));
+        source.push_str(&format!("package {owner}\n Given\n  Entry {{timer:text,due:datetime,title:text}}\n  policy Entry read=members\n  contract Packet {{message:text}}\n  contract ZonedPacket {{entry:Entry,zone:timezone}}\n  event ZonedCompound {{plain:text,details:ZonedPacket}}\n  event Compound {{plain:text,details:Packet}}\n  event Due {{entry:Entry,note:text min=1 max=16 trim,tags:text[] max=3,count:int=17 min=0 max=20}}\n When\n  scenario compound on=Compound\n   do require event.details.message==\"Nested\"\n  scenario zoned_compound on=ZonedCompound\n   do require true\n  scenario fire on=Due\n   do require event.entry.title==\"Authored\"\n  scenario arm(record:Entry) by=members\n   do schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n  scenario stop(record:Entry) by=members\n   do cancel record.timer\n  scenario later_failure(record:Entry) by=members\n   do\n    schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n    require false\n    cancel record.timer\n Then\n"));
     }
     let input = scratch.path().join("schedule.can");
     std::fs::write(&input, &source).unwrap();
@@ -211,7 +211,7 @@ for(const owner of ['alpha','beta']){
   name:`${owner}.fire`,kind:'scenario',description:'',result:{type:'void'},inputs:{fields:[
    {name:'entry',field:{kind:'ref',model:`${owner}.Entry`,requireVersion:false},required:true},
    {name:'note',field:{kind:'string'},valueType:'text',required:true},
-   {name:'tags',field:{kind:'string'},valueType:'text[]',required:false,array:{required:false}},
+   {name:'tags',field:{kind:'string'},valueType:'text[]',required:false,array:{required:false},max:3},
    {name:'count',field:{kind:'integer'},required:false,default:{kind:'literal',value:'17'}},
   ]},
  });
@@ -238,10 +238,22 @@ for(const owner of ['alpha','beta']){
  ])assert.throws(()=>validateOperationInput(compoundSchema,`${owner}.Compound`,wire));
  trace.length=0;await callable(`${owner}.compound`)(context,{event:compoundPayload});
  assert.deepEqual(trace,[['check',true]]);
- assert.equal(entry.appDefinition.operations[`${owner}.unsupported_compound`].event,`${owner}.UnsupportedCompound`);
- assert.equal(entry.appDefinition.operations[`${owner}.unsupported_compound`].invocation,undefined,'unsupported timezone leaf omits the whole private descriptor');
- assert(!artifact.valueTypes.contracts.some(contract=>contract.name===`${owner}.UnsupportedPacket`));
- assert(!artifact.operations.some(operation=>operation.name===`${owner}.unsupported_compound`));
+ assert.equal(entry.appDefinition.operations[`${owner}.zoned_compound`].event,`${owner}.ZonedCompound`);
+ assert.deepEqual(entry.appDefinition.operations[`${owner}.zoned_compound`].invocation.inputs.fields,[
+  {name:'plain',field:{kind:'string'},valueType:'text',required:true},
+  {name:'details',field:{kind:'nominal',name:`${owner}.ZonedPacket`},valueType:`${owner}.ZonedPacket`,required:true},
+ ]);
+ assert.deepEqual(artifact.valueTypes.contracts.find(contract=>contract.name===`${owner}.ZonedPacket`),{
+  name:`${owner}.ZonedPacket`,fields:[{name:'entry',type:`${owner}.Entry`},{name:'zone',type:'timezone'}],
+ });
+ const zonedEvent=`${owner}.ZonedCompound`;
+ const zonedSchema=normalizeSchema({contracts,operations:{[zonedEvent]:{inputs:entry.appDefinition.events[zonedEvent].inputs}}});
+ const zoned=validateOperationInput(zonedSchema,zonedEvent,{plain:'Outer',details:{entry:{id:`${owner}-record`},zone:'Europe/Brussels'}});
+ assert.equal(zoned.details.entry.model,`${owner}.Entry`);assert.equal(zoned.details.zone,'Europe/Brussels');
+ assert.throws(()=>validateOperationInput(zonedSchema,zonedEvent,{plain:'Outer',details:{entry:{id:'r'},zone:'Mars/Nowhere'}}));
+ trace.length=0;await callable(`${owner}.zoned_compound`)(context,{event:zoned});
+ assert.deepEqual(trace,[['check',true]]);
+ assert(!artifact.operations.some(operation=>operation.name===`${owner}.zoned_compound`));
  assert(!artifact.operations.some(operation=>operation.name===`${owner}.compound`));
  assert.equal(artifact.callables.find(item=>item.id===`${owner}.fire`).kind,'handler');
  const current=record(owner);let inputReads=0;const input={};Object.defineProperty(input,'record',{get(){inputReads++;return current;}});

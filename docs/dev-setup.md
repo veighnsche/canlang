@@ -72,6 +72,56 @@ generation remain explicit opt-in commands (`build:values-wasm` and
 `build:work-wasm`); ordinary TypeScript builds stage the selected committed
 bindings. The VS Code extension keeps its separate build outside this workspace.
 
+## Production function complexity
+
+Aim for a source-AST cyclomatic score **≤10** in Rust and TypeScript; the normal
+maximum is **20**. Above 20 needs a specific justified exception, such as a
+straightforward compiler dispatch whose alternatives belong together. Preserve
+behavior and meaningful responsibilities; do not split functions just to lower a score.
+
+```sh
+bun run check:complexity                         # HEAD versus saved working files, including untracked source
+bun run check:complexity --base <base-sha> --head HEAD  # committed branch/change range
+```
+
+The check needs installed TypeScript **5.9.3**, Python and the **Rust 1.99.0
+rust-analyzer component** on PATH (`rustup component add rust-analyzer --toolchain
+1.99.0` if missing). It performs no builds or downloads. CI runs it before the
+compiler build, against the PR base or previous push commit; a manual CI run uses
+the initial baseline commit. Missing parsers, incompatible versions and reported
+parse errors fail the check.
+
+[`complexity-baseline.json`](../scripts/complexity-baseline.json) freezes existing
+scores above 20 at commit `68c826de7c6e3fbd50fc7cfba9865ebea4213e13`. Only changed
+function bodies are checked. An existing hotspot may stay or shrink, but its
+allowance is capped by both the frozen baseline and its score at the comparison
+commit, so reductions cannot regress within that comparison. New identities have
+no legacy allowance. Scores 11–20 are advisory; violations exit nonzero.
+[`complexity-exceptions.json`](../scripts/complexity-exceptions.json) accepts
+entries with `file`, the exact `identity` printed by the check, integer `max`, and
+a specific `reason`. Review that rationale and cap with the implementation; do
+not raise/reseed the baseline to silence new violations. Existing debt is not a
+request for a repository-wide refactor.
+
+Both metrics start at one per concrete function/method/closure, counting nested
+bodies separately. Rust adds `if`, `while`, `for`, `?`, `&&`, `||`, match guards
+and match-arm count minus one; unconditional `loop` and or-pattern alternatives
+add nothing. **Macros, including `matches!`, are unexpanded**; non-test platform
+cfg branches are counted together, and `cfg_attr` is conservatively retained.
+Rust-analyzer's source parser does not expose every recovery diagnostic, so this
+check does not replace compilation. TypeScript adds conditionals, loops, catch,
+nondefault switch cases, `&&`/`||`/`??`, logical assignments, optional-chain hops
+and parameter/destructuring defaults. Module/class-field/static initialization
+is not assigned to an enclosing function. These are explicit language-specific
+source metrics, not identical expanded control-flow measures.
+
+Tests, test-only Rust cfg subtrees and framework attributes, recognized TypeScript
+inline test guards/calls and `TestOnly*` doubles, test helpers, generated sources,
+fixtures, benchmarks, dependencies, vendor and build code are excluded. Renamed
+or moved functions and edited unnamed callbacks conservatively count as new
+identities; give a callback a meaningful binding or justify its exception when
+necessary. No test complexity limits change.
+
 ## Catalog and release checks
 
 ```sh

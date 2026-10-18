@@ -6299,6 +6299,24 @@ function nativeRecordMetadata(row: StoredRow | ProjectedRecord): Record<string, 
 
 type NativeRecordScope = Pick<LoadedCanonicalDescriptors, 'models' | 'refs' | 'containment' | 'producers' | 'valueSchema'>;
 
+/** An issued hook row keeps fixed identity while SET updates its live business fields. */
+function nativeHookCandidateView(loaded: NativeRecordScope, model: string, row: StoredRow | null,
+  candidate: Record<string, unknown>, changed: () => void): Record<string, unknown> | null {
+  if (row === null) return null;
+  const view: Record<string, unknown> = Object.create(null);
+  for (const name of Object.keys(loaded.models.find(item => item.name === model)!.fields)) {
+    Object.defineProperty(view, name, { enumerable: true,
+      get: () => candidate[name], set: value => { changed(); candidate[name] = value; } });
+  }
+  for (const [name, value] of Object.entries(nativeRecordMetadata(row))) {
+    Object.defineProperty(view, name, { enumerable: true, value });
+  }
+  if (loaded.containment.has(model)) Object.defineProperty(view, 'parent', { enumerable: true,
+    value: nativeProjectedRecord(loaded, model, row).parent });
+  bindNativeRecord(view, model, row.id, row.version);
+  return Object.seal(view);
+}
+
 /** Decode only the defining loader's scalar and singular-reference associations. */
 function nativeRecordField(loaded: NativeRecordScope, modelName: string, field: string, wire: unknown): unknown {
   if (wire === undefined) return wire;
@@ -6368,10 +6386,47 @@ function projectHookParentValueRow(
   return Object.freeze({ ...row, data });
 }
 
+/** A native hook may query only through a genuine issued containment parent. */
+function hookQueryParent(native: NativeRecordScope, model: string, value: unknown): RecordParent {
+  const reference = nativeRecordReference(value) ?? (isRecordRef(value) ? value : undefined);
+  const containment = native.containment.get(model);
+  if (typeof model !== 'string' || !isUnknownRecord(containment) ||
+      reference === undefined || reference.model !== containment.parent) {
+    throw new native.producers.errors('validation', 'Hook query requires its actual declared contained parent.');
+  }
+  return { model: reference.model as ModelName, id: reference.id as RecordId };
+}
+
+/** Normalize the closed source query options before any owner read occurs. */
+function hookQueryOptions(query: CanonicalReadQuery, errors: StateErrorsProducer) {
+  const selection = localPolicyObject(query, ['parent', 'where', 'limit', 'archived', 'authority']);
+  const authority = localPolicyMember(selection, 'authority');
+  if (authority !== undefined && authority !== 'owner' && authority !== 'viewer') {
+    throw new errors('validation', 'Hook query has no checked consuming site.');
+  }
+  const site = authority === 'owner' ? 'decision' as const : 'value' as const;
+  const archived = localPolicyMember(selection, 'archived');
+  if (archived !== undefined && archived !== 'exclude' && archived !== 'include') {
+    throw new errors('validation', 'Hook query has no supported archive selection.');
+  }
+  const predicate = localPolicyMember(selection, 'where');
+  if (predicate !== undefined && typeof predicate !== 'function') {
+    throw new errors('validation', 'Hook query requires its original checked predicate.');
+  }
+  const rawLimit = localPolicyMember(selection, 'limit');
+  const limit = typeof rawLimit === 'bigint' && rawLimit >= 0n && rawLimit <= BigInt(Number.MAX_SAFE_INTEGER)
+    ? Number(rawLimit) : rawLimit;
+  if (limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0)) {
+    throw new errors('validation', 'Hook query limit must be a nonnegative safe integer.');
+  }
+  return { parent: localPolicyMember(selection, 'parent'), site,
+    archived: archived as 'exclude' | 'include' | undefined, predicate, limit };
+}
+
 /** Native query fields read the literal State candidate carrier only when
  * authored source evaluates them. Enumeration never hydrates protected data. */
-function nativeScenarioQueryRecord(loaded: NativeRecordScope, model: string, row: ProjectedRecord,
-  read: (field: string) => void, current: () => ProjectedRecord, decoded?: (value: unknown) => void): Readonly<Record<string, unknown>> {
+function nativeScenarioQueryRecord(loaded: NativeRecordScope, model: string, row: StoredRow | ProjectedRecord,
+  read: (field: string) => void, current: () => StoredRow | ProjectedRecord, decoded?: (value: unknown) => void): Readonly<Record<string, unknown>> {
   const view: Record<string, unknown> = Object.create(null);
   for (const field of Object.keys(row.data)) Object.defineProperty(view, field, { enumerable: true, get: () => {
     read(field);
@@ -6588,6 +6643,7 @@ async function loadLocalOwnerPolicyControl(input: {
     const adapted: OwnerModelPolicyBinding[] = [];
     for (const raw of bindings) {
       if (localPolicyMember(localPolicyObject(raw), 'kind') === 'hook') {
+        const definition = localPolicyObject(localPolicyMember(imported, 'appDefinition'));
         const binding = localPolicyObject(raw, ['id', 'module', 'ownerPackage', 'model', 'kind', 'run']);
         const id = localPolicyMember(binding, 'id'), model = localPolicyMember(binding, 'model');
         const run = localPolicyMember(binding, 'run');
@@ -6655,6 +6711,17 @@ async function loadLocalOwnerPolicyControl(input: {
               return [name, nativeRecordField(input.native, descriptor.model, name, localPolicyMember(data as object, name))];
             }));
             const view = (row: StoredRow | null) => row === null ? null : nativeProjectedRecord(input.native, descriptor.model, row);
+            const nativeCandidate = fields(candidate);
+            let candidateChanged = false;
+            const after = nativeHookCandidateView(input.native, descriptor.model, original.after, nativeCandidate,
+              () => guarded(() => { candidateChanged = true; }));
+            const syncCandidate = () => {
+              if (!candidateChanged) return;
+              const wire = encodeFields(descriptor.model, nativeCandidate);
+              for (const [name, value] of Object.entries(wire)) Object.defineProperty(candidate, name,
+                { value, writable: true, configurable: true, enumerable: true });
+              candidateChanged = false;
+            };
             const c = createContext({
               ...(frame.deploymentBase === undefined ? {} : { deploymentBase: frame.deploymentBase }),
               caller: Object.freeze({ userId: original.context.actor?.userId ?? 'anonymous', roles: Object.freeze([]) as unknown as string[] }),
@@ -6769,9 +6836,42 @@ async function loadLocalOwnerPolicyControl(input: {
               });
               return Object.freeze({ openScope, load, loadReference });
             })();
-            Object.assign(c, { transitive: hookTransitive });
+            const readHookRecords = async (model: string, query: CanonicalReadQuery) => {
+              try {
+                guarded(() => undefined);
+                const { parent, site, archived, predicate, limit } = hookQueryOptions(query, input.native.producers.errors);
+                const reference = hookQueryParent(input.native, model, parent);
+                syncCandidate();
+                const selected = await original.queryContained(model as ModelName, reference, site, archived);
+                const result: Record<string, unknown>[] = [];
+                for (const entry of selected) {
+                  guarded(() => undefined);
+                  const served = site === 'decision' ? undefined : await callerValueFields(model, entry.row);
+                  const row = nativeScenarioQueryRecord(input.native, model, entry.row, field => guarded(() => {
+                    // Containment/metadata is issued linkage. Business values
+                    // keep the same precise caller projection as parent reads.
+                    if (field !== 'parent' && served !== undefined && !served.has(field)) {
+                      throw new input.native.producers.errors('forbidden', 'Record field is not readable.');
+                    }
+                  }), () => entry.row);
+                  const matches: unknown = predicate === undefined ? true : await predicate(row, c);
+                  if (typeof matches !== 'boolean') {
+                    throw new input.native.producers.errors('validation', 'Hook query predicate must return bool.');
+                  }
+                  if (matches) result.push(row);
+                }
+                if (typeof limit === 'number' && result.length > limit) {
+                  throw new input.native.producers.errors('validation', 'Hook query exceeds its completeness limit.');
+                }
+                guarded(() => undefined);
+                return Object.freeze(result);
+              } catch (error) { return guarded(() => { throw error; }); }
+            };
+            const canonical: CanonicalEffectsScope = Object.freeze({ operation: original.context.operation,
+              stageWrite: refuse, readModel: refuse, readRecords: readHookRecords });
+            Object.assign(c, { transitive: hookTransitive, canonical });
             freezeScenarioSnapshot(c);
-            const bridge = Object.freeze({ before: view(original.before), after: view(original.after),
+            const bridge = Object.freeze({ before: view(original.before), after,
               triggerId: original.triggerId, triggerModel: original.triggerModel, op: original.op,
               actor: c.actor, now: c.now,
               stage: (value: unknown): void => guarded(() => {
@@ -6790,16 +6890,46 @@ async function loadLocalOwnerPolicyControl(input: {
                   ...(checkedParent === undefined ? {} : { parent: { model: checkedParent.model as ModelName, id: checkedParent.id as RecordId } }),
                   data: encodeFields(staged.model, localPolicyMember(staged, 'data')) });
               }),
-              // Declared event/schedule projection is an owning prerequisite;
-              // native payloads cannot be passed as an unchecked wire object.
-              schedule: refuse, cancel: (key: string) => guarded(() => original.cancel(key)),
+              schedule: (value: unknown): void => guarded(() => {
+                const replacement = localPolicyObject(value, ['key', 'at', 'event', 'payload']);
+                const event = localPolicyMember(replacement, 'event');
+                const inputs = typeof event === 'string'
+                  ? privateSourceMember(privateSourceMember(privateSourceMember(definition, 'events'), event), 'inputs') : undefined;
+                if (typeof event !== 'string' || !isUnknownRecord(inputs)) {
+                  throw new input.native.producers.errors('validation', 'Hook schedule lacks its original declared event.');
+                }
+                const operationSchema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
+                const schema = { ...operationSchema, ...input.native.valueSchema, operations: operationSchema.operations };
+                const payload = localPolicyObject(localPolicyMember(replacement, 'payload'));
+                const wire: Record<string, unknown> = Object.create(null);
+                const modelTypes = new Set(input.native.models.map(model => model.name));
+                for (const name of Object.keys(payload)) {
+                  const field = localPolicyMember(inputs, name) as FieldDescriptor | undefined;
+                  if (field === undefined || !nativeResourceLexicalType(field.type, schema, new Set(), false, modelTypes)) {
+                    throw new input.native.producers.errors('validation', 'Hook schedule payload lacks its typed value or opaque File lineage.');
+                  }
+                  const part = localPolicyMember(payload, name);
+                  wire[name] = encodeValue(field.type, part as CanValue,
+                    nativeValueReferenceEncoder(field.type, schema, part), schema);
+                }
+                const { captured } = checkedSourceEvent(definition, event, wire, input.native.valueSchema);
+                const encoded: Record<string, unknown> = Object.create(null);
+                for (const [name, part] of Object.entries(captured)) {
+                  encoded[name] = encodeValue((localPolicyMember(inputs, name) as FieldDescriptor).type, part, undefined, schema);
+                }
+                const at = decodeValue('datetime', encodeValue('datetime', localPolicyMember(replacement, 'at') as CanValue)) as { readonly ms: bigint };
+                // State owns scope, work accounting, queue order and the final
+                // commit. The bridge only converts the checked native values.
+                original.schedule({ key: localPolicyMember(replacement, 'key') as string,
+                  at: Number(at.ms), event: event as OperationName, payload: encoded });
+              }), cancel: (key: string) => guarded(() => original.cancel(key)),
               // The per-fire hook transitive (built above): parent reads at
               // the inheriting decision/value site, shared with
               // record-typed helpers through `c.transitive`.
               transitive: hookTransitive,
             });
             try {
-              const answer: unknown = await (run as (candidate: Record<string, unknown>, bridge: unknown, c: HandlerContext) => unknown)(fields(candidate), bridge, c);
+              const answer: unknown = await (run as (candidate: Record<string, unknown>, bridge: unknown, c: HandlerContext) => unknown)(nativeCandidate, bridge, c);
               assertLive();
               return encodeFields(descriptor.model, answer);
             } catch (error) {

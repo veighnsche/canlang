@@ -123,6 +123,13 @@ describe("preparation launcher: failure mapping", () => {
     });
   });
 
+  it("the executable verifier gates launch before any session", async () => {
+    await withFakeBinary("#!/bin/sh\necho 'not a frame protocol'\n", async () => {
+      const { envelope } = await expectCliFail(() => runNativeJob("deploy", "build"), /^native-/);
+      expect(envelope["code"]).toBe("native-unavailable");
+    });
+  });
+
   it("a hanging binary times out and is killed", async () => {
     // sleep-60 orphan proves group kill: completion well under 60s
     // means no grandchild survived holding stdio open.

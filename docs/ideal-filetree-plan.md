@@ -1,5 +1,17 @@
 # Living ideal file-tree plan for Canlang
 
+**Paused development-worktree intake, 2026-10-18:** current main `69eede1e8`
+is incorporated as an uncommitted merge into preserved `0970`/`b8c909700`;
+the user authorized sync and plan inspection only. The53 incoming paths since
+`0ec2ee9a5` retain main's Compiler/State/runtime, native preparation and complexity
+maintenance ownership and recorded coverage. The current plan selects future
+Rust session/state/supervision and Ratatui under `dev-server/`, with Cloudflare/
+Miniflare tooling subordinate to its runtime boundary. Preserved TS lifecycle,
+terminal, capture and update work remains behavioral input, not Rust acceptance.
+Both decision histories and all stopped dirty sources are retained. No source
+implementation, build, test, new commit, main integration or push is performed;
+the complete review checkpoint remains unchanged.
+
 **Development integration, 2026-10-18:** merge committed main `0ec2ee9a5` into
 the development branch through `dbedbb249`. Incoming33 paths retain main's
 recorded Compiler query/filter correspondence, Contracts/UI/Interfaces/State
@@ -26,6 +38,23 @@ the held complete checkpoint; this bounded merge is not a whole-tree audit.
 > explicit user decisions take precedence. Historical checkpoints, accepted
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
+
+**Native module/plan source intake, 2026-10-18:** `6fb752375` changes only
+13 preparation crate/job, matching TS host/payload and owning test files. Existing
+Cloudflare preparation ownership remains; no package, backend default or public
+release changes. Independent review repairs preserve ordered host demands,
+sidecar diagnostics/null admission, KV sections and canonical UTF16 plan JSON.
+Focused native10/26/22/22 and host11/typecheck results are retained; the current
+complexity policy passes the released source. Full P05.4/P06.3/CLI/installed
+criteria remain partial; hot P07/scanner changes are excluded.
+
+Incremental reconciliation since f5f67b097 accounts for all48 newer-main paths
+through `3bb610962`: retain the compiler owner's typed-filter, consumed-query,
+native-hook/State and board source/consumer reviews; complexity tooling/CI/dev
+documentation retain their defining maintenance owner and are consumed for this
+slice's actual gate. Combine those retained records with this13-source/eight-doc
+intake. Foreign notes and every newer commit remain preserved. Keep the complete
+historical checkpoint and stale notice unchanged; no whole-tree review is claimed.
 
 **Work helper integration, 2026-10-18:** `cd2651c5e` covers exactly the existing
 Work-kernel rows owner, Work kernel-table facade and owning regression tests.
@@ -1382,3 +1411,24 @@ filtering covers whole consumed declarations, not only symbol names. Reviewed
 its production change and existing primary/related body-span cases; focused unit
 1/1 passes, unrelated siblings and missing-analysis refusal remain. No new owner
 or package. This bounded intake leaves the complete historical checkpoint fixed.
+
+### 2026-10-18 — complete native hook intake
+
+Reviewed this batch's Compiler hook/policy source joins, typed Contract/reference
+descriptors and their tests; State transaction candidate/contained-query loader
+and tests; Cloudflare native hook adapter, Values facade and actual compiled
+consumers. The shared original-declaration selector stays test-only under runtime
+(`original-source.testing.ts`); three approved design advice records stay under
+`docs/design/jev/`. Defining owners and package allocations remain unchanged.
+Compiled original snapshot/Success D1 consumers2/2, joint hooks13/13 and focused
+owner checks pass as recorded in the current completion view. Reconcile this
+bounded implementation intake since0ec2ee9a5, preserving the concurrent complexity
+policy's own coverage and unfinished guarded-SEND analysis edits. No complete
+historical checkpoint advance; full original24 and the remaining roots stay open.
+
+### 2026-10-18 — board page intake
+
+Since98dcb20b1, reviewed Compiler Board property/occurrence emission and source
+marker tests, Contracts BoardProps and the existing Cloudflare owner-page HTTP
+consumer. Reuse the UI/query/cursor owners unchanged; actual compiled pagination
+and scoped marker controls pass. No new owner or complete-checkpoint advance.

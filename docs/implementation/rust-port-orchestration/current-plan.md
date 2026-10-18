@@ -81,14 +81,46 @@ This corrects the handoff's claim that the Work facade was absent from that map.
 Reuse accepted earlier fanout/recovery/ICU/V02.6 results; no repeated full scope.
 
 W writers/commands are released and Codex owns the central docs under ACK012.
-Native source remains active/uncommitted: module-buffer vectors20/20 and host
-payload tests are narrow progress, not complete P05.4/CLI/installed acceptance.
-The TS adapter alias alone closes no native port. Next coherent native commit
-requires its real job/plan/host stage join and focused source/command handoff;
-public deployment/default changes/TS retirement remain separately held.
-Original W02.5/W02 and native parent gates remain partial. The newer compiler
-filter commit boundary is still pending; its required worktree intake happens
-after that actual completion and a safe native input handoff.
+Original W02.5/W02 and native parent gates remain partial. Public deployment,
+default changes and TS retirement remain separately held.
+
+### Accepted native module/plan source slice — 18 October 2026
+
+Source `6fb752375` joins retained-job LOAD_MODULES checks, then PLAN, then a
+separate LOAD_PREVIOUS_PLAN request and diff/render before the existing compiler
+gate. Current-owner KV plan/projection/rendering is included. Review013/014 fixed
+plan-before-prior-file demand, present-null versus missing sidecars, original
+host JSON-parse/read diagnostics, and nullable optional KV lists. Review016
+removes a redundant serde Value conversion that refused valid lone UTF16
+surrogates: canonical planJson is the lossless transport and JS parses it when
+the plan object is needed. Existing final-file/stdout encoding is unchanged.
+
+Final native lib10/outputs26/plan22/vectors22 pass; the host payload11 and clean
+CF typecheck are reused for the frozen host source. The actual rebuilt binary
+accepts the lone-surrogate plan and refuses present-null at LOAD_PREVIOUS_PLAN.
+Independent source review covers stage/token/compiler ordering, null/parse
+classification, KV field/section order and lossless canonical JSON. The current
+main5b74aa4cd complexity analyzer passes this exact released source after small
+order-preserving helper extractions; no baseline/exception was changed. Reuse
+unchanged accepted checks. The separate modules e2e digest pin remains a recorded
+pre-existing failure, neither repinned nor counted as green.
+
+This accepts exactly 13 released source/test files as an early coherent private
+job/payload slice. P05.4/P06.3 remain partial: actual full host-phase/module-output
+and cross-stage identity joins, real CLI backend selection/differential, executable
+integrity before any launch, reviewed local staging and installed consumers stay
+open. A readiness probe establishes liveness only. Unfinished P07 host/CLI,
+conformance and scanner repairs are excluded from this source commit. ACK015
+ended an unnecessary commit-wait loop; ready P07 work continues during Codex
+review/integration rather than waiting on Git.
+
+Current main `3bb610962` retains committed typed filters, consumed declaration
+checks, native-hook/State integration, board pagination and complexity policy.
+The requested final compiler-batch intake into this existing Rust worktree still
+waits for the active batch's completion and a safe source/command/capture boundary.
+Preserve foreign working notes and newer commits. Neither review nor Git waiting
+adds an implementation gate. Public deployment, defaults and TS retirement stay
+held; ICU/V02.6/int-CSV/fanout/recovery acceptance is reused.
 
 ## Planning refresh against current main — 18 October 2026
 

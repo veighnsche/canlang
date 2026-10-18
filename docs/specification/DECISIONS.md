@@ -1,5 +1,38 @@
 # Canlang language design decisions
 
+## 2026-10-18 — use shared finite pagination for boards
+
+**Accepted implementation.** Board consumes the existing typed page flag and
+source-owned occurrence; the unchanged authorized viewer page query and cursor
+binding own bounded results and continuation. No separate Board paging engine.
+The actual compiled HTTP consumer passes26 rows over25+1, owner isolation and
+foreign-owner cursor refusal. Compiler accepts the marker and refuses headers,
+children and duplicates; Contracts/UI/Cloudflare emit passes. Full original24
+qualification and other collection domains remain open.
+
+## 2026-10-18 — compose checked native hooks with live contained queries
+
+**Accepted implementation.** Native hook admission compares complete original
+trigger/guard/body and owning model declarations against a fresh contextual IR
+without recursively qualifying itself. Retain existing typed calendar, scalar
+and reference-array mechanics and publish timezone leaves in nominal Contracts.
+Parent revision reads use issued row metadata. Hook SET updates a host-issued
+live business-field view with immutable identity/metadata; queries reissue the
+actual callback candidate without publication. State owns containment, revision,
+complete-domain bounds and atomic failure. Decision predicates use owner fields;
+body predicates retain all actual identities while current caller grants guard
+each business-field read, so unreadable rows never silently disappear from counts.
+
+Three explicitly approved JEV requests agreed with this contained-query choice
+(confidences .70/.54/.82); retained advice includes uncertainty and does not replace
+implementation judgment. Actual compiled original snapshot and Success hooks pass
+D1 consumers2/2; joint hooks13/13 include SET-to-query, revocation and rollback.
+Focused Compiler/State checks pass. Declared-event schedules retain their existing
+atomic queue and typed source payload. These finite consumers are accepted;
+remaining hook effects, guarded SEND and complete original24 acceptance stay open.
+
+
+
 ## 2026-10-18 — accept shared fanout and selected recovery delivery
 
 **Accepted implementation and integration decision.** Work and State delegate
@@ -19110,3 +19143,156 @@ working source/cache was changed. This partial intake does not satisfy the user'
 later final compiler-current-work handoff: that chat still has uncommitted work,
 so final synchronization and current-build timing remain pending. The complete
 historical review checkpoint stays held.
+
+
+## 2026-10-18 — enforce changed production function complexity
+
+Accepted: aim for source-AST cyclomatic complexity ≤10 in production Rust and
+TypeScript functions; normal maximum 20. A specific reasoned exception may retain
+cohesive higher-complexity code, particularly straightforward compiler dispatch.
+Do not mechanically split behavior or begin a repository-wide refactor.
+
+The lightweight `bun run check:complexity` command compares saved changed/new
+bodies with HEAD, or explicit `--base <commit> --head <commit>` inputs. CI checks
+PR/push changes before compiler build. The frozen baseline at
+`68c826de7c6e3fbd50fc7cfba9865ebea4213e13` contains 440 Rust and 628 TypeScript
+allowances above 20; an existing allowance is additionally capped by the comparison
+commit's score, so changed legacy code cannot grow and reductions ratchet against
+that base. New bodies above 20 require a bounded, reasoned entry in
+`scripts/complexity-exceptions.json` (initially empty). No automatic baseline reset
+or broad source edits are part of enforcement. Invocation, exact metrics and
+exclusions are in [developer setup](../dev-setup.md#production-function-complexity).
+
+Reuse TypeScript 5.9.3 and rust-analyzer 1.99.0 source parsers, with separate function,
+method and closure scores. Rust macros remain unexpanded; cfg_attr/platform cases
+are conservative, and source parsing does not replace compilation. Unnamed edited
+callbacks and moved/renamed functions conservatively get new identities. Tests,
+inline test-only code, generated/vendor/dependency/build sources and fixtures are
+excluded; test complexity policy is unchanged.
+
+Verified: direct branch/closure/test-exclusion and binding-identity checks, normal
+threshold/new-function rejection, unchanged legacy allowance, growth rejection,
+reduction ratchet and explicit exception behavior. Frozen source capture measured
+11,750 Rust and 10,909 TypeScript bodies (max 437/228); targeted remeasurement after
+correcting inline test binding resolution left baseline allowances unchanged.
+A read-only working-tree run against `0ec2ee9a5b50` found 8 violations across 36
+changed/new bodies in 9 changed production files: one new TS function above 20,
+two TS increases and five Rust increases in concurrent implementation. Those
+sources remain untouched. Scoped patch/syntax checks pass; CI itself was not run.
+No builds, downloads, worktrees, publication or deployment occurred.
+
+
+## 2026-10-18 — choose a Rust development server with Ratatui and managed Workerd
+
+**Accepted user choice:** implement the Can development server in Rust under the
+root `dev-server/` directory. The former `dev server/` name is historical; the
+directory rename is already complete. Rust owns orchestration, the authoritative state
+machine and Workerd's start, readiness, replacement, stop, failure and recovery.
+Ratatui is the primary human interface: it renders Rust state and translates input
+into events. Keeping one transition/admission authority makes terminal, plain and
+JSON controls consistent, including failed checks with a last-good preview and
+retained cleanup failures.
+
+Workerd executes compiled Can JavaScript. Miniflare configures/launches Workerd and
+supplies local services through a subordinate JS/TS bridge where needed. The
+bounded private process contract carries correlated readiness, generation,
+release and log facts; Rust alone admits work and publishes a current candidate.
+Compiler and shared runtime semantics retain their existing owners. Preserve
+permissions, freshness, retained login/data and retryable resource ownership.
+
+**Proposed execution:** the [single current plan](../implementation/can-dev-server/PLAN.md#accepted-rust-development-server-and-managed-workerd--2026-10-18)
+prioritizes T14's state contract and T15's Ratatui status/history, diagnostics,
+responsive input and recovery actions. T16 supplies the Workerd adapter in
+parallel; T17 qualifies installed manual parity and retires replaced TypeScript
+session routes. Reuse accepted behavior/evidence and canonical T14–T30 IDs.
+Later automation/reuse remains separately scoped. Preserve plain/noninteractive
+and JSON behavior. `can dev ui --source App.can` and exact private framing remain
+proposed interface details, not a pending server-language or packaging decision.
+
+**Packaging decision for this plan:** build a separate native `can-dev` from
+`dev-server/Cargo.toml` and ship it in the existing Can archive at `libexec/can-dev`.
+Keep the compiler's `can dev` forwarding and `CAN_DEV_BIN` override; the installed
+launcher already selects this sibling path. This preserves compiler/library
+ownership and keeps Ratatui/server dependencies in their defining crate. Linking
+into `can` would remove one dispatch process but would not remove session/Workerd
+supervision or supply a missing required outcome.
+
+T14 supplies the native command/session entry; T15 supplies compatible controls;
+T16 supplies the installed bridge entry and production closure. T17's existing
+distribution writer extends local/CI native builds, explicit packer inputs,
+manifest/version inventory and notices for both current release hosts, replaces
+the TypeScript launcher/bin mapping, and verifies non-starting dev help before
+the existing atomic install switch. Bundled Node/Miniflare tooling remains;
+users need no separate server installer or host toolchain. The plan names exact
+owning scripts and finite installed checks. No user packaging decision remains.
+
+**Behavior parity:** the plan's single mapping compares current main `3bb610962`
+with stopped `0970` source at `b8c909700` and its dirty additions. T14/T16 explicitly
+preserve generated-source capture/watch recovery, exact compiler invocation and
+result validation, retained diagnostic/failure refs, typed business refusals,
+isolated examples/reruns and trusted construct qualification/disclosure gates.
+These existing capabilities must survive Rust cutover; broad lifecycle headings
+or a check/open demonstration do not establish parity. E1's retryable cleanup
+source is located and can be consumed without resuming its former owner.
+Unmerged automatic scheduling and unfinished browser updates/reuse retain their
+existing later task scopes and are not accepted mainline or Rust results.
+
+**Status and uncertainty:** this supersedes the UI-only scope and earlier
+implementation release. Miniflare work and the Rust rewrite remain paused.
+Architecture, packaging and parity ownership are specified. The user authorized a
+separate documentation commit; implementation remains paused. This comparison used
+source inspection only.
+Actual terminal behavior and migration acceptance await T14–T17. A language switch
+does not establish a speedup; compare attributed phases when implementation resumes.
+
+
+## 2026-10-18 — accept the native module/plan source boundary
+
+Accept source `6fb752375` as the finite private retained-job module/plan and
+matching payload slice. Compute the plan before demanding prior-plan IO; retain
+host parse/read diagnostics, distinguish ENOENT from present null and preserve
+optional KV nullish semantics and original field/section order. Transport the
+already canonical planJson instead of redundantly reparsing it into serde Value,
+which cannot hold admitted lone UTF16 surrogates. JS reconstructs the plan when
+needed. Final-file/stdout encoding rules remain unchanged.
+
+Independent source review and focused native lib10/outputs26/plan22/vectors22,
+frozen host payload11/typecheck, real surrogate/present-null probes and current
+main complexity checks pass. Restore historical complexity ceilings with small
+same-position helper extractions; never raise the baseline for the new branches.
+The separate pre-existing modules digest-pin failure stays explicit and unmodified.
+No accepted ICU/V02.6/int-CSV/fanout/recovery scope is rerun.
+
+P05.4/P06.3 remain partial at their original scope. Full host/module identity and
+output, real native CLI/backend differential, integrity before launch, reviewed
+local staging and actual installed consumers still need their concrete outputs.
+Exclude hot P07/scanner work from this early source commit; continue ready source
+work asynchronously during review/Git. Preserve all newer main history through
+`3bb610962`, retained defining-owner reviews and foreign working notes, and keep
+the complete living-plan checkpoint/stale notice unchanged. The compiler batch's
+final safe worktree intake remains pending. Public deployment/default changes/TS
+retirement stay held.
+
+## 2026-10-18 — paused development-worktree sync and Rust plan intake
+
+The user's limited authorization incorporates fetched/current main `69eede1e8`
+into preserved `0970` at `b8c909700`, without creating a commit or changing main.
+The decision-log conflict retains main's edits and both appended histories. All
+stopped source edits and existing commits remain preserved; the living file-tree
+plan reuses incoming53-path owner coverage without advancing its checkpoint.
+The selected direction is the Rust owner/state/supervisor and Ratatui under
+`dev-server/`, with a subordinate Miniflare/Workerd integration bridge. Existing
+TS lifecycle and later update/reuse work supplies parity input, not Rust acceptance.
+The working tree retains the resolved, uncommitted merge. No implementation,
+agents, refactoring, builds, tests, commits, main merge or push is resumed.
+
+## 2026-10-18 — resume the Rust development server implementation
+
+The user explicitly resumes the existing plan, prioritizing the authoritative
+Rust state machine and Ratatui terminal while preserving lifecycle fixes and the
+declared dependency order. T14/T16 first release the owner/runtime contract;
+T15 consumes its typed snapshots without owning transitions. Existing stopped
+TypeScript lifecycle, terminal and reuse source remains preserved as parity input.
+Manual Rust/installed acceptance remains T17; later tasks do not become its
+prerequisites. The prior resolved main69eede1e8 intake can now be committed on the
+development branch. Unrelated compiler/platform work retains its own owner.

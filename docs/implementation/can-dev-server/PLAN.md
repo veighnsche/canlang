@@ -2,15 +2,21 @@
 
 ## Current execution view — development experience, 2026-10-18
 
-**Planning artifact; implementation is owned by the designated lifecycle chat.** This is the
-single current execution view for the terminal-first development experience and
-its later save-to-presentable-preview work. The research/planning work performed no implementation, builds or servers. The
-user subsequently authorized **Prevent Miniflare instance accumulation** to proceed,
-prioritizing the state machine and terminal UX. T14–T30 below define that work;
-implementation completion must be recorded by its owner, not inferred from this
-planning handoff. Unrelated stopped work is not resumed by that authorization.
+**Implementation resumed by the user, 2026-10-18.** This is the single current
+execution view for the terminal-first development experience and its later
+save-to-presentable-preview work. The earlier implementation authorization for
+**Prevent Miniflare instance accumulation** was followed by the user's stop;
+its work remains preserved. The current instruction selects a Rust development
+server with Ratatui and managed Workerd. The user now authorizes implementation,
+prioritizing the authoritative state machine and Ratatui terminal in dependency order.
+Pause wording retained below records the prior planning handoff, not the current
+execution authorization. T14–T30 retain their IDs and acceptance scopes.
+First priority is T14's authoritative state contract
+and T15's Ratatui experience, with T16 supplying the runtime boundary needed to
+qualify that manual workflow. Later automation and performance work stay separate.
 
-**Implementation owner, 2026-10-18:** E1/startup capture reduction is committed
+**Historical stopped TypeScript work, 2026-10-18:** these are U/source results,
+not implemented Rust T14/T15 acceptance or authorization to resume. E1/startup capture reduction is committed
 as `da726fc78`; T16's owned asynchronous bundle adapter is committed as
 `4b6ab6ae2`. T14/T15 and explicit T19 automatic admission are implemented locally:
 the owner snapshot separates operation/source outcome from actual serving state,
@@ -30,6 +36,218 @@ external account/executor/protocol gate recorded below. The stopped platform
 handoffs remain stopped and outside this extension. T14–T30 add outcomes to the
 accepted session, protected preview and JSON controls; they do not replace those
 IDs or turn historical open counts into new assignments.
+
+### Accepted Rust development server and managed Workerd — 2026-10-18
+
+**[Accepted direction](../../specification/DECISIONS.md#2026-10-18--choose-a-rust-development-server-with-ratatui-and-managed-workerd):**
+the Can development server is implemented in Rust under the root
+`dev-server/` directory, with [Ratatui](https://ratatui.rs/) front
+and center. Rust owns orchestration, authoritative state and the entire managed
+runtime lifecycle: start, readiness, replacement, stop, failure and recovery.
+This supersedes the earlier UI-only choice and the assumption that the general
+server remains TypeScript or Cloudflare-owned. **Workerd is the execution runtime
+for compiled Can JavaScript.** Miniflare configures/launches Workerd and supplies
+local service integration; it is not embedded inside Workerd. Any necessary JS/TS
+Miniflare host bridge is subordinate tooling behind Rust's runtime-control boundary,
+not the runtime or the general lifecycle owner. Ratatui renders authoritative Rust
+state and translates input into events; Rust controller code supplies the development
+state machine. This is an accepted architecture, not a resumed rewrite.
+The earlier `dev server/` name is historical: the directory has already been
+renamed to `dev-server/`. No relocation remains in this plan.
+
+**Proposed public entry:** `can dev ui --source App.can` is the prominent human
+workflow, with explicit attachment to a verified existing owner. The native `can`
+entry continues to forward to a separate native `can-dev` executable owned by
+`dev-server/`, shipped in the same Can installation as the compiler. The selected
+packaging and cutover are specified below; there is no separate user installation.
+Explicit JSON commands, no-argument help, envelopes and exit semantics remain
+compatible; their control handling reaches the same Rust owner after cutover.
+TTY detection never turns an explicit machine command into a UI. No entry or
+source relocation is implemented by this planning change.
+
+```text
+can dev → native can-dev → Rust development server in dev-server/
+            ├─ Ratatui primary interface / plain output / JSON control
+            ├─ authoritative session, watcher, scheduler and process supervisor
+            ├─ compiler adapter → existing Rust compiler
+            └─ private versioned process/control boundary
+                 → subordinate JS/TS Miniflare bridge, where needed
+                    → configures/launches Workerd and local service bindings
+                       → Workerd executes compiled Can JavaScript
+```
+
+| Responsibility | Defining owner and boundary |
+| --- | --- |
+| Session/control | Rust owns the canonical-root claim, verified discovery/attachment, input generations, capture/check queues, cancellation, diagnostics/history, work admission and recovery. Port the existing behavior and retained evidence; do not retain an independent TypeScript session controller after cutover. |
+| Runtime lifecycle | Rust owns Workerd start, readiness acceptance, replacement, publication, retirement, stop, failure and recovery, including supervision of any bridge and descendants. The bridge performs concrete setup/release commands and reports results; it cannot publish itself, schedule a rebuild or independently restart the session. |
+| Target integration | The Cloudflare adapter retains target bundling, Miniflare configuration/launch tooling, bindings, actual Workerd probes and concrete resource release. A necessary JS/TS bridge stays subordinate behind the process contract; no Cloudflare SDK objects or Miniflare internals spread through Rust core. Other target adapters need no general orchestration fork. |
+| Preview/access/data | Rust owns development access admission, preview gateway/routing and generation selection. Runtime Identity/CSRF/host checks and application grants still run at their defining owners. Preserve retained data/login and schema-compatibility refusal; replacement is never an implicit reset or permission bypass. |
+| Shared semantics | Compiler, State, Identity, Values, UI, Work and Testkit retain their language/runtime/business semantics. Their supported code runs in Workerd or the appropriate existing adapter/tooling context. A Rust development server does not require porting these packages or physically copying them into its directory. |
+
+### Selected entry packaging and cutover — T17
+
+**Planning choice:** build `can-dev` from an independent Rust crate at
+`dev-server/Cargo.toml`, with its lockfile and dependency notices owned there.
+Keep the compiler's `can` binary as the thin dispatcher; do not link the server
+or Ratatui into `canlang-compiler`. The server invokes the existing compiler
+through its compiler adapter and owns its session process entry. T14 supplies an
+additive non-starting `can-dev --version` identity probe for packaging; existing
+JSON command envelopes remain unchanged. This keeps
+compiler/library ownership intact and replaces the existing executable boundary
+without creating another install/update channel.
+
+This choice follows the current sources: [compiler dispatch](../../../compiler/src/cli.rs)
+already forwards arguments and exit status through `CAN_DEV_BIN` or `can-dev` on
+PATH, with a typed missing-tool failure. The [install packer](../../../scripts/pack-install.mjs)
+already sets that override to the release's `libexec/can-dev`, but currently emits
+a shell launcher to the TypeScript control client there. Linking could remove
+that child launch, but would add server/UI dependencies to the compiler while
+the owned session and Workerd bridge still need process supervision. It supplies
+no required outcome missing from the existing forwarding boundary.
+
+T17's distribution writer performs the following bounded cutover after consuming
+T14's native command/session entry, T15's controls and T16's installed bridge:
+
+- Extend `scripts/build-install.mjs` and the existing native artifact job in
+  `.github/workflows/release.yml` to build the locked `can-dev` crate for the
+  existing macOS arm64 and Linux x64 targets. Carry its actual dependency notices
+  separately from the compiler notices, whose current checker pins only compiler
+  inputs. Reuse compatible build caches under the existing resource rules.
+- Add a `--dev-server FILE` input to `scripts/pack-install.mjs` alongside
+  `--compiler`. Local release assembly and CI both supply the matching built
+  output and verify its version against the release being assembled and its native
+  host target. Copy the executable to `libexec/can-dev` through the existing
+  inventory helper instead of generating the TypeScript launcher. Record its
+  release identity and component bytes in the existing manifest and include its
+  notices/checksums in the existing archive flow. Missing or mismatched host/release
+  output fails assembly; do not fall back to a stale checkout binary.
+- Preserve the public `bin/can` launcher, explicit `CAN_DEV_BIN` overrides and
+  current `CAN_INSTALL_ROOT`, `CAN_DEV_COMPILER`/`CAN_COMPILER_BIN` defaults. The
+  installed server resolves the retained JS/TS bridge and bundled Node from that
+  release; it requires no checkout, npm/Bun install, host Node or Rust toolchain.
+  T16 supplies the concrete installed bridge entry and required production closure.
+  `scripts/distribution/package.json` remains the JS tools owner, not a Rust package.
+- Remove the conflicting TypeScript `can-dev` bin mapping and obsolete control
+  launch route from `packages/cloudflare/package.json` at cutover; retain target
+  tooling and shared runtime exports. Update contributor instructions to point
+  `CAN_DEV_BIN` to the built Rust executable. Compiler-owned forwarding/help and
+  existing JSON/no-argument behavior stay compatible; no second controller remains.
+- Extend the existing install preflight with a non-starting `can dev --help`
+  smoke check before switching `current`, so a broken server cannot replace a
+  working install. Keep the existing atomic whole-version switch and public
+  `can` symlink. T17 verifies native identity, forwarding/override/exit behavior,
+  symlink and space-containing paths, clean-PATH help/JSON, and its one installed
+  Workerd journey on the existing release targets. Reuse unchanged installer
+  security/inventory evidence; no new platform matrix or public release is implied.
+
+Packaging is resolved for this execution plan. No further user packaging decision
+is required. Implementation remains paused; the E1 source contract identified in
+the parity mapping is an input to Rust lifecycle acceptance, not a request to
+resume its former owner or a blocker to choosing this distribution shape.
+
+**Proposed narrow process contract (T14/T16):** Rust controls the Workerd integration
+through a private, versioned, bounded
+control channel with explicit command/result correlation and separate bounded
+logs. The existing private IPC and JSON conventions are inputs to this contract,
+not permission for an additional daemon. Exact framing is a finite implementation
+choice; no public network service or generic RPC framework is required.
+
+- Bridge launch/handshake identifies the owned process, protocol version, session and
+  supported profile. Pin source/input/artifact/producer identities and the selected
+  persistence scope. An incompatible or unverified host never becomes ready.
+- Prepare, probe, cancel, release and release-retry requests carry session,
+  operation and generation identities. Results carry the corresponding identity,
+  actual readiness/failure and outstanding resource-release state. Rust verifies
+  authority and correlation and alone promotes a current ready candidate. Late
+  or superseded results cannot publish, but any reported allocations or retained
+  release outcomes still require ownership reconciliation; never drop a resource
+  handle merely because its check operation is obsolete.
+  A ready process is not a ready app; a ready app is not a browser-applied update.
+- Graceful shutdown first closes Rust's work/access admission, then cancels or
+  joins owned jobs and releases runtimes. Retain ownership handles through failed
+  cleanup. Rust must be able to identify/reap its host and runtime descendants
+  even if the host crashes, using verified process-tree ownership rather than
+  arbitrary PID killing or the host's final message alone. Deadline escalation
+  targets only that tree; acknowledgement or endpoint loss is not release proof.
+- Runtime crash makes that backend unavailable while Rust remains able to report
+  state and accept recovery commands. Preserve the primary error, last verified
+  facts and retained data. Uncertain prepare/release results require ownership
+  reconciliation before retry/new allocation; never replay application mutations.
+  Automatic recovery, when selected in T19, is bounded and obeys no-growth gates.
+- Logs/events identify their session/generation, operation and source; drain them
+  with bounded retention and explicit dropped/unavailable counts so they cannot
+  block stop. Redact secrets and sanitize terminal controls. Only typed owner facts
+  drive state; neither log prose nor UI animation is a readiness signal.
+- Preserve the existing command families beyond preview preparation. Rust owns
+  revision/reference admission, bounded history, queues and cancellation for
+  examples/reruns, failures and construct help/ranking. T16 exposes the existing
+  exact-artifact example runner, installed Testkit and trusted qualification as
+  bounded subordinate operations, plus typed business-refusal events from the
+  serving generation. The adapter does not own command policy or a second session;
+  runtime values and authority stay with their semantic owners. Qualification is
+  not caller-supplied, and external ranking remains separately policy-gated.
+- Persistence retains its existing compatibility and isolation rules. Rust owns
+  scope/lifetime admission; the adapter reports actual Workerd/schema/readiness facts.
+  Do not activate conflicting writable owners during replacement or erase data on
+  source/schema failure. Recovery/reset choices remain explicit, with uncertain
+  in-flight effects preserved rather than retried blindly.
+
+**Terminal behavior:** implement the existing 24-state terminal research with
+Ratatui's [inline viewport](https://ratatui.rs/examples/apps/inline/): a prominent
+current-status area, durable history/diagnostics, normal/error/narrow layouts and
+commands submitted with Enter. Consume Rust's T14 snapshots and ordered updates;
+reconnect by resnapshotting. Show actual phases, elapsed time, captured-revision
+errors, serving freshness and cleanup/recovery actions. Source errors can coexist
+with an older serving preview; missing evidence stays waiting/unknown. Ratatui's
+renderer is selected, while actual scrollback, resize and input behavior still
+requires T15/T17 verification. The UI requests admitted actions from the one owner.
+
+T15 carries that research into one presentation contract:
+
+- Identify the app/source, manual or automatic mode, and owned or attached view.
+  Keep the active phase and elapsed time, latest check with its captured revision,
+  serving preview with its freshness, and any blocking recovery action visible
+  together. “Control connected” never substitutes for “Preview ready.”
+- Append completed outcomes and bounded diagnostic excerpts to history once;
+  redraw phase/timer changes in the live area. Keep older-revision errors labeled
+  and retain the latest failure until a later owner result supersedes it. Details
+  expose retained diagnostics/logs and any truncation or unavailable content.
+- Enter submits a known command or alias; unknown input explains available
+  commands and never executes shell text. Show the owner's available actions and
+  reasons for blocked actions, then recheck admission at dispatch. Redraws, resize
+  and incoming logs preserve the command being typed. Pasted text is input, not
+  an implicit sequence of commands. Build/log work cannot starve input or stop.
+- At 80 and 44 columns, prioritize current phase, preview/freshness, failure and
+  next action. Wrap or move secondary detail into history/details without hiding
+  the active blocker. Text labels carry meaning without color; no simulated
+  percentage or ETA fills gaps in owner evidence.
+
+Plain mode and redirected/noninteractive runs append meaningful transitions and
+diagnostics without cursor rewriting, raw input or an interactive prompt.
+`NO_COLOR` retains meaning; human progress stays on stderr and JSON stdout stays
+machine-only. Ctrl+C stops an owned session or detaches an attached presenter;
+restore terminal state on supported exit/error/interrupt paths. The Rust owner can
+outlive an attached UI, so losing the presenter never implies runtime shutdown.
+
+### Finite migration within the existing task IDs (proposed, stopped)
+
+These are the current execution steps for the Rust direction, not a second plan
+or extra task IDs. E1's stopped work supplies behavior/evidence to inspect and port
+when implementation is released; it is not an instruction to resume that chat.
+
+| Order / existing task | Concrete output and finite acceptance |
+| --- | --- |
+| T14 + T16: freeze the owner/host contract | Map existing lifecycle, input/freshness, permission, retained-data and failure behavior to the narrow messages above. Reuse accepted evidence; record only genuine gaps. One lifecycle authority and identified resource ownership are required, without inventing a generic platform protocol. |
+| T16: isolate the Workerd integration adapter | Reuse existing bundling and Miniflare launch/local-service tooling behind the contract, retaining a JS/TS bridge where needed. Validate one actual supported artifact in Workerd plus delayed/failed preparation, bounded logs and cancellable owned-child cleanup. Keep synchronous target work off Rust's control/UI loop; an unresponsive bridge must still be terminable with Workerd ownership retained. No runtime/business-semantics rewrite. |
+| T14: port session/control and supervision to Rust | Supply the native `can-dev` command/session entry under `dev-server/`; transfer root claim/IPC, capture/currentness, scheduling, existing protected gateway behavior and runtime lifecycle to Rust. Exercise invalid-source/last-good-preview, supersession, startup race, crash, stop/publication ordering and failed-cleanup retry against the host contract. Retained login/data and current authorization remain authoritative. |
+| T15: deliver Ratatui and compatible controls | Implement the primary Rust terminal, plain mode and existing JSON behavior against T14. Verify state rendering, normal/narrow layouts, bounded diagnostics/logs, attach/detach and terminal restoration; no duplicated UI-side lifecycle. Can proceed from the released state contract while host integration finishes. |
+| T17: qualify and cut over the installed manual workflow | Package native `can-dev` beside `can` through the selected existing installer flow; consume T14's entry, T15's controls and T16's installed bridge. One frozen real startup → ready → invalid edit → repair → replacement → stop journey uses the Rust owner and managed Workerd. Include retained data/login, failure/recovery, attached-view detach and the existing JSON consumer. Retire replaced TypeScript session/daemon routes, leaving subordinate target integration and shared runtime packages. Capture attributed phase timings; stop at manual parity. |
+| T18–T30: resume only their listed extensions | Stable session origin, automatic checks/updates and measured reuse remain subsequent scoped work. Existing behavior ports under T14/T16; optional reuse under T22/T23 and compiler work under T28/T29 do not become prerequisites for Rust/manual parity. |
+
+This sequence proposes migration work only. Neither a Rust language switch nor
+Ratatui rendering establishes faster compilation, bundling, runtime startup or
+save-to-page latency; compare attributed phases on the same supported workflow.
+Miniflare work and the Rust rewrite remain stopped pending implementation release.
 
 ### Evidence and intended outcome
 
@@ -63,24 +281,63 @@ historical, not a requirement to erase current retained data. Concurrent source
 work is not a frozen validation input. Lifecycle/performance changes observed in
 the earlier `0970` worktree are not assumed merged or qualified here.
 
+### TypeScript behavior parity and concrete gaps — 2026-10-18
+
+This is the migration checklist within T14–T30, not another task queue. The
+comparison read current main at `3bb610962` and the preserved
+`/Users/vince/.codex/worktrees/0970/canlang` at `b8c909700`, including its dirty
+files. **B** below means current baseline source; **U** means stopped, unmerged
+implemented source; **P** means proposed Rust behavior. Neither source nor test
+presence is a passing result. No builds or tests ran for this comparison.
+
+In U, `da726fc78` supplies retained cleanup, `4b6ab6ae2` owned async builds,
+`6a764cd2f` owner observations/foreground controls and automatic scheduling, and
+`dbedbb249` unchanged-check/capture reuse. Stable-session routing, producer-cache
+changes and browser update/classification work additionally have dirty/untracked
+files. Reuse these concrete outputs without treating all of U as merged or
+requiring its entire plan. `dev/` below means `packages/cloudflare/src/dev/`.
+
+| Existing capability and defining interface | Rust coverage | Actual gap or disposition | Finite acceptance at the owning task |
+| --- | --- | --- | --- |
+| **B — CLI/control and owner discovery:** `runDevControlArgv`/`formatDevControlOutput`; `discoverSessionSocket` verifies canonical root, UID, descriptor, process birth and nonce. | T14/T15/T17 | Already covered; retain all commands/flags, explicit source versus capture selection, app/profile selection, typed refusals and JSON compatibility. U's claim-token/takeover fixes are implementation references, not new accepted Rust results. | Preserve help and one bounded JSON line (128 KiB); control success is exit 0 even for source errors, usage failure 2, other control failure 1. Existing claim/discovery and takeover cases exercise the changed Rust boundary without a second root-lock system. |
+| **B — coherent source and generated inputs:** `captureSingleFileSource`, `discoverGeneratedClosure`/`snapshotGeneratedClosure` in `generated-capture.ts`; `DevSessionCore.watchDirectories`. | T14; T23 only for extra reuse | Generated-source discovery/leases and missed-watch recovery were underspecified. Port the established compiler-admitted saved/contribution closure and full input identity; preserve watch reattachment and bounded fallback audits. This does not expand language scope. | Saved content or membership changes invalidate publication; staged source membership equals the captured closure. Missed add/rename/remove, replaced watch directory and changed producer eventually recapture coherently; idle operation does not repeatedly perform full captures. |
+| **B — compiler adapter:** `compileCapturedSingleFile` runs captured compiler/catalog bytes, bounds output/time, escalates cancellation and waits for child close before staging release. | T14 compiler orchestration; T16 responsive owned execution | Exact invocation/result validation was underspecified: preserve `compile --format=json --native-scenario-receipts`, exit 0 artifact versus 10 diagnostics, source-path/hash agreement and pre/post currentness. U adds phase reporting. | Existing artifact/diagnostic, malformed-output, source-drift and cancellation cases cover the port; no late publication or deletion while the child still owns staging. No new compiler API is required. |
+| **B — retained diagnostics and failures:** service `diagnostics`, `diagnostic.detail`, `failure.lookup`, `failure.detail`, `failures`; `SessionServicePreview.observeRefusals` → safe failure projection. | T14 retention/reference policy; T16 typed refusal events; T15 rendering | Broad “diagnostics/logs” wording omitted the command/event boundary. Preserve same-session and old-revision refs, pagination, compiler/service omission counts, bounded actual example/HTTP/MCP failures and serving-generation filtering. | Existing lookup/refusal cases verify old versus foreign refs, bounded pages, safe canonical messages and unsubscribe on retirement. Do not expose raw conflict/current values, credentials or unavailable traces through Rust or the terminal. |
+| **B — isolated examples and reruns:** `SessionServicePreview.exampleInput` → `runCompiledExamples`; `ExampleRerunCoordinator` and its retained recipe/resource ports. | T14 admission/queue/refs; T16 runner/Testkit bridge | Execution and retention across the process boundary were omitted explicitly. Rust coordinates expected serving revision, exact retained artifact/producer bytes, selected failed row and fresh run scope; existing Testkit/Identity/runtime semantics stay in their owners. | Preserve drift/cancellation/eviction/resource-unavailable refusals, caller authority, one-row rerun validation and awaited cleanup without changing serving resources. Report saved outcomes separately; do not promise deterministic replay or replay uncertain effects. |
+| **B — construct help and ranking:** service `construct.help`/`construct.rank`/`rank.lookup`, `SessionConstructQualificationRequest`, `ConstructRanker`, daemon's trusted qualifier. | T14 help/cache/currentness/disclosure policy; T16 qualification operation | Trusted qualification was absent from the narrow host contract. Preserve exact captured compiler/help/producer identities, bounded four-job qualification, cancellation and structural/none/unknown/pending distinctions. Provider transport remains behind the existing policy gate. | Existing qualified/unqualified/stale and disclosure cases consume current trusted proof only; default external disclosure stays disabled. Qualification failure remains unqualified. G3's account/protocol gate remains external; no new live-provider trial is required for the port. |
+| **B — actual runtime readiness and last-good replacement:** `createLocalPreviewBuilder` admission/activation/probes; `DevSessionCore.checkOne` promotion fence. | T14/T16/T17 | Already covered; clarify readiness means actual D1, Identity, authenticated MCP, packaged assets and page probes, not only a bridge handshake or Miniflare process ready. Verified descendant crash supervision is a P Rust requirement, not a claim about current TS supervision. | One existing supported artifact preserves readiness/refusal and last-good behavior; stale or failed candidates cannot publish. T14's separate crash/reconciliation case covers the new Rust process boundary. |
+| **B — protected preview and retained data:** `startProtectedPreview` admission/forwarding; `openRetainedPreviewState` private persisted identity/schema manifest. | T14 ports current gateway; T16 retains target/data setup; T17 join | Already covered, with concrete invariants now named: exact loopback host/path, one-use expiring bootstrap, bounded access cookies, effectful-request origin/body limits, separate bridge and Identity cookies; canonical root/source data identity and schema refusal. | Existing access/expiry/isolation controls plus T17 retained login/data verify the Rust boundary; incomplete provisioning or schema mismatch cannot erase data or silently reseed/reset. Session-lifetime stable origin is T18, not baseline behavior. |
+| **B defects / U fixes — cleanup and resource recovery:** `DevSessionCore` retained cleanup, `retryCleanup`, `retryableDispose`/`cleanupAfterFailure`, preview disposal and `startLocalDev` recovery drain. | E1 → T14/T16 | Already designed; E1's actual source is now located. B can lose a failed retired handle or memoize failed disposal. U retains handles/no-growth/retry and changes Miniflare disposal versus recovery-drain ordering; dirty U adds request retirement. Application resource recovery is distinct from automatic server restart. | Startup/retired/stop release failures keep the same handle, primary error and backing data; retry can complete and allocation stays blocked. Include a nonsettling recovery dispatch in T16's stalled-runtime case; release the runtime before waiting on work that needs its termination. |
+| **B request cancellation / U observation and terminal:** socket per-request abort; U `DevObservation`, `observe`, `cleanup.retry`, terminal presenter and abortable client requests. | T14/T15/T17 | Owner observations and foreground controls already exist in U as reusable behavior; Ratatui remains P. Clarify observation-only detach versus cancellation of that presenter's in-flight request versus owned-session stop. | Detach cancels presenter-owned request work and releases its candidates/children while leaving the owner/queue usable; it cannot cancel another client's work or imply stopped. Reuse retained observation cases and the planned real 80/44-column Ratatui checks. |
+| **U — automatic loop and browser updates:** committed service `scheduleAutomatic`; dirty session bridge `activate`/request retirement and authenticated polling/classifier/browser consumers. | T18/T19/T20/T24–T26; T21 join | Not missing categories and not B/manual-cutover prerequisites. Automatic mode already has one active/latest coherent demand, same-failure suppression and admission pauses in U. Stable-origin generation fences, draft-aware reload and CSS/page preparation are dirty/untracked implementations. SSE remains a proposal; retained bounded polling is a concrete allowed input to T20's transport choice. | Port only each listed task's scope: latest-only/no-growth scheduling; current generation/auth and mutation-safe routing; admitted update with drafts preserved. Do not infer browser-applied success, generalized HMR or automatic acceptance from source presence. |
+| **U — exact unchanged work reuse:** core unchanged-check reuse, capture/path-resolution reduction, async owned build; dirty producer bundle cache. | T16 isolation; T22/T23 measured reuse | Concrete reuse inputs already exist; no Rust speedup or completed performance target follows. Keep optional optimizations out of the manual parity dependency chain. | Reuse only matching producer/input keys with currentness and bounded lifetime; compare the affected attributed phase once under the existing task, without repeating accepted semantic qualification. |
+| **B — installation and platform boundaries:** compiler `run_dev_entry`, installed sibling launcher/overrides, Unix UID/private socket and Linux `/proc` or `ps` birth checks. | T14/T17 and selected packaging above | Packaging/path choice is resolved: native `can-dev` in the same archive, source under `dev-server/`. Preserve Unix behavior and typed `UNSUPPORTED_PLATFORM` where no UID/socket contract exists; Windows support is not added. Browser qualification tooling remains separately installed/optional. | Existing macOS arm64/Linux x64 release targets exercise changed dispatch/install/ownership boundaries; unknown process identity remains conservatively live. No host toolchain, checkout dependency, second installer or new OS matrix. |
+
+The concrete missing details are now assigned to the existing owners; they remain
+unimplemented Rust acceptance. T14–T17 must preserve the B command families above
+before retiring the TS session service, even if the first terminal menu emphasizes
+check/open/status. U additions retain their existing later task scopes. The pause
+is the execution gate; this mapping neither resumes work nor reopens accepted
+T00–T13/G1/G2 evidence.
+
 ### Required handoffs, limits and decisions
 
-- **E1 — lifecycle owner output:** obtain the exact released retryable failed-cleanup
-  handle, no-growth admission and shutdown-incomplete behavior from the existing
-  lifecycle/performance owner, **Prevent Miniflare instance accumulation**. Its
-  lifecycle work and T14 share one writer; the state-machine contract below is the
-  completed planning handoff, not a new implementation dispatch. Reuse its
-  capture/inventory optimization if released.
-  T14/T15 can show current observed failures without E1. T18 routing can be developed
-  independently; T19/T21 must consume no-growth/retry semantics before accepting
-  unattended repeated replacement. If the output is still absent, name this exact
-  external dependency; do not require that owner's entire plan or duplicate it.
+- **E1 — located lifecycle output:** the preserved work of **Prevent Miniflare
+  instance accumulation** contains `DevSessionCore.retryCleanup`, retained failed
+  handles/no-growth admission, `retryableDispose`/`cleanupAfterFailure` and service/socket incomplete-stop
+  retry under the U commits identified above. This is the concrete behavioral input
+  to the single Rust T14 writer; source availability does not claim Rust acceptance
+  or resume the former owner. Consume those semantics and inspect only the dirty
+  request-retirement delta needed by T18. T19/T21 require their no-growth/retry
+  outcomes before unattended replacement; they do not wait for that chat's entire
+  plan or a new duplicate implementation. E1's source handoff is identified; the
+  relevant changed-boundary checks remain with the listed Rust tasks.
 - **Stable URL scope:** propose one protected origin for one live session, across
   candidate replacement. Session restart may require explicit reconnect/new access;
   cross-restart port persistence is not an implied requirement. T18 resolves this
   small scope explicitly in its interface before changing listener lifetime.
-- **Human command:** T15 selects a separate explicit foreground entry/flag while
-  keeping existing JSON commands unchanged. First delivery is manual-check mode;
+- **Human command:** T15 implements the proposed Rust/Ratatui `can dev ui` foreground
+  entry described above while keeping existing JSON commands unchanged. First delivery is manual-check mode;
   T19 later adds an explicitly labeled automatic mode with initial-check behavior.
   Attachment never silently changes another owner's mode or acquires stop ownership.
 - **Update transport:** T20 chooses an authenticated same-origin one-way channel;
@@ -99,28 +356,28 @@ the earlier `0970` worktree are not assumed merged or qualified here.
 
 ### Explicit server state machine — T14 defining contract
 
-This is a **proposed extension of the existing owner state**, not a replacement
-state-machine framework or another task queue. `DevSessionCore` keeps the input
-epoch, capture/check queues, `changeSerial`, cancellation controller, retained
-checks and serving handle. `session-service.ts` projects those facts and owns
-admission; daemon/socket retain process, root-claim and transport ownership.
-Compiler/builder phases report facts into that owner. Terminal logs are an output,
-never the source from which server state is reconstructed.
+This contract becomes the **Rust development server's state machine**. The current
+`DevSessionCore`, service, daemon and socket are behavioral references for the port:
+preserve input epochs, capture/check ordering, cancellation, retained checks,
+serving identity, admission and root/process ownership. Rust owns those mechanisms
+after cutover; one controller accepts compiler/adapter facts and applies transitions.
+Ratatui only renders that state and converts input into events. Do not retain a
+competing TypeScript controller or reconstruct state from terminal logs.
 
-The implementation owner designated by the user is **Prevent Miniflare instance
-accumulation**. Its existing lifecycle work supplies E1 and the lifecycle portion
-of T14; this document does not dispatch another implementation owner. The handoff
+The retained lifecycle handoff owner is **Prevent Miniflare instance accumulation**;
+that work remains stopped. Its preserved work supplies E1 and the lifecycle portion
+of T14 when released. This document dispatches no implementation owner. The handoff
 is the state/transition contract below plus the existing T14–T30 task boundaries.
 
 #### Related state dimensions and authoritative facts
 
 | Dimension | Proposed states / retained facts | Defining owner and meaning |
 | --- | --- | --- |
-| Server lifecycle | `starting → running → stopping → stopped`; failed release yields `shutdown_incomplete`, retry returns to `stopping` | Daemon/service and E1 cleanup owner. `running` means the control owner is usable, not that source or preview is ready. Startup failure is a retained launch outcome; if owned resources remain it must follow the same cleanup path. |
+| Server lifecycle | `starting → running → stopping → stopped`; failed release yields `shutdown_incomplete`, retry returns to `stopping` | Rust supervisor, preserving E1 cleanup semantics. `running` means the control owner is usable, not that source or preview is ready. Startup failure is a retained launch outcome; if owned resources remain it must follow the same cleanup path. |
 | Check operation | No active operation, or an operation ID with `queued`, `capturing`, `checking_source`, `preparing_preview` with actual subphase, or `publishing`; retain one bounded latest terminal outcome separately | Core serializes work. Existing source result (`valid`, `errors`, `limited`, `incomplete`, `unsupported`, `tool_failure`, `superseded`) stays distinct from preview preparation/promotion outcome and cancellation reason. Source-valid does not imply preview-ready. |
-| Preview availability | `unavailable`, or `serving` with exact revision/build, safe origin and last verified readiness | Core selects the backend; builder/bridge owns readiness/release facts. A failed candidate leaves a usable previous serving handle intact. A detected dead/unavailable backend removes the availability claim; no invented background health monitor is required. |
+| Preview availability | `unavailable`, or `serving` with exact revision/build, safe origin and last verified readiness | Rust selects the Workerd generation using actual adapter readiness/release facts. A failed candidate leaves a usable previous serving handle intact. A detected dead/unavailable backend removes the availability claim; no invented background health monitor is required. |
 | Preview freshness | `not_applicable` when absent; otherwise `current`, `older`, or `unconfirmed` | Derived from the serving identity and a coherent current input generation. Watcher dirtiness, incomplete capture or unresolved newer hints mean `unconfirmed`, not proven old bytes. A confirmed different current generation means `older`; verified identical inputs can restore `current`. Never infer freshness solely from the latest check outcome. |
-| Work admission / cleanup | Bounded owner-supplied blocking reasons such as restart required or retained failed cleanup; active cleanup handle/outcome stays with E1 | A preview may be serving and current while retired cleanup has failed. No new preparation or ordinary work is admitted while the applicable cleanup/restart gate forbids it. This is a guard on transitions, not a second runtime controller. |
+| Work admission / cleanup | Bounded owner-supplied blocking reasons such as restart required or retained failed cleanup; Rust retains process/resource handles and outcomes using E1 semantics | A preview may be serving and current while retired cleanup has failed. No new preparation or ordinary work is admitted while the applicable cleanup/restart gate forbids it. This is a guard on transitions, not a second runtime controller. |
 | Presenter connection | `connecting`, `connected`, `lost`, `detached` with last verified snapshot | Client-only observation, not another server lifecycle. A lost connection makes server state unknown to that client; it cannot assert stopped or unavailable. Preview access expiry is likewise distinct from backend availability and application Identity. |
 
 During early launch, before a verifiable owner exists, the launcher can report its
@@ -130,8 +387,11 @@ one coherent snapshot with session identity, operation ID, monotonically ordered
 update sequence, revision identities, phase timestamps, latest outcome, serving
 facts and admission reasons. An additive/versioned human observation route can
 carry it without reinterpreting existing JSON envelopes. Consumers reconnect with
-a snapshot, discard events from another session or older sequence/operation, and
-resnapshot after a gap. No unbounded event log or durable workflow engine is needed.
+a snapshot, discard events from another session or an already applied sequence,
+and resnapshot after a gap. Operation identity scopes check/phase updates; it does
+not discard a newer owner update about an older retained cleanup handle. That
+update must still change cleanup/admission without overwriting the active check.
+No unbounded event log or durable workflow engine is needed.
 
 For example, this is a valid simultaneous state, **not a single `error` state that
 turns off the preview**:
@@ -178,13 +438,14 @@ resource release. Do not add a persistent status file solely for that display.
 | Explicit check or automatic demand while `running` and admitted | Existing check queue enters `capturing → checking_source → preparing_preview → publishing` only for phases actually performed. Each operation pins coherent inputs and retains source result separately. | Duplicate human request reports already checking; T19 coalesces automatic demand. Preserve existing expected-revision refusal and JSON behavior. Active preparation is never bypassed by another check or cache hit. |
 | Source invalid, limited, unsupported, capture/tool failure | End that attempt with its exact typed result; return operation to idle, retain bounded details and any last-good preview. | Show the failing generation and meaningful next step. Corrected input/manual check or automatic next save may retry; producer restart-required is an admission reason, not an endless retry loop. |
 | Source valid; candidate preparation/readiness fails | Record source success plus preview failure; dispose every partially allocated candidate through its existing owner. | Last-good preview is preserved. Failed disposal becomes retained cleanup/admission blocked; source success must not display a new Ready. Schema mismatch retains data and requires the existing explicit recovery choice. |
+| Rust observes a Workerd backend or bridge exit/failure | Remove availability only for affected serving generations; fail an affected candidate without replacing a healthy serving generation. Keep Rust control running and retain the typed failure plus all resource handles. A lost bridge makes its unverified descendants unavailable pending reconciliation, not released. | Reconcile and release affected resources through the same owner; uncertain or failed cleanup blocks new preparation. After confirmed release and clearance of applicable gates, an explicit manual check may prepare a replacement from current inputs. Cleanup retry targets the retained handle; restart-required stays explicit. Preserve data/login and never replay mutations. Automatic retry belongs to T19. |
 | New inputs or cancellation during check/preparation | Keep currentness checks before and after preparation. Mark obsolete operation superseded/cancelled, reject publication, and release candidate resources. | One latest pending automatic demand may run only after safe release/admission; manual mode does not invent another check. Preserve captured diagnostic provenance and do not replay uncertain effects. |
 | Ready current candidate reaches publication | Recheck input generation, lifecycle/admission and cancellation at the owner selection point; atomically choose the candidate and its matching resources, then notify. T18 pins existing in-flight requests. | Stop/source-change winning that ordering prevents publication. Retire the previous generation through E1; a failure leaves the new serving preview plus cleanup warning, not fictitious rollback or permission-result reuse. |
 | Retired/cancelled/failed candidate cleanup fails | Retain the same failed handle under E1; report cleanup-required and refuse resource growth. An explicit supported retry targets that handle/owner. | Do not allocate another candidate, forget the handle, or turn repeated stop into false success. A successful retry clears only its own blocker; other restart/stop reasons remain. |
 | Explicit open while running with a serving preview | Use the existing explicit protected-access action; label older/unconfirmed source and keep application Identity/CSRF/current authorization unchanged. Status reads use only safe origin. | Missing serving backend or closing admission refuses. Access renewal is explicit; it does not recheck source, clear errors, refresh a tab or prove page load. |
 | First owned stop / signal | Synchronously close work/access admission **before acknowledgement**, cancel pending automatic demand, stop watchers, abort cancellable work and await owned operations/cleanup. Enter `stopping`; duplicate stop joins the same attempt. | Late check/build completions cannot publish or create another runtime. Keep necessary status/details and the same owner's retry route available while release remains incomplete. |
 | Stop cleanup fails / succeeds | Failure enters `shutdown_incomplete`, preserving handles/control ownership needed for retry. Explicit retry enters `stopping` without reopening normal work. Success reaches `stopped` only at the lifecycle owner's confirmed release boundary. | `stopping:true` is intent only. Client timeout/disconnect is unknown completion, not stopped. Endpoint disappearance cannot hide release failure. Retry failure stays incomplete; primary failure is not replaced by incidental cleanup noise. |
-| Ctrl+C in attached view; second Ctrl+C in stopping owned view | Detach that presenter and print last verified session/recovery action; no server lifecycle transition is inferred from detachment. | Never kill an unrelated owner or claim shutdown completion. New start remains subject to the existing root claim while the old owner is retained. |
+| Ctrl+C in attached view; second Ctrl+C in stopping owned view | Detach that presenter and abort its own in-flight request where present, using the existing request-cancellation contract; print last verified session/recovery action. Observation detach alone is not session stop. | Cancelled request work releases its owned resources without late publication; another client's work and the owner/queue remain usable. Never kill an unrelated owner or claim shutdown completion. New start remains subject to the existing root claim while the old owner is retained. |
 
 Read-only status/help and retained diagnostics are available whenever the verified
 owner can serve them, including cleanup failure, with retention limits stated.
@@ -217,7 +478,7 @@ gating to existing commands, not new example/ranking work or wider feature scope
   socket/clears handles even after core disposal fails; rejected stop promises can
   remain sticky, and socket stop marks itself stopped before cleanup completes.
   The daemon interprets endpoint disappearance as completion; failed launcher
-  startup sends SIGTERM without observing owned-child release. E1 already proposes
+  startup sends SIGTERM without observing owned-child release. E1 already implements
   retryable retained cleanup and `shutdown_error` in the inspected unmerged work.
   Consume that work and address only still-uncovered wrappers/startup cases; do not
   recreate its cleanup mechanism or assume it has reached main.
@@ -232,13 +493,13 @@ gating to existing commands, not new example/ranking work or wider feature scope
 #### Finite delivery and lane handoff
 
 T14 now includes the above state dimensions, legal transitions, centralized action
-admission and typed observation contract. **Lane A and E1 are the same designated
-session/lifecycle implementation owner for overlapping core/service/daemon/socket
-writes.** The minimum early output to T15 is the snapshot/event shape plus action
+admission and typed observation contract. **Lane A is the single Rust lifecycle
+writer and consumes E1's retained behavior/evidence; E1 remains stopped.**
+The minimum early output to T15 is the snapshot/event shape plus action
 rules and representative simultaneous states. T16 can proceed on its disjoint
 build-execution boundary; it reports phases/cancellation to A and cannot set
-serving or stopped. Lane C owns candidate readiness/bridge release and supplies
-those outcomes to A; only A selects/publishes or closes session admission. Lane B
+serving or stopped. Lane C supplies concrete Workerd readiness/resource-release
+results through the adapter; only A selects/publishes or closes session admission. Lane B
 projects state and chooses no server transitions by itself. T18/T19 consume this
 contract rather than implementing competing lifecycle enums or queues.
 
@@ -252,10 +513,11 @@ including startup failure cleanup and owner/attached exit behavior. **T19/T21** 
 only automatic-demand/no-growth joined risks. There is no cross-product test
 matrix of every theoretical state combination and no new global integration gate.
 
-The handoff is complete when the plan names these fields/guards, the implementation
-owner has the exact E1 outputs and uncovered source gaps, and T14/T15/T18/T19 share
-that single contract. Product completion still requires their scoped implementation
-and checks; this planning turn performs none.
+The planning handoff names these fields/guards, uncovered source gaps and exact
+E1 output located for the future Rust owner. T14/T15/T18/T19 share this single
+contract. Porting and checking E1's semantics remains an implementation dependency,
+not missing design or permission to resume its chat. Product completion still requires the scoped
+implementation and checks; this planning turn performs none.
 
 ### Implementation-owner intake — 2026-10-18
 
@@ -303,70 +565,91 @@ T21 + selected outputs above ─────────────────
 
 | Lane | Work sequence and defining writer | Why it shortens credible wall time |
 | --- | --- | --- |
-| A — Session/control | Designated lifecycle implementation owner consumes E1 and implements T14, including daemon/socket gaps; then T19 and T23 integration in `session-core.ts`/`session-service.ts`; owns cross-lane wiring there | One writer preserves revision/publication/cancellation ordering and avoids conflicting scheduler/cache/status edits. Supplies small interfaces early. |
-| B — Human and browser presentation | T15/T17 terminal; then T20 browser consumer, T25 CSS and T26 morph in UI/browser code | Delivers the highest-priority visible result first; reuses the same presentation owner for browser lifecycle/focus/draft behavior. T26 can follow T24 without waiting for T25, but their shared browser writer serializes edits. |
-| C — Protected preview/runtime | T18 bridge/builder; T20 gateway endpoint; relevant T21/T30 routing/lifecycle joins | Stable access and candidate routing are a distinct correctness problem; this lane can work alongside session scheduling after its interface is released. |
-| D — Build/reuse | T16; then T22 and T24 resource comparison; T27 if justified; T28/T29 through the existing compiler owner when its exact files are released | Reduces computation alongside workflow delivery. It does not put an unmeasured compiler redesign on the browser critical path. |
+| A — Rust session/control | Consumes E1 behavior and implements T14 under root `dev-server/`, including root claim, state machine, process supervision and gateway; then T19/T23 integration | One Rust writer preserves revision/publication/cancellation ordering, owns the runtime lifecycle and supplies narrow interfaces early. Current TypeScript core/service files are port references. |
+| B — Human and browser presentation | T15/T17 Rust/Ratatui terminal under root `dev-server/`; then T20 browser consumer, T25 CSS and T26 morph in their UI/browser owners | Delivers the primary human interface first. Rust terminal rendering and browser code remain distinct consumers of authoritative state; T26 can follow T24 without waiting for T25, but their shared browser writer serializes edits. |
+| C — Workerd target integration | T16 adapter's concrete runtime portion; T18 readiness/release consumer and T21/T30 integration; A owns Rust gateway/notification routes | Keeps Miniflare/Cloudflare tooling subordinate to Rust through one process boundary. Target code can be worked on independently after the contract and shared-file ownership are released. |
+| D — Build/reuse | T16 build portion; then T22/T24 producer work, T27 if justified, and T28/T29 through the compiler owner | C and D serialize shared adapter/bundle files. Rust owns job/process lifetime; target producers retain algorithms. Compiler redesign stays off manual delivery's critical path. |
 
-**Recommended first dispatches after implementation authorization:** T14 and T16
+**Proposed order if implementation is later resumed:** T14 and T16
 on their disjoint owner paths. As soon as T14 releases the event/status and
-origin/promotion shapes, dispatch T15 and the bridge portion of T18. Transfer
-`preview-builder.ts` from T14's phase-hook edit to T18 explicitly. After T17,
-A advances T19 while C/B advance T20 and D advances T22. T23 follows A's scheduler
-write release, not a concurrent second writer. T24 can start from the checked
+origin/promotion shapes, T15 consumes them while A ports the Rust gateway and C/D
+complete the adapter. Release shared `preview-builder.ts`/`preview-host.ts` edits
+explicitly. T17 closes Rust/manual cutover; A then advances T18/T19 and T20's
+gateway route while B supplies its browser consumer and D advances T22. T23 follows
+A's scheduler write release, not a second writer. T24 can start from the checked
 artifact/resource boundary while automatic integration settles. A compiler lease
 can fill a later free slot only after T28 identifies useful finite work; no idle
 agent is a reason to invent another compiler task.
 
-The first visible critical path is **T14 + T16 → T15 → T17** (T15 development
-can overlap). The automatic-loop join waits for the slower of **T18/T20** and
+The first delivery priority is **T14 state contract → T15 Ratatui**, with T16's
+adapter work in parallel; their implemented outputs join at **T17**. T15 does not
+wait for all runtime integration or performance work. The automatic-loop join
+waits for the slower of **T18/T20** and
 **T19/E1**, not for generalized HMR or compiler incrementality. The final responsive
 experience joins **T21**, the selected reuse path, and **T24 → T25/T26**. Which
 performance branch dominates cannot be known until phase evidence exists; no
 numerical estimates are invented. Conditional T27/T29 are kept off the automatic
 workflow release path and either finish their selected scope or remain explicitly
-deferred with the measured reason.
+deferred with the measured reason. None of these dependencies changes the current
+implementation pause.
 
 ### Finite implementation tasks
 
-All source paths below are repository-relative. `dev/` means
+All source paths below are repository-relative. Historical `dev/` shorthand means
 `packages/cloudflare/src/dev/`; `deploy/` means `packages/cloudflare/src/deploy/`.
+Those paths locate current defining mechanisms, not an endorsement of future
+Cloudflare ownership for general development. Rust server and UI ownership under
+root `dev-server/` is selected; the finite migration above is proposed and stopped.
+Existing TypeScript paths identify reusable behavior or remaining target adapters.
 Checks are requested future acceptance, not checks run during this planning turn.
 
 #### T14 — Authoritative lifecycle, check and preview state; safe status
 
-- **Owner:** designated session/lifecycle owner, `dev/session-core.ts`,
-  `session-service.ts`, `session-daemon.ts`, `session-socket.ts`; compiler phase hooks
-  in `compiler-check.ts` and small preparation hooks in `preview-builder.ts`.
-  Reuse E1 cleanup ownership; no second core/lifecycle writer.
+- **Owner:** Rust server under root `dev-server/`. Port the behavior of current
+  `dev/session-core.ts`, `session-service.ts`, `session-daemon.ts`, `session-socket.ts`
+  and existing protected gateway; consume compiler/adapter facts through the
+  defined boundary. Reuse E1 cleanup semantics, with one Rust lifecycle writer.
 - **Prerequisite output:** accepted T08/T13 revision, captured diagnostic and command
-  result contracts; existing check/build/cleanup outcomes. E1 supplies retained cleanup/retry; the source-identified wrapper/startup gaps are
-  the remaining finite lifecycle work, not a dependency on its whole plan.
+  result contracts and current check/build/cleanup outcomes. E1 supplies retained
+  cleanup/retry behavior; T16 supplies the narrow Workerd adapter output. Port
+  current guarantees and repair identified gaps, including the B command/capture
+  contracts in the [parity mapping](#typescript-behavior-parity-and-concrete-gaps--2026-10-18),
+  without waiting for later automation/performance tasks.
 - **Remaining change / observable outcome:** implement the [state-machine contract](#explicit-server-state-machine--t14-defining-contract) above: related lifecycle,
   operation and serving/freshness dimensions, transition guards and immediate stop
-  admission, using existing queues/claims/cleanup. Close only the identified
-  duplicate-start and shutdown gaps not supplied by E1. Define one bounded operation snapshot
+  admission, porting established queue/claim/cleanup semantics into Rust. Supervise
+  bridge/Workerd descendants, readiness, replacement, crash and recovery; retain
+  permissions and data while closing identified startup/shutdown gaps. Supply the
+  native `can-dev` command/session entry for T15/T17 without linking the server
+  into the compiler. Define one bounded operation snapshot
   and ordered update projection: operation/revision identity, queue/start/phase
   timing, capture uncertainty versus confirmed change, check versus serving state,
   last preview/cleanup failure and read-only non-secret origin. Instrument actual
   owner boundaries; before a boundary exists, say waiting for result. Reconnect
   obtains a snapshot before accepting newer events. No fabricated logs or phases.
+  Rust also owns retained failure/reference policy, examples/rerun admission and
+  construct help/ranking coordination; T16 supplies their existing semantic work.
 - **Checks / completion:** focused state cases for dirty-but-identical capture,
   source failure with an old serving preview, preview failure, supersession and
   delayed events prove that check, serving and current revisions stay separate.
-  Include the specific start-takeover race, stop-versus-publication and retained
-  cleanup retry, reusing unchanged owner controls. Origin reads do not mint
+  Include the specific start-takeover race, bridge/runtime crash,
+  stop-versus-publication and retained cleanup retry. Reuse unchanged semantic
+  evidence and exercise changed Rust/process boundaries. Origin reads do not mint
   access. Retention/drop/unavailable states are bounded and explicit. Done when
-  T15 can render these truthful states from owner data; no full telemetry platform.
+  the mapped B contracts survive the port and T15 can render truthful owner state;
+  presenting state alone does not close command/behavior parity.
 
-#### T15 — Foreground terminal, durable history, diagnostics and controls
+#### T15 — Rust/Ratatui foreground terminal, history, diagnostics and controls
 
-- **Owner:** terminal/control, `dev/control-cli.ts`, `control-client.ts` and a small
-  presenter module if needed; existing `session-daemon.ts` attachment boundary.
+- **Owner:** Rust/Ratatui presentation under root `dev-server/`, reached through
+  the proposed `can dev ui` entry. Preserve the public behavior of current
+  `dev/control-cli.ts`/`control-client.ts` through the same Rust owner after cutover.
+  Ratatui renders T14 state and translates input into events; the Rust controller
+  enforces transitions. UI rendering is not the application state-machine library.
 - **Prerequisite output:** T14 published shape and accepted T13 JSON behavior;
   inspected terminal proposal, including plain mode and owner/attachment semantics.
   The presenter consumes the authoritative state contract, never log inference.
-- **Remaining change / observable outcome:** implement inline status after durable
+- **Remaining change / observable outcome:** implement Ratatui inline status after durable
   history, normal/error/narrow layouts, real phase timers, captured-revision error
   excerpts and retained details. Enter executes known aliases; Ctrl+C stops an
   owned session or detaches an attached view. Offer explicit open/access/status/help;
@@ -375,46 +658,76 @@ Checks are requested future acceptance, not checks run during this planning turn
   NO_COLOR output retain meaning. Existing JSON stdout/envelope/exit behavior stays intact.
 - **Checks / completion:** finite presenter/input checks cover startup versus app
   readiness, success, initial/source/build failure, lost connection, cleanup/stop,
-  supersession and plain/JSON separation. Inspect actual 80/44-column terminal
-  layouts once, including paste, resize and Enter versus Ctrl+C. No invented ETA,
+  supersession, ordered reconnect (including older-handle cleanup updates) and
+  plain/JSON separation. Inspect actual 80/44-column terminal layouts once,
+  including preserved history and in-progress input under logs, paste, resize, Enter versus Ctrl+C
+  and terminal restoration on supported exit/error/interrupt paths. No invented ETA,
   browser-loaded claim, hidden shell execution or reset action. Done at manual scope.
 
-#### T16 — Responsive owned build execution
+#### T16 — Workerd integration adapter and responsive owned build execution
 
-- **Owner:** build adapter, `dev/preview-host.ts`, `deploy/bundle.ts`, existing
-  command lifetime/child-execution mechanism. It does not own session scheduling.
+- **Owner:** subordinate target/build adapter, reusing `dev/preview-host.ts`,
+  `preview-builder.ts`, `local-run.ts`, `local-bindings.ts` and `deploy/bundle.ts`;
+  Rust owns the supervisor and command lifetime. Adapter code owns no session scheduler.
 - **Prerequisite output:** current synchronous producer boundary and existing
-  cancellation/timeout/cleanup contract; T14 shape only when wiring progress.
-- **Remaining change / observable outcome:** place blocking build work behind the
-  smallest owned async child/worker boundary, keeping local command limits,
-  admission, primary-error preservation and awaited cleanup. Pass the esbuild
+  cancellation/timeout/cleanup contract, plus the shared T14/T16 process contract
+  for preparation, readiness, ownership/release and progress. Adapter work need
+  not wait for the full Rust controller or terminal.
+- **Remaining change / observable outcome:** expose actual Workerd preparation,
+  readiness, dispatch endpoint and concrete release through T14's bounded process
+  contract. Retain a JS/TS Miniflare bridge where needed for launch/configuration
+  and local services; Workerd executes the app. Supply T17 the bridge's exact
+  installed entry and production dependencies, resolving bundled Node and target
+  resources from the selected release rather than developer PATH. Isolate blocking build work,
+  keeping command limits, primary errors, bounded logs and awaited cleanup. Pass the esbuild
   binary/config per job; eliminate overlapping mutation of global
   `ESBUILD_BINARY_PATH`. Preserve existing synchronous callers if still required.
+  The same bounded adapter carries exact-artifact example execution, trusted
+  qualification and typed refusal events described in the parity mapping. Preserve
+  compiler staging/result validation and actual application/service readiness;
+  neither broad “build succeeds” nor a bridge handshake closes these contracts.
 - **Checks / completion:** focused deliberately delayed build proves status and
   stop remain responsive, timeout/cancellation cannot publish late success and
-  owned child/temp resources are released. One genuine affected bundle verifies
-  output/loadability. Done without a general worker pool or cache requirement.
+  owned bridge/Workerd child/temp resources are released. One genuine affected
+  artifact verifies Workerd loadability, readiness and retained-data behavior.
+  Include nonsettling resource recovery in that cleanup case. Exercise the mapped
+  changed command/adapter cases once, reusing unchanged semantic evidence.
+  Done without a general worker pool or cache requirement.
 
 #### T17 — Close terminal delivery and obtain the useful phase baseline
 
-- **Owner:** terminal/session integration; existing dev tests and local-development
-  guide, consuming frozen T14–T16 outputs.
-- **Prerequisite output:** functioning manual presenter and responsive build path,
-  a currently supported existing `.can` fixture and prepared producer closure.
-- **Remaining change / observable outcome:** wire launch/attach, one check, useful
-  failure/recovery and stop into a coherent human experience. Update the guide to
+- **Owner:** terminal/session integration and existing distribution writer
+  (`scripts/build-install.mjs`, `scripts/pack-install.mjs`, `scripts/install.sh`,
+  `.github/workflows/release.yml`); compiler owner retains its forwarding/help
+  boundary. Update existing install/dev checks and contributor guidance.
+- **Prerequisite output:** T14 native command/session entry, T15 manual presenter
+  and compatible controls, T16 responsive build path plus exact installed bridge
+  entry/closure, a supported existing `.can` fixture and prepared producer closure.
+- **Remaining change / observable outcome:** implement the [selected packaging](#selected-entry-packaging-and-cutover--t17)
+  in the existing release flow, then wire installed Rust launch/
+  attach, check, failure/recovery, replacement and stop with managed Workerd. Retire
+  replaced TypeScript session/daemon routes at cutover while keeping the subordinate
+  adapter and shared semantics. Update the guide to
   distinguish control connected, source checked and preview ready. Capture one
   ordinary warm edit with owner subphase durations during this same validation.
-- **Checks / completion:** direct startup→ready→invalid edit→repair→stop journey,
-  plus attached-view detach and preserved JSON consumer. Inspect actual normal,
+- **Checks / completion:** direct startup→ready→invalid edit→repair→replacement→stop
+  journey with retained data/login and runtime-failure recovery, plus attached-view
+  detach and preserved JSON consumer. Verify the changed native packaging and
+  installer preflight on the two existing release targets, with clean-PATH,
+  executable/version identity, explicit override and path handling checks above;
+  no separate package installer or publication is required. Inspect actual normal,
   error and narrow output; record the scoped result here. Baseline separates
   capture, compiler, bundle, state/activation/readiness and publication; missing
   timing is reported, not guessed. T14–T17 close here without waiting for auto mode.
+  Retirement of the TS session service also requires the mapped baseline command
+  families to remain usable through Rust; a successful check/open demo alone is
+  insufficient. This reuses owning T14/T16 results, not a second full qualification.
 
 #### T18 — Session-lifetime protected origin and generation routing
 
-- **Owner:** preview gateway/runtime, `dev/preview-bridge.ts`, `preview-builder.ts`;
-  A integrates its narrow promotion/disposal seam in core/service.
+- **Owner:** Rust preview gateway and generation selection, A, consuming C's
+  Workerd readiness/release interface. Current `dev/preview-bridge.ts` and
+  `preview-builder.ts` supply behavior to preserve, not a second gateway owner.
 - **Prerequisite output:** T14 safe-origin/promotion interface and release of its
   builder hook edits; current protected access and retained-state behavior (T09).
 - **Remaining change / observable outcome:** own the listener/access state at the
@@ -430,7 +743,7 @@ Checks are requested future acceptance, not checks run during this planning turn
 
 #### T19 — Coalesced automatic checks and recovery
 
-- **Owner:** the same session state-machine writer, `dev/session-core.ts`/`session-service.ts`; terminal
+- **Owner:** the same Rust session state-machine writer under `dev-server/`; terminal
   mode projection is a small T15 consumer update through its existing owner.
 - **Prerequisite output:** T14 operation/currentness shape, accepted capture checks,
   and E1 no-growth/retry output before unattended replacement acceptance.
@@ -448,7 +761,7 @@ Checks are requested future acceptance, not checks run during this planning turn
 
 #### T20 — Authenticated update delivery and safe automatic reload
 
-- **Owner:** C owns `dev/preview-bridge.ts` notification route; B owns the dev-only
+- **Owner:** A owns the Rust gateway notification route; B owns the dev-only
   browser consumer through `packages/ui/src/browser/bootstrap.ts` or its narrow
   dev entry. D owns only the necessary resource-injection call site in `deploy/bundle.ts`.
 - **Prerequisite output:** T18 stable origin, current ready publication and asset
@@ -482,8 +795,9 @@ Checks are requested future acceptance, not checks run during this planning turn
 
 #### T22 — Reuse invariant producer bundles
 
-- **Owner:** build producer, `deploy/bundle.ts` MCP/HTTP producer builders and
-  `dev/preview-host.ts` cache lifetime; same writer as T16.
+- **Owner:** target build producer, `deploy/bundle.ts` MCP/HTTP builders and its
+  adapter cache implementation; Rust owns process/cache-scope lifetime and admission.
+  Same shared producer writer as T16.
 - **Prerequisite output:** T16 isolated build seam and T17 phase evidence showing
   whether repeated producer bundling is material; current captured installed closure.
 - **Remaining change / observable outcome:** first candidate is bounded exact-key
@@ -500,10 +814,12 @@ Checks are requested future acceptance, not checks run during this planning turn
 
 #### T23 — Reuse coherent capture, compiler staging and exact unchanged checks
 
-- **Owner:** capture/compiler adapter, `dev/source-capture.ts`, `preview-inputs.ts`,
-  `compiler-check.ts`; A serially integrates core/service reuse.
-- **Prerequisite output:** T17 attribution, E1's released capture/inventory result
-  or an explicit statement of the remaining duplicate, T19's shared check admission.
+- **Owner:** Rust capture/compiler adapter, A, consuming actual target input
+  inventory. Current `dev/source-capture.ts`, `preview-inputs.ts`, `compiler-check.ts`
+  supply behavior/evidence. Basic capture ports under T14; T23 owns only additional reuse.
+- **Prerequisite output:** T17 attribution, E1's identified capture/inventory
+  source from `da726fc78`/`dbedbb249`, and T19's shared check admission. Port only
+  the measured remaining duplicate; existing source is not another owner-release gate.
 - **Remaining change / observable outcome:** reuse already coherent captures only
   across a valid generation boundary; retain verified compiler/catalog staging by
   identity. For an exact unchanged full input identity, reuse bounded successful
@@ -627,12 +943,11 @@ Checks are requested future acceptance, not checks run during this planning turn
 
 ### Integration, writer exclusion and validation budget
 
-1. **Shared writers serialize.** The designated lifecycle implementation owner
-   supplies E1 and T14; no separate agent competes for core/service/daemon/socket.
-   A alone edits core/service scheduling, retention
-   and promotion joins. T14 releases builder instrumentation before C/T18 edits
-   builder lifetime. C serializes bridge lifetime and notification route. D
-   serializes T16/T22/T24 edits to `deploy/bundle.ts` and preview-host; B supplies
+1. **Shared writers serialize.** E1's retained work is input to the Rust port;
+   its implementation stays stopped. After a future release, A alone owns Rust
+   lifecycle, scheduling, retention, gateway and promotion joins. C/D explicitly
+   hand off shared adapter/build files; D serializes T16/T22/T24 changes to
+   `deploy/bundle.ts` and preview-host. B owns Ratatui presentation and supplies
    browser source changes, not a competing bundle rewrite. B serializes terminal
    then browser lifecycle changes. Compiler changes require the current compiler
    owner's exact scope release, never a whole-owner-plan gate.
@@ -660,8 +975,9 @@ Checks are requested future acceptance, not checks run during this planning turn
    packets, duplicate manifests, unchanged qualification reruns or extra benchmark
    program. Use ordinary task result notes here. Build changed producer closures
    only when needed; an app edit consumes prepared tools and does not publish a release.
-6. **Documentation delivery only.** This task commits the plan and research on
-   main without implementing the proposed behavior. If a merge occurs, its handler
+6. **Documentation delivery only.** Finish this plan and its decision record;
+   implementation remains paused. The user authorized a separate commit of these
+   documentation changes; that commit does not dispatch implementation. If a later merge occurs, its handler
    reconciles the living file-tree plan and DECISIONS incrementally
    as AGENTS.md requires, retaining prior coverage and the complete checkpoint until
    its required review is finished. This planning edit advances no file-tree checkpoint.
@@ -672,7 +988,7 @@ Checks are requested future acceptance, not checks run during this planning turn
 | --- | --- |
 | Explicit lifecycle/check/preview state, guards, duplicate-start protection, shutdown and recovery | T14/E1 defining contract; T15 renders it, T18/T19 extend only their owning transitions |
 | Entire terminal surface: identity, history/status boundary, diagnostics, timing, check versus readiness, narrow/plain/JSON, controls and exit | T14–T17; later mode changes consume the same presenter |
-| Current/serving revision, uncertain capture, stale last-good, unsupported/restart/cleanup/disconnect | T14 state; T19 automatic recovery; E1 owns retry mechanics |
+| Current/serving revision, uncertain capture, stale last-good, unsupported/restart/cleanup/disconnect | T14 ports E1 retry mechanics; T19 adds automatic recovery |
 | Stable URL, private access, login/data, request and asset generation, disposal | T18; T21 only the joined observation |
 | Save bursts, automatic checking, refresh, errors and correction | T19/T20; T21 joined outcome |
 | Safe browser feedback, drafts/mutations, no false “applied/usable,” development-only code | T20, reused by T25/T26 |
@@ -686,8 +1002,9 @@ The plan is finishable without reopening Office acceptance, running new novice/J
 product trials, implementing Task 2/3, migrations, provider/deployment matrices,
 generic tracing or arbitrary component HMR. Those existing or optional scopes keep
 their own owners and release conditions. Conditional no-go decisions are not
-implementation successes; external E1 and G3 are named separately. No held gate
-prevents independent terminal or already dependency-ready work.
+implementation successes; identified E1 source and the external G3 gate remain distinct. After an
+explicit implementation release, those external gates do not prevent independent
+terminal or already dependency-ready work.
 
 ## Retained first-slice acceptance and stopped platform disposition
 

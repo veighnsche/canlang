@@ -29,11 +29,11 @@ import {
   DEPLOY_DIR_SUFFIX,
   WORKER_MAIN_MISSING,
   assertPackageOutputFiles,
-  buildDeployBundleWithAssets,
   deployBundleMain,
   writeDeployBundleWithAssets,
   type PackageDeployBundle,
 } from "../deploy/bundle.js";
+import { buildBundleWithHostPhasesAndAssets } from "./build-adapter.js";
 import {
   launchPreparation,
   NativeLaunchError,
@@ -370,7 +370,7 @@ export async function runPreparedDeploy(
   let bundleRef: DeployBundleRef | null = null;
   let deployBundle: PackageDeployBundle | null = null;
   try {
-    const bundle = buildDeployBundleWithAssets(loaded.artifact, { verdict, ...(lifetime === undefined ? {} : { commandLifetime: lifetime }), assets: { browser: (loaded.artifact.pages?.length ?? 0) > 0 } });
+    const bundle = buildBundleWithHostPhasesAndAssets(loaded.artifact, { verdict, ...(lifetime === undefined ? {} : { commandLifetime: lifetime }), assets: { browser: (loaded.artifact.pages?.length ?? 0) > 0 } });
     bundleRef = {
       main: deployBundleMain(stem),
       moduleCount: bundle.moduleCount,
@@ -599,11 +599,13 @@ export interface NativeJobResult {
 }
 
 /**
- * Run one native job (scaffold: fixed probe sequence) and return the
- * terminal `Prepared`. Non-probe stages throw `native-unimplemented`
- * until P04+ lands real execution. Every subprocess failure maps to
- * a CLI failure via `failNative` — tampered/garbage binaries fail
- * loudly, never silently.
+ * Run one native job and return the terminal `Prepared`. The
+ * executable verifier (readiness probe on a fresh process) gates
+ * launch; callers serve real NeedHost stages through `onNeed` (the
+ * default answers probes and refuses the rest loudly). Every
+ * subprocess failure maps to a CLI failure via `failNative` —
+ * tampered/garbage binaries fail loudly, never silently, with no TS
+ * retry after a native refusal.
  */
 export async function runNativeJob(
   command: string,
@@ -619,6 +621,17 @@ export async function runNativeJob(
       command,
       "unavailable",
       error instanceof Error ? error.message : String(error),
+    );
+  }
+  // P05.4: the executable verifier gates launch. A binary that fails
+  // the readiness probe (handshake + abort + exit 0 on a fresh
+  // process) never starts a real session. No native-error TS retry:
+  // every refusal below maps to failNative.
+  if (!(await probeReadiness(resolution.path))) {
+    failNative(
+      command,
+      "unavailable",
+      `verifier refused ${resolution.path} (${resolution.source}): readiness probe failed`,
     );
   }
   const { child, kill } = launchPreparation(resolution.path);

@@ -13,7 +13,6 @@
 //! stable review voice (TS throws engine-dependent `TypeError`s
 //! there); value-level variation is exact for every input.
 
-#![allow(dead_code)]
 
 use crate::input::{js_string, obj_get, render_text, Node};
 use crate::render::{json_stringify, render_wrangler_toml, RenderError};
@@ -99,6 +98,58 @@ fn iter_list(node: &Node, which: &str, path: &str) -> Result<Vec<Node>, ReviewEr
     }
 }
 
+/// One `kv` line per namespace entry (mirrors the
+/// `kv_namespaces ?? []` loop in `project`).
+fn project_kv_namespaces(
+    wrangler: &Node,
+    which: &str,
+    out: &mut Vec<ProjectedLine>,
+) -> Result<(), ReviewError> {
+    let Some(namespaces) =
+        obj_get(wrangler, "kv_namespaces").filter(|node| !matches!(node, Node::Null))
+    else {
+        return Ok(());
+    };
+    for entry in iter_list(namespaces, which, "wrangler.kv_namespaces")? {
+        let binding = prop(&entry, "binding")?;
+        out.push(ProjectedLine {
+            key: format!("kv:{binding}"),
+            line: format!("kv {binding} id={}", prop(&entry, "id")?),
+        });
+    }
+    Ok(())
+}
+
+/// The d1/r2 projection section at its fixed position (before KV):
+/// both lists, field/prop calls and ordered pushes. d1 carries
+/// name+id, r2 name only; property and error order unchanged.
+fn project_named_bindings(
+    wrangler: &Node,
+    which: &str,
+    out: &mut Vec<ProjectedLine>,
+) -> Result<(), ReviewError> {
+    for (field_name, prefix) in [("d1_databases", "d1"), ("r2_buckets", "r2")] {
+        let list = obj_get(wrangler, field_name).unwrap_or(&Node::Null);
+        for entry in iter_list(list, which, &format!("wrangler.{field_name}"))? {
+            let binding = prop(&entry, "binding")?;
+            let line = if prefix == "d1" {
+                format!(
+                    "d1 {binding} name={} id={}",
+                    prop(&entry, "database_name")?,
+                    prop(&entry, "database_id")?
+                )
+            } else {
+                format!("r2 {binding} name={}", prop(&entry, "bucket_name")?)
+            };
+            out.push(ProjectedLine {
+                key: format!("{prefix}:{binding}"),
+                line,
+            });
+        }
+    }
+    Ok(())
+}
+
 /// Canonical line projection in fixed order (mirrors `project`).
 /// `which` names the plan in refusal messages (`plan` / `previous
 /// plan`). Values render exactly at every shape; structure the
@@ -140,26 +191,11 @@ fn project(plan: &Node, which: &str) -> Result<Vec<ProjectedLine>, ReviewError> 
             line: format!("var {}={}", render_text(name), json_stringify(value)),
         });
     }
-    // Fixed projection order: d1, r2, do, queue, service, ae.
-    for (field_name, prefix) in [("d1_databases", "d1"), ("r2_buckets", "r2")] {
-        let list = obj_get(wrangler, field_name).unwrap_or(&Node::Null);
-        for entry in iter_list(list, which, &format!("wrangler.{field_name}"))? {
-            let binding = prop(&entry, "binding")?;
-            let line = if prefix == "d1" {
-                format!(
-                    "d1 {binding} name={} id={}",
-                    prop(&entry, "database_name")?,
-                    prop(&entry, "database_id")?
-                )
-            } else {
-                format!("r2 {binding} name={}", prop(&entry, "bucket_name")?)
-            };
-            out.push(ProjectedLine {
-                key: format!("{prefix}:{binding}"),
-                line,
-            });
-        }
-    }
+    // Fixed projection order: d1, r2, kv, do, queue, service, ae.
+    project_named_bindings(wrangler, which, &mut out)?;
+    // `kv_namespaces ?? []`: absent or null projects nothing; any
+    // other non-array still refuses below.
+    project_kv_namespaces(wrangler, which, &mut out)?;
     for (container, items_key, prefix) in [
         ("durable_objects", "bindings", "do"),
         ("queues", "producers", "queue"),

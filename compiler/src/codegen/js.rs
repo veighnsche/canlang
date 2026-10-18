@@ -2915,6 +2915,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "cursor"
                 | "empty"
                 | "columns"
+                | "page"
                 | "order"
                 | "search"
                 | "count"
@@ -4500,6 +4501,9 @@ impl<'a> Emitter<'a> {
                 ty => ty,
             };
             match base {
+                // The existing Values timezone codec also owns this leaf in
+                // complete Contracts; no operation-result profile is widened.
+                ResolvedType::Scalar(Scalar::Timezone) => true,
                 ResolvedType::Scalar(
                     Scalar::Int
                     | Scalar::Text
@@ -5773,6 +5777,19 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    /// Metadata belongs to the issued parent row; authored fields keep their
+    /// separate declared-type correspondence and cannot shadow that metadata.
+    fn hook_parent_read_allowed(&self, parent: SymbolId, field: &str, ty: &ResolvedType) -> bool {
+        self.hook_parent_field_allowed(parent, field, ty)
+            || field == "version" && *ty == ResolvedType::Scalar(crate::analysis::types::Scalar::Int)
+                && !self.ir.items.iter().any(|item| item.name == "version"
+                    && matches!(&item.kind, IrItemKind::Field { owner, .. } if *owner == parent))
+    }
+
+    fn hook_read_site(&self) -> &'static str {
+        if self.hook_decision_depth > 0 { "decision" } else { "value" }
+    }
+
     /// Traversal guard for hook member reads. Returns the throwing
     /// placeholder (after reporting `E6008`) exactly when the read passes
     /// through event reference content, staged identities, nested closures
@@ -5810,7 +5827,7 @@ impl<'a> Emitter<'a> {
                         span,
                     ))
                 } else if let Some((parent, canonical)) = self.hook_parent_model()
-                    && self.hook_parent_field_allowed(parent, field, expr_ty)
+                    && self.hook_parent_read_allowed(parent, field, expr_ty)
                 {
                     // Consuming-site mode rides inside the scope object;
                     // `transitive.load(scope,model,id)` arity and all
@@ -5822,11 +5839,7 @@ impl<'a> Emitter<'a> {
                     // precise failure before value access; legitimate
                     // nullable normalization (`?? null`, which never catches
                     // thrown errors) keeps its meaning.
-                    let site = if self.hook_decision_depth > 0 {
-                        "decision"
-                    } else {
-                        "value"
-                    };
+                    let site = self.hook_read_site();
                     let base_text = self.lower_expr(base);
                     let base_text = parenthesize_operand(&base_text, &base.expr);
                     let access = if object_key(field) == field {
@@ -5834,8 +5847,13 @@ impl<'a> Emitter<'a> {
                     } else {
                         format!("[{}]", js_string(field))
                     };
+                    let result = if field == "version" {
+                        // State's exact provisional parent carrier owns this
+                        // metadata; it is not a readable data field or grant.
+                        "BigInt($hookRow.version)".to_string()
+                    } else { format!("$hookRow.data{access}") };
                     let read = format!(
-                        "(await (async($hookParent)=>{{if($hookParent==null)throw new Error(\"hook parent content missing\");const $hookScope=await $hookCtx.transitive.openScope({});const $hookRow=await $hookCtx.transitive.load($hookScope,{},$hookParent.id);if($hookRow===null)throw new Error(\"hook parent content missing\");return $hookRow.data{access};}})({base_text}))",
+                        "(await (async($hookParent)=>{{if($hookParent==null)throw new Error(\"hook parent content missing\");const $hookScope=await $hookCtx.transitive.openScope({});const $hookRow=await $hookCtx.transitive.load($hookScope,{},$hookParent.id);if($hookRow===null)throw new Error(\"hook parent content missing\");return {result};}})({base_text}))",
                         js_string(site),
                         js_string(&canonical),
                     );
@@ -5884,11 +5902,7 @@ impl<'a> Emitter<'a> {
                     // for the host caller projection. Denied/withheld/
                     // missing reads throw before value access; nullable
                     // normalization keeps its meaning.
-                    let site = if self.hook_decision_depth > 0 {
-                        "decision"
-                    } else {
-                        "value"
-                    };
+                    let site = self.hook_read_site();
                     let base_text = self.lower_expr(base);
                     let base_text = parenthesize_operand(&base_text, &base.expr);
                     let access = if object_key(field) == field {
@@ -9884,17 +9898,23 @@ impl<'a> Emitter<'a> {
         Some(serde_json::json!({"path": path, "sha256": sha256, "module": owning.name}))
     }
 
-    /// Lower a query to `await records(c, model, {parent?, where?, order?,
-    /// limit?, archived?})`: `records()` returns a promise and viewer read
-    /// grants apply before filters and projection.
-    fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, span: Span) -> String {
-        if match &query.domain {
+    /// Stored-order keys and Value comparator closures have distinct source
+    /// domains. Verify their checked correspondence before any query lowering.
+    fn query_order_matches_domain(&self, query: &crate::codegen::ir::IrQuery) -> bool {
+        !(match &query.domain {
             super::ir::IrQueryDomain::Model(model) => query.value_order.is_some() && (!query.order.is_empty() || !query.source.as_ref().is_some_and(|source| {
                 let ty = match &source.domain_type { ResolvedType::Array { element, .. } => element.as_ref(), ty => ty };
                 matches!(ty, ResolvedType::Record { symbol, .. } if self.ir.items.get(symbol.0 as usize).is_some_and(|item| item.canonical == *model && matches!(item.kind, IrItemKind::Model { .. })))
             })),
             super::ir::IrQueryDomain::Value { .. } => !query.order.is_empty(),
-        } {
+        })
+    }
+
+    /// Lower a query to `await records(c, model, {parent?, where?, order?,
+    /// limit?, archived?})`: `records()` returns a promise and viewer read
+    /// grants apply before filters and projection.
+    fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, span: Span) -> String {
+        if !self.query_order_matches_domain(query) {
             self.unsupported(
                 "query order",
                 "ordering does not belong to its domain",
@@ -10031,6 +10051,13 @@ impl<'a> Emitter<'a> {
             crate::codegen::ir::IrQueryDomain::Model(model) => {
                 self.stdlib.insert("records".to_string());
                 let mut opts = Vec::new();
+                if self.hook_native() {
+                    // Only the checked private hook adapter consumes this
+                    // label as its inherited decision/value read site.
+                    opts.push(format!("authority:{}", js_string(
+                        if self.hook_decision_depth > 0 { "owner" } else { "viewer" }
+                    )));
+                }
                 if let Some(parent) = &query.parent {
                     opts.push(format!("parent:{}", self.lower_expr(parent)));
                 }
@@ -12736,7 +12763,9 @@ impl<'a> Emitter<'a> {
                     key == "page" && matches!(value.expr, IrExpr::Bool(true))
                 }))
             || (node.factory == "board"
-                && node.props.iter().any(|(key, _)| key == "filter"))
+                && node.props.iter().any(|(key, value)| {
+                    key == "filter" || key == "page" && matches!(value.expr, IrExpr::Bool(true))
+                }))
         {
             // A URL locator names this source collection occurrence. The
             // owning factory selects only from its fresh authorized result.
@@ -17393,10 +17422,25 @@ impl<'a> Emitter<'a> {
                 }
             })
         };
+        let mut value_type = required_file_array_value_type(self.model_value_type(ty), required_array);
+        // Stored reference IDs must retain the field's exact required-array
+        // marker, just as the accompanying array descriptor does.
+        if required_array && let IrType::Known(resolved) = ty {
+            let (base, nullable) = match resolved {
+                ResolvedType::Nullable(inner) => (inner.as_ref(), true),
+                base => (base, false),
+            };
+            if let ResolvedType::Array { element, .. } = base
+                && matches!(element.as_ref(), ResolvedType::Record { stored: true, .. })
+                && let Some(name) = value_type.as_mut()
+            {
+                name.insert(name.len() - usize::from(nullable), '!');
+            }
+        }
         JsModelField {
             name: field_item.name.clone(),
             field,
-            value_type: required_file_array_value_type(self.model_value_type(ty), required_array),
+            value_type,
             required,
             nullable,
             trim: modifiers.trim.then_some(true),
@@ -18155,7 +18199,7 @@ impl<'a> Emitter<'a> {
                 item.span,
                 Some(item.canonical.clone()),
                 if native {
-                    "const event={before:$hookCtx.before,after:$hookCtx.after===null?null:{...$hookCtx.after,...$candidate,version:$hookCtx.after.version}};"
+                    "const event={before:$hookCtx.before,after:$hookCtx.after};"
                 } else {
                     "const event={after:{...$candidate,id:$hookCtx.triggerId,version:($hookCtx.before?$hookCtx.before.version+1:1),parent:($hookCtx.before?$hookCtx.before.parent:null)},before:($hookCtx.before?{...$hookCtx.before.data,id:$hookCtx.before.id,version:$hookCtx.before.version,parent:$hookCtx.before.parent}:null)};"
                 },

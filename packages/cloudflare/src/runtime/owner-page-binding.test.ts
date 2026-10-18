@@ -21,14 +21,18 @@ test('assembled native paged HTTP collections bind once after physical owner sel
     const path = join(dir, 'OwnerPages.can');
     await writeFile(path, `app OwnerPages
 Given
- Entry {name:text}
+ Entry {name:text,state:enum(open,closed)=open}
  policy Entry read=members
 When
- crud Entry by=members fields=name
+ crud Entry by=members fields=name,state
 Then
  page / title="Entries"
   require members
   list Entry columns=name empty="No entries yet."
+   pagination
+ page /board title="Board"
+  require members
+  board Entry by=state columns=name empty="No entries yet."
    pagination
 `);
     const artifact = JSON.parse(execFileSync(process.env['CAN_COMPILER_BIN'] ?? resolve('compiler/target/debug/can'),
@@ -94,6 +98,18 @@ Then
     assert.doesNotMatch(second, /oak private entry|rel="next"/);
     const names = (html: string) => [...html.matchAll(/cedar private entry \d+/g)].map(match => match[0]);
     assert.equal(new Set([...names(first), ...names(second)]).size, 26);
+    const boardFirst = await page(cedar, '/board');
+    assert.equal((boardFirst.match(/<li data-row=/g) ?? []).length, 25);
+    assert.doesNotMatch(boardFirst, /oak private entry/);
+    const boardHref = /<a rel="next" href="([^"]+)"/.exec(boardFirst)?.[1]?.replaceAll('&amp;', '&');
+    assert.ok(boardHref, 'paged board emits the same source-owned continuation link');
+    const boardSecond = await page(cedar, boardHref);
+    assert.equal((boardSecond.match(/<li data-row=/g) ?? []).length, 1);
+    assert.doesNotMatch(boardSecond, /oak private entry|rel="next"/);
+    assert.equal(new Set([...names(boardFirst), ...names(boardSecond)]).size, 26);
+    const boardRefused = await page(oak, boardHref, 409);
+    assert.equal(JSON.parse(boardRefused).code, 'conflict');
+    assert.doesNotMatch(boardRefused, /cedar private entry|oak private entry/);
     const other = await page(oak);
     assert.match(other, /oak private entry 1/);
     assert.doesNotMatch(other, /cedar private entry/);

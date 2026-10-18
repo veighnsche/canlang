@@ -869,7 +869,9 @@ pub fn build(
             .map(|id| ir.module(id).name.as_str())
             .unwrap_or("index");
         let hooks_supported = !has_hooks
-            || super::model_policies::collect_local_policies(&ir, &super::js::module_path(entry))
+            || super::model_policies::collect_checked_policies(
+                program, &ir, db, catalog, &super::js::module_path(entry),
+            )
                 .is_some_and(|policies| !policies.hook_bindings.is_empty());
         if hooks_supported
             && ir
@@ -895,7 +897,9 @@ pub fn build(
         let entry = super::js::pick_entrypoint(&ir)
             .map(|id| ir.module(id).name.as_str())
             .unwrap_or("index");
-        if super::model_policies::collect_local_policies(&ir, &super::js::module_path(entry))
+        if super::model_policies::collect_checked_policies(
+            program, &ir, db, catalog, &super::js::module_path(entry),
+        )
             .is_some_and(|policies| !policies.hook_bindings.is_empty())
         {
             return (ir, diagnostics);
@@ -903,6 +907,25 @@ pub fn build(
     }
     let mut cx = Cx::new(program, db, catalog);
     cx.build_program()
+}
+
+/// Re-decode the original policy closure without recursively qualifying it.
+/// Only the outer builder/checked collector may admit this contextual candidate.
+pub(crate) fn rebuild_policy_source(
+    program: &CheckedProgram,
+    actual: &IrProgram,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> (IrProgram, Vec<Diagnostic>) {
+    let mut fresh = Cx::new(program, db, catalog);
+    fresh.native_hook_context = program.effects.scenarios.values().any(|scenario| {
+        matches!(
+            scenario.on,
+            Some(crate::analysis::effects::HandlerSource::Hook { .. })
+        )
+    });
+    fresh.native_standard_completion = actual.standard_completion_sources.public_admission.is_some();
+    fresh.build_program()
 }
 
 fn empty_program(catalog_version: &str) -> IrProgram {

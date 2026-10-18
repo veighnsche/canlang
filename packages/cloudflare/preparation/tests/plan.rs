@@ -461,3 +461,21 @@ fn surrogate_vars_clone_losslessly() {
     }
     panic!("vars value did not survive");
 }
+
+#[test]
+fn vector_kv_binding() {
+    // TS mirrors `kv_namespaces ??=` (key exists only with a kv
+    // binding, appended last) and projects `kv <binding> id=<id>`
+    // after r2 in review/render. Oracle-verified against the live
+    // TS buildDeployPlan on these inputs.
+    run_case(&Case {
+        id: "kv-binding",
+        descriptor: "{\"t\":\"obj\",\"entries\":[[[105,100,101,110,116,105,116,121],{\"t\":\"obj\",\"entries\":[[[97,112,112,78,97,109,101],{\"t\":\"text\",\"units\":[97]}],[[115,111,117,114,99,101,82,101,118,105,115,105,111,110],{\"t\":\"text\",\"units\":[114]}],[[108,97,110,103,117,97,103,101,86,101,114,115,105,111,110],{\"t\":\"text\",\"units\":[49,46,48,46,48]}],[[99,111,109,112,105,108,101,114,86,101,114,115,105,111,110],{\"t\":\"text\",\"units\":[48,46,49,46,48]}],[[99,111,110,116,114,97,99,116,115,86,101,114,115,105,111,110],{\"t\":\"num\",\"bits\":\"3ff0000000000000\",\"spelling\":\"1\"}],[[97,114,116,105,102,97,99,116,68,105,103,101,115,116],{\"t\":\"text\",\"units\":[100]}]]}],[[114,101,113,117,105,114,101,100,67,97,112,97,98,105,108,105,116,105,101,115],{\"t\":\"arr\",\"items\":[{\"t\":\"text\",\"units\":[115,116,97,116,101]}]}],[[114,101,115,111,117,114,99,101,66,105,110,100,105,110,103,115],{\"t\":\"arr\",\"items\":[{\"t\":\"obj\",\"entries\":[[[98,105,110,100,105,110,103],{\"t\":\"text\",\"units\":[98,48]}],[[107,105,110,100],{\"t\":\"text\",\"units\":[107,118]}],[[108,111,103,105,99,97,108,78,97,109,101],{\"t\":\"text\",\"units\":[76]}]]}]}],[[115,101,99,114,101,116,115],{\"t\":\"arr\",\"items\":[]}],[[115,99,104,101,100,117,108,101,115],{\"t\":\"arr\",\"items\":[]}]]}",
+        environment: "{\"t\":\"obj\",\"entries\":[[[101,110,118,105,114,111,110,109,101,110,116],{\"t\":\"text\",\"units\":[112,114,111,100]}],[[114,101,115,111,117,114,99,101,115],{\"t\":\"arr\",\"items\":[{\"t\":\"obj\",\"entries\":[[[114,101,113,117,105,114,101,109,101,110,116],{\"t\":\"obj\",\"entries\":[[[98,105,110,100,105,110,103],{\"t\":\"text\",\"units\":[98,48]}],[[107,105,110,100],{\"t\":\"text\",\"units\":[107,118]}],[[108,111,103,105,99,97,108,78,97,109,101],{\"t\":\"text\",\"units\":[76]}]]}],[[114,101,115,111,117,114,99,101,73,100],{\"t\":\"text\",\"units\":[114,49]}]]}]}],[[115,101,99,114,101,116,115,80,114,101,115,101,110,116],{\"t\":\"arr\",\"items\":[]}],[[118,97,114,115],{\"t\":\"obj\",\"entries\":[]}]]}",
+        options: "{\"t\":\"obj\",\"entries\":[[[119,111,114,107,101,114,78,97,109,101],{\"t\":\"text\",\"units\":[119,49]}],[[109,97,105,110],{\"t\":\"text\",\"units\":[46,47,100,105,115,116,47,119,111,114,107,101,114,47,101,110,116,114,121,46,106,115]}],[[99,111,109,112,97,116,105,98,105,108,105,116,121,68,97,116,101],{\"t\":\"text\",\"units\":[50,48,50,54,45,48,55,45,49,53]}]]}",
+        expected_plan: Some("{\"wrangler\":{\"name\":\"w1\",\"main\":\"./dist/worker/entry.js\",\"compatibility_date\":\"2026-07-15\",\"vars\":{},\"d1_databases\":[],\"r2_buckets\":[],\"durable_objects\":{\"bindings\":[]},\"queues\":{\"producers\":[]},\"services\":[],\"analytics_engine_datasets\":[],\"kv_namespaces\":[{\"binding\":\"b0\",\"id\":\"r1\"}]},\"schedules\":[],\"bundle\":null}"),
+        expected_walk: Some("[[\"$\", [\"wrangler\", \"schedules\", \"bundle\"]], [\"$.wrangler\", [\"name\", \"main\", \"compatibility_date\", \"vars\", \"d1_databases\", \"r2_buckets\", \"durable_objects\", \"queues\", \"services\", \"analytics_engine_datasets\", \"kv_namespaces\"]], [\"$.wrangler.vars\", []], [\"$.wrangler.d1_databases\", [\"#0\"]], [\"$.wrangler.r2_buckets\", [\"#0\"]], [\"$.wrangler.durable_objects\", [\"bindings\"]], [\"$.wrangler.durable_objects.bindings\", [\"#0\"]], [\"$.wrangler.queues\", [\"producers\"]], [\"$.wrangler.queues.producers\", [\"#0\"]], [\"$.wrangler.services\", [\"#0\"]], [\"$.wrangler.analytics_engine_datasets\", [\"#0\"]], [\"$.wrangler.kv_namespaces\", [\"#1\"]], [\"$.wrangler.kv_namespaces[0]\", [\"binding\", \"id\"]], [\"$.schedules\", [\"#0\"]]]"),
+        expected_err: None,
+        unstable_throw: false,
+    });
+}

@@ -378,3 +378,39 @@ test('native-receipts tuple agrees on the arm', async () => {
     await teardown(world);
   }
 });
+
+test('contained query predicates use current grants while decision and identity counts retain owner rows', async () => {
+  const world = await setup();
+  try {
+    const { locRow } = await stageFamily(world, true);
+    const inputs = (mode: string) => ({ parent: ref(locRow), title: 'private', mode, snapshot: 'new' });
+    // The owner may read title in a body predicate, including the issued self.
+    await world.committed('Child.create', inputs('value'));
+    assert.deepEqual((await rowsOf(world, 'Child')).map(row => row.data.snapshot), ['value']);
+    assert.deepEqual((await rowsOf(world, 'Child')).map(row => row.data.title), ['changed']);
+    assert.equal((await rowsOf(world, 'Kin')).length, 1);
+    await world.memberships.removeMembership(world.membership.membership_id);
+    const priorChildren = await rowsOf(world, 'Child');
+    const priorKin = await rowsOf(world, 'Kin');
+    const revision = await world.store.readRevision();
+    const failed = await world.invoke('Child.create', inputs('value'));
+    assert.ok('error' in failed, JSON.stringify(failed));
+    assert.equal(failed.error.code, 'forbidden');
+    assert.equal(failed.error.message, 'Record field is not readable.');
+    // The denial follows a queued Kin create; both new rows roll back.
+    // Canonical rejection persists its receipt at the next revision with
+    // empty writes/history; the complete domain rows remain unchanged.
+    assert.equal(await world.store.readRevision(), revision + 1);
+    assert.deepEqual(await rowsOf(world, 'Child'), priorChildren);
+    assert.deepEqual(await rowsOf(world, 'Kin'), priorKin);
+    // The identical protected predicate remains a bounded owner decision read.
+    await world.committed('Child.create', inputs('decision'));
+    // A body count accesses identities only: all three rows count, although
+    // the revoked caller has no readable Child fields on any of them.
+    await world.committed('Child.create', inputs('identities'));
+    assert.deepEqual((await rowsOf(world, 'Child')).map(row => row.data.snapshot),
+      ['value', 'decision', 'identities']);
+  } finally {
+    await teardown(world);
+  }
+});

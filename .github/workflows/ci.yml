@@ -105,6 +105,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -114,9 +115,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
           toolchain: "1.99.0"
-          components: rustfmt, clippy
+          components: rustfmt, clippy, rust-analyzer
       - name: Install from lock
         run: bun install --frozen-lockfile
+      - name: Check changed production function complexity
+        env:
+          COMPLEXITY_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base="${COMPLEXITY_BASE:-$(node -p 'require("./scripts/complexity-baseline.json").revision')}"
+          bun run check:complexity --base "$base" --head HEAD
       - name: Ensure actual completion engines
         run: |
           if ! command -v zsh >/dev/null; then

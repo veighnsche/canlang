@@ -6,7 +6,7 @@
 //! `/Users/vince/Projects/canlang/evidence/original24-main-20261016.json`):
 //! table filters 9 outer + 9 inner, list filters 4 + 4, board filters
 //! 2 + 2, calendar filters 2 inner, preferences 4 (plus 1 adjacent
-//! board `page` option refusal on a board `pagination` child).
+//! board `pagination` child, now served by the shared finite page profile).
 //!
 //! Shape determination (actual `.can` bytes at the remaining spans,
 //! classified against the accepted E5 checked-conjunction + C1
@@ -33,7 +33,7 @@
 //! | CanMember preferences x2 | toggle current_only | inline owning-bool toggle presentation has no source-to-factory profile | NEW pin below |
 //! | CanRent preferences | toggle arrival_open | same family as above | covered by the same NEW pin |
 //! | CanLeave preferences | input year + input bucket | inline scalar input presentation has no source-to-factory profile | NEW pin below |
-//! | CanRent board | pagination child | board factory does not consume the `page` property | NEW pin below |
+//! | CanRent board | pagination child | shared finite page query and continuation | ADMITTED; owning pin below |
 //!
 //! C2 text-equality admission (CAN18-v1, DESIGN 975 scalar + operator
 //! table): the CanField calendar `skill:text` selector lowers as an
@@ -50,13 +50,11 @@
 //! lowering. Every other remainder shape bottoms out on a
 //! datetime/dotted/int follower (already pinned) or on a
 //! genuinely-new selector (currency scalar, nullable user, derived
-//! bool, containing parent, inline preferences presentation, board
-//! pagination) for which this batch makes exactly one named choice
+//! bool, containing parent, inline preferences presentation) for which this batch makes exactly one named choice
 //! each — stay loudly refused with the exact E6008 below. No new
 //! primitive beyond the civil-date rule, no symmetry generalization
 //! (nullable user is not admitted from admitted user; derived bool is
-//! not admitted from admitted stored bool; board `page` is not
-//! admitted from list/table `page`; validated string-likes, nullable
+//! not admitted from admitted stored bool; validated string-likes, nullable
 //! text model fields and computed text defaults are not admitted from
 //! admitted plain text; datetime/nullable-date/computed-date are not
 //! admitted from admitted plain date), no weakened permissions or
@@ -187,17 +185,20 @@ fn inline_scalar_input_presentation_refuses() {
     );
 }
 
-/// Recorded CanRent shape (board with a `pagination` child): the board
-/// factory does not consume the `page` property that `pagination`
-/// lowers to (list/table/calendar/gallery/timeline do), so the board
-/// keeps its exact E6008 refusal. No symmetry generalization here.
+/// A board's bare pagination marker uses the same finite query/continuation
+/// contract as other collections; headers, nested content and duplicate markers
+/// still refuse at the owning source checker.
 #[test]
-fn board_pagination_option_refuses() {
-    assert_refuses(
-        "app Probe\nGiven\n Customer { name:text, kind:enum(individual,company)=individual, active:bool=true }\n policy Customer read=public\nWhen\nThen\n preferences { kind:Customer.kind?, active:bool? }\n page /customers title=\"Customers\"\n  board Customer by=kind columns=name,active filter=kind,active defaults={kind=preferences.kind,active=preferences.active}\n   pagination\n",
-        "E6008",
-        "the owning factory profile does not consume this property",
-    );
+fn board_pagination_option_lowers() {
+    let source = "app Probe\nGiven\n Customer { name:text, kind:enum(individual,company)=individual, active:bool=true }\n policy Customer read=public\nWhen\nThen\n preferences { kind:Customer.kind?, active:bool? }\n page /customers title=\"Customers\"\n  board Customer by=kind columns=name,active filter=kind,active defaults={kind=preferences.kind,active=preferences.active}\n   pagination\n";
+    assert_lowers(source);
+    for marker in [
+        "pagination limit=10",
+        "pagination\n    text \"nested\"",
+        "pagination\n   pagination",
+    ] {
+        assert_refuses(&source.replace("pagination", marker), "E6008", "pagination:");
+    }
 }
 
 /// C2 text-equality rule on agendas (CAN18-v1, DESIGN 975 scalar +
