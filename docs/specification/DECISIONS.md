@@ -20370,12 +20370,20 @@ Driving `can-dev start` + `check` on CanTable reaches the new
 (`cafe.cancel`, `cafe.clear`, `cafe.reserve`, `cafe.seat`) emit no
 `result.disclosure.source`. Analysis-Complete is not sufficient —
 `collect_scenario_disclosure` only emits the native receipt plan, so
-`scenario_receipts.rs` (`Sites::collect` has no `IrExpr::Query` arm,
-plus nested/helper require shapes) is the owning gap, not the
-disclosure analysis df54b7ef6 completed. Reserve/seat are therefore
-blocked on receipts, not analysis; cancel/clear are unbisected
-(`trim` + parent-chain-arg + `in` conjuncts). Release condition: the
-real-closure staging repro (`stageClosureFixtures` over the 30-op
-closure) succeeds then the daemon `check` goes green. A continue-past
-probe also surfaced a later `Native owner model predicate did not
-return bool` during materialization — second layer, after disclosure.
+`scenario_receipts.rs` is the owning gap, not the disclosure
+analysis df54b7ef6 completed. Bisection (throwaway /tmp copies,
+reverted ZZ probes, `--native-scenario-receipts` as the daemon uses):
+all 4 scenarios are analysis-Complete (only `trusted handler`
+declines in the closure); `trim`/`can_work`/`in` conjuncts are
+individually innocent (cancel stays dark without each); even a trivial
+`zzprobe(x:int)->int require x>0 return x` gets no disclosure.
+Two gaps: reserve/seat fail inside `Sites::collect` (the walker HAS an
+`IrExpr::Query` arm — the earlier no-arm note was wrong); cancel/clear
+pass sites and effect proofs but fail downstream (require consumptions
+or later). Next unit: instrument the downstream gates for
+cancel/zzprobe and the sites-walk refusal for reserve/seat, then admit
+fail-closed. Release condition: the real-closure staging repro
+(`stageClosureFixtures` over the 30-op closure) succeeds then the
+daemon `check` goes green. A continue-past probe also surfaced a later
+`Native owner model predicate did not return bool` during
+materialization — second layer, after disclosure.
