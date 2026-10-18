@@ -36,22 +36,24 @@ add no prerequisites to existing work. Native preparation remains **HUMAN HOLD**
 | Cloudflare artifact preparation | Existing P Rust candidate and host protocol; held. Auditing other packages does not release it. |
 | Imports/maps, identity codecs/cookies, CSV grammar, cancellation | Existing focused library/host integrations are credited. Replacing these again is not additional uncompleted Rust scope. |
 
-The currently dependency-ready packets stay `ports:V02.6`,
-`ports:C04.values-assets`, and `ports:W02.5` with its `C04.graph` handoff, after a
-new finite implementation release. Their original acceptance and setup limits
+The selected `ports:V02.6` ordinary TS Worker serving qualification is now
+complete: the new installed workerd fixture passes its default Worker and
+same-graph source/lifetime scopes, with one missing existing runtime staging edge
+repaired. This closes no broad validation/native parent. The dependency-ready
+packets are `ports:C04.values-assets` next, and `ports:W02.5` with its `C04.graph`
+handoff, after a new finite release. Their original acceptance and setup limits
 are unchanged. Unreleased candidates below have decision or measurement
 prerequisites; none becomes implementation-ready merely because a pure function exists.
 
-**Post-ICU refresh at `d9abbd942`:** the next recommended finite release remains
-`ports:V02.6`, the missing ordinary TS serving linkage/correspondence/lifetime
-qualification in the actual staged isolated Worker. Its producers exist; the
-default-Worker/D1/production-session fixture supplies a concrete starting point.
-`C04.values-assets` can qualify installed/vendor/workerd bytes independently;
-`W02.5` still needs only its named fanout consumer/graph/installer join. Their
-prerequisite paths are unchanged by the ICU changes. The consolidated two-parser
-arrangement satisfies the released consistency scope; a common Rust parser and
-candidates 2–5 remain conditional evaluations. No new Rust owner, dependency or
-implementation release follows from this refresh.
+**After the released Worker packet (base `3059a36af`):** current installed
+source/operation/catalog correspondence and request cleanup are qualified for
+ordinary TS serving. Reuse the earlier Node mutation/stale-file and default-copy
+results at their scope. HTTP remains the canonical TS evaluator; native protected
+input/PH3/other-profile/resource/full-parent gates remain separate. The
+[current packet detail](../../implementation/rust-port-orchestration/current-plan.md)
+records the two distinct Worker cases and exact packaging repair. No additional
+Rust owner, parser, dependency or native-preparation release is selected. Candidates
+2–5 retain their decision/measurement prerequisites.
 
 ## Package-by-package allocation
 

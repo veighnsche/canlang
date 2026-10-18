@@ -1,5 +1,36 @@
 # Living ideal file-tree plan for Canlang
 
+**Selected `ports:V02.6` Worker serving qualification, 2026-10-18 (base
+`3059a36af` plus local finite changes):** the released ordinary TS source-serving
+packet is complete at its selected scope. The new
+`packages/cloudflare/test/prepared-validation.workerd.test.ts` stays with
+Cloudflare's installed Worker qualification owner. A single existing runtime
+entry, `native-scenario-require.js`, is added to `deploy/bundle.ts`'s pinned
+closure after the actual bundler refused its omission; helper/source semantics
+and ownership stay unchanged. No package, API, source carrier or native owner is
+added. These two package paths and seven planning records (this plan, Rust start
+guide, finite detail/queue, execution-plan navigation, package-audit README and
+DECISIONS) are covered together using retained accumulated review/target coverage.
+
+All 12 consumed packages emitted/typechecked; the focused fixture typecheck and
+two distinct installed isolated workerd tests pass. Actual default Worker+D1
+checks canonical defaults/receipt/replay, diagnostic/admission order and no effects
+on refusal. A same-graph test-only adapter checks original catalog closure on
+success/failure, copied readers, real issuer/artifact mismatch and exact stale
+derived-catalog refusal. Reuse the default result after affected adapter fixture
+corrections, the independent source review and retained Node stale-file/final-await
+proof. Inputs were frozen outside the checkout as packed package contents and an
+unchanged compiler producer; no shared cache or newer main work was mutated.
+
+This supplies ordinary TS source/catalog and cleanup evidence within PH2/PH4,
+not protected native input, full identity/PH3/state/resource/profile or aggregate
+V02.6/V01.2 acceptance. Canonical tasks remain partial; owners, target allocations
+and complete review checkpoint are unchanged. `C04.values-assets` is next after a
+new finite release; fanout remains independently ready. Task-owned installs and
+copied outputs are released/cleaned; logs and original artifact are retained.
+No commit/merge/push/default/retirement or remote deployment occurs in this round.
+Native preparation remains **HUMAN HOLD**.
+
 **Post-ICU Rust-port planning refresh, 2026-10-18 (source `d9abbd942`):**
 the [single current Rust execution view](implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18)
 and its existing finite detail/queue now credit the completed TS/compiler/UI ICU
