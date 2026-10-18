@@ -39,6 +39,21 @@ export class ProtocolError extends Error {
   }
 }
 
+/**
+ * The core's semantic refusal (a `Failed` frame). It carries the
+ * core's own code verbatim — the caller's failure mapping reports it
+ * bare (same envelope as the TS route), never with a transport
+ * prefix. Transport breakage stays `ProtocolError`.
+ */
+export class NativeSemanticError extends Error {
+  readonly code: string;
+  constructor(code: string, detail: string) {
+    super(detail);
+    this.name = "NativeSemanticError";
+    this.code = code;
+  }
+}
+
 /** Encode one frame. Rejects oversized payloads before allocating. */
 export function encodeFrame(tag: number, payload: Uint8Array): Uint8Array {
   if (tag !== TAG_JSON && tag !== TAG_BYTES) {
@@ -109,7 +124,7 @@ function isPrepared(value: unknown): value is Prepared {
   return typeof (value as { prepared?: unknown }).prepared === "object";
 }
 
-function isFailed(value: unknown): value is Failed {
+export function isFailed(value: unknown): value is Failed {
   if (typeof value !== "object" || value === null) return false;
   const error = (value as { error?: unknown }).error;
   if (typeof error !== "object" || error === null) return false;
@@ -124,19 +139,75 @@ function isFailed(value: unknown): value is Failed {
  * `ProtocolError` carrying the core code). Any out-of-order frame,
  * token mismatch or trailing garbage fails deterministically.
  */
+/**
+ * Read and strictly validate the session accept frame (P09 skew
+ * refusal lives here): a missing/non-JSON frame or a non-ready,
+ * wrong-protocol, or wrong-version accept fails. `fail` kills the
+ * child and never returns.
+ */
+async function readSessionAccept(
+  nextAccept: () => Promise<{ tag: number; payload: Uint8Array } | null>,
+  fail: (code: string, detail: string) => never,
+): Promise<void> {
+  const acceptFrame = await nextAccept();
+  if (acceptFrame === null || acceptFrame.tag !== TAG_JSON) {
+    fail("frame-corrupt", "handshake: expected a JSON accept frame");
+  }
+  const accept = JSON.parse(new TextDecoder().decode(acceptFrame.payload)) as {
+    ready?: unknown;
+    protocol?: unknown;
+    version?: unknown;
+  };
+  if (accept.ready !== true || accept.protocol !== PROTOCOL_NAME || accept.version !== PROTOCOL_VERSION) {
+    fail("version-mismatch", `handshake rejected: ${JSON.stringify(accept)}`);
+  }
+}
+
 export async function driveSession(options: {
   child: ChildProcess;
   mode: string;
   onNeed: (stage: string, request: unknown) => Promise<unknown> | unknown;
   timeoutMs?: number | undefined;
+  /**
+   * Command lifetime join (021): aborting stops every session wait
+   * and surfaces the signal reason (the owning
+   * LocalCommandInterrupted) — a SIGINT/time budget never leaves
+   * the subprocess running under an arbitrary per-frame wait.
+   */
+  signal?: AbortSignal | undefined;
+  /**
+   * Extra `begin` members (P07). Absent members keep the scaffold
+   * default; `artifact_path` presence selects real execution on the
+   * native side, `env`/`preview`/`yes` drive its confirm gate.
+   */
+  beginExtra?: Record<string, unknown> | undefined;
 }): Promise<Prepared["prepared"]> {
-  const { child, mode, onNeed } = options;
+  const { child, mode, onNeed, signal } = options;
   const timeoutMs = options.timeoutMs ?? 30_000;
   if (child.stdin === null || child.stdout === null) {
     throw new ProtocolError("frame-corrupt", "child stdio is not piped");
   }
   const stdin = child.stdin;
   const stdout = child.stdout;
+  // Session write guard (052): the launch-owned stdin error listener
+  // swallows the async EPIPE; a failed write here means the child is
+  // gone mid-session and maps to the existing truncated refusal
+  // (settled by the caller), never an uncaught stream event.
+  let stdinPipeFailed = false;
+  stdin.on("error", () => {
+    stdinPipeFailed = true;
+  });
+  const writeFrame = (frame: Uint8Array, what: string): void => {
+    if (!stdinPipeFailed && !stdin.destroyed) {
+      try {
+        stdin.write(frame);
+        return;
+      } catch {
+        // Fall through to the owned refusal below.
+      }
+    }
+    fail("truncated", `session stdin ${what} failed: child is gone`);
+  };
   const decoder = new FrameDecoder();
   const pending: Array<{ tag: number; payload: Uint8Array }> = [];
   let ended = false;
@@ -191,6 +262,32 @@ export async function driveSession(options: {
     }
   };
 
+  // One abort race per session (021/033): every frame wait AND
+  // every host wait joins the command lifetime; the rejection
+  // carries the signal reason (the owning LocalCommandInterrupted).
+  // The listener is removed when session ownership ends (033): no
+  // late child.kill from a released session.
+  const abortCleanup: { remove: (() => void) | null } = { remove: null };
+  const aborted: Promise<never> | null =
+    signal === undefined
+      ? null
+      : new Promise<never>((_, reject) => {
+          const fire = (): void => {
+            try {
+              child.kill();
+            } catch {
+              // Already gone; the reason below carries the verdict.
+            }
+            reject(signal.reason);
+          };
+          if (signal.aborted) {
+            fire();
+          } else {
+            signal.addEventListener("abort", fire, { once: true });
+            abortCleanup.remove = () => signal.removeEventListener("abort", fire);
+          }
+        });
+
   const withTimeout = async <T>(promise: Promise<T>, what: string): Promise<T> => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     try {
@@ -199,6 +296,7 @@ export async function driveSession(options: {
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => reject(new ProtocolError("truncated", `${what} timed out`)), timeoutMs);
         }),
+        ...(aborted === null ? [] : [aborted]),
       ]);
     } finally {
       if (timer !== null) clearTimeout(timer);
@@ -206,23 +304,9 @@ export async function driveSession(options: {
   };
 
   try {
-    stdin.write(encodeJsonFrame({ protocol: PROTOCOL_NAME, version: PROTOCOL_VERSION }));
-    const acceptFrame = await withTimeout(nextFrame(), "handshake");
-    if (acceptFrame === null || acceptFrame.tag !== TAG_JSON) {
-      // fail() kills the child and throws; the explicit throw keeps
-      // narrowing sound even if fail's contract ever weakens.
-      fail("frame-corrupt", "handshake: expected a JSON accept frame");
-      throw new ProtocolError("frame-corrupt", "unreachable after fail()");
-    }
-    const accept = JSON.parse(new TextDecoder().decode(acceptFrame.payload)) as {
-      ready?: unknown;
-      protocol?: unknown;
-      version?: unknown;
-    };
-    if (accept.ready !== true || accept.protocol !== PROTOCOL_NAME || accept.version !== PROTOCOL_VERSION) {
-      fail("version-mismatch", `handshake rejected: ${JSON.stringify(accept)}`);
-    }
-    stdin.write(encodeJsonFrame({ begin: { mode } }));
+    writeFrame(encodeJsonFrame({ protocol: PROTOCOL_NAME, version: PROTOCOL_VERSION }), "handshake");
+    await readSessionAccept(() => withTimeout(nextFrame(), "handshake"), fail);
+    writeFrame(encodeJsonFrame({ begin: { mode, ...(options.beginExtra ?? {}) } }), "begin");
     let expectedToken = 1;
     for (;;) {
       const frame = await withTimeout(nextFrame(), `resume token ${expectedToken}`);
@@ -234,11 +318,15 @@ export async function driveSession(options: {
       if (frame.tag !== TAG_JSON) fail("frame-corrupt", "session messages must be JSON frames");
       const message: unknown = JSON.parse(new TextDecoder().decode(frame.payload));
       if (isFailed(message)) {
-        throw new ProtocolError(message.error.code, message.error.detail);
+        throw new NativeSemanticError(message.error.code, message.error.detail);
       }
       if (isPrepared(message)) {
         if (decoder.trailing().length > 0) fail("frame-corrupt", "trailing bytes after Prepared");
-        stdin.end();
+        try {
+          stdin.end();
+        } catch {
+          fail("truncated", "session stdin close failed: child is gone");
+        }
         return message.prepared;
       }
       if (!isNeedHost(message)) {
@@ -249,12 +337,19 @@ export async function driveSession(options: {
           `token skew: open ${expectedToken}, got ${message.need.token}`,
         );
       } else {
-        const payload = await onNeed(message.need.stage, message.need.request);
-        stdin.write(encodeJsonFrame({ resume: { token: expectedToken, payload } }));
+        // The host wait joins the same abort (033): cancellation
+        // unwinds even when the owner permits a long stage callback.
+        // No new host timeout is imposed here; existing stage budgets
+        // live in the owner callbacks themselves.
+        const payload =
+          aborted === null ? await onNeed(message.need.stage, message.need.request) : await Promise.race([onNeed(message.need.stage, message.need.request), aborted]);
+        writeFrame(encodeJsonFrame({ resume: { token: expectedToken, payload } }), `resume token ${expectedToken}`);
         expectedToken += 1;
       }
     }
   } finally {
+    abortCleanup.remove?.();
+    abortCleanup.remove = null;
     stdout.removeAllListeners("data");
     stdout.removeAllListeners("end");
   }

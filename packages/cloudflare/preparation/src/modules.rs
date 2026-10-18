@@ -21,7 +21,7 @@
 
 #![allow(dead_code)]
 
-use crate::input::{json_quote, render_text, Node};
+use crate::input::{as_arr, as_num, as_text, json_quote, obj_get, render_text, Node};
 use std::collections::{HashMap, HashSet};
 
 // ---------------------------------------------------------------------------
@@ -562,85 +562,371 @@ fn blank_region(out: &mut [u16], from: usize, to: usize) {
 /// strings blank unless `keep_strings`; template text blanks while
 /// `${…}` code stays live (naive brace counting, no string awareness
 /// inside interpolations — transcribed literally).
+/// Whether a bare word permits a regex literal after it (keywords
+/// taking an expression operand, including control heads). Any other
+/// word is an operand: a following `/` divides.
+fn is_regex_keyword(word: &[u16]) -> bool {
+    units_eq_slice(word, "return")
+        || units_eq_slice(word, "typeof")
+        || units_eq_slice(word, "instanceof")
+        || units_eq_slice(word, "in")
+        || units_eq_slice(word, "new")
+        || units_eq_slice(word, "delete")
+        || units_eq_slice(word, "void")
+        || units_eq_slice(word, "throw")
+        || units_eq_slice(word, "case")
+        || units_eq_slice(word, "do")
+        || units_eq_slice(word, "else")
+        || units_eq_slice(word, "yield")
+        || units_eq_slice(word, "await")
+        || units_eq_slice(word, "if")
+        || units_eq_slice(word, "for")
+        || units_eq_slice(word, "while")
+        || units_eq_slice(word, "switch")
+        || units_eq_slice(word, "with")
+        || units_eq_slice(word, "catch")
+}
+
+/// True for the six control heads whose `(…)` closes into statement
+/// position (`if/for/while/switch/with/catch`): a `/` there opens a
+/// regex literal. Any other `)` closes an operand: `/` divides.
+fn is_control_word(word: &[u16]) -> bool {
+    units_eq_slice(word, "if")
+        || units_eq_slice(word, "for")
+        || units_eq_slice(word, "while")
+        || units_eq_slice(word, "switch")
+        || units_eq_slice(word, "with")
+        || units_eq_slice(word, "catch")
+}
+
+/// Paren flavor for statement-position regex (020): only a control
+/// head closes into regex context, and only `for` heads make a bare
+/// `of` regex-capable.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ParenKind {
+    Plain,
+    Control,
+    For,
+}
+
+/// Previous significant token class for the `of` aftermath.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PrevKind {
+    None,
+    Word,
+    Operand,
+    Operator,
+}
+
+/// Division-vs-regex scanner state for `/` (see
+/// `blank_strings_and_comments`).
+struct SlashCtx {
+    division: bool,
+    prev: PrevKind,
+    dot: bool,
+    parens: Vec<ParenKind>,
+}
+
+/// Word aftermath for `/` (020): a member-access property (after
+/// `.`) is always an operand, even for reserved names (`obj.return
+/// / x` divides). Contextual `of` admits a regex only directly
+/// inside a `for` head after an operand (`for (x of /…/)`); a bare
+/// use (`of / x / 2` divides, matching the oracle), as does `of`
+/// anywhere else. All other words use the keyword table.
+fn word_division(ctx: &SlashCtx, word: &[u16]) -> bool {
+    if ctx.dot {
+        return true;
+    }
+    if units_eq_slice(word, "of") {
+        return !(ctx.parens.last() == Some(&ParenKind::For)
+            && matches!(ctx.prev, PrevKind::Word | PrevKind::Operand));
+    }
+    !is_regex_keyword(word)
+}
+
+/// Read the previous significant word before `open` (exclusive);
+/// returns its start, or None for a non-word head.
+fn prev_word(units: &[u16], open: usize) -> Option<usize> {
+    let mut j = open;
+    while j > 0 {
+        j -= 1;
+        let c = units[j];
+        if is_space_unit(c) {
+            continue;
+        }
+        if is_word_unit(c) || c == 0x24 {
+            let mut s = j + 1;
+            while s > 0 && (is_word_unit(units[s - 1]) || units[s - 1] == 0x24) {
+                s -= 1;
+            }
+            return Some(s);
+        }
+        return None;
+    }
+    None
+}
+
+/// Flavor of the `(` at `open`: a control keyword in operator
+/// position makes a head (`else if (` nests through the inner head;
+/// `for await (` looks one word further back). A keyword reached
+/// through member access (`obj.if (`) is a property, never a head.
+fn paren_kind(units: &[u16], open: usize) -> ParenKind {
+    let Some(s) = prev_word(units, open) else {
+        return ParenKind::Plain;
+    };
+    let mut e = s;
+    while e < units.len() && (is_word_unit(units[e]) || units[e] == 0x24) {
+        e += 1;
+    }
+    if s > 0 && units[s - 1] == 0x2E {
+        return ParenKind::Plain;
+    }
+    let word = &units[s..e];
+    if units_eq_slice(word, "for") {
+        return ParenKind::For;
+    }
+    if is_control_word(word) {
+        return ParenKind::Control;
+    }
+    // `for await (`: the word before `await` is `for`.
+    if units_eq_slice(word, "await") {
+        if let Some(s3) = prev_word(units, s) {
+            let mut e3 = s3;
+            while e3 < units.len() && (is_word_unit(units[e3]) || units[e3] == 0x24) {
+                e3 += 1;
+            }
+            if units_eq_slice(&units[s3..e3], "for") {
+                return ParenKind::For;
+            }
+        }
+    }
+    ParenKind::Plain
+}
+
+/// Skip (and blank) one `/…/flags` regex literal at `at`; returns the
+/// resume position past the flags. Character classes (which may hold
+/// unescaped `/`, quotes and braces) and escapes are honored; an
+/// unterminated body stops at the line end. Regex bodies never carry
+/// import specifiers, so they blank in both keeper modes.
+fn skip_regex_literal(source: &[u16], out: &mut [u16], at: usize) -> usize {
+    let length = source.len();
+    let mut j = at + 1;
+    let mut in_class = false;
+    while j < length {
+        let c = source[j];
+        if c == 0x5C {
+            j += 2;
+            continue;
+        }
+        if c == 0x5B && !in_class {
+            in_class = true;
+        } else if c == 0x5D && in_class {
+            in_class = false;
+        } else if c == 0x2F && !in_class {
+            j += 1;
+            break;
+        } else if (c == 0x0A || c == 0x0D) && !in_class {
+            break;
+        }
+        j += 1;
+    }
+    while j < length && matches!(source[j], 0x61..=0x7A) {
+        j += 1;
+    }
+    blank_region(out, at, j.min(length));
+    j
+}
+
+/// `//…`/`/*…*/` comment at `i`: blank it, resume past. Comments
+/// carry no token context.
+fn step_comment(source: &[u16], out: &mut [u16], i: usize) -> usize {
+    let length = source.len();
+    if source.get(i + 1) == Some(&0x2F) {
+        let mut j = i + 2;
+        while j < length && source[j] != 0x0A {
+            j += 1;
+        }
+        blank_region(out, i, j);
+        return j;
+    }
+    let mut end = length;
+    let mut j = i + 2;
+    while j + 1 < length {
+        if source[j] == 0x2A && source[j + 1] == 0x2F {
+            end = j + 2;
+            break;
+        }
+        j += 1;
+    }
+    // `indexOf` finds overlapping-adjacent closers too (`/**/`
+    // closes at 2); the scan above matches it.
+    blank_region(out, i, end);
+    end
+}
+
+/// Quoted string at `i`: blank unless kept, resume past, operand context.
+fn step_string(source: &[u16], out: &mut [u16], ctx: &mut SlashCtx, i: usize, keep: bool) -> usize {
+    let length = source.len();
+    let c = source[i];
+    let mut j = i + 1;
+    while j < length {
+        if source[j] == 0x5C {
+            j += 2;
+        } else if source[j] == c {
+            j += 1;
+            break;
+        } else {
+            j += 1;
+        }
+    }
+    if !keep {
+        blank_region(out, i, j.min(length));
+    }
+    ctx.division = true;
+    ctx.prev = PrevKind::Operand;
+    ctx.dot = false;
+    j
+}
+
+/// Template literal at `i`: text blanks while `${…}` code stays live
+/// (naive brace counting, no string awareness inside interpolations
+/// — transcribed literally). Operand context.
+fn step_template(source: &[u16], out: &mut [u16], ctx: &mut SlashCtx, i: usize) -> usize {
+    let length = source.len();
+    let mut j = i + 1;
+    let mut segment = i;
+    while j < length {
+        if source[j] == 0x5C {
+            j += 2;
+            continue;
+        }
+        if source[j] == 0x60 {
+            blank_region(out, segment, j + 1);
+            j += 1;
+            break;
+        }
+        if source[j] == 0x24 && source.get(j + 1) == Some(&0x7B) {
+            blank_region(out, segment, j);
+            let mut depth = 1;
+            j += 2;
+            while j < length && depth > 0 {
+                if source[j] == 0x7B {
+                    depth += 1;
+                } else if source[j] == 0x7D {
+                    depth -= 1;
+                }
+                j += 1;
+            }
+            segment = j;
+            continue;
+        }
+        j += 1;
+    }
+    if j >= length {
+        blank_region(out, segment, length);
+    }
+    ctx.division = true;
+    ctx.prev = PrevKind::Operand;
+    ctx.dot = false;
+    j
+}
+
+/// Lone `/` at `i`: divides after an operand, else opens a regex literal.
+fn step_slash(source: &[u16], out: &mut [u16], ctx: &mut SlashCtx, i: usize) -> usize {
+    if ctx.division {
+        ctx.division = false;
+        ctx.prev = PrevKind::Operator;
+        ctx.dot = false;
+        return i + 1;
+    }
+    let resume = skip_regex_literal(source, out, i);
+    ctx.division = true;
+    ctx.prev = PrevKind::Operand;
+    ctx.dot = false;
+    resume
+}
+
+/// Word at `i`: keyword/property/`of` aftermath; records its tail.
+fn step_word(source: &[u16], ctx: &mut SlashCtx, i: usize) -> usize {
+    if let Some((_, end)) = read_word(source, i) {
+        ctx.division = word_division(ctx, &source[i..end]);
+        ctx.prev = PrevKind::Word;
+        ctx.dot = false;
+        return end;
+    }
+    ctx.division = true;
+    ctx.prev = PrevKind::Operand;
+    ctx.dot = false;
+    i + 1
+}
+
+/// `(`/`)` at `i`: control-head tracking — only a control head closes
+/// into statement-position regex context (020).
+fn step_paren(source: &[u16], ctx: &mut SlashCtx, i: usize) -> usize {
+    if source[i] == 0x28 {
+        ctx.parens.push(paren_kind(source, i));
+        ctx.division = false;
+    } else {
+        ctx.division = !matches!(ctx.parens.pop().unwrap_or(ParenKind::Plain), ParenKind::Control | ParenKind::For);
+    }
+    ctx.prev = if source[i] == 0x29 { PrevKind::Operand } else { PrevKind::Operator };
+    ctx.dot = false;
+    i + 1
+}
+
 fn blank_strings_and_comments(source: &[u16], keep_strings: bool) -> Vec<u16> {
     let mut out = source.to_vec();
     let length = out.len();
     let mut i = 0;
+    // Division-vs-regex context for `/`: operator holes (and the
+    // start) admit a regex literal; operands divide. `}` counts as an
+    // operand (division): erring toward visibility keeps the gate
+    // fail-closed on genuinely ambiguous `{} /…/` shapes.
+    let mut ctx = SlashCtx { division: false, prev: PrevKind::None, dot: false, parens: Vec::new() };
     while i < length {
         let c = source[i];
         let d = source.get(i + 1).copied();
-        if c == 0x2F && d == Some(0x2F) {
-            let mut j = i + 2;
-            while j < length && source[j] != 0x0A {
-                j += 1;
-            }
-            blank_region(&mut out, i, j);
-            i = j;
-        } else if c == 0x2F && d == Some(0x2A) {
-            let mut end = length;
-            let mut j = i + 2;
-            while j + 1 < length {
-                if source[j] == 0x2A && source[j + 1] == 0x2F {
-                    end = j + 2;
-                    break;
-                }
-                j += 1;
-            }
-            // `indexOf` finds overlapping-adjacent closers too (`/**/`
-            // closes at 2); the scan above matches it.
-            blank_region(&mut out, i, end);
-            i = end;
+        if c == 0x2F && (d == Some(0x2F) || d == Some(0x2A)) {
+            i = step_comment(source, &mut out, i);
         } else if c == 0x27 || c == 0x22 {
-            let mut j = i + 1;
-            while j < length {
-                if source[j] == 0x5C {
-                    j += 2;
-                } else if source[j] == c {
-                    j += 1;
-                    break;
-                } else {
-                    j += 1;
-                }
-            }
-            if !keep_strings {
-                blank_region(&mut out, i, j.min(length));
-            }
-            i = j;
+            i = step_string(source, &mut out, &mut ctx, i, keep_strings);
         } else if c == 0x60 {
-            let mut j = i + 1;
-            let mut segment = i;
-            while j < length {
-                if source[j] == 0x5C {
-                    j += 2;
-                    continue;
-                }
-                if source[j] == 0x60 {
-                    blank_region(&mut out, segment, j + 1);
-                    j += 1;
-                    break;
-                }
-                if source[j] == 0x24 && source.get(j + 1) == Some(&0x7B) {
-                    blank_region(&mut out, segment, j);
-                    let mut depth = 1;
-                    j += 2;
-                    while j < length && depth > 0 {
-                        if source[j] == 0x7B {
-                            depth += 1;
-                        } else if source[j] == 0x7D {
-                            depth -= 1;
-                        }
-                        j += 1;
-                    }
-                    segment = j;
-                    continue;
-                }
-                j += 1;
-            }
-            if j >= length {
-                blank_region(&mut out, segment, length);
-            }
-            i = j;
+            i = step_template(source, &mut out, &mut ctx, i);
+        } else if c == 0x2F {
+            i = step_slash(source, &mut out, &mut ctx, i);
+        } else if is_ident_start(c) {
+            i = step_word(source, &mut ctx, i);
+        } else if c == 0x28 || c == 0x29 {
+            i = step_paren(source, &mut ctx, i);
+        } else if matches!(c, 0x30..=0x39 | 0x5D | 0x7D) {
+            ctx.division = true;
+            ctx.prev = PrevKind::Operand;
+            ctx.dot = false;
+            i += 1;
+        } else if c == 0x2B || c == 0x2D {
+            // Doubled `++`/`--` is postfix (an operand divides); a
+            // lone sign is an operator (a regex may follow).
+            ctx.division = d != Some(c);
+            ctx.prev = if d == Some(c) { PrevKind::Operand } else { PrevKind::Operator };
+            ctx.dot = false;
+            i += if d == Some(c) { 2 } else { 1 };
+        } else if matches!(
+            c,
+            0x2C | 0x3D | 0x3A | 0x5B | 0x21 | 0x26 | 0x7C | 0x3F | 0x7B | 0x3B | 0x2A
+                | 0x25 | 0x3C | 0x3E | 0x5E | 0x7E
+        ) {
+            ctx.division = false;
+            ctx.prev = PrevKind::Operator;
+            ctx.dot = c == 0x2E;
+            i += 1;
+        } else if is_space_unit(c) {
+            // Whitespace (like comments) carries no token context.
+            i += 1;
         } else {
+            // Member access and other operand punctuation (notably `.`).
+            ctx.division = true;
+            ctx.prev = PrevKind::Operand;
+            ctx.dot = c == 0x2E;
             i += 1;
         }
     }
@@ -789,6 +1075,340 @@ fn is_stdlib_require_guard(stripped: &[u16], match_index: usize) -> bool {
     end >= 8 && window[end - 8..end] == [0x66, 0x75, 0x6E, 0x63, 0x74, 0x69, 0x6F, 0x6E]
 }
 
+fn units_eq_slice(units: &[u16], text: &str) -> bool {
+    units.len() == text.len()
+        && units.iter().zip(text.bytes()).all(|(u, b)| *u == b as u16)
+}
+
+/// Whether `word` is one of the three gate-watched bindings.
+fn is_gate_name(word: &[u16]) -> bool {
+    units_eq_slice(word, "require") || units_eq_slice(word, "module") || units_eq_slice(word, "exports")
+}
+
+/// Identifier start (ASCII alpha/`_`/`$`; digits excluded).
+fn is_ident_start(u: u16) -> bool {
+    matches!(u, 0x41..=0x5A | 0x5F | 0x61..=0x7A | 0x24)
+}
+
+/// Read one identifier at `at`; returns (start, end).
+fn read_word(units: &[u16], at: usize) -> Option<(usize, usize)> {
+    if !units.get(at).is_some_and(|u| is_ident_start(*u)) {
+        return None;
+    }
+    let mut end = at + 1;
+    while end < units.len() && (is_word_unit(units[end]) || units[end] == 0x24) {
+        end += 1;
+    }
+    Some((at, end))
+}
+
+/// One lexically declared gate binding with its block span. Uses are
+/// excused only inside the span, order-insensitive within the block
+/// (matching the oracle's scope resolution; hoisted uses before the
+/// declaration still flag).
+struct GateDecl {
+    name: Vec<u16>,
+    start: usize,
+    end: usize,
+}
+
+/// Skip one balanced `{…}`/`[…]`/`(…)` group; None when unbalanced.
+fn skip_balanced(units: &[u16], at: usize) -> Option<usize> {
+    let (open, close) = match units.get(at)? {
+        0x7B => (0x7Bu16, 0x7Du16),
+        0x5B => (0x5Bu16, 0x5Du16),
+        0x28 => (0x28u16, 0x29u16),
+        _ => return None,
+    };
+    let mut depth = 0;
+    let mut i = at;
+    while i < units.len() {
+        if units[i] == open {
+            depth += 1;
+        } else if units[i] == close {
+            depth -= 1;
+            if depth == 0 {
+                return Some(i + 1);
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Whether `word` (`of`/`in`) ends declarator binding position: what
+/// follows is a value expression, never a bound name.
+fn is_of_in(word: &[u16]) -> bool {
+    units_eq_slice(word, "of") || units_eq_slice(word, "in")
+}
+
+/// After `var|let|const`: record bound gate names into `pending`.
+/// Binding patterns are skipped wholesale (fail-closed). A name is
+/// recorded only in binding position (followed by `=`/`,`/end);
+/// value expressions (`of`/`in` tails, anything else) stop the parse.
+fn parse_var_decls(units: &[u16], mut at: usize, pending: &mut Vec<Vec<u16>>) -> usize {
+    loop {
+        at = scan_spaces(units, at);
+        if at >= units.len() || units[at] == 0x3B || units[at] == 0x7D || units[at] == 0x29 {
+            return at;
+        }
+        if units[at] == 0x7B || units[at] == 0x5B {
+            at = skip_balanced(units, at).unwrap_or(units.len());
+            continue;
+        }
+        let Some((_, end)) = read_word(units, at) else {
+            return at;
+        };
+        if is_of_in(&units[at..end]) {
+            return at;
+        }
+        let next = scan_spaces(units, end);
+        let follower = units.get(next).copied().unwrap_or(0);
+        // Binding position: `=`/`,`/`;`/end-of-head/`}`/EOF, or a
+        // `for`-head (`of`/`in` follows). Anything else (notably a
+        // value expression) stops the parse without recording.
+        let mut binding = follower == 0x3D
+            || follower == 0x2C
+            || follower == 0x3B
+            || follower == 0x29
+            || follower == 0x7D
+            || next >= units.len();
+        if !binding && is_ident_start(follower) {
+            if let Some((w0, w1)) = read_word(units, next) {
+                binding = is_of_in(&units[w0..w1]);
+            }
+        }
+        if !binding {
+            return at;
+        }
+        if is_gate_name(&units[at..end]) {
+            pending.push(units[at..end].to_vec());
+        }
+        at = if follower == 0x3D {
+            skip_initializer(units, next + 1)
+        } else if follower == 0x2C {
+            next + 1
+        } else {
+            next
+        };
+    }
+}
+
+/// Skip one `= …` initializer to the next top-level `,`/`;`/closer.
+fn skip_initializer(units: &[u16], mut at: usize) -> usize {
+    let mut depth = 0;
+    while at < units.len() {
+        let c = units[at];
+        if c == 0x28 || c == 0x5B || c == 0x7B {
+            depth += 1;
+        } else if c == 0x29 || c == 0x5D || c == 0x7D {
+            if depth == 0 {
+                return at;
+            }
+            depth -= 1;
+        } else if depth == 0 && (c == 0x2C || c == 0x3B) {
+            return at + if c == 0x2C { 1 } else { 0 };
+        }
+        at += 1;
+    }
+    at
+}
+
+/// After `(`: record bare-identifier params into `pending` up to the
+/// matching `)`. Binding patterns are skipped (fail-closed). Names
+/// inside a default RHS (`=` seen at depth 1 until the next `,`) are
+/// expressions in the enclosing scope, never bindings.
+fn parse_paren_params(units: &[u16], at: usize, pending: &mut Vec<Vec<u16>>) -> usize {
+    let mut depth = 1;
+    let mut i = at;
+    let mut in_default = false;
+    while i < units.len() {
+        let c = units[i];
+        if c == 0x28 {
+            depth += 1;
+            i += 1;
+        } else if c == 0x29 {
+            depth -= 1;
+            if depth == 0 {
+                return i + 1;
+            }
+            i += 1;
+        } else if c == 0x7B || c == 0x5B {
+            i = skip_balanced(units, i).unwrap_or(units.len());
+        } else if c == 0x3D && depth == 1 {
+            in_default = true;
+            i += 1;
+        } else if c == 0x2C && depth == 1 {
+            in_default = false;
+            i += 1;
+        } else if let Some((_, end)) = read_word(units, i) {
+            // Binding position only (`,`/`)`/`=` follow, outside any
+            // default RHS). Calls, member uses and default-value
+            // expressions never bind.
+            if depth == 1 && !in_default {
+                let next = scan_spaces(units, end);
+                let follower = units.get(next).copied().unwrap_or(0);
+                if (follower == 0x2C || follower == 0x29 || follower == 0x3D)
+                    && is_gate_name(&units[i..end])
+                {
+                    pending.push(units[i..end].to_vec());
+                }
+            }
+            i = end;
+        } else {
+            i += 1;
+        }
+    }
+    i
+}
+
+/// Park header params for the body block: a header without an
+/// intervening body (invalid JS) keeps the old enclosing behavior.
+/// Parked names carry their header position so the declaration
+/// sites themselves stay excused without leaking into the
+/// enclosing scope.
+fn defer_header_params(
+    deferred: &mut Vec<(Vec<u16>, usize)>,
+    pending: &mut Vec<Vec<u16>>,
+    names: Vec<Vec<u16>>,
+    header: usize,
+) {
+    if !deferred.is_empty() {
+        pending.extend(deferred.drain(..).map(|(name, _)| name));
+    }
+    deferred.extend(names.into_iter().map(|name| (name, header)));
+}
+
+/// Header-span cover for one body frame: the declaration site (at
+/// the header) excuses without extending the body's scope outward.
+fn cover_start(
+    covers: &mut Vec<(Vec<u16>, usize, usize)>,
+    name: &[u16],
+    frame_start: usize,
+) -> usize {
+    covers
+        .iter()
+        .position(|(covered, _, frame)| covered == name && *frame == frame_start)
+        .map(|index| covers.remove(index).1)
+        .unwrap_or(frame_start)
+}
+
+/// Dispatch one keyword at a word start; returns the resume position.
+/// `function` names bind in the enclosing scope, but `function`/`catch`
+/// params scope to the upcoming body block, so they park in `deferred`
+/// until the next `{` seeds its frame (020: enclosing-block leak).
+fn dispatch_decl_keyword(
+    units: &[u16],
+    at: usize,
+    end: usize,
+    pending: &mut Vec<Vec<u16>>,
+    deferred: &mut Vec<(Vec<u16>, usize)>,
+) -> usize {
+    let word = &units[at..end];
+    if units_eq_slice(word, "var") || units_eq_slice(word, "let") || units_eq_slice(word, "const") {
+        return parse_var_decls(units, end, pending);
+    }
+    if units_eq_slice(word, "function") {
+        let mut i = scan_spaces(units, end);
+        while i < units.len() && units[i] == 0x2A {
+            i = scan_spaces(units, i + 1);
+        }
+        if let Some((_, name_end)) = read_word(units, i) {
+            if is_gate_name(&units[i..name_end]) {
+                pending.push(units[i..name_end].to_vec());
+            }
+            i = name_end;
+        }
+        i = scan_spaces(units, i);
+        if i < units.len() && units[i] == 0x28 {
+            let mut names = Vec::new();
+            let resume = parse_paren_params(units, i + 1, &mut names);
+            defer_header_params(deferred, pending, names, at);
+            return resume;
+        }
+        return i;
+    }
+    if units_eq_slice(word, "class") {
+        let i = scan_spaces(units, end);
+        if let Some((_, name_end)) = read_word(units, i) {
+            if is_gate_name(&units[i..name_end]) {
+                pending.push(units[i..name_end].to_vec());
+            }
+            return name_end;
+        }
+        return i;
+    }
+    if units_eq_slice(word, "catch") {
+        let i = scan_spaces(units, end);
+        if i < units.len() && units[i] == 0x28 {
+            let mut names = Vec::new();
+            let resume = parse_paren_params(units, i + 1, &mut names);
+            defer_header_params(deferred, pending, names, at);
+            return resume;
+        }
+        return i;
+    }
+    end
+}
+
+/// Collect lexically declared gate bindings with block spans over the
+/// blanked source. Returns None on unbalanced braces (e.g. inside
+/// regex literals the blanker keeps): the caller then applies no
+/// excuses and the gate keeps its current fail-closed behavior.
+/// Destructuring, arrow params, methods and imports stay unhandled
+/// (still flag, as today).
+fn collect_gate_decls(units: &[u16]) -> Option<Vec<GateDecl>> {
+    let mut out = Vec::new();
+    let mut stack: Vec<(usize, Vec<Vec<u16>>)> = vec![(0, Vec::new())];
+    // Header params parked for the upcoming body block (020), plus
+    // their header-span covers (name, header pos, body frame start).
+    let mut deferred: Vec<(Vec<u16>, usize)> = Vec::new();
+    let mut covers: Vec<(Vec<u16>, usize, usize)> = Vec::new();
+    let mut at = 0;
+    while at < units.len() {
+        let c = units[at];
+        if c == 0x7B {
+            let seeds: Vec<Vec<u16>> = deferred
+                .drain(..)
+                .map(|(name, header)| {
+                    covers.push((name.clone(), header, at));
+                    name
+                })
+                .collect();
+            stack.push((at, seeds));
+            at += 1;
+        } else if c == 0x7D {
+            let (start, names) = stack.pop()?;
+            for name in names {
+                let decl_start = cover_start(&mut covers, &name, start);
+                out.push(GateDecl { name, start: decl_start, end: at });
+            }
+            at += 1;
+        } else if let Some((_, end)) = read_word(units, at) {
+            // Disjoint borrows: the top frame and the parked params.
+            let pending = &mut stack.last_mut()?.1;
+            at = dispatch_decl_keyword(units, at, end, pending, &mut deferred);
+        } else {
+            at += 1;
+        }
+    }
+    if stack.len() != 1 {
+        return None;
+    }
+    let (start, names) = stack.pop()?;
+    for name in names {
+        let decl_start = cover_start(&mut covers, &name, start);
+        out.push(GateDecl { name, start: decl_start, end: units.len() });
+    }
+    Some(out)
+}
+
+/// True when a gate-name use at `pos` sits inside a block that
+/// declares it.
+fn gate_declared(decls: &[GateDecl], name: &[u16], pos: usize) -> bool {
+    decls.iter().any(|d| d.name == name && d.start <= pos && pos < d.end)
+}
+
 /// Exact `scanModuleIssues`: file-URL scan over the RAW source, then
 /// `require`/`module.exports`/`exports` over the blanked source.
 fn scan_module_issues(source: &[u16]) -> Vec<String> {
@@ -804,11 +1424,18 @@ fn scan_module_issues(source: &[u16]) -> Vec<String> {
         }
     }
     let stripped = blank_commonjs_wrappers(&blank_strings_and_comments(source, false));
+    // Lexically declared `require`/`module`/`exports` are module-local
+    // bindings, not CommonJS free references (oracle scope rule). No
+    // excuses on unbalanced braces: the gate keeps failing closed.
+    let decls = collect_gate_decls(&stripped);
+    let excused = |name: &[u16], pos: usize| -> bool {
+        decls.as_ref().is_some_and(|ds| gate_declared(ds, name, pos))
+    };
     let mut at = 0;
     while at < stripped.len() {
         match match_bare_require(&stripped, at) {
             Some(end) => {
-                if !is_stdlib_require_guard(&stripped, at) {
+                if !is_stdlib_require_guard(&stripped, at) && !excused(&stripped[at..at + 7], at) {
                     issues.push(format!("bare require( call at offset {at}"));
                 }
                 at = end;
@@ -820,7 +1447,9 @@ fn scan_module_issues(source: &[u16]) -> Vec<String> {
     while at < stripped.len() {
         match match_module_exports(&stripped, at) {
             Some(end) => {
-                issues.push(format!("CommonJS module.exports at offset {at}"));
+                if !excused(&stripped[at..at + 6], at) {
+                    issues.push(format!("CommonJS module.exports at offset {at}"));
+                }
                 at = end;
             }
             None => at += 1,
@@ -830,7 +1459,9 @@ fn scan_module_issues(source: &[u16]) -> Vec<String> {
     while at < stripped.len() {
         match match_free_exports(&stripped, at) {
             Some(end) => {
-                issues.push(format!("CommonJS free exports at offset {at}"));
+                if !excused(&stripped[at..at + 7], at) {
+                    issues.push(format!("CommonJS free exports at offset {at}"));
+                }
                 at = end;
             }
             None => at += 1,
@@ -905,6 +1536,374 @@ pub fn assert_links_resolve(modules: &[(&[u16], &[u16])]) -> Result<(), ModulesE
 pub fn assert_bundle_checks(modules: &[(&[u16], &[u16])]) -> Result<(), ModulesError> {
     assert_workerd_loadable(modules)?;
     assert_links_resolve(modules)
+}
+
+// ---------------------------------------------------------------------------
+// Host-frontend facts gate (025). The host's single frontend
+// (`scanModuleFacts` over Acorn 2025 scope analysis) observes syntax;
+// Rust validates shape, unit-coordinate bounds and per-module
+// correspondence against the exact bundle strings, then applies
+// stage/module key/graph/link and diagnostic policy itself. The
+// lexical recognizer above stays as tested library only: CLI
+// admission never consults it.
+// ---------------------------------------------------------------------------
+
+/// One owner import record: spans address the exact module UTF-16
+/// units. `raw` is the exact literal slice (escapes keep raw
+/// distinct from decoded); `specifier` is the owner-decoded value
+/// trusted at the decoder boundary, absent for
+/// computed-dynamic/import-meta records (observed, never certified
+/// as resolved edges).
+#[derive(Clone)]
+pub struct ImportFact {
+    pub group_rank: u32,
+    pub statement: (usize, usize),
+    pub argument: (usize, usize),
+    pub content: Option<(usize, usize)>,
+    pub raw: Option<Vec<u16>>,
+    pub specifier: Option<Vec<u16>>,
+}
+
+/// One owner scope fact: original UTF-16 coordinates plus the
+/// Acorn-decoded name (binds escaped spellings without a second
+/// token parser).
+#[derive(Clone)]
+pub struct UnresolvedFact {
+    pub group: u8,
+    pub start: usize,
+    pub end: usize,
+    pub name: Vec<u16>,
+}
+
+/// Owner syntax facts for one module: import-lexer records, Acorn
+/// scope facts and parser-error observations from the single host
+/// frontend. `frontend_error` carries an exact non-offset owner
+/// message opaquely (never parsed).
+#[derive(Clone)]
+pub struct ModuleFacts {
+    pub imports: Vec<ImportFact>,
+    pub lexer_error: Option<usize>,
+    pub frontend_error: Option<Vec<u16>>,
+    pub syntax_error: Option<usize>,
+    pub file_url: Vec<usize>,
+    pub unresolved: Vec<UnresolvedFact>,
+}
+
+/// Exact non-negative integer offset from a Num node.
+fn as_offset(node: &Node) -> Option<usize> {
+    let (bits, _) = as_num(node)?;
+    let value = f64::from_bits(bits);
+    if value < 0.0 || value.fract() != 0.0 || value > usize::MAX as f64 {
+        return None;
+    }
+    Some(value as usize)
+}
+
+/// Text-or-null member: absent specifiers and absent errors ride null.
+fn as_text_or_null(node: &Node) -> Option<Option<Vec<u16>>> {
+    match node {
+        Node::Null => Some(None),
+        Node::Text(units) => Some(Some(units.clone())),
+        _ => None,
+    }
+}
+
+/// Offset-or-null member: absent parser errors ride null.
+fn as_offset_or_null(node: &Node) -> Option<Option<usize>> {
+    match node {
+        Node::Null => Some(None),
+        _ => Some(Some(as_offset(node)?)),
+    }
+}
+
+fn decode_import(node: &Node) -> Option<ImportFact> {
+    let rank = as_offset(obj_get(node, "groupRank")?)?;
+    if rank > 3 {
+        return None;
+    }
+    let span = |start_key: &str, end_key: &str| {
+        Some((as_offset(obj_get(node, start_key)?)?, as_offset(obj_get(node, end_key)?)?))
+    };
+    let content = {
+        let start = obj_get(node, "contentStart")?;
+        let end = obj_get(node, "contentEnd")?;
+        let neg = |item: &Node| matches!(as_num(item), Some((bits, _)) if f64::from_bits(bits) == -1.0);
+        if neg(start) && neg(end) {
+            None
+        } else {
+            Some((as_offset(start)?, as_offset(end)?))
+        }
+    };
+    Some(ImportFact {
+        group_rank: rank as u32,
+        statement: span("statementStart", "statementEnd")?,
+        argument: span("argumentStart", "argumentEnd")?,
+        content,
+        raw: as_text_or_null(obj_get(node, "raw")?)?,
+        specifier: as_text_or_null(obj_get(node, "specifier")?)?,
+    })
+}
+
+fn decode_unresolved(node: &Node) -> Option<UnresolvedFact> {
+    let group = as_offset(obj_get(node, "group")?)?;
+    if group > 2 {
+        return None;
+    }
+    Some(UnresolvedFact {
+        group: group as u8,
+        start: as_offset(obj_get(node, "start")?)?,
+        end: as_offset(obj_get(node, "end")?)?,
+        name: as_text(obj_get(node, "name")?)?.clone(),
+    })
+}
+
+/// Typed `facts` member: shape failures are transport (BAD_NODE at
+/// the call site), never bundle diagnostics.
+pub fn decode_module_facts(node: &Node) -> Result<ModuleFacts, String> {
+    let malformed = "LOAD_MODULES resume: modules[*].facts is malformed".to_string();
+    let imports = as_arr(obj_get(node, "imports").ok_or_else(|| malformed.clone())?)
+        .ok_or_else(|| malformed.clone())?
+        .iter()
+        .map(decode_import)
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| malformed.clone())?;
+    let lexer_error = as_offset_or_null(obj_get(node, "lexerError").ok_or_else(|| malformed.clone())?)
+        .ok_or_else(|| malformed.clone())?;
+    let frontend_error = as_text_or_null(obj_get(node, "frontendError").ok_or_else(|| malformed.clone())?)
+        .ok_or_else(|| malformed.clone())?;
+    let syntax_error = as_offset_or_null(obj_get(node, "syntaxError").ok_or_else(|| malformed.clone())?)
+        .ok_or_else(|| malformed.clone())?;
+    let file_url = as_arr(obj_get(node, "fileUrl").ok_or_else(|| malformed.clone())?)
+        .ok_or_else(|| malformed.clone())?
+        .iter()
+        .map(as_offset)
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| malformed.clone())?;
+    let unresolved = as_arr(obj_get(node, "unresolved").ok_or_else(|| malformed.clone())?)
+        .ok_or_else(|| malformed.clone())?
+        .iter()
+        .map(decode_unresolved)
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| malformed.clone())?;
+    Ok(ModuleFacts { imports, lexer_error, frontend_error, syntax_error, file_url, unresolved })
+}
+
+fn starts_with_ascii(units: &[u16], prefix: &str) -> bool {
+    units.len() >= prefix.len() && units.iter().zip(prefix.bytes()).all(|(u, b)| *u == b as u16)
+}
+
+fn import_spans_ok(js: &[u16], import: &ImportFact) -> bool {
+    let (ss, se) = import.statement;
+    let (as_, ae) = import.argument;
+    if ss > se || se > js.len() || as_ > ae || ae > js.len() || as_ < ss || ae > se {
+        return false;
+    }
+    // Raw literal bytes must match exactly (028: decoded specifiers
+    // may differ through escapes, so Rust never re-decodes); raw and
+    // decoded ride together or are both absent.
+    match (&import.raw, &import.specifier, import.content) {
+        (None, None, None) => true,
+        (Some(raw), Some(_), Some((cs, ce))) => {
+            cs <= ce && ce <= js.len() && cs >= as_ && ce <= ae && js[cs..ce] == raw[..]
+        }
+        _ => false,
+    }
+}
+
+fn imports_ordered(imports: &[ImportFact]) -> bool {
+    let mut last = (0u32, 0usize, 0usize);
+    let mut first = true;
+    for import in imports {
+        let key = (import.group_rank, import.statement.0, import.argument.0);
+        if !first && key < last {
+            return false;
+        }
+        first = false;
+        last = key;
+    }
+    true
+}
+
+fn file_url_ok(facts: &ModuleFacts) -> bool {
+    facts.file_url.iter().all(|offset| {
+        facts.imports.iter().any(|import| {
+            import.statement.0 == *offset
+                && import.specifier.as_ref().is_some_and(|s| starts_with_ascii(s, "file://"))
+        })
+    })
+}
+
+/// Identifier-shaped span (028/029: the minimal binder for an
+/// owner scope fact — word units, `$`, escape introducers, or the
+/// braces of `\u{…}` escapes; the decoded name carries identity, so
+/// Rust never re-parses escapes. At least one word/`$` unit keeps
+/// brace-only spans out.
+fn span_is_ident_like(span: &[u16]) -> bool {
+    !span.is_empty()
+        && span.iter().all(|u| is_word_unit(*u) || *u == 0x24 || *u == 0x5C || *u == 0x7B || *u == 0x7D)
+        && span.iter().any(|u| is_word_unit(*u) || *u == 0x24)
+}
+
+const GROUP_TOKENS: [&str; 3] = ["require", "module", "exports"];
+
+/// Scope-fact correspondence: the span binds identifier-shaped
+/// source at owner coordinates, and the decoded name is the group's
+/// token — checked byte-exactly for plain spellings, trusted from
+/// the owner decoder for escaped ones (028).
+fn unresolved_ok(facts: &ModuleFacts, js: &[u16]) -> bool {
+    let mut last: Option<(u8, usize)> = None;
+    for fact in &facts.unresolved {
+        if fact.group > 2 || fact.start >= fact.end || fact.end > js.len() {
+            return false;
+        }
+        let span = &js[fact.start..fact.end];
+        if !span_is_ident_like(span) {
+            return false;
+        }
+        if fact.name.len() != GROUP_TOKENS[fact.group as usize].len()
+            || !fact.name.iter().zip(GROUP_TOKENS[fact.group as usize].bytes()).all(|(u, b)| *u == b as u16)
+        {
+            return false;
+        }
+        if !span.contains(&0x5C) && span != &fact.name[..] {
+            return false;
+        }
+        if last.is_some_and(|prev| (fact.group, fact.start) < prev) {
+            return false;
+        }
+        last = Some((fact.group, fact.start));
+    }
+    true
+}
+
+fn errors_shape_ok(facts: &ModuleFacts) -> bool {
+    // Frontend errors precede parsing: nothing else rides along. A
+    // syntax error rides with imports/file-URL observations (the
+    // owner collects those first) but never scope facts.
+    if facts.lexer_error.is_some() || facts.frontend_error.is_some() {
+        if facts.lexer_error.is_some() && facts.frontend_error.is_some() {
+            return false;
+        }
+        if facts.syntax_error.is_some() {
+            return false;
+        }
+        return facts.imports.is_empty() && facts.file_url.is_empty() && facts.unresolved.is_empty();
+    }
+    if facts.syntax_error.is_some() && !facts.unresolved.is_empty() {
+        return false;
+    }
+    true
+}
+
+/// Shape, bound and correspondence validation against the exact
+/// module bytes. Failures are host-transport defects (BAD_NODE at
+/// the call site), never bundle diagnostics.
+pub fn validate_module_facts(key: &[u16], js: &[u16], facts: &ModuleFacts) -> Result<(), String> {
+    let bad = |detail: &str| format!("LOAD_MODULES resume: module {} has malformed facts ({detail})", json_quote(key));
+    if !imports_ordered(&facts.imports) || !facts.imports.iter().all(|i| import_spans_ok(js, i)) {
+        return Err(bad("imports"));
+    }
+    if !file_url_ok(facts) {
+        return Err(bad("fileUrl"));
+    }
+    if !unresolved_ok(facts, js) {
+        return Err(bad("unresolved"));
+    }
+    if !errors_shape_ok(facts) {
+        return Err(bad("errors"));
+    }
+    // Parser-error offsets are diagnostic only (never indexed): the
+    // owner emits past-end positions, so exact non-negative integer
+    // decoding is the whole check. Spans above stay strictly bounded
+    // because they bind checked source bytes.
+    Ok(())
+}
+
+/// Sorted per-group gate offsets: file-URL issues keep record order
+/// first, then require/module/exports groups in UTF-16 order (the
+/// owner diagnostic order).
+fn loadability_issues(facts: &ModuleFacts) -> Vec<String> {
+    const LABELS: [&str; 3] = ["bare require( call", "CommonJS module.exports", "CommonJS free exports"];
+    let mut out: Vec<String> = facts.file_url.iter().map(|o| format!("node file-URL import at offset {o}")).collect();
+    for group in 0..3u8 {
+        let mut starts: Vec<usize> =
+            facts.unresolved.iter().filter(|f| f.group == group).map(|f| f.start).collect();
+        starts.sort_unstable();
+        for start in starts {
+            out.push(format!("{} at offset {start}", LABELS[group as usize]));
+        }
+    }
+    out
+}
+
+fn deploy_module_error(key: &[u16], detail: String) -> ModulesError {
+    ModulesError { message: format!("deploy bundle: module {} {detail}", json_quote(key)) }
+}
+
+/// Deploy LOAD_MODULES policy over validated owner facts: frontend
+/// errors first (opaque owner message, then lexer offset, then
+/// syntax offset), then the loadability groups, then link resolution
+/// across the staged key closure (text modules plus staged binary
+/// asset keys; executables stay excluded). Build never calls this
+/// (its admitted domain has no module gate).
+pub fn check_deploy_modules(
+    modules: &[(Vec<u16>, Vec<u16>, ModuleFacts)],
+    binary_keys: &[Vec<u16>],
+) -> Result<usize, ModulesError> {
+    // Phase 1: parser + loadability policy per module, in stage order.
+    for (key, _, facts) in modules {
+        if let Some(message) = &facts.frontend_error {
+            let detail = String::from_utf16(message).map_err(|_| ModulesError {
+                message: format!(
+                    "LOAD_MODULES resume: module {} serves non-text frontend facts",
+                    json_quote(key)
+                ),
+            })?;
+            return Err(ModulesError { message: detail });
+        }
+        if let Some(offset) = facts.lexer_error {
+            return Err(deploy_module_error(key, format!("has invalid import syntax at offset {offset}")));
+        }
+        if let Some(offset) = facts.syntax_error {
+            return Err(deploy_module_error(key, format!("has invalid JavaScript syntax at offset {offset}")));
+        }
+        let issues = loadability_issues(facts);
+        if !issues.is_empty() {
+            let extra = if issues.len() > 1 { format!(" (+{} more)", issues.len() - 1) } else { String::new() };
+            return Err(deploy_module_error(
+                key,
+                format!("is not workerd-loadable: {}{extra}", issues[0]),
+            ));
+        }
+    }
+    // Phase 2: link resolution over the staged key closure.
+    let mut keys: HashSet<Vec<u16>> = modules.iter().map(|(k, _, _)| k.clone()).collect();
+    for binary in binary_keys {
+        keys.insert(binary.clone());
+    }
+    for (key, _, facts) in modules {
+        for import in &facts.imports {
+            let Some(spec) = &import.specifier else { continue };
+            if !is_relative_specifier(spec) {
+                return Err(deploy_module_error(
+                    key,
+                    format!("has bare import {} (no package resolution in workerd)", json_quote(spec)),
+                ));
+            }
+            let target = posix_normalize(&posix_join(&[&posix_dirname(key), spec]));
+            if !keys.contains(&target) {
+                return Err(deploy_module_error(
+                    key,
+                    format!(
+                        "imports {} (resolves to {}): no such staged module",
+                        json_quote(spec),
+                        json_quote(&target)
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(modules.len())
 }
 
 // ---------------------------------------------------------------------------

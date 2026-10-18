@@ -1,13 +1,18 @@
 # Rust migration: current implementation and prioritized remainder
 
-**Accepted native module/plan source slice:** `6fb752375` joins retained-job
-module gates, plan/prior-plan order and deterministic review outputs with matching
-host payloads. Present-null, parse diagnostics, optional KV nulls and lone UTF16
-canonical JSON are preserved; current-main complexity checks pass. This is an
-early private source slice; full host/CLI/integrity/staging/installed native
-acceptance remains open under the same finite checklist. Public deployment,
-default changes and TS retirement remain held.
-
+**Accepted native source slices:** `6fb752375` joins retained module/plan/review
+stages; `c105bf2c4` aligns the owning0.1.1 release; `1e018e714` joins shared host
+syntax/scope facts to the real native LOAD_MODULES encoder and job checks.
+The latter is merged/pushed as main `f411ad9d8`, preserving newer compiler source
+and working notes. Retain original diagnostic order, null/presence and UTF16
+contracts. Existing TS builders and parser/scope libraries remain explicit owners;
+full P05 module-construction/policy migration remains partial. The selected native
+CLI/integrity/local-publication packet now has Darwin installed9/TS9, genuine native
+mocked apply, same-data TS rollback and Linux installed build/integrity controls.
+Source `4ed0d38fe` is merged/pushed as main `5d38b4efb`; assigned packet writers
+and commands are released. See the [single finite checklist](rust-port-orchestration/current-plan.md) for source,
+remaining programme/resource limits and retained TS owners.
+Public deployment, defaults and TS retirement remain held.
 
 ## Current execution view — 2026-10-18
 

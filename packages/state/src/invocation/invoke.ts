@@ -67,7 +67,7 @@ import {
 import { queryRecords, type ViewerRecordsInput } from '../query/index.js';
 import {
   projectSavedRecordForViewer, projectSourceRowFields, projectCurrentRecordForViewerPolicy, queryRecordsPageWithParentPolicies,
-  viewerPageOrder, viewerPagePredicateTuple, viewerPageSearchTuple,
+  viewerPageOrder, viewerPagePredicateTuple, viewerPageSearchTuple, queryArchiveMode,
   VIEWER_PAGE_DEFAULT_LIMIT, VIEWER_PAGE_MAX_CANDIDATES,
   type ViewerPageRecordsResult, type ViewerPageSelection, type ViewerPageTuple, type ViewerPageParentPolicy,
 } from '../query/engine.js';
@@ -746,7 +746,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
 }
 
 /** Internal host-only selection; predicate functions never come from JSON/user input. */
-export type ReadSelection = Pick<ViewerRecordsInput, 'where' | 'order' | 'limit' | 'predicate'>;
+export type ReadSelection = Pick<ViewerRecordsInput, 'where' | 'order' | 'limit' | 'predicate' | 'archived'>;
 
 /** T17a canonical read invocation input: no clock, no executor, no receipts. */
 export interface InvokeReadInput {
@@ -881,7 +881,7 @@ export function authorityReportScopeOf(def: GeneratedOperationDef): AuthorityRep
  *
  * Serving rule (fail closed): viewer authority with grant projection only —
  * owner bypass stays engine-internal (T32 owns authority fences). Archived
- * rows are excluded. Core-scope reads carry NO descriptor inputs and serve
+ * rows are excluded unless the checked selection includes them. Core-scope reads carry NO descriptor inputs and serve
  * the whole visible model unless an internal selection is supplied; a read
  * WITH descriptor inputs validates closed and then refuses LOUD — T04a
  * carries no filter vocabulary, so serving
@@ -955,9 +955,10 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
     );
   }
 
-  const where = input.selection?.where;
-  const order = input.selection?.order;
-  const limit = input.selection?.limit;
+  const selection = input.selection ?? {};
+  const where = selection.where;
+  const order = selection.order;
+  const limit = selection.limit;
   const modelDescriptor = input.models?.find((descriptor) => descriptor.name === model);
   return queryRecords({
     ...(sourceReadPolicies === undefined ? {} : { sourceReadPolicies }),
@@ -968,7 +969,7 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
     context: { actorUserId, teamId },
     memberships: input.memberships,
     store: input.store,
-    archived: 'exclude',
+    archived: queryArchiveMode(selection.archived),
     ...(where !== undefined ? { where } : {}),
     ...(order !== undefined ? { order } : {}),
     ...(limit !== undefined ? { limit } : {}),
@@ -1324,13 +1325,14 @@ export async function invokeReadPage(input: InvokeReadPageInput,
       if (typeof selection !== 'object' || selection === null || Array.isArray(selection)) {
         throw new StateError('validation', 'Invalid page selection.');
       }
-      if (Object.keys(selection).some(key => !['where', 'order', 'search', 'includeCount', 'limit', 'parent', 'continuation'].includes(key))) {
+      if (Object.keys(selection).some(key => !['where', 'order', 'search', 'includeCount', 'limit', 'parent', 'continuation', 'archived'].includes(key))) {
         throw new StateError('validation', 'Unknown page selection field.');
       }
       if (generatedPredicate !== undefined &&
           (typeof generatedPredicate !== 'function' || selection.continuation !== undefined)) {
         throw new StateError('validation', 'Generated page filters do not support cursor continuation.');
       }
+      const archived = queryArchiveMode(selection.archived);
       const order = viewerPageOrder(selection.order);
       const whereBase = selection.where === undefined ? null : viewerPagePredicateTuple(selection.where);
       const search = viewerPageSearchTuple(selection.search, descriptor);
@@ -1392,7 +1394,7 @@ export async function invokeReadPage(input: InvokeReadPageInput,
       });
       const definitionPrefix: CheckedViewerPageDefinitionPrefix = [
         'viewer-page/v1', [model, call.def.descriptor.name, pageByTuple(call.def.by)],
-        parent === undefined ? null : [parent.model, parent.id], where,
+        parent === undefined ? null : [parent.model, parent.id], ['archived', archived, where],
         [...order.map(term => [term.field, term.direction] as const), ['id', 'asc']],
         selection.limit ?? VIEWER_PAGE_DEFAULT_LIMIT, VIEWER_PAGE_MAX_CANDIDATES,
         order.map(term => {

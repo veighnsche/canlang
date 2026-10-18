@@ -4,6 +4,35 @@ Prepare a complete local artifact, compatibility, bundle and review job in Rust 
 
 The proposed native process owns the semantic artifact tree, indexes, module inventory, compatibility results, plan and rendered output throughout one job. It asks the JavaScript host for external stages only when the current operation requires them. This preserves failure order while avoiding a subprocess for every helper. All APIs and files proposed below are new implementation work. Read the [shared preparation and execution order](README.md) first.
 
+## Current bounded source and retained-owner ledger — 18 October 2026
+
+The [single current execution checklist](../../../implementation/rust-port-orchestration/current-plan.md)
+overrides historical planning/hold wording. Native source/local validation is
+released; public deployment, automatic defaults and TS retirement remain held.
+Accepted source `6fb752375`, `c105bf2c4` and `1e018e714` covers private retained-job
+module/plan/review wiring, current release alignment and exact-source frontend
+facts. Linux x64 pinned1.99 producer/raw installed build-job qualification passes;
+the final installed Linux CLI build and corrupt/release/missing/wrong-architecture/
+protocol controls now pass after the actual EPIPE repair. Darwin installed native9/
+TS9, genuine native confirmed mocked apply and same-data TS/native rollback pass.
+These are selected local CLI/integrity outcomes, not full P01–P11 completion.
+
+| Mechanism / original scope | Implemented or retained owner and acceptance boundary |
+| --- | --- |
+| Artifact and companion reads | Host retains filesystem/JSON syntax attribution and current public loader/shape checks. The Rust job consumes the admitted tagged tree and applies its registered checks. This does not retire the TS loader or arbitrary unknown-object library domain. |
+| Compatibility, plan, review | Rust retained job performs its ordered checks, canonical plan/TOML/diff/review and compiler gate. Host supplies actual activation/current inputs and prior-plan reads at original demands. Null/presence and lone UTF16 contracts remain. |
+| JavaScript module frontend | Existing import lexer/Acorn2025/eslint-scope derives exact staged-source facts. Rust validates correspondence and job-side diagnostic/key/link policy. Existing TS builder checks remain at their original pre-asset/final-map checkpoints; broader native module construction/policy ownership is partial (decision025/refinement031). |
+| Bun/catalog/activation | Actual owning host stages remain; no fabricated verdict or replacement derivation. A native CLI join is not adoption of these TS mechanisms. |
+| Publication/apply | Host retains contained reviewed-byte writers and external apply. Selected native CLI/local mocked apply and bounded session cleanup are qualified at the recorded profile. Public/provider deployment remains held. |
+| Package integrity/distribution | Owning executable verifier, workspace preparation build/package/verify commands and recursive dist inventory are joined. Normal installed users require prebuilt bytes, not Rust/Cargo/source crates. Darwin arm64 has installed9 and native mocked apply; Linux x64 has actual installed build plus integrity controls. Broader platform/operation coverage is not inferred. |
+| Mixed assets / P05.6 | The current native driver selects browser resources only; it does not select Values or recovery Wasm. Record JS-only CLI scope and deferred mixed adoption. Binary-key link closure and opt-in mixed bundle helpers alone certify neither a mixed native profile nor loaders/installed bytes. Enabling that profile later requires original P05.6, not a new broad C04 prerequisite. |
+| Costs/rollback / P10 | C05.ready observer procedure is accepted; provisional timing/RSS warnings are unratified, not new gates. Final installed durations and same-data selected TS rollback are recorded. CPU/full-tree RSS/IPC/temp peak and ratified adoption remain unmeasured. No speed-led default or format conversion is authorized. |
+| TS retirement / P11 | Public synchronous TS helpers, host parser/build/stage/writer owners and wider P04/P05 domains stay explicit. This ledger classifies gaps; it does not mark whole P01–P11 complete or authorize deletion/default switches. |
+
+Reuse accepted algorithms and focused results at their recorded source/producer
+scope; no duplicate tests merely to maintain this ledger. Keep the complete
+living-filetree checkpoint unchanged until its broader review is complete.
+
 ## Scope and completion contract
 
 Migrate parsed-artifact semantic checks and compiled identity assertions, ordered compatibility/release comparisons, pure release-manifest calculations, module path/graph/loadability checks and rewrites, deploy-plan calculation, rendering, review projection/diffs and byte preparation. Keep artifact additions, generated JavaScript and source-map data intact wherever today's loader accepts them. Read compiler-produced artifacts; do not change their producer or format to make this port easier.

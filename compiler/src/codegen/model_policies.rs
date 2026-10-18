@@ -937,6 +937,7 @@ mod tests {
         let source = r#"app ComputedRules
 Given
  Location {active:bool,unit:enum(hour,day),zone:timezone}
+ invariant Location: count(Location)==1
  Calendar in Location {day:date,opens:text,closes:text,close_after:int,fold:enum(earlier,later),weekdays:int[]}
  invariant Calendar: all(row.weekdays as day,1<=day and day<=7) and local_instant(date("2000-01-01"),row.opens,row.parent.zone,fold=row.fold)<local_instant(add_days(date("2000-01-01"),row.close_after),row.closes,row.parent.zone,fold=row.fold)
  contract Interval {from:datetime,until:datetime,location:text,zone:timezone}
@@ -976,6 +977,20 @@ Then
         let module = super::super::js::module_path("ComputedRules");
         let policies = collect_checked_policies(&program, &original, &db, catalog.as_ref(), &module).expect("complete transitive policy closure");
         let model = |name: &str| original.items.iter().find(|item| item.canonical == format!("ComputedRules.{name}")).unwrap().id;
+        let global = policies.bindings.iter().find(|binding| binding.id.ends_with("Location.require.1")).unwrap();
+        assert!(global.checked_body);
+        assert_eq!(global.query_models, vec![model("Location")]);
+        let global_rule = original.invariants.iter().find(|rule| rule.origin.as_ref().is_some_and(|origin|
+            origin.model == model("Location"))).unwrap();
+        let IrExpr::Binary { left, .. } = &global_rule.pred.expr else { panic!("original count comparison"); };
+        let IrExpr::Call { args, .. } = &left.expr else { panic!("original checked count"); };
+        let domain = &args[0];
+        let key = crate::analysis::NodeKey { file: domain.span.file, start: domain.span.start, end: domain.span.end,
+            kind: crate::syntax::SyntaxKind::NameRef as u8 };
+        program.types.lexical_value_references.insert(key);
+        assert!(checked_query_rule_fields(&program, &original, model("Location"), &global_rule.pred, &db, catalog.as_ref()).is_none(),
+            "a copied local cannot acquire the original bare model domain");
+        program.types.lexical_value_references.remove(&key);
         let hook_index = original.items.iter().position(|item| item.canonical == "ComputedRules.observe").unwrap();
         assert!(policies.descriptors.iter().find(|descriptor| descriptor.model == "ComputedRules.Calendar").unwrap().hooks.iter()
             .any(|hook| hook.id == "ComputedRules.observe"));
@@ -1038,5 +1053,6 @@ Then
             assert!(collect_checked_policies(&program, &changed, &db, catalog.as_ref(), &module).is_none(), "retained derived body corruption {corruption}");
         }
     }
+
 
 }

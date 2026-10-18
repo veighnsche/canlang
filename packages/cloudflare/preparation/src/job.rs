@@ -420,18 +420,20 @@ fn resume_tree(
     decode_tree(&bytes).map_err(|e| Failure::for_stage(command, stage, e.code, e.detail))
 }
 
-/// One held module buffer: keyed JS source as admitted UTF-16 units.
+/// One held module buffer: keyed JS source as admitted UTF-16 units,
+/// plus the host frontend's syntax facts when served (deploy).
 /// Buffers stay borrowed slices through the import/graph gates below:
 /// the refusal lands before any owned module map or bundle assembly
 /// materializes (the resume transport itself is the only allocation).
 struct ModuleBuffer {
     key: Vec<u16>,
     js: Vec<u16>,
+    facts: Option<crate::modules::ModuleFacts>,
 }
 
-/// Typed LOAD_MODULES resume: `{modules: [{key: Text, js: Text}]}`.
-/// Shape failures speak the tree voice (BAD_NODE): the resume is a
-/// malformed tagged tree, never an invented module code.
+/// Typed LOAD_MODULES resume: `{modules: [{key: Text, js: Text,
+/// facts?: Facts}]}`. Shape failures speak the tree voice (BAD_NODE):
+/// the resume is a malformed tagged tree, never an invented module code.
 fn module_buffers(tree: &Node, command: &str) -> Result<Vec<ModuleBuffer>, Failure> {
     let bad = |detail: String| {
         Failure::for_stage(command, ST_LOAD_MODULES, crate::failures::transport::BAD_NODE, detail)
@@ -447,9 +449,14 @@ fn module_buffers(tree: &Node, command: &str) -> Result<Vec<ModuleBuffer>, Failu
         let js = crate::input::obj_get(item, "js")
             .and_then(crate::input::as_text)
             .ok_or_else(|| bad("LOAD_MODULES resume: modules[*].js must be text".to_string()))?;
+        let facts = match crate::input::obj_get(item, "facts") {
+            None => None,
+            Some(node) => Some(crate::modules::decode_module_facts(node).map_err(bad)?),
+        };
         buffers.push(ModuleBuffer {
             key: key.clone(),
             js: js.clone(),
+            facts,
         });
     }
     Ok(buffers)
@@ -621,7 +628,10 @@ fn plan_and_review(
 }
 
 /// LOAD_MODULES exchange plus the native import/graph gates. Returns
-/// the verified buffer count for the Prepared outputs.
+/// the verified buffer count for the Prepared outputs. Deploy applies
+/// the facts policy over the host frontend's syntax observations;
+/// build admits its domain with no module gate (021: the TS build
+/// accepts artifacts the deploy loadability gate refuses).
 fn load_modules(
     reader: &mut impl Read,
     writer: &mut impl Write,
@@ -646,23 +656,114 @@ fn load_modules(
             return Err(1);
         }
     };
-    let pairs: Vec<(&[u16], &[u16])> = buffers
-        .iter()
-        .map(|buffer| (buffer.key.as_slice(), buffer.js.as_slice()))
-        .collect();
-    if let Err(error) = crate::modules::assert_bundle_checks(&pairs) {
-        let _ = refuse(
-            writer,
-            Failure::for_stage(
-                command,
-                ST_LOAD_MODULES,
-                crate::failures::semantic::BUNDLE_FAILED,
-                error.message,
-            ),
-        );
-        return Err(1);
+    if command != "deploy" {
+        return Ok(buffers.len());
     }
-    Ok(buffers.len())
+    // Staged binary asset keys join the link closure (028: mixed
+    // Wasm links resolve in this same stage scope; absent when the
+    // bundle stages no binaries). Overlap with a text key is a host
+    // bundle defect (the owner forbids shadowing either way).
+    let mut binary_keys: Vec<Vec<u16>> = Vec::new();
+    if payload.get("binaries").is_some() {
+        let tree = match resume_tree(&payload, "binaries", command, ST_LOAD_MODULES) {
+            Ok(tree) => tree,
+            Err(failure) => {
+                let _ = refuse(writer, failure);
+                return Err(1);
+            }
+        };
+        let Node::Arr(items) = tree else {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    command,
+                    ST_LOAD_MODULES,
+                    crate::failures::transport::BAD_NODE,
+                    "LOAD_MODULES resume: binaries must be an array".to_string(),
+                ),
+            );
+            return Err(1);
+        };
+        for item in items {
+            match item {
+                Node::Text(units) => binary_keys.push(units),
+                _ => {
+                    let _ = refuse(
+                        writer,
+                        Failure::for_stage(
+                            command,
+                            ST_LOAD_MODULES,
+                            crate::failures::transport::BAD_NODE,
+                            "LOAD_MODULES resume: binaries[*] must be text".to_string(),
+                        ),
+                    );
+                    return Err(1);
+                }
+            }
+        }
+    }
+    for binary in &binary_keys {
+        if buffers.iter().any(|buffer| buffer.key == *binary) {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    command,
+                    ST_LOAD_MODULES,
+                    crate::failures::transport::BAD_NODE,
+                    format!(
+                        "LOAD_MODULES resume: binary key {} shadows a text module",
+                        crate::input::json_quote(binary)
+                    ),
+                ),
+            );
+            return Err(1);
+        }
+    }
+    let mut validated: Vec<(Vec<u16>, Vec<u16>, crate::modules::ModuleFacts)> =
+        Vec::with_capacity(buffers.len());
+    for buffer in &buffers {
+        let facts = match &buffer.facts {
+            None => {
+                let _ = refuse(
+                    writer,
+                    Failure::for_stage(
+                        command,
+                        ST_LOAD_MODULES,
+                        crate::failures::transport::BAD_NODE,
+                        format!(
+                            "LOAD_MODULES resume: module {} serves no host syntax facts",
+                            crate::input::json_quote(&buffer.key)
+                        ),
+                    ),
+                );
+                return Err(1);
+            }
+            Some(facts) => facts,
+        };
+        if let Err(detail) = crate::modules::validate_module_facts(&buffer.key, &buffer.js, facts) {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(command, ST_LOAD_MODULES, crate::failures::transport::BAD_NODE, detail),
+            );
+            return Err(1);
+        }
+        validated.push((buffer.key.clone(), buffer.js.clone(), facts.clone()));
+    }
+    match crate::modules::check_deploy_modules(&validated, &binary_keys) {
+        Ok(count) => Ok(count),
+        Err(error) => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    command,
+                    ST_LOAD_MODULES,
+                    crate::failures::semantic::BUNDLE_FAILED,
+                    error.message,
+                ),
+            );
+            Err(1)
+        }
+    }
 }
 
 /// Fixed `missingEmission` detail per command (TS discards the loader

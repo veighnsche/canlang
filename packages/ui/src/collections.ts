@@ -143,7 +143,7 @@ function sourceCursor(props: Pick<ListProps, "context" | "cursor" | "page" | "oc
 
 /** Pass S3 query args through, including only defined optionals. */
 function queryArgs(
-  props: Pick<ListProps, "context" | "parent" | "where" | "order" | "search" | "count" | "limit" | "cursor" | "page" | "occurrence">,
+  props: Pick<ListProps, "context" | "parent" | "where" | "order" | "search" | "count" | "limit" | "cursor" | "page" | "occurrence" | "archived">,
   factory: string,
 ): ListQueryArgs {
   if (
@@ -152,8 +152,12 @@ function queryArgs(
   ) {
     throw new Error(`${factory}: limit must be an integer 1..${String(MAX_LIMIT)}`);
   }
+  if (props.archived !== undefined && props.archived !== 'exclude' && props.archived !== 'include') {
+    throw new TypeError(`${factory}: archived must be include or exclude`);
+  }
   const cursor = sourceCursor(props);
   return {
+    ...(props.archived === undefined ? {} : { archived: props.archived }),
     ...(props.parent === undefined ? {} : { parent: props.parent }),
     ...(props.where === undefined ? {} : { where: props.where }),
     ...(props.order === undefined ? {} : { order: props.order }),

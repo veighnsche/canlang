@@ -140,8 +140,15 @@ export interface InstalledSourceRowDecision {
   readonly projection: ProjectedRecord | null;
 }
 
+/** Archive inclusion applies to the selected row only, never its ancestors. */
+function permitsSourceRowArchive(row: StoredRow, target: StoredRow, archived: 'exclude' | 'include' | undefined): boolean {
+  return row.archivedAt === null || row === target && archived === 'include';
+}
+
 /** Internal containment join; target and every ancestor share the supplied tracked context. */
 export async function projectInstalledSourceRowAndAncestors(input: {
+  /** Applies only to the selected target; containing ancestors must remain live. */
+  readonly archived?: 'exclude' | 'include';
   readonly model: ModelName;
   readonly row: StoredRow;
   readonly readPolicies: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
@@ -172,7 +179,7 @@ export async function projectInstalledSourceRowAndAncestors(input: {
     if (visited.has(key) || visited.size >= 100) invalid();
     visited.add(key);
     const read = readPolicies.get(model);
-    if (read === undefined || row.archivedAt !== null) return denied();
+    if (read === undefined || !permitsSourceRowArchive(row, input.row, input.archived)) return denied();
     const observation = Object.freeze({ context: Object.freeze({ ...context }), row, revision, fence });
     let projected: InstalledSourceRowProjection;
     if ('grants' in read) projected = await projectInstalledSourceRow({ read, observation, store,

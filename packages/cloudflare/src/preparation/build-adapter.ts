@@ -10,9 +10,15 @@ import {
 export {
   buildDeployBundle as buildBundleWithHostPhases,
   buildDerivedInputsModule as runCatalogPhase,
+  scanModuleFacts,
+  type ModuleImportFact,
+  type ModuleSyntaxFacts,
+  type ModuleUnresolvedFact,
 } from "../deploy/bundle.js";
+import { scanModuleFacts } from "../deploy/bundle.js";
 import { readFileSync } from "node:fs";
 import {
+  buildBinariesPayload,
   buildLoadModulesPayload,
   buildPreviousPlanPayload,
   type StagedModuleBuffer,
@@ -44,6 +50,35 @@ export function loadModulesResumeForModules(modules: Readonly<Record<string, str
     js: modules[key] as string,
   }));
   return buildLoadModulesPayload(buffers);
+}
+
+/**
+ * Serve staged bundle buffers WITH owner syntax facts to the native
+ * LOAD_MODULES stage (025): each module carries its key, exact JS
+ * bytes, and the single host frontend's `scanModuleFacts` over those
+ * bytes (import lexer records, Acorn 2025 scope facts, parser-error
+ * offsets). The native side validates shape, unit-coordinate bounds
+ * and per-module correspondence, then applies stage/module
+ * key/graph/link and diagnostic policy itself. Bundle insertion
+ * order is preserved. No wrapper exemptions: the owner frontend
+ * already resolves bound interop through real scope analysis.
+ */
+export function loadModulesResumeWithFacts(
+  modules: Readonly<Record<string, string>>,
+  binaryKeys: readonly string[] = [],
+): {
+  readonly modules: ReturnType<typeof buildLoadModulesPayload>["modules"];
+  readonly binaries: ReturnType<typeof buildBinariesPayload>["binaries"];
+} {
+  return {
+    ...buildLoadModulesPayload(
+      Object.keys(modules).map((key) => {
+        const js = modules[key] as string;
+        return { key, js, facts: scanModuleFacts(js, key) };
+      }),
+    ),
+    ...buildBinariesPayload(binaryKeys),
+  };
 }
 
 /**

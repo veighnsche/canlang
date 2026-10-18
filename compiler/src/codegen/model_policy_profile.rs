@@ -2591,6 +2591,53 @@ pub(crate) fn checked_query_rule_fields(
                         && (actual == ty || actual.nullable_inner() == Some(ty))) { return None; }
             Some(())
         }
+        /// A bare model name has no authored query clause/alias carrier. Its
+        /// checked node type and non-lexical resolved source retain the exact model.
+        fn bare_model_symbol(&self, value: &TypedExpr, canonical: &str) -> Option<SymbolId> {
+            let ResolvedType::Array { element, ordered: true, nonempty: false } = &value.ty else { return None; };
+            let ResolvedType::Record { symbol, stored: true } = element.as_ref() else { return None; };
+            let model = policy_model(self.program, *symbol)?;
+            let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end,
+                kind: crate::syntax::SyntaxKind::NameRef as u8 };
+            (model.canonical == canonical
+                && self.checked.types.node_types.get(&key) == Some(&value.ty)
+                && self.checked.types.bound_names.contains(&key)
+                && !self.checked.types.lexical_value_references.contains(&key)
+                && !self.checked.types.contextual_references.contains_key(&key)).then_some(*symbol)
+        }
+        /// Only a checked count call can supply this clause-free global root.
+        /// The existing owner query path still owns completeness and authority.
+        fn bare_model_count(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
+            if depth > 64 || self.remaining == 0 { return None; }
+            let IrExpr::Query(query) = &value.expr else { return None; };
+            let super::ir::IrQueryDomain::Model(canonical) = &query.domain else { return None; };
+            if query.source.is_some() || query.parent.is_some() || query.where_pred.is_some()
+                || query.where_async || !query.order.is_empty() || query.value_order.is_some()
+                || query.limit.is_some() || query.archived.is_some() || query.select.is_some()
+                || query.select_param.is_some() || query.collection_call.is_some()
+                || query.contract_collection_call.is_some() { return None; }
+            let model = self.bare_model_symbol(value, canonical)?;
+            self.remaining -= 1;
+            if !self.profile.query_models.contains(&model) { self.profile.query_models.push(model); }
+            self.dependency(model);
+            Some(())
+        }
+        /// Check the selected pure builtin, exact authored arguments and slot
+        /// order separately from the expression grammar that consumes them.
+        fn call_arguments<'b>(&self, value: &TypedExpr, id: &str, args: &'b [TypedExpr]) -> Option<Vec<&'b TypedExpr>> {
+            let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end, kind: crate::syntax::SyntaxKind::Call as u8 };
+            let selected = self.checked.types.selected_calls.get(&key)?;
+            let SelectedCallTarget::Builtin { id: actual, overload } = &selected.target else { return None; };
+            let slots = match &value.expr { IrExpr::BoundCall { slots, .. } => slots.clone(), _ => (0..args.len()).map(Some).collect() };
+            let catalog = self.catalog?;
+            if actual != id || selected.arguments.len() != args.len() || selected.slots != slots
+                || catalog.lookup(id)?.effects != Some(crate::analysis::catalog::Effects::Pure)
+                || catalog.overloads(id)?.get(*overload as usize)?.params.len() != args.len()
+                || self.checked.types.node_types.get(&key) != Some(&value.ty) { return None; }
+            for (key, arg) in selected.arguments.iter().zip(args) { argument(self.db, *key, arg)?; }
+            let mut used = HashSet::new();
+            slots.iter().map(|slot| { let index = (*slot)?; used.insert(index).then(|| args.get(index)).flatten() }).collect()
+        }
         fn expr(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
             if depth > 64 || self.remaining == 0 || !Self::leaf(&value.ty) {
                 return None;
@@ -2756,18 +2803,11 @@ pub(crate) fn checked_query_rule_fields(
                 IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
                     let IrCallTarget::Builtin { id, awaited: false } = target else { return None; };
                     if !matches!(id.as_str(), "any" | "all" | "sum" | "count" | "money" | "trim" | "local_instant" | "add_days" | "date") { return None; }
-                    let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end, kind: crate::syntax::SyntaxKind::Call as u8 };
-                    let selected = self.checked.types.selected_calls.get(&key)?;
-                    let SelectedCallTarget::Builtin { id: actual, overload } = &selected.target else { return None; };
-                    let slots = match &value.expr { IrExpr::BoundCall { slots, .. } => slots.clone(), _ => (0..args.len()).map(Some).collect() };
-                    let catalog = self.catalog?;
-                    if actual != id || selected.arguments.len() != args.len() || selected.slots != slots
-                        || catalog.lookup(id)?.effects != Some(crate::analysis::catalog::Effects::Pure)
-                        || catalog.overloads(id)?.get(*overload as usize)?.params.len() != args.len()
-                        || self.checked.types.node_types.get(&key) != Some(&value.ty) { return None; }
-                    for (key, arg) in selected.arguments.iter().zip(args) { argument(self.db, *key, arg)?; }
-                    let mut used = HashSet::new();
-                    let formal = slots.iter().map(|slot| { let index = (*slot)?; used.insert(index).then(|| args.get(index)).flatten() }).collect::<Option<Vec<_>>>()?;
+                    let formal = self.call_arguments(value, id, args)?;
+                    if id == "count" && matches!(formal.as_slice(), [domain]
+                        if matches!(&domain.expr, IrExpr::Query(query) if query.source.is_none() && query.parent.is_none())) {
+                        return self.bare_model_count(formal[0], depth + 1);
+                    }
                     if id == "any" || id == "all" {
                         if formal.len() != 2 { return None; }
                         self.expr(formal[0], depth + 1)?;

@@ -1,5 +1,9 @@
 # Canlang language design decisions
 
+## 2026-10-18 — qualify committed main with the native development server
+
+**Accepted integration scope.** Incorporate committed main `a28335e6b` into the dev branch before release qualification. Retain its accepted compiler/query/hook, State, native preparation CLI/integrity and packaging owners and evidence. Main's active uncommitted consistency work is excluded and remains untouched. Preserve stopped TS/cache/UI work in named stash `c587f365e0333ea185a6be58545a3f9f1d270f4d`; reapply after capture-sensitive qualification. Actual macOS/Linux release qualification and final main integration are now authorized; public publication and later automatic work remain separate.
+
 ## 2026-10-18 — preserve command policy in Rust and package the native manual entry
 
 **Accepted implementation.** Rust retains command admission, captured revisions,
@@ -63,6 +67,24 @@ failure references and construct help/ranking remain visible as unavailable.
 Automatic scheduling and stable-origin browser updates retain their later task
 owners. Full T14/T15 acceptance and installed T17 cutover remain open; the
 TypeScript installation entry and preserved lifecycle fixes remain in place.
+
+## 2026-10-18 — retain native archive and hook event ownership
+
+**Accepted implementation.** List/Table archive inclusion reaches the existing
+current-authorized State scan, projection and cursor definition; containing
+ancestors remain live-only. Declared `archived_at` business fields retain their
+own values/types/grants. Parenthesized collection queries retain the exact
+original WHERE source identity through lowering and both source collectors.
+
+Native hook EMIT captures typed values at the authored statement and uses the
+existing atomic State source finalizer and Work event routing. Verified original
+CRUD hook producers may supply event provenance without acquiring trusted
+handler authority. Clause-free model COUNT uses the original checked pure call
+and model identity, including the complete Roster rule. Compiled original
+Employee→Shift D1 delivery, rollback/replay/forged-producer controls, existing
+trusted emission, compiled archive HTTP, and grouped-query owner HTTP pass.
+State archive checks46/46 and focused compiler checks pass. Newly staged hook
+references, guarded SEND and complete original24 runtime remain open.
 
 ## 2026-10-18 — use shared finite pagination for boards
 
@@ -19360,3 +19382,114 @@ TypeScript lifecycle, terminal and reuse source remains preserved as parity inpu
 Manual Rust/installed acceptance remains T17; later tasks do not become its
 prerequisites. The prior resolved main69eede1e8 intake can now be committed on the
 development branch. Unrelated compiler/platform work retains its own owner.
+
+
+## 2026-10-18 — align native preparation to the current owning release
+
+Accept source `c105bf2c4`: Cargo package/lock and the native release constant
+follow the existing owning0.1.1 stamp. This is implementation correspondence,
+not a public release or backend-default decision. Keep dependency versions and
+checksums unchanged; update current-version build fixture roles while retaining
+stale-artifact and intentional drift meanings. Source review and existing affected
+release5/vectors22/native9/9 results support this narrow slice; they close no full
+CLI, integrity, installed or publication parent.
+
+The requested completed compiler batch is incorporated into the existing Rust
+worktree at main49cb90ab1, with all15 native working files byte/mode preserved.
+Retain all68 incoming paths through their defining owners' current reviews; the
+next guarded-SEND batch is separate. Linux qualification has a ready alternative
+host (infra, pinned1.99, all21 crate sources); Codex owns only a private source/
+target/build lane after release, Muse owns Darwin. No host output is inferred
+from availability. Current scanner/host/integrity findings stay explicit and
+under repair. Public deployment/default changes/TS retirement and the complete
+living-plan checkpoint remain held.
+
+
+## 2026-10-18 — retain the module owner frontend for native CLI policy
+
+Accept decision025: reuse the current Acorn2025/eslint-scope/import-lexer owner
+for exact module syntax and lexical facts; Rust consumes the minimal structured
+facts with the original module key/string and preserves bounded admission,
+diagnostic ordering, link/graph and stage policy. The incomplete handwritten
+scope recognizer cannot substitute current JavaScript semantics. No native-error
+TS retry, broad validity Boolean, new parser dependency or generic AST framework
+is selected. Ordinary TS and explicit native retain one frontend implementation;
+build does not acquire deploy-only module gates.
+
+Three independently worded JEV Choice consultations favor owner facts with
+probabilities .98/.94/.97; retain their uncertainty and complete requests/results
+in [the decision record](../design/jev/native-module-boundary-20261018/README.md).
+This is advice supporting the verified source comparison, not permission or a
+parity proof. No disagreement required further investigation. A native parser
+library remains unverified and optional. P05's native syntax port stays partial;
+P11 must explicitly disclose retained host libraries. Changed source and actual
+CLI/installed consumer acceptance remain open. Continue independent integrity,
+lifetime and publication repairs. Public deployment/defaults/TS retirement and
+the complete filetree checkpoint remain held.
+
+
+### Native CLI boundary refinement031
+
+Independent source review found that the new host encoder discarded facts and
+that the existing builder checks run before later asset work. Repair the real
+wire and escaped source spans. Preserve the TS builders' policy checkpoints for
+the finite CLI/executable packet and disclose them as retained library work;
+Rust's job-side checks over the consumed facts do not establish sole module
+admission ownership. Do not make a broader two-stage module-stager extraction an
+extra prerequisite for CLI/integrity completion. Fuller original P05 module
+construction/policy criteria stay partial, with no TS retirement/default claim.
+This refines the existing retained-owner boundary using actual source evidence;
+it neither reverses the JEV advice nor treats that advice as implementation proof.
+
+
+## 2026-10-18 — integrate source-bound module facts at the retained frontend boundary
+
+Accept the finite LOAD_MODULES facts/payload/job slice while broader P05 stays
+partial. Exact source text, raw/decoded import fields and original UTF16 spans
+preserve the owning parser/scope facts and ordered Rust job-side checks. Actual
+staged binary keys join link closure; executable bytes never enter Worker maps.
+Preserve the existing TS builders' loadability/link checkpoints and build's
+original admission domain. Independent review repaired the real encoder losing
+facts, brace escapes and the ordinary TS frontend-error path; no new syntax
+parser or native-error fallback is introduced.
+
+Reuse facts24/vectors23/inputs17 and genuine native9/TS9 outcomes at the released
+producer scope, plus focused final error regression and exact-slice complexity.
+The same frozen crate builds on Linux x64 with pinned1.99 and runs its retained
+build job from a private installation without runtime Rust/Cargo. Full installed
+CLI/native readiness/integrity, confirmed mocked apply and original mixed/resource/
+rollback criteria still require their concrete outputs; producer evidence does
+not close those parents. Continue that independent work during Git integration.
+Preserve newer compiler/runtime/Work changes, complete stale filetree checkpoint
+and public deployment/default/TS-retirement holds.
+
+
+## 2026-10-18 — integrate explicit native CLI and executable custody
+
+Select the native preparation route only with explicit build/deploy `--backend
+native`; retain TS defaults and synchronous library owners. Verify the exact
+absolute executable and owning release before either readiness or the real job.
+Treat every child pipe failure as an owned refusal, retain original semantic and
+cancellation objects/order, and release the process-group session before failure
+exit. Readiness observes the whole bounded frame/exit lifetime; no pending deadline
+or future group-kill timer survives a completed session. Review found and repaired
+PATH-versus-cwd launch, extra frames, callback exits, timer/group cleanup and actual
+Linux EPIPE failures.
+
+Reuse contained bundle publication and existing recursive dist inventory. Cargo's
+reported executable, not a guessed target path, owns staged bytes; source metadata
+must name the accepted compiled crate. Workspace build/package/verify commands add
+no installed compiler requirement, package export or Worker native asset. The actual
+native job's confirmed mocked apply consumes reviewed config/modules/digest; same
+persisted data rolls back to selected TS previews without conversion. No remote
+provider is contacted.
+
+Final local checks and residuals belong to the single current checklist. Linux
+052 retry passes genuine native build/expected wrong-architecture JSON refusal in
+444/481ms, with other accepted controls reused and ELF/manifest restored. Current CLI selects
+JS-only assets; broader P05 construction/policy transfer and full resource/adoption
+criteria remain partial. Recorded durations justify no speed/default claim. Retain
+two pre-existing adapter fixture failures, the old Rust digest pin and four foreign
+runtime type errors rather than claiming blanket green checks. Preserve newer
+compiler/runtime/Work source and notes, the complete stale filetree checkpoint,
+public deployment/default/TS-retirement holds and the broader programme's open goal.

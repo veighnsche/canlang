@@ -17467,6 +17467,25 @@ impl<'a> Cx<'a> {
         }
     }
 
+    /// Parentheses preserve the checked query and its clauses, rather than
+    /// turning its domain into a second model lookup or dropping its predicate.
+    fn collection_source<'n>(&self, node: &'n SyntaxNode) -> Option<(&'n SyntaxNode, Option<&'n SyntaxNode>)> {
+        let mut head = kids(node).into_iter().find(|child| is_expression(child.kind) || child.kind == SyntaxKind::Path)?;
+        let mut query = None;
+        for _ in 0..64 {
+            match head.kind {
+                SyntaxKind::Group => head = kids(head).into_iter().find(|child| is_expression(child.kind))?,
+                SyntaxKind::Query if query.is_none() => {
+                    query = Some(head);
+                    head = kids(head).into_iter().find(|child| is_expression(child.kind))?;
+                }
+                SyntaxKind::Query => return None,
+                _ => return Some((head, query)),
+            }
+        }
+        None
+    }
+
     /// Resolve a collection/query domain head to its model.
     fn collection_head_model(&self, module: ModuleId, head: &SyntaxNode) -> Option<SymbolId> {
         let name = match head.kind {
@@ -19542,25 +19561,93 @@ impl<'a> Cx<'a> {
         ))
     }
 
+    /// The closed `archived=include` grammar has name leaves, not an expression.
+    /// Keep its checked clause correspondence rather than dropping the option.
+    fn collection_archive(&mut self, query: &SyntaxNode, clause: &SyntaxNode) -> Option<TypedExpr> {
+        let parts = kids(clause);
+        let fact = self.program.types.checked_queries.get(&NodeKey::of(query))
+            .and_then(|query| query.clauses.iter().find(|fact| fact.node == NodeKey::of(clause)));
+        if parts.len() == 3
+            && name_text(self.db, parts[0]).as_deref() == Some("archived")
+            && parts[1].kind == SyntaxKind::Punct && self.text(parts[1].span) == "="
+            && name_text(self.db, parts[2]).as_deref() == Some("include")
+            && fact.is_some_and(|fact| matches!(fact.kind, CheckedQueryClauseKind::Archived)
+                && fact.expressions.is_empty())
+        {
+            return Some(TypedExpr::new(IrExpr::Text("include".into()),
+                ResolvedType::Scalar(Scalar::Text), clause.span));
+        }
+        self.diags.push(Diagnostic::error("E6008",
+            "collection archive selection requires its checked archived=include clause".into(), clause.span));
+        None
+    }
+
+    /// Query clauses own their alias scope and source predicate independently
+    /// of collection presentation attributes and row rendering.
+    fn collection_query_props(&mut self, scope: &Scope, node: &SyntaxNode,
+        query: &SyntaxNode, model: SymbolId, word: &str) -> (Vec<(String, TypedExpr)>, Option<String>) {
+        let mut props = Vec::new();
+        let mut as_name: Option<String> = None;
+        let parts = kids(query);
+        for clause in parts.iter().filter(|n| n.kind == SyntaxKind::QueryClause) {
+            let clause_parts = kids(clause);
+            let keyword = clause_parts
+                .iter()
+                .find_map(|n| name_text(self.db, n))
+                .unwrap_or_default();
+            match keyword.as_str() {
+                "archived" if matches!(word, "list" | "table") => {
+                    if let Some(value) = self.collection_archive(query, clause) {
+                        props.push(("archived".into(), value));
+                    }
+                }
+                "as" => {
+                    as_name = clause_parts
+                        .iter()
+                        .rev()
+                        .find_map(|n| name_text(self.db, n));
+                }
+                "where" => {
+                    if let Some(pred) =
+                        clause_parts.iter().find(|n| is_expression(n.kind)).copied()
+                    {
+                        let param = as_name.clone().unwrap_or_else(|| "row".to_string());
+                        // The alias shadows fixtures inside the
+                        // predicate (it binds the lambda parameter).
+                        let mut inner = scope.clone();
+                        inner.row_rewrite.insert(param.clone(), param.clone());
+                        let body = self.decode_expr(&inner, pred);
+                        let predicate = if word == "table" {
+                            self.checked_page_time_predicate(model, node, &param, &body)
+                        } else {
+                            None
+                        };
+                        props.push((
+                            "where".to_string(),
+                            TypedExpr::new(
+                                predicate.map(IrExpr::PageTimePredicate).unwrap_or_else(|| IrExpr::Lambda {
+                                    param,
+                                    body: Box::new(body),
+                                }),
+                                ResolvedType::Unknown,
+                                pred.span,
+                            ),
+                        ));
+                    }
+                }
+                _ => self.diags.push(Diagnostic::error("E6008", format!("cannot lower collection: query clause {keyword} has no consumed factory profile"), clause.span)),
+            }
+        }
+        (props, as_name)
+    }
+
     /// Decode a collection (`list`/`table`/`gallery`): model, query
     /// props, presentation props, and row children under `renderRow`.
     fn decode_collection(&mut self, scope: &Scope, node: &SyntaxNode, word: &str) -> Option<IrUi> {
         let mut props = Vec::new();
+        let (head, query) = self.collection_source(node)
+            .map(|(head, query)| (Some(head), query)).unwrap_or((None, None));
         if word == "list" {
-            let query = kids(node)
-                .into_iter()
-                .find(|child| child.kind == SyntaxKind::Query);
-            let head = query
-                .and_then(|query| {
-                    kids(query)
-                        .into_iter()
-                        .find(|child| is_expression(child.kind))
-                })
-                .or_else(|| {
-                    kids(node)
-                        .into_iter()
-                        .find(|child| is_expression(child.kind))
-                });
             if let Some(head) = head {
                 let ty = self.node_type(head);
                 if callback_value_array(&ty) {
@@ -19635,20 +19722,6 @@ impl<'a> Cx<'a> {
                 node.span,
             ));
         }
-        let query = kids(node)
-            .iter()
-            .find(|n| n.kind == SyntaxKind::Query)
-            .copied();
-        // Clauses-less collections carry a bare model head instead of a
-        // query node.
-        let head = query
-            .and_then(|query| kids(query).iter().find(|n| is_expression(n.kind)).copied())
-            .or_else(|| {
-                kids(node)
-                    .iter()
-                    .find(|n| is_expression(n.kind) || n.kind == SyntaxKind::Path)
-                    .copied()
-            });
         let containment = head.and_then(|head| self.contained_collection_head(head));
         let model_id = head
             .and_then(|head| self.collection_head_model(scope.module, head))
@@ -19766,54 +19839,11 @@ impl<'a> Cx<'a> {
                 ),
             ));
         }
-        let mut as_name: Option<String> = None;
-        if let Some(query) = query {
-            let parts = kids(query);
-            for clause in parts.iter().filter(|n| n.kind == SyntaxKind::QueryClause) {
-                let clause_parts = kids(clause);
-                let keyword = clause_parts
-                    .iter()
-                    .find_map(|n| name_text(self.db, n))
-                    .unwrap_or_default();
-                match keyword.as_str() {
-                    "as" => {
-                        as_name = clause_parts
-                            .iter()
-                            .rev()
-                            .find_map(|n| name_text(self.db, n));
-                    }
-                    "where" => {
-                        if let Some(pred) =
-                            clause_parts.iter().find(|n| is_expression(n.kind)).copied()
-                        {
-                            let param = as_name.clone().unwrap_or_else(|| "row".to_string());
-                            // The alias shadows fixtures inside the
-                            // predicate (it binds the lambda parameter).
-                            let mut inner = scope.clone();
-                            inner.row_rewrite.insert(param.clone(), param.clone());
-                            let body = self.decode_expr(&inner, pred);
-                            let predicate = if word == "table" {
-                                self.checked_page_time_predicate(id, node, &param, &body)
-                            } else {
-                                None
-                            };
-                            props.push((
-                                "where".to_string(),
-                                TypedExpr::new(
-                                    predicate.map(IrExpr::PageTimePredicate).unwrap_or_else(|| IrExpr::Lambda {
-                                        param,
-                                        body: Box::new(body),
-                                    }),
-                                    ResolvedType::Unknown,
-                                    pred.span,
-                                ),
-                            ));
-                        }
-                    }
-                    _ => self.diags.push(Diagnostic::error("E6008", format!("cannot lower collection: query clause {keyword} has no consumed factory profile"), clause.span)),
-                }
-            }
-        }
+        let as_name = if let Some(query) = query {
+            let (query_props, alias) = self.collection_query_props(scope, node, query, id, word);
+            props.extend(query_props);
+            alias
+        } else { None };
         for (name, value) in ui_attributes(self.db, node) {
             let Some(value) = value else { continue };
             if !admitted.contains(&name.as_str()) {

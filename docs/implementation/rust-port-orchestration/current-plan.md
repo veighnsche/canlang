@@ -12,6 +12,17 @@ Public publication/deployment, automatic backend-default switches and TS retirem
 remain separately held. Local contained staging/preview and mocked apply tests are
 implementation validation, not public release.
 
+Current selected packet: source `4ed0d38fe` is merged/pushed as main `5d38b4efb`.
+The N4/N5 local CLI/integrity scope and its named consumer repairs are accepted;
+all assigned writers/commands are released, with the verified Muse viewer retained.
+Darwin's task-owned debug cache and Linux's expanded private install/build caches
+are cleaned after consumer release; genuine binaries, source, logs and reconstructible
+consumer evidence remain. The wider native goal still records blocked metadata
+and broader P05/adoption scope is not complete. Row labels credit accepted components
+once; their original acceptance definitions below do not reopen them. The matching
+supervision remains for the wider unfinished programme, with this packet in
+intentional released standby.
+
 Base: pushed main `d240246c2`. Use the same existing Contributor/XHIGH coordinator
 `01a14c86-b1c3-7011-a8e1-15a876abc891`, socket
 `/private/tmp/can-rust-muse-4s0v2_1s/tmux.sock`, pane `%0`. The prior goals are
@@ -26,13 +37,13 @@ integration without changing foreign files or outputs.
 | Step / original IDs | Owner, concrete inputs and remaining implementation | Finite acceptance / handoff |
 | --- | --- | --- |
 | W / selected W02.5 — complete | Work lane: the ten matching helpers enumerated below; existing `/rows`, independent fixtures and package edge. Only Work `kernel/tables.ts` and affected owning tests. | Preserve owning errors, evaluation/clone order, row bytes and real every-slot/supersession stages; affected installed Node/Worker calls. Keep newer dispatch/occurrence/schedule codecs intact; no new Rust family. |
-| N1 / P05.2, P05.3 | Native host lane: inspect retained two-phase adapter against current owning `deploy/bundle.ts` exports and stage contract; delete stale adapter copies and join actual MCP/Bun/catalog phases in `src/preparation/{host,build-adapter}.ts`. Existing C04.preparation-join is accepted; verify consumed exports, not a whole C04 rerun. | Actual host phases exactly once, original module/page-before-worker, vendor-before-Bun, verdict-before-catalog and loadability-before-links order. Legacy worker-missing path invokes neither phase. No mocked host output substitutes real Bun/catalog evidence. |
-| N2 / P05.4 | P-session owner consumes N1 and existing registered Rust modules; wire module buffers, import/graph checks and typed host resumes into `preparation/src/{job,protocol}.rs` plus necessary matching TS protocol. | Real native job returns full module output with legacy-main fallback, cross-stage identity and original ordered failure behavior; one open resume, abort/EOF/duplicate-token semantics retained. |
-| N3 / P06.3 | Same job owner consumes N2 and existing `plan.rs`, `render.rs`, `review.rs`; join plan/prior-plan/render/review into the real job. | Deterministic outputs, existing prior-plan failure stage, preview+yes still previews, reviewed mismatch refuses after preparation and before writes; compiler gate stays at its original observable position. |
-| N4 / P07/P08 source and local validation | Host/CLI owner consumes real N2/N3; integrate executable resolution/verification with `src/preparation/{executable,executable-manifest,publication,host}.ts` and existing CLI. Repair `conformance/preparation/{workloads,differential}.mjs`: backend currently labels results without selecting native. | Explicit native actually launches the genuine binary; real CLI native/prepared comparison; no native-error TS retry; reviewed-byte contained local staging and mocked apply preserve rollback/failure/order. Defaults stay unchanged, no real Wrangler/provider deployment. |
-| N5 / P09.1, C04.native-release, P09.2 available-host slice | Native packaging owner consumes completed executable and existing build/package scripts, manifest/release/notices rules. Genuine local prebuilt package and installed consumer; one writer for release/manifest joins. | Verifier connected to launch, current release/toolchain/lock/binary identity, no user compiler required at installed launch and no executable in Worker maps. Claim only actual supported hosts exercised; name missing external host/toolchain outputs rather than calling them human-held. No public artifact upload. |
-| N6 / P10/P11 bounded disposition | Coordinator consumes accepted native/Work outputs and original budget/rollback/mixed rules. | Focused complete-job resource/rollback checks at proved scope; explicit JS-only/mixed and supported-host residuals under original criteria. No invented broad scope, no automatic default/retirement decision. Stop each satisfied component and hand it off promptly. |
-| R/G/C | Codex independently reviews released critical stages/errors/module identities/no-fallback/executable custody/reviewed bytes, integrates coherent accepted slices preserving newer main and reconciles living plan/DECISIONS; cleans only released owned resources. | Exact source/results and writer/command release; matching heartbeat retired only when no finishable authorized work remains. Parent gates close only on their original full evidence. |
+| N1 / P05.2, P05.3 — retained host join; broader P05 partial | Native host lane: inspect retained two-phase adapter against current owning `deploy/bundle.ts` exports and stage contract; delete stale adapter copies and join actual MCP/Bun/catalog phases in `src/preparation/{host,build-adapter}.ts`. Existing C04.preparation-join is accepted; verify consumed exports, not a whole C04 rerun. | Actual host phases exactly once, original module/page-before-worker, vendor-before-Bun, verdict-before-catalog and loadability-before-links order. Legacy worker-missing path invokes neither phase. No mocked host output substitutes real Bun/catalog evidence. |
+| N2 / P05.4 — facts/job slice accepted; parent partial | P-session owner consumes N1 and existing registered Rust modules; wire module buffers, import/graph checks and typed host resumes into `preparation/src/{job,protocol}.rs` plus necessary matching TS protocol. | Real native job returns full module output with legacy-main fallback, cross-stage identity and original ordered failure behavior; one open resume, abort/EOF/duplicate-token semantics retained. |
+| N3 / P06.3 — selected ordered job/CLI plan accepted | Same job owner consumes N2 and existing `plan.rs`, `render.rs`, `review.rs`; join plan/prior-plan/render/review into the real job. | Deterministic outputs, existing prior-plan failure stage, preview+yes still previews, reviewed mismatch refuses after preparation and before writes; compiler gate stays at its original observable position. |
+| N4 / P07/P08 — selected source/local CLI scope accepted | Host/CLI owner consumes real N2/N3; integrate executable resolution/verification with `src/preparation/{executable,executable-manifest,publication,host}.ts` and existing CLI. Repair `conformance/preparation/{workloads,differential}.mjs`: backend currently labels results without selecting native. | Explicit native actually launches the genuine binary; real CLI native/prepared comparison; no native-error TS retry; reviewed-byte contained local staging and mocked apply preserve rollback/failure/order. Defaults stay unchanged, no real Wrangler/provider deployment. |
+| N5 / P09.1, C04.native-release, P09.2 — available-host slice accepted | Native packaging owner consumes completed executable and existing build/package scripts, manifest/release/notices rules. Genuine local prebuilt package and installed consumer; one writer for release/manifest joins. | Verifier connected to launch, current release/toolchain/lock/binary identity, no user compiler required at installed launch and no executable in Worker maps. Claim only actual supported hosts exercised; name missing external host/toolchain outputs rather than calling them human-held. No public artifact upload. |
+| N6 / P10/P11 — bounded disposition recorded; adoption costs open | Coordinator consumes accepted native/Work outputs and original budget/rollback/mixed rules. | Focused complete-job resource/rollback checks at proved scope; explicit JS-only/mixed and supported-host residuals under original criteria. No invented broad scope, no automatic default/retirement decision. Stop each satisfied component and hand it off promptly. |
+| R/G/C — selected slices integrated; wider programme open | Codex independently reviews released critical stages/errors/module identities/no-fallback/executable custody/reviewed bytes, integrates coherent accepted slices preserving newer main and reconciles living plan/DECISIONS; cleans only released owned resources. | Exact source/results and writer/command release; matching heartbeat retired only when no finishable authorized work remains. Parent gates close only on their original full evidence. |
 
 Native source writer scope is the existing `packages/cloudflare/preparation/` crate,
 `src/preparation/`, necessary `src/cli/platform.ts`, owning preparation tests,
@@ -114,13 +125,118 @@ conformance and scanner repairs are excluded from this source commit. ACK015
 ended an unnecessary commit-wait loop; ready P07 work continues during Codex
 review/integration rather than waiting on Git.
 
-Current main `3bb610962` retains committed typed filters, consumed declaration
-checks, native-hook/State integration, board pagination and complexity policy.
-The requested final compiler-batch intake into this existing Rust worktree still
-waits for the active batch's completion and a safe source/command/capture boundary.
-Preserve foreign working notes and newer commits. Neither review nor Git waiting
-adds an implementation gate. Public deployment, defaults and TS retirement stay
-held; ICU/V02.6/int-CSV/fanout/recovery acceptance is reused.
+The requested completed compiler-batch intake is satisfied: at lease023 this
+existing worktree fast-forwarded from aff748d56 to main49cb90ab1. All15 native
+working files retained exact bytes/modes, with zero overlap against68 incoming
+committed paths and an empty index. Retain the compiler owner's typed-filter,
+consumed-declaration, native-hook/State, board and archive/grouped-source/hook-event
+reviews plus the dev/complexity owners' records. The next guarded-SEND compiler
+batch remains separately active. Only affected new producer/capture closures
+need rebuilding; accepted algorithms are not reopened.
+
+### Accepted current-release alignment — 18 October 2026
+
+Source `c105bf2c4` aligns only the preparation Cargo package/lock and runtime
+release constant to the owning0.1.1 release, with role-specific release/vector
+expectations. All dependency versions/checksums stay unchanged. Source review
+confirmed the13 changed vector leaves are current-version build inputs/outputs;
+stale-artifact d3/d5 mismatch cases and the root0.2.0 drift remain truthful.
+Release5/vectors22 and the affected native differential9/9 pass at the frozen
+pre-intake producer scope; this removes the old build-ok version skew. It does
+not qualify the remaining native CLI/packaged-publication contracts.
+
+Review019 continues exact executable binding and prebuilt/installed delivery.
+Review020 exposed parameter/default and regex-context differences; decision025
+retains the existing host-library syntax/scope frontend explicitly, with minimal
+source-bound facts consumed by Rust job-side module checks. Existing TS
+builder policy checkpoints stay retained for the finite CLI/executable packet
+under refinement031; sole native module-policy ownership is not claimed. See the
+[three-question decision](../../design/jev/native-module-boundary-20261018/README.md).
+The ad-hoc recognizer is not accepted as full JS parity or a completed native
+syntax port. Review021 restores host read/error/cancellation/build admission and
+the original reviewed-byte/confirmed mocked-apply outcomes. Those hot files are
+excluded from this early source commit. Original parent gates remain partial.
+A named Linux host lacks Rust, but configured infra is Linux x64/glibc with the
+pinned1.99 toolchain, Node24 and all21 locked crate sources available. Codex owns
+its private build/launch after corrected source release; inventory alone certifies
+no host output. Muse retains Darwin outputs. No foreign/shared outputs are mutated.
+
+Preserve foreign notes/newer commits and the complete stale filetree checkpoint.
+Neither Codex review nor Git waiting adds a source gate. Public deployment,
+default changes and TS retirement remain held; accepted ICU/V02.6/int-CSV/Work/
+recovery evidence is reused.
+
+### Accepted shared frontend / native module-facts source — 18 October 2026
+
+The finite source slice carries the existing host import lexer/Acorn2025/eslint-scope
+facts with exact staged module text through the real LOAD_MODULES encoder. Rust
+validates shape, source spans, ordered diagnostics and link closure, including
+actual staged binary asset keys. Build retains its original admission domain;
+deploy-only gates stay on deploy. Existing TS builder checks remain at their
+original checkpoints; this does not complete broader native module construction
+or claim sole native syntax/policy ownership (refinement031).
+
+Independent review repaired the encoder dropping facts, brace escapes and
+ordinary TS frontend-error propagation. Reuse facts24/vectors23/inputs17 and the
+actual native/TS9 comparison at the released producer closure; the final frontend
+repair has its focused regression. Exact-slice current complexity passes with no
+baseline change. The immutable matching crate builds offline with pinned1.99 on
+Linux x64 (glibc2.39); its genuine private installed binary passes handshake/abort
+and retained b1 build with Rust/Cargo absent from runtime PATH. This is Linux
+producer/job qualification only. Full installed CF CLI, final executable guard,
+readiness/lifetime, confirmed mocked apply and mixed/resource/rollback disposition
+remain explicit ready work, not a Git/review wait. Muse continues those joins while
+Codex integrates this accepted slice. Reuse unchanged acceptance; public deployment,
+default switches and TS retirement stay held.
+
+### Accepted native CLI / executable-integrity slice — 18 October 2026
+
+The selected N4/N5 source adds explicit `--backend native` for build/deploy while
+keeping TS as the default. The differential selects the real route. Launch resolves
+one absolute executable and verifies its exact canonical file, bytes, host/release
+manifest before probing or starting a job. Strict readiness checks both framed
+answers and observes extra/trailing output through EOF; all waits join the owning
+cancellation and bounded settlement. Source review repaired parameterized path
+lookup, pending timers, host-callback early exits and process-group cleanup.
+Native callback failures settle before the original bare diagnostic is emitted;
+original activation/bundle/prior-plan checkpoints and lazy defaults remain.
+
+The shared host publisher reuses owning contained bundle writers and verifies
+reviewed sidecar bytes. Actual native confirmed preparation reaches one mocked
+Wrangler spawn which consumes the staged config, module closure and owning
+digest; refusal/cancellation retains honest partial-write/manual-apply context.
+No live Wrangler/provider deployment occurs. Build/package/verify remain workspace
+commands. Cargo's actual reported executable is the build input, including cached
+builds, and target-root-relative checks refuse incompatible host layouts. Existing
+recursive dist inventory covers binaries/notices; no duplicate stamp inventory or
+new package export is needed.
+
+Final installed Darwin native9/TS9 outcomes match apart from explicit backend argv;
+the same retained artifact/companions/persisted plan produces identical TS/native
+previews without conversion or stored-byte changes. Independent Linux installation
+uses a private production closure, genuine pinned1.99 ELF, no checkout links and no
+Rust/Cargo at runtime. It exposed unhandled EPIPE on wrong-architecture launch;
+repair052 owns stream errors through child lifetime and returns a bounded native
+refusal. The affected retry passes: genuine native build444ms/exit0 and wrong-arch
+481ms/exit2 with the expected JSON error. Reuse accepted TS/native equality and
+corrupt/release/missing/protocol-skew controls; genuine ELF/manifest are restored.
+Darwin private packaging now names accepted crate1e018e714 in both sidecars,
+and the affected installed build exits successfully in0.56s without timer linger.
+
+Reuse final source protocol36/38 (two unchanged adapter fixture failures),
+publication36, inputs17 and the relevant pipe/confirmed-apply/cleanup controls.
+Exact released source passes current complexity without baseline changes. Four
+foreign `runtime/invoke.ts` type errors remain; owned changed files have none, and
+whole-package typecheck is not claimed clean. The prior modules digest pin is
+unchanged. Preserve every newer compiler/runtime/Work change and foreign note.
+
+This accepts only the selected CLI/integrity/local-distribution outcomes. Broader P05 construction/policy transfer stays partial;
+current CLI is JS-only, with mixed Wasm conditional/deferred. Ten recorded full
+calls per backend cost TS299–2544ms and native300–3184ms; these are observations,
+not adoption cutoffs or a speed claim. CPU/full-tree RSS/IPC/temp-peak and ratified
+adoption remain unmeasured. Public deployment, automatic defaults and TS retirement
+stay held. The full native programme/goal is not complete merely because this
+finite slice releases its writers and commands.
 
 ## Planning refresh against current main — 18 October 2026
 

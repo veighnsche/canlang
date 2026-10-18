@@ -234,3 +234,25 @@ test('query marker and membership binding preserve exact source/rule and stage i
     }
   }
 });
+
+test('included archived targets use current source grants while containing parents must stay live', async () => {
+  const s = await setup();
+  const row = (await s.store.load(MODEL, asId('a')))!;
+  await s.store.commit(makeBatch(await s.store.readRevision(), { writes: [{ kind: 'update', model: MODEL,
+    id: row.id, expectedVersion: row.version, row: { ...row, archivedAt: FIXED_NOW, version: 2 as typeof row.version } }] }));
+  const defaultRead = await invokeRead({ ...s.dependencies, ...s.args });
+  assert.deepEqual(defaultRead.records.map(row => row.id), ['b']);
+  const included = await invokeReadPage({ ...s.dependencies, ...s.args, selection: { ...selection, archived: 'include' } });
+  assert.deepEqual(included.records.map(row => row.id), ['a', 'b']);
+  assert.equal(included.records[0]!.archivedAt, FIXED_NOW);
+  assert.equal(included.records[0]!.data.private_prompt, undefined);
+  s.sourceReadPolicies.set(MODEL, { ...s.current, grants: [{ fields: ['title'], read: async () => false }] });
+  assert.deepEqual((await invokeReadPage({ ...s.dependencies, ...s.args,
+    selection: { ...selection, archived: 'include' } })).records, []);
+  s.sourceReadPolicies.set(MODEL, s.current);
+  await s.store.commit(makeBatch(await s.store.readRevision(), { writes: [{ kind: 'update', model: PARENT,
+    id: s.parent.id, expectedVersion: s.parent.version,
+    row: { ...s.parent, archivedAt: FIXED_NOW, version: 2 as typeof s.parent.version } }] }));
+  await assert.rejects(invokeReadPage({ ...s.dependencies, ...s.args,
+    selection: { ...selection, archived: 'include' } }), refuses);
+});

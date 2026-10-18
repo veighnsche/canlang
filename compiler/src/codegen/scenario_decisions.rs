@@ -259,6 +259,29 @@ pub(super) fn find_page_root<'t>(
     None
 }
 
+/// Only transparent parentheses may wrap the original collection query.
+pub(super) fn collection_source_query(node: &SyntaxNode) -> Option<&SyntaxNode> {
+    let expression = |node: &&SyntaxNode| {
+        crate::analysis::resolve::is_expression(node.kind) || node.kind == SyntaxKind::Path
+    };
+    let mut sources = crate::analysis::kids(node).into_iter().filter(expression);
+    let mut source = sources.next()?;
+    if sources.next().is_some() {
+        return None;
+    }
+    for _ in 0..64 {
+        if source.kind != SyntaxKind::Group {
+            return (source.kind == SyntaxKind::Query).then_some(source);
+        }
+        let mut children = crate::analysis::kids(source).into_iter().filter(expression);
+        source = children.next()?;
+        if children.next().is_some() {
+            return None;
+        }
+    }
+    None
+}
+
 /// Bounded key search inside one sealed page subtree.
 pub(super) fn find_page_key<'t>(
     root: &'t SyntaxNode,
@@ -2336,9 +2359,7 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
                     kind: SyntaxKind::Collection as u8,
                 };
                 let source_ui = find_page_key(page_node, ui_key, &mut consumer.steps)?;
-                let query = crate::analysis::kids(source_ui)
-                    .into_iter()
-                    .find(|child| child.kind == SyntaxKind::Query)?;
+                let query = collection_source_query(source_ui)?;
                 let site = crate::analysis::scenario_disclosure::checked_read_predicate_site(
                     db,
                     trees,

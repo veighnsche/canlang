@@ -129,6 +129,7 @@ interface QueryObservation {
 
 /** Finite viewer collection mode; the host admits a supplied parent first. */
 export interface ViewerPageSelection {
+  readonly archived?: 'exclude' | 'include';
   readonly where?: QueryPredicate;
   readonly order?: ReadonlyArray<OrderTerm>;
   /** Source-declared fields, request-local text; evaluated after grant projection. */
@@ -177,6 +178,13 @@ export const VIEWER_PAGE_MAX_LIMIT = 100;
 
 /** Data-only canonical identity vocabulary; State constructs every tuple. */
 export type ViewerPageTuple = readonly (string | number | boolean | null | ViewerPageTuple)[];
+
+/** Archive mode changes the candidate domain, never current viewer grants. */
+export function queryArchiveMode(value: unknown): 'exclude' | 'include' {
+  if (value === undefined) return 'exclude';
+  if (value !== 'exclude' && value !== 'include') throw new StateError('validation', 'Archive selection must be include or exclude.');
+  return value;
+}
 
 /** Validate the source-owned search fields before using them in query identity or execution. */
 export function viewerPageSearchTuple(
@@ -1058,6 +1066,7 @@ async function runAuthorizedQuery(
   observation?: QueryObservation,
 ): Promise<AuthorizedSet> {
   // Capture installed declaration metadata before the first storage/Identity await.
+  const archived = queryArchiveMode(input.archived);
   const suppliedReads = (input as ViewerRecordsInput).sourceReadPolicies;
   if (suppliedReads !== undefined && (input.authority !== 'viewer' || eventual)) {
     throw new StateError('validation', 'Installed source policies require a current viewer query.');
@@ -1244,7 +1253,7 @@ async function runAuthorizedQuery(
     model: input.model,
     authority: input.authority,
     order: toStorageOrder(order),
-    ...(input.archived !== undefined ? { archived: input.archived } : {}),
+    archived,
     ...(page === undefined ? {} : {
       limit: VIEWER_PAGE_MAX_CANDIDATES + 1,
       ...(page.parent === undefined ? {} : { parent: page.parent }),
@@ -1255,6 +1264,19 @@ async function runAuthorizedQuery(
     record?: ProjectedRecord | null; decisions?: readonly InstalledSourceRowDecision[] }[] | undefined;
   let revalidateRowAuthority: (() => Promise<void>) | undefined;
   let predicateMatches: readonly boolean[] | undefined;
+  // One projection rule owns installed-source target/ancestor authority and
+  // the legacy grant path for every actual row in the observed domain.
+  const projectQueryRow = async (row: StoredRow, current: ByContext, cached: readonly boolean[],
+    selectedPolicy: InterimModelPolicy | null) => {
+    if (sourceReads !== undefined) {
+      sourceRows.set(`${input.model}\0${row.id}`, row);
+      return projectInstalledSourceRowAndAncestors({ model: input.model, row, readPolicies: sourceReads,
+        policy: input.policy, context: current, revision, fence: input.fence, store: input.store, rows: sourceRows, archived,
+        ...(observation?.ownerRows === undefined ? {} : { ownerRows: observation.ownerRows }) });
+    }
+    return selectedPolicy === null ? { allowed: [], grants: [] } :
+      viewerRowAuthority(selectedPolicy, current, cached, row);
+  };
   if (rowContext !== undefined) {
     const selectedPolicy = policy; let originalRows: readonly StoredRow[] | undefined;
     const authority = await observeRowGrantAuthority(rowContext, async current => {
@@ -1266,15 +1288,7 @@ async function runAuthorizedQuery(
       const observedRows = originalRows ??= observation?.domain === undefined ? await input.store.query(spec) : [...observation.domain];
       if (page !== undefined && observedRows.length > VIEWER_PAGE_MAX_CANDIDATES) throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
       const rows = [], matches: boolean[] = [];
-      for (const row of observedRows) {
-        if (sourceReads !== undefined) {
-          sourceRows.set(`${input.model}\0${row.id}`, row);
-          rows.push(await projectInstalledSourceRowAndAncestors({ model: input.model, row, readPolicies: sourceReads,
-            policy: input.policy, context: current, revision, fence: input.fence, store: input.store, rows: sourceRows,
-            ...(observation?.ownerRows === undefined ? {} : { ownerRows: observation.ownerRows }) }));
-        } else rows.push(selectedPolicy === null ? { allowed: [], grants: [] } :
-          await viewerRowAuthority(selectedPolicy, current, cached, row));
-      }
+      for (const row of observedRows) rows.push(await projectQueryRow(row, current, cached, selectedPolicy));
       if (coherentPredicate) for (const [index, row] of observedRows.entries()) {
         const authority = rows[index]!;
         const projected = 'record' in authority ? authority.record :
@@ -1449,12 +1463,13 @@ async function runPageQuery(input: ViewerPageQueryInput,
   if (typeof selection !== 'object' || selection === null || Array.isArray(selection)) {
     throw new StateError('validation', 'Invalid page selection.');
   }
-  if (Object.keys(selection).some(key => !['where', 'order', 'search', 'includeCount', 'limit', 'parent', 'continuation'].includes(key))) {
+  if (Object.keys(selection).some(key => !['where', 'order', 'search', 'includeCount', 'limit', 'parent', 'continuation', 'archived'].includes(key))) {
     throw new StateError('validation', 'Unknown page selection field.');
   }
   if (selection.includeCount !== undefined && selection.includeCount !== true) {
     throw new StateError('validation', 'Invalid page count request.');
   }
+  const archived = queryArchiveMode(selection.archived);
   const search = selection.search;
   viewerPageSearchTuple(search, input.modelDescriptor);
   const limit = selection.limit ?? VIEWER_PAGE_DEFAULT_LIMIT;
@@ -1489,7 +1504,7 @@ async function runPageQuery(input: ViewerPageQueryInput,
     throw new StateError('validation', 'Invalid admitted page parent.');
   }
   const set = await runAuthorizedQuery({
-    ...input, order, archived: 'exclude',
+    ...input, order, archived,
     ...(selection.where === undefined ? {} : { where: selection.where }),
   }, search?.fields, false, predicate, {
     ...(selection.parent === undefined ? {} : { parent: selection.parent }),

@@ -1,5 +1,9 @@
 # Living ideal file-tree plan for Canlang
 
+**Committed-main development intake, 2026-10-18:**
+
+Account for all54 incoming paths from the retained `69eede1e8` intake through `a28335e6b`: Compiler owns native query/filter/IR correspondence and tests; State/Contracts/UI own authorized query and presentation changes; Cloudflare owns hook/runtime delivery, preparation module/job/host/protocol/CLI and existing bundle adapters. Native preparation build/verify scripts, crate manifests, tests and conformance workloads retain their existing owners. Reuse main's recorded accepted source/module/CLI/integrity and installed macOS/Linux coverage, plus its decisions and Rust-port/compiler planning records. Dev changes retain their bounded native/runtime/distribution ownership above. No new package or backend default is introduced. Active foreign main inputs are excluded; the complete historical checkpoint stays unchanged.
+
 **Native manual parity and packaging, 2026-10-18:** development owns the new Rust
 `service.rs` retained projections and owner command jobs; existing CLI/foreground
 modules consume that policy. Cloudflare owns captured construct/example helpers,
@@ -68,6 +72,63 @@ the held complete checkpoint; this bounded merge is not a whole-tree audit.
 > explicit user decisions take precedence. Historical checkpoints, accepted
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
+
+**Native CLI and executable-integrity integration, 2026-10-18:** the existing
+Cloudflare CLI/preparation/protocol, owning tests/conformance and package-local
+scripts retain their owners. Explicit selection, exact-file prelaunch integrity,
+strict readiness, original diagnostic/cancellation order, bounded session cleanup
+and reviewed local publication join the genuine native job. Build scripts consume
+the actual Cargo artifact; workspace commands and existing recursive dist inventory
+supply distribution without a second metadata framework. The current profile is
+JS-only, retains TS parser/build/library owners, and leaves broader P05 and adoption
+measurements partial. Reuse final Darwin installed9/TS9, native mocked apply and
+same-data TS rollback; the Linux wrong-architecture pipe finding is repaired under
+052; the genuine Linux installed build and affected wrong-architecture refusal
+pass (444/481ms), reusing other accepted controls. Packaging provenance names
+the actual accepted crate; no caller needs Rust/Cargo. This nine-source/five-doc intake
+preserves all newer compiler/runtime/Work history since f411ad9d8 and foreign notes;
+existing owner/target allocations, accumulated coverage and complete stale checkpoint
+remain unchanged. No public/default/retirement gate closes from this integration.
+
+**Native module-facts source integration, 2026-10-18:** accept the released
+preparation job/facts decoder, matching host frontend/payload and owning tests at
+their existing Cloudflare owner. Independent wire/Unicode/error-order review
+repairs facts loss, escaped spans and ordinary TS frontend-error propagation.
+The exact released source passes the current complexity policy without exceptions.
+Reuse facts24/vectors23/inputs17 and the actual encoder-to-job native9 comparison;
+focused frontend-error regression covers the final TS repair. The same Rust source
+also builds with pinned1.99 on Linux x64 and runs the retained build job from a
+private installation without Rust/Cargo at runtime. This is producer/job evidence,
+not completed installed CLI qualification. Existing TS builder policy checkpoints
+remain; broader P05 and native CLI/integrity/confirmed mocked apply/installed
+criteria stay open. Since b9243c59 this bounded source/docs intake changes no
+compiler/runtime/Work owner or target; preserve foreign changes, accumulated
+coverage, complete stale checkpoint and public/default/retirement holds.
+
+**Native module frontend boundary, 2026-10-18:** decision025 retains the
+existing Cloudflare host-library parser/scope owner and sends minimal exact-source
+facts through LOAD_MODULES to Rust policy. No new package/parser dependency or
+compiler owner is introduced. The three saved JEV requests/results and assessment
+under `docs/design/jev/native-module-boundary-20261018/` support the bounded
+choice; source integration/CLI acceptance remain open. P05 native syntax/module-construction scope
+stays partial and P11 records the retained frontend and existing TS builder
+policy checkpoints (refinement031); Rust job-side checks do not certify sole
+native module-policy ownership. This adds bounded design
+coverage only; complete checkpoint/stale notice and public/default/retirement
+holds remain unchanged.
+
+**Compiler-batch worktree intake and native release alignment, 2026-10-18:**
+This existing Rust checkout consumes committed main49cb90ab1, preserving all15
+native dirty files byte/mode-exactly. Reuse retained defining-owner coverage for
+all68 incoming paths since aff748d56: compiler/filter/query/hook/archive/board,
+Contracts/Interfaces/State/UI/Work/runtime, dev plans and complexity tooling.
+Native preparation ownership remains unchanged. Accepted `c105bf2c4` changes
+only five crate release/lock/fixture files to the owning0.1.1 stamp; source/fixture
+roles, drift cases and dependency checksums retain their contracts. Reuse affected
+release5/vectors22 and native9/9 evidence at its frozen producer scope. Hot CLI/
+integrity/scanner/publication work and the next compiler batch remain separate.
+This updates bounded coverage only; retain the complete checkpoint/stale notice,
+foreign notes, original native parents and public/default/retirement holds.
 
 **Native module/plan source intake, 2026-10-18:** `6fb752375` changes only
 13 preparation crate/job, matching TS host/payload and owning test files. Existing
@@ -1462,3 +1523,15 @@ Since98dcb20b1, reviewed Compiler Board property/occurrence emission and source
 marker tests, Contracts BoardProps and the existing Cloudflare owner-page HTTP
 consumer. Reuse the UI/query/cursor owners unchanged; actual compiled pagination
 and scoped marker controls pass. No new owner or complete-checkpoint advance.
+
+### 2026-10-18 — native archive, grouped source and hook event intake
+
+Reviewed every changed production/test path in the finite archive/grouped-query
+and hook-emission batch since3bb610962, with concurrent unrelated integrations
+retaining their own coverage. Compiler owns checked clause/source/pure-count
+joins; Contracts/UI forward finite selection; State owns current grants,
+containment, bounds and atomic finalization; Cloudflare reuses native source
+binding and Work event routing. Actual compiled consumers and focused checks
+pass as recorded in the current execution view. No new package/owner or complete
+historical checkpoint advance. Guarded SEND, staged hook references, inline
+preferences and the whole original composition remain open; Muse stays stopped.

@@ -237,11 +237,8 @@ pub(super) fn prepare_with_context(
                     },
                     &mut seal_steps,
                 )?;
-                let mut queries = kids(collection)
-                    .into_iter()
-                    .filter(|n| n.kind == SyntaxKind::Query);
-                let query = queries.next()?;
-                if queries.next().is_some() || !contains(collection.span, query.span) {
+                let query = super::scenario_decisions::collection_source_query(collection)?;
+                if !contains(collection.span, query.span) {
                     return None;
                 }
                 let checked = original.types.checked_queries.get(&NodeKey::of(query))?;

@@ -794,6 +794,131 @@ fn loadable_exports_word() {
     assert_eq!(got, Ok(()), "exports-word");
 }
 
+/// Declared `exports`/`module`/`require` bindings are module-local,
+/// not CommonJS free references (oracle scope rule): the recovery
+/// planner's `const exports = new WebAssembly.Instance(…).exports`
+/// must pass the gate.
+#[test]
+fn loadable_declared_exports_const() {
+    let modules: Vec<(Vec<u16>, Vec<u16>)> = vec![(
+        "a.js".encode_utf16().collect::<Vec<_>>(),
+        "const exports = {};\nexports.foo = 1;\n"
+            .encode_utf16()
+            .collect::<Vec<_>>(),
+    )];
+    let refs: Vec<(&[u16], &[u16])> = modules
+        .iter()
+        .map(|(k, v)| (k.as_slice(), v.as_slice()))
+        .collect();
+    let got = assert_workerd_loadable(&refs).map_err(|e| e.message);
+    assert_eq!(got, Ok(()), "declared-exports-const");
+}
+
+#[test]
+fn loadable_declared_exports_param() {
+    let modules: Vec<(Vec<u16>, Vec<u16>)> = vec![(
+        "a.js".encode_utf16().collect::<Vec<_>>(),
+        "function f(exports) {\n  return exports;\n}\n"
+            .encode_utf16()
+            .collect::<Vec<_>>(),
+    )];
+    let refs: Vec<(&[u16], &[u16])> = modules
+        .iter()
+        .map(|(k, v)| (k.as_slice(), v.as_slice()))
+        .collect();
+    let got = assert_workerd_loadable(&refs).map_err(|e| e.message);
+    assert_eq!(got, Ok(()), "declared-exports-param");
+}
+
+#[test]
+fn loadable_declared_module_let() {
+    let modules: Vec<(Vec<u16>, Vec<u16>)> = vec![(
+        "a.js".encode_utf16().collect::<Vec<_>>(),
+        "let module = {};\nmodule.exports = 1;\n"
+            .encode_utf16()
+            .collect::<Vec<_>>(),
+    )];
+    let refs: Vec<(&[u16], &[u16])> = modules
+        .iter()
+        .map(|(k, v)| (k.as_slice(), v.as_slice()))
+        .collect();
+    let got = assert_workerd_loadable(&refs).map_err(|e| e.message);
+    assert_eq!(got, Ok(()), "declared-module-let");
+}
+
+#[test]
+fn loadable_declared_require_shadow() {
+    let modules: Vec<(Vec<u16>, Vec<u16>)> = vec![(
+        "a.js".encode_utf16().collect::<Vec<_>>(),
+        "function require(name) {\n  return name;\n}\nrequire(\"y\");\n"
+            .encode_utf16()
+            .collect::<Vec<_>>(),
+    )];
+    let refs: Vec<(&[u16], &[u16])> = modules
+        .iter()
+        .map(|(k, v)| (k.as_slice(), v.as_slice()))
+        .collect();
+    let got = assert_workerd_loadable(&refs).map_err(|e| e.message);
+    assert_eq!(got, Ok(()), "declared-require-shadow");
+}
+
+/// Quotes/backticks inside regex literals must not derail blanking:
+/// the regex body blanks (never a false issue) and later template
+/// statics still blank (the http-operations `/api/exports/…` case).
+/// A genuine free use after the regex still refuses at its exact
+/// offset: catastrophic swallowing would hide it.
+#[test]
+fn loadable_regex_body_blanked() {
+    let modules: Vec<(Vec<u16>, Vec<u16>)> = vec![(
+        "a.js".encode_utf16().collect::<Vec<_>>(),
+        "const re = /^[!#$&'()*+\\-.\\/0-9]*$/;\nconst url = `${origin}/api/exports/download`;\nexports.foo = 1;\n"
+            .encode_utf16()
+            .collect::<Vec<_>>(),
+    )];
+    let refs: Vec<(&[u16], &[u16])> = modules
+        .iter()
+        .map(|(k, v)| (k.as_slice(), v.as_slice()))
+        .collect();
+    let got = assert_workerd_loadable(&refs).map_err(|e| e.message);
+    assert_eq!(got, Err("deploy bundle: module \"a.js\" is not workerd-loadable: CommonJS free exports at offset 83".to_string()), "regex-body-blanked");
+}
+
+/// Division never blanks: the free `exports` after `a / 2` still
+/// refuses.
+#[test]
+fn loadable_division_not_regex() {
+    let modules: Vec<(Vec<u16>, Vec<u16>)> = vec![(
+        "a.js".encode_utf16().collect::<Vec<_>>(),
+        "const q = a / 2;\nexports.foo = 1;\n"
+            .encode_utf16()
+            .collect::<Vec<_>>(),
+    )];
+    let refs: Vec<(&[u16], &[u16])> = modules
+        .iter()
+        .map(|(k, v)| (k.as_slice(), v.as_slice()))
+        .collect();
+    let got = assert_workerd_loadable(&refs).map_err(|e| e.message);
+    assert_eq!(got, Err("deploy bundle: module \"a.js\" is not workerd-loadable: CommonJS free exports at offset 17".to_string()), "division-not-regex");
+}
+
+/// For-head value expressions never declare: the free `require`
+/// still refuses.
+#[test]
+fn loadable_for_head_value_still_flags() {
+    let modules: Vec<(Vec<u16>, Vec<u16>)> = vec![(
+        "a.js".encode_utf16().collect::<Vec<_>>(),
+        "for (const x of require(\"y\")) {\n}\n"
+            .encode_utf16()
+            .collect::<Vec<_>>(),
+    )];
+    let refs: Vec<(&[u16], &[u16])> = modules
+        .iter()
+        .map(|(k, v)| (k.as_slice(), v.as_slice()))
+        .collect();
+    let got = assert_workerd_loadable(&refs).map_err(|e| e.message);
+    assert_eq!(got, Err("deploy bundle: module \"a.js\" is not workerd-loadable: bare require( call at offset 16".to_string()), "for-head-value");
+}
+
 #[test]
 fn loadable_stdlib_guard() {
     let modules: Vec<(Vec<u16>, Vec<u16>)> = vec![(

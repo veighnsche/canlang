@@ -34,12 +34,16 @@ Then
   require members
   board Entry by=state columns=name empty="No entries yet."
    pagination
+ page /filtered title="Filtered"
+  require members
+  list ((Entry as item where item.name=="cedar private entry 1")) columns=name
+  table (Entry as item where item.name=="cedar private entry 2") columns=name
 `);
     const artifact = JSON.parse(execFileSync(process.env['CAN_COMPILER_BIN'] ?? resolve('compiler/target/debug/can'),
-      ['compile', '--format=json', '--catalog=packages/values/dist/catalog.json', path],
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog=packages/values/dist/catalog.json', path],
       { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })) as CompileArtifact;
     const asm = await assembleModules({ artifact, sourcePath: path }, { workDir: join(dir, 'modules'),
-      stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
+      stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib') });
     const identities = createMemoryIdentityStore({ clock: { nowMs: () => FIXED_NOW } });
     const owners = await Promise.all(['cedar', 'oak'].map(async name => {
       const team = await identities.createTeam({ timezone: 'UTC' });
@@ -110,6 +114,10 @@ Then
     const boardRefused = await page(oak, boardHref, 409);
     assert.equal(JSON.parse(boardRefused).code, 'conflict');
     assert.doesNotMatch(boardRefused, /cedar private entry|oak private entry/);
+    const filtered = await page(cedar, '/filtered');
+    assert.equal((filtered.match(/<li class="list-row">/g) ?? []).length, 1);
+    assert.deepEqual(new Set(names(filtered)), new Set(['cedar private entry 1', 'cedar private entry 2']));
+    assert.doesNotMatch(filtered, /oak private entry/);
     const other = await page(oak);
     assert.match(other, /oak private entry 1/);
     assert.doesNotMatch(other, /cedar private entry/);

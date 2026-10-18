@@ -258,6 +258,42 @@ malformed-marker controls; Contracts/UI/Cloudflare emit passes. One actual HTTP
 failure exposed the missing Board occurrence, then only that case was retried
 after correction. No new runtime/query mechanism or original24 recount.
 
+### Archive, grouped collection source and native hook EMIT — 2026-10-18
+
+Accepted on main: all six recorded `archived=include` List/Table shapes now keep
+the checked clause and use the same current viewer grants, complete scan bounds,
+source-WHERE-before-controls order and mode-bound continuation. Archived parents
+stay unavailable. Same-spelled declared business fields shadow archive metadata.
+The existing actual compiled HTTP archive consumer passes1/1 (27→25+2,
+overflow, denied source operand, owner isolation and field-shadow controls);
+affected State selection/source-policy/scope checks46/46 and TS emits pass.
+
+Grouped stored collection headers now preserve alias/WHERE in IR and both
+original-source collectors. The existing owner-page actual compiled HTTP test
+passes1/1 with nested grouped list/table predicates plus retained List/Board
+continuation and foreign-owner refusal. The harness uses the production native
+emission/facade; explicit UI injection had bypassed that facade. Focused archive
+compiler pin1/1 passes. These changes do not admit arbitrary value-array tables.
+
+Original Employee.changed → EmployeeChanged → original Shift.employee_changed
+passes actual compiled D1 delivery1/1: guarded zero-net changes, immutable payload,
+late commit rollback, source/handler replay and forged producer refusal. Its
+retained Roster COUNT rule is admitted through exact original model/pure-call
+ownership. Existing original Maintain trusted emission1/1 and focused policy1/1
+pass. The same State finalizer stages domain and source writes atomically. The
+separate Maintain newly staged Cancellation-reference gap stays open; ordinary
+raw IDs do not become native references. Guarded SEND remains unfinished.
+
+Review covers every changed source/test in this finite batch, including archive
+Contracts/UI/State/host adapters, compiler lowering/source joins/count profile,
+and existing executable consumers. No whole-composition success is claimed.
+Repeated checks addressed two initial Rust setup failures, real source-binding
+and harness-facade failures, a count-model binding failure and Employee producer
+provenance/current-reference expectations. Unchanged checks were reused.
+The in-flight full24 capture's binary path was accidentally replaced during
+capture; it is provisional and will not advance accepted qualification. Recount
+once against the next released immutable producer rather than claim that run.
+
 ### Observed repeated work — command-log snapshot
 
 Counts below distinguish command invocations from actual rebuilds/cases. Prior

@@ -433,10 +433,10 @@ test('descriptor read inputs still validate closed shape and then refuse unsuppo
   assert.equal(world.scans.length, 0);
 });
 
-test('selection cannot override viewer authority, bound dependencies, archive mode or fences', async () => {
+test('selection archive mode cannot override viewer authority, bound dependencies or fences', async () => {
   const world = await setup();
   const selection = {
-    where: { op: 'gte', field: 'score', value: 20 }, limit: 1,
+    where: { op: 'gte', field: 'score', value: 20 }, limit: 2,
     authority: 'owner', model: 'Example.Other', archived: 'include',
     context: { actorUserId: null, teamId: null }, memberships: null,
     store: { query() { throw new Error('forged store used'); } },
@@ -444,11 +444,11 @@ test('selection cannot override viewer authority, bound dependencies, archive mo
     order: [{ field: 'score', direction: 'desc' }],
   } as unknown as ReadSelection;
   const served = await world.reader({ ...world.args, selection });
-  assert.deepEqual(served.records.map((record) => record.data), [{ title: 'Second', score: 20 }]);
+  assert.deepEqual(served.records.map((record) => record.data), [{ title: 'Archived', score: 30 }, { title: 'Second', score: 20 }]);
   assert.equal(world.scans.length, 1);
   assert.equal(world.scans[0]!.model, model);
   assert.equal(world.scans[0]!.authority, 'viewer');
-  assert.equal(world.scans[0]!.archived, 'exclude');
+  assert.equal(world.scans[0]!.archived, 'include');
 });
 
 
@@ -638,4 +638,29 @@ test('checked model declarations order numeric and temporal wire values through 
   } }));
   assert.equal(currency.code, 'validation');
   assert.match(currency.message, /matching currencies/);
+});
+
+test('archive selections retain viewer fields and bind the finite page definition', async () => {
+  const world = await setup();
+  const ordinary = await invokeRead({ ...world, ...world.args, selection: { archived: 'include' } });
+  assert.deepEqual(ordinary.records.map(row => row.id), ['a', 'b', 'c']);
+  assert.equal(ordinary.records[2]!.archivedAt, 1);
+  assert.deepEqual(ordinary.records[2]!.data, { title: 'Archived', score: 30 });
+  const reader = createReadPageInvoker(world);
+  const excluded = await reader({ ...world.args, selection: { limit: 1 } });
+  const included = await reader({ ...world.args, selection: { archived: 'include', limit: 1 } });
+  assert.notDeepEqual(included.queryDefinition, excluded.queryDefinition);
+  const tail = await reader({ ...world.args, selection: { archived: 'include',
+    continuation: included.continuation!, includeCount: true } });
+  assert.deepEqual(tail.records.map(row => row.id), ['b', 'c']);
+  assert.equal(tail.totalCount, 3);
+  for (const archived of ['only', true, null]) {
+    const selection = { archived } as unknown as ReadSelection;
+    assert.equal((await captureStateError(invokeRead({ ...world, ...world.args, selection }))).code, 'validation');
+    assert.equal((await captureStateError(reader({ ...world.args, selection }))).code, 'validation');
+  }
+  assert.equal((await captureStateError(reader({ ...world.args, selection: { archived: 'include' } }, async () => {
+    await world.memberships.removeMembership(world.alice.membership.membership_id);
+    return 'signed-before-revocation';
+  }))).code, 'forbidden');
 });
