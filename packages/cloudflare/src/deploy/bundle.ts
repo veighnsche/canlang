@@ -157,6 +157,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "r2-files.js",
   "worker-files.js",
   "bound-files.js",
+  "bound-mail.js",
   "resource-host.js",
   "queue-runtime.js",
   "queue-file-retention.js",
