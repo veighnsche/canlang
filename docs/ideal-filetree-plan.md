@@ -7,6 +7,16 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Native module frontend boundary, 2026-10-18:** decision025 retains the
+existing Cloudflare host-library parser/scope owner and sends minimal exact-source
+facts through LOAD_MODULES to Rust policy. No new package/parser dependency or
+compiler owner is introduced. The three saved JEV requests/results and assessment
+under `docs/design/jev/native-module-boundary-20261018/` support the bounded
+choice; source integration/CLI acceptance remain open. P05 native syntax scope
+stays partial and P11 records the retained frontend. This adds bounded design
+coverage only; complete checkpoint/stale notice and public/default/retirement
+holds remain unchanged.
+
 **Compiler-batch worktree intake and native release alignment, 2026-10-18:**
 This existing Rust checkout consumes committed main49cb90ab1, preserving all15
 native dirty files byte/mode-exactly. Reuse retained defining-owner coverage for

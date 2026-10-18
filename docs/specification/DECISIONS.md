@@ -19196,3 +19196,26 @@ target/build lane after release, Muse owns Darwin. No host output is inferred
 from availability. Current scanner/host/integrity findings stay explicit and
 under repair. Public deployment/default changes/TS retirement and the complete
 living-plan checkpoint remain held.
+
+
+## 2026-10-18 — retain the module owner frontend for native CLI policy
+
+Accept decision025: reuse the current Acorn2025/eslint-scope/import-lexer owner
+for exact module syntax and lexical facts; Rust consumes the minimal structured
+facts with the original module key/string and preserves bounded admission,
+diagnostic ordering, link/graph and stage policy. The incomplete handwritten
+scope recognizer cannot substitute current JavaScript semantics. No native-error
+TS retry, broad validity Boolean, new parser dependency or generic AST framework
+is selected. Ordinary TS and explicit native retain one frontend implementation;
+build does not acquire deploy-only module gates.
+
+Three independently worded JEV Choice consultations favor owner facts with
+probabilities .98/.94/.97; retain their uncertainty and complete requests/results
+in [the decision record](../design/jev/native-module-boundary-20261018/README.md).
+This is advice supporting the verified source comparison, not permission or a
+parity proof. No disagreement required further investigation. A native parser
+library remains unverified and optional. P05's native syntax port stays partial;
+P11 must explicitly disclose retained host libraries. Changed source and actual
+CLI/installed consumer acceptance remain open. Continue independent integrity,
+lifetime and publication repairs. Public deployment/defaults/TS retirement and
+the complete filetree checkpoint remain held.
