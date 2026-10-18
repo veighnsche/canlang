@@ -1983,3 +1983,14 @@ Changed MAIN locked/offline CLI14.18s, State/DO7.22s, Work1.84s, Cloudflare4.98s
 Preserve only three outstanding invoke hunks: exact live child parent/call/session/loaded/assembly/artifact/store +State assertCall checks around SEND; original TextGeneration typed guarded target beside Email; opaque occurrence header forwarding. Retain main's newer empty-original-read-grant admission and all newer formatting/comments/current337 header. Preserve two older branch-only native-generation-profile and native-ui-query controls against their identical current source/fixture prerequisites as checkpoints, without new behavior acceptance. Compiler628/source successor and Work409 ten paths were already preserved in main and are not recopied. Do not wholesale-import1470 branch commits or reverse newer primary source.
 
 Changed main checks: Cloudflare0/5.26s, root types0/5.75s, package boundaries0/3.16s. Original/native/business acceptance is NOT inferred; no new native retry or service call. Owning earlier controls and prior accepted source scopes reused.
+
+
+Wind-down integration result (2026-10-18): released9074929be merged into
+main83733736d with the stopped runtime work preserved. Integrated startup exposed
+one missing portable module: fixed by staging `bound-mail.js` alongside its
+`invoke.js` importer. Actual290-module closure and checksum-installed repaired
+archive pass. Isolated ModelFreePreview serving7.248479s, owner/control0.066906417s,
+authenticated HTTP0.022462625s, confirmed stop0.176525958s. Public41/41 and final
+Linux native133/installed23 remain accepted at their recorded907 tuple; no broad
+runtime-suite claim. All dev owner commands/writers stopped. Other branches'
+later changes retain their own validation scopes. No new implementation intake.

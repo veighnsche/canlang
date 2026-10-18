@@ -19927,3 +19927,13 @@ mail slot restrictions, native reference checks and original schema support.
 Other disjoint extractions integrate normally. Metric counts from the branch
 are historical, not a claim about this combined tree. Rust closeout remains
 separate and active; no new cleanup work is started.
+
+
+### Include the new mail runtime dependency in portable bundles (2026-10-18)
+
+The integrated `invoke.js` imports `bound-mail.js`; add that exact workerd-safe
+module to the existing pinned deployment inventory. The real290-module closure
+and checksum-installed startup, authenticated HTTP and confirmed stop pass at
+83733736d plus this repair. Keep older timing tuples historical; current serving
+is7.248479s, owner/control0.066906417s, HTTP0.022462625s and stop0.176525958s.
+The unrelated pending Rust/complexity scopes are not qualified by this result.

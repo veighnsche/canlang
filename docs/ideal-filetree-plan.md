@@ -1,5 +1,13 @@
 # Living ideal file-tree plan for Canlang
 
+**Installed bundle integration repair, 2026-10-18:** Deployment owns the one-line
+portable runtime inventory addition for `bound-mail.js`, now consumed by runtime
+`invoke.js`. Reuse the actual290-module bundle closure and checksum-installed
+83733736d-plus-repair startup/authenticated-HTTP/confirmed-stop checks. Final
+isolated serving7.248479s, owner/control0.066906417s and stop0.176525958s are
+measured at that tuple; they do not qualify other later branch changes. No new
+owner or protocol is introduced; historical complete coverage stays unchanged.
+
 **TypeScript complexity wind-down merge, 2026-10-18:** account incrementally for
 the released branch through3ac71ab6e. Existing Compiler/State/Work/Cloudflare,
 Interfaces/UI, Values, Files, Services, Testkit and editor owners retain private
