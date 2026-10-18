@@ -12,6 +12,8 @@ import { normalizeSchema, parseTypeId, printTypeId, validateValue, type Normaliz
 import { deepFreeze } from '../internal/own-data.js';
 import type {
   CanTypeId,
+  CanonicalFieldDef,
+  CanonicalFieldDefault,
   CanonicalModelDescriptor,
   FieldMachine,
   DeleteMode,
@@ -465,26 +467,79 @@ export interface ModelTableOptions {
   readonly valueSchema?: NormalizedSchema;
 }
 
+type ParsedTypeId = ReturnType<typeof parseTypeId>;
+
+function isScalarValueTypeClaim(field: InterimFieldDef): boolean {
+  // HEAD reads field.valueType twice, short-circuited: the regex read runs
+  // only when the literal check fails. A single hoisted read would change
+  // accessor-observed read counts.
+  return field.valueType === 'file[]!' ||
+    /^(int|datetime|text|bool|decimal|money|date|duration|currency|email|timezone|url|user|file)(\[\])?\??$/.test(field.valueType!);
+}
+
+function isNominalValueTypeClaim(parsed: ParsedTypeId, schema: NormalizedSchema | undefined): boolean {
+  return schema !== undefined && parsed.base.kind === 'nominal' &&
+    (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path) ||
+      schema.aliases !== undefined && Object.hasOwn(schema.aliases, parsed.base.path));
+}
+
+function isValueTypeClaimValid(
+  field: InterimFieldDef, parsed: ParsedTypeId, schema: NormalizedSchema | undefined, modelNames: ReadonlySet<string>,
+): boolean {
+  const scalar = isScalarValueTypeClaim(field);
+  const nominal = isNominalValueTypeClaim(parsed, schema);
+  const reference = parsed.base.kind === 'nominal' && modelNames.has(parsed.base.path);
+  if (reference && nominal) throw new Error('Model and value declaration namespaces overlap.');
+  const enumeration = parsed.base.kind === 'enum' && !parsed.requiredArray;
+  return (scalar || nominal || reference || enumeration) && printTypeId(parsed) === field.valueType &&
+    parsed.array === (field.array !== undefined) &&
+    (!(nominal || reference || parsed.base.kind === 'file') || parsed.requiredArray === (field.array?.required === true)) &&
+    (!Object.hasOwn(field, 'nullable') || typeof field.nullable === 'boolean' && parsed.nullable === field.nullable);
+}
+
 function checkModelValueType(field: InterimFieldDef, name: string, model: string, modelNames: ReadonlySet<string>, schema?: NormalizedSchema): void {
   if (!Object.hasOwn(field, 'valueType')) return;
   let valid = false;
   if (typeof field.valueType === 'string') {
     try {
-      const parsed = parseTypeId(field.valueType);
-      const scalar = field.valueType === 'file[]!' || /^(int|datetime|text|bool|decimal|money|date|duration|currency|email|timezone|url|user|file)(\[\])?\??$/.test(field.valueType);
-      const nominal = schema !== undefined && parsed.base.kind === 'nominal' &&
-        (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path) ||
-          schema.aliases !== undefined && Object.hasOwn(schema.aliases, parsed.base.path));
-      const reference = parsed.base.kind === 'nominal' && modelNames.has(parsed.base.path);
-      if (reference && nominal) throw new Error('Model and value declaration namespaces overlap.');
-      const enumeration = parsed.base.kind === 'enum' && !parsed.requiredArray;
-      valid = (scalar || nominal || reference || enumeration) && printTypeId(parsed) === field.valueType &&
-        parsed.array === (field.array !== undefined) &&
-        (!(nominal || reference || parsed.base.kind === 'file') || parsed.requiredArray === (field.array?.required === true)) &&
-        (!Object.hasOwn(field, 'nullable') || typeof field.nullable === 'boolean' && parsed.nullable === field.nullable);
+      valid = isValueTypeClaimValid(field, parseTypeId(field.valueType), schema, modelNames);
     } catch { /* The single descriptive error below owns malformed claims. */ }
   }
   if (!valid) throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: checked scalar/nominal/enum profile must agree with array/nullable markers.`);
+}
+
+// Only the exact owning alias supplies the receiving field's scalar
+// profile and declared bounds. Other nominal names retain their refusals.
+function checkConstraintContract(
+  field: Pick<InterimFieldDef, 'valueType' | 'trim' | 'min' | 'max'>,
+  parsed: ParsedTypeId,
+  schema: NormalizedSchema | undefined,
+  descriptorType: string,
+  name: string,
+) {
+  const alias = parsed.base.kind === 'nominal' && schema?.aliases !== undefined &&
+    Object.hasOwn(schema.aliases, parsed.base.path) ? schema.aliases[parsed.base.path] : undefined;
+  const checked = normalizeSchema({
+    ...(alias === undefined || parsed.base.kind !== 'nominal' ? {} : { aliases: {
+      [parsed.base.path]: { type: alias.typeId, min: alias.lengthMin, max: alias.lengthMax, format: alias.format },
+    } }),
+    contracts: { [name]: { fields: { value: {
+    type: descriptorType,
+    ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
+    ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
+    ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
+  } } } } });
+  return checked.contracts[name]!.fields['value']!;
+}
+
+function freshContractName(schema: NormalizedSchema | undefined, name: string): string {
+  let contractName = name;
+  while (schema !== undefined && (
+    Object.hasOwn(schema.contracts, contractName) ||
+    Object.hasOwn(schema.enums, contractName) ||
+    (schema.aliases !== undefined && Object.hasOwn(schema.aliases, contractName))
+  )) contractName += '_';
+  return contractName;
 }
 
 /** Reuse Values' checked field descriptor for both load-time claims and write-time values. */
@@ -504,27 +559,8 @@ export function modelFieldConstraintSchema(field: Pick<InterimFieldDef, 'valueTy
   // nominal type is restored for actual value traversal below.
   const descriptorType = parsed.array && parsed.base.kind === 'nominal' ? 'text[]' : field.valueType;
   const name = '_CanModelConstraint';
-  // Only the exact owning alias supplies the receiving field's scalar
-  // profile and declared bounds. Other nominal names retain their refusals.
-  const alias = parsed.base.kind === 'nominal' && schema?.aliases !== undefined &&
-    Object.hasOwn(schema.aliases, parsed.base.path) ? schema.aliases[parsed.base.path] : undefined;
-  const checked = normalizeSchema({
-    ...(alias === undefined || parsed.base.kind !== 'nominal' ? {} : { aliases: {
-      [parsed.base.path]: { type: alias.typeId, min: alias.lengthMin, max: alias.lengthMax, format: alias.format },
-    } }),
-    contracts: { [name]: { fields: { value: {
-    type: descriptorType,
-    ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
-    ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
-    ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
-  } } } } });
-  const normalized = checked.contracts[name]!.fields['value']!;
-  let contractName = name;
-  while (schema !== undefined && (
-    Object.hasOwn(schema.contracts, contractName) ||
-    Object.hasOwn(schema.enums, contractName) ||
-    (schema.aliases !== undefined && Object.hasOwn(schema.aliases, contractName))
-  )) contractName += '_';
+  const normalized = checkConstraintContract(field, parsed, schema, descriptorType, name);
+  const contractName = freshContractName(schema, name);
   const actual = parsed.base.kind === 'nominal' ? {
     ...normalized, type: parsed, typeId: field.valueType,
   } : normalized;
@@ -534,6 +570,609 @@ export function modelFieldConstraintSchema(field: Pick<InterimFieldDef, 'valueTy
     enums: schema?.enums ?? {}, operations: schema?.operations ?? {},
     ...(schema?.aliases === undefined ? {} : { aliases: schema.aliases }),
   } };
+}
+
+/** Shared per-model validation state for one `buildModelTable` definition. */
+interface ModelDefCheck {
+  readonly def: InterimModelDef;
+  readonly model: string;
+  readonly modelNames: ReadonlySet<string>;
+  readonly opts: ModelTableOptions;
+  readonly valueSchema: NormalizedSchema | undefined;
+}
+
+function checkModelDefHead(def: InterimModelDef, table: Map<ModelName, InterimModelDef>): string {
+  if (typeof def.model !== 'string' || def.model === '') {
+    throw new Error('Invalid model def: model names are non-empty strings.');
+  }
+  const model = def.model as string;
+  if (table.has(def.model)) {
+    throw new Error(`Duplicate model def: ${JSON.stringify(model)}`);
+  }
+  if (typeof def.fields !== 'object' || def.fields === null || Array.isArray(def.fields)) {
+    throw new Error(`Invalid model ${JSON.stringify(model)}: fields must be an object.`);
+  }
+  return model;
+}
+
+function checkFieldArrayMarker(field: InterimFieldDef, name: string, model: string): void {
+  if (field.array === undefined) return;
+  const marker = field.array;
+  if (
+    typeof marker !== 'object' ||
+    marker === null ||
+    Array.isArray(marker) ||
+    typeof marker.required !== 'boolean'
+  ) {
+    throw new Error(
+      `Invalid array marker for field ${JSON.stringify(name)} on model ` +
+        `${JSON.stringify(model)}: array markers carry a boolean required.`,
+    );
+  }
+}
+
+function checkFieldDefault(field: InterimFieldDef, name: string, model: string): void {
+  if (field.default === undefined) return;
+  if (isParentPathDefault(field.default)) {
+    checkDotPath(field.default.parentPath, `default parentPath for ${JSON.stringify(name)}`);
+    return;
+  }
+  try {
+    structuredClone(field.default);
+  } catch {
+    throw new Error(
+      `Invalid default for field ${JSON.stringify(name)} on model ` +
+        `${JSON.stringify(model)}: defaults must be serializable data.`,
+    );
+  }
+}
+
+function checkFieldMachineGate(field: InterimFieldDef, name: string): void {
+  if (field.machine === undefined) return;
+  const machine = checkFieldMachine(field.machine);
+  if (field.required || field.serverOnly || field.array !== undefined || field.nullable === true ||
+      field.server !== undefined || field.default !== machine.initial) {
+    throw new Error(`Invalid machine field ${JSON.stringify(name)}: requires an omitted-only literal initial default on a singular nonnullable field.`);
+  }
+}
+
+function checkFieldServerInit(field: InterimFieldDef, name: string, model: string): void {
+  // T18: closed init set; `server` and `default` are mutually
+  // exclusive (source spellings are exclusive too — a hand-built def
+  // carrying both is a programmer bug, never a precedence rule).
+  if (field.server === undefined) return;
+  if (field.server !== 'actor' && field.server !== 'now' && field.server !== 'random_secret') {
+    throw new Error(
+      `Invalid server init for field ${JSON.stringify(name)} on model ` +
+        `${JSON.stringify(model)}: supported: actor, now, random_secret.`,
+    );
+  }
+  if (field.default !== undefined) {
+    throw new Error(
+      `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
+        'server initializers and defaults are mutually exclusive.',
+    );
+  }
+}
+
+function checkModelField(ctx: ModelDefCheck, name: string, field: InterimFieldDef): void {
+  if (typeof field !== 'object' || field === null || Array.isArray(field)) {
+    throw new Error(
+      `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(ctx.model)}: ` +
+        'field defs must be objects.',
+    );
+  }
+  if (name === '' || name.includes('.')) {
+    throw new Error(
+      `Invalid field name ${JSON.stringify(name)} on model ${JSON.stringify(ctx.model)}: ` +
+        'top-level names are non-empty single segments.',
+    );
+  }
+  if (typeof field.required !== 'boolean' || typeof field.serverOnly !== 'boolean') {
+    throw new Error(
+      `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(ctx.model)}: ` +
+        'required and serverOnly must be booleans.',
+    );
+  }
+  checkModelValueType(field, name, ctx.model, ctx.modelNames, ctx.opts.valueSchema);
+  try { modelFieldConstraintSchema(field, ctx.opts.valueSchema); }
+  catch (error) { throw new Error(`Invalid constraints for field ${JSON.stringify(name)} on model ${JSON.stringify(ctx.model)}: ${String(error)}`); }
+  checkFieldArrayMarker(field, name, ctx.model);
+  checkFieldDefault(field, name, ctx.model);
+  checkFieldMachineGate(field, name);
+  checkFieldServerInit(field, name, ctx.model);
+  if (field.nullable !== undefined && typeof field.nullable !== 'boolean') {
+    throw new Error(
+      `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(ctx.model)}: ` +
+        'nullable must be a boolean.',
+    );
+  }
+}
+
+function checkModelRef(ref: InterimRefDef, model: string, refFields: Set<string>): void {
+  if (typeof ref !== 'object' || ref === null || Array.isArray(ref)) {
+    throw new Error(
+      `Invalid ref on model ${JSON.stringify(model)}: ref defs must be objects.`,
+    );
+  }
+  if (typeof ref.field !== 'string') {
+    throw new Error(
+      `Invalid ref on model ${JSON.stringify(model)}: ref fields are dot-path strings.`,
+    );
+  }
+  checkDotPath(ref.field, `ref field on model ${JSON.stringify(model)}`);
+  if (typeof ref.model !== 'string' || ref.model === '') {
+    throw new Error(
+      `Invalid ref ${JSON.stringify(ref.field)} on model ${JSON.stringify(model)}: ` +
+        'target models are non-empty strings.',
+    );
+  }
+  if (refFields.has(ref.field)) {
+    throw new Error(
+      `Duplicate ref field ${JSON.stringify(ref.field)} on model ${JSON.stringify(model)}.`,
+    );
+  }
+  refFields.add(ref.field);
+}
+
+function checkModelRefs(def: InterimModelDef, model: string): Set<string> {
+  if (!Array.isArray(def.refs)) {
+    throw new Error(`Invalid model ${JSON.stringify(model)}: refs must be an array.`);
+  }
+  const refFields = new Set<string>();
+  for (const ref of def.refs) checkModelRef(ref, model, refFields);
+  return refFields;
+}
+
+function checkUniqueGroupFields(refField: InterimFieldDef, enumField: InterimFieldDef): void {
+  for (const field of [refField, enumField]) {
+    if (!field.required || field.array !== undefined || field.nullable === true || field.valueType === undefined ||
+        parseTypeId(field.valueType).nullable || parseTypeId(field.valueType).array) {
+      throw new Error('Composite unique requires required singular nonnullable stored fields.');
+    }
+  }
+}
+
+function checkUniqueGroup(
+  group: readonly string[],
+  ctx: ModelDefCheck,
+  refFields: ReadonlySet<string>,
+  groups: Map<string, UniqueGroupProfile>,
+): void {
+  const first = group[0]!, second = group[1]!, key = group.join(',');
+  if (first === second || groups.has(key) || [first, second].some(name => name.includes(',') ||
+      name.includes('.') || isMetadataPath(name) || !Object.hasOwn(ctx.def.fields, name))) {
+    throw new Error('Duplicate, unknown or unsupported unique group member.');
+  }
+  const refField = ctx.def.fields[first]!, enumField = ctx.def.fields[second]!;
+  checkUniqueGroupFields(refField, enumField);
+  const ref = ctx.def.refs.find(ref => ref.field === first), refType = parseTypeId(refField.valueType!);
+  const enumType = parseTypeId(enumField.valueType!);
+  const cases = enumType.base.kind === 'enum' ? enumType.base.cases :
+    enumType.base.kind === 'nominal' ? ctx.opts.valueSchema?.enums[enumType.base.path]?.cases : undefined;
+  const user = refType.base.kind === 'user' && ref === undefined;
+  if ((!user && (ref === undefined || !ctx.modelNames.has(ref.model) || refType.base.kind !== 'nominal' ||
+      refType.base.path !== ref.model)) || refFields.has(second) || cases === undefined || cases.length === 0) {
+    throw new Error('Composite unique requires the owning model reference or User followed by its checked enum.');
+  }
+  groups.set(key, Object.freeze({fields: Object.freeze([first, second]) as readonly [string, string],
+    cases: Object.freeze([...cases]), ...(user ? {kind: 'user-enum' as const} : {kind: 'ref-enum' as const, refModel: ref!.model})}));
+}
+
+function checkUniqueGroups(ctx: ModelDefCheck, refFields: ReadonlySet<string>): Map<string, UniqueGroupProfile> {
+  const groups = new Map<string, UniqueGroupProfile>();
+  if (ctx.def.uniqueGroups !== undefined) {
+    for (const group of checkedUniqueGroups(ctx.def.uniqueGroups)) checkUniqueGroup(group, ctx, refFields, groups);
+  }
+  return groups;
+}
+
+function checkUniqueKey(
+  key: string, ctx: ModelDefCheck, groups: ReadonlyMap<string, UniqueGroupProfile>, seenKeys: Set<string>,
+): void {
+  if (typeof key !== 'string' || key === '') {
+    throw new Error(
+      `Invalid unique key on model ${JSON.stringify(ctx.model)}: keys are non-empty field names.`,
+    );
+  }
+  if (!Object.hasOwn(ctx.def.fields, key) && !groups.has(key)) {
+    throw new Error(
+      `Unknown unique-key field ${JSON.stringify(key)} on model ${JSON.stringify(ctx.model)}.`,
+    );
+  }
+  if (seenKeys.has(key)) {
+    throw new Error(
+      `Duplicate unique key ${JSON.stringify(key)} on model ${JSON.stringify(ctx.model)}.`,
+    );
+  }
+  seenKeys.add(key);
+}
+
+function checkUniqueKeys(ctx: ModelDefCheck, groups: ReadonlyMap<string, UniqueGroupProfile>): Set<string> {
+  const seenKeys = new Set<string>();
+  for (const key of ctx.def.uniqueKeys) checkUniqueKey(key, ctx, groups, seenKeys);
+  if ([...groups.keys()].some(key => !seenKeys.has(key))) throw new Error('Unique group must have its exact ordered unique key.');
+  return seenKeys;
+}
+
+function assertPlainPredicateData(root: unknown): void {
+  const data = [root];
+  const seen = new Set<object>();
+  while (data.length > 0) {
+    const value: unknown = data.pop();
+    if (typeof value !== 'object' || value === null || seen.has(value)) continue;
+    seen.add(value);
+    if (![Object.prototype, Array.prototype, null].includes(Object.getPrototypeOf(value))) {
+      throw new Error('Condition must contain only plain predicate data.');
+    }
+    for (const property of Object.values(Object.getOwnPropertyDescriptors(value))) {
+      if (!('value' in property)) throw new Error('Condition must not contain accessors.');
+      data.push(property.value);
+    }
+  }
+}
+
+function assertBoolUniqueConditions(when: QueryPredicate, def: InterimModelDef, refFields: ReadonlySet<string>): void {
+  if (collectPredicateFields(when).some(field => isMetadataPath(field) || !Object.hasOwn(def.fields, field) ||
+      def.fields[field]?.array !== undefined || refFields.has(field))) {
+    throw new Error('Condition must read only declared local scalar fields.');
+  }
+  const pending = [when];
+  while (pending.length > 0) {
+    const predicate = pending.pop()!;
+    if (predicate.op === 'and' || predicate.op === 'or') pending.push(...predicate.args);
+    else if (predicate.op === 'not') pending.push(predicate.arg);
+    else {
+      const type = def.fields[predicate.field]?.valueType;
+      if (type !== 'bool' || (predicate.op !== 'eq' && predicate.op !== 'ne') ||
+          typeof predicate.value !== 'boolean') {
+        throw new Error('Conditional unique requires declared stored bool conditions.');
+      }
+    }
+  }
+}
+
+function checkUniqueWhenEntry(
+  raw: NonNullable<InterimModelDef['uniqueWhen']>,
+  key: string | symbol,
+  ctx: ModelDefCheck,
+  groups: ReadonlyMap<string, UniqueGroupProfile>,
+  seenKeys: ReadonlySet<string>,
+  refFields: ReadonlySet<string>,
+  uniqueWhen: Record<string, QueryPredicate>,
+): void {
+  const descriptor = Object.getOwnPropertyDescriptor(raw, key);
+  if (typeof key !== 'string' || groups.has(key) || isMetadataPath(key) || !seenKeys.has(key) || descriptor === undefined ||
+      !descriptor.enumerable || !('value' in descriptor) || ctx.def.fields[key]?.array !== undefined || refFields.has(key)) {
+    throw new Error(`Invalid conditional unique on model ${JSON.stringify(ctx.model)}: condition must name its declared scalar unique field.`);
+  }
+  try {
+    // Inspect descriptors before cloning: structuredClone otherwise invokes
+    // nested getters before the predicate's data shape can be refused.
+    assertPlainPredicateData(descriptor.value);
+    const when: QueryPredicate = structuredClone(descriptor.value);
+    validatePredicateShape(when);
+    assertBoolUniqueConditions(when, ctx.def, refFields);
+    uniqueWhen[key] = deepFreeze(when);
+  } catch (error) {
+    throw new Error(`Invalid conditional unique ${JSON.stringify(key)} on model ${JSON.stringify(ctx.model)}: ${String(error)}`);
+  }
+}
+
+function checkUniqueWhenClause(
+  ctx: ModelDefCheck,
+  refFields: ReadonlySet<string>,
+  groups: ReadonlyMap<string, UniqueGroupProfile>,
+  seenKeys: ReadonlySet<string>,
+): Record<string, QueryPredicate> | undefined {
+  if (ctx.def.uniqueWhen === undefined) return undefined;
+  const raw = ctx.def.uniqueWhen;
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(raw))) {
+    throw new Error(`Invalid conditional unique on model ${JSON.stringify(ctx.model)}: conditions must be an own data object.`);
+  }
+  const uniqueWhen = Object.create(null) as Record<string, QueryPredicate>;
+  for (const key of Reflect.ownKeys(raw)) {
+    checkUniqueWhenEntry(raw, key, ctx, groups, seenKeys, refFields, uniqueWhen);
+  }
+  return uniqueWhen;
+}
+
+function checkFieldValidationRules(def: InterimModelDef): void {
+  if (def.givenFieldValidations === undefined) return;
+  if (!Array.isArray(def.givenFieldValidations)) throw new Error('Field validations must be an array.');
+  const seen = new Set<string>();
+  for (const rule of def.givenFieldValidations) {
+    if (typeof rule !== 'object' || rule === null || typeof rule.rule !== 'string' || rule.rule === '' || seen.has(rule.rule) ||
+        typeof rule.field !== 'string' || typeof rule.evaluate !== 'function') throw new Error('Invalid field validation rule.');
+    const field = def.fields[rule.field];
+    if (field === undefined || field.valueType !== 'text' || field.nullable === true || field.array !== undefined) {
+      throw new Error('Field validation needs a nonnullable native text field.');
+    }
+    seen.add(rule.rule);
+  }
+}
+
+function checkComputedKeyRule(
+  rule: GivenUniqueKeyRule,
+  def: InterimModelDef,
+  model: string,
+  seenKeys: ReadonlySet<string>,
+  seenRules: Set<string>,
+): void {
+  if (typeof rule !== 'object' || rule === null || Array.isArray(rule)) {
+    throw new Error(
+      `Invalid computed-key rule on model ${JSON.stringify(model)}: rules must be objects.`,
+    );
+  }
+  if (typeof rule.rule !== 'string' || rule.rule === '') {
+    throw new Error(
+      `Invalid computed-key rule on model ${JSON.stringify(model)}: rules need non-empty identities.`,
+    );
+  }
+  if (seenRules.has(rule.rule)) {
+    throw new Error(
+      `Duplicate computed-key rule ${JSON.stringify(rule.rule)} on model ${JSON.stringify(model)}.`,
+    );
+  }
+  seenRules.add(rule.rule);
+  const field = def.fields[rule.field];
+  if (typeof rule.field !== 'string' || field === undefined) {
+    throw new Error(
+      `Unknown computed-key field ${JSON.stringify(rule.field)} on model ${JSON.stringify(model)}.`,
+    );
+  }
+  if (field.array !== undefined || (field.valueType !== undefined &&
+      field.valueType !== 'text' && field.valueType !== 'text?')) {
+    throw new Error(
+      `Invalid computed-key field ${JSON.stringify(rule.field)} on model ` +
+        `${JSON.stringify(model)}: rules bind singular text fields.`,
+    );
+  }
+  if (seenKeys.has(rule.field)) {
+    throw new Error(
+      `Invalid computed-key field ${JSON.stringify(rule.field)} on model ` +
+        `${JSON.stringify(model)}: the field already carries a builtin unique.`,
+    );
+  }
+  if (typeof rule.evaluate !== 'function') {
+    throw new Error(
+      `Invalid computed-key rule ${JSON.stringify(rule.rule)} on model ` +
+        `${JSON.stringify(model)}: evaluate must be a function.`,
+    );
+  }
+}
+
+function checkModelComputedKeys(ctx: ModelDefCheck, seenKeys: ReadonlySet<string>): void {
+  if (ctx.def.deleteMode !== 'archive' && ctx.def.deleteMode !== 'remove' && ctx.def.deleteMode !== 'none') {
+    throw new Error(
+      `Invalid deleteMode on model ${JSON.stringify(ctx.model)}: ${JSON.stringify(ctx.def.deleteMode)}.`,
+    );
+  }
+  // BGI-08 computed-key rules: non-empty unique rule identities, each
+  // bound to a declared singular text field (nullable text admitted —
+  // nulls skip keys like builtin uniques) with a function evaluator.
+  // A rule on a builtin-unique field is a programmer bug here: the
+  // descriptor loader rejects that clash for generated tables, and a
+  // hand-built table must not smuggle it in either.
+  checkFieldValidationRules(ctx.def);
+  if (ctx.def.givenUniqueKeys === undefined) return;
+  if (!Array.isArray(ctx.def.givenUniqueKeys)) {
+    throw new Error(`Invalid model ${JSON.stringify(ctx.model)}: givenUniqueKeys must be an array.`);
+  }
+  const seenRules = new Set<string>();
+  for (const rule of ctx.def.givenUniqueKeys) checkComputedKeyRule(rule, ctx.def, ctx.model, seenKeys, seenRules);
+}
+
+function checkContainmentShape(def: InterimModelDef, model: string): void {
+  // B5 declared ownership: shape only here (unknown parent targets
+  // terminate the cycle walk below and surface write-time `validation`
+  // at the pipeline; the loader rejects dangling generated parents).
+  const rawContainment: unknown = def.containment;
+  if (rawContainment === undefined) return;
+  if (typeof rawContainment !== 'object' || rawContainment === null || Array.isArray(rawContainment)) {
+    throw new Error(
+      `Invalid containment on model ${JSON.stringify(model)}: containment must be an object.`,
+    );
+  }
+  const declared = rawContainment as { parent?: unknown; scope?: unknown };
+  if (declared.parent !== undefined && (typeof declared.parent !== 'string' || declared.parent === '')) {
+    throw new Error(
+      `Invalid containment on model ${JSON.stringify(model)}: parent must be a non-empty model name.`,
+    );
+  }
+  if (declared.scope !== undefined && declared.scope !== 'app') {
+    throw new Error(
+      `Invalid containment on model ${JSON.stringify(model)}: scope is "app" when present.`,
+    );
+  }
+  if (declared.parent !== undefined && declared.scope !== undefined) {
+    throw new Error(
+      `Invalid containment on model ${JSON.stringify(model)}: parent and scope are mutually exclusive.`,
+    );
+  }
+}
+
+function checkModelHook(hook: InterimHook, model: string, hookNames: Set<string>): void {
+  if (typeof hook.name !== 'string' || hook.name === '') {
+    throw new Error(
+      `Invalid hook on model ${JSON.stringify(model)}: names are non-empty strings.`,
+    );
+  }
+  if (hookNames.has(hook.name)) {
+    throw new Error(
+      `Duplicate hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(model)}.`,
+    );
+  }
+  hookNames.add(hook.name);
+  if (!Array.isArray(hook.ops) || hook.ops.length === 0) {
+    throw new Error(
+      `Invalid hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(model)}: ` +
+        'ops needs a non-empty array.',
+    );
+  }
+  for (const op of hook.ops) {
+    if (op !== 'create' && op !== 'update' && op !== 'remove') {
+      throw new Error(
+        `Invalid hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(model)}: ` +
+          `unknown op ${JSON.stringify(op)}.`,
+      );
+    }
+  }
+  if (typeof hook.run !== 'function') {
+    throw new Error(
+      `Invalid hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(model)}: ` +
+        'run must be a function.',
+    );
+  }
+}
+
+function checkModelHooks(def: InterimModelDef, model: string): void {
+  if (!Array.isArray(def.hooks)) {
+    throw new Error(`Invalid model ${JSON.stringify(model)}: hooks must be an array.`);
+  }
+  const hookNames = new Set<string>();
+  for (const hook of def.hooks) checkModelHook(hook, model, hookNames);
+}
+
+function checkModelInvariant(invariant: InterimInvariant, model: string, invariantNames: Set<string>): void {
+  if (typeof invariant.name !== 'string' || invariant.name === '') {
+    throw new Error(
+      `Invalid invariant on model ${JSON.stringify(model)}: names are non-empty strings.`,
+    );
+  }
+  if (invariantNames.has(invariant.name)) {
+    throw new Error(
+      `Duplicate invariant ${JSON.stringify(invariant.name)} on model ${JSON.stringify(model)}.`,
+    );
+  }
+  invariantNames.add(invariant.name);
+  if (typeof invariant.check !== 'function') {
+    throw new Error(
+      `Invalid invariant ${JSON.stringify(invariant.name)} on model ` +
+        `${JSON.stringify(model)}: check must be a function.`,
+    );
+  }
+}
+
+function checkModelInvariants(def: InterimModelDef, model: string): void {
+  if (!Array.isArray(def.invariants)) {
+    throw new Error(`Invalid model ${JSON.stringify(model)}: invariants must be an array.`);
+  }
+  const invariantNames = new Set<string>();
+  for (const invariant of def.invariants) checkModelInvariant(invariant, model, invariantNames);
+}
+
+function checkModelLock(lock: InterimLock, model: string, lockNames: Set<string>): void {
+  if (typeof lock.name !== 'string' || lock.name === '') {
+    throw new Error(
+      `Invalid lock on model ${JSON.stringify(model)}: names are non-empty strings.`,
+    );
+  }
+  if (lockNames.has(lock.name)) {
+    throw new Error(
+      `Duplicate lock ${JSON.stringify(lock.name)} on model ${JSON.stringify(model)}.`,
+    );
+  }
+  lockNames.add(lock.name);
+  try {
+    validatePredicateShape(lock.when);
+  } catch (error) {
+    throw new Error(
+      `Invalid lock ${JSON.stringify(lock.name)} when on model ${JSON.stringify(model)}: ` +
+        `${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+function checkModelLocks(def: InterimModelDef, model: string): void {
+  if (!Array.isArray(def.locks)) {
+    throw new Error(`Invalid model ${JSON.stringify(model)}: locks must be an array.`);
+  }
+  const lockNames = new Set<string>();
+  for (const lock of def.locks) checkModelLock(lock, model, lockNames);
+}
+
+function freezeModelLocks(def: InterimModelDef, whens: QueryPredicate[], model: string): InterimLock[] {
+  const frozenLocks: InterimLock[] = [];
+  for (let index = 0; index < def.locks.length; index += 1) {
+    const lock = def.locks[index];
+    const when = whens[index];
+    if (lock === undefined || when === undefined) {
+      throw new Error(`Invalid model ${JSON.stringify(model)}: lock table misaligned.`);
+    }
+    frozenLocks.push(Object.freeze({ name: lock.name, when: deepFreeze(when) }));
+  }
+  return frozenLocks;
+}
+
+function freezeModelDescriptor(
+  ctx: ModelDefCheck,
+  table: Map<ModelName, InterimModelDef>,
+  groups: ReadonlyMap<string, UniqueGroupProfile>,
+  uniqueWhen: Record<string, QueryPredicate> | undefined,
+): void {
+  let fields: Record<string, InterimFieldDef>;
+  let refs: InterimRefDef[];
+  let uniqueKeys: string[];
+  let whens: QueryPredicate[];
+  let containment: InterimContainment | undefined;
+  try {
+    fields = structuredClone(ctx.def.fields);
+    refs = structuredClone([...ctx.def.refs]);
+    uniqueKeys = structuredClone([...ctx.def.uniqueKeys]);
+    whens = ctx.def.locks.map((lock) => structuredClone(lock.when));
+    containment =
+      ctx.def.containment === undefined ? undefined : structuredClone({ ...ctx.def.containment });
+  } catch {
+    throw new Error(
+      `Invalid model ${JSON.stringify(ctx.model)}: descriptors must be serializable data.`,
+    );
+  }
+  for (const [name, field] of Object.entries(fields)) {
+    if (contextActorDefaults.has(ctx.def.fields[name]!)) contextActorDefaults.add(field);
+    if (field.valueType !== undefined && ctx.valueSchema !== undefined) fieldValueSchemas.set(field, ctx.valueSchema);
+    const constraint = modelFieldConstraintSchema(field, ctx.opts.valueSchema);
+    if (constraint !== undefined) fieldConstraintSchemas.set(field, constraint);
+  }
+  const frozenLocks = freezeModelLocks(ctx.def, whens, ctx.model);
+  table.set(
+    ctx.def.model,
+    Object.freeze({
+      model: ctx.def.model,
+      fields: deepFreeze(fields),
+      refs: deepFreeze(refs),
+      uniqueKeys: Object.freeze(uniqueKeys),
+      ...(ctx.def.uniqueGroups === undefined ? {} : {uniqueGroups: Object.freeze([...groups.values()].map(group => group.fields))}),
+      ...(uniqueWhen === undefined ? {} : { uniqueWhen: Object.freeze(uniqueWhen) }),
+      deleteMode: ctx.def.deleteMode,
+      hooks: Object.freeze(
+        ctx.def.hooks.map((hook) =>
+          Object.freeze({ name: hook.name, ops: Object.freeze([...hook.ops]), run: hook.run }),
+        ),
+      ),
+      invariants: Object.freeze(
+        ctx.def.invariants.map((invariant) =>
+          Object.freeze({ name: invariant.name, check: invariant.check }),
+        ),
+      ),
+      locks: Object.freeze(frozenLocks),
+      ...(containment !== undefined ? { containment: Object.freeze(containment) } : {}),
+      // BGI-08: evaluators pass through like hook `run` functions (never
+      // cloned); the frozen copies keep rule/field/evaluate together.
+      ...(ctx.def.givenFieldValidations === undefined ? {} : {
+        givenFieldValidations: Object.freeze(ctx.def.givenFieldValidations.map(rule => Object.freeze({ ...rule }))),
+      }),
+      ...(ctx.def.givenUniqueKeys === undefined ? {} : {
+        givenUniqueKeys: Object.freeze(
+          ctx.def.givenUniqueKeys.map((rule) =>
+            Object.freeze({ rule: rule.rule, field: rule.field, evaluate: rule.evaluate }),
+          ),
+        ),
+      }),
+    }) as InterimModelDef,
+  );
+  uniqueGroupProfiles.set(table.get(ctx.def.model)!, groups);
 }
 
 /**
@@ -558,487 +1197,24 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
   const table = new Map<ModelName, InterimModelDef>();
   const modelNames = new Set(models.map(def => def.model as string));
   for (const def of models) {
-    if (typeof def.model !== 'string' || def.model === '') {
-      throw new Error('Invalid model def: model names are non-empty strings.');
-    }
-    const model = def.model as string;
-    if (table.has(def.model)) {
-      throw new Error(`Duplicate model def: ${JSON.stringify(model)}`);
-    }
-    if (typeof def.fields !== 'object' || def.fields === null || Array.isArray(def.fields)) {
-      throw new Error(`Invalid model ${JSON.stringify(model)}: fields must be an object.`);
-    }
-    for (const [name, field] of Object.entries(def.fields)) {
-      if (typeof field !== 'object' || field === null || Array.isArray(field)) {
-        throw new Error(
-          `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
-            'field defs must be objects.',
-        );
-      }
-      if (name === '' || name.includes('.')) {
-        throw new Error(
-          `Invalid field name ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
-            'top-level names are non-empty single segments.',
-        );
-      }
-      if (typeof field.required !== 'boolean' || typeof field.serverOnly !== 'boolean') {
-        throw new Error(
-          `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
-            'required and serverOnly must be booleans.',
-        );
-      }
-      checkModelValueType(field, name, model, modelNames, opts.valueSchema);
-      try { modelFieldConstraintSchema(field, opts.valueSchema); }
-      catch (error) { throw new Error(`Invalid constraints for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ${String(error)}`); }
-      if (field.array !== undefined) {
-        const marker = field.array;
-        if (
-          typeof marker !== 'object' ||
-          marker === null ||
-          Array.isArray(marker) ||
-          typeof marker.required !== 'boolean'
-        ) {
-          throw new Error(
-            `Invalid array marker for field ${JSON.stringify(name)} on model ` +
-              `${JSON.stringify(model)}: array markers carry a boolean required.`,
-          );
-        }
-      }
-      if (field.default !== undefined) {
-        if (isParentPathDefault(field.default)) {
-          checkDotPath(field.default.parentPath, `default parentPath for ${JSON.stringify(name)}`);
-        } else {
-          try {
-            structuredClone(field.default);
-          } catch {
-            throw new Error(
-              `Invalid default for field ${JSON.stringify(name)} on model ` +
-                `${JSON.stringify(model)}: defaults must be serializable data.`,
-            );
-          }
-        }
-      }
-      if (field.machine !== undefined) {
-        const machine = checkFieldMachine(field.machine);
-        if (field.required || field.serverOnly || field.array !== undefined || field.nullable === true ||
-            field.server !== undefined || field.default !== machine.initial) {
-          throw new Error(`Invalid machine field ${JSON.stringify(name)}: requires an omitted-only literal initial default on a singular nonnullable field.`);
-        }
-      }
-      // T18: closed init set; `server` and `default` are mutually
-      // exclusive (source spellings are exclusive too — a hand-built def
-      // carrying both is a programmer bug, never a precedence rule).
-      if (field.server !== undefined) {
-        if (field.server !== 'actor' && field.server !== 'now' && field.server !== 'random_secret') {
-          throw new Error(
-            `Invalid server init for field ${JSON.stringify(name)} on model ` +
-              `${JSON.stringify(model)}: supported: actor, now, random_secret.`,
-          );
-        }
-        if (field.default !== undefined) {
-          throw new Error(
-            `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
-              'server initializers and defaults are mutually exclusive.',
-          );
-        }
-      }
-      if (field.nullable !== undefined && typeof field.nullable !== 'boolean') {
-        throw new Error(
-          `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
-            'nullable must be a boolean.',
-        );
-      }
-    }
-    if (!Array.isArray(def.refs)) {
-      throw new Error(`Invalid model ${JSON.stringify(model)}: refs must be an array.`);
-    }
-    const refFields = new Set<string>();
-    for (const ref of def.refs) {
-      if (typeof ref !== 'object' || ref === null || Array.isArray(ref)) {
-        throw new Error(
-          `Invalid ref on model ${JSON.stringify(model)}: ref defs must be objects.`,
-        );
-      }
-      if (typeof ref.field !== 'string') {
-        throw new Error(
-          `Invalid ref on model ${JSON.stringify(model)}: ref fields are dot-path strings.`,
-        );
-      }
-      checkDotPath(ref.field, `ref field on model ${JSON.stringify(model)}`);
-      if (typeof ref.model !== 'string' || ref.model === '') {
-        throw new Error(
-          `Invalid ref ${JSON.stringify(ref.field)} on model ${JSON.stringify(model)}: ` +
-            'target models are non-empty strings.',
-        );
-      }
-      if (refFields.has(ref.field)) {
-        throw new Error(
-          `Duplicate ref field ${JSON.stringify(ref.field)} on model ${JSON.stringify(model)}.`,
-        );
-      }
-      refFields.add(ref.field);
-    }
+    const ctx: ModelDefCheck = {
+      def, model: checkModelDefHead(def, table), modelNames, opts, valueSchema,
+    };
+    for (const [name, field] of Object.entries(def.fields)) checkModelField(ctx, name, field);
+    const refFields = checkModelRefs(def, ctx.model);
+    // HEAD guards the uniqueKeys array before the unique-groups loop.
     if (!Array.isArray(def.uniqueKeys)) {
-      throw new Error(`Invalid model ${JSON.stringify(model)}: uniqueKeys must be an array.`);
+      throw new Error(`Invalid model ${JSON.stringify(ctx.model)}: uniqueKeys must be an array.`);
     }
-    const groups = new Map<string, UniqueGroupProfile>();
-    if (def.uniqueGroups !== undefined) {
-      for (const group of checkedUniqueGroups(def.uniqueGroups)) {
-        const first = group[0]!, second = group[1]!, key = group.join(',');
-        if (first === second || groups.has(key) || [first, second].some(name => name.includes(',') ||
-            name.includes('.') || isMetadataPath(name) || !Object.hasOwn(def.fields, name))) {
-          throw new Error('Duplicate, unknown or unsupported unique group member.');
-        }
-        const refField = def.fields[first]!, enumField = def.fields[second]!;
-        for (const field of [refField, enumField]) {
-          if (!field.required || field.array !== undefined || field.nullable === true || field.valueType === undefined ||
-              parseTypeId(field.valueType).nullable || parseTypeId(field.valueType).array) {
-            throw new Error('Composite unique requires required singular nonnullable stored fields.');
-          }
-        }
-        const ref = def.refs.find(ref => ref.field === first), refType = parseTypeId(refField.valueType!);
-        const enumType = parseTypeId(enumField.valueType!);
-        const cases = enumType.base.kind === 'enum' ? enumType.base.cases :
-          enumType.base.kind === 'nominal' ? opts.valueSchema?.enums[enumType.base.path]?.cases : undefined;
-        const user = refType.base.kind === 'user' && ref === undefined;
-        if ((!user && (ref === undefined || !modelNames.has(ref.model) || refType.base.kind !== 'nominal' ||
-            refType.base.path !== ref.model)) || refFields.has(second) || cases === undefined || cases.length === 0) {
-          throw new Error('Composite unique requires the owning model reference or User followed by its checked enum.');
-        }
-        groups.set(key, Object.freeze({fields: Object.freeze([first, second]) as readonly [string, string],
-          cases: Object.freeze([...cases]), ...(user ? {kind: 'user-enum' as const} : {kind: 'ref-enum' as const, refModel: ref!.model})}));
-      }
-    }
-    const seenKeys = new Set<string>();
-    for (const key of def.uniqueKeys) {
-      if (typeof key !== 'string' || key === '') {
-        throw new Error(
-          `Invalid unique key on model ${JSON.stringify(model)}: keys are non-empty field names.`,
-        );
-      }
-      if (!Object.hasOwn(def.fields, key) && !groups.has(key)) {
-        throw new Error(
-          `Unknown unique-key field ${JSON.stringify(key)} on model ${JSON.stringify(model)}.`,
-        );
-      }
-      if (seenKeys.has(key)) {
-        throw new Error(
-          `Duplicate unique key ${JSON.stringify(key)} on model ${JSON.stringify(model)}.`,
-        );
-      }
-      seenKeys.add(key);
-    }
-    if ([...groups.keys()].some(key => !seenKeys.has(key))) throw new Error('Unique group must have its exact ordered unique key.');
-    let uniqueWhen: Record<string, QueryPredicate> | undefined;
-    if (def.uniqueWhen !== undefined) {
-      const raw = def.uniqueWhen;
-      if (typeof raw !== 'object' || raw === null || Array.isArray(raw) ||
-          ![Object.prototype, null].includes(Object.getPrototypeOf(raw))) {
-        throw new Error(`Invalid conditional unique on model ${JSON.stringify(model)}: conditions must be an own data object.`);
-      }
-      uniqueWhen = Object.create(null) as Record<string, QueryPredicate>;
-      for (const key of Reflect.ownKeys(raw)) {
-        const descriptor = Object.getOwnPropertyDescriptor(raw, key);
-        if (typeof key !== 'string' || groups.has(key) || isMetadataPath(key) || !seenKeys.has(key) || descriptor === undefined ||
-            !descriptor.enumerable || !('value' in descriptor) || def.fields[key]?.array !== undefined || refFields.has(key)) {
-          throw new Error(`Invalid conditional unique on model ${JSON.stringify(model)}: condition must name its declared scalar unique field.`);
-        }
-        try {
-          // Inspect descriptors before cloning: structuredClone otherwise invokes
-          // nested getters before the predicate's data shape can be refused.
-          const data = [descriptor.value];
-          const seen = new Set<object>();
-          while (data.length > 0) {
-            const value: unknown = data.pop();
-            if (typeof value !== 'object' || value === null || seen.has(value)) continue;
-            seen.add(value);
-            if (![Object.prototype, Array.prototype, null].includes(Object.getPrototypeOf(value))) {
-              throw new Error('Condition must contain only plain predicate data.');
-            }
-            for (const property of Object.values(Object.getOwnPropertyDescriptors(value))) {
-              if (!('value' in property)) throw new Error('Condition must not contain accessors.');
-              data.push(property.value);
-            }
-          }
-          const when: QueryPredicate = structuredClone(descriptor.value);
-          validatePredicateShape(when);
-          if (collectPredicateFields(when).some(field => isMetadataPath(field) || !Object.hasOwn(def.fields, field) ||
-              def.fields[field]?.array !== undefined || refFields.has(field))) {
-            throw new Error('Condition must read only declared local scalar fields.');
-          }
-          const pending = [when];
-          while (pending.length > 0) {
-            const predicate = pending.pop()!;
-            if (predicate.op === 'and' || predicate.op === 'or') pending.push(...predicate.args);
-            else if (predicate.op === 'not') pending.push(predicate.arg);
-            else {
-              const type = def.fields[predicate.field]?.valueType;
-              if (type !== 'bool' || (predicate.op !== 'eq' && predicate.op !== 'ne') ||
-                  typeof predicate.value !== 'boolean') {
-                throw new Error('Conditional unique requires declared stored bool conditions.');
-              }
-            }
-          }
-          uniqueWhen[key] = deepFreeze(when);
-        } catch (error) {
-          throw new Error(`Invalid conditional unique ${JSON.stringify(key)} on model ${JSON.stringify(model)}: ${String(error)}`);
-        }
-      }
-    }
-    if (def.deleteMode !== 'archive' && def.deleteMode !== 'remove' && def.deleteMode !== 'none') {
-      throw new Error(
-        `Invalid deleteMode on model ${JSON.stringify(model)}: ${JSON.stringify(def.deleteMode)}.`,
-      );
-    }
-    // BGI-08 computed-key rules: non-empty unique rule identities, each
-    // bound to a declared singular text field (nullable text admitted —
-    // nulls skip keys like builtin uniques) with a function evaluator.
-    // A rule on a builtin-unique field is a programmer bug here: the
-    // descriptor loader rejects that clash for generated tables, and a
-    // hand-built table must not smuggle it in either.
-    if (def.givenFieldValidations !== undefined) {
-      if (!Array.isArray(def.givenFieldValidations)) throw new Error('Field validations must be an array.');
-      const seen = new Set<string>();
-      for (const rule of def.givenFieldValidations) {
-        if (typeof rule !== 'object' || rule === null || typeof rule.rule !== 'string' || rule.rule === '' || seen.has(rule.rule) ||
-            typeof rule.field !== 'string' || typeof rule.evaluate !== 'function') throw new Error('Invalid field validation rule.');
-        const field = def.fields[rule.field];
-        if (field === undefined || field.valueType !== 'text' || field.nullable === true || field.array !== undefined) {
-          throw new Error('Field validation needs a nonnullable native text field.');
-        }
-        seen.add(rule.rule);
-      }
-    }
-    if (def.givenUniqueKeys !== undefined) {
-      if (!Array.isArray(def.givenUniqueKeys)) {
-        throw new Error(`Invalid model ${JSON.stringify(model)}: givenUniqueKeys must be an array.`);
-      }
-      const seenRules = new Set<string>();
-      for (const rule of def.givenUniqueKeys) {
-        if (typeof rule !== 'object' || rule === null || Array.isArray(rule)) {
-          throw new Error(
-            `Invalid computed-key rule on model ${JSON.stringify(model)}: rules must be objects.`,
-          );
-        }
-        if (typeof rule.rule !== 'string' || rule.rule === '') {
-          throw new Error(
-            `Invalid computed-key rule on model ${JSON.stringify(model)}: rules need non-empty identities.`,
-          );
-        }
-        if (seenRules.has(rule.rule)) {
-          throw new Error(
-            `Duplicate computed-key rule ${JSON.stringify(rule.rule)} on model ${JSON.stringify(model)}.`,
-          );
-        }
-        seenRules.add(rule.rule);
-        const field = def.fields[rule.field];
-        if (typeof rule.field !== 'string' || field === undefined) {
-          throw new Error(
-            `Unknown computed-key field ${JSON.stringify(rule.field)} on model ${JSON.stringify(model)}.`,
-          );
-        }
-        if (field.array !== undefined || (field.valueType !== undefined &&
-            field.valueType !== 'text' && field.valueType !== 'text?')) {
-          throw new Error(
-            `Invalid computed-key field ${JSON.stringify(rule.field)} on model ` +
-              `${JSON.stringify(model)}: rules bind singular text fields.`,
-          );
-        }
-        if (seenKeys.has(rule.field)) {
-          throw new Error(
-            `Invalid computed-key field ${JSON.stringify(rule.field)} on model ` +
-              `${JSON.stringify(model)}: the field already carries a builtin unique.`,
-          );
-        }
-        if (typeof rule.evaluate !== 'function') {
-          throw new Error(
-            `Invalid computed-key rule ${JSON.stringify(rule.rule)} on model ` +
-              `${JSON.stringify(model)}: evaluate must be a function.`,
-          );
-        }
-      }
-    }
-    // B5 declared ownership: shape only here (unknown parent targets
-    // terminate the cycle walk below and surface write-time `validation`
-    // at the pipeline; the loader rejects dangling generated parents).
-    const rawContainment: unknown = def.containment;
-    if (rawContainment !== undefined) {
-      if (typeof rawContainment !== 'object' || rawContainment === null || Array.isArray(rawContainment)) {
-        throw new Error(
-          `Invalid containment on model ${JSON.stringify(model)}: containment must be an object.`,
-        );
-      }
-      const declared = rawContainment as { parent?: unknown; scope?: unknown };
-      if (declared.parent !== undefined && (typeof declared.parent !== 'string' || declared.parent === '')) {
-        throw new Error(
-          `Invalid containment on model ${JSON.stringify(model)}: parent must be a non-empty model name.`,
-        );
-      }
-      if (declared.scope !== undefined && declared.scope !== 'app') {
-        throw new Error(
-          `Invalid containment on model ${JSON.stringify(model)}: scope is "app" when present.`,
-        );
-      }
-      if (declared.parent !== undefined && declared.scope !== undefined) {
-        throw new Error(
-          `Invalid containment on model ${JSON.stringify(model)}: parent and scope are mutually exclusive.`,
-        );
-      }
-    }
-    if (!Array.isArray(def.hooks)) {
-      throw new Error(`Invalid model ${JSON.stringify(model)}: hooks must be an array.`);
-    }
-    const hookNames = new Set<string>();
-    for (const hook of def.hooks) {
-      if (typeof hook.name !== 'string' || hook.name === '') {
-        throw new Error(
-          `Invalid hook on model ${JSON.stringify(model)}: names are non-empty strings.`,
-        );
-      }
-      if (hookNames.has(hook.name)) {
-        throw new Error(
-          `Duplicate hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(model)}.`,
-        );
-      }
-      hookNames.add(hook.name);
-      if (!Array.isArray(hook.ops) || hook.ops.length === 0) {
-        throw new Error(
-          `Invalid hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(model)}: ` +
-            'ops needs a non-empty array.',
-        );
-      }
-      for (const op of hook.ops) {
-        if (op !== 'create' && op !== 'update' && op !== 'remove') {
-          throw new Error(
-            `Invalid hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(model)}: ` +
-              `unknown op ${JSON.stringify(op)}.`,
-          );
-        }
-      }
-      if (typeof hook.run !== 'function') {
-        throw new Error(
-          `Invalid hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(model)}: ` +
-            'run must be a function.',
-        );
-      }
-    }
-    if (!Array.isArray(def.invariants)) {
-      throw new Error(`Invalid model ${JSON.stringify(model)}: invariants must be an array.`);
-    }
-    const invariantNames = new Set<string>();
-    for (const invariant of def.invariants) {
-      if (typeof invariant.name !== 'string' || invariant.name === '') {
-        throw new Error(
-          `Invalid invariant on model ${JSON.stringify(model)}: names are non-empty strings.`,
-        );
-      }
-      if (invariantNames.has(invariant.name)) {
-        throw new Error(
-          `Duplicate invariant ${JSON.stringify(invariant.name)} on model ${JSON.stringify(model)}.`,
-        );
-      }
-      invariantNames.add(invariant.name);
-      if (typeof invariant.check !== 'function') {
-        throw new Error(
-          `Invalid invariant ${JSON.stringify(invariant.name)} on model ` +
-            `${JSON.stringify(model)}: check must be a function.`,
-        );
-      }
-    }
-    if (!Array.isArray(def.locks)) {
-      throw new Error(`Invalid model ${JSON.stringify(model)}: locks must be an array.`);
-    }
-    const lockNames = new Set<string>();
-    for (const lock of def.locks) {
-      if (typeof lock.name !== 'string' || lock.name === '') {
-        throw new Error(
-          `Invalid lock on model ${JSON.stringify(model)}: names are non-empty strings.`,
-        );
-      }
-      if (lockNames.has(lock.name)) {
-        throw new Error(
-          `Duplicate lock ${JSON.stringify(lock.name)} on model ${JSON.stringify(model)}.`,
-        );
-      }
-      lockNames.add(lock.name);
-      try {
-        validatePredicateShape(lock.when);
-      } catch (error) {
-        throw new Error(
-          `Invalid lock ${JSON.stringify(lock.name)} when on model ${JSON.stringify(model)}: ` +
-            `${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    }
-    let fields: Record<string, InterimFieldDef>;
-    let refs: InterimRefDef[];
-    let uniqueKeys: string[];
-    let whens: QueryPredicate[];
-    let containment: InterimContainment | undefined;
-    try {
-      fields = structuredClone(def.fields);
-      refs = structuredClone([...def.refs]);
-      uniqueKeys = structuredClone([...def.uniqueKeys]);
-      whens = def.locks.map((lock) => structuredClone(lock.when));
-      containment =
-        def.containment === undefined ? undefined : structuredClone({ ...def.containment });
-    } catch {
-      throw new Error(
-        `Invalid model ${JSON.stringify(model)}: descriptors must be serializable data.`,
-      );
-    }
-    for (const [name, field] of Object.entries(fields)) {
-      if (contextActorDefaults.has(def.fields[name]!)) contextActorDefaults.add(field);
-      if (field.valueType !== undefined && valueSchema !== undefined) fieldValueSchemas.set(field, valueSchema);
-      const constraint = modelFieldConstraintSchema(field, opts.valueSchema);
-      if (constraint !== undefined) fieldConstraintSchemas.set(field, constraint);
-    }
-    const frozenLocks: InterimLock[] = [];
-    for (let index = 0; index < def.locks.length; index += 1) {
-      const lock = def.locks[index];
-      const when = whens[index];
-      if (lock === undefined || when === undefined) {
-        throw new Error(`Invalid model ${JSON.stringify(model)}: lock table misaligned.`);
-      }
-      frozenLocks.push(Object.freeze({ name: lock.name, when: deepFreeze(when) }));
-    }
-    table.set(
-      def.model,
-      Object.freeze({
-        model: def.model,
-        fields: deepFreeze(fields),
-        refs: deepFreeze(refs),
-        uniqueKeys: Object.freeze(uniqueKeys),
-        ...(def.uniqueGroups === undefined ? {} : {uniqueGroups: Object.freeze([...groups.values()].map(group => group.fields))}),
-        ...(uniqueWhen === undefined ? {} : { uniqueWhen: Object.freeze(uniqueWhen) }),
-        deleteMode: def.deleteMode,
-        hooks: Object.freeze(
-          def.hooks.map((hook) =>
-            Object.freeze({ name: hook.name, ops: Object.freeze([...hook.ops]), run: hook.run }),
-          ),
-        ),
-        invariants: Object.freeze(
-          def.invariants.map((invariant) =>
-            Object.freeze({ name: invariant.name, check: invariant.check }),
-          ),
-        ),
-        locks: Object.freeze(frozenLocks),
-        ...(containment !== undefined ? { containment: Object.freeze(containment) } : {}),
-        // BGI-08: evaluators pass through like hook `run` functions (never
-        // cloned); the frozen copies keep rule/field/evaluate together.
-        ...(def.givenFieldValidations === undefined ? {} : {
-          givenFieldValidations: Object.freeze(def.givenFieldValidations.map(rule => Object.freeze({ ...rule }))),
-        }),
-        ...(def.givenUniqueKeys === undefined ? {} : {
-          givenUniqueKeys: Object.freeze(
-            def.givenUniqueKeys.map((rule) =>
-              Object.freeze({ rule: rule.rule, field: rule.field, evaluate: rule.evaluate }),
-            ),
-          ),
-        }),
-      }) as InterimModelDef,
-    );
-    uniqueGroupProfiles.set(table.get(def.model)!, groups);
+    const groups = checkUniqueGroups(ctx, refFields);
+    const seenKeys = checkUniqueKeys(ctx, groups);
+    const uniqueWhen = checkUniqueWhenClause(ctx, refFields, groups, seenKeys);
+    checkModelComputedKeys(ctx, seenKeys);
+    checkContainmentShape(def, ctx.model);
+    checkModelHooks(def, ctx.model);
+    checkModelInvariants(def, ctx.model);
+    checkModelLocks(def, ctx.model);
+    freezeModelDescriptor(ctx, table, groups, uniqueWhen);
   }
   checkContainmentAcyclic(table);
   return table;
@@ -1133,6 +1309,138 @@ export interface CanonicalModelTableOptions extends ModelTableOptions {
   readonly givenFieldValidations?: ReadonlyMap<ModelName, ReadonlyArray<GivenFieldValidationRule>>;
 }
 
+function buildCanonicalFallback(
+  canonicalDefault: CanonicalFieldDefault | undefined, name: string, modelName: string,
+): { readonly fallback: unknown; readonly hasFallback: boolean } {
+  if (canonicalDefault === undefined) return { fallback: undefined, hasFallback: false };
+  if (canonicalDefault.kind === 'literal') {
+    try {
+      return { fallback: structuredClone(canonicalDefault.value), hasFallback: true };
+    } catch {
+      throw new Error(
+        `Invalid literal default for field ${JSON.stringify(name)} on model ` +
+          `${JSON.stringify(modelName)}: defaults must be serializable data.`,
+      );
+    }
+  }
+  // `server`/`derived`: no pipeline default (T18 execution); the
+  // descriptor's `serverOnly` still rejects caller-supplied values.
+  if (canonicalDefault.kind === 'parent') return { fallback: { parentPath: canonicalDefault.path }, hasFallback: true };
+  return { fallback: undefined, hasFallback: false };
+}
+
+function checkActorContextDefault(
+  field: CanonicalFieldDef,
+  canonicalDefault: CanonicalFieldDefault | undefined,
+  name: string,
+  modelName: ModelName,
+  opts: CanonicalModelTableOptions,
+): boolean {
+  const contextDefault = canonicalDefault?.kind === 'context';
+  const contextMembers: Record<string, PropertyDescriptor> | undefined = contextDefault
+    ? Object.getOwnPropertyDescriptors(canonicalDefault) : undefined;
+  if (contextDefault && (![Object.prototype, null].includes(Object.getPrototypeOf(canonicalDefault)) ||
+      !['kind', 'value'].every(key => contextMembers![key] !== undefined && 'value' in contextMembers![key]! && contextMembers![key]!.enumerable) ||
+      contextMembers!['value']!.value !== 'actor' ||
+      (field.valueType !== 'user' && field.valueType !== 'user?') || field.required || field.serverOnly ||
+      field.array !== undefined || Reflect.ownKeys(canonicalDefault).length !== 2 ||
+      opts.serverInits?.get(modelName)?.has(name))) {
+    throw new Error(`Invalid actor context default for field ${JSON.stringify(name)} on model ${JSON.stringify(modelName)}.`);
+  }
+  return contextDefault === true;
+}
+
+function assembleCanonicalField(
+  field: CanonicalFieldDef,
+  fallback: unknown,
+  hasFallback: boolean,
+  serverInit: InterimServerInit | undefined,
+  knownNullable: boolean,
+  opts: CanonicalModelTableOptions,
+): InterimFieldDef {
+  return {
+    ...(Object.hasOwn(field, 'valueType') ? { valueType: field.valueType! } : {}),
+    ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
+    ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
+    ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
+    required: field.required,
+    serverOnly: field.serverOnly,
+    ...(hasFallback ? { default: fallback } : {}),
+    ...(field.machine !== undefined ? { machine: checkFieldMachine(field.machine) } : {}),
+    ...(field.array !== undefined ? { array: { required: field.array.required } } : {}),
+    ...(serverInit !== undefined ? { server: serverInit } : {}),
+    ...(Object.hasOwn(field, 'nullable') && opts.valueSchema !== undefined &&
+      field.valueType !== undefined && parseTypeId(field.valueType).base.kind === 'nominal'
+      ? { nullable: field.nullable! } : knownNullable ? { nullable: true } : {}),
+  };
+}
+
+function buildCanonicalField(
+  field: CanonicalFieldDef,
+  name: string,
+  modelName: ModelName,
+  modelNames: ReadonlySet<string>,
+  opts: CanonicalModelTableOptions,
+): InterimFieldDef {
+  checkModelValueType(field, name, modelName, modelNames, opts.valueSchema);
+  // HEAD captures the default once; the fallback and actor-context checks
+  // share the capture so a throwing getter cannot split them.
+  const canonicalDefault = field.default;
+  const { fallback, hasFallback } = buildCanonicalFallback(canonicalDefault, name, modelName as string);
+  const contextDefault = checkActorContextDefault(field, canonicalDefault, name, modelName, opts);
+  const serverInit = opts.serverInits?.get(modelName)?.get(name);
+  const knownNullable = opts.nullableFields?.get(modelName)?.has(name) === true;
+  const built = assembleCanonicalField(field, fallback, hasFallback, serverInit, knownNullable, opts);
+  if (contextDefault) contextActorDefaults.add(built);
+  return built;
+}
+
+function checkCanonicalUniqueKeys(model: CanonicalModelDescriptor, uniqueKeys: ReadonlyArray<string>): void {
+  for (const key of uniqueKeys) {
+    if (key.includes(',')) {
+      throw new Error(
+        `Model ${JSON.stringify(model.name as string)} declares composite unique ` +
+          `${JSON.stringify(key)}; composite uniques need T04b and cannot load in the ` +
+          'T16a core scope.',
+      );
+    }
+  }
+}
+
+function pushCanonicalDef(
+  defs: InterimModelDef[],
+  model: CanonicalModelDescriptor,
+  fields: Record<string, InterimFieldDef>,
+  opts: CanonicalModelTableOptions,
+): void {
+  const uniqueKeys = model.uniqueKeys ?? [];
+  checkCanonicalUniqueKeys(model, uniqueKeys);
+  const containment = opts.containment?.get(model.name);
+  const uniqueWhen = opts.uniqueWhen?.get(model.name);
+  const rawGroups = opts.uniqueGroups?.get(model.name);
+  const uniqueGroups = rawGroups === undefined ? undefined : checkedUniqueGroups(rawGroups);
+  if (uniqueWhen !== undefined && Object.keys(uniqueWhen).some(key => uniqueKeys.includes(key))) {
+    throw new Error(`Conditional unique cannot weaken an unconditional key on model ${JSON.stringify(model.name)}.`);
+  }
+  const givenUniqueKeys = opts.givenUniqueKeys?.get(model.name);
+  const givenFieldValidations = opts.givenFieldValidations?.get(model.name);
+  defs.push({
+    model: model.name,
+    fields,
+    refs: [...(opts.refs?.get(model.name) ?? [])],
+    uniqueKeys: [...uniqueKeys, ...Object.keys(uniqueWhen ?? {}), ...(uniqueGroups ?? []).map(group => group.join(','))],
+    ...(uniqueGroups === undefined ? {} : {uniqueGroups}),
+    ...(uniqueWhen === undefined ? {} : { uniqueWhen }),
+    deleteMode: model.deleteMode,
+    hooks: [],
+    invariants: [],
+    locks: [],
+    ...(containment !== undefined ? { containment: { ...containment } } : {}),
+    ...(givenUniqueKeys === undefined ? {} : { givenUniqueKeys: [...givenUniqueKeys] }),
+    ...(givenFieldValidations === undefined ? {} : { givenFieldValidations: [...givenFieldValidations] }),
+  });
+}
+
 /**
  * T16a: build a validated, frozen model table from canonical model
  * descriptors (the loaded intake's `models`), delegating to `buildModelTable`
@@ -1168,93 +1476,9 @@ export function buildModelTableFromCanonical(
   for (const model of models) {
     const fields: Record<string, InterimFieldDef> = {};
     for (const [name, field] of Object.entries(model.fields)) {
-      checkModelValueType(field, name, model.name, modelNames, opts.valueSchema);
-
-      let fallback: unknown;
-      let hasFallback = false;
-      const canonicalDefault = field.default;
-      if (canonicalDefault !== undefined) {
-        if (canonicalDefault.kind === 'literal') {
-          try {
-            fallback = structuredClone(canonicalDefault.value);
-          } catch {
-            throw new Error(
-              `Invalid literal default for field ${JSON.stringify(name)} on model ` +
-                `${JSON.stringify(model.name as string)}: defaults must be serializable data.`,
-            );
-          }
-          hasFallback = true;
-        } else if (canonicalDefault.kind === 'parent') {
-          fallback = { parentPath: canonicalDefault.path };
-          hasFallback = true;
-        }
-        // `server`/`derived`: no pipeline default (T18 execution); the
-        // descriptor's `serverOnly` still rejects caller-supplied values.
-      }
-      const contextDefault = canonicalDefault?.kind === 'context';
-      const contextMembers: Record<string, PropertyDescriptor> | undefined = contextDefault
-        ? Object.getOwnPropertyDescriptors(canonicalDefault) : undefined;
-      if (contextDefault && (![Object.prototype, null].includes(Object.getPrototypeOf(canonicalDefault)) ||
-          !['kind', 'value'].every(key => contextMembers![key] !== undefined && 'value' in contextMembers![key]! && contextMembers![key]!.enumerable) ||
-          contextMembers!['value']!.value !== 'actor' ||
-          (field.valueType !== 'user' && field.valueType !== 'user?') || field.required || field.serverOnly ||
-          field.array !== undefined || Reflect.ownKeys(canonicalDefault).length !== 2 ||
-          opts.serverInits?.get(model.name)?.has(name))) {
-        throw new Error(`Invalid actor context default for field ${JSON.stringify(name)} on model ${JSON.stringify(model.name)}.`);
-      }
-      const serverInit = opts.serverInits?.get(model.name)?.get(name);
-      const knownNullable = opts.nullableFields?.get(model.name)?.has(name) === true;
-      fields[name] = {
-        ...(Object.hasOwn(field, 'valueType') ? { valueType: field.valueType! } : {}),
-        ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
-        ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
-        ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
-        required: field.required,
-        serverOnly: field.serverOnly,
-        ...(hasFallback ? { default: fallback } : {}),
-        ...(field.machine !== undefined ? { machine: checkFieldMachine(field.machine) } : {}),
-        ...(field.array !== undefined ? { array: { required: field.array.required } } : {}),
-        ...(serverInit !== undefined ? { server: serverInit } : {}),
-        ...(Object.hasOwn(field, 'nullable') && opts.valueSchema !== undefined &&
-          field.valueType !== undefined && parseTypeId(field.valueType).base.kind === 'nominal'
-          ? { nullable: field.nullable! } : knownNullable ? { nullable: true } : {}),
-      };
-      if (contextDefault) contextActorDefaults.add(fields[name]!);
+      fields[name] = buildCanonicalField(field, name, model.name, modelNames, opts);
     }
-    const uniqueKeys = model.uniqueKeys ?? [];
-    for (const key of uniqueKeys) {
-      if (key.includes(',')) {
-        throw new Error(
-          `Model ${JSON.stringify(model.name as string)} declares composite unique ` +
-            `${JSON.stringify(key)}; composite uniques need T04b and cannot load in the ` +
-            'T16a core scope.',
-        );
-      }
-    }
-    const containment = opts.containment?.get(model.name);
-    const uniqueWhen = opts.uniqueWhen?.get(model.name);
-    const rawGroups = opts.uniqueGroups?.get(model.name);
-    const uniqueGroups = rawGroups === undefined ? undefined : checkedUniqueGroups(rawGroups);
-    if (uniqueWhen !== undefined && Object.keys(uniqueWhen).some(key => uniqueKeys.includes(key))) {
-      throw new Error(`Conditional unique cannot weaken an unconditional key on model ${JSON.stringify(model.name)}.`);
-    }
-    const givenUniqueKeys = opts.givenUniqueKeys?.get(model.name);
-    const givenFieldValidations = opts.givenFieldValidations?.get(model.name);
-    defs.push({
-      model: model.name,
-      fields,
-      refs: [...(opts.refs?.get(model.name) ?? [])],
-      uniqueKeys: [...uniqueKeys, ...Object.keys(uniqueWhen ?? {}), ...(uniqueGroups ?? []).map(group => group.join(','))],
-      ...(uniqueGroups === undefined ? {} : {uniqueGroups}),
-      ...(uniqueWhen === undefined ? {} : { uniqueWhen }),
-      deleteMode: model.deleteMode,
-      hooks: [],
-      invariants: [],
-      locks: [],
-      ...(containment !== undefined ? { containment: { ...containment } } : {}),
-      ...(givenUniqueKeys === undefined ? {} : { givenUniqueKeys: [...givenUniqueKeys] }),
-      ...(givenFieldValidations === undefined ? {} : { givenFieldValidations: [...givenFieldValidations] }),
-    });
+    pushCanonicalDef(defs, model, fields, opts);
   }
   return buildModelTable(defs, opts);
 }

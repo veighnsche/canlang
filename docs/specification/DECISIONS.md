@@ -19742,3 +19742,16 @@ within 20. Existing interface suites pass 12/14, including page presentation
 preference rule_failed/422 also reproduce in the isolated HEAD comparison.
 Those failures remain validation limits; full consumer qualification is not claimed.
 No complexity rules, allowances, permissions or public interfaces change.
+
+
+## 2026-10-18 — extract model and policy checks
+
+Accepted implementation: split model declarations, canonical defaults, identity
+fact copies and row predicates into private phases, closing ten original above-20
+bodies. Keep default values captured once, original scalar/predicate accessor reads,
+validation precedence, and unknown-predicate error fallthrough. Independent review
+found and repaired these boundary changes before accepting the four released sources.
+Covering role/query suites pass 169/169 with exit 0; focused default, scalar, guard
+and predicate probes match the retained prior behavior. Changed sources have clean
+scoped typing and score within 20. Full State typing and durable-suite qualification
+remain limited by unavailable environment dependencies; no full-package pass is claimed.
