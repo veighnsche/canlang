@@ -20362,3 +20362,20 @@ Cedar current, Oak other); the SDK decodes `{id}` wire refs into user
 natives worker-side because Rust cannot mint them. Ownerless
 (global-mode) previews stage nothing — recorded remainder, not a
 refusal of the CanTable path.
+
+### Live-preview blocker: native-receipt disclosure (2026-10-19)
+
+Driving `can-dev start` + `check` on CanTable reaches the new
+`testkit.stage` call, which refuses: 4 membership scenarios
+(`cafe.cancel`, `cafe.clear`, `cafe.reserve`, `cafe.seat`) emit no
+`result.disclosure.source`. Analysis-Complete is not sufficient —
+`collect_scenario_disclosure` only emits the native receipt plan, so
+`scenario_receipts.rs` (`Sites::collect` has no `IrExpr::Query` arm,
+plus nested/helper require shapes) is the owning gap, not the
+disclosure analysis df54b7ef6 completed. Reserve/seat are therefore
+blocked on receipts, not analysis; cancel/clear are unbisected
+(`trim` + parent-chain-arg + `in` conjuncts). Release condition: the
+real-closure staging repro (`stageClosureFixtures` over the 30-op
+closure) succeeds then the daemon `check` goes green. A continue-past
+probe also surfaced a later `Native owner model predicate did not
+return bool` during materialization — second layer, after disclosure.
