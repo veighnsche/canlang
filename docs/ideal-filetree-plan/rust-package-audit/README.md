@@ -1,5 +1,16 @@
 # Additional Rust opportunities across packages
 
+**Accepted selected Work slice:** `cd2651c5e` shares the ten ordinary helpers
+and preserves owning/caller error identity through explicit factories. Focused
+owning/leaf and actual installed Node/Work-facade Worker checks pass. Native
+preparation remains active source work; this closes no broad parent or release gate.
+
+**Current scope change:** direct human voice turn `01a14d5b-34bb-7880-b29b-63081f49cedd`
+releases native preparation source implementation/integration/validation and the
+Work ten-helper continuation through the existing Muse coordinator. The active
+Rust checklist governs; prior native implementation holds below are historical.
+Public release/deployment, default changes and TS retirement remain separate.
+
 **Execution update, 18 October 2026:** selected Rust int/ASCII plus explicit CSV,
 shared fanout TS and selected installed recovery asset delivery are now accepted.
 See the [single current execution view](../../implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18)

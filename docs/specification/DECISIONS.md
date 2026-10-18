@@ -18890,3 +18890,35 @@ Integration scope: eight documentation paths only, on top of main `46cb113ad`.
 Retain the compiler owner's accumulated coverage and newer history, all foreign
 working notes and the stale complete filetree checkpoint. This merge authorizes
 no implementation; the proposed W02.5 packet and native-preparation hold remain.
+
+
+## 2026-10-18 — release native preparation source implementation
+
+- **Accepted authority:** Vince's direct human voice message “Yeah, put it in scope for the Rust port”, originating New voice chat turn `01a14d5b-34bb-7880-b29b-63081f49cedd`, verified by Codex. It lifts the previous P04–P11/C04.native-release source implementation hold; Work's proposed ten-helper packet and dependency-ready native preparation now continue through the same Muse coordinator without per-packet release requests.
+- **Boundary:** Implement/integrate/test the Rust executable path, real host/module/plan wiring, actual backend selection, executable verification and local packaged consumers. Contained staging/preview and mocked apply are validation. Public publication/deployment, automatic default switches and TS retirement remain separate held decisions. Missing cross-host/toolchain output is an external prerequisite, not a blanket human hold.
+- **Plan and rationale:** Existing owners/interfaces and original finite contracts remain. Current `job.rs` stops before the full module/plan pipeline; the differential backend label does not select the backend. First finish the ready Work facade and current two-phase preparation host/adapter join, then the native job and CLI/installed joins as their outputs release. Reuse accepted scopes and focused checks; no new algorithm framework or compiler lane is introduced. The current checklist owns this sequence; independent Codex review/Git and foreign compiler changes remain protected.
+
+
+## 2026-10-18 — accept shared Work helpers with owning failure construction
+
+The selected W02.5 ten-helper slice is accepted at source `cd2651c5e`.
+Construct owning Work errors at genuine leaf failure sites through an explicit
+defaulted factory; do not catch/reclassify arbitrary caller-thrown objects or use
+lifetime-wide error brands. Forward factories through every nested fanout call.
+This preserves exact caller identity, owning class/ownkeys/messages and existing
+getter/clone/admission order without changing State/default leaf behavior.
+Newer dispatch/occurrence/schedule provenance codecs remain Work-owned.
+
+Final owning tables27/27, commands90/90 and leaf rows140/140 pass with clean emits;
+independent probes cover nested owning instanceof and retained caller errors.
+Actual installed CF gather/bundle supplies288 modules to the genuine Work facade
+in a fresh isolated Worker/two cold-warm calls, matching installed Node for all
+ten helpers and failure/clone controls. Source/command custody is released.
+Keep original W parent remainder explicit and reuse unchanged accepted evidence.
+
+Integrate this source and native source-release planning while preserving main's
+newer handler-emission, dev-planning and computed-order commits through61334d958
+and all foreign notes/staging. Native source is unfinished and excluded from this
+accepted commit; its next boundary is the coherent real job/plan/host/CLI join.
+The compiler chat's next filter commit boundary remains pending for later safe
+worktree intake. No public deployment, default switch or TS retirement is released.
