@@ -33,6 +33,16 @@ export interface LoadedExampleSuite {
   readonly rows: Array<TableRowSpec<RowScope>>;
   /** User fixtures declared by the artifact (roles for row accounts). */
   readonly userFixtures: readonly NamedUserFixture[];
+  /**
+   * Stage fixture names into an already-provisioned scope: static values
+   * plus worker materialization, no invoke or observe. Defaults to the
+   * first-seen union of row seeds. The materializer must be present;
+   * names outside this suite's recipes refuse.
+   */
+  readonly stage: (
+    scope: RowScope,
+    names?: readonly string[],
+  ) => Promise<ReadonlyMap<string, unknown>>;
 }
 
 /**
@@ -372,7 +382,15 @@ export async function loadExampleSuite(
     for (const spec of mapped.specs) rows.push(spec);
     rowIndex = mapped.nextRowIndex;
   }
-  return { rows, userFixtures: users };
+  const stage: LoadedExampleSuite["stage"] = async (scope, names) => {
+    if (prepare === undefined) throw setupError(null, "fixture materializer is unavailable for staging");
+    const order: string[] = [];
+    for (const seed of names ?? rows.flatMap((row) => row.seed)) {
+      if (!order.includes(seed)) order.push(seed);
+    }
+    return preparedFixtures(scope, order, suite, bindings, values, prepare);
+  };
+  return { rows, userFixtures: users, stage };
 }
 
 async function mapEmittedExample(

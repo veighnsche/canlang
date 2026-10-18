@@ -8,7 +8,7 @@ import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256Hex
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import { createD1OwnerRouter } from "@canlang/state/storage/owner-router";
 import { decodeValue, encodeValue, validateValue, parseTypeId, printTypeId, isUserRef, isDatetime, isRecordRef, type NormalizedSchema } from "@canlang/values";
-import { resolveExampleFixtureImports } from "./example-fixture-imports.js";
+import { resolveExampleFixtureImports, sharedFixtureResolveCaches } from "./example-fixture-imports.js";
 import { parseArtifactText } from "./artifact.js";
 import { assembleModules, type AssembledModules } from "./modules.js";
 import { invokeReadCanonical, loadCanonicalDescriptors, materializeCanonicalExampleSnapshots } from "./invoke.js";
@@ -156,6 +156,7 @@ interface CallerSelection {
 interface RowSpec {
   readonly rowIndex: number;
   readonly caller: CallerSelection;
+  readonly seed: readonly string[];
   /** Testkit replaces this after evaluating authored expectations in setup. */
   readonly expected: unknown;
   setup(scope: ExampleRowScope, accounts: RowAccounts): Promise<void>;
@@ -166,6 +167,8 @@ interface RowSpec {
 interface LoadedSuite {
   readonly rows: readonly RowSpec[];
   readonly userFixtures: readonly UserFixture[];
+  /** Setup-only staging into a provisioned scope: no invoke or observe. */
+  readonly stage: (scope: ExampleRowScope, names?: readonly string[]) => Promise<ReadonlyMap<string, unknown>>;
 }
 
 interface StashedRow {
@@ -211,7 +214,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asLoadedSuite(value: unknown, scope: string): LoadedSuite {
-  if (!isRecord(value) || !Array.isArray(value["rows"]) || !Array.isArray(value["userFixtures"])) {
+  if (!isRecord(value) || !Array.isArray(value["rows"]) || !Array.isArray(value["userFixtures"]) ||
+      typeof value["stage"] !== "function") {
     throw new Error(`example runner: testkit returned an invalid suite for ${scope}`);
   }
   for (const row of value["rows"] as unknown[]) {
@@ -908,12 +912,17 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
   };
 }
 
-/** Evaluate a compiled suite factory once; resource and row selection belong to Rust. */
-export async function loadExampleBindings(input: ExampleBindingInput, moduleIndex: number) {
-  const testkit = input.testkit ?? await loadInstalledExampleTestkit(input.applicationRoot);
+interface AssembledClosure {
+  readonly artifact: CompileArtifact;
+  readonly moduleArtifact: CompileArtifact;
+  readonly asm: AssembledModules;
+  readonly ownerProfile: ExampleOwnerProfile | undefined;
+}
+
+async function assembleClosureContext(
+  input: Pick<ExampleBindingInput, "artifactBytes" | "artifactLabel" | "workDir" | "applicationRoot">,
+): Promise<AssembledClosure> {
   const artifact = parseArtifactText(Buffer.from(input.artifactBytes).toString("utf8"), input.artifactLabel).artifact;
-  const test = artifact.tests[moduleIndex];
-  if (test === undefined) throw new Error("example binding: test module index is absent");
     const moduleArtifact: CompileArtifact = {
       ...artifact,
       modules: [...artifact.modules, ...artifact.tests.map(test => test.module)],
@@ -934,6 +943,15 @@ export async function loadExampleBindings(input: ExampleBindingInput, moduleInde
       }
       ownerProfile = { artifact: moduleArtifact, asm, app: definition["id"] };
     }
+    return { artifact, moduleArtifact, asm, ownerProfile };
+}
+
+/** Evaluate a compiled suite factory once; resource and row selection belong to Rust. */
+export async function loadExampleBindings(input: ExampleBindingInput, moduleIndex: number) {
+  const testkit = input.testkit ?? await loadInstalledExampleTestkit(input.applicationRoot);
+  const { artifact, moduleArtifact, asm, ownerProfile } = await assembleClosureContext(input);
+  const test = artifact.tests[moduleIndex];
+  if (test === undefined) throw new Error("example binding: test module index is absent");
     // Canonical source verification consumes the same complete artifact that
     // issued this assembly, including the actual compiled test modules. The
     // original compiler bytes still own the report digest and row inventory.
@@ -1090,6 +1108,262 @@ export async function loadExampleBindings(input: ExampleBindingInput, moduleInde
         rows: [boundRow], createScope: async () => bindRowScope(input, dev, databases, testkit.snapshotLocalDatabases, ownerProfile) });
     },
   };
+}
+
+/**
+ * Existing preview identity that staged fixtures belong to. Staging never
+ * invents teams or users: rows land under these teams, visible to the same
+ * serving workers that authenticate them.
+ */
+export interface StagingIdentity {
+  /** Team owning staged rows (e.g. the preview Cedar team). */
+  currentTeamId: string;
+  otherTeamId: string;
+  /** Existing users bound to the fixture self/other/outsider accounts. */
+  selfUserId: string;
+  otherUserId: string;
+  outsiderUserId: string;
+}
+
+export interface StageClosureFixturesInput extends Omit<ExampleBindingInput, "bindings" | "hooks"> {
+  /**
+   * Explicit caller bindings are required: recipe user fields resolve to
+   * these refs, and staging never provisions stand-in actors. `imported`
+   * is resolved from the closure itself.
+   */
+  bindings: { self: unknown; other: unknown; outsider?: unknown };
+  identity: StagingIdentity;
+}
+
+/** D1 bindings resolving against the target worker (serving or scratch). */
+export interface StagingDatabases {
+  /** Identity database id, kept on the scope for provenance. */
+  d1Id: string;
+  identityBinding: string;
+  currentOwnerBinding: string;
+  otherOwnerBinding: string;
+}
+
+async function stagingAccounts(users: readonly UserFixture[]): Promise<RowAccounts> {
+  const staged: Record<string, { account: string; roles: readonly string[] }> = {};
+  for (const user of users) {
+    if (staged[user.name] !== undefined) throw new Error(`duplicate user fixture name: ${user.name}`);
+    staged[user.name] = { account: `stage-user-${user.name}`, roles: [...user.roles] };
+  }
+  return { self: "stage-self", other: "stage-other", outsider: "stage-outsider", users: staged };
+}
+
+/**
+ * Scope over existing identity: teams and users already exist (preview
+ * seed or equivalent), so only sessions are minted. Owner databases must
+ * already be pinned to these teams; unassigned databases refuse instead
+ * of being claimed. Actor provisioning stays forbidden: staging binds
+ * identity, it never invents it.
+ */
+async function bindStagingScope(
+  dev: ExampleDatabaseHost,
+  resources: StagingDatabases,
+  snapshot: ExampleTestkitPort["snapshotLocalDatabases"],
+  ownerProfile: ExampleOwnerProfile | undefined,
+  identity: StagingIdentity,
+  users: readonly UserFixture[],
+  authored: { self: unknown; other: unknown; outsider?: unknown },
+): Promise<ExampleRowScope> {
+  // Alias resolution only reads these three fields; the merged fixture
+  // closure never crosses this boundary.
+  const aliasInput = { bindings: authored } as ExampleBindingInput;
+  const base: LocalRowScope = {
+    dev,
+    dispose: async () => {},
+    snapshot: () => snapshot(dev, [resources.identityBinding]),
+  };
+  const identityDb = await base.dev.getD1Database(resources.identityBinding);
+  await ensureIdentitySchema(identityDb);
+  const identities = createD1IdentityStore(identityDb);
+  const tokens = new Map<string, string>();
+  const actorAccounts = new Map<string, string>();
+  const accounts = await stagingAccounts(users);
+  async function mintSession(account: string, userId: string, teamId: string): Promise<void> {
+    const token = randomBytes(32).toString("base64url");
+    await identities.createSession({
+      user_id: userId,
+      token_sha256: await sha256HexText(token),
+      expires_at: toInstant(Date.now() + 60 * 60_000),
+      last_team_id: teamId,
+    });
+    tokens.set(account, token);
+    actorAccounts.set(userId, account);
+  }
+  await mintSession(accounts.self, identity.selfUserId, identity.currentTeamId);
+  await mintSession(accounts.other, identity.otherUserId, identity.currentTeamId);
+  await mintSession(accounts.outsider, identity.outsiderUserId, identity.otherTeamId);
+  for (const user of users) {
+    const account = accounts.users[user.name]!.account;
+    const created = await identities.createUser({
+      email: `${account}@examples.invalid`,
+      password_hash: "example-only-unusable",
+      email_verified: true,
+    });
+    await identities.createMembership({
+      team_id: identity.currentTeamId,
+      user_id: created.user_id,
+      is_owner: false,
+      roles: user.roles.filter(role => role !== "members").map(role => ({
+        role,
+        granted_at: toInstant(Date.now()),
+        granted_by: identity.selfUserId,
+      })),
+    });
+    await mintSession(account, created.user_id, identity.currentTeamId);
+  }
+  // Fail fast on dangling identity instead of staging rows nobody can read.
+  const self = await resolveIdentity(identities, {
+    session_token: tokens.get(accounts.self)!,
+    team_id: identity.currentTeamId,
+  });
+  let store: StoragePort | null = null;
+  let ownerStorage: TeamOwnerStorageBoundary | undefined;
+  if (ownerProfile !== undefined) {
+    const currentDb = await base.dev.getD1Database(resources.currentOwnerBinding);
+    const otherDb = await base.dev.getD1Database(resources.otherOwnerBinding);
+    const routes = new Map([
+      [identity.currentTeamId, currentDb],
+      [identity.otherTeamId, otherDb],
+    ]);
+    const router = createD1OwnerRouter({ resolveBinding: requested => {
+      if (requested.app !== ownerProfile.app) return null;
+      const routedDb = routes.get(requested.owner);
+      return routedDb === undefined ? null : {
+        app: ownerProfile.app, owner: requested.owner, db: routedDb,
+      };
+    } });
+    ownerStorage = await createTeamOwnerStorageBoundary({ artifact: ownerProfile.artifact,
+      asm: ownerProfile.asm, app: ownerProfile.app, identities, router });
+    store = await ownerStorage.forIdentity(self);
+  } else {
+    store = createD1Storage(identityDb);
+  }
+  const scope: ExampleRowScope = {
+    ...base,
+    get store() {
+      if (store === null) throw new Error("example runner: staging store is not provisioned");
+      return store;
+    },
+    get ownerStorage() { return ownerStorage; },
+    identities,
+    d1Id: resources.d1Id,
+    get currentTeamId() { return identity.currentTeamId; },
+    get fixtureActorId() { return identity.selfUserId; },
+    get nowMs() { return Date.now(); },
+    async provisionActors() {
+      throw new Error("example runner: staging binds preview identity, it never provisions actors");
+    },
+    async identityFor(by, rowCaller, fixtures) {
+      if (by === "public") return resolveIdentity(identities, { team_id: identity.currentTeamId });
+      const account = rowActorAccount(by, rowCaller, fixtures, accounts, aliasInput, actorAccounts);
+      if (account === null) throw new Error("example runner: staging names no bound actor");
+      const token = tokens.get(account);
+      if (token === undefined) throw new Error("example runner: staging actor has no verified session");
+      return resolveIdentity(identities, { session_token: token, team_id: identity.currentTeamId });
+    },
+  };
+  return scope;
+}
+
+/**
+ * Stage a closure's fixture providers into caller-supplied databases:
+ * every example suite loads against the merged fixture closure, the
+ * first-seen union of row seeds materializes once in a single scope, and
+ * no operation is invoked or observed. Returns staged names in order.
+ * Missing providers, cyclic graphs, unassigned owner databases and
+ * partially materialized closures refuse; the owner session aborts
+ * partial writes.
+ */
+export async function stageClosureFixtures(
+  input: StageClosureFixturesInput,
+  dev: ExampleDatabaseHost,
+  databases: StagingDatabases,
+): Promise<{ materialized: string[] }> {
+  const testkit = input.testkit ?? await loadInstalledExampleTestkit(input.applicationRoot);
+  const { artifact, moduleArtifact, asm, ownerProfile } = await assembleClosureContext(input);
+  nonempty(input.sourceRevision, "source revision");
+  const tableOperations = new WeakMap<ExampleRowScope, Readonly<{ id: string; source: string }>>();
+  const runtimeHooks = canonicalExampleHooks(moduleArtifact, asm, tableOperations, "preview-stage");
+  const loadSuite = testkit.loadExampleSuite as (
+    moduleUrl: string,
+    bindings: { self: unknown; other: unknown; outsider?: unknown; imported: unknown },
+    hooks: RunnerHooks,
+  ) => Promise<unknown>;
+  const hooks: RunnerHooks = {
+    prepareFixtures: async (scope, fixtures, required) => {
+      const nonUser = required.filter(recipe => recipe.kind !== "user");
+      const result = await evaluate( () =>
+        runtimeHooks.materializeFixtures({ scope, fixtures, required: nonUser }));
+      if (!isRecord(result) || !Array.isArray(result["materialized"]) || !(result["values"] instanceof Map)) {
+        throw new Error("example runner: preview staging fixture materializer returned no stored values receipt");
+      }
+      const actual = new Set(result.materialized);
+      const missing = nonUser.find(recipe => !actual.has(recipe.name));
+      if (missing !== undefined) throw new Error(`example runner: preview staging fixture ${missing.name} was not materialized`);
+      return result.values;
+    },
+    invokeCall: async () => ({ ok: false as const, unsupported: true as const, detail: "preview staging never invokes" }),
+    observeScope: async () => { throw new Error("preview staging never observes"); },
+  };
+  // Row value expressions may anchor to `now` (e.g. `from=now+1h`); the
+  // load-time caller probe evaluates them, so staging anchors the same
+  // stage-time clock the row runtime would provide. The established row
+  // path leaves `now` undefined at load and still refuses such modules;
+  // that pre-existing gap stays out of scope here.
+  const authored = { self: input.bindings.self, other: input.bindings.other, outsider: input.bindings.outsider,
+    now: decodeValue("datetime", new Date().toISOString()) };
+  // Resolve every module through one shared cache: each alias keeps a
+  // single recipe object, so per-module closures merge into one
+  // consistent closure for the single union materialization below.
+  // Isolated per-call caches would fork identities and break the merge.
+  const shared = sharedFixtureResolveCaches();
+  const perModule = new Map<string, Record<string, object>>();
+  for (const test of artifact.tests) {
+    const resolved = await evaluate( () => resolveExampleFixtureImports(
+      artifact.tests, asm.moduleUrls, test, { imported: {} }, undefined, shared)) as Record<string, object>;
+    perModule.set(test.module.path, resolved);
+  }
+  const merged: Record<string, object> = Object.create(null) as Record<string, object>;
+  for (const resolved of perModule.values()) Object.assign(merged, resolved);
+  const bindings = { ...authored, imported: merged };
+  const suites: LoadedSuite[] = [];
+  for (const test of artifact.tests) {
+    // Recipe-only providers carry no rows, and reloading one would mint a
+    // fresh own-recipe that orphans the merged references other recipes
+    // hold. Their recipes already sit in the merged closure above.
+    if (test.fixtures.length > 0) continue;
+    const url = asm.moduleUrls[test.module.path];
+    if (url === undefined) throw new Error(`example runner: test module ${test.module.path} was not staged`);
+    suites.push(asLoadedSuite(await evaluate( () => loadSuite(url, bindings, hooks)), test.scope));
+  }
+  const staging = suites.find(suite => suite.rows.length > 0);
+  if (staging === undefined) return { materialized: [] };
+  const names: string[] = [];
+  for (const suite of suites) {
+    for (const row of suite.rows) {
+      for (const seed of row.seed) {
+        if (!names.includes(seed)) names.push(seed);
+      }
+    }
+  }
+  const users = staging.userFixtures;
+  const scope = await bindStagingScope(dev, databases, testkit.snapshotLocalDatabases, ownerProfile,
+    input.identity, users, authored);
+  try {
+    const staged = await staging.stage(scope, names);
+    const materialized = names.filter(name => staged.has(name));
+    if (materialized.length !== names.length) {
+      throw new Error("example runner: preview staging did not return every required fixture value");
+    }
+    return { materialized };
+  } finally {
+    await scope.dispose();
+  }
 }
 
 export async function buildExampleReport(applicationRoot: string, artifactDigest: string,

@@ -9,18 +9,42 @@ function fail(detail: string): never {
 }
 
 /** Link checked test-only recipe providers once for this suite's binding context. */
+/**
+ * Recipe caches shared across resolutions of one closure. Sharing keeps
+ * one object identity per fixture alias, so maps resolved for different
+ * roots merge into a single consistent closure (used by preview staging
+ * to materialize the union of example rows once). Omit for isolated
+ * per-call caches; `active` always stays per-call.
+ */
+export interface SharedFixtureResolveCaches {
+  readonly recipes: Map<string, object>;
+  readonly owners: WeakMap<object, string>;
+  readonly closures: Map<string, Readonly<Record<string, object>>>;
+  readonly modules: Map<string, Record<string, unknown>>;
+}
+
+export function sharedFixtureResolveCaches(): SharedFixtureResolveCaches {
+  return {
+    recipes: new Map<string, object>(),
+    owners: new WeakMap<object, string>(),
+    closures: new Map<string, Readonly<Record<string, object>>>(),
+    modules: new Map<string, Record<string, unknown>>(),
+  };
+}
+
 export async function resolveExampleFixtureImports(
   tests: readonly ArtifactTestModule[],
   moduleUrls: Readonly<Record<string, string>>,
   root: ArtifactTestModule,
   bindings: { readonly imported: unknown },
   load: (url: string) => Promise<Record<string, unknown>> = url => import(url),
+  shared?: SharedFixtureResolveCaches,
 ): Promise<unknown> {
-  const recipes = new Map<string, object>();
-  const owners = new WeakMap<object, string>();
-  const closures = new Map<string, Readonly<Record<string, object>>>();
+  const recipes = shared?.recipes ?? new Map<string, object>();
+  const owners = shared?.owners ?? new WeakMap<object, string>();
+  const closures = shared?.closures ?? new Map<string, Readonly<Record<string, object>>>();
   const active = new Set<string>();
-  const modules = new Map<string, Record<string, unknown>>();
+  const modules = shared?.modules ?? new Map<string, Record<string, unknown>>();
   async function moduleOf(test: ArtifactTestModule): Promise<Record<string, unknown>> {
     const prior = modules.get(test.module.path);
     if (prior !== undefined) return prior;

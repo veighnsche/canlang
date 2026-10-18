@@ -20333,3 +20333,18 @@ required-reference path, `parent` keeps hop semantics, and comparisons
 against derive results still refuse). The admitted equality consumes
 containment into a lineage-free boolean, as the existing parent-hop
 shape does.
+
+### Fixture staging into preview D1 (2026-10-18)
+
+Preview D1 population reuses the existing testkit fixture machinery
+instead of a new bundler: `LoadedExampleSuite.stage` materializes
+static row seeds plus caller-supplied materialization into one staging
+scope (first-seen union across suites, no invoke/observe), and the
+worker `stageClosureFixtures` binds the existing preview identity
+(teams/users pre-seeded, sessions minted; actor provisioning and owner
+DB claiming both refuse) and routes rows into the serving team's D1.
+Merged-closure recipe identity is preserved with opt-in shared resolve
+caches (cycle detection stays per-call); recipe-only provider modules
+are skipped at load so their fresh own-recipes cannot orphan merged
+references. Staged `records.owner` stays `''` by the D1 store's own
+insert binding — team scoping is by D1 routing, not the column.
