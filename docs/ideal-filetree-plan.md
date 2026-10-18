@@ -26,8 +26,20 @@ pass. Retain the unchanged compiler's 68-test/shared-corpus evidence at its pin.
 These results satisfy the finite joined grammar/usage criteria without another
 intake assignment; broader formatter parity, ownerless UI enum adoption and full
 tarball/browser/host/native qualification are not inferred. Newer main-checkout
-compiler/runtime work was untouched. No merge or complete checkpoint advance
-occurs; native preparation remains **HUMAN HOLD**.
+compiler/runtime work was untouched; native preparation remains **HUMAN HOLD**.
+
+Main integration fast-forwarded `1255fc11f` to `8ad70d468`. Incremental
+reconciliation covers all five package and seven documentation paths above,
+reusing retained accumulated coverage and existing owner/target reviews. Values
+and UI retain their defining ownership; the full-signature usage allocation and
+finite joined criteria are complete. Canonical Rust tasks, target allocations,
+remaining adoption gates and the complete review checkpoint are unchanged.
+The 73 pre-existing modified/untracked main files are disjoint from the packet.
+All tracked source edits retained their bytes and modes across the merge;
+five untracked database files changed concurrently under their running owner.
+Foreign staging is unchanged. Integration adds no semantic edits, so the recorded
+255 TS tests, two formatter consumers and retained compiler evidence are reused.
+This bookkeeping releases no native preparation or broader formatter work.
 
 **Compiler ICU parse/usage consolidation, 2026-10-18 (base `7700621fa`):**
 the human released the compiler packet in the

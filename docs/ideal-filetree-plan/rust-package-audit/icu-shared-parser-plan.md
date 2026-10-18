@@ -313,8 +313,15 @@ at the grammar/usage scope. No extra compiler rebuild or unchanged qualification
 is required. Source-loaded Cloudflare, cached dependencies, Node24 transform-types
 and the existing ownerless UI enum refusal retain their precise limits. These
 checks do not certify full tarballs, browser/hosted/native delivery or complete
-formatter parity. No merge, canonical Rust task closure or complete checkpoint
-advance occurs here. Native preparation remains **HUMAN HOLD**.
+formatter parity.
+
+Integration fast-forwarded main from `1255fc11f` to `8ad70d468`, covering the
+five package and seven planning/decision paths recorded in the living plan.
+Retain accumulated coverage, defining owners and target allocations. Newer
+compiler/runtime source edits and foreign staging were preserved; concurrent
+untracked database writes remain with their owner. No semantic integration edits
+require renewed qualification. No canonical Rust task closure or complete
+checkpoint advance occurs. Native preparation remains **HUMAN HOLD**.
 
 ## Optional single-Rust-parser follow-up
 
