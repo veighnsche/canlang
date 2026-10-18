@@ -20282,3 +20282,16 @@ closure's 33 hook/emit diags traced to one Booking invariant calling
 `available()`, not to hook bodies — all 9 maintain hooks were already
 natively supported. No cascade design was needed (hook-created rows
 trigger no hooks).
+
+### u1 style scaffold as honest current input (2026-10-18)
+
+A fresh preparation group (`Bound` provenance, empty originals) may
+receive its missing primary outputs by direct edit: the intake reads
+the unit directory as-is and treats direct edits as current inputs,
+while `unit.json` fingerprints stay untouched for comparison. So the
+CanTable `u1` style-inline unit was repaired with a handwritten
+`style.css` scaffold (labeled as such in-file, `:host` idiom; bare
+`:scope` is refused by the scoper), with provenance left at "explicit
+bind; no generated output yet" — no generation claim is fabricated.
+`adopt` was not applicable (it reconciles legacy files, of which `u1`
+has none). Model-generated refinement remains generation-owner work.
