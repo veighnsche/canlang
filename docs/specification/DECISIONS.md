@@ -19286,3 +19286,47 @@ two pre-existing adapter fixture failures, the old Rust digest pin and four fore
 runtime type errors rather than claiming blanket green checks. Preserve newer
 compiler/runtime/Work source and notes, the complete stale filetree checkpoint,
 public deployment/default/TS-retirement holds and the broader programme's open goal.
+
+
+## 2026-10-18 — propose the next native bundle identity handoff
+
+**Proposed packet; planning only.** Against fetched/canonical main `a28335e6b`,
+select a bounded P05.1/P05.4 component next: retain/reuse the exact final deploy
+module buffers already admitted by Rust, derive their count and legacy v1 digest
+with the existing helper, and make that native identity supply the actual private
+PLAN/review handoff with correspondence to the same retained host publication
+bundle. Reporting an unused extra hash is insufficient. Source/contracts are ready;
+no source writer, implementation worker, goal, test/build, merge or push is started
+by this proposal.
+The current planning request supersedes earlier continuous dispatch.
+
+Rationale: the job currently discards buffers after `modulesChecked`, while PLAN
+accepts host-computed count/hash separately. This source join advances original
+cross-stage identity without requiring the much larger native module constructor.
+Retain the accepted frontend/refinement031 boundary, the TS builder's policy
+checkpoints and source-map/browser/generated-module ownership. Hash final supplied
+text including inline maps/browser appends; leave mixed/resource digests separate.
+Legacy no-bundle/main behavior, original diagnostic/order/cancellation and build's
+admission domain stay unchanged. Do not tighten the standalone permissive plan
+helper to enforce the private driver join. Original P05.4 construction/output and
+P05.5 native-output MCP/workerd, P10 full resources and P11 coverage remain open.
+
+Read-only independent challenge confirms readiness and these boundaries; no new
+difficult language/frontend choice was introduced beyond the accepted JEV decision.
+The future implementation must choose the smallest existing private protocol/output
+join and review mismatched-reference attribution without introducing a new user
+validation gate. Exact writes and finite check/stop conditions are in the
+[single current checklist](../implementation/rust-port-orchestration/current-plan.md#next-proposed-packet--native-bundle-identity-into-the-retained-deploy-plan).
+Reuse accepted installed CLI/integrity/rollback evidence; public deployment,
+automatic defaults and TS retirement remain held. Complete stale filetree checkpoint
+and concurrent compiler/runtime/Work source/notes remain untouched.
+
+
+### Planning integration disposition
+
+The user authorizes committing, merging into current main and pushing the seven
+refreshed planning documents. The native identity packet remains proposed and
+implementation stays paused. Reconcile these documentation changes together with
+the living filetree plan, preserving newer committed compiler/runtime/Work history
+and concurrent uncommitted source/notes. No canonical task status, owner/target
+allocation, complete checkpoint or public/default/retirement release advances.

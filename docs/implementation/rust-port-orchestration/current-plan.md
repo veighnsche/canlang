@@ -1,27 +1,137 @@
 # Rust-port finite packet detail
 
+## Current planning refresh — 18 October 2026
+
+Source pin: fetched origin/main and canonical main both
+`a28335e6b6d65ac338189f0481cc0af32bfb88f3`. The planning checkout at `3a3d4e419`
+has identical tracked content (`git diff HEAD origin/main` is empty); the intervening
+main commits are the retained integration merges. Concurrent uncommitted main
+work is outside this source baseline and remains with its owners.
+
+**Planning only.** Vince's latest request pauses implementation/dispatch while
+this next packet is proposed. The earlier native source/local-validation release
+remains historical authority, but does not override this request. Public deployment,
+automatic backend defaults and TS retirement remain held. No source writer,
+implementation command, implementation worker or new goal is started by this refresh. The existing
+Muse coordinator remains in released standby with exact closure ACK053; accepted
+CLI/integrity work is not a stalled assignment.
+
+Accepted source `4ed0d38fe` and facts `1e018e714` are integrated in this main.
+The selected N4/N5 CLI/integrity/local mocked-publication packet is complete:
+Darwin installed native9/TS9, genuine native mocked apply, same-data TS rollback,
+and final Linux installed build/integrity controls retain their recorded scope.
+All assigned writers/commands are released. Owned debug/private expanded installs
+were cleaned; binaries, source, logs, reconstructible consumers and viewer remain.
+W02.5's ten matching helpers are accepted at `cd2651c5e`. Do not redispatch them.
+Broader P05 module construction/policy and P10/P11 adoption remain partial.
+
+### Next proposed packet — native bundle identity into the retained deploy plan
+
+**Original IDs:** a bounded remaining component of `ports:P05.1` and
+`ports:P05.4`, consumed by the accepted `ports:P06.3` plan/review join.
+This is a useful source handoff, not completion of either P05 parent. It creates
+no additional canonical task or release gate.
+
+**Observable outcome:** the real native deploy job derives the text-bundle v1
+identity from the exact final module buffers it admitted, and that native-derived
+identity supplies the actual deploy plan/review used by the host's existing
+reviewed-byte publication. Today `load_modules` returns only `modulesChecked`;
+`build_plan` separately accepts the host's bundle reference. Existing Rust
+`modules::bundle_sha256` is not called by that job. Merely adding another reported
+hash without changing the consumed plan reference does not satisfy this packet.
+
+**Concrete prerequisites already available:**
+
+- `src/preparation/host.ts::ensureBundle` supplies one retained final
+  `PackageDeployBundle`, exact final `modules`, actual binary keys and owner facts
+  through `loadModulesResumeWithFacts`/`buildLoadModulesPayload`.
+- `preparation/src/modules.rs` already has UTF16-key sorting, legacy v1 digest and
+  inventory helpers; `job.rs` admits the buffers/facts and owns ordered PLAN /
+  LOAD_PREVIOUS_PLAN / review. The existing lossless renderer is available.
+- The accepted host/publication path retains those same bundle bytes and checks
+  reviewed plan/TOML before local publication. No new parser, module producer,
+  resource inventory, compiler output or executable packaging framework is needed.
+
+**Remaining change and defining owners:** the preparation job retains/reuses the
+admitted deploy buffers long enough to calculate their count and v1 digest, and
+joins those results to its private PLAN input/output. The host retains the
+stem-derived deployment main path and the actual frozen bundle for publication;
+its private native boundary must establish that the plan's count/digest identifies
+that same bundle. Preserve the genuine no-bundle legacy-main outcome separately
+from a present bundle. Use the existing framed protocol/outputs and error classes;
+no new stage, generic carrier or filesystem authority is selected. Do not tighten
+`plan.rs`'s public helper domain to enforce an internal native-driver invariant.
+
+One source writer owns `preparation/src/{job,modules}.rs` and the necessary
+`src/preparation/{host,inputs,build-adapter}.ts` join. Only change
+`src/preparation/protocol.ts` if its existing output types need the fields.
+Focused owning tests are `preparation/tests/{modules,vectors}.rs` and
+`test/preparation-{inputs,protocol,publication}.test.ts`; change only affected tests.
+`deploy/bundle.ts` remains the construction/frontend oracle, not a second writer
+or a required extraction in this packet. Codex independently reviews the released
+source and updates central planning docs. No writes are leased now.
+
+**Finite acceptance:**
+
+1. The actual native deploy job's plan count/v1 digest comes from its admitted
+   final JS map and equals TS for the same frozen producer. Hash source-map inline
+   suffixes, generated modules and final browser asset/artifact appends exactly as
+   supplied; do not hash an earlier base bundle or re-render JS.
+2. The same identity reaches plan JSON, review and contained mocked publication;
+   a deliberately inconsistent private host/native reference refuses through the
+   existing protocol/semantic boundary before writes/apply, with no TS retry.
+   Preserve the stem-derived main path and exact absent-bundle legacy warning,
+   null plan reference and zero Bun/catalog calls on that branch.
+3. Keep builder/loadability/link checks at their current checkpoints, original
+   source/facts correspondence and module/error order, then PLAN before prior-plan
+   IO, and the confirmed compiler refusal before publication. Build remains in
+   its original admission domain with no deploy-only hash/loadability gate.
+4. v1 covers final text modules only. Existing binary keys remain link facts;
+   `mixedSha256` and `resourcesSha256` keep their existing distinct host owners.
+   Current CLI is JS-only even when it selects browser resources. Do not decode
+   binary bytes as JS, relabel v1 as mixed identity or enable Values/recovery Wasm.
+5. Extend affected existing module/job and host-boundary cases, including UTF16 /
+   numeric-key enumeration and legacy absence, then run one frozen actual native
+   deploy preview and contained mocked publication that consume the new identity.
+   Reuse accepted installed executable/integrity, rollback, Work/ICU/codec tests;
+   rerun only a changed or invalidated case. Stop at this handoff.
+
+**Readiness and successors:** source/contracts are dependency-ready; no external
+host/toolchain result or new difficult frontend decision blocks this slice.
+Runtime commands still require a compatible cache/output lease and a frozen
+producer closure after implementation is requested. Full P05 construction remains
+separate: current TS owns staging/import rewrites/source-map composition,
+worker/runtime/vendor discovery, generated artifact/browser modules and the real
+Bun/catalog phases. The old Rust stager lacks newer reserved-path/alias guards,
+source-map composition and generated native-UI facade behavior; it cannot simply
+replace the current builder. A later finite construction handoff must compare
+those exact duties before selection. P05.5 real native-output MCP/workerd proof
+follows the specific producer it claims; existing CLI9 results are not that proof.
+P10 full-job CPU/tree-RSS/IPC/temp measurements and P11 coverage/adoption remain
+successors with their original prerequisites; no arbitrary budget is ratified here.
+Optional mixed support requires its original P05.6 producer/loader/consumer proof;
+JS-only disposition is allowed and adds no unused mixed prerequisite.
+
+**Refresh evidence:** read the current module producer, facts encoder, native job,
+digest/render/plan and publication handoffs against fetched main. A separate
+read-only reviewer challenged the packet boundary and its real consumed identity.
+Native source inspection, workflow tracing, independent challenge and defining
+owner/target allocation are covered for this packet; this is not a new whole-tree
+audit. No product tests/builds were run. Reuse unchanged accepted checks above,
+retain original task IDs/statuses/dependencies and the complete stale filetree
+checkpoint. Planning checks pass: JSON and dispatch/lease flags, all 11 proposed
+existing paths, seven added local Markdown destinations and `git diff --check`.
+Only seven planning documents changed; canonical task ledgers and product source
+are unchanged.
+
 ## Active implementation release — native preparation and Work helpers
 
-Vince's direct voice message in New voice chat, turn
-`01a14d5b-34bb-7880-b29b-63081f49cedd`, says **“Yeah, put it in scope for the Rust
-port”** after native preparation was explained. Codex verified that human message.
-It supersedes the previous native-preparation implementation HOLD and the
-planning-only state below. Source implementation, local integration and validation
-are released continuously; no per-packet release is needed within this scope.
-Public publication/deployment, automatic backend-default switches and TS retirement
-remain separately held. Local contained staging/preview and mocked apply tests are
-implementation validation, not public release.
-
-Current selected packet: source `4ed0d38fe` is merged/pushed as main `5d38b4efb`.
-The N4/N5 local CLI/integrity scope and its named consumer repairs are accepted;
-all assigned writers/commands are released, with the verified Muse viewer retained.
-Darwin's task-owned debug cache and Linux's expanded private install/build caches
-are cleaned after consumer release; genuine binaries, source, logs and reconstructible
-consumer evidence remain. The wider native goal still records blocked metadata
-and broader P05/adoption scope is not complete. Row labels credit accepted components
-once; their original acceptance definitions below do not reopen them. The matching
-supervision remains for the wider unfinished programme, with this packet in
-intentional released standby.
+Historical execution record, superseded for dispatch by the planning-only request
+above. Vince's verified voice turn `01a14d5b-34bb-7880-b29b-63081f49cedd` released
+native source/local validation; public deployment, defaults and retirement stayed
+held. The selected Work and native CLI/integrity slices below are accepted and
+released, not new assignments. The wider native goal's blocked metadata does not
+claim full programme completion or reserve another finite packet.
 
 Base: pushed main `d240246c2`. Use the same existing Contributor/XHIGH coordinator
 `01a14c86-b1c3-7011-a8e1-15a876abc891`, socket

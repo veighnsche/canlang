@@ -2,7 +2,15 @@
 
 Baseline: main `7fd8c6b` on 2026-10-06; scoped Rust source reconciliation at `ede59d051` on 2026-10-18. Use the [single current execution view](../RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) for implementation credit, priorities and holds. Baseline counts are not a current completion percentage. [Index](../REMAINING-WORK.md) · [Exact ledger](tasks.json).
 
-Only unresolved tasks are listed below. Completed narrow tasks are retained in the exact ledger and are not assigned again. All workers remain stopped; D’s port remains human-held. Conditional/deferred rows are separate from selected required work.
+This is the historical unresolved-task catalog, not a dispatch queue. Current
+accepted native facts/job/CLI/integrity and Work helper components are credited
+once in the [single checklist](../rust-port-orchestration/current-plan.md).
+The old native HUMAN HOLD and missing-CLI observations below are superseded by
+those recorded releases/acceptances. Latest refresh at main `a28335e6b` is
+planning-only: the next proposed dependency-ready P05.1/P05.4 component joins the
+native-derived final text-bundle v1 identity to the actual deploy plan/review.
+No implementation starts. Public deployment/defaults/TS retirement remain held;
+full-parent acceptance and original IDs/dependencies remain unchanged.
 
 ## artifact-preparation
 
