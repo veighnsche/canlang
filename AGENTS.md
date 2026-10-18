@@ -23,6 +23,13 @@
 - Reconcile merges incrementally from retained coverage while accounting for every change since the checkpoint. Reuse unchanged owner/target review; do not reconstruct the same history manually at every intake or recursively register bookkeeping. Keep the complete checkpoint unchanged until its required review is complete.
 - Stop an owned task when its declared acceptance is met. Record genuinely held/external gates with their owner and release condition, continue independent ready tasks, and distinguish finishable authorized work from completion that still requires a human or external release.
 
+## Reduce process overhead
+
+- Reduce waste, not correctness coverage: reproduce a shared defect, fix its owning mechanism, and run focused checks. Reuse unchanged results; run expensive combined checks for a meaningful batch or a concrete integration risk, not after every small edit.
+- Keep decisions and outcomes concise in their existing owning records. Do not create extra plans, evidence summaries, status files or bookkeeping commits unless they resolve a concrete need.
+- Review handed-off work asynchronously. Continue independent, dependency-ready implementation while review is pending; deliver concrete findings and repair the affected scope without blocking unrelated work. Pending review alone is not a reason to stop.
+- Continue already-authorized work without per-step approval requests. Ask only for a genuine missing decision or permission; do not expand the scope or interrupt active work merely to add process.
+
 ## Build resources
 
 - Do not multiply `compiler/target` or `node_modules` across disposable agent worktrees when compatible caches are available. Before reuse, check lockfiles, toolchain, features, build flags and workspace-link destinations; serialize writers to a shared target. An incompatible build needs its own explicitly owned cache.

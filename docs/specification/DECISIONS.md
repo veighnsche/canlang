@@ -1,5 +1,18 @@
 # Canlang language design decisions
 
+## 2026-10-18 — sync current main while the native completion port is active
+
+**Accepted finite integration.** Checkpoint all in-progress port sources before
+merging main through `69d45c33c`. Retain the released inline preference editor
+compiler/Contracts/UI/Interfaces changes, repository cleanup and existing owner
+coverage. The development port remains in progress; the checkpoint is preservation,
+not qualification. Native integration compiles; its first combined unit run passes
+98 checks with one new inventory test failing on a noncanonical temporary test
+root. Repair that affected scope during resumed port work. Reuse main's recorded
+preference checks; this sync does not qualify the unfinished port or require
+repeating unchanged compiler checks. No main commits are omitted, primary dirty
+inputs are untouched, and no push is performed.
+
 ## 2026-10-18 — implement remaining development orchestration natively
 
 **Accepted user direction; implementation in progress.** Replace the remaining
@@ -15,6 +28,37 @@ not verification. Requests/responses are retained in
 rejected the calls; the retry was accepted after checking public-only prose payloads
 and the explicit AGENTS preauthorization. Actual native/bridge/installed acceptance
 for this stronger scope remains pending.
+## 2026-10-18 — retain user-requested repository cleanup
+
+**Accepted.** Commit the user's deletion of the two tracked root evidence
+snapshots, the root `/output/` ignore policy and reduced-process contributor
+instructions. Reconcile historical references without regenerating evidence;
+prior snapshots remain available in Git history. Reconcile the four remaining
+compiler-test comments as documentation only, retaining test behavior. The
+existing filetree record accounts for all twelve housekeeping/documentation
+paths and retains its complete historical checkpoint. Active compiler/runtime
+edits remain with their current owner and are not qualified by this cleanup.
+
+## 2026-10-18 — source-owned inline preference editors
+
+**Accepted implementation.** An authored preference panel binds each toggle or
+input to its checked local preference field. Bool, text and int editors reuse
+the existing single-field authenticated POST, CSRF and compare-and-set route;
+nullable controls clear through the same envelope. Filter defaults alone do not
+grant an editor. Typed binding/owner correspondence survives IR and emission,
+with no app-name exceptions or CRUD write authority.
+
+The actual compiled-Can HTTP consumer passes: render/save/reload, explicit false,
+exact integer spelling, nullable clear, stale-version and CSRF refusals, escaped
+text, read-only rejection and independent same-named preferences in another
+module. The affected compiler pins pass 9/9; the refreshed compiler consumer
+passes 1/1. Independent direct consumer validation also passed; unchanged checks
+are reused. Cohesive Details/Tabs/default extraction preserves behavior and
+passes the scoped complexity gate without allowance changes. The earlier HTTP
+422 came from a stale staged UI dependency; validation selects real workspace
+UI through a task-local resolver without changing emitted code or shared links.
+Full CanCRM compilation/runtime and its next original24 capture remain open.
+
 
 ## 2026-10-18 — accept the integrated native release manual workflow
 
@@ -18771,7 +18815,7 @@ Accepted: Conjunction first-query admission with ordered multi-dependency plans:
 
 ## 2026-10-17 — conjunction producer original24 qualification
 
-Qualified: frozen conjunction producer `e0f58507f` (binary `5921567e`, catalog `ca50`) reproduces the frozen ifbranch cohort exactly on the unchanged original24 tuple: 276 E6008, complete/omitted0, 26 sources, 24/24 authored hashes match, full diagnostic multiset identical (0 removed, 0 added vs `evidence/original24-main-20261016.json`). Capture output `/tmp/can18-main-conj/capture.json` (498s, exit 10). The CanCustomer two-predicate conjunction spans stay refused on their recorded void/context/enum prerequisites; no regression from the new admission. Evidence file unchanged (cohort definition carries no producer field).
+Qualified: frozen conjunction producer `e0f58507f` (binary `5921567e`, catalog `ca50`) reproduces the frozen ifbranch cohort exactly on the unchanged original24 tuple: 276 E6008, complete/omitted0, 26 sources, 24/24 authored hashes match, full diagnostic multiset identical (0 removed, 0 added vs `historical diagnostic snapshot (removed)`). Capture output `/tmp/can18-main-conj/capture.json` (498s, exit 10). The CanCustomer two-predicate conjunction spans stay refused on their recorded void/context/enum prerequisites; no regression from the new admission. Evidence file unchanged (cohort definition carries no producer field).
 
 
 ## 2026-10-17 — can18_merge_53_20261017

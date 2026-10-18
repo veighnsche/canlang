@@ -143,29 +143,66 @@ export function matchDescriptor(
   return null;
 }
 
+type PagePreferenceField = NonNullable<PageDescriptor['preferenceFields']>[number];
+
+/** Only source-authored scalar editors add writes to the existing save route. */
+function editablePreferenceMatches(field: PagePreferenceField): boolean {
+  if (field.editable === undefined) return true;
+  if (field.reference !== undefined || field.date !== undefined || (field.nullable !== undefined && field.nullable !== true)) return false;
+  if (field.editable === 'int') return field.scalarType === 'int';
+  if (field.editable === 'bool') return field.scalarType === undefined &&
+    field.options.join(',') === 'true,false';
+  return field.editable === 'text' && field.scalarType === undefined && field.reference === undefined &&
+    field.date === undefined && field.options.length === 0;
+}
+
+function clearedPreference(field: PagePreferenceField, value: string): boolean {
+  return field.editable !== undefined && field.nullable === true && value === '';
+}
+
+function acceptedPreferenceValue(field: PagePreferenceField, value: string): boolean {
+  if (typeof value !== 'string') return false;
+  if (clearedPreference(field, value)) return true;
+  if (field.editable === 'int') return isScalarFilterValue('int', value);
+  if (field.editable === 'text') return value.length <= 200 && !/[\u0000-\u001f\u007f]/u.test(value);
+  return field.options.includes(value);
+}
+
+/** Saved filter defaults remain readable without granting an editor POST. */
+function readablePreferenceValue(field: PagePreferenceField, value: string): boolean {
+  if (field.editable !== undefined) return acceptedPreferenceValue(field, value);
+  if (field.scalarType !== undefined) return isScalarFilterValue(field.scalarType, value);
+  if (field.date === true) return isCivilDate(value);
+  if (field.options.length > 0) return field.options.includes(value);
+  return typeof value === 'string' && value.length <= 200 &&
+    !/[\u0000-\u001f\u007f]/u.test(value) && (field.reference !== true || value !== '');
+}
+
 function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDescriptor['preferenceFields']> {
   const fields = descriptor.preferenceFields ?? [];
   const names = new Set<string>();
   for (const field of fields) {
+    if (!editablePreferenceMatches(field) || typeof field.name !== 'string' ||
+        !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) || names.has(field.name) || !Array.isArray(field.options)) {
+      throw new Error('Invalid source preference descriptor.');
+    }
+    names.add(field.name);
     // Reference preference leaves carry no case options and no literal
     // default (DESIGN 977: reference equality is not an enum spelling);
     // the saved identity validates as an opaque string at read time.
     if (field.scalarType !== undefined) {
       if (!['int', 'datetime', 'currency'].includes(field.scalarType) || field.reference !== undefined || field.date !== undefined ||
-          typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) || names.has(field.name) ||
           !Array.isArray(field.options) || field.options.length !== 0 || (field.defaultValue === null
             ? field.nullable !== true : !isScalarFilterValue(field.scalarType, field.defaultValue))) {
         throw new Error('Invalid source preference descriptor.');
       }
-      names.add(field.name); continue;
+      continue;
     }
     if (field.reference === true) {
-      if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
-          names.has(field.name) || !Array.isArray(field.options) || field.options.length !== 0 ||
+      if (!Array.isArray(field.options) || field.options.length !== 0 ||
           field.defaultValue !== null || field.nullable !== true || field.date !== undefined) {
         throw new Error('Invalid source preference descriptor.');
       }
-      names.add(field.name);
       continue;
     }
     // C3 civil-date preference leaf (DESIGN 1015-1025 operator table):
@@ -178,14 +215,12 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
     // refusing date leaves with validation: no save control admits
     // them.
     if (field.date === true) {
-      if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
-          names.has(field.name) || !Array.isArray(field.options) || field.options.length !== 0 ||
+      if (!Array.isArray(field.options) || field.options.length !== 0 ||
           (field.defaultValue === null
             ? field.nullable !== true
             : !isCivilDate(field.defaultValue))) {
         throw new Error('Invalid source preference descriptor.');
       }
-      names.add(field.name);
       continue;
     }
     // C2 text-equality preference leaf (DESIGN 975 scalar): a plain-text
@@ -197,19 +232,16 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
     // their spellings below. The POST save path keeps refusing text
     // leaves with validation: no save control admits them.
     if (Array.isArray(field.options) && field.options.length === 0) {
-      if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
-          names.has(field.name) || field.date !== undefined ||
+      if (field.date !== undefined ||
           (field.defaultValue === null
             ? field.nullable !== true
             : typeof field.defaultValue !== 'string' || field.defaultValue.length > 200 ||
               /[\u0000-\u001f\u007f]/.test(field.defaultValue))) {
         throw new Error('Invalid source preference descriptor.');
       }
-      names.add(field.name);
       continue;
     }
-    if (field.reference !== undefined || field.date !== undefined || typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
-        names.has(field.name) || !Array.isArray(field.options) || field.options.length === 0 ||
+    if (field.reference !== undefined || field.date !== undefined || !Array.isArray(field.options) || field.options.length === 0 ||
         field.options.some(value => typeof value !== 'string' || value === '') ||
         new Set(field.options).size !== field.options.length ||
         (field.defaultValue === null
@@ -217,7 +249,6 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
           : !field.options.includes(field.defaultValue))) {
       throw new Error('Invalid source preference descriptor.');
     }
-    names.add(field.name);
   }
   return fields;
 }
@@ -278,26 +309,12 @@ async function preferenceSource(
     // materialization; empty stays no restriction (DESIGN 1023). Date
     // values validate as civil dates (C3, DESIGN 1015-1025): a saved
     // non-date is a materialization failure, never a silent empty.
-    const textLeaf = field.reference !== true && field.date !== true &&
-      Array.isArray(field.options) && field.options.length === 0;
-    const dateLeaf = field.date === true;
-    const savedOk = saved === null || !checkedPreferenceVersion(saved.version) || saved.version === '0'
-      ? saved === null
-      : field.scalarType !== undefined
-        ? typeof saved.value === 'string' && isScalarFilterValue(field.scalarType, saved.value)
-        : field.reference === true
-        ? typeof saved.value === 'string' && saved.value !== '' && saved.value.length <= 200 &&
-          !/[\u0000-\u001f\u007f]/.test(saved.value)
-        : dateLeaf
-          ? typeof saved.value === 'string' && isCivilDate(saved.value)
-          : textLeaf
-            ? typeof saved.value === 'string' && saved.value.length <= 200 &&
-              !/[\u0000-\u001f\u007f]/.test(saved.value)
-            : field.options.includes(saved.value);
+    const savedOk = saved === null || (checkedPreferenceVersion(saved.version) && saved.version !== '0' &&
+      readablePreferenceValue(field, saved.value));
     if (!savedOk) {
       throw new Error('Invalid saved page preference.');
     }
-    values[field.name] = saved?.value ?? field.defaultValue;
+    values[field.name] = saved !== null && clearedPreference(field, saved.value) ? null : saved?.value ?? field.defaultValue;
     versions[field.name] = saved?.version ?? '0';
   }
   const result = Object.freeze({
@@ -332,7 +349,7 @@ export async function handlePagePreferencePost(deps: PageHttpDeps, request: Requ
   const field = selected[0]!;
   const value = body.get(field.name)!;
   const expectedVersion = body.get('_version')!;
-  if (!field.options.includes(value) || !checkedPreferenceVersion(expectedVersion)) {
+  if (!acceptedPreferenceValue(field, value) || !checkedPreferenceVersion(expectedVersion)) {
     throw buildBusinessError('validation', 'Invalid preference selection.');
   }
   const teamId = url.searchParams.get('team');

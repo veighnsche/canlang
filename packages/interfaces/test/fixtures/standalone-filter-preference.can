@@ -4,7 +4,7 @@ Given
  policy Job read=public
 When
 Then
- preferences { state:Job.state?, archived:Job.archived? }
+ preferences { state:Job.state?, archived:Job.archived?, current_only:bool=false, year:int?, bucket:text? }
  page /d title="D"
   filter preferences.state
   list Job columns=location filter=state defaults={state=preferences.state} display=split
@@ -12,13 +12,24 @@ Then
   filter preferences.archived
   list Job columns=location filter=archived defaults={archived=preferences.archived} display=split
 
+ page /prefs title="Preferences"
+  preferences
+   toggle current_only
+   input year
+   input bucket
+ page /readonly title="Read only"
+  list Job columns=location filter=location defaults={location=preferences.bucket}
+
 app Other
 Given
  Task { title:text, state:enum(open,closed) label={text="T",values={open="Open",closed="Closed"}} }
  policy Task read=public
 When
 Then
- preferences { state:Task.state? }
+ preferences { state:Task.state?, year:int? }
  page /other title="O"
   filter preferences.state
   list Task columns=title filter=state defaults={state=preferences.state} display=split
+ page /otherprefs title="Other preferences"
+  preferences
+   input year

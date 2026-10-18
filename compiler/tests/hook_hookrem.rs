@@ -1,6 +1,6 @@
 //! CAN18-v1 HOOKREM remainder pins: 7 of the 11 exact hook spans from the
 //! authoritative read-only capture
-//! `/Users/vince/Projects/canlang/evidence/original24-main-20261016.json`
+//! `historical diagnostic snapshot (removed)`
 //! (298 E6008; do NOT merge into inputs) stay loudly refused with the exact
 //! missing prerequisite named. The other 4 (direct reference-traversal:
 //! file 6 `event.after.plan.months` 30244..30267; file 14

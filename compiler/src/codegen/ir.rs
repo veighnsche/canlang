@@ -4389,6 +4389,8 @@ pub struct IrPreferenceField {
     pub date: bool,
     /// Canonical scalar wire type for a saved equality-filter leaf.
     pub scalar_type: Option<String>,
+    /// Source-authored editor capability; filter defaults alone remain read-only.
+    pub editable: Option<String>,
 }
 
 // --- Test artifacts (PR5 contract, lowered by `bdd`) -----------------------
@@ -12943,6 +12945,19 @@ impl<'a> Cx<'a> {
         candidate
     }
 
+    /// Tab children are structural items, not factories: only tab items
+    /// lower, anything else refuses with its owning profile error.
+    fn check_tabs_children(&mut self, node: &SyntaxNode) {
+        for child in kids(node)
+            .into_iter()
+            .filter(|child| is_ui_node(child.kind) && !is_gate_leaf(self.db, child))
+        {
+            if child.kind != SyntaxKind::Tab {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower tabs: only tab item children have an owning factory profile".to_string(), child.span));
+            }
+        }
+    }
+
     /// Decode one UI node. `row_ctx` carries the enclosing collection's
     /// `(model, row name)` for bare `edit`/`history` inference.
     fn decode_ui(
@@ -13044,6 +13059,7 @@ impl<'a> Cx<'a> {
                     span: node.span,
                 })
             }
+            SyntaxKind::PreferencePanel => self.decode_preference_panel(scope, node),
             SyntaxKind::Details => self.decode_disclosure(scope, node, "details", row_ctx),
             SyntaxKind::Form if matches!(word.as_str(), "primary" | "secondary") => {
                 self.decode_contextual_actions(scope, node, row_ctx)
@@ -13052,14 +13068,7 @@ impl<'a> Cx<'a> {
             SyntaxKind::Collection => self.decode_collection(scope, node, &word),
             SyntaxKind::Tabs => {
                 self.check_ui_attributes(node, "tabs", &["size", "variant"]);
-                for child in kids(node)
-                    .into_iter()
-                    .filter(|child| is_ui_node(child.kind) && !is_gate_leaf(self.db, child))
-                {
-                    if child.kind != SyntaxKind::Tab {
-                        self.diags.push(Diagnostic::error("E6008", "cannot lower tabs: only tab item children have an owning factory profile".to_string(), child.span));
-                    }
-                }
+                self.check_tabs_children(node);
                 let bound_target = kids(node)
                     .iter()
                     .find(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
@@ -13642,6 +13651,7 @@ impl<'a> Cx<'a> {
                 reference: false,
                 date: false,
                 scalar_type: None,
+                editable: None,
             });
         }
         let text = |value: String| {
@@ -13827,6 +13837,105 @@ impl<'a> Cx<'a> {
             });
         }
         gate
+    }
+
+    /// Preference panels group independently versioned saved controls; they
+    /// are not CRUD forms and carry no domain-record write authority.
+    fn decode_preference_panel(&mut self, scope: &Scope, panel: &SyntaxNode) -> Option<IrUi> {
+        let children = kids(panel).into_iter().filter(|node| is_ui_node(node.kind))
+            .filter_map(|node| self.decode_preference_control(scope, panel, node)).collect();
+        Some(IrUi { view: None, factory: "fieldset".into(), props: Vec::new(), children,
+            row_scope: None, gate: None, span: panel.span })
+    }
+
+    fn checked_preference_control(&self, scope: &Scope, panel: &SyntaxNode, node: &SyntaxNode)
+        -> Option<crate::analysis::types::CheckedPreferenceControl> {
+        let fact = self.program.types.preference_controls.get(&NodeKey::of(node))?;
+        let selector = kids(node).into_iter().find(|part| part.kind == SyntaxKind::NameRef)?;
+        let field = self.program.symbols.get(fact.field.0 as usize)?;
+        let owner = self.program.symbols.get(fact.owner.0 as usize)?;
+        (fact.panel == NodeKey::of(panel) && fact.node == NodeKey::of(node)
+            && fact.selector == NodeKey::of(selector) && fact.module == scope.module
+            && fact.control == ui_word(self.db, node) && field.module == scope.module
+            && path_text(self.db, selector) == field.name
+            && matches!(field.kind, SymbolKind::Field { owner, .. } if owner == fact.owner)
+            && matches!(&owner.kind, SymbolKind::Preferences { fields } if fields.contains(&fact.field))
+            && self.program.types.symbol_types.get(&fact.field) == Some(&fact.ty))
+            .then(|| fact.clone())
+    }
+
+    /// Preference default spellings stay literal and editor-typed: a null
+    /// or missing default clears only a nullable control, anything else
+    /// refuses the editor. Outer `None` refuses; inner `None` clears.
+    fn inline_preference_default_value(editor: &str, default: Option<IrDefault>, nullable: bool) -> Option<Option<String>> {
+        match default {
+            Some(IrDefault::Literal(value)) => match value.expr {
+                IrExpr::Bool(value) if editor == "bool" => Some(Some(value.to_string())),
+                IrExpr::Text(value) if editor == "text" => Some(Some(value)),
+                IrExpr::Int(value) if editor == "int" => Some(Some(value.to_string())),
+                IrExpr::Null if nullable => Some(None),
+                _ => None,
+            },
+            None if nullable => Some(None),
+            _ => None,
+        }
+    }
+
+    fn inline_preference_field(&mut self, fact: &crate::analysis::types::CheckedPreferenceControl) -> Option<IrPreferenceField> {
+        let symbol = self.program.symbols.get(fact.field.0 as usize)?.clone();
+        let editor = match fact.ty.nullable_inner().unwrap_or(&fact.ty) {
+            ResolvedType::Scalar(Scalar::Bool) if fact.control == "toggle" => "bool",
+            ResolvedType::Scalar(Scalar::Text) if fact.control == "input" => "text",
+            ResolvedType::Scalar(Scalar::Int) if fact.control == "input" => "int",
+            _ => return None,
+        };
+        let nullable = fact.ty.nullable_inner().is_some();
+        let (_, default, server, _, _, _) = self.decode_field(&symbol, fact.owner);
+        if server.is_some() { return None; }
+        let default_value = Self::inline_preference_default_value(editor, default, nullable)?;
+        let label = self.decode_reused_field_label_parts(&symbol);
+        let field = IrPreferenceField { name: symbol.name, options: if editor == "bool" { vec!["true".into(), "false".into()] } else { Vec::new() },
+            default_value, nullable, caption: label.as_ref().and_then(|label| label.text.clone()),
+            option_labels: label.map(|label| label.values).unwrap_or_default(), reference: false, date: false,
+            scalar_type: (editor == "int").then(|| "int".into()), editable: Some(editor.into()) };
+        if let Some(current) = self.page_preference_fields.iter_mut().find(|current| current.name == field.name) {
+            current.editable = field.editable.clone();
+        } else { self.page_preference_fields.push(field.clone()); }
+        Some(field)
+    }
+
+    fn decode_preference_control(&mut self, scope: &Scope, panel: &SyntaxNode, node: &SyntaxNode) -> Option<IrUi> {
+        let result = self.checked_preference_control(scope, panel, node)
+            .and_then(|fact| self.inline_preference_field(&fact).map(|field| (fact, field)));
+        let Some((fact, field)) = result else {
+            self.diags.push(Diagnostic::error("E6008", "inline preference needs its original checked field/control binding".into(), node.span));
+            return None;
+        };
+        let binding = self.inline_preference_binding(scope, &fact, &field, node.span);
+        let mut props = vec![("binding".into(), binding)];
+        if let Some(caption) = field.caption { props.push(("caption".into(), TypedExpr::new(
+            IrExpr::Message(caption), ResolvedType::Scalar(Scalar::Text), node.span))); }
+        Some(IrUi { view: None, factory: "filter".into(), props, children: Vec::new(),
+            row_scope: None, gate: None, span: node.span })
+    }
+
+    fn inline_preference_binding(&self, scope: &Scope, fact: &crate::analysis::types::CheckedPreferenceControl,
+        field: &IrPreferenceField, span: Span) -> TypedExpr {
+        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), span);
+        let member = |base: TypedExpr, field: String| TypedExpr::new(IrExpr::Member { base: Box::new(base), field }, ResolvedType::Unknown, span);
+        let context = TypedExpr::new(IrExpr::Name("c".into()), ResolvedType::Unknown, span);
+        let mut current = member(TypedExpr::new(IrExpr::Name("preferences".into()), ResolvedType::Unknown, span), field.name.clone());
+        current.ty = fact.ty.clone();
+        let options = field.options.iter().map(|value| TypedExpr::new(IrExpr::Object(vec![
+            ("value".into(), text(value.clone())), ("label".into(), text(value.clone()))]), ResolvedType::Unknown, span)).collect();
+        let version = member(member(member(context.clone(), "preferenceVersions".into()), self.program.modules[scope.module.0 as usize].name.clone()), field.name.clone());
+        let post_to = TypedExpr::new(IrExpr::Binary { op: IrBinOp::Coalesce,
+            left: Box::new(member(context.clone(), "pollUrl".into())), right: Box::new(member(context, "path".into())) }, ResolvedType::Scalar(Scalar::Text), span);
+        TypedExpr::new(IrExpr::Object(vec![("name".into(), text(field.name.clone())),
+            ("options".into(), TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, span)),
+            ("current".into(), current), ("version".into(), version), ("postTo".into(), post_to),
+            ("editor".into(), text(field.editable.clone().unwrap_or_default())),
+            ("nullable".into(), TypedExpr::new(IrExpr::Bool(field.nullable), ResolvedType::Scalar(Scalar::Bool), span))]), ResolvedType::Unknown, span)
     }
 
     /// Both authored disclosure spellings share the existing Details contract.
@@ -17795,6 +17904,7 @@ impl<'a> Cx<'a> {
                 reference: false,
                 date: false,
                 scalar_type: None,
+                editable: None,
             });
         }
         Some(())
@@ -17992,6 +18102,7 @@ impl<'a> Cx<'a> {
                 reference: false,
                 date: false,
                 scalar_type: None,
+                editable: None,
             });
         }
         Some(())
@@ -18061,6 +18172,7 @@ impl<'a> Cx<'a> {
                 reference: true,
                 date: false,
                 scalar_type: None,
+                editable: None,
             });
         }
         Some(())
@@ -18531,6 +18643,7 @@ impl<'a> Cx<'a> {
                 // no inventory; downstream validates civil dates.
                 date: date_filter,
                 scalar_type: scalar_filter.map(|scalar| scalar.as_str().to_string()),
+                editable: None,
             });
                         }
                     }
@@ -18762,6 +18875,7 @@ impl<'a> Cx<'a> {
                 reference: false,
                 date: false,
                 scalar_type: None,
+                editable: None,
             });
         }
         // B16: the control edits the owning saved preference through the

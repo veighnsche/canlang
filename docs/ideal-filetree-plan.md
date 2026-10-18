@@ -1,5 +1,42 @@
 # Living ideal file-tree plan for Canlang
 
+**Active native-port main sync, 2026-10-18:** preserve the99-path in-progress
+native completion checkpoint `058a11b46` and incorporate all22 paths in main's
+three commits through `69d45c33c`. Incoming compiler/Contracts/UI/Interfaces
+preference behavior and tests retain their recorded owners and acceptance;
+cleanup/removed evidence references retain existing documentation owners.
+Development owns the new native inventory, preview configuration/persistence,
+help/example/qualification orchestration and fixed SDK host under `dev-server/`;
+Cloudflare retains defining runtime semantics, deployment SDK and CLI consumers;
+Distribution retains host/catalog packaging. These port changes compile but remain
+unqualified, with one new inventory test issue and installed integration pending.
+Preserve all previous coverage and the complete historical checkpoint. This finite
+sync does not imply port completion or main integration of the active port.
+
+**User cleanup intake, 2026-10-18:** retain the user's root `/output/` ignore
+policy and reduced-process contributor instructions; remove both tracked root
+evidence snapshots and reconcile their historical references in this plan, its
+existing coverage JSON, compiler history, decisions and four compiler-test
+comments. Historical results remain in Git; no evidence is regenerated. These
+twelve housekeeping/documentation paths keep their existing owners. The four
+test changes are comment-only and need no executable requalification. Active
+compiler/runtime work is excluded; previous coverage and the complete historical
+checkpoint stay unchanged.
+
+**Inline preference-editor intake, 2026-10-18:** account for all ten released
+source/test/fixture paths together: compiler analysis/types owns exact local
+control facts; IR/JS owns editor descriptors and typed saved bindings; Contracts
+owns the existing presentation carrier; UI controls/settings owns rendering;
+Interfaces page handling owns existing authenticated save/materialization;
+filter-remainder pins and the compiled standalone-preference fixture/host test
+remain with those owners. Only preference JS hunks enter; native hook-staging
+and unfinished runtime receipt work stay excluded. Reuse compiler9/9 and actual
+compiled HTTP1/1 (plus independent direct consumer); boolean false, int precision,
+nullable clear, CSRF/CAS, read-only and module separation pass. Scoped complexity
+passes after cohesive helper extraction. Preserve previous finite coverage,
+decisions and the historical complete checkpoint; no whole-application claim.
+
+
 **Integrated release closure, 2026-10-18:** the unchanged100-path native
 integration and accepted16-path compiler intake are measured at maincdf26e070.
 Rebuilt actual release compilers and affected installed manual workflows pass on
@@ -1469,7 +1506,7 @@ Membership coverage through `98b7f48c` is retained; radial qualification
 is deferred for the correct frozen compiler closure.
 
 Current main qualification (2026-10-16): the single generated artifact
-`evidence/original24-main-20261016.json` belongs to the existing Compiler completion
+`historical diagnostic snapshot (removed)` belongs to the existing Compiler completion
 owner, recorded with merge17 coverage.369E6008 remain on unchanged24 authored
 sources (26 consumed, complete/omitted0). Existing source/target allocations and
 complete checkpoint are retained; this validation artifact adds no audit framework.

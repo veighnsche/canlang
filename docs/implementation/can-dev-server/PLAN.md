@@ -1,5 +1,12 @@
 # `can dev` implementation plan
 
+**Main sync while porting, 2026-10-18:** checkpoint `058a11b46` preserves all
+active port changes; merge current main through `69d45c33c`, including source-owned
+inline preference editors and repository cleanup. Reuse incoming owner validation.
+The new native modules compile; combined unit checks pass98 with one new inventory
+test root-canonicalization failure still to repair. Installed acceptance, deletion
+of remaining legacy helper consumers and remeasurement remain open below.
+
 **Current ownership-completion execution, 2026-10-18:** after the accepted
 native main/manual release checkpoint, the user explicitly requests deletion of
 redundant TypeScript dev-server code and implementation of remaining development
