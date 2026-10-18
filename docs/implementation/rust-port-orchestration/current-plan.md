@@ -1,17 +1,49 @@
 # Rust-port finite packet detail
 
-Refreshed **18 October 2026** against `ede59d0512ac9a5ede8c23dda47c006a150cb143`; reconciled after
-origin fast-forward to `e3ba3c9e229ce5a1856bdf8bf1d8ea1902ed87ff`.
+Refreshed **18 October 2026** after ICU integration at
+`d9abbd9427ce02eed6cf9af97073adf9eb45aaec` in the clean planning worktree.
 **Planning only. Product execution and future dispatch are false. Native
 preparation/native release remains HUMAN HOLD.** The user requested a plan
-refresh, not implementation. The three read-only source investigations used
-Sol medium; no implementation worker, build, product test, timer or lease was
-started. Model choices for future packets remain proposals to recheck at dispatch.
+refresh, not implementation. Two focused Sol-medium source investigations checked
+serving and independent asset/fanout readiness; no implementation worker, build,
+product test, timer or lease was started. Model choices for future packets remain
+proposals to recheck at dispatch.
 
 This document and [next-packets.json](next-packets.json) are the finite detail under the [canonical start-guide execution view](../RUST-PORT-START-HERE.md#current-execution-view--2026-10-18). The original ledger and task manifests retain their
 canonical IDs, dependencies, acceptance clauses and historical statuses. Old
 first-packet queues, numbered-step notes and run records are evidence, not
 additional assignments. No refreshed total of remaining coding jobs is claimed.
+
+## Post-ICU disposition and next packet
+
+Shared TS syntax (`17f768d52`), compiler parse/usage (`22b66ab20`) and UI
+full-signature usage (`8ad70d468`) are integrated and complete at the scopes in the
+[ICU plan](../../ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md).
+Credit their finite joined checks once. Reuse the recorded 255 distinct TS tests,
+68 compiler tests and two compiled formatter consumers; do not rerun or redispatch
+them for this refresh. The optional single-Rust parser remains dormant: neither
+new drift/cost evidence nor a required native syntax consumer is established.
+No additional Rust compute candidate displaces the existing delivery/consumer work.
+
+Since the previous queue's `0571eacb3` source pin, product changes comprise eight
+Values/UI and six compiler ICU paths. None of the three queued packets' named
+prerequisite paths changed. The retained [source comparison](source-refresh.json)
+identities also still match; it remains historical evidence at its recorded pin,
+not a new runtime qualification. The main checkout's ongoing compiler/runtime
+edits remain outside this clean worktree and this planning scope; activation must
+reconcile any subsequently released source instead of assuming these inputs frozen.
+
+**Recommended next release: `ports:V02.6`, ordinary TS serving in an isolated
+Worker**, consuming the existing `V01.2` source-owned registration outputs.
+Its finite observable outcome is the original typed-operation request passing
+through the actual staged portable Worker with canonical defaults/error order,
+correspondence refusals before effects and request-lifetime cleanup. R2 retains
+Values/Interfaces ownership; R3/Dev owns the local Worker qualification fixture.
+The missing output is that fixture and its result, not a new parser, validator,
+source carrier or backend. Packet 1 below defines the stop condition. No missing
+external producer is identified; setup and a finite human release remain required.
+`C04.values-assets` is independently ready; `W02.5` retains its bounded graph and
+installer handoff. These are the same existing packets, not new assignments.
 
 ## What current source changes
 
@@ -23,7 +55,7 @@ additional assignments. No refreshed total of remaining coding jobs is claimed.
 | Old values Wasm receipts certify current binary | The committed asset changed at `1f524a62f`. Its current SHA is `55cd8801037581538ae3d181dc359eff879028299f9b5ef78bf1ad29213e6b91`, 650251 bytes. All four generated inventory entries match BUILD by static inspection. Existing delivery machinery is present, but older installed receipts name different bytes. |
 | Full codec scope is undecided | TECH-V04 already selects the existing ASCII/int64 codec and CSV duplicate-key consumer. Bounded native preflight and public SchemaError projection are missing producer outputs. Its source/adoption hold remains explicit; no new scope selection or implementation is authorized. |
 
-[Source comparison](source-refresh.json) reuses the step 12 manifests: 16 of 37
+The retained [source comparison](source-refresh.json) reuses the step 12 manifests: 16 of 37
 selected paths match; 21 changed. Of 55 Cloudflare bridge paths, 15 match and 40
 changed. These sets overlap and are not additive task counts. Equal files retain
 only their old evidence scope; changed files are not newly qualified. The old
@@ -51,11 +83,20 @@ is consumed.
    canonical defaults/errors, current source correspondence, refusals before
    effects, and owner cleanup on success/failure. Reuse the existing Node proof
    of mutation after the last credential await. The immutable portable host must
-   use genuine stale-generation/correspondence controls and preserve the final
-   revalidation outcome; do not manufacture mutable metadata inside Worker.
+   use the real issuer's copied-assembly/artifact-mismatch and stale derived-catalog
+   refusals, and preserve final revalidation. The portable issuer freezes its
+   captured artifact/module graph and literal importer; it exposes no generation
+   revocation API. Reuse Node's stale-file/mutation proof rather than adding a
+   revocation mechanism or manufacturing mutable Worker metadata.
    A new isolated-Worker fixture is a pending packet output: consume the existing
    portable source issuer, node-free assembly verification and genuine host/store
    seams. The Node-only test dependencies cannot run unchanged inside Worker.
+   Reuse the staged default-Worker/D1/production-session setup in
+   `packages/cloudflare/test/page-query-serving.test.ts:35–59`, whose existing
+   create/default/receipt/replay/CSRF controls are source precedent, not fresh
+   acceptance of the missing serving checks. Extend only missing source linkage,
+   correspondence and catalog-lifetime observations; retain unchanged results at
+   their existing pin. No new host dependency or revocation API is needed.
    Record the actual PH2/PH4 coverage; retain PH3/native/profile/resource/state
    criteria separately. Stop at this ordinary TS profile, without changing the
    HTTP evaluator or introducing a native validation join. No remote deployment
@@ -89,7 +130,8 @@ is consumed.
    justified by this TS join.
 
 This checkout has no `node_modules`, compiler debug binary or emitted Cloudflare
-assembly. Source/contract readiness therefore does not claim command-launch
+assembly. Small Contracts/Values/UI outputs retained from ICU checks do not supply
+that missing serving setup. Source/contract readiness therefore does not claim command-launch
 readiness. After a finite release, reuse compatible dependencies/compiler caches
 and emit only the needed consumers; obtain a released compiler binary or build
 the current source once for the typed-operation fixture. Check disk, locks,
@@ -164,7 +206,7 @@ canonical status. The incoming ledger retains its eight Work partial-status
 corrections and source observations. Required checks for this edit are JSON/reference/ID consistency and
 `git diff --check`, not product builds.
 
-Planning validation: all five changed/new JSON documents parse; canonical IDs,
+Earlier refresh validation (historical): all five changed/new JSON documents parse; canonical IDs,
 original dependency/acceptance snapshots, current queue pointers, input paths and
 current-plan links resolve; source comparison pins and all four generated BUILD
 entries agree; the post-sync canonical ledger matches origin and local product source
@@ -175,7 +217,7 @@ scope. Packet C04 still targets missing installed/vendor/workerd delivery, never
 duplicate Node-only binding run. Live references follow docs/implementation; old
 raw captures keep their recorded paths.
 
-Main integration: combine plan `fd03732b8` with compiler recovery commit
+Historical main integration: combine plan `fd03732b8` with compiler recovery commit
 `0571eacb3`; compiler/runtime sources are identical to that newer main parent.
 Current input identities now name that parent; this merge runs no product checks
 and grants no implementation/default/preparation release. Reuse the compiler

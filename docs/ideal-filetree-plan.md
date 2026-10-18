@@ -1,5 +1,27 @@
 # Living ideal file-tree plan for Canlang
 
+**Post-ICU Rust-port planning refresh, 2026-10-18 (source `d9abbd942`):**
+the [single current Rust execution view](implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18)
+and its existing finite detail/queue now credit the completed TS/compiler/UI ICU
+packets and joined checks once. Incremental inspection since the prior queue's
+`0571eacb3` pin finds eight Values/UI and six compiler ICU product paths, already
+covered by the integration entries below; no named prerequisite path of the
+three remaining ready packets changed. Retain accumulated coverage, defining
+owners, target allocations and the complete review checkpoint.
+
+`ports:V02.6` remains the recommended next finite release: existing Values/
+Interfaces registration and source/lifetime checks feed the missing R3/Dev
+isolated Worker serving qualification. Reuse the existing default-Worker D1 and
+production-session fixture; qualify only missing correspondence/linkage/cleanup
+observations. Portable issuer checks use frozen metadata/literal imports, with no
+invented generation-revocation mechanism. `C04.values-assets` is independently
+ready; `W02.5` retains its exact graph/installer output. Optional common Rust ICU
+adoption remains dormant. Six planning/decision paths change together: this plan,
+Rust start guide, current packet detail, machine queue, package-audit README and
+DECISIONS. Canonical IDs/acceptance/statuses and held gates are unchanged. Source
+review and documentation checks only; no implementation, build, product test,
+dependency setup or merge. Native preparation remains **HUMAN HOLD**.
+
 **UI full-signature usage and finite ICU join, 2026-10-18 (base `1255fc11f`):**
 the human released the UI usage packet in the
 [current finite ICU plan](ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md).

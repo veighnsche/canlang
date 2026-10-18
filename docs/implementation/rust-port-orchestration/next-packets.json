@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "refreshed_on": "2026-10-18",
-  "source_base": "0571eacb36206e94eb5d09d6b81ab978e443b58c",
+  "source_base": "d9abbd9427ce02eed6cf9af97073adf9eb45aaec",
   "stage": "planning-only",
   "execution_authorized": false,
   "future_dispatch_authorized": false,
@@ -44,12 +44,19 @@
             "docs/implementation/package-maintenance-repair/runs/codex-go-20261007/state.json"
           ],
           "evidence": "packet_state/TECH-V03/serving_association_implementation; 547d45b9f preservation checkpoint"
+        },
+        {
+          "output": "Existing staged default-Worker fixture uses buildDeployBundleWithAssets, Miniflare D1, production dependencies and a real identity session. Its create/default/receipt/replay/CSRF controls are source precedent; missing serving correspondence/lifetime qualification is not thereby accepted.",
+          "paths": [
+            "packages/cloudflare/test/page-query-serving.test.ts"
+          ],
+          "evidence": "Source setup at lines 35\u201359 and operation controls at 115\u2013140; reuse unchanged recorded results at their pin, without claiming a new current-byte run."
         }
       ],
-      "remaining_change": "First map the existing serving path to PH2/PH4 clauses in the result, then qualify that exact ordinary TS source-registration path through the actual staged isolated Worker. Do not replace the HTTP evaluator with values.validate(), add a native interpreter or reopen accepted default-copy work. A new isolated-Worker qualification fixture/adapter is a pending output, using the existing portable issuer, node-free assembly-verification and genuine host/store seams. The Node createTestDeps/State-memory test cannot be imported unchanged into Worker; no mock substitution may claim genuine installed qualification.",
+      "remaining_change": "First map the existing serving path to PH2/PH4 clauses in the result, then qualify that exact ordinary TS source-registration path through the actual staged isolated Worker. Do not replace the HTTP evaluator with values.validate(), add a native interpreter or reopen accepted default-copy work. A new isolated-Worker qualification fixture/adapter is a pending output, using the existing portable issuer, node-free assembly-verification and genuine host/store seams. The Node createTestDeps/State-memory test cannot be imported unchanged into Worker; no mock substitution may claim genuine installed qualification. Reuse the existing page-query-serving staged D1/production-session setup; extend only missing serving linkage, real issuer/catalog correspondence and original catalog-lifetime observations. Portable metadata and literal import graph are frozen; no generation/revocation API exists or is required.",
       "acceptance": [
         "Actual isolated Worker links the current installed handler/catalog/codec exports and executes the original typed-operation request with canonical defaults and error precedence.",
-        "Copied/foreign/stale source or catalog refuses before effects; success and failure close the source/plan lifetime. Preserve final-await source revalidation, CSRF/body/error order and unsupported alias/NAME/keyed-array behavior. Reuse recorded Node mutation-during-credential-await proof; immutable portable metadata uses genuine host stale-generation/correspondence controls, without filesystem mutation or mock mutable declarations inside Worker.",
+        "Real issuer rejects copied/foreign assembly and mismatched artifacts; stale derived catalog refuses before effects. Controlled adapter observes the original issued catalog closing on success/failure. Preserve final-await source revalidation, CSRF/body/error order and unsupported alias/NAME/keyed-array behavior. Reuse recorded Node mutation-during-credential-await and stale-file proof; portable checks consume immutable installed metadata and captured literal imports, without filesystem mutation, mocked declarations or a new revocation API.",
         "State explicitly that Values plan registration/lifetime checks accompany runPreparedHttpPlan; they do not establish Rust validation or values.validate() adoption. Record admitted host/source/operation only and retain unmet PH3/native/profile/state/resource parents."
       ],
       "proposed_writable_paths": [
@@ -365,9 +372,10 @@
     ],
     "ready_definition": "Concrete source and contract outputs exist; this is not a claim that commands can run before activation/setup.",
     "required_before_commands": "After finite release, check free disk and compatible lock/toolchain/features/flags/workspace-link caches, serialize writers, emit only needed consumers and freeze them. Obtain a released compatible compiler binary or build current source once for the typed-operation fixture; do not allocate another target/dependency tree by default.",
-    "performed_now": false
+    "performed_now": false,
+    "retained_outputs": "Small Contracts/Values/UI emits from completed ICU validation remain; they do not provide Cloudflare serving assembly or a released compiler capture. No setup performed for this refresh."
   },
-  "planning_checks_scope": "Focused source/requirement review identified production pack-install refusal and the distinction between direct bootstrap fixtures and actual vendor delivery; both are included in the finite outputs. No runtime checks were executed.",
+  "planning_checks_scope": "Post-ICU incremental source review; retained source identities and named packet prerequisite paths unchanged. Focused independent serving and asset/fanout source checks found the real default-Worker fixture precedent and removed an unsupported portable generation-revocation assumption. Documentation consistency only; no new product execution.",
   "pre_sync_source_base": "ede59d0512ac9a5ede8c23dda47c006a150cb143",
   "finite_packet_detail": "docs/implementation/rust-port-orchestration/current-plan.md",
   "origin_sync": {
@@ -381,5 +389,14 @@
     "plan_commit": "fd03732b8938a14bda663e5d5d47774ebf541830",
     "product_change": "None relative to the preserved compiler base; future qualifications must freeze the combined source.",
     "execution_authorized": false
+  },
+  "recommended_next_packet": "ports:V02.6",
+  "post_icu_refresh": {
+    "previous_queue_source_base": "0571eacb36206e94eb5d09d6b81ab978e443b58c",
+    "completed_scope": "Shared TS syntax, compiler parse/usage, UI full-signature usage and finite joined checks are complete at their recorded scopes; no new canonical status advancement.",
+    "evidence": "docs/ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md",
+    "source_delta": "Eight Values/UI and six compiler ICU paths; no named packet prerequisite path changed. Retain source-refresh.json at its historical pin; its saved current identities still match.",
+    "optional_rust_parser": "Dormant: no new drift/cost evidence or required native syntax consumer established.",
+    "planning_only": true
   }
 }
