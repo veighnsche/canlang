@@ -22,6 +22,15 @@ DECISIONS. Canonical IDs/acceptance/statuses and held gates are unchanged. Sourc
 review and documentation checks only; no implementation, build, product test,
 dependency setup or merge. Native preparation remains **HUMAN HOLD**.
 
+Integration scope: `2b36d6836` adds only the six planning paths above to
+`d9abbd942`. Reconcile them against retained coverage and the completed ICU
+allocations; no product owner, target allocation, canonical acceptance/status or
+complete review checkpoint changes. Reuse the planning JSON/ID/path/hold and
+whitespace checks; this merge adds no source or runtime qualification. Main's
+newer compiler/runtime edits remain local and unstaged. Its appended compiler
+decision notes are retained as uncommitted work alongside this committed plan
+entry. Native preparation remains **HUMAN HOLD**.
+
 **UI full-signature usage and finite ICU join, 2026-10-18 (base `1255fc11f`):**
 the human released the UI usage packet in the
 [current finite ICU plan](ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md).
