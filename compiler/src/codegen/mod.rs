@@ -283,6 +283,9 @@ pub fn emit(
         sources.db,
         sources.catalog,
     );
+    let owner_handlers = ir.items.iter().filter_map(|owner| {
+        scenario_decisions::owner_handler_queries(query_context?, owner).map(|()| owner.id)
+    }).collect::<std::collections::HashSet<_>>();
     let js_out = js::emit_program_with_feasible_query_sources(
         &ir,
         sources.options.native_scenario_receipts,
@@ -290,6 +293,7 @@ pub fn emit(
         &query_sources,
         &query_receipts,
         js::EmitDecisionSources {
+            owner_handlers: Some(&owner_handlers),
             local_policies: local_policies.as_ref(),
             unique_conditions: unique_conditions.as_deref(),
             model_rule_origins: model_rule_origins.as_deref(),

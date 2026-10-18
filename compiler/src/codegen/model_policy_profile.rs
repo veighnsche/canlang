@@ -2173,11 +2173,40 @@ pub(crate) fn checked_stored_lock_target(
         return policy_field_with_flags(program, model, name, ty, false, true) == Some(field);
     }
     if matches!(base, ResolvedType::Scalar(scalar) if *scalar != Scalar::File)
-        && super::js::checked_value_profile(ty).is_some()
+        && (super::js::checked_value_profile(ty).is_some()
+            || matches!(base, ResolvedType::Scalar(Scalar::Timezone)))
     {
         // A server-populated scalar is still the exact persisted owning field;
         // this never evaluates its default/server expression or changes writes.
         return policy_field_with_flags(program, model, name, ty, false, true) == Some(field);
+    }
+    // Contracts and their ordered arrays already use State's typed stored
+    // comparator. Admit their value-only schema after the caller's complete
+    // source/fresh schema join; never decode a File into ordinary equality.
+    fn contract_value(program: &IrProgram, ty: &ResolvedType, depth: usize) -> bool {
+        if depth > 16 { return false; }
+        match ty {
+            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => contract_value(program, inner, depth + 1),
+            ResolvedType::Scalar(scalar) => *scalar != Scalar::File && super::js::checked_value_profile(ty).is_some(),
+            ResolvedType::Enum { cases, .. } => !cases.is_empty(),
+            ResolvedType::Record { symbol, stored: true } => program.items.get(symbol.0 as usize).is_some_and(|item| {
+                item.id == *symbol && match &item.kind {
+                    IrItemKind::Contract { fields, .. } => fields.iter().all(|id| program.items.get(id.0 as usize).is_some_and(|field| {
+                        field.id == *id && matches!(&field.kind, IrItemKind::Field { owner, ty: IrType::Known(value), .. }
+                            if *owner == *symbol && contract_value(program, value, depth + 1))
+                    })),
+                    _ => false,
+                }
+            }),
+            _ => false,
+        }
+    }
+    let element = match base { ResolvedType::Array { element, .. } => element.as_ref(), value => value };
+    if matches!(element, ResolvedType::Record { symbol, stored: true }
+        if program.items.get(symbol.0 as usize).is_some_and(|item| matches!(item.kind, IrItemKind::Contract { .. })))
+        && contract_value(program, ty, 0)
+    {
+        return policy_field_with_flags(program, model, name, ty, true, true) == Some(field);
     }
     checked_required_record_lock_target(program, model, field, name, ty)
 }
@@ -2520,6 +2549,27 @@ pub(crate) fn checked_query_rule_fields(
             match &value.expr {
                 IrExpr::Int(_) | IrExpr::Decimal(_) | IrExpr::Text(_) | IrExpr::Bool(_) | IrExpr::Null
                 | IrExpr::Money { .. } | IrExpr::DurationMs(_) | IrExpr::Date(_) | IrExpr::Datetime(_) => Some(()),
+                IrExpr::Array(values) => {
+                    let ResolvedType::Array { element, .. } = &value.ty else { return None; };
+                    let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end,
+                        kind: crate::syntax::SyntaxKind::Array as u8 };
+                    if self.checked.types.node_types.get(&key) != Some(&value.ty) { return None; }
+                    for item in values {
+                        if &item.ty != element.as_ref() { return None; }
+                        self.expr(item, depth + 1)?;
+                    }
+                    Some(())
+                }
+                IrExpr::Member { base, field } if field == "now"
+                    && matches!(&base.expr, IrExpr::Name(name) if name == "c")
+                    && base.ty == ResolvedType::Unknown && base.span == value.span
+                    && value.ty == ResolvedType::Scalar(Scalar::Datetime) => {
+                    let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end,
+                        kind: crate::syntax::SyntaxKind::NameRef as u8 };
+                    (self.checked.types.node_types.get(&key) == Some(&value.ty)
+                        && matches!(self.checked.types.contextual_references.get(&key),
+                            Some(crate::analysis::resolve::ContextVar::Now))).then_some(())
+                }
                 IrExpr::Name(name) => {
                     if matches!(&value.ty, ResolvedType::Enum { cases, .. } if cases.contains(name)) {
                         return Some(());

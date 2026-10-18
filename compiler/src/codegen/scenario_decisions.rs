@@ -774,6 +774,29 @@ impl Consumer<'_> {
     }
 }
 
+/// Private handlers do not expose a saved public result. Their ordinary
+/// ordered query arrays may feed the existing owner mutation frame when the
+/// complete executable owner still matches independently checked source.
+/// Keep the older read-only C23 receipt family on its original path.
+pub(super) fn owner_handler_queries(context: &FreshSourceContext<'_>, owner: &IrItem) -> Option<()> {
+    let IrItemKind::Scenario { params, trusted: true, result: None, read: false,
+        expose_excluded: false, by, effects, event_source: Some(IrEventSource::Declared(_)),
+        hook: None, cohort: None, .. } = &owner.kind else { return None; };
+    if !params.is_empty() || !by.is_empty() { return None; }
+    fn mutation(statements: &[IrStmt]) -> bool {
+        statements.iter().any(|statement| match statement {
+            IrStmt::Create { .. } | IrStmt::Set { .. } | IrStmt::Send { .. } |
+            IrStmt::Schedule { .. } | IrStmt::Cancel { .. } => true,
+            IrStmt::If { then_branch, else_branch, .. } => mutation(then_branch) || mutation(else_branch),
+            IrStmt::For { body, .. } => mutation(body),
+            IrStmt::Match { arms, .. } => arms.iter().any(|arm| mutation(&arm.body)),
+            _ => false,
+        })
+    }
+    if !mutation(effects) { return None; }
+    same_scenario_semantics(context.original(), context.ir(), context.fresh(), owner)
+}
+
 /// Join the executable scenario to a fresh lowering of its original checker.
 /// Shared by independent nongrant source producers; it does not require a
 /// supported native decision capture profile.
@@ -1596,6 +1619,18 @@ impl SemanticJoin<'_> {
             ) if x == y && a == b && u == v && ar == br && s == t => {
                 self.expression(c, e, d + 1)?;
             }
+            (
+                IrStmt::Schedule { owner_package: x, key: a, at: c, event: u, payload: e, span: s },
+                IrStmt::Schedule { owner_package: y, key: b, at: other_at, event: v, payload: f, span: t },
+            ) if x == y && u == v && s == t => {
+                self.expression(a, b, d + 1)?;
+                self.expression(c, other_at, d + 1)?;
+                self.expression(e, f, d + 1)?;
+            }
+            (
+                IrStmt::Cancel { owner_package: x, key: a, span: s },
+                IrStmt::Cancel { owner_package: y, key: b, span: t },
+            ) if x == y && s == t => self.expression(a, b, d + 1)?,
             (IrStmt::Return { value: a, span: x }, IrStmt::Return { value: b, span: y })
                 if x == y =>
             {
@@ -3412,5 +3447,55 @@ mod consumed_index_tests {
                 .is_none(),
             "the consumed subtree still has its original 200k node bound"
         );
+    }
+}
+
+#[cfg(test)]
+mod owner_handler_tests {
+    use super::*;
+
+    #[test]
+    fn whole_handler_queries_require_original_body_parent_order_and_continuation() {
+        let source = "app OwnerHandler\nGiven\n Root {name:text}\n Child in Root {state:enum(open,done),source:text}\n event Tick {root:Root,source:text}\n policy Root read=public\n policy Child read=public\nWhen\n scenario drain on=Tick\n  require event.root.name!=\"\"\n  do\n   let child=first(event.root.Child as row where row.state==open and row.source==event.source order=row.id)\n   if child!=null\n    set child {state=done}\n    schedule child.id at=now event=Tick {root=event.root,source=event.source}\nThen\n";
+        let mut db = SourceDb::new();
+        let file = db.add("owner-handler.can".into(), source.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = crate::analysis::catalog::load_catalog(&crate::analysis::catalog::CatalogRequest {
+            flag: Some(&path), env: None, cwd: root, primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = crate::analysis::check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let index = ir.items.iter().position(|item| item.canonical == "OwnerHandler.drain").unwrap();
+        let prepare = |actual: &IrProgram| {
+            let context = FreshSourceContext::prepare_queries(&program, actual, &db, Some(&catalog)).unwrap();
+            owner_handler_queries(&context, &actual.items[index]).is_some()
+        };
+        assert!(prepare(&ir), "whole original handler is independently source-joined");
+        for mutation in 0..5 {
+            let mut actual = ir.clone();
+            let IrItemKind::Scenario { effects, event_source, .. } = &mut actual.items[index].kind else { unreachable!() };
+            if mutation == 4 {
+                *event_source = Some(IrEventSource::Declared("OwnerHandler.Other".into()));
+            } else if mutation < 2 {
+                let IrStmt::Let { value, .. } = &mut effects[0] else { unreachable!() };
+                let IrExpr::Call { args, .. } = &mut value.expr else { panic!("original first call") };
+                let IrExpr::Query(query) = &mut args[0].expr else { panic!("original query") };
+                if mutation == 0 { query.order[0].descending = true; }
+                else { query.parent = None; }
+            } else {
+                let IrStmt::If { then_branch, .. } = &mut effects[1] else { unreachable!() };
+                if mutation == 2 { then_branch.remove(0); }
+                else {
+                    let IrStmt::Schedule { owner_package, .. } = &mut then_branch[1] else { unreachable!() };
+                    *owner_package = "Other".into();
+                }
+            }
+            assert!(!prepare(&actual), "changed source occurrence {mutation} must not bypass receipt admission");
+        }
     }
 }

@@ -4469,13 +4469,20 @@ async function loadCheckedCallbackReadGrants(asm: AssembledModules, artifact: Co
             throw new AssemblyCorrespondenceError('Source read ordinal lacks its exact original callable.');
           }
           const paths = selected === undefined ? names.filter(field => !secrets.has(field)) :
-            readMetadataStrings(selected, 'Source read declaration', 'fields');
+            readMetadataStrings(selected, 'Source read declaration', 'fields').map(path => {
+              // Original source metadata spellings select the same stored
+              // metadata used by the query engine, not additional data fields.
+              const parts = path.split('.');
+              const aliases: Readonly<Record<string, string>> = { created_by: 'createdBy', updated_by: 'updatedBy', archived_at: 'archivedAt' };
+              if (!names.includes(parts[0]!) && Object.hasOwn(aliases, parts[0]!)) parts[0] = aliases[parts[0]!]!;
+              return parts.join('.');
+            });
           if (paths.length === 0 || selected !== undefined &&
               (Object.getPrototypeOf(selected) !== Array.prototype || Reflect.ownKeys(selected as object).length !== paths.length + 1) ||
               paths.some(path => path.split('.').some(part => part === '') || /[\[\]]/.test(path) ||
                 !names.includes(path.split('.')[0]!) && !metadata.has(path.split('.')[0]!) && path.split('.')[0] !== 'parent' ||
                 path.split('.').includes('callback_diagnostics') || [...secrets].some(secret => path === secret || path.startsWith(`${secret}.`)))) {
-            throw new AssemblyCorrespondenceError('Source read selector differs from its exact declared fields/secrets.');
+            throw new AssemblyCorrespondenceError(`Source read selector differs from its exact declared fields/secrets (${model}, ${rule}).`);
           }
           ids.push(rule); grants.push(Object.freeze({ rule, fields: Object.freeze([...paths]),
             predicate: predicate as CheckedCallbackReadGrant['predicate'] }));
@@ -7438,7 +7445,7 @@ async function runScenarioExecution(
   opts: CanonicalMutationOpts,
   call: CanonicalSeamCall,
   occurrenceIds: string[],
-  due?: { readonly effects: SystemStaging; readonly occurrenceId: OccurrenceId; readonly queueValue?: true },
+  due?: { readonly effects: SystemStaging; readonly occurrenceId: OccurrenceId; readonly queueValue?: true; readonly observeFramework?: (effects: SystemStaging) => void },
   cohort?: { readonly occurrenceId: OccurrenceId; readonly eventFields: ReadonlyArray<string>;
     readonly refInput: string; readonly bind: string | null },
   receiptStore?: StoragePort,
@@ -7877,6 +7884,17 @@ async function runScenarioExecution(
       `t17b: staged write kind ${JSON.stringify(write.kind)} is not a domain write (pipeline/dist skew?)`,
     );
   };
+  const ownerFrameworkModels = new Set<string>();
+  if (trustedOwnerReads && !receiptAware && ownerSession !== undefined) {
+    const tables = await loadProducerModule('@canlang/work/kernel/tables', 'private handler framework effects');
+    for (const name of ['WORK_SCHEDULE_MODEL', 'WORK_OCCURRENCE_MODEL', 'WORK_DISPATCH_MODEL', 'WORK_SUPERSESSION_MODEL']) {
+      const model = requireProducerString(tables, name, 'private handler framework effects');
+      if (loaded.models.some(declaration => declaration.name === model)) {
+        throw new StateError('validation', 'Declared models cannot replace private Work framework tables.');
+      }
+      ownerFrameworkModels.add(model);
+    }
+  }
   const appendDeferredEffects = (effects: SystemStaging): void => {
     if (child !== undefined) return refuseRecordBinding('Child scenario framework effects are not supported by the checked call profile.');
     // Canonical invocation has no acknowledgement channel; deferred stages
@@ -7884,18 +7902,19 @@ async function runScenarioExecution(
     if ((effects.outboxAck?.length ?? 0) !== 0) {
       throw new Error('Canonical deferred effects cannot stage outbox acknowledgements.');
     }
-    // C24 scope-1 (REVIEW-22 narrow): only the exact due-admission object
-    // for this internal handler session bypasses the owner-session join,
-    // staging Work schedule head + L3 cancel through the same State fence
-    // via staged writes. Every other deferred effect (sends, deliveries,
-    // later schedules) keeps the join requirement, identified by object
-    // identity against this fence's due admission.
-    const isDueAdmission = internalHandlerDue && due !== undefined && effects === due.effects;
-    if (ownerSession !== undefined && !isDueAdmission && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
+    // Due admission and private Work stages share the domain commit fence.
+    // Saved public scenarios retain their separate receipt/effect join.
+    const isDueAdmission = (internalHandlerDue || trustedOwnerReads && !receiptAware) && due !== undefined && effects === due.effects;
+    // These effects are returned only by the installed Work staging callbacks
+    // above/below; declared domain rows still go through State's owner session.
+    const privateFramework = trustedOwnerReads && !receiptAware && (effects.writes ?? []).every(write => ownerFrameworkModels.has(write.model)) &&
+      (effects.history?.length ?? 0) === 0 && (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
+    if (ownerSession !== undefined && !isDueAdmission && !privateFramework && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
         (effects.uniqueReleases?.length ?? 0) !== 0)) {
       refuseRecordBinding('Saved scenario deferred domain effects require their defining owner-session join.');
     }
+    if (effects !== due?.effects) due?.observeFramework?.(effects);
     for (const write of effects.writes ?? []) {
       stagedWrites.push(write);
       applyStagedWrite(write);
@@ -8232,21 +8251,34 @@ async function runScenarioExecution(
         if (typeof model !== "string" || model === "") {
           throw new Error(`t17b: readModel needs a non-empty string model (wiring bug).`);
         }
-        if (ownerSession !== undefined) {
+        if (ownerSession !== undefined && (!trustedOwnerReads || receiptAware)) {
           // Disclosure v1 has no query influence/current-authority carrier.
           // A viewer projection must not be upgraded into a State-issued row.
           throw new StateError('validation', 'Saved scenario query reads require their defining provenance and disclosure join.');
         }
         const native = callable?.inputStyle === 'parameters' || trustedOwnerReads;
         if (!native) assertServableReadQuery(StateError, query);
-        if (loaded.ruledModels.has(model)) {
+        if (loaded.ruledModels.has(model) && !trustedOwnerReads) {
           throw ruledReadRefusal(StateError, model);
         }
         const dependencies: ProjectedRecord[] = [];
         let selection: CanonicalReadSelection | undefined;
         const sourcePredicate = native && typeof query.where === 'function';
+        let parent: { model: ModelName; id: RecordId } | undefined;
+        if (trustedOwnerReads && query.parent !== undefined) {
+          const candidate = query.parent;
+          const binding = isUnknownRecord(candidate) ? recordBindings.get(candidate) ?? ownerNavigation.resolveRecord(candidate) : undefined;
+          const ownership = loaded.containment.get(model);
+          if (binding === undefined || !isUnknownRecord(ownership) || ownership.parent !== binding.model) {
+            throw new StateError('validation', 'Owner query requires its declared parent bound in this operation.');
+          }
+          const current = await overlay.load(binding.model as ModelName, binding.id as RecordId);
+          if (current === null) throw new StateError('not_found', 'Owner query parent no longer exists.');
+          await ownerNavigation.authorizeReference(makeRecordRef(binding.model, binding.id, BigInt(current.version)));
+          parent = { model: binding.model as ModelName, id: binding.id as RecordId };
+        }
         if (native) {
-          if (Object.keys(query).some(key => !['where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+          if (Object.keys(query).some(key => !['where', 'order', 'limit', 'archived', 'authority', ...(trustedOwnerReads ? ['parent'] : [])].includes(key)) ||
               (query.authority !== undefined && query.authority !== (trustedOwnerReads ? 'owner' : 'viewer')) ||
               (query.archived !== undefined && query.archived !== 'exclude' && !(trustedOwnerReads && query.archived === 'include'))) {
             throw new StateError('validation', 'Mutation queries require viewer reads over current records without containment filters.');
@@ -8282,7 +8314,9 @@ async function runScenarioExecution(
               dependencies.push(structuredClone(row));
               if (!trustedOwnerReads) await viewerNavigation.captureQuerySource(model, row);
               await (trustedOwnerReads ? ownerNavigation : viewerNavigation).prepare(model, row);
-              const matched = await where(trustedOwnerReads ? recordView(model, row as StoredRow) : projectedRecordView(model, row));
+              const matched = trustedOwnerReads
+                ? await where(recordView(model, row as StoredRow), ctx)
+                : await where(projectedRecordView(model, row));
               if (typeof matched !== 'boolean') throw new StateError('validation', 'Mutation query predicates must return bool.');
               return matched;
             } } : where === undefined ? {} : { where: structuredClone(where) as QueryPredicate }),
@@ -8294,7 +8328,7 @@ async function runScenarioExecution(
         // so a later own write cannot invalidate an earlier observation.
         const querySnapshot = new Map(staged);
         const queryStore = native ? withStagedOverlay(opts.store, querySnapshot) : overlay;
-        const read = async (selected: CanonicalReadSelection | undefined): Promise<CanonicalReadServed> => {
+        const read = async (selected: CanonicalReadSelection | undefined, initial = false): Promise<CanonicalReadServed> => {
           if (trustedOwnerReads) {
             const queryModule = await loadProducerModule('@canlang/state/query/engine', 'trusted owner query producer');
             const queryRecords = requireProducerFn(queryModule, 'queryRecords', 'trusted owner query producer') as
@@ -8307,8 +8341,12 @@ async function runScenarioExecution(
             }
             // Read the complete bounded candidate domain from the actual
             // store; business limits never choose a materialization budget.
-            const base = await opts.store.query({ model: model as ModelName, authority: 'owner', archived: 'include',
-              order: [{ field: 'id', direction: 'asc' }], limit: maxCandidates + 1 });
+            const querySource = initial && ownerSession !== undefined ? overlay : opts.store;
+            const candidateLimit = initial && ownerSession !== undefined
+              ? SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows : maxCandidates + 1;
+            const base = await querySource.query({ model: model as ModelName, authority: 'owner', archived: 'include',
+              ...(parent === undefined ? {} : { parent }),
+              order: [{ field: 'id', direction: 'asc' }], limit: candidateLimit });
             if (base.length > maxCandidates) throw new StateError('limit', 'Trusted owner query exceeds its candidate budget.');
             const merged = new Map(base.map(row => [row.id as string, row]));
             const prefix = `${model}\0`;
@@ -8318,7 +8356,8 @@ async function runScenarioExecution(
               else merged.set(row.id, row);
             }
             if (merged.size > maxCandidates) throw new StateError('limit', 'Trusted owner query exceeds its candidate budget.');
-            const candidates = [...merged.values()];
+            const candidates = [...merged.values()].filter(row => parent === undefined ||
+              row.parent?.model === parent.model && row.parent.id === parent.id);
             const descriptor = loaded.models.find(candidate => candidate.name === model);
             if (descriptor === undefined) throw new StateError('validation', 'Trusted owner query needs its owning declared model.');
             const nativeQuery = (rows: readonly StoredRow[], final: boolean) => queryRecords({
@@ -8359,7 +8398,7 @@ async function runScenarioExecution(
           memberships: opts.memberships,
           });
         };
-        const served = await read(selection);
+        const served = await read(selection, true);
         if (!Array.isArray(served.records)) {
           throw new Error(`t17b: invokeRead served no records array (invoke/dist skew?)`);
         }
@@ -8376,6 +8415,16 @@ async function runScenarioExecution(
           );
           const observed = projection(sourcePredicate ? dependencies : served.records);
           seamGuards.push({ name: `${model}.read`, evaluate: async () => {
+            if (trustedOwnerReads && ownerSession !== undefined) {
+              // State issued this query from its bounded provisional view.
+              // A later own write must not be compared to an earlier physical
+              // snapshot. The physical revision fence detects external rows,
+              // while private due admission rechecks the current owner.
+              if (await opts.store.readRevision() !== navigationRevision) {
+                throw new StateError('conflict', 'State changed during the trusted owner query.');
+              }
+              return true;
+            }
             // Re-admit the complete observed domain with current grants. Never
             // replay source callbacks or apply their post-filter limit/order.
             const fresh = await read(sourcePredicate ? undefined : selection);
@@ -9503,20 +9552,18 @@ async function runScenarioExecution(
     }
     const outbox = 'outbox' in finalized ? finalized.outbox : [];
     if (!Array.isArray(outbox)) throw new StateError('validation', 'Owning finalized outbox must be an array.');
-    // Scope-1 composition: the installed due admission effects ride
-    // alongside (never through) the finalized owner effects, so the SAME
-    // staged due Work write reaches commit with exact association. Only
-    // the staged due Work writes compose here — never other deferred
-    // effects, never handler bytes in their place.
+    // Framework stages ride alongside State's finalized domain effects.
+    // Private handlers retain only installed Work stages; the due driver
+    // independently compares their exact staged writes before commit.
     const dueAdmissionWrites = due === undefined ? [] : (due.effects.writes ?? []).filter(write =>
       isUnknownRecord(write) && ((write as { readonly model?: unknown }).model === 'work.schedule' ||
         (write as { readonly model?: unknown }).model === 'work.occurrence'));
     return { effects: {
-      writes: [...finalized.writes, ...dueAdmissionWrites], history: finalized.history,
+      writes: [...finalized.writes, ...(trustedOwnerReads && !receiptAware ? collapseStagedWrites(stagedWrites) : dueAdmissionWrites)], history: finalized.history,
       uniqueClaims: finalized.uniqueClaims, uniqueReleases: finalized.uniqueReleases,
       resolvedDefaults: { ...finalized.resolvedDefaults, ...resolvedDefaults },
       schedules: [...finalized.schedules, ...extraSchedules],
-      outbox, result,
+      outbox: [...outbox, ...(trustedOwnerReads && !receiptAware ? deferredEffects.flatMap(effects => effects.outbox ?? []) : [])], result,
       fileAssignments: [...fileAssignments.values()].filter(assignment => finalized.writes.some(write =>
         (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
         write.row.id === assignment.recordId)),
@@ -9564,7 +9611,7 @@ async function runScenarioExecution(
 
 async function runScenarioSeam(
   loaded: LoadedCanonicalDescriptors, opts: CanonicalMutationOpts, call: CanonicalSeamCall,
-  occurrenceIds: string[], due?: { readonly effects: SystemStaging; readonly occurrenceId: OccurrenceId; readonly queueValue?: true },
+  occurrenceIds: string[], due?: { readonly effects: SystemStaging; readonly occurrenceId: OccurrenceId; readonly queueValue?: true; readonly observeFramework?: (effects: SystemStaging) => void },
   cohort?: { readonly occurrenceId: OccurrenceId; readonly eventFields: ReadonlyArray<string>;
     readonly refInput: string; readonly bind: string | null }, receiptStore?: StoragePort,
   stageSources?: OwnerMutationSourceStager,
@@ -12174,7 +12221,6 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
         const stagedSchedule = (due.effects.writes ?? []).filter(write =>
           isUnknownRecord(write) && (write as { readonly model?: unknown }).model === 'work.schedule');
         if (stagedSchedule.length !== 1) throw new Error('Due staging must produce exactly one work.schedule write.');
-        const stagedScheduleBytes = stableStringify(structuredClone(stagedSchedule[0]));
         // Scope-1 issuance binding: record the installed-producer staging
         // bytes against this admitted call before execution. State retain
         // compares the returned Work pair against them; the handler never
@@ -12186,6 +12232,7 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
           scope: { app: opts.due.scope.app, owner: opts.due.scope.owner, ownerPackage: opts.due.scope.ownerPackage },
           scheduleWrite: structuredClone(stagedSchedule[0]),
         });
+        const stagedFramework: CanonicalStagedDomainWrite[] = [];
         let business: CanonicalExecutionEffects;
         let refusal: { code: string; message: string } | undefined;
         try {
@@ -12194,7 +12241,8 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
           // admitted store, so the frame/owner session join the same fence;
           // Work terminal effects below join the same commit atomically.
           business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
-            { effects: due.effects, occurrenceId: due.occurrence.occurrenceId as OccurrenceId },
+            { effects: due.effects, occurrenceId: due.occurrence.occurrenceId as OccurrenceId,
+              observeFramework: effects => stagedFramework.push(...structuredClone(effects.writes ?? [])) },
             undefined, opts.store);
         } catch (error) {
           if (!isAuthoredRequireFailure(error)) {
@@ -12209,18 +12257,21 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
             resolvedDefaults: {}, result: null };
         }
         const status = refusal === undefined ? 'completed' as const : 'failed' as const;
-        // Scope-1 producer exactness: the handler return must carry the
-        // staged schedule update byte-identically and must never emit
-        // occurrence writes (the terminal path below owns them). Forgery or
-        // smuggling refuses here, before State retention.
+        // The due update and every continuation must match the installed
+        // stages observed during this exact invocation. Terminal occurrence
+        // writes remain exclusive to the driver below.
         const businessWork = (business.writes ?? []).filter(write =>
           isUnknownRecord(write) && ((write as { readonly model?: unknown }).model === 'work.schedule' ||
             (write as { readonly model?: unknown }).model === 'work.occurrence'));
         if (businessWork.some(write => (write as { readonly model?: unknown }).model === 'work.occurrence')) {
           throw new Error('Due handler must not emit work.occurrence writes; the terminal path owns them.');
         }
-        if (businessWork.length !== 1 || stableStringify(businessWork[0]) !== stagedScheduleBytes) {
-          throw new Error('Due handler work.schedule write differs from its staged admission.');
+        const expectedWork = refusal === undefined
+          ? collapseStagedWrites([...(due.effects.writes ?? []), ...stagedFramework]).filter(write =>
+            write.model === 'work.schedule' || write.model === 'work.occurrence')
+          : stagedSchedule;
+        if (stableStringify(businessWork) !== stableStringify(expectedWork)) {
+          throw new Error('Due handler work.schedule write differs from its staged admission and installed continuation stages.');
         }
         const terminal = await stageReceipt({ occurrenceId: opts.due.occurrenceId, status,
           result: business.result ?? null, code: refusal?.code ?? null, message: refusal?.message ?? null }, stageContext);

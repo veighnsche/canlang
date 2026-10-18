@@ -1257,3 +1257,20 @@ coverage and allocations. Muse remains stopped.
 > explicit user decisions take precedence. Historical checkpoints, accepted
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
+
+
+### 2026-10-18 — private whole-handler query composition
+
+This bounded batch keeps existing owners: Compiler codegen `scenario_decisions`,
+`model_policy_profile`, `model_policies`, `js` and emitter plumbing; Cloudflare
+`runtime/invoke`, `stdlib` and the existing `hook-first-delivery` harness. Complete
+source-joined private handler queries reuse State's owner frame and Work's installed
+staging; no package, query engine or public carrier is added. The three JEV response
+files remain design advice under the existing design owner. Every changed code/test
+path is reviewed, including source mutants, owning model closures and due continuation
+matching. Decisions and the one completion execution view record actual compiled
+D1 acceptance and the unchanged original24 delta273→264, nine removed/zero added.
+Concurrent integrations through main82b888c8b retain their separate Work/recovery
+coverage; foreign AGENTS/development-startup notes and inventory output are preserved.
+Reuse prior coverage and checks; do not advance the held complete review checkpoint
+or treat this bounded reconciliation as a whole-tree audit. Muse remains stopped.

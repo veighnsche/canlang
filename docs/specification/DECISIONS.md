@@ -18853,3 +18853,27 @@ revision/Identity/fence/error/replay ordering rather than removing checks. The
 existing compiler completion record contains the before/after measurements and
 three focused passing D1 checks. Full-workflow and hosted latency remain unmeasured
 after this change; unchanged source/permission/rollback qualification is reused.
+
+
+## 2026-10-18 — source-joined private mutation-handler queries
+
+Admit ordinary ordered FIRST in private void declared-event handlers only after
+the complete original/fresh-IR handler join, including query parent/order, guards,
+mutations and schedule/cancel ownership. Keep saved-result/read-only receipt
+profiles separate. State issues queried rows from its bounded owner frame, retains
+own staged-prefix visibility and live external revision fences. Only installed
+Work stages share finalization; due continuation writes are compared to the exact
+stages observed in that invocation. No public owner upgrade or app/path exception.
+
+Retain full original owning policies: source-checked array/frozen-now expressions,
+Timezone and value-only Contract locks reuse existing evaluation/comparison; metadata
+selector aliases map only undeclared source roots. Existing min/max exports repair
+the original model helper closure. No File equality or clock semantics change.
+Three corrected JEV requests favored this existing owner path over extending saved
+query receipts; earlier mistaken queue-trigger advice is retained as superseded,
+not authority. Actual compiled original venue_cleanup passes against D1/Identity/Work,
+plus prefix/late-rollback and retained source mutants. Original24 drops273→264 with
+nine FIRST sites removed/none added;78 FIRST sites remain. Publication/periodic intake
+and other unsupported closures remain local engineering. Provider execution and full
+composition are not accepted. The existing completion record holds checks/counts;
+main is the implementation branch and Muse stays stopped.

@@ -937,7 +937,8 @@ mod tests {
         let source = r#"app ComputedRules
 Given
  Location {active:bool}
- Budget {total:money,locations:Location[]}
+ Budget {total:money,locations:Location[],zone:timezone}
+ Slot in Budget {state:enum(held,pending,confirmed),until:datetime}
  Request in Budget {amount:money,location:Location,actual:money?}
  Increase in Request {amount:money}
  Document in Budget {document:file}
@@ -945,6 +946,9 @@ Given
  derive Request.authorized:money = row.amount+sum(row.Increase as increase select increase.amount,row.amount.currency)
  derive Budget.committed:money = sum(row.Request as request select request.authorized,row.total.currency)
  derive Budget.remaining:money = row.total-row.committed
+ derive Budget.available:int = count(row.Slot as slot where slot.state==confirmed or (slot.state in [held,pending] and now<slot.until))
+ invariant Budget: row.available>=0
+ lock Budget fields=zone
  invariant Budget: row.remaining.minor>=0
  invariant Request: row.location in row.parent.locations and (row.actual ?? row.amount).currency==row.parent.total.currency
  lock Request fields=amount when=count(row.Increase)>0
@@ -956,17 +960,26 @@ Then
         let file = db.add("computed-rules.can".into(), source.into());
         let (catalog, diagnostics) = load_catalog(&CatalogRequest { flag: Some(&root.join("packages/cloudflare/dist/native-catalog.json")), env: None, cwd: root, primary: Span::new(file, 0, 0) });
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        let (mut program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let (original, diagnostics) = ir::build(&program, &db, catalog.as_ref());
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let module = super::super::js::module_path("ComputedRules");
         let policies = collect_checked_policies(&program, &original, &db, catalog.as_ref(), &module).expect("complete transitive policy closure");
         let model = |name: &str| original.items.iter().find(|item| item.canonical == format!("ComputedRules.{name}")).unwrap().id;
-        let budget = policies.bindings.iter().find(|binding| binding.id.ends_with("Budget.require.1")).unwrap();
+        let available = policies.bindings.iter().find(|binding| binding.id.ends_with("Budget.require.1")).unwrap();
+        assert!(available.checked_body);
+        assert_eq!(available.query_models, vec![model("Slot")]);
+        assert!(policies.descriptors.iter().find(|policy| policy.model == "ComputedRules.Budget").unwrap().rules.iter()
+            .any(|rule| matches!(rule, ModelRule::Lock { fields, .. } if fields == &["zone"])));
+        let original_contexts = std::mem::take(&mut program.types.contextual_references);
+        let missing_context_refuses = checked_query_rule_fields(&program, &original, model("Budget"), available.predicate.as_ref().unwrap(), &db, catalog.as_ref()).is_none();
+        program.types.contextual_references = original_contexts;
+        assert!(missing_context_refuses, "a same-spelled unbound clock cannot replace the checked frozen context");
+        let budget = policies.bindings.iter().find(|binding| binding.id.ends_with("Budget.require.2")).unwrap();
         assert!(budget.checked_body);
         assert_eq!(budget.query_models, vec![model("Request"), model("Increase")]);
-        let targets = policies.dependency_bindings.iter().filter(|binding| binding.id.contains("Budget.require.1")).map(|binding| { assert!(binding.all_owners); binding.changed_model }).collect::<Vec<_>>();
+        let targets = policies.dependency_bindings.iter().filter(|binding| binding.id.contains("Budget.require.2")).map(|binding| { assert!(binding.all_owners); binding.changed_model }).collect::<Vec<_>>();
         assert_eq!(targets, vec![model("Request"), model("Increase")]);
         let lock = policies.bindings.iter().find(|binding| binding.id.ends_with("Request.lock.1")).unwrap();
         assert!(lock.checked_body);

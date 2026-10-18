@@ -1561,6 +1561,7 @@ Then
             &BTreeMap::new(),
             &BTreeMap::new(),
             super::super::js::EmitDecisionSources {
+                owner_handlers: None,
                 local_policies: None,
                 unique_conditions: None,
                 model_rule_origins: None,
@@ -1731,6 +1732,7 @@ await assert.rejects(()=>failed(fresh,inputs),error=>error===first);
                 &BTreeMap::new(),
                 &BTreeMap::new(),
                 EmitDecisionSources {
+                    owner_handlers: None,
                     local_policies: None,
                     unique_conditions: None,
                     model_rule_origins: None,

@@ -2,7 +2,7 @@
 
 ## Current remainder and finite completion
 
-**State: original CanCustomer `recover` is accepted. The human next authorized a shared query-root repair on main, targeting original Purchase `record_payable` and `return_goods`; its current qualification is below. Other proposed batches still await agreement. Muse remains stopped and supervision disabled; no automation, Muse session, branch or extra implementation worktree was started.**
+**State: original Customer `recover`, Purchase `record_payable` / `return_goods`, and the whole-handler query batch below are accepted at their recorded scopes. The latest unchanged original24 compile has 264 E6008, down from 273, with nine FIRST refusals removed and none added. Whole CanCRM compilation/runtime remains open. Muse stays stopped and supervision disabled; work remains on main without a new branch or worktree. Other proposed batches await agreement.**
 
 This is the **one execution plan** for general Can correctness and adoption: existing outcomes 1–18 / C01–C24 and their required executable/reference consumers. The original CanCRM composition and other draft apps are reference programs that reveal reusable language/runtime gaps, not end-user products to finish or polish. Shared work is counted once; consumers link to its output. Other roadmaps supply contracts and dependencies, not extra assignments. Product requirements remain in REQUIREMENTS, behavior in DESIGN and syntax in GRAMMAR.
 
@@ -14,9 +14,9 @@ The former 8,333-line completion journal is preserved as [historical evidence](h
 | --- | --- |
 | Canonical checkout | `/Users/vince/Projects/canlang`, branch `main`; user documentation commits through `e3ba3c9e2` are preserved before this repair |
 | Released code review | Retain the complete `44e6332c0` checkpoint/190 paths. The recover batch has its own complete 18-code-path review; neither review establishes full workflow completion. |
-| Latest original24 | Current query producer: actual compiler exit **10**, complete=true, omitted=0, unchanged 24 authored inputs/26 source records; **273 E6008**. Compared with post-recover 275, only CanPurchase179/219 FIRST refusals were removed; 0 added. FIRST correspondence errors 89→87 (15 scenarios / 67 handlers / 5 derives). No whole-composition artifact yet. |
-| Producer / catalog | Compiler SHA-256 `efce5b0cc8aca7327a6f2a1f2adab4c6386ea439677a47a4cce6054f793461b7`; catalog `ca50fdca852170b09f95ec4adb97cc63ddabf26437629c02dfd234991bc486a8` |
-| Existing raw inputs/evidence | Current `/tmp/cancrm-query-original24-final.json` and `-meta.json` (589.24s); post-recover `/tmp/cancrm-recover-original24.json` (488.10s), prior `/tmp/can18-merge66-capture.json`; unchanged original argv `/private/tmp/cancrm-helper-invariants-card-20261015-argv.json` and catalog `/tmp/can18-merge66/catalog.json`. |
+| Latest original24 | Whole-handler producer: actual compiler exit **10**, complete=true, omitted=0, unchanged 24 authored inputs/26 source records; **264 E6008**. Against the preceding 273-error producer, nine FIRST refusals removed, zero added; FIRST 87→78, including the targeted handler bucket 67→58. No whole-composition artifact yet. |
+| Producer / catalog | Compiler SHA-256 `9e37e5d39dc8db2bb301ca9a60cf82659bc753a5a1f093796f023ef789dd83cd`; catalog `ca50fdca852170b09f95ec4adb97cc63ddabf26437629c02dfd234991bc486a8` |
+| Existing raw inputs/evidence | Current `/tmp/can-handler-original24.json` and `-meta.json` (529.82s), frozen `/tmp/can-handler-batch-can`; prior `/tmp/cancrm-query-original24-final.json` (589.24s); post-recover `/tmp/cancrm-recover-original24.json` (488.10s), prior `/tmp/can18-merge66-capture.json`; unchanged original argv `/private/tmp/cancrm-helper-invariants-card-20261015-argv.json` and catalog `/tmp/can18-merge66/catalog.json`. |
 | Unfinished source | Old paused diagnostics remain preserved in stash `baecef7f8a745c08ef20b373cd81fc7e4cd006fa`; do not reapply them over the released repair. Temporary tracing was removed. The permanent original-source consumer is `packages/cloudflare/test/native-customer-recover.test.ts`. |
 
 Do not derive a completion percentage from goal progress, commit counts, diagnostic counts or reviewed paths. Do not rebuild merely because a commit label changed; use the actual producer/input identity.
@@ -46,8 +46,9 @@ The 89 post-recover FIRST refusals are profile/correspondence symptoms, not 89
 independent query-engine bugs. The shared admission gap is whole-owner composition:
 actual helper/reference guards, contained replay, pure aggregate Requires and
 typed SEND/create tails must retain their defining source and owner stage together.
-The 67 handler sites also hit a distinct whole-handler profile restricted to its
-old Let/Require shape; widening this scenario batch does not close those hooks.
+At that baseline, 67 handler sites hit a distinct whole-handler profile restricted
+to its old Let/Require shape. The subsequent batch below repairs nine of those sites;
+the prior scenario batch did not close them or independent lifecycle hooks.
 
 The production changes add no draft app/package/model/operation/path allowlist.
 Existing `DerivedGuard.consume`, `ContainedSources.record`, `ReplayChild.pick`
@@ -90,6 +91,73 @@ and scratch were removed. Reuse the prior full-workflow, tamper and authority
 results; the 1128.71s workflow was not repeated, so no full-suite or hosted-latency
 speedup is claimed. Remaining checkpoints/policy recursion are not thereby proved
 redundant. No new branch, worktree, dependency tree or Muse session was created.
+
+### Whole-handler query batch — 2026-10-18
+
+The old Let/Require-only profile refused ordered FIRST queries whenever the same
+private handler continued with mutations or Work effects. A complete source/fresh-IR
+join now admits private, void, declared-event mutation handlers through the existing
+State owner frame. Public saved-result and old read-only receipt profiles retain
+their prior path. Queried rows are actually issued by State, contained parents must
+be bound to their declared owner, staged-prefix queries see earlier own writes, and
+external changes remain fenced by the live revision. Installed Work send/schedule/
+cancel stages join the same commit; the due driver compares continuation writes to
+the actual stages observed during that invocation. No app-name/path exceptions.
+
+The retained owning model closure also needed checked array/clock expressions,
+Timezone and value-only Contract locks, original metadata read-selector aliases,
+and the existing Values min/max facade exports. These use existing frozen clock,
+typed lock comparison and source-policy mechanisms; File equality is not widened.
+
+**Actual compiled Can:** the unchanged original `events.venue_cleanup` handler and
+full retained models/rules run on D1 State/Identity with real Work admission. The
+consumer proves empty/exhausted domains, declared-parent/state filtering, authored
+ID order, resource-free release, exact Rooms.release staging and stored delivery ID,
+continuation, replay, stale-revision and non-cancelled-event refusal. A small compiled
+regression separately proves queries observe their own staged prefix and a late
+require rolls back. Remote Rooms provider execution is outside this acceptance.
+
+**Checks:** source-join unit with five source mutants and retained model-policy unit
+pass; existing hook-FIRST compiler suite 11/11; affected runtime file 10/10 (7.22s).
+After the final Work supersession-table correction, only the affected original D1
+consumer was repeated: pass (5.46s). Cloudflare typecheck/emit passes. Other unchanged
+query/permission/receipt checks are reused. All changed code/tests received ordinary
+review; two independent reviews found the prefix/fence and supersession repairs.
+
+**Composition:** one frozen-producer compile, 529.82s, exit10, complete=true/omitted0;
+all 24 authored hashes and all 26 source records unchanged. Exactly nine FIRST sites
+removed: Affiliate88/97/99, Desk124, Event498, Member301, Refer96/109/112; zero added.
+This is five apps, not nine completed workflows. FIRST 87→78, total273→264. Full
+CanCRM still fails. Remaining handler closures include unsupported domain-event
+publication, periodic intake and additional source/helper/dispatch joins; these are
+local engineering gaps, not external/policy holds. No unchanged full Purchase run
+was repeated. Muse's exact CAN18 pane remains dead/paused; it was not resumed.
+
+### Observed repeated work — command-log snapshot
+
+Counts below distinguish command invocations from actual rebuilds/cases. Prior
+rows are root-log lower bounds; the handler row also includes its worker's reported
+Rust attempts. Cache hits and exact readership are not inferable. No overhead
+percentage or monetary cost is claimed.
+
+| Scope | Build/test invocations and repeated runtime work |
+| --- | --- |
+| Two-operation query batch | Root: 25 Cargo builds, 11 Cargo-test calls, 19 TS builds, 6 literal Node-test calls (Vitest wrappers excluded). Original D1 workflow: 3 attempts, two timeouts then pass1128.71s. Original24: 2 changed-producer captures,531.96s then589.24s after reserved-ID repair; earlier488.10s baseline reused. Runtime combo8pass/1stale-test failure then affected retry1pass; State13pass. One wrong Vitest invocation found no tests. Earlier compiler case denominator is unknown. |
+| D1 preparation performance repair | 0 Rust builds/tests; 1 State TS build and 1 worker build. One-operation harness: 5 attempts =1 transform/setup failure +4 single-case passes (83.14s,84.43s profile, corrected-proxy baseline59.99s, repair10.36s). Probe correction addressed measured instrumentation distortion. One focused Node run passed3 cases/1.93s. Live revision executions stayed5146. No full24/full-workflow repeat. |
+| Whole-handler batch | Root: 3 Cargo builds,4 Cargo-test calls (1 setup compile failure,1 fixture failure,2 passing runs/12 cases),14 TS-build invocations including no-ops. Worker:9 Rust attempts (2 setup compile failures,6 temporary diagnostic cases:5fail/1pass,1 retained pass);3 compile-only attempts (1 invalid scratch capture,2 clean). Combined Rust13attempts =3 setup failures +10 executed runs/20 cases (14pass/6fail); probes are not new business acceptance. Node10 commands/28 case executions:22pass/6fail, including2 full-file runs. Original D1 consumer8 attempts: missing facade, sandbox bind, policy profile, selector profile, seed wire, then3passes; prefix4 executions:1 setup failure/3passes; old8 cases repeated twice after receipt-boundary edits. Single original24 run above. |
+
+The query batch root snapshot had566 exec orchestrations/604 literal shell calls,
+2 spawns/24 followups/29 messages; performance42/44 and no coordination; handler
+150/164,1 spawn/3 followups/14 messages before final record/commit work. Counts are
+observations, not useful-work scores. Initial mistaken queue/periodic-trigger
+assumptions and temporary fixture/setup failures caused avoidable repetition.
+Query-batch documentation command references were README12read-or-reference/8mixed-edit,
+DECISIONS8/6, file-tree10/5; performance3/1,3/2,1/0 respectively. These are heuristic
+command references, not exact writes, readers or independent document uses. Each
+batch records outcomes with implementation rather than separate checkpoint commits.
+The handler uses one combined plan/decision/file-tree edit and the three required
+JEV response files; superseded wrong-trigger advice is retained inside those files.
+No runtime benchmark, broad suite or extra proof packet was added for this ledger.
 
 ## Remaining roots, owners and finite exits
 
@@ -213,7 +281,7 @@ These are links to existing acceptance outputs, not nine new programmes or host/
 
 ## Genuine holds and unresolved decisions
 
-None of the 273 compiler diagnostics is itself a credential or human-policy blocker. The following recorded release conditions remain exact; this planning pass has not performed or revalidated external qualification.
+None of the 264 compiler diagnostics is itself a credential or human-policy blocker. The following recorded release conditions remain exact; this planning pass has not performed or revalidated external qualification.
 
 | Existing gate | Owner | Release condition and dependent scope |
 | --- | --- | --- |
@@ -225,7 +293,7 @@ None of the 273 compiler diagnostics is itself a credential or human-policy bloc
 | Local decision, outcome14 | Source/Testkit owner | Establish the legitimate Partner editing operation or intentional immutability before lock-edit qualification. This blocks that test, not the compiler work. |
 | Conditional input, outcomes15/16 | Exact producer/host/capability owner | Name the actual absent predecessor, caller, credential or frozen request/result tuple and the consuming criterion before marking it held. Local implementation continues; no blanket “15/16 HELD”. |
 
-The current query batch is human-authorized; other proposed implementation batches still require agreement. Planning edits or reviewer agreement do not resume Muse. No push, deployment, activation, training, dataset work, unrelated apps or foreign-resource changes are authorized here.
+The query and whole-handler batches above are human-authorized; other proposed implementation batches still require agreement. Planning edits or reviewer agreement do not resume Muse. No push, deployment, activation, training, dataset work, unrelated apps or foreign-resource changes are authorized here.
 
 ## Proposed order and dependencies
 

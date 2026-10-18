@@ -1504,6 +1504,7 @@ pub fn emit_program_with_native_source_receipts(
 /// Complete query receipts. Source inventories alone cannot activate capture.
 #[derive(Default)]
 pub(super) struct EmitDecisionSources<'a> {
+    pub owner_handlers: Option<&'a HashSet<SymbolId>>,
     pub local_policies: Option<&'a LocalPolicies>,
     pub unique_conditions: Option<&'a [super::model_unique_conditions::CheckedUniqueCondition]>,
     pub model_rule_origins: Option<&'a [serde_json::Value]>,
@@ -2289,6 +2290,7 @@ fn emit_program_with_sources(
         }
     }
     emitter.native_source_predicates = native_receipts;
+    emitter.owner_handlers = decisions.owner_handlers.cloned().unwrap_or_default();
     emitter.unique_conditions = decisions.unique_conditions.unwrap_or_default().to_vec();
     emitter.model_rule_origins = decisions.model_rule_origins.map(|origins| origins.to_vec());
     emitter.query_selections = decisions.query_selections;
@@ -4158,6 +4160,8 @@ pub struct Emitter<'a> {
     source_requires: HashMap<Span, serde_json::Value>,
     boolean_derives: HashSet<String>,
     boolean_rules: HashSet<String>,
+    owner_handlers: HashSet<SymbolId>,
+    owner_handler_body: bool,
     boolean_body: bool,
     source_guard_body: bool,
     source_guard_derive_depth: usize,
@@ -4368,6 +4372,8 @@ impl<'a> Emitter<'a> {
             source_requires: HashMap::new(),
             boolean_derives: HashSet::new(),
             boolean_rules: HashSet::new(),
+            owner_handlers: HashSet::new(),
+            owner_handler_body: false,
             boolean_body: false,
             source_guard_body: false,
             source_guard_derive_depth: 0,
@@ -7730,6 +7736,7 @@ impl<'a> Emitter<'a> {
     ) -> Option<String> {
         if self.native_source_predicates
             && !self.boolean_body
+            && !self.owner_handler_body
             && matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "first")
             && args.iter().any(|argument| {
                 matches!(&argument.expr, IrExpr::Query(query)
@@ -18438,6 +18445,7 @@ impl<'a> Emitter<'a> {
                     // owning query lifetime. Dev dispatches the actual public
                     // viewer lifetime or private child State frame.
                     self.query_capture = self.admitted_query_source(item.id);
+                    self.owner_handler_body = self.receipt_capture.is_none() && self.owner_handlers.contains(&item.id);
                     self.receipt_call_sites = self
                         .native_call_sites
                         .get(&item.id)
@@ -18524,6 +18532,7 @@ impl<'a> Emitter<'a> {
                             &format!("{{{selection}}}"),
                         );
                     }
+                    self.owner_handler_body = false;
                     self.receipt_capture = None;
                     self.current_revision_binding = None;
                     self.query_capture = None;
