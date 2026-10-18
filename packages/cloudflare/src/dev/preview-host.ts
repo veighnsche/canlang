@@ -19,7 +19,7 @@ import { probeInstalledRuntime } from "../deploy/installed.js";
 import { RELEASE_VERSION } from "../release/stamp.js";
 import { startLocalDev } from "./local-run.js";
 import { cleanupAfterFailure, DevCleanupError, retryableDispose } from "./cleanup.js";
-import { LOCAL_PREVIEW_CAPABILITIES, PreviewAdmissionError, createLocalPreviewBuilder, type LocalPreviewBundleRequest, type LocalPreviewSeed, type PortableBundleEvidence } from "./preview-builder.js";
+import { LOCAL_PREVIEW_CAPABILITIES, PreviewAdmissionError, createLocalPreviewBuilder, type LocalPreviewBundleRequest, type LocalPreviewSeed, type LocalPreviewBuilderOptions, type PortableBundleEvidence } from "./preview-builder.js";
 import { installedReferenceRoot, assertInstalledCatalog, bundlerExecutableInputs, compilerSourceInputs, installedOwnedSourceInputs, installedPortableBundleInputs } from "./preview-inputs.js";
 import { captureIsCurrent, type SingleFileCapture } from "./source-capture.js";
 import { PINNED_COMPATIBILITY_DATE } from "./zero-config.js";
@@ -114,6 +114,7 @@ export async function localPreviewActivationVerdict(
 /** The prebuild gate runs on a real, isolated local D1 binding. */
 export async function preflightLocalPreviewActivation(
   artifact: CompileArtifact, capture: SingleFileCapture, implementations: LocalBindingImplementations = {},
+  onAllocated?: (dispose: () => Promise<void>) => void,
 ): Promise<ActivationVerdict> {
   checkedInstalledInputs(capture);
   if (!(await captureIsCurrent(capture))) {
@@ -138,6 +139,7 @@ export async function preflightLocalPreviewActivation(
       modules: { "main.js": "export default { fetch() { return new Response(null, { status: 404 }); } };" },
       d1Databases: [{ binding: BINDING_NAME, id: databaseId }],
     });
+    onAllocated?.(dispose);
     const verdict = await localPreviewActivationVerdict(artifact, capture, await dev.getD1Database(BINDING_NAME), databaseId, undefined, undefined, implementations);
     await dispose();
     return verdict;
@@ -302,16 +304,18 @@ export function localPreviewWorkerVars(): Readonly<Record<string, unknown>> {
 }
 
 /** Host hook injected into the session owner; no caller can supply `active:true`. */
-export function createInstalledLocalPreviewBuilder(previewRoles: PreviewRoles = {}, runtimeImplementations: LocalBindingImplementations = {}) {
+export function createInstalledLocalPreviewBuilder(previewRoles: PreviewRoles = {}, runtimeImplementations: LocalBindingImplementations = {},
+  target: Pick<LocalPreviewBuilderOptions, "externalOrigin" | "onAllocated" | "persistenceRoot"> = {}) {
   const roles = parsePreviewRoles(previewRoles);
   return createLocalPreviewBuilder({
     persistenceRoot: defaultPreviewStateRoot(),
+    ...target,
     runtimeImplementations,
     resources: {
       d1: { binding: BINDING_NAME, availability: "real_local" },
       identity: { backingBinding: BINDING_NAME, availability: "real_local" },
     },
-    activationVerdict: (artifact, capture) => preflightLocalPreviewActivation(artifact, capture, runtimeImplementations),
+    activationVerdict: (artifact, capture) => preflightLocalPreviewActivation(artifact, capture, runtimeImplementations, target.onAllocated),
     confirmRunningActivation: (artifact, capture, db, id, owner, identityDb) => localPreviewActivationVerdict(artifact, capture, db, id, owner, identityDb, runtimeImplementations),
     produceBundle: produceInstalledPortableBundle,
     seedLocalActors: (db, artifact, capture) => seedLocalPreviewActors(db, roles, artifact, capture),

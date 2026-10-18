@@ -9,7 +9,7 @@ function fixture(path = "/assets/authored"): CompileArtifact {
     artifact_version: 1, language_version: "1.0.0", tool_version: "0.1.0",
     sources: [], callables: [], operations: [], requires: [], tests: [],
     pages: [{ owner: "fixture", path, module: "app/page.js", export: "page" }],
-    modules: [{ path: "app/page.js", js: `export const page = { owner: "fixture", path: ${JSON.stringify(path)}, admit: async () => ({}), render: async () => "ordinary" };`,
+    modules: [{ path: "app/page.js", js: `export const appDefinition = { id: "fixture" }; export const page = { owner: "fixture", title: "Fixture", path: ${JSON.stringify(path)}, admit: async () => ({}), render: async () => "ordinary" };`,
       map: { version: 3, file: "fixture.can", sources: [], sourcesContent: [], names: [], mappings: "" } }],
   };
 }
@@ -48,7 +48,10 @@ describe("actual default Worker static asset dispatch", () => {
       expect(conditional.headers.has("etag")).toBe(false);
       expect(await worker.dispatchFetch(url, { method: "POST" }).then((value) => value.status)).toBe(404);
     }
-    expect(await worker.dispatchFetch("https://example.test/assets/authored").then((value) => value.text())).toBe("ordinary");
+    const authored = await worker.dispatchFetch("https://example.test/assets/authored");
+    expect(authored.status).toBe(200);
+    expect(authored.headers.get("content-type")).toContain("text/html");
+    expect(await authored.text()).toContain("ordinary");
     expect(await worker.dispatchFetch("https://example.test/assets/browser/%62ootstrap.js").then((value) => value.status)).toBe(404);
   }, 30_000);
 
@@ -88,7 +91,10 @@ describe("actual default Worker static asset dispatch", () => {
   it("retains authored dispatch without selected browser resources", async () => {
     const bundle = buildDeployBundleWithAssets(fixture(), { verdict: { active: true } });
     const worker = start(bundle.modules);
-    expect(await worker.dispatchFetch("https://example.test/assets/authored").then((value) => value.text())).toBe("ordinary");
+    const authored = await worker.dispatchFetch("https://example.test/assets/authored");
+    expect(authored.status).toBe(200);
+    expect(authored.headers.get("content-type")).toContain("text/html");
+    expect(await authored.text()).toContain("ordinary");
     expect(await worker.dispatchFetch("https://example.test/assets/browser/bootstrap.js").then((value) => value.status)).toBe(404);
   }, 30_000);
 

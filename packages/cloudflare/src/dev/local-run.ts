@@ -5,6 +5,7 @@ import { isAbsolute, join } from "node:path";
 import { Miniflare, type DispatchFetch, type WorkerOptions } from "miniflare";
 import type { D1Database } from "@cloudflare/workers-types";
 import { COMPILED_WASM_MODULE_TYPE } from "@canlang/contracts";
+import { observedError, type PreviewRefusal } from "./preview-bridge.js";
 import { cleanupAfterFailure, retryableDispose } from "./cleanup.js";
 
 type DispatchInit = Parameters<DispatchFetch>[1];
@@ -12,14 +13,41 @@ type DispatchResult = ReturnType<DispatchFetch>;
 
 const DISPATCH_HEADER = "x-can-local-dispatch";
 const GATEWAY_SOURCE = `
+async function limited(stream) {
+  if (!stream) return "";
+  const reader = stream.getReader(), chunks = []; let length = 0;
+  try {
+    while (true) {
+      const next = await reader.read(); if (next.done) break;
+      length += next.value.length; if (length > 8192) { void reader.cancel(); return ""; }
+      chunks.push(next.value);
+    }
+    const out = new Uint8Array(length); let offset = 0;
+    for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length; }
+    return new TextDecoder().decode(out);
+  } finally { reader.releaseLock(); }
+}
 export default {
-  fetch(request, env) {
+  async fetch(request, env) {
     if (request.headers.get("x-can-local-dispatch") !== env.CAN_LOCAL_SECRET) {
       return new Response(null, { status: 403 });
     }
     const headers = new Headers(request.headers);
     headers.delete("x-can-local-dispatch");
-    return env.CAN_LOCAL_APP.fetch(new Request(request, { headers }));
+    const originalUrl = headers.get("x-can-local-url") || request.url;
+    headers.delete("x-can-local-url");
+    const actual = new Request(new Request(originalUrl, request), { headers });
+    const copy = actual.clone();
+    const response = await env.CAN_LOCAL_APP.fetch(actual);
+    if (response.status >= 400 || new URL(originalUrl).pathname === "/mcp") {
+      const body = await limited(response.clone().body);
+      await env.CAN_LOCAL_OBSERVE.fetch(new Request("http://local/", { method: "POST", body: JSON.stringify({
+        status: response.status, headers: [...response.headers], body,
+        request: { method: actual.method, pathname: new URL(originalUrl).pathname, body: await limited(copy.body) }
+      }) }));
+    }
+    else { void copy.body?.cancel(); }
+    return response;
   },
 };
 `;
@@ -132,7 +160,17 @@ function inlineMapComment(map: unknown): string {
   return `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${b64}\n`;
 }
 
+export interface LocalRuntimeBackend {
+  readonly origin: string;
+  readonly header: "x-can-local-dispatch";
+  readonly secret: string;
+  readonly urlHeader: "x-can-local-url";
+}
+
 export interface LocalDev {
+  /** Private transport for an external owner; never a browser access URL. */
+  readonly backend: LocalRuntimeBackend;
+  observeRefusals(handler: (event: PreviewRefusal) => void): () => void;
   dispatch: (path: string, init?: DispatchInit) => DispatchResult;
   /** Preserve the browser origin for auth redirects, cookies and Origin checks. */
   dispatchUrl: (url: string, init?: DispatchInit) => DispatchResult;
@@ -240,22 +278,7 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
     }
   }
   const localWorkers = [options, ...(options.companionWorkers ?? [])];
-  const names = new Set<string>();
-  for (const worker of localWorkers) {
-    if (names.has(worker.workerName)) throw new Error(`local dev worker ${worker.workerName} is duplicated`);
-    names.add(worker.workerName);
-  }
-  for (const worker of localWorkers) {
-    for (const target of Object.values(worker.serviceBindings ?? {})) {
-      const name = typeof target === "string" ? target : target.name;
-      if (!names.has(name)) throw new Error(`local dev service worker ${name} has no supplied implementation`);
-    }
-    for (const object of worker.durableObjects ?? []) {
-      if (object.scriptName !== undefined && !names.has(object.scriptName)) {
-        throw new Error(`local dev Durable Object worker ${object.scriptName} has no supplied implementation`);
-      }
-    }
-  }
+  const names = validateLocalWorkers(localWorkers);
   const datasets = new Set(localWorkers.flatMap(worker => (worker.analyticsEngineDatasets ?? []).map(value => value.dataset)));
   const analytics = new Map<string, LocalAnalyticsDataPoint[]>();
   let analyticsFailure: unknown;
@@ -272,6 +295,7 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
     return configured;
   });
   const secret = randomBytes(32).toString("base64url");
+  const refusals = localRefusalObservers();
   const miniflare = new Miniflare({
     // Local targets need no remote request-location metadata or .wrangler cache.
     cf: false,
@@ -288,7 +312,7 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
         modules: true,
         script: GATEWAY_SOURCE,
         bindings: { CAN_LOCAL_SECRET: secret },
-        serviceBindings: { CAN_LOCAL_APP: options.workerName },
+        serviceBindings: { CAN_LOCAL_APP: options.workerName, CAN_LOCAL_OBSERVE: refusals.accept },
       },
       ...configuredWorkers,
       ...(datasets.size === 0 ? [] : [{
@@ -349,12 +373,15 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
     }
     await recovery;
   });
-  try { await miniflare.ready; }
+  let backend: LocalRuntimeBackend;
+  try { backend = await localRuntimeBackend(miniflare, secret); }
   catch (error) { startupFailure = error; return cleanupAfterFailure(error, dispose); }
   recoveryTimer = options.resourceRecovery === true ? setInterval(wake, 1_000) : undefined;
   recoveryTimer?.unref();
 
   return {
+    observeRefusals: refusals.observe,
+    backend,
     dispatch: (path, init) => dispatchUrl(`http://localhost${path}`, init),
     dispatchUrl,
     getD1Database: (binding) => miniflare.getD1Database(binding, options.workerName),
@@ -396,4 +423,49 @@ async function requireD1Persistence(path: string | undefined): Promise<void> {
   } catch {
     throw new Error("required D1 storage is unavailable or unwritable");
   }
+}
+
+/** The private backend emits only the existing safe business-error projection. */
+function localRefusalObservers() {
+  const handlers = new Set<(event: PreviewRefusal) => void>();
+  return {
+    observe(handler: (event: PreviewRefusal) => void): () => void {
+      handlers.add(handler); return () => { handlers.delete(handler); };
+    },
+    async accept(request: Request): Promise<Response> {
+      const value = await request.json() as { status: number; headers: [string, string][]; body: string;
+        request: { method: string; pathname: string; body: string } };
+      const projected = observedError(new Response(null, { status: value.status, headers: value.headers }),
+        Buffer.from(value.body), { ...value.request, body: Buffer.from(value.request.body) });
+      if (projected !== null) {
+        const event = { requestId: randomBytes(16).toString("hex"), status: value.status, ...projected };
+        for (const handler of handlers) handler(event);
+      }
+      return new Response(null, { status: 204 });
+    },
+  };
+}
+
+async function localRuntimeBackend(miniflare: Miniflare, secret: string): Promise<LocalRuntimeBackend> {
+  return { origin: (await miniflare.ready).origin, header: DISPATCH_HEADER, secret, urlHeader: "x-can-local-url" };
+}
+
+function validateLocalWorkers(localWorkers: readonly LocalWorkerOptions[]): ReadonlySet<string> {
+  const names = new Set<string>();
+  for (const worker of localWorkers) {
+    if (names.has(worker.workerName)) throw new Error(`local dev worker ${worker.workerName} is duplicated`);
+    names.add(worker.workerName);
+  }
+  for (const worker of localWorkers) {
+    for (const target of Object.values(worker.serviceBindings ?? {})) {
+      const name = typeof target === "string" ? target : target.name;
+      if (!names.has(name)) throw new Error(`local dev service worker ${name} has no supplied implementation`);
+    }
+    for (const object of worker.durableObjects ?? []) {
+      if (object.scriptName !== undefined && !names.has(object.scriptName)) {
+        throw new Error(`local dev Durable Object worker ${object.scriptName} has no supplied implementation`);
+      }
+    }
+  }
+  return names;
 }
