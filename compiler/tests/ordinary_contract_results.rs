@@ -210,23 +210,24 @@ console.log('ordinary contracts: canonical schemas, native nested/enum reads, fi
 }
 
 #[test]
-fn unsupported_contract_closures_remain_unpublished_without_new_diagnostics() {
+fn timezone_contract_closures_publish_and_unknown_fields_still_refuse() {
     let scratch = tempfile::tempdir().unwrap();
-    let source = SOURCE.replace("  contract Flat {different:bool}", "  contract Flat {different:bool}\n  Record {title:text}\n  contract Container {record:Record}\n  contract Wrapper {container:Container}\n  contract Private {zone:timezone}");
+    let source = SOURCE.replace("  contract Flat {different:bool}", "  contract Flat {different:bool}\n  Record {title:text}\n  contract Container {record:Record}\n  contract Wrapper {container:Container}\n  contract Calendar {zone:timezone,zones:timezone[],optional:timezone?}");
     let artifact = compile(&source, scratch.path(), "unsupported");
     let contracts = artifact["valueTypes"]["contracts"].as_array().unwrap();
-    for supported in ["Other.Container", "Other.Wrapper"] {
+    for supported in ["Other.Container", "Other.Wrapper", "Other.Calendar"] {
         assert!(
             contracts
                 .iter()
                 .any(|contract| contract["name"] == supported)
         );
     }
-    assert!(
-        !contracts
-            .iter()
-            .any(|contract| contract["name"] == "Other.Private")
-    );
+    let calendar = contracts.iter().find(|contract| contract["name"] == "Other.Calendar").unwrap();
+    assert_eq!(calendar["fields"], serde_json::json!([
+        {"name":"zone","type":"timezone"},
+        {"name":"zones","type":"timezone[]"},
+        {"name":"optional","type":"timezone?"},
+    ]));
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let input = scratch.path().join("unknown.can");
     std::fs::write(
@@ -489,10 +490,6 @@ Then
     // A nominal union cannot lend publication to an incomplete or model arm.
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     for (name, refused_source) in [
-        (
-            "incomplete-file-union",
-            source.replace("optional:file?", "optional:timezone?"),
-        ),
         (
             "mixed-model-union",
             source.replace("choice:Packet|Empty", "choice:Packet|Record"),

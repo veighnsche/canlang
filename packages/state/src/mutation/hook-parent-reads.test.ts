@@ -370,3 +370,188 @@ test('the loader closes with its hook scope', async () => {
   assert.ok(retained !== undefined);
   await assert.rejects(retained!(LOC, asId('loc-1'), 'decision'), /Owner hook scope is closed\./);
 });
+
+test('contained queries overlay the issued create/update row and prior siblings without publishing queued writes', async () => {
+  const { store } = createTestMemoryStorage();
+  const observations: Array<Array<[string, unknown, number]>> = [];
+  const table = tableWith([hook('contained', ['create', 'update'], async (candidate, ctx) => {
+    assertOwnerMutationHookContext(ctx);
+    if (ctx.triggerId === asId('read-2') && ctx.op === 'create') {
+      ctx.stage({ op: 'update', model: LOC, id: asId('loc-1'), data: { active: false } });
+    }
+    const parent = { model: LOC, id: asId('loc-1') };
+    const rows = await ctx.queryContained(READ, parent, 'decision');
+    const self = rows.find(read => read.row.id === ctx.triggerId)!;
+    assert.deepEqual(self.row, ctx.after);
+    assert.deepEqual([...self.withheld], []);
+    assert.ok(Object.isFrozen(self.row));
+    const values = await ctx.queryContained(READ, parent, 'value');
+    assert.deepEqual([...values.find(read => read.row.id === ctx.triggerId)!.withheld], Object.keys(candidate));
+    observations.push(rows.map(read => [read.row.id, read.row.data.taken, read.row.version]));
+    // A grandparent may select its exact declared children, while self may
+    // select its own children. Neither broadens containment to root scans.
+    const locations = await ctx.queryContained(LOC, { model: SITE, id: asId('site-1') }, 'decision');
+    assert.equal(locations.length, 1);
+    assert.equal(locations[0]!.row.data.active, ctx.op !== 'update');
+    if (ctx.op === 'create') assert.equal(await store.load(READ, ctx.triggerId), null);
+    return candidate;
+  })]);
+  const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+  await stage(session, { op: 'create', model: SITE, id: asId('site-1'), data: { region: 'eu' } });
+  await stage(session, locationCreate('loc-1', { active: true, timezone: 'UTC' }));
+  await stage(session, readingCreate('read-1', 'loc-1', { taken: false }));
+  await stage(session, readingCreate('read-2', 'loc-1'));
+  await stage(session, { op: 'update', model: READ, id: asId('read-1'), data: { taken: true } });
+  assert.deepEqual(observations, [
+    [['read-1', false, 1]],
+    [['read-1', false, 1], ['read-2', true, 1]],
+    [['read-1', true, 1], ['read-2', true, 1]],
+  ]);
+  await commit(store, await session.finalize());
+  const update = await beginOwnerMutation({ table, store, context: context(), bounds });
+  // A persisted update replaces the previous row with the issued version.
+  await stage(update, { op: 'update', model: READ, id: asId('read-1'), data: { taken: false } });
+  assert.deepEqual(observations.at(-1), [['read-1', false, 2], ['read-2', true, 1]]);
+  await commit(store, await update.finalize());
+});
+
+test('contained queries authorize the trigger itself as an exact parent', async () => {
+  const { store } = createTestMemoryStorage();
+  const table = buildModelTable([
+    modelDef('Acme.Site', { fields: { region: field() }, hooks: [hook('children', ['create'], async (candidate, ctx) => {
+      assertOwnerMutationHookContext(ctx);
+      assert.deepEqual(await ctx.queryContained(LOC, { model: SITE, id: ctx.triggerId }, 'decision'), []);
+      return candidate;
+    })] }),
+    { ...modelDef('Acme.Location', { fields: { active: field() } }), containment: { parent: SITE } },
+  ]);
+  const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+  await stage(session, { op: 'create', model: SITE, id: asId('site-1'), data: { region: 'eu' } });
+  await session.finalize();
+});
+
+test('contained query refusals poison even caught failures and preserve rollback', async () => {
+  for (const selection of [
+    { model: OTHER, parent: { model: LOC, id: asId('loc-1') } },
+    { model: READ, parent: { model: LOC, id: asId('guessed') } },
+    { model: LOC, parent: { model: SITE, id: asId('foreign-site') } },
+  ]) {
+    const { store } = createTestMemoryStorage();
+    const revision = await store.readRevision();
+    const table = tableWith([hook('foreign', ['create'], async (candidate, ctx) => {
+      assertOwnerMutationHookContext(ctx);
+      await assert.rejects(ctx.queryContained(selection.model, selection.parent, 'decision'), /trigger containment bound/);
+      return candidate;
+    })]);
+    const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+    await stage(session, { op: 'create', model: SITE, id: asId('site-1'), data: { region: 'eu' } });
+    await stage(session, locationCreate('loc-1', { active: true, timezone: 'UTC' }));
+    await assert.rejects(stage(session, readingCreate('read-1', 'loc-1')), /poisoned/);
+    await assert.rejects(session.finalize(), /poisoned/);
+    assert.equal(await store.readRevision(), revision);
+    assert.equal(await store.load(LOC, asId('loc-1')), null);
+  }
+});
+
+test('contained query includes the current candidate in its complete-domain bound', async () => {
+  const { store } = createTestMemoryStorage();
+  const table = tableWith([hook('bounded', ['create'], async (candidate, ctx) => {
+    assertOwnerMutationHookContext(ctx);
+    await ctx.queryContained(READ, { model: LOC, id: asId('loc-1') }, 'decision');
+    return candidate;
+  })]);
+  const session = await beginOwnerMutation({ table, store, context: context(), bounds: { ...bounds, maxRows: 1 } });
+  await stage(session, { op: 'create', model: SITE, id: asId('site-1'), data: { region: 'eu' } });
+  await stage(session, locationCreate('loc-1', { active: true, timezone: 'UTC' }));
+  await stage(session, readingCreate('read-1', 'loc-1'));
+  await stage(session, { op: 'update', model: READ, id: asId('read-1'), data: { taken: false } });
+  await assert.rejects(stage(session, readingCreate('read-2', 'loc-1')), /row bound/);
+  await assert.rejects(session.finalize(), /poisoned/);
+  assert.equal(await store.load(READ, asId('read-1')), null);
+});
+
+test('contained query carriers close and reject revision changes', async () => {
+  for (const changeRevision of [false, true]) {
+    const { store } = createTestMemoryStorage();
+    let retained: import('./pipeline.js').OwnerMutationHookContext['queryContained'] | undefined;
+    const table = tableWith([hook('lifetime', ['create'], async (candidate, ctx) => {
+      assertOwnerMutationHookContext(ctx);
+      retained = ctx.queryContained;
+      if (changeRevision) {
+        await store.commit(makeBatch(await store.readRevision()));
+        await ctx.queryContained(READ, { model: LOC, id: asId('loc-1') }, 'decision');
+      }
+      return candidate;
+    })]);
+    const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+    await stage(session, { op: 'create', model: SITE, id: asId('site-1'), data: { region: 'eu' } });
+    await stage(session, locationCreate('loc-1', { active: true, timezone: 'UTC' }));
+    if (changeRevision) {
+      await assert.rejects(stage(session, readingCreate('read-1', 'loc-1')), /State changed/);
+      await assert.rejects(session.finalize(), /poisoned/);
+      assert.equal(await store.load(READ, asId('read-1')), null);
+    } else {
+      await stage(session, readingCreate('read-1', 'loc-1'));
+      await assert.rejects(retained!(READ, { model: LOC, id: asId('loc-1') }, 'decision'), /scope is closed/);
+      await assert.rejects(session.finalize(), /poisoned/);
+    }
+  }
+});
+
+
+test('contained queries apply archive membership after replacing the current candidate', async () => {
+  const { store } = createTestMemoryStorage();
+  const table = tableWith([hook('archived', ['update'], async (candidate, ctx) => {
+    assertOwnerMutationHookContext(ctx);
+    const parent = { model: LOC, id: asId('loc-1') };
+    assert.deepEqual(await ctx.queryContained(READ, parent, 'decision'), []);
+    const included = await ctx.queryContained(READ, parent, 'decision', 'include');
+    assert.equal(included.length, 1);
+    assert.deepEqual(included[0]!.row, ctx.after);
+    assert.equal(included[0]!.row.data.taken, false);
+    return candidate;
+  })]);
+  const setup = await beginOwnerMutation({ table, store, context: context(), bounds });
+  await stage(setup, { op: 'create', model: SITE, id: asId('site-1'), data: { region: 'eu' } });
+  await stage(setup, locationCreate('loc-1', { active: true, timezone: 'UTC' }));
+  await stage(setup, readingCreate('read-1', 'loc-1'));
+  await stage(setup, { op: 'remove', model: READ, id: asId('read-1') });
+  await commit(store, await setup.finalize());
+  const update = await beginOwnerMutation({ table, store, context: context(), bounds: { ...bounds, maxRows: 1 } });
+  await stage(update, { op: 'update', model: READ, id: asId('read-1'), data: { taken: false } });
+  await commit(store, await update.finalize());
+});
+
+
+test('contained queries observe the actual callback candidate while after remains the issued entry snapshot', async () => {
+  for (const fail of [false, true]) {
+    const { store } = createTestMemoryStorage();
+    const table = tableWith([hook('live-candidate', ['create'], async (candidate, ctx) => {
+      assertOwnerMutationHookContext(ctx);
+      assert.equal(ctx.after!.data.taken, false);
+      candidate.taken = true;
+      const rows = await ctx.queryContained(READ, { model: LOC, id: asId('loc-1') }, 'decision');
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0]!.row.data.taken, true);
+      assert.equal(rows[0]!.row.id, ctx.after!.id);
+      assert.equal(rows[0]!.row.version, ctx.after!.version);
+      assert.equal(ctx.after!.data.taken, false);
+      assert.equal(await store.load(READ, ctx.triggerId), null);
+      if (fail) throw new StateError('rule_failed', 'Live candidate denied.');
+      return candidate;
+    })]);
+    const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+    await stage(session, { op: 'create', model: SITE, id: asId('site-1'), data: { region: 'eu' } });
+    await stage(session, locationCreate('loc-1', { active: true, timezone: 'UTC' }));
+    if (fail) {
+      await assert.rejects(stage(session, readingCreate('read-1', 'loc-1', { taken: false })), /Live candidate denied/);
+      await assert.rejects(session.finalize(), /poisoned/);
+      assert.equal(await store.load(READ, asId('read-1')), null);
+      assert.equal(await store.load(LOC, asId('loc-1')), null);
+    } else {
+      await stage(session, readingCreate('read-1', 'loc-1', { taken: false }));
+      await commit(store, await session.finalize());
+      assert.equal((await store.load(READ, asId('read-1')))!.data.taken, true);
+    }
+  }
+});

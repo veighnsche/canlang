@@ -158,7 +158,9 @@ impl HookProfile<'_> {
             return true;
         }
         match ty {
-            ResolvedType::Scalar(Scalar::File) => true,
+            // Candidate cloning carries already checked scalar wire values.
+            // This does not admit their arithmetic, comparison or member reads.
+            ResolvedType::Scalar(Scalar::File | Scalar::Currency | Scalar::Decimal | Scalar::Money) => true,
             ResolvedType::Nullable(inner) => self.supported_field_type(inner),
             ResolvedType::Array { element, .. } => self.supported_field_type(element),
             ResolvedType::Record { symbol, stored: false } => self
@@ -568,10 +570,10 @@ impl HookProfile<'_> {
                     // shape) carries the referenced `{model, id}` with the
                     // same declared correspondence via the transitive
                     // reference load — never through the ancestor fence.
-                    // Version and undeclared fields still refuse — never a
-                    // silent `undefined`.
+                    // Only the exact parent may expose issued revision metadata;
+                    // undeclared business fields never become `undefined`.
                     if field == "version" {
-                        return None;
+                        return self.parent_version_metadata(base, model, &expr.ty, aliases).then_some(());
                     }
                     if self
                         .event_class(base, aliases)
@@ -636,6 +638,17 @@ impl HookProfile<'_> {
             }
             _ => None,
         }
+    }
+
+    /// Only the exact trigger parent carries issued revision metadata. A
+    /// declared data field named version is a different source/type boundary.
+    fn parent_version_metadata(&self, base: &TypedExpr, model: SymbolId, ty: &ResolvedType,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>) -> bool {
+        *ty == ResolvedType::Scalar(Scalar::Int)
+            && self.hook_direct_parent() == Some(model)
+            && self.event_class(base, aliases) == Some((model, EventAlias::ParentIdentity))
+            && !self.program.items.iter().any(|item| item.name == "version"
+                && matches!(&item.kind, IrItemKind::Field { owner, .. } if *owner == model))
     }
 
     /// Classify a member-access base inside hooks: bound rows (with their
@@ -2185,6 +2198,14 @@ pub(crate) fn checked_stored_lock_target(
     if matches!(base, ResolvedType::Enum { cases, .. } if !cases.is_empty()) {
         return policy_field_with_flags(program, model, name, ty, false, true) == Some(field);
     }
+    if let ResolvedType::Array { element, .. } = base
+        && let ResolvedType::Record { symbol, stored: true } = element.as_ref()
+        && policy_model(program, *symbol).is_some()
+    {
+        // State's existing typed reference-array comparator owns identity;
+        // the complete source join seals the field and its target model.
+        return policy_field_with_flags(program, model, name, ty, true, true) == Some(field);
+    }
     // Contracts and their ordered arrays already use State's typed stored
     // comparator. Admit their value-only schema after the caller's complete
     // source/fresh schema join; never decode a File into ordinary equality.
@@ -2192,7 +2213,8 @@ pub(crate) fn checked_stored_lock_target(
         if depth > 16 { return false; }
         match ty {
             ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => contract_value(program, inner, depth + 1),
-            ResolvedType::Scalar(scalar) => *scalar != Scalar::File && super::js::checked_value_profile(ty).is_some(),
+            ResolvedType::Scalar(scalar) => *scalar != Scalar::File &&
+                (super::js::checked_value_profile(ty).is_some() || *scalar == Scalar::Timezone),
             ResolvedType::Enum { cases, .. } => !cases.is_empty(),
             ResolvedType::Record { symbol, stored: true } => program.items.get(symbol.0 as usize).is_some_and(|item| {
                 item.id == *symbol && match &item.kind {
@@ -2527,7 +2549,7 @@ pub(crate) fn checked_query_rule_fields(
         catalog: Option<&'a crate::analysis::catalog::Catalog>,
         profile: CheckedQueryRuleProfile,
         owner: SymbolId,
-        bindings: Vec<(String, SymbolId)>,
+        bindings: Vec<(String, ResolvedType)>,
         derives: HashSet<SymbolId>,
         remaining: usize,
     }
@@ -2553,6 +2575,21 @@ pub(crate) fn checked_query_rule_fields(
                 && item.span.file == module.file && contains_span(module.span, item.span)
                 && item.canonical == format!("{}.{}", module.name, item.name)
                 && matches!(item.kind, IrItemKind::Contract { .. })).then_some(item)
+        }
+        /// Resolve a Contract value member entirely within its sealed owning
+        /// declaration; it never creates stored row dependencies or identities.
+        fn contract_member(&self, contract: &super::ir::IrItem, field: &str, ty: &ResolvedType) -> Option<()> {
+            let IrItemKind::Contract { fields, .. } = &contract.kind else { return None; };
+            let mut matching = fields.iter().filter_map(|id| self.program.items.get(id.0 as usize)
+                .filter(|item| item.id == *id && item.name == field));
+            let item = matching.next()?;
+            if matching.next().is_some() || item.module != contract.module
+                || item.span.file != contract.span.file
+                || item.canonical != format!("{}.{}", contract.canonical, field)
+                || !matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(actual), server: None, modifiers, .. }
+                    if *owner == contract.id && !modifiers.machine
+                        && (actual == ty || actual.nullable_inner() == Some(ty))) { return None; }
+            Some(())
         }
         fn expr(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
             if depth > 64 || self.remaining == 0 || !Self::leaf(&value.ty) {
@@ -2587,8 +2624,8 @@ pub(crate) fn checked_query_rule_fields(
                     if matches!(&value.ty, ResolvedType::Enum { cases, .. } if cases.contains(name)) {
                         return Some(());
                     }
-                    let symbol = self.bindings.iter().rev().find(|(bound, _)| bound == name)?.1;
-                    (value.ty == ResolvedType::Record { symbol, stored: true }).then_some(())
+                    let ty = &self.bindings.iter().rev().find(|(bound, _)| bound == name)?.1;
+                    (value.ty == *ty).then_some(())
                 }
                 IrExpr::Member { base, field } => {
                     if !contains_span(value.span, base.span) { return None; }
@@ -2599,17 +2636,7 @@ pub(crate) fn checked_query_rule_fields(
                             if let Some(contract) = self.contract(*symbol) {
                                 // Value members belong to the source-sealed Contract,
                                 // not a stored row dependency or a model identity.
-                                let IrItemKind::Contract { fields, .. } = &contract.kind else { return None; };
-                                let mut matching = fields.iter().filter_map(|id| self.program.items.get(id.0 as usize)
-                                    .filter(|item| item.id == *id && item.name == *field));
-                                let item = matching.next()?;
-                                if matching.next().is_some() || item.module != contract.module
-                                    || item.span.file != contract.span.file
-                                    || item.canonical != format!("{}.{}", contract.canonical, field)
-                                    || !matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(ty), server: None, modifiers, .. }
-                                        if owner == symbol && !modifiers.machine
-                                            && (ty == &value.ty || ty.nullable_inner() == Some(&value.ty))) { return None; }
-                                return Some(());
+                                return self.contract_member(contract, field, &value.ty);
                             }
                             let source = policy_model(self.program, *symbol)?;
                             if *symbol != self.owner || self.profile.query_models.contains(symbol) { self.dependency(*symbol); }
@@ -2635,7 +2662,7 @@ pub(crate) fn checked_query_rule_fields(
                                 }
                                 IrItemKind::DeriveField { ty: IrType::Known(ty), expr: Some(body), .. }
                                     if ty == &value.ty && body.ty == *ty && self.derives.insert(item.id) => {
-                                    let previous = std::mem::replace(&mut self.bindings, vec![("row".into(), *symbol)]);
+                                    let previous = std::mem::replace(&mut self.bindings, vec![("row".into(), ResolvedType::Record { symbol: *symbol, stored: true })]);
                                     let result = self.expr(body, depth + 1);
                                     self.bindings = previous;
                                     self.derives.remove(&item.id);
@@ -2662,17 +2689,29 @@ pub(crate) fn checked_query_rule_fields(
                     if let super::ir::IrQueryDomain::Value { base, alias } = &query.domain {
                         let source = query.source.as_deref()?;
                         let ResolvedType::Array { element, .. } = &base.ty else { return None; };
-                        let ResolvedType::Record { symbol, stored: true } = element.as_ref() else { return None; };
-                        self.contract(*symbol)?;
+                        match element.as_ref() {
+                            ResolvedType::Scalar(Scalar::Int) => {},
+                            ResolvedType::Record { symbol, stored: true } => {
+                                if self.contract(*symbol).is_none() { policy_model(self.program, *symbol)?; }
+                            }
+                            _ => return None,
+                        }
                         if self.checked.types.checked_queries.get(&source.node) != Some(source)
                             || source.domain_type != base.ty || source.result != value.ty || base.ty != value.ty
                             || query.parent.is_some() || query.where_pred.is_some() || query.where_async
                             || !query.order.is_empty() || query.value_order.is_some() || query.limit.is_some()
                             || query.archived.is_some() || query.select.is_some() || query.select_param.is_some()
-                            || query.collection_call.is_some() || query.contract_collection_call.is_some()
+                            || query.contract_collection_call.is_some()
                             || !matches!(source.clauses.as_slice(), [clause]
                                 if matches!(&clause.kind, crate::analysis::types::CheckedQueryClauseKind::As { name } if name == alias)) {
                             return None;
+                        }
+                        if let Some(call) = &query.collection_call {
+                            if self.checked.types.checked_collection_calls.get(&call.node) != Some(call.as_ref())
+                                || call.query != source.node
+                                || !matches!(element.as_ref(), ResolvedType::Record { symbol, stored: true } if *symbol == call.model) {
+                                return None;
+                            }
                         }
                         return self.expr(base, depth + 1);
                     }
@@ -2699,13 +2738,13 @@ pub(crate) fn checked_query_rule_fields(
                     if !self.profile.query_models.contains(&candidate.id) { self.profile.query_models.push(candidate.id); }
                     self.dependency(candidate.id);
                     if let Some(filter) = &query.where_pred {
-                        self.bindings.push((query.where_param.clone(), candidate.id));
+                        self.bindings.push((query.where_param.clone(), ResolvedType::Record { symbol: candidate.id, stored: true }));
                         self.expr(filter, depth + 1)?;
                         self.bindings.pop()?;
                     }
                     match (&query.select, &query.select_param) {
                         (Some(body), Some(param)) => {
-                            self.bindings.push((param.clone(), candidate.id));
+                            self.bindings.push((param.clone(), ResolvedType::Record { symbol: candidate.id, stored: true }));
                             self.expr(body, depth + 1)?;
                             self.bindings.pop()?;
                         }
@@ -2716,7 +2755,7 @@ pub(crate) fn checked_query_rule_fields(
                 }
                 IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
                     let IrCallTarget::Builtin { id, awaited: false } = target else { return None; };
-                    if !matches!(id.as_str(), "any" | "all" | "sum" | "count" | "money" | "trim") { return None; }
+                    if !matches!(id.as_str(), "any" | "all" | "sum" | "count" | "money" | "trim" | "local_instant" | "add_days" | "date") { return None; }
                     let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end, kind: crate::syntax::SyntaxKind::Call as u8 };
                     let selected = self.checked.types.selected_calls.get(&key)?;
                     let SelectedCallTarget::Builtin { id: actual, overload } = &selected.target else { return None; };
@@ -2736,12 +2775,11 @@ pub(crate) fn checked_query_rule_fields(
                         let IrExpr::Query(query) = &formal[0].expr else { return None; };
                         super::scenario_decisions::checked_collection_lambda(self.checked, args, formal[1], value.span, self.db)?;
                         let candidate = match &query.domain {
-                            super::ir::IrQueryDomain::Model(canonical) => self.program.items.iter().find(|item| item.canonical == *canonical)?.id,
+                            super::ir::IrQueryDomain::Model(canonical) => ResolvedType::Record {
+                                symbol: self.program.items.iter().find(|item| item.canonical == *canonical)?.id, stored: true },
                             super::ir::IrQueryDomain::Value { base, .. } => {
                                 let ResolvedType::Array { element, .. } = &base.ty else { return None; };
-                                let ResolvedType::Record { symbol, stored: true } = element.as_ref() else { return None; };
-                                self.contract(*symbol)?;
-                                *symbol
+                                element.as_ref().clone()
                             }
                         };
                         self.bindings.push((param.clone(), candidate));
@@ -2760,7 +2798,7 @@ pub(crate) fn checked_query_rule_fields(
     if predicate.ty != ResolvedType::Scalar(Scalar::Bool) { return None; }
     let mut rule = Rule { checked, program, db, catalog, owner: model,
         profile: CheckedQueryRuleProfile { fields: Vec::new(), query_models: Vec::new(), dependencies: Vec::new() },
-        bindings: vec![("row".into(), model)], derives: HashSet::new(), remaining: 4096 };
+        bindings: vec![("row".into(), ResolvedType::Record { symbol: model, stored: true })], derives: HashSet::new(), remaining: 4096 };
     rule.expr(predicate, 0)?;
     Some(rule.profile)
 }

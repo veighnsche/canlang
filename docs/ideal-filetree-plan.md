@@ -1362,3 +1362,17 @@ filtering covers whole consumed declarations, not only symbol names. Reviewed
 its production change and existing primary/related body-span cases; focused unit
 1/1 passes, unrelated siblings and missing-analysis refusal remain. No new owner
 or package. This bounded intake leaves the complete historical checkpoint fixed.
+
+### 2026-10-18 — complete native hook intake
+
+Reviewed this batch's Compiler hook/policy source joins, typed Contract/reference
+descriptors and their tests; State transaction candidate/contained-query loader
+and tests; Cloudflare native hook adapter, Values facade and actual compiled
+consumers. The shared original-declaration selector stays test-only under runtime
+(`original-source.testing.ts`); three approved design advice records stay under
+`docs/design/jev/`. Defining owners and package allocations remain unchanged.
+Compiled original snapshot/Success D1 consumers2/2, joint hooks13/13 and focused
+owner checks pass as recorded in the current completion view. Reconcile this
+bounded implementation intake since0ec2ee9a5, preserving the concurrent complexity
+policy's own coverage and unfinished guarded-SEND analysis edits. No complete
+historical checkpoint advance; full original24 and the remaining roots stay open.

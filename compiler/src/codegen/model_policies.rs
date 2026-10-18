@@ -129,7 +129,7 @@ pub(crate) fn collect_checked_policies(
     if super::js::module_path(&ir.module(entry).name) != emitted_module {
         return None;
     }
-    let (fresh, diagnostics) = ir::build(program, db, catalog);
+    let (fresh, diagnostics) = ir::rebuild_policy_source(program, ir, db, catalog);
     if diagnostics
         .iter()
         .any(|diagnostic| diagnostic.severity == Severity::Error)
@@ -936,8 +936,10 @@ mod tests {
     fn transitive_computed_rules_and_contained_lock_keep_dependencies_and_source() {
         let source = r#"app ComputedRules
 Given
- Location {active:bool,unit:enum(hour,day)}
- contract Interval {from:datetime,until:datetime}
+ Location {active:bool,unit:enum(hour,day),zone:timezone}
+ Calendar in Location {day:date,opens:text,closes:text,close_after:int,fold:enum(earlier,later),weekdays:int[]}
+ invariant Calendar: all(row.weekdays as day,1<=day and day<=7) and local_instant(date("2000-01-01"),row.opens,row.parent.zone,fold=row.fold)<local_instant(add_days(date("2000-01-01"),row.close_after),row.closes,row.parent.zone,fold=row.fold)
+ contract Interval {from:datetime,until:datetime,location:text,zone:timezone}
  Budget {total:money,locations:Location[],zone:timezone,intervals:Interval[],unit:Location.unit}
  Slot in Budget {state:enum(held,pending,confirmed),until:datetime}
  Request in Budget {amount:money,location:Location,actual:money?}
@@ -949,12 +951,17 @@ Given
  derive Budget.remaining:money = row.total-row.committed
  derive Budget.available:int = count(row.Slot as slot where slot.state==confirmed or (slot.state in [held,pending] and now<slot.until))
  invariant Budget: row.available>=0
- lock Budget fields=zone,unit
+ lock Budget fields=zone,unit,locations
  invariant Budget: row.remaining.minor>=0
  invariant Request: row.location in row.parent.locations and (row.actual ?? row.amount).currency==row.parent.total.currency
  invariant Budget: all(row.intervals as interval,interval.from<interval.until)
+ invariant Budget: all(row.locations as location,any(row.intervals as interval,interval.location==location.id))
  lock Request fields=amount when=count(row.Increase)>0
 When
+ scenario observe on=Calendar.update
+  require now==now
+  do
+   let clock=now
 Then
 "#;
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
@@ -969,11 +976,26 @@ Then
         let module = super::super::js::module_path("ComputedRules");
         let policies = collect_checked_policies(&program, &original, &db, catalog.as_ref(), &module).expect("complete transitive policy closure");
         let model = |name: &str| original.items.iter().find(|item| item.canonical == format!("ComputedRules.{name}")).unwrap().id;
+        let hook_index = original.items.iter().position(|item| item.canonical == "ComputedRules.observe").unwrap();
+        assert!(policies.descriptors.iter().find(|descriptor| descriptor.model == "ComputedRules.Calendar").unwrap().hooks.iter()
+            .any(|hook| hook.id == "ComputedRules.observe"));
+        for corruption in 0..3 {
+            let mut changed = original.clone();
+            let IrItemKind::Scenario { hook: Some(hook), guards, effects, .. } = &mut changed.items[hook_index].kind else { panic!("original contextual hook"); };
+            match corruption {
+                0 => hook.op = crate::analysis::resolve::CrudOp::Create,
+                1 => guards.clear(),
+                _ => effects.clear(),
+            }
+            assert!(collect_checked_policies(&program, &changed, &db, catalog.as_ref(), &module).is_none(),
+                "contextual hook trigger/guard/body source mutation {corruption}");
+        }
+
         let available = policies.bindings.iter().find(|binding| binding.id.ends_with("Budget.require.1")).unwrap();
         assert!(available.checked_body);
         assert_eq!(available.query_models, vec![model("Slot")]);
         assert!(policies.descriptors.iter().find(|policy| policy.model == "ComputedRules.Budget").unwrap().rules.iter()
-            .any(|rule| matches!(rule, ModelRule::Lock { fields, .. } if fields == &["zone", "unit"])));
+            .any(|rule| matches!(rule, ModelRule::Lock { fields, .. } if fields == &["zone", "unit", "locations"])));
         let original_contexts = std::mem::take(&mut program.types.contextual_references);
         let missing_context_refuses = checked_query_rule_fields(&program, &original, model("Budget"), available.predicate.as_ref().unwrap(), &db, catalog.as_ref()).is_none();
         program.types.contextual_references = original_contexts;
@@ -986,9 +1008,15 @@ Then
         let lock = policies.bindings.iter().find(|binding| binding.id.ends_with("Request.lock.1")).unwrap();
         assert!(lock.checked_body);
         assert_eq!(lock.query_models, vec![model("Increase")]);
+        let calendar_rule = policies.bindings.iter().find(|binding| binding.id.ends_with("Calendar.require.1")).unwrap();
+        assert!(calendar_rule.checked_body);
+        assert!(calendar_rule.query_models.is_empty());
         let interval_rule = policies.bindings.iter().find(|binding| binding.id.ends_with("Budget.require.3")).unwrap();
         assert!(interval_rule.checked_body);
         assert!(interval_rule.query_models.is_empty(), "Contract values do not invent stored queries");
+        let reference_array_rule = policies.bindings.iter().find(|binding| binding.id.ends_with("Budget.require.4")).unwrap();
+        assert!(reference_array_rule.checked_body);
+        assert!(reference_array_rule.query_models.is_empty(), "Model reference arrays do not invent stored queries");
         for corruption in 0..3 {
             let mut changed = original.clone();
             if corruption == 2 {

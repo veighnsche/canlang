@@ -8,6 +8,7 @@ Given
  Steal in Location { taken:bool, snapshot:text }
  Strict in Location { taken:bool, snapshot:text }
  Kin in Location { taken:bool, snapshot:text }
+ Child in Location { title:text, mode:text, snapshot:text }
  Beacon in Site { label:text }
  Other { note:text }
  derive isActive(loc:Location):bool = loc.active
@@ -19,6 +20,7 @@ Given
  policy Steal read=public
  policy Strict read=public
  policy Kin read=public
+ policy Child read=owner fields=title
  policy Beacon read=public
  policy Other read=public
 When
@@ -29,6 +31,7 @@ When
  crud Steal by=owner fields=taken,snapshot
  crud Strict by=owner fields=taken,snapshot
  crud Kin by=owner fields=taken,snapshot
+ crud Child by=authenticated fields=title,mode,snapshot
  crud Beacon by=owner fields=label
  crud Other by=owner fields=note
  ## (a)(c) Private-guard arm: decision-mode If-condition + Require plus
@@ -76,4 +79,21 @@ When
   do
    let r=event.after.parent.region
    set event.after {label=r}
+ ## Contained queries retain complete owner identities. Guard predicates
+ ## read owner fields; body predicates read only current caller grants.
+ scenario contained on=Child.create
+  do
+   if event.after.mode=="decision"
+    require count(event.after.parent.Child as child where child.title=="private")>0
+    set event.after {snapshot="decision"}
+   if event.after.mode=="value"
+    create Kin {parent=event.after.parent,taken=true,snapshot="query-kin"} as kin
+    set event.after {title="changed"}
+    let matches=count(event.after.parent.Child as child where child.title=="changed")
+    require matches>0
+    set event.after {snapshot="value"}
+   if event.after.mode=="identities"
+    let total=count(event.after.parent.Child)
+    require total==3
+    set event.after {snapshot="identities"}
 Then

@@ -23,7 +23,7 @@ package catalog
 package consumer
  use catalog {{Source as Original}}
  Given
-  Link {{destination:Original.destination,optional:{scalar}?,many:{scalar}[],optional_many:{scalar}[]?}}
+  Link {{destination:Original.destination,optional:{scalar}?,many:{scalar}[],optional_many:{scalar}[]?,target:Original,optional_target:Original?,targets:Original[],required_targets:Original[]!}}
  When
   scenario ping()->bool by=members
    do
@@ -82,6 +82,19 @@ package consumer
             assert_eq!(field["valueType"], format!("{scalar}{suffix}"), "{name}");
             assert_eq!(field["nullable"].as_bool().unwrap_or(false), nullable);
             assert_eq!(field.get("array").is_some(), array);
+        }
+        for (name, suffix, array_required) in [
+            ("target", "", None),
+            ("optional_target", "?", None),
+            ("targets", "[]", Some(false)),
+            ("required_targets", "[]!", Some(true)),
+        ] {
+            let field = model["fields"].as_array().unwrap().iter()
+                .find(|field| field["name"] == name).unwrap();
+            assert_eq!(field["valueType"], format!("catalog.Source{suffix}"));
+            assert_eq!(field["field"]["kind"], "ref");
+            assert_eq!(field["field"]["model"], "catalog.Source");
+            assert_eq!(field.get("array").map(|array| array["required"].as_bool().unwrap()), array_required);
         }
         let source = artifact["models"]
             .as_array()

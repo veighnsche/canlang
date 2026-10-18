@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, rm, readFile, writeFile, readdir } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { join, resolve, relative } from 'node:path';
@@ -20,6 +20,7 @@ import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { buildInvoker } from '@canlang/cloudflare/worker/assembly';
 import { createCheckoutScratch } from '../dev/checkout-scratch.js';
+import { originalScenarioSource as originalHandlerSource } from './original-source.testing.js';
 
 const execFileAsync = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
@@ -41,7 +42,13 @@ async function compileFixture(native: boolean, fixture: string): Promise<Compile
     ...(native ? ['--native-scenario-receipts'] : []), fixture];
   const env = { ...process.env };
   delete env.CAN_CATALOG;
-  const { stdout } = await execFileAsync(compiler, args, { cwd: root, env, maxBuffer: 64 * 1024 * 1024 });
+  const { stdout } = await execFileAsync(compiler, args, { cwd: root, env, maxBuffer: 64 * 1024 * 1024 }).catch(async error => {
+    const failed = await mkdtemp(join(tmpdir(), 'can-hook-failed-source-'));
+    const captured = join(failed, 'original.can');
+    await writeFile(captured, await readFile(resolve(root, fixture), 'utf8'));
+    if (error instanceof Error) error.message += `\nExact failed compiler input retained at ${captured}`;
+    throw error;
+  });
   const artifact = JSON.parse(stdout) as CompileArtifact;
   assert.ok(!('diagnostics' in artifact), `delivery fixture emits clean (native=${native})`);
   return artifact;
@@ -333,117 +340,10 @@ Then
  * Selection follows named dependencies and every selected model's existing
  * policies/invariants/locks/uniques; fixtures and unrelated derives stay out.
  */
-async function originalHandlerSource(owner: string, handlerName: string, app = 'OriginalVenueCleanup') {
-  const paths: string[] = [];
-  const collect = async (directory: string) => {
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      const path = join(directory, entry.name);
-      if (entry.isDirectory()) await collect(path);
-      else if (entry.name.endsWith('.can')) paths.push(path);
-    }
-  };
-  await collect(join(root, 'draft'));
-  type Unit = { name: string; text: string; kind: string };
-  type Package = { units: Unit[]; imports: Array<{ from: string; members: Array<{ original: string; local: string }>; suffix: string }>; selected: Set<Unit>; handlers: string };
-  const packages = new Map<string, Package>();
-  for (const path of paths) {
-    const source = await readFile(path, 'utf8');
-    const matches = [...source.matchAll(/^package ([A-Za-z_][A-Za-z_0-9]*)[^\n]*\n/gm)];
-    for (let i = 0; i < matches.length; i++) {
-      const match = matches[i]!, content = source.slice(match.index! + match[0].length, matches[i + 1]?.index);
-      const given = content.indexOf(' Given\n'), when = content.indexOf(' When\n');
-      if (given < 0 || when < 0) continue;
-      const units: Unit[] = [];
-      const lines = content.slice(given + ' Given\n'.length, when).split('\n');
-      for (let j = 0; j < lines.length; j++) {
-        const line = lines[j]!;
-        if (!/^  \S/.test(line) || /^  #/.test(line)) continue;
-        let end = j + 1;
-        while (end < lines.length && (/^   /.test(lines[end]!) || lines[end] === '')) end++;
-        const text = lines.slice(j, end).join('\n').trimEnd() + '\n';
-        const declaration = line.match(/^  (?:export )?(?:(message|role|event|contract|capability|derive) )?([A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)?)/);
-        if (declaration && !/^(?:fixture|policy|invariant|unique|lock)$/.test(declaration[2]!)) {
-          units.push({ kind: declaration[1] ?? 'model', name: declaration[2]!, text });
-        } else {
-          const rule = line.match(/^  (policy|invariant|unique|lock) ([A-Za-z_][A-Za-z_0-9]*)/);
-          if (rule) units.push({ kind: rule[1]!, name: rule[2]!, text });
-        }
-        j = end - 1;
-      }
-      const imports = [...content.slice(0, given).matchAll(/^ use ([A-Za-z_][A-Za-z_0-9]*) \{([^}]+)\}(.*)$/gm)].map(entry => ({
-        from: entry[1]!, suffix: entry[3]!, members: entry[2]!.split(',').map(member => {
-          const [original, local = original] = member.trim().split(/ +as +/);
-          return { original: original!, local: local! };
-        }),
-      }));
-      const handler = (content.match(new RegExp(`^  scenario ${handlerName} on=[^\n]+\n(?:   [^\n]*\n|\n)*`, 'm'))?.[0] ?? '').split(/\n   examples\b/)[0]!;
-      packages.set(match[1]!, { units, imports, selected: new Set(), handlers: match[1] === owner ? handler.trimEnd() + '\n' : '' });
-    }
-  }
-  assert.ok(packages.get(owner)?.handlers.includes('first('), 'actual original whole handler was extracted');
-  const identifiers = (text: string) => new Set(text.replace(/"(?:[^"\\]|\\.)*"/g, '""').match(/[A-Za-z_][A-Za-z_0-9]*/g) ?? []);
-  // Capability interfaces contribute only the exact operations/events consumed
-  // by retained declarations. Keep their original header/version and member
-  // lines; every retained model still contributes all its owning rules.
-  const capabilityText = (packageName: string, unit: Unit) => {
-    const operations = new Set<string>();
-    for (const [consumerName, consumer] of packages) {
-      const aliases = consumer.imports.filter(imported => imported.from === packageName)
-        .flatMap(imported => imported.members.filter(member => member.original === unit.name).map(member => member.local));
-      if (consumerName === packageName) aliases.push(unit.name);
-      const text = (consumer.handlers + [...consumer.selected].filter(selected => selected.kind !== 'capability')
-        .map(selected => selected.text).join('')).replace(/"(?:[^"\\]|\\.)*"/g, '""');
-      for (const alias of aliases) for (const match of text.matchAll(new RegExp(`\\b${alias}\\.([A-Za-z_][A-Za-z_0-9]*)`, 'g'))) {
-        operations.add(match[1]!);
-      }
-    }
-    assert.ok(operations.size > 0, `retained capability ${packageName}.${unit.name} needs an actual member consumer`);
-    const lines = unit.text.trimEnd().split('\n');
-    const members = lines.slice(1).filter(line => {
-      const member = line.match(/^   (?:event )?([A-Za-z_][A-Za-z_0-9]*)[ ({]/);
-      return member !== null && operations.has(member[1]!);
-    });
-    assert.equal(members.length, operations.size, `every consumed ${packageName}.${unit.name} member has its original declaration`);
-    return [lines[0], ...members].join('\n') + '\n';
-  };
-  const retainedText = (name: string, pkg: Package) => pkg.handlers + [...pkg.selected]
-    .map(unit => unit.kind === 'capability' ? capabilityText(name, unit) : unit.text).join('');
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const [name, pkg] of packages) {
-      const tokens = identifiers(retainedText(name, pkg));
-      for (const unit of pkg.units) {
-        const selectedModel = (name: string) => [...pkg.selected].some(candidate => candidate.kind === 'model' && candidate.name === name);
-        const field = unit.kind === 'derive' ? unit.name.split('.') : [];
-        const needed = ['policy', 'invariant', 'unique', 'lock'].includes(unit.kind) ? selectedModel(unit.name)
-          : field.length === 2 ? selectedModel(field[0]!) && tokens.has(field[1]!) : tokens.has(unit.name);
-        if (needed && !pkg.selected.has(unit)) { pkg.selected.add(unit); changed = true; }
-      }
-      for (const imported of pkg.imports) for (const member of imported.members) {
-        if (!tokens.has(member.local)) continue;
-        const provider = packages.get(imported.from);
-        const unit = provider?.units.find(candidate => candidate.name === member.original && !['policy', 'invariant', 'unique', 'lock'].includes(candidate.kind));
-        if (unit && !provider!.selected.has(unit)) { provider!.selected.add(unit); changed = true; }
-      }
-    }
-  }
-  let result = `app ${app} uses=[${owner}]\n`;
-  for (const [name, pkg] of packages) {
-    if (pkg.selected.size === 0 && pkg.handlers === '') continue;
-    const tokens = identifiers(retainedText(name, pkg));
-    result += `package ${name}\n`;
-    for (const imported of pkg.imports) {
-      const members = imported.members.filter(member => tokens.has(member.local));
-      if (members.length) result += ` use ${imported.from} {${members.map(member => member.original === member.local ? member.original : `${member.original} as ${member.local}`).join(',')}}${imported.suffix}\n`;
-    }
-    result += ' Given\n' + pkg.units.filter(unit => pkg.selected.has(unit)).map(unit => unit.kind === 'capability' ? capabilityText(name, unit) : unit.text).join('') + ' When\n' + pkg.handlers + ' Then\n';
-  }
-  return { app, source: result, handler: `${owner}.${handlerName}` };
-}
 
-async function originalHandlerWorld(owner = 'events', handlerName = 'venue_cleanup', app = 'OriginalVenueCleanup') {
-  const original = await originalHandlerSource(owner, handlerName, app);
+async function originalHandlerWorld(owner = 'events', handlerName = 'venue_cleanup', app = 'OriginalVenueCleanup',
+  selected?: Awaited<ReturnType<typeof originalHandlerSource>>) {
+  const original = selected ?? await originalHandlerSource(owner, handlerName, app);
   const dir = await mkdtemp(join(tmpdir(), 'can-original-venue-cleanup-'));
   let worker: Miniflare | undefined;
   try {
@@ -457,8 +357,8 @@ async function originalHandlerWorld(owner = 'events', handlerName = 'venue_clean
     const { importVerifiedAssemblyModule } = await import('./modules.js');
     const module = await importVerifiedAssemblyModule(asm, callable.module, artifact) as {
       appDefinition: { operations: Record<string, { event: string }> } };
-    const event = module.appDefinition.operations[original.handler]!.event;
-    assert.equal(typeof event, 'string', 'the original declared handler event remains compiled');
+    const event = module.appDefinition.operations[original.handler]?.event ?? '';
+    assert.ok(event !== '' || callable.member[0] === 'hooks', 'the original handler or hook remains compiled');
     worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
       script: 'export default {fetch(){return new Response("private")}}',
       d1Databases: { STATE: 'original-venue-state', IDENTITY: 'original-venue-identity' } });
@@ -499,11 +399,210 @@ async function originalHandlerWorld(owner = 'events', handlerName = 'venue_clean
       assert.deepEqual(row.payload, { event: { id: eventId, version: '1' }, revision: '2', reason: 'Original cancellation' });
       return { key: row.key, scope, at: row.at, event: row.event, occurrenceId: row.occurrenceId };
     };
-    return { ...original, event, dir, worker, store, identities, scope, person, seed, arm, stage, deliver, continuation, registry, asm, artifact };
+    return { ...original, event, dir, worker, store, identities, scope, person, team, seed, arm, stage, deliver, continuation, registry, asm, artifact };
   } catch (error) {
     await worker?.dispose(); await rm(dir, { recursive: true, force: true }); throw error;
   }
 }
+
+/** Add test orchestration within its actual owning package, preserving every original body. */
+function originalOwnerScenarios(source: string, owner: string, scenarios: string): string {
+  const start = source.indexOf(`package ${owner}\n`);
+  assert.ok(start >= 0, `original owning package ${owner} exists`);
+  const next = source.indexOf('\npackage ', start);
+  const end = next < 0 ? source.length : next + 1;
+  const marker = source.lastIndexOf(' Then\n', end - 1);
+  assert.ok(marker > start, `original owning package ${owner} has its When/Then boundary`);
+  return source.slice(0, marker) + scenarios + source.slice(marker);
+}
+
+test('whole original resource and location snapshot hooks retain typed candidates, staged parents and atomic calendar evidence',
+  { timeout: 120_000 }, async () => {
+    const app = 'OriginalSnapshotHooks';
+    const original = await originalHandlerSource('rent_reservations', 'snapshot_Resource_create', app, [
+      { owner: 'rent_reservations', name: 'snapshot_Resource_update' },
+      { owner: 'rent_catalog', name: 'snapshot_Location_create' },
+      { owner: 'rent_catalog', name: 'snapshot_Location_update' },
+      { owner: 'rent_catalog', name: 'snapshot_WeeklyHours_create' },
+      { owner: 'rent_catalog', name: 'snapshot_WeeklyHours_update' },
+    ]);
+    // Test-local CRUD triggers the genuine owner hook pipeline. All original
+    // models, invariants, locks and complete hook bodies remain unchanged.
+    original.source = originalOwnerScenarios(original.source, 'rent_catalog', `
+  crud Location by=members fields=active create_fields=name,address,timezone,currency,hours,arrival,active delete=none
+  crud WeeklyHours by=members fields=closes create_fields=weekday,opens,closes,close_after,fold delete=none
+`);
+    original.source = originalOwnerScenarios(original.source, 'rent_reservations', `
+  crud Resource by=members fields=active,capacity create_fields=location,name,pooled,capacity,timezone,currency,hourly,terms,refund_notice,accessibility delete=none
+`);
+    const world = await originalHandlerWorld('rent_reservations', 'snapshot_Resource_create', app, original);
+    try {
+      const membership = await world.identities.createMembership({ team_id: world.team.team_id,
+        user_id: world.person.user_id, is_owner: true, roles: [] });
+      const identity = makeIdentity({ membership, team: world.team, email: world.person.email });
+      const invoker = buildInvoker(world.artifact, world.asm, world.store,
+        { memberships: world.identities, now: () => FIXED_NOW });
+      const models = ['rent_catalog.Location', 'rent_catalog.WeeklyHours', 'rent_catalog.LocationPolicy',
+        'rent_reservations.Resource', 'rent_reservations.ResourcePolicy'];
+      const rows = (model: string) => world.store.query({ model: asModel(model), authority: 'owner' });
+      const snapshot = () => Promise.all(models.map(async model => ({ model, rows: await rows(model) })));
+      const invoke = (operation: string, inputs: MutationEnvelope['inputs']) => invoker.invokeMutation({
+        operation, operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)), inputs }, identity);
+      const committed = (outcome: Awaited<ReturnType<typeof invoke>>) =>
+        assert.ok('result' in outcome && outcome.result.status === 'committed', JSON.stringify(outcome));
+      committed(await invoke('rent_catalog.Location.create', {
+        name: 'Original snapshot site', address: '1 Road', timezone: 'UTC', currency: 'EUR',
+        hours: '09:00–18:00', arrival: 'Reception', active: true,
+      }));
+      const [location] = await rows('rent_catalog.Location');
+      assert.ok(location);
+      const parent = { id: location.id };
+      const catalogOnly = await snapshot();
+      const hoursInput = { parent, weekday: '1', opens: '09:00', closes: '18:00', close_after: '0', fold: 'earlier' };
+      assert.ok('error' in await invoke('rent_catalog.WeeklyHours.create', { ...hoursInput, closes: '08:00' }));
+      assert.deepEqual(await snapshot(), catalogOnly,
+        'original opening-hours invariant rolls back its trigger and hook-staged snapshot');
+      committed(await invoke('rent_catalog.WeeklyHours.create', hoursInput));
+      const seededCatalog = await snapshot();
+      const resourceInput = { location: { id: location.id, version: String(location.version) }, name: 'Original snapshot resource', pooled: false,
+        capacity: '1', timezone: 'UTC', currency: 'EUR', hourly: { minor: '100', currency: 'EUR' },
+        terms: 'Original terms', refund_notice: '86400000', accessibility: 'Step-free' };
+      assert.ok('error' in await invoke('rent_reservations.Resource.create', { ...resourceInput, capacity: '2' }));
+      assert.deepEqual(await snapshot(), seededCatalog,
+        'original nonpooled-capacity invariant rolls back the resource and hook-staged policy');
+      committed(await invoke('rent_reservations.Resource.create', resourceInput));
+      const [resource] = await rows('rent_reservations.Resource'), [hours] = await rows('rent_catalog.WeeklyHours');
+      assert.ok(resource && hours);
+      const openingPolicies = [...await rows('rent_catalog.LocationPolicy')].sort((a, b) => Number(a.data.sequence) - Number(b.data.sequence));
+      assert.equal(openingPolicies.length, 2, 'original parent and child create hooks each capture once');
+      assert.deepEqual(openingPolicies.map(row => row.data.weekly), [[], [
+        { weekday: '1', opens: '09:00', closes: '18:00', close_after: '0', fold: 'earlier' },
+      ]], 'child snapshot includes its actual provisional WeeklyHours candidate');
+      assert.ok(openingPolicies.every(row => row.data.effective === new Date(FIXED_NOW).toISOString()));
+      assert.ok(openingPolicies.every(row => row.parent?.id === location.id && row.data.timezone === 'UTC'));
+      const [resourcePolicy] = await rows('rent_reservations.ResourcePolicy');
+      assert.ok(resourcePolicy);
+      assert.deepEqual(resourcePolicy.data.value, { active: true, capacity: '1', pooled: false, timezone: 'UTC' });
+      assert.equal(resourcePolicy.data.baseline, true);
+      assert.deepEqual(resource.data.hourly, { minor: '100', currency: 'EUR' });
+      assert.equal(resource.data.tax_rate, '0');
+      assert.equal(resource.data.currency, 'EUR');
+      const before = await snapshot();
+      const hoursRecord = { id: hours.id, version: String(hours.version) };
+      const resourceRecord = { id: resource.id, version: String(resource.version) };
+      assert.ok('error' in await invoke('rent_catalog.WeeklyHours.update', { record: hoursRecord, closes: '08:00' }));
+      assert.deepEqual(await snapshot(), before, 'late original calendar invariant rolls back the updated row and snapshot');
+      assert.ok('error' in await invoke('rent_reservations.Resource.update', { record: resourceRecord, active: false, capacity: '2' }));
+      assert.deepEqual(await snapshot(), before, 'late original resource invariant rolls back the updated row and snapshot');
+      committed(await invoke('rent_catalog.Location.update', {
+        record: { id: location.id, version: String(location.version) }, active: false,
+      }));
+      committed(await invoke('rent_reservations.Resource.update', { record: resourceRecord, active: false }));
+      committed(await invoke('rent_catalog.WeeklyHours.update', { record: hoursRecord, closes: '19:00' }));
+      const current = [...await rows('rent_catalog.LocationPolicy')].sort((a, b) => Number(a.data.sequence) - Number(b.data.sequence));
+      assert.equal(current.length, 4);
+      assert.deepEqual(current.slice(0, 2), openingPolicies, 'earlier snapshots retain the old candidate values');
+      assert.equal(current[2]!.data.active, false);
+      assert.deepEqual(current[3]!.data.weekly, [
+        { weekday: '1', opens: '09:00', closes: '19:00', close_after: '0', fold: 'earlier' },
+      ]);
+      const resourcePolicies = [...await rows('rent_reservations.ResourcePolicy')].sort((a, b) => Number(a.data.sequence) - Number(b.data.sequence));
+      assert.deepEqual(resourcePolicies[0], resourcePolicy);
+      assert.deepEqual(resourcePolicies[1]!.data.value, { active: false, capacity: '1', pooled: false, timezone: 'UTC' });
+      assert.equal(resourcePolicies[1]!.data.baseline, false);
+      assert.deepEqual(await world.store.outboxPending(), []);
+    } finally {
+      await world.worker.dispose(); await rm(world.dir, { recursive: true, force: true });
+    }
+  });
+
+test('whole original followup hooks capture the exact parent version and roll back late failures',
+  { timeout: 120_000 }, async () => {
+    const app = 'OriginalFollowUpHooks';
+    const original = await originalHandlerSource('success', 'arm', app, [{ owner: 'success', name: 'reschedule' }]);
+    original.source = originalOwnerScenarios(original.source, 'success', `
+  crud Account by=members fields=notes,active create_fields=location,manager,email,notes delete=none
+  crud FollowUp by=members fields=due,done create_fields=title,due,assignee,email delete=none
+`);
+    const world = await originalHandlerWorld('success', 'arm', app, original);
+    try {
+      const membership = await world.identities.createMembership({ team_id: world.team.team_id,
+        user_id: world.person.user_id, is_owner: true, roles: [{ role: 'success.account_manager',
+          granted_at: new Date(FIXED_NOW).toISOString(), granted_by: world.person.user_id }] });
+      const identity = makeIdentity({ membership, team: world.team, email: world.person.email });
+      const invoker = buildInvoker(world.artifact, world.asm, world.store,
+        { memberships: world.identities, now: () => FIXED_NOW });
+      const site = await world.seed('rent_catalog.Location', uuidv7(FIXED_NOW, 901), {
+        name: 'Follow-up site', address: '1 Road', timezone: 'UTC', currency: 'EUR',
+        hours: '09:00–18:00', arrival: 'Reception', active: true,
+      });
+      const customer = await world.seed('customer.Customer', uuidv7(FIXED_NOW, 902), {
+        name: 'Original company', kind: 'company', locations: [{ id: site.id }], active: true,
+      });
+      await world.seed('employee.Employee', uuidv7(FIXED_NOW, 903), {
+        user: { id: world.person.user_id }, name: 'Account manager', home: { id: site.id },
+        locations: [{ id: site.id }], operator_wide: false, active: true, start: '2020-01-01',
+        end: null, manager: null, role: 'Account manager', skills: [], private_notes: null, document: null,
+      });
+      const rows = (model: string) => world.store.query({ model: asModel(model), authority: 'owner' });
+      const schedules = () => world.store.schedulesDue(Number.MAX_SAFE_INTEGER, 100);
+      const snapshot = async () => ({ accounts: await rows('success.Account'),
+        followups: await rows('success.FollowUp'), schedules: await schedules() });
+      const invoke = (operation: string, inputs: MutationEnvelope['inputs'], operationId = asOperationId(uuidv7(FIXED_NOW, ++sequence))) =>
+        invoker.invokeMutation({ operation: `success.${operation}`, operation_id: operationId, inputs }, identity);
+      const committed = (outcome: Awaited<ReturnType<typeof invoke>>) =>
+        assert.ok('result' in outcome && outcome.result.status === 'committed', JSON.stringify(outcome));
+      committed(await invoke('Account.create', { parent: { id: customer.id }, location: { id: site.id, version: String(site.version) },
+        manager: { id: world.person.user_id }, email: 'manager@example.test', notes: 'Original account' }));
+      const [account] = await rows('success.Account');
+      assert.ok(account);
+      committed(await invoke('FollowUp.create', { parent: { id: account.id }, title: 'Original follow-up',
+        due: '2099-01-01T09:00:00.000Z', assignee: { id: world.person.user_id }, email: 'manager@example.test' }));
+      const [followup] = await rows('success.FollowUp');
+      assert.ok(followup);
+      const [initial] = await schedules();
+      assert.ok(initial);
+      assert.equal(initial.key, followup.id);
+      assert.equal(initial.event, 'success.FollowUpDue');
+      assert.deepEqual(initial.payload, { followup: { id: followup.id, version: '1' }, revision: '1', account_revision: '1' });
+      committed(await invoke('Account.update', { record: { id: account.id, version: '1' }, notes: 'Updated parent' }));
+      const before = await snapshot();
+      assert.equal(before.accounts[0]!.version, 2);
+      assert.deepEqual(before.schedules[0], initial, 'parent update retains the earlier captured timer until follow-up rescheduling');
+      const updateInputs = { record: { id: followup.id, version: '1' }, due: '2099-01-02T09:00:00.000Z' };
+      let failedCommit = false;
+      const unavailable: StoragePort = { ...world.store, commit: async batch => {
+        if (!failedCommit && batch.writes.some(write => write.model === asModel('success.FollowUp'))) {
+          failedCommit = true; throw new Error('Temporary follow-up commit failure');
+        }
+        return world.store.commit(batch);
+      } };
+      const failingInvoker = buildInvoker(world.artifact, world.asm, unavailable,
+        { memberships: world.identities, now: () => FIXED_NOW });
+      const failure = await failingInvoker.invokeMutation({ operation: 'success.FollowUp.update',
+        operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)), inputs: updateInputs }, identity)
+        .catch(error => ({ error }));
+      assert.ok('error' in failure && failedCommit, 'actual late persistence failure rejects the hook and timer');
+      assert.deepEqual(await snapshot(), before, 'failed commit preserves old follow-up and old schedule exactly');
+      const operationId = asOperationId(uuidv7(FIXED_NOW, ++sequence));
+      committed(await invoke('FollowUp.update', updateInputs, operationId));
+      const changed = await snapshot();
+      assert.equal(changed.followups[0]!.version, 2);
+      assert.equal(changed.schedules.length, 1, 'the original key is replaced once');
+      assert.deepEqual(changed.schedules[0]!.payload, {
+        followup: { id: followup.id, version: '2' }, revision: '2', account_revision: '2',
+      }, 'reschedule reads the exact current owner parent revision, not its earlier captured revision');
+      await invoke('FollowUp.update', updateInputs, operationId);
+      assert.deepEqual(await snapshot(), changed, 'canonical replay does not replace or duplicate the retained timer');
+      committed(await invoke('Account.update', { record: { id: account.id, version: '2' }, active: false }));
+      committed(await invoke('FollowUp.update', { record: { id: followup.id, version: '2' },
+        due: '2099-01-03T09:00:00.000Z' }));
+      assert.deepEqual(await schedules(), [], 'original inactive-parent guard cancels without rearming');
+      assert.deepEqual(await world.store.outboxPending(), []);
+    } finally {
+      await world.worker.dispose(); await rm(world.dir, { recursive: true, force: true });
+    }
+  });
 
 async function seedOriginalVenue(world: Awaited<ReturnType<typeof originalHandlerWorld>>) {
   const ids = { site: uuidv7(FIXED_NOW, 201), program: uuidv7(FIXED_NOW, 202), event: uuidv7(FIXED_NOW, 203),

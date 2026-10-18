@@ -1,5 +1,28 @@
 # Canlang language design decisions
 
+## 2026-10-18 — compose checked native hooks with live contained queries
+
+**Accepted implementation.** Native hook admission compares complete original
+trigger/guard/body and owning model declarations against a fresh contextual IR
+without recursively qualifying itself. Retain existing typed calendar, scalar
+and reference-array mechanics and publish timezone leaves in nominal Contracts.
+Parent revision reads use issued row metadata. Hook SET updates a host-issued
+live business-field view with immutable identity/metadata; queries reissue the
+actual callback candidate without publication. State owns containment, revision,
+complete-domain bounds and atomic failure. Decision predicates use owner fields;
+body predicates retain all actual identities while current caller grants guard
+each business-field read, so unreadable rows never silently disappear from counts.
+
+Three explicitly approved JEV requests agreed with this contained-query choice
+(confidences .70/.54/.82); retained advice includes uncertainty and does not replace
+implementation judgment. Actual compiled original snapshot and Success hooks pass
+D1 consumers2/2; joint hooks13/13 include SET-to-query, revocation and rollback.
+Focused Compiler/State checks pass. Declared-event schedules retain their existing
+atomic queue and typed source payload. These finite consumers are accepted;
+remaining hook effects, guarded SEND and complete original24 acceptance stay open.
+
+
+
 ## 2026-10-18 — accept shared fanout and selected recovery delivery
 
 **Accepted implementation and integration decision.** Work and State delegate

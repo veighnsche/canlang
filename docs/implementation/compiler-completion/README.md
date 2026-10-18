@@ -186,8 +186,8 @@ pin: passes. One combined compiler run had53 passes and that stale pin failure;
 only its corrected case repeated. No original24 capture solely to recount.
 
 The active goal covers all212 diagnostic occurrences (200 distinct source/message
-sites in the retained complete capture), rather than a selected batch. Current
-hook/filter repairs remain unaccepted until their consumers pass; local failures
+sites in the retained complete capture), rather than a selected batch. Hook/filter
+mechanisms now have the finite acceptance recorded below; remaining local failures
 are engineering work, not external holds. Keep incremental implementation commits
 and reuse unchanged checks; Muse remains stopped.
 
@@ -218,6 +218,35 @@ existing focused query-source case passes with primary and related expression
 failures, while unrelated siblings remain usable and missing-analysis errors
 remain global refusals. This tightens correspondence; it does not relax SEND
 execution proof or claim a new original24 count. Unchanged checks are reused.
+
+### Whole native hook composition — 2026-10-18
+
+Checked owning hooks now compose with calendar/value-array invariants, typed
+Money/Currency/Decimal candidate fields, nominal timezone Contracts and exact
+parent revision metadata. Fresh-source comparison seals hook trigger, guards
+and body without recursively readmitting the same policy graph. Contained
+queries use State's complete bounded transaction domain plus the actual current
+callback candidate. Decision predicates read owner fields; body predicates retain
+all identities and enforce current caller field grants. SET keeps an issued live
+business-field view with fixed metadata, and later queries see its changed data.
+Schedules retain typed declared-event payloads through the existing atomic queue.
+
+Actual compiled Can: six original Resource/Location/WeeklyHours snapshot hooks
+and original Success arm/reschedule pass their D1 consumers (2/2), including
+invariants, immutable prior snapshots, current parent versions, commit failure,
+replay and cancellation. Compiled joint hooks pass13/13, including SET→query,
+revocation and no partial domain writes. State affected39/39 plus unchanged
+reference13 are retained; compiler policy6, descriptors1 and Contracts5 pass.
+TypeScript emit and complexity checks pass. The approved three JEV consultations
+agree on complete identities with current caller field projection; their advice
+and uncertainty are retained under `docs/design/jev/hook-contained-queries-20261018/`.
+This closes these mechanisms/consumers, not the whole original composition:
+the retained full24 count is still212 until the next changed-producer capture.
+
+Retries addressed concrete source-admission, descriptor, fixture-wire and issued
+candidate failures. The final bridge edit reran the affected joint and two D1
+consumers; the joint count case also ran once separately. Unchanged compiler and
+reference results were reused. No full24 recount or new verification framework.
 
 ### Observed repeated work — command-log snapshot
 
