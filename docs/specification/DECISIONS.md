@@ -18995,3 +18995,40 @@ related diagnostic locations both veto the consumed closure; unrelated sibling
 E6008 remains scoped, and missing analysis remains a global refusal. The existing
 focused source-query case passes. SEND keeps its separate strict executable
 closure gate; no original24 diagnostic reduction is claimed for this repair.
+
+
+## 2026-10-18 — enforce changed production function complexity
+
+Accepted: aim for source-AST cyclomatic complexity ≤10 in production Rust and
+TypeScript functions; normal maximum 20. A specific reasoned exception may retain
+cohesive higher-complexity code, particularly straightforward compiler dispatch.
+Do not mechanically split behavior or begin a repository-wide refactor.
+
+The lightweight `bun run check:complexity` command compares saved changed/new
+bodies with HEAD, or explicit `--base <commit> --head <commit>` inputs. CI checks
+PR/push changes before compiler build. The frozen baseline at
+`68c826de7c6e3fbd50fc7cfba9865ebea4213e13` contains 440 Rust and 628 TypeScript
+allowances above 20; an existing allowance is additionally capped by the comparison
+commit's score, so changed legacy code cannot grow and reductions ratchet against
+that base. New bodies above 20 require a bounded, reasoned entry in
+`scripts/complexity-exceptions.json` (initially empty). No automatic baseline reset
+or broad source edits are part of enforcement. Invocation, exact metrics and
+exclusions are in [developer setup](../dev-setup.md#production-function-complexity).
+
+Reuse TypeScript 5.9.3 and rust-analyzer 1.99.0 source parsers, with separate function,
+method and closure scores. Rust macros remain unexpanded; cfg_attr/platform cases
+are conservative, and source parsing does not replace compilation. Unnamed edited
+callbacks and moved/renamed functions conservatively get new identities. Tests,
+inline test-only code, generated/vendor/dependency/build sources and fixtures are
+excluded; test complexity policy is unchanged.
+
+Verified: direct branch/closure/test-exclusion and binding-identity checks, normal
+threshold/new-function rejection, unchanged legacy allowance, growth rejection,
+reduction ratchet and explicit exception behavior. Frozen source capture measured
+11,750 Rust and 10,909 TypeScript bodies (max 437/228); targeted remeasurement after
+correcting inline test binding resolution left baseline allowances unchanged.
+A read-only working-tree run against `0ec2ee9a5b50` found 8 violations across 36
+changed/new bodies in 9 changed production files: one new TS function above 20,
+two TS increases and five Rust increases in concurrent implementation. Those
+sources remain untouched. Scoped patch/syntax checks pass; CI itself was not run.
+No builds, downloads, worktrees, publication or deployment occurred.
