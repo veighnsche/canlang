@@ -33,6 +33,7 @@ import type {
   ModelRunSnapshot,
   ModelRunState,
   ProviderBinding,
+  TextMessage,
   TextRequest,
 } from '@canlang/contracts';
 import {
@@ -774,10 +775,8 @@ export class OllamaChatAdapter implements ModelChatPort {
    * and deadline. Unsupported attachment mapping or tokenizer support refuses
    * before transport; generic ai.ChatV1 callers retain their existing API.
    */
-  installTextGeneration(
-    config: OllamaTextGenerationInstallation,
-  ): InstalledTextGeneration {
-    const { binding, profile, policyRevision, model, maxInputTokens, countInputTokens } = config;
+  private assertTextInstallConfig(captured: Pick<OllamaTextGenerationInstallation, 'binding' | 'profile' | 'policyRevision' | 'model' | 'maxInputTokens' | 'countInputTokens'>): void {
+    const { binding, profile, policyRevision, model, maxInputTokens, countInputTokens } = captured;
     if (
       binding.capability !== 'std.TextGenerationV1' ||
       binding.capabilityVersion !== 1 ||
@@ -805,11 +804,16 @@ export class OllamaChatAdapter implements ModelChatPort {
     if (countInputTokens !== undefined && typeof countInputTokens !== 'function') {
       throw new ModelValidationError('Installation tokenizer must be a deployment-owned function');
     }
-    const prepare = (input: TextRequest, deliveryId: string): {
-      request: FrozenChatRequest;
-      deadline: number;
-    } => {
-      const startedAt = performance.now();
+  }
+
+  installTextGeneration(
+    config: OllamaTextGenerationInstallation,
+  ): InstalledTextGeneration {
+    const { binding, profile, policyRevision, model, maxInputTokens, countInputTokens } = config;
+    this.assertTextInstallConfig({ binding, profile, policyRevision, model, maxInputTokens, countInputTokens });
+    const assertPrepareInput = (
+      input: TextRequest,
+    ): { maxInput: number; maxDuration: bigint; messages: TextMessage[] } => {
       if (typeof input !== 'object' || input === null) {
         throw new ModelValidationError('Text request must be an object');
       }
@@ -840,6 +844,9 @@ export class OllamaChatAdapter implements ModelChatPort {
       if (!Array.isArray(messages) || messages.length === 0) {
         throw new ModelValidationError('Text messages must be a non-empty array');
       }
+      return { maxInput, maxDuration, messages };
+    };
+    const capturePrepareMessages = (messages: readonly TextMessage[]): ModelMessage[] => {
       const capturedMessages: ModelMessage[] = [];
       for (const message of messages) {
         if (typeof message !== 'object' || message === null) {
@@ -855,6 +862,15 @@ export class OllamaChatAdapter implements ModelChatPort {
         }
         capturedMessages.push({ role, get content() { return message.content; } });
       }
+      return capturedMessages;
+    };
+    const prepare = (input: TextRequest, deliveryId: string): {
+      request: FrozenChatRequest;
+      deadline: number;
+    } => {
+      const startedAt = performance.now();
+      const { maxInput, maxDuration, messages } = assertPrepareInput(input);
+      const capturedMessages = capturePrepareMessages(messages);
       if (countInputTokens === undefined) {
         throw new ModelValidationError('Installed text generation requires a deployment-owned actual tokenizer');
       }

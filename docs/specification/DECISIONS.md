@@ -19793,3 +19793,18 @@ once per suite at their original read sites, and append mapped specifications by
 iteration to avoid argument-count limits. Independent diff and repair review plus
 exact-source hook probes accept the behavior; existing loader/fixture tests pass
 31/31 and package no-emit typing exits 0. All changed bodies score within 20.
+
+
+## 2026-10-18 — extract provider transport and installation phases
+
+Accepted implementation: split redirect handling, image-history interpretation,
+image preparation and text-generation installation into private helpers, closing
+seven original above-20 bodies. Independent diff and repair review restored the
+original HTTP catch boundary, single installation captures and deadline read sites.
+History images append iteratively, preserving node order without argument limits;
+the final extraction scores 18 with its iteration helper at 5. Existing focused
+HTTP/image/model suites report 92 passes; retained exact-source getter probes and
+the affected 200,000-image Node probe pass. Services no-emit typing exits 0 after
+the final helper change, reusing the existing pinned hash dependency read-only.
+All changed bodies score within 20. Full workspace consumer qualification remains
+held where package aliases resolve another checkout's live output.

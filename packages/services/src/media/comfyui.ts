@@ -122,6 +122,17 @@ function frozenCopy<T>(value: T): T {
   return copied;
 }
 
+/** Resolve the finite observation ceiling, defaulting to the HTTP timeout. */
+function resolveMaxObservationDurationMs(config: ComfyUIImagesInstallation, timeoutMs: number): number {
+  const maxObservationDurationMs = Object.hasOwn(config, 'maxObservationDurationMs')
+    ? config.maxObservationDurationMs : timeoutMs;
+  if (typeof maxObservationDurationMs !== 'number' || !Number.isSafeInteger(maxObservationDurationMs) ||
+      maxObservationDurationMs <= 0 || maxObservationDurationMs > 2_147_483_647) {
+    throw new MappingValidationError('Installation requires a supported finite observation ceiling');
+  }
+  return maxObservationDurationMs;
+}
+
 function exactFields(value: unknown, fields: readonly string[]): boolean {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const keys = Object.keys(value).sort();
@@ -183,6 +194,31 @@ function unknownImageCompletion<R>(
   return { delivery_id: deliveryId, status: 'unknown', result: null, error };
 }
 
+/** True when a 2xx submit body carries a provider-side prompt error. */
+function submitHasProviderError(record: Record<string, unknown>): boolean {
+  const nodeErrors = record['node_errors'];
+  return (
+    (typeof record['error'] === 'string' &&
+      record['error'].length > 0) ||
+    (typeof nodeErrors === 'object' &&
+      nodeErrors !== null &&
+      Object.keys(nodeErrors).length > 0)
+  );
+}
+
+/** Read the accepted job from a parsed 2xx submit body. */
+function readSubmitOutcome(parsed: unknown): { job: string } | { error: 'rejected' | 'invalid' } {
+  if (typeof parsed !== 'object' || parsed === null) {
+    return { error: 'invalid' };
+  }
+  const record = parsed as Record<string, unknown>;
+  if (submitHasProviderError(record)) {
+    return { error: 'rejected' };
+  }
+  const job = record['prompt_id'];
+  return typeof job === 'string' && job.length > 0 ? { job } : { error: 'invalid' };
+}
+
 /** Map a submit outcome by status code. */
 export function mapSubmitResponse(
   deliveryId: string,
@@ -196,34 +232,17 @@ export function mapSubmitResponse(
     } catch {
       parsed = undefined;
     }
-    if (typeof parsed !== 'object' || parsed === null) {
+    const outcome = readSubmitOutcome(parsed);
+    if ('error' in outcome) {
       return failedImageCompletion(
         deliveryId,
-        deliveryError('invalid_response', GENERIC.invalidResponse),
+        deliveryError(
+          outcome.error === 'rejected' ? 'provider_rejected' : 'invalid_response',
+          outcome.error === 'rejected' ? GENERIC.promptRejected : GENERIC.invalidResponse,
+        ),
       );
     }
-    const record = parsed as Record<string, unknown>;
-    const nodeErrors = record['node_errors'];
-    if (
-      (typeof record['error'] === 'string' &&
-        record['error'].length > 0) ||
-      (typeof nodeErrors === 'object' &&
-        nodeErrors !== null &&
-        Object.keys(nodeErrors).length > 0)
-    ) {
-      return failedImageCompletion(
-        deliveryId,
-        deliveryError('provider_rejected', GENERIC.promptRejected),
-      );
-    }
-    const job = record['prompt_id'];
-    if (typeof job !== 'string' || job.length === 0) {
-      return failedImageCompletion(
-        deliveryId,
-        deliveryError('invalid_response', GENERIC.invalidResponse),
-      );
-    }
-    return succeededImageCompletion(deliveryId, { job });
+    return succeededImageCompletion(deliveryId, { job: outcome.job });
   }
   if (status === 408 || status === 429) {
     return unknownImageCompletion(
@@ -308,6 +327,111 @@ export interface HistoryRunEvidence {
   readonly images: HistoryImageDescriptor[];
 }
 
+/** Read the status marker plus failure detail; null when uninterpretable. */
+function readHistoryStatus(
+  status: Record<string, unknown>,
+): { statusStr: string; failureDetail: string | null } | null {
+  const statusStr = status['status_str'];
+  if (typeof statusStr !== 'string') {
+    return null;
+  }
+  if (statusStr === 'error') {
+    let failureDetail: string = GENERIC.runFailed;
+    const messages = status['messages'];
+    if (Array.isArray(messages)) {
+      for (const message of messages) {
+        if (typeof message === 'string' && message.length > 0) {
+          failureDetail = specificOrGeneric(message, GENERIC.runFailed);
+          break;
+        }
+      }
+    }
+    return { statusStr, failureDetail };
+  }
+  if (statusStr !== 'success' && statusStr !== 'executing') {
+    return null;
+  }
+  return { statusStr, failureDetail: null };
+}
+
+/** Read one image descriptor; null when uninterpretable. */
+function readHistoryImage(node: string, image: unknown): HistoryImageDescriptor | null {
+  if (
+    typeof image !== 'object' ||
+    image === null ||
+    typeof (image as Record<string, unknown>)['filename'] !== 'string' ||
+    ((image as Record<string, unknown>)['filename'] as string).length === 0 ||
+    typeof (image as Record<string, unknown>)['subfolder'] !== 'string' ||
+    typeof (image as Record<string, unknown>)['type'] !== 'string' ||
+    ((image as Record<string, unknown>)['type'] as string).length === 0
+  ) {
+    return null;
+  }
+  const descriptor = image as Record<string, string>;
+  return {
+    node,
+    filename: descriptor['filename'] as string,
+    subfolder: descriptor['subfolder'] as string,
+    type: descriptor['type'] as string,
+  };
+}
+
+/**
+ * Read declared-node image descriptors for one node. Returns undefined
+ * when the node has no image list (skip), null when uninterpretable.
+ */
+function readNodeImages(
+  outputRecord: Record<string, unknown>,
+  node: string,
+): HistoryImageDescriptor[] | null | undefined {
+  const nodeOutput = outputRecord[node];
+  if (nodeOutput === undefined) {
+    return undefined;
+  }
+  if (typeof nodeOutput !== 'object' || nodeOutput === null) {
+    return null;
+  }
+  const list = (nodeOutput as Record<string, unknown>)['images'];
+  if (list === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(list)) {
+    return null;
+  }
+  const images: HistoryImageDescriptor[] = [];
+  for (const image of list) {
+    const descriptor = readHistoryImage(node, image);
+    if (descriptor === null) {
+      return null;
+    }
+    images.push(descriptor);
+  }
+  return images;
+}
+
+/**
+ * Collect declared-node image descriptors in node order. Returns null
+ * when any declared node is uninterpretable; skips nodes with no
+ * image list. Appends iteratively (no spread) to support very large
+ * image lists.
+ */
+function collectHistoryImages(
+  outputRecord: Record<string, unknown>,
+  outputNodes: readonly string[],
+): HistoryImageDescriptor[] | null {
+  const images: HistoryImageDescriptor[] = [];
+  for (const node of outputNodes) {
+    const nodeImages = readNodeImages(outputRecord, node);
+    if (nodeImages === null) {
+      return null;
+    }
+    if (nodeImages !== undefined) {
+      for (const image of nodeImages) images.push(image);
+    }
+  }
+  return images;
+}
+
 /**
  * Read one history entry for `job`: status marker, failure detail and
  * declared-node image descriptors. Returns `'absent'` when the entry
@@ -334,24 +458,8 @@ export function readHistoryRun(
   if (typeof status !== 'object' || status === null || Array.isArray(status)) {
     return null;
   }
-  const statusStr = (status as Record<string, unknown>)['status_str'];
-  if (typeof statusStr !== 'string') {
-    return null;
-  }
-  let failureDetail: string | null = null;
-  if (statusStr === 'error') {
-    failureDetail = GENERIC.runFailed;
-    const messages = (status as Record<string, unknown>)['messages'];
-    if (Array.isArray(messages)) {
-      for (const message of messages) {
-        if (typeof message === 'string' && message.length > 0) {
-          const specific = specificOrGeneric(message, GENERIC.runFailed);
-          failureDetail = specific;
-          break;
-        }
-      }
-    }
-  } else if (statusStr !== 'success' && statusStr !== 'executing') {
+  const read = readHistoryStatus(status as Record<string, unknown>);
+  if (read === null) {
     return null;
   }
   const outputs = record['outputs'];
@@ -359,44 +467,11 @@ export function readHistoryRun(
     return null;
   }
   const outputRecord = (outputs ?? {}) as Record<string, unknown>;
-  const images: HistoryImageDescriptor[] = [];
-  for (const node of outputNodes) {
-    const nodeOutput = outputRecord[node];
-    if (nodeOutput === undefined) {
-      continue;
-    }
-    if (typeof nodeOutput !== 'object' || nodeOutput === null) {
-      return null;
-    }
-    const list = (nodeOutput as Record<string, unknown>)['images'];
-    if (list === undefined) {
-      continue;
-    }
-    if (!Array.isArray(list)) {
-      return null;
-    }
-    for (const image of list) {
-      if (
-        typeof image !== 'object' ||
-        image === null ||
-        typeof (image as Record<string, unknown>)['filename'] !== 'string' ||
-        ((image as Record<string, unknown>)['filename'] as string).length === 0 ||
-        typeof (image as Record<string, unknown>)['subfolder'] !== 'string' ||
-        typeof (image as Record<string, unknown>)['type'] !== 'string' ||
-        ((image as Record<string, unknown>)['type'] as string).length === 0
-      ) {
-        return null;
-      }
-      const descriptor = image as Record<string, string>;
-      images.push({
-        node,
-        filename: descriptor['filename'] as string,
-        subfolder: descriptor['subfolder'] as string,
-        type: descriptor['type'] as string,
-      });
-    }
+  const images = collectHistoryImages(outputRecord, outputNodes);
+  if (images === null) {
+    return null;
   }
-  return { statusStr, failureDetail, images };
+  return { statusStr: read.statusStr, failureDetail: read.failureDetail, images };
 }
 
 /** Map an observation (poll/download/cancel) transport failure. */
@@ -502,8 +577,7 @@ export class ComfyUINativeAdapter implements MediaPort {
    * Late observation needs its own finite window. Neither deadline proves
    * that GPU work stopped.
    */
-  installImages(config: ComfyUIImagesInstallation): InstalledImages {
-    const binding = config.binding;
+  private assertInstallConfig(config: ComfyUIImagesInstallation, binding: ComfyUIImagesInstallation['binding']): number {
     if (
       typeof binding !== 'object' || binding === null ||
       binding.capability !== 'std.ImagesV1' || binding.capabilityVersion !== 1 ||
@@ -525,12 +599,12 @@ export class ComfyUINativeAdapter implements MediaPort {
     ) {
       throw new MappingValidationError('Installation requires supported finite adapter ceilings');
     }
-    const maxObservationDurationMs = Object.hasOwn(config, 'maxObservationDurationMs')
-      ? config.maxObservationDurationMs : this.http.timeoutMs;
-    if (typeof maxObservationDurationMs !== 'number' || !Number.isSafeInteger(maxObservationDurationMs) ||
-        maxObservationDurationMs <= 0 || maxObservationDurationMs > 2_147_483_647) {
-      throw new MappingValidationError('Installation requires a supported finite observation ceiling');
-    }
+    return resolveMaxObservationDurationMs(config, this.http.timeoutMs);
+  }
+
+  installImages(config: ComfyUIImagesInstallation): InstalledImages {
+    const binding = config.binding;
+    const maxObservationDurationMs = this.assertInstallConfig(config, binding);
     const graph = snapshotGraph(this.graph);
     const mapping = frozenCopy(this.mapping);
     // Validate the exact pinned map/digest once; this is not arbitrary graph inspection.
@@ -554,9 +628,15 @@ export class ComfyUINativeAdapter implements MediaPort {
       maxDownloadBytes: this.downloadHttp.maxBodyBytes,
       maxOutputs: this.maxOutputs,
     });
-    const prepare = (input: ImageRequest, options: InstalledImageOptions, control = false) => {
-      const startedAt = performance.now();
-      const now = Date.now();
+    const assertPrepareBudgets = (input: ImageRequest): void => {
+      if (
+        !Number.isSafeInteger(input.max_outputs) || input.max_outputs <= 0 || input.max_outputs > lower.maxOutputs ||
+        typeof input.max_duration !== 'bigint' || input.max_duration <= 0n || input.max_duration > BigInt(lower.http.timeoutMs)
+      ) {
+        throw new MappingValidationError('Image request budgets exceed or do not fit the installation');
+      }
+    };
+    const assertPrepareRequest = (input: ImageRequest): void => {
       if (!exactFields(input, REQUEST_FIELDS)) {
         throw new MappingValidationError('Image request must contain exactly the full std fields, without a source seed');
       }
@@ -576,12 +656,28 @@ export class ComfyUINativeAdapter implements MediaPort {
       ) {
         throw new MappingValidationError('Image request requires string prompts and safe positive dimensions');
       }
-      if (
-        !Number.isSafeInteger(input.max_outputs) || input.max_outputs <= 0 || input.max_outputs > lower.maxOutputs ||
-        typeof input.max_duration !== 'bigint' || input.max_duration <= 0n || input.max_duration > BigInt(lower.http.timeoutMs)
-      ) {
-        throw new MappingValidationError('Image request budgets exceed or do not fit the installation');
+      assertPrepareBudgets(input);
+    };
+    const resolveControlDeadline = (
+      observation: InstalledImageOptions['observation'],
+      now: number,
+      control: boolean,
+    ): number => {
+      if (!control || observation === undefined || !exactFields(observation, ['startedAtMs', 'deadlineMs']) ||
+          Reflect.ownKeys(observation).length !== 2 ||
+          !Number.isSafeInteger(observation.startedAtMs) || observation.startedAtMs < 0 || observation.startedAtMs > now ||
+          !Number.isSafeInteger(observation.deadlineMs) || observation.deadlineMs <= now ||
+          observation.deadlineMs - observation.startedAtMs > maxObservationDurationMs) {
+        throw new MappingValidationError('Image control requires an original bounded observation window; submit cannot override its deadline');
       }
+      return observation.deadlineMs;
+    };
+    const resolvePrepareDeadline = (
+      input: ImageRequest,
+      options: InstalledImageOptions,
+      now: number,
+      control: boolean,
+    ): number => {
       if (
         !exactFields(options, Object.hasOwn(options ?? {}, 'observation')
           ? ['deliveryId', 'jobId', 'deadlineMs', 'observation'] : ['deliveryId', 'jobId', 'deadlineMs']) ||
@@ -592,20 +688,20 @@ export class ComfyUINativeAdapter implements MediaPort {
       ) {
         throw new MappingValidationError('Image lifecycle requires original delivery/UUID job identities and a supported finite generation deadline');
       }
-      let deadlineMs = options.deadlineMs;
+      const deadlineMs = options.deadlineMs;
       if (Object.hasOwn(options, 'observation')) {
-        const observation = options.observation;
-        if (!control || observation === undefined || !exactFields(observation, ['startedAtMs', 'deadlineMs']) ||
-            Reflect.ownKeys(observation).length !== 2 ||
-            !Number.isSafeInteger(observation.startedAtMs) || observation.startedAtMs < 0 || observation.startedAtMs > now ||
-            !Number.isSafeInteger(observation.deadlineMs) || observation.deadlineMs <= now ||
-            observation.deadlineMs - observation.startedAtMs > maxObservationDurationMs) {
-          throw new MappingValidationError('Image control requires an original bounded observation window; submit cannot override its deadline');
-        }
-        deadlineMs = observation.deadlineMs;
-      } else if (deadlineMs <= now) {
+        return resolveControlDeadline(options.observation, now, control);
+      }
+      if (deadlineMs <= now) {
         throw new MappingValidationError('Image lifecycle requires an unexpired deadline or an explicit control observation window');
       }
+      return deadlineMs;
+    };
+    const prepare = (input: ImageRequest, options: InstalledImageOptions, control = false) => {
+      const startedAt = performance.now();
+      const now = Date.now();
+      assertPrepareRequest(input);
+      const deadlineMs = resolvePrepareDeadline(input, options, now, control);
       const budget: ImageBudget = {
         deadlineMs,
         monotonicDeadline: startedAt + (deadlineMs - now),
