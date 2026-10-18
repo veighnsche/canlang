@@ -18,9 +18,9 @@ import {
 import { distribution } from '@canlang/values/distribution';
 import { assembleModules, importVerifiedAssemblyModule } from './modules.js';
 import { buildInvoker, type MutationOutcome } from '../worker/assembly.js';
-import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
-import { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } from '../dev/source-capture.js';
-import { compileCapturedSingleFile } from '../dev/compiler-check.js';
+import { prepareLocalPreviewCapture } from './native-dev.test-support.js';
+import { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } from './native-dev.test-support.js';
+import { compileCapturedSingleFile } from './native-dev.test-support.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const APP = 'NativeRefArrays';

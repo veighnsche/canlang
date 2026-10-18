@@ -12,9 +12,9 @@ import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { distribution } from '@canlang/values/distribution';
-import { compileCapturedSingleFile } from '../dev/compiler-check.js';
-import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
-import { captureIsCurrent, captureSingleFileSource } from '../dev/source-capture.js';
+import { compileCapturedSingleFile } from './native-dev.test-support.js';
+import { prepareLocalPreviewCapture } from './native-dev.test-support.js';
+import { captureIsCurrent, captureSingleFileSource } from './native-dev.test-support.js';
 import { buildInvoker } from '../worker/assembly.js';
 import { assembleModules } from './modules.js';
 

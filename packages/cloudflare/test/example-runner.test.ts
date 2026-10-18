@@ -7,7 +7,7 @@ import { loadInstalledExampleTestkit, runCompiledExamples, type ExampleRowScope 
 
 // Use the same application-owned optional producer as the real runner. A
 // static package edge would make Cloudflare and Testkit depend on each other.
-const { createReport, fixtureValuesOf, loadExampleSuite, runTable } =
+const { createReport, fixtureValuesOf, loadExampleSuite, runTable, snapshotLocalDatabases } =
   await loadInstalledExampleTestkit(process.cwd());
 
 it("uses bundled Testkit only when the application's package is absent", async () => {
@@ -24,7 +24,7 @@ it("uses bundled Testkit only when the application's package is absent", async (
   }
   try {
     expect((await loadInstalledExampleTestkit(await app())).runTable).toBe(runTable);
-    const local = await app({ main: "index.js" }, "export function loadExampleSuite(){}; export function runTable(){}; export function createReport(){}; export function fixtureValuesOf(){};");
+    const local = await app({ main: "index.js" }, "export function loadExampleSuite(){}; export function runTable(){}; export function createReport(){}; export function fixtureValuesOf(){}; export function snapshotLocalDatabases(){};");
     expect((await loadInstalledExampleTestkit(local)).runTable).not.toBe(runTable);
     await expect(loadInstalledExampleTestkit(await app({ exports: { "./other": "./index.js" } })))
       .rejects.toThrow(/No "exports" main defined/);
@@ -64,7 +64,7 @@ describe("compiled example row expectations", () => {
       sourceRevision: "source-1", workerName: `example-expectation-${randomUUID()}`,
       worker: { mainModule: "main.mjs", modules: { "main.mjs": "export default {fetch(){return new Response(null,{status:404})}};" } },
       compatibilityDate: "2026-07-15", d1Binding: "DB",
-      testkit: { loadExampleSuite, runTable, createReport, fixtureValuesOf },
+      testkit: { loadExampleSuite, runTable, createReport, fixtureValuesOf, snapshotLocalDatabases },
       hooks: {
         materializeFixtures: async ({ scope, fixtures }) => {
           const owner = scope.currentTeamId;

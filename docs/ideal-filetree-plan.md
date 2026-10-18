@@ -1,17 +1,33 @@
 # Living ideal file-tree plan for Canlang
 
-**Active native-port main sync, 2026-10-18:** preserve the99-path in-progress
-native completion checkpoint `058a11b46` and incorporate all22 paths in main's
-three commits through `69d45c33c`. Incoming compiler/Contracts/UI/Interfaces
-preference behavior and tests retain their recorded owners and acceptance;
-cleanup/removed evidence references retain existing documentation owners.
-Development owns the new native inventory, preview configuration/persistence,
-help/example/qualification orchestration and fixed SDK host under `dev-server/`;
-Cloudflare retains defining runtime semantics, deployment SDK and CLI consumers;
-Distribution retains host/catalog packaging. These port changes compile but remain
-unqualified, with one new inventory test issue and installed integration pending.
-Preserve all previous coverage and the complete historical checkpoint. This finite
-sync does not imply port completion or main integration of the active port.
+**Native ownership-completion coverage, 2026-10-18:** account incrementally
+for the port after68919a8b7, retaining the058a11b46 checkpoint and all22 incoming
+main paths through69d45c33c. Development owns native inventory, configuration,
+persistence, help/example/browser qualification, safe refusal projections and
+private semantic-test policy under `dev-server/`. Its existing owner/state/watch
+and gateway retain authoritative admission, currentness, allocation and disposal.
+The fixed JS host retains direct SDK objects/calls only. Cloudflare's entire
+`src/dev` tree is retired. Genuine semantics live with runtime example bindings,
+fixture imports, resource lifetime, browser discovery and file retirement;
+deployment retains its SDK adapter and CLI retains artifact defaults plus a thin
+native handoff. Maintained generation/scripts/integration consumers migrate to
+these owners. Private runtime test facades are not installed. Testkit owns its
+real snapshot operation and direct Miniflare test fixtures; Values owns its exact
+numeric/bootstrap consumer, and Compiler's construct test reads native IDs. Root
+e2e/integration tests own a small direct Miniflare fixture, preserving real runtime
+assertions and avoiding new private-package imports.
+
+Distribution retains the existing installer/build/pack scripts, native component,
+fixed host and emitted native catalog. Public module exports are not expanded for
+private tests. Root/Cloudflare documentation and the existing development execution
+record retain their owners. Current scoped native133, physical lifecycle,
+real semantic/browser-cancellation and Linux installed23 outcomes are recorded in
+the canonical development plan; Private qualification passes41 construct proofs and the actual browser workflow;
+macOS checksum installation/manual and the combined complexity gate pass. Final
+public qualification, component refresh and safe main integration/remeasurement
+remain open. Reuse unchanged owner results and preserve foreign main edits, stopped U and
+the complete historical checkpoint. This coverage does not advance that checkpoint
+or reopen the separate later automation/application plans.
 
 **User cleanup intake, 2026-10-18:** retain the user's root `/output/` ignore
 policy and reduced-process contributor instructions; remove both tracked root

@@ -119,7 +119,7 @@ async function consumerCheck(checkout) {
   const ownedDiagnostics = baseline.ownedDiagnostics;
   evidence.ownedDiagnostics = ownedDiagnostics;
   evidence.thirdPartyDiagnostics = baseline.diagnostics.filter(d => !ownedDiagnostics.includes(d));
-  const miniflareEntry = ts.resolveModuleName('miniflare', join(owners.get('@canlang/cloudflare').directory, 'dist/dev/local-run.d.ts'), options, host).resolvedModule;
+  const miniflareEntry = ts.resolveModuleName('miniflare', join(owners.get('@canlang/cloudflare').directory, 'dist/runtime/example-bindings.d.ts'), options, host).resolvedModule;
   assert.ok(miniflareEntry, 'installed Miniflare dependency must resolve from its owner');
   let miniflareDirectory = dirname(realpathSync(miniflareEntry.resolvedFileName));
   while (inside(miniflareDirectory, consumer)) {

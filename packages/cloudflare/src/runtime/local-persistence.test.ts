@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { startLocalDev } from "./local-run.js";
+import { startLocalDev } from "./native-preview.test-support.js";
 
 test("private provisioning persists Identity while distinct serving owner databases stay isolated", async () => {
   const persistence = await mkdtemp(join(tmpdir(), "can-owner-handoff-"));

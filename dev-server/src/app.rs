@@ -67,6 +67,12 @@ impl StartConfig {
 }
 
 pub fn run(argv: Vec<String>) -> u8 {
+    if argv.first().is_some_and(|a| a == "policy-api") {
+        return crate::policy::run();
+    }
+    if argv.first().is_some_and(|a| a == "test-api") {
+        return crate::test_support::run();
+    }
     if argv
         .first()
         .is_some_and(|a| matches!(a.as_str(), "examples-artifact" | "producer-current"))
@@ -293,6 +299,24 @@ pub(crate) fn artifact_config(root: &Path, source: &str) -> Result<Config> {
         ]),
     })
     .map(StartConfig::owner)
+}
+pub(crate) fn helper_bridge(root: &Path, session: String) -> Result<BridgeConfig> {
+    let install_root = installation()?;
+    Ok(BridgeConfig {
+        node: std::env::var_os("CAN_DEV_NODE")
+            .map(PathBuf::from)
+            .or_else(|| install_root.as_ref().map(|r| r.join("libexec/node")))
+            .unwrap_or_else(|| "node".into()),
+        host_script: bridge_script(
+            root.to_str()
+                .ok_or_else(|| fail("INVALID_ARGUMENTS", "helper root is not UTF-8"))?,
+        )?,
+        cwd: root.into(),
+        session_id: session,
+        profile: "local-d1-identity".into(),
+        startup_timeout: Duration::from_secs(15),
+        install_root,
+    })
 }
 fn source_capture(args: &Args) -> Result<CaptureRequest> {
     let root = root(args)?;

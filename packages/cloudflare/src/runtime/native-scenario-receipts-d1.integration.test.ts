@@ -16,14 +16,12 @@ import { assembleModules } from './modules.js';
 import { importVerifiedAssemblyModule } from './assembly-verification.js';
 import { createD1Storage } from '@canlang/state/storage/d1';
 import { distribution } from '@canlang/values/distribution';
-import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
-import { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } from '../dev/source-capture.js';
-import { compileCapturedSingleFile } from '../dev/compiler-check.js';
-import { selectPreviewWorkerVars, type LocalPreviewSeed } from '../dev/preview-builder.js';
-import { preflightLocalPreviewActivation, localPreviewActivationVerdict, produceInstalledPortableBundle,
-  seedLocalPreviewActors } from '../dev/preview-host.js';
-import { startLocalDev, type LocalDev } from '../dev/local-run.js';
-import { startProtectedPreview, type ProtectedPreview } from '../dev/preview-bridge.js';
+import { prepareLocalPreviewCapture } from './native-dev.test-support.js';
+import { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } from './native-dev.test-support.js';
+import { compileCapturedSingleFile } from './native-dev.test-support.js';
+import { selectPreviewWorkerVars, type LocalPreviewSeed, localPreviewActivationVerdict,
+  seedLocalPreviewActors, nativePreviewEvidence, openNativePreview, startLocalDev, type LocalDev,
+  startNativeGateway, type ProtectedPreview } from './native-preview.test-support.js';
 import { PINNED_COMPATIBILITY_DATE } from '../cli/artifact-defaults.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
@@ -188,11 +186,9 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       }
       return op;
     });
-    const preflight = await preflightLocalPreviewActivation(artifact, capture);
+    const { verdict: preflight, ...evidence } = await nativePreviewEvidence(artifact, capture);
     assert.equal(preflight.active, true, 'real preflight activation must qualify this native profile');
     if (!preflight.active) throw new Error('NativeSavedScenario real preflight refused');
-    const evidence = await produceInstalledPortableBundle({ artifact, capture,
-      verdict: preflight as ActivationVerdict & { active: true }, assets: { browser: true, valuesWasm: true } });
     assert.equal(evidence.captureEpochMaterial, capture.epochMaterial);
     assert.equal(evidence.artifactJsonSha256, digest(artifact));
     assert.equal(await captureIsCurrent(capture), true);
@@ -264,10 +260,7 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
         return Response.json({outcome,commits,files});
       }};
     `;
-    bridge = await startProtectedPreview({ dispatchUrl: (url, init) => {
-      if (!worker) return Promise.reject(new Error('actual worker is starting'));
-      return worker.dispatchUrl(url, init);
-    } });
+    bridge = await startNativeGateway();
     const origin = bridge.url;
     persistence = await mkdtemp(join(tmpdir(), 'can-native-d1-'));
     const databaseId = `native-identity-${randomUUID()}`;
@@ -282,10 +275,11 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       compatibilityDate: PINNED_COMPATIBILITY_DATE, mainModule: 'worker/native-scenario-test-host.js',
       modules: { ...evidence.bundle.modules, 'worker/native-scenario-test-host.js': testHost }, binaryModules: evidence.bundle.binaries,
       d1Databases: [{ binding: 'DB', id: databaseId }, ...owners.map(item => ({ binding: item.binding, id: item.id }))],
-      d1Persist: persistence, vars: { ...selectPreviewWorkerVars({ resources: { d1: { binding:'DB', availability:'real_local' }, identity: { backingBinding:'DB', availability:'real_local' } } }, origin),
+      d1Persist: persistence, vars: { ...await selectPreviewWorkerVars({ resources: { d1: { binding:'DB', availability:'real_local' }, identity: { backingBinding:'DB', availability:'real_local' } } }, origin),
         CAN_FORM_BINDING_KEY: randomBytes(32).toString('base64url'),
         CAN_STATE_OWNERS: { version: 1, owners: owners.map(item => ({ owner: item.owner,
           binding: item.binding, initializeFresh: true })) } } });
+    await bridge.setBackend(worker.backend);
     const identityDb = await worker.getD1Database('DB');
     const dbs = new Map<string, D1Database>();
     for (const owner of owners) {
@@ -295,7 +289,7 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
     }
     assert.equal(await captureIsCurrent(capture), true);
 
-    const bootstrap = await fetch(bridge.issueOpenUrl(), { redirect: 'manual' });
+    const bootstrap = await fetch(await bridge.issueOpenUrl(), { redirect: 'manual' });
     assert.equal(bootstrap.status, 303);
     const bridgeCookie = bootstrap.headers.getSetCookie().find(item => item.startsWith('can_dev_preview='))?.split(';',1)[0];
     assert.ok(bridgeCookie);
@@ -998,15 +992,12 @@ it('consumes native static scalar and void children through the actual model-fre
     for (const site of checkedSites) assert.deepEqual(site.source,parent.result!.disclosure!.source);
     const parentModule = artifact.modules.find(item=>item.path===parent.result!.disclosure!.source.module)!;
     assert.match(parentModule.js,/await[^;]*invokeScenarioReceiptCall/,'actual emitted awaited child body');
-    const preflight = await preflightLocalPreviewActivation(artifact,capture);
+    const { verdict: preflight, ...evidence } = await nativePreviewEvidence(artifact, capture);
     assert.equal(preflight.active,true,'actual activation must admit this finite native profile');
     if (!preflight.active) throw new Error('Native static-call activation refused');
-    const evidence = await produceInstalledPortableBundle({artifact,capture,
-      verdict:preflight as ActivationVerdict & {active:true},assets:{browser:true,valuesWasm:true}});
     assert.equal(evidence.captureEpochMaterial,capture.epochMaterial); assert.equal(evidence.artifactJsonSha256,digest(artifact));
     assert.equal(await captureIsCurrent(capture),true);
-    bridge = await startProtectedPreview({dispatchUrl:(url,init)=>worker
-      ? worker.dispatchUrl(url,init) : Promise.reject(new Error('actual static-call worker is starting'))});
+    bridge = await startNativeGateway();
     const origin = bridge.url, databaseId = `native-static-${randomUUID()}`;
     provisioning = await startLocalDev({workerName:`native-static-provision-${randomUUID()}`,
       compatibilityDate:PINNED_COMPATIBILITY_DATE,mainModule:'provision.js',
@@ -1019,11 +1010,12 @@ it('consumes native static scalar and void children through the actual model-fre
     worker = await startLocalDev({workerName:`native-static-${randomUUID()}`,compatibilityDate:PINNED_COMPATIBILITY_DATE,
       mainModule:'worker/main.js',modules:evidence.bundle.modules,binaryModules:evidence.bundle.binaries,
       d1Databases:[{binding:'DB',id:databaseId}],d1Persist:persistence,
-      vars:selectPreviewWorkerVars({resources:{d1:{binding:'DB',availability:'real_local'},
+      vars:await selectPreviewWorkerVars({resources:{d1:{binding:'DB',availability:'real_local'},
         identity:{backingBinding:'DB',availability:'real_local'}}},origin)});
+    await bridge.setBackend(worker.backend);
     const db = await worker.getD1Database('DB'), store = createD1Storage(db);
     assert.equal((await localPreviewActivationVerdict(artifact,capture,db,databaseId)).active,true);
-    const bootstrap = await fetch(bridge.issueOpenUrl(),{redirect:'manual'}); assert.equal(bootstrap.status,303);
+    const bootstrap = await fetch(await bridge.issueOpenUrl(),{redirect:'manual'}); assert.equal(bootstrap.status,303);
     const bridgeCookie = bootstrap.headers.getSetCookie().find(value=>value.startsWith('can_dev_preview='))?.split(';',1)[0];
     assert.ok(bridgeCookie);
     const request = (actor:Actor|null,path:string,body?:unknown,token?:string,additionalCookie?:string) => fetch(new URL(path,origin),{

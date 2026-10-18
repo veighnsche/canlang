@@ -9,10 +9,10 @@ import { checkedFileCleanupRecord } from '@canlang/files/retention';
 import { createD1OwnerRouter, STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { stableStringify } from '@canlang/state/invocation';
-import type { AssembledModules } from '../runtime/modules.js';
+import type { AssembledModules } from './modules.js';
 import { createTeamOwnerStorageBoundary } from '../worker/assembly.js';
-import { installNativeFileInventory } from '../runtime/file-inventory.js';
-export { nativeCapabilityResultDeclarations } from '../runtime/file-inventory.js';
+import { installNativeFileInventory } from './file-inventory.js';
+export { nativeCapabilityResultDeclarations } from './file-inventory.js';
 
 export interface NativeFileRetirementInput {
   readonly artifact: CompileArtifact;
@@ -96,6 +96,13 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
   const digest = inventory.digest;
   const bindings = createSqliteFileBindings(physical, { clock, intentTtlMs, urlBase,
     ...(policy === undefined ? {} : { policy }), fileRetirement: { storage: store, retention } });
+  function verifyOriginalDecision(previous: Awaited<ReturnType<typeof store.readFinalizedFileRetirement>>,
+    disposition: 'orphaned' | 'expired', file: FinalizedFileIdentity | null): void {
+      if (previous !== null && (!equal(previous.authority, authority) || previous.disposition !== disposition ||
+          !equal(previous.retention, retention) || previous.snapshot.owner !== inventory.owner ||
+          previous.snapshot.snapshotId !== inventory.snapshotId || previous.snapshot.digest !== digest ||
+          file !== null && !equal(previous.file, file))) throw new Error('File retirement original decision cannot be replaced.');
+  }
   return Object.freeze({ store, ownerStorage, bindings,
     async retireAndDelete(ref: FinalizedFileRef, disposition: 'orphaned' | 'expired') {
       if (typeof ref !== 'string' || ref === '' || !['orphaned', 'expired'].includes(disposition)) throw new Error('File retirement requires an exact File and disposition.');
@@ -110,10 +117,7 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
       if (file !== null && (file.ref !== ref || file.receiver.app !== scope.app || file.receiver.team !== scope.owner || file.receiver.owner !== scope.owner)) {
         throw new Error('File retirement physical receiver differs from its original owner.');
       }
-      if (previous !== null && (!equal(previous.authority, authority) || previous.disposition !== disposition ||
-          !equal(previous.retention, retention) || previous.snapshot.owner !== inventory.owner ||
-          previous.snapshot.snapshotId !== inventory.snapshotId || previous.snapshot.digest !== digest ||
-          file !== null && !equal(previous.file, file))) throw new Error('File retirement original decision cannot be replaced.');
+      verifyOriginalDecision(previous, disposition, file);
       const originalFile = previous?.file ?? file;
       if (originalFile === null) throw new Error('File retirement requires a physical original or a durable original State decision.');
       const revision = await store.readRevision();

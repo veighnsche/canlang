@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { distribution as valuesDistribution } from "@canlang/values/distribution";
-import { captureSingleFileSource, type SingleFileCaptureRequest } from "../src/dev/source-capture.js";
-import { admitSingleAppProfile, compileCapturedSingleFile } from "../src/dev/compiler-check.js";
+import { captureSingleFileSource, type SingleFileCaptureRequest } from "../src/runtime/native-dev.test-support.js";
+import { admitSingleAppProfile, compileCapturedSingleFile } from "../src/runtime/native-dev.test-support.js";
 
 const repo = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const witness = join(repo, "tests/integration/can-dev-server/OfficeSupplies.can");

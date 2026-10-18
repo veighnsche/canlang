@@ -1,30 +1,22 @@
 import { randomUUID } from "node:crypto";
+import { Miniflare } from "miniflare";
 import { describe, expect, it } from "vitest";
-import { createLocalRowScope } from "../src/dev/row-scope.js";
+import { snapshotLocalDatabases } from "../src/scopes/local.js";
 
 describe("isolated example row snapshots", () => {
   it("rejects aliases and detects writes in every configured physical database", async () => {
     const primaryId = randomUUID();
-    const options = {
-      workerName: `example-multi-snapshot-${randomUUID()}`,
+    const dev = new Miniflare({
+      name: `example-multi-snapshot-${randomUUID()}`,
       compatibilityDate: "2026-07-15",
-      mainModule: "worker.mjs",
-      modules: { "worker.mjs": "export default { fetch() { return new Response(null, {status: 404}); } };" },
-      d1Binding: "IDENTITY_DB",
-    };
-    await expect(createLocalRowScope(primaryId, { ...options,
-      additionalD1Databases: [{ binding: "STATE_DB", id: primaryId }],
-    })).rejects.toThrow("distinct and nonempty");
-    await expect(createLocalRowScope(primaryId, { ...options,
-      additionalD1Databases: [{ binding: "IDENTITY_DB", id: randomUUID() }],
-    })).rejects.toThrow("distinct and nonempty");
-    const scope = await createLocalRowScope(primaryId, { ...options,
-      additionalD1Databases: [
-        { binding: "STATE_CURRENT", id: randomUUID() },
-        { binding: "STATE_OTHER", id: randomUUID() },
-      ],
+      modules: true,
+      script: "export default { fetch() { return new Response(null, {status: 404}); } };",
+      d1Databases: { IDENTITY_DB: primaryId, STATE_CURRENT: randomUUID(), STATE_OTHER: randomUUID() },
     });
+    const scope = { dev, snapshot: () => snapshotLocalDatabases(dev, ["IDENTITY_DB", "STATE_CURRENT", "STATE_OTHER"]), dispose: () => dev.dispose() };
     try {
+      await expect(snapshotLocalDatabases(dev, ["IDENTITY_DB", "IDENTITY_DB"])).rejects.toThrow("distinct and nonempty");
+      await expect(snapshotLocalDatabases(dev, [""])).rejects.toThrow("distinct and nonempty");
       const identity = await scope.dev.getD1Database("IDENTITY_DB");
       const current = await scope.dev.getD1Database("STATE_CURRENT");
       const other = await scope.dev.getD1Database("STATE_OTHER");
@@ -47,13 +39,14 @@ describe("isolated example row snapshots", () => {
   }, 120000);
 
   it("ignores rejection bookkeeping but catches domain writes and committed receipts", async () => {
-    const scope = await createLocalRowScope(randomUUID(), {
-      workerName: `example-snapshot-${randomUUID()}`,
+    const dev = new Miniflare({
+      name: `example-snapshot-${randomUUID()}`,
       compatibilityDate: "2026-07-15",
-      mainModule: "worker.mjs",
-      modules: { "worker.mjs": "export default { fetch() { return new Response(null, {status: 404}); } };" },
-      d1Binding: "DB",
+      modules: true,
+      script: "export default { fetch() { return new Response(null, {status: 404}); } };",
+      d1Databases: { DB: randomUUID() },
     });
+    const scope = { dev, snapshot: () => snapshotLocalDatabases(dev, ["DB"]), dispose: () => dev.dispose() };
     try {
       const db = await scope.dev.getD1Database("DB");
       await db.exec("CREATE TABLE fence (value INTEGER); CREATE TABLE fence_log (value INTEGER); CREATE TABLE receipts (outcome TEXT); CREATE TABLE records (value INTEGER);");

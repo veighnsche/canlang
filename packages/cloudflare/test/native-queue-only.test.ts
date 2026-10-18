@@ -14,8 +14,8 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { createD1IdentityStore, ensureIdentitySchema, sha256HexText, deriveCsrfToken } from '@canlang/identity';
 import { mintOperationId } from '@canlang/ui';
 import { distribution } from '@canlang/values/distribution';
-import { captureSingleFileSource } from '../dist/dev/source-capture.js';
-import { localPreviewActivationVerdict } from '../dist/dev/preview-host.js';
+import { captureSingleFileSource } from '../dist/runtime/native-dev.test-support.js';
+import { localPreviewActivationVerdict } from '../dist/runtime/native-preview.test-support.js';
 const require = createRequire(import.meta.url);
 
 test('model-free queue commits and replays in configured team State; unsupported global profile refuses precisely', { timeout: 60_000 }, async () => {

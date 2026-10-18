@@ -1,6 +1,5 @@
 /** Actual HelpOffice cancellation and authenticated public export/Print through installed Chromium. */
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
@@ -11,142 +10,141 @@ import type { D1Database } from '@cloudflare/workers-types';
 import type { ListQueryResult } from '@canlang/contracts';
 import type { ChromiumProducer } from '@canlang/contracts/browser/chromium';
 import { it } from 'vitest';
-import type { FirstProfileBrowserInput } from '../src/dev/first-profile-browser.js';
-import type { LocalPreviewWithActors } from '../src/dev/preview-builder.js';
 
 const project = resolve(import.meta.dirname, '../../..');
 
 it('cancels the genuine whole HelpOffice browser consumer after authenticated Dee and awaits every owned context', async () => {
-  // Vite export getters cannot stand in for issuer-owned installed ESM namespaces.
   const nativeImport = compileFunction('return import(url)', ['url'], {
     importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
   });
-  const installed = (file: string) => nativeImport(pathToFileURL(join(project, 'packages/cloudflare/dist/dev', file)).href);
-  const { prepareLocalPreviewCapture, loadInstalledChromium } = await installed('preview-inputs.js') as typeof import('../src/dev/preview-inputs.js');
-  const { captureSingleFileSource, captureIsCurrent, verifyCompilerSources } = await installed('source-capture.js') as typeof import('../src/dev/source-capture.js');
-  const { compileCapturedSingleFile } = await installed('compiler-check.js') as typeof import('../src/dev/compiler-check.js');
-  const { createLocalPreviewBuilder } = await installed('preview-builder.js') as typeof import('../src/dev/preview-builder.js');
-  const host = await installed('preview-host.js') as typeof import('../src/dev/preview-host.js');
-  const { qualifyFirstProfileBrowser } = await installed('first-profile-browser.js') as typeof import('../src/dev/first-profile-browser.js');
+  const installed = (file: string) => nativeImport(pathToFileURL(join(project, 'packages/cloudflare/dist/runtime', file)).href);
+  const native = await installed('native-dev.test-support.js') as typeof import('../src/runtime/native-dev.test-support.js');
+  const { runNativeBrowser } = await installed('native-preview.test-support.js') as typeof import('../src/runtime/native-preview.test-support.js');
   const require = createRequire(join(project, 'package.json'));
   const { createD1IdentityStore, resolveIdentity, deriveCsrfToken } = await nativeImport(
     pathToFileURL(require.resolve('@canlang/identity')).href) as typeof import('@canlang/identity');
   const controller = new AbortController();
-  const capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: project,
+  const capture = await native.captureSingleFileSource(native.prepareLocalPreviewCapture({ checkoutRoot: project,
     appPath: join(project, 'compiler/tests/fixtures/construct-help-first-profile.can'),
-    compilerPath: join(project, 'compiler/target/debug/can'),
+    compilerPath: process.env.CAN_COMPILER_BIN ?? join(project, 'compiler/target/release/can'),
     catalogPath: join(project, 'packages/values/dist/catalog.json'),
     helpIndexPath: join(project, 'docs/specification/CONSTRUCT-HELP.md') }));
-  const compiled = await compileCapturedSingleFile(capture, controller.signal);
+  const compiled = await native.compileCapturedSingleFile(capture, controller.signal);
   assert.equal(compiled.kind, 'artifact', 'unchanged owning whole HelpOffice must actually compile');
   if (compiled.kind !== 'artifact') throw new Error('whole HelpOffice did not compile');
-  assert.equal(verifyCompilerSources(capture, { complete: true, sources: compiled.artifact.sources }).ok, true);
-  const chromium = await loadInstalledChromium(project);
+  assert.equal(native.verifyCompilerSources(capture, { complete: true, sources: compiled.artifact.sources }).ok, true);
+  const chromium = await native.loadInstalledChromium(project);
   assert.ok(chromium, 'installed owning Chromium producer is required for this actual browser check');
   const availability = await chromium.producer.chromiumAvailability();
   assert.ok(availability.available, 'actual installed Chromium executable is required');
   assert.equal(capture.inputs.find(input => input.name === 'extra:browser:producer')?.canonicalPath, chromium.entryPath);
   assert.equal(capture.inputs.find(input => input.name === 'extra:browser:executable')?.requestedPath, availability.identity.executablePath);
+  type Browser = Awaited<ReturnType<ChromiumProducer['acquireChromium']>>['browser'];
+  type Context = ReturnType<Browser['contexts']>[number];
+  let browser: Browser | undefined, browserHandle: string | undefined;
   let identityDb: D1Database | undefined;
   const owners = new Map<string, D1Database>();
-  const build = createLocalPreviewBuilder({
-    resources: { d1: { binding: 'DB', availability: 'real_local' }, identity: { backingBinding: 'DB', availability: 'real_local' } },
-    activationVerdict: host.preflightLocalPreviewActivation,
-    produceBundle: host.produceInstalledPortableBundle,
-    seedLocalActors: host.seedLocalPreviewActors,
-    workerVarsForOrigin: () => ({ CAN_FORM_BINDING_KEY: randomBytes(32).toString('base64url') }),
-    confirmRunningActivation: async (artifact, source, db, id, owner, identities) => {
-      assert.ok(owner && identities, 'actual bound owner and Identity databases are required');
-      owners.set(owner, db); identityDb = identities;
-      return host.localPreviewActivationVerdict(artifact, source, db, id, owner, identities);
-    },
-  });
-  let preview: LocalPreviewWithActors | undefined;
-  let lease: Awaited<ReturnType<typeof chromium.producer.acquireChromium>> | undefined;
-  try {
-    preview = await build(compiled.artifact, capture, compiled.artifactBytes);
-    assert.ok(identityDb); assert.equal(owners.size, 2);
-    const identityStore = createD1IdentityStore(identityDb);
-    const expectedActors = {} as Record<'Ava' | 'Ben' | 'Cal' | 'Dee', { owner: string | null; principal: string }>;
-    for (const label of ['Ava', 'Ben', 'Cal', 'Dee'] as const) {
-      const seed = preview.issueLocalActors().find(actor => actor.label === label); assert.ok(seed);
-      const user = await identityStore.findUserByEmail(seed.email); assert.ok(user);
-      const memberships = (await identityStore.listUserMemberships(user.user_id)).filter(member => member.status === 'active');
-      assert.equal(memberships.length, label === 'Dee' ? 0 : 1);
-      const owner = memberships[0]?.team_id ?? null;
-      if (owner !== null) assert.ok(await identityStore.findTeamById(memberships[0]!.team_id));
-      expectedActors[label] = { owner, principal: user.user_id };
-    }
-    assert.equal(expectedActors.Ava.owner, expectedActors.Ben.owner);
-    assert.notEqual(expectedActors.Ava.owner, expectedActors.Cal.owner);
-    const snapshot = async () => {
-      const result: Record<string, Record<string, readonly string[]>> = {};
-      for (const [label, db] of [['Identity', identityDb], ...owners] as Array<[string, D1Database]>) {
-        const names = (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all<{name: string}>()).results;
-        const tables: Record<string, readonly string[]> = {};
-        for (const { name } of names) {
-          if (name.startsWith('_cf_')) continue;
-          assert.match(name, /^[A-Za-z_][A-Za-z0-9_]*$/);
-          tables[name] = (await db.prepare(`SELECT * FROM "${name}"`).all()).results.map(row => JSON.stringify(row)).sort();
-        }
-        result[label] = tables;
+  const expectedActors = {} as Record<'Ava' | 'Ben' | 'Cal' | 'Dee', { owner: string | null; principal: string }>;
+  const authenticated: string[] = [], csrfByCookie = new Map<string, string>(), closed = new Set<Context>();
+  let observedContexts: Context[] = [], servingBefore: unknown, afterLogin: unknown, afterClose: unknown;
+  let mutations = 0, preferences = 0, proofsReturned = false, closedAtBoundary = false;
+  const snapshot = async () => {
+    assert.ok(identityDb);
+    const result: Record<string, Record<string, readonly string[]>> = {};
+    for (const [label, db] of [['Identity', identityDb], ...owners] as Array<[string, D1Database]>) {
+      const names = (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all<{name: string}>()).results;
+      const tables: Record<string, readonly string[]> = {};
+      for (const { name } of names) {
+        if (name.startsWith('_cf_')) continue;
+        assert.match(name, /^[A-Za-z_][A-Za-z0-9_]*$/);
+        tables[name] = (await db.prepare(`SELECT * FROM "${name}"`).all()).results.map(row => JSON.stringify(row)).sort();
       }
-      return result;
-    };
-    const servingBefore = await snapshot();
-    const actualInitial = [...owners.values()];
-    for (const db of actualInitial) assert.equal((await db.prepare('SELECT id FROM records WHERE model=? AND archived_at IS NULL')
-      .bind('HelpOffice.Supply').all()).results.length, 0);
-    lease = await chromium.producer.acquireChromium({ signal: controller.signal });
-    assert.deepEqual(lease.identity, availability.identity);
-    const browser = lease.browser;
-    const authenticated: string[] = [];
-    const closed = new Set<ReturnType<typeof browser.contexts>[number]>();
-    let observedContexts: ReturnType<typeof browser.contexts> = [];
-    let afterLogin: Awaited<ReturnType<typeof snapshot>> | undefined;
-    let mutations = 0, preferences = 0, proofsReturned = false;
-    const input: FirstProfileBrowserInput = {
-      browser, preview, signal: controller.signal, expectedActors, initialVisible: [], snapshot,
-      mutation: async () => { mutations++; throw new Error('cancelled browser must not reach mutation'); },
-      preference: async () => { preferences++; throw new Error('cancelled browser must not reach preference'); },
-      onAuthenticated: async (label, facts) => {
-        assert.ok(facts.cookie.startsWith('can_session='), 'browser must provide its actual owning session cookie');
-        const token = decodeURIComponent(facts.cookie.slice('can_session='.length));
-        const identity = await resolveIdentity(identityStore, { session_token: token });
-        assert.equal(identity.actor?.user_id, expectedActors[label].principal);
-        assert.equal(identity.team?.team_id ?? null, expectedActors[label].owner);
-        assert.equal(identity.membership?.status ?? null, expectedActors[label].owner === null ? null : 'active');
-        assert.equal(facts.owner, expectedActors[label].owner);
-        assert.ok(facts.csrf === await deriveCsrfToken(token), 'browser CSRF must bind to its actual session');
-        authenticated.push(label);
-        if (label !== 'Dee') return;
-        observedContexts = browser.contexts(); assert.equal(observedContexts.length, 4);
-        for (const context of observedContexts) context.once('close', () => closed.add(context));
-        afterLogin = await snapshot();
-        controller.abort();
-      },
-    };
+      result[label] = tables;
+    }
+    return result;
+  };
+  try {
     await assert.rejects(async () => {
-      await qualifyFirstProfileBrowser(input); proofsReturned = true;
+      await runNativeBrowser(compiled.artifact, capture, compiled.artifactBytes, {
+        'browser.launch': async (payload, signal, registry, parent) => {
+          const runtimes = [...registry.resources.values()].filter(entry => entry.kind === 'mf' && !entry.physicallyDisposed);
+          assert.equal(runtimes.length, 1, 'native preview must retain exactly its serving SDK runtime');
+          const runtime = runtimes[0]!;
+          identityDb = await runtime.value.getD1Database('DB', runtime.workerName) as D1Database;
+          const store = createD1IdentityStore(identityDb);
+          for (const label of ['Ava', 'Ben', 'Cal', 'Dee'] as const) {
+            const user = await store.findUserByEmail(`${label.toLowerCase()}@preview.can.test`); assert.ok(user);
+            const memberships = (await store.listUserMemberships(user.user_id)).filter(member => member.status === 'active');
+            assert.equal(memberships.length, label === 'Dee' ? 0 : 1);
+            const owner = memberships[0]?.team_id ?? null;
+            if (owner !== null) assert.ok(await store.findTeamById(owner));
+            expectedActors[label] = { owner, principal: user.user_id };
+          }
+          assert.equal(expectedActors.Ava.owner, expectedActors.Ben.owner);
+          assert.notEqual(expectedActors.Ava.owner, expectedActors.Cal.owner);
+          assert.equal(expectedActors.Dee.owner, null);
+          for (const [owner, binding] of [[expectedActors.Ava.owner, 'STATE_CEDAR_DB'], [expectedActors.Cal.owner, 'STATE_OAK_DB']] as const) {
+            assert.ok(owner); owners.set(owner, await runtime.value.getD1Database(binding, runtime.workerName) as D1Database);
+          }
+          servingBefore = await snapshot();
+          for (const db of owners.values()) assert.equal((await db.prepare('SELECT id FROM records WHERE model=? AND archived_at IS NULL')
+            .bind('HelpOffice.Supply').all()).results.length, 0);
+          const lease = await registry.api('browser.launch', payload, parent, signal);
+          browser = registry.resources.get(payload.handle)!.value as Browser; browserHandle = payload.handle;
+          assert.deepEqual(lease.identity, availability.identity);
+          return lease;
+        },
+        'identity.csrf': async (payload, signal, registry, parent) => {
+          const result = await registry.api('identity.csrf', payload, parent, signal);
+          csrfByCookie.set(payload.cookie, result.csrf); return result;
+        },
+        'identity.resolve': async (payload, signal, registry, parent) => {
+          const result = await registry.api('identity.resolve', payload, parent, signal) as Awaited<ReturnType<typeof resolveIdentity>>;
+          assert.ok(identityDb);
+          const label = (['Ava', 'Ben', 'Cal', 'Dee'] as const).find(name => expectedActors[name].principal === result.actor?.user_id); assert.ok(label);
+          assert.ok(payload.cookie.startsWith('can_session='));
+          const token = decodeURIComponent(payload.cookie.slice('can_session='.length));
+          const actual = await resolveIdentity(createD1IdentityStore(identityDb), { session_token: token });
+          assert.equal(actual.actor?.user_id, expectedActors[label].principal);
+          assert.equal(actual.team?.team_id ?? null, expectedActors[label].owner);
+          assert.equal(actual.membership?.status ?? null, expectedActors[label].owner === null ? null : 'active');
+          assert.equal(csrfByCookie.get(payload.cookie), await deriveCsrfToken(token));
+          authenticated.push(label); return result;
+        },
+        'browser.locator': async (payload, signal, registry, parent) => {
+          if (authenticated.length < 4) {
+            assert.equal(payload.selector, 'form[action="/auth/login"] input[name="_presession"]');
+            assert.equal(payload.method, 'inputValue');
+            return registry.api('browser.locator', payload, parent, signal);
+          }
+          assert.deepEqual(authenticated, ['Ava', 'Ben', 'Cal', 'Dee']);
+          assert.ok(browser); observedContexts = browser.contexts(); assert.equal(observedContexts.length, 4);
+          for (const context of observedContexts) context.once('close', () => closed.add(context));
+          afterLogin = await snapshot(); controller.abort(); throw controller.signal.reason;
+        },
+        'browser.submit': async () => { mutations++; preferences++; throw new Error('cancelled browser must not reach authored submits'); },
+        'browser.close': async (payload, signal, registry, parent) => {
+          const result = await registry.api('browser.close', payload, parent, signal);
+          if (payload.handle === browserHandle) {
+            assert.ok(browser); assert.equal(closed.size, observedContexts.length);
+            assert.equal(browser.contexts().length, 0); assert.equal(browser.isConnected(), false);
+            afterClose = await snapshot(); closedAtBoundary = true;
+          }
+          return result;
+        },
+      });
+      proofsReturned = true;
     }, error => {
-      // Observe cleanup at the rejection boundary, not after a later lease close.
-      assert.equal((error as Error).name, 'AbortError');
-      assert.equal(closed.size, observedContexts.length);
-      assert.equal(browser.contexts().length, 0);
+      assert.equal((error as Error).name, 'AbortError', (error as Error).stack ?? String(error));
+      assert.equal(closedAtBoundary, true, 'native consumer must close every context before rejecting');
       return true;
     });
     assert.deepEqual(authenticated, ['Ava', 'Ben', 'Cal', 'Dee']);
     assert.equal(proofsReturned, false); assert.equal(mutations, 0); assert.equal(preferences, 0);
-    assert.ok(afterLogin); assert.ok(isDeepStrictEqual(await snapshot(), afterLogin), 'cancellation must preserve all post-login resources');
-    // Authentication is real setup, so compare its domain owners separately.
-    const after = await snapshot();
-    for (const owner of owners.keys()) assert.ok(isDeepStrictEqual(after[owner], servingBefore[owner]), 'browser authentication/cancellation must preserve all owner resources');
-    await lease.close(); assert.equal(browser.isConnected(), false);
-    assert.equal(await captureIsCurrent(capture), true);
+    assert.ok(afterLogin); assert.ok(isDeepStrictEqual(afterClose, afterLogin), 'cancellation must preserve all post-login resources');
+    for (const owner of owners.keys()) assert.ok(isDeepStrictEqual((afterClose as Record<string, unknown>)[owner], (servingBefore as Record<string, unknown>)[owner]), 'browser authentication/cancellation must preserve all owner resources');
   } finally {
-    try { await lease?.close(); }
-    finally { await preview?.dispose(); }
-    assert.equal(await captureIsCurrent(capture), true, 'owning native/browser inputs must stay current through cleanup');
+    assert.equal(await native.captureIsCurrent(capture), true, 'owning native/browser inputs must stay current through cleanup');
   }
 }, 120_000);
 
@@ -242,11 +240,11 @@ it('runs public inline CSV and Print through real authenticated HTTP in installe
       const load = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<unknown>;
       const exportModule = await load('/ui/export.js') as typeof import('@canlang/ui/browser/export');
       const printModule = await load('/ui/print.js') as typeof import('@canlang/ui/browser/print');
-      const exported = await exportModule.submitExportRequest({ fetchImpl: (url, init) => fetch(url, init), action: '/api/exports', csrf, operation });
+      const exported = await exportModule.submitExportRequest({ fetchImpl: (url, init) => fetch(url, init as RequestInit), action: '/api/exports', csrf, operation });
       if (!exported.ok) return { exported, print: null, saved: null };
       const saves: Array<{ filename: string; text: string; mime: string }> = [];
       exportModule.downloadInlineCsv({ save: (filename, text, mime) => { saves.push({ filename, text, mime }); } }, exported.outcome, Date.now());
-      const print = await printModule.fetchPrintView({ fetchImpl: (url, init) => fetch(url, init), printBase: '/print', view: 'invoice-register' });
+      const print = await printModule.fetchPrintView({ fetchImpl: (url, init) => fetch(url, init as RequestInit), printBase: '/print', view: 'invoice-register' });
       return { exported, print, saved: saves[0] ?? null };
     }, { csrf, operation });
     assert.equal(live.exported.ok, true, JSON.stringify(live.exported));
@@ -264,8 +262,8 @@ it('runs public inline CSV and Print through real authenticated HTTP in installe
       const exportModule = await load('/ui/export.js') as typeof import('@canlang/ui/browser/export');
       const printModule = await load('/ui/print.js') as typeof import('@canlang/ui/browser/print');
       return {
-        exported: await exportModule.submitExportRequest({ fetchImpl: (url, init) => fetch(url, init), action: '/api/exports', csrf, operation }),
-        print: await printModule.fetchPrintView({ fetchImpl: (url, init) => fetch(url, init), printBase: '/print', view: 'invoice-register' }),
+        exported: await exportModule.submitExportRequest({ fetchImpl: (url, init) => fetch(url, init as RequestInit), action: '/api/exports', csrf, operation }),
+        print: await printModule.fetchPrintView({ fetchImpl: (url, init) => fetch(url, init as RequestInit), printBase: '/print', view: 'invoice-register' }),
       };
     }, { csrf, operation });
     assert.equal(denied.exported.ok ? '' : denied.exported.error.code, 'forbidden');

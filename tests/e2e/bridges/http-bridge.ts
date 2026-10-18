@@ -13,7 +13,7 @@
  * and an ephemeral port by default; it never listens on 0.0.0.0.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import type { LocalDev } from "@canlang/cloudflare";
+import type { LocalDev } from "../../fixtures/raw-worker.js";
 
 export interface BridgeOptions {
   /** Bind host. Default "127.0.0.1". Never pass "0.0.0.0". */

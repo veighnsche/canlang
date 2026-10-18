@@ -24,9 +24,11 @@ function readSource(relativePath: string): string {
 }
 
 const JOIN_RUNTIME_IMPORTS: Readonly<Record<string, readonly string[]>> = {
-  // Both leaves are explicitly pinned by deploy/bundle.ts and accept only
-  // injected D1/clock ports. Their own source remains checked below.
-  "src/runtime/env-assembly.ts": ["./auth-rate-limiter.js", "./page-preferences.js"],
+  // Pinned D1 leaves accept injected ports; app_url is the canonical portable
+  // Values conversion used by the owning environment bridge.
+  "src/runtime/grant-route.ts": ["@canlang/contracts", "@canlang/interfaces"],
+  "src/runtime/export-downloads.ts": ["@canlang/interfaces"],
+  "src/runtime/env-assembly.ts": ["./auth-rate-limiter.js", "./page-preferences.js", "./export-downloads.js", "@canlang/values"],
 };
 
 function importSpecifier(line: string): string | undefined {
@@ -39,9 +41,9 @@ function isPortableAssemblyImport(file: string, line: string): boolean {
   if (bindings === undefined) return false;
   // Published portable invocation/storage constructors; the serving worker
   // entry and main, wildcard imports and other assembly exports stay barred.
-  const allowed = file === "src/dev/example-runner.ts"
+  const allowed = file === "src/runtime/example-bindings.ts"
     ? new Set(["buildInvoker", "createTeamOwnerStorageBoundary", "type TeamOwnerStorageBoundary"])
-    : file === "src/dev/file-retirement.ts" ? new Set(["createTeamOwnerStorageBoundary"]) : new Set<string>();
+    : file === "src/runtime/file-retirement.ts" ? new Set(["createTeamOwnerStorageBoundary"]) : new Set<string>();
   return bindings.split(",").every(binding => allowed.has(binding.trim().split(/\s+as\s+/u)[0]!));
 }
 
@@ -72,7 +74,7 @@ describe("worker bundle boundary", () => {
     // env-assembly, grant-route, and mcp-permissions load producers via
     // dynamic import() so the P-B bundler can stage/rewrite them; a static
     // external runtime import here would bypass the vendor seam. Only the
-    // two explicitly pinned local D1 leaves are admitted statically; all
+    // explicitly pinned local D1 leaves and the portable Values API are admitted statically; all
     // their imports remain type-only. The final installed graph is checked
     // by assertLinksResolve and assertWorkerdLoadable at bundle construction.
     const joinFiles = [
@@ -81,6 +83,7 @@ describe("worker bundle boundary", () => {
       "src/runtime/mcp-permissions.ts",
       "src/runtime/auth-rate-limiter.ts",
       "src/runtime/page-preferences.ts",
+      "src/runtime/export-downloads.ts",
     ];
     for (const file of joinFiles) {
       const lines = readSource(file).split("\n");
@@ -109,12 +112,12 @@ describe("worker bundle boundary", () => {
   });
 
   it("keeps Node hosts out of Worker serving entries while retaining the portable assembly contract", () => {
-    const retirementFile = "src/dev/file-retirement.ts";
+    const retirementFile = "src/runtime/file-retirement.ts";
     expect(isPortableAssemblyImport(retirementFile,
       "import { createTeamOwnerStorageBoundary } from '../worker/assembly.js'")).toBe(true);
     expect(isPortableAssemblyImport(retirementFile,
       "import { createTeamOwnerStorageBoundary as createBoundary } from '../worker/assembly.js';")).toBe(true);
-    expect(isPortableAssemblyImport("src/dev/example-runner.ts",
+    expect(isPortableAssemblyImport("src/runtime/example-bindings.ts",
       "import { buildInvoker, createTeamOwnerStorageBoundary, type TeamOwnerStorageBoundary } from '../worker/assembly.js';")).toBe(true);
     for (const line of [
       "import { buildInvoker } from '../worker/assembly.js';",
@@ -129,9 +132,9 @@ describe("worker bundle boundary", () => {
       "import { createTeamOwnerStorageBoundary } from '@canlang/cloudflare/worker/assembly';",
       "export { createTeamOwnerStorageBoundary } from '../worker/assembly.js';",
     ]) expect(isPortableAssemblyImport(retirementFile, line), line).toBe(false);
-    expect(isPortableAssemblyImport("src/dev/other.ts",
+    expect(isPortableAssemblyImport("src/runtime/other.ts",
       "import { createTeamOwnerStorageBoundary } from '../worker/assembly.js';")).toBe(false);
-    expect(isPortableAssemblyImport("src/dev/example-runner.ts",
+    expect(isPortableAssemblyImport("src/runtime/example-bindings.ts",
       "import { assembleWorker } from '../worker/assembly.js';")).toBe(false);
     const manifest = JSON.parse(readSource("package.json")) as {
       exports: Record<string, { default?: string }>;
@@ -140,7 +143,8 @@ describe("worker bundle boundary", () => {
     const nodeFiles = [
       "src/index.ts",
       ...listSourceFiles("src/deploy"),
-      ...listSourceFiles("src/dev"),
+      "src/runtime/example-bindings.ts",
+      "src/runtime/file-retirement.ts",
       ...listSourceFiles("src/build"),
       ...listSourceFiles("src/upgrade"),
       ...listSourceFiles("src/cli"),

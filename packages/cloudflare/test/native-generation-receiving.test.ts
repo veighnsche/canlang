@@ -93,7 +93,7 @@ test('original Generation source and technical receiving progress retain one ful
     const namespace=await importVerifiedAssemblyModule(asm,artifact.modules[0]!.path,artifact);
     assert.ok(namespace !== null && typeof namespace === 'object');
     const definition=Object.getOwnPropertyDescriptor(namespace,'appDefinition')!.value;
-    const {createNativeFileRetirementBinding}=await nodeImport(pathToFileURL(join(root,'packages/cloudflare/dist/dev/file-retirement.js')).href) as typeof import('../src/dev/file-retirement.js');
+    const {createNativeFileRetirementBinding}=await nodeImport(pathToFileURL(join(root,'packages/cloudflare/dist/runtime/file-retirement.js')).href) as typeof import('../src/runtime/file-retirement.js');
     const {createBoundImagesAdapter}=await nodeImport(pathToFileURL(join(root,'packages/cloudflare/dist/runtime/bound-images.js')).href) as typeof import('../src/runtime/bound-images.js');
     const {createBoundImagesDispatcher}=await nodeImport(pathToFileURL(join(root,'packages/cloudflare/dist/runtime/bound-dispatch.js')).href) as typeof import('../src/runtime/bound-dispatch.js');
     const {createCanonicalFileBinding}=await nodeImport(pathToFileURL(join(root,'packages/cloudflare/dist/runtime/bound-files.js')).href) as typeof import('../src/runtime/bound-files.js');

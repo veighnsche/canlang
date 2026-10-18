@@ -632,13 +632,9 @@ type AssertRequiresFulfilled = (
  * `@canlang/state`'s index; imported here from contracts because
  * `@canlang/state` is not a declared dependency of this package).
  *
- * `identityStore` is `unknown` on purpose. Verified: neither
- * `createWorkerApp` (takes `WorkerAppOptions { requiredBindings, fetch }`,
- * `src/worker/entry.ts:9`) nor `startLocalDev` (takes `LocalDevOptions`,
- * `src/dev/local-run.ts:12`) takes an identity store, and
- * `@canlang/identity` is not resolvable from this package. The real type at
- * the join is `IdentityStore` (`packages/identity/src/ports.ts:95`), bound
- * as `HttpDeps.identity.store`.
+ * `identityStore` receives the owning Identity port at the host join and is
+ * bound as `HttpDeps.identity.store`. Worker entry configuration does not
+ * carry that host-owned port.
  */
 /** Actual installed cohort scheduler; v1 is fulfilled only by this bound consumer. */
 export interface CohortTickBinding {

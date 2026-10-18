@@ -24,8 +24,8 @@ const sha = (value: Uint8Array) => createHash('sha256').update(value).digest('he
 
 test('emitted protected row action and poll drop held bodies after context/logout/stop', { timeout: 120000 }, async () => {
   const { assembleModules } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
-  const { loadInstalledChromium, prepareLocalPreviewCapture } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-  const { captureSingleFileSource, captureIsCurrent, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+  const { loadInstalledChromium, prepareLocalPreviewCapture } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+  const { captureSingleFileSource, captureIsCurrent, verifyCompilerSources } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
   const { buildPresentationContext, createSourceFormBindings, catalogFromArtifactOperations } =
     await nodeImport(producer('@canlang/interfaces')) as typeof import('@canlang/interfaces');
   const { renderPage } = await nodeImport(producer('@canlang/ui')) as typeof import('@canlang/ui');

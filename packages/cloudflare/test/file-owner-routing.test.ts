@@ -28,7 +28,7 @@ import { createFileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
 import { assembleModules, importVerifiedAssemblyModule } from '@canlang/cloudflare/runtime/modules';
 import { buildInvoker, createTeamOwnerStorageBoundary } from '@canlang/cloudflare/worker/assembly';
 import { createBoundFileHandler, createCanonicalFileBinding } from '@canlang/cloudflare/runtime/bound-files';
-import { createNativeFileRetirementBinding } from '../dist/dev/file-retirement.js';
+import { createNativeFileRetirementBinding } from '../dist/runtime/file-retirement.js';
 import { createBoundCohortTick } from '../dist/runtime/cohort-tick.js';
 import { invokeDueSourceRoutingCanonical, invokeRetainedHandlerOccurrenceCanonical } from '@canlang/cloudflare/runtime/invoke';
 import { WORK_SCHEDULE_MODEL, readScheduleRow, WORK_OCCURRENCE_MODEL, readOccurrenceRow } from '@canlang/work/kernel/tables';

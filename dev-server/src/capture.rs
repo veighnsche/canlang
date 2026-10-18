@@ -265,7 +265,7 @@ fn named_paths(request: &CaptureRequest) -> Result<Vec<(String, Option<String>)>
     paths.sort_by(|a, b| a.0.cmp(&b.0));
     Ok(paths)
 }
-fn read_input(
+pub(crate) fn read_input(
     root: &str,
     name: String,
     path: Option<String>,
@@ -727,7 +727,10 @@ struct GenerationUnit {
     current_files: Option<Vec<GeneratedFile>>,
     compiler_sources: Option<Vec<String>>,
 }
-fn discover_generated(capture: &Capture, cancel: &AtomicBool) -> Result<GeneratedClosure> {
+pub(crate) fn discover_generated(
+    capture: &Capture,
+    cancel: &AtomicBool,
+) -> Result<GeneratedClosure> {
     let compiler = verified_bytes(capture, "compiler", cancel)?;
     discover_with_compiler(capture, cancel, &compiler)
 }
@@ -862,7 +865,7 @@ pub(crate) fn valid_hash(hash: &str) -> bool {
             .bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
-fn snapshot_generated(
+pub(crate) fn snapshot_generated(
     capture: &Capture,
     closure: &GeneratedClosure,
     cancel: &AtomicBool,

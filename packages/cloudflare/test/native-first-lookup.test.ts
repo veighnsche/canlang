@@ -79,13 +79,13 @@ for (const spelling of ['inline', 'helper', 'chain'] as const) test(`native ${sp
       await writeFile(sourcePath, equivalent);
     }
     let worker: Miniflare | undefined;
-    let capture: Awaited<ReturnType<typeof import('../src/dev/source-capture.js')['captureSingleFileSource']>> | undefined;
+    let capture: Awaited<ReturnType<typeof import('../src/runtime/native-dev.test-support.js')['captureSingleFileSource']>> | undefined;
     try {
       const { assembleModules, importVerifiedAssemblyModule } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
       const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
-      const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-      const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
-      const { compileCapturedSingleFile } = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
+      const { installedLocalPreviewInputInventory } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+      const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+      const { compileCapturedSingleFile } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
       const originalSource = await readFile(sourcePath);
       const compilerPath = join(root, 'compiler/target/debug/can');
       capture = await captureSingleFileSource({ checkoutRoot: root, appPath: sourcePath,

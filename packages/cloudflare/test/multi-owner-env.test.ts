@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { startLocalDev, type LocalDev } from "../src/dev/local-run.js";
+import { startLocalDev, type LocalDev } from "../src/runtime/native-preview.test-support.js";
 import { buildProductionDeps } from "../src/runtime/env-assembly.js";
 
 const devs: LocalDev[] = [];

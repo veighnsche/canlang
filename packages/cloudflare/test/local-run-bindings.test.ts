@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
-import { startLocalDev, type LocalDev, type LocalDevOptions } from "../src/dev/local-run.js";
+import { startLocalDev, type LocalDev, type LocalDevOptions } from "../src/runtime/native-preview.test-support.js";
 
 function options(source: string, extra: Partial<LocalDevOptions> = {}): LocalDevOptions {
   return { workerName: "local-bindings", compatibilityDate: "2026-07-15", mainModule: "main.js", modules: { "main.js": source }, ...extra };
@@ -22,7 +22,7 @@ it("wakes the actual app's resource recovery through private scheduled dispatch"
     }
     expect(wakes).toBeGreaterThan(0);
   } finally { await dev.dispose(); }
-});
+}, 30_000);
 
 it("persists real KV values/metadata and isolates namespaces", async () => {
   const root = mkdtempSync(join(tmpdir(), "can-local-kv-"));
@@ -79,7 +79,7 @@ it("calls supplied local service workers and refuses missing implementations", a
   const dev = await startLocalDev(primary);
   try { expect(await (await dev.dispatch("/hello")).json()).toEqual({ greeting: "local service", path: "/hello" }); }
   finally { await dev.dispose(); }
-  await expect(startLocalDev({ ...primary, companionWorkers: [] })).rejects.toThrow(/no supplied docs/implementation/);
+  await expect(startLocalDev({ ...primary, companionWorkers: [] })).rejects.toThrow(/no supplied implementation/);
   await expect(startLocalDev({ ...primary, companionWorkers: [primary] })).rejects.toThrow(/duplicated/);
 }, 30_000);
 

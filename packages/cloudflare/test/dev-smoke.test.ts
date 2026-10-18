@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Miniflare } from "miniflare";
 import { describe, expect, it, vi } from "vitest";
-import { startLocalDev } from "../src/dev/local-run.js";
+import { startLocalDev } from "../src/runtime/native-preview.test-support.js";
 
 const smokeSource = readFileSync(new URL("./fixtures/smoke-worker.mjs", import.meta.url), "utf8");
 

@@ -1,7 +1,9 @@
 use super::{Result, state::compact_json};
 use crate::capture::hash;
 use base64::{Engine, engine::general_purpose::STANDARD};
-use serde_json::{Value, json};
+use serde_json::Value;
+#[cfg(test)]
+use serde_json::json;
 use std::collections::BTreeMap;
 pub fn bytes(value: &Value) -> Result<Vec<u8>> {
     if let Some(text) = value.as_str() {
@@ -32,6 +34,17 @@ pub fn verify(artifact_json: &str, reply: &Value) -> Result<Value> {
     let resources = b["resources"]
         .as_object()
         .ok_or("RESOURCE_INVALID: missing browser resource map")?;
+    verify_module_sources(b, modules)?;
+    verify_mixed_modules(b, modules, binaries)?;
+    let staged = checked_staged_artifact(artifact_json, modules)?;
+    verify_browser_resources(b, reply, resources, staged)?;
+    // Ensure the serialized artifact is the same parse tree even when the source
+    // compiler formatted its JSON; object order remains available separately.
+    let _: Value =
+        serde_json::from_str(&compact_json(artifact_json)?).map_err(|e| e.to_string())?;
+    Ok(b.clone())
+}
+fn verify_module_sources(b: &Value, modules: &serde_json::Map<String, Value>) -> Result<()> {
     if b["mainModule"] != "worker/main.js"
         || b["moduleCount"].as_u64() != Some(modules.len() as u64)
         || [
@@ -67,6 +80,13 @@ pub fn verify(artifact_json: &str, reply: &Value) -> Result<Value> {
             return Err("BUNDLE_INTEGRITY: module size mismatch".into());
         }
     }
+    Ok(())
+}
+fn verify_mixed_modules(
+    b: &Value,
+    modules: &serde_json::Map<String, Value>,
+    binaries: &serde_json::Map<String, Value>,
+) -> Result<()> {
     let mut mixed = vec![];
     mixed.extend_from_slice(&(14u32).to_be_bytes());
     mixed.extend_from_slice(b"worker/main.js");
@@ -102,6 +122,12 @@ pub fn verify(artifact_json: &str, reply: &Value) -> Result<Value> {
     if b["mixedSha256"].as_str() != Some(&hash(&mixed)) {
         return Err("BUNDLE_INTEGRITY: mixed module digest mismatch".into());
     }
+    Ok(())
+}
+fn checked_staged_artifact<'a>(
+    artifact_json: &str,
+    modules: &'a serde_json::Map<String, Value>,
+) -> Result<&'a str> {
     let staged = modules["worker/artifact.js"].as_str().unwrap();
     if !staged
         .lines()
@@ -112,6 +138,14 @@ pub fn verify(artifact_json: &str, reply: &Value) -> Result<Value> {
     {
         return Err("BUNDLE_ARTIFACT_MISMATCH: staged artifact or verdict differs".into());
     }
+    Ok(staged)
+}
+fn verify_browser_resources(
+    b: &Value,
+    reply: &Value,
+    resources: &serde_json::Map<String, Value>,
+    staged: &str,
+) -> Result<()> {
     let generated = reply["generatedResources"]
         .as_object()
         .ok_or("generated style resource map missing")?;
@@ -165,12 +199,9 @@ pub fn verify(artifact_json: &str, reply: &Value) -> Result<Value> {
     {
         return Err("RESOURCE_INVALID: browser resource digest mismatch".into());
     }
-    // Ensure the serialized artifact is the same parse tree even when the source
-    // compiler formatted its JSON; object order remains available separately.
-    let _: Value =
-        serde_json::from_str(&compact_json(artifact_json)?).map_err(|e| e.to_string())?;
-    Ok(b.clone())
+    Ok(())
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -10,7 +10,7 @@ function locator(page,p){
   }
   return value;
 }
-async function response(value){let json=null;try{json=await value.json();}catch{}return {status:value.status(),json};}
+async function response(value){let json=null;try{json=await value.json();}catch{}return {status:value.status(),json,url:value.url()};}
 export async function call(command,p,parent,signal,r){
   const get=(id,kind)=>r.find(parent,id,kind).value;
   signal.throwIfAborted();

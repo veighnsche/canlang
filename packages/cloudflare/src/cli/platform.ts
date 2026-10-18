@@ -435,12 +435,18 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
  * `test`: capture the exact source and installed runtime, then execute every
  * compiled row through the real D1-backed canonical invoker.
  */
-async function runTest(artifactPath: string, lifetime: LocalCommandLifetime): Promise<void> {
-  lifetime.checkpoint("native examples start");
-  // The native helper verifies and executes these exact saved artifact bytes.
-  // It owns capture, admission, bundle creation, row resources and their cleanup.
+type NativeExamplesExit = { code: number | null; signal: NodeJS.Signals | null; stdout: string };
+function nativeExamplesDependency(error: unknown): never {
+  if (error instanceof Error && (error as NodeJS.ErrnoException).code === "ENOENT") {
+    fail("test", "missing-producer", "native development helper is unavailable; build or install can-dev or set CAN_DEV_BIN", {
+      producer: "dev-server", contract: "native saved-artifact examples",
+    });
+  }
+  throw error;
+}
+async function nativeExamplesExit(artifactPath: string, lifetime: LocalCommandLifetime): Promise<NativeExamplesExit> {
   const binary = process.env.CAN_DEV_BIN ?? "can-dev";
-  const outcome = await new Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string }>((done, reject) => {
+  return new Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string }>((done, reject) => {
     const child = spawn(binary, ["examples-artifact", "--artifact", resolve(artifactPath), "--root", process.cwd()],
       { shell: false, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "", bytes = 0, failure: Error | undefined;
@@ -463,7 +469,23 @@ async function runTest(artifactPath: string, lifetime: LocalCommandLifetime): Pr
       if (failure !== undefined) reject(failure);
       else done({ code, signal, stdout });
     });
-  });
+  }).catch(nativeExamplesDependency);
+}
+function nativeExamplesFailure(result: Record<string, unknown>, lifetime: LocalCommandLifetime): void {
+  if (result.ok === false && typeof result.code === "string" && typeof result.detail === "string") {
+    // Preserve an operative failure even if cancellation arrived during its cleanup.
+    if (result.code === "command-cancelled" || result.code === "command-timeout") lifetime.checkpoint("native examples cancelled");
+    fail("test", result.code, result.detail, {
+      ...(typeof result.producer === "string" ? { producer: result.producer } : {}),
+      ...(typeof result.contract === "string" ? { contract: result.contract } : {}),
+    });
+  }
+}
+async function runTest(artifactPath: string, lifetime: LocalCommandLifetime): Promise<void> {
+  lifetime.checkpoint("native examples start");
+  // The native helper verifies and executes these exact saved artifact bytes.
+  // It owns capture, admission, bundle creation, row resources and their cleanup.
+  const outcome = await nativeExamplesExit(artifactPath, lifetime);
   let result: Record<string, unknown>;
   try { result = JSON.parse(outcome.stdout) as Record<string, unknown>; }
   catch {
@@ -473,14 +495,7 @@ async function runTest(artifactPath: string, lifetime: LocalCommandLifetime): Pr
   if (result === null || typeof result !== "object" || Array.isArray(result)) {
     fail("test", "native-examples-failed", "native examples returned an invalid result");
   }
-  if (result.ok === false && typeof result.code === "string" && typeof result.detail === "string") {
-    // Preserve an operative failure even if cancellation arrived during its cleanup.
-    if (result.code === "command-cancelled" || result.code === "command-timeout") lifetime.checkpoint("native examples cancelled");
-    fail("test", result.code, result.detail, {
-      ...(typeof result.producer === "string" ? { producer: result.producer } : {}),
-      ...(typeof result.contract === "string" ? { contract: result.contract } : {}),
-    });
-  }
+  nativeExamplesFailure(result, lifetime);
   lifetime.checkpoint("native examples cleanup joined");
   if (typeof result.ok !== "boolean" || !Number.isSafeInteger(result.executed) || Number(result.executed) < 1 ||
       result.report === null || typeof result.report !== "object" || Array.isArray(result.report) ||

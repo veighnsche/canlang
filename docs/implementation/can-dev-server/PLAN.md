@@ -1,40 +1,58 @@
 # `can dev` implementation plan
 
-**Main sync while porting, 2026-10-18:** checkpoint `058a11b46` preserves all
-active port changes; merge current main through `69d45c33c`, including source-owned
-inline preference editors and repository cleanup. Reuse incoming owner validation.
-The new native modules compile; combined unit checks pass98 with one new inventory
-test root-canonicalization failure still to repair. Installed acceptance, deletion
-of remaining legacy helper consumers and remeasurement remain open below.
+**Current ownership-completion execution, 2026-10-18:** T14/T16's stronger
+native ownership scope is implemented. Rust now owns producer membership and
+freshness, preview configuration/persistence/preparation, help/ranking,
+example sequencing and full qualification policy. The fixed JS host invokes
+Miniflare, Playwright, Acorn and defining runtime/Testkit APIs. The entire obsolete
+Cloudflare `src/dev` tree and exclusive controller tests are removed; maintained
+CLI, capture, browser and test consumers use native control or genuine semantic
+owners. Private test facades are excluded from installed archives. Application
+JavaScript and defining runtime/Testkit behavior retain their owners.
 
-**Current ownership-completion execution, 2026-10-18:** after the accepted
-native main/manual release checkpoint, the user explicitly requests deletion of
-redundant TypeScript dev-server code and implementation of remaining development
-logic in Rust. This strengthens the former coarse target adapter boundary; prior
-manual/profile results remain accepted at their recorded inputs, not proof of the
-new ownership scope.
+Lifecycle protections remain: allocation before construction, pending/late-result
+retention, cancellation joins, retryable physical disposal, cleanup admission,
+source/epoch/currentness checks, atomic selected-generation context and confirmed
+stop. Unchanged checks reuse the same serving process/build after a fresh capture.
+Native gateway observations request an uncompressed private response so the safe
+closed refusal parser sees the actual JSON bytes. Watch interests include exact
+requested/canonical operands and producer membership, excluding unrelated parent
+siblings. A30-second timer schedules native byte/membership verification; elapsed
+time alone no longer marks4490 unchanged inputs stale or cancels qualification.
+Real filesystem hints and failed audits still invalidate capture immediately.
 
-Continue canonical T14/T16/T17 in dependency order: (1) migrate maintained callers
-to native control and disconnect legacy controller types; (2) port help/rank,
-native inventory/config/persistence/preparation and example/qualification sequencing;
-(3) reduce the JS host to fixed Miniflare/SDK/defining shared semantic API calls,
-with no dev capture/compiler/queues/cache/publication workflow; (4) delete obsolete
-controller/helper sources and their exclusive tests, retaining semantic-owner
-regressions and migrating still-used public CLI consumers; (5) qualify changed
-native/bridge/installed manual behavior, then integrate under a new safe main
-window and remeasure. No old session-controller fallback or renamed coarse builder
-counts as completion. Compiled application/runtime and Testkit semantics retain
-their defining owners; direct JS APIs are an execution boundary, not a second dev
-controller.
+Current validation credits133 distinct native criteria (114 library,15 state,
+4 gateway), reusing unchanged checks and retrying sandbox-blocked native
+notifications with actual macOS FSEvents access. Real physical lifecycle passes
+unchanged checks, replacements, superseded candidate/last-good, detached caller,
+peak2/live0 cleanup and foreign-caller isolation. Native-backed runtime examples,
+DO/D1 fences, persistence, queue/analytics recovery, Testkit snapshots/isolation,
+12 real Wasm loader cases, exact numeric/bootstrap host8 and fresh Workerd2 plus
+negative assets, and browser cancellation after four real identity checks pass.
+All browser contexts and their process close before cancellation escapes. Root
+protocol/boundary27, worker3 and owning Cloudflare/e2e typechecks pass. Seven new root-test boundary violations are removed using a direct SDK fixture;
+the affected five tests and e2e typecheck pass. The full repository boundary audit
+still reports62 inherited findings, including32 unchanged Interfaces test-only
+undeclared dependencies; no whole-repository audit success is claimed.
 
-Required output is an actually used native pipeline, no maintained caller/import
-of retired TS orchestration, exact explicit allocation/late-result retention and
-confirmed release, unchanged permissions/evaluation/atomicity, and the same real
-installed manual/terminal outcomes. Native child IDs are allocated before SDK
-calls; absent/failed replies retain the parent generation/owned process scope.
-JavaScript keeps only live SDK objects and retryable disposal handles. Existing
-source/epoch/currentness and private file contracts remain. Old stopped U and
-foreign unfinished main inputs stay preserved, excluded from implementation.
+T17's actual Linux release archive passes23 distinct installed criteria, including
+checksum identity, clean PATH, no old dev tree/private test facade, manual login,
+grants/D1, isolated examples/rerun, repair, safe HTTP refusal and retained
+stop/restart, protected preview, R2/DO and queue. The current macOS checksum installation and six-step installed manual workflow
+also pass. Full private qualification passes41 construct proofs and the real
+Chromium workflow; the final public invocation follows compiler integration.
+The combined complexity gate has zero failures, and the CLI suite passes32/32.
+Final component refreshes, safe main integration and integrated measurement remain
+in progress. Preserve
+accepted previous tuples below, stopped U stash and foreign unfinished main edits.
+No push or public publication is authorized by this qualification work.
+
+Main sync68919a8b7 incorporates all released inputs through69d45c33c while retaining
+checkpoint058a11b46; its temporary inventory-root test failure is repaired. Main's
+later00b46b744 contributor-policy update is read and applies to this work.
+Released compiler delivery-read change465bb1ba5 is the next integration input. Continue
+within canonical T14/T16/T17; T18–T30 retain their separate scope. The acknowledged
+Miniflare internal-restart notification limitation remains unchanged.
 
 **Integrated release acceptance and final measurement, 2026-10-18:** native
 manual development is integrated in local main at `cdf26e070`. The accepted

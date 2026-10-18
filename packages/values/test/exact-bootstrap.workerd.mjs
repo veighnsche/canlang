@@ -1,5 +1,5 @@
 // Finite A07 foundation proof over actual emitted values hosts and the
-// owning Cloudflare local-run producer. Supply private staged emit paths;
+// native raw Worker policy and Miniflare SDK. Supply private staged emit paths;
 // this never writes shared dist/target or changes backend defaults.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -90,7 +90,7 @@ if (hostCase !== undefined) {
     }));
   }
   if (!process.argv.includes("--host-only")) {
-    const localRun = resolve(process.env.CAN_LOCAL_RUN ?? "packages/cloudflare/dist/dev/local-run.js");
+    const localRun = resolve(process.env.CAN_LOCAL_RUN ?? "packages/cloudflare/dist/runtime/native-preview.test-support.js");
     const { startLocalDev } = await import(pathToFileURL(localRun).href);
     const modules = {};
     const collect = (relative) => {

@@ -659,13 +659,13 @@ fn first_profile_compiler_cards_have_checked_source_and_emitted_owners() {
         .parent()
         .unwrap();
     let consumer =
-        std::fs::read_to_string(root.join("packages/cloudflare/src/dev/construct-help.ts"))
+        std::fs::read_to_string(root.join("dev-server/src/construct.rs"))
             .unwrap();
     let inventory = consumer
-        .split("const FIRST_PROFILE_IDS = new Set([")
+        .split("const INCLUDED: &[&str] = &[")
         .nth(1)
         .unwrap()
-        .split("]);\n")
+        .split("];\n")
         .next()
         .unwrap();
     let ids: BTreeSet<_> = inventory

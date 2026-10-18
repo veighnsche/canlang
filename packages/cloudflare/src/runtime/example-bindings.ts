@@ -16,13 +16,13 @@ import { bindNativeRecord } from "./native-records.js";
 import type { CanonicalEffectsScope, CanonicalReadQuery } from "./context.js";
 import { buildInvoker, createTeamOwnerStorageBoundary, type TeamOwnerStorageBoundary } from "../worker/assembly.js";
 import type { D1Database } from "@cloudflare/workers-types";
-import { BUSINESS_ERROR_CODES } from "@canlang/contracts";
 /** Structural port to the real @canlang/testkit exports; no runtime edge. */
 export interface ExampleTestkitPort {
   readonly loadExampleSuite: Function;
   readonly runTable: Function;
   readonly createReport: Function;
   readonly fixtureValuesOf: Function;
+  readonly snapshotLocalDatabases: (host: ExampleDatabaseHost, bindings: readonly string[]) => Promise<ReportValue>;
 }
 
 export class MissingExampleTestkitError extends Error {
@@ -54,6 +54,7 @@ export async function loadInstalledExampleTestkit(applicationRoot: string): Prom
   requirement(kit.runTable, "testkit table runner");
   requirement(kit.createReport, "testkit report builder");
   requirement(kit.fixtureValuesOf, "testkit fixture lookup");
+  requirement(kit.snapshotLocalDatabases, "testkit D1 snapshotter");
   return kit;
 }
 
@@ -230,83 +231,6 @@ function checkedFixtureValues(value: unknown, scope: string): ReadonlyMap<string
   return value;
 }
 
-function toReportValue(value: unknown): ReportValue {
-  if (value === null || typeof value === "string" || typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "number") {
-    return value;
-  }
-  if (value instanceof Uint8Array) {
-    // Internal snapshot encoding only (change detection); never a wire format.
-    return { $bytes: Buffer.from(value).toString("hex") };
-  }
-  if (Array.isArray(value)) {
-    return value.map(toReportValue);
-  }
-  if (typeof value === "object") {
-    const record: Record<string, ReportValue> = {};
-    for (const [key, entry] of Object.entries(value)) {
-      record[key] = toReportValue(entry);
-    }
-    return record;
-  }
-  throw new Error(`snapshot cannot encode value of type ${typeof value}`);
-}
-
-function isStateErrorCode(value: unknown): value is import("@canlang/contracts").StateErrorCode {
-  return typeof value === "string" && (BUSINESS_ERROR_CODES as readonly string[]).includes(value);
-}
-
-async function snapshotD1(dev: ExampleDatabaseHost, binding: string): Promise<ReportValue> {
-  const db = await dev.getD1Database(binding);
-  const tables = await db
-    .prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-    )
-    .all<{ name: string }>();
-  const snapshot: Record<string, ReportValue> = {};
-  for (const table of tables.results) {
-    // D1's _cf_ metadata is protected from SQL reads. A canonical denial
-    // may advance the engine fence; that is admission bookkeeping.
-    if (table.name.startsWith("_cf_") || table.name === "fence" ||
-        table.name === "fence_log") continue;
-    const quoted = `"${table.name.replace(/"/g, '""')}"`;
-    // WITHOUT ROWID tables fail ORDER BY rowid loudly; no silent fallback.
-    const rows = await db.prepare(`SELECT * FROM ${quoted} ORDER BY rowid`).all();
-    if (table.name === "receipts") {
-      // Only a canonical rejection receipt is bookkeeping. A committed
-      // receipt is durable evidence of business work and must fail the
-      // no-effects comparison even if no model row happened to change.
-      snapshot[table.name] = toReportValue(rows.results.filter((row) => {
-        const outcome = (row as Record<string, unknown>)["outcome"];
-        if (typeof outcome !== "string") throw new Error("snapshot: receipt outcome is unavailable");
-        let parsed: unknown;
-        try { parsed = JSON.parse(outcome); }
-        catch { throw new Error("snapshot: receipt outcome is invalid JSON"); }
-        if (typeof parsed !== "object" || parsed === null ||
-            !Object.hasOwn(parsed, "status") ||
-            ((parsed as { status: unknown }).status !== "committed" &&
-             (parsed as { status: unknown }).status !== "rejected")) {
-          throw new Error("snapshot: receipt outcome has an unknown status");
-        }
-        if ((parsed as { status: string }).status === "rejected") {
-          const rejection = parsed as Record<string, unknown>;
-          if (Object.keys(rejection).length !== 3 || !isStateErrorCode(rejection["code"]) ||
-              typeof rejection["message"] !== "string") {
-            throw new Error("snapshot: rejection receipt is not canonical");
-          }
-          return false;
-        }
-        return true;
-      }));
-    } else {
-      snapshot[table.name] = toReportValue(rows.results);
-    }
-  }
-  return snapshot;
-}
-
 function evaluate<T>(run: () => Promise<T>): Promise<T> { return run(); }
 interface ExampleOwnerProfile {
   readonly artifact: CompileArtifact;
@@ -315,7 +239,7 @@ interface ExampleOwnerProfile {
 }
 
 async function bindRowScope(input: ExampleBindingInput, dev: ExampleDatabaseHost, resources: ExampleDatabases,
-  ownerProfile?: ExampleOwnerProfile): Promise<ExampleRowScope> {
+  snapshot: ExampleTestkitPort["snapshotLocalDatabases"], ownerProfile?: ExampleOwnerProfile): Promise<ExampleRowScope> {
   const { d1Id, currentStateId, otherStateId, d1Binding } = resources;
   const currentBinding = "CAN_EXAMPLE_STATE_CURRENT", otherBinding = "CAN_EXAMPLE_STATE_OTHER";
   const databases = ownerProfile === undefined ? [d1Binding] : [d1Binding, currentBinding, otherBinding];
@@ -323,12 +247,7 @@ async function bindRowScope(input: ExampleBindingInput, dev: ExampleDatabaseHost
     dev,
     // The Rust owner disposes the resource after the canonical row runner joins.
     dispose: async () => {},
-    snapshot: async () => {
-      if (databases.length === 1) return snapshotD1(dev, d1Binding);
-      const result: Record<string, ReportValue> = {};
-      for (const binding of databases) result[binding] = await snapshotD1(dev, binding);
-      return result;
-    },
+    snapshot: () => snapshot(dev, databases),
   };
   try {
     const db = await base.dev.getD1Database(d1Binding);
@@ -429,45 +348,7 @@ async function bindRowScope(input: ExampleBindingInput, dev: ExampleDatabaseHost
           throw new Error("example runner: row actors are unavailable");
         }
         if (by === "public") return resolveIdentity(identities, { team_id: currentTeamId });
-        let account: string | null = null;
-        if (by === "self" || (input.bindings !== undefined && by === input.bindings.self)) account = accountsOfRow.self;
-        else if (by === "other" || (input.bindings !== undefined && by === input.bindings.other)) account = accountsOfRow.other;
-        else if (by === "outsider" || (input.bindings !== undefined && by === input.bindings.outsider && by !== undefined)) account = accountsOfRow.outsider;
-        else if (typeof by === "string" && Object.hasOwn(accountsOfRow.users, by)) {
-          account = accountsOfRow.users[by]!.account;
-        } else if (typeof by === "string" && (by === "members" || rowCaller.roles.includes(by))) {
-          account = rowCaller.account === "public" ? null : rowCaller.account;
-        } else if (Array.isArray(by)) {
-          // The Testkit has already resolved and provisioned this row caller.
-          // Match its static role selection; this path never installs grants.
-          const length = Object.getOwnPropertyDescriptor(by, "length");
-          const roles: string[] = [];
-          let valid = length !== undefined && "value" in length &&
-            Reflect.ownKeys(by).length === length.value + 1;
-          if (valid) for (let index = 0; index < length!.value; index++) {
-            const entry = Object.getOwnPropertyDescriptor(by, String(index));
-            if (entry === undefined || !("value" in entry) || !entry.enumerable ||
-                typeof entry.value !== "string" || entry.value.length === 0 ||
-                ["self", "other", "outsider", "public"].includes(entry.value)) {
-              valid = false;
-              break;
-            }
-            roles.push(entry.value);
-          }
-          const expected = roles.length === 0 ? ["members"] : roles;
-          if (valid && rowCaller.account === accountsOfRow.self && rowCaller.authenticated &&
-              rowCaller.team === "current" && expected.length === rowCaller.roles.length &&
-              expected.every((role, index) => role === rowCaller.roles[index])) account = accountsOfRow.self;
-        } else if (isUserRef(by) && actorAccounts.has(by.id)) {
-          account = actorAccounts.get(by.id)!;
-        } else if (typeof by === "object" && by !== null) {
-          for (const [name, value] of fixtures) {
-            if (value === by && accountsOfRow.users[name] !== undefined) {
-              account = accountsOfRow.users[name]!.account;
-              break;
-            }
-          }
-        }
+        const account = rowActorAccount(by, rowCaller, fixtures, accountsOfRow, input, actorAccounts);
         if (account === null) throw new Error("example runner: call names no provisioned actor");
         const token = tokens.get(account);
         if (token === undefined) throw new Error("example runner: call actor has no verified session");
@@ -480,6 +361,57 @@ async function bindRowScope(input: ExampleBindingInput, dev: ExampleDatabaseHost
   } catch (error) {
     throw error;
   }
+}
+
+function rowAliasAccount(by: unknown, accounts: RowAccounts, input: ExampleBindingInput): string | null {
+  if (by === "self" || (input.bindings !== undefined && by === input.bindings.self)) return accounts.self;
+  if (by === "other" || (input.bindings !== undefined && by === input.bindings.other)) return accounts.other;
+  if (by === "outsider" || (input.bindings !== undefined && by === input.bindings.outsider && by !== undefined)) return accounts.outsider;
+  return null;
+}
+
+function rowActorAccount(by: unknown, rowCaller: ResolvedCaller, fixtures: ReadonlyMap<string, unknown>,
+  accounts: RowAccounts, input: ExampleBindingInput, actorAccounts: ReadonlyMap<string, string>): string | null {
+  const alias = rowAliasAccount(by, accounts, input);
+  if (alias !== null) return alias;
+  if (typeof by === "string" && Object.hasOwn(accounts.users, by)) return accounts.users[by]!.account;
+  if (typeof by === "string" && (by === "members" || rowCaller.roles.includes(by))) {
+    return rowCaller.account === "public" ? null : rowCaller.account;
+  }
+  if (Array.isArray(by)) return selectedRoleAccount(by, rowCaller, accounts);
+  if (isUserRef(by) && actorAccounts.has(by.id)) return actorAccounts.get(by.id)!;
+  if (typeof by === "object" && by !== null) {
+    for (const [name, value] of fixtures) {
+      if (value === by && accounts.users[name] !== undefined) return accounts.users[name]!.account;
+    }
+  }
+  return null;
+}
+
+function selectedRoleAccount(by: unknown[], rowCaller: ResolvedCaller, accounts: RowAccounts): string | null {
+  // The Testkit has already resolved and provisioned this row caller.
+  // Match its static role selection; this path never installs grants.
+  const roles = staticCallerRoles(by);
+  if (roles === undefined) return null;
+  const expected = roles.length === 0 ? ["members"] : roles;
+  return rowCaller.account === accounts.self && rowCaller.authenticated &&
+    rowCaller.team === "current" && expected.length === rowCaller.roles.length &&
+    expected.every((role, index) => role === rowCaller.roles[index]) ? accounts.self : null;
+}
+
+function staticCallerRoles(by: unknown[]): string[] | undefined {
+  const length = Object.getOwnPropertyDescriptor(by, "length");
+  const roles: string[] = [];
+  const valid = length !== undefined && "value" in length && Reflect.ownKeys(by).length === length.value + 1;
+  if (!valid) return undefined;
+  for (let index = 0; index < length.value; index++) {
+    const entry = Object.getOwnPropertyDescriptor(by, String(index));
+    if (entry === undefined || !("value" in entry) || !entry.enumerable ||
+        typeof entry.value !== "string" || entry.value.length === 0 ||
+        ["self", "other", "outsider", "public"].includes(entry.value)) return undefined;
+    roles.push(entry.value);
+  }
+  return roles;
 }
 
 interface StoredFixtureBinding {
@@ -742,15 +674,32 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
         for (const part of parts) value = Array.isArray(value) ? value[Number(part)] : isRecord(value) ? value[part] : undefined;
         return value;
       };
-      let effective: unknown = baselineInputs;
-      const overrides = new Map<string, Record<string, unknown>>();
-      for (const [index, selector] of selectors.entries()) {
-        const channel = selectorChannels?.[index] ?? (selector === "as" ? "caller" : selector.startsWith("request.") ? "request" : "input");
-        if (channel !== "input") continue;
-        const parts = selector.split("."), root = parts[0]!;
-        const input = operation.inputs.fields.find(input => input.name === root);
+      type StoredCell = { name: string; field: string; path: readonly string[] };
+      const modelCell = (model: typeof models[number], value: unknown, part: string, path: readonly string[]): { stored: StoredCell; type: string } => {
+        const binding = bindingFor(value, model.name, objectBindings, rowBindings);
+        const fixtureName = binding === undefined ? undefined : [...rowBindings].find(([, current]) => current.model === binding.model && current.id === binding.id)?.[0];
+        if (fixtureName === undefined) throw new Error("example runner: row cell has no genuine declared fixture reference");
+        const field = model.fields.find(field => field.name === part);
+        if (field === undefined) throw new Error(`example runner: fixture cell cannot initialize unknown or reserved field ${part}`);
+        if (field.default?.kind === "derived") throw new Error(`example runner: fixture cell cannot initialize derived field ${part}`);
+        return { stored: { name: fixtureName, field: part, path }, type: fixtureFieldType(field) };
+      };
+      const nestedCellType = (parsed: ReturnType<typeof parseTypeId>, contract: NonNullable<NormalizedSchema["contracts"][string]> | undefined,
+        value: unknown, part: string, stored: StoredCell | undefined, selector: string): string | undefined => {
+        if (contract !== undefined) {
+          const type = contract.fields[part]?.typeId;
+          if (type === undefined && stored !== undefined) throw new Error(`example runner: unknown stored Contract cell ${part}`);
+          return type;
+        }
+        if (parsed.base.kind === "union" && part === "value" && isRecord(value) &&
+            typeof value["type"] === "string" && parsed.base.arms.includes(value["type"])) return value["type"];
+        if (stored !== undefined) throw new Error(`example runner: fixture cell ${selector} has no declared nested field`);
+        return undefined;
+      };
+      const storedCell = (selector: string, parts: readonly string[], effective: unknown): StoredCell | undefined => {
+        const root = parts[0]!, input = operation.inputs.fields.find(input => input.name === root);
         let type = input === undefined || parts.length === 1 ? undefined : fixtureFieldType(input), value = isRecord(effective) ? effective[root] : undefined;
-        let stored: { name: string; field: string; path: readonly string[] } | undefined;
+        let stored: StoredCell | undefined;
         for (let offset = 1; type !== undefined && offset < parts.length; offset++) {
           const parsed = resolved(type), part = parts[offset]!;
           if (parsed.array) {
@@ -761,58 +710,77 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
           const name = parsed.base.kind === "nominal" ? parsed.base.path : undefined;
           const model = models.find(model => model.name === name), contract = name === undefined ? undefined : schema?.contracts[name];
           if (model !== undefined) {
-            const binding = bindingFor(value, model.name, objectBindings, rowBindings);
-            const fixtureName = binding === undefined ? undefined : [...rowBindings].find(([, current]) => current.model === binding.model && current.id === binding.id)?.[0];
-            if (fixtureName === undefined) throw new Error("example runner: row cell has no genuine declared fixture reference");
-            const field = model.fields.find(field => field.name === part);
-            if (field === undefined) throw new Error(`example runner: fixture cell cannot initialize unknown or reserved field ${part}`);
-            if (field.default?.kind === "derived") throw new Error(`example runner: fixture cell cannot initialize derived field ${part}`);
-            stored = { name: fixtureName, field: part, path: parts.slice(0, offset + 1) };
-            type = fixtureFieldType(field);
-          } else if (contract !== undefined) {
-            type = contract.fields[part]?.typeId;
-            if (type === undefined && stored !== undefined) throw new Error(`example runner: unknown stored Contract cell ${part}`);
-          } else if (parsed.base.kind === "union" && part === "value" && isRecord(value) &&
-              typeof value["type"] === "string" && parsed.base.arms.includes(value["type"])) {
-            type = value["type"];
-          } else {
-            if (stored !== undefined) throw new Error(`example runner: fixture cell ${selector} has no declared nested field`);
-            type = undefined;
-          }
+            const next = modelCell(model, value, part, parts.slice(0, offset + 1));
+            stored = next.stored; type = next.type;
+          } else type = nestedCellType(parsed, contract, value, part, stored, selector);
           value = isRecord(value) ? value[part] : undefined;
         }
-        effective = setCell(effective, parts, cells[index]);
-        if (stored !== undefined) {
-          const fields = overrides.get(stored.name) ?? {};
-          fields[stored.field] = atPath(effective, stored.path); overrides.set(stored.name, fields);
+        return stored;
+      };
+      let effective: unknown = baselineInputs;
+      const collectOverrides = (): Map<string, Record<string, unknown>> => {
+        const overrides = new Map<string, Record<string, unknown>>();
+        for (const [index, selector] of selectors.entries()) {
+          const channel = selectorChannels?.[index] ?? (selector === "as" ? "caller" : selector.startsWith("request.") ? "request" : "input");
+          if (channel !== "input") continue;
+          const parts = selector.split(".");
+          const stored = storedCell(selector, parts, effective);
+          effective = setCell(effective, parts, cells[index]);
+          if (stored !== undefined) {
+            const fields = overrides.get(stored.name) ?? {};
+            fields[stored.field] = atPath(effective, stored.path); overrides.set(stored.name, fields);
+          }
         }
-      }
+        return overrides;
+      };
+      const overrides = collectOverrides();
       if (overrides.size === 0) return { fixtures, inputs };
       if (invoked.has(scope)) throw new Error("example runner: fixture state is sealed after invocation");
-      const updatedFixtures = new Map(fixtures), snapshots = [];
+      const updatedFixtures = new Map(fixtures);
+      const snapshots: Parameters<typeof materializeCanonicalExampleSnapshots>[0]["snapshots"][number][] = [];
       const resolveFixture = resolverFor(objectBindings, rowBindings);
-      for (const [name, fields] of overrides) {
-        const binding = rowBindings.get(name)!, model = models.find(model => model.name === binding.model)!;
-        const before = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
-        if (before === null) throw new Error(`example runner: fixture ${name} disappeared before row cells`);
-        const data = { ...before.data };
-        for (const [name, value] of Object.entries(fields)) data[name] = fieldWire(model.fields.find(field => field.name === name)!, value, schema, resolveFixture);
-        snapshots.push({ model: binding.model as ModelName, id: before.id, data,
-          ...(before.parent === null || before.parent === undefined ? {} : { parent: before.parent }) });
-      }
+      const prepareSnapshots = async (): Promise<void> => {
+        for (const [name, fields] of overrides) {
+          const binding = rowBindings.get(name)!, model = models.find(model => model.name === binding.model)!;
+          const before = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
+          if (before === null) throw new Error(`example runner: fixture ${name} disappeared before row cells`);
+          const data = { ...before.data };
+          for (const [name, value] of Object.entries(fields)) data[name] = fieldWire(model.fields.find(field => field.name === name)!, value, schema, resolveFixture);
+          snapshots.push({ model: binding.model as ModelName, id: before.id, data,
+            ...(before.parent === null || before.parent === undefined ? {} : { parent: before.parent }) });
+        }
+      };
+      await prepareSnapshots();
       const identity = await scope.identityFor("self", { account: "self", team: "current", roles: [], authenticated: true }, fixtures);
       const saved = await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity,
         now: scope.nowMs, operationId: freshOperationId(), snapshots });
       // Publish only after the complete override batch passes its owning session.
-      for (const name of overrides.keys()) {
-        const binding = rowBindings.get(name)!, row = saved.get(`${binding.model}\0${binding.id}`);
-        if (row === undefined) throw new Error(`example runner: fixture ${name} row cells were not stored`);
-        const view = fixtureView(artifact, binding.model, row, schema), current = { ...binding, version: row.version as number };
-        updatedFixtures.set(name, view); rowBindings.set(name, current); objectBindings.set(view, current);
-      }
+      const publishOverrides = (): void => {
+        for (const name of overrides.keys()) {
+          const binding = rowBindings.get(name)!, row = saved.get(`${binding.model}\0${binding.id}`);
+          if (row === undefined) throw new Error(`example runner: fixture ${name} row cells were not stored`);
+          const view = fixtureView(artifact, binding.model, row, schema), current = { ...binding, version: row.version as number };
+          updatedFixtures.set(name, view); rowBindings.set(name, current); objectBindings.set(view, current);
+        }
+      };
+      publishOverrides();
       // A fixture may occur repeatedly through Contract fields/arrays. Refresh
       // every declared reference slot while retaining ordinary input overrides.
       const seen = new Set<object>(); let nodes = 0;
+      const refreshStructured = (parsed: ReturnType<typeof parseTypeId>, value: object,
+        contract: NonNullable<NormalizedSchema["contracts"][string]> | undefined, depth: number): unknown => {
+        if (parsed.array) {
+          if (!Array.isArray(value)) return value;
+          const element = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false });
+          return value.map(item => refresh(element, item, depth + 1));
+        }
+        if (contract !== undefined && isRecord(value)) return Object.fromEntries(Object.entries(value).map(([field, item]) =>
+          [field, contract.fields[field] === undefined ? item : refresh(contract.fields[field]!.typeId, item, depth + 1)]));
+        if (parsed.base.kind === "union" && isRecord(value) && typeof value["type"] === "string" && parsed.base.arms.includes(value["type"])) {
+          return { ...value, value: refresh(value["type"], value["value"], depth + 1) };
+        }
+        return value;
+      };
       const refresh = (type: string, value: unknown, depth = 0): unknown => {
         if (++nodes > 16384 || depth > 64) throw new Error("example runner: fixture input traversal bound exceeded");
         const parsed = resolved(type);
@@ -828,17 +796,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
         if (seen.has(value)) throw new Error("example runner: cyclic example input");
         seen.add(value);
         try {
-          if (parsed.array) {
-            if (!Array.isArray(value)) return value;
-            const element = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false });
-            return value.map(item => refresh(element, item, depth + 1));
-          }
-          if (contract !== undefined && isRecord(value)) return Object.fromEntries(Object.entries(value).map(([field, item]) =>
-            [field, contract.fields[field] === undefined ? item : refresh(contract.fields[field]!.typeId, item, depth + 1)]));
-          if (parsed.base.kind === "union" && isRecord(value) && typeof value["type"] === "string" && parsed.base.arms.includes(value["type"])) {
-            return { ...value, value: refresh(value["type"], value["value"], depth + 1) };
-          }
-          return value;
+          return refreshStructured(parsed, value, contract, depth);
         } finally { seen.delete(value); }
       };
       const updatedInputs = { ...effective as Record<string, unknown> };
@@ -1129,7 +1087,7 @@ export async function loadExampleBindings(input: ExampleBindingInput, moduleInde
       };
 
       return runTable({ operation: test.scope, userFixtures: suite.userFixtures,
-        rows: [boundRow], createScope: async () => bindRowScope(input, dev, databases, ownerProfile) });
+        rows: [boundRow], createScope: async () => bindRowScope(input, dev, databases, testkit.snapshotLocalDatabases, ownerProfile) });
     },
   };
 }

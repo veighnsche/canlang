@@ -1,132 +1,69 @@
-/**
- * B2 DO-local behavior spec (L7 directory; this ONE file is the B2
- * DO-local case body per the join contract in
- * `tests/integration/README.md`).
- *
- * Separate from `b2-d1-fence.test.ts` by B2 definition (PLAN.md:111:
- * "Test D1 rollback/fence conflict and DO-local behavior separately").
- * The L3 DO storage port (`createDOStorage`) is constructible only
- * inside a Durable Object worker — it takes a live
- * `DurableObjectStorage` — and the owned local seam (`startLocalDev`,
- * `packages/cloudflare/src/dev/local-run.ts`) exposes no durable
- * object namespace. No mock storage is substituted: behavior rows
- * report `unsupported` with the exact missing seam, and one real row
- * pins the producer module surface present.
- *
- * Producer loading follows the lane02 join precedent exactly: the L3
- * source loads through a NON-LITERAL dynamic specifier, so this file
- * typechecks with the producer absent and fails loud (every row
- * `unsupported` with the exact absent detail below) when the load
- * fails at runtime.
- */
-import { describe, expect, it } from "vitest";
-import { createReport } from "@canlang/testkit";
-import type { ResolvedCaller, TableCaseResult, TableRowResult } from "@canlang/contracts";
+/** Real B2 DO SQLite fence, atomicity and history, with the same D1 fence vector. */
+import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { expect, it } from "vitest";
+import type { CommitBatch, HistoryEntry, ModelName, RecordId, StoredRow } from "@canlang/contracts";
+import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
+import { b2BlankBatch, b2HistoryEntry, b2Revision, b2StoredRow } from "@canlang/testkit/fixtures/b2-storage";
+import { startLocalDev } from "../fixtures/raw-worker.js";
 
-/** Exact absent-producer detail every producer-dependent row carries. */
-const ABSENT_SENTENCE =
-  "L3 DO producer absent; run root `bun run test` from a checkout with packages/state/src/storage/durable-object.ts";
-const ABSENT_DETAIL = `local | ${ABSENT_SENTENCE}`;
-
-const LOCAL_CALLER: ResolvedCaller = {
-  account: "local-b2-do",
-  team: null,
-  roles: [],
-  authenticated: false,
-};
-
-/** The exact missing seam every blocked row names. */
-const SEAM =
-  "startLocalDev exposes no durable object namespace (packages/cloudflare/src/dev/local-run.ts); " +
-  "L3 createDOStorage needs a live DurableObjectStorage, obtainable only inside a DO worker — " +
-  "cf. the producer-internal packages/state/test/storage/do.test.ts, which drives its own Miniflare DO";
-
-const DO_SPECIFIER = "@canlang/state/storage/durable-object";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+const model = "B2.Document" as ModelName, at = 1_758_000_000_000;
+function insert(revision: number, id: string): CommitBatch {
+  return { ...b2BlankBatch(b2Revision(revision)),
+    writes: [{ kind: "insert", model, row: b2StoredRow({ id, version: 1, actor: "b2-do-owner", at, data: { total: "10.00" } }) }],
+    history: [b2HistoryEntry({ model, recordId: id, version: 1, operation: "B2.Document.create", operationId: `op-${id}`,
+      actor: "b2-do-owner", at, change: "create", before: null, after: { total: "10.00" } })] };
 }
 
-async function loadProducer(): Promise<{ createDOStorage: unknown; ensureSchema: unknown } | null> {
-  let mod: unknown;
+it("runs real DO fence/rollback/history through direct raw Worker allocation and agrees with D1", async () => {
+  const require = createRequire(import.meta.url);
+  // State publishes the self-contained actual adapter test worker; no mock storage or copied SQL.
+  const worker = await readFile(require.resolve("@canlang/state/testing/storage/do-test-worker"), "utf8");
+  const dev = await startLocalDev({ workerName: "b2-do-native", compatibilityDate: "2026-07-15",
+    mainModule: "state-do.js", modules: { "state-do.js": worker },
+    durableObjects: [{ binding: "TEST_DO", className: "TestDO", useSQLite: true }],
+    d1Databases: [{ binding: "DB", id: "b2-d1-parity" }] });
   try {
-    mod = await import(DO_SPECIFIER);
-  } catch {
-    return null;
-  }
-  if (!isRecord(mod)) {
-    throw new Error("state DO module loaded but exported no namespace object");
-  }
-  // Direct-module names (the storage barrel aliases ensureSchema to
-  // ensureDOSchema; the join probes the module it will drive).
-  return { createDOStorage: mod["createDOStorage"], ensureSchema: mod["ensureSchema"] };
-}
-
-function unsupportedRow(rowIndex: number, detail: string): TableRowResult {
-  return { rowIndex, caller: LOCAL_CALLER, outcome: "unsupported", detail };
-}
-
-function blockedRows(): TableRowResult[] {
-  return [
-    unsupportedRow(0, `local | BLOCKED (L7 local-run DO seam): DO fence conflict over real DurableObjectStorage — ${SEAM}`),
-    unsupportedRow(1, `local | BLOCKED (L7 local-run DO seam): DO rollback atomicity over real DurableObjectStorage — ${SEAM}`),
-    unsupportedRow(2, `local | BLOCKED (L7 local-run DO seam): DO-local history evidence over real DurableObjectStorage — ${SEAM}`),
-    unsupportedRow(
-      3,
-      "local | BLOCKED (L7 local-run DO seam): DO-local vs D1 fence parity at the join — L3 conformance.ts is producer-internal (node:test), not join evidence",
-    ),
-  ];
-}
-
-describe("b2 DO-local behavior", () => {
-  it("pins the DO producer surface over the real producer", async () => {
-    const producer = await loadProducer();
-    const builder = createReport({ digest: "b2-do-local", sourceRevision: "b2-do-local" });
-
-    if (producer === null) {
-      // Strict: producers live in-repo, so absence is a broken checkout,
-      // not a skippable state. The gate must never green on unsupported rows.
-      throw new Error("b2-do-local: producer modules failed to load (partial checkout?)");
+    const namespace = await dev.getDurableObjectNamespace("TEST_DO");
+    expect(namespace.get(namespace.idFromName("test"))).toBeDefined();
+    async function post(path: string, input: unknown): Promise<any> {
+      const response = await dev.dispatch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+      expect(response.status).toBe(200); return response.json();
     }
-
-    // Real surface row: the producer module loads with the exact factory
-    // surface the join will drive once the local-run DO seam lands.
-    // Anything else (renamed exports, stale source) fails loud here.
-    const surfaceRows: TableRowResult[] =
-      typeof producer.createDOStorage === "function" && typeof producer.ensureSchema === "function"
-        ? [
-            {
-              rowIndex: 0,
-              caller: LOCAL_CALLER,
-              outcome: "passed",
-              detail: "local | surface: durable-object.ts exports createDOStorage + ensureSchema; behavior blocked on the seam below",
-            },
-          ]
-        : [
-            {
-              rowIndex: 0,
-              caller: LOCAL_CALLER,
-              outcome: "failed",
-              detail: `local | surface: durable-object.ts lacks the factory surface (createDOStorage: ${typeof producer.createDOStorage}, ensureSchema: ${typeof producer.ensureSchema})`,
-            },
-          ];
-    const surfaceCase: TableCaseResult = { kind: "table", operation: "b2.do.surface", rows: surfaceRows };
-    const blockedCase: TableCaseResult = { kind: "table", operation: "b2.do.blocked", rows: blockedRows() };
-    builder.addCase(surfaceCase);
-    builder.addCase(blockedCase);
-
-    const report = builder.build();
-    expect(report.summary.passed).toBe(1);
-    expect(report.summary.failed).toBe(0);
-    expect(report.summary.setupFailed).toBe(0);
-    expect(report.summary.unsupported).toBe(4);
-    for (const table of report.cases) {
-      if (table.kind !== "table") {
-        continue;
-      }
-      for (const row of table.rows) {
-        expect(row.detail).toContain("local");
-      }
+    async function call<T>(method: string, ...args: unknown[]): Promise<T> {
+      const reply = await post("/call", { method, args });
+      if (!reply.ok) throw Object.assign(new Error(reply.error.message), reply.error);
+      return reply.value as T;
     }
-  }, 30000);
-});
+    expect((await post("/reset", {})).ok).toBe(true);
+    const first = insert(0, "first");
+    expect(await call("commit", first)).toMatchObject({ revision: 1 });
+    const fence = await post("/call", { method: "commit", args: [insert(0, "stale")] });
+    expect(fence).toMatchObject({ ok: false, error: { name: "FenceConflictError", expected: 0, actual: 1 } });
+    expect(await call("readRevision")).toBe(1);
+    expect(await call("load", model, "stale")).toBeNull();
+    const history = await call<HistoryEntry[]>("historyFor", model, "first");
+    expect(history).toEqual(first.history);
+    (history[0]!.after as Record<string, unknown>).total = "MUTATED";
+    expect(await call("historyFor", model, "first")).toEqual(first.history);
+
+    // A violation after a staged insert must roll back row, history and fence together.
+    const rollbackBase = insert(1, "duplicate");
+    const rollback = { ...rollbackBase, writes: [...rollbackBase.writes, ...rollbackBase.writes] };
+    const failed = await post("/call", { method: "commit", args: [rollback] });
+    expect(failed).toMatchObject({ ok: false, error: { name: "StorageConstraintError" } });
+    expect(await call("readRevision")).toBe(1);
+    expect(await call<StoredRow | null>("load", model, "duplicate")).toBeNull();
+    expect(await call("historyFor", model, "duplicate")).toEqual([]);
+    expect(await call("historyFor", model, "first")).toEqual(first.history);
+
+    const db = await dev.getD1Database("DB");
+    await ensureSchema(db);
+    const d1 = createD1Storage(db);
+    expect(await d1.commit(first)).toMatchObject({ revision: 1 });
+    await expect(d1.commit(insert(0, "stale"))).rejects.toMatchObject({ name: "FenceConflictError", expected: 0, actual: 1 });
+    expect(await d1.readRevision()).toBe(await call("readRevision"));
+    expect(await d1.load(model, "stale" as RecordId)).toBeNull();
+    expect(await d1.historyFor(model, "first" as RecordId)).toEqual(await call("historyFor", model, "first"));
+  } finally { await dev.dispose(); }
+}, 60_000);

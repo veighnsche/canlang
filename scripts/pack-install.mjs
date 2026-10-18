@@ -49,16 +49,13 @@ function write(path, contents, group, mode = 0o644) {
   files.set(relative(stage, path), { group, bytes: Buffer.byteLength(contents) });
 }
 const excluded = new Set(['node_modules', '.git', '.bin', '__tests__', '__snapshots__', 'coverage', 'CHANGELOG.md']);
-const retiredDevEntries = new Set(['control-cli.js', 'control-client.js', 'session-core.js', 'session-service.js',
-  'session-socket.js', 'session-daemon.js', 'session-daemon-entry.js', 'terminal.js', 'terminal-presenter.js']);
 function productionFile(name, path) {
   if (excluded.has(name)) return false;
-  if (path.includes('/cloudflare/dist/dev/') && retiredDevEntries.has(name)) return false;
   if (/^README(?:\.md)?$/i.test(name) && !/license|copyright|notice/i.test(readFileSync(path, 'utf8'))) return false;
   // Postinstall duplicates the host optional-package executable; runtime resolves that owner directly.
   if (/[/]csv-parse[/]dist[/](?:umd|iife)$/.test(path)) return false;
   if (path.endsWith('/workerd/bin/workerd') || path.endsWith('/wrangler/wrangler-dist/metafile-cjs.json')) return false;
-  if (/\.(?:test|spec)\.[cm]?js$/.test(name) || name.endsWith('.tsbuildinfo')) return false;
+  if (/\.(?:test|spec|test-support)\.[cm]?js$/.test(name) || name.endsWith('.tsbuildinfo')) return false;
   // Values BUILD.json verifies the generated declaration bytes as well as WASM/glue.
   if (/\.(?:map|ts|tsx)$/.test(name) && !path.includes('/bindings/generated/') && !path.includes('/wrangler/templates/')) return false;
   return true;

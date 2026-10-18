@@ -41,16 +41,7 @@ impl Response {
         Ok(cookie.into())
     }
 }
-pub fn request(
-    backend: &Backend,
-    origin: &str,
-    path: &str,
-    method: &str,
-    headers: &[(&str, &str)],
-    body: Vec<u8>,
-    cancel: &AtomicBool,
-) -> Result<Response, String> {
-    check_cancel(cancel)?;
+fn checked_backend(backend: &Backend) -> Result<Url, String> {
     let target = Url::parse(&backend.origin).map_err(|e| e.to_string())?;
     if target.scheme() != "http"
         || target.host_str() != Some("127.0.0.1")
@@ -65,6 +56,19 @@ pub fn request(
     {
         return Err("invalid private preview backend".into());
     }
+    Ok(target)
+}
+pub fn request(
+    backend: &Backend,
+    origin: &str,
+    path: &str,
+    method: &str,
+    headers: &[(&str, &str)],
+    body: Vec<u8>,
+    cancel: &AtomicBool,
+) -> Result<Response, String> {
+    check_cancel(cancel)?;
+    let target = checked_backend(backend)?;
     let base = Url::parse(origin).map_err(|e| e.to_string())?;
     let url = base.join(path).map_err(|e| e.to_string())?;
     if url.origin() != base.origin() || !path.starts_with('/') {

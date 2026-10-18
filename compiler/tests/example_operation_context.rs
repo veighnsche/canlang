@@ -63,7 +63,7 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 const root=process.argv[2];
-const {loadInstalledExampleTestkit,runCompiledExamples}=await import(pathToFileURL(resolve(root,'packages/cloudflare/dist/dev/example-runner.js')));
+const {loadInstalledExampleTestkit,runCompiledExamples}=await import(pathToFileURL(resolve(root,'packages/cloudflare/dist/runtime/example-bindings.test-support.js')));
 const testkit=await loadInstalledExampleTestkit(root);
 const run=file=>runCompiledExamples({
  artifactBytes:readFileSync(new URL(file,import.meta.url)),artifactLabel:'operation.artifact.json',

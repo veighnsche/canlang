@@ -14,7 +14,7 @@
  * fail loud from the loader — never skipped, never stubbed.
  */
 import { test as base } from "@playwright/test";
-import { startLocalDev, type LocalDev } from "@canlang/cloudflare";
+import { startLocalDev, type LocalDev } from "../../fixtures/raw-worker.js";
 import type { StoragePort } from "@canlang/contracts";
 import { startBridge, type HttpBridge } from "../bridges/http-bridge.js";
 import {

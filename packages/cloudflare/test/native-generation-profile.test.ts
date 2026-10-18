@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { CompileArtifact, FrameworkOpaqueDeclaration } from '@canlang/contracts';
 import { loadArtifactDescriptors } from '@canlang/state/invocation/registry';
-import { nativeCapabilityResultDeclarations } from '../src/dev/file-retirement.js';
+import { nativeCapabilityResultDeclarations } from '../src/runtime/file-retirement.js';
 
 const artifact = JSON.parse(readFileSync(new URL('./fixtures/typed-generation-progress.json', import.meta.url), 'utf8')) as CompileArtifact;
 const loaded = loadArtifactDescriptors(artifact, { by: 'members' });

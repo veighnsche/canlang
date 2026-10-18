@@ -40,7 +40,7 @@ test('original Gallery retains ordered protected images across full/partial page
   const {distribution}=await nodeImport(packageUrl('@canlang/values/distribution')) as typeof import('@canlang/values/distribution');
   const {assembleModules,importVerifiedAssemblyModule}=await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
   const {assembleWorker,buildInvoker}=await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
-  const {createNativeFileRetirementBinding}=await nodeImport(installed('dev/file-retirement.js')) as typeof import('../src/dev/file-retirement.js');
+  const {createNativeFileRetirementBinding}=await nodeImport(installed('runtime/file-retirement.js')) as typeof import('../src/runtime/file-retirement.js');
   const {createBoundFileHandler,createCanonicalFileBinding,createBoundFileReadResolver}=await nodeImport(installed('runtime/bound-files.js')) as typeof import('../src/runtime/bound-files.js');
   const {createPageReadScopeCanonical}=await nodeImport(installed('runtime/invoke.js')) as typeof import('../src/runtime/invoke.js');
   const {handlePageRequest,resolveRequestIdentity,buildPageSourceContext}=await nodeImport(packageUrl('@canlang/interfaces')) as typeof import('@canlang/interfaces');

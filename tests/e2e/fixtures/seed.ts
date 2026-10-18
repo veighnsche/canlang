@@ -15,7 +15,7 @@
  * exports (via the worker) and existing D1 APIs. If a journey needs a NEW
  * L6 API, that gap goes back to L6 — it is never filled in here.
  */
-import type { LocalDev } from "@canlang/cloudflare";
+import type { LocalDev } from "../../fixtures/raw-worker.js";
 import { TEAMTASKS_D1_SCHEMA } from "./handbuilt/teamtasks.js";
 
 export interface SeedUserSpec {

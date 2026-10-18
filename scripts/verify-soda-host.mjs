@@ -19,6 +19,8 @@ await mkdir(join(state, 'tmp'), { recursive: true, mode: 0o700 });
 process.env.TMPDIR = join(state, 'tmp');
 process.env.PATH = `${join(toolRoot, 'bin')}:${process.env.PATH ?? ''}`;
 const tools = sodaToolPaths(toolRoot);
+process.env.CAN_DEV_BIN ??= join(toolRoot, 'bin/can-dev');
+process.env.CAN_DEV_RUNTIME_HOST ??= join(toolRoot, 'libexec/dev-server-host/entry.mjs');
 const { require } = tools;
 const load = specifier => import(pathToFileURL(require.resolve(specifier)).href);
 const { startSodaRuntime, provisionSodaStorage } = await load('@canlang/cloudflare/deploy/soda-run');
@@ -68,8 +70,8 @@ if (process.argv.includes('--serve')) {
   try {
   const { buildSodaBundle } = await load('@canlang/cloudflare/deploy/soda');
   const { CONTRACTS_VERSION } = await load('@canlang/contracts');
-  const { seedLocalPreviewActors } = await import(pathToFileURL(join(tools.cloudflare, 'dist/dev/preview-host.js')).href);
-  const { PINNED_COMPATIBILITY_DATE } = await import(pathToFileURL(join(tools.cloudflare, 'dist/dev/zero-config.js')).href);
+  const { seedLocalPreviewActors } = await import('../packages/cloudflare/dist/runtime/native-preview.test-support.js');
+  const { PINNED_COMPATIBILITY_DATE } = await import(pathToFileURL(join(tools.cloudflare, 'dist/cli/artifact-defaults.js')).href);
   const source = join(repo, 'scripts/fixtures/soda-runtime.can');
   const raw = execFileSync(tools.compiler, ['compile', '--format=json', '--native-scenario-receipts',
     '--catalog', join(tools.cloudflare, 'dist/native-catalog.json'), source],

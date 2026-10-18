@@ -47,8 +47,8 @@ test('native selected Contract Require checks its executed field without taintin
     const sourcePath = join(directory, 'intake.can'); await writeFile(sourcePath, SOURCE);
     const { assembleModules } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
     const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
-    const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-    const { captureSingleFileSource, captureIsCurrent } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+    const { installedLocalPreviewInputInventory } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const { captureSingleFileSource, captureIsCurrent } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
     const compilerPath = join(root, 'compiler/target/debug/can');
     const capture = await captureSingleFileSource({ checkoutRoot: root, appPath: sourcePath, compilerPath,
       profile: 'native-contract-guard', catalogPath: join(root, 'packages/values/dist/catalog.json'),

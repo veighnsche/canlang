@@ -89,31 +89,7 @@ impl Retained {
         );
         let path = directory.join("preview.json");
         let manifest = match read_private(&path) {
-            Ok(bytes) => {
-                let value: Manifest = serde_json::from_slice(&bytes)
-                    .map_err(|_| "preview metadata is invalid; retained state was preserved")?;
-                if value.version != 1
-                    || value.identity != identity
-                    || !database_id(&value.database_id, "can-preview-")
-                    || value.owner_database_ids.len() != 2
-                    || value.owner_database_ids[0] == value.owner_database_ids[1]
-                    || value
-                        .owner_database_ids
-                        .iter()
-                        .any(|v| !database_id(v, "can-preview-owner-"))
-                    || value.seed.as_ref().is_some_and(|v| {
-                        !v["actors"].is_array()
-                            || !v["owners"].is_array()
-                            || !v["probe"].is_object()
-                    })
-                {
-                    return Err("preview metadata is invalid; retained state was preserved".into());
-                }
-                if value.schema != schema {
-                    return Err("retained preview models changed; migrations are unsupported, use a separate preview state root or explicitly reset this source's development data".into());
-                }
-                value
-            }
+            Ok(bytes) => checked_manifest(&bytes, &identity, &schema)?,
             Err(error) if !path.try_exists().map_err(|e| e.to_string())? => {
                 let value = Manifest {
                     version: 1,
@@ -163,6 +139,29 @@ impl Retained {
         self.seed = Some(seed);
         Ok(())
     }
+}
+fn checked_manifest(bytes: &[u8], identity: &str, schema: &str) -> Result<Manifest> {
+    let value: Manifest = serde_json::from_slice(&bytes)
+        .map_err(|_| "preview metadata is invalid; retained state was preserved")?;
+    if value.version != 1
+        || value.identity != identity
+        || !database_id(&value.database_id, "can-preview-")
+        || value.owner_database_ids.len() != 2
+        || value.owner_database_ids[0] == value.owner_database_ids[1]
+        || value
+            .owner_database_ids
+            .iter()
+            .any(|v| !database_id(v, "can-preview-owner-"))
+        || value.seed.as_ref().is_some_and(|v| {
+            !v["actors"].is_array() || !v["owners"].is_array() || !v["probe"].is_object()
+        })
+    {
+        return Err("preview metadata is invalid; retained state was preserved".into());
+    }
+    if value.schema != schema {
+        return Err("retained preview models changed; migrations are unsupported, use a separate preview state root or explicitly reset this source's development data".into());
+    }
+    Ok(value)
 }
 fn database_id(value: &str, prefix: &str) -> bool {
     value.strip_prefix(prefix).is_some_and(|v| {
@@ -362,10 +361,30 @@ mod tests {
         .unwrap();
         let state_root = project.path().join("retained");
         let artifact = r#"{"models":[{"name":"Note","fields":[{"name":"title","type":"String"}],"scope":"app"}]}"#;
-        let first = Retained::open(&state_root, &capture, artifact, "global").unwrap();
+        let mut first = Retained::open(&state_root, &capture, artifact, "global").unwrap();
+        assert!(first.seed.is_none());
         let database_id = first.database_id.clone();
+        let owners = first.owner_database_ids.clone();
+        let seed = serde_json::json!({"actors":[{"label":"Ava","email":"ava@preview.can.test","password":"local-development-only","teams":["Cedar"]}],
+            "probe":{"email":"ava@preview.can.test","password":"local-development-only","teamId":"cedar"},
+            "owners":[{"owner":"cedar","binding":"STATE_CEDAR_DB"},{"owner":"oak","binding":"STATE_OAK_DB"}]});
+        first.save_seed(seed.clone()).unwrap();
         let second = Retained::open(&state_root, &capture, artifact, "global").unwrap();
         assert_eq!(second.database_id, database_id);
+        assert_eq!(second.owner_database_ids, owners);
+        assert_eq!(second.seed, Some(seed.clone()));
+        let mut other_capture = capture.clone();
+        other_capture.app_path = format!("{}/Other.can", capture.root);
+        let other = Retained::open(&state_root, &other_capture, artifact, "global").unwrap();
+        assert_ne!(other.persistence, first.persistence);
+        assert_ne!(other.database_id, database_id);
+        assert!(other.seed.is_none());
+        assert!(
+            Retained::open(&state_root, &capture, artifact, "team")
+                .err()
+                .unwrap()
+                .contains("models changed")
+        );
         assert!(
             Retained::open(
                 &state_root,
@@ -377,6 +396,48 @@ mod tests {
             .unwrap()
             .contains("models changed")
         );
+    }
+    #[test]
+    fn exposed_state_and_metadata_links_are_refused_without_overwrite() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+        let (project, request) = crate::capture::tests::fixture();
+        let capture = crate::capture::capture(
+            &request,
+            &crate::capture::tests::empty_inventory,
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+        .unwrap();
+        let root = project.path().join("retained");
+        fs::create_dir(&root).unwrap();
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(
+            Retained::open(&root, &capture, r#"{"models":[]}"#, "team")
+                .err()
+                .unwrap()
+                .contains("owner-only")
+        );
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
+        let state = Retained::open(&root, &capture, r#"{"models":[]}"#, "team").unwrap();
+        let before = fs::read(&state.path).unwrap();
+        fs::set_permissions(&state.path, fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(
+            Retained::open(&root, &capture, r#"{"models":[]}"#, "team")
+                .err()
+                .unwrap()
+                .contains("owner-only")
+        );
+        assert_eq!(fs::read(&state.path).unwrap(), before);
+        fs::remove_file(&state.path).unwrap();
+        let outside = root.join("outside.json");
+        symlink(&outside, &state.path).unwrap();
+        assert!(Retained::open(&root, &capture, r#"{"models":[]}"#, "team").is_err());
+        assert!(
+            fs::symlink_metadata(&state.path)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert!(!outside.exists());
     }
     #[test]
     fn node_manifest_key_order() {

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { discoverGeneratedClosure, snapshotGeneratedClosure } from "../dev/generated-capture.js";
+import { discoverGeneratedClosure, snapshotGeneratedClosure } from "../generation/native-capture.js";
 import { runAppAcceptance, type AppAcceptanceGate } from "../generation/acceptance.js";
 import { loadSettings, resolveRecipe } from "../generation/config.js";
 import { defaultCompilerCaller, dispatchControl, type ControlContext, type ControlResult } from "../generation/controls.js";

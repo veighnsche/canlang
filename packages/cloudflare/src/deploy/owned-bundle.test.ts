@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { CompileArtifact } from "@canlang/contracts";
 import { buildOwnedDeployBundleWithAssets } from "./owned-bundle.js";
-import { startLocalDev } from "../dev/local-run.js";
-import { bundlerExecutableInputs } from "../dev/preview-inputs.js";
+import { startLocalDev } from "../runtime/native-preview.test-support.js";
+import { bundlerExecutableInputs } from "../runtime/native-dev.test-support.js";
 import { PINNED_COMPATIBILITY_DATE } from "../cli/artifact-defaults.js";
 
 test("owned portable build returns a genuine browser bundle loadable by workerd", { timeout: 120_000 }, async () => {

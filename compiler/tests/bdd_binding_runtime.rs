@@ -364,7 +364,7 @@ import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 const root=process.argv[2];
 const {loadInstalledExampleTestkit,runCompiledExamples}=await import(
- pathToFileURL(resolve(root,'packages/cloudflare/dist/dev/example-runner.js')).href
+ pathToFileURL(resolve(root,'packages/cloudflare/dist/runtime/example-bindings.test-support.js')).href
 );
 const artifactBytes=readFileSync(new URL('./artifact.json',import.meta.url));
 const testkit=await loadInstalledExampleTestkit(root);

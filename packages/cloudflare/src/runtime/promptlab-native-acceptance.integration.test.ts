@@ -14,10 +14,10 @@ import { buildSessionCookie, resolveIdentity, setMemberRole, sha256HexText } fro
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { distribution } from '@canlang/values/distribution';
-import { compileCapturedSingleFile } from '../dev/compiler-check.js';
-import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
-import { resolvePreviewRoles } from '../dev/preview-roles.js';
-import { captureIsCurrent, captureSingleFileSource } from '../dev/source-capture.js';
+import { compileCapturedSingleFile } from './native-dev.test-support.js';
+import { prepareLocalPreviewCapture } from './native-dev.test-support.js';
+import { resolvePreviewRoles } from './native-preview.test-support.js';
+import { captureIsCurrent, captureSingleFileSource } from './native-dev.test-support.js';
 import { assembleWorker, buildInvoker } from '../worker/assembly.js';
 import { catalogFromArtifactOperations, createSourceFormBindings, handleOperationRequest } from '@canlang/interfaces/http/operations';
 import { handlePageRequest } from '@canlang/interfaces';
@@ -55,7 +55,7 @@ test('actual PromptLab enforces member note boundaries, rolls back computed keys
     const appModule = artifact.modules.find(module => module.js.includes('export const appDefinition='));
     assert.ok(appModule, 'owning compiled app definition');
     const loaded = await importVerifiedAssemblyModule(asm, appModule.path, artifact) as { appDefinition: unknown };
-    const roles = resolvePreviewRoles({ Ava: ['curator'] }, loaded.appDefinition).Ava;
+    const roles = (await resolvePreviewRoles({ Ava: ['curator'] }, loaded.appDefinition)).Ava;
     assert.equal(roles?.length, 1, 'only the source-declared curator assignment');
 
     const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });

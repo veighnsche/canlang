@@ -20,7 +20,7 @@ import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { loadCanonicalDescriptors, materializeCanonicalExampleSnapshots } from '@canlang/cloudflare/runtime/invoke';
 import { assembleWorker } from '@canlang/cloudflare/worker/assembly';
 import { buildDerivedInputsModule } from '../dist/deploy/bundle.js';
-import { discoverGeneratedClosure } from '../dist/dev/generated-capture.js';
+import { discoverGeneratedClosure } from '../dist/runtime/native-dev.test-support.js';
 import { preparePartnerShareSource } from './partner-share-source.ts';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));

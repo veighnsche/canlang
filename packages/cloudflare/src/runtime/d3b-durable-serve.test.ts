@@ -58,7 +58,7 @@ import {
 import { loadWorkReceiptFns } from "@canlang/work/receipt";
 import type { AssembledModules } from "../worker/assembly.js";
 import { buildDeployBundle } from "../deploy/bundle.js";
-import { startLocalDev } from "../dev/local-run.js";
+import { startLocalDev } from "./native-preview.test-support.js";
 import {
   RECEIPT_READ_OPERATION,
   invokeSelectedReceiptRead,
@@ -421,7 +421,7 @@ describe("Q4 path B: staged bundle fail-closed pre-B", () => {
       const html = await response.text();
       assert.match(html, /^<!DOCTYPE html>/);
       assert.match(html, /<title>Main — ReceiptBundleFixture<\/title>/);
-      assert.equal(html.match(/<main id="can-main">([\s\S]*?)<\/main>/)?.[1], "<h1>fixture-main</h1>");
+      assert.equal(html.match(/<main id="can-main">([\s\S]*?)<\/main>/)?.[1], '<header class="can-page-heading"><h1 class="text-3xl font-bold">Main</h1></header><h1>fixture-main</h1>');
     } finally {
       await dev.dispose();
     }

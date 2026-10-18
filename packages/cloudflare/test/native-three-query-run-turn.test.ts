@@ -18,7 +18,7 @@ import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, ModelName, MutationEnvelope, ProjectedRecord, ProviderBinding, ReceiptIdentity, StoredRow, ResolvedIdentity } from '@canlang/contracts';
 import type { InstalledMailSender } from '@canlang/services';
-import type { SingleFileCapture } from '../src/dev/source-capture.js';
+import type { SingleFileCapture } from '../src/runtime/native-dev.test-support.js';
 import type { SqliteFileStore } from '@canlang/files/host/sqlite';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
@@ -89,9 +89,9 @@ test('three original ordered queries preserve lazy ancestors, same Branch and Ru
     const {distribution} = await nodeImport(pathToFileURL(require.resolve('@canlang/values/distribution')).href) as typeof import('@canlang/values/distribution');
     const {assembleModules, importVerifiedAssemblyModule} = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
     const {buildInvoker} = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
-    const {prepareLocalPreviewCapture} = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-    const {captureSingleFileSource, captureIsCurrent, verifyCompilerSources} = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
-    const {createNativeFileRetirementBinding} = await nodeImport(installed('dev/file-retirement.js')) as typeof import('../src/dev/file-retirement.js');
+    const {prepareLocalPreviewCapture} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const {captureSingleFileSource, captureIsCurrent, verifyCompilerSources} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const {createNativeFileRetirementBinding} = await nodeImport(installed('runtime/file-retirement.js')) as typeof import('../src/runtime/file-retirement.js');
     const {bindNativeEmailDispatchGuards} = await nodeImport(installed('runtime/invoke.js')) as typeof import('../src/runtime/invoke.js');
     const {createBoundMailAdapter} = await nodeImport(installed('runtime/bound-mail.js')) as typeof import('../src/runtime/bound-mail.js');
     const {createBoundMailDispatcher} = await nodeImport(installed('runtime/bound-dispatch.js')) as typeof import('../src/runtime/bound-dispatch.js');
@@ -659,7 +659,7 @@ test('three original ordered queries preserve lazy ancestors, same Branch and Ru
             try {
               phase('awaited cleanup:source closure');
               if (capture !== undefined) {
-                const {captureIsCurrent} = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+                const {captureIsCurrent} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
                 assert.equal(await captureIsCurrent(capture), true, 'consumed source/output closure remains current through awaited cleanup');
               }
             } finally { await rm(directory, {recursive: true, force: true}); phase('awaited cleanup:complete'); }

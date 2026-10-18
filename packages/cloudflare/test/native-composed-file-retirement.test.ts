@@ -21,7 +21,7 @@ import { createSqliteFileStore, type SqliteFileStore } from '@canlang/files/host
 import { assembleModules, importVerifiedAssemblyModule } from '@canlang/cloudflare/runtime/modules';
 import { loadCanonicalDescriptors } from '@canlang/cloudflare/runtime/invoke';
 import { buildInvoker } from '@canlang/cloudflare/worker/assembly';
-import { createNativeFileRetirementBinding } from '../dist/dev/file-retirement.js';
+import { createNativeFileRetirementBinding } from '../dist/runtime/file-retirement.js';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const fixture = fileURLToPath(new URL('./fixtures/native-composed-file-retirement.can', import.meta.url));

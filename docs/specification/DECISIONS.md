@@ -1,33 +1,41 @@
 # Canlang language design decisions
 
-## 2026-10-18 — sync current main while the native completion port is active
+## 2026-10-18 — complete native development ownership
 
-**Accepted finite integration.** Checkpoint all in-progress port sources before
-merging main through `69d45c33c`. Retain the released inline preference editor
-compiler/Contracts/UI/Interfaces changes, repository cleanup and existing owner
-coverage. The development port remains in progress; the checkpoint is preservation,
-not qualification. Native integration compiles; its first combined unit run passes
-98 checks with one new inventory test failing on a noncanonical temporary test
-root. Repair that affected scope during resumed port work. Reuse main's recorded
-preference checks; this sync does not qualify the unfinished port or require
-repeating unchanged compiler checks. No main commits are omitted, primary dirty
-inputs are untouched, and no push is performed.
+**Accepted user direction; implementation qualified except the listed final
+integration gates.** Rust owns inventory/configuration/persistence/preparation,
+construct policy and example/browser qualification sequencing. Remove the entire
+obsolete TypeScript dev tree and migrate maintained callers. Retain defining
+application/runtime/Testkit semantics and a fixed SDK bridge; relocating old
+orchestration is not completion. Private test facades use native policy and are
+excluded from installed archives. Existing allocation/late-result ownership,
+permissions, evaluation order, atomicity, cancellation joins and retryable cleanup
+remain authoritative.
 
-## 2026-10-18 — implement remaining development orchestration natively
+Keep exact requested/canonical watch interests and producer membership while
+ignoring unrelated parent siblings. The30-second fallback performs a real native
+input audit: time passing alone cannot invalidate an unchanged captured build or
+cancel its longer qualification. A failed audit or actual notification still
+invalidates it. Request identity encoding on private gateway responses so safe
+closed refusal parsing works when public clients request gzip. Reuse an unchanged
+serving generation only after a fresh capture confirms its exact inputs and hint.
 
-**Accepted user direction; implementation in progress.** Replace the remaining
-coarse TS development workflows with Rust inventory/config/preparation,
-construct help/ranking and example/qualification sequencing. Retire duplicate
-controllers and migrate real callers; retain defining application/runtime/Testkit
-semantics and a fixed SDK bridge. Do not count relocation of old orchestration as
-completion. Preserve all lifecycle/permission/cleanup barriers and prior accepted
-results at their recorded scope. Three independently worded JEV NOUL consultations
-on this narrower boundary return .73/.78/.81; advice is consistent but uncertain,
-not verification. Requests/responses are retained in
-`docs/design/jev/dev-native-runtime-boundary-20261018.json`. Initial approval review
-rejected the calls; the retry was accepted after checking public-only prose payloads
-and the explicit AGENTS preauthorization. Actual native/bridge/installed acceptance
-for this stronger scope remains pending.
+Current native133, actual lifecycle/semantic/Values/browser-cancellation and Linux
+installed23 criteria pass at their recorded scope in the existing development
+plan. Private proof41 and the real browser workflow, macOS checksum installation/manual,
+CLI32 and the combined complexity gate pass. Final public proof, component refresh,
+safe main integration and integrated timing remain open. The boundary audit retains62 inherited findings, including32 Interfaces test-only
+undeclared dependencies; the seven new private root-test imports are removed
+without a public testing API or exemptions. No whole-repository pass is inferred. Main sync68919a8b7 retains all released inputs through69d45c33c;
+its temporary canonical-root test issue is repaired. Foreign dirty main inputs
+and stopped U remain untouched; no push/publication.
+
+Three independently worded JEV NOUL consultations on the fixed SDK boundary return
+.73/.78/.81: consistent but uncertain advice, not verification. Existing requests
+and responses remain in
+`docs/design/jev/dev-native-runtime-boundary-20261018.json`. The acknowledged
+Miniflare inner-restart notification limitation remains separate.
+
 ## 2026-10-18 — retain user-requested repository cleanup
 
 **Accepted.** Commit the user's deletion of the two tracked root evidence

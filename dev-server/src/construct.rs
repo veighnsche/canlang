@@ -342,6 +342,65 @@ fn card_section<'a>(id: &str, table: &'a str) -> &'a str {
         table
     }
 }
+fn card_anchor<'a>(cell: &'a str, ids: &mut BTreeSet<String>) -> Result<(&'a str, &'a str)> {
+    let (anchor, id) = cell
+        .strip_prefix("<a id=\"")
+        .and_then(|v| v.split_once("\"></a>`"))
+        .and_then(|(a, v)| v.strip_suffix('`').map(|id| (a, id)))
+        .ok_or("construct card has an invalid ID or anchor")?;
+    if !anchor.starts_with("can-v1-")
+        || !anchor
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"_-".contains(&b))
+        || !card_id(id)
+    {
+        return Err("construct card has an invalid ID or anchor".into());
+    }
+    let normal = id.replace('.', "-");
+    if anchor != normal && anchor != normal.replace('_', "-") {
+        return Err(format!("construct card ID/anchor mismatch: {id}"));
+    }
+    if !ids.insert(id.to_owned()) {
+        return Err(format!("duplicate construct card: {id}"));
+    }
+    Ok((anchor, id))
+}
+fn parse_card(line: &str, table: &str, width: usize, ids: &mut BTreeSet<String>) -> Result<Value> {
+    if table.is_empty() || width == 0 {
+        return Err("construct card is outside a known table".into());
+    }
+    let cells = split_row(line)?;
+    if cells.len() != width {
+        return Err(format!(
+            "construct help row has {} cells; expected {width}",
+            cells.len()
+        ));
+    }
+    let (anchor, id) = card_anchor(&cells[0], ids)?;
+    let signature = inline(&cells[1], "signature")?;
+    let meaning = cells[2].trim();
+    let example = plain(&cells[3])?;
+    let availability = cells[4].trim();
+    let stable = link(&cells[width - 1], "stable link")?;
+    if meaning.is_empty()
+        || availability.is_empty()
+        || example.is_empty()
+        || stable != format!("#{anchor}")
+    {
+        return Err(format!("incomplete construct card: {id}"));
+    }
+    let source = if width == 7 {
+        link(&cells[5], "source link")?
+    } else {
+        VALUES_SOURCE.into()
+    };
+    Ok(
+        json!({"id":id,"section":card_section(id,table),"signature":signature,"meaning":meaning,
+        "example":example,"availability":availability,
+        "status":if availability.to_lowercase().contains("proposed") {"planned"} else {"unavailable"},
+        "link":format!("{DOCUMENT}{stable}"),"sourceLink":source}),
+    )
+}
 fn parse_cards(markdown: &str) -> Result<Vec<Value>> {
     let mut cards = Vec::new();
     let mut ids = BTreeSet::new();
@@ -365,57 +424,7 @@ fn parse_cards(markdown: &str) -> Result<Vec<Value>> {
         if !line.starts_with("| <a id=") {
             continue;
         }
-        if table.is_empty() || width == 0 {
-            return Err("construct card is outside a known table".into());
-        }
-        let cells = split_row(line)?;
-        if cells.len() != width {
-            return Err(format!(
-                "construct help row has {} cells; expected {width}",
-                cells.len()
-            ));
-        }
-        let (anchor, id) = cells[0]
-            .strip_prefix("<a id=\"")
-            .and_then(|v| v.split_once("\"></a>`"))
-            .and_then(|(a, v)| v.strip_suffix('`').map(|id| (a, id)))
-            .ok_or("construct card has an invalid ID or anchor")?;
-        if !anchor.starts_with("can-v1-")
-            || !anchor
-                .bytes()
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"_-".contains(&b))
-            || !card_id(id)
-        {
-            return Err("construct card has an invalid ID or anchor".into());
-        }
-        let normal = id.replace('.', "-");
-        if anchor != normal && anchor != normal.replace('_', "-") {
-            return Err(format!("construct card ID/anchor mismatch: {id}"));
-        }
-        if !ids.insert(id.to_owned()) {
-            return Err(format!("duplicate construct card: {id}"));
-        }
-        let signature = inline(&cells[1], "signature")?;
-        let meaning = cells[2].trim();
-        let example = plain(&cells[3])?;
-        let availability = cells[4].trim();
-        let stable = link(&cells[width - 1], "stable link")?;
-        if meaning.is_empty()
-            || availability.is_empty()
-            || example.is_empty()
-            || stable != format!("#{anchor}")
-        {
-            return Err(format!("incomplete construct card: {id}"));
-        }
-        let source = if width == 7 {
-            link(&cells[5], "source link")?
-        } else {
-            VALUES_SOURCE.into()
-        };
-        cards.push(json!({"id":id,"section":card_section(id,table),"signature":signature,"meaning":meaning,
-            "example":example,"availability":availability,
-            "status":if availability.to_lowercase().contains("proposed") {"planned"} else {"unavailable"},
-            "link":format!("{DOCUMENT}{stable}"),"sourceLink":source}));
+        cards.push(parse_card(line, table, width, &mut ids)?);
     }
     if cards.is_empty() {
         return Err("construct help inventory is empty".into());
@@ -440,32 +449,7 @@ fn ui_name(id: &str) -> &str {
         suffix
     }
 }
-fn create_index(input: &Value) -> Result<Index> {
-    for name in ["compiler", "grammar", "values", "ui"] {
-        if !hash_valid(string(&input[name]["sha256"])) {
-            return Err(format!("missing captured {name} source hash"));
-        }
-    }
-    let policy = input.get("profilePolicy").is_some();
-    if policy && !hash_valid(string(&input["profilePolicy"]["sha256"])) {
-        return Err("missing captured profile-policy source hash".into());
-    }
-    if input["languageVersion"] != "1.0" {
-        return Err(format!(
-            "unsupported help language version: {}",
-            string(&input["languageVersion"])
-        ));
-    }
-    let markdown = input["markdown"]
-        .as_str()
-        .ok_or("captured help markdown is missing")?;
-    let mut cards = parse_cards(markdown)?;
-    let values = input["values"]["entries"]
-        .as_array()
-        .ok_or("captured Values catalog facts are required")?;
-    let ui = input["ui"]["entries"]
-        .as_array()
-        .ok_or("captured UI catalog facts are required")?;
+fn apply_catalog(cards: &mut [Value], values: &[Value], ui: &[Value]) -> Result<()> {
     let builtins: Vec<_> = values.iter().filter(|v| v["kind"] == "builtin").collect();
     let builtin_ids: BTreeSet<_> = builtins.iter().map(|v| string(&v["id"])).collect();
     if builtin_ids.len() != builtins.len()
@@ -477,7 +461,7 @@ fn create_index(input: &Value) -> Result<Index> {
     {
         return Err("Values builtin card inventory differs from captured catalog".into());
     }
-    for card in &mut cards {
+    for card in cards.iter_mut() {
         let id = string(&card["id"]);
         let fact = if let Some(name) = id.strip_prefix("can.v1.builtin.") {
             let fact = builtins.iter().find(|v| v["id"] == name).copied();
@@ -505,6 +489,35 @@ fn create_index(input: &Value) -> Result<Index> {
             card["status"] = json!("planned");
         }
     }
+    Ok(())
+}
+fn create_index(input: &Value) -> Result<Index> {
+    for name in ["compiler", "grammar", "values", "ui"] {
+        if !hash_valid(string(&input[name]["sha256"])) {
+            return Err(format!("missing captured {name} source hash"));
+        }
+    }
+    let policy = input.get("profilePolicy").is_some();
+    if policy && !hash_valid(string(&input["profilePolicy"]["sha256"])) {
+        return Err("missing captured profile-policy source hash".into());
+    }
+    if input["languageVersion"] != "1.0" {
+        return Err(format!(
+            "unsupported help language version: {}",
+            string(&input["languageVersion"])
+        ));
+    }
+    let markdown = input["markdown"]
+        .as_str()
+        .ok_or("captured help markdown is missing")?;
+    let mut cards = parse_cards(markdown)?;
+    let values = input["values"]["entries"]
+        .as_array()
+        .ok_or("captured Values catalog facts are required")?;
+    let ui = input["ui"]["entries"]
+        .as_array()
+        .ok_or("captured UI catalog facts are required")?;
+    apply_catalog(&mut cards, values, ui)?;
     for id in INCLUDED {
         if !cards.iter().any(|v| v["id"] == *id) {
             return Err(format!("first-profile construct is absent from help: {id}"));
@@ -594,6 +607,14 @@ fn context(value: &Value) -> Option<Value> {
     Some(value.clone())
 }
 fn routing(value: &Value) -> Value {
+    fn valid_ids(ids: &[Value]) -> bool {
+        let mut seen = BTreeSet::new();
+        !(ids.len() > 8
+            || ids.iter().any(|v| {
+                v.as_str()
+                    .is_none_or(|s| s.len() > 96 || !card_id(s) || !seen.insert(s))
+            }))
+    }
     fn parse(value: &Value) -> Option<Value> {
         value.as_object()?;
         let disposition = string(&value["disposition"]);
@@ -608,13 +629,7 @@ fn routing(value: &Value) -> Value {
         if !slot.is_null() && !name(slot.as_str()?, 96, b"_.-") {
             return None;
         }
-        let mut seen = BTreeSet::new();
-        if ids.len() > 8
-            || ids.iter().any(|v| {
-                v.as_str()
-                    .is_none_or(|s| s.len() > 96 || !card_id(s) || !seen.insert(s))
-            })
-        {
+        if !valid_ids(ids) {
             return None;
         }
         if (disposition == "exact" && (slot.is_null() || ids.is_empty()))
@@ -884,6 +899,23 @@ fn read_json(reference: &Value) -> Result<Value> {
 
 /// Execute against a captured index or load one from captured pure catalog JSON.
 /// Saved indexes/qualification use the same private, bounded FileRef contract.
+fn qualified_proofs<'a>(
+    qualification: &'a Value,
+    index: &Index,
+    profile: &str,
+    producer: &str,
+) -> &'a [Value] {
+    if qualification["indexRevision"] == index.revision
+        && qualification["compilerSha256"] == index.compiler
+        && qualification["authoringProfile"] == FIRST_PROFILE
+        && qualification["resourceProfile"] == profile
+        && qualification["producerInputsDigest"] == producer
+    {
+        array(&qualification["proofs"])
+    } else {
+        &[]
+    }
+}
 pub fn run(capture: &Capture, payload: &Value, cancel: &AtomicBool) -> Result<Value> {
     capture::check_cancel(cancel)?;
     let inputs = if let Some(reference) = payload.get("index") {
@@ -909,16 +941,7 @@ pub fn run(capture: &Capture, payload: &Value, cancel: &AtomicBool) -> Result<Va
         Value::Null
     };
     let producer = producer_inputs_digest(capture)?;
-    let proofs = if qualification["indexRevision"] == index.revision
-        && qualification["compilerSha256"] == index.compiler
-        && qualification["authoringProfile"] == FIRST_PROFILE
-        && qualification["resourceProfile"] == capture.profile
-        && qualification["producerInputsDigest"] == producer
-    {
-        array(&qualification["proofs"])
-    } else {
-        &[]
-    };
+    let proofs = qualified_proofs(&qualification, &index, &capture.profile, &producer);
     let mut out = json!({"index_revision":index.revision,"compiler_sha256":index.compiler,"authoring_profile":FIRST_PROFILE,
         "producer_inputs_digest":producer,"request":{"resourceProfile":capture.profile,"authoringProfile":FIRST_PROFILE,"indexRevision":index.revision,
             "compilerSha256":index.compiler,"producerInputsDigest":producer,"inputs":capture.inputs}});
@@ -1225,6 +1248,20 @@ fn rank(
             "host profile or diagnostic branch qualification is unavailable",
         ));
     }
+    rank_candidates(capture, payload, index, ctx, &route, proofs, (start, end))
+}
+
+fn rank_candidates(
+    capture: &Capture,
+    payload: &Value,
+    index: &Index,
+    ctx: &Value,
+    route: &Value,
+    proofs: &[Value],
+    span: (usize, usize),
+) -> Result<Value> {
+    let (start, end) = span;
+    let diagnostic = &payload["diagnostic"];
     let selected = join(index, &route, proofs);
     let cards = array(&selected["cards"]);
     let evidence = if ctx["messageKind"] == "unknown_collection_presentation" {
@@ -1259,6 +1296,15 @@ fn rank(
             "author must choose the permission, identity or effect contract",
         ));
     }
+    rank_choice(ctx, &selected, cards, office, code)
+}
+fn rank_choice(
+    ctx: &Value,
+    selected: &Value,
+    cards: &[Value],
+    office: bool,
+    code: &str,
+) -> Result<Value> {
     if selected["candidateCoverage"] != "complete" || cards.iter().any(|v| v["status"] != "working")
     {
         return Ok(outcome(

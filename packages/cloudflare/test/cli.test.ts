@@ -13,12 +13,12 @@ interface RunResult {
   stderr: string;
 }
 
-function runCli(args: string[]): Promise<RunResult> {
+function runCli(args: string[], env?: NodeJS.ProcessEnv): Promise<RunResult> {
   return new Promise((resolve) => {
     execFile(
       process.execPath,
       [CLI.pathname, ...args],
-      { timeout: 15000 },
+      { timeout: 15000, ...(env === undefined ? {} : { env }) },
       (error, stdout, stderr) => {
         const code =
           error !== null && "code" in error && typeof error.code === "number" ? error.code : 0;
@@ -183,7 +183,21 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     expect(typeof body["detail"]).toBe("string");
   });
 
-  it.each(["test", "build", "deploy"])(
+  it("test reports its exact missing native producer after the child joins", async () => {
+    const artifact = fixtureArtifact();
+    try {
+      const result = await runCli(["test", "--artifact", artifact], {
+        ...process.env, CAN_DEV_BIN: join(dirname(artifact), "missing-native-dev"),
+      });
+      expect(result.code).toBe(2);
+      expect(envelope(result.stdout)).toMatchObject({
+        ok: false, command: "test", code: "missing-producer", producer: "dev-server",
+        contract: "native saved-artifact examples",
+      });
+    } finally { rmSync(dirname(artifact), { recursive: true, force: true }); }
+  });
+
+  it.each(["build", "deploy"])(
     "%s with a present artifact reports the exact missing producer",
     async (command) => {
       const result = await runCli([command, "--artifact", fixtureArtifact()]);

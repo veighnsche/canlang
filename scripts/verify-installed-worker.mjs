@@ -314,9 +314,19 @@ async function verifyConsumer(checkout) {
 
   // Boot the actual installed production entry, including its assembly and D1
   // producer graph. A credential-free initialize request reaches the auth seam.
-  installedFile(import.meta.resolve('@canlang/cloudflare/dev/local-run'));
-  const { startLocalDev } = await import('@canlang/cloudflare/dev/local-run');
-  const production = await startLocalDev({
+  const { Miniflare } = await import(ownerModule('miniflare').href);
+  const { COMPILED_WASM_MODULE_TYPE } = await import(ownerModule('@canlang/contracts').href);
+  async function startWorker({ workerName, compatibilityDate, mainModule, modules, binaryModules = {}, d1Databases = [] }) {
+    const ordered = [mainModule, ...Object.keys(modules).filter(name => name !== mainModule)];
+    const worker = new Miniflare({ name: workerName, compatibilityDate, modules: [
+      ...ordered.map(path => ({ path, type: 'ESModule', contents: modules[path] })),
+      ...Object.entries(binaryModules).map(([path, bytes]) => ({ path, type: COMPILED_WASM_MODULE_TYPE, contents: new Uint8Array(bytes) })),
+    ], d1Databases: Object.fromEntries(d1Databases.map(({ binding, id }) => [binding, id])) });
+    try { await worker.ready; }
+    catch (error) { await worker.dispose(); throw error; }
+    return { dispatch: (path, init) => worker.dispatchFetch(new URL(path, 'http://localhost').href, init), dispose: () => worker.dispose() };
+  }
+  const production = await startWorker({
     workerName: 'installed-worker-regression', compatibilityDate: '2026-07-15',
     mainModule: first.mainModule, modules: first.modules, binaryModules: first.binaries,
     d1Databases: [{ binding: 'DB', id: 'installed-worker-regression' }],
@@ -380,7 +390,7 @@ async function verifyConsumer(checkout) {
     '}',
     'export default { async fetch() { const bytes = new Uint8Array([0x99, 0x00, 0xff, 0x80, 0x01, 0x77]).subarray(1, 5); return Response.json({ compiled: compiled instanceof WebAssembly.Module, abi: glue.abi_version(), sum: String(backend.call("add-int", [1n, 2n])), acorn, committedSource: await probeCommittedSource(), files: { slicedDigest: sha256Hex(bytes), pdf: checkContent({ types: ["application/pdf"], maxBytes: 64 }, "text/plain", new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])), invalidText: checkContent({ types: ["text/plain"], maxBytes: 64 }, "text/plain", new Uint8Array([0xc3, 0x28])), rawObservation: readFinalizedFileObservation({}), currentRead: probeCurrentFileBytes() } }); } };',
   ].join('\n');
-  const wasmWorker = await startLocalDev({
+  const wasmWorker = await startWorker({
     workerName: 'installed-wasm-regression', compatibilityDate: '2026-07-15',
     mainModule: probeKey, modules: { ...first.modules, [probeKey]: probeSource }, binaryModules: first.binaries,
   });

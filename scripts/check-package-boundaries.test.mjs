@@ -199,13 +199,6 @@ test('rejects sibling source/output shortcuts and root-tool shortcuts', t => {
 
 test('allows only registered canonical fixture reads from exact consumers', t => {
   const consumers = {
-    'src/dev/session-service.test.ts': `
-      import { readFileSync } from 'node:fs';
-      import { join } from 'node:path';
-      import { fileURLToPath } from 'node:url';
-      const project = fileURLToPath(new URL('../../../../', import.meta.url));
-      readFileSync(join(project, 'tests/integration/can-dev-server/OfficeSupplies.can'));
-    `,
     'test/compiler-check.integration.test.ts': `
       import { readFileSync } from 'node:fs';
       import { join, resolve } from 'node:path';
@@ -259,7 +252,6 @@ test('allows only registered canonical fixture reads from exact consumers', t =>
   const result = f.check();
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.registered.map(entry => entry.consumer).sort(), [
-    'packages/cloudflare/src/dev/session-service.test.ts',
     'packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts',
     'packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts',
     'packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts',

@@ -85,7 +85,7 @@ try {
     report.devServerVersion = run(join(installation, 'libexec/can-dev'), ['--version']).trim();
     assert.equal(report.devServerVersion, `can-dev ${version} (can.dev.control.v1)`);
     assert.equal(JSON.parse(run(can, ['dev', '--help'])).result.schema, 'can.dev.control-help.v1');
-    assert.equal(existsSync(join(installation, 'node_modules/@canlang/cloudflare/dist/dev/control-cli.js')), false);
+    assert.equal(existsSync(join(installation, 'node_modules/@canlang/cloudflare/dist/dev')), false);
     assert.equal(JSON.parse(readFileSync(join(installation, 'node_modules/@canlang/cloudflare/package.json'))).bin['can-dev'], undefined);
     const override = join(scratch, 'private override');
     writeFileSync(override, '#!/bin/sh\nprintf "override %s\\n" "$#"\nexit 7\n'); chmodSync(override, 0o755);

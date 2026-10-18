@@ -6,15 +6,15 @@
  * `loader_smoke.wasm` bytes (C04.1 crate) are attached via the built
  * `attachBinaries`, written via the built `writeDeployBundleMixed` into
  * a private temp dir, read BACK from that deployment map, and staged
- * as `CompiledWasm` through the built `startLocalDev`
- * (and once through the built testkit `createLocalRowScope`). A real
+ * as `CompiledWasm` through the direct Miniflare SDK fixture
+ * and observed by the built Testkit local snapshotter. A real
  * workerd instance (miniflare) boots a worker entry that imports the
  * wasm module, instantiates it ONCE at top level, and serves
  * computed results over dispatch. Every assertion below observes
  * computed values, never text markers.
  *
  * Vectors: deployed-load (version/add/wrap over dispatch),
- * testkit-propagation (same through the testkit row scope),
+ * testkit-propagation (same through Testkit's native-allocated store snapshot),
  * malformed-bytes (loud failure, no fallback),
  * startup-failure/wrong-ABI (loud failure, no fallback),
  * text-only-parity (absent binaryModules behaves as before).
@@ -24,14 +24,14 @@
  * Wasm bytes: `$LOADER_SMOKE_WASM`, else the fixture release build
  * (`cargo build --locked --target wasm32-unknown-unknown --release`).
  */
-import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { attachBinaries, writeDeployBundleMixed } from '@canlang/cloudflare/deploy/bundle';
-import { startLocalDev } from '@canlang/cloudflare/dev/local-run';
-import { createLocalRowScope } from '../../../../testkit/dist/scopes/local.js';
+import { attachBinaries, bundleSha256, writeDeployBundleMixed } from '@canlang/cloudflare/deploy/bundle';
+import { Miniflare } from 'miniflare';
+import { snapshotLocalDatabases } from '../../../../testkit/dist/scopes/local.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_WASM = join(HERE, 'target', 'wasm32-unknown-unknown', 'release', 'loader_smoke.wasm');
@@ -93,13 +93,13 @@ export function deployBindingMap(wasmBytes, { textModules } = {}) {
       mainModule: MAIN_NAME,
       modules,
       moduleCount: Object.keys(modules).length,
-      sha256: 'c04.2-fixture-v1',
+      sha256: bundleSha256(MAIN_NAME, modules),
       mcpBundleBytes: 0,
       httpOperationsBytes: 0,
     },
     { [WASM_NAME]: wasmBytes },
   );
-  const dir = mkdtempSync(join(tmpdir(), 'c04-smoke-map-'));
+  const dir = mkdtempSync(join(realpathSync(tmpdir()), 'c04-smoke-map-'));
   try {
     const written = writeDeployBundleMixed(bundle, dir);
     const staged = new Uint8Array(readFileSync(join(dir, WASM_NAME)));
@@ -128,8 +128,8 @@ function check(name, actual, expected) {
   return { vector: name, ok: true };
 }
 
-async function fetchJson(dispatch, path) {
-  const res = await dispatch(path);
+async function fetchJson(dev, path) {
+  const res = await dev.dispatchFetch(new URL(path, 'http://fixture'));
   const body = await res.json();
   return { status: res.status, body };
 }
@@ -146,20 +146,21 @@ export async function runWorkerdSmoke(wasmPath = resolveWasmPath()) {
     try {
       results.push(check('map/staged-bytes-identical', sha256Hex(deployed.wasmBytes) === rawSha, true));
       results.push(check('map/manifest-binary-count', deployed.manifest.binaryCount, 1));
-      const dev = await startLocalDev({
-        workerName: 'c04-smoke',
+      const dev = new Miniflare({
+        name: 'c04-smoke',
         compatibilityDate: COMPAT_DATE,
-        mainModule: MAIN_NAME,
-        modules: { [MAIN_NAME]: smokeWorkerEntry(`./${WASM_NAME}`) },
-        binaryModules: { [WASM_NAME]: deployed.wasmBytes },
+        modules: [
+          { type: 'ESModule', path: MAIN_NAME, contents: smokeWorkerEntry(`./${WASM_NAME}`) },
+          { type: 'CompiledWasm', path: WASM_NAME, contents: deployed.wasmBytes },
+        ],
       });
       try {
-        const version = await fetchJson(dev.dispatch, '/version');
+        const version = await fetchJson(dev, '/version');
         results.push(check('load/version-status', version.status, 200));
         results.push(check('load/version-is-transport-v0', version.body.version, 0));
-        const add = await fetchJson(dev.dispatch, '/add?a=40&b=2');
+        const add = await fetchJson(dev, '/add?a=40&b=2');
         results.push(check('load/add-basics', add.body.sum, 42));
-        const wrap = await fetchJson(dev.dispatch, '/add?a=2147483647&b=1');
+        const wrap = await fetchJson(dev, '/add?a=2147483647&b=1');
         results.push(check('load/add-wraps', wrap.body.sum, -2147483648));
       } finally {
         await dev.dispose();
@@ -171,19 +172,21 @@ export async function runWorkerdSmoke(wasmPath = resolveWasmPath()) {
 
   // Vector 2: testkit propagation route.
   {
-    const scope = await createLocalRowScope('c04-smoke-row', {
-      workerName: 'c04-smoke-tk',
+    const dev = new Miniflare({
+      name: 'c04-smoke-tk',
       compatibilityDate: COMPAT_DATE,
-      mainModule: MAIN_NAME,
-      modules: { [MAIN_NAME]: smokeWorkerEntry(`./${WASM_NAME}`) },
-      binaryModules: { [WASM_NAME]: rawWasm },
-      d1Binding: 'DB',
+      modules: [
+        { type: 'ESModule', path: MAIN_NAME, contents: smokeWorkerEntry(`./${WASM_NAME}`) },
+        { type: 'CompiledWasm', path: WASM_NAME, contents: rawWasm },
+      ],
+      d1Databases: { DB: 'c04-smoke-row' },
     });
     try {
-      const add = await fetchJson(scope.dev.dispatch, '/add?a=1&b=-1');
-      results.push(check('testkit/add-through-row-scope', add.body.sum, 0));
+      const add = await fetchJson(dev, '/add?a=1&b=-1');
+      await snapshotLocalDatabases(dev, ['DB']);
+      results.push(check('testkit/add-with-local-snapshot', add.body.sum, 0));
     } finally {
-      await scope.dispose();
+      await dev.dispose();
     }
   }
 
@@ -193,15 +196,16 @@ export async function runWorkerdSmoke(wasmPath = resolveWasmPath()) {
     bad[4] ^= 0xff; // mangle the version field, keep the magic
     let loud = false;
     try {
-      const dev = await startLocalDev({
-        workerName: 'c04-smoke-bad',
+      const dev = new Miniflare({
+        name: 'c04-smoke-bad',
         compatibilityDate: COMPAT_DATE,
-        mainModule: MAIN_NAME,
-        modules: { [MAIN_NAME]: smokeWorkerEntry(`./${WASM_NAME}`) },
-        binaryModules: { [WASM_NAME]: bad },
+        modules: [
+          { type: 'ESModule', path: MAIN_NAME, contents: smokeWorkerEntry(`./${WASM_NAME}`) },
+          { type: 'CompiledWasm', path: WASM_NAME, contents: bad },
+        ],
       });
       try {
-        await dev.dispatch('/version');
+        await dev.dispatchFetch('http://fixture/version');
       } finally {
         await dev.dispose();
       }
@@ -215,15 +219,16 @@ export async function runWorkerdSmoke(wasmPath = resolveWasmPath()) {
   {
     let loud = false;
     try {
-      const dev = await startLocalDev({
-        workerName: 'c04-smoke-abi',
+      const dev = new Miniflare({
+        name: 'c04-smoke-abi',
         compatibilityDate: COMPAT_DATE,
-        mainModule: MAIN_NAME,
-        modules: { [MAIN_NAME]: smokeWorkerEntry(`./${WASM_NAME}`) },
-        binaryModules: { [WASM_NAME]: EMPTY_MODULE },
+        modules: [
+          { type: 'ESModule', path: MAIN_NAME, contents: smokeWorkerEntry(`./${WASM_NAME}`) },
+          { type: 'CompiledWasm', path: WASM_NAME, contents: EMPTY_MODULE },
+        ],
       });
       try {
-        const res = await dev.dispatch('/version');
+        const res = await dev.dispatchFetch('http://fixture/version');
         loud = res.status !== 200;
       } finally {
         await dev.dispose();
@@ -236,14 +241,14 @@ export async function runWorkerdSmoke(wasmPath = resolveWasmPath()) {
 
   // Vector 5: text-only legacy parity (binaryModules absent).
   {
-    const dev = await startLocalDev({
-      workerName: 'c04-smoke-text',
+    const dev = new Miniflare({
+      name: 'c04-smoke-text',
       compatibilityDate: COMPAT_DATE,
-      mainModule: MAIN_NAME,
-      modules: { [MAIN_NAME]: textOnlyWorkerEntry() },
+      modules: true,
+      script: textOnlyWorkerEntry(),
     });
     try {
-      const ping = await fetchJson(dev.dispatch, '/ping');
+      const ping = await fetchJson(dev, '/ping');
       results.push(check('parity/text-only-status', ping.status, 200));
       results.push(check('parity/text-only-mode', ping.body.mode, 'text-only'));
     } finally {
@@ -262,7 +267,7 @@ if (invokedAsMain) {
       console.log(`workerd-smoke: ${results.length} vectors ok (${resolveWasmPath()})`);
     })
     .catch((err) => {
-      console.error(JSON.stringify(err));
+      console.error(err);
       process.exitCode = 1;
     });
 }

@@ -16,6 +16,7 @@ use base64::{
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet},
+    os::unix::fs::PermissionsExt,
     path::Path,
     sync::atomic::AtomicBool,
 };
@@ -86,35 +87,64 @@ impl Bridge<'_> {
     }
 }
 
-pub fn prepare(
+struct Built {
+    artifact_json: String,
+    plan: bindings::Plan,
+    mode: String,
+    roles: BTreeMap<String, Vec<String>>,
+    constants: Value,
+    app: String,
+    bundle: Value,
+}
+fn build(
     capture: &Capture,
     artifact: &Value,
     artifact_bytes: &[u8],
-    generation: &str,
-    origin: &str,
-    persistence_root: Option<&Path>,
     preview_roles: &Value,
-    call: &Call<'_>,
-    cancel: &AtomicBool,
-) -> Result<Prepared> {
-    let bridge = Bridge {
-        generation,
-        call,
-        cancel,
+    bridge: &Bridge<'_>,
+    delivery: bool,
+) -> Result<Built> {
+    admit(capture, artifact, delivery)?;
+    let artifact_json = exact_artifact_json(artifact, artifact_bytes)?;
+    let ast = artifact["modules"][0]["js"]
+        .as_str()
+        .map(|source| bridge.call("metadata.parse", json!({"source":source})))
+        .transpose()?;
+    let plan = bindings::plan(artifact, ast.as_ref())?;
+    let mode = plan
+        .no_model_storage_mode
+        .clone()
+        .unwrap_or(storage_mode(artifact)?);
+    validate_selected_callables(artifact, &plan)?;
+    // Service requirements fail before any state is allocated.
+    runtime::bindings(&plan, "unused", true)?;
+    let roles = parse_roles(preview_roles)?;
+    let constants = runtime_constants(artifact, bridge)?;
+    let app = match &plan.app {
+        Some(app) => app.clone(),
+        None => app_name(&capture.source_text)?,
     };
-    admit(capture, artifact)?;
-    let selected = url::Url::parse(origin).map_err(|e| e.to_string())?;
-    if selected.scheme() != "http"
-        || selected.host_str() != Some("127.0.0.1")
-        || selected.port().is_none()
-        || selected.path() != "/"
-        || selected.query().is_some()
-        || selected.fragment().is_some()
-        || !selected.username().is_empty()
-        || selected.password().is_some()
-    {
-        return Err("ORIGIN_INVALID: preview auth origin must be selected loopback origin".into());
-    }
+    preflight(
+        capture,
+        artifact,
+        &artifact_json,
+        &plan,
+        &constants,
+        &app,
+        bridge,
+    )?;
+    let bundle = build_bundle(capture, artifact, &artifact_json, bridge)?;
+    Ok(Built {
+        artifact_json,
+        plan,
+        mode,
+        roles,
+        constants,
+        app,
+        bundle,
+    })
+}
+fn exact_artifact_json(artifact: &Value, artifact_bytes: &[u8]) -> Result<String> {
     if artifact_bytes.is_empty() || artifact_bytes.len() > 16 * 1024 * 1024 {
         return Err("ARTIFACT_BYTES_UNAVAILABLE: exact compiler artifact unavailable".into());
     }
@@ -126,15 +156,10 @@ pub fn prepare(
             "ARTIFACT_BYTES_MISMATCH: compiler artifact differs from admitted artifact".into(),
         );
     }
-    let ast = artifact["modules"][0]["js"]
-        .as_str()
-        .map(|source| bridge.call("metadata.parse", json!({"source":source})))
-        .transpose()?;
-    let plan = bindings::plan(artifact, ast.as_ref())?;
-    let mode = plan
-        .no_model_storage_mode
-        .clone()
-        .unwrap_or(storage_mode(artifact)?);
+    Ok(artifact_json)
+}
+
+fn validate_selected_callables(artifact: &Value, plan: &bindings::Plan) -> Result<()> {
     for callable in artifact["callables"]
         .as_array()
         .map(Vec::as_slice)
@@ -152,9 +177,10 @@ pub fn prepare(
             );
         }
     }
-    // Service requirements fail before any state is allocated.
-    runtime::bindings(&plan, "unused", true)?;
-    let roles = parse_roles(preview_roles)?;
+    Ok(())
+}
+
+fn runtime_constants(artifact: &Value, bridge: &Bridge<'_>) -> Result<Value> {
     let constants = bridge.call("runtime.constants", json!({}))?;
     if artifact["language_version"] != "1.0"
         || artifact["tool_version"] != constants["releaseVersion"]
@@ -163,10 +189,18 @@ pub fn prepare(
             "VERSION_MISMATCH: compiled app does not match installed runtime release".into(),
         );
     }
-    let app = match &plan.app {
-        Some(app) => app.clone(),
-        None => app_name(&capture.source_text)?,
-    };
+    Ok(constants)
+}
+
+fn preflight(
+    capture: &Capture,
+    artifact: &Value,
+    artifact_json: &str,
+    plan: &bindings::Plan,
+    constants: &Value,
+    app: &str,
+    bridge: &Bridge<'_>,
+) -> Result<()> {
     let preflight_id = format!("can-preview-preflight-{}", random_id()?);
     let preflight_handle = format!("preflight-{}", random_id()?);
     let preflight_name = preflight_handle.clone();
@@ -202,6 +236,15 @@ pub fn prepare(
         &constants,
     )?;
     bridge.call("mf.dispose", json!({"handle":preflight_handle}))?;
+    Ok(())
+}
+
+fn build_bundle(
+    capture: &Capture,
+    artifact: &Value,
+    artifact_json: &str,
+    bridge: &Bridge<'_>,
+) -> Result<Value> {
     let esbuild = capture
         .inputs
         .iter()
@@ -211,8 +254,74 @@ pub fn prepare(
     let reply=bridge.call("bundle.build",json!({"artifactJson":artifact_json,"verdict":{"active":true},"assets":{"browser":true,"valuesWasm":artifact["requires"].as_array().unwrap().iter().any(|r|r["capability"].as_str().unwrap_or("").starts_with("values."))},"esbuildBinaryPath":esbuild}))?;
     let bundle = bundle::verify(&artifact_json, &reply)?;
     bridge.call("bundle.assert",json!({"modules":bundle["modules"],"binaryKeys":bundle["binaries"].as_object().unwrap().keys().collect::<Vec<_>>()}))?;
+    Ok(bundle)
+}
+
+/// A saved-artifact command needs the same activation and portable bundle, without
+/// opening a serving preview or borrowing its Identity/state resources.
+pub fn example_recipe(
+    capture: &Capture,
+    artifact: &Value,
+    artifact_bytes: &[u8],
+    generation: &str,
+    call: &Call<'_>,
+    cancel: &AtomicBool,
+) -> Result<Value> {
+    let bridge = Bridge {
+        generation,
+        call,
+        cancel,
+    };
+    let built = build(
+        capture,
+        artifact,
+        artifact_bytes,
+        &json!({}),
+        &bridge,
+        false,
+    )?;
+    let bundle = built.bundle;
+    Ok(
+        json!({"artifactBytes":STANDARD.encode(artifact_bytes),"artifactLabel":capture.compiler_operand,"sourceRevision":capture.source_revision,
+        "worker":{"mainModule":bundle["mainModule"],"modules":bundle["modules"],"binaryModules":bundle["binaries"].as_object().ok_or("bundle binary map missing")?.iter().map(|(key,value)|Ok((key.clone(),json!(STANDARD.encode(bundle::bytes(value)?))))).collect::<Result<BTreeMap<_,_>>>()?},
+        "workerName":format!("can-preview-examples-{}",random_id()?),"compatibilityDate":COMPATIBILITY_DATE,"d1Binding":"DB"}),
+    )
+}
+pub fn default_state_root() -> Result<std::path::PathBuf> {
+    if let Some(path) = std::env::var_os("CAN_DEV_STATE_ROOT") {
+        return Ok(path.into());
+    }
+    let home =
+        std::env::var_os("HOME").ok_or("home directory unavailable for retained preview state")?;
+    Ok(std::path::PathBuf::from(home).join(".local/state/canlang/preview"))
+}
+pub fn prepare(
+    capture: &Capture,
+    artifact: &Value,
+    artifact_bytes: &[u8],
+    generation: &str,
+    origin: &str,
+    persistence_root: Option<&Path>,
+    preview_roles: &Value,
+    call: &Call<'_>,
+    cancel: &AtomicBool,
+) -> Result<Prepared> {
+    let bridge = Bridge {
+        generation,
+        call,
+        cancel,
+    };
+    validate_preview_origin(origin)?;
+    let built = build(
+        capture,
+        artifact,
+        artifact_bytes,
+        preview_roles,
+        &bridge,
+        true,
+    )?;
     let mut retained = persistence_root
-        .map(|root| state::Retained::open(root, capture, &artifact_json, &mode))
+        .map(|root| state::Retained::open(root, capture, &built.artifact_json, &built.mode))
         .transpose()?;
     // A temporary tree is retained by the parent generation until all SDK
     // handles are confirmed released. The native owner removes it at release.
@@ -238,65 +347,51 @@ pub fn prepare(
         json!({"temporary":temporary}),
         &AtomicBool::new(false),
     )?;
-    let provision_handle = format!("provision-{}", random_id()?);
-    let provision_name = provision_handle.clone();
-    let mut provision = json!({"bindings":{},"d1Databases":{"DB":database_id},"modules":runtime::modules("provision.js",&json!({"provision.js":"export default { fetch() { return new Response(null, {status:404}); } };"}),&json!({}))?});
-    provision["r2Buckets"] = json!({});
-    let empty = bindings::Plan {
-        app: None,
-        bindings: vec![],
-        queue_handlers: vec![],
-        no_model_storage_mode: None,
-    };
-    let (options, _) = runtime::options(
-        &provision_handle,
-        &provision_name,
-        provision,
-        &empty,
-        Some(&persistence),
-        false,
+    let seed = provision_identity(
+        capture,
+        &built.artifact_json,
+        &built.roles,
+        &mut retained,
+        &persistence,
+        &database_id,
+        &bridge,
     )?;
-    bridge.allocate(options)?;
-    let seed = if let Some(seed) = retained.as_ref().and_then(|r| r.seed.clone()) {
-        seed
-    } else {
-        if retained.is_some() {
-            let existing = d1(
-                &bridge,
-                &provision_handle,
-                &provision_name,
-                "DB",
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'identity_users'",
-            )?;
-            if !existing.is_null() {
-                return Err("PREVIEW_SEED_INCOMPLETE: retained Identity provisioning incomplete; state preserved".into());
-            }
-        }
-        let resolved = if roles.is_empty() {
-            roles
-        } else {
-            let work_dir = std::env::temp_dir().join(format!("can-preview-roles-{}", random_id()?));
-            (bridge.call)(
-                "resource.paths",
-                Some(generation),
-                json!({"temporary":work_dir}),
-                &AtomicBool::new(false),
-            )?;
-            state::create_private_directory(&work_dir)?;
-            let definition = bridge.call(
-                "semantic.appDefinition",
-                json!({"artifactJson":artifact_json,"sourcePath":capture.app_path,"workDir":work_dir}),
-            )?;
-            resolve_roles(roles, &definition)?
-        };
-        let seed = seed(&bridge, &provision_handle, &provision_name, &resolved)?;
-        if let Some(retained) = &mut retained {
-            retained.save_seed(seed.clone())?;
-        }
-        seed
-    };
-    bridge.call("mf.dispose", json!({"handle":provision_handle}))?;
-    validate_seed(&seed)?;
+    serve_preview(
+        capture,
+        artifact,
+        artifact_bytes,
+        origin,
+        &persistence,
+        &database_id,
+        temporary,
+        &retained,
+        built,
+        seed,
+        &bridge,
+    )
+}
+fn serve_preview(
+    capture: &Capture,
+    artifact: &Value,
+    artifact_bytes: &[u8],
+    origin: &str,
+    persistence: &str,
+    database_id: &str,
+    temporary: Option<std::path::PathBuf>,
+    retained: &Option<state::Retained>,
+    built: Built,
+    seed: Value,
+    bridge: &Bridge<'_>,
+) -> Result<Prepared> {
+    let Built {
+        artifact_json,
+        plan,
+        mode,
+        constants,
+        app,
+        bundle,
+        ..
+    } = built;
     let owners = if mode == "global" {
         vec![]
     } else {
@@ -337,54 +432,19 @@ pub fn prepare(
         secret,
         url_header: "x-can-local-url".into(),
     };
-    if owners.is_empty() {
-        activate(
-            &bridge,
-            &handle,
-            &worker_name,
-            "DB",
-            None,
-            None,
-            &database_id,
-            &app,
-            artifact,
-            &artifact_json,
-            capture,
-            &plan,
-            &constants,
-        )?;
-    }
-    for owner in &owners {
-        let team = bridge.call(
-            "identity.findTeamById",
-            binding_input(
-                &handle,
-                &worker_name,
-                "DB",
-                json!({"teamId":owner["owner"]}),
-            ),
-        )?;
-        if team.is_null() {
-            return Err(
-                "IDENTITY_UNAVAILABLE: owner absent from separate Identity database".into(),
-            );
-        }
-        activate(
-            &bridge,
-            &handle,
-            &worker_name,
-            owner["binding"].as_str().unwrap(),
-            Some(owner["owner"].as_str().unwrap()),
-            Some("DB"),
-            owner["id"].as_str().unwrap(),
-            &app,
-            artifact,
-            &artifact_json,
-            capture,
-            &plan,
-            &constants,
-        )?;
-    }
+    activate_serving(
+        capture,
+        artifact,
+        &artifact_json,
+        &owners,
+        &handle,
+        &worker_name,
+        database_id,
+        &app,
+        &plan,
+        &constants,
+        bridge,
+    )?;
     probe_r2(&bridge, &handle, &worker_name, &plan)?;
     probe_worker(
         &bridge,
@@ -419,7 +479,186 @@ pub fn prepare(
         recipe: json!({"artifactBytes":STANDARD.encode(artifact_bytes),"artifactLabel":capture.compiler_operand,"sourceRevision":capture.source_revision,"worker":{"mainModule":bundle["mainModule"],"modules":bundle["modules"],"binaryModules":example_binaries},"workerName":format!("can-preview-examples-{}",random_id()?),"compatibilityDate":COMPATIBILITY_DATE,"d1Binding":"DB","runtime":{"handle":handle,"workerName":worker_name,"resourceRecovery":resource_recovery,"owners":owners,"databaseId":database_id,"seed":seed},"temporaryPersistence":temporary}),
     })
 }
-fn admit(capture: &Capture, artifact: &Value) -> Result<()> {
+fn validate_preview_origin(origin: &str) -> Result<()> {
+    let selected = url::Url::parse(origin).map_err(|e| e.to_string())?;
+    if selected.scheme() != "http"
+        || selected.host_str() != Some("127.0.0.1")
+        || selected.port().is_none()
+        || selected.path() != "/"
+        || selected.query().is_some()
+        || selected.fragment().is_some()
+        || !selected.username().is_empty()
+        || selected.password().is_some()
+    {
+        return Err("ORIGIN_INVALID: preview auth origin must be selected loopback origin".into());
+    }
+    Ok(())
+}
+fn provision_identity(
+    capture: &Capture,
+    artifact_json: &str,
+    roles: &BTreeMap<String, Vec<String>>,
+    retained: &mut Option<state::Retained>,
+    persistence: &str,
+    database_id: &str,
+    bridge: &Bridge<'_>,
+) -> Result<Value> {
+    let provision_handle = format!("provision-{}", random_id()?);
+    let provision_name = provision_handle.clone();
+    let mut provision = json!({"bindings":{},"d1Databases":{"DB":database_id},"modules":runtime::modules("provision.js",&json!({"provision.js":"export default { fetch() { return new Response(null, {status:404}); } };"}),&json!({}))?});
+    provision["r2Buckets"] = json!({});
+    let empty = bindings::Plan {
+        app: None,
+        bindings: vec![],
+        queue_handlers: vec![],
+        no_model_storage_mode: None,
+    };
+    let (options, _) = runtime::options(
+        &provision_handle,
+        &provision_name,
+        provision,
+        &empty,
+        Some(&persistence),
+        false,
+    )?;
+    bridge.allocate(options)?;
+    let seed = provision_seed(
+        capture,
+        artifact_json,
+        roles,
+        retained,
+        &provision_handle,
+        &provision_name,
+        bridge,
+    )?;
+    bridge.call("mf.dispose", json!({"handle":provision_handle}))?;
+    validate_seed(&seed)?;
+    Ok(seed)
+}
+fn provision_seed(
+    capture: &Capture,
+    artifact_json: &str,
+    roles: &BTreeMap<String, Vec<String>>,
+    retained: &mut Option<state::Retained>,
+    provision_handle: &str,
+    provision_name: &str,
+    bridge: &Bridge<'_>,
+) -> Result<Value> {
+    let seed = if let Some(seed) = retained.as_ref().and_then(|r| r.seed.clone()) {
+        seed
+    } else {
+        if retained.is_some() {
+            let existing = d1(
+                &bridge,
+                &provision_handle,
+                &provision_name,
+                "DB",
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'identity_users'",
+            )?;
+            if !existing.is_null() {
+                return Err("PREVIEW_SEED_INCOMPLETE: retained Identity provisioning incomplete; state preserved".into());
+            }
+        }
+        let resolved = resolve_preview_roles(roles, capture, artifact_json, bridge)?;
+        let seed = seed(&bridge, &provision_handle, &provision_name, &resolved)?;
+        if let Some(retained) = retained {
+            retained.save_seed(seed.clone())?;
+        }
+        seed
+    };
+    Ok(seed)
+}
+fn resolve_preview_roles(
+    roles: &BTreeMap<String, Vec<String>>,
+    capture: &Capture,
+    artifact_json: &str,
+    bridge: &Bridge<'_>,
+) -> Result<BTreeMap<String, Vec<String>>> {
+    let resolved = if roles.is_empty() {
+        roles.clone()
+    } else {
+        let work_dir = std::env::temp_dir().join(format!("can-preview-roles-{}", random_id()?));
+        (bridge.call)(
+            "resource.paths",
+            Some(bridge.generation),
+            json!({"temporary":work_dir}),
+            &AtomicBool::new(false),
+        )?;
+        state::create_private_directory(&work_dir)?;
+        let definition = bridge.call(
+            "semantic.appDefinition",
+            json!({"artifactJson":artifact_json,"sourcePath":capture.app_path,"workDir":work_dir}),
+        )?;
+        resolve_roles(roles.clone(), &definition)?
+    };
+    Ok(resolved)
+}
+
+fn activate_serving(
+    capture: &Capture,
+    artifact: &Value,
+    artifact_json: &str,
+    owners: &[Value],
+    handle: &str,
+    worker_name: &str,
+    database_id: &str,
+    app: &str,
+    plan: &bindings::Plan,
+    constants: &Value,
+    bridge: &Bridge<'_>,
+) -> Result<()> {
+    if owners.is_empty() {
+        activate(
+            &bridge,
+            &handle,
+            &worker_name,
+            "DB",
+            None,
+            None,
+            &database_id,
+            &app,
+            artifact,
+            &artifact_json,
+            capture,
+            &plan,
+            &constants,
+        )?;
+    }
+    for owner in owners {
+        let team = bridge.call(
+            "identity.findTeamById",
+            binding_input(
+                &handle,
+                &worker_name,
+                "DB",
+                json!({"teamId":owner["owner"]}),
+            ),
+        )?;
+        if team.is_null() {
+            return Err(
+                "IDENTITY_UNAVAILABLE: owner absent from separate Identity database".into(),
+            );
+        }
+        activate(
+            &bridge,
+            &handle,
+            &worker_name,
+            owner["binding"].as_str().unwrap(),
+            Some(owner["owner"].as_str().unwrap()),
+            Some("DB"),
+            owner["id"].as_str().unwrap(),
+            &app,
+            artifact,
+            &artifact_json,
+            capture,
+            &plan,
+            &constants,
+        )?;
+    }
+    Ok(())
+}
+
+fn admit(capture: &Capture, artifact: &Value, delivery: bool) -> Result<()> {
     if capture.profile != "local-d1-identity" {
         return Err("PROFILE_UNSUPPORTED: unsupported preview profile".into());
     }
@@ -441,7 +680,8 @@ fn admit(capture: &Capture, artifact: &Value) -> Result<()> {
     {
         return Err("INPUT_UNAVAILABLE: package outputs required".into());
     }
-    if artifact["pages"].as_array().map_or(0, Vec::len) == 0
+    if delivery
+        && artifact["pages"].as_array().map_or(0, Vec::len) == 0
         && artifact["operations"].as_array().map_or(0, Vec::len) == 0
     {
         return Err("PROFILE_UNSUPPORTED: app requires a page or operation".into());
@@ -569,6 +809,7 @@ fn activate(
     plan: &bindings::Plan,
     constants: &Value,
 ) -> Result<()> {
+    verify_owner_identity(bridge, handle, worker, binding, owner, identity_binding)?;
     bridge.call(
         "state.ensureSchema",
         binding_input(handle, worker, binding, json!({})),
@@ -595,6 +836,30 @@ fn activate(
     }
     if let Some(owner) = owner {
         bridge.call("state.ownerScoped",json!({"handle":handle,"workerName":worker,"binding":binding,"app":app,"owner":owner,"initializeFresh":true}))?;
+    }
+    Ok(())
+}
+fn verify_owner_identity(
+    bridge: &Bridge,
+    handle: &str,
+    worker: &str,
+    binding: &str,
+    owner: Option<&str>,
+    identity_binding: Option<&str>,
+) -> Result<()> {
+    if let Some(owner) = owner {
+        let identity_binding = identity_binding
+            .filter(|selected| *selected != binding)
+            .ok_or(
+                "IDENTITY_UNAVAILABLE: serving owner requires separate real Identity database",
+            )?;
+        let team = bridge.call(
+            "identity.findTeamById",
+            binding_input(handle, worker, identity_binding, json!({"teamId":owner})),
+        )?;
+        if team.is_null() {
+            return Err("IDENTITY_UNAVAILABLE: serving owner must exist in its separate real Identity database".into());
+        }
     }
     Ok(())
 }
@@ -848,23 +1113,48 @@ fn probe_worker(
     if d1(bridge, handle, worker, "DB", "SELECT 1 AS ready")?["ready"] != 1 {
         return Err("D1_UNAVAILABLE: local DB did not answer query".into());
     }
-    let get = |path: &str, headers: &[(&str, &str)]| {
-        http::request(backend, origin, path, "GET", headers, vec![], bridge.cancel)
-    };
-    let post = |path: &str, headers: &[(&str, &str)], body: Value| {
-        let mut h = vec![("content-type", "application/json")];
-        h.extend_from_slice(headers);
-        http::request(
-            backend,
-            origin,
-            path,
-            "POST",
-            &h,
-            serde_json::to_vec(&body).map_err(|e| e.to_string())?,
-            bridge.cancel,
-        )
-    };
-    let auth = get("/auth/login", &[])?;
+    let cookie = probe_identity(bridge, backend, origin, seed)?;
+    let grant_token = probe_team_grant(bridge, backend, origin, seed, &cookie)?;
+    let has_operations = probe_tools(bridge, backend, origin, artifact, &grant_token)?;
+    probe_assets(bridge, backend, origin, bundle)?;
+    probe_page(bridge, backend, origin, artifact, &cookie, has_operations)
+}
+fn probe_get(
+    bridge: &Bridge<'_>,
+    backend: &Backend,
+    origin: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+) -> Result<http::Response> {
+    http::request(backend, origin, path, "GET", headers, vec![], bridge.cancel)
+}
+fn probe_post(
+    bridge: &Bridge<'_>,
+    backend: &Backend,
+    origin: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: Value,
+) -> Result<http::Response> {
+    let mut h = vec![("content-type", "application/json")];
+    h.extend_from_slice(headers);
+    http::request(
+        backend,
+        origin,
+        path,
+        "POST",
+        &h,
+        serde_json::to_vec(&body).map_err(|e| e.to_string())?,
+        bridge.cancel,
+    )
+}
+fn probe_identity(
+    bridge: &Bridge<'_>,
+    backend: &Backend,
+    origin: &str,
+    seed: &Value,
+) -> Result<String> {
+    let auth = probe_get(bridge, backend, origin, "/auth/login", &[])?;
     if auth.status != 200 || !auth.content_type("application/json") {
         return Err("IDENTITY_UNAVAILABLE: login descriptor route failed".into());
     }
@@ -877,7 +1167,10 @@ fn probe_worker(
         return Err("IDENTITY_UNAVAILABLE: login descriptor invalid".into());
     }
     let presession = auth.cookie("can_presession")?;
-    let login = post(
+    let login = probe_post(
+        bridge,
+        backend,
+        origin,
         "/auth/login",
         &[("cookie", &presession)],
         json!({"email":seed["probe"]["email"],"password":seed["probe"]["password"],"_presession":token}),
@@ -886,14 +1179,26 @@ fn probe_worker(
         return Err("IDENTITY_UNAVAILABLE: seeded member login refused".into());
     }
     let cookie = login.cookie("can_session")?;
+    Ok(cookie)
+}
+fn probe_team_grant(
+    bridge: &Bridge<'_>,
+    backend: &Backend,
+    origin: &str,
+    seed: &Value,
+    cookie: &str,
+) -> Result<String> {
     let csrf = bridge.call("identity.csrf", json!({"cookie":cookie}))?;
     let csrf = csrf["csrf"]
         .as_str()
         .or_else(|| csrf.as_str())
         .filter(|s| !s.is_empty())
         .ok_or("Identity current CSRF missing")?;
-    let headers = [("cookie", cookie.as_str()), ("x-csrf-token", csrf)];
-    let selection = post(
+    let headers = [("cookie", cookie), ("x-csrf-token", csrf)];
+    let selection = probe_post(
+        bridge,
+        backend,
+        origin,
         "/auth/select-team",
         &headers,
         json!({"team":seed["probe"]["teamId"],"_csrf":csrf}),
@@ -901,7 +1206,10 @@ fn probe_worker(
     if selection.status != 200 {
         return Err("IDENTITY_UNAVAILABLE: seeded member team selection refused".into());
     }
-    let grant = post(
+    let grant = probe_post(
+        bridge,
+        backend,
+        origin,
         "/mcp/grants",
         &headers,
         json!({"client_id":"can-dev-local-probe"}),
@@ -914,8 +1222,20 @@ fn probe_worker(
     if grant.status != 200 {
         return Err("MCP_UNAVAILABLE: grant refused".into());
     }
+    Ok(grant_token.to_owned())
+}
+fn probe_tools(
+    bridge: &Bridge<'_>,
+    backend: &Backend,
+    origin: &str,
+    artifact: &Value,
+    grant_token: &str,
+) -> Result<bool> {
     let authorization = format!("Bearer {grant_token}");
-    let discovery = post(
+    let discovery = probe_post(
+        bridge,
+        backend,
+        origin,
         "/mcp",
         &[
             ("accept", "application/json, text/event-stream"),
@@ -936,7 +1256,10 @@ fn probe_worker(
     {
         return Err("MCP_UNAVAILABLE: business tools inconsistent with checked inventory".into());
     }
-    let anonymous = post(
+    let anonymous = probe_post(
+        bridge,
+        backend,
+        origin,
         "/mcp",
         &[("accept", "application/json, text/event-stream")],
         json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}),
@@ -944,6 +1267,14 @@ fn probe_worker(
     if anonymous.status != 401 || !anonymous.content_type("application/json") {
         return Err("MCP_UNAVAILABLE: anonymous business MCP caller was not refused".into());
     }
+    Ok(has_operations)
+}
+fn probe_assets(
+    bridge: &Bridge<'_>,
+    backend: &Backend,
+    origin: &str,
+    bundle: &Value,
+) -> Result<()> {
     for (key, resource) in bundle["resources"].as_object().unwrap() {
         let path = format!(
             "/assets/{}",
@@ -954,7 +1285,7 @@ fn probe_worker(
                 .collect::<Vec<_>>()
                 .join("/")
         );
-        let response = get(&path, &[])?;
+        let response = probe_get(bridge, backend, origin, &path, &[])?;
         if response.status != 200
             || !response.content_type(resource["contentType"].as_str().unwrap())
             || response.body != bundle::bytes(&resource["bytes"])?
@@ -964,6 +1295,16 @@ fn probe_worker(
             ));
         }
     }
+    Ok(())
+}
+fn probe_page(
+    bridge: &Bridge<'_>,
+    backend: &Backend,
+    origin: &str,
+    artifact: &Value,
+    cookie: &str,
+    has_operations: bool,
+) -> Result<()> {
     let pages = artifact["pages"]
         .as_array()
         .map(Vec::as_slice)
@@ -977,7 +1318,7 @@ fn probe_worker(
             .as_str()
             .filter(|s| s.starts_with('/'))
             .ok_or("PAGE_UNAVAILABLE: invalid app-relative route")?;
-        let response = get(path, &[("cookie", &cookie)])?;
+        let response = probe_get(bridge, backend, origin, path, &[("cookie", &cookie)])?;
         if response.status != 200 || !response.content_type("text/html") {
             return Err("PAGE_UNAVAILABLE: installed page route failed".into());
         }
@@ -1019,6 +1360,62 @@ mod tests {
         assert!(storage_mode(&json!({"models":[{"name":"A","parent":"A"}]})).is_err());
     }
     #[test]
+    fn serving_owner_requires_separate_existing_identity_before_state_mutation() {
+        use std::cell::RefCell;
+        let seen = RefCell::new(Vec::new());
+        let cancel = AtomicBool::new(false);
+        let call = |command: &str, _: Option<&str>, payload: Value, _: &AtomicBool| {
+            seen.borrow_mut().push((command.to_owned(), payload));
+            Ok(Value::Null)
+        };
+        let bridge = Bridge {
+            generation: "test",
+            call: &call,
+            cancel: &cancel,
+        };
+        for identity in [None, Some("STATE")] {
+            assert!(
+                verify_owner_identity(&bridge, "mf", "worker", "STATE", Some("owner"), identity)
+                    .unwrap_err()
+                    .contains("IDENTITY_UNAVAILABLE")
+            );
+        }
+        assert!(seen.borrow().is_empty());
+        assert!(
+            verify_owner_identity(
+                &bridge,
+                "mf",
+                "worker",
+                "STATE",
+                Some("owner"),
+                Some("IDENTITY")
+            )
+            .is_err()
+        );
+        assert_eq!(seen.borrow().len(), 1);
+        assert_eq!(seen.borrow()[0].0, "identity.findTeamById");
+        assert_eq!(seen.borrow()[0].1["binding"], "IDENTITY");
+        assert_eq!(seen.borrow()[0].1["input"]["teamId"], "owner");
+        let call = |command: &str, _: Option<&str>, _: Value, _: &AtomicBool| {
+            assert_eq!(command, "identity.findTeamById");
+            Ok(json!({"team_id":"owner"}))
+        };
+        let bridge = Bridge {
+            generation: "test",
+            call: &call,
+            cancel: &cancel,
+        };
+        verify_owner_identity(
+            &bridge,
+            "mf",
+            "worker",
+            "STATE",
+            Some("owner"),
+            Some("IDENTITY"),
+        )
+        .unwrap();
+    }
+    #[test]
     fn role_aliases_must_be_unique() {
         let roles = parse_roles(&json!({"Ava":["Reader"]})).unwrap();
         let definition = json!({"policy":{"roles":["Office.Reader"]},"packages":{"Office":{"roles":{"Reader":{"id":"Office.Reader"}}}}});
@@ -1028,4 +1425,527 @@ mod tests {
         );
         assert!(parse_roles(&json!({"Unknown":["Reader"]})).is_err());
     }
+}
+
+/// Private semantic-test policy surface. All callbacks are fixed SDK methods;
+/// callers may lend actual SDK objects, but cannot replace admission decisions.
+pub fn test_policy(
+    operation: &str,
+    input: &Value,
+    generation: &str,
+    call: &Call<'_>,
+    cancel: &AtomicBool,
+) -> Result<Value> {
+    let bridge = Bridge {
+        generation,
+        call,
+        cancel,
+    };
+    match operation {
+        "vars" => return test_vars(input),
+        "roles" => {
+            return serde_json::to_value(resolve_roles(
+                parse_roles(&input["roles"])?,
+                &input["definition"],
+            )?)
+            .map_err(|e| e.to_string());
+        }
+        "worker" => return test_worker(input, &bridge),
+        "seed" => {
+            return seed(
+                &bridge,
+                "policy-input",
+                "provided",
+                &parse_roles(input.get("roles").unwrap_or(&json!({})))?,
+            );
+        }
+        "gateway" => return test_gateway(&bridge),
+        _ => {}
+    }
+    let captured: Capture =
+        serde_json::from_value(input["capture"].clone()).map_err(|e| e.to_string())?;
+    let artifact = &input["artifact"];
+    let artifact_json = input["artifactJson"]
+        .as_str()
+        .map(str::to_owned)
+        .unwrap_or_else(|| artifact.to_string());
+    if serde_json::from_str::<Value>(&artifact_json).map_err(|e| e.to_string())? != *artifact {
+        return Err("test artifact bytes differ from checked artifact".into());
+    }
+    match operation {
+        "activation" => test_activation(input, &captured, artifact, &artifact_json, &bridge),
+        "evidence" => test_evidence(&captured, artifact, &artifact_json, &bridge),
+        "preview" | "browser" => {
+            test_preview(operation, &captured, artifact, &artifact_json, &bridge)
+        }
+        _ => Err("unknown native test policy operation".into()),
+    }
+}
+fn test_vars(input: &Value) -> Result<Value> {
+    let origin = input["origin"]
+        .as_str()
+        .ok_or("preview test origin missing")?;
+    let url = url::Url::parse(origin).map_err(|e| e.to_string())?;
+    if url.scheme() != "http"
+        || url.host_str() != Some("127.0.0.1")
+        || url.port().is_none()
+        || url.path() != "/"
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return Err("ORIGIN_INVALID: selected loopback origin required".into());
+    }
+    return Ok(
+        json!({"CAN_AUTH_ORIGIN":origin,"CAN_DEPLOYMENT_BASE":origin,"CAN_LOCAL_FILES":true}),
+    );
+}
+fn test_worker(input: &Value, bridge: &Bridge<'_>) -> Result<Value> {
+    let options = &input["options"];
+    let payload = test_worker_options(options)?;
+    let handle = payload["handle"]
+        .as_str()
+        .ok_or("test worker handle missing")?
+        .to_owned();
+    test_register_paths(&payload, bridge)?;
+    let created = bridge.allocate(payload.clone())?;
+    bridge.call(
+        "test.worker.ready",
+        json!({"handle":handle,"backend":created["backend"],"analytics":payload["analytics"]}),
+    )?;
+    if options["resourceRecovery"] == true {
+        test_recovery_loop(options, &handle, bridge)?;
+    } else {
+        bridge.call("test.worker.close", json!({}))?;
+    }
+    return Ok(json!({"closed":true}));
+}
+fn test_register_paths(payload: &Value, bridge: &Bridge<'_>) -> Result<()> {
+    for path in payload["temporaryPaths"].as_array().into_iter().flatten() {
+        if let Err(error) = bridge.call("test.resourcePath", json!({"path":path})) {
+            // No SDK allocation has begun, so native-owned scratch can be removed here.
+            for owned in payload["temporaryPaths"].as_array().into_iter().flatten() {
+                if let Some(path) = owned.as_str() {
+                    std::fs::remove_dir_all(path)
+                        .map_err(|cleanup| format!("{error}; scratch cleanup failed: {cleanup}"))?;
+                }
+            }
+            return Err(error);
+        }
+    }
+    Ok(())
+}
+fn test_recovery_loop(options: &Value, handle: &str, bridge: &Bridge<'_>) -> Result<()> {
+    let mut reported = false;
+    loop {
+        let next = bridge.call("test.worker.next", json!({"waitMs":1000}))?;
+        if next["close"] == true {
+            break;
+        }
+        let result = bridge.call("mf.scheduled", json!({"handle":handle,"workerName":options["workerName"],"cron":"can-resource-recovery"}));
+        let failed = result
+            .as_ref()
+            .map_or(true, |value| value["outcome"] != "ok");
+        if failed && !reported {
+            eprintln!(
+                "Local resource recovery failed; retrying while the SDK host remains available."
+            );
+        }
+        reported = failed;
+    }
+    Ok(())
+}
+fn test_gateway(bridge: &Bridge<'_>) -> Result<Value> {
+    let mut gateway = crate::gateway::Gateway::bind().map_err(|e| e.to_string())?;
+    let backend = bridge.call("test.gateway.backend", json!({"url":gateway.origin()}))?;
+    if !backend.is_null() {
+        gateway
+            .set_backend(serde_json::from_value(backend).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        test_gateway_control(&bridge, &gateway, "test.gateway.control", json!({}))?;
+    }
+    gateway.shutdown().map_err(|e| e.to_string())?;
+    return Ok(json!({"closed":true}));
+}
+fn test_activation(
+    input: &Value,
+    captured: &Capture,
+    artifact: &Value,
+    artifact_json: &str,
+    bridge: &Bridge<'_>,
+) -> Result<Value> {
+    admit(&captured, artifact, false)?;
+    let plan = bindings::plan(artifact, None)?;
+    let constants = bridge.call("runtime.constants", json!({}))?;
+    let app = plan.app.clone().unwrap_or(app_name(&captured.source_text)?);
+    activate(
+        &bridge,
+        "policy-input",
+        "provided",
+        "STATE",
+        input["owner"].as_str(),
+        input["identityBinding"].as_str(),
+        input["databaseId"]
+            .as_str()
+            .ok_or("test database ID missing")?,
+        &app,
+        artifact,
+        &artifact_json,
+        &captured,
+        &plan,
+        &constants,
+    )?;
+    return Ok(json!({"active":true,"reasons":[]}));
+}
+fn test_evidence(
+    captured: &Capture,
+    artifact: &Value,
+    artifact_json: &str,
+    bridge: &Bridge<'_>,
+) -> Result<Value> {
+    let built = build(
+        &captured,
+        artifact,
+        artifact_json.as_bytes(),
+        &json!({}),
+        &bridge,
+        false,
+    )?;
+    return Ok(
+        json!({"verdict":{"active":true,"reasons":[]},"bundle":built.bundle,"captureEpochMaterial":captured.epoch_material,
+            "artifactJsonSha256":capture::hash(artifact_json.as_bytes()),"consumedInputs":captured.inputs}),
+    );
+}
+fn test_preview(
+    operation: &str,
+    captured: &Capture,
+    artifact: &Value,
+    artifact_json: &str,
+    bridge: &Bridge<'_>,
+) -> Result<Value> {
+    let directory = tempfile::Builder::new()
+        .prefix("can-native-preview-test-")
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()
+        .map_err(|e| e.to_string())?;
+    let path = directory.keep();
+    if let Err(error) = bridge.call("test.resourcePath", json!({"path":path})) {
+        // The host has not allocated Miniflare yet; preserve its SDK ordering on failure.
+        std::fs::remove_dir_all(&path)
+            .map_err(|cleanup| format!("{error}; scratch cleanup failed: {cleanup}"))?;
+        return Err(error);
+    }
+    let mut gateway = crate::gateway::Gateway::bind().map_err(|e| e.to_string())?;
+    let result = (|| {
+        let prepared = prepare(
+            &captured,
+            artifact,
+            artifact_json.as_bytes(),
+            bridge.generation,
+            gateway.origin(),
+            Some(&path),
+            &json!({}),
+            bridge.call,
+            bridge.cancel,
+        )?;
+        gateway
+            .set_backend(prepared.backend.clone())
+            .map_err(|e| e.to_string())?;
+        if operation == "browser" {
+            return crate::qualification::test_browser(
+                &prepared,
+                artifact,
+                &captured,
+                &gateway,
+                bridge.generation,
+                bridge.call,
+                bridge.cancel,
+            );
+        }
+        test_gateway_control(
+            &bridge,
+            &gateway,
+            "test.preview.ready",
+            json!({"url":gateway.origin(),"actors":prepared.actors}),
+        )?;
+        Ok(json!({"closed":true}))
+    })();
+    gateway.shutdown().map_err(|e| e.to_string())?;
+    return result;
+}
+
+fn test_gateway_control(
+    bridge: &Bridge,
+    gateway: &crate::gateway::Gateway,
+    initial: &str,
+    mut payload: Value,
+) -> Result<()> {
+    let mut command = initial;
+    loop {
+        let request = bridge.call(command, payload)?;
+        match request["operation"].as_str() {
+            Some("close") => return Ok(()),
+            Some("mint") => {
+                payload = json!({"openUrl":gateway.mint_access().map_err(|e| e.to_string())?})
+            }
+            _ => return Err("unknown native preview test control".into()),
+        }
+        command = "test.preview.control";
+    }
+}
+fn test_worker_fields(input: &Value) -> Result<Value> {
+    let name = input["workerName"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .ok_or("test worker name missing")?;
+    let date = input["compatibilityDate"]
+        .as_str()
+        .ok_or("test Worker date missing")?;
+    let main = input["mainModule"]
+        .as_str()
+        .ok_or("test Worker entry missing")?;
+    let mut modules = input["modules"].clone();
+    if let Some(maps) = input["sourceMaps"].as_object() {
+        for (name, map) in maps {
+            if let Some(source) = modules[name].as_str() {
+                modules[name] = json!(format!(
+                    "{source}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}\n",
+                    STANDARD.encode(map.to_string().as_bytes())
+                ));
+            }
+        }
+    }
+    let mut worker = json!({"name":name,"compatibilityDate":date,"compatibilityFlags":input.get("compatibilityFlags").cloned().unwrap_or(json!([])),
+        "modules":runtime::modules(main,&modules,input.get("binaryModules").unwrap_or(&json!({})))?,"bindings":input.get("vars").cloned().unwrap_or(json!({}))});
+    for (key, id) in [
+        ("d1Databases", "id"),
+        ("r2Buckets", "id"),
+        ("kvNamespaces", "id"),
+    ] {
+        let mut bindings = serde_json::Map::new();
+        for entry in input[key].as_array().into_iter().flatten() {
+            let binding = entry["binding"]
+                .as_str()
+                .ok_or("test resource binding missing")?;
+            if bindings.insert(binding.into(), entry[id].clone()).is_some() {
+                return Err("duplicate test resource binding".into());
+            }
+        }
+        worker[key] = Value::Object(bindings);
+    }
+    let mut durable = serde_json::Map::new();
+    for entry in input["durableObjects"].as_array().into_iter().flatten() {
+        let mut value = entry
+            .as_object()
+            .ok_or("test Durable Object invalid")?
+            .clone();
+        let binding = value
+            .remove("binding")
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .ok_or("test Durable Object binding missing")?;
+        durable.insert(binding, Value::Object(value));
+    }
+    worker["durableObjects"] = Value::Object(durable);
+    for key in ["queueProducers", "queueConsumers", "serviceBindings"] {
+        if let Some(value) = input.get(key) {
+            worker[key] = value.clone();
+        }
+    }
+    if input["denyOutbound"] == true {
+        worker["outboundService"] = json!({"network":{"allow":[]}});
+    }
+    Ok(worker)
+}
+fn test_worker_options(input: &Value) -> Result<Value> {
+    let companions = input["companionWorkers"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let declared = std::iter::once(input)
+        .chain(companions.iter())
+        .collect::<Vec<_>>();
+    validate_test_workers(&declared)?;
+    if input["d1PersistenceRequired"] == true {
+        test_required_storage(&input["d1Persist"])?;
+        if declared.iter().any(|worker| {
+            worker["durableObjects"]
+                .as_array()
+                .is_some_and(|v| !v.is_empty())
+        }) {
+            test_required_storage(&input["durableObjectsPersist"])?;
+        }
+    }
+    let name = input["workerName"]
+        .as_str()
+        .ok_or("test worker name missing")?;
+    let handle = format!("test-mf-{}", random_id()?);
+    let main = test_worker_fields(input)?;
+    let plan = bindings::Plan {
+        app: None,
+        bindings: vec![],
+        queue_handlers: vec![],
+        no_model_storage_mode: None,
+    };
+    let (mut payload, _) = runtime::options(&handle, name, main, &plan, None, false)?;
+    let options = &mut payload["options"];
+    // Raw SDK fixtures retain their explicitly selected workerd contract.
+    options["workers"][1]["compatibilityDate"] = input["compatibilityDate"].clone();
+    options["workers"][1]["compatibilityFlags"] = input
+        .get("compatibilityFlags")
+        .cloned()
+        .unwrap_or(json!([]));
+    for key in [
+        "d1Persist",
+        "r2Persist",
+        "kvPersist",
+        "durableObjectsPersist",
+    ] {
+        if let Some(value) = input.get(key) {
+            options[key] = value.clone();
+        }
+    }
+    let companions = input["companionWorkers"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    for companion in &companions {
+        options["workers"]
+            .as_array_mut()
+            .unwrap()
+            .push(test_worker_fields(companion)?);
+    }
+    test_analytics(input, &companions, &mut payload)?;
+    Ok(payload)
+}
+
+fn validate_test_workers(declared: &[&Value]) -> Result<()> {
+    let mut names = BTreeSet::new();
+    for worker in declared {
+        let name = worker["workerName"]
+            .as_str()
+            .ok_or("test worker name missing")?;
+        if !names.insert(name) {
+            return Err(format!("local SDK worker {name} is duplicated"));
+        }
+    }
+    for worker in declared {
+        for target in worker["serviceBindings"]
+            .as_object()
+            .into_iter()
+            .flat_map(|v| v.values())
+        {
+            let name = target
+                .as_str()
+                .or_else(|| target["name"].as_str())
+                .ok_or("test service worker name missing")?;
+            if !names.contains(name) {
+                return Err(format!(
+                    "local SDK service worker {name} has no supplied implementation"
+                ));
+            }
+        }
+        for object in worker["durableObjects"].as_array().into_iter().flatten() {
+            if let Some(name) = object["scriptName"].as_str() {
+                if !names.contains(name) {
+                    return Err(format!(
+                        "local SDK Durable Object worker {name} has no supplied implementation"
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn test_analytics(input: &Value, companions: &[Value], payload: &mut Value) -> Result<()> {
+    let options = &mut payload["options"];
+    let workers = std::iter::once(input)
+        .chain(companions.iter())
+        .collect::<Vec<_>>();
+    let mut datasets = BTreeSet::new();
+    let mut analytics_workers = BTreeSet::new();
+    let analytics_name = format!("test-analytics-{}", random_id()?);
+    for declared in workers {
+        let worker_name = declared["workerName"]
+            .as_str()
+            .ok_or("test worker name missing")?;
+        let index = options["workers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|w| w["name"] == worker_name)
+            .ok_or("test worker unavailable")?;
+        for item in declared["analyticsEngineDatasets"]
+            .as_array()
+            .into_iter()
+            .flatten()
+        {
+            let binding = item["binding"]
+                .as_str()
+                .ok_or("test analytics binding missing")?;
+            let dataset = item["dataset"]
+                .as_str()
+                .ok_or("test analytics dataset missing")?;
+            options["workers"][index]["wrappedBindings"][binding] = json!({"scriptName":analytics_name,"bindings":{"dataset":dataset,"workerName":worker_name}});
+            datasets.insert(dataset.to_owned());
+            analytics_workers.insert(worker_name.to_owned());
+        }
+    }
+    if !datasets.is_empty() {
+        let temporary = std::env::temp_dir().join(format!("can-sdk-analytics-{}", random_id()?));
+        let path = input["analyticsEnginePersist"]
+            .as_str()
+            .map(Path::new)
+            .unwrap_or(&temporary);
+        state::create_private_directory(path)?;
+        options["workers"].as_array_mut().unwrap().push(json!({"name":analytics_name,"modules":[{"type":"ESModule","path":"analytics.js","contents":include_str!("preview/analytics.js")}],"serviceBindings":{}}));
+        let paths = datasets
+            .iter()
+            .map(|dataset| {
+                (
+                    dataset.clone(),
+                    path.join(format!("{}.jsonl", capture::hash(dataset.as_bytes()))),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        payload["analytics"] = json!({"worker":analytics_name,"datasets":datasets,"workers":analytics_workers,"sinkPaths":paths,"maxBodyBytes":65536});
+        if input["analyticsEnginePersist"].is_null() {
+            payload["temporaryPaths"] = json!([path]);
+        }
+    }
+    Ok(())
+}
+
+fn test_required_storage(value: &Value) -> Result<()> {
+    use std::{
+        fs::{self, OpenOptions},
+        io::Write,
+        os::unix::fs::{MetadataExt, OpenOptionsExt},
+    };
+    let path = value
+        .as_str()
+        .map(Path::new)
+        .filter(|p| p.is_absolute())
+        .ok_or("required D1 storage must be an existing absolute directory")?;
+    let metadata =
+        fs::symlink_metadata(path).map_err(|_| "required D1 storage directory is unavailable")?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() || metadata.mode() & 0o222 == 0 {
+        return Err("required D1 storage is unavailable or unwritable".into());
+    }
+    let probe = path.join(format!(".can-storage-probe-{}", random_id()?));
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&probe)
+        .map_err(|_| "required D1 storage is unavailable or unwritable")?;
+    let result = file
+        .write_all(b"storage preflight\n")
+        .and_then(|_| file.sync_all());
+    drop(file);
+    let removed = fs::remove_file(probe);
+    result
+        .and(removed)
+        .map_err(|_| "required D1 storage is unavailable or unwritable".into())
 }

@@ -84,7 +84,7 @@ test('guarded send persists staged delivery.id and pending enum', { timeout: 240
     const { asId, asModel, asOperation, asOperationId, uuidv7, classifyFailure } = await nodeImport(pathToFileURL(require.resolve('@canlang/state/testing/invocation/fixtures')).href) as typeof import('@canlang/state/testing/invocation/fixtures');
     const { assembleModules, importVerifiedAssemblyModule } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
     const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
-    const { createNativeFileRetirementBinding } = await nodeImport(installed('dev/file-retirement.js')) as typeof import('../src/dev/file-retirement.js');
+    const { createNativeFileRetirementBinding } = await nodeImport(installed('runtime/file-retirement.js')) as typeof import('../src/runtime/file-retirement.js');
     const { bindNativeEmailDispatchGuards } = await nodeImport(installed('runtime/invoke.js')) as typeof import('../src/runtime/invoke.js');
     const { createBoundMailAdapter } = await nodeImport(installed('runtime/bound-mail.js')) as typeof import('../src/runtime/bound-mail.js');
     const { createBoundMailDispatcher } = await nodeImport(installed('runtime/bound-dispatch.js')) as typeof import('../src/runtime/bound-dispatch.js');

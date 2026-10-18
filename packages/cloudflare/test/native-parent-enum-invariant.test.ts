@@ -44,9 +44,9 @@ test('parent enum invariant activates in default fixture materialization and rec
       const {assembleModules} = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
       const {loadCanonicalDescriptors, materializeCanonicalExampleSnapshots} = await nodeImport(installed('runtime/invoke.js')) as typeof import('../src/runtime/invoke.js');
       const {buildInvoker} = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
-      const {installedLocalPreviewInputInventory} = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-      const {captureSingleFileSource, captureIsCurrent, verifyCompilerSources} = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
-      const {compileCapturedSingleFile} = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
+      const {installedLocalPreviewInputInventory} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+      const {captureSingleFileSource, captureIsCurrent, verifyCompilerSources} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+      const {compileCapturedSingleFile} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
       const compilerPath = join(root, 'compiler/target/debug/can');
       const capture = await captureSingleFileSource({checkoutRoot: root, appPath: sourcePath, compilerPath,
         catalogPath: join(root, 'packages/cloudflare/dist/native-catalog.json'),

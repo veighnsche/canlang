@@ -125,10 +125,10 @@ test('unchanged original CanChat retains Files and exercises original empty term
       const {assembleModules,importVerifiedAssemblyModule} = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
       const {buildInvoker} = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
       const {createBoundFileHandler,createCanonicalFileBinding} = await nodeImport(installed('runtime/bound-files.js')) as typeof import('../src/runtime/bound-files.js');
-      const {prepareLocalPreviewCapture} = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-      const {captureSingleFileSource,captureIsCurrent,verifyCompilerSources} = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+      const {prepareLocalPreviewCapture} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+      const {captureSingleFileSource,captureIsCurrent,verifyCompilerSources} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
       const {parseArtifactText} = await nodeImport(installed('runtime/artifact.js')) as typeof import('../src/runtime/artifact.js');
-      const {createNativeFileRetirementBinding} = await nodeImport(installed('dev/file-retirement.js')) as typeof import('../src/dev/file-retirement.js');
+      const {createNativeFileRetirementBinding} = await nodeImport(installed('runtime/file-retirement.js')) as typeof import('../src/runtime/file-retirement.js');
       const {bindNativeEmailDispatchGuards,createCheckedDeliveryProgressProducer,invokeDueSourceRoutingCanonical,invokeRetainedHandlerOccurrenceCanonical} =
         await nodeImport(installed('runtime/invoke.js')) as typeof import('../src/runtime/invoke.js');
       const {createBoundTextGenerationAdapter} = await nodeImport(installed('runtime/bound-text-generation.js')) as typeof import('../src/runtime/bound-text-generation.js');

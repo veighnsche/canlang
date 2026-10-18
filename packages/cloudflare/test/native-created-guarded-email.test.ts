@@ -71,9 +71,9 @@ test('original populated Create, two Sets and guarded Email retain the same mode
     const {distribution} = await nodeImport(pathToFileURL(require.resolve('@canlang/values/distribution')).href) as typeof import('@canlang/values/distribution');
     const {assembleModules, importVerifiedAssemblyModule} = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
     const {buildInvoker} = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
-    const {prepareLocalPreviewCapture} = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-    const {captureSingleFileSource, captureIsCurrent, verifyCompilerSources} = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
-    const {createNativeFileRetirementBinding} = await nodeImport(installed('dev/file-retirement.js')) as typeof import('../src/dev/file-retirement.js');
+    const {prepareLocalPreviewCapture} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const {captureSingleFileSource, captureIsCurrent, verifyCompilerSources} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const {createNativeFileRetirementBinding} = await nodeImport(installed('runtime/file-retirement.js')) as typeof import('../src/runtime/file-retirement.js');
     const {bindNativeEmailDispatchGuards} = await nodeImport(installed('runtime/invoke.js')) as typeof import('../src/runtime/invoke.js');
     const {createBoundMailAdapter} = await nodeImport(installed('runtime/bound-mail.js')) as typeof import('../src/runtime/bound-mail.js');
     const {createBoundMailDispatcher} = await nodeImport(installed('runtime/bound-dispatch.js')) as typeof import('../src/runtime/bound-dispatch.js');

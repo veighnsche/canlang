@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { startLocalDev } from "@canlang/cloudflare";
+import { startLocalDev } from "../fixtures/raw-worker.js";
 import { createReport } from "@canlang/testkit";
 
 const repoRoot = new URL("../..", import.meta.url);

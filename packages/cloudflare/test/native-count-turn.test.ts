@@ -17,7 +17,7 @@ import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, ModelName, MutationEnvelope, OperationName,
   OperationId, ProjectedRecord, ReceiptIdentity, ResolvedIdentity, StoredRow } from '@canlang/contracts';
-import type { SingleFileCapture } from '../src/dev/source-capture.js';
+import type { SingleFileCapture } from '../src/runtime/native-dev.test-support.js';
 import type { MutationOutcome } from '../src/worker/assembly.js';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
@@ -66,8 +66,8 @@ test('released bounded count uses its original Branch scope, empty parent witnes
     const {assembleModules, importVerifiedAssemblyModule} = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
     const {buildInvoker, createTeamOwnerStorageBoundary} = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
     const {loadCanonicalDescriptors} = await nodeImport(installed('runtime/invoke.js')) as typeof import('../src/runtime/invoke.js');
-    const {prepareLocalPreviewCapture} = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-    const {captureSingleFileSource, captureIsCurrent, verifyCompilerSources} = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+    const {prepareLocalPreviewCapture} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const {captureSingleFileSource, captureIsCurrent, verifyCompilerSources} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
     const {distribution} = await nodeImport(producer('@canlang/values/distribution')) as typeof import('@canlang/values/distribution');
     const {decodeValue} = await nodeImport(producer('@canlang/values')) as typeof import('@canlang/values');
     const {createD1IdentityStore, ensureIdentitySchema, issueMcpGrant, resolveIdentity} = await nodeImport(producer('@canlang/identity')) as typeof import('@canlang/identity');
@@ -275,7 +275,7 @@ test('released bounded count uses its original Branch scope, empty parent witnes
     try { await worker?.dispose(); } finally {
       try {
         if (capture !== undefined) {
-          const {captureIsCurrent} = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+          const {captureIsCurrent} = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
           assert.equal(await captureIsCurrent(capture), true, 'source/output closure stays current through awaited D1/workerd cleanup');
         }
       } finally { await rm(directory, {recursive: true, force: true}); }

@@ -48,7 +48,7 @@ import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { join, relative } from "node:path";
-import type { LocalD1 } from "@canlang/cloudflare";
+import type { LocalDevOptions } from "../../fixtures/raw-worker.js";
 import { distribution as contractsDistribution } from "@canlang/contracts/distribution";
 import type { CompileArtifact, StoragePort } from "@canlang/contracts";
 import {
@@ -94,7 +94,7 @@ export interface WorkerAssembly {
   readonly artifact: CompileArtifact;
   readonly mainModule: string;
   readonly modules: Record<string, string>;
-  readonly d1Databases: readonly LocalD1[];
+  readonly d1Databases: NonNullable<LocalDevOptions["d1Databases"]>;
   readonly workerName: string;
   readonly compatibilityDate: string;
   /** Always `fixture/handbuilt/<app>` — asserted by specs. */

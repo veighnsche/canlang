@@ -11,6 +11,7 @@ rmSync(devOutput, { force: true });
 try {
   const { CATALOG } = await import('@canlang/values');
   const { UI_CATALOG } = await import('@canlang/ui');
+  const { PUBLIC_ERROR_MESSAGES, buildBusinessError, FORM_REFUSAL_HEADER } = await import('@canlang/interfaces');
   if (!Array.isArray(CATALOG.entries) || !Array.isArray(UI_CATALOG.entries)) {
     throw new Error('Values and UI must supply their canonical catalog entries.');
   }
@@ -34,7 +35,10 @@ try {
     entries: CATALOG.entries.map(entry => entry === matches[0] ? { ...entry, availability: 'implemented' } : entry),
   };
   writeFileSync(output, `${JSON.stringify(catalog, null, 2)}\n`);
-  writeFileSync(devOutput, `${JSON.stringify({ values: CATALOG.entries, ui: UI_CATALOG.entries }, null, 2)}\n`);
+  const retryableByCode = Object.fromEntries(Object.keys(PUBLIC_ERROR_MESSAGES)
+    .map(code => [code, buildBusinessError(code).retryable]));
+  writeFileSync(devOutput, `${JSON.stringify({ values: CATALOG.entries, ui: UI_CATALOG.entries,
+    publicErrorMessages: PUBLIC_ERROR_MESSAGES, retryableByCode, formRefusalHeader: FORM_REFUSAL_HEADER }, null, 2)}\n`);
   console.log(`native catalog ${catalog.catalog_version}: scoped active_member -> dist/native-catalog.json`);
   console.log('native construct catalog: canonical Values/UI entries -> dist/native-dev-catalog.json');
 } catch (error) {

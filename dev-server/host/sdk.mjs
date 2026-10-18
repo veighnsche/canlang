@@ -49,9 +49,14 @@ export async function createApi(registry){
     signal.throwIfAborted();
     switch(command){
       case 'node.resolve':{
-        const selected=p.from?createRequire(join(p.from,'package.json')):require;
-        try{return {path:selected.resolve(p.specifier),absent:false};}
-        catch(error){if(error.code==='MODULE_NOT_FOUND'&&error.message.split('\n',1)[0]===`Cannot find module '${p.specifier}'`)return {absent:true};throw error;}
+        const resolveOne=request=>{
+          const selected=request.from?createRequire(join(request.from,'package.json')):require;
+          try{return {path:selected.resolve(request.specifier),absent:false};}
+          catch(error){if(error.code==='MODULE_NOT_FOUND'&&error.message.split('\n',1)[0]===`Cannot find module '${request.specifier}'`)return {absent:true};throw error;}
+        };
+        if(p.requests===undefined)return resolveOne(p);
+        if(!Array.isArray(p.requests)||p.requests.length>512)throw Error('invalid resolver batch');
+        return {results:p.requests.map(request=>{try{return resolveOne(request);}catch(error){return {error:{code:String(error.code??'RESOLVE_FAILED').slice(0,128),message:String(error.message).slice(0,4096)}};}})};
       }
       case 'runtime.constants':return {releaseVersion:stamp.RELEASE_VERSION,contractsVersion:contracts.CONTRACTS_VERSION,nodePath:process.execPath,hostPath:fileURLToPath(new URL('./entry.mjs',import.meta.url))};
       case 'metadata.parse':return wire(parse(p.source,{ecmaVersion:'latest',sourceType:'module'}));

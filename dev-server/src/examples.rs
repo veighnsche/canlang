@@ -66,25 +66,7 @@ struct Recipe {
     artifact: Value,
     digest: String,
 }
-fn recipe(value: &Value, source_revision: &str) -> Result<Recipe> {
-    for key in [
-        "artifactLabel",
-        "sourceRevision",
-        "workerName",
-        "compatibilityDate",
-        "d1Binding",
-    ] {
-        text(value, key)?;
-    }
-    if value["sourceRevision"] != source_revision {
-        return Err("example recipe source differs from capture".into());
-    }
-    let bytes = encoded(&value["artifactBytes"])?;
-    let artifact: Value =
-        serde_json::from_slice(&bytes).map_err(|_| "example artifact is invalid JSON")?;
-    if artifact["artifact_version"] != 1 {
-        return Err("example artifact version is unsupported".into());
-    }
+fn validate_artifact_modules(artifact: &Value) -> Result<()> {
     let modules = artifact["modules"]
         .as_array()
         .ok_or("example artifact modules are absent")?;
@@ -115,6 +97,28 @@ fn recipe(value: &Value, source_revision: &str) -> Result<Recipe> {
             return Err("example artifact fixture inventory is invalid".into());
         }
     }
+    Ok(())
+}
+fn recipe(value: &Value, source_revision: &str) -> Result<Recipe> {
+    for key in [
+        "artifactLabel",
+        "sourceRevision",
+        "workerName",
+        "compatibilityDate",
+        "d1Binding",
+    ] {
+        text(value, key)?;
+    }
+    if value["sourceRevision"] != source_revision {
+        return Err("example recipe source differs from capture".into());
+    }
+    let bytes = encoded(&value["artifactBytes"])?;
+    let artifact: Value =
+        serde_json::from_slice(&bytes).map_err(|_| "example artifact is invalid JSON")?;
+    if artifact["artifact_version"] != 1 {
+        return Err("example artifact version is unsupported".into());
+    }
+    validate_artifact_modules(&artifact)?;
     let worker = &value["worker"];
     let main = text(worker, "mainModule")?;
     let worker_modules = worker["modules"]
@@ -227,6 +231,69 @@ fn checked_case(value: Value, operation: &str, row: u64) -> Result<Value> {
 
 /// Run immutable compiled recipes without borrowing any serving database or actor.
 /// Every allocation is named before the RPC, including allocations completing after cancellation.
+fn validate_run_id(run_id: &str) -> Result<()> {
+    if run_id.is_empty()
+        || run_id.len() > 64
+        || !run_id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    {
+        return Err("example run identity is invalid".into());
+    }
+    Ok(())
+}
+fn distinct_bindings(artifact: &Value, input: &Value) -> Result<()> {
+    if artifact["models"]
+        .as_array()
+        .is_some_and(|models| !models.is_empty())
+        && matches!(
+            text(input, "d1Binding")?,
+            "CAN_EXAMPLE_STATE_CURRENT" | "CAN_EXAMPLE_STATE_OTHER"
+        )
+    {
+        return Err("example D1 bindings must be distinct".into());
+    }
+    Ok(())
+}
+fn apply_recipe_date(options: &mut Value, input: &Value) {
+    // Preserve this exact recipe's date; it is part of the immutable Worker recipe.
+    if let Some(workers) = options["options"]["workers"].as_array_mut() {
+        for worker in workers {
+            worker["compatibilityDate"] = input["compatibilityDate"].clone();
+        }
+    }
+}
+fn finish_row(resource: Result<Value>, disposed: Result<()>) -> Result<Value> {
+    match (resource, disposed) {
+        (_, Err(error)) => Err(format!("example row cleanup remains owned: {error}")),
+        (Err(error), _) => Err(error),
+        (Ok(result), Ok(())) => Ok(result["rows"][0].clone()),
+    }
+}
+fn completed_report(
+    capture: &Capture,
+    generation: &str,
+    digest: &str,
+    cases: Vec<Value>,
+    count: usize,
+    call: &Call<'_>,
+    cancel: &AtomicBool,
+) -> Result<Value> {
+    capture::check_cancel(cancel)?;
+    let expected_cases = json!(cases);
+    let report = call(
+        "testkit.report",
+        Some(generation),
+        json!({"applicationRoot":capture.root,"artifactDigest":digest,
+        "sourceRevision":capture.source_revision,"cases":expected_cases}),
+        cancel,
+    )?;
+    if report["cases"] != expected_cases {
+        return Err("example report cases differ from completed rows".into());
+    }
+    validate_report(&report, &digest, &capture.source_revision, count)?;
+    Ok(report)
+}
 pub fn run(
     input: &Value,
     capture: &Capture,
@@ -238,26 +305,10 @@ pub fn run(
     call: &Call<'_>,
     cancel: &AtomicBool,
 ) -> Result<Value> {
-    if run_id.is_empty()
-        || run_id.len() > 64
-        || !run_id
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
-    {
-        return Err("example run identity is invalid".into());
-    }
+    validate_run_id(run_id)?;
     let recipe = recipe(input, &capture.source_revision)?;
     let selection = selected(selection)?;
-    if recipe.artifact["models"]
-        .as_array()
-        .is_some_and(|models| !models.is_empty())
-        && matches!(
-            text(input, "d1Binding")?,
-            "CAN_EXAMPLE_STATE_CURRENT" | "CAN_EXAMPLE_STATE_OTHER"
-        )
-    {
-        return Err("example D1 bindings must be distinct".into());
-    }
+    distinct_bindings(&recipe.artifact, input)?;
     current(capture, inventory, cancel)?;
     let tests = recipe.artifact["tests"].as_array().unwrap();
     let mut cases = Vec::new();
@@ -299,12 +350,7 @@ pub fn run(
                     databases,
                     json!({}),
                 )?;
-                // Preserve this exact recipe's date; it is part of the immutable Worker recipe.
-                if let Some(workers) = options["options"]["workers"].as_array_mut() {
-                    for worker in workers {
-                        worker["compatibilityDate"] = input["compatibilityDate"].clone();
-                    }
-                }
+                apply_recipe_date(&mut options, input);
                 let resource = (|| -> Result<Value> {
                     call("mf.create", Some(generation), options, cancel)?;
                     let result = call(
@@ -317,13 +363,7 @@ pub fn run(
                     checked_case(result, operation, row)
                 })();
                 let disposed = release(call, "mf.dispose", generation, json!({"handle":handle}));
-                match (resource, disposed) {
-                    (_, Err(error)) => {
-                        return Err(format!("example row cleanup remains owned: {error}"));
-                    }
-                    (Err(error), _) => return Err(error),
-                    (Ok(result), Ok(())) => case_rows.push(result["rows"][0].clone()),
-                }
+                case_rows.push(finish_row(resource, disposed)?);
                 capture::check_cancel(cancel)?;
                 count += 1;
                 if count > MAX_ROWS {
@@ -347,19 +387,15 @@ pub fn run(
     if count == 0 || selection.is_some() && count != 1 {
         return Err("example selected row is unavailable or ambiguous".into());
     }
-    capture::check_cancel(cancel)?;
-    let expected_cases = json!(cases);
-    let report = call(
-        "testkit.report",
-        Some(generation),
-        json!({"applicationRoot":capture.root,"artifactDigest":recipe.digest,
-        "sourceRevision":capture.source_revision,"cases":expected_cases}),
+    let report = completed_report(
+        capture,
+        generation,
+        &recipe.digest,
+        cases,
+        count,
+        call,
         cancel,
     )?;
-    if report["cases"] != expected_cases {
-        return Err("example report cases differ from completed rows".into());
-    }
-    validate_report(&report, &recipe.digest, &capture.source_revision, count)?;
     current(capture, inventory, cancel)?;
     let projections = match context {
         Some(context) => projections(context, run_id, &report)?,
@@ -415,7 +451,7 @@ fn validate_report(report: &Value, digest: &str, revision: &str, expected: usize
 }
 
 /// Owner-only bounded projections with no actor authorization: never copy values, caller, operation or raw detail.
-pub fn projections(context: &Value, run: &str, report: &Value) -> Result<Vec<Value>> {
+fn projection_context(context: &Value, run: &str, report: &Value) -> Result<()> {
     for key in ["session", "revision", "servingBuild"] {
         let value = text(context, key)?;
         if value.len() > 64
@@ -448,6 +484,10 @@ pub fn projections(context: &Value, run: &str, report: &Value) -> Result<Vec<Val
     if context["sourceRevision"] != report["artifact"]["sourceRevision"] {
         return Err("example projection source mismatch".into());
     }
+    Ok(())
+}
+pub fn projections(context: &Value, run: &str, report: &Value) -> Result<Vec<Value>> {
+    projection_context(context, run, report)?;
     let mut result = Vec::new();
     for (case_index, case) in report["cases"]
         .as_array()
