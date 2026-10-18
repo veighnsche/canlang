@@ -56,4 +56,10 @@ pub mod semantic {
     pub const COMPILER_MISMATCH: &str = "compiler-mismatch";
     /// Release lockstep inputs unreadable or drifted.
     pub const RELEASE_DRIFT: &str = "release-drift";
+    /// Staged module import/graph gates refused (mirrors the TS
+    /// `bundle-failed` bundle assembly classification verbatim).
+    pub const BUNDLE_FAILED: &str = "bundle-failed";
+    /// Deploy-plan bindings unresolvable (mirrors the TS
+    /// `unresolved-binding` plan classification verbatim).
+    pub const UNRESOLVED_BINDING: &str = "unresolved-binding";
 }

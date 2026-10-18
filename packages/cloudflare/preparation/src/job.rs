@@ -279,6 +279,16 @@ const GATE_BEGIN: &str = "BEGIN";
 const GATE_COMPAT: &str = "COMPAT_GATE";
 const GATE_CONFIRM: &str = "CONFIRM_GATE";
 const GATE_COMPILER: &str = "COMPILER_GATE";
+/// Host-read stage (one NeedHost round-trip): staged module buffers.
+const ST_LOAD_MODULES: &str = "LOAD_MODULES";
+/// Host-read stage (one NeedHost round-trip): plan options. Built
+/// before any previous-plan demand: competing binding failures refuse
+/// here without previous-plan IO.
+const ST_PLAN: &str = "PLAN";
+/// Host-read stage (one NeedHost round-trip): the previous sidecar
+/// the host read for the derived sidecar path (absent file rides
+/// null). Requested only after the plan builds.
+const ST_LOAD_PREVIOUS_PLAN: &str = "LOAD_PREVIOUS_PLAN";
 
 /// Outcome of one NeedHost exchange: the resume payload, or a
 /// terminal already emitted (exit with the code).
@@ -410,6 +420,251 @@ fn resume_tree(
     decode_tree(&bytes).map_err(|e| Failure::for_stage(command, stage, e.code, e.detail))
 }
 
+/// One held module buffer: keyed JS source as admitted UTF-16 units.
+/// Buffers stay borrowed slices through the import/graph gates below:
+/// the refusal lands before any owned module map or bundle assembly
+/// materializes (the resume transport itself is the only allocation).
+struct ModuleBuffer {
+    key: Vec<u16>,
+    js: Vec<u16>,
+}
+
+/// Typed LOAD_MODULES resume: `{modules: [{key: Text, js: Text}]}`.
+/// Shape failures speak the tree voice (BAD_NODE): the resume is a
+/// malformed tagged tree, never an invented module code.
+fn module_buffers(tree: &Node, command: &str) -> Result<Vec<ModuleBuffer>, Failure> {
+    let bad = |detail: String| {
+        Failure::for_stage(command, ST_LOAD_MODULES, crate::failures::transport::BAD_NODE, detail)
+    };
+    let Node::Arr(items) = tree else {
+        return Err(bad("LOAD_MODULES resume: modules must be an array".to_string()));
+    };
+    let mut buffers = Vec::with_capacity(items.len());
+    for item in items {
+        let key = crate::input::obj_get(item, "key")
+            .and_then(crate::input::as_text)
+            .ok_or_else(|| bad("LOAD_MODULES resume: modules[*].key must be text".to_string()))?;
+        let js = crate::input::obj_get(item, "js")
+            .and_then(crate::input::as_text)
+            .ok_or_else(|| bad("LOAD_MODULES resume: modules[*].js must be text".to_string()))?;
+        buffers.push(ModuleBuffer {
+            key: key.clone(),
+            js: js.clone(),
+        });
+    }
+    Ok(buffers)
+}
+
+/// `<dir>/<stem>.deploy-plan.json` where stem strips one trailing
+/// `.artifact.json` (mirrors the host planPath derivation).
+fn plan_sidecar_path(artifact_path: &str) -> String {
+    let dir_end = artifact_path.rfind('/').map(|index| index + 1).unwrap_or(0);
+    let base = &artifact_path[dir_end..];
+    let stem = base.strip_suffix(".artifact.json").unwrap_or(base);
+    format!("{}{stem}.deploy-plan.json", &artifact_path[..dir_end])
+}
+
+/// Deterministic plan outputs for the Prepared envelope.
+struct PlanReview {
+    changed: bool,
+    lines: Vec<String>,
+    plan_json: String,
+    toml: String,
+    preview: String,
+}
+
+/// PLAN exchange plus the deploy-plan build. Mirrors the host
+/// order (buildDeployPlan first): binding failures refuse as
+/// unresolved-binding before any previous-plan demand.
+fn build_plan(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    token: u64,
+    descriptor: &Node,
+    environment: &Node,
+) -> Result<Node, i32> {
+    const COMMAND: &str = "deploy";
+    let payload = match exchange(reader, writer, token, ST_PLAN, serde_json::json!({})) {
+        Exchange::Payload(payload) => payload,
+        Exchange::Done(code) => return Err(code),
+    };
+    let options = match resume_tree(&payload, "options", COMMAND, ST_PLAN) {
+        Ok(tree) => tree,
+        Err(failure) => {
+            let _ = refuse(writer, failure);
+            return Err(1);
+        }
+    };
+    match crate::plan::build_deploy_plan(descriptor, environment, &options) {
+        Ok(plan) => Ok(plan),
+        Err(error) => {
+            let _ = refuse(
+                writer,
+                Failure::for_stage(
+                    COMMAND,
+                    ST_PLAN,
+                    semantic::UNRESOLVED_BINDING,
+                    error.message,
+                ),
+            );
+            Err(1)
+        }
+    }
+}
+
+/// LOAD_PREVIOUS_PLAN exchange plus the prior-plan check. The native
+/// side derives the sidecar path and asks; the host file read rides
+/// back as a tree (absent file rides null for first deploy; an
+/// unparsable sidecar rides its raw text so the shape check refuses
+/// it, like loadPreviousPlan).
+fn load_previous_plan(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    token: u64,
+    artifact_path: &str,
+) -> Result<Option<Node>, i32> {
+    const COMMAND: &str = "deploy";
+    let plan_path = plan_sidecar_path(artifact_path);
+    let payload = match exchange(
+        reader,
+        writer,
+        token,
+        ST_LOAD_PREVIOUS_PLAN,
+        serde_json::json!({"plan_path": plan_path}),
+    ) {
+        Exchange::Payload(payload) => payload,
+        Exchange::Done(code) => return Err(code),
+    };
+    match payload.get("previous") {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(_) => {
+            let tree = match resume_tree(&payload, "previous", COMMAND, ST_LOAD_PREVIOUS_PLAN) {
+                Ok(tree) => tree,
+                Err(failure) => {
+                    let _ = refuse(writer, failure);
+                    return Err(1);
+                }
+            };
+            if let Err(error) = crate::review::check_previous_plan(&tree, &plan_path) {
+                let _ = refuse(
+                    writer,
+                    Failure::for_stage(
+                        COMMAND,
+                        ST_LOAD_PREVIOUS_PLAN,
+                        semantic::INVALID_DEPLOY_BUNDLE,
+                        error.message,
+                    ),
+                );
+                return Err(1);
+            }
+            Ok(Some(tree))
+        }
+    }
+}
+
+/// Pure diff/render assembly over a built plan. Every failure refuses
+/// as invalid-deploy-bundle at the call site stage.
+fn assemble_review(plan: &Node, previous: Option<&Node>) -> Result<PlanReview, Failure> {
+    const COMMAND: &str = "deploy";
+    const STAGE: &str = ST_LOAD_PREVIOUS_PLAN;
+    let invalid = |message: String| {
+        Failure::for_stage(COMMAND, STAGE, semantic::INVALID_DEPLOY_BUNDLE, message)
+    };
+    let diff = crate::review::diff_plans(previous, plan).map_err(|error| invalid(error.message))?;
+    let plan_json = crate::render::render_plan_json(plan);
+    let toml = crate::render::render_wrangler_toml(plan).map_err(|error| invalid(error.message))?;
+    let preview =
+        crate::review::format_preview(plan, &diff).map_err(|error| invalid(error.message))?;
+    // No duplicate plan object: `plan_json` already carries the
+    // canonical lossless rendering (exactly the sidecar bytes,
+    // including lone-surrogate escapes no `serde_json::Value` can
+    // hold); the TS host `JSON.parse`s it to get the real plan.
+    Ok(PlanReview {
+        changed: diff.changed,
+        lines: diff.lines,
+        plan_json,
+        toml,
+        preview,
+    })
+}
+
+/// PLAN + LOAD_PREVIOUS_PLAN + review join (P06.3/013 order), grouped
+/// out of `run_deploy_tail`: plan first (its binding failures refuse
+/// without previous-plan IO), then the previous sidecar demand, then
+/// diff/render. The compiler gate below keeps its original observable
+/// position.
+fn plan_and_review(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    token: u64,
+    descriptor: &Node,
+    environment: &Node,
+    artifact_path: &str,
+) -> Result<PlanReview, i32> {
+    let token = token + 1;
+    let plan = match build_plan(reader, writer, token, descriptor, environment) {
+        Ok(plan) => plan,
+        Err(code) => return Err(code),
+    };
+    let token = token + 1;
+    let previous = match load_previous_plan(reader, writer, token, artifact_path) {
+        Ok(previous) => previous,
+        Err(code) => return Err(code),
+    };
+    match assemble_review(&plan, previous.as_ref()) {
+        Ok(review) => Ok(review),
+        Err(failure) => {
+            let _ = refuse(writer, failure);
+            Err(1)
+        }
+    }
+}
+
+/// LOAD_MODULES exchange plus the native import/graph gates. Returns
+/// the verified buffer count for the Prepared outputs.
+fn load_modules(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    token: u64,
+    command: &str,
+) -> Result<usize, i32> {
+    let payload = match exchange(reader, writer, token, ST_LOAD_MODULES, serde_json::json!({})) {
+        Exchange::Payload(payload) => payload,
+        Exchange::Done(code) => return Err(code),
+    };
+    let tree = match resume_tree(&payload, "modules", command, ST_LOAD_MODULES) {
+        Ok(tree) => tree,
+        Err(failure) => {
+            let _ = refuse(writer, failure);
+            return Err(1);
+        }
+    };
+    let buffers = match module_buffers(&tree, command) {
+        Ok(buffers) => buffers,
+        Err(failure) => {
+            let _ = refuse(writer, failure);
+            return Err(1);
+        }
+    };
+    let pairs: Vec<(&[u16], &[u16])> = buffers
+        .iter()
+        .map(|buffer| (buffer.key.as_slice(), buffer.js.as_slice()))
+        .collect();
+    if let Err(error) = crate::modules::assert_bundle_checks(&pairs) {
+        let _ = refuse(
+            writer,
+            Failure::for_stage(
+                command,
+                ST_LOAD_MODULES,
+                crate::failures::semantic::BUNDLE_FAILED,
+                error.message,
+            ),
+        );
+        return Err(1);
+    }
+    Ok(buffers.len())
+}
+
 /// Fixed `missingEmission` detail per command (TS discards the loader
 /// error; the classification is the signal).
 fn missing_emission_detail(command: &str) -> String {
@@ -538,17 +793,27 @@ fn run_build_tail(
             ),
         );
     }
+    let token = token + 1;
+    let modules_checked = match load_modules(reader, writer, token, "build") {
+        Ok(count) => count,
+        Err(code) => return Err(code),
+    };
     let prepared = Prepared {
         prepared: PreparedBody {
             scaffold: false,
             mode: "build".to_string(),
-            stages: vec![ST_LOAD_ARTIFACT.to_string(), ST_LOCKSTEP_INPUTS.to_string()],
+            stages: vec![
+                ST_LOAD_ARTIFACT.to_string(),
+                ST_LOCKSTEP_INPUTS.to_string(),
+                ST_LOAD_MODULES.to_string(),
+            ],
             resumes: Vec::new(),
             outputs: serde_json::json!({
                 "release": RELEASE_VERSION,
                 "modules": validated.modules.len(),
                 "callables": validated.callables.iter().map(|c| render_text(c.id)).collect::<Vec<_>>(),
                 "pages": validated.pages.iter().map(|p| render_text(p.path)).collect::<Vec<_>>(),
+                "modulesChecked": modules_checked,
             }),
         },
     };
@@ -761,6 +1026,26 @@ fn run_deploy_tail(
             );
         }
     };
+    // Module buffers gate the bundle before the compiler gate:
+    // import/graph failures refuse here, never at publication.
+    let token = token + 1;
+    let modules_checked = match load_modules(reader, writer, token, "deploy") {
+        Ok(count) => count,
+        Err(code) => return Err(code),
+    };
+    // Plan/review join (P06.3) sits after module staging and before
+    // the compiler gate; see `plan_and_review` for the order.
+    let review = match plan_and_review(
+        reader,
+        writer,
+        token,
+        &descriptor,
+        &environment,
+        artifact_path,
+    ) {
+        Ok(review) => review,
+        Err(code) => return Err(code),
+    };
     // Compiler gate: preview records the warning in outputs and
     // proceeds; confirmed refuses before publication.
     if !begin.preview {
@@ -784,6 +1069,9 @@ fn run_deploy_tail(
                 ST_LOAD_ARTIFACT.to_string(),
                 ST_LOAD_COMPANIONS.to_string(),
                 ST_ACTIVATION_REQUEST.to_string(),
+                ST_LOAD_MODULES.to_string(),
+                ST_PLAN.to_string(),
+                ST_LOAD_PREVIOUS_PLAN.to_string(),
             ],
             resumes: Vec::new(),
             outputs: serde_json::json!({
@@ -791,6 +1079,12 @@ fn run_deploy_tail(
                 "compilerMatch": compiler_detail.is_none(),
                 "compilerDetail": compiler_detail,
                 "verdict": activation,
+                "modulesChecked": modules_checked,
+                "planChanged": review.changed,
+                "planDiff": review.lines,
+                "planJson": review.plan_json,
+                "wranglerToml": review.toml,
+                "previewText": review.preview,
             }),
         },
     };
@@ -867,4 +1161,32 @@ fn activation_verdict(payload: &serde_json::Value) -> Result<serde_json::Value, 
         }
     }
     Ok(serde_json::Value::Object(verdict.clone()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::input::decode_tree;
+
+    #[test]
+    fn assemble_review_surrogate_text() {
+        // Lone-surrogate vars (value + key) plus paired text: the
+        // canonical planJson carries them losslessly, so the review
+        // join must assemble without any duplicate serde Value
+        // round-trip. Fixture is real `encodeAdmittedTreeJson` output.
+        let plan = decode_tree("{\"t\":\"obj\",\"entries\":[[[119,114,97,110,103,108,101,114],{\"t\":\"obj\",\"entries\":[[[110,97,109,101],{\"t\":\"text\",\"units\":[119,49]}],[[109,97,105,110],{\"t\":\"text\",\"units\":[46,47,100,105,115,116,47,119,111,114,107,101,114,47,101,110,116,114,121,46,106,115]}],[[99,111,109,112,97,116,105,98,105,108,105,116,121,95,100,97,116,101],{\"t\":\"text\",\"units\":[50,48,50,54,45,48,55,45,49,53]}],[[118,97,114,115],{\"t\":\"obj\",\"entries\":[[[120],{\"t\":\"text\",\"units\":[55296]}],[[107,55296],{\"t\":\"text\",\"units\":[118]}],[[101,109,111,106,105],{\"t\":\"text\",\"units\":[55357,56832]}]]}],[[100,49,95,100,97,116,97,98,97,115,101,115],{\"t\":\"arr\",\"items\":[]}],[[114,50,95,98,117,99,107,101,116,115],{\"t\":\"arr\",\"items\":[]}],[[100,117,114,97,98,108,101,95,111,98,106,101,99,116,115],{\"t\":\"obj\",\"entries\":[[[98,105,110,100,105,110,103,115],{\"t\":\"arr\",\"items\":[]}]]}],[[113,117,101,117,101,115],{\"t\":\"obj\",\"entries\":[[[112,114,111,100,117,99,101,114,115],{\"t\":\"arr\",\"items\":[]}]]}],[[115,101,114,118,105,99,101,115],{\"t\":\"arr\",\"items\":[]}],[[97,110,97,108,121,116,105,99,115,95,101,110,103,105,110,101,95,100,97,116,97,115,101,116,115],{\"t\":\"arr\",\"items\":[]}]]}],[[115,99,104,101,100,117,108,101,115],{\"t\":\"arr\",\"items\":[]}],[[98,117,110,100,108,101],{\"t\":\"null\"}]]}".as_bytes()).expect("surrogate fixture decodes");
+        let review = assemble_review(&plan, None).expect("surrogate review assembles");
+        assert!(
+            review.plan_json.contains("\\ud800"),
+            "lone escape rides planJson"
+        );
+        assert!(
+            review.plan_json.contains('\u{1F600}'),
+            "valid pair rides planJson as one scalar"
+        );
+        assert!(
+            review.lines.iter().any(|line| line == "+ worker w1 main=./dist/worker/entry.js compat=2026-07-15"),
+            "worker line projected"
+        );
+    }
 }

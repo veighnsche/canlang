@@ -15,9 +15,6 @@
 //! no port can match. Option keys are required (the host always
 //! builds them; see `PlanError`).
 
-// Staged: P06.3 wires this into the job loop; differential tests
-// already pin the calculation contract. Remove when consumed.
-#![allow(dead_code)]
 
 use crate::input::{as_arr, as_obj, js_string, obj_get, Node};
 
@@ -117,6 +114,47 @@ fn entry(key: &str, value: Node) -> (Vec<u16>, Node) {
     (text_key(key), value)
 }
 
+/// One resolved kv binding as a plan namespace entry.
+fn push_kv(kv: &mut Vec<Node>, binding: Node, id: Node) {
+    kv.push(Node::Obj(vec![
+        entry("binding", binding),
+        entry("id", id),
+    ]));
+}
+
+/// TS creates `kv_namespaces` on demand (`??=`): append the key last,
+/// only when a kv binding resolved.
+fn append_kv_namespaces(wrangler: &mut Vec<(Vec<u16>, Node)>, kv: Vec<Node>) {
+    if !kv.is_empty() {
+        wrangler.push(entry("kv_namespaces", Node::Arr(kv)));
+    }
+}
+
+/// Pure resource-kind predicate for the binding dispatch below:
+/// exact text equality against the admitted kind name.
+fn kind_is(kind: &Node, name: &str) -> bool {
+    match kind {
+        Node::Text(units) => {
+            units.iter().zip(name.bytes()).all(|(u, b)| *u == b as u16)
+                && units.len() == name.len()
+        }
+        _ => false,
+    }
+}
+
+/// `options.bundle?.main ?? options.main`: nullish bundle (or a
+/// bundle whose main is nullish) selects the legacy main; any other
+/// main value clones as-is.
+fn select_bundle_main(bundle_node: &Node, legacy_main: &Node) -> Node {
+    match bundle_node {
+        Node::Obj(_) => match obj_get(bundle_node, "main") {
+            None | Some(Node::Null) => legacy_main.clone(),
+            Some(other) => other.clone(),
+        },
+        _ => legacy_main.clone(),
+    }
+}
+
 /// Deterministic deploy-plan generator (mirrors `buildDeployPlan`).
 /// `options` carries `workerName`/`main`/`compatibilityDate` (any
 /// nodes, cloned) plus optional `bundle` (absent/null selects the
@@ -173,20 +211,14 @@ pub fn build_deploy_plan(
     let compatibility_date = obj_get(options, "compatibilityDate")
         .cloned()
         .ok_or_else(|| invalid("deploy plan options must include \"compatibilityDate\""))?;
-    // `options.bundle?.main ?? options.main`: nullish bundle (or a
-    // bundle whose main is nullish) selects legacy; any other main
-    // value clones as-is.
+    // `options.bundle?.main ?? options.main`, resolved before the
+    // binding traversal (same position, same order).
     let bundle_node = obj_get(options, "bundle").unwrap_or(&Node::Null);
-    let main = match bundle_node {
-        Node::Obj(_) => match obj_get(bundle_node, "main") {
-            None | Some(Node::Null) => legacy_main.clone(),
-            Some(other) => other.clone(),
-        },
-        _ => legacy_main.clone(),
-    };
+    let main = select_bundle_main(bundle_node, &legacy_main);
 
     let mut d1: Vec<Node> = Vec::new();
     let mut r2: Vec<Node> = Vec::new();
+    let mut kv: Vec<Node> = Vec::new();
     let mut dob: Vec<Node> = Vec::new();
     let mut queues: Vec<Node> = Vec::new();
     let mut services: Vec<Node> = Vec::new();
@@ -200,40 +232,35 @@ pub fn build_deploy_plan(
             .cloned()
             .unwrap_or(Node::Null);
         let kind = obj_get(requirement, "kind").unwrap_or(&Node::Null);
-        let kind_is = |name: &str| match kind {
-            Node::Text(units) => {
-                units.iter().zip(name.bytes()).all(|(u, b)| *u == b as u16)
-                    && units.len() == name.len()
-            }
-            _ => false,
-        };
-        if kind_is("d1") {
+        if kind_is(kind, "d1") {
             d1.push(Node::Obj(vec![
                 entry("binding", binding),
                 entry("database_name", logical),
                 entry("database_id", id.clone()),
             ]));
-        } else if kind_is("r2") {
+        } else if kind_is(kind, "r2") {
             r2.push(Node::Obj(vec![
                 entry("binding", binding),
                 entry("bucket_name", logical),
             ]));
-        } else if kind_is("durable-object") {
+        } else if kind_is(kind, "kv") {
+            push_kv(&mut kv, binding, id.clone());
+        } else if kind_is(kind, "durable-object") {
             dob.push(Node::Obj(vec![
                 entry("name", binding),
                 entry("class_name", logical),
             ]));
-        } else if kind_is("queue") {
+        } else if kind_is(kind, "queue") {
             queues.push(Node::Obj(vec![
                 entry("binding", binding),
                 entry("queue", logical),
             ]));
-        } else if kind_is("service") {
+        } else if kind_is(kind, "service") {
             services.push(Node::Obj(vec![
                 entry("binding", binding),
                 entry("service", logical),
             ]));
-        } else if kind_is("analytics-engine") {
+        } else if kind_is(kind, "analytics-engine") {
             analytics.push(Node::Obj(vec![
                 entry("binding", binding),
                 entry("dataset", logical),
@@ -249,7 +276,7 @@ pub fn build_deploy_plan(
     }
 
     let vars = obj_get(environment, "vars").unwrap_or(&Node::Null);
-    let wrangler = Node::Obj(vec![
+    let mut wrangler = vec![
         entry("name", worker_name),
         entry("main", main),
         entry("compatibility_date", compatibility_date),
@@ -266,7 +293,11 @@ pub fn build_deploy_plan(
         ),
         entry("services", Node::Arr(services)),
         entry("analytics_engine_datasets", Node::Arr(analytics)),
-    ]);
+    ];
+    // TS creates `kv_namespaces` on demand (`??=`), so the key exists
+    // only when a kv binding resolved, appended last.
+    append_kv_namespaces(&mut wrangler, kv);
+    let wrangler = Node::Obj(wrangler);
     let bundle_out = match bundle_node {
         Node::Null => Node::Null,
         _ => bundle_node.clone(),

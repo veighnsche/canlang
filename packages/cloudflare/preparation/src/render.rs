@@ -14,7 +14,6 @@
 //! quote). Interpolated positions (bundle comment fields) render any
 //! node exactly like the TS template.
 
-#![allow(dead_code)]
 
 use crate::input::{as_arr, as_obj, js_string, json_quote, obj_get, render_text, Node};
 
@@ -226,8 +225,56 @@ fn field<'a>(node: &'a Node, key: &str, path: &str) -> Result<&'a Node, RenderEr
     obj_get(node, key).ok_or_else(|| refuse(&format!("{path}.{key}"), "present"))
 }
 
+/// One `[[kv_namespaces]]` section per namespace entry (mirrors the
+/// `kv_namespaces ?? []` loop in `renderWranglerToml`).
+fn render_kv_namespaces(
+    wrangler: &Node,
+    lines: &mut Vec<String>,
+) -> Result<(), RenderError> {
+    let Some(namespaces) =
+        obj_get(wrangler, "kv_namespaces").filter(|node| !matches!(node, Node::Null))
+    else {
+        return Ok(());
+    };
+    for namespace in expect_arr(namespaces, "plan.wrangler.kv_namespaces")? {
+        let binding = expect_text(
+            field(namespace, "binding", "plan.kv")?,
+            "plan.kv.binding",
+        )?;
+        let id = expect_text(field(namespace, "id", "plan.kv")?, "plan.kv.id")?;
+        lines.push("[[kv_namespaces]]".to_string());
+        lines.push(format!("binding = {}", toml_escape(binding)));
+        lines.push(format!("id = {}", toml_escape(id)));
+        lines.push(String::new());
+    }
+    Ok(())
+}
+
 /// Reviewable `wrangler.toml` with fixed section order (mirrors
 /// `renderWranglerToml`, including the trailing-trim + newline).
+/// `[vars]` section at its fixed position: sorted names, blank line.
+/// Empty vars render no section.
+fn render_vars_section(wrangler: &Node, lines: &mut Vec<String>) -> Result<(), RenderError> {
+    let vars = field(wrangler, "vars", "plan.wrangler")?;
+    let var_entries = expect_obj(vars, "plan.wrangler.vars")?;
+    let mut var_names: Vec<&Vec<u16>> = var_entries.iter().map(|(k, _)| k).collect();
+    var_names.sort();
+    if !var_names.is_empty() {
+        lines.push("[vars]".to_string());
+        for name in var_names {
+            let value = var_entries
+                .iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| v)
+                .expect("sorted from entries");
+            let value = expect_text(value, "plan.wrangler.vars[*]")?;
+            lines.push(format!("{} = {}", render_text(name), toml_escape(value)));
+        }
+        lines.push(String::new());
+    }
+    Ok(())
+}
+
 pub fn render_wrangler_toml(plan: &Node) -> Result<String, RenderError> {
     let wrangler = field(plan, "wrangler", "plan")?;
     expect_obj(wrangler, "plan.wrangler")?;
@@ -264,23 +311,7 @@ pub fn render_wrangler_toml(plan: &Node) -> Result<String, RenderError> {
     ));
     lines.push(String::new());
 
-    let vars = field(wrangler, "vars", "plan.wrangler")?;
-    let var_entries = expect_obj(vars, "plan.wrangler.vars")?;
-    let mut var_names: Vec<&Vec<u16>> = var_entries.iter().map(|(k, _)| k).collect();
-    var_names.sort();
-    if !var_names.is_empty() {
-        lines.push("[vars]".to_string());
-        for name in var_names {
-            let value = var_entries
-                .iter()
-                .find(|(k, _)| k == name)
-                .map(|(_, v)| v)
-                .expect("sorted from entries");
-            let value = expect_text(value, "plan.wrangler.vars[*]")?;
-            lines.push(format!("{} = {}", render_text(name), toml_escape(value)));
-        }
-        lines.push(String::new());
-    }
+    render_vars_section(wrangler, &mut lines)?;
 
     // Each binding list: descriptor order preserved, fixed fields.
     let list = |key: &str| {
@@ -311,6 +342,9 @@ pub fn render_wrangler_toml(plan: &Node) -> Result<String, RenderError> {
         lines.push(format!("bucket_name = {}", toml_escape(name)));
         lines.push(String::new());
     }
+    // `kv_namespaces ?? []`: absent or null renders nothing; any
+    // other non-array fails like the other binding lists.
+    render_kv_namespaces(wrangler, &mut lines)?;
     let dob = field(wrangler, "durable_objects", "plan.wrangler")?;
     expect_obj(dob, "plan.durable_objects")?;
     let do_bindings = expect_arr(
