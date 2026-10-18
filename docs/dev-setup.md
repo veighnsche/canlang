@@ -72,6 +72,19 @@ generation remain explicit opt-in commands (`build:values-wasm` and
 `build:work-wasm`); ordinary TypeScript builds stage the selected committed
 bindings. The VS Code extension keeps its separate build outside this workspace.
 
+Build the independent native development owner into the compatible compiler
+target before using `can dev` from a checkout:
+
+```sh
+CARGO_TARGET_DIR="$PWD/compiler/target" CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=2 cargo build --locked --manifest-path dev-server/Cargo.toml
+export CAN_DEV_BIN="$PWD/compiler/target/debug/can-dev"
+compiler/target/debug/can dev ui --source App.can
+```
+
+Reuse a compatible owned target when one is already configured. The native owner
+uses the built Cloudflare runtime bridge; ordinary source checks need no provider
+credentials. Standalone archives bundle the matching native server and Node.
+
 ## Production function complexity
 
 Aim for a source-AST cyclomatic score **≤10** in Rust and TypeScript; the normal
@@ -223,12 +236,9 @@ report; standalone browser runs save the fixture's `playwright/screenshots/`.
 - Stale `dist/` after switching branches: run `bun run build`. Every scheduled
   producer cleans its owned outputs and incremental state before building or
   restoring a cache entry, so removed source files leave no stale emissions.
-- Fresh-clone `can docs` or `can dev` failing with `E7004`/`Permission denied`
-  on `can-platform` or `can-dev`: `tsc` emits the CLI files without `+x`. Both
-  modes are repaired by Cloudflare `build:emit`, and Turbo restoration preserves
-  them, so either documented build
-  leaves an executable bin. If you invoked `tsc -b`/`tsc -p` directly,
-  bypassing both scripts, re-run one of the documented builds instead
-  of hand-chmodding the output.
+- Fresh-clone `can dev` missing its entry: build the native server and set
+  `CAN_DEV_BIN` as above. `can-platform` remains emitted JavaScript; its executable
+  mode is restored by Cloudflare `build:emit` and Turbo restoration. Re-run the
+  owning build after invoking `tsc` directly.
 - `wrangler` remote commands need `CLOUDFLARE_API_TOKEN`; nothing in this
   repo runs them without asking.

@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, readdir, rename, rm, writeFile } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DevRevisionConflictError, DevSessionCore, type DevPreview } from "../src/dev/session-core.js";
+import { DevCleanupError } from "../src/dev/cleanup.js";
 
 function preview(id: string, disposed: string[]): DevPreview {
   return { id, dispose: async () => { disposed.push(id); } };
@@ -137,13 +138,14 @@ describe("development session revision lifecycle", () => {
 
   it("keeps a newly promoted preview available when old preview cleanup fails", async () => {
     let source = "first";
+    let failCleanup = true, builds = 0;
     const session = new DevSessionCore({
       capture: async () => ({ sourceRevision: source, inputDigest: source }),
       check: async () => ({ complete: true, passed: true, detail: null }),
-      preparePreview: async inputs => ({
+      preparePreview: async inputs => { builds++; return ({
         id: inputs.sourceRevision,
-        dispose: async () => { if (inputs.sourceRevision === "first") throw new Error("old worker disposal failed"); },
-      }),
+        dispose: async () => { if (inputs.sourceRevision === "first" && failCleanup) throw new Error("old worker disposal failed"); },
+      }); },
     });
     try {
       await session.check();
@@ -151,9 +153,61 @@ describe("development session revision lifecycle", () => {
       const result = await session.check();
       expect(result).toMatchObject({ kind: "checked", revision: "r2", preview: "ready", cleanupError: "old worker disposal failed" });
       expect(session.status()).toMatchObject({ servingRevision: "r2", servingBuild: "second" });
+      source = "third";
+      await expect(session.check()).rejects.toThrow("old worker disposal failed");
+      expect(builds).toBe(2);
+      failCleanup = false;
+      expect(await session.check()).toMatchObject({ kind: "checked", preview: "ready" });
+      expect(builds).toBe(3);
     } finally {
+      failCleanup = false;
       await session.stop();
     }
+  });
+
+  it("retains failed canceled-preview and partial-start cleanup for stop retry", async () => {
+    for (const startupFailure of [false, true]) {
+      let failCleanup = true, disposals = 0;
+      const controller = new AbortController();
+      const dispose = async () => { disposals++; if (failCleanup) throw new Error("runtime still alive"); };
+      const session = new DevSessionCore({
+        capture: async () => ({ sourceRevision: "a", inputDigest: "a" }),
+        check: async () => ({ complete: true, passed: true, detail: null }),
+        preparePreview: async () => {
+          if (startupFailure) throw new DevCleanupError(new Error("startup failed"), new Error("runtime still alive"), dispose);
+          controller.abort(new Error("caller disconnected"));
+          return { id: "canceled", dispose };
+        },
+      });
+      if (startupFailure) expect(await session.check()).toMatchObject({ kind: "build_failed" });
+      else await expect(session.check(undefined, controller.signal)).rejects.toThrow("runtime still alive");
+      await expect(session.stop()).rejects.toThrow("runtime still alive");
+      failCleanup = false;
+      await session.stop();
+      expect(disposals).toBe(startupFailure ? 2 : 3);
+      expect(session.status().servingBuild).toBeNull();
+    }
+  });
+
+  it("concurrent stop callers await serving runtime release and can retry failure", async () => {
+    let release!: () => void, entered!: () => void, attempts = 0;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const disposing = new Promise<void>(resolve => { entered = resolve; });
+    const session = new DevSessionCore({
+      capture: async () => ({ sourceRevision: "a", inputDigest: "a" }),
+      check: async () => ({ complete: true, passed: true, detail: null }),
+      preparePreview: async () => ({ id: "serving", dispose: async () => {
+        attempts++; entered(); await gate;
+        if (attempts === 1) throw new Error("try cleanup again");
+      } }),
+    });
+    await session.check();
+    const first = session.stop(), second = session.stop();
+    expect(second).toBe(first);
+    const failures = Promise.allSettled([first, second]);
+    await disposing; expect(attempts).toBe(1); release();
+    expect((await failures).map(result => result.status)).toEqual(["rejected", "rejected"]);
+    await session.stop(); expect(attempts).toBe(2);
   });
 
   it("retains an old serving build across an invalid edit and resets data on repair", async () => {
@@ -471,5 +525,213 @@ describe("development session revision lifecycle", () => {
     await new Promise(resolve => setTimeout(resolve, 30));
     expect(captures).toBe(stoppedCaptures);
     expect(disposed).toEqual(["first"]);
+  });
+});
+
+describe("T14 observation boundaries", () => {
+  it("reuses only the currently serving successful full-input check and keeps the final currency fence", async () => {
+    let source = "same", producer = "one", checks = 0, builds = 0, mutateDuringReuse = false, reuseCaptures = 0;
+    const session = new DevSessionCore({
+      capture: async () => {
+        if (mutateDuringReuse && ++reuseCaptures === 2) source = "changed-during-reuse";
+        return { sourceRevision: source, inputDigest: `${source}:${producer}` };
+      },
+      check: async () => { checks++; return { complete: true, passed: true, detail: { message: "captured" } }; },
+      preparePreview: async inputs => { builds++; return preview(inputs.inputDigest, []); },
+    });
+    try {
+      await session.check();
+      session.markDirty();
+      expect(await session.check()).toMatchObject({ kind: "checked", revision: "r1", preview: "ready" });
+      expect([checks, builds]).toEqual([1, 1]);
+      producer = "two";
+      expect(await session.check()).toMatchObject({ kind: "checked", revision: "r2", preview: "ready" });
+      expect([checks, builds]).toEqual([2, 2]);
+      mutateDuringReuse = true;
+      expect(await session.check()).toMatchObject({ kind: "superseded", revision: "r2" });
+      expect([checks, builds]).toEqual([2, 2]);
+      expect(session.status()).toMatchObject({ servingRevision: "r2", revision: "r3", stale: true });
+    } finally { await session.stop(); }
+  });
+
+  it("does not reuse failed source checks or valid checks whose preview never became ready", async () => {
+    for (const sourceValid of [false, true]) {
+      let checks = 0, builds = 0;
+      const session = new DevSessionCore({
+        capture: async () => ({ sourceRevision: "same", inputDigest: "same" }),
+        check: async () => { checks++; return { complete: true, passed: sourceValid, detail: null }; },
+        preparePreview: async () => { builds++; throw new Error("preview failed"); },
+      });
+      try {
+        await session.check(); await session.check();
+        expect(checks).toBe(2);
+        expect(builds).toBe(sourceValid ? 2 : 0);
+        expect(session.status().servingBuild).toBeNull();
+      } finally { await session.stop(); }
+    }
+  });
+
+  it("selects only at the final publication fence and preserves serving ownership if activation fails", async () => {
+    let source = "old", failCleanup = true;
+    const activated: string[] = [], disposed: string[] = [];
+    const session = new DevSessionCore({
+      capture: async () => ({ sourceRevision: source, inputDigest: source }),
+      check: async () => ({ complete: true, passed: true, detail: null }),
+      preparePreview: async inputs => {
+        const id = inputs.sourceRevision;
+        return { id,
+          activate: () => { if (id === "new") throw new Error("selection refused"); activated.push(id); },
+          dispose: async () => {
+            if (id === "new" && failCleanup) throw new Error("candidate cleanup pending");
+            disposed.push(id);
+          },
+        };
+      },
+    });
+    try {
+      await session.check();
+      source = "new";
+      expect(await session.check()).toMatchObject({ kind: "build_failed", error: "selection refused" });
+      expect(activated).toEqual(["old"]);
+      expect(session.status()).toMatchObject({ servingBuild: "old", buildRevision: "r1", cleanupRequired: true,
+        lastOutcome: { source: "valid", preview: "failed" } });
+      failCleanup = false;
+      await session.retryCleanup();
+      expect(disposed).toEqual(["new"]);
+      expect(session.status()).toMatchObject({ servingBuild: "old", cleanupRequired: false });
+    } finally { failCleanup = false; await session.stop(); }
+    expect(disposed).toEqual(["new", "old"]);
+  });
+
+  it("distinguishes source errors from a valid source whose preview build fails while an older preview serves", async () => {
+    let source = "good";
+    const session = new DevSessionCore({
+      capture: async () => ({ sourceRevision: source, inputDigest: source }),
+      check: async inputs => ({ complete: true, passed: inputs.sourceRevision !== "invalid", detail: null }),
+      preparePreview: async inputs => {
+        if (inputs.sourceRevision === "build-error") throw new Error("portable producer failed");
+        return preview("good-build", []);
+      },
+    });
+    try {
+      await session.check();
+      const servingSequence = session.status().sequence;
+      source = "invalid";
+      await session.check();
+      expect(session.status()).toMatchObject({
+        revision: "r2", checkRevision: "r2", buildRevision: "r1", servingRevision: "r1", servingBuild: "good-build",
+        lifecycle: "running", captureState: "confirmed", stale: true, operation: null,
+        lastOutcome: { revision: "r2", source: "errors", preview: "unavailable", reason: null },
+      });
+      const invalidSequence = session.status().sequence;
+      expect(invalidSequence).toBeGreaterThan(servingSequence);
+      source = "build-error";
+      expect(await session.check()).toMatchObject({ kind: "build_failed", revision: "r3" });
+      expect(session.status()).toMatchObject({
+        revision: "r3", checkRevision: "r3", buildRevision: "r1", servingRevision: "r1", servingBuild: "good-build", stale: true,
+        operation: null, cleanupRequired: false,
+        lastOutcome: { revision: "r3", source: "valid", preview: "failed", reason: "portable producer failed" },
+      });
+      expect(session.status().sequence).toBeGreaterThan(invalidSequence);
+    } finally { await session.stop(); }
+  });
+
+  it("confirms identical recapture without advancing its epoch and advances tool-only changes at the same source", async () => {
+    let tool = "one";
+    const session = new DevSessionCore({
+      capture: async () => ({ sourceRevision: "same-source", inputDigest: `same-source:${tool}` }),
+      check: async () => ({ complete: true, passed: true, detail: null }),
+      preparePreview: async () => preview("original-build", []),
+    }, { debounceMs: 100_000 });
+    try {
+      await session.check();
+      const initial = session.status();
+      session.markDirty();
+      expect(session.status()).toMatchObject({ revision: "r1", captureState: "unconfirmed", dirty: true, stale: true });
+      await session.refresh();
+      expect(session.status()).toMatchObject({
+        revision: "r1", captureState: "confirmed", dirty: false, stale: false,
+        sourceRevision: "same-source", servingRevision: "r1", servingBuild: "original-build",
+      });
+      expect(session.status().sequence).toBeGreaterThan(initial.sequence);
+      tool = "two";
+      session.markDirty(); await session.refresh();
+      expect(session.status()).toMatchObject({
+        revision: "r2", sourceRevision: "same-source", captureState: "confirmed", dirty: true, stale: true,
+        checkRevision: "r1", servingRevision: "r1", servingBuild: "original-build",
+      });
+    } finally { await session.stop(); }
+  });
+
+  it("ignores a completed operation's reporter while the next operation reports its own real phase", async () => {
+    let firstReporter: ((subphase: string) => void) | undefined;
+    let release!: () => void, entered!: () => void, checks = 0;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const session = new DevSessionCore({
+      capture: async () => ({ sourceRevision: "source", inputDigest: "source" }),
+      check: async (_inputs, _signal, report) => {
+        checks++;
+        if (checks === 1) firstReporter = report;
+        else { report("compiler_running"); entered(); await gate; }
+        return { complete: true, passed: false, detail: null };
+      },
+      preparePreview: async () => { throw new Error("source errors cannot build"); },
+    });
+    try {
+      await session.check();
+      const completed = session.status().lastOutcome!;
+      const next = session.check(); await started;
+      const checking = session.status();
+      expect(checking.operation).toMatchObject({ phase: "checking_source", subphase: "compiler_running", revision: "r1" });
+      expect(checking.operation!.id).not.toBe(completed.id);
+      firstReporter!("stale compiler completion");
+      expect(session.status().operation).toEqual(checking.operation);
+      expect(session.status().sequence).toBe(checking.sequence);
+      expect(session.status().lastOutcome).toEqual(completed);
+      release(); await next;
+      expect(session.status()).toMatchObject({ operation: null, lastOutcome: { id: checking.operation!.id, source: "errors" } });
+    } finally { release(); await session.stop(); }
+  });
+
+  it("synchronously closes publication on beginStop and reports failed cleanup until a successful retry", async () => {
+    let source = "old", failCleanup = true, entered!: () => void, release!: () => void;
+    let buildSignal: AbortSignal | undefined;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const disposed: string[] = [];
+    const session = new DevSessionCore({
+      capture: async () => ({ sourceRevision: source, inputDigest: source }),
+      check: async () => ({ complete: true, passed: true, detail: null }),
+      preparePreview: async (inputs, _check, signal, report) => {
+        if (inputs.sourceRevision === "old") return { id: "old", dispose: async () => {
+          if (failCleanup) throw new Error("serving cleanup needs retry");
+          disposed.push("old");
+        } };
+        buildSignal = signal; report("portable_bundle"); entered(); await gate;
+        return preview("late", disposed);
+      },
+    });
+    try {
+      await session.check(); source = "new";
+      const checking = session.check(); await started;
+      expect(session.status().operation).toMatchObject({ phase: "preparing_preview", subphase: "portable_bundle" });
+      session.beginStop();
+      expect(buildSignal!.aborted).toBe(true);
+      expect(session.status()).toMatchObject({ lifecycle: "stopping", servingBuild: "old" });
+      const stopping = session.stop(), refusal = expect(stopping).rejects.toThrow("serving cleanup needs retry");
+      release();
+      expect(await checking).toMatchObject({ kind: "superseded" });
+      await refusal;
+      expect(disposed).toEqual(["late"]);
+      expect(session.status()).toMatchObject({
+        lifecycle: "shutdown_incomplete", cleanupRequired: true, servingBuild: null, servingRevision: null,
+        operation: null, lastOutcome: { source: "superseded", preview: "superseded" },
+      });
+      failCleanup = false;
+      await session.stop();
+      expect(disposed).toEqual(["late", "old"]);
+      expect(session.status()).toMatchObject({ lifecycle: "stopped", cleanupRequired: false, operation: null, servingBuild: null });
+    } finally { release(); failCleanup = false; await session.stop(); }
   });
 });

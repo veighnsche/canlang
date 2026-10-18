@@ -21,10 +21,10 @@ const COMMANDS = [
 type Command = typeof COMMANDS[number];
 type Flag = "--root" | "--session" | "--app" | "--profile" | "--revision" |
   "--expected-revision" | "--index" | "--after" | "--limit" | "--ref" | "--capture" |
-  "--preview-roles" | "--source" | "--compiler" | "--catalog" | "--help-index" | "--id" | "--operation" | "--row" | "--author-intent";
+  "--preview-roles" | "--source" | "--compiler" | "--catalog" | "--help-index" | "--id" | "--operation" | "--row" | "--author-intent" | "--check-mode";
 const FLAGS: ReadonlySet<string> = new Set<Flag>([
   "--root", "--session", "--app", "--profile", "--revision", "--expected-revision",
-  "--index", "--after", "--limit", "--ref", "--capture", "--preview-roles", "--source", "--compiler", "--catalog", "--help-index", "--id", "--operation", "--row", "--author-intent",
+  "--index", "--after", "--limit", "--ref", "--capture", "--preview-roles", "--source", "--compiler", "--catalog", "--help-index", "--id", "--operation", "--row", "--author-intent", "--check-mode",
 ]);
 
 export type DevControlEnvelope =
@@ -59,7 +59,7 @@ function help(): DevControlEnvelope {
         session: command === "start" ? "exclusive owner for the selected source"
           : "canonical checkout and verified owner-only socket" })),
       flags: {
-        start: ["--source", "--root", "--app", "--compiler", "--catalog", "--help-index", "--capture", "--preview-roles"],
+        start: ["--source", "--root", "--app", "--compiler", "--catalog", "--help-index", "--capture", "--preview-roles", "--check-mode"],
         common: ["--root", "--session", "--app", "--profile"],
         check: ["--expected-revision"],
         diagnostics: ["--revision", "--after", "--limit"],
@@ -144,7 +144,7 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
     values.set(flag as Flag, value);
   }
   const allowed = new Set<string>(selected === "start"
-    ? ["--root", "--app", "--source", "--capture", "--compiler", "--catalog", "--help-index", "--preview-roles"]
+    ? ["--root", "--app", "--source", "--capture", "--compiler", "--catalog", "--help-index", "--preview-roles", "--check-mode"]
     : ["--root", "--session", "--app", "--profile"]);
   if (selected === "check" || selected === "example.run") allowed.add("--expected-revision");
   if (selected === "example.run") { allowed.add("--operation"); allowed.add("--row"); }
@@ -208,6 +208,8 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
   };
   try {
     if (selected === "start") {
+      const checkMode = values.get("--check-mode") ?? "manual";
+      if (checkMode !== "manual" && checkMode !== "automatic") return fail(command, "INVALID_ARGUMENTS", "--check-mode must be manual or automatic");
       const manifest = values.get("--capture");
       const source = values.get("--source");
       if ((manifest === undefined) === (source === undefined)) {
@@ -237,7 +239,7 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
       let previewRoles: ReturnType<typeof parsePreviewRoles> | undefined;
       try { previewRoles = values.has("--preview-roles") ? parsePreviewRoles(JSON.parse(values.get("--preview-roles")!)) : undefined; }
       catch { throw new SessionSocketError("INVALID_ARGUMENTS", "--preview-roles requires a JSON map of seeded actor labels to declared role names"); }
-      const started = await startDevDaemon({ selectedApp: app, capture, ...(previewRoles === undefined ? {} : { previewRoles }) });
+      const started = await startDevDaemon({ selectedApp: app, checkMode, capture, ...(previewRoles === undefined ? {} : { previewRoles }) });
       return { ok: true, command: selected, session: started.identity.sessionId,
         result: { schema: "can.dev.start.v1", attached: started.attached, root: started.identity.root, status: started.status } };
     }

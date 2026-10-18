@@ -1,3 +1,4 @@
+import type { DevPhaseReporter } from "./observation.js";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -133,7 +134,7 @@ function runStagedCompiler(executable: string, catalog: string, capture: SingleF
  * compiler's consumed one-file source identity before returning any result.
  * The caller still owns one-file profile admission and preview bundle inputs.
  */
-export async function compileCapturedSingleFile(capture: SingleFileCapture, signal?: AbortSignal): Promise<CapturedCompileResult> {
+export async function compileCapturedSingleFile(capture: SingleFileCapture, signal?: AbortSignal, reportPhase?: DevPhaseReporter): Promise<CapturedCompileResult> {
   signal?.throwIfAborted();
   const profile = admitSingleAppProfile(capture.sourceText);
   if (!profile.ok) return { kind: "profile_unsupported", reason: profile.reason, capture };
@@ -151,6 +152,7 @@ export async function compileCapturedSingleFile(capture: SingleFileCapture, sign
     if (signal?.aborted && error === signal.reason) throw error;
     return { kind: "capture_incomplete", reason: error instanceof Error ? error.message : String(error), capture };
   }
+  reportPhase?.("staging_compiler");
   const staging = await mkdtemp(join(tmpdir(), "can-dev-compiler-"));
   try {
     signal?.throwIfAborted();
@@ -167,12 +169,14 @@ export async function compileCapturedSingleFile(capture: SingleFileCapture, sign
     }
     let run: Awaited<ReturnType<typeof runStagedCompiler>>;
     try {
+      reportPhase?.("compiler");
       run = await runStagedCompiler(executable, catalog, capture, signal);
     } catch (error) {
       if (signal?.aborted && error === signal.reason) throw error;
       return { kind: "tool_failure", reason: error instanceof Error ? error.message : String(error), capture };
     }
     signal?.throwIfAborted();
+    reportPhase?.("verifying_compiler_inputs");
     const current = await captureIsCurrent(capture);
     signal?.throwIfAborted();
     if (!current) {

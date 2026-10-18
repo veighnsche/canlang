@@ -42,6 +42,11 @@ can dev preview.open --app Tasks
 
 The control adapter returns JSON. Read the check diagnostics and resolve any source errors before continuing. If preview status is still preparing, request status again after preparation; if it reports failure, inspect that result before opening the preview.
 
+File watching marks the session dirty; `can dev check` performs the rebuild.
+After saving an edit, run the check again. When preview is ready, run
+`can dev preview.open` and open its returned URL; a replacement preview can use
+a new local port. Display-only edits retain the application's saved data and login.
+
 Open `result.url` from `preview.open` in your browser. Use the URL exactly as returned: its local port and access token belong to this session. Use an account from `result.actors` to sign in with its returned email and password, then select one of its teams. These are real locally seeded accounts with separate memberships. Their credentials and preview URL belong to this local session; keep them private.
 
 Add a task, open its edit panel and mark it done, then close the panel after saving and archive the task. Check the result after reloading the page. The preview is local, protected and tied to its owning session; it is not a remote deployment or a public sharing URL.
@@ -83,5 +88,10 @@ can dev stop --app Tasks
 ```
 
 Stop the session you own when finished. Preview access expires with that owner. If another source has an active session, use the session/root controls from `can dev help` to select the correct owner rather than stopping unrelated work.
+
+If cleanup fails, the owner keeps its session claim and reports
+`shutdown_error: "CLEANUP_FAILED"` in status. Retry `can dev stop` for that
+session after resolving the failure. New checks are refused once shutdown
+begins; a replacement session cannot start until the owner releases its claim.
 
 `can run` has a different role: it assembles modules and reports a local file entry. It does not start the preview listener. Continue with [application testing](02-testing.md) before treating a working page as a completed workflow.

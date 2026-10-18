@@ -7,6 +7,7 @@ import { readFile, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { BusinessError, CompileArtifact, Diagnostic, DiagnosticResult, DiagnosticSpan } from "@canlang/contracts";
+import type { DevLifecycle, DevObservation, DevPhaseReporter } from "./observation.js";
 import { compileCapturedSingleFile } from "./compiler-check.js";
 import { FIRST_PROFILE, joinCompilerConstructCandidates, loadConstructHelpIndex, parseCompilerConstructCandidates,
   type CatalogFact, type CompilerConstructCandidates, type ConstructHelpIndex, type QualifiedConstructProof } from "./construct-help.js";
@@ -61,6 +62,8 @@ const COMMAND_HELP = [
 ] as const;
 
 export interface SessionServicePreview extends DevPreview {
+  /** Non-secret listener origin; reading it never issues protected access. */
+  readonly origin?: string;
   /** A protected, short-lived bootstrap URL; status never returns it. */
   issueOpenUrl?(): string;
   /** Local-only real Identity fixture credentials, released through owner control. */
@@ -111,14 +114,21 @@ export interface SessionConstructRankingOptions {
   readonly maxCache?: number;
 }
 
+export interface SessionPreviewBuilder {
+  (artifact: CompileArtifact, capture: SingleFileCapture, artifactBytes: Uint8Array,
+    context?: { signal?: AbortSignal; onPhase?: DevPhaseReporter }): Promise<SessionServicePreview>;
+  beginStop?(): void;
+  dispose?(): Promise<void>;
+}
+
 export interface SessionServiceOptions {
   selectedApp: string;
+  checkMode?: "manual" | "automatic";
   capture: SingleFileCaptureRequest;
   runtimeDir?: string;
   constructRanking?: SessionConstructRankingOptions;
   /** Trusted host builder must admit real bindings and own all runtime cleanup. */
-  previewBuilder?: (artifact: CompileArtifact, capture: SingleFileCapture,
-    artifactBytes: Uint8Array) => Promise<SessionServicePreview>;
+  previewBuilder?: SessionPreviewBuilder;
 }
 
 export interface SessionServiceOwner {
@@ -144,6 +154,7 @@ export interface SessionServiceStatus {
   dirty: boolean;
   preview_reset: boolean;
   capture_error: string | null;
+  shutdown_error: "CLEANUP_FAILED" | null;
   preview: "ready" | "unavailable";
 }
 
@@ -456,6 +467,9 @@ function checkResponse(
 /** Start one owner with actual captured inputs and a private control socket. */
 export async function startDevSessionService(options: SessionServiceOptions): Promise<SessionServiceOwner> {
   if (!options.selectedApp) throw new SessionSocketError("INVALID_SELECTION", "selected app is required");
+  if (options.checkMode !== undefined && options.checkMode !== "manual" && options.checkMode !== "automatic") {
+    throw new SessionSocketError("INVALID_ARGUMENTS", "check mode must be manual or automatic");
+  }
   const captures = new Map<string, SingleFileCapture>();
   const helpByDigest = new Map<string, ConstructHelpIndex>();
   const checkedHelp = new Map<string, ConstructHelpIndex>();
@@ -485,6 +499,12 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         ? { available: true } : { available: false, reason: "retained runtime inputs changed or were evicted" };
     },
   });
+  let observationSequence = 0;
+  let lifecycle: DevLifecycle = "starting";
+  let humanCheckPending = false;
+  let restartRequired = false;
+  let scheduleAutomatic = (): void => {};
+  const observed = (): void => { observationSequence += 1; };
   let latestCapture: SingleFileCapture | null = null;
   let sessionProducerIdentity: string | null = null;
   const core = new DevSessionCore<SessionCheckDetail, SessionServicePreview>({
@@ -504,7 +524,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         .map(input => [input.name, input.canonicalPath, input.sha256]))).digest("hex");
       if (sessionProducerIdentity !== null && sessionProducerIdentity !== producerIdentity) {
         invalidateQualifications();
-        throw new Error("installed runtime producer changed; stop and restart this session to consume its new modules");
+        restartRequired = true;
+        throw new SessionSocketError("RESTART_REQUIRED", "installed runtime producer changed; stop and restart this session to consume its new modules");
       }
       sessionProducerIdentity = producerIdentity;
       let help = helpByDigest.get(captured.epochMaterial);
@@ -522,7 +543,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       }
       return { sourceRevision: captured.sourceRevision, inputDigest: captured.epochMaterial };
     },
-    async check(inputs, signal) {
+    sourceResult: checkState,
+    async check(inputs, signal, reportPhase) {
       const captured = captures.get(inputs.inputDigest);
       const helpIndexRevision = helpByDigest.get(inputs.inputDigest)?.revision ?? null;
       if (captured === undefined) {
@@ -534,7 +556,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         return { complete: false, passed: false, detail: failureDetail(captured, "profile_unsupported", "selected app does not match source app declaration", helpIndexRevision) };
       }
       try {
-        const result = await compileCapturedSingleFile(captured, signal);
+        const result = await compileCapturedSingleFile(captured, signal, reportPhase);
         signal.throwIfAborted();
         if (result.kind === "artifact") {
           artifacts.set(inputs.inputDigest, { artifact: result.artifact, bytes: result.artifactBytes });
@@ -575,7 +597,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         return { complete: false, passed: false, detail: failureDetail(captured, "tool_failure", error instanceof Error ? error.message : String(error), helpIndexRevision) };
       }
     },
-    async preparePreview(inputs) {
+    async preparePreview(inputs, _check, signal, reportPhase) {
       const captured = captures.get(inputs.inputDigest);
       const selected = artifacts.get(inputs.inputDigest);
       artifacts.delete(inputs.inputDigest);
@@ -586,7 +608,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         throw new SessionSocketError("PREVIEW_UNAVAILABLE", "verified artifact is unavailable");
       }
       const buildRevision = core.status().revision!;
-      const preview = await options.previewBuilder(selected.artifact, captured, selected.bytes);
+      const preview = await options.previewBuilder(selected.artifact, captured, selected.bytes, { signal, onPhase: reportPhase });
       if (!preview || typeof preview.id !== "string" || preview.id.length === 0 || typeof preview.dispose !== "function") {
         throw new SessionSocketError("PREVIEW_UNAVAILABLE", "preview builder returned no disposable build");
       }
@@ -606,21 +628,25 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       });
       const wrapped: SessionServicePreview = {
         id: preview.id,
+        ...(preview.activate === undefined ? {} : { activate: () => preview.activate!() }),
+        ...(preview.origin === undefined ? {} : { origin: preview.origin }),
         ...(preview.issueOpenUrl === undefined ? {} : { issueOpenUrl: () => preview.issueOpenUrl!() }),
         ...(preview.issueLocalActors === undefined ? {} : { issueLocalActors: () => preview.issueLocalActors!() }),
         ...(preview.exampleInput === undefined ? {} : { exampleInput: () => preview.exampleInput!() }),
         async dispose() {
           unobserve?.();
-          if (previews.get(preview.id) === wrapped) previews.delete(preview.id);
           await preview.dispose();
+          if (previews.get(preview.id) === wrapped) previews.delete(preview.id);
         },
       };
       previews.set(preview.id, wrapped);
       return wrapped;
     },
-  }, { historyLimit: 8 });
+  }, { historyLimit: 8, onChange: () => { observed(); scheduleAutomatic(); } });
   let socket: SessionSocketOwner | null = null;
   let stopping: Promise<void> | null = null;
+  let stopRequested = false;
+  let shutdownError: "CLEANUP_FAILED" | null = null;
 
   const status = (): SessionServiceStatus => {
     const state = core.status();
@@ -632,11 +658,40 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       serving_revision: state.servingRevision, serving_build: state.servingBuild,
       stale: state.stale, dirty: state.dirty, preview_reset: state.previewReset,
       capture_error: state.captureError === null ? null : short(state.captureError, MAX_REASON),
+      shutdown_error: shutdownError,
       preview: state.servingBuild !== null && previews.has(state.servingBuild) ? "ready" : "unavailable",
     };
   };
 
+  const observation = (): DevObservation => {
+    const state = core.status();
+    const serving = state.servingBuild === null ? undefined : previews.get(state.servingBuild);
+    const available = serving !== undefined;
+    let origin: string | null = null;
+    try { if (serving?.origin !== undefined) origin = new URL(serving.origin).origin; } catch { /* no safe origin */ }
+    const reasons: DevObservation["admission"]["reasons"][number][] = [];
+    if (stopRequested) reasons.push("stopping");
+    if (state.cleanupRequired || shutdownError !== null) reasons.push("cleanup_required");
+    if (restartRequired) reasons.push("restart_required");
+    const outcome = state.lastOutcome;
+    return {
+      schema: "can.dev.observation.v1", session: socket?.identity.sessionId ?? "starting", sequence: observationSequence,
+      app: options.selectedApp, sourcePath: options.capture.appPath, mode: options.checkMode ?? "manual", lifecycle,
+      revision: state.revision, sourceRevision: state.sourceRevision, capture: state.captureState,
+      operation: state.operation,
+      lastOutcome: outcome === null ? null : { ...outcome, reason: outcome.reason === null ? null : short(outcome.reason, MAX_REASON) },
+      preview: { availability: available ? "serving" : "unavailable", revision: available ? state.servingRevision : null,
+        build: available ? state.servingBuild : null, origin,
+        freshness: !available ? "not_applicable" : state.captureState !== "confirmed" ? "unconfirmed"
+          : state.servingRevision === state.revision ? "current" : "older" },
+      admission: { check: reasons.length === 0, open: !stopRequested && available && !state.cleanupRequired,
+        retryCleanup: state.cleanupRequired || shutdownError !== null, reasons }, shutdownError,
+    };
+  };
+
   const check = async (expectedRevision?: string, requestSignal?: AbortSignal): Promise<SessionCheckResponse> => {
+    if (stopRequested) throw new SessionSocketError("SESSION_STOPPING", "session shutdown has begun");
+    if (restartRequired) throw new SessionSocketError("RESTART_REQUIRED", "restart this owner to consume changed runtime producers");
     let result: Awaited<ReturnType<typeof core.check>>;
     try {
       result = await core.check(expectedRevision, requestSignal);
@@ -661,29 +716,76 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     return checkResponse(socket?.identity.sessionId ?? "starting", core, result, options.previewBuilder !== undefined);
   };
 
-  const stop = (): Promise<void> => {
-    if (stopping !== null) return stopping;
+  // One active operation and one latest captured demand. Events never enqueue
+  // individual checks; the next turn reads the newest coherent owner revision.
+  let automaticQueued = false;
+  let automaticActive = false;
+  let automaticAttempt: string | null = null;
+  const automaticReady = (): boolean => {
+    const state = core.status();
+    return options.checkMode === "automatic" && lifecycle === "running" && !stopRequested &&
+      !restartRequired && !state.cleanupRequired && state.operation === null &&
+      state.captureState === "confirmed" && state.revision !== null &&
+      state.checkRevision !== state.revision && automaticAttempt !== state.revision;
+  };
+  scheduleAutomatic = (): void => {
+    if (automaticQueued || automaticActive || !automaticReady()) return;
+    automaticQueued = true;
+    setImmediate(() => {
+      automaticQueued = false;
+      if (!automaticReady()) return;
+      automaticActive = true;
+      automaticAttempt = core.status().revision;
+      void check().catch(() => {
+        // The core records the failed attempt. A new coherent revision or an
+        // explicit human check can retry; do not spin on an unchanged failure.
+      }).finally(() => { automaticActive = false; scheduleAutomatic(); });
+    });
+  };
+
+  let resourceRelease: Promise<void> | null = null;
+  const beginStop = (): void => {
+    stopRequested = true;
+    lifecycle = "stopping";
+    shutdownError = null;
+    observed();
     stopExamples.abort();
     invalidateQualifications();
     ranker.close();
     pendingRanks.clear();
-    stopping = (async () => {
-      let stopError: unknown;
-      try { await core.stop(); } catch (error) { stopError = error; }
+    options.previewBuilder?.beginStop?.();
+    core.beginStop();
+  };
+  const releaseResources = (): Promise<void> => {
+    if (resourceRelease !== null) return resourceRelease;
+    beginStop();
+    resourceRelease = (async () => {
+      await core.stop();
+      await options.previewBuilder?.dispose?.();
       await exampleQueue;
       await Promise.allSettled([...pendingQualifications]);
       reruns.close();
       exampleCaptures.clear();
       exampleFailures.clear();
-      try { await socket?.stop(); } catch (error) { stopError ??= error; }
-      captures.clear();
-      helpByDigest.clear();
-      checkedHelp.clear();
-      checkedCaptures.clear();
-      artifacts.clear();
-      previews.clear();
-      if (stopError !== undefined) throw stopError;
-    })();
+      shutdownError = null;
+    })().catch(error => {
+      lifecycle = "shutdown_incomplete"; shutdownError = "CLEANUP_FAILED";
+      resourceRelease = null; observed(); throw error;
+    });
+    return resourceRelease;
+  };
+  const stop = (): Promise<void> => {
+    if (stopping !== null) return stopping;
+    beginStop();
+    stopping = (async () => {
+      await releaseResources();
+      await socket?.stop();
+      captures.clear(); helpByDigest.clear(); checkedHelp.clear(); checkedCaptures.clear(); artifacts.clear(); previews.clear();
+      lifecycle = "stopped"; shutdownError = null; observed();
+    })().catch(error => {
+      lifecycle = "shutdown_incomplete"; shutdownError = "CLEANUP_FAILED";
+      stopping = null; observed(); throw error;
+    });
     return stopping;
   };
 
@@ -890,6 +992,13 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   };
 
   const handle = async (command: SessionSocketCommand, requestSignal: AbortSignal): Promise<unknown> => {
+    if (stopRequested && !["help", "status", "observe", "stop", "stop.confirm", "diagnostics", "diagnostic.detail", "failure.lookup", "failure.detail", "failures", "preview.status"].includes(command.command)) {
+      throw new SessionSocketError("SESSION_STOPPING", "session shutdown has begun");
+    }
+    if (!stopRequested && (restartRequired || core.status().cleanupRequired) &&
+      !["help", "status", "observe", "stop", "stop.confirm", "cleanup.retry", "diagnostics", "diagnostic.detail", "failure.lookup", "failure.detail", "failures", "preview.status"].includes(command.command)) {
+      throw new SessionSocketError(restartRequired ? "RESTART_REQUIRED" : "CLEANUP_REQUIRED", "owner admission requires cleanup or restart before new work");
+    }
     const payload = record(command.payload);
     if (command.command === "help") {
       return {
@@ -900,6 +1009,29 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       };
     }
     if (command.command === "status") return status();
+    if (command.command === "observe") return observation();
+    if (command.command === "cleanup.retry") {
+      await core.retryCleanup();
+      automaticAttempt = null;
+      scheduleAutomatic();
+      return observation();
+    }
+    if (command.command === "check.request") {
+      if (!observation().admission.check) throw new SessionSocketError("CLEANUP_REQUIRED", "owner admission requires cleanup or restart");
+      if (humanCheckPending || core.status().operation !== null) return { schema: "can.dev.check-request.v1", accepted: false, alreadyChecking: true };
+      humanCheckPending = true;
+      void check().catch(() => undefined).finally(() => { humanCheckPending = false; observed(); });
+      return { schema: "can.dev.check-request.v1", accepted: true, alreadyChecking: false };
+    }
+    if (command.command === "stop.confirm") {
+      beginStop();
+      try { await releaseResources(); }
+      catch { throw new SessionSocketError("CLEANUP_FAILED", "owned runtime release is incomplete; retry this owner"); }
+      // The response certifies runtime/operation release. Final transport and
+      // process release are separately observed by the launcher before Stopped.
+      setTimeout(() => { void stop().catch(() => undefined); }, 100).unref();
+      return { schema: "can.dev.stop-confirmed.v1", session: socket?.identity.sessionId, resourcesReleased: true };
+    }
     if (command.command === "check") {
       if (payload?.expectedRevision !== undefined &&
         (payload.expectedRevision !== core.status().revision || core.status().dirty)) {
@@ -919,8 +1051,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           throw new SessionSocketError("DIAGNOSTIC_UNAVAILABLE", "diagnostic index is unavailable");
         }
         const help = checkedHelp.get(revision), captured = checkedCaptures.get(revision);
-        const bundle = help && captured ? await qualification(captured,help,requestSignal) : null;
-        await core.refresh().catch(() => undefined);
+        const bundle = !stopRequested && payload?.presentationOnly !== true && help && captured ? await qualification(captured,help,requestSignal) : null;
+        if (!stopRequested && payload?.presentationOnly !== true) await core.refresh().catch(() => undefined);
         const state = core.status();
         const current = !requestSignal.aborted && state.revision === revision && !state.dirty &&
           state.captureError === null && state.checkRevision === revision &&
@@ -932,6 +1064,12 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           ref: diagnosticRef(socket!.identity.sessionId, revision, payload.index),
           source: found.check.detail.source,
           diagnostic: diagnostics[payload.index],
+          captured_excerpt: (() => {
+            const saved = checkedCaptures.get(revision), span = diagnostics[payload.index]!.primary;
+            if (saved === undefined || span.file !== 0) return null;
+            const bytes = Buffer.from(saved.sourceText, "utf8"), start = Math.max(0, span.start - 160), end = Math.min(bytes.length, span.end + 160);
+            return { text: bytes.subarray(start, Math.min(end, start + 800)).toString("utf8"), start, end: Math.min(end, start + 800) };
+          })(),
           construct_help: checkedHelp.has(revision)
             ? joinCompilerConstructCandidates(checkedHelp.get(revision)!,
               diagnostics[payload.index]!.construct_candidates, FIRST_PROFILE,
@@ -1218,6 +1356,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         ...(preview.issueLocalActors === undefined ? {} : { actors: preview.issueLocalActors() }) };
     }
     if (command.command === "stop") {
+      beginStop();
       // Let the socket write its acknowledgement before closing active peers.
       setTimeout(() => { void stop().catch(() => undefined); }, 100).unref();
       return { schema: "can.dev.stop.v1", session: socket?.identity.sessionId, stopping: true };
@@ -1236,6 +1375,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       requestTimeoutMs: 60_000,
       handle,
     });
+    lifecycle = "running"; observed(); scheduleAutomatic();
   } catch (error) {
     await core.stop();
     throw error;

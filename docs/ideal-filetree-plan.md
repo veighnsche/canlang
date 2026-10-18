@@ -1,5 +1,110 @@
 # Living ideal file-tree plan for Canlang
 
+**Native development main integration, 2026-10-18:** integrate the released
+native development100-path closure through659b90f2b atop main9e9b1c7c4. Retain
+all earlier dev/runtime/distribution ownership and94 native release/23 installed
+checks per recorded host, the newer preparation planning holds, and the accepted
+compiler16-path intake. Reconciled two foreign dev documentation notes retain
+historical measurement and design alternatives; foreign unfinished source/test
+bytes stay in place and excluded from the index. Actual integrated compiler and
+manual/phase measurement use isolated committed inputs and existing owned caches.
+No package/output/cache ownership changes or complete-checkpoint advance.
+
+**Released compiler intake for development integration, 2026-10-18:** all16
+paths in9e9b1c7c4 retain Compiler ownership: checked source/disclosure closure,
+receipt/query context composition and13 defining source/test paths; its compiler
+execution record, decision and tree notes retain their owners. Reuse the owner's
+reviewed27+4+original-count1 results at that finite scope. No whole compiler-suite
+or original24 claim is inferred. Native server/producer closure is unchanged;
+rebuild the integrated release compiler and exercise the affected installed manual
+workflow/phase measurement. Foreign unfinished runtime/prefs work stays in place,
+excluded from committed capture. Complete historical checkpoint stays unchanged.
+
+**Released foreign development notes, 2026-10-18:** retain the two-doc paused-stage
+planning refinement and historical startup provenance in their existing owners.
+Current resume/implementation evidence governs activation; proposed host relocation,
+further helper decomposition and stronger Miniflare restart controls stay separate
+from accepted native manual/profile qualification. No source or new package changes.
+The complete historical checkpoint remains unchanged.
+
+**Native release and newer planning intake, 2026-10-18:** account for all7
+committed planning paths from a28335e6b through ab516f39b. Preparation's remaining
+P05 packet stays proposed, with public deployment/default/TS-retirement holds;
+Rust-port start/queue/current/remaining records and decisions retain their owners.
+Development/distribution retain the same100-path native integration closure.
+Native94 release and actual installed23 checks pass on both recorded hosts. The
+existing installed manual verifier now observes normal retirement and retains the
+repair result; no lifecycle guard or production owner changes. Reuse prior source
+and semantic coverage and preserve stopped U plus foreign main edits. This is
+incremental coverage; the complete historical checkpoint remains unchanged.
+
+**Committed-main development intake, 2026-10-18:**
+
+Account for all54 incoming paths from the retained `69eede1e8` intake through `a28335e6b`: Compiler owns native query/filter/IR correspondence and tests; State/Contracts/UI own authorized query and presentation changes; Cloudflare owns hook/runtime delivery, preparation module/job/host/protocol/CLI and existing bundle adapters. Native preparation build/verify scripts, crate manifests, tests and conformance workloads retain their existing owners. Reuse main's recorded accepted source/module/CLI/integrity and installed macOS/Linux coverage, plus its decisions and Rust-port/compiler planning records. Dev changes retain their bounded native/runtime/distribution ownership above. No new package or backend default is introduced. Active foreign main inputs are excluded; the complete historical checkpoint stays unchanged.
+
+**Native manual parity and packaging, 2026-10-18:** development owns the new Rust
+`service.rs` retained projections and owner command jobs; existing CLI/foreground
+modules consume that policy. Cloudflare owns captured construct/example helpers,
+private spool consumption and narrow owning example/qualification cleanup fixes.
+The existing three canonical example-fixture lookups follow the compiler's retained
+canonical-key contract. Distribution owns native artifact identity, dev notices,
+existing build/pack/install/CI and Linux tool-entry updates; no second installer or
+new runtime profile is added. Dev contributor/plan/decision documentation retains
+its owners. Reuse native94, bridge6/cleanup4/spool1, example13 and local installed23
+checks at their recorded scopes; the later release/platform result above supplies
+the previously missing actual host qualification.
+Stopped dirty TS/cache/UI inputs and foreign main work remain separate. This
+updates bounded coverage without advancing the complete historical checkpoint.
+
+**Resumed development implementation, 2026-10-18:** `f979867b2` completes the
+previously prepared `69eede1e8` intake. The user now authorizes the Rust owner and
+Ratatui implementation in dependency order. `dev-server/` owns its independent
+crate/lockfile, typed state and sole owner loop, capture/compiler adapter, private
+claim/control, bounded runtime supervision, protected HTTP gateway, watcher,
+CLI and terminal adapters with focused tests. Cloudflare owns the subordinate
+runtime host/protocol/target and actual service probes; existing shared runtime
+and business semantics retain their defining packages. The strict browser-asset
+validator admits only the producer's exact optional development resource.
+
+Reuse the recorded lifecycle results and the native 80-check scope; genuine
+current-build and terminal findings belong in the existing dev plan. New native
+files do not qualify the unavailable command families or authorize installation
+cutover. Preserved stopped TS capture/cache/browser/controller work remains
+separately identifiable in the worktree. This is bounded implementation coverage,
+not a complete tree review; the held complete checkpoint remains unchanged.
+
+**Historical paused development-worktree intake, 2026-10-18:** main `69eede1e8`
+is incorporated as an uncommitted merge into preserved `0970`/`b8c909700`;
+the user authorized sync and plan inspection only. The53 incoming paths since
+`0ec2ee9a5` retain main's Compiler/State/runtime, native preparation and complexity
+maintenance ownership and recorded coverage. The current plan selects future
+Rust session/state/supervision and Ratatui under `dev-server/`, with Cloudflare/
+Miniflare tooling subordinate to its runtime boundary. Preserved TS lifecycle,
+terminal, capture and update work remains behavioral input, not Rust acceptance.
+Both decision histories and all stopped dirty sources are retained. No source
+implementation, build, test, new commit, main integration or push is performed;
+the complete review checkpoint remains unchanged.
+
+**Development integration, 2026-10-18:** merge committed main `0ec2ee9a5` into
+the development branch through `dbedbb249`. Incoming33 paths retain main's
+recorded Compiler query/filter correspondence, Contracts/UI/Interfaces/State
+typed-filter owners, Cloudflare native consumer and Work-kernel/Work row-helper
+owners, tests and planning coverage. Reuse their retained acceptance; ongoing
+foreign compiler/runtime work is excluded until its commit handoff.
+
+The branch's37 changed paths since `61334d958` stay with existing Cloudflare
+deployment/dev owners: owned bundle child/entry and execution controls; retryable
+cleanup/local runtime/builder/host controls; captured inputs/compiler adapter;
+core/service/daemon/socket and focused lifecycle/capture tests. New observation
+and terminal/presenter modules belong to development control and presentation,
+with their adjacent focused tests. Three JEV files remain design advice; the
+current dev plan, public guide and decision log retain their documentation owners.
+No new package or general supervisor/cache framework is introduced. Reuse the
+recorded lifecycle68, capture31, affected daemon/service and subsequent finite
+state/terminal/automatic/path/no-op checks. Actual current-build terminal/browser
+integration remains open. Preserve accumulated coverage, target allocations and
+the held complete checkpoint; this bounded merge is not a whole-tree audit.
+
 **Compiler receipt-composition intake, 2026-10-18:** the existing compiler
 analysis owner retains finite typed derived-read closure; codegen create/query/
 receipt owners retain fresh-source joins, ordered effects and count/ancestor

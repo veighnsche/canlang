@@ -640,23 +640,38 @@ function validateStagedDeployment(staged: StagedDeployment): void {
       'deploy main: staged deployment (./artifact.js) export "verdict" is not an ActivationVerdict (needs boolean "active")',
     );
   }
-  if (Object.hasOwn(staged, "browserAssets")) {
-    const marker: unknown = staged.browserAssets;
-    const keys = ["browser/bootstrap.js", "browser/can-style.css", "browser/polling.js"];
-    const digest = (value: unknown): boolean => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-    if (!isRecord(marker) || Object.keys(marker).sort().join(",") !== "module,resources,resourcesSha256,version" ||
-        marker["version"] !== 1 || marker["module"] !== HTTP_ASSETS_SPECIFIER ||
-        !digest(marker["resourcesSha256"]) || !Array.isArray(marker["resources"]) || marker["resources"].length !== 3) {
-      throw new AssemblyFailedError("deploy main: invalid selected browser assets marker");
-    }
-    for (const [index, row] of marker["resources"].entries()) {
-      if (!isRecord(row) || Object.keys(row).sort().join(",") !== "bytes,contentType,key,sha256" ||
-          row["key"] !== keys[index] || row["contentType"] !== (keys[index]?.endsWith(".css") ? "text/css" : "application/javascript") ||
-          !Number.isSafeInteger(row["bytes"]) || (row["bytes"] as number) < 0 || !digest(row["sha256"])) {
-        throw new AssemblyFailedError("deploy main: invalid selected browser resource entry");
-      }
-    }
+  if (Object.hasOwn(staged, "browserAssets")) validateSelectedBrowserAssets(staged.browserAssets);
+}
+
+/** Exact canonical shared resources plus the existing optional development leaf. */
+function selectedBrowserResourceKeys(resources: unknown[]): string[] {
+  const keys = ["browser/bootstrap.js", "browser/can-style.css", "browser/polling.js"];
+  if (resources.some(row => isRecord(row) && row["key"] === "development/update-client.js")) {
+    keys.push("development/update-client.js");
   }
+  return keys;
+}
+function resourceDigest(value: unknown): boolean {
+  return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+}
+function validateSelectedBrowserResource(row: unknown, key: string | undefined): void {
+  if (!isRecord(row) || Object.keys(row).sort().join(",") !== "bytes,contentType,key,sha256" ||
+      row["key"] !== key || row["contentType"] !== (key?.endsWith(".css") ? "text/css" : "application/javascript") ||
+      !Number.isSafeInteger(row["bytes"]) || (row["bytes"] as number) < 0 || !resourceDigest(row["sha256"])) {
+    throw new AssemblyFailedError("deploy main: invalid selected browser resource entry");
+  }
+}
+function validateSelectedBrowserAssets(marker: unknown): void {
+  if (!isRecord(marker) || Object.keys(marker).sort().join(",") !== "module,resources,resourcesSha256,version" ||
+      marker["version"] !== 1 || marker["module"] !== HTTP_ASSETS_SPECIFIER ||
+      !resourceDigest(marker["resourcesSha256"]) || !Array.isArray(marker["resources"])) {
+    throw new AssemblyFailedError("deploy main: invalid selected browser assets marker");
+  }
+  const keys = selectedBrowserResourceKeys(marker["resources"]);
+  if (marker["resources"].length !== keys.length) {
+    throw new AssemblyFailedError("deploy main: invalid selected browser assets marker");
+  }
+  for (const [index, row] of marker["resources"].entries()) validateSelectedBrowserResource(row, keys[index]);
 }
 
 /**

@@ -50,7 +50,7 @@ export interface ProtectedPreview {
 }
 
 /** Project the closed code and boolean retry policy; response prose and values are untrusted. */
-function observedError(response: Response, body: Buffer, request: {
+export function observedError(response: Response, body: Buffer, request: {
   method: string; pathname: string; body: Buffer;
 }): { error: BusinessError; transport?: "mcp" } | null {
   const contentType = (response.headers.get("content-type") ?? "").toLowerCase();

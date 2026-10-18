@@ -222,8 +222,11 @@ for (const output of Object.values(result.metafile.outputs)) {
 for (const output of result.outputFiles) fs.writeFileSync(output.path, output.contents);
 `;
 
-function runBrowserBundle(entry: string, output: string, lifetime?: LocalCommandLifetime, minifyWhitespace = false): void {
-  execFileSync(process.execPath, ["--eval", ESBUILD_DRIVER, createRequire(import.meta.url).resolve("esbuild"), entry, output, String(minifyWhitespace)], bundleBuildOptions(lifetime));
+function runBrowserBundle(entry: string, output: string, lifetime?: LocalCommandLifetime, minifyWhitespace = false, execution: BundleExecutionOptions = {}): void {
+  execFileSync(process.execPath, ["--eval", ESBUILD_DRIVER, createRequire(import.meta.url).resolve("esbuild"), entry, output, String(minifyWhitespace)], {
+    ...bundleBuildOptions(lifetime),
+    ...(execution.esbuildBinaryPath === undefined ? {} : { env: { ...process.env, ESBUILD_BINARY_PATH: execution.esbuildBinaryPath } }),
+  });
 }
 
 /** Thrown error `code` when the built worker entry is missing. */
@@ -399,7 +402,14 @@ const ACORN_VENDOR_ENTRY = "vendor/acorn/acorn.js";
 const SOURCEMAP_CODEC_SPECIFIER = "@jridgewell/sourcemap-codec";
 const SOURCEMAP_CODEC_VENDOR_ENTRY = "vendor/sourcemap-codec/sourcemap-codec.js";
 
-export interface BuildDeployBundleOptions {
+/** Host-owned build inputs, scoped to this job and its subprocesses. */
+export interface BundleExecutionOptions {
+  esbuildBinaryPath?: string;
+  /** All scratch directories belong beneath this root when a host owns the job. */
+  temporaryRoot?: string;
+}
+
+export interface BuildDeployBundleOptions extends BundleExecutionOptions {
   commandLifetime?: LocalCommandLifetime;
   /** @deprecated Ignored. Producer files resolve through installed package exports. */
   repoRoot?: string;
@@ -1071,7 +1081,7 @@ export function buildDerivedInputsModule(artifact: CompileArtifact): string {
  * (same flags, same marker check, same loud errors) with a generated entry
  * using absolute dist paths so tmp paths never leak into bundle bytes.
  */
-export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifetime): string {
+export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifetime, execution: BundleExecutionOptions = {}): string {
   lifetime?.checkpoint("deploy MCP inputs");
   const serverDist = resolveProducerFile(
     INTERFACES_MCP_SERVER_DIST,
@@ -1081,7 +1091,7 @@ export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifeti
     MCP_REGISTRY_DIST,
     "bun run --filter @canlang/cloudflare build",
   );
-  const workDir = mkdtempSync(join(tmpdir(), "can-deploy-mcp-"));
+  const workDir = mkdtempSync(join(execution.temporaryRoot ?? tmpdir(), "can-deploy-mcp-"));
   const entryFile = join(workDir, "mcp-bundle-entry.js");
   const outFile = join(workDir, "mcp-bundle.mjs");
   const toPosixAbsolute = (path: string): string => path.split(sep).join(posix.sep);
@@ -1098,7 +1108,7 @@ export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifeti
     );
     entryWritten = true;
     lifetime?.checkpoint("deploy esbuild start");
-    runBrowserBundle(entryFile, outFile, lifetime);
+    runBrowserBundle(entryFile, outFile, lifetime, false, execution);
     lifetime?.checkpoint("deploy esbuild completed");
   } catch (err) {
     if (!entryWritten) {
@@ -1152,13 +1162,13 @@ export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifeti
  * bytes; the main's join-contract currying lives in stable main source
  * instead (see `defaultLoadHttpOperationsFactory`).
  */
-export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCommandLifetime): string {
+export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCommandLifetime, execution: BundleExecutionOptions = {}): string {
   lifetime?.checkpoint("deploy HTTP inputs");
   const operationsDist = resolveProducerFile(
     INTERFACES_HTTP_OPERATIONS_DIST,
     "bun run --filter @canlang/interfaces build",
   );
-  const workDir = mkdtempSync(join(tmpdir(), "can-deploy-http-"));
+  const workDir = mkdtempSync(join(execution.temporaryRoot ?? tmpdir(), "can-deploy-http-"));
   const entryFile = join(workDir, "http-bundle-entry.js");
   const outFile = join(workDir, "http-bundle.mjs");
   const toPosixAbsolute = (path: string): string => path.split(sep).join(posix.sep);
@@ -1187,7 +1197,7 @@ export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCo
     );
     entryWritten = true;
     lifetime?.checkpoint("deploy esbuild start");
-    runBrowserBundle(entryFile, outFile, lifetime);
+    runBrowserBundle(entryFile, outFile, lifetime, false, execution);
     lifetime?.checkpoint("deploy esbuild completed");
   } catch (err) {
     if (!entryWritten) {
@@ -1582,8 +1592,8 @@ export function buildDeployBundle(
   modules[JUDGMENT_SPECIFICATION_VENDOR_ENTRY] = rewriteVendorImports(readFileSync(
     resolveProducerFile(JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER, "bun run --filter @canlang/services build"), "utf8",
   ), JUDGMENT_SPECIFICATION_VENDOR_ENTRY);
-  modules[MCP_HANDLER_MODULE] = buildMcpBundle(undefined, options.commandLifetime);
-  modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle(undefined, options.commandLifetime);
+  modules[MCP_HANDLER_MODULE] = buildMcpBundle(undefined, options.commandLifetime, options);
+  modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle(undefined, options.commandLifetime, options);
   modules[ARTIFACT_MODULE] = renderStagedDeployment(
     artifact,
     portableAssembledModules(artifact.modules.map((mod) => mod.path), stagedArtifact.sourceMaps),
@@ -1946,6 +1956,7 @@ function buildBrowserAssetsModule(
   resources: Record<string, PackageResource>,
   manifest: { version: 1; module: "./http-assets.js"; resourcesSha256: string; resources: ReturnType<typeof resourceEntries> },
   lifetime?: LocalCommandLifetime,
+  execution: BundleExecutionOptions = {},
 ): string {
   lifetime?.checkpoint("deploy browser assets inputs");
   const root = fileURLToPath(interfacesDistribution.modules);
@@ -1954,7 +1965,7 @@ function buildBrowserAssetsModule(
   for (const file of [assets, pages]) {
     if (!statSync(file).isFile()) throw new Error(`deploy bundle: missing defining browser assets producer ${file}`);
   }
-  const workDir = mkdtempSync(join(tmpdir(), "can-deploy-assets-"));
+  const workDir = mkdtempSync(join(execution.temporaryRoot ?? tmpdir(), "can-deploy-assets-"));
   const entry = join(workDir, "http-assets-entry.js");
   const output = join(workDir, "http-assets.mjs");
   const encoded = manifest.resources.map((row) => Buffer.from((resources[row.key] as PackageResource).bytes).toString("base64"));
@@ -1981,7 +1992,7 @@ function buildBrowserAssetsModule(
   try {
     writeFileSync(entry, source, "utf8");
     lifetime?.checkpoint("deploy browser assets esbuild start");
-    runBrowserBundle(entry, output, lifetime, true);
+    runBrowserBundle(entry, output, lifetime, true, execution);
     lifetime?.checkpoint("deploy browser assets esbuild completed");
     const contents = readFileSync(output, "utf8");
     for (const marker of ["createHandler", "browser assets: selected page collides", "browser assets: selected resource integrity mismatch"]) {
@@ -2020,10 +2031,10 @@ export function generatedStyleResources(artifact: CompileArtifact): Record<strin
 }
 
 /** Bundle saved mounts with the defining browser registry, preserving one client. */
-function buildGeneratedBrowserClient(artifact: CompileArtifact, lifetime?: LocalCommandLifetime): Uint8Array | null {
+function buildGeneratedBrowserClient(artifact: CompileArtifact, lifetime?: LocalCommandLifetime, execution: BundleExecutionOptions = {}): Uint8Array | null {
   const views = (artifact.generatedViews ?? []).filter(view => view.mountExport !== undefined);
   if (views.length === 0) return null;
-  const workDir = mkdtempSync(join(tmpdir(), "can-generated-browser-"));
+  const workDir = mkdtempSync(join(execution.temporaryRoot ?? tmpdir(), "can-generated-browser-"));
   try {
     for (const module of artifact.modules.filter(module => module.path.startsWith("can.generated/"))) {
       const path = join(workDir, module.path);
@@ -2046,7 +2057,7 @@ function buildGeneratedBrowserClient(artifact: CompileArtifact, lifetime?: Local
     lines.push('if (typeof window !== "undefined" && window.document.readyState !== "loading") { startNativeBrowserClient(window).rescan(); }');
     writeFileSync(entry, lines.join("\n"), "utf8");
     lifetime?.checkpoint("deploy generated browser esbuild start");
-    runBrowserBundle(entry, output, lifetime, true);
+    runBrowserBundle(entry, output, lifetime, true, execution);
     lifetime?.checkpoint("deploy generated browser esbuild completed");
     return new Uint8Array(readFileSync(output));
   } finally { rmSync(workDir, { recursive: true, force: true }); }
@@ -2084,7 +2095,7 @@ export function buildDeployBundleWithAssets(
       bytes: new TextEncoder().encode(`${new TextDecoder().decode(baseCss.bytes)}\n${css.join("\n")}\n`) };
   }
   if (options.assets?.browser === true) {
-    const generatedClient = buildGeneratedBrowserClient(artifact, options.commandLifetime);
+    const generatedClient = buildGeneratedBrowserClient(artifact, options.commandLifetime, options);
     if (generatedClient !== null) resources["browser/bootstrap.js"] = { bytes: generatedClient, contentType: "application/javascript" };
   }
   const resourceDigest = resourcesSha256(resources);
@@ -2094,7 +2105,7 @@ export function buildDeployBundleWithAssets(
       throw new Error("deploy bundle: selected browser resource inventory lacks the canonical shared producer");
     }
     const manifest = { version: 1 as const, module: "./http-assets.js" as const, resourcesSha256: resourceDigest, resources: entries };
-    modules[HTTP_ASSETS_MODULE] = buildBrowserAssetsModule(resources, manifest, options.commandLifetime);
+    modules[HTTP_ASSETS_MODULE] = buildBrowserAssetsModule(resources, manifest, options.commandLifetime, options);
     modules[ARTIFACT_MODULE] += `export const browserAssets = ${JSON.stringify(manifest)};\n`;
   }
   for (const [key, js] of Object.entries(assets.modules)) {

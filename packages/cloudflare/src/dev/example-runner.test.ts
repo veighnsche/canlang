@@ -471,7 +471,7 @@ Then
             assert.deepEqual(args.selectorChannels, ["caller", selector === "request.note" ? "request" : "input"]);
             assert.equal(Object.keys(args.selectorChannels!).length, args.selectors.length);
             assert.equal(args.cells[0], "members");
-            const fixture = record(args.fixtures.get("one"));
+            const fixture = record(args.fixtures.get("RequestBinding.one"));
             const baseline = record(args.baselineInputs);
             if (selector === "request") {
               assert.equal(Object.hasOwn(baseline, "request"), false);
@@ -493,7 +493,7 @@ Then
             assert.equal(afterRows.length, 1);
             const afterRow = afterRows[0]!;
             const afterRevision = await args.scope.store.readRevision(), after = await snapshot(args.scope);
-            const currentFixture = record(prepared.fixtures.get("one"));
+            const currentFixture = record(prepared.fixtures.get("RequestBinding.one"));
             assert.equal(record(prepared.inputs)[selector === "request.note" ? "task" : "request"], currentFixture);
             assert.equal(record(prepared.inputs).note, selector === "request.note" ? "baseline" : "changed");
             assert.equal(currentFixture.id, fixture.id);
@@ -527,7 +527,7 @@ Then
             const rows = await scope.store.query(query);
             assert.equal(rows.length, 1);
             const row = rows[0]!;
-            const view = record(live.get("one"));
+            const view = record(live.get("RequestBinding.one"));
             assert.equal(view.id, prepared.row.id);
             assert.equal(view.version, BigInt(row.version));
             assert.equal(view.title, "changed");

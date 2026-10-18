@@ -1,17 +1,183 @@
 # `can dev` implementation plan
 
+**Release-profile platform qualification, 2026-10-18:** the locked Rust1.99
+release compiler and native server build on macOS arm64 and Linux x86_64. Native94
+release checks pass on both; macOS reuses64 sandbox-valid checks and retries only
+13 socket/watch-blocked checks with the required environment, then passes gateway4
+and state13. Actual archive qualification passes23 criteria per platform, including
+clean toolchain-free PATH, bundled runtime/dependency identity, real installed
+manual login/grants/D1, isolated examples/rerun, invalid edit/last good, repair,
+safe HTTP refusal and stop/restart preserving data. The earlier development-profile
+results remain evidence at their recorded scope.
+
+The first release manual attempts exposed a verifier race at replacement: new
+Ready does not imply the old generation has finished retiring. Preserve owner
+CLEANUP_REQUIRED and observe normal retirement via status, bounded to10s, before
+requesting access. No cleanup retry or relaxed assertion is used. Linux's affected
+retry observed107ms retirement and passes all manual groups; macOS's affected
+manual retry passes, reusing19 unchanged archive checks and the remaining3. The
+first macOS repair assertion did not retain its check result; the verifier now
+records it, and the successful retry confirms valid/ready r3. No production change
+was inferred from that missing historical outcome.
+
+The release tuples use committed source e45f9655b and its frozen producer outputs.
+macOS manual ready9.181s/control.085s/stop.120s; Linux ready14.507s/control.041s/
+stop.170s. These are separate host observations, not a cross-platform comparison.
+Linux qualification is Rocky10.2/glibc2.39; its actual ELF closure requires glibc2.39.
+The existing configured GitHub release workflow was not dispatched or published;
+actual equivalent locked release builds and installed checks close this platform
+qualification scope. Main integration and its final measurement follow the safe
+foreign-writer release. T18–T30 and public publication remain separate.
+
 ## Current execution view — development experience, 2026-10-18
 
-**Planning update; implementation remains stopped.** This is the single current
+**Implementation resumed by the user, 2026-10-18.** This is the single current
 execution view for the terminal-first development experience and its later
 save-to-presentable-preview work. The earlier implementation authorization for
 **Prevent Miniflare instance accumulation** was followed by the user's stop;
 its work remains preserved. The current instruction selects a Rust development
-server with Ratatui and managed Workerd, and authorizes planning only.
-T14–T30 retain their IDs and acceptance scopes; neither this update nor historical
-progress resumes execution. First priority is T14's authoritative state contract
+server with Ratatui and managed Workerd. The user now authorizes implementation,
+prioritizing the authoritative state machine and Ratatui terminal in dependency order.
+Pause wording retained below records the prior planning handoff, not the current
+execution authorization. T14–T30 retain their IDs and acceptance scopes.
+First priority is T14's authoritative state contract
 and T15's Ratatui experience, with T16 supplying the runtime boundary needed to
 qualify that manual workflow. Later automation and performance work stay separate.
+
+**Native command parity and installed manual checkpoint, 2026-10-18:** T14/T15's
+remaining manual command policy is implemented: compatible status/check fields,
+bounded captured diagnostics and safe compiler/example/HTTP failure references,
+serialized isolated examples and retained exact-row reruns, captured construct
+help and trusted four-job qualification, stale-proof downgrade and default-disabled
+external ranking. All public command families are advertised; missing pending
+ranks produce the existing typed refusal. Rust alone admits work, assigns refs,
+retains inputs and selects generations. Caller detach cancels and joins only its
+own work; uncertain resource release retains payloads/recipes and blocks growth.
+The subordinate host acknowledges consumption of verified private spool outputs.
+Existing example/qualification cleanup now retains failed disposal handles and
+joins pending allocations, preserving the primary failure.
+
+Native94 checks pass at their scopes (whole93 plus the affected final owner check).
+Bridge protocol/target6, new cleanup/recipe4 and spool1 pass. Existing example13
+pass with the failed-only canonical fixture-key correction; no request/wire or
+business assertions were removed. Source AST comparison covers445 changed native/
+bridge functions with zero complexity violations. The installed native manual
+journey passes real login/team selection and D1 mutation, isolated failed examples
+and exact rerun, safe failure/diagnostic commands and historical refs, invalid edit
+with last-good serving, repair/replacement, real HTTP refusal, and stop/restart
+retaining the same login, MCP grant and data. The existing TS JSON consumer also
+controls that installed native owner. External ranking/account gates stay held.
+
+T17 now assembles the native `libexec/can-dev` with the existing installer,
+explicit component input, native host/release identity, component bytes and
+separate locked dependency notices. The release jobs build both native targets
+serially in a compatible target; installed defaults use bundled Node/bridge and
+the existing compiler override. Preflight runs nonstarting dev help before the
+atomic switch. Conflicting TS bin/installed controller routes are retired; stopped
+TS sources remain preserved. The existing Linux tools archive also takes the
+native component instead of losing its former bin mapping. Local macOS archive
+verification passes23 checks, reusing19 unchanged passes after correcting the
+verifier's help invocation and retrying only its manual scope and remaining3.
+Producer emission temporarily isolated the stopped dirty TS/UI inputs, restored
+all original source bytes, and froze the coherent outputs through qualification.
+No private dependency install or foreign compiler output was replaced.
+
+**Integrated local build measurement:** the packaged development-profile compiler
+is SHA `fcb86188b219f156915b5379cf6dc41e4cadf56e91d8db74083ecfacafe46746`;
+native SHA is `5b609df5fead8eddb0ced75bec86cc081f642cba188f502eb16b8e650846aa8f`.
+The external PreviewPersistence workflow reaches ready in10.110s, control in.115s,
+invalid check in3.613s, repair in9.399s, restart check in11.328s and confirmed stop
+in.197s. This is a different packaged producer/app tuple from the earlier matched
+checkout comparison below; do not derive a new percentage from those old samples.
+These are local observations, not a statistical or two-second latency claim.
+The final installed ModelFreePreview phase run is10.360s to serving (control.101s,
+HTTP.020s, confirmed stop.163s): capture about2.18s, compiler/currency about1.68s,
+runtime preparation about5.81s and final currency about.60s. Runtime preparation
+still dominates. This uses the same source bytes and compiler as the earlier
+checkout sample, but the packaged producer closure differs.
+
+Actual installed generic-command PTY also passes: diagnostics and same-session
+failure lookup render real captured results, typed input survives, Ctrl+C detaches
+with exact terminal restoration, the same owner remains live, and explicit stop
+retires it. Reuse unchanged earlier80/44 resize/history/plain checks. The one-off
+helper expected an invented SESSION_NOT_FOUND code after teardown; actual missing
+endpoint reports CONTROL_IO, consistent with its existing native boundary. No
+extra owner/terminal retry was needed.
+
+**Historical local T17 checkpoint:** Linux/release-profile qualification was
+unrun at this checkpoint and is now closed at the recorded host scope above. No public publication, T18–T30 extension or external gate release
+is inferred. The native manual and terminal outcomes above are closed at their
+local scope; these external platform gates do not reopen their accepted checks.
+
+**Earlier native core checkpoint, 2026-10-18:** `dev-server/` now supplies the
+typed authoritative state, one owner event loop, immutable capture/compiler
+adapter, private root claim/control, managed runtime bridge and process groups,
+protected gateway, watcher and Ratatui/plain foreground. The subordinate bridge
+is committed as `078366c48`; its minimal tracked changes exclude preserved U
+cache, stable-gateway, update-client producer and controller work. Real Workerd
+readiness and release pass. The Rust manual journey passes initial ready,
+authorized HTTP, invalid edit with retained r1 preview and r2 diagnostics,
+repair/replacement to r3, and confirmed endpoint/process retirement. A delayed
+watch hint exposed by that journey now triggers a bounded full byte/currentness
+confirmation rather than rejecting already-current bytes. The current compiler's
+valid capability minimum version zero is admitted.
+
+Native checks cover 80 source/state/transport/input/rendering/process/HTTP cases
+at their recorded scopes, plus actual 80/44-column PTY input/paste/resize/history,
+owned stop, attached detach and terminal restoration. Redirected stdout selects
+plain stderr before Crossterm can emit its stdout cursor query. Horizontal
+shrink preserves the visible screen in physical scrollback with an explicit
+historical-view marker before Ratatui redraws. No source or lifecycle authority
+is added to the renderer. Actual cross-controller checks pass: native UI attaches
+to a TS owner and detaches without stopping it; TS status/discover/stop control a
+native owner. The latter exposed idle-only maintenance starvation. Maintenance
+now follows an independent deadline, so status polling cannot defer retirement,
+watch reconciliation or runtime health checks; final-response draining remains.
+
+**Current local measurement:** one matched process-cold manual run uses the same
+ModelFreePreview source path/bytes, current compiler SHA
+`fcb86188b219f156915b5379cf6dc41e4cadf56e91d8db74083ecfacafe46746`
+and frozen emitted producer closure. Preserved TypeScript reaches serving in
+19.410s (owner/control 6.181s). The native full journey reaches serving in12.972s
+(control .080s); the final binary's startup-only measurement is16.857s (control
+.077s), about13% less than TS. Record both observations: runtime preparation
+varies from7.35s to10.77s and accounts for most of the difference. Final native
+capture completes around3.1s, compiler plus currency around1.7s and final currency
+around1.1s. Authorized HTTP is .023s final native/.019s TS; stop including actual
+endpoint/process retirement is .144s final native/1.854s TS. Final native binary
+SHA is `e20455897a8573d8307aa7c48c2f954ec6919f2414f9cb7eedbc4fca3ae90a31`.
+Control readiness is an earlier boundary
+than app readiness; capture was moved into an owned operation and also sped up.
+The original38.476s/17.503s was a different older tuple, not this matched baseline.
+ARM software hashing had dominated a failed native diagnostic run; maintained
+runtime-detected ARM SHA acceleration and eight bounded readers retain all byte,
+canonical-path, permission, membership and publication checks. Raw inventory
+enumeration is about.86s per request and was retained, including all three browser
+driver pins. Runtime preparation is now the largest remaining phase. These are
+single local observations, not a two-second or statistical latency claim.
+
+**Historical gaps at the core checkpoint `5d8113012`:** T14's complete JSON/result policy,
+retained failure/reference, example/rerun, explicit local-actor and construct
+help/ranking coordination; full T15 compatible-command qualification; T17 native
+installation/default resolution, complete retained-login/data journey and
+cutover. Native help lists unavailable command families. The installed TS entry
+remains in place; no public release, whole-plan completion, T18–T30 resumption or
+external gate release is inferred from this checkpoint.
+
+**Historical stopped TypeScript work, 2026-10-18:** these are U/source results,
+not implemented Rust T14/T15 acceptance or authorization to resume. E1/startup capture reduction is committed
+as `da726fc78`; T16's owned asynchronous bundle adapter is committed as
+`4b6ab6ae2`. T14/T15 and explicit T19 automatic admission are implemented locally:
+the owner snapshot separates operation/source outcome from actual serving state,
+stop confirms runtime release before endpoint/process retirement, and one latest
+automatic demand reuses the existing check queue. Focused terminal9, observation4,
+publication-failure1, socket6 and automatic service1 controls pass; affected service/
+daemon integration and package emission pass at their recorded scopes. T17's real
+terminal/current-build phase run remains pending. T18/T20/T22 have their focused
+owner checks; the genuine resource/routing/browser join is still pending. T23–T30
+remain open at their defined scopes; no complete integration or two-second result
+is claimed. The compiler chat's current uncommitted work must reach its requested
+commit handoff before final synchronization and current-build measurement.
 
 The original **T00–T13 and G1/G2 remain accepted at their recorded frozen scopes**;
 consume their outputs without repeating their qualification. G3/A7 remains the
@@ -25,16 +191,21 @@ IDs or turn historical open counts into new assignments.
 **[Accepted direction](../../specification/DECISIONS.md#2026-10-18--choose-a-rust-development-server-with-ratatui-and-managed-workerd):**
 the Can development server is implemented in Rust under the root
 `dev-server/` directory, with [Ratatui](https://ratatui.rs/) front
-and center. Rust owns orchestration, authoritative state and the entire managed
-runtime lifecycle: start, readiness, replacement, stop, failure and recovery.
+and center. Rust owns the development application's authoritative state machine,
+watching/invalidation, scheduling/checks, build coordination and managed lifecycle:
+start, readiness acceptance, publication, replacement, stop, failure and recovery.
 This supersedes the earlier UI-only choice and the assumption that the general
-server remains TypeScript or Cloudflare-owned. **Workerd is the execution runtime
-for compiled Can JavaScript.** Miniflare configures/launches Workerd and supplies
-local service integration; it is not embedded inside Workerd. Any necessary JS/TS
-Miniflare host bridge is subordinate tooling behind Rust's runtime-control boundary,
-not the runtime or the general lifecycle owner. Ratatui renders authoritative Rust
-state and translates input into events; Rust controller code supplies the development
-state machine. This is an accepted architecture, not a resumed rewrite.
+server remains TypeScript or Cloudflare-owned. The existing Rust compiler remains
+the sole Can compiler and produces the JavaScript executed by **Workerd**.
+**Miniflare is retained for local development:** a bounded subordinate JS host
+calls its supported API to configure services and launch Workerd. Miniflare is
+neither the production runtime nor embedded inside Workerd. The host has no
+independent session controller, rebuild scheduler, publication authority or
+session-restart policy. Miniflare's own internal runtime restart behavior is a
+separate, explicitly unresolved API limitation below. Ratatui renders Rust facts
+and submits user events; it does not supply the application state machine.
+Can application/business semantics remain with the compiler and runtime owners.
+This is an accepted architecture, not a resumed rewrite or a claim of superiority.
 The earlier `dev server/` name is historical: the directory has already been
 renamed to `dev-server/`. No relocation remains in this plan.
 
@@ -52,20 +223,54 @@ source relocation is implemented by this planning change.
 can dev → native can-dev → Rust development server in dev-server/
             ├─ Ratatui primary interface / plain output / JSON control
             ├─ authoritative session, watcher, scheduler and process supervisor
-            ├─ compiler adapter → existing Rust compiler
+            ├─ compiler adapter → existing Rust Can compiler → JavaScript
             └─ private versioned process/control boundary
-                 → subordinate JS/TS Miniflare bridge, where needed
-                    → configures/launches Workerd and local service bindings
+                 → retained subordinate JS host → supported Miniflare API
+                    → local services and Workerd launch
                        → Workerd executes compiled Can JavaScript
 ```
 
 | Responsibility | Defining owner and boundary |
 | --- | --- |
 | Session/control | Rust owns the canonical-root claim, verified discovery/attachment, input generations, capture/check queues, cancellation, diagnostics/history, work admission and recovery. Port the existing behavior and retained evidence; do not retain an independent TypeScript session controller after cutover. |
-| Runtime lifecycle | Rust owns Workerd start, readiness acceptance, replacement, publication, retirement, stop, failure and recovery, including supervision of any bridge and descendants. The bridge performs concrete setup/release commands and reports results; it cannot publish itself, schedule a rebuild or independently restart the session. |
-| Target integration | The Cloudflare adapter retains target bundling, Miniflare configuration/launch tooling, bindings, actual Workerd probes and concrete resource release. A necessary JS/TS bridge stays subordinate behind the process contract; no Cloudflare SDK objects or Miniflare internals spread through Rust core. Other target adapters need no general orchestration fork. |
+| Runtime lifecycle | Rust owns session start/recovery policy, admitted preparation, readiness acceptance, replacement/publication and retirement/stop, supervising the JS host and its owned OS scope. The host performs ordered concrete API operations and reports results. It cannot publish, rebuild or restart a session. Miniflare's internal Workerd restart is not a Rust veto hook; see the precise limitation below. |
+| Target integration | Retain Cloudflare bundle algorithms, Miniflare configuration/service primitives and actual Workerd probes. The JS host owns concrete Miniflare objects and local retry handles; Rust owns their admitted lifetime, ordering and opaque resource registry. No Cloudflare SDK objects or Miniflare internals cross into Rust core, and no target module imports the general session controller. |
 | Preview/access/data | Rust owns development access admission, preview gateway/routing and generation selection. Runtime Identity/CSRF/host checks and application grants still run at their defining owners. Preserve retained data/login and schema-compatibility refusal; replacement is never an implicit reset or permission bypass. |
 | Shared semantics | Compiler, State, Identity, Values, UI, Work and Testkit retain their language/runtime/business semantics. Their supported code runs in Workerd or the appropriate existing adapter/tooling context. A Rust development server does not require porting these packages or physically copying them into its directory. |
+
+#### Source ownership and imports after cutover
+
+These source-location and further decomposition notes were proposed during the
+paused planning stage. The accepted implementation uses the bounded Cloudflare
+host at `@canlang/cloudflare/dist/dev/runtime-host.js`, with bundled Node. These
+proposals do not reopen closed native manual criteria or require relocation.
+The proposed locations/interfaces below are retained as alternatives:
+`dev-server/src/` owns the Rust controller, capture/compiler adapter, queues,
+resource/supervision registry, protected gateway and control/presentation code.
+`dev-server/host/entry.mjs` is the private JS protocol shim, packaged with this
+component; it imports a narrow target adapter factored from the existing
+Cloudflare tooling. The adapter performs supported Miniflare API calls and target
+computations. It does not import the former TS session/core/service/daemon,
+general preview gateway or controller-owned caches.
+
+| Existing mixed owner | Proposed further decomposition; retained semantics |
+| --- | --- |
+| `createLocalPreviewBuilder` / `createInstalledLocalPreviewBuilder` | Port build sequencing, capture/currency checks, allocation registry, origin selection and promotion policy to Rust. Keep concrete bundle/configuration, provisioning and probe operations in the target adapter. Its current reverse `SessionServicePreview` import from `session-service.ts` becomes explicit result data/opaque handles; do not retain the whole builder as a hidden controller. |
+| `startProtectedPreview` | Rust owns the baseline gateway and allocates its protected origin before target configuration; the host consumes that origin and returns backend/probe facts. No JS target helper creates the general gateway. T18 later changes the same owner's origin lifetime; it does not introduce another gateway. |
+| `ExampleRerunCoordinator` / `ConstructRanker` | Rust owns queues, pending refs, retention/TTL/eviction, currentness, deadlines and disclosure policy. Retain only admitted semantic runner/Testkit work or one provider transport request in JS, with bounded outcomes and cleanup facts. No retained JS ranking/rerun scheduler or independent cache lifetime. |
+| `first-profile-qualification.ts` | Rust captures and invokes the sole compiler, schedules fixture preparation, owns qualification cache/cancellation and releases resources. Retain concrete existing runtime/browser assertions against supplied artifact/resource handles. The existing helper's capture/compiler/builder imports cannot remain an independent qualification workflow inside the host. |
+| Producer bundling/classification | Cloudflare computes target bundle output and checked compatibility facts; Rust coordinates jobs, owns cache admission/lifetime and selects publication/update actions. This applies to T22/T24/T27 as well as the initial adapter. |
+
+The accepted minimal adapter retains concrete `createInstalledLocalPreviewBuilder`
+and `createInstalledFirstProfileQualification` operations; Rust retains the
+command/capture/currentness/resource policy recorded above. Deeper helper splitting
+is proposed, not an additional release prerequisite.
+
+The public compiler and package APIs keep their semantic owners. Necessary target
+adapter exports are private development integration surfaces, not new Can language
+APIs. Audit the changed import closure at T17: retirement removes replaced TS
+orchestration and its command routes, while retaining this JS host, Miniflare,
+Workerd and unrelated runtime/business packages.
 
 ### Selected entry packaging and cutover — T17
 
@@ -106,14 +311,21 @@ T14's native command/session entry, T15's controls and T16's installed bridge:
   output fails assembly; do not fall back to a stale checkout binary.
 - Preserve the public `bin/can` launcher, explicit `CAN_DEV_BIN` overrides and
   current `CAN_INSTALL_ROOT`, `CAN_DEV_COMPILER`/`CAN_COMPILER_BIN` defaults. The
-  installed server resolves the retained JS/TS bridge and bundled Node from that
-  release; it requires no checkout, npm/Bun install, host Node or Rust toolchain.
-  T16 supplies the concrete installed bridge entry and required production closure.
+  implemented installed server resolves the release's
+  `@canlang/cloudflare/dist/dev/runtime-host.js` and bundled Node; it requires no checkout, npm/Bun install, host Node or Rust toolchain.
+  The existing package inventory carries that host and target-adapter closure.
+  A future proposed `dev-server/host/` / `libexec/dev-server-host/entry.mjs`
+  relocation would require explicit inventory support because the packer scans
+  `packages/`. Either location resolves target imports through that release's `node_modules`;
+  Miniflare remains a pinned target dependency. No separate JS host installer.
   `scripts/distribution/package.json` remains the JS tools owner, not a Rust package.
 - Remove the conflicting TypeScript `can-dev` bin mapping and obsolete control
   launch route from `packages/cloudflare/package.json` at cutover; retain target
   tooling and shared runtime exports. Update contributor instructions to point
-  `CAN_DEV_BIN` to the built Rust executable. Compiler-owned forwarding/help and
+  `CAN_DEV_BIN` to the built Rust executable and explicitly select the prepared
+  host/target closure for a source checkout; do not silently fall back to stale
+  installed tooling or the removed TS session client. Source development still
+  uses its existing Node/Bun build prerequisites. Compiler-owned forwarding/help and
   existing JSON/no-argument behavior stay compatible; no second controller remains.
 - Extend the existing install preflight with a non-starting `can dev --help`
   smoke check before switching `current`, so a broken server cannot replace a
@@ -124,22 +336,71 @@ T14's native command/session entry, T15's controls and T16's installed bridge:
   security/inventory evidence; no new platform matrix or public release is implied.
 
 Packaging is resolved for this execution plan. No further user packaging decision
-is required. Implementation remains paused; the E1 source contract identified in
-the parity mapping is an input to Rust lifecycle acceptance, not a request to
-resume its former owner or a blocker to choosing this distribution shape.
+is required. Implementation is underway; cutover remains gated by T17. The E1
+source contract in the parity mapping is an input to Rust lifecycle acceptance;
+its former owner remains stopped.
 
-**Proposed narrow process contract (T14/T16):** Rust controls the Workerd integration
-through a private, versioned, bounded
-control channel with explicit command/result correlation and separate bounded
-logs. The existing private IPC and JSON conventions are inputs to this contract,
-not permission for an additional daemon. Exact framing is a finite implementation
-choice; no public network service or generic RPC framework is required.
+### Supported Miniflare boundary and lifecycle limitation — T14/T16
+
+[Miniflare's documented API](https://developers.cloudflare.com/workers/testing/miniflare/)
+is the local-development integration. Source inspection used the repository's
+`miniflare@4.20260730.0` / `workerd@1.20260730.1` lock and installed definitions:
+the `Miniflare` class exposes construction, `ready`, `dispatchFetch`, `setOptions`,
+binding access and asynchronous `dispose()`. Keep those objects inside JS. Rust
+does not consume private fields, generated Workerd configuration, or the lower-level
+exported `Runtime` as an alternative supported control API. `handleRuntimeStdio`
+exposes streams, not a Workerd process handle.
+
+Two inspected implementation facts constrain the design:
+
+- In this pin, Miniflare spawns Workerd as a non-detached child and its own disposal
+  awaits that child's exit. Rust can wait/reap its **own host child**, not promise
+  arbitrary grandchild reaping through the Miniflare API. A dedicated POSIX process
+  group is the implemented `setsid` scope for the qualified macOS/Linux profile;
+  retained host-loss/termination checks require direct-child reap and observed
+  group absence. Launch strips inherited debugger injection variables because
+  this pin can otherwise create detached VS Code watchdogs.
+  No PID-by-name killing, private Miniflare handle access or unqualified Linux-only
+  subreaper assumption is part of this plan.
+- `Miniflare.#handleWorkerdCrash` internally recreates Workerd. The exposed
+  `unsafeHandleRuntimeRestart` callback runs **after** successful restart; it is
+  not a veto, and the inspected public options provide no restart-disable switch.
+  No immediate stable exit notification is promised. Supported readiness/dispatch
+  probes and owner timeouts remain required evidence; optional unsafe callbacks
+  cannot be the sole correctness mechanism.
+
+**Precise supported-API limitation:** Miniflare may perform internal Workerd
+recovery without a pre-spawn veto or immediate stable exit notification. Rust
+retains session admission, generation selection, publication and owned-host
+recovery authority. Prior approval of every internal Workerd spawn is a stronger
+contract requiring an explicit architecture decision; it is not an additional
+prerequisite for the recorded native manual acceptance. Current native health
+checks observe host transport; preparation performs real runtime probes. Immediate
+inner-restart observation and continuous post-restart readiness invalidation are
+not implemented or claimed. Preserve this limitation without reopening accepted
+host-loss and owned-scope release checks. Do not patch Miniflare internals or remove
+Miniflare to conceal it. A future stronger restart contract remains proposed.
+
+### Bounded subordinate host protocol — T14/T16
+
+Rust controls local preparation through a private, versioned, bounded control
+channel with command/result correlation and separate bounded logs. The implemented
+format is bounded versioned NDJSON over owned stdio (the earlier framed-JSON
+wording was a proposal), with bulk artifacts carried as admitted
+job-local file references plus digests. The existing private IPC conventions
+supply size/error rules; this is neither a new public service nor a generic RPC
+framework. Exact encoding details cannot transfer orchestration back into JS.
 
 - Bridge launch/handshake identifies the owned process, protocol version, session and
   supported profile. Pin source/input/artifact/producer identities and the selected
   persistence scope. An incompatible or unverified host never becomes ready.
-- Prepare, probe, cancel, release and release-retry requests carry session,
-  operation and generation identities. Results carry the corresponding identity,
+- Rust issues ordered bounded target operations: bundle/configure, provision local
+  services, start an instance, probe, execute an admitted example/qualification
+  assertion, cancel and release/retry. Concrete `prepare` retains the existing
+  target builder without a second session controller or publication authority;
+  further splitting of its internal target phases remains proposed. Requests carry session,
+  operation/generation and Rust-assigned resource identities before allocation.
+  Results carry the corresponding identity,
   actual readiness/failure and outstanding resource-release state. Rust verifies
   authority and correlation and alone promotes a current ready candidate. Late
   or superseded results cannot publish, but any reported allocations or retained
@@ -148,27 +409,40 @@ choice; no public network service or generic RPC framework is required.
   A ready process is not a ready app; a ready app is not a browser-applied update.
 - Graceful shutdown first closes Rust's work/access admission, then cancels or
   joins owned jobs and releases runtimes. Retain ownership handles through failed
-  cleanup. Rust must be able to identify/reap its host and runtime descendants
-  even if the host crashes, using verified process-tree ownership rather than
-  arbitrary PID killing or the host's final message alone. Deadline escalation
-  targets only that tree; acknowledgement or endpoint loss is not release proof.
-- Runtime crash makes that backend unavailable while Rust remains able to report
-  state and accept recovery commands. Preserve the primary error, last verified
+  cleanup: JS retains actual Miniflare instances/retry closures, Rust their opaque
+  IDs and verified host/supervision-scope identity. Request supported `dispose()`
+  cooperatively before bounded escalation against only that owned OS scope; Rust
+  waits for its direct child. Qualify descendant containment/termination separately.
+  A host exit, reported PID or endpoint disappearance alone is not release proof.
+  Scope granularity must allow cancelling a candidate/job without silently killing
+  a serving generation; no general worker pool is implied.
+- Release results distinguish runtime/listener release, host termination and
+  owned scratch removal. In this pin Miniflare's temporary removal is asynchronous;
+  `dispose()` is not proof every file has disappeared. Preserve persistent state,
+  and release only known scratch after its consumers terminate. On host loss an
+  opaque ID cannot recreate a JS handle: retain release-uncertain, reconcile the
+  owned OS scope and block applicable new allocation until its gate clears.
+- An observed runtime failure/restart or failed owner probe invalidates that
+  backend's readiness while Rust remains able to report state and accept recovery
+  commands. Preserve the primary error, last verified
   facts and retained data. Uncertain prepare/release results require ownership
   reconciliation before retry/new allocation; never replay application mutations.
-  Automatic recovery, when selected in T19, is bounded and obeys no-growth gates.
+  Automatic session recovery, when selected in T19, is bounded and obeys no-growth
+  gates; it does not describe or disable Miniflare's internal restart behavior.
 - Logs/events identify their session/generation, operation and source; drain them
   with bounded retention and explicit dropped/unavailable counts so they cannot
   block stop. Redact secrets and sanitize terminal controls. Only typed owner facts
   drive state; neither log prose nor UI animation is a readiness signal.
 - Preserve the existing command families beyond preview preparation. Rust owns
   revision/reference admission, bounded history, queues and cancellation for
-  examples/reruns, failures and construct help/ranking. T16 exposes the existing
-  exact-artifact example runner, installed Testkit and trusted qualification as
-  bounded subordinate operations, plus typed business-refusal events from the
+  examples/reruns, failures and construct help/ranking. T16 exposes admitted
+  exact-artifact execution, installed Testkit and concrete trusted qualification
+  assertions as bounded subordinate operations, plus typed business-refusal events from the
   serving generation. The adapter does not own command policy or a second session;
   runtime values and authority stay with their semantic owners. Qualification is
-  not caller-supplied, and external ranking remains separately policy-gated.
+  not caller-supplied; Rust schedules any qualification capture/compile/preparation
+  through its same owners. External ranking remains separately policy-gated, with
+  no retained JS pending-job/cache/retry controller.
 - Persistence retains its existing compatibility and isolation rules. Rust owns
   scope/lifetime admission; the adapter reports actual Workerd/schema/readiness facts.
   Do not activate conflicting writable owners during replacement or erase data on
@@ -212,19 +486,19 @@ machine-only. Ctrl+C stops an owned session or detaches an attached presenter;
 restore terminal state on supported exit/error/interrupt paths. The Rust owner can
 outlive an attached UI, so losing the presenter never implies runtime shutdown.
 
-### Finite migration within the existing task IDs (proposed, stopped)
+### Finite migration within the existing task IDs
 
 These are the current execution steps for the Rust direction, not a second plan
-or extra task IDs. E1's stopped work supplies behavior/evidence to inspect and port
-when implementation is released; it is not an instruction to resume that chat.
+or extra task IDs. E1's stopped work supplies behavior/evidence to inspect and port;
+its former chat remains stopped.
 
 | Order / existing task | Concrete output and finite acceptance |
 | --- | --- |
-| T14 + T16: freeze the owner/host contract | Map existing lifecycle, input/freshness, permission, retained-data and failure behavior to the narrow messages above. Reuse accepted evidence; record only genuine gaps. One lifecycle authority and identified resource ownership are required, without inventing a generic platform protocol. |
-| T16: isolate the Workerd integration adapter | Reuse existing bundling and Miniflare launch/local-service tooling behind the contract, retaining a JS/TS bridge where needed. Validate one actual supported artifact in Workerd plus delayed/failed preparation, bounded logs and cancellable owned-child cleanup. Keep synchronous target work off Rust's control/UI loop; an unresponsive bridge must still be terminable with Workerd ownership retained. No runtime/business-semantics rewrite. |
+| T14 + T16: freeze the owner/host contract | Map existing lifecycle, input/freshness, permission, retained-data and failure behavior to the narrow messages above; separate supported API operations from OS supervision and resolve the precise Miniflare restart interpretation before lifecycle acceptance. Reuse accepted evidence; record only genuine gaps. One lifecycle authority and identified resource ownership are required, without inventing a generic platform protocol. |
+| T16: isolate the Workerd integration adapter | Reuse existing bundling and Miniflare launch/local-service tooling behind the contract, retaining the bounded JS host and decomposed target primitives. Validate one actual supported artifact in Workerd plus delayed/failed preparation, bounded logs and cancellable owned-child cleanup. Keep synchronous target work off Rust's control/UI loop; qualify cooperative disposal and termination of an unresponsive host's owned OS scope without losing resource accounting. No runtime/business-semantics rewrite. |
 | T14: port session/control and supervision to Rust | Supply the native `can-dev` command/session entry under `dev-server/`; transfer root claim/IPC, capture/currentness, scheduling, existing protected gateway behavior and runtime lifecycle to Rust. Exercise invalid-source/last-good-preview, supersession, startup race, crash, stop/publication ordering and failed-cleanup retry against the host contract. Retained login/data and current authorization remain authoritative. |
 | T15: deliver Ratatui and compatible controls | Implement the primary Rust terminal, plain mode and existing JSON behavior against T14. Verify state rendering, normal/narrow layouts, bounded diagnostics/logs, attach/detach and terminal restoration; no duplicated UI-side lifecycle. Can proceed from the released state contract while host integration finishes. |
-| T17: qualify and cut over the installed manual workflow | Package native `can-dev` beside `can` through the selected existing installer flow; consume T14's entry, T15's controls and T16's installed bridge. One frozen real startup → ready → invalid edit → repair → replacement → stop journey uses the Rust owner and managed Workerd. Include retained data/login, failure/recovery, attached-view detach and the existing JSON consumer. Retire replaced TypeScript session/daemon routes, leaving subordinate target integration and shared runtime packages. Capture attributed phase timings; stop at manual parity. |
+| T17: qualify and cut over the installed manual workflow | Package native `can-dev` beside `can` through the selected existing installer flow; consume T14's entry, T15's controls and T16's installed bridge. One frozen real startup → ready → invalid edit → repair → replacement → stop journey uses the Rust owner and managed Workerd. Include retained data/login, failure/recovery, attached-view detach and the existing JSON consumer. Retire replaced TypeScript session/daemon/gateway and coordination routes, leaving the required JS host, Miniflare target integration and shared runtime packages. Capture attributed phase timings; stop at manual parity. |
 | T18–T30: resume only their listed extensions | Stable session origin, automatic checks/updates and measured reuse remain subsequent scoped work. Existing behavior ports under T14/T16; optional reuse under T22/T23 and compiler work under T28/T29 do not become prerequisites for Rust/manual parity. |
 
 This sequence proposes migration work only. Neither a Rust language switch nor
@@ -286,10 +560,10 @@ requiring its entire plan. `dev/` below means `packages/cloudflare/src/dev/`.
 | **B — coherent source and generated inputs:** `captureSingleFileSource`, `discoverGeneratedClosure`/`snapshotGeneratedClosure` in `generated-capture.ts`; `DevSessionCore.watchDirectories`. | T14; T23 only for extra reuse | Generated-source discovery/leases and missed-watch recovery were underspecified. Port the established compiler-admitted saved/contribution closure and full input identity; preserve watch reattachment and bounded fallback audits. This does not expand language scope. | Saved content or membership changes invalidate publication; staged source membership equals the captured closure. Missed add/rename/remove, replaced watch directory and changed producer eventually recapture coherently; idle operation does not repeatedly perform full captures. |
 | **B — compiler adapter:** `compileCapturedSingleFile` runs captured compiler/catalog bytes, bounds output/time, escalates cancellation and waits for child close before staging release. | T14 compiler orchestration; T16 responsive owned execution | Exact invocation/result validation was underspecified: preserve `compile --format=json --native-scenario-receipts`, exit 0 artifact versus 10 diagnostics, source-path/hash agreement and pre/post currentness. U adds phase reporting. | Existing artifact/diagnostic, malformed-output, source-drift and cancellation cases cover the port; no late publication or deletion while the child still owns staging. No new compiler API is required. |
 | **B — retained diagnostics and failures:** service `diagnostics`, `diagnostic.detail`, `failure.lookup`, `failure.detail`, `failures`; `SessionServicePreview.observeRefusals` → safe failure projection. | T14 retention/reference policy; T16 typed refusal events; T15 rendering | Broad “diagnostics/logs” wording omitted the command/event boundary. Preserve same-session and old-revision refs, pagination, compiler/service omission counts, bounded actual example/HTTP/MCP failures and serving-generation filtering. | Existing lookup/refusal cases verify old versus foreign refs, bounded pages, safe canonical messages and unsubscribe on retirement. Do not expose raw conflict/current values, credentials or unavailable traces through Rust or the terminal. |
-| **B — isolated examples and reruns:** `SessionServicePreview.exampleInput` → `runCompiledExamples`; `ExampleRerunCoordinator` and its retained recipe/resource ports. | T14 admission/queue/refs; T16 runner/Testkit bridge | Execution and retention across the process boundary were omitted explicitly. Rust coordinates expected serving revision, exact retained artifact/producer bytes, selected failed row and fresh run scope; existing Testkit/Identity/runtime semantics stay in their owners. | Preserve drift/cancellation/eviction/resource-unavailable refusals, caller authority, one-row rerun validation and awaited cleanup without changing serving resources. Report saved outcomes separately; do not promise deterministic replay or replay uncertain effects. |
-| **B — construct help and ranking:** service `construct.help`/`construct.rank`/`rank.lookup`, `SessionConstructQualificationRequest`, `ConstructRanker`, daemon's trusted qualifier. | T14 help/cache/currentness/disclosure policy; T16 qualification operation | Trusted qualification was absent from the narrow host contract. Preserve exact captured compiler/help/producer identities, bounded four-job qualification, cancellation and structural/none/unknown/pending distinctions. Provider transport remains behind the existing policy gate. | Existing qualified/unqualified/stale and disclosure cases consume current trusted proof only; default external disclosure stays disabled. Qualification failure remains unqualified. G3's account/protocol gate remains external; no new live-provider trial is required for the port. |
-| **B — actual runtime readiness and last-good replacement:** `createLocalPreviewBuilder` admission/activation/probes; `DevSessionCore.checkOne` promotion fence. | T14/T16/T17 | Already covered; clarify readiness means actual D1, Identity, authenticated MCP, packaged assets and page probes, not only a bridge handshake or Miniflare process ready. Verified descendant crash supervision is a P Rust requirement, not a claim about current TS supervision. | One existing supported artifact preserves readiness/refusal and last-good behavior; stale or failed candidates cannot publish. T14's separate crash/reconciliation case covers the new Rust process boundary. |
-| **B — protected preview and retained data:** `startProtectedPreview` admission/forwarding; `openRetainedPreviewState` private persisted identity/schema manifest. | T14 ports current gateway; T16 retains target/data setup; T17 join | Already covered, with concrete invariants now named: exact loopback host/path, one-use expiring bootstrap, bounded access cookies, effectful-request origin/body limits, separate bridge and Identity cookies; canonical root/source data identity and schema refusal. | Existing access/expiry/isolation controls plus T17 retained login/data verify the Rust boundary; incomplete provisioning or schema mismatch cannot erase data or silently reseed/reset. Session-lifetime stable origin is T18, not baseline behavior. |
+| **B — isolated examples and reruns:** `SessionServicePreview.exampleInput` → `runCompiledExamples`; `ExampleRerunCoordinator` and its retained recipe/resource ports. | T14 admission/queue/refs; T16 runner/Testkit bridge | Execution and retention across the process boundary were omitted explicitly. Rust ports the rerun coordinator's queue/retention/TTL/resource-check policy and admits exact artifact/producer bytes, selected failed row and fresh run scope; JS receives admitted execution, while Testkit/Identity/runtime semantics stay in their owners. | Preserve drift/cancellation/eviction/resource-unavailable refusals, caller authority, one-row rerun validation and awaited cleanup without changing serving resources. Report saved outcomes separately; do not promise deterministic replay or replay uncertain effects. |
+| **B — construct help and ranking:** service `construct.help`/`construct.rank`/`rank.lookup`, `SessionConstructQualificationRequest`, `ConstructRanker`, daemon's trusted qualifier. | T14 help/cache/currentness/disclosure policy; T16 qualification operation | Rust ports qualification/ranking scheduling, caches, pending refs and deadlines. It captures/compiles qualification fixtures through the sole compiler and admits concrete JS runtime/browser assertions. Preserve exact compiler/help/producer identities, bounded four-job qualification and structural/none/unknown/pending distinctions. A JS transport executes only a policy-admitted provider request. | Existing qualified/unqualified/stale and disclosure cases consume current trusted proof only; default external disclosure stays disabled. Qualification failure remains unqualified. G3's account/protocol gate remains external; no new live-provider trial is required for the port. |
+| **B — actual runtime readiness and last-good replacement:** `createLocalPreviewBuilder` admission/activation/probes; `DevSessionCore.checkOne` promotion fence. | T14/T16/T17 | Already covered; clarify readiness means actual D1, Identity, authenticated MCP, packaged assets and page probes, not only a bridge handshake or Miniflare process ready. Owned host-scope supervision and readiness invalidation are P Rust requirements; the pinned Miniflare internal restart/veto limitation is recorded above, not hidden as an established capability. | One existing supported artifact preserves readiness/refusal and last-good behavior; stale or failed candidates cannot publish. T14's separate crash/reconciliation case covers the new Rust process boundary. |
+| **B — protected preview and retained data:** `startProtectedPreview` admission/forwarding; `openRetainedPreviewState` private persisted identity/schema manifest. | T14 ports current gateway; T16 retains target/data setup; T17 join | Already covered, with concrete invariants now named: exact loopback host/path, one-use expiring bootstrap, bounded access cookies, effectful-request origin/body limits, separate bridge and Identity cookies; canonical root/source data identity and schema refusal. | Rust allocates the protected origin before target configuration; JS cannot create a second gateway. Existing access/expiry/isolation controls plus T17 retained login/data verify this boundary; incomplete provisioning or schema mismatch cannot erase data or silently reseed/reset. Session-lifetime stable origin is T18, not baseline behavior. |
 | **B defects / U fixes — cleanup and resource recovery:** `DevSessionCore` retained cleanup, `retryCleanup`, `retryableDispose`/`cleanupAfterFailure`, preview disposal and `startLocalDev` recovery drain. | E1 → T14/T16 | Already designed; E1's actual source is now located. B can lose a failed retired handle or memoize failed disposal. U retains handles/no-growth/retry and changes Miniflare disposal versus recovery-drain ordering; dirty U adds request retirement. Application resource recovery is distinct from automatic server restart. | Startup/retired/stop release failures keep the same handle, primary error and backing data; retry can complete and allocation stays blocked. Include a nonsettling recovery dispatch in T16's stalled-runtime case; release the runtime before waiting on work that needs its termination. |
 | **B request cancellation / U observation and terminal:** socket per-request abort; U `DevObservation`, `observe`, `cleanup.retry`, terminal presenter and abortable client requests. | T14/T15/T17 | Owner observations and foreground controls already exist in U as reusable behavior; Ratatui remains P. Clarify observation-only detach versus cancellation of that presenter's in-flight request versus owned-session stop. | Detach cancels presenter-owned request work and releases its candidates/children while leaving the owner/queue usable; it cannot cancel another client's work or imply stopped. Reuse retained observation cases and the planned real 80/44-column Ratatui checks. |
 | **U — automatic loop and browser updates:** committed service `scheduleAutomatic`; dirty session bridge `activate`/request retirement and authenticated polling/classifier/browser consumers. | T18/T19/T20/T24–T26; T21 join | Not missing categories and not B/manual-cutover prerequisites. Automatic mode already has one active/latest coherent demand, same-failure suppression and admission pauses in U. Stable-origin generation fences, draft-aware reload and CSS/page preparation are dirty/untracked implementations. SSE remains a proposal; retained bounded polling is a concrete allowed input to T20's transport choice. | Port only each listed task's scope: latest-only/no-growth scheduling; current generation/auth and mutation-safe routing; admitted update with drafts preserved. Do not infer browser-applied success, generalized HMR or automatic acceptance from source presence. |
@@ -358,7 +632,7 @@ is the state/transition contract below plus the existing T14–T30 task boundari
 | --- | --- | --- |
 | Server lifecycle | `starting → running → stopping → stopped`; failed release yields `shutdown_incomplete`, retry returns to `stopping` | Rust supervisor, preserving E1 cleanup semantics. `running` means the control owner is usable, not that source or preview is ready. Startup failure is a retained launch outcome; if owned resources remain it must follow the same cleanup path. |
 | Check operation | No active operation, or an operation ID with `queued`, `capturing`, `checking_source`, `preparing_preview` with actual subphase, or `publishing`; retain one bounded latest terminal outcome separately | Core serializes work. Existing source result (`valid`, `errors`, `limited`, `incomplete`, `unsupported`, `tool_failure`, `superseded`) stays distinct from preview preparation/promotion outcome and cancellation reason. Source-valid does not imply preview-ready. |
-| Preview availability | `unavailable`, or `serving` with exact revision/build, safe origin and last verified readiness | Rust selects the Workerd generation using actual adapter readiness/release facts. A failed candidate leaves a usable previous serving handle intact. A detected dead/unavailable backend removes the availability claim; no invented background health monitor is required. |
+| Preview availability | `unavailable`, or `serving` with exact revision/build, safe origin and last verified readiness | Rust selects the Workerd generation using actual adapter readiness/release facts. A failed candidate leaves a usable previous serving handle intact. An observed failure/restart or failed supported probe invalidates readiness. T16 qualifies bounded observation and timeouts; do not promise an immediate Miniflare exit callback or infer availability from logs. |
 | Preview freshness | `not_applicable` when absent; otherwise `current`, `older`, or `unconfirmed` | Derived from the serving identity and a coherent current input generation. Watcher dirtiness, incomplete capture or unresolved newer hints mean `unconfirmed`, not proven old bytes. A confirmed different current generation means `older`; verified identical inputs can restore `current`. Never infer freshness solely from the latest check outcome. |
 | Work admission / cleanup | Bounded owner-supplied blocking reasons such as restart required or retained failed cleanup; Rust retains process/resource handles and outcomes using E1 semantics | A preview may be serving and current while retired cleanup has failed. No new preparation or ordinary work is admitted while the applicable cleanup/restart gate forbids it. This is a guard on transitions, not a second runtime controller. |
 | Presenter connection | `connecting`, `connected`, `lost`, `detached` with last verified snapshot | Client-only observation, not another server lifecycle. A lost connection makes server state unknown to that client; it cannot assert stopped or unavailable. Preview access expiry is likewise distinct from backend availability and application Identity. |
@@ -421,10 +695,10 @@ resource release. Do not add a persistent status file solely for that display.
 | Explicit check or automatic demand while `running` and admitted | Existing check queue enters `capturing → checking_source → preparing_preview → publishing` only for phases actually performed. Each operation pins coherent inputs and retains source result separately. | Duplicate human request reports already checking; T19 coalesces automatic demand. Preserve existing expected-revision refusal and JSON behavior. Active preparation is never bypassed by another check or cache hit. |
 | Source invalid, limited, unsupported, capture/tool failure | End that attempt with its exact typed result; return operation to idle, retain bounded details and any last-good preview. | Show the failing generation and meaningful next step. Corrected input/manual check or automatic next save may retry; producer restart-required is an admission reason, not an endless retry loop. |
 | Source valid; candidate preparation/readiness fails | Record source success plus preview failure; dispose every partially allocated candidate through its existing owner. | Last-good preview is preserved. Failed disposal becomes retained cleanup/admission blocked; source success must not display a new Ready. Schema mismatch retains data and requires the existing explicit recovery choice. |
-| Rust observes a Workerd backend or bridge exit/failure | Remove availability only for affected serving generations; fail an affected candidate without replacing a healthy serving generation. Keep Rust control running and retain the typed failure plus all resource handles. A lost bridge makes its unverified descendants unavailable pending reconciliation, not released. | Reconcile and release affected resources through the same owner; uncertain or failed cleanup blocks new preparation. After confirmed release and clearance of applicable gates, an explicit manual check may prepare a replacement from current inputs. Cleanup retry targets the retained handle; restart-required stays explicit. Preserve data/login and never replay mutations. Automatic retry belongs to T19. |
+| Rust observes host exit, a supported runtime failure/restart fact or a failed owner probe | Invalidate readiness/availability only for affected serving generations; fail an affected candidate without replacing a healthy serving generation. Miniflare's internal restart does not itself restore Rust readiness or publish anything. Keep Rust control running and retain the typed failure plus all resource handles. A lost host makes its unverified runtime scope unavailable pending reconciliation, not released; opaque handles do not survive as callable JS objects. | Reconcile and release affected resources through the same owner; uncertain or failed cleanup blocks new preparation. For a still-owned internally restarted instance, Rust may re-probe under the resolved restart contract before restoring readiness. Otherwise confirmed release and cleared gates allow an explicit manual check to prepare a replacement from current inputs. Cleanup retry targets the retained handle; restart-required stays explicit. Preserve data/login and never replay mutations. Automatic retry belongs to T19. |
 | New inputs or cancellation during check/preparation | Keep currentness checks before and after preparation. Mark obsolete operation superseded/cancelled, reject publication, and release candidate resources. | One latest pending automatic demand may run only after safe release/admission; manual mode does not invent another check. Preserve captured diagnostic provenance and do not replay uncertain effects. |
 | Ready current candidate reaches publication | Recheck input generation, lifecycle/admission and cancellation at the owner selection point; atomically choose the candidate and its matching resources, then notify. T18 pins existing in-flight requests. | Stop/source-change winning that ordering prevents publication. Retire the previous generation through E1; a failure leaves the new serving preview plus cleanup warning, not fictitious rollback or permission-result reuse. |
-| Retired/cancelled/failed candidate cleanup fails | Retain the same failed handle under E1; report cleanup-required and refuse resource growth. An explicit supported retry targets that handle/owner. | Do not allocate another candidate, forget the handle, or turn repeated stop into false success. A successful retry clears only its own blocker; other restart/stop reasons remain. |
+| Retired/cancelled/failed candidate cleanup fails | Retain the same failed resource ID/JS handle while its host is live, or the owned OS scope if it is lost; report cleanup-required and refuse resource growth. An explicit supported retry targets that handle/owner. | Do not allocate another candidate, forget the handle, or turn repeated stop into false success. A successful retry clears only its own blocker; other restart/stop reasons remain. |
 | Explicit open while running with a serving preview | Use the existing explicit protected-access action; label older/unconfirmed source and keep application Identity/CSRF/current authorization unchanged. Status reads use only safe origin. | Missing serving backend or closing admission refuses. Access renewal is explicit; it does not recheck source, clear errors, refresh a tab or prove page load. |
 | First owned stop / signal | Synchronously close work/access admission **before acknowledgement**, cancel pending automatic demand, stop watchers, abort cancellable work and await owned operations/cleanup. Enter `stopping`; duplicate stop joins the same attempt. | Late check/build completions cannot publish or create another runtime. Keep necessary status/details and the same owner's retry route available while release remains incomplete. |
 | Stop cleanup fails / succeeds | Failure enters `shutdown_incomplete`, preserving handles/control ownership needed for retry. Explicit retry enters `stopping` without reopening normal work. Success reaches `stopped` only at the lifecycle owner's confirmed release boundary. | `stopping:true` is intent only. Client timeout/disconnect is unknown completion, not stopped. Endpoint disappearance cannot hide release failure. Retry failure stays incomplete; primary failure is not replaced by incidental cleanup noise. |
@@ -501,6 +775,27 @@ E1 output located for the future Rust owner. T14/T15/T18/T19 share this single
 contract. Porting and checking E1's semantics remains an implementation dependency,
 not missing design or permission to resume its chat. Product completion still requires the scoped
 implementation and checks; this planning turn performs none.
+
+### Implementation-owner intake — 2026-10-18
+
+The existing `0970` implementation worktree is based on local main `71885872b`.
+Its uncommitted E1 lifecycle/capture changes were preserved during the base update;
+the runtime/test files remain byte-identical to the already checked local output.
+The [lifecycle result](../../specification/DECISIONS.md#2026-10-18--retain-local-preview-ownership-until-runtime-cleanup-succeeds)
+and [startup/browser timing result](../../specification/DECISIONS.md#2026-10-18--reduce-repeated-local-dev-capture-work)
+are available here for consumption, with their recorded frozen-input limits.
+E1 is therefore a local defining-owner handoff, not a request for another team to
+reimplement cleanup or wait for this owner's entire plan. It is not yet merged.
+
+Reuse failed-disposal retention, retry-before-new-allocation, shutdown-incomplete
+status, same-discovery inventory sharing, direct final handoff currency checks and
+bounded hash buffers. T14 adds operation/phase state around those existing outcomes;
+T23 must target only the still-uncovered coherent capture/staging/exact-check reuse.
+The 14.567 s warm browser result already proves the measured manual loop, retained
+login/data and owned cleanup at its inputs; it does not close T17's new terminal
+journey, T21's automatic loop or T30's changed integration. Stable routing, automatic
+checking/delivery and selective updates remain proposed work. No implementation or
+validation rerun was dispatched by this intake.
 
 ### Dependency order and parallel lanes
 
@@ -759,7 +1054,7 @@ Checks are requested future acceptance, not checks run during this planning turn
 
 - **Owner:** target build producer, `deploy/bundle.ts` MCP/HTTP builders and its
   adapter cache implementation; Rust owns process/cache-scope lifetime and admission.
-  Same shared producer writer as T16.
+  Same target producer writer as T16; A owns the Rust cache-policy integration.
 - **Prerequisite output:** T16 isolated build seam and T17 phase evidence showing
   whether repeated producer bundling is material; current captured installed closure.
 - **Remaining change / observable outcome:** first candidate is bounded exact-key

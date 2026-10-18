@@ -9,19 +9,21 @@ import { chmodSync, copyFileSync, cpSync, existsSync, lstatSync, mkdirSync, mkdt
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packRelease } from './pack-release.mjs';
+import { nativeArtifact } from './distribution/native-artifact.mjs';
 
 const root = realpathSync(fileURLToPath(new URL('..', import.meta.url)));
 const json = file => JSON.parse(readFileSync(file, 'utf8'));
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 2) {
-  assert.ok(['--compiler', '--node', '--bun', '--node-license', '--bun-license', '--output'].includes(process.argv[i]), `Unknown option ${process.argv[i]}`);
+  assert.ok(['--compiler', '--dev-server', '--node', '--bun', '--node-license', '--bun-license', '--output'].includes(process.argv[i]), `Unknown option ${process.argv[i]}`);
   assert.ok(process.argv[i + 1], `Missing value for ${process.argv[i]}`);
   args.set(process.argv[i], resolve(process.argv[i + 1]));
 }
 assert.equal(process.platform, 'linux', 'Build this archive on native Linux');
 assert.equal(process.arch, 'x64', 'This artifact supports Linux x86_64 only');
 const compiler = args.get('--compiler') ?? join(root, 'compiler/target/release/can');
+const devServer = args.get('--dev-server') ?? join(root, 'compiler/target/release/can-dev');
 const node = args.get('--node') ?? process.execPath;
 const bun = args.get('--bun') ?? execFileSync('which', ['bun'], { encoding: 'utf8' }).trim();
 const nodeLicense = args.get('--node-license') ?? join(dirname(dirname(realpathSync(node))), 'LICENSE');
@@ -30,6 +32,7 @@ assert.ok(bunLicense && existsSync(bunLicense), 'Pass --bun-license with LICENSE
 assert.ok(existsSync(nodeLicense), 'Pass --node-license with the selected Node distribution LICENSE');
 const versions = {
   compiler: execFileSync(compiler, ['--version'], { encoding: 'utf8' }).trim(),
+  devServer: nativeArtifact(devServer, 'can-dev', json(join(root, 'package.json')).version, 'linux-x64').version,
   node: execFileSync(node, ['--version'], { encoding: 'utf8' }).trim(),
   bun: execFileSync(bun, ['--version'], { encoding: 'utf8' }).trim(),
 };
@@ -154,7 +157,7 @@ try {
     values: { sha256: sha256(readFileSync(join(nodeModules, '@canlang/values/src/catalog.ts'))), entries: CATALOG.entries },
     ui: { sha256: sha256(readFileSync(join(nodeModules, '@canlang/ui/src/catalog.ts'))), entries: UI_CATALOG.entries },
   }, sha256(readFileSync(join(destination, 'docs/specification/CONSTRUCT-HELP.md'))));
-  for (const [source, target] of [[compiler, 'compiler/target/release/can'], [node, 'libexec/node'], [bun, 'libexec/bun']]) {
+  for (const [source, target] of [[compiler, 'compiler/target/release/can'], [devServer, 'libexec/can-dev'], [node, 'libexec/node'], [bun, 'libexec/bun']]) {
     mkdirSync(dirname(join(destination, target)), { recursive: true });
     copyFileSync(realpathSync(source), join(destination, target));
     chmodSync(join(destination, target), 0o755);
@@ -164,8 +167,10 @@ try {
   copyFileSync(nodeLicense, join(destination, 'licenses/Node-LICENSE'));
   copyFileSync(bunLicense, join(destination, 'licenses/Bun-LICENSE.md'));
   execFileSync('python3', [join(root, 'scripts/check-compiler-release-notices.py'), '--target', 'x86_64-unknown-linux-gnu', '--output-dir', join(destination, 'licenses/compiler')], { stdio: 'inherit' });
+  execFileSync('python3', [join(root, 'scripts/check-dev-server-release-notices.py'), '--target', 'x86_64-unknown-linux-gnu', '--output-dir', join(destination, 'licenses/dev-server')], { stdio: 'inherit' });
   const shared = '#!/bin/sh\nset -eu\nCAN_TOOL_ENTRY=$(readlink -f -- "$0")\nCAN_TOOL_ROOT=$(CDPATH= cd -- "$(dirname -- "$CAN_TOOL_ENTRY")/.." && pwd -P)\nexport CAN_TOOL_ROOT\nexport PATH="$CAN_TOOL_ROOT/bin:$PATH"\nexport NODE_PATH="$CAN_TOOL_ROOT/lib/node_modules${NODE_PATH:+:$NODE_PATH}"\nexport CAN_CATALOG="${CAN_CATALOG:-$CAN_TOOL_ROOT/lib/node_modules/@canlang/cloudflare/dist/native-catalog.json}"\nexport CAN_DEV_COMPILER="${CAN_DEV_COMPILER:-$CAN_TOOL_ROOT/compiler/target/release/can}"\nexport CAN_COMPILER_BIN="${CAN_COMPILER_BIN:-$CAN_TOOL_ROOT/compiler/target/release/can}"\nexport CAN_DEV_HELP_INDEX="${CAN_DEV_HELP_INDEX:-$CAN_TOOL_ROOT/docs/specification/CONSTRUCT-HELP.md}"\nexport CAN_HELP_INDEX="${CAN_HELP_INDEX:-$CAN_TOOL_ROOT/docs/specification/CONSTRUCT-HELP.md}"\nexport CAN_PLATFORM_BIN="$CAN_TOOL_ROOT/bin/can-platform"\nexport CAN_DEV_BIN="$CAN_TOOL_ROOT/bin/can-dev"\n';
-  const commands = [['can', 'exec "$CAN_TOOL_ROOT/compiler/target/release/can" "$@"']];
+  const commands = [['can', 'exec "$CAN_TOOL_ROOT/compiler/target/release/can" "$@"'], ['can-dev', 'exec "$CAN_TOOL_ROOT/libexec/can-dev" "$@"']];
+  const nativeDev = 'export CAN_DEV_NODE="${CAN_DEV_NODE:-$CAN_TOOL_ROOT/libexec/node}"\nexport CAN_DEV_RUNTIME_HOST="${CAN_DEV_RUNTIME_HOST:-$CAN_TOOL_ROOT/lib/node_modules/@canlang/cloudflare/dist/dev/runtime-host.js}"\n';
   const temporaryFiles = 'if [ -z "${TMPDIR:-}" ]; then\n  export TMPDIR="$HOME/.cache/canlang/tmp"\n  mkdir -p -m 700 -- "$TMPDIR"\nfi\n';
   mkdirSync(join(destination, 'bin'));
   for (const name of ['node', 'bun']) {
@@ -179,7 +184,7 @@ try {
     commands.push([name, `exec "$CAN_TOOL_ROOT/bin/node" "$CAN_TOOL_ROOT/lib/node_modules/@canlang/cloudflare/${entry.slice(2)}" "$@"`]);
   }
   for (const [name, command] of commands) {
-    writeFileSync(join(destination, 'bin', name), shared + temporaryFiles + command + '\n', { mode: 0o755 });
+    writeFileSync(join(destination, 'bin', name), shared + nativeDev + temporaryFiles + command + '\n', { mode: 0o755 });
   }
   const licenses = [...packages.values()].map(pkg => ({ name: pkg.manifest.name, version: pkg.manifest.version,
     license: pkg.manifest.license ?? 'UNSPECIFIED', files: readdirSync(pkg.directory).filter(name => /license|notice|copying/i.test(name)) }));

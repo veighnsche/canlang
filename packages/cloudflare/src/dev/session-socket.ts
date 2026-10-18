@@ -5,9 +5,11 @@ import {
   lstat,
   mkdir,
   readFile,
+  readdir,
   realpath,
   rename,
   rm,
+  rmdir,
   stat,
   writeFile,
 } from "node:fs/promises";
@@ -79,7 +81,7 @@ export interface SessionSocketLookup {
 
 export interface SessionSocketClient {
   identity: SessionSocketIdentity;
-  request(command: SessionSocketCommand): Promise<unknown>;
+  request(command: SessionSocketCommand, signal?: AbortSignal): Promise<unknown>;
 }
 
 interface SessionPaths {
@@ -89,6 +91,8 @@ interface SessionPaths {
   descriptorPath: string;
   socketPath: string;
 }
+
+type DirectoryIdentity = { dev: number; ino: number };
 
 type StoredClaim = Pick<SessionSocketIdentity, "root" | "sessionId" | "pid" | "uid" | "processStart"> & {
   processBirth?: string;
@@ -121,7 +125,7 @@ async function canonicalRoot(path: string): Promise<string> {
   return root;
 }
 
-async function privateDirectory(path: string, create: boolean): Promise<void> {
+async function privateDirectory(path: string, create: boolean): Promise<DirectoryIdentity> {
   if (create) {
     try {
       await mkdir(path, { mode: 0o700 });
@@ -133,6 +137,7 @@ async function privateDirectory(path: string, create: boolean): Promise<void> {
   if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== currentUid() || (info.mode & 0o077) !== 0) {
     throw new SessionSocketError("INSECURE_RUNTIME_DIR", "control runtime directory is not owner-only");
   }
+  return info;
 }
 
 async function privateFile(path: string, kind: "file" | "socket"): Promise<void> {
@@ -300,12 +305,17 @@ function writeLine(socket: Socket, value: unknown, maxBytes: number, direction: 
   socket.write(`${line}\n`);
 }
 
-function readLine(socket: Socket, maxBytes: number, timeoutMs: number): Promise<unknown> {
+function readLine(socket: Socket, maxBytes: number, timeoutMs: number, signal?: AbortSignal): Promise<unknown> {
   return new Promise((resolveLine, rejectLine) => {
     let bytes = Buffer.alloc(0);
+    let finished = false;
     const timer = setTimeout(() => finish(new SessionSocketError("CONTROL_TIMEOUT", "control endpoint timed out")), timeoutMs);
     function finish(error?: Error, value?: unknown): void {
+      if (finished) return;
+      finished = true;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      socket.off("close", onEnd);
       socket.off("data", onData);
       socket.off("error", onError);
       socket.off("end", onEnd);
@@ -323,38 +333,53 @@ function readLine(socket: Socket, maxBytes: number, timeoutMs: number): Promise<
         finish(new SessionSocketError("INVALID_RESPONSE", "control endpoint returned invalid JSON"));
       }
     }
+    function onAbort(): void {
+      finish(new SessionSocketError("REQUEST_ABORTED", "control request was detached"));
+      socket.destroy();
+    }
     function onError(error: Error): void { finish(error); }
     function onEnd(): void { finish(new SessionSocketError("CONTROL_CLOSED", "control endpoint closed")); }
     socket.on("data", onData);
     socket.once("error", onError);
     socket.once("end", onEnd);
+    socket.once("close", onEnd);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
   });
 }
 
-function dial(path: string, timeoutMs: number): Promise<Socket> {
+function dial(path: string, timeoutMs: number, signal?: AbortSignal): Promise<Socket> {
   return new Promise((resolveSocket, rejectSocket) => {
     const socket = createConnection(path);
     const timer = setTimeout(() => {
       socket.destroy();
-      rejectSocket(new SessionSocketError("CONTROL_TIMEOUT", "control endpoint did not connect"));
+      onError(new SessionSocketError("CONTROL_TIMEOUT", "control endpoint did not connect"));
     }, timeoutMs);
     socket.once("connect", () => {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
       socket.off("error", onError);
       resolveSocket(socket);
     });
     function onError(error: Error): void {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
       rejectSocket(error);
     }
+    function onAbort(): void {
+      socket.destroy();
+      onError(new SessionSocketError("REQUEST_ABORTED", "control request was detached"));
+    }
     socket.once("error", onError);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
   });
 }
 
-async function hello(socket: Socket, expected: SessionSocketIdentity): Promise<void> {
+async function hello(socket: Socket, expected: SessionSocketIdentity, signal?: AbortSignal): Promise<void> {
   const nonce = randomBytes(16).toString("hex");
   writeLine(socket, { type: "hello", ...expected, nonce }, DEFAULT_REQUEST_BYTES, "request");
-  const answer = object(await readLine(socket, DEFAULT_RESPONSE_BYTES, DEFAULT_HANDSHAKE_MS));
+  const answer = object(await readLine(socket, DEFAULT_RESPONSE_BYTES, DEFAULT_HANDSHAKE_MS, signal));
   if (
     answer?.type !== "hello" || answer.nonce !== nonce ||
     answer.protocol !== expected.protocol || answer.root !== expected.root ||
@@ -444,7 +469,7 @@ async function acquireRecoveryLock(root: string, reclaimPath: string): Promise<{
   throw new SessionSocketError("RECOVERY_IN_PROGRESS", "another process is recovering this session");
 }
 
-async function reclaimStale(root: string, paths: SessionPaths): Promise<void> {
+async function reclaimStale(root: string, paths: SessionPaths): Promise<DirectoryIdentity> {
   const reclaimPath = `${paths.sessionDir}.recover`;
   const lock = await acquireRecoveryLock(root, reclaimPath);
   try {
@@ -481,6 +506,7 @@ async function reclaimStale(root: string, paths: SessionPaths): Promise<void> {
     }
     try {
       await mkdir(paths.sessionDir, { mode: 0o700 });
+      return await privateDirectory(paths.sessionDir, false);
     } finally {
       await rm(stalePath, { recursive: true, force: true });
     }
@@ -495,14 +521,14 @@ async function reclaimStale(root: string, paths: SessionPaths): Promise<void> {
   }
 }
 
-async function claimRoot(root: string, paths: SessionPaths): Promise<void> {
+async function claimRoot(root: string, paths: SessionPaths): Promise<DirectoryIdentity> {
   try {
     await mkdir(paths.sessionDir, { mode: 0o700 });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-    await reclaimStale(root, paths);
+    return reclaimStale(root, paths);
   }
-  await privateDirectory(paths.sessionDir, false);
+  return privateDirectory(paths.sessionDir, false);
 }
 
 function serveConnection(
@@ -617,7 +643,7 @@ export async function startSessionSocket(options: SessionSocketOptions): Promise
     throw new SessionSocketError("INVALID_LIMIT", "control request timeout exceeds the supported limit");
   }
   const paths = await pathsFor(root, options.runtimeDir);
-  await claimRoot(root, paths);
+  const ownedDirectory = await claimRoot(root, paths);
   const identity: SessionSocketIdentity = {
     protocol: SESSION_SOCKET_PROTOCOL,
     root,
@@ -629,22 +655,31 @@ export async function startSessionSocket(options: SessionSocketOptions): Promise
     processStart: PROCESS_START_ID,
     socketPath: paths.socketPath,
   };
-  const ownedDirectory = await lstat(paths.sessionDir);
   let server: Server | undefined;
   const sockets = new Set<Socket>();
   const controllers = new Set<AbortController>();
-  try {
-    const helloBytes = Buffer.byteLength(JSON.stringify({ type: "hello", ...identity, nonce: "0".repeat(32) })) + 1;
-    if (helloBytes > numericLimit(options.maxResponseBytes, DEFAULT_RESPONSE_BYTES)) {
-      throw new SessionSocketError("INVALID_LIMIT", "control response limit cannot fit session handshake");
+  const claimMatches = (claim: StoredClaim): boolean => claim.root === root &&
+    claim.sessionId === identity.sessionId && claim.pid === identity.pid &&
+    claim.uid === identity.uid && claim.processStart === identity.processStart;
+  const missing = (error: unknown): null => {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  };
+  const ownsDirectory = async (allowMissingClaim: boolean): Promise<boolean> => {
+    const current = await lstat(paths.sessionDir).catch(missing);
+    if (!current || !sameInode(current, ownedDirectory)) return false;
+    const raw = await readFile(paths.claimPath, "utf8").catch(missing);
+    if (raw === null) return allowMissingClaim;
+    let claim: StoredClaim | null;
+    try { claim = storedClaim(JSON.parse(raw)); } catch { return false; }
+    return claim !== null && claimMatches(claim);
+  };
+  const requireOwnership = async (allowMissingClaim = false): Promise<void> => {
+    if (!await ownsDirectory(allowMissingClaim)) {
+      throw new SessionSocketError("CLAIM_LOST", "session claim changed during initialization or cleanup");
     }
-    const birth = await processBirth(process.pid);
-    const claim: StoredClaim = {
-      root, sessionId: identity.sessionId, pid: identity.pid,
-      uid: identity.uid, processStart: identity.processStart,
-      ...(birth === null ? {} : { processBirth: birth }),
-    };
-    await writeFile(paths.claimPath, JSON.stringify(claim), { mode: 0o600, flag: "wx" });
+  };
+  const listen = async (): Promise<void> => {
     server = createServer(socket => {
       sockets.add(socket);
       socket.on("close", () => sockets.delete(socket));
@@ -658,33 +693,121 @@ export async function startSessionSocket(options: SessionSocketOptions): Promise
       });
     });
     await chmod(paths.socketPath, 0o600);
+  };
+  try {
+    await requireOwnership(true);
+    const helloBytes = Buffer.byteLength(JSON.stringify({ type: "hello", ...identity, nonce: "0".repeat(32) })) + 1;
+    if (helloBytes > numericLimit(options.maxResponseBytes, DEFAULT_RESPONSE_BYTES)) {
+      throw new SessionSocketError("INVALID_LIMIT", "control response limit cannot fit session handshake");
+    }
+    const birth = await processBirth(process.pid);
+    const claim: StoredClaim = {
+      root, sessionId: identity.sessionId, pid: identity.pid,
+      uid: identity.uid, processStart: identity.processStart,
+      ...(birth === null ? {} : { processBirth: birth }),
+    };
+    await requireOwnership(true);
+    await writeFile(paths.claimPath, JSON.stringify(claim), { mode: 0o600, flag: "wx" });
+    await requireOwnership();
+    await listen();
+    let ownedSocket = await lstat(paths.socketPath);
+    await requireOwnership();
     const temporaryDescriptor = join(paths.sessionDir, `descriptor-${identity.sessionId}.tmp`);
     await writeFile(temporaryDescriptor, JSON.stringify(identity), { mode: 0o600, flag: "wx" });
+    await requireOwnership();
     await rename(temporaryDescriptor, paths.descriptorPath);
     let stopped = false;
+    let listenerClosed = false;
+    let stopping: Promise<void> | null = null;
+    const restoreEndpoint = async (): Promise<void> => {
+      await requireOwnership(true);
+      const missingFiles: Array<readonly [string, StoredClaim | SessionSocketIdentity]> = [];
+      for (const [path, value] of [[paths.claimPath, claim], [paths.descriptorPath, identity]] as const) {
+        const raw = await readFile(path, "utf8").catch(missing);
+        if (raw === null) {
+          missingFiles.push([path, value]);
+          continue;
+        }
+        let actual: Record<string, unknown> | null;
+        try { actual = object(JSON.parse(raw)); } catch { actual = null; }
+        if (!actual || Object.entries(value).some(([key, expected]) => actual![key] !== expected)) {
+          throw new SessionSocketError("CLAIM_LOST", "control endpoint changed during cleanup");
+        }
+      }
+      for (const [path, value] of missingFiles) {
+        await requireOwnership(true);
+        await writeFile(path, JSON.stringify(value), { mode: 0o600, flag: "wx" });
+      }
+      await requireOwnership();
+      const socketNow = await lstat(paths.socketPath).catch(missing);
+      if (socketNow) {
+        if (!sameInode(socketNow, ownedSocket)) {
+          throw new SessionSocketError("CLAIM_LOST", "control socket changed during cleanup");
+        }
+        if (!listenerClosed) return;
+        await rm(paths.socketPath);
+      }
+      // Partial removal or a failed final rmdir retired our listener. Rebind only within
+      // the same retained directory, after restoring its exact own identity.
+      for (const controller of controllers) controller.abort();
+      for (const socket of sockets) socket.destroy();
+      if (!listenerClosed) {
+        await new Promise<void>(resolveClose => server!.close(() => resolveClose()));
+        listenerClosed = true;
+      }
+      await requireOwnership();
+      await listen();
+      listenerClosed = false;
+      ownedSocket = await lstat(paths.socketPath);
+      await requireOwnership();
+    };
     return {
       identity,
       descriptorPath: paths.descriptorPath,
-      async stop(): Promise<void> {
-        if (stopped) return;
-        stopped = true;
-        for (const controller of controllers) controller.abort();
-        for (const socket of sockets) socket.destroy();
-        await new Promise<void>(resolveClose => server!.close(() => resolveClose()));
-        const current = await lstat(paths.sessionDir).catch(() => null);
-        if (current && current.dev === ownedDirectory.dev && current.ino === ownedDirectory.ino) {
-          const claimNow = storedClaim(await readJson(paths.claimPath));
-          if (claimNow?.sessionId === identity.sessionId) {
-            await rm(paths.sessionDir, { recursive: true, force: true });
+      stop(): Promise<void> {
+        if (stopping !== null) return stopping;
+        if (stopped) return Promise.resolve();
+        stopping = (async () => {
+          if (await ownsDirectory(true)) {
+            try {
+              // Keep the listener usable during fallible content removal and
+              // retain the root claim directory until its listener is closed.
+              for (const name of await readdir(paths.sessionDir)) {
+                if (name === "s") continue;
+                await requireOwnership(true);
+                await rm(join(paths.sessionDir, name), { recursive: true, force: true });
+              }
+              await requireOwnership(true);
+              for (const controller of controllers) controller.abort();
+              for (const socket of sockets) socket.destroy();
+              await new Promise<void>(resolveClose => server!.close(() => resolveClose()));
+              listenerClosed = true;
+              await requireOwnership(true);
+              await rmdir(paths.sessionDir);
+            } catch (error) {
+              // Recovery is best effort; preserve the original cleanup error.
+              await restoreEndpoint().catch(() => undefined);
+              throw error;
+            }
           }
-        }
+          for (const controller of controllers) controller.abort();
+          for (const socket of sockets) socket.destroy();
+          if (!listenerClosed) {
+            await new Promise<void>(resolveClose => server!.close(() => resolveClose()));
+            listenerClosed = true;
+          }
+          stopped = true;
+        })().catch(error => {
+          stopping = null;
+          throw error;
+        });
+        return stopping;
       },
     };
   } catch (error) {
     for (const socket of sockets) socket.destroy();
     if (server) await new Promise<void>(resolveClose => server!.close(() => resolveClose()));
-    const current = await lstat(paths.sessionDir).catch(() => null);
-    if (current && current.dev === ownedDirectory.dev && current.ino === ownedDirectory.ino) {
+    if (await ownsDirectory(true).catch(() => false)) {
       await rm(paths.sessionDir, { recursive: true, force: true });
     }
     throw error;
@@ -711,17 +834,18 @@ export async function discoverSessionSocket(lookup: SessionSocketLookup): Promis
   finally { first.destroy(); }
   return {
     identity,
-    async request(command): Promise<unknown> {
+    async request(command, signal): Promise<unknown> {
+      if (signal?.aborted) throw new SessionSocketError("REQUEST_ABORTED", "control request was detached");
       if (!command.command || command.command.length > 100) {
         throw new SessionSocketError("INVALID_COMMAND", "control command is invalid");
       }
       await privateFile(paths.socketPath, "socket");
-      const socket = await dial(paths.socketPath, DEFAULT_HANDSHAKE_MS);
+      const socket = await dial(paths.socketPath, DEFAULT_HANDSHAKE_MS, signal);
       try {
-        await hello(socket, identity);
+        await hello(socket, identity, signal);
         const id = randomBytes(8).toString("hex");
         writeLine(socket, { type: "request", id, command: command.command, payload: command.payload }, DEFAULT_REQUEST_BYTES, "request");
-        const answer = object(await readLine(socket, DEFAULT_RESPONSE_BYTES, MAX_REQUEST_MS + DEFAULT_HANDSHAKE_MS));
+        const answer = object(await readLine(socket, DEFAULT_RESPONSE_BYTES, MAX_REQUEST_MS + DEFAULT_HANDSHAKE_MS, signal));
         if (answer?.type !== "response" || answer.id !== id || typeof answer.ok !== "boolean") {
           throw new SessionSocketError("INVALID_RESPONSE", "control response does not match request");
         }
