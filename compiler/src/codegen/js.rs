@@ -186,6 +186,10 @@ pub struct JsCallable {
     pub member: Vec<String>,
     /// Generated scenario parameters, as opposed to the legacy runtime envelope.
     pub input_style: Option<String>,
+    /// Declaring source path. Emitted only for multi-source closures, where
+    /// the module source map cannot resolve one exact declaring file;
+    /// single-source output stays byte-identical.
+    pub source: Option<String>,
     /// Declaration span.
     pub span: Span,
 }
@@ -2404,6 +2408,11 @@ fn emit_program_with_sources(
             emitter.unsupported("saved generation", detail, *span);
         }
         emitter.then_join = Some(join);
+        // Multi-source closures need per-declaration provenance: the module
+        // source map cannot resolve one exact declaring file for them.
+        if db.len() > 1 {
+            emitter.source_paths = db.iter().map(|(id, source)| (id, source.path.clone())).collect();
+        }
     }
     for original in ir.committed_sources.mailbox_event_handlers() {
         let index = original.id.0 as usize;
@@ -4415,6 +4424,11 @@ pub struct Emitter<'a> {
     /// passed a source database, so database-free emission keeps its
     /// exact prior posture.
     then_join: Option<ThenBuildJoin>,
+    /// Declaring source path by source id, set from the source database.
+    /// Present only for multi-source closures, where the module source map
+    /// cannot resolve one exact declaring file; single-source output stays
+    /// byte-identical.
+    source_paths: HashMap<crate::source::SourceId, String>,
 }
 
 struct OriginalUiRow {
@@ -4502,6 +4516,17 @@ impl<'a> Emitter<'a> {
         emitter.value_types = emitter.collect_judgment_value_types();
         emitter.seed_completion_error_contract();
         emitter
+    }
+
+    /// Declaring source path for `span`. Present only for multi-source
+    /// closures, where the module source map cannot resolve one exact
+    /// declaring file; single-source output stays byte-identical.
+    fn declaration_source(&self, span: Span) -> Option<String> {
+        if self.source_paths.len() > 1 {
+            self.source_paths.get(&span.file).cloned()
+        } else {
+            None
+        }
     }
 
     /// Completion handlers admit the DESIGN §8 envelope: the
@@ -4618,6 +4643,7 @@ impl<'a> Emitter<'a> {
             send_guard_owners: None,
             send_guard_gap: None,
             then_join: None,
+            source_paths: HashMap::new(),
         };
         // Derive outputs retain presentation provenance across shared calls,
         // including wrappers declared before the formatting owner.
@@ -14378,6 +14404,7 @@ impl<'a> Emitter<'a> {
                     }
                 )
                 .then(|| "parameters".to_string()),
+                source: self.declaration_source(item.span),
                 span: item.span,
             });
             out.push(
@@ -14397,6 +14424,7 @@ impl<'a> Emitter<'a> {
                     export: export.clone(),
                     member: vec!["sendWhen".into(), guard.rule.clone()],
                     input_style: None,
+                    source: self.declaration_source(guard.predicate.span),
                     span: guard.predicate.span,
                 });
                 out.push(
@@ -14750,6 +14778,11 @@ impl<'a> Emitter<'a> {
             members.push(format!("inputs:{{{}}}", self.emit_event_inputs(&fields)));
             if let Some(inputs) = declared_inputs {
                 members.push(format!("inputFields:{}", descriptor_json(&inputs)));
+            }
+            // Multi-source closures need per-event provenance: the module
+            // source map cannot resolve one exact declaring file for them.
+            if let Some(source) = self.declaration_source(item.span) {
+                members.push(format!("source:{}", js_string(&source)));
             }
         }
         records.push(format!(
@@ -15943,9 +15976,19 @@ impl<'a> Emitter<'a> {
         let ir = self.ir;
         for item in &ir.items {
             match &item.kind {
-                // Hooks are reactive, not operations: their descriptor lives
-                // in the `hooks` registry, so they contribute no entry here.
-                IrItemKind::Scenario { hook: Some(_), .. } => {}
+                // Hooks are reactive, not operations: no servable entry here.
+                // They still contribute their private invocation, which the
+                // runtime file inventory and opaque file staging demand for
+                // every handler callable.
+                IrItemKind::Scenario { hook: Some(_), .. } => {
+                    if let Some(invocation) = self.private_hook_invocation(item) {
+                        operations.push(format!(
+                            "{}:{{invocation:{}}}",
+                            js_string(&item.canonical),
+                            invocation.to_json()
+                        ));
+                    }
+                }
                 IrItemKind::Scenario {
                     params,
                     event_source,
@@ -17059,6 +17102,63 @@ impl<'a> Emitter<'a> {
             result: checked_scenario_result(result.as_ref()),
             disclosure,
             root_authority: self.operation_root_authority(handler),
+        })
+    }
+
+    /// Private invocation for hook scenarios (`scenario X on=Model.op`).
+    /// Hooks stay out of the servable operations surface, but the runtime
+    /// file inventory and opaque file staging demand every handler
+    /// callable's private invocation. A hook trigger is a model commit, so
+    /// the emitted invocation mirrors the `Committed` event arm exactly
+    /// (trigger id+version identity). No handler/inputs/by/event members
+    /// are emitted, so serving catalogs and the completion/committed
+    /// censuses (which key on `event`) are unaffected.
+    fn private_hook_invocation(&self, item: &IrItem) -> Option<JsOperation> {
+        let IrItemKind::Scenario {
+            hook: Some(_),
+            description,
+            result,
+            ..
+        } = &item.kind
+        else {
+            return None;
+        };
+        let field = |name: &str, field: JsMcpField, value_type: &str| JsOperationField {
+            min: None,
+            max: None,
+            name: name.to_string(),
+            field,
+            value_type: Some(value_type.to_string()),
+            required: true,
+            nullable: false,
+            array_required: None,
+            computed_default: false,
+            default: None,
+            description: None,
+            choices: None,
+        };
+        let inputs = vec![
+            field("id", JsMcpField::String, "text"),
+            field("version", JsMcpField::Integer, "int"),
+        ];
+        if has_duplicate_names(&inputs) {
+            return None;
+        }
+        let disclosure = self
+            .native_receipts
+            .get(&item.id)
+            .and_then(|recipe| serde_json::to_value(&recipe.plan).ok());
+        Some(JsOperation {
+            name: item.canonical.clone(),
+            kind: JsOperationKind::Scenario,
+            description: description
+                .as_ref()
+                .map(|message| message.source.clone())
+                .unwrap_or_default(),
+            inputs,
+            result: checked_scenario_result(result.as_ref()),
+            disclosure,
+            root_authority: self.operation_root_authority(item),
         })
     }
 
@@ -18909,6 +19009,7 @@ impl<'a> Emitter<'a> {
                 export: key.clone(),
                 member: registry_member(self.ir, item),
                 input_style: None,
+                source: self.declaration_source(item.span),
                 span: item.span,
             });
             match expr {
@@ -19552,6 +19653,7 @@ impl<'a> Emitter<'a> {
                         export: name.clone(),
                         member: registry_member(self.ir, item),
                         input_style: None,
+                        source: self.declaration_source(item.span),
                         span: item.span,
                     });
                     // The implementation lives at module scope
@@ -19590,7 +19692,8 @@ impl<'a> Emitter<'a> {
         let module_data = self.ir.module(module).clone();
         // A fresh emitter keeps package imports independent; diagnostics
         // merge back into this emitter.
-        let emitter = Emitter::new(self.ir);
+        let mut emitter = Emitter::new(self.ir);
+        emitter.source_paths = self.source_paths.clone();
         let mut body = JsWriter::new();
         for item in self.ir.items_of(module).cloned().collect::<Vec<_>>() {
             match &item.kind {
@@ -19779,6 +19882,10 @@ fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {
                 | "currency?"
                 | "currency[]"
                 | "currency[]?"
+                | "timezone"
+                | "timezone?"
+                | "timezone[]"
+                | "timezone[]?"
                 | "file"
                 | "file?"
                 | "file[]"
@@ -19847,6 +19954,10 @@ fn temporal_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Opti
         (Scalar::Duration, false, true) => Some("duration?"),
         (Scalar::Duration, true, false) => Some("duration[]"),
         (Scalar::Duration, true, true) => Some("duration[]?"),
+        (Scalar::Timezone, false, false) => Some("timezone"),
+        (Scalar::Timezone, false, true) => Some("timezone?"),
+        (Scalar::Timezone, true, false) => Some("timezone[]"),
+        (Scalar::Timezone, true, true) => Some("timezone[]?"),
         _ => None,
     }
 }

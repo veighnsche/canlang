@@ -86,6 +86,12 @@ export interface ArtifactCallable {
   member: string[];
   /** Generated scenarios receive named admitted parameters; absent keeps the legacy envelope. */
   inputStyle?: "parameters";
+  /**
+   * Declaring source path. Present only for multi-source closures, where the
+   * module source map cannot resolve one exact declaring file; absent keeps
+   * the legacy module-map resolution.
+   */
+  source?: string;
 }
 
 /**

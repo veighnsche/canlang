@@ -4320,39 +4320,38 @@ fn guard_any_fragment(
     if query.dependencies.iter().any(|read| read.calls.as_slice() != outer) {
         return None;
     }
-    let parent = if outer.is_empty() {
+    // Guard-any fragments claim no containment scope: a direct query may
+    // iterate same-model rows (not children of its anchor), and
+    // derive-bodied queries ride their outer call. Both shapes fail the
+    // parented-model containment check, so the honest encoding is absent;
+    // a future invocation unit can anchor true containments with execution
+    // evidence.
+    if outer.is_empty() {
         find_direct_guard_any(guards, query)?;
         let [(_, parameter)] = query.inputs.as_slice() else {
             return None;
         };
         let parameter = ir.items.get(parameter.0 as usize)?;
-        let IrItemKind::Param {
-            ty: IrType::Known(ResolvedType::Record { symbol: parent, .. }),
-            ..
-        } = &parameter.kind
-        else {
+        if !matches!(
+            parameter.kind,
+            IrItemKind::Param {
+                ty: IrType::Known(ResolvedType::Record { .. }),
+                ..
+            }
+        ) {
             return None;
-        };
-        let model = ir.items.get(parent.0 as usize)?;
-        Some(ReceiptQueryParent {
-            source: transport_source(&query.source, entry)?,
-            model: model.canonical.clone(),
-            origin: ReceiptQueryParentOrigin::AdmittedReference {
-                parameter: parameter.name.clone(),
-            },
-        })
+        }
     } else {
         let [outer] = outer else {
             return None;
         };
         find_nested_guard_any(ir, guards, query, *outer)?;
-        None
-    };
+    }
     Some(ReceiptQuery {
         id: query.id.clone(),
         source: transport_source(&query.source, entry)?,
         model: query.model_name.clone(),
-        parent,
+        parent: None,
         order: Vec::new(),
         limit: None,
         archived: "exclude".into(),

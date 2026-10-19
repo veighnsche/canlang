@@ -888,7 +888,6 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
         throw new Error('deploy main: selected State requires its actual declared app and owning package');
       }
       const app = definition['id'];
-      const declaredAppOwners = definition['runtimeBindingOwners'];
       const createRouter = await getOwnerRouterFactory();
       const byOwner = new Map(routes.map(route => [route.owner, Object.freeze({ ...route })]));
       const router = createRouter({ resolveBinding: requested => {
@@ -923,16 +922,17 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
         } });
         ownerStorage = await (await getOwnerStorageFactory())({ artifact: staged.artifact, asm: staged.modules,
           app, identities: deps.identityStore as IdentityStore, router: fileRouter });
-        const declaredOwners = declaredAppOwners;
-        const inventoryOwners = Array.isArray(declaredOwners) ? declaredOwners.filter((owner): owner is string => typeof owner === 'string') : [app];
         for (const route of routes) {
           const boundary = ownerStorage;
           const physical = (await boundary.forTrustedScope({ app, owner: route.owner, ownerPackage: app }, Date.now())).store;
-          for (const ownerPackage of inventoryOwners) await installNativeFileInventory({ artifact: staged.artifact, asm: staged.modules,
-            scope: { app, owner: route.owner, ownerPackage },
+          // File retirement is app-scoped: the FILES binding is app-owned and
+          // every inventory carries the shared framework models, so per-package
+          // installs would collide on shared model declarations.
+          await installNativeFileInventory({ artifact: staged.artifact, asm: staged.modules,
+            scope: { app, owner: route.owner, ownerPackage: app },
             store: physical as import('@canlang/contracts').FileReferenceStoragePort,
             authority: authorities.get(route.owner)!, now: Date.now,
-            verifyOwner: async () => { await boundary.forTrustedScope({ app, owner: route.owner, ownerPackage }, Date.now()); },
+            verifyOwner: async () => { await boundary.forTrustedScope({ app, owner: route.owner, ownerPackage: app }, Date.now()); },
           });
         }
       }

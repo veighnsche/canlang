@@ -65,14 +65,14 @@ export function createSodaApplicationClass(deployment: SodaActorDeployment): new
           ? { app: requested.app, owner: requested.owner, db: selected.db,
               fileRetirementAuthority: authority, fileReferenceProducers: runtimeFileReferenceProducers } : null });
         const stateStore = await router.ownerScopedStoragePort(scope);
-        const original = await import(staged.modules.entryUrl) as { appDefinition: { runtimeBindingOwners?: readonly string[] } };
-        for (const ownerPackage of original.appDefinition.runtimeBindingOwners ?? [app.appId]) {
-          await installNativeFileInventory({ artifact, asm: staged.modules, scope: { ...scope, ownerPackage },
-            store: stateStore, authority, now: Date.now,
-            verifyOwner: async () => {
-              if (await identities.findTeamById(selected.owner) === null) throw new Error('Soda State owner is unavailable');
-            } });
-        }
+        // File retirement is app-scoped: every inventory carries the shared
+        // framework models, so per-package installs would collide on shared
+        // model declarations. Scope already carries ownerPackage: app.appId.
+        await installNativeFileInventory({ artifact, asm: staged.modules, scope,
+          store: stateStore, authority, now: Date.now,
+          verifyOwner: async () => {
+            if (await identities.findTeamById(selected.owner) === null) throw new Error('Soda State owner is unavailable');
+          } });
         const ownerStorage = await createTeamOwnerStorageBoundary({ app: app.appId, artifact, asm: staged.modules, identities, router });
         // External provider dispatch is not qualified yet. This reads the actual
         // store and refuses carryover instead of inventing an empty inventory.

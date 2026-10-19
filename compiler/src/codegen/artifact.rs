@@ -87,6 +87,9 @@ pub struct ArtifactCallable {
     pub member: Vec<String>,
     /// Scenario argument convention; absent means the legacy runtime envelope.
     pub input_style: Option<String>,
+    /// Declaring source path. Present only for multi-source closures, where
+    /// the module source map cannot resolve one exact declaring file.
+    pub source: Option<String>,
 }
 
 /// One lowered migration directive in interim-intake vocabulary: `kind`
@@ -308,6 +311,7 @@ pub fn assemble(
             export: c.export.clone(),
             member: c.member.clone(),
             input_style: c.input_style.clone(),
+            source: c.source.clone(),
         })
         .collect();
     let pages = js
@@ -644,6 +648,7 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
                 export: &callable.export,
                 member: &callable.member,
                 input_style: callable.input_style.as_deref(),
+                source: callable.source.as_deref(),
             })
             .collect(),
         operations: &artifact.operations,
@@ -783,6 +788,8 @@ struct CallableWire<'a> {
     member: &'a [String],
     #[serde(rename = "inputStyle", skip_serializing_if = "Option::is_none")]
     input_style: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source: Option<&'a str>,
 }
 
 #[derive(Serialize)]

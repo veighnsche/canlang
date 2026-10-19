@@ -120,11 +120,12 @@ function source(set: FrameworkOpaqueDeclarationSet, value: ScenarioReceiptSource
       !set.sources.some(candidate => candidate.path === item.path && candidate.sha256 === item.sha256)) return refuse('complete original source membership required.');
 }
 function callableShape(value: FrameworkOpaqueCallable['callable']): void {
-  const item = record(value, ['id', 'kind', 'module', 'export', 'member'], ['inputStyle']);
+  const item = record(value, ['id', 'kind', 'module', 'export', 'member'], ['inputStyle', 'source']);
   for (const key of ['id', 'module', 'export']) string(item[key]);
   if (!['operation', 'pure', 'rule', 'handler', 'migration'].includes(String(item.kind)) ||
       array(item.member).length === 0 || array(item.member).some(part => typeof part !== 'string' || part === '') ||
-      Object.hasOwn(item, 'inputStyle') && item.inputStyle !== 'parameters') return refuse('exact callable declaration required.');
+      Object.hasOwn(item, 'inputStyle') && item.inputStyle !== 'parameters' ||
+      Object.hasOwn(item, 'source') && (typeof item.source !== 'string' || item.source === '')) return refuse('exact callable declaration required.');
 }
 function sourceEqual(a: FrameworkOpaqueDeclaration['source'], b: FrameworkOpaqueDeclaration['source']): boolean {
   return stableStringify(a) === stableStringify(b);
@@ -230,7 +231,7 @@ function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInput
         return refuse('collapsed scalar source requires its exact type claim.');
       }
       if (Object.hasOwn(input, 'enumValues') || !(base === scalarTypes[String(input.kind)] ||
-          input.kind === 'string' && ['date', 'email', 'timezone'].includes(base))) return refuse('actual scalar source type required.');
+          input.kind === 'string' && ['date', 'email', 'timezone', 'currency'].includes(base))) return refuse('actual scalar source type required.');
     }
   }
   if ((input.default as { kind?: unknown } | undefined)?.kind === 'context' &&

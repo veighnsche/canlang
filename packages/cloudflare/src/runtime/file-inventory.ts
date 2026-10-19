@@ -196,7 +196,11 @@ function resolveCallableOperation(artifact: CompileArtifact, captures: readonly 
   callable: CompileArtifact['callables'][number]): { source: CallableSource; operation: ArtifactOperation; canonical: CanonicalOperationDescriptor } {
   const emitted = artifact.modules.filter(candidate => candidate.path === callable.module);
   const paths = emitted.length === 1 ? emitted[0]!.map?.sources : undefined;
-  const sources = artifact.sources.filter(source => paths?.includes(source.path));
+  // Multi-source closures carry the exact declaring file on the callable;
+  // single-source closures keep the legacy module-map resolution.
+  const sources = typeof callable.source === 'string' ?
+    artifact.sources.filter(source => source.path === callable.source) :
+    artifact.sources.filter(source => paths?.includes(source.path));
   if (sources.length !== 1) throw new Error('File retirement requires one exact original callable source.');
   const source = { kind: 'callable' as const, source: { ...sources[0]!, module: callable.module }, callable };
   let operation: ArtifactOperation | undefined, canonical: CanonicalOperationDescriptor;
@@ -320,7 +324,12 @@ function assertModuleEvent(artifact: CompileArtifact,
   events.add(event);
   const emitted = artifact.modules.filter(candidate => candidate.path === captured.module);
   const paths = emitted.length === 1 ? emitted[0]!.map?.sources : undefined;
-  const sources = artifact.sources.filter(source => paths?.includes(source.path));
+  // Multi-source closures carry the exact declaring file on the event;
+  // single-source closures keep the legacy module-map resolution.
+  const declared = (original as Record<string, unknown>)['source'];
+  const sources = typeof declared === 'string' ?
+    artifact.sources.filter(source => source.path === declared) :
+    artifact.sources.filter(source => paths?.includes(source.path));
   if (sources.length !== 1) throw new Error('File retirement requires one exact original event source.');
   // These are detached bytes captured before subsequent imports/DB awaits;
   // State owns their canonical field conversion, including File wrappers.

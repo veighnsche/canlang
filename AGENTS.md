@@ -8,10 +8,19 @@ Prioritize development speed, architectural soundness, and code correctness. Do 
 - Express app identity and composition in `.can` source. Derive dependencies and interfaces from owning declarations; use shared defaults and reusable components to keep authoring concise. Use `##` for explanatory comments and keep executable bindings inside `do`.
 - Use focused tests, direct checks, and code review to catch real bugs and architectural problems. Check meaningful behavior and relevant failures. Reuse applicable passing results; repeat checks only for a relevant change, failure, or concrete concern. Preserve useful inline behavior examples.
 - Judge designs by whether they satisfy the intended workflows simply and correctly. Keep assumptions open to revision and distinguish proposed behavior from implemented behavior.
-- Delegate independent work when it helps delivery. Avoid conflicting edits and protect other workers' in-progress work. Wait for concrete dependencies, not unrelated reviews or completion of another owner's whole plan. Use JEV when advice helps; calls are preauthorized, with no required call count or response archive.
+- Delegate independent work when it helps delivery. Avoid conflicting edits and protect other workers' in-progress work. Wait for concrete dependencies, not unrelated reviews or completion of another owner's whole plan.
 - Write documentation when it helps someone understand, use, or change the system. Explain consequential, non-obvious design choices in [DECISIONS.md](docs/specification/DECISIONS.md) when useful. Use a short plan when it helps manage complex work; routine changes need neither plans nor decision entries.
 - Finish satisfied work without reopening it for bookkeeping. Revisit it when a defect or changed requirement warrants it. Keep optional improvements optional.
 - Report what changed, what was checked, and any remaining functional gap briefly and honestly.
+
+## Consult JEV frequently
+
+JEV usage is free and calls are preauthorized. Consult it often for architecture, design, correctness, trade-offs, and uncertain assumptions, especially before settling on a consequential choice. Do not avoid consultation to save cost.
+
+- For each consultation, ask the same substantive question three times in independently written prose. Keep the facts, constraints, options, and decision criteria equivalent across all three requests.
+- Actively counterbalance your own bias: present the strongest case and drawbacks for each viable option, vary option order and emphasis, and challenge assumptions favoring your initial preference. Avoid leading language, loaded labels, unequal detail, or framing one option as the obvious answer.
+- Keep the requests independent: do not supply earlier replies or suggest the answer JEV should give. Compare all three responses, investigate material disagreement, and revise your position when warranted. Agreement is advice, not proof of correctness.
+- Use the advice to improve the implementation or decision. Do not create response archives, proof packets, or extra bookkeeping merely to document the consultations.
 
 ## Avoid bureaucracy
 
