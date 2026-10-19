@@ -3588,7 +3588,7 @@ impl<'a> Typer<'a> {
         object: Option<&SyntaxNode>,
     ) -> bool {
         let parts = kids(target);
-        let head = parts.first().and_then(|head| nameref_word(head, cx.text));
+        let head = parts.first().and_then(|head| name_or_ref_word(head, cx.text));
         let member = parts.last().and_then(|member| name_text(member, cx.text));
         let shadowed = parts
             .first()
@@ -3743,7 +3743,7 @@ impl<'a> Typer<'a> {
     fn external_target_name(&self, cx: &Ctx<'_, '_>, target: &SyntaxNode) -> Option<String> {
         match target.kind {
             SyntaxKind::NameRef => match self.tables.node_binding.get(&NodeKey::of(target)) {
-                Some(Binding::External { .. }) => nameref_word(target, cx.text).map(str::to_string),
+                Some(Binding::External { .. }) => name_or_ref_word(target, cx.text).map(str::to_string),
                 _ => None,
             },
             SyntaxKind::Member => {
@@ -3812,7 +3812,7 @@ impl<'a> Typer<'a> {
                     return None;
                 };
                 let op = name_text(parts[2], cx.text)?.to_string();
-                let head = nameref_word(parts[0], cx.text)?;
+                let head = name_or_ref_word(parts[0], cx.text)?;
                 let display = format!("{head}.{op}");
                 Some((provider, name, op, display))
             }
@@ -5432,7 +5432,7 @@ impl<'a> Typer<'a> {
             .copied()
             .ok_or_else(|| fail("missing read operation"))?;
         let read_name = (callee.kind == SyntaxKind::NameRef)
-            .then(|| nameref_word(callee, text))
+            .then(|| name_or_ref_word(callee, text))
             .flatten()
             .ok_or_else(|| fail("read= must name a local or imported scenario"))?;
         let read_operation = self
@@ -6957,7 +6957,7 @@ impl<'a> Typer<'a> {
                     Some(symbol.span) == name_span && matches!(symbol.kind,
                         SymbolKind::Field { owner, .. } if matches!(self.tables.symbols[owner.0 as usize].kind, SymbolKind::Model { .. }))
                 });
-                let initial = parts.default.and_then(|n| nameref_word(n, cx.text));
+                let initial = parts.default.and_then(|n| name_or_ref_word(n, cx.text));
                 let valid = stored
                     && parts.server.is_none()
                     && matches!(expected, ResolvedType::Enum { cases, .. } if initial.is_some_and(|v| cases.iter().any(|c| c == v)));
@@ -8601,7 +8601,7 @@ impl<'a> Typer<'a> {
         ] {
             if let Some(value) = attribute_value(decl, key, text) {
                 present = true;
-                let word = nameref_word(value, text).unwrap_or("");
+                let word = name_or_ref_word(value, text).unwrap_or("");
                 if !allowed.contains(&word) {
                     self.diags.push(Diagnostic::error(
                         "E3001",
@@ -9321,7 +9321,7 @@ impl<'a> Typer<'a> {
         }
         for key in ["create", "update"] {
             if let Some(mode) = attribute_value(node, key, text) {
-                let word = nameref_word(mode, text).unwrap_or("");
+                let word = name_or_ref_word(mode, text).unwrap_or("");
                 if word != "none" {
                     self.diags.push(Diagnostic::error(
                         "E3009",
@@ -9332,7 +9332,7 @@ impl<'a> Typer<'a> {
             }
         }
         if let Some(mode) = attribute_value(node, "delete", text) {
-            match nameref_word(mode, text).unwrap_or("") {
+            match name_or_ref_word(mode, text).unwrap_or("") {
                 "none" | "remove" => {}
                 "archive" => {
                     self.diags.push(Diagnostic::error(
@@ -9793,7 +9793,7 @@ impl<'a> Typer<'a> {
             self.check_page_static_text(&cx, group, "page group");
         }
         if let Some(nav) = attribute_value(node, "nav", text)
-            && nameref_word(nav, text) != Some("none")
+            && name_or_ref_word(nav, text) != Some("none")
         {
             self.diags.push(Diagnostic::error(
                 "E3001",
@@ -9968,7 +9968,7 @@ impl<'a> Typer<'a> {
                 return false;
             };
             if !is_punct(punct, cx.text, ".")
-                || nameref_word(receiver, cx.text) != Some("row")
+                || name_or_ref_word(receiver, cx.text) != Some("row")
                 || !matches!(self.tables.node_binding.get(&NodeKey::of(receiver)), Some(Binding::Context(ContextVar::RowModel(id))) if *id == model)
             {
                 return false;
@@ -10283,7 +10283,7 @@ impl<'a> Typer<'a> {
 
     fn check_action_panel_targets(&mut self, cx: &Ctx<'_, '_>, owner: &SyntaxNode) {
         let spelling = |value: &SyntaxNode| {
-            nameref_word(value, cx.text)
+            name_or_ref_word(value, cx.text)
                 .map(str::to_owned)
                 .or_else(|| string_literal_value(value))
         };
@@ -10352,7 +10352,7 @@ impl<'a> Typer<'a> {
             !matches!(part.kind, SyntaxKind::Name | SyntaxKind::NameRef)) { return None; }
         let headers: Vec<_> = parts.iter().filter(|part| part.kind == SyntaxKind::NameRef).copied().collect();
         let [selector] = headers.as_slice() else { return None; };
-        let name = nameref_word(selector, cx.text)?;
+        let name = name_or_ref_word(selector, cx.text)?;
         let owner = self.tables.symbols.iter().find(|symbol|
             symbol.module == cx.module && matches!(symbol.kind, SymbolKind::Preferences { .. }))?.clone();
         let field = owner.fields_of().iter().find(|field| self.tables.symbols[field.0 as usize].name == name).copied()?;
@@ -10550,7 +10550,7 @@ impl<'a> Typer<'a> {
             SyntaxKind::Details
                 if !form_owner
                     && attribute_value(node, "display", text)
-                        .is_some_and(|value| nameref_word(value, text) == Some("drawer")) =>
+                        .is_some_and(|value| name_or_ref_word(value, text) == Some("drawer")) =>
             {
                 Some(UiActionOwner::Drawer)
             }
@@ -10770,7 +10770,7 @@ impl<'a> Typer<'a> {
             let _ = self.expr(cx, domain, None);
         }
         if let Some(layout) = attribute_value(node, "layout", cx.text) {
-            let word = nameref_word(layout, cx.text).unwrap_or("");
+            let word = name_or_ref_word(layout, cx.text).unwrap_or("");
             if !matches!(word, "stack" | "columns") {
                 self.diags.push(Diagnostic::error(
                     "E3001",
@@ -11012,7 +11012,7 @@ impl<'a> Typer<'a> {
     /// Check a form's `display=`/`import=`/`review=` attributes.
     fn check_form_display_import(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
         if let Some(display) = attribute_value(node, "display", cx.text)
-            && nameref_word(display, cx.text) != Some("inline")
+            && name_or_ref_word(display, cx.text) != Some("inline")
         {
             self.diags.push(Diagnostic::error(
                 "E3001",
@@ -11022,7 +11022,7 @@ impl<'a> Typer<'a> {
         }
         let import = attribute_value(node, "import", cx.text);
         if let Some(import) = import
-            && nameref_word(import, cx.text) != Some("csv")
+            && name_or_ref_word(import, cx.text) != Some("csv")
         {
             self.diags.push(Diagnostic::error(
                 "E3001",
@@ -11031,7 +11031,7 @@ impl<'a> Typer<'a> {
             ));
         }
         if attribute_value(node, "review", cx.text).is_some()
-            && import.is_some_and(|i| nameref_word(i, cx.text) != Some("csv"))
+            && import.is_some_and(|i| name_or_ref_word(i, cx.text) != Some("csv"))
         {
             self.diags.push(Diagnostic::error(
                 "E3001",
@@ -11351,7 +11351,7 @@ impl<'a> Typer<'a> {
             .as_ref()
             .and_then(|ty| self.model_of_type(ty));
         if model.is_none() && d.kind == SyntaxKind::NameRef {
-            model = nameref_word(d, cx.text)
+            model = name_or_ref_word(d, cx.text)
                 .and_then(|w| self.prod_or_imported(cx.module, w))
                 .filter(|id| {
                     matches!(
@@ -11679,7 +11679,7 @@ impl<'a> Typer<'a> {
                 case = inner;
                 nodes.push((NodeKey::of(case), ty.clone()));
             }
-            let name = nameref_word(case, cx.text);
+            let name = name_or_ref_word(case, cx.text);
             if case.kind != SyntaxKind::NameRef
                 || !self.types.resolved_cases.contains(&NodeKey::of(case))
                 || !name.is_some_and(|name| cases.iter().any(|known| known == name))
@@ -12819,7 +12819,7 @@ impl<'a> Typer<'a> {
 /// Metadata paths have no expression evaluation or ambient lexical scope.
 fn choice_input_path(node: &SyntaxNode, text: &str) -> Option<(String, Vec<String>)> {
     match node.kind {
-        SyntaxKind::NameRef => Some((nameref_word(node, text)?.to_string(), Vec::new())),
+        SyntaxKind::NameRef => Some((name_or_ref_word(node, text)?.to_string(), Vec::new())),
         SyntaxKind::Member => {
             let parts = kids(node);
             if parts.len() != 3 || !is_punct(parts[1], text, ".") {
@@ -18791,7 +18791,7 @@ impl<'a> Typer<'a> {
         // The imported owner name, rather than the source alias,
         // selects a consumed std schema. Other providers and
         // nominal names without a schema retain the opaque path.
-        let schema = nameref_word(head, cx.text)
+        let schema = name_or_ref_word(head, cx.text)
             .and_then(|name| {
                 self.tables.module_scopes[cx.module.0 as usize]
                     .prod
@@ -22621,7 +22621,7 @@ fn display_nonnull(ty: &ResolvedType) -> bool {
 
 /// Word inside a `Name`/`NameRef` attribute value (`nav=`,
 /// `layout=`, theme/mode values, CRUD modes).
-fn nameref_word<'a>(node: &SyntaxNode, text: &'a str) -> Option<&'a str> {
+fn name_or_ref_word<'a>(node: &SyntaxNode, text: &'a str) -> Option<&'a str> {
     if node.kind == SyntaxKind::Name {
         return name_text(node, text);
     }

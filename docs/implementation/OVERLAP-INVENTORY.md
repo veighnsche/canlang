@@ -79,7 +79,11 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   Divergences found, NOT merged: ir.rs `is_expression` admits `Argument`/`Path` (resolve's does not) —
   needs a semantic ruling; text-based `literal_string` in effects vs examples have different fallbacks;
   `object_entries` ×3 differ in parameter order and depend on the divergent `is_expression`.
-  Remain: db-based `name_text` (ir.rs, legitimate — callers hold db).
+  Slice three (2026-10-19): `nameref_word` ×3 — effects/examples identical clones now import the shared
+  `analysis::nameref_word`; types' same-named different function (also accepts bare `Name`) renamed to
+  `name_or_ref_word` (20 sites, zero behavior change) so one name means one behavior. Checks: lib build
+  clean, full lib suite 297/5 (same 5 pre-existing). Remain: db-based `name_text` (ir.rs, legitimate —
+  callers hold db).
 
 ## Runtime/package mirrors and dual paths
 

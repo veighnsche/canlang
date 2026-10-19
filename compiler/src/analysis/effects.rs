@@ -92,7 +92,7 @@ use crate::analysis::resolve::{
 use crate::analysis::types::{
     CheckedInputChoice, ResolvedType, Scalar, SelectedCallTarget, TypeTable,
 };
-use crate::analysis::{kids, tight_span};
+use crate::analysis::{kids, nameref_word, tight_span};
 use crate::diagnostic::{Diagnostic, Related};
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{SyntaxKind, SyntaxNode, decode_json_string};
@@ -5233,14 +5233,7 @@ fn bare_slot_value<'a>(node: &'a SyntaxNode, key: &str, text: &str) -> Option<&'
 }
 
 /// Word of a `NameRef` node.
-fn nameref_word<'a>(text: &'a str, node: &SyntaxNode) -> Option<&'a str> {
-    if node.kind != SyntaxKind::NameRef {
-        return None;
-    }
-    kids(node)
-        .iter()
-        .find_map(|n| name_text(n, text))
-}
+
 
 /// `-> type` result annotation following parameters/attributes.
 fn result_annotation<'a>(text: &str, node: &'a SyntaxNode) -> Option<&'a SyntaxNode> {

@@ -42,8 +42,8 @@ use super::resolve::{
 };
 use super::types::{ResolvedType, Scalar, SelectedCallTarget, TypeTable, completion_envelope};
 use super::{
-    NodeKey, attribute_parts, attribute_value, file_text, is_name, kids, name_text, path_segments,
-    tight_span,
+    NodeKey, attribute_parts, attribute_value, file_text, is_name, kids, name_text, nameref_word,
+    path_segments, tight_span,
 };
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceDb, SourceId, Span};
@@ -2988,12 +2988,7 @@ fn is_error_call(text: &str, node: &SyntaxNode) -> bool {
 }
 
 /// Bare word of a `NameRef` expression, if it is one.
-fn nameref_word<'t>(text: &'t str, node: &SyntaxNode) -> Option<&'t str> {
-    if node.kind != SyntaxKind::NameRef {
-        return None;
-    }
-    kids(node).iter().find_map(|n| name_text(n, text))
-}
+
 
 /// `Name` leaves of a path expression in order (`a.b.c` → `[a,b,c]`).
 fn member_names(text: &str, node: &SyntaxNode) -> Vec<String> {

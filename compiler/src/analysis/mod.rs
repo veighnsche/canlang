@@ -460,6 +460,14 @@ pub(crate) fn name_text<'a>(node: &SyntaxNode, text: &'a str) -> Option<&'a str>
     }
 }
 
+/// Word of a `NameRef` leaf (first named child), if `node` is one.
+pub(crate) fn nameref_word<'a>(text: &'a str, node: &SyntaxNode) -> Option<&'a str> {
+    if node.kind != SyntaxKind::NameRef {
+        return None;
+    }
+    kids(node).iter().find_map(|n| name_text(n, text))
+}
+
 /// Tight span of `node`: surrounding trivia trimmed so primaries point at significant source.
 pub(crate) fn tight_span(text: &str, node: &SyntaxNode) -> Span {
     let raw = text
