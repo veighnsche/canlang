@@ -5049,6 +5049,9 @@ impl ExprCtx {
 }
 
 /// Whether this CST kind is a value-expression node.
+/// Whether `kind` can appear as an expression child in analysis positions.
+/// Deliberately narrower than codegen's `is_expression`: `Argument`/`Path`
+/// never classify here (paths decode only in codegen via `decode_path_expr`).
 pub(crate) fn is_expression(kind: SyntaxKind) -> bool {
     matches!(
         kind,

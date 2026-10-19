@@ -172,6 +172,13 @@ runs its affected suites once; close the item here with checks + commit before o
   `(file, start, code)` key deliberately: unifying it reordered same-span diagnostics by message
   and broke `t14a_std_send_missing_required`, which pins required inputs in signature order
   (subject before body). Falsified by stash A/B (fails with canonical, passes with check key);
+  `is_expression` — SETTLED 2026-10-19, NOT merged: ir's `+Argument`/`+Path` set is load-bearing,
+  not drift. `decode_expr` has a dedicated `decode_path_expr` arm consumed through member-base
+  and send-target searches; `Argument` siblings provably appear at value positions and are
+  routed away by two explicit exclusions (ir.rs:7697,19964) into shorthand/fail paths. Narrowing
+  to resolve's set would regress Path decoding and change Argument sites from Unsupported-decode
+  to skip. Same name, different contracts — both documented in place, no rename (matches the
+  `sort_diagnostics` precedent);
   `unwrap_groups` (lint unwraps 3-part groups to middle,
   types unwraps to first expression child); `split_top_level` (generation's string-aware splitter
   vs catalog's bracket-aware separator splitter — different jobs).

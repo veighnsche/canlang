@@ -7615,7 +7615,11 @@ fn static_operation_reference(node: &SyntaxNode) -> bool {
     }
 }
 
-/// Whether `kind` can appear as an expression child.
+/// Whether `kind` can appear as an expression child in codegen positions.
+/// Deliberately broader than `analysis::resolve::is_expression`: `Path` decodes
+/// via `decode_path_expr` (member-base/send-target chains), and `Argument`
+/// siblings are admitted by the set but routed away at value-search sites
+/// (object entries fall back to shorthand) — narrowing would regress both.
 fn is_expression(kind: SyntaxKind) -> bool {
     matches!(
         kind,
