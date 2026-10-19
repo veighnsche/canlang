@@ -87,7 +87,7 @@ use crate::analysis::NodeKey;
 use crate::analysis::catalog::{Availability, Catalog};
 use crate::analysis::resolve::{
     Binding, ContextVar, CrudOp, ModelOwner, ModuleId, ModuleKind, ResolveTables, ScopedName,
-    SymbolId, SymbolKind, is_expression,
+    SymbolId, SymbolKind, is_expression, object_entries,
 };
 use crate::analysis::types::{
     CheckedInputChoice, ResolvedType, Scalar, SelectedCallTarget, TypeTable,
@@ -5150,33 +5150,6 @@ fn is_statement_call(node: &SyntaxNode) -> bool {
 }
 
 /// Entries of an `Object` node: `(key, key node, value)`.
-fn object_entries<'a>(
-    object: &'a SyntaxNode,
-    text: &'a str,
-) -> Vec<(&'a str, &'a SyntaxNode, Option<&'a SyntaxNode>)> {
-    let mut entries = Vec::new();
-    for entry in object
-        .children
-        .iter()
-        .filter(|c| c.kind == SyntaxKind::ObjectEntry)
-    {
-        let parts = kids(entry);
-        let Some(key_node) = parts
-            .first()
-            .copied()
-            .filter(|n| n.kind == SyntaxKind::Name)
-        else {
-            continue;
-        };
-        let Some(key) = name_text(key_node, text) else {
-            continue;
-        };
-        let value = parts.iter().find(|n| is_expression(n.kind)).copied();
-        entries.push((key, key_node, value));
-    }
-    entries
-}
-
 /// Effect argument entries of the first `Object` child.
 fn effect_args(text: &str, node: &SyntaxNode) -> Vec<EffectArg> {
     let object = kids(node)

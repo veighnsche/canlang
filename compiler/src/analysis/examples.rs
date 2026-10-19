@@ -38,7 +38,7 @@ use std::collections::{HashMap, HashSet};
 use super::catalog::Catalog;
 use super::resolve::{
     CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables, ScopedName, SymbolId, SymbolKind,
-    has_error, is_expression,
+    has_error, is_expression, object_entries,
 };
 use super::types::{ResolvedType, Scalar, SelectedCallTarget, TypeTable, completion_envelope};
 use super::{
@@ -2308,7 +2308,7 @@ impl<'a> Checker<'a> {
     /// Check sequence call arguments: known inputs plus required
     /// coverage (`E5006`). Values stay runner-typed.
     fn check_call_args(&mut self, text: &str, op: SymbolId, args: &SyntaxNode) {
-        let entries = object_entries(text, args);
+        let entries = object_entries(args, text);
         let mut seen: HashSet<String> = HashSet::new();
         for (key, key_node, _) in &entries {
             if !self.call_input_named(op, key) {
@@ -2336,7 +2336,7 @@ impl<'a> Checker<'a> {
     /// UUIDv7 shape/freshness stay runtime-owned so validation examples
     /// can deliberately supply malformed identities (`E5006`).
     fn check_call_request(&mut self, text: &str, op: SymbolId, request: &SyntaxNode) {
-        for (key, key_node, value) in object_entries(text, request) {
+        for (key, key_node, value) in object_entries(request, text) {
             if key == "operation_id" {
                 let mut identity = value;
                 while let Some(group) = identity
@@ -2382,7 +2382,7 @@ impl<'a> Checker<'a> {
             if let Some(object) = value
                 && object.kind == SyntaxKind::Object
             {
-                for (sub, sub_node, _) in object_entries(text, object) {
+                for (sub, sub_node, _) in object_entries(object, text) {
                     if sub != "version" {
                         self.diags.push(Diagnostic::error(
                             "E5006",
@@ -3037,33 +3037,6 @@ fn selector_spelling(sel: &Selector) -> String {
 }
 
 /// Entries of an `Object` node: (key, key node, value node).
-fn object_entries<'a>(
-    text: &'a str,
-    object: &'a SyntaxNode,
-) -> Vec<(&'a str, &'a SyntaxNode, Option<&'a SyntaxNode>)> {
-    let mut entries = Vec::new();
-    for entry in object
-        .children
-        .iter()
-        .filter(|c| c.kind == SyntaxKind::ObjectEntry)
-    {
-        let parts = kids(entry);
-        let Some(key_node) = parts
-            .first()
-            .copied()
-            .filter(|n| n.kind == SyntaxKind::Name)
-        else {
-            continue;
-        };
-        let Some(key) = name_text(key_node, text) else {
-            continue;
-        };
-        let value = parts.iter().find(|n| is_expression(n.kind)).copied();
-        entries.push((key, key_node, value));
-    }
-    entries
-}
-
 /// Whether `node` mentions the bare root `name` (a `NameRef` head or
 /// member root), without descending into queries.
 fn expr_uses_root(text: &str, node: &SyntaxNode, name: &str) -> bool {

@@ -59,7 +59,7 @@ use super::catalog::{
 use super::resolve::{
     ActorKind, Binding, CheckedJudgment, CheckedJudgmentKind, CheckedValueConstraints, ContextVar,
     CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables, ScopedName, SymbolId, SymbolKind,
-    TypeRef, UnresolvedMember, has_error, is_expression,
+    TypeRef, UnresolvedMember, has_error, is_expression, object_entries,
 };
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, is_punct, kids, name_text,
@@ -12926,33 +12926,6 @@ fn message_descriptor_node(node: &SyntaxNode) -> Option<&SyntaxNode> {
 /// Entries of an `Object` node: (key text, key node, value node).
 /// The value is `None` for shorthand entries (`{name}`), whose type
 /// comes from the name's binding (see [`Typer::entry_value`]).
-fn object_entries<'a>(
-    object: &'a SyntaxNode,
-    text: &'a str,
-) -> Vec<(&'a str, &'a SyntaxNode, Option<&'a SyntaxNode>)> {
-    let mut entries = Vec::new();
-    for entry in object
-        .children
-        .iter()
-        .filter(|c| c.kind == SyntaxKind::ObjectEntry)
-    {
-        let parts = kids(entry);
-        let Some(key_node) = parts
-            .first()
-            .copied()
-            .filter(|n| n.kind == SyntaxKind::Name)
-        else {
-            continue;
-        };
-        let Some(key) = name_text(key_node, text) else {
-            continue;
-        };
-        let value = parts.iter().find(|n| is_expression(n.kind)).copied();
-        entries.push((key, key_node, value));
-    }
-    entries
-}
-
 /// Claim node for one object entry: its value node, or the key
 /// node for shorthand entries (as `entry_value` types them).
 fn claim_entry_node<'n>(

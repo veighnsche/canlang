@@ -178,10 +178,17 @@ runs its affected suites once; close the item here with checks + commit before o
   routed away by two explicit exclusions (ir.rs:7697,19964) into shorthand/fail paths. Narrowing
   to resolve's set would regress Path decoding and change Argument sites from Unsupported-decode
   to skip. Same name, different contracts — both documented in place, no rename (matches the
-  `sort_diagnostics` precedent);
-  `unwrap_groups` (lint unwraps 3-part groups to middle,
+  `sort_diagnostics` precedent); `unwrap_groups` (lint unwraps 3-part groups to middle,
   types unwraps to first expression child); `split_top_level` (generation's string-aware splitter
   vs catalog's bracket-aware separator splitter — different jobs).
+
+- **object_entries ×3 | REMOVED 2026-10-19.** types/effects/examples each carried a
+  byte-identical copy (only examples' param order differed). Single home now
+  `resolve::object_entries(object, text)` beside `is_expression`; types (18 sites) and effects
+  (3 sites) unchanged, examples' 3 sites flipped to canonical order. Verified effects' local
+  `name_text` byte-identical to the shared one before reusing. Checks: `--test check` 38/38,
+  `b4_check` 284/285 (only pre-existing t35r25), `b4_examples` 27/2 identical to baseline,
+  lib `analysis::` 71/73 (only the 2 pre-existing disclosure fails).
 
 ## Verification notes (no code change)
 

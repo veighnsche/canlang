@@ -5048,7 +5048,6 @@ impl ExprCtx {
     }
 }
 
-/// Whether this CST kind is a value-expression node.
 /// Whether `kind` can appear as an expression child in analysis positions.
 /// Deliberately narrower than codegen's `is_expression`: `Argument`/`Path`
 /// never classify here (paths decode only in codegen via `decode_path_expr`).
@@ -5068,6 +5067,36 @@ pub(crate) fn is_expression(kind: SyntaxKind) -> bool {
             | SyntaxKind::Query
             | SyntaxKind::MessageValue
     )
+}
+
+/// Object entries in source order: `(key text, key node, value node)`.
+/// Single home for the analysis passes (types, effects, examples all
+/// shared identical copies); value search uses [`is_expression`].
+pub(crate) fn object_entries<'a>(
+    object: &'a SyntaxNode,
+    text: &'a str,
+) -> Vec<(&'a str, &'a SyntaxNode, Option<&'a SyntaxNode>)> {
+    let mut entries = Vec::new();
+    for entry in object
+        .children
+        .iter()
+        .filter(|c| c.kind == SyntaxKind::ObjectEntry)
+    {
+        let parts = kids(entry);
+        let Some(key_node) = parts
+            .first()
+            .copied()
+            .filter(|n| n.kind == SyntaxKind::Name)
+        else {
+            continue;
+        };
+        let Some(key) = name_text(key_node, text) else {
+            continue;
+        };
+        let value = parts.iter().find(|n| is_expression(n.kind)).copied();
+        entries.push((key, key_node, value));
+    }
+    entries
 }
 
 impl<'a> Resolver<'a> {
