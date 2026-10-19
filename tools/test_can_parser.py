@@ -1,12 +1,8 @@
 """Syntax boundary tests; these do not execute canlang business examples."""
 
-from pathlib import Path
 import unittest
 
 from can_parser import ParseError, parse
-
-
-ROOT = Path(__file__).resolve().parents[1]
 
 
 def app(given="", when="", then=""):
@@ -489,15 +485,6 @@ class CanParserTests(unittest.TestCase):
                       'package words\n Given\n  message heading="Work"@{}\n When\n Then\n')
         self.rejected('# Together.\napp Together uses=[First]\n'
                       'use words {heading}\nGiven\nWhen\nThen\n')
-
-    def test_corpus_syntax_parses(self):
-        sources = sorted([*ROOT.glob("examples/*.can"), *ROOT.glob("draft/apps/*/*.can"),
-                          *ROOT.glob("draft/shared/*.can")])
-        self.assertEqual(len(sources), 44)
-        for path in sources:
-            with self.subTest(path=str(path.relative_to(ROOT))):
-                parse(path.read_text(encoding="utf-8"), path=str(path))
-
 
 if __name__ == "__main__":
     unittest.main()

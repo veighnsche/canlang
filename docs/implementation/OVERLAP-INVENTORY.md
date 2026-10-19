@@ -125,9 +125,13 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   Semantics are owned by the TS core; removing either tier changes errors or perf. Not an overlap to merge.
 - **T2 | keep | CST vs IR.** `compiler/src/syntax/cst.rs` (lossless source tree) → `compiler/src/codegen/ir.rs`
   (execution IR) → JS/artifact. Pipeline stages, not duplicates.
-- **T3 | decide | Python parser.** `tools/can_parser.py` (~1350 lines, no symbol/type checking) re-implements
-  `compiler/src/syntax/{parser.rs,lexer.rs}` and is referenced by `draft/` app docs and `tools/test_can_parser.py`.
-  Either bless it as draft tooling (and state its drift) or retire it with its docs/tests.
+- **T3 | RESOLVED 2026-10-19 (keep prototype, remove false parity claim).** `tools/can_parser.py`
+  fails on 54/57 current corpus files (`$` interpolation unknown) — drift confirmed, and the docs
+  (`draft/README.md`, `tools/README.md`) plus CI (`if "corpus" not in name`, "superseded by the actual
+  Rust corpus tests") already scope it as a historical boundary-syntax prototype. The only active
+  breakage was `test_corpus_syntax_parses` asserting the disclaimed 44-source parity, so it (and the
+  now-unused `ROOT`) was deleted; the 37 boundary tests pass. No parser/code deletion: `draft/` docs
+  still reference it as a prototype.
 - **T4 | keep | Values Wasm backend.** Native is the default; Wasm stays behind explicit `valuesWasm`
   selection. Fenced duality, no implicit switch.
 - **T5 | decide | registry-only predicate fallback.** Predicate metadata can be served registry-only while the
