@@ -123,7 +123,7 @@ import { DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
 import { parse as parseJavaScript } from 'acorn';
 import { receiverFromIdentity } from '@canlang/interfaces';
 import type { AsyncGuardEvaluator, attemptDispatchAsync } from "@canlang/work/dispatch";
-import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
+import { decodeValue, encodeValue, isRecordRef, makeDatetime, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
 import { isResourceSendTarget, resolveResourceSend, resourceSendOwner } from './resource-dispatch.js';
 import { mailHumanText } from './bound-mail.js';
 import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canlang/values";
@@ -2438,6 +2438,35 @@ interface CheckedPageSourceReadPolicy {
 // Direct callable entry can establish the same row-source lifetime before
 // canonical descriptors exist; cache preload must retain that exact assembly.
 const rowPolicyAssemblies = new WeakMap<CompileArtifact, AssembledModules>();
+/** Compiled per-row derive evaluators by `Model.field`, loaded once per artifact. */
+const derivesTables = new WeakMap<CompileArtifact, Promise<Map<string, (context: unknown, row: unknown) => unknown>>>();
+
+/** Collect every compiled `derives` entry once; missing evaluators stay absent (loud downstream). */
+function loadDerivesTable(asm: AssembledModules, artifact: CompileArtifact): Promise<Map<string, (context: unknown, row: unknown) => unknown>> {
+  const cached = derivesTables.get(artifact);
+  if (cached !== undefined) return cached;
+  const pending = (async () => {
+    const table = new Map<string, (context: unknown, row: unknown) => unknown>();
+    for (const module of Object.keys(asm.moduleUrls)) {
+      const namespace = await importVerifiedAssemblyModule(asm, module, artifact);
+      const canApp = (namespace as Record<string, unknown>)['canApp'];
+      if (typeof canApp !== 'function') continue;
+      const registry = (canApp as () => unknown)();
+      if (!isUnknownRecord(registry)) continue;
+      const derives = registry['derives'];
+      if (!isUnknownRecord(derives)) continue;
+      for (const [name, fn] of Object.entries(derives)) {
+        if (typeof fn === 'function' && !table.has(name)) {
+          table.set(name, fn as (context: unknown, row: unknown) => unknown);
+        }
+      }
+    }
+    return table;
+  })();
+  derivesTables.set(artifact, pending);
+  pending.catch(() => { if (derivesTables.get(artifact) === pending) derivesTables.delete(artifact); });
+  return pending;
+}
 const canonicalCache = new WeakMap<CompileArtifact, {
   loaded: LoadedCanonicalDescriptors;
   scenarioAssembly?: AssembledModules;
@@ -6704,7 +6733,11 @@ function nativeRecordField(loaded: NativeRecordScope, modelName: string, field: 
 function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row: StoredRow | ProjectedRecord,
   navigation?: Awaited<ReturnType<typeof createContainmentNavigation>>,
   parentView?: (model: string, row: StoredRow | ProjectedRecord) => Record<string, unknown>,
-  sourcePresence?: readonly string[]): Record<string, unknown> {
+  sourcePresence?: readonly string[],
+  derived?: {
+    readonly fields: ReadonlyArray<string>;
+    readonly define: (target: Record<string, unknown>, field: string) => void;
+  }): Record<string, unknown> {
   const record: Record<string, unknown> = Object.create(null);
   for (const [field, wire] of Object.entries(row.data)) {
     record[field] = nativeRecordField(loaded, modelName, field, wire);
@@ -6725,6 +6758,14 @@ function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row
       throw new loaded.producers.errors('validation', 'Stored parent disagrees with its declared model.');
     }
     record.parent = row.parent == null ? null : makeRecordRef(row.parent.model, row.parent.id);
+  }
+  if (derived !== undefined) {
+    for (const field of derived.fields) {
+      // Withheld stored fields keep their denial; derived getters never
+      // override an explicit refusal.
+      if (navigation !== undefined && navigation.isWithheld(row, field)) continue;
+      derived.define(record, field);
+    }
   }
   bindNativeRecord(record, modelName, row.id, row.version);
   return freezeScenarioSnapshot(record) as Record<string, unknown>;
@@ -15655,6 +15696,67 @@ export function createPageReadScopeCanonical(
   const sourceRows = new WeakMap<object, Readonly<Record<string, unknown>>>();
   let revision: number | undefined;
   let closed = false;
+  // Per-render derived-column evaluation: one memoized cell per row field,
+  // failed or cyclic reads stay loud (never a fabricated value). Genuine
+  // reference cycles throw when the cyclic value is actually read; sibling
+  // overlap (one row's derive reading another row's already-evaluating
+  // field) resolves through the completed outer cell.
+  const derivedCells = new Map<string, { readonly value: unknown }>();
+  const derivedActive = new Set<string>();
+  const derivedKey = (model: string, id: string, field: string): string => `${model} ${id} ${field}`;
+  // Render-frozen clock as the Datetime value compiled derives compare against.
+  const derivedNow = makeDatetime(BigInt(Date.parse(opts.identity.admitted_at)));
+  const derivableFields = async (name: string): Promise<ReadonlyArray<string>> => {
+    const table = await loadDerivesTable(opts.asm, opts.artifact);
+    return derivedFieldsOf(name).filter(field => table.has(`${name}.${field}`));
+  };
+  const derivedFieldsOf = (model: string): ReadonlyArray<string> => opts.artifact.models
+    ?.find(candidate => candidate.name === model)?.fields
+    .filter(field => field.default?.kind === 'derived').map(field => field.name) ?? [];
+  const readDerivedCell = (model: string, id: string, field: string): unknown => {
+    const cell = derivedCells.get(derivedKey(model, id, field));
+    if (cell === undefined) {
+      throw new AssemblyCorrespondenceError(
+        `Derived field ${model}.${field} is not resolved; refusing a cyclic or unevaluated read.`);
+    }
+    return cell.value;
+  };
+  const defineDerived = (target: Record<string, unknown>, model: string, id: string, field: string): void => {
+    if (Object.hasOwn(target, field)) return;
+    Object.defineProperty(target, field, { enumerable: true, configurable: false,
+      get: () => readDerivedCell(model, id, field) });
+  };
+  const ensureDerived = async (model: string, id: string, field: string, row: unknown): Promise<boolean> => {
+    const key = derivedKey(model, id, field);
+    if (derivedCells.has(key)) return true;
+    if (derivedActive.has(key)) return false;
+    if (closed) throw new AssemblyCorrespondenceError('Page read scope is closed.');
+    derivedActive.add(key);
+    try {
+      const fn = (await loadDerivesTable(opts.asm, opts.artifact)).get(`${model}.${field}`);
+      if (fn === undefined) return false;
+      const context = { canonical: {
+        // Pass the installed scope reader itself (not a wrapper) so compiled
+        // boolean reads resolve their request reader for grant enforcement.
+        readRecords: scope.readRecords! }, now: derivedNow };
+      const value = await fn(context, row);
+      if (typeof value !== 'boolean') {
+        throw new AssemblyCorrespondenceError(
+          `Derived page field ${model}.${field} must evaluate to bool.`);
+      }
+      derivedCells.set(key, { value });
+      return true;
+    } catch (error) {
+      // An unreadable derived field omits itself (row stays admitted, column
+      // stays unclaimed); every other evaluation failure stays loud. This is
+      // the exact top-level readability refusal, never a nested denial.
+      if (isUnknownRecord(error) && error['code'] === 'forbidden' &&
+          error['message'] === 'Derived field is not readable.') return false;
+      throw error;
+    } finally {
+      derivedActive.delete(key);
+    }
+  };
   const pageFiles = opts.pageFiles === undefined ? undefined : Object.freeze({
     read: opts.pageFiles.read, resolveCaller: opts.pageFiles.resolveCaller,
   });
@@ -15793,14 +15895,36 @@ export function createPageReadScopeCanonical(
         revision: expectedRevision as Revision, actorUserId: opts.identity.actor?.user_id ?? null,
         teamId: opts.identity.team?.team_id ?? null, memberships: opts.memberships, authority: 'viewer',
         sourceReadOpts: opts, sourcePreferences: predicateScope.preferences });
+      const derivesTable = await loadDerivesTable(opts.asm, opts.artifact);
+      const derivableNow = (name: string): ReadonlyArray<string> =>
+        derivedFieldsOf(name).filter(field => derivesTable.has(`${name}.${field}`));
       const recordView = (name: string, row: StoredRow | ProjectedRecord): Record<string, unknown> => {
-        const view = nativeProjectedRecord(loaded, name, row, navigation, recordView);
+        const fields = derivableNow(name);
+        const view = nativeProjectedRecord(loaded, name, row, navigation, recordView, undefined,
+          fields.length === 0 ? undefined : { fields, define: (target, field) => defineDerived(target, name, row.id, field) });
         views.set(view, { model: name, id: row.id, version: row.version });
         return view;
       };
       const parent = query.parent;
-      const parentBinding = typeof parent === 'object' && parent !== null
+      let parentBinding = typeof parent === 'object' && parent !== null
         ? views.get(parent) ?? navigation.resolveRecord(parent) : undefined;
+      if (parent !== undefined && parentBinding === undefined) {
+        // Compiled derives and nested collections pass plain parent locators
+        // (`{id}` syntheses, cross-navigation references) that no live map
+        // holds. Authorize them fresh against the declared parent model:
+        // the load enforces current viewer authority, the filter below still
+        // constrains rows to this exact containment link.
+        const declaredParent = opts.artifact.models?.find(candidate => candidate.name === model)?.parent;
+        let rawId: unknown;
+        try { rawId = (parent as { id?: unknown }).id; } catch { rawId = undefined; }
+        if (declaredParent !== undefined && typeof rawId === 'string' && rawId !== '' && rawId.length <= 4096) {
+          const authorized = await navigation.authorizeReference(makeRecordRef(declaredParent, rawId));
+          if (authorized.version === undefined) {
+            throw new StateError('validation', 'Page source containment requires its authorized declared parent record.');
+          }
+          parentBinding = { model: authorized.model, id: authorized.id, version: Number(authorized.version) };
+        }
+      }
       if (parent !== undefined && (parentBinding === undefined ||
           opts.artifact.models?.find(candidate => candidate.name === model)?.parent !== parentBinding.model)) {
         throw new StateError('validation', 'Page source containment requires its authorized declared parent record.');
@@ -15863,10 +15987,13 @@ export function createPageReadScopeCanonical(
       };
       // The unpaginated owning reader has no implicit collection limit.
       const served = await read(selection), result: Record<string, unknown>[] = [];
+      const modelDerivable = derivableNow(model);
       for (const row of served.records) {
         await navigation.captureQuerySource(model, row);
         await navigation.prepare(model, row);
-        result.push(recordView(model, row));
+        const view = recordView(model, row);
+        result.push(view);
+        for (const field of modelDerivable) await ensureDerived(model, row.id, field, view);
       }
       await navigation.revalidate();
       const predicate = selection.predicate !== undefined;
@@ -15897,12 +16024,43 @@ export function createPageReadScopeCanonical(
       await checkpoint();
       const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
       const rows = [];
+      const modelDerivable = await derivableFields(model);
+      const modelResolved = new Set<string>();
       for (const row of served.rows) {
+        // Derived getters live on the served row itself so both result
+        // shapes (raw served rows and decoded field copies) expose them.
+        for (const field of modelDerivable) defineDerived(row.fields, model, row.id, field);
         const fields: Record<string, unknown> = Object.create(null);
         for (const [field, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(row.fields))) {
           Object.defineProperty(fields, field, 'value' in descriptor
             ? { ...descriptor, configurable: true, writable: true }
             : { enumerable: descriptor.enumerable === true, configurable: true, get: () => descriptor.get?.call(row.fields) });
+        }
+        // Derives evaluate over native row shapes (the same decoding views
+        // carry); wire strings would mistype datetime comparisons. The
+        // parent locator keeps its raw `{id}` shape for fresh authorization.
+        const nativeRow: Record<string, unknown> = Object.create(null);
+        for (const [field, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(row.fields))) {
+          if (modelDerivable.includes(field)) continue;
+          const wire = 'value' in descriptor ? descriptor.value : descriptor.get?.call(row.fields);
+          nativeRow[field] = field === 'parent' ? wire : nativeRecordField(loaded, model, field, wire);
+        }
+        // Row identity metadata mirrors served views (audit/created fields
+        // stay view-only; derives here need identity, not history).
+        if (typeof row.id !== 'string' || row.id === '' ||
+            (typeof row.version !== 'string' && typeof row.version !== 'number')) {
+          throw new AssemblyCorrespondenceError('Page source row requires its stable identity.');
+        }
+        nativeRow['id'] = row.id;
+        nativeRow['version'] = BigInt(row.version);
+        // Same-row derived reads resolve through the same cells (genuine
+        // self-cycles stay loud via the pending-cell refusal).
+        for (const field of modelDerivable) defineDerived(nativeRow, model, row.id, field);
+        // Row-identity comparisons (`same(row, other)`) unwrap bound native
+        // identities; bind the evaluation row exactly like served views.
+        bindNativeRecord(nativeRow, model, row.id, Number(row.version));
+        for (const field of modelDerivable) {
+          if (await ensureDerived(model, row.id, field, nativeRow)) modelResolved.add(field);
         }
         const nativeFields = new Set<string>();
         if (filePresentation !== undefined) {
@@ -15954,7 +16112,13 @@ export function createPageReadScopeCanonical(
         rows.push(returned);
       }
       await checkpoint();
-      const result = filePresentation === undefined ? served : { ...served, rows: Object.freeze(rows) };
+      // Served columns only cover stored fields; evaluated derived values
+      // join the column set exactly when their rows carry them.
+      const servedFields = new Set(served.columns.map(column => column.field));
+      const extra = rows.length === 0 ? [] : (loaded.collectionColumns.get(model) ?? [])
+        .filter(column => !servedFields.has(column.field) && modelResolved.has(column.field));
+      const result = { ...served, rows: Object.freeze(rows),
+        columns: [...served.columns, ...extra] };
       for (const row of result.rows) {
         const locator = key(row.id, String(row.version));
         const models = bindings.get(locator) ?? new Set<string>();
