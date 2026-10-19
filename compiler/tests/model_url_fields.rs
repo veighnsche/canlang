@@ -4,7 +4,7 @@ use canlang_compiler::{
         catalog::{CatalogRequest, load_catalog},
         check_program,
     },
-    codegen::{EmitOptions, EmitSources, emit, to_json_string},
+    codegen::{EmitOptions, EmitSources, artifact::to_json, emit},
     diagnostic::DiagnosticResult,
     source::{SourceDb, Span},
 };
@@ -59,7 +59,7 @@ package consumer
             },
         );
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        let artifact: serde_json::Value = serde_json::from_str(&to_json_string(&artifact)).unwrap();
+        let artifact: serde_json::Value = serde_json::from_str(&to_json(&artifact)).unwrap();
         let model = artifact["models"]
             .as_array()
             .unwrap()

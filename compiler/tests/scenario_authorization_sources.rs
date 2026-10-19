@@ -11,7 +11,8 @@ use canlang_compiler::codegen::ir::{
 use canlang_compiler::codegen::scenario_decisions::{
     collect_decision_sources, serialize_decision_sources,
 };
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, js, to_json_string};
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, js};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, Span, sha256_hex};
 use serde_json::Value;
@@ -80,7 +81,7 @@ fn prepared(program: &CheckedProgram, db: &SourceDb, catalog: &Catalog) -> Value
         },
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    serde_json::from_str(&to_json_string(&artifact)).unwrap()
+    serde_json::from_str(&to_json(&artifact)).unwrap()
 }
 fn operation(artifact: &Value) -> &Value {
     artifact["operations"]
@@ -513,7 +514,7 @@ fn original_authorization_source_chain_and_same_span_semantic_edits_refuse() {
             .any(|diagnostic| diagnostic.code == "E6008"),
         "same-source schema mutation: {diagnostics:?}"
     );
-    let artifact: Value = serde_json::from_str(&to_json_string(&artifact)).unwrap();
+    let artifact: Value = serde_json::from_str(&to_json(&artifact)).unwrap();
     assert!(
         operation(&artifact)["result"]["disclosure"].is_null(),
         "mutated owning Conversation schema has no native recipe"

@@ -157,10 +157,22 @@ runs its affected suites once; close the item here with checks + commit before o
 - **C4 | REMOVED 2026-10-19 | `to_json_string` alias.** `codegen/mod.rs` re-exported
   `artifact::to_json` under a second name with one caller (`cli.rs` JSON output). The caller now
   uses `artifact::to_json` directly. Checks: lib+bins build clean, no new warnings, Member scoped
-  closure still emits valid JSON (`complete:true`).
+  closure still emits valid JSON (`complete:true`). Follow-up 2026-10-19: the alias removal had
+  left 27 integration-test callers importing the deleted free function (full `--tests` compile
+  was never run for C4). All now point at `codegen::artifact::to_json` (behavior-identical;
+  `.to_json_string()` model methods untouched). Pre-existing breakage found while validating,
+  NOT touched: `b3_migrate` (dirty `js.rs` `membership_bound`), `typed_bdd` (committed
+  `IrProgram.resolved_cases`), `typed_artifact` (dirty `artifact.rs` `source`), `analysis`
+  `draft_outcome_table` (15 draft-count drifts under active codegen/draft churn; CanTable holds
+  at 31), plus worktree-wide failures proven identical with the ordering change stashed (A/B).
 - **Divergences recorded, NOT merged (2026-10-19).** Same-named, different-behavior pairs:
-  `sort_diagnostics` (lint orders by file/start/end/code/message, check by file/start/code —
-  canonical ordering needs a ruling); `unwrap_groups` (lint unwraps 3-part groups to middle,
+  `sort_diagnostics` — PARTIALLY unified 2026-10-19: lint's private 5-key sort is removed and
+  `lint_program` output now sorts by `Diagnostic::canonical_cmp` (behavior change limited to the
+  practically-impossible same-message severity tie; `--test lint` 33/33 green). `check` KEEPS its
+  `(file, start, code)` key deliberately: unifying it reordered same-span diagnostics by message
+  and broke `t14a_std_send_missing_required`, which pins required inputs in signature order
+  (subject before body). Falsified by stash A/B (fails with canonical, passes with check key);
+  `unwrap_groups` (lint unwraps 3-part groups to middle,
   types unwraps to first expression child); `split_top_level` (generation's string-aware splitter
   vs catalog's bracket-aware separator splitter — different jobs).
 

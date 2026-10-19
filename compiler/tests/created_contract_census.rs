@@ -13,7 +13,8 @@ use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog}
 use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
 use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::codegen::ir::{self, IrItem, IrProgram};
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, to_json_string};
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::diagnostic::{Diagnostic, DiagnosticResult};
 use canlang_compiler::source::{SourceDb, Span};
 use serde_json::Value;
@@ -119,7 +120,7 @@ fn prepared(program: &CheckedProgram, db: &SourceDb, catalog: &Catalog) -> (Valu
         },
     );
     (
-        serde_json::from_str(&to_json_string(&artifact)).unwrap(),
+        serde_json::from_str(&to_json(&artifact)).unwrap(),
         diagnostics,
     )
 }

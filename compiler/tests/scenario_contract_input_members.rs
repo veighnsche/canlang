@@ -4,7 +4,8 @@ use canlang_compiler::analysis::scenario_disclosure::{
     DependencyRole, DisclosureIntrinsicKind, ScenarioDisclosure,
 };
 use canlang_compiler::analysis::{CheckedProgram, NodeKey, check_program};
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, ir, js, to_json_string};
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, ir, js};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::{Path, PathBuf};
@@ -98,7 +99,7 @@ fn native_artifact(source: &str) -> serde_json::Value {
             .find(|line| line.trim_start().starts_with("require "))
             .unwrap_or("body")
     );
-    serde_json::from_str(&to_json_string(&artifact)).unwrap()
+    serde_json::from_str(&to_json(&artifact)).unwrap()
 }
 
 #[test]

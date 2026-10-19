@@ -122,7 +122,7 @@ fn complete_query_recipe_matches_real_published_disclosure_and_state_schema() {
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let artifact: Value =
-        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
     let operation = artifact["operations"]
         .as_array()
         .unwrap()
@@ -435,7 +435,7 @@ fn source_recipe_emits_and_matches_installed_state_owning_inventory() {
     assert_eq!(diags.len(), 1, "{diags:?}");
     assert_eq!(diags[0].code, "E6007");
     let artifact: Value =
-        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
     std::fs::write(&artifact_path, serde_json::to_vec(&artifact).unwrap()).unwrap();
     let module = artifact["modules"][0]["js"].as_str().unwrap();
     // Nongrant source data cannot enter a private runtime frame. In particular,

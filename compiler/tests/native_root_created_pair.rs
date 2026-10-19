@@ -4,7 +4,8 @@ use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
 use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::codegen::ir::{self, IrExpr, IrItemKind, IrProgram, IrStmt};
 use canlang_compiler::codegen::scenario_queries::serialize_complete_query_receipt;
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, to_json_string};
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::Path;
@@ -115,7 +116,7 @@ fn original_and_renamed_root_pairs_keep_existing_reference_and_fresh_create_resu
             },
         );
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        let artifact: serde_json::Value = serde_json::from_str(&to_json_string(&artifact)).unwrap();
+        let artifact: serde_json::Value = serde_json::from_str(&to_json(&artifact)).unwrap();
         let operation = artifact["operations"]
             .as_array()
             .unwrap()

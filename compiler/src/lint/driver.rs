@@ -190,7 +190,7 @@ pub fn lint_program(
         .into_iter()
         .map(|finding| finding.diagnostic)
         .collect();
-    sort_diagnostics(&mut diagnostics);
+    diagnostics.sort_by(Diagnostic::canonical_cmp);
     diagnostics
 }
 
@@ -527,21 +527,5 @@ fn declared_names(program: &CheckedProgram) -> HashSet<String> {
     names
 }
 
-fn sort_diagnostics(diagnostics: &mut [Diagnostic]) {
-    diagnostics.sort_by(|a, b| {
-        (
-            a.primary.file,
-            a.primary.start,
-            a.primary.end,
-            a.code,
-            &a.message,
-        )
-            .cmp(&(
-                b.primary.file,
-                b.primary.start,
-                b.primary.end,
-                b.code,
-                &b.message,
-            ))
-    });
-}
+
+

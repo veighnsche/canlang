@@ -1059,7 +1059,7 @@ fn query_parent_full_emission_requires_immutable_prepared_child_receipt() {
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let artifact: serde_json::Value =
-        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
     for name in ["QueryCalls.context", "QueryCalls.parent"] {
         let operation = artifact["operations"]
             .as_array()
@@ -1326,7 +1326,7 @@ fn bound_contract_collection_publication_requires_exact_fresh_alias_call_and_pre
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let artifact: serde_json::Value =
-        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
     let parent = artifact["operations"]
         .as_array()
         .unwrap()
@@ -1744,7 +1744,7 @@ fn original_file_attachment_has_assignment_only_proof_and_native_void_disclosure
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let artifact: serde_json::Value =
-        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
     let operation = artifact["operations"]
         .as_array()
         .unwrap()
@@ -2079,7 +2079,7 @@ fn stored_input_fact_comparison_retains_whole_owner_and_complete_query_child() {
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let artifact: serde_json::Value =
-        serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap();
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
     for name in ["QueryCalls.context", "QueryCalls.parent"] {
         let operation = artifact["operations"]
             .as_array()

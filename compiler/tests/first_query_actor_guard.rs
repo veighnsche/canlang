@@ -69,7 +69,8 @@ fn prepared_artifact(
     db: &SourceDb,
     catalog: &Catalog,
 ) -> (Value, Vec<Diagnostic>) {
-    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, to_json_string};
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+use canlang_compiler::codegen::artifact::to_json;
     use canlang_compiler::diagnostic::DiagnosticResult;
     let mut result = DiagnosticResult::new("first-query-actor-guard", "1.0", 1);
     result.add_sources(db);
@@ -86,7 +87,7 @@ fn prepared_artifact(
         },
     );
     (
-        serde_json::from_str(&to_json_string(&artifact)).unwrap(),
+        serde_json::from_str(&to_json(&artifact)).unwrap(),
         diagnostics,
     )
 }

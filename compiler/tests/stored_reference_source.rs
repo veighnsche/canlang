@@ -109,7 +109,7 @@ fn emitted(db: &SourceDb, program: &CheckedProgram, catalog: Option<&Catalog>) -
         },
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    serde_json::from_str(&canlang_compiler::codegen::to_json_string(&artifact)).unwrap()
+    serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap()
 }
 
 #[test]

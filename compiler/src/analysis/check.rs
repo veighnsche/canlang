@@ -123,6 +123,9 @@ pub fn dedup_diagnostics(diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
 }
 
 /// Sort diagnostics into `check_program` order: `(file, start, code)`.
+/// Same-span ties keep emission order (e.g. required inputs stay in
+/// signature order); [`Diagnostic::canonical_cmp`] would reorder them by
+/// message, so `check` keeps its own key deliberately.
 pub fn sort_diagnostics(diagnostics: &mut [Diagnostic]) {
     diagnostics.sort_by(|a, b| {
         (a.primary.file, a.primary.start, &a.code).cmp(&(b.primary.file, b.primary.start, &b.code))

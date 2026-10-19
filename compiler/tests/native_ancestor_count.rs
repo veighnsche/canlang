@@ -60,7 +60,8 @@ fn prepared(
     db: &SourceDb,
     catalog: &Catalog,
 ) -> (Value, Vec<Diagnostic>) {
-    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, to_json_string};
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+use canlang_compiler::codegen::artifact::to_json;
     let mut result = DiagnosticResult::new("ancestor-count-source", "1.0", 1);
     result.add_sources(db);
     let (artifact, diagnostics) = emit(
@@ -76,7 +77,7 @@ fn prepared(
         },
     );
     (
-        serde_json::from_str(&to_json_string(&artifact)).unwrap(),
+        serde_json::from_str(&to_json(&artifact)).unwrap(),
         diagnostics,
     )
 }

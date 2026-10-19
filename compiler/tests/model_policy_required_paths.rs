@@ -1,7 +1,8 @@
 //! Source-owned required reference and Money paths in native owner invariants.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, to_json_string};
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+use canlang_compiler::codegen::artifact::to_json;
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::Path;
@@ -74,7 +75,7 @@ fn original_required_invariant_emits_lazy_reads_and_reverse_dependencies() {
             },
         );
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        let artifact: serde_json::Value = serde_json::from_str(&to_json_string(&artifact)).unwrap();
+        let artifact: serde_json::Value = serde_json::from_str(&to_json(&artifact)).unwrap();
         let policies = artifact["modelPolicies"].as_array().unwrap();
         let dependencies = policies[0]["rules"][0]["dependencies"].as_array().unwrap();
         assert_eq!(
@@ -154,7 +155,7 @@ fn parent_enum_invariants_retain_lazy_binding_and_reverse_parent_dependency() {
             },
         );
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        let artifact: serde_json::Value = serde_json::from_str(&to_json_string(&artifact)).unwrap();
+        let artifact: serde_json::Value = serde_json::from_str(&to_json(&artifact)).unwrap();
         let policies = artifact["modelPolicies"].as_array().unwrap();
         let policy = policies
             .iter()

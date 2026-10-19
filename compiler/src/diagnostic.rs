@@ -114,6 +114,9 @@ impl Diagnostic {
     }
 
     /// Total output order, retaining the written order within related spans/tags.
+    /// Canonical ordering for `lint` and `compile` output. `check` keeps its
+    /// own `(file, start, code)` key so same-span ties stay in emission
+    /// order (see [`crate::analysis::check::sort_diagnostics`]).
     pub(crate) fn canonical_cmp(&self, other: &Self) -> std::cmp::Ordering {
         (
             self.primary.file,
