@@ -13,12 +13,12 @@ direct parent-session verification. Byte-identity claims were md5-checked.
 
 ## Literal duplicates
 
-- **L1 | decide | per-package tsconfig drift.** `packages/{ui,identity,interfaces}/tsconfig.json`
-  are byte-identical and extend `tsconfig.base.json` (correct shape). `packages/{work,files,services}/tsconfig.json`
-  are byte-identical to each other but inline options WITHOUT extending the base, and the
-  base is stricter (`exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `composite:true`, …).
-  The second group never adopted the base. Canonical: `tsconfig.base.json`. Removal needs a
-  decision (adopt base + fix fallout, or a shared relaxed base), not a mechanical swap.
+- **L1 | PARTIAL 2026-10-19 | per-package tsconfig drift.** `packages/{ui,identity,interfaces}/tsconfig.json`
+  extend `tsconfig.base.json` (correct shape). `packages/{work,files,services}/tsconfig.json` inlined
+  options WITHOUT extending the base, which is stricter (`exactOptionalPropertyTypes`,
+  `noUncheckedIndexedAccess`, …). Strictness probe: `files` 0 errors → adopted the base shape
+  (typecheck clean, tests 185/0). Remain: `work` (15 strictness errors), `services` (28) — each is a
+  type-fix unit, not a config swap.
 - **L2 | REMOVED 2026-10-19 | identical playwright configs.** `tests/fixtures/{action-forms,action-gallery}/playwright.config.ts`
   were byte-identical. Shared settings now live in `tests/fixtures/playwright.fixture-config.ts`
   (`fixtureConfig(appDir)`); each dir keeps a 4-line entry point because testDir/outputDir resolve
