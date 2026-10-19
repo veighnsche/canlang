@@ -179,8 +179,12 @@ runs its affected suites once; close the item here with checks + commit before o
   to resolve's set would regress Path decoding and change Argument sites from Unsupported-decode
   to skip. Same name, different contracts — both documented in place, no rename (matches the
   `sort_diagnostics` precedent); `unwrap_groups` (lint unwraps 3-part groups to middle,
-  types unwraps to first expression child); `split_top_level` (generation's string-aware splitter
-  vs catalog's bracket-aware separator splitter — different jobs).
+  types unwraps to first expression child); `split_top_level` — SETTLED 2026-10-19, NOT
+  merged: generation splits const-arrays on top-level commas (string/escape-aware, `[]` depth,
+  trims, drops empties, borrows) vs catalog splits signature shapes on caller-chosen seps at
+  `()/<>/{}` depth (no string awareness, keeps empties, owns). Different signatures, semantics,
+  and domains; merging would invent a new abstraction for 2+2 call sites with behavior risk both
+  sides. Contract documented on both functions.
 
 - **object_entries ×3 | REMOVED 2026-10-19.** types/effects/examples each carried a
   byte-identical copy (only examples' param order differed). Single home now

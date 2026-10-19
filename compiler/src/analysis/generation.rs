@@ -1540,6 +1540,9 @@ fn check_array_arg(
 
 /// Split a bracket body on top-level commas, ignoring commas inside JSON
 /// strings and nested brackets. Empty segments are dropped.
+/// Split const-array elements on top-level commas (string/escape-aware, `[]`
+/// depth; trims, drops empties). Different job from catalog's separator/bracket
+/// splitter — not a duplicate.
 fn split_top_level(inner: &str) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut depth = 0usize;

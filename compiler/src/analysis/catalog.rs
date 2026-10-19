@@ -874,6 +874,9 @@ fn is_sig_name(word: &str) -> bool {
 }
 
 /// Split on any of `seps` at angle/paren/brace depth zero.
+/// Split signature shapes on caller-chosen separators at `()/<>/{}` depth (no
+/// string awareness, keeps empties/ownership). Different job from generation's
+/// const-array splitter — not a duplicate.
 fn split_top_level(text: &str, seps: &[char]) -> Vec<String> {
     let mut parts = Vec::new();
     let mut depth_paren = 0u32;
