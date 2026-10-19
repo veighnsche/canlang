@@ -63,7 +63,7 @@ use super::resolve::{
 };
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, is_punct, kids, name_text,
-    op_text, path_segments,
+    op_text, path_segments, tight_span,
 };
 
 /// Scalar leaf of a resolved type: every builtin scalar type name.
@@ -13345,15 +13345,7 @@ impl<'a> Typer<'a> {
 /// spans point at significant source (interior CST nodes union their
 /// children's spans, so a `NameRef` after a space can cover `" trim"`).
 /// Byte trims split on char boundaries, so the span stays valid.
-fn tight_span(text: &str, node: &SyntaxNode) -> Span {
-    let raw = text
-        .get(node.span.start as usize..node.span.end as usize)
-        .unwrap_or("");
-    let leading = raw.len() - raw.trim_start().len();
-    let trimmed = raw.trim();
-    let start = node.span.start + leading as u32;
-    Span::new(node.span.file, start, start + trimmed.len() as u32)
-}
+
 
 /// Append fixpoint-round diagnostics, skipping ones already present
 /// (order-free phase-1 findings re-fire identically every round).

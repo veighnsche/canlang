@@ -43,6 +43,7 @@ use super::resolve::{
 use super::types::{ResolvedType, Scalar, SelectedCallTarget, TypeTable, completion_envelope};
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, kids, name_text, path_segments,
+    tight_span,
 };
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceDb, SourceId, Span};
@@ -3171,15 +3172,7 @@ fn span_slice(text: &str, span: Span) -> &str {
         .unwrap_or("")
 }
 
-/// Tight span of `node`: surrounding trivia trimmed so primaries point
-/// at significant source.
-fn tight_span(text: &str, node: &SyntaxNode) -> Span {
-    let raw = slice_of(text, node);
-    let leading = raw.len() - raw.trim_start().len();
-    let trimmed = raw.trim();
-    let start = node.span.start + leading as u32;
-    Span::new(node.span.file, start, start + trimmed.len() as u32)
-}
+
 
 /// Decoded value of a string `Literal` node (`None` when not one).
 fn literal_string(text: &str, node: &SyntaxNode) -> Option<String> {

@@ -87,11 +87,12 @@ use crate::analysis::NodeKey;
 use crate::analysis::catalog::{Availability, Catalog};
 use crate::analysis::resolve::{
     Binding, ContextVar, CrudOp, ModelOwner, ModuleId, ModuleKind, ResolveTables, ScopedName,
-    SymbolId, SymbolKind,
+    SymbolId, SymbolKind, is_expression,
 };
 use crate::analysis::types::{
     CheckedInputChoice, ResolvedType, Scalar, SelectedCallTarget, TypeTable,
 };
+use crate::analysis::{kids, tight_span};
 use crate::diagnostic::{Diagnostic, Related};
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{SyntaxKind, SyntaxNode, decode_json_string};
@@ -1246,7 +1247,7 @@ impl<'a> Cx<'a> {
 
     fn walk_file(&mut self, file: SourceId, tree: &SyntaxNode) {
         let text = self.text(file).to_string();
-        for child in significant_children(tree) {
+        for child in kids(tree) {
             match child.kind {
                 SyntaxKind::App | SyntaxKind::Package => self.walk_module(file, &text, child),
                 SyntaxKind::Migration => self.walk_migration(file, &text, child),
@@ -1264,25 +1265,25 @@ impl<'a> Cx<'a> {
     fn walk_message_prepass(&mut self, trees: &[(SourceId, SyntaxNode)]) {
         for (file, tree) in trees {
             let text = self.text(*file).to_string();
-            for child in significant_children(tree) {
+            for child in kids(tree) {
                 if !matches!(child.kind, SyntaxKind::App | SyntaxKind::Package) {
                     continue;
                 }
                 let Some(module) = self.ensure_module(&text, child) else {
                     continue;
                 };
-                for section in significant_children(child) {
+                for section in kids(child) {
                     if section.kind != SyntaxKind::Section {
                         continue;
                     }
-                    let marker = significant_children(section)
+                    let marker = kids(section)
                         .iter()
                         .find_map(|n| name_text(n, &text))
                         .unwrap_or("");
                     if marker != "Given" {
                         continue;
                     }
-                    for item in significant_children(section) {
+                    for item in kids(section) {
                         if item.kind == SyntaxKind::Message && !has_error(item) {
                             self.walk_message(*file, module, &text, item);
                         }
@@ -1323,7 +1324,7 @@ impl<'a> Cx<'a> {
         let Some(module) = self.ensure_module(text, node) else {
             return;
         };
-        for child in significant_children(node) {
+        for child in kids(node) {
             match child.kind {
                 SyntaxKind::Context => self.walk_context(module, text, child),
                 SyntaxKind::Section => self.walk_section(file, module, text, child),
@@ -1338,11 +1339,11 @@ impl<'a> Cx<'a> {
     /// checker's (`E2002`); the last located value wins here, mirroring
     /// the single-writer contract of the other context collectors.
     fn walk_context(&mut self, module: ModuleId, text: &str, node: &SyntaxNode) {
-        for decl in significant_children(node) {
+        for decl in kids(node) {
             if decl.kind != SyntaxKind::ContextDecl || has_error(decl) {
                 continue;
             }
-            let names: Vec<&str> = significant_children(decl)
+            let names: Vec<&str> = kids(decl)
                 .iter()
                 .filter_map(|n| name_text(n, text))
                 .collect();
@@ -1371,11 +1372,11 @@ impl<'a> Cx<'a> {
     }
 
     fn walk_section(&mut self, file: SourceId, module: ModuleId, text: &str, node: &SyntaxNode) {
-        let marker = significant_children(node)
+        let marker = kids(node)
             .iter()
             .find_map(|n| name_text(n, text))
             .unwrap_or("");
-        for item in significant_children(node) {
+        for item in kids(node) {
             if has_error(item) {
                 continue;
             }
@@ -1600,7 +1601,7 @@ impl<'a> Cx<'a> {
             if has_error(child) {
                 continue;
             }
-            let name = significant_children(child)
+            let name = kids(child)
                 .first()
                 .filter(|n| n.kind == SyntaxKind::Name)
                 .and_then(|n| name_text(n, text));
@@ -1662,7 +1663,7 @@ impl<'a> Cx<'a> {
             if has_error(child) {
                 continue;
             }
-            let name = significant_children(child)
+            let name = kids(child)
                 .first()
                 .filter(|n| n.kind == SyntaxKind::Name)
                 .and_then(|n| name_text(n, text));
@@ -1756,7 +1757,7 @@ impl<'a> Cx<'a> {
         for child in node.children.iter().filter(|c| {
             matches!(c.kind, SyntaxKind::CapabilityOp | SyntaxKind::Event) && !has_error(c)
         }) {
-            let op_name = significant_children(child).iter().find_map(|n| {
+            let op_name = kids(child).iter().find_map(|n| {
                 let word = name_text(n, text)?;
                 (word != "event").then_some(word.to_string())
             });
@@ -1844,7 +1845,7 @@ impl<'a> Cx<'a> {
         if !self.take_record(id) {
             return;
         }
-        let value = significant_children(node)
+        let value = kids(node)
             .iter()
             .find(|n| n.kind == SyntaxKind::MessageValue)
             .copied();
@@ -1871,7 +1872,7 @@ impl<'a> Cx<'a> {
     }
 
     fn walk_derive(&mut self, _file: SourceId, module: ModuleId, text: &str, node: &SyntaxNode) {
-        let parts = significant_children(node);
+        let parts = kids(node);
         let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
         let Some(path) = path else { return };
         let segments = path_segments(path, text);
@@ -1942,7 +1943,7 @@ impl<'a> Cx<'a> {
     // --- Given: rules ------------------------------------------------------
 
     fn walk_rule(&mut self, _file: SourceId, module: ModuleId, text: &str, node: &SyntaxNode) {
-        let parts = significant_children(node);
+        let parts = kids(node);
         let target = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
         let target_id = target.and_then(|t| self.tables.node_symbol.get(&NodeKey::of(t)).copied());
         let Some(target_id) = target_id else { return };
@@ -1980,7 +1981,7 @@ impl<'a> Cx<'a> {
                 let (mut fields, fields_node) = selector_paths(text, node, "fields");
                 let mut callback_fields = Vec::new();
                 if let Some(selectors) = attribute_value(node, "fields", text) {
-                    fields = significant_children(selectors)
+                    fields = kids(selectors)
                         .iter()
                         .filter(|path| path.kind == SyntaxKind::Path)
                         .filter_map(|path| {
@@ -2231,7 +2232,7 @@ impl<'a> Cx<'a> {
         if selectors.kind != SyntaxKind::Selectors {
             return;
         }
-        for child in significant_children(selectors) {
+        for child in kids(selectors) {
             if child.kind != SyntaxKind::Path {
                 continue;
             }
@@ -2323,7 +2324,7 @@ impl<'a> Cx<'a> {
         if selectors.kind != SyntaxKind::Selectors {
             return;
         }
-        for child in significant_children(selectors) {
+        for child in kids(selectors) {
             if child.kind != SyntaxKind::Path {
                 continue;
             }
@@ -2510,7 +2511,7 @@ impl<'a> Cx<'a> {
     // --- When: crud --------------------------------------------------------
 
     fn walk_crud(&mut self, _file: SourceId, module: ModuleId, text: &str, node: &SyntaxNode) {
-        let parts = significant_children(node);
+        let parts = kids(node);
         let target = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
         let model = target.and_then(|t| self.tables.node_symbol.get(&NodeKey::of(t)).copied());
         let Some(model) = model else { return };
@@ -2668,7 +2669,7 @@ impl<'a> Cx<'a> {
         }
         let mut guards = Vec::new();
         let mut effects = Vec::new();
-        for child in significant_children(node) {
+        for child in kids(node) {
             match child.kind {
                 SyntaxKind::Require => {
                     if let Some(effect) = self.walk_effect(module, text, child) {
@@ -2676,12 +2677,12 @@ impl<'a> Cx<'a> {
                     }
                 }
                 SyntaxKind::DoBlock => {
-                    effects = self.walk_stmt_list(module, text, &significant_children(child));
+                    effects = self.walk_stmt_list(module, text, &kids(child));
                 }
                 _ => {}
             }
         }
-        for child in significant_children(node) {
+        for child in kids(node) {
             if matches!(child.kind, SyntaxKind::Require | SyntaxKind::DoBlock) {
                 self.record_data_dependencies(id, text, child);
             }
@@ -3137,9 +3138,9 @@ impl<'a> Cx<'a> {
     }
 
     fn decode_on_every(&self, text: &str, on: &SyntaxNode) -> HandlerSource {
-        let parts = significant_children(on);
+        let parts = kids(on);
         let head = parts.iter().find(|n| is_expression(n.kind)).and_then(|n| {
-            significant_children(n)
+            kids(n)
                 .iter()
                 .find_map(|m| name_text(m, text))
         });
@@ -3152,7 +3153,7 @@ impl<'a> Cx<'a> {
             .iter()
             .filter(|n| n.kind == SyntaxKind::Argument)
             .filter_map(|a| {
-                significant_children(a)
+                kids(a)
                     .iter()
                     .find(|n| is_expression(n.kind))
                     .copied()
@@ -3289,7 +3290,7 @@ impl<'a> Cx<'a> {
             else_effects: Vec::new(),
             match_arms: Vec::new(),
         };
-        let parts = significant_children(node);
+        let parts = kids(node);
         match node.kind {
             SyntaxKind::Let => {
                 self.walk_let_effect(text, &parts, &mut effect);
@@ -3666,7 +3667,7 @@ impl<'a> Cx<'a> {
             .copied()
             .map(NodeKey::of);
         for arm in parts.iter().filter(|n| n.kind == SyntaxKind::MatchArm) {
-            let statements: Vec<_> = significant_children(arm)
+            let statements: Vec<_> = kids(arm)
                 .into_iter()
                 .filter(|n| !matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct))
                 .collect();
@@ -3842,13 +3843,13 @@ impl<'a> Cx<'a> {
         // Context-declared sinks are not symbols; match `Name.member`
         // against the module's queue/analytics names.
         if target.kind == SyntaxKind::Member {
-            let parts = significant_children(target);
+            let parts = kids(target);
             let base = parts.iter().find(|n| is_expression(n.kind)).copied();
             let member = parts.iter().rev().find_map(|n| name_text(n, text));
             if let (Some(base), Some(member)) = (base, member)
                 && base.kind == SyntaxKind::NameRef
             {
-                let head = significant_children(base)
+                let head = kids(base)
                     .iter()
                     .find_map(|n| name_text(n, text))
                     .unwrap_or("");
@@ -4108,7 +4109,7 @@ impl<'a> Cx<'a> {
         if targets.len() < 2 {
             return;
         }
-        let object = significant_children(node)
+        let object = kids(node)
             .iter()
             .find(|n| n.kind == SyntaxKind::Object)
             .copied();
@@ -4198,7 +4199,7 @@ impl<'a> Cx<'a> {
     fn walk_page(&mut self, module: ModuleId, text: &str, node: &SyntaxNode) {
         let page = PageData {
             node: NodeKey::of(node),
-            route: significant_children(node)
+            route: kids(node)
                 .iter()
                 .find(|n| n.kind == SyntaxKind::Route)
                 .copied()
@@ -4220,7 +4221,7 @@ impl<'a> Cx<'a> {
     /// lists against the domain model (A5/S4 parity with policy
     /// `fields=`). Skips `Examples` subtrees like every other walk.
     fn walk_ui_leaf_grants(&mut self, text: &str, node: &SyntaxNode) {
-        for child in significant_children(node) {
+        for child in kids(node) {
             if child.kind == SyntaxKind::Examples {
                 continue;
             }
@@ -4238,7 +4239,7 @@ impl<'a> Cx<'a> {
     /// model record. Unresolvable domains stay silent (the types
     /// pass owns those diagnostics).
     fn check_collection_leaf_grants(&mut self, text: &str, node: &SyntaxNode) {
-        let domain = significant_children(node)
+        let domain = kids(node)
             .iter()
             .find(|n| is_expression(n.kind))
             .copied();
@@ -4248,7 +4249,7 @@ impl<'a> Cx<'a> {
         let Some(model) = self.collection_domain_model(domain) else {
             return;
         };
-        let head_word = significant_children(node)
+        let head_word = kids(node)
             .iter()
             .find_map(|n| name_text(n, text))
             .unwrap_or("table");
@@ -4286,7 +4287,7 @@ impl<'a> Cx<'a> {
         if has_error(node) {
             return;
         }
-        let parts = significant_children(node);
+        let parts = kids(node);
         let mut names = parts.iter().filter_map(|n| name_text(n, text));
         let _head = names.next();
         let owner = names.next().unwrap_or("").to_string();
@@ -4313,7 +4314,7 @@ impl<'a> Cx<'a> {
                     data.directives.push(migration_move(text, child));
                 }
                 SyntaxKind::Invalidate => {
-                    let handler = significant_children(child)
+                    let handler = kids(child)
                         .iter()
                         .find(|n| n.kind == SyntaxKind::Path)
                         .map(|p| path_segments(p, text).join("."))
@@ -4346,7 +4347,7 @@ impl<'a> Cx<'a> {
         module: Option<ModuleId>,
         node: &SyntaxNode,
     ) -> MigrationDirective {
-        let parts = significant_children(node);
+        let parts = kids(node);
         let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
         let model = path
             .map(|p| path_segments(p, text).join("."))
@@ -4379,7 +4380,7 @@ impl<'a> Cx<'a> {
                     }
                 }
                 SyntaxKind::DoBlock => {
-                    effects = self.walk_stmt_list(module, text, &significant_children(child));
+                    effects = self.walk_stmt_list(module, text, &kids(child));
                 }
                 _ => {}
             }
@@ -4423,7 +4424,7 @@ impl<'a> Cx<'a> {
             return;
         }
         // Descriptions attach to the following significant sibling.
-        let kids = significant_children(node);
+        let kids = kids(node);
         for (i, child) in kids.iter().enumerate() {
             if child.kind == SyntaxKind::Description
                 && let Some(owner) = kids.get(i + 1)
@@ -4479,12 +4480,12 @@ impl<'a> Cx<'a> {
     /// One expression `Call`: record builtin callees (G13) and flag
     /// redundant `Role(actor)` subjects (E4020).
     fn check_expression_call(&mut self, text: &str, node: &SyntaxNode) {
-        let parts = significant_children(node);
+        let parts = kids(node);
         let callee = parts.iter().find(|n| is_expression(n.kind)).copied();
         let Some(callee) = callee else { return };
         let mut target = callee;
         while target.kind == SyntaxKind::Group {
-            let Some(inner) = significant_children(target)
+            let Some(inner) = kids(target)
                 .iter()
                 .find(|n| is_expression(n.kind))
                 .copied()
@@ -4513,7 +4514,7 @@ impl<'a> Cx<'a> {
     /// E4020: `Role(actor)` is redundant; the bare role is the canonical
     /// literal-actor spelling.
     fn check_redundant_actor(&mut self, text: &str, node: &SyntaxNode, role: SymbolId) {
-        let args: Vec<&SyntaxNode> = significant_children(node)
+        let args: Vec<&SyntaxNode> = kids(node)
             .iter()
             .filter(|n| n.kind == SyntaxKind::Argument)
             .copied()
@@ -4521,7 +4522,7 @@ impl<'a> Cx<'a> {
         if args.len() != 1 {
             return;
         }
-        let arg_parts = significant_children(args[0]);
+        let arg_parts = kids(args[0]);
         if arg_parts.len() >= 3
             && arg_parts[0].kind == SyntaxKind::Name
             && is_punct(arg_parts[1], text, "=")
@@ -4533,7 +4534,7 @@ impl<'a> Cx<'a> {
         let Some(value) = value else { return };
         let mut target = value;
         while target.kind == SyntaxKind::Group {
-            let Some(inner) = significant_children(target)
+            let Some(inner) = kids(target)
                 .iter()
                 .find(|n| is_expression(n.kind))
                 .copied()
@@ -4545,7 +4546,7 @@ impl<'a> Cx<'a> {
         if target.kind != SyntaxKind::NameRef {
             return;
         }
-        let name = significant_children(target)
+        let name = kids(target)
             .iter()
             .find_map(|n| name_text(n, text))
             .unwrap_or("");
@@ -5028,12 +5029,7 @@ impl<'a> Cx<'a> {
 // wiring this module into `analysis`.
 
 /// Significant children: skips `Trivia`/`Comment` leaves.
-fn significant_children(node: &SyntaxNode) -> Vec<&SyntaxNode> {
-    node.children
-        .iter()
-        .filter(|c| !matches!(c.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
-        .collect()
-}
+
 
 /// Text of a `Name` leaf, if `node` is one.
 fn name_text<'a>(node: &SyntaxNode, text: &'a str) -> Option<&'a str> {
@@ -5065,7 +5061,7 @@ fn path_segments<'a>(node: &SyntaxNode, text: &'a str) -> Vec<&'a str> {
 
 /// `(key, value)` of an `Attribute` node (`key = value`).
 fn attribute_parts(node: &SyntaxNode) -> Option<(&SyntaxNode, &SyntaxNode)> {
-    let parts = significant_children(node);
+    let parts = kids(node);
     if parts.len() == 3 && parts[1].kind == SyntaxKind::Punct {
         Some((parts[0], parts[2]))
     } else {
@@ -5094,7 +5090,7 @@ fn attribute_value<'a>(node: &'a SyntaxNode, key: &str, text: &str) -> Option<&'
 /// aliases. Body `as` uses sit inside `DoBlock`/`Require` subtrees, so
 /// only direct `Name` children are scanned.
 fn each_binding(node: &SyntaxNode, text: &str) -> Option<String> {
-    for pair in significant_children(node).windows(2) {
+    for pair in kids(node).windows(2) {
         if is_name(pair[0], text, "as")
             && let Some(name) = name_text(pair[1], text)
         {
@@ -5106,22 +5102,14 @@ fn each_binding(node: &SyntaxNode, text: &str) -> Option<String> {
 
 /// Declaration head name: first `Name` child that is not a head word.
 fn decl_name<'a>(text: &'a str, node: &SyntaxNode, heads: &[&str]) -> Option<&'a str> {
-    significant_children(node).iter().find_map(|n| {
+    kids(node).iter().find_map(|n| {
         let word = name_text(n, text)?;
         (!heads.contains(&word)).then_some(word)
     })
 }
 
 /// Tight span of `node`: leading/trailing trivia trimmed.
-fn tight_span(text: &str, node: &SyntaxNode) -> Span {
-    let raw = text
-        .get(node.span.start as usize..node.span.end as usize)
-        .unwrap_or("");
-    let leading = raw.len() - raw.trim_start().len();
-    let trimmed = raw.trim();
-    let start = node.span.start + leading as u32;
-    Span::new(node.span.file, start, start + trimmed.len() as u32)
-}
+
 
 /// Trimmed source slice of `node`.
 fn slice_trimmed(text: &str, node: &SyntaxNode) -> String {
@@ -5138,23 +5126,7 @@ fn has_error(node: &SyntaxNode) -> bool {
 }
 
 /// Whether this CST kind is a value-expression node.
-fn is_expression(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::Literal
-            | SyntaxKind::NameRef
-            | SyntaxKind::Group
-            | SyntaxKind::Array
-            | SyntaxKind::Object
-            | SyntaxKind::Construct
-            | SyntaxKind::Member
-            | SyntaxKind::Call
-            | SyntaxKind::Unary
-            | SyntaxKind::Binary
-            | SyntaxKind::Query
-            | SyntaxKind::MessageValue
-    )
-}
+
 
 /// Whether this CST kind is a type node.
 fn is_type_node(kind: SyntaxKind) -> bool {
@@ -5188,7 +5160,7 @@ fn object_entries<'a>(
         .iter()
         .filter(|c| c.kind == SyntaxKind::ObjectEntry)
     {
-        let parts = significant_children(entry);
+        let parts = kids(entry);
         let Some(key_node) = parts
             .first()
             .copied()
@@ -5207,7 +5179,7 @@ fn object_entries<'a>(
 
 /// Effect argument entries of the first `Object` child.
 fn effect_args(text: &str, node: &SyntaxNode) -> Vec<EffectArg> {
-    let object = significant_children(node)
+    let object = kids(node)
         .iter()
         .find(|n| n.kind == SyntaxKind::Object)
         .copied();
@@ -5226,7 +5198,7 @@ fn effect_args(text: &str, node: &SyntaxNode) -> Vec<EffectArg> {
 
 /// `as NAME` binding of an effect node.
 fn as_binding(text: &str, node: &SyntaxNode) -> Option<String> {
-    let parts = significant_children(node);
+    let parts = kids(node);
     for i in 0..parts.len() {
         if is_name(parts[i], text, "as") {
             return parts
@@ -5240,7 +5212,7 @@ fn as_binding(text: &str, node: &SyntaxNode) -> Option<String> {
 
 /// Value of a bare `key = expr` triple among `node`'s parts.
 fn bare_keyword_value<'a>(node: &'a SyntaxNode, key: &str, text: &str) -> Option<&'a SyntaxNode> {
-    let parts = significant_children(node);
+    let parts = kids(node);
     for (i, part) in parts.iter().enumerate() {
         if is_name(part, text, key) {
             return parts.get(i + 2).copied().filter(|n| is_expression(n.kind));
@@ -5251,7 +5223,7 @@ fn bare_keyword_value<'a>(node: &'a SyntaxNode, key: &str, text: &str) -> Option
 
 /// Value of a bare `key = value` triple of any value kind.
 fn bare_slot_value<'a>(node: &'a SyntaxNode, key: &str, text: &str) -> Option<&'a SyntaxNode> {
-    let parts = significant_children(node);
+    let parts = kids(node);
     for (i, part) in parts.iter().enumerate() {
         if is_name(part, text, key) {
             return parts.get(i + 2).copied();
@@ -5265,14 +5237,14 @@ fn nameref_word<'a>(text: &'a str, node: &SyntaxNode) -> Option<&'a str> {
     if node.kind != SyntaxKind::NameRef {
         return None;
     }
-    significant_children(node)
+    kids(node)
         .iter()
         .find_map(|n| name_text(n, text))
 }
 
 /// `-> type` result annotation following parameters/attributes.
 fn result_annotation<'a>(text: &str, node: &'a SyntaxNode) -> Option<&'a SyntaxNode> {
-    let parts = significant_children(node);
+    let parts = kids(node);
     for i in 0..parts.len() {
         if is_punct(parts[i], text, "->") {
             return parts.get(i + 1).copied().filter(|n| is_type_node(n.kind));
@@ -5290,7 +5262,7 @@ fn selector_paths(text: &str, node: &SyntaxNode, key: &str) -> (Vec<String>, Opt
     if value.kind != SyntaxKind::Selectors {
         return (Vec::new(), Some(NodeKey::of(value)));
     }
-    let paths = significant_children(value)
+    let paths = kids(value)
         .iter()
         .filter(|n| n.kind == SyntaxKind::Path)
         .map(|p| path_segments(p, text).join("."))
@@ -5307,7 +5279,7 @@ fn selector_words(text: &str, node: &SyntaxNode, key: &str) -> (Vec<String>, Opt
     if value.kind != SyntaxKind::Selectors {
         return (Vec::new(), Some(NodeKey::of(value)));
     }
-    let words = significant_children(value)
+    let words = kids(value)
         .iter()
         .filter(|n| n.kind == SyntaxKind::Path)
         .filter_map(|p| {
@@ -5327,7 +5299,7 @@ fn crud_labels(text: &str, node: &SyntaxNode) -> (Vec<CrudLabel>, Option<NodeKey
     if value.kind != SyntaxKind::CrudLabels {
         return (Vec::new(), Some(NodeKey::of(value)));
     }
-    let keys: Vec<&str> = significant_children(value)
+    let keys: Vec<&str> = kids(value)
         .iter()
         .filter_map(|n| {
             if n.kind == SyntaxKind::Name {
@@ -5337,7 +5309,7 @@ fn crud_labels(text: &str, node: &SyntaxNode) -> (Vec<CrudLabel>, Option<NodeKey
             }
         })
         .collect();
-    let captions: Vec<NodeKey> = significant_children(value)
+    let captions: Vec<NodeKey> = kids(value)
         .into_iter()
         .filter(|n| {
             matches!(
@@ -5401,7 +5373,7 @@ fn checked_description(
         .iter()
         .find(|c| c.kind == SyntaxKind::DescriptionValue)
     {
-        let value = significant_children(desc).into_iter().find(|n| {
+        let value = kids(desc).into_iter().find(|n| {
             matches!(
                 n.kind,
                 SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
@@ -5449,7 +5421,7 @@ fn checked_description(
         .iter()
         .find(|c| c.kind == SyntaxKind::Annotation)
     {
-        let source = significant_children(annotation)
+        let source = kids(annotation)
             .iter()
             .find(|n| n.kind == SyntaxKind::Literal)
             .copied()
@@ -5553,7 +5525,7 @@ fn attached_message_wording(
 /// Attached `#` set immediately preceding `node` among `parent`'s
 /// significant children, if any.
 fn preceding_description<'n>(parent: &'n SyntaxNode, node: &SyntaxNode) -> Option<&'n SyntaxNode> {
-    let kids = significant_children(parent);
+    let kids = kids(parent);
     for (i, kid) in kids.iter().enumerate() {
         if std::ptr::eq(*kid, node) {
             return (i > 0)
@@ -5573,7 +5545,7 @@ fn annotation_desc(text: &str, node: &SyntaxNode) -> Option<String> {
         .iter()
         .filter(|c| c.kind == SyntaxKind::Annotation)
         .find_map(|annotation| {
-            significant_children(annotation)
+            kids(annotation)
                 .iter()
                 .find(|n| n.kind == SyntaxKind::Literal)
                 .copied()
@@ -5587,7 +5559,7 @@ fn literal_string(text: &str, node: &SyntaxNode) -> Option<String> {
     let leaf = if node.kind == SyntaxKind::String {
         Some(node)
     } else {
-        significant_children(node)
+        kids(node)
             .iter()
             .find(|n| n.kind == SyntaxKind::String)
             .copied()
@@ -5611,7 +5583,7 @@ fn int_literal(text: &str, node: &SyntaxNode) -> Option<i64> {
         if current.kind == SyntaxKind::Integer {
             return current.token()?.text(text).parse::<i64>().ok();
         }
-        let leaf = significant_children(current)
+        let leaf = kids(current)
             .iter()
             .find(|n| n.kind == SyntaxKind::Integer)
             .copied();
@@ -5619,7 +5591,7 @@ fn int_literal(text: &str, node: &SyntaxNode) -> Option<i64> {
             return leaf.token()?.text(text).parse::<i64>().ok();
         }
         if current.kind == SyntaxKind::Group {
-            let inner = significant_children(current)
+            let inner = kids(current)
                 .iter()
                 .find(|n| is_expression(n.kind))
                 .copied()?;
@@ -5632,17 +5604,17 @@ fn int_literal(text: &str, node: &SyntaxNode) -> Option<i64> {
 
 /// Decoded source text plus variants of a `MessageValue` node.
 fn message_text(text: &str, value: &SyntaxNode) -> (String, Vec<MessageVariant>) {
-    let source = significant_children(value)
+    let source = kids(value)
         .iter()
         .find(|n| n.kind == SyntaxKind::Literal)
         .and_then(|n| literal_string(text, n))
         .unwrap_or_default();
     let mut variants = Vec::new();
-    for child in significant_children(value) {
+    for child in kids(value) {
         if child.kind != SyntaxKind::MessageVariant {
             continue;
         }
-        let parts = significant_children(child);
+        let parts = kids(child);
         let key = parts.first().copied();
         let locale = key
             .and_then(|k| match k.kind {
@@ -5664,7 +5636,7 @@ fn message_text(text: &str, value: &SyntaxNode) -> (String, Vec<MessageVariant>)
             .find(|n| n.kind == SyntaxKind::Literal)
             .copied();
         let val = match literal.and_then(|l| {
-            significant_children(l)
+            kids(l)
                 .iter()
                 .find(|n| matches!(n.kind, SyntaxKind::String | SyntaxKind::Name))
                 .copied()
@@ -5886,7 +5858,7 @@ fn scan_quoted(bytes: &[u8], i: &mut usize) -> bool {
 
 /// A `rename`/`drop` migration directive.
 fn migration_move(text: &str, node: &SyntaxNode) -> MigrationDirective {
-    let parts = significant_children(node);
+    let parts = kids(node);
     let paths: Vec<&&SyntaxNode> = parts
         .iter()
         .filter(|n| n.kind == SyntaxKind::Path)
@@ -6019,7 +5991,7 @@ fn collect_selected_calls(node: &SyntaxNode, types: &TypeTable, calls: &mut Vec<
     if types.selected_calls.contains_key(&key) {
         calls.push(key);
     }
-    for child in significant_children(node) {
+    for child in kids(node) {
         collect_selected_calls(child, types, calls);
     }
 }
@@ -6071,11 +6043,11 @@ fn collect_subtree_models(
 }
 
 fn collect_call_models(tables: &ResolveTables, node: &SyntaxNode, calls: &mut Vec<SymbolId>) {
-    let mut callee = significant_children(node)
+    let mut callee = kids(node)
         .into_iter()
         .find(|n| is_expression(n.kind));
     while let Some(group) = callee.filter(|n| n.kind == SyntaxKind::Group) {
-        callee = significant_children(group)
+        callee = kids(group)
             .into_iter()
             .find(|n| is_expression(n.kind));
     }
@@ -6097,7 +6069,7 @@ fn collect_create_models(
     out: &mut Vec<SymbolId>,
     creates: &mut Vec<(SymbolId, Vec<String>)>,
 ) {
-    let path = significant_children(node)
+    let path = kids(node)
         .iter()
         .find(|n| n.kind == SyntaxKind::Path)
         .copied();
@@ -6108,7 +6080,7 @@ fn collect_create_models(
         )
     {
         push_unique(out, model);
-        let supplied = significant_children(node)
+        let supplied = kids(node)
             .into_iter()
             .find(|n| n.kind == SyntaxKind::Object)
             .map(|object| {
@@ -6128,7 +6100,7 @@ fn collect_write_models(
     node: &SyntaxNode,
     out: &mut Vec<SymbolId>,
 ) {
-    let path = significant_children(node)
+    let path = kids(node)
         .iter()
         .find(|n| n.kind == SyntaxKind::Path)
         .copied();
@@ -6152,7 +6124,7 @@ fn collect_member_models(
     out: &mut Vec<SymbolId>,
     calls: &mut Vec<SymbolId>,
 ) {
-    let parts = significant_children(node);
+    let parts = kids(node);
     if let (Some(receiver), Some(name)) = (
         parts.first(),
         parts.last().and_then(|part| name_text(part, text)),
@@ -6198,7 +6170,7 @@ fn collect_query_models(
     node: &SyntaxNode,
     out: &mut Vec<SymbolId>,
 ) {
-    let base = significant_children(node)
+    let base = kids(node)
         .iter()
         .find(|n| is_expression(n.kind))
         .copied();
@@ -6244,7 +6216,7 @@ fn field_shape(text: &str, field: &SyntaxNode) -> FieldShape {
         label: None,
         required_array: false,
     };
-    let parts = significant_children(field);
+    let parts = kids(field);
     let Some(type_at) = parts.iter().position(|n| is_type_node(n.kind)) else {
         return shape;
     };
@@ -6332,7 +6304,7 @@ fn param_shape(text: &str, param: &SyntaxNode) -> ParamShape {
         default: None,
         label: None,
     };
-    let parts = significant_children(param);
+    let parts = kids(param);
     let Some(type_at) = parts.iter().position(|n| is_type_node(n.kind)) else {
         return shape;
     };

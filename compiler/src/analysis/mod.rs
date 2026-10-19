@@ -52,7 +52,7 @@ pub use resolve::{Module, ModuleId, ResolveTables, Symbol, SymbolId, SymbolKind}
 pub use types::{ResolvedType, Scalar, TypeTable};
 
 use crate::diagnostic::Diagnostic;
-use crate::source::{SourceDb, SourceId};
+use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{SyntaxKind, SyntaxNode};
 
 /// Identity of one CST node for analysis tables.
@@ -458,6 +458,17 @@ pub(crate) fn name_text<'a>(node: &SyntaxNode, text: &'a str) -> Option<&'a str>
     } else {
         None
     }
+}
+
+/// Tight span of `node`: surrounding trivia trimmed so primaries point at significant source.
+pub(crate) fn tight_span(text: &str, node: &SyntaxNode) -> Span {
+    let raw = text
+        .get(node.span.start as usize..node.span.end as usize)
+        .unwrap_or("");
+    let leading = raw.len() - raw.trim_start().len();
+    let trimmed = raw.trim();
+    let start = node.span.start + leading as u32;
+    Span::new(node.span.file, start, start + trimmed.len() as u32)
 }
 
 /// Whether `node` is a `Name` leaf with spelling `word`.

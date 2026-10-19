@@ -62,10 +62,15 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   `op_text`, `path_segments`, `attribute_parts`, `attribute_value`, `file_text`), imported by ~6 modules.
   Migrated: private `kids` clones in `ide/queries.rs`, `lint/rules.rs`, `codegen/ir.rs` and text-based
   `name_text`/`is_name` clones in `ide`/`lint` now import from `crate::analysis` (283+31+21 call sites
-  unchanged). A stale "local copies" comment in `ide/queries.rs` went with them. Checks: lib build clean,
-  full lib suite 297/5 (same 5 pre-existing). Remain: db-based `name_text` (ir.rs, legitimate — callers
-  hold db), `is_expression`, `tight_span`, `literal_string`, `object_entries` clones in
-  `analysis/{types,effects,examples}.rs` + ir.rs; each is its own follow-up slice.
+  unchanged). A stale "local copies" comment in `ide/queries.rs` went with them. Slice two (2026-10-19):
+  `tight_span` ×3 unified into `analysis/mod.rs` (types/effects/examples import it; 462 call sites
+  unchanged); effects' fourth `kids` clone under the alias `significant_children` renamed to `kids`
+  (82 sites); effects' `is_expression` clone deleted in favor of the identical shared
+  `resolve::is_expression`. Checks both slices: lib build clean, full lib suite 297/5 (same 5 pre-existing).
+  Divergences found, NOT merged: ir.rs `is_expression` admits `Argument`/`Path` (resolve's does not) —
+  needs a semantic ruling; text-based `literal_string` in effects vs examples have different fallbacks;
+  `object_entries` ×3 differ in parameter order and depend on the divergent `is_expression`.
+  Remain: db-based `name_text` (ir.rs, legitimate — callers hold db).
 
 ## Runtime/package mirrors and dual paths
 
