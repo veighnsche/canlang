@@ -19186,3 +19186,5 @@ fail-closed. Release condition: the real-closure staging repro
 daemon `check` goes green. A continue-past probe also surfaced a later
 `Native owner model predicate did not return bool` during
 materialization — second layer, after disclosure.
+
+2026-10-19 (DFE-02 guard-any receipts): correction first — `cafe.cancel`/`cafe.clear` DO emit disclosure (the earlier 4-scenario dark note was wrong; only reserve/seat refused). Choice: admit guard-only plain boolean `any` queries (direct, helper-derive, nested-derive) to native receipts with locally derived executable plans instead of only verifying externally supplied plans. Rationale: no prepared plan exists on the dev-server path, yet the worker already binds non-direct predicate ANYs, so the compiler must generate the fragments it re-proves (exactly-once guard/body span proofs, uniform Control reads, 4-kind influences, full return coverage). Uncertainty: `cafe.seat` still refuses on nullable `booking.table` reference transport, and worker-side predicate evaluation (`Native owner model predicate did not return bool` seen earlier) plus `queryAny` metadata binding remain unverified until the staging repro.

@@ -2025,6 +2025,14 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         source_context,
     );
     let first_plan = first_plan?;
+    // Guard-only plain boolean `any` queries carry no first/count plan, so a
+    // locally derived guard plan backs their return influences instead.
+    let guard_plan = if first_plan.is_none() {
+        checked_guard_any_query_plan(ir, item, checked, entry_module)
+    } else {
+        None
+    };
+    let effective_plan = first_plan.or(guard_plan.as_ref());
     let sites = match Sites::collect(ir, item, send_guards, db) {
         Some(sites) => sites,
         None => {
@@ -2087,7 +2095,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         plan: ReceiptDisclosurePlan {
             version: 1,
             source,
-            queries: first_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
+            queries: effective_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
             returns: Vec::new(),
         },
         dependencies: HashMap::new(),
@@ -2111,9 +2119,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         HashMap::<String, (NativeSite, NativeIntrinsicKind, String, ReceiptRole)>::new();
     // State's v1 own-data parser bounds each array/global dependency inventory
     // at 200 and the closed plan traversal at 20,000 JSON nodes.
-    let mut data_nodes: usize = first_plan.map_or(7, |plan| 7 + 40 * plan.queries.len());
+    let mut data_nodes: usize = effective_plan.map_or(7, |plan| 7 + 40 * plan.queries.len());
     for returned in returned_paths {
-        if (first_plan.is_none() && !returned.influences.is_empty())
+        if (effective_plan.is_none() && !returned.influences.is_empty())
             || returned.node.file != checked.node.file
             || returned.id.is_empty()
             || !return_ids.insert(returned.id.clone())
@@ -2205,7 +2213,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         let mut plan_return = ReceiptReturn {
             id: returned.id.clone(),
             source: transport_source(&returned.source, entry_module)?,
-            influences: first_plan.map_or_else(Vec::new, |plan| {
+            influences: effective_plan.map_or_else(Vec::new, |plan| {
                 plan.returns
                     .iter()
                     .find(|candidate| candidate.id == returned.id)
@@ -4129,6 +4137,322 @@ fn push_any_direct_influence<'a>(
     }
     influences.push(receipt_influence(influence)?);
     Some(())
+}
+
+/// A plain boolean emptiness `any` recorded without first/count/projection
+/// shape. The receipt walker admits exactly this cohort through the native
+/// query path, so the guard plan below covers the same queries and no wider
+/// surface.
+fn plain_boolean_any_query(query: &crate::analysis::scenario_disclosure::DisclosureQuery) -> bool {
+    query.first.is_none()
+        && query.count.is_none()
+        && query.projection.is_none()
+        && query.cardinality_guard.is_none()
+        && query.limit.is_none()
+        && query.order.is_empty()
+        && !query.archived
+        && query.alias.is_some()
+        && query.predicate.is_some()
+}
+
+/// One leaf of a require `and` chain: negated and bare calls alike stay
+/// visible so the span match below decides, never the polarity.
+fn guard_conjunct_calls<'a>(cond: &'a TypedExpr, out: &mut Vec<&'a TypedExpr>) {
+    match &cond.expr {
+        IrExpr::Binary {
+            op: IrBinOp::And,
+            left,
+            right,
+        } => {
+            guard_conjunct_calls(left, out);
+            guard_conjunct_calls(right, out);
+        }
+        _ => out.push(cond),
+    }
+}
+
+/// The visited call invokes the recorded plain query: builtin `any` over the
+/// fact's exact domain and predicate argument spans.
+fn plain_any_call_matches(
+    target: &IrCallTarget,
+    args: &[TypedExpr],
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> bool {
+    if !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "any") {
+        return false;
+    }
+    let [domain, predicate] = args else {
+        return false;
+    };
+    (node_span(query.node) == domain.span || node_span(query.domain) == domain.span)
+        && query
+            .predicate
+            .is_some_and(|node| node_span(node) == predicate.span)
+}
+
+/// The visited expression invokes the recorded plain query.
+fn plain_any_expr_matches(
+    call: &TypedExpr,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> bool {
+    match &call.expr {
+        IrExpr::Call { target, args } => plain_any_call_matches(target, args, query),
+        IrExpr::BoundCall { target, args, .. } => plain_any_call_matches(target, args, query),
+        _ => false,
+    }
+}
+
+/// A direct guard `any` executes exactly once as a require conjunct of the
+/// recorded query.
+fn find_direct_guard_any(
+    guards: &[IrStmt],
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> Option<()> {
+    let mut matched = 0usize;
+    for statement in guards {
+        let IrStmt::Require { cond, .. } = statement else {
+            continue;
+        };
+        let mut leaves = Vec::new();
+        guard_conjunct_calls(cond, &mut leaves);
+        for leaf in leaves {
+            let operand = match &leaf.expr {
+                IrExpr::Unary {
+                    op: super::ir::IrUnOp::Not,
+                    operand,
+                } => operand.as_ref(),
+                _ => leaf,
+            };
+            if plain_any_expr_matches(operand, query) {
+                matched += 1;
+            }
+        }
+    }
+    (matched == 1).then_some(())
+}
+
+/// A derive-bodied `any` executes exactly once: its one outer derive call is
+/// a require conjunct at the recorded site, and the callee body holds the
+/// one matching inner `any`.
+fn find_nested_guard_any(
+    ir: &IrProgram,
+    guards: &[IrStmt],
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    outer: crate::analysis::NodeKey,
+) -> Option<()> {
+    let mut outers = Vec::new();
+    for statement in guards {
+        let IrStmt::Require { cond, .. } = statement else {
+            continue;
+        };
+        let mut leaves = Vec::new();
+        guard_conjunct_calls(cond, &mut leaves);
+        for leaf in leaves {
+            let operand = match &leaf.expr {
+                IrExpr::Unary {
+                    op: super::ir::IrUnOp::Not,
+                    operand,
+                } => operand.as_ref(),
+                _ => leaf,
+            };
+            let (target, _) = match &operand.expr {
+                IrExpr::Call { target, args } => (target, args),
+                IrExpr::BoundCall { target, args, .. } => (target, args),
+                _ => continue,
+            };
+            if node_span(outer) == operand.span
+                && let IrCallTarget::DeriveFn(canonical) = target
+            {
+                outers.push(canonical);
+            }
+        }
+    }
+    let [canonical] = outers.as_slice() else {
+        return None;
+    };
+    let mut candidates = ir.items.iter().filter(|item| item.canonical == **canonical);
+    let callee = candidates.next()?;
+    if candidates.next().is_some() {
+        return None;
+    }
+    let IrItemKind::DeriveFn {
+        expr: Some(body), ..
+    } = &callee.kind
+    else {
+        return None;
+    };
+    let mut matched = 0usize;
+    let mut leaves = Vec::new();
+    guard_conjunct_calls(body, &mut leaves);
+    for leaf in &leaves {
+        let operand = match &leaf.expr {
+            IrExpr::Unary {
+                op: super::ir::IrUnOp::Not,
+                operand,
+            } => operand.as_ref(),
+            _ => leaf,
+        };
+        if plain_any_expr_matches(operand, query) {
+            matched += 1;
+        }
+    }
+    (matched == 1).then_some(())
+}
+
+/// One executable fragment for a recorded plain guard `any`: direct queries
+/// anchor at their scenario parameter like the direct plan, derive-bodied
+/// queries ride their outer call like the helper plan.
+fn guard_any_fragment(
+    ir: &IrProgram,
+    guards: &[IrStmt],
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    entry: &str,
+) -> Option<ReceiptQuery> {
+    if query.dependencies.is_empty()
+        || query
+            .dependencies
+            .iter()
+            .any(|read| read.role != DependencyRole::Control)
+    {
+        return None;
+    }
+    let outer = query.dependencies.first()?.calls.as_slice();
+    if query.dependencies.iter().any(|read| read.calls.as_slice() != outer) {
+        return None;
+    }
+    let parent = if outer.is_empty() {
+        find_direct_guard_any(guards, query)?;
+        let [(_, parameter)] = query.inputs.as_slice() else {
+            return None;
+        };
+        let parameter = ir.items.get(parameter.0 as usize)?;
+        let IrItemKind::Param {
+            ty: IrType::Known(ResolvedType::Record { symbol: parent, .. }),
+            ..
+        } = &parameter.kind
+        else {
+            return None;
+        };
+        let model = ir.items.get(parent.0 as usize)?;
+        Some(ReceiptQueryParent {
+            source: transport_source(&query.source, entry)?,
+            model: model.canonical.clone(),
+            origin: ReceiptQueryParentOrigin::AdmittedReference {
+                parameter: parameter.name.clone(),
+            },
+        })
+    } else {
+        let [outer] = outer else {
+            return None;
+        };
+        find_nested_guard_any(ir, guards, query, *outer)?;
+        None
+    };
+    Some(ReceiptQuery {
+        id: query.id.clone(),
+        source: transport_source(&query.source, entry)?,
+        model: query.model_name.clone(),
+        parent,
+        order: Vec::new(),
+        limit: None,
+        archived: "exclude".into(),
+        dependencies: query
+            .dependencies
+            .iter()
+            .map(|read| {
+                Some(ReceiptQueryDependency {
+                    id: read.id.clone(),
+                    source: transport_source(&read.source, entry)?,
+                    role: ReceiptRole::Control,
+                    field: read.field_name.clone(),
+                    type_id: read.type_id.clone(),
+                })
+            })
+            .collect::<Option<Vec<_>>>()?,
+    })
+}
+
+/// A local executable plan for guard-only plain boolean `any` queries: one
+/// fragment per recorded query, returns carrying exactly their own backed
+/// influences. Every construction step re-proves the query against the
+/// actual guard IR, so anything unproven keeps the refusal.
+fn checked_guard_any_query_plan(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    entry: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    let facts = checked.source_facts.as_deref()?;
+    let queries = facts.queries.as_deref()?;
+    if queries.is_empty() || !queries.iter().all(plain_boolean_any_query) {
+        return None;
+    }
+    if !checked.returns.iter().any(|returned| {
+        returned.influences.iter().any(|influence| {
+            queries.iter().any(|query| {
+                query
+                    .influences
+                    .iter()
+                    .any(|own| own.id == influence.id)
+            })
+        })
+    }) {
+        return None;
+    }
+    let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+        return None;
+    };
+    let mut fragments = Vec::new();
+    let mut backed: Vec<Vec<ReceiptInfluence>> = Vec::new();
+    for query in queries {
+        fragments.push(guard_any_fragment(ir, guards, query, entry)?);
+        let mut ids = HashSet::new();
+        let mut kinds = HashSet::new();
+        let mut influences = Vec::new();
+        for influence in &query.influences {
+            push_any_direct_influence(influence, query, &mut ids, &mut kinds, &mut influences)?;
+        }
+        if kinds.len() != 4 {
+            return None;
+        }
+        backed.push(influences);
+    }
+    let mut returns = Vec::new();
+    for returned in &checked.returns {
+        if returned.source != facts.source {
+            return None;
+        }
+        let mut influences = Vec::new();
+        for own in &backed {
+            influences.extend(own.iter().filter(|value| {
+                returned
+                    .influences
+                    .iter()
+                    .any(|original| original.id == value.id)
+            }).cloned());
+        }
+        if !returned.influences.iter().all(|original| {
+            influences
+                .iter()
+                .any(|value| value.id == original.id)
+        }) {
+            return None;
+        }
+        returns.push(ReceiptReturn {
+            id: returned.id.clone(),
+            source: transport_source(&returned.source, entry)?,
+            influences,
+            dependencies: Vec::new(),
+            intrinsics: Vec::new(),
+            projection: None,
+        });
+    }
+    Some(ReceiptDisclosurePlan {
+        version: 1,
+        source: transport_source(&facts.source, entry)?,
+        queries: fragments,
+        returns,
+    })
 }
 
 pub(super) fn checked_native_any_direct_query_plan(
@@ -16709,6 +17033,36 @@ impl<'a> Sites<'a> {
                             )?;
                             // This true contained domain is owned by its query
                             // producer, never ordinary parent field observations.
+                            continue;
+                        }
+                        if matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "any")
+                            && let [_, predicate] = args.as_slice()
+                            && let Some(facts) = ir
+                                .scenario_disclosures
+                                .get(&owner.id)
+                                .and_then(|value| value.source_facts())
+                            && let Some(_plain) = facts.queries.as_deref().and_then(|queries| {
+                                queries.iter().find(|query| {
+                                    plain_boolean_any_query(query)
+                                        && plain_any_expr_matches(expression, query)
+                                })
+                            })
+                        {
+                            // A recorded plain boolean emptiness query observes
+                            // its domain through the native query path, but its
+                            // predicate member reads are ordinary per-candidate
+                            // control observations at this call site: verify the
+                            // lambda and record its body under the current
+                            // context so query-scoped reads keep their site.
+                            let IrExpr::Lambda { body, .. } = &predicate.expr else {
+                                return None;
+                            };
+                            if predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+                                || body.ty != ResolvedType::Scalar(Scalar::Bool)
+                            {
+                                return None;
+                            }
+                            push!(Visit::Expression(body));
                             continue;
                         }
                         if matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "first")

@@ -8338,6 +8338,18 @@ impl<'a> Closure<'a> {
             let mut first = self.checked_count_query_sources(scenario)?;
             first.extend(self.checked_any_query_sources(scenario)?);
             first.extend(self.checked_helper_any_query_sources(scenario)?);
+            // Derive-bodied boolean `any` queries share the direct emitter
+            // tail, so their facts join the same receipt inventory; the
+            // walker verifies each call site by span before admitting it.
+            // An unverifiable nested inventory contributes nothing rather
+            // than failing the whole query inventory: absent facts keep the
+            // pre-existing verdict and still refuse receipt admission.
+            first.extend(
+                self.checked_nested_any_query_sources(scenario)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|nested| nested.query),
+            );
             first.extend(
                 self.checked_inline_selection_sources(scenario)?
                     .into_iter()
