@@ -451,6 +451,24 @@ pub(crate) fn kids(node: &SyntaxNode) -> Vec<&SyntaxNode> {
         .collect()
 }
 
+/// Unwrap `(...)` groups to the middle child, if exactly 3-part.
+/// Single home for lint and types (their bodies were behavior-identical):
+/// strict shape key — malformed groups are returned as-is so callers'
+/// kind checks bail instead of deriving facts from broken syntax.
+pub(crate) fn unwrap_groups(mut node: &SyntaxNode) -> &SyntaxNode {
+    loop {
+        if node.kind != SyntaxKind::Group {
+            return node;
+        }
+        let parts = kids(node);
+        if parts.len() == 3 {
+            node = parts[1];
+        } else {
+            return node;
+        }
+    }
+}
+
 /// Text of a `Name` leaf, if `node` is one.
 pub(crate) fn name_text<'a>(node: &SyntaxNode, text: &'a str) -> Option<&'a str> {
     if node.kind == SyntaxKind::Name {

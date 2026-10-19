@@ -63,7 +63,7 @@ use super::resolve::{
 };
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, is_punct, kids, name_text,
-    op_text, path_segments, tight_span,
+    op_text, path_segments, tight_span, unwrap_groups,
 };
 
 /// Scalar leaf of a resolved type: every builtin scalar type name.
@@ -16586,18 +16586,7 @@ fn strip_nullable(ty: &ResolvedType) -> (ResolvedType, bool) {
     }
 }
 
-/// Unwrap `Group` parentheses to the inner expression.
-fn unwrap_groups(mut node: &SyntaxNode) -> &SyntaxNode {
-    loop {
-        if node.kind == SyntaxKind::Group
-            && let Some(inner) = kids(node).iter().find(|n| is_expression(n.kind))
-        {
-            node = inner;
-        } else {
-            return node;
-        }
-    }
-}
+
 
 /// Root `NameRef` node of a member chain (through groups). `None`
 /// for non-name roots.

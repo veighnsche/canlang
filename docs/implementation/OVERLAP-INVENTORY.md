@@ -182,8 +182,13 @@ runs its affected suites once; close the item here with checks + commit before o
   routed away by two explicit exclusions (ir.rs:7697,19964) into shorthand/fail paths. Narrowing
   to resolve's set would regress Path decoding and change Argument sites from Unsupported-decode
   to skip. Same name, different contracts — both documented in place, no rename (matches the
-  `sort_diagnostics` precedent); `unwrap_groups` (lint unwraps 3-part groups to middle,
-  types unwraps to first expression child); `split_top_level` — SETTLED 2026-10-19, NOT
+  `sort_diagnostics` precedent); `unwrap_groups` — REMOVED 2026-10-19: lint's strict
+  middle-of-3 version and types' first-expression-child version proven behavior-identical by
+  experiment (types pointed at lint's logic: b4_check/check/b4_examples/analysis/lint failure
+  sets byte-identical to baseline). Single home `analysis::unwrap_groups` beside `kids`
+  (strict shape key; malformed groups bail so kind checks skip). Checks final: check 38/38,
+  lint 33/33, b4_check 284/285 (pre-existing t35r25), b4_examples 27/2 baseline-identical,
+  analysis 36/37 (pre-existing draft drift); `split_top_level` — SETTLED 2026-10-19, NOT
   merged: generation splits const-arrays on top-level commas (string/escape-aware, `[]` depth,
   trims, drops empties, borrows) vs catalog splits signature shapes on caller-chosen seps at
   `()/<>/{}` depth (no string awareness, keeps empties, owns). Different signatures, semantics,

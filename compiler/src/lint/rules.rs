@@ -40,7 +40,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::analysis::{CheckedProgram, NodeKey, is_name, kids, name_text};
+use crate::analysis::{CheckedProgram, NodeKey, is_name, kids, name_text, unwrap_groups};
 use crate::diagnostic::{Diagnostic, Related, Severity};
 use crate::source::Span;
 use crate::syntax::{NodeDetail, SyntaxKind, SyntaxNode};
@@ -955,21 +955,6 @@ fn rule_unused_let(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>)
 }
 
 // --- I1001 unused-binding (query alias) ---------------------------------
-
-/// Unwrap `(...)` groups to the inner expression, if well-formed.
-fn unwrap_groups(mut node: &SyntaxNode) -> &SyntaxNode {
-    loop {
-        if node.kind != SyntaxKind::Group {
-            return node;
-        }
-        let parts = kids(node);
-        if parts.len() == 3 {
-            node = parts[1];
-        } else {
-            return node;
-        }
-    }
-}
 
 /// Warn on a query alias never read in its scope: its following
 /// clauses (GRAMMAR: never backward into the domain, never into
