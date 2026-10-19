@@ -1,6 +1,6 @@
 //! PR5B tests: the examples pass (`E5xxx`) and the check driver.
 //!
-//! Unit tests drive [`check_examples`] directly (catalog-free: example
+//! Integration checks drive [`check_examples`] directly (catalog-free: example
 //! semantics never depend on builtins) and assert exact `E5xxx` codes
 //! plus needle-derived spans; other passes' diagnostics are filtered
 //! out. Every case source must parse: an `E1xxx` fails the helper

@@ -1,6 +1,6 @@
 /**
  * T34-F7 durable fanout child store: the production replacement for
- * F3's `TestOnlyMemoryFanoutChildStore` over the existing StoragePort
+ * F3's in-memory test store over the existing StoragePort
  * (D1 + DO, consumed as-is). Row reads/writes run through the explicitly
  * selected Work kernel (`deps.kernel`, default TS); one operation joins
  * caller-supplied checkpoint/domain/history/replay effects atomically

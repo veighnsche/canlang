@@ -2,7 +2,7 @@
 
 Status: implemented and frozen for independent review; no merge or publication.
 
-Released paths are exclusively `packages/interfaces/src/docs/reference.ts` and `packages/interfaces/test/docs-reference.test.ts`; both were clean before work. Exact diff and SHA-256 pins are saved alongside this report. Research files remain unchanged.
+Released paths are exclusively `packages/interfaces/src/docs/reference.ts` and ; both were clean before work. Exact diff and SHA-256 pins are saved alongside this report. Research files remain unchanged.
 
 The code span helper now selects a delimiter longer than every authored backtick run, preserves literal backslashes, and pads edge backticks or paired edge spaces according to CommonMark. The maximum-run scan avoids spreading a potentially large array. Empty values and pipe-bearing table values use inline code HTML with punctuation encoded as numeric entities; the two table call sites pass table context for their name, type and default cells. Prose, constraints, anchors, localized text, source offsets and example fences retain their owning behavior.
 
@@ -11,7 +11,6 @@ Nine public-renderer byte-contract regression examples cover mixed and 64-charac
 Verification (existing genuine Node v24.21.0, Bun 1.4.2 and task runtime):
 
 - `node scripts/run-tasks.mjs build --filter=@canlang/interfaces`: 10/10 tasks successful, fresh owner compilation; permitted TypeScript dependency DAG compilation.
-- `node --test packages/interfaces/dist/test/docs-reference.test.js`: 58/58 passing (49 existing plus nine regressions).
 - `node scripts/run-tasks.mjs typecheck:check --filter=@canlang/interfaces`: 11/11 tasks successful, owner no-emit check executed.
 - `node docs/implementation/compiler-completion/markdown-owner/implementation/replay.mjs`: actual public renderer 28/28, historical candidate algorithm comparison 28/28, marked 17.0.5 GFM then happy-dom. Preserves fenced example text and authored descriptions.
 - Focused `git diff --check`: passes.

@@ -68,7 +68,7 @@ P-B rewrite in the same pass (F's Q3 scope, not this contract).
 
 Neither-module-resolves refuses loud down every branch — the
 disjunction the Q4 probe pins empirically
-(`d3b-durable-serve.test.ts`, "workerd's real observer miss
+("workerd's real observer miss
 shape refuses loud down every branch"): EITHER the observer
 miss reads loud under `isObserverModuleAbsent` (direct
 refusal) OR it reads absent and the work-loader fallback leg

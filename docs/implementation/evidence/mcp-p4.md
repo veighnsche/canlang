@@ -2,8 +2,8 @@
 
 Branch `muse/closeout/mcp`. No commit. Failing-first: `compiler/tests/mcp_p4.rs`
 written before implementation (plus `packages/interfaces/test/
-mcp-field-descriptions.test.ts` and `packages/cloudflare/test/
-artifact-field-descriptions.test.ts`).
+ and `packages/cloudflare/test/
+).
 
 ## (1) Exposure: `expose=` on user scenarios
 

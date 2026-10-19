@@ -1,6 +1,6 @@
 /** Genuine unchanged Compiler row-subject source consumed by installed Dev/State and local D1. */
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -24,7 +24,9 @@ interface MiniflareInstance {
   getD1Database(name: string): Promise<D1Database>;
   dispose(): Promise<void>;
 }
-const { Miniflare } = createRequire(import.meta.resolve('@canlang/cloudflare/runtime/modules'))('miniflare') as {
+const localRequire = createRequire(import.meta.url);
+const cloudflareModulesPath = localRequire.resolve('@canlang/cloudflare/runtime/modules');
+const { Miniflare } = createRequire(cloudflareModulesPath)('miniflare') as {
   Miniflare: new (options: Record<string, unknown>) => MiniflareInstance;
 };
 let sequence = 0;
@@ -60,8 +62,9 @@ test('fresh native row-subject metadata authorizes title-only D1 reads with curr
     assert.ok(artifact.sources.some(source => resolve(source.path) === sourcePath && source.sha256 === digest(original)),
       'compiler source inventory corresponds to the unchanged original bytes');
     const asm = await assembleModules({ artifact, sourcePath }, {
-      workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
-      uiUrl: import.meta.resolve('@canlang/ui'),
+      workDir: join(dir, 'modules'),
+      stdlibUrl: pathToFileURL(localRequire.resolve('@canlang/cloudflare/runtime/stdlib')).href,
+      uiUrl: pathToFileURL(localRequire.resolve('@canlang/ui')).href,
     });
     // Refuse copied/swapped assemblies before a carrierless module initializer
     // can run. Checked source is established from the original artifact.
@@ -79,8 +82,9 @@ test('fresh native row-subject metadata authorizes title-only D1 reads with curr
     await assert.rejects(() => loadCanonicalDescriptors(swapped, artifact),
       /assembler-owned|original verified assembly/);
     const tampered = await assembleModules({ artifact, sourcePath }, {
-      workDir: join(dir, 'tampered-modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
-      uiUrl: import.meta.resolve('@canlang/ui'),
+      workDir: join(dir, 'tampered-modules'),
+      stdlibUrl: pathToFileURL(localRequire.resolve('@canlang/cloudflare/runtime/stdlib')).href,
+      uiUrl: pathToFileURL(localRequire.resolve('@canlang/ui')).href,
     });
     await writeFile(fileURLToPath(tampered.moduleUrls[artifact.modules[0]!.path]!), uncheckedSource);
     await assert.rejects(() => loadCanonicalDescriptors(tampered, artifact), /staged module bytes changed/);

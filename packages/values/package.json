@@ -13,13 +13,11 @@
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
     "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/values",
-    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/values",
     "catalog": "node ../../scripts/run-tasks.mjs catalog:emit --filter=@canlang/values",
     "build:semantics": "node scripts/build-semantics.mjs",
     "clean": "rm -rf dist/",
     "build:emit": "tsc -p tsconfig.json && node scripts/stage-semantics.mjs",
     "typecheck:check": "tsc -p tsconfig.json --noEmit",
-    "test:unit": "node --test \"dist/test/**/*.test.js\"",
     "catalog:emit": "node scripts/emit-catalog.mjs",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },

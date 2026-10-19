@@ -243,8 +243,7 @@ admission; syntax failures no longer create speculative slot diagnostics. For a 
 checkpoints rather than being discarded as unused bindings. Valid patterns
 retain the ordinary extra-binding refusal.
 
-Validation passed: two parser unit tests cover the 63 shared scalar-string cases
-and ordered usage kinds; 38 existing check tests, 10 ICU-profile tests, six named
+Validation passed: 38 existing check tests, 10 ICU-profile tests, six named
 coverage tests, three temporal-message tests and nine anonymous-binding checks
 pass (68 distinct Rust tests). The alias/choice test passed again after adding
 unselected/nested choice and unchanged machine-template controls. Unchanged

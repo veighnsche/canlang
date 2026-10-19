@@ -1,6 +1,6 @@
 # Pass5 isolated serialization dependency/profile qualification
 
-Baseline: `5cf27d6632ed0c6e61befd3ffe7d05d18931dac2` compiler tree. Current: final Pass5 compiler snapshot, including the final JS string adapter/private unit test and CLI fix regression. Both snapshots omit `.git`; release binaries report commit `unknown`. The local, explicitly authorized `examples/ExpenseFlow.can` sibling fixture is hash-pinned for library acceptance. No package code was copied or built.
+Baseline: `5cf27d6632ed0c6e61befd3ffe7d05d18931dac2` compiler tree. Current: final Pass5 compiler snapshot, including the final JS string adapter and CLI fix regression. Both snapshots omit `.git`; release binaries report commit `unknown`. The local, explicitly authorized `examples/ExpenseFlow.can` sibling fixture is hash-pinned for library acceptance. No package code was copied or built.
 
 Source inputs: `baseline-source-sha256.json`, `current-source-sha256.json`, `fixture-sha256.json`, `source-delta.json`. Exact commands: `commands.json`, `linux-build.sh`. Both builds use the unchanged compiler release profile: `strip=true`, `opt-level="z"`, `lto=true`, `codegen-units=1`, panic unwind.
 

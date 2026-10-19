@@ -8,6 +8,6 @@ Borrowed six-field ordered DTOs preserve compact code/title/severity/explanation
 
 ## Qualification
 
-Sol medium writer/review. Three fixed/full CLI fixtures plus three unit tests pass. Known E1001 runs through the fresh actual binary; independent fixed output is the oracle.
+Sol medium writer/review. Three fixed/full CLI fixtures pass. Known E1001 runs through the fresh actual binary; independent fixed output is the oracle.
 
 Independent review: ../family-review.md and integrated final-review.md; full host/source/runtime pins, final checks and representative dependency footprint are integrated in the Pass5 receipt. Typed fixed expectations are outcome witnesses; neither old encoder nor Serde is the sole oracle. Source-map codecs and the ordered input-model renderer remain separately owned C08/C06/C07 packets.

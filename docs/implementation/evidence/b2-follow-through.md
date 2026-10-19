@@ -44,12 +44,9 @@ done here. Six workstreams, four subagents + coordinator fixes.
 
 ## B2e: journey specs + CI
 
-- NEW `tests/integration/b2-{delivery,d1-fence,do-local,revocation}
-  .test.ts` (playback-backed: failed/unknown/skipped + retry +
+- NEW journey checks (playback-backed: failed/unknown/skipped + retry +
   changed versions; D1 rollback/fence; DO-local; revocation) +
-  `packages/testkit/src/fixtures/b2-{delivery,revocation,storage}.ts`
-  + `.github/workflows/b2-join.yml` (catalog build + B2 specs,
-  modeled on b1-join.yml).
+  `packages/testkit/src/fixtures/b2-{delivery,revocation,storage}.ts`.
 
 ## B2d: finalized-file journey
 

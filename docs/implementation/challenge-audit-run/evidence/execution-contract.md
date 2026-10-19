@@ -212,7 +212,7 @@ Ratified recipe key: `delivery:<qualified-send-target>` (e.g.
 (`state.ts`). The target is the T13 send-target vocabulary
 (`work.ts` `T13A/B_DELIVERY_OBSERVABLES`, `catalog.rs`
 `delivery_observable`); the `delivery:` head is the T14c/T15b
-recipe tag (`js.rs` `delivery:{capability}.{op}` fallback;
+recipe tag (`js.rs` `delivery:{capability} fallback;
 `ir.rs` `decode_delivery_recipe` shared ctor joining the
 `Operation` and recovered-`std` `Unknown` arms under the
 qualified target; `t15b_recipe_join_std` /
@@ -226,7 +226,7 @@ rejects only duplicate identities (E2002) — no rule reserves
 reaching the T14b/B1 compiler-known-`std` arm only when no
 module matches. So `use std {M}` binds against the declared
 module's scope when one exists (ordinary E2003/E2004 member
-rules); the `External{provider:"std"}` binding fires only
+rules); the binding fires only
 otherwise. With a module named `std` in the program, no
 `StdDelivery` arises from that import spelling and no
 `delivery:std.*` keys reference the standard capabilities —
@@ -304,9 +304,9 @@ a missing required delivery input still rejects loud at admission, and
 engine-side receipt resolution is a separate unclaimed slice (recorded
 remainder, not silent).
 
-Proof: 6 new colocated tests (`descriptor-join.test.ts` T04b block,
+Proof: 6 new colocated tests ( T04b block,
 fixtures derived from the live contracts) + 1 contract-driven
-expectation update (`scenario-stored-file-call.test.ts`: the
+expectation update (: the
 `unknown_input_kind "delivery"` pin predates this ratified join; the
 fixture's undeclared `ImagesSubmit` result now refuses at the fence —
 same intent, precise message, §10.1 cited in-test). State suite
@@ -369,7 +369,7 @@ generation unless noted):
 | wire v1 | L6 envelopes → L3/L7 | Closed-input + `MutationRef` fencing (T16, ticked) |
 | examples v1 | L7 tables → L3 admission | 29/29 + 10/10 parity + broken-expectation controls (T22/T23, ticked) |
 | STD capability v1 ×6 | T13 contracts → L3/L6 | Loader fence + L6 derivation read the same live objects (§11.1 + T19b) |
-| MCP P1 shape | L1 descriptors → L6/edge | `mcp_p1.rs` golden + `mcp-route.test.ts` P1 shape |
+| MCP P1 shape | L1 descriptors → L6/edge | `mcp_p1.rs` golden + P1 shape |
 
 Compatibility rules (§7) hold by suite: exact-version rejects (pins
 above), unknown-kind whole-set rejects (loader + derivation bars),

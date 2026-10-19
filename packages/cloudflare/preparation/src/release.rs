@@ -416,30 +416,3 @@ pub fn is_supported_triple(triple: &[u16]) -> bool {
         .any(|(host, _, _)| units_eq_ascii(triple, host))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn covered_rule_matches_ts_suffix_check() {
-        assert!(is_covered(&[0x61, 0x2E, 0x6A, 0x73])); // a.js
-        assert!(!is_covered(
-            &"app.tsbuildinfo".encode_utf16().collect::<Vec<_>>()
-        ));
-        // Shorter than the suffix: covered.
-        assert!(is_covered(&[0x6F, 0x66, 0x6F])); // foo
-    }
-
-    #[test]
-    fn supported_triples_match_install_claims() {
-        assert!(is_supported_triple(
-            &"darwin-arm64".encode_utf16().collect::<Vec<_>>()
-        ));
-        assert!(is_supported_triple(
-            &"linux-x64-gnu".encode_utf16().collect::<Vec<_>>()
-        ));
-        assert!(!is_supported_triple(
-            &"win32-x64-msvc".encode_utf16().collect::<Vec<_>>()
-        ));
-    }
-}

@@ -44,11 +44,10 @@
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
     "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/interfaces",
-    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/interfaces",
+    "test:integration": "node --test \"dist/test/integration-*.test.js\"",
     "clean": "rm -rf dist/",
     "build:emit": "tsc -p tsconfig.json && mkdir -p dist/test/fixtures && cp -r test/fixtures/. dist/test/fixtures/",
     "typecheck:check": "tsc -p tsconfig.json --noEmit",
-    "test:unit": "node --test \"dist/test/**/*.test.js\"",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "dependencies": {

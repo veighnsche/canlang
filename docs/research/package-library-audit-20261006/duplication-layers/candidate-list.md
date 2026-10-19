@@ -56,7 +56,7 @@ Qualification/retirement gates: Keep both exported function/type names as aliase
 
 Disposition: **consolidate**. Source: [packages/testkit/src/fixtures/playback.ts:45–125](../../../../packages/testkit/src/fixtures/playback.ts); [packages/testkit/src/fixtures/playback.ts:203–566](../../../../packages/testkit/src/fixtures/playback.ts); [packages/testkit/src/fixtures/playback.ts:601–688](../../../../packages/testkit/src/fixtures/playback.ts).
 
-Caller evidence: testkit fixture playback-worker.ts:26,43 -> createPlaybackHandler(playback.ts:1158-1164) -> checkSeedTable(:616) -> mirrored mail/models/judgments/media checkers services/test/scenarios.test.ts:69 and testkit/test/playback.test.ts:516 -> services parseScenarioTable(scenarios.ts:480) -> provider script validators; scenarios.ts:942 only freezes authored tables. testkit/test/playback.test.ts:515 -> controlled services endpoint, differential suite; existing tests preserve adapter-vs-playback parity
+Caller evidence: testkit fixture playback-worker.ts:26,43 -> createPlaybackHandler(playback.ts:1158-1164) -> checkSeedTable(:616) -> mirrored mail/models/judgments/media checkers and -> services parseScenarioTable(scenarios.ts:480) -> provider script validators; scenarios.ts:942 only freezes authored tables. -> controlled services endpoint, differential suite; existing tests preserve adapter-vs-playback parity
 
 Maintenance effect: Remove independently maintained mirror types, provider/key grammar and script validators (~400 lines) while retaining distinct transport implementations. Shared pure admission saves actual duplicate per-consumer rules.
 
@@ -66,7 +66,7 @@ Qualification/retirement gates: Factor/qualify portable script-admission slice o
 
 Disposition: **consolidate**. Source: [packages/cloudflare/src/preparation/build-adapter.ts:60–168](../../../../packages/cloudflare/src/preparation/build-adapter.ts); [packages/cloudflare/src/preparation/build-adapter.ts:195–208](../../../../packages/cloudflare/src/preparation/build-adapter.ts).
 
-Caller evidence: TS CLI deploy -> host.runPreparedDeploy (host.ts:362) -> buildBundleWithHostPhases -> buildDeployBundle -> exported buildMcpBundle/buildHttpOperationsBundle/buildDerivedInputsModule (bundle.ts:961-968). Explicit adapter runMcpBunPhase/runCatalogPhase observed in preparation-protocol.test.ts:186-200; no normal CLI explicit-phase caller. build-adapter imports bundle already.
+Caller evidence: TS CLI deploy -> host.runPreparedDeploy (host.ts:362) -> buildBundleWithHostPhases -> buildDeployBundle -> exported buildMcpBundle/buildHttpOperationsBundle/buildDerivedInputsModule (bundle.ts:961-968). Explicit adapter runMcpBunPhase/runCatalogPhase observed in ; no normal CLI explicit-phase caller. build-adapter imports bundle already.
 
 Maintenance effect: Three copied selected adapter bodies spanning 123 physical source lines including syntax (60-168 and195-208), plus two distinct phase wrappers. This is source-range accounting, not projected savings. Adapter delegates to three existing exports; keep phase pairing and stage order. No generic new bundler layer needed.
 
@@ -116,7 +116,7 @@ Qualification/retirement gates: Preserve IdentityError instance from owning impo
 
 Disposition: **simplify**. Source: [packages/services/src/ports.ts:173–466](../../../../packages/services/src/ports.ts).
 
-Caller evidence: services/test/http-client.test.ts:30, mail-adapter.test.ts:73, mail-redaction.test.ts:32, scenarios.test.ts:279 -> startControlledMailServer(ports.ts:275) testkit/test/playback.test.ts:515 -> controlled mail server for differential verification services root index.ts:11 -> ports.ts -> static node:http import(:31); ports also supplies adapter seams/runtime defaults
+Caller evidence: -> startControlledMailServer(ports.ts:275) -> controlled mail server for differential verification services root index.ts:11 -> ports.ts -> static node:http import(:31); ports also supplies adapter seams/runtime defaults
 
 Maintenance effect: Separate mail harness like other provider harness modules; reduces Node test-support reachability and cognitive load of runtime port file, without redesigning provider APIs.
 
@@ -126,7 +126,7 @@ Qualification/retirement gates: Determine supported public export/distribution o
 
 Disposition: **simplify**. Source: [packages/files/src/ports.ts:177–337](../../../../packages/files/src/ports.ts).
 
-Caller evidence: files/test/helpers.ts:15 -> TestOnlyManualClock/counter/memory stores/fixed principal -> upload/finalize/retention workflow files index.ts:4 -> ports.ts exposes TestOnly classes through public root FS store(upload/fs-blob-store.ts) and upload kernel -> assertSafeBlobKey(ports.ts:165-175) packages/cloudflare/test/assembly.test.ts:730-733 also instantiates files doubles in an assembly test. Public root or compatibility reexport and compile-all source emission may preserve distribution bytes after a file move.
+Caller evidence: files/test/helpers.ts:15 -> TestOnlyManualClock/counter/memory stores/fixed principal -> upload/finalize/retention workflow files index.ts:4 -> ports.ts exposes TestOnly classes through public root FS store(upload/fs-blob-store.ts) and upload kernel -> assertSafeBlobKey(ports.ts:165-175) also instantiates files doubles in an assembly test. Public root or compatibility reexport and compile-all source emission may preserve distribution bytes after a file move.
 
 Maintenance effect: Separate test-only implementations into explicit testing surface like identity; avoid mixing unbounded non-atomic state/predictable IDs with runtime seams. No duplicate durable kernel removal proposed.
 
@@ -146,7 +146,7 @@ Qualification/retirement gates: OperationInputShape already admits readonly arra
 
 Disposition: **simplify**. Source: [packages/cloudflare/src/preparation/build-adapter.ts:211–221](../../../../packages/cloudflare/src/preparation/build-adapter.ts).
 
-Caller evidence: host.ts:36,362 uses wrapper in real TS deploy; preparation-protocol.test.ts:9,186,211 names wrapper.
+Caller evidence: host.ts:36,362 uses wrapper in real TS deploy; names wrapper.
 
 Maintenance effect: Caller crosses adapter solely to return buildDeployBundle with same args/result/errors. Direct owner call or temporary export alias; preserve explicit phase APIs separately.
 
@@ -186,7 +186,7 @@ Qualification/retirement gates: Measure parse/caller cost before adding records 
 
 Disposition: **delete**. Source: [packages/cloudflare/src/deploy/bundle.ts:184–194](../../../../packages/cloudflare/src/deploy/bundle.ts); [packages/cloudflare/src/deploy/bundle.ts:405–415](../../../../packages/cloudflare/src/deploy/bundle.ts).
 
-Caller evidence: Tracked source inventory contains no packages/state/src/*/work-loader.ts. Fanout test bridge is now packages/work/test/state-fanout/work-loader.ts; receipt test work-loader.ts:1 re-exports the real work/src/receipt/index.ts owning producer, not a standalone relocated test implementation. Both are imported by owning tests. Vendor walk uses state distribution dist tree.
+Caller evidence: Tracked source inventory contains no packages/state/src/*/work-loader.ts. Fanout test bridge was packages/work/test/state-fanout/work-loader.ts; receipt test work-loader.ts:1 re-exported the real work/src/receipt/index.ts owning producer, not a standalone relocated test implementation. Both were imported by owning tests, since removed with the deleted suites. Vendor walk uses state distribution dist tree.
 
 Maintenance effect: Dead-key set/comment consulted for every vendor file despite relocated sources. Delete obsolete set/check/comment only after emitted/installed package closure confirms stale dist cannot introduce historical helpers.
 
@@ -196,7 +196,7 @@ Qualification/retirement gates: Verify TS cleanup/packaged emission does not ret
 
 Disposition: **simplify**. Source: [packages/interfaces/src/mcp/prepared.ts:51–201](../../../../packages/interfaces/src/mcp/prepared.ts).
 
-Caller evidence: Only observed prepareMcpPlan/runPreparedMcpPlan consumers are owned-mcp.test.ts. interfaces index/package exports do not expose mcp/prepared subpath. interfaces tsconfig includes source and tests; emitted prototype remains package dist content. Cloudflare VENDOR_TREES does NOT include interfaces; MCP is bundled from mcp/server. No evidence this unimported prepared prototype reaches the staged worker.
+Caller evidence: Only observed prepareMcpPlan/runPreparedMcpPlan consumers are . interfaces index/package exports do not expose mcp/prepared subpath. interfaces tsconfig includes source and tests; emitted prototype remains package dist content. Cloudflare VENDOR_TREES does NOT include interfaces; MCP is bundled from mcp/server. No evidence this unimported prepared prototype reaches the staged worker.
 
 Maintenance effect: Plan creates frozen allowed/required/refs/binding metadata, then runner rebuilds shape/set and delegates canonical validators; live ordinary server repeats orchestration and supports derived=null. Either relocate private prototype with tests after obligation review, or use one canonical owned ordinary framing runner after SDK provenance/adoption gates; no performance/caller reduction proven by current layer.
 
@@ -236,7 +236,7 @@ Qualification/retirement gates: Introduce private state internal helpers, retain
 
 Disposition: **consolidate**. Source: [packages/services/src/judgments/harness.ts:43–61](../../../../packages/services/src/judgments/harness.ts); [packages/services/src/media/harness.ts:67–85](../../../../packages/services/src/media/harness.ts); [packages/services/src/models/harness.ts:53–71](../../../../packages/services/src/models/harness.ts). Other exact sites remain in the structured record.
 
-Caller evidence: startControlledMailServer in ports:275, SystemOne judgments harness, Ollama models harness and Comfy media harness exported source factories; services scenarios.test.ts:279 onward starts real controlled servers. All four readTextBody bounded at 4,000,000 bytes; sendBody exact among mail/judgments/models, Comfy sendJson string input serializes JSON rather than plain text.
+Caller evidence: startControlledMailServer in ports:275, SystemOne judgments harness, Ollama models harness and Comfy media harness exported source factories; services onward starts real controlled servers. All four readTextBody bounded at 4,000,000 bytes; sendBody exact among mail/judgments/models, Comfy sendJson string input serializes JSON rather than plain text.
 
 Maintenance effect: Four ~19-line body readers; three sendBody copies; two exact bind/close blocks. Share bounded reader/sendBody leaf; optional common socket shutdown helper only if return log/scenario state remains explicit. Eliminate nested anonymous seed double-counts.
 
@@ -296,7 +296,7 @@ Qualification/retirement gates: Retain public names, signatures, import paths, f
 
 Disposition: **delete**. Source: [packages/values/src/internal/schema-core.ts:110–115](../../../../packages/values/src/internal/schema-core.ts); [packages/values/src/internal/schema-core.ts:1809–1812](../../../../packages/values/src/internal/schema-core.ts).
 
-Caller evidence: [packages/values/src/internal/schema-core.ts:1811](../../../../packages/values/src/internal/schema-core.ts): every normalizeSchema stores identity [packages/values/test/prepared-hook.test.ts:10](../../../../packages/values/test/prepared-hook.test.ts): imports lineage query
+Caller evidence: [packages/values/src/internal/schema-core.ts:1811](../../../../packages/values/src/internal/schema-core.ts): every normalizeSchema stores identity [](): imports lineage query
 
 Maintenance effect: Candidate remove unused runtime WeakSet/write if lineage assertion is no longer a future gate; live normalizeSchema has bookkeeping for test-only query. This is a genuine unnecessary state candidate, not plan registry removal.
 
@@ -306,7 +306,7 @@ Qualification/retirement gates: HOLD until explicitly retired lineage gate; pres
 
 Disposition: **simplify**. Source: [packages/work/src/ports.ts:139–235](../../../../packages/work/src/ports.ts); [packages/work/src/observation/ports.ts:71–153](../../../../packages/work/src/observation/ports.ts).
 
-Caller evidence: [packages/work/test/schedule.test.ts:24](../../../../packages/work/test/schedule.test.ts): injected memory outbox [packages/work/test/event.test.ts:14](../../../../packages/work/test/event.test.ts): memory occurrence port injection [packages/work/src/dispatch/t32b-fence.test.ts:38](../../../../packages/work/src/dispatch/t32b-fence.test.ts): fence memory supersession
+Caller evidence: [](): injected memory outbox [](): memory occurrence port injection [](): fence memory supersession
 
 Maintenance effect: Move implementation to explicit test-support module only if public compatibility permits; clarifies shipped ownership while preserving consumer tests via reexport/deprecation. No reason to merge different stores/grant behaviors into generic engine.
 
@@ -326,7 +326,7 @@ Qualification/retirement gates: Inventory persisted/sink inputs and expected obs
 
 Disposition: **retain**. Source: [packages/state/src/ports/transact.ts:53–106](../../../../packages/state/src/ports/transact.ts); [packages/state/src/ports/transact.ts:132–146](../../../../packages/state/src/ports/transact.ts).
 
-Caller evidence: cloudflare/runtime/invoke.ts:3493 -> createReadInvoker -> invokeRead cloudflare/runtime/invoke.ts:3674 -> createDispatchJoinPort -> assertDispatchJoin -> storage.commit state/test/ports/transact.test.ts:29,92 -> createTransactionPort/createInvoker; state/test/fanout/test-driver.ts:149 and work/test/state-fanout/t34-f5-progress.test.ts:148 -> createFanoutChildJoinPort
+Caller evidence: cloudflare/runtime/invoke.ts:3493 -> createReadInvoker -> invokeRead cloudflare/runtime/invoke.ts:3674 -> createDispatchJoinPort -> assertDispatchJoin -> storage.commit -> createTransactionPort/createInvoker; state/test/fanout/test-driver.ts:149 and -> createFanoutChildJoinPort
 
 Maintenance effect: Binding store/registry/membership/clock once removes per-call plumbing. Join ports enforce batch co-commit at authority boundary. Deduplicating small try/catch forwarding adds closure/helper indirection with little caller simplification.
 
@@ -436,7 +436,7 @@ Qualification/retirement gates: Finite util.parseArgs comparison using pinned ru
 
 Disposition: **retain**. Source: [packages/work-kernel/src/rows.ts:1–21](../../../../packages/work-kernel/src/rows.ts); [packages/work-kernel/src/retry.ts:1–8](../../../../packages/work-kernel/src/retry.ts); [packages/work-kernel/src/linkage.ts:1–11](../../../../packages/work-kernel/src/linkage.ts). Other exact sites remain in the structured record.
 
-Caller evidence: [packages/work-kernel/conformance/rows.test.ts:50](../../../../packages/work-kernel/conformance/rows.test.ts): test direct import TS candidate [packages/work-kernel/conformance/retry.test.ts:19](../../../../packages/work-kernel/conformance/retry.test.ts): test direct import [packages/work-kernel/conformance/lifecycle.test.ts:16](../../../../packages/work-kernel/conformance/lifecycle.test.ts): test import [packages/state/src/receipt/join.ts:301](../../../../packages/state/src/receipt/join.ts): real donor reader use after store load [packages/state/src/receipt/tables.ts:409](../../../../packages/state/src/receipt/tables.ts): donor writer validates row [packages/cloudflare/src/deploy/activate.ts:237–251](../../../../packages/cloudflare/src/deploy/activate.ts): conditional injected gates.buildWorkInventory; not kernel import
+Caller evidence: [](): test direct import TS candidate [](): test direct import [](): test import [packages/state/src/receipt/join.ts:301](../../../../packages/state/src/receipt/join.ts): real donor reader use after store load [packages/state/src/receipt/tables.ts:409](../../../../packages/state/src/receipt/tables.ts): donor writer validates row [packages/cloudflare/src/deploy/activate.ts:237–251](../../../../packages/cloudflare/src/deploy/activate.ts): conditional injected gates.buildWorkInventory; not kernel import
 
 Maintenance effect: Eliminating two maintained copies eventually reduces drift, but immediately redirecting donors adds direction/error/backend adaptation and removes independent oracle. Exact token matches alone do not make callers simpler. Kernel lifecycle already uses shared retry core internally.
 
@@ -466,7 +466,7 @@ Qualification/retirement gates: Keep owning producer declarations and actual emi
 
 Disposition: **retain**. Source: [packages/values/src/prepared/validation.ts:49–232](../../../../packages/values/src/prepared/validation.ts); [packages/values/src/prepared/validation.ts:434–456](../../../../packages/values/src/prepared/validation.ts); [packages/values/src/prepared/validation.ts:506–604](../../../../packages/values/src/prepared/validation.ts). Other exact sites remain in the structured record.
 
-Caller evidence: [packages/values/src/prepared/validation.ts:456](../../../../packages/values/src/prepared/validation.ts): one canonical validation core after admission [packages/values/src/prepared/validation.ts:518](../../../../packages/values/src/prepared/validation.ts): prepared comparator executes prepared route [packages/values/test/legacy-validation-traces.test.ts:124](../../../../packages/values/test/legacy-validation-traces.test.ts): whole-call comparison witness
+Caller evidence: [packages/values/src/prepared/validation.ts:456](../../../../packages/values/src/prepared/validation.ts): one canonical validation core after admission [packages/values/src/prepared/validation.ts:518](../../../../packages/values/src/prepared/validation.ts): prepared comparator executes prepared route [](): whole-call comparison witness
 
 Maintenance effect: Owner/liveness/coverage admission and getter-safe trace comparison add different outcomes, not second arithmetic/validation implementation. They do not reduce production caller complexity currently; retirement requires gate decision.
 
@@ -476,7 +476,7 @@ Qualification/retirement gates: No default adoption claim. Keep one canonical co
 
 Disposition: **retain**. Source: [packages/values/semantics/src/transport/exact.rs:49–183](../../../../packages/values/semantics/src/transport/exact.rs); [packages/values/semantics/src/transport/exact.rs:271–286](../../../../packages/values/semantics/src/transport/exact.rs); [packages/values/bindings/validation.ts:43–68](../../../../packages/values/bindings/validation.ts). Other exact sites remain in the structured record.
 
-Caller evidence: [packages/values/semantics/src/transport/exact.rs:872](../../../../packages/values/semantics/src/transport/exact.rs): handle_line decodes carriers [packages/values/bindings/backend.ts:99](../../../../packages/values/bindings/backend.ts): host serializes tagged args to caller-supplied exact glue [packages/values/test/validation-binding.test.ts:30](../../../../packages/values/test/validation-binding.test.ts): injected structural glue
+Caller evidence: [packages/values/semantics/src/transport/exact.rs:872](../../../../packages/values/semantics/src/transport/exact.rs): handle_line decodes carriers [packages/values/bindings/backend.ts:99](../../../../packages/values/bindings/backend.ts): host serializes tagged args to caller-supplied exact glue [](): injected structural glue
 
 Maintenance effect: ABI/shape checks protect transport; semantic core owns numeric/currency/range validation. They are different rejection layers and callers. Coalescing exact/scaffold generic backend obscures distinct error envelopes and operation profiles.
 

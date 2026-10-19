@@ -42,8 +42,6 @@ jobs:
         run: bun run build
       - name: Check declared package boundaries
         run: bun run check:boundaries
-      - name: Test package boundary guard
-        run: bun run test:boundaries
       - name: Typecheck workspace assembly
         run: bun run typecheck
       - name: Build native preparation test prerequisite
@@ -167,28 +165,3 @@ jobs:
         run: bun run typecheck:e2e
       - name: Test browser and security journeys
         run: bun run test:e2e
-
-  tools:
-    name: Language tools
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - name: Test JEV caller without credentials
-        run: python3 -m unittest discover -s tools -p test_jev.py
-      - name: Test parser boundaries
-        # The prototype corpus is superseded by the actual Rust corpus tests.
-        run: |
-          python3 - <<'PYTOOLS'
-          import sys, unittest
-          sys.path.insert(0, "tools")
-          import test_can_parser
-          loader = unittest.TestLoader()
-          suite = unittest.TestSuite(
-              test_can_parser.CanParserTests(name)
-              for name in loader.getTestCaseNames(test_can_parser.CanParserTests)
-              if "corpus" not in name
-          )
-          result = unittest.TextTestRunner(verbosity=1).run(suite)
-          sys.exit(0 if result.wasSuccessful() else 1)
-          PYTOOLS

@@ -63,7 +63,7 @@ Backoff consumes randomness once only after validation and exhaustion checks; ex
 
 Also preserve finite fractional timestamps where currently accepted, inclusive expiry/horizon boundaries, SHA-256 input bytes and JS number/string formatting in occurrence IDs, and sort semantics. Frozen retained payloads and unknown result values need lossless transfer or host retention. Fanout planners must retain their settled/fresh-running/guard/lifecycle/exhaustion ordering, and every resulting mutation remains fenced by the existing work/state owners.
 
-The [recurrence](../../../packages/work/test/every.test.ts), [receipt](../../../packages/work/test/receipt.test.ts), [recovery](../../../packages/work/test/recovery.test.ts) and [fanout recovery](../../../packages/work/src/recovery/t34-f4-scan.test.ts) suites provide behavioral targets. This is a reasonable second-wave port for clearer shared decision semantics; no inspected evidence establishes that these calculations dominate runtime cost.
+The [recurrence](), [receipt](), [recovery]() and [fanout recovery]() suites provide behavioral targets. This is a reasonable second-wave port for clearer shared decision semantics; no inspected evidence establishes that these calculations dominate runtime cost.
 
 ## Local artifact validation and compatibility calculations
 
@@ -75,7 +75,7 @@ Preserve artifact validation's first-failure order, source-path attribution, gen
 
 Later manifest/hash and release-lockstep checks are also feasible, but filesystem discovery and packaging costs belong in their own tranche. Node crypto already performs hashing, so rewriting hash calls is not evidence of a speedup. Keep module assembly, activation/deployment, Wrangler, Miniflare and runtime invocation outside the rating.
 
-Relevant behavioral evidence includes [artifact tests](../../../packages/cloudflare/test/artifact.test.ts), [additive field-description tests](../../../packages/cloudflare/test/artifact-field-descriptions.test.ts), [compatibility tests](../../../packages/cloudflare/test/compat.test.ts), [plan tests](../../../packages/cloudflare/test/plan.test.ts) and [manifest tests](../../../packages/cloudflare/test/release.test.ts). Payoff would primarily be reusable native validation and tooling packaging; performance remains unmeasured.
+Relevant behavioral evidence includes [artifact tests](), [additive field-description tests](), [compatibility tests](), [plan tests]() and [manifest tests](). Payoff would primarily be reusable native validation and tooling packaging; performance remains unmeasured.
 
 ## Exact arithmetic
 
@@ -150,7 +150,7 @@ The public API accepts `unknown`, not only parsed JSON. JSON.stringify or automa
 
 Use an explicit input representation: tagged scalar kinds, ordered object entries in observed JS enumeration order, arrays that preserve holes/undefined, and a presence marker distinct from null. Invalid JS kinds need enough information to produce the original Can rejection and actual-value description. Cycles/getters/proxies need an explicit compatibility treatment based on current evaluation behavior; do not silently promise support beyond the existing API.
 
-JS strings can contain lone UTF-16 surrogates, which Can's [text tests](../../../packages/values/test/text.test.ts) explicitly accept. Ordinary Rust String is valid UTF-8 and cannot directly retain these units. Use a lossless UTF-16 representation for arbitrary text/keys, or retain affected handling in the host adapter. A fast UTF-8 representation for well-formed strings with a UTF-16 exceptional form is an option to measure. Lossy replacement or rejection would change behavior. [Rust String](https://doc.rust-lang.org/std/string/struct.String.html).
+JS strings can contain lone UTF-16 surrogates, which Can's [text tests]() explicitly accept. Ordinary Rust String is valid UTF-8 and cannot directly retain these units. Use a lossless UTF-16 representation for arbitrary text/keys, or retain affected handling in the host adapter. A fast UTF-8 representation for well-formed strings with a UTF-16 exceptional form is an option to measure. Lossy replacement or rejection would change behavior. [Rust String](https://doc.rust-lang.org/std/string/struct.String.html).
 
 Ordered field vectors and input entries preserve diagnostic order. `serde_json::Value` normally uses sorted maps; `preserve_order` is necessary where that transport is appropriate but does not recreate JS numeric-property ordering by itself. Preserve missing versus null through explicit variants rather than indexing a missing field as JSON null. [Serde JSON values](https://docs.rs/serde_json/latest/serde_json/value/enum.Value.html).
 
@@ -195,7 +195,7 @@ A native Node-API addon plus Wasm could be measured later if local tooling warra
 | 5. Delivery integration | Typed binary modules, release manifests, reproducible package builds. | Deterministic bundles, no Node imports in Worker graph, and explicit failure for missing/corrupt assets. |
 | 6. Adopt and optimize | Replace each package tranche only after its gates; compare fixed width and batches. | Useful correctness/sharing or measured operational benefit with an explicit acceptable regression budget. |
 
-Reuse [versioned conformance](../../../packages/values/conformance/v1/README.md), int/decimal/money/temporal/schema/wire suites and [Decimal.js oracle cases](../../../packages/values/test/decimal-oracle.test.ts). Oracle value agreement alone misses stored-scale and error differences; preserve structural observations too. Add widest coefficients/products, scale-alignment cancellation, rounding carries, aggregate permutations, arbitrary raw BigInts, minimum-int remainder, omission/null/undefined, surrogate text/keys and order-sensitive error cases.
+Reuse [versioned conformance](../../../packages/values/conformance/v1/README.md), int/decimal/money/temporal/schema/wire suites and [Decimal.js oracle cases](). Oracle value agreement alone misses stored-scale and error differences; preserve structural observations too. Add widest coefficients/products, scale-alignment cancellation, rounding carries, aggregate permutations, arbitrary raw BigInts, minimum-int remainder, omission/null/undefined, surrogate text/keys and order-sensitive error cases.
 
 Compare warm complete calls, conversion-only overhead, whole nested validation, scalar/batched arithmetic, error-heavy inputs, initialization/first request, compressed binary/bundle size, memory growth and end-to-end state writes. Cloudflare production timers do not advance during uninterrupted CPU work, so use local workerd CPU profiling and externally observed latency rather than deriving microbenchmarks from production performance.now(). [Cloudflare timers](https://developers.cloudflare.com/workers/runtime-apis/performance/). Respect platform startup and memory limits when judging the package result. [Workers limits](https://developers.cloudflare.com/workers/platform/limits/).
 

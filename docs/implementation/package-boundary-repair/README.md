@@ -26,7 +26,7 @@ Local tool scope: Bun 1.4.2, Node 24.21.0, TypeScript from the existing Bun lock
 | `bun run test:boundaries` | 12 adversarial fixtures pass; [check-tests.log](evidence/check-tests.log). Covers type queries, const/template/helper loads, aliases, escaped paths, filesystem reads, exports and manifest cycles. |
 | Root Vitest suites with existing preparation test binary | 62 files / 597 tests, all pass; [vitest.log](evidence/vitest.log). Nine contracts consumer cases moved into owning suites, retaining their assertions. |
 | Emitted Cloudflare tests | 265/265, zero skipped; [cloudflare-tests.log](evidence/cloudflare-tests.log). Includes real D1, DO, receipt, invocation and fanout joins. |
-| CI gate/receipt unit tests | 12/12; [ci-tests.log](evidence/ci-tests.log). Existing profiles and native debug prerequisite preserved. |
+| CI gate/receipt checks | 12/12; [ci-tests.log](evidence/ci-tests.log). Existing profiles and native debug prerequisite preserved. |
 | Release stamp → manifest → verify | Pass; [release.log](evidence/release.log). CLI executable mode preserved. |
 | Independent review | Identified receipt index rewrite and CLI cycle; both fixed. Re-review found no remaining concrete P1/P2. |
 

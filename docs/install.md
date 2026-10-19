@@ -72,8 +72,7 @@ previous version during upgrades. Open a new terminal afterward. Set
 
 The macOS arm64 artifact has passed the complete external-app verification. Linux x64 qualification and compatibility limits are recorded below; arbitrary
 Linux distributions are not qualified. GitHub Release hosting is verified above;
-a Homebrew tap is not published. The website curl command still awaits its static
-installer deployment.
+a Homebrew tap is not published.
 
 Earlier local macOS arm64 artifact (retained pre-release measurement): **90,087,787 bytes download (85.9 MiB)**;
 **260,139,952 bytes installed files (248.1 MiB)**; **277,823,488 allocated bytes

@@ -21,7 +21,7 @@ No blocking behavioral mismatch found in the reviewed output seams. This is a sc
 
 - CLI lint --fix still manually spliced the final fixes member in the reviewed snapshot; root was already converting this released seam. Review of its final replacement and real consuming CLI tests is required separately.
 - Focused family tests do not by themselves execute emitted JavaScript or qualify downstream artifact/docs/exact-value consumers. Root/another writer owns actual consuming integration tests. BDD snapshots preserve function recipes but do not prove execution.
-- Full ASCII-control coverage resides in the shared formatter/diagnostic and BDD unit tests; individual family snapshots sample representative controls. Some nested array/metadata combinations are established by branch review rather than exhaustive combinatorial tests.
+- Full ASCII-control coverage resides in the shared formatter/diagnostic and BDD checks; individual family snapshots sample representative controls. Some nested array/metadata combinations are established by branch review rather than exhaustive combinatorial tests.
 - Shared input parser, raw lexeme/depth/accessor/LSP numeric behavior remains outside this output migration. RawValue qualification applies to compiler-owned encoded fragments only.
 - JsServerInit retains its previous static-token compatibility method while production typed enum serialization is added; both spellings are explicitly compared in the descriptor test.
 - No new input format, decimal arithmetic/canonicalization policy, source-map coordinate policy, runtime installation claim or universal closure minimum was assessed.

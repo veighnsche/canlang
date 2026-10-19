@@ -4,7 +4,7 @@ Status: verified failure and research proposal; production implementation unrele
 
 ## Owner and complete helper family
 
-Production owner: `packages/interfaces/src/docs/reference.ts`; focused existing tests: `packages/interfaces/test/docs-reference.test.ts`. Both had clean Git status before and after research. Foreign package work elsewhere does not authorize overlapping changes. Only these two production paths need release; no compiler, contracts, CLI, package manifest, dependency, decision-log or Git edits belong in the leaf.
+Production owner: `packages/interfaces/src/docs/reference.ts`; focused existing tests: . Both had clean Git status before and after research. Foreign package work elsewhere does not authorize overlapping changes. Only these two production paths need release; no compiler, contracts, CLI, package manifest, dependency, decision-log or Git edits belong in the leaf.
 
 Public export: `packages/interfaces/src/index.ts:32`. Actual downstream caller: `packages/cloudflare/src/cli/docs.ts:133` dynamically resolves the package export and emits Markdown to stdout. `docs/install.md:75` advertises stdout or output-file Markdown. DESIGN descriptions and existing decisions identify that same public renderer. No designated HTML viewer or parser was found in this owner/CLI/advertised-document family; the repository lock/manifests do not provide marked, markdown-it, remark-gfm or commonmark. This is a Markdown-generation contract, not a claim to support every Markdown implementation.
 
@@ -38,7 +38,7 @@ Replace `escapeCodeSpan`/`codeSpan` with a context-aware helper. For nonempty or
 
 For empty strings and pipe-bearing table code values, emit `<code>` with authored ASCII punctuation encoded as numeric entities. This prevents Markdown/HTML interpretation and table splitting while retaining DOM text, including literal backslashes. Existing generated anchors already require inline HTML support; the oracle accepts this fallback. For other table values, reuse ordinary code-span handling. Pass table context at the three code-bearing values in each of the two table call sites only. `candidate-helper.txt` records the qualified research helper, not a mandated final coding style.
 
-Acceptance for release: public renderer behavior above; regression examples for arbitrary backtick runs, literal backslashes, pipe/backslash combinations, empty/all-space/edge-space values; meaningful parsed-consumer replay via this saved oracle; existing focused tests and owner typecheck. No new package dependency is necessary. Repository unit tests may check exact output encodings for the standards contract, but those alone do not replace the independent parser replay. Keep descriptions, constraint escaping, locale/headings, anchor resolution, source offsets, authored-default identity and fenced examples.
+Acceptance for release: public renderer behavior above; regression examples for arbitrary backtick runs, literal backslashes, pipe/backslash combinations, empty/all-space/edge-space values; meaningful parsed-consumer replay via this saved oracle; existing focused tests and owner typecheck. No new package dependency is necessary. Focused checks alone do not replace the independent parser replay. Keep descriptions, constraint escaping, locale/headings, anchor resolution, source offsets, authored-default identity and fenced examples.
 
 Scope boundaries: exact DOM text for tested single-line strings and table shape under the specified consumer/dialect. Browser CSS may collapse spaces visually; this does not certify pixel display. CommonMark itself lacks GFM tables. Multiline code spans normalize line endings by standard; raw newline-bearing table values cannot be claimed byte-preserving by this leaf. No universal consumer conformance, new viewer policy, compiler JSON change, source-to-CLI rerun, publication or merge is claimed.
 
@@ -48,8 +48,7 @@ From repository root with current Node 24:
 
 ```
 node docs/implementation/compiler-completion/markdown-owner/research/reproduce.mjs
-node --test packages/interfaces/dist/test/docs-reference.test.js
-git status --short packages/interfaces/src/docs/reference.ts packages/interfaces/test/docs-reference.test.ts
+git status --short packages/interfaces/src/docs/reference.ts
 ```
 
 The first command rewrites only this research folder's raw evidence and candidate helper. The bundled marked path is intentionally explicit and host-dependent; it can be changed to another existing equivalent parser path without adding a project dependency. Expected candidate summary: 28/28; baseline summary is tied to the captured owner source hash and will change after implementation.

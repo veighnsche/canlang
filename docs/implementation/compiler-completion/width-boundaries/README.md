@@ -6,7 +6,7 @@ The original finite duties are admission.json AR-09/11/17 and the `offset-u32`, 
 
 The product regression builds 512 generated rows using 256 distinct names, including the empty name, followed by their reverse-order reuse. It verifies every decoded name/source/line/byte-column coordinate and serialized names, exact Unicode/CRLF source content, and mappings. Existing small map, missing-source, duplicate-path and numeric envelope controls remain unchanged.
 
-Validation: `CARGO_BUILD_JOBS=2 cargo test --manifest-path compiler/Cargo.toml --locked --offline --lib codegen::sourcemap::tests` passed all six checks, including the new wide-name regression.
+Validation: all six sourcemap checks passed, including the new wide-name regression.
 
 The standalone JSON-string decoder's tiny `"\q"` input at absolute base
 `u32::MAX` reproduced a native debug overflow panic in error-span addition. It now checks the token's byte length and absolute endpoint before decoding,

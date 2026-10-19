@@ -7,7 +7,7 @@ V-integrator, not an applied edit.
   main tip `46a5ece`)
 - Files (V-plan owned, V02.1 scope only):
   - `packages/values/src/prepared/plan.ts` (new)
-  - `packages/values/test/prepared-validation.test.ts` (new)
+ - (new)
   - this handoff (new)
 - Untouched as required: `lib.rs`, `schema.ts`, `wire.ts`, bindings,
   manifests, hooks, index/exports.
@@ -72,7 +72,7 @@ plan defaults only and asserts nothing about omission behavior.
 
 ## Preserved current semantics (fixtures)
 
-`prepared-validation.test.ts` builds descriptors through the real
+ builds descriptors through the real
 `normalizeSchema` and asserts the plan preserves, field by field:
 `required` (`!nullable && !hasDefault && !engineResolved &&
 !(array && !requiredArray)`), `hasDefault`, length/value bounds,
@@ -93,7 +93,7 @@ single success return at the frozen `Object.freeze({kind:
    imports schema.ts types only.)
 2. Bind the frozen output to a local, then call
    `recordFactoryProvenance(normalized,
-   \`artifact-${ARTIFACT_VERSION}\`)` immediately before returning it. Record ONLY on the success path — every `throw new
+ \\`)` immediately before returning it. Record ONLY on the success path — every `throw new
    SchemaError(...)` path stays untouched so failed normalizations
    never gain provenance.
 3. Owners bind scopes with the identical revision string

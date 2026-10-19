@@ -352,7 +352,7 @@ fn vector_d9_deploy_final_map_platform_keys_pass() {
     // Boundary regression (RUST-PREP-BOUNDARY-004): the merged final map
     // legitimately carries worker/runtime/vendor keys, so a platform-rooted
     // staged key must sail through LOAD_MODULES to PLAN. The authored-only
-    // reservation/alias guard lives in modules.rs unit tests, never on
+    // reservation/alias guard is enforced upstream, never on
     // this final-map path.
     run_case(&Case {
         id: "d9-deploy-final-map-platform-keys-pass",

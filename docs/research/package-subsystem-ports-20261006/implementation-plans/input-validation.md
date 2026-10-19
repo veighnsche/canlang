@@ -35,7 +35,7 @@ Line anchors below refer to the inspected checkpoint. The implementation must re
 | `packages/state/src/invocation/invoke.ts:203`, `:447–503` | Mutation admission and read authorization before validation | Thread proven input ownership without changing mutation/read ordering |
 | `packages/cloudflare/src/runtime/invoke.ts`; `worker/assembly.ts:744`, `:1010`, `:1120`; `deploy/bundle.ts:586` | Canonical state bridge; real deployed MCP factory; interim HTTP operation route currently returns 501 | Required HTTP production join proof, not an assumed existing deployment; shared binary delivery remains C04-owned |
 
-The last row is a material gap: `handleOperationRequest` is a real interfaces implementation and test consumer, but the inspected Cloudflare assembly explicitly retains an interim HTTP dispatcher. Completing unit tests against an injected invoker does not prove a deployed HTTP consumer. V08 proves the package port with the actual handler, Wasm and a workerd fixture; default deployed HTTP adoption remains gated on an owning route join. That gate permits only a bounded existing-handler join established by C01 source-owner contracts, not building a new HTTP feature. If that join is unavailable, report package completion and blocked default deployment separately. The real deployed MCP factory does not resolve the separate SDK argument-provenance question.
+The last row is a material gap: `handleOperationRequest` is a real interfaces implementation and test consumer, but the inspected Cloudflare assembly explicitly retains an interim HTTP dispatcher. Completing checks against an injected invoker does not prove a deployed HTTP consumer. V08 proves the package port with the actual handler, Wasm and a workerd fixture; default deployed HTTP adoption remains gated on an owning route join. That gate permits only a bounded existing-handler join established by C01 source-owner contracts, not building a new HTTP feature. If that join is unavailable, report package completion and blocked default deployment separately. The real deployed MCP factory does not resolve the separate SDK argument-provenance question.
 
 ## Private contract and profile design
 
@@ -106,31 +106,31 @@ packages/values/
     plan.ts                        TS prepared immutable owner plan
     codec.ts                       AST codec entry and pre-resolved union/leaf dispatch
     validation.ts                  comparable whole-profile TS execution
-  src/{schema,wire,index}.ts        legacy wrappers; private owner provenance hooks
+ legacy wrappers; private owner provenance hooks
   test/
-    owned-input.test.ts
-    prepared-validation.test.ts
-    validation-binding.test.ts
-    validation-lifecycle.test.ts
-    legacy-validation-traces.test.ts
+ 
+ 
+ 
+ 
+ 
   conformance/v1/                  existing vectors unchanged
   conformance/owned-input/v1/
     cases.json                     tagged UTF-16/profile/error vectors
     README.md                      owned contract/limits; no unknown compatibility claim
 packages/interfaces/
   src/envelope/prepared.ts         owning HTTP/MCP plan projections
-  src/http/{limits,operations}.ts  private JSON parser lineage + actual consumer
-  src/mcp/{schemas,server}.ts      prepared binding/ref profile; SDK provenance seam
-  test/{owned-http,owned-mcp}.test.ts
+ private JSON parser lineage + actual consumer
+ prepared binding/ref profile; SDK provenance seam
+ 
 packages/state/
   src/invocation/prepared-inputs.ts  owning generated-state plan + provenance adapter
-  src/invocation/{registry,admission,invoke}.ts
-  test/invocation/owned-admission.test.ts
+ 
+ 
 packages/cloudflare/
   src/worker/assembly.ts           conditional bounded existing-handler join gate
   src/deploy/bundle.ts             conditional HTTP module join; C04 reused
   src/runtime/invoke.ts           audited private provenance bridge (V09)
-  test/{owned-http-route,owned-input-delivery}.test.ts
+ 
 docs/research/package-subsystem-ports-20261006/
   evidence/input-validation/
     contracts.md
@@ -170,35 +170,35 @@ HTTP native/profile/resources/package consumer do not depend on the full values 
 The JSON records exact source/evidence writes. These responsibility extensions split the originally proposed single profiles.rs and test file into file-disjoint leaf modules, preserving one policy selector/root harness with V-integrator.
 
 - **V-integrator — Shared values and ABI integration owner**
-  - Owns: `packages/values/Cargo.toml`, `packages/values/Cargo.lock`, `packages/values/semantics/Cargo.toml`, `packages/values/bindings/Cargo.toml`, `packages/values/semantics/src/lib.rs`, `packages/values/semantics/src/codecs/mod.rs`, `packages/values/semantics/src/profiles.rs`, `packages/values/bindings/src/lib.rs`, `packages/values/bindings/src/validation.rs`, `packages/values/bindings/validation.ts`, `packages/values/bindings/backend.ts`, `packages/values/bindings/bootstrap.ts`, `packages/values/src/schema.ts`, `packages/values/src/wire.ts`, `packages/values/src/index.ts`, `packages/values/tsconfig.json`, `packages/values/package.json`, `packages/values/semantics/tests/input_validation.rs`, `packages/values/test/validation-binding.test.ts`, `packages/cloudflare/test/owned-input-delivery.test.ts`. Evidence outputs are owned by the task that writes them.
+ - Owns: `packages/values/Cargo.toml`, `packages/values/Cargo.lock`, `packages/values/semantics/Cargo.toml`, `packages/values/bindings/Cargo.toml`, `packages/values/semantics/src/lib.rs`, `packages/values/semantics/src/codecs/mod.rs`, `packages/values/semantics/src/profiles.rs`, `packages/values/bindings/src/lib.rs`, `packages/values/bindings/src/validation.rs`, `packages/values/bindings/validation.ts`, `packages/values/bindings/backend.ts`, `packages/values/bindings/bootstrap.ts`, `packages/values/src/schema.ts`, `packages/values/src/wire.ts`, `packages/values/src/index.ts`, `packages/values/tsconfig.json`, `packages/values/package.json`, `packages/values/semantics/tests/input_validation.rs`, . Evidence outputs are owned by the task that writes them.
   - Ready backlog: Prepare V02.6 hook patch and V03.5 ABI/module handoff while arithmetic owns shared files; later review declarations/inventory for V11.2.
   - Allocation/exit: one 0.5–2 day patch at a time; exit on V02.6, V03.5, V11.2 and V12.1; optional accepted V08.5, with reviewed evidence and handoff.
 - **V-plan — Owner plans and schema preparation**
-  - Owns: `packages/values/semantics/src/plans.rs`, `packages/values/src/prepared/plan.ts`, `packages/values/bindings/plans.ts`, `packages/values/test/prepared-validation.test.ts`. Evidence outputs are owned by the task that writes them.
+ - Owns: `packages/values/semantics/src/plans.rs`, `packages/values/src/prepared/plan.ts`, `packages/values/bindings/plans.ts`, . Evidence outputs are owned by the task that writes them.
   - Ready backlog: Work V01.4 contracts, V02.1 immutable plans and adversarial schema fixtures before exact codecs land.
   - Allocation/exit: one 0.5–2 day patch at a time; exit on V02.1 and V03.4, with reviewed evidence and handoff.
 - **V-input — Parser provenance, arenas and lifetimes**
-  - Owns: `packages/values/semantics/src/input.rs`, `packages/values/bindings/owned-input.ts`, `packages/interfaces/src/http/limits.ts`, `packages/values/test/owned-input.test.ts`, `packages/values/test/validation-lifecycle.test.ts`, `packages/values/semantics/tests/input_validation/input.rs`. Evidence outputs are owned by the task that writes them.
+ - Owns: `packages/values/semantics/src/input.rs`, `packages/values/bindings/owned-input.ts`, `packages/interfaces/src/http/limits.ts`, `packages/values/semantics/tests/input_validation/input.rs`. Evidence outputs are owned by the task that writes them.
   - Ready backlog: Work V03.3 parser provenance and transport mutation fixtures while binding delivery is blocked; prepare deep/wide lifecycle cases.
   - Allocation/exit: one 0.5–2 day patch at a time; exit on V03.2/V03.3 and V07.1, with reviewed evidence and handoff.
 - **V-values — Values interpreter, codecs and materialization**
-  - Owns: `packages/values/semantics/src/validation.rs`, `packages/values/semantics/src/codecs/owned.rs`, `packages/values/semantics/src/profiles/values.rs`, `packages/values/src/prepared/codec.ts`, `packages/values/src/prepared/validation.ts`, `packages/values/bindings/materialize.ts`, `packages/values/bindings/predicates.ts`, `packages/values/test/legacy-validation-traces.test.ts`, `packages/values/semantics/tests/input_validation/values.rs`. Evidence outputs are owned by the task that writes them.
+ - Owns: `packages/values/semantics/src/validation.rs`, `packages/values/semantics/src/codecs/owned.rs`, `packages/values/semantics/src/profiles/values.rs`, `packages/values/src/prepared/codec.ts`, `packages/values/src/prepared/validation.ts`, `packages/values/bindings/materialize.ts`, `packages/values/bindings/predicates.ts`, `packages/values/semantics/tests/input_validation/values.rs`. Evidence outputs are owned by the task that writes them.
   - Ready backlog: Work V02.2 current/prepared AST/legacy traces while A04/A05 codecs are blocked; prepare ordered traversal fixtures.
   - Allocation/exit: one 0.5–2 day patch at a time; exit on V04 and V05 with V07.3, with reviewed evidence and handoff.
 - **V-http — HTTP profile and owning handler/module join**
-  - Owns: `packages/values/semantics/src/profiles/http.rs`, `packages/interfaces/src/envelope/prepared.ts`, `packages/interfaces/src/http/operations.ts`, `packages/interfaces/test/owned-http.test.ts`, `packages/cloudflare/src/worker/assembly.ts`, `packages/cloudflare/test/owned-http-route.test.ts`, `packages/values/semantics/tests/input_validation/http.rs`. Evidence outputs are owned by the task that writes them.
+ - Owns: `packages/values/semantics/src/profiles/http.rs`, `packages/interfaces/src/envelope/prepared.ts`, `packages/interfaces/src/http/operations.ts`, `packages/cloudflare/src/worker/assembly.ts`, `packages/values/semantics/tests/input_validation/http.rs`. Evidence outputs are owned by the task that writes them.
   - Ready backlog: Work V01.2 bounded-join contract, V02.3 framing plan and profile disagreement vectors while exact/binding gates are blocked.
   - Allocation/exit: one 0.5–2 day patch at a time; exit on V06.4 and V08 package gate; default deployment separately V08.4/V08.5, with reviewed evidence and handoff.
 - **V-state — Generated-state profile and canonical bridge**
-  - Owns: `packages/values/semantics/src/profiles/state.rs`, `packages/state/src/invocation/prepared-inputs.ts`, `packages/state/src/invocation/registry.ts`, `packages/state/src/invocation/admission.ts`, `packages/state/src/invocation/invoke.ts`, `packages/cloudflare/src/runtime/invoke.ts`, `packages/state/test/invocation/owned-admission.test.ts`, `packages/values/semantics/tests/input_validation/state.rs`. Evidence outputs are owned by the task that writes them.
+ - Owns: `packages/values/semantics/src/profiles/state.rs`, `packages/state/src/invocation/prepared-inputs.ts`, `packages/state/src/invocation/registry.ts`, `packages/state/src/invocation/admission.ts`, `packages/state/src/invocation/invoke.ts`, `packages/cloudflare/src/runtime/invoke.ts`, `packages/values/semantics/tests/input_validation/state.rs`. Evidence outputs are owned by the task that writes them.
   - Ready backlog: Work V01.3 replay contract, V02.4 loader projection and V09.1 bridge before consumer/resource gates; preserve raw hash golden vectors.
   - Allocation/exit: one 0.5–2 day patch at a time; exit on V06.5 and V09 durable gate, with reviewed evidence and handoff.
 - **V-mcp — MCP provenance decision and ordinary profile**
-  - Owns: `packages/values/semantics/src/profiles/mcp.rs`, `packages/interfaces/src/mcp/prepared.ts`, `packages/interfaces/src/mcp/schemas.ts`, `packages/interfaces/src/mcp/server.ts`, `packages/interfaces/test/owned-mcp.test.ts`, `packages/values/semantics/tests/input_validation/mcp.rs`. Evidence outputs are owned by the task that writes them.
+ - Owns: `packages/values/semantics/src/profiles/mcp.rs`, `packages/interfaces/src/mcp/prepared.ts`, `packages/interfaces/src/mcp/schemas.ts`, `packages/interfaces/src/mcp/server.ts`, `packages/values/semantics/tests/input_validation/mcp.rs`. Evidence outputs are owned by the task that writes them.
   - Ready backlog: Work V10.1 installed SDK source inspection and V02.5/V06.3 pure profiles despite a deferred SDK branch.
   - Allocation/exit: one 0.5–2 day patch at a time; exit on V06.6 and V10.3 decision; V10.4 only if accepted, with reviewed evidence and handoff.
 - **V-forms — Independent forms source assessment and optional producer**
-  - Owns: `packages/interfaces/src/http/forms-owned.ts`, `packages/interfaces/test/owned-forms.test.ts`. Evidence outputs are owned by the task that writes them.
+ - Owns: `packages/interfaces/src/http/forms-owned.ts`, . Evidence outputs are owned by the task that writes them.
   - Ready backlog: Work V10.2 coercion/duplicate/proto source assessment while HTTP is blocked; prepare faithful producer fixtures only if accepted.
   - Allocation/exit: one 0.5–2 day patch at a time; exit on V10.2 decision; V10.5/V10.6 only if accepted, with reviewed evidence and handoff.
 - **V-evidence — Fixtures, resource harness and acceptance ledger**
@@ -302,7 +302,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-plan — Owner plans and schema preparation**
   - [ ] **V02.1 — Prepare immutable owner plans in TS.**
     - Start: `V01`, `C02.ready`.
-    - Files/output: `packages/values/src/prepared/plan.ts`, `packages/values/test/prepared-validation.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md`.
+ - Files/output: `packages/values/src/prepared/plan.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md`.
     - Actions:
       - Extract resolved ordered type/union/leaf plans from genuine factory owners, including bounds/default metadata and default registry keys.
       - Keep unknown string wrappers and structural normalized-schema acceptance outside cache; hand private factory hook patch specification to integrator.
@@ -311,7 +311,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
       - Owner-plan TS fixtures preserve current descriptor normalization/default validation semantics and synchronous behavior.
   - [ ] **V03.4 — Implement owner registration and generation handles.**
     - Start: `V02.1`, `V03.1`.
-    - Files/output: `packages/values/semantics/src/plans.rs`, `packages/values/bindings/plans.ts`, `packages/values/test/prepared-validation.test.ts`.
+ - Files/output: `packages/values/semantics/src/plans.rs`, `packages/values/bindings/plans.ts`, .
     - Actions:
       - Copy private owner-produced ordered plans and defaults; resolve union/type dispatch once and scope to owner/artifact revision.
       - Add instance/version/generation ownership, bounded registration and inactive-scope invalidation without active plan eviction.
@@ -331,7 +331,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
       - Numeric-looking key order, duplicate JSON keys, own __proto__, controls and lone surrogates retain exact data.
   - [ ] **V03.3 — Create private parser token and controlled lineage.**
     - Start: `V01`, `C03.ready`, `A03.foundation`.
-    - Files/output: `packages/values/bindings/owned-input.ts`, `packages/interfaces/src/http/limits.ts`, `packages/values/test/owned-input.test.ts`.
+ - Files/output: `packages/values/bindings/owned-input.ts`, `packages/interfaces/src/http/limits.ts`, .
     - Actions:
       - Add private owned parser path calling unchanged capped reader/TextDecoder/JSON.parse; record provenance in WeakMap at parser creation before exposure.
       - Preserve public parseJsonBody signature; controlled derivatives strip host fields with own data definitions and original enumeration/duplicate semantics.
@@ -343,7 +343,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-values — Values interpreter, codecs and materialization**
   - [ ] **V02.2 — Prepare values AST codec and whole-call comparator.**
     - Start: `V02.1`, `C02.ready`.
-    - Files/output: `packages/values/src/prepared/codec.ts`, `packages/values/src/prepared/validation.ts`, `packages/values/test/legacy-validation-traces.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-values.json`.
+ - Files/output: `packages/values/src/prepared/codec.ts`, `packages/values/src/prepared/validation.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-values.json`.
     - Actions:
       - Extract package-private AST codec/ordered values execution with default identity; produce hook specification rather than editing public schema/wire modules.
       - Compare current/prepared whole results, errors, freezing/identity and allocation/timing; preserve legacy reads and exceptions including getter second value, proxy traps, sparse/cycles/toJSON.
@@ -354,7 +354,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-http — HTTP profile and owning handler/module join**
   - [ ] **V02.3 — Prepare interfaces HTTP framing/binding plan.**
     - Start: `V01`, `C02.ready`.
-    - Files/output: `packages/interfaces/src/envelope/prepared.ts`, `packages/interfaces/test/owned-http.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-http.json`.
+ - Files/output: `packages/interfaces/src/envelope/prepared.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-http.json`.
     - Actions:
       - Project ordered allowed/required/binding inputs after owner catalog checks; preserve shape-only framing with no derived metadata.
       - Compare current/prepared HTTP complete framing+binding, raw business result, bound literal messages and top-level leniency.
@@ -366,7 +366,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-state — Generated-state profile and canonical bridge**
   - [ ] **V02.4 — Prepare generated-state owner plan.**
     - Start: `V01`, `C02.ready`.
-    - Files/output: `packages/state/src/invocation/prepared-inputs.ts`, `packages/state/src/invocation/registry.ts`, `packages/state/test/invocation/owned-admission.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-state.json`.
+ - Files/output: `packages/state/src/invocation/prepared-inputs.ts`, `packages/state/src/invocation/registry.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-state.json`.
     - Actions:
       - Project copied data-only generated metadata within loader with private provenance; preserve delivery-field membership owner channel.
       - Prepare state presence/ref/ordinary-array behavior and compare current TS at existing admission point without changing invocation/hash order.
@@ -377,7 +377,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-mcp — MCP provenance decision and ordinary profile**
   - [ ] **V02.5 — Prepare ordinary MCP plan independently of adoption.**
     - Start: `V01`, `C02.ready`, `V02.3`.
-    - Files/output: `packages/interfaces/src/mcp/prepared.ts`, `packages/interfaces/src/mcp/schemas.ts`, `packages/interfaces/test/owned-mcp.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-mcp.json`.
+ - Files/output: `packages/interfaces/src/mcp/prepared.ts`, `packages/interfaces/src/mcp/schemas.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-mcp.json`.
     - Actions:
       - Derive binding/ref projection after artifact checks, consuming HTTP projection through its read-only API.
       - Compare closedness → descriptor refs → derived binding and null deferral in pure inert fixtures without claiming SDK provenance.
@@ -411,7 +411,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-integrator — Shared values and ABI integration owner**
   - [ ] **V03.5 — Land coordinated minimal binding and shared module registrations.**
     - Start: `V03.2`, `V03.4`, `C04.ready`, `A07.foundation`.
-    - Files/output: `packages/values/semantics/src/lib.rs`, `packages/values/semantics/src/profiles.rs`, `packages/values/semantics/src/codecs/mod.rs`, `packages/values/bindings/src/lib.rs`, `packages/values/bindings/src/validation.rs`, `packages/values/bindings/validation.ts`, `packages/values/semantics/tests/input_validation.rs`, `packages/values/test/validation-binding.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json`.
+ - Files/output: `packages/values/semantics/src/lib.rs`, `packages/values/semantics/src/profiles.rs`, `packages/values/semantics/src/codecs/mod.rs`, `packages/values/bindings/src/lib.rs`, `packages/values/bindings/src/validation.rs`, `packages/values/bindings/validation.ts`, `packages/values/semantics/tests/input_validation.rs`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/abi-binding-smoke.json`.
     - Actions:
       - Accept explicit A07.foundation/C03 owner handoff of shared registrations; add thin versioned structural transport/plan scaffold entry and error envelope without duplicating numeric transport.
       - Compile/import pinned generated glue via shared binding owner; run same-call structural scalar/text/presence vectors in Node/Bun and actual C04 workerd route.
@@ -443,7 +443,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-http — HTTP profile and owning handler/module join**
   - [ ] **V06.1 — Implement HTTP-only native profile.**
     - Start: `V02.3`, `V03.2`, `V03.4`, `A04.5`, `A05.3`.
-    - Files/output: `packages/values/semantics/src/profiles/http.rs`, `packages/values/semantics/tests/input_validation/http.rs`, `packages/interfaces/test/owned-http.test.ts`.
+ - Files/output: `packages/values/semantics/src/profiles/http.rs`, `packages/values/semantics/tests/input_validation/http.rs`, .
     - Actions:
       - Implement one framing+binding operation with own-presence and submitted raw business result; reuse only appropriate exact/datetime primitives.
       - Preserve catalog-without-derived and first error detail; prove deliberate HTTP disagreement with values/state/MCP fixtures.
@@ -454,7 +454,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-state — Generated-state profile and canonical bridge**
   - [ ] **V06.2 — Implement generated-state native profile.**
     - Start: `V02.4`, `V03.2`, `V03.4`.
-    - Files/output: `packages/values/semantics/src/profiles/state.rs`, `packages/values/semantics/tests/input_validation/state.rs`, `packages/state/test/invocation/owned-admission.test.ts`.
+ - Files/output: `packages/values/semantics/src/profiles/state.rs`, `packages/values/semantics/tests/input_validation/state.rs`, .
     - Actions:
       - Implement aggregate unknown/required/array/ref errors, absence-only optional array fills and ordered ref extraction with strict state versions.
       - Preserve generated scalar presence-only behavior, null/present undefined and normal shallow copy; no operation-default application.
@@ -465,7 +465,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-mcp — MCP provenance decision and ordinary profile**
   - [ ] **V06.3 — Implement ordinary MCP native policy.**
     - Start: `V02.5`, `V03.2`, `V03.4`, `A04.5`, `A05.3`.
-    - Files/output: `packages/values/semantics/src/profiles/mcp.rs`, `packages/values/semantics/tests/input_validation/mcp.rs`, `packages/interfaces/test/owned-mcp.test.ts`.
+ - Files/output: `packages/values/semantics/src/profiles/mcp.rs`, `packages/values/semantics/tests/input_validation/mcp.rs`, .
     - Actions:
       - Implement closedness then descriptor ref shape then derived binding; mutation ID orchestration stays host and null deferral uses only present derived members.
       - Preserve MCP arbitrary digits versions, exact refs and UTF-16 ID length; map errors through own host InvalidParams projection.
@@ -528,7 +528,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
       - Actual whole values calls reconstruct structural/default/sentinel results and ordered failures; shared module edits remain serialized.
   - [ ] **V05.3 — Wire proved predicate and retained-encode glue.**
     - Start: `V05.2`, `V04.4`.
-    - Files/output: `packages/values/bindings/src/validation.rs`, `packages/values/bindings/validation.ts`, `packages/values/test/validation-binding.test.ts`.
+ - Files/output: `packages/values/bindings/src/validation.rs`, `packages/values/bindings/validation.ts`, .
     - Actions:
       - Consume values predicate/retained encode handoff and wire synchronous demand-ordered callback/result protocol in shared adapter.
       - Run B1/B2 actual-binding callback-count/throws/formatting and same-session encoding cases.
@@ -538,7 +538,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-plan — Owner plans and schema preparation**
   - [ ] **V07.5 — Apply finalized owner-plan budget and release policy.**
     - Start: `V07.1`, `V03.4`.
-    - Files/output: `packages/values/semantics/src/plans.rs`, `packages/values/bindings/plans.ts`, `packages/values/src/prepared/plan.ts`, `packages/values/test/prepared-validation.test.ts`.
+ - Files/output: `packages/values/semantics/src/plans.rs`, `packages/values/bindings/plans.ts`, `packages/values/src/prepared/plan.ts`, .
     - Actions:
       - Apply input-owner finalized profile/version/plan-memory/count budgets to registration and prepared owner plan comparator.
       - Prove inactive-only eviction/generation invalidation, active request retention, owner reload and default registry release handoff.
@@ -549,7 +549,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-input — Parser provenance, arenas and lifetimes**
   - [ ] **V07.1 — Finalize request/plan limits and cleanup implementation.**
     - Start: `V03.2`, `V03.3`, `V03.4`, `V03.5`, `C05.ready`.
-    - Files/output: `packages/values/semantics/src/input.rs`, `packages/values/bindings/owned-input.ts`, `packages/values/test/validation-lifecycle.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/resource-policy.md`.
+ - Files/output: `packages/values/semantics/src/input.rs`, `packages/values/bindings/owned-input.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/resource-policy.md`.
     - Actions:
       - Measure proposed 256 plans/16 MiB plans/1 MiB body/32 MiB request/128 frames/1048576 nodes and fix budget/version/error contract before rollout.
       - Implement iterative checked arena policy, one arena per active request, idempotent disposal and cancellation/client-disconnect/throw/replay cleanup; coordinate plan release changes through plan owner.
@@ -591,7 +591,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-http — HTTP profile and owning handler/module join**
   - [ ] **V06.4 — Run independent HTTP actual-binding profile parity.**
     - Start: `V06.1`, `V06.8`.
-    - Files/output: `packages/interfaces/test/owned-http.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-profile-differential.json`.
+ - Files/output: `docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-profile-differential.json`.
     - Actions:
       - Run current/prepared/native/actual binding HTTP full framing+binding with profile/version and ordered errors.
       - Cover missing catalog/skew, shape-only catalog, exact/date edge scalars, top-level extras, action_handle and profile differences.
@@ -602,7 +602,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-state — Generated-state profile and canonical bridge**
   - [ ] **V06.5 — Run state actual-binding profile parity.**
     - Start: `V06.2`, `V06.9`.
-    - Files/output: `packages/state/test/invocation/owned-admission.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-profile-differential.json`.
+ - Files/output: `docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-profile-differential.json`.
     - Actions:
       - Run pure state current/prepared/native/actual binding matrix including delivery metadata, strict refs and fresh fills.
       - Assert values/state/interface differences deliberately rather than unifying their error/presence policy.
@@ -623,7 +623,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-mcp — MCP provenance decision and ordinary profile**
   - [ ] **V06.6 — Run MCP actual-binding profile parity.**
     - Start: `V06.3`, `V06.10`.
-    - Files/output: `packages/interfaces/test/owned-mcp.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-profile-differential.json`.
+ - Files/output: `docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-profile-differential.json`.
     - Actions:
       - Run pure MCP current/prepared/native/actual binding matrix with null/ref/bound stages and HTTP agreement where contracts coincide.
       - Keep installed SDK provenance outcome separate from inert profile tests.
@@ -675,7 +675,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-integrator — Shared values and ABI integration owner**
   - [ ] **V08.5 — Verify shared delivery module join when accepted.** **Optional decision-gated branch.**
     - Start: `V08.4`, `C04.validation-join`, `A07`.
-    - Files/output: `packages/cloudflare/test/owned-input-delivery.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-default-deployment.json`.
+ - Files/output: `docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-default-deployment.json`.
     - Actions:
       - Start only accepted join branch after shared C04.validation-join consumes V08.4 assembly/module requirements; C04 alone edits bundle.ts.
       - Inspect shared typed asset inventory and existing deployed module map/digest contract without editing delivery source; prove real default deployment loading.
@@ -686,7 +686,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-http — HTTP profile and owning handler/module join**
   - [ ] **V08.1 — Install whole HTTP action at existing validation point.**
     - Start: `V06.4`, `V07.2`, `V03.3`, `V09.1`, `C04.ready`, `A07`.
-    - Files/output: `packages/interfaces/src/http/operations.ts`, `packages/interfaces/test/owned-http.test.ts`.
+ - Files/output: `packages/interfaces/src/http/operations.ts`, .
     - Actions:
       - Connect protected parse → current auth/CSRF/ID/catalog → whole framing+binding → unchanged invoker envelope/error/form draft.
       - Use protected lineage for canonical bridge only; arbitrary invoker callback invalidates state ownership.
@@ -696,7 +696,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
       - No Rust work before current validation point; one selected backend per request and no semantic-error retry.
   - [ ] **V08.2 — Prove actual handler package consumer in workerd.**
     - Start: `V08.1`, `V09.1`, `C04.values-assets`.
-    - Files/output: `packages/cloudflare/test/owned-http-route.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-consumer.json`.
+ - Files/output: `docs/research/package-subsystem-ports-20261006/evidence/input-validation/http-consumer.json`.
     - Actions:
       - Use real identity/catalog/canonical invoker fixtures and shipped Wasm assets to reach existing handleOperationRequest under actual workerd.
       - Record request trace, binding calls, deployment module inventory, errors/status/redaction/form redisplay and bootstrap failure cases.
@@ -714,7 +714,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
       - Default join acceptance explicitly dispatches V08.4/V08.5; absence leaves package completion possible with deployed adoption blocked.
   - [ ] **V08.4 — Land owning assembly join when accepted.** **Optional decision-gated branch.**
     - Start: `V08.3`, `V09.1`.
-    - Files/output: `packages/cloudflare/src/worker/assembly.ts`, `packages/cloudflare/test/owned-http-route.test.ts`.
+ - Files/output: `packages/cloudflare/src/worker/assembly.ts`, .
     - Actions:
       - Start only when V08.3 accepts C01 bounded existing-handler join; assemble existing identity/catalog/canonical handler using V-state bridge API.
       - Hand exact module/import/assets requirements to integrator without editing bundle.ts or runtime/invoke.ts.
@@ -723,7 +723,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
       - A4/B4 assembly and workerd trace preserves host stages and sealed/other routes.
   - [ ] **V10.6 — Hook accepted form producer through HTTP owner.** **Optional decision-gated branch.**
     - Start: `V10.5`, `V08.1`.
-    - Files/output: `packages/interfaces/src/http/operations.ts`, `packages/interfaces/test/owned-http.test.ts`.
+ - Files/output: `packages/interfaces/src/http/operations.ts`, .
     - Actions:
       - Start only accepted forms branch after HTTP handler task releases module; consume forms producer handoff under exclusive HTTP ownership.
       - Run complete forms handler redisplay/status/coercion differential.
@@ -743,7 +743,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
       - Array fills/defaults never change persisted hash; admission/load/stale/archive/conflict-current/fence/read order unchanged.
   - [ ] **V09.3 — Prove durable state consumer traces and copy cost.**
     - Start: `V09.2`, `V08.2`, `V07.4`.
-    - Files/output: `packages/state/test/invocation/owned-admission.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-replay-traces.json`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-copy-cost.json`.
+ - Files/output: `docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-replay-traces.json`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/state-copy-cost.json`.
     - Actions:
       - Run A3/B4 plus existing A4 durable suites through canonical bridge; persist raw-hash golden bytes and detailed receipt/auth/load traces.
       - Include -0/exponent/UTF-16 JSON escaping/TextEncoder policy, omission/null, trusted/live auth, stale/archive/conflict currents, fresh reads/fences and public input mutation.
@@ -764,7 +764,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
       - HTTP package/default gate remains independent; deferred result cannot be labelled full MCP port.
   - [ ] **V10.4 — Implement SDK-owned ordinary path only when accepted.** **Optional decision-gated branch.**
     - Start: `V10.3`, `V08.2`.
-    - Files/output: `packages/interfaces/src/mcp/server.ts`, `packages/interfaces/src/mcp/schemas.ts`, `packages/interfaces/test/owned-mcp.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-consumer.json`.
+ - Files/output: `packages/interfaces/src/mcp/server.ts`, `packages/interfaces/src/mcp/schemas.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/mcp-consumer.json`.
     - Actions:
       - Start only accepted V10.3 branch; integrate private SDK producer seam and whole ordinary action at current host stage.
       - Prove SDK mutation/proxy/callback rejection, null/ref stages, HTTP agreement and deployed MCP factory with shipped assets.
@@ -775,7 +775,7 @@ Each leaf lists start dependencies, exact files/outputs, actions and acceptance.
 - **Parallel lane V-forms — Independent forms source assessment and optional producer**
   - [ ] **V10.5 — Implement faithful form producer only when accepted.** **Optional decision-gated branch.**
     - Start: `V10.2`, `V07.2`, `V08.2`.
-    - Files/output: `packages/interfaces/src/http/forms-owned.ts`, `packages/interfaces/test/owned-forms.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-consumer.json`.
+ - Files/output: `packages/interfaces/src/http/forms-owned.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/forms-consumer.json`.
     - Actions:
       - Start only when V10.2 explicitly accepts faithful producer; build protected owner graph with same coercion/duplicates/current __proto__ behavior.
       - Publish narrow forms producer API and evidence for HTTP lane hookup without editing its operations/limits modules.
@@ -926,24 +926,19 @@ Run commands from the repository root. A commands exist at the inspected checkpo
 # A1: values baseline and package checks
 bun run --cwd packages/values build
 bun run --cwd packages/values typecheck
-node --test packages/values/dist/values/test/schema.test.js packages/values/dist/values/test/wire.test.js packages/values/dist/values/test/conformance.test.js packages/values/dist/values/test/text.test.js packages/values/dist/values/test/types.test.js
+node --test 
 bun docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/values-boundary-probe.mjs
 
 # A2: existing real interfaces dispatch/ref/binding suites
 bun run --cwd packages/interfaces build
 bun run --cwd packages/interfaces typecheck
-node --test packages/interfaces/dist/interfaces/test/envelope.test.js packages/interfaces/dist/interfaces/test/wire.test.js packages/interfaces/dist/interfaces/test/http-operations.test.js packages/interfaces/dist/interfaces/test/mcp-server.test.js packages/interfaces/dist/interfaces/test/e1-bound-dispatch.test.js packages/interfaces/dist/interfaces/test/e2b-transport-seams.test.js packages/interfaces/dist/interfaces/test/e2-dispatch-agreement.test.js packages/interfaces/dist/interfaces/test/integration-parity.test.js
+node --test 
 
 # A3: state raw hash/admission/invocation/default checks
 bun run --cwd packages/state build
 bun run --cwd packages/state typecheck
-node --test packages/state/dist/state/test/invocation/replay.test.js packages/state/dist/state/test/invocation/admission.test.js packages/state/dist/state/test/invocation/invoke.test.js packages/state/dist/state/src/invocation/invoke-read.test.js packages/state/dist/state/src/invocation/descriptor-join.test.js packages/state/dist/state/src/mutation/t18-defaults.test.js packages/state/dist/state/src/receipt/b3-delivery-schema.test.js
-
 # A4: existing production and durable consumer gates
-./node_modules/.bin/vitest run packages/cloudflare/test/assembly.test.ts packages/cloudflare/test/mcp-route.test.ts packages/cloudflare/test/mcp-derived.test.ts packages/cloudflare/test/deploy-bundle.test.ts packages/cloudflare/test/release.test.ts
-node --test packages/state/dist/state/src/invocation/t32b-wire.test.js packages/state/dist/state/src/invocation/t32b-fence.test.js packages/state/dist/state/src/mutation/t32b-wire-durable.test.js packages/state/dist/state/src/mutation/t18-defaults-durable.test.js
 bun run --cwd packages/cloudflare build
-node --test packages/cloudflare/dist/runtime/t16b-canonical.test.js packages/cloudflare/dist/runtime/t17b-durable.test.js packages/cloudflare/dist/runtime/t32b-cloudflare-durable.test.js
 bun run --cwd packages/cloudflare typecheck
 
 # B1: new native suite; common crate builds only once
@@ -952,11 +947,11 @@ cargo fmt --manifest-path packages/values/semantics/Cargo.toml --check
 cargo clippy --manifest-path packages/values/semantics/Cargo.toml --all-targets -- -D warnings
 
 # B2/B3: new real-adapter, prepared and retained-legacy gates after build
-node --test packages/values/dist/values/test/owned-input.test.js packages/values/dist/values/test/prepared-validation.test.js packages/values/dist/values/test/validation-binding.test.js packages/values/dist/values/test/validation-lifecycle.test.js packages/values/dist/values/test/legacy-validation-traces.test.js
+node --test 
 
 # B4: new consumer suites; workerd path is in Cloudflare node/Vitest ownership
-node --test packages/interfaces/dist/interfaces/test/owned-http.test.js packages/interfaces/dist/interfaces/test/owned-mcp.test.js packages/state/dist/state/test/invocation/owned-admission.test.js
-./node_modules/.bin/vitest run packages/cloudflare/test/owned-http-route.test.ts packages/cloudflare/test/owned-input-delivery.test.ts
+node --test 
+./node_modules/.bin/vitest run 
 ```
 
 **B5** is C05's shared measurement harness, invoked with the validation workload registry produced in V01/V02 and three named backends (`current-ts`, `prepared-ts`, `owned-rust`), including requests through the actual HTTP handler/Wasm/workerd fixture, state replay/normalization and supported MCP calls; include default-deployment HTTP traffic only when its adoption gate is closed. C05 must publish its exact executable path/command before V11; this lane must add that command to `final-source-checks.md`. No invented current benchmark API is assumed here. Local CPU measurement uses appropriate process/harness timing; production Worker timers do not advance during CPU work, as documented in the existing research.

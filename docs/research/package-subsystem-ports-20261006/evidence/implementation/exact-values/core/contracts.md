@@ -43,17 +43,17 @@ stays published-unchanged; new fixtures go alongside it.
 ## Caller inventory (verified at head)
 
 - **Generated programs / stdlib**: `packages/stdlib/src/index.ts` re-exports the
-  producer surface (`test/assembly.test.ts` guards the boundary). Values must
+ producer surface ( guards the boundary). Values must
   never import stdlib back (verified barrel comment + one-way dependency).
 - **Interfaces pilot** (jointly owned with validation; interfaces keeps
   first-error messages/order): `packages/interfaces/src/mcp/schemas.ts`
   (`checkDecimalLiteral`, `checkBoundArguments`) and
   `src/http/operations.ts`; also referenced by `mcp/server.ts`, `ports.ts`,
-  `cloudflare/src/runtime/mcp-registry.ts`, `t19b-depth.test.ts`.
+ `cloudflare/src/runtime/mcp-registry.ts`, .
 - **Direct `.coef`/`.minor` consumers** (structural carriers the core must not
   break): `packages/interfaces/src/mcp/schemas.ts`,
   `packages/state/src/query/engine.ts`, `packages/ui/src/forms.ts`,
-  `packages/ui/src/messages.ts`, `packages/ui/test/policyPage.test.ts`,
+ `packages/ui/src/messages.ts`,
   `compiler/src/policy.rs`, `compiler/tests/codegen.rs`,
   `compiler/tests/effects.rs`.
 - **Cloudflare/testkit delivery**: `deploy/bundle.ts`, `dev/local-run.ts`,

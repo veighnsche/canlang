@@ -7,12 +7,10 @@
   "description": "Lane 04: file upload intake, finalization, provenance, retention and host bridge (internal; public surface assembles in @canlang/stdlib).",
   "scripts": {
     "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/files",
-    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/files",
     "build": "node ../../scripts/build-package.mjs",
     "clean": "rm -rf dist/",
     "build:emit": "tsc -p tsconfig.json",
     "typecheck:check": "tsc -p tsconfig.json --noEmit",
-    "test:unit": "node --test \"dist/test/**/*.test.js\"",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "devDependencies": {

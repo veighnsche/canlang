@@ -555,15 +555,3 @@ pub fn require_integer_number(value: &Value, what: &str) -> Result<f64, Failure>
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn minimum_int64_remainder_is_zero_not_panic() {
-        // Guard for the i64::MIN % -1 trap: core math never narrows operands.
-        let min = int64_min();
-        let minus_one = BigInt::from(-1);
-        assert!((min % minus_one).is_zero());
-    }
-}

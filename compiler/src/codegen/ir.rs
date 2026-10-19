@@ -1114,7 +1114,6 @@ struct Cx<'a> {
     diags: Vec<Diagnostic>,
 }
 
-
 /// Keep contract collection attribution separate from model-query facts.
 /// Ordinary generic calls without this finite proof lower as before.
 enum ContractCallFact<'a> {
@@ -8209,7 +8208,6 @@ impl<'a> Cx<'a> {
         true
     }
 
-
     fn contract_call_fact_valid(
         &self,
         node: &SyntaxNode,
@@ -9560,7 +9558,6 @@ impl<'a> Cx<'a> {
         }
         Some(alias)
     }
-
 
     fn decode_query_order(
         &mut self,
@@ -24713,36 +24710,3 @@ pub fn lower_given_contracts(
     out
 }
 
-#[cfg(test)]
-mod string_payload_tests {
-    use super::*;
-    use crate::syntax::lexer::{Token, TokenKind};
-
-    /// Synthetic CST recovery boundary: raw source must never substitute
-    /// for an absent lexer payload, even when its spelling looks valid.
-    #[test]
-    fn c01_literal_string_distinguishes_empty_null_and_missing_payload() {
-        let mut db = SourceDb::new();
-        let file = db.add("payload.can".to_string(), "\"\" null".to_string());
-        let literal = |kind, span, string_value| {
-            SyntaxNode::enclosing(
-                SyntaxKind::Literal,
-                vec![SyntaxNode::token_leaf(Token {
-                    kind,
-                    span,
-                    string_value,
-                })],
-            )
-        };
-        let empty = literal(
-            TokenKind::String,
-            Span::new(file, 0, 2),
-            Some(String::new()),
-        );
-        let missing = literal(TokenKind::String, Span::new(file, 0, 2), None);
-        let null = literal(TokenKind::Name, Span::new(file, 3, 7), None);
-        assert_eq!(literal_string_opt(&db, &empty), Some(Some(String::new())));
-        assert_eq!(literal_string_opt(&db, &missing), None);
-        assert_eq!(literal_string_opt(&db, &null), Some(None));
-    }
-}

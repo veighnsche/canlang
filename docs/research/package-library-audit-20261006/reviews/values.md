@@ -8,12 +8,12 @@ Inventory: 97 TS/Rust files under `packages/values`, excluding dist: 58 source f
 
 Source responsibility ledger (all paths relative to `/Users/vince/Projects/canlang/packages/values/`):
 
-- `src/{decimal,int,money}.ts`, `semantics/src/numeric/{decimal,integer,money,rounding}.rs`, `semantics/src/aggregates/{decimal,integer,money,numeric}.rs`: exact arithmetic + Can checking/rounding boundaries; findings V1/V4; otherwise retain adapters over existing bigint mechanisms.
-- `src/{temporal,timezone}.ts`, `semantics/src/temporal/{civil,instant,duration}.rs`: manual civil calendar/parsing + Can interval/range semantics; V3.
-- `src/{icu,locale,text}.ts`: bounded ICU parser/interpreter, exact display, fallback, native Unicode/Intl; V5/V6/V8.
-- `src/{schema,wire,types,kinds,equality,array,stdlib-pure}.ts`: Can type grammar, provenance/value carriers, closed schema/wire, identity/equality, ordered supplied-domain evaluation and URL policy; V2/V7/V8/V9.
-- `src/prepared/{plan,codec,validation}.ts`, `bindings/{backend,bootstrap,carriers,owned-input,plans,validation}.ts`, `semantics/src/{input,plans,profiles}.rs`, `semantics/src/{codecs,representations}/numeric.rs`, `semantics/src/transport/exact.rs`, `bindings/src/{exact,validation,lib}.rs`: registry/admission/parity mechanisms and transport scaffolds; V1/V2/V7/V9/V10.
-- `src/{catalog,currency-data,errors,index,distribution}.ts`, `semantics/src/{currency_facts,failures,lib}.rs`, all six Rust `*/mod.rs` files: owner facts/catalog/error vocabulary/export assembly; retain. Currency facts are generated from the pinned TS table, not independently maintained algorithm logic.
+- , : exact arithmetic + Can checking/rounding boundaries; findings V1/V4; otherwise retain adapters over existing bigint mechanisms.
+- , : manual civil calendar/parsing + Can interval/range semantics; V3.
+- : bounded ICU parser/interpreter, exact display, fallback, native Unicode/Intl; V5/V6/V8.
+- : Can type grammar, provenance/value carriers, closed schema/wire, identity/equality, ordered supplied-domain evaluation and URL policy; V2/V7/V8/V9.
+- , `semantics/src/transport/exact.rs`, : registry/admission/parity mechanisms and transport scaffolds; V1/V2/V7/V9/V10.
+- , all six Rust `*/mod.rs` files: owner facts/catalog/error vocabulary/export assembly; retain. Currency facts are generated from the pinned TS table, not independently maintained algorithm logic.
 - Tests/examples: Can vectors, interface/export/catalog conformance, independent decimal/digit-string oracles, prepared trace/genuineness checks, owned-input emulation and NDJSON harness; V4/V10. Generated TS declarations are excluded as generated interface output, not custom mechanics.
 
 Present dependencies: TS production uses `@canlang/contracts`, native bigint, URL, TextDecoder/JSON and Intl; `decimal.js@10.6.0` is dev-only (independent oracle). Rust uses `num-bigint`, `num-traits`, `serde`, `serde_json`; binding uses `wasm-bindgen`. `README.md` requires JS without `node:` imports on Node/workerd. Rust currently uses std; no no_std requirement is asserted. Committed generated build metadata says wasm32-unknown-unknown/web/release, wasm 622216 bytes, but byte counts/digests were not independently verified here.
@@ -48,7 +48,7 @@ Present library use: Intl supplies timezone data/rendering, while custom code in
 
 Can adapter must retain 0001..9999 input/result range; strict YYYY-MM-DD and HH:MM[:SS]; public datetime accepts lowercase t/z and arbitrarily long fractional zeros but rejects nonzero sub-ms and leap seconds; offset grammar up to 23:59; int64 duration with exact duration/int and final-only aggregate narrowing; original-anchor stateless month clamp; half-open range limit failure, not truncation; validation order date→time→zone→fold. `fold` currently required even for unambiguous calls. Temporal earlier/later can adjust gaps, so adapter must round-trip civil fields and reject gaps for both selectors; `reject` alone wrongly rejects folds. Retain Can control rules and error envelopes regardless of engine.
 
-Gate: compare existing vectors plus years 0001/9999, crossings into BCE/out-of-range, historic second offsets, non-hour folds/gaps (e.g. Lord Howe), skipped whole days (Apia), aliases/case, transition boundaries and far-future values with one identified tzdb pin. Benchmark import size, Wasm size, calls and allocation; prove calendar engine removal is a net maintenance reduction. Tests currently emphasize NY/Auckland/Kathmandu modern stable dates (`test/timezone.test.ts:13`); no comprehensive historical/boundary proof was found.
+Gate: compare existing vectors plus years 0001/9999, crossings into BCE/out-of-range, historic second offsets, non-hour folds/gaps (e.g. Lord Howe), skipped whole days (Apia), aliases/case, transition boundaries and far-future values with one identified tzdb pin. Benchmark import size, Wasm size, calls and allocation; prove calendar engine removal is a net maintenance reduction. Tests currently emphasize NY/Auckland/Kathmandu modern stable dates (); no comprehensive historical/boundary proof was found.
 
 Evidence: https://tc39.es/proposal-temporal/docs/timezone.html ; https://github.com/js-temporal/temporal-polyfill ; https://raw.githubusercontent.com/js-temporal/temporal-polyfill/main/lib/ecmascript.ts ; https://docs.rs/jiff/latest/jiff/ ; https://docs.rs/jiff/latest/jiff/civil/struct.Date.html ; https://docs.rs/jiff/latest/jiff/tz/enum.Disambiguation.html
 
@@ -58,7 +58,7 @@ Exact sites: `/Users/vince/Projects/canlang/packages/values/src/decimal.ts:140`/
 
 Verified constraints: ≤38 coefficient digits, scale 0..18 with stored scale retained; no exponent/+ syntax; malformed vs construction-out-of-range vs result-overflow distinct; exact add/sub and full scratch product before final boundary; multiplication rounds only past18; terminating division minimal scale, other division one direct half-even; money rounds exactly once to the owner table then int64; aggregates check only final total (intermediate cancellation must survive). Some operator bigint operands are arbitrary precision, and `rounding_vectors.rs:56` tests 10^100 scratch.
 
-`rust_decimal` is disqualified for general Can decimals: 96-bit coefficient/roughly28–29 digits cannot cover38 or arbitrary scratch, despite trailing-scale/no_std/Wasm support. Decimal.js is an actual dev-only value oracle; docs and `test/decimal-oracle.test.ts:12` confirm every operation rounds to configured significant precision and trailing zeros are not retained. Making it production requires extra scale metadata, per-operation scratch precision and explicit Infinity/error policy; setting precision38 is not equivalent.
+`rust_decimal` is disqualified for general Can decimals: 96-bit coefficient/roughly28–29 digits cannot cover38 or arbitrary scratch, despite trailing-scale/no_std/Wasm support. Decimal.js is an actual dev-only value oracle; docs and confirm every operation rounds to configured significant precision and trailing zeros are not retained. Making it production requires extra scale metadata, per-operation scratch precision and explicit Infinity/error policy; setting precision38 is not equivalent.
 
 BigDecimal is the better Rust evaluation candidate for exact coefficient/scale arithmetic and explicit `with_scale_round(..., HalfEven)`, not unchecked parsing/division or Context defaults. It uses BigInt+i64 scale; defaults are build-environment controlled (100 digits/HalfEven), `Context::invert(0)` returns zero, and Context precision is significant digits. Existing no_std feature is documented/source-verified; target build remains unexecuted. Can prechecks, minimal terminating scale, operation order and final bound/error mapping remain required. `num-rational` offers arbitrary BigRational, but default `round()` ties away from zero and zero-denominator construction panics, so it does not replace the tiny Can half-even adapter by default.
 
@@ -70,7 +70,7 @@ Evidence: https://docs.rs/bigdecimal/latest/bigdecimal/ ; https://docs.rs/bigdec
 
 Exact site: `/Users/vince/Projects/canlang/packages/values/src/icu.ts:267` through `:535`: custom recursive parser with apostrophes, nested plural/select, mandatory other, frozen AST and depth32; validation at `:642`, interpreter at `:822`. This overlaps standard ICU mechanics and is a worthwhile library-evaluation target, but the inspected FormatJS parser is not a thin drop-in.
 
-Official parser source `tryParsePluralOrSelectOptions`/`tryParseDecimalInteger` accepts exact selectors as safe integers, while Can test `test/icu.test.ts:88` accepts `=1.5` and `:315` accepts int64-max `=9223372036854775807`. Can normalizes decimal exact selectors for duplicate detection. Library must also reproduce identifier profile, rich-tag rejection (including attributes/self closing), apostrophe rejection/EOF behavior, offset/skeleton/style exclusion and depth32 before expensive recursive parse, error messages/precedence, and typed argument checks. Full `intl-messageformat` also has broader syntax and default formatter behavior; existing exact typed interpreter must not be silently discarded.
+Official parser source `tryParsePluralOrSelectOptions`/`tryParseDecimalInteger` accepts exact selectors as safe integers, while Can test accepts `=1.5` and `:315` accepts int64-max `=9223372036854775807`. Can normalizes decimal exact selectors for duplicate detection. Library must also reproduce identifier profile, rich-tag rejection (including attributes/self closing), apostrophe rejection/EOF behavior, offset/skeleton/style exclusion and depth32 before expensive recursive parse, error messages/precedence, and typed argument checks. Full `intl-messageformat` also has broader syntax and default formatter behavior; existing exact typed interpreter must not be silently discarded.
 
 Gate: parser-only spike with one explicit extension strategy that does not itself recreate the parser; full valid/invalid matrix, large/fractional exact selectors, normalized duplicate selectors, nested #, apostrophes and malformed deep patterns. Compare total adapter/upstream patch burden; retain current bounded parser if replacement requires a maintained fork or comparable custom scanning. No new production recommendation until this gate passes.
 
@@ -94,7 +94,7 @@ Constraints: unknown own fields collected in wire enumeration order, then declar
 
 Ajv official docs show data-changing defaults/coercion/removal and unspecified keyword evaluation order, so generic swap would need substantial semantic orchestration; do not nominate it as a simplification without a leaf-only proof. Retain Can coordinator, perhaps use mature standard leaf codecs where outcomes match. Gate any future shape leaf extraction against complete outcomes: returned values/carriers/default identity, all violation paths/messages/order, getter traces, mutation-version checks and no change in owner authority.
 
-Evidence: https://ajv.js.org/guide/modifying-data.html ; local `test/schema.test.ts:695`,`:833`,`:935`; `test/legacy-validation-traces.test.ts:355`,`:431`,`:547`.
+Evidence: https://ajv.js.org/guide/modifying-data.html ; local ,`:833`,`:935`; ,`:431`,`:547`.
 
 ### V8 — retain native-backed Unicode, URL, currency and fallback semantics
 
@@ -110,7 +110,7 @@ Exact sites: `/Users/vince/Projects/canlang/packages/values/bindings/backend.ts:
 
 `serde-wasm-bindgen` can reduce JSON overhead, but default i64/u64 serialize as safe-range numbers and Rust String cannot preserve lone UTF16; configuration has bigints, and JS values may be preserved, but automatic conversion does not preserve Can issuance/default/owner authority or duplicate ordered frames by itself. `serde_json::Value` uses sorted BTreeMap unless preserve_order; preserve_order still cannot represent duplicate entries. Retain explicit ordered arrays, f64 bits, raw UTF16, minted markers and host-token lineage; do not adopt arbitrary values just because shape matches. Proposal: evaluate a bulk operation interface carrying owner-approved frame arrays with library support for generic crossing. Gate whole-call bits/unit/key-order/duplicates/genuineness/errors, type/carrier/provenance, plus end-to-end throughput/binary size; do not optimize individual scalar crossings as the long-term architecture without measurement.
 
-Evidence: https://docs.rs/serde-wasm-bindgen/latest/serde_wasm_bindgen/ ; https://docs.rs/serde_json/latest/serde_json/enum.Value.html ; local `test/validation-binding.test.ts:78`, `test/owned-input.test.ts:43`.
+Evidence: https://docs.rs/serde-wasm-bindgen/latest/serde_wasm_bindgen/ ; https://docs.rs/serde_json/latest/serde_json/enum.Value.html ; local , .
 
 ### V10 — retain bounded independent test oracles; evaluate actual host observation for JSON harness
 

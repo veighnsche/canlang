@@ -247,8 +247,7 @@ fn exactly_once_violations_are_e6009() {
         "rename+drop owner"
     );
     // NOTE: target-less renames and non-before sources are E1200 at
-    // parse (the parser owns those shapes); the checker's defensive
-    // branches for them are pinned by migrate_check unit tests.
+    // parse (the parser owns those shapes).
 }
 
 #[test]

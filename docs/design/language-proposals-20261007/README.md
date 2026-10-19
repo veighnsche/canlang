@@ -36,7 +36,7 @@ A missing runtime join does not make an accepted design worthless. It changes se
 | 18 | Authorized knowledge corpora | Yes; finish the accepted design | Existing corpus contract, indexing, opaque answer and projection owners | Retrieval/disclosure needs current authority over every supplied source | Large remaining join |
 | 19 | Canonical file transfer | Yes; finish the accepted design | Existing browser/MCP/file lifecycle bridge | Ordinary `file` inputs should work without an app-specific upload SDK | Medium remaining join |
 | 20 | Hooks, locks and invariants | Yes; qualify complete generated execution | Existing compiler/state execution and mutation paths | A declared rule must hold through CRUD, scenarios, hooks, transitions and rollback | Large qualification scope |
-| 21 | Causal examples and full journeys | Yes; extend actual qualification, using existing source examples | Existing testkit, browser, durable/provider and installed-release checks | A parsed or unit-tested feature is insufficient evidence for the complete app workflow | Large programme; bounded app slices |
+| 21 | Causal examples and full journeys | Yes; extend actual qualification, using existing source examples | Existing testkit, browser, durable/provider and installed-release checks | A parsed feature is insufficient evidence for the complete app workflow | Large programme; bounded app slices |
 
 ## Evidence and alternatives
 

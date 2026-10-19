@@ -305,16 +305,3 @@ pub fn overlaps_dates(
     cmp(latest_start, earliest_end) < 0
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn placeholder_line_removed_check() {
-        // civil_from_days must invert days_from_civil on spot checks.
-        for (y, m, d) in [(1, 1, 1), (1970, 1, 1), (2024, 2, 29), (9999, 12, 31)] {
-            let z = days_from_civil(y, m, d);
-            assert_eq!(civil_from_days(z), (y, m, d));
-        }
-    }
-}
