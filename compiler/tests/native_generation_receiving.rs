@@ -14,7 +14,7 @@ use canlang_compiler::source::{SourceDb, Span, sha256_hex};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const SOURCE: &str = include_str!("fixtures/native-generation-receiving.can");
+const SOURCE: &str = include_str!("../../packages/cloudflare/test/fixtures/native-generation-receiving.can");
 const OWNER: &str = "NativeGenerationReceiving.generate";
 
 fn root() -> PathBuf {

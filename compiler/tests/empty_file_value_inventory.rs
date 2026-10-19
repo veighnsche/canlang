@@ -20,7 +20,7 @@ use std::{
 
 const ORIGINAL: &str =
     include_str!("../../packages/cloudflare/test/fixtures/typed-file-journey.can");
-const DEFERRED: &str = include_str!("fixtures/native-file-deferred.can");
+const DEFERRED: &str = include_str!("../../packages/cloudflare/test/fixtures/native-file-deferred.can");
 const DEFERRED_SHA256: &str = "b92403ac05f5b1de879ab4201047c0d915520cf7f730d1c525a6f257bf2c6fc8";
 
 fn root() -> PathBuf {
@@ -248,7 +248,7 @@ fn nonempty_and_unsupported_contract_sources_keep_original_inventory_behavior() 
 fn original_scheduled_file_event_reaches_complete_empty_inventory_consumer() {
     assert_eq!(sha256_hex(DEFERRED.as_bytes()), DEFERRED_SHA256);
     let root = root();
-    let fixture = root.join("compiler/tests/fixtures/native-file-deferred.can");
+    let fixture = root.join("packages/cloudflare/test/fixtures/native-file-deferred.can");
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
         .args(["compile", "--format=json", "--catalog"])
         .arg(root.join("packages/values/dist/catalog.json"))

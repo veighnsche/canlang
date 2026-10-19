@@ -12,7 +12,7 @@ use canlang_compiler::source::{SourceDb, Span, sha256_hex};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const SOURCE: &str = include_str!("fixtures/native-guarded-email.can");
+const SOURCE: &str = include_str!("../../packages/cloudflare/test/fixtures/native-guarded-email.can");
 const CONDITION: &str = "enabled and (note==null or note!=\"deny\") and count(values)>=0 and active_member(person,team)";
 
 fn root() -> PathBuf {

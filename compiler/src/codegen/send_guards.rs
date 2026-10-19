@@ -2086,7 +2086,8 @@ await assert.rejects(()=>failed(fresh,inputs),error=>error===first);
         use super::super::ir::{IrDefault, IrType};
         use super::super::js::{EmitDecisionSources, emit_program_with_query_sources};
 
-        let source = include_str!("../../tests/fixtures/native-guarded-email.can");
+        let source =
+            include_str!("../../../packages/cloudflare/test/fixtures/native-guarded-email.can");
         let mut db = SourceDb::new();
         let file = db.add("native-guarded-email.can".into(), source.into());
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
