@@ -620,7 +620,7 @@ describe('t26 memory lifecycle (MEMORY-ONLY)', () => {
 describe('context-qualified TextRun snapshots and late measured usage', () => {
   const relation = 'std.TextGenerationV1.generate';
   const context: ReceiptResultContext = { source: relation,
-    declaredResult: { name: 'TextRun', fields: DELIVERY_RESULT_LEAVES['TextRun'] },
+    declaredResult: { name: 'TextRun', fields: DELIVERY_RESULT_LEAVES['TextRun']! },
     request: { source: 'request_1', revision: '9223372036854775807' } };
   const run = { source: 'request_1', revision: '9223372036854775807', sequence: '9007199254740993',
     state: 'running', content: 'Partial', used_tokens: null, detail: null };
@@ -823,7 +823,7 @@ describe('context-qualified TextRun snapshots and late measured usage', () => {
 describe('selected canonical ImageRun receipt and progress core', () => {
   const relation = 'std.ImagesV1.submit';
   const context: ReceiptResultContext = { source: relation,
-    declaredResult: { name: 'ImageRun', fields: DELIVERY_RESULT_LEAVES['ImageRun'] },
+    declaredResult: { name: 'ImageRun', fields: DELIVERY_RESULT_LEAVES['ImageRun']! },
     request: { source: 'image_request', revision: '9223372036854775807' } };
   const outputs = [{ position: '0', image: { id: 'file_a' } }, { position: '1', image: { id: 'file_b' } }];
   const run = { source: 'image_request', revision: '9223372036854775807', sequence: '9007199254740993',
@@ -961,11 +961,11 @@ describe('selected canonical ImageRun receipt and progress core', () => {
     let reads = 0;
     const accessor = { position: '0', get image() { reads++; return { id: 'file_a' }; } };
     const fileAccessor = { get id() { reads++; return 'file_a'; } };
-    const arrayAccessor = [outputs[0]];
+    const arrayAccessor = [outputs[0]!];
     Object.defineProperty(arrayAccessor, '0', { get() { reads++; return outputs[0]; }, enumerable: true });
     const badResults = [{ ...run, outputs: [accessor] }, { ...run, outputs: [{ position: '0', image: fileAccessor }] },
       { ...run, outputs: arrayAccessor }, { ...run, get outputs() { reads++; return outputs; } },
-      { ...run, outputs: [Object.create(outputs[0])] }, { ...run, outputs: [undefined] },
+      { ...run, outputs: [Object.create(outputs[0]!)] }, { ...run, outputs: [undefined] },
       { ...run, outputs: new Array(1) }, { ...run, outputs: [{ position: '01', image: { id: 'file_a' } }] },
       { ...run, outputs: [{ position: 0, image: { id: 'file_a' } }] },
       { ...run, outputs: [{ position: '0', image: { id: '' } }] },

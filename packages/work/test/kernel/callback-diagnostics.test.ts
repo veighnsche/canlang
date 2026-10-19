@@ -59,7 +59,7 @@ async function routed(store: StoragePort, id: string, chosen = origin) {
   const source = await workOccurrencePutReceiptCommand.stage({ occurrenceId: id, status: 'completed',
     result: { fanouts: [], bounds: { pageLimit: 100, chunkSize: 100 }, handlers: [{ handler, occurrenceId: route.occurrence.occurrenceId }] } }, ctx);
   await commit(store, { writes: [...due.effects.writes ?? [], ...route.effects.writes ?? [], ...source.writes ?? []],
-    schedules: due.effects.schedules });
+    schedules: due.effects.schedules ?? [] });
   return { sourceOccurrence: id, handler, event: chosen.event, scope };
 }
 async function terminal(store: StoragePort, selector: Awaited<ReturnType<typeof routed>>, receipt: Omit<OccurrenceRowData, 'occurrenceId'> = failed) {

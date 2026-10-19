@@ -264,7 +264,7 @@ test(`reader ${bad} refuses and caught failure cannot authorize dispatch`, async
 for (const bad of ['wrong-predicate', 'missing-checkpoint'] as const) test(`${bad} open refusal enrolls mandatory poisoning`, async () => {
   const w = await world(true, bad === 'wrong-predicate' ? 'Membership.other' : PREDICATE);
   const a = attempt(w, execution => { assert.throws(() => w.producer.open(execution)); return false; });
-  if (bad === 'missing-checkpoint') a.input.fence = undefined;
+  if (bad === 'missing-checkpoint') a.input.fence = undefined as unknown as NonNullable<AsyncDispatchAttempt['fence']>;
   assert.equal((await a.run()).status, 'refused-revoked'); noSpend(a); assert.equal(w.captures, 0);
 });
 

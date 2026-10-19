@@ -17,8 +17,12 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   extend `tsconfig.base.json` (correct shape). `packages/{work,files,services}/tsconfig.json` inlined
   options WITHOUT extending the base, which is stricter (`exactOptionalPropertyTypes`,
   `noUncheckedIndexedAccess`, …). Strictness probe: `files` 0 errors → adopted the base shape
-  (typecheck clean, tests 185/0). Remain: `work` (15 strictness errors), `services` (28) — each is a
-  type-fix unit, not a config swap.
+  (typecheck clean, tests 185/0). `work` adopted 2026-10-19: 1 real source fix
+  (`stageStatus` may be undefined), 14 test-only sites (deliberate-undefined refusal cases keep exact
+  runtime via targeted casts/`!`; `schedules ?? []` provably equivalent through makeBatch; `lib`
+  gains `WebWorker` per the state-lane precedent for work-kernel WASM tests). Checks: tsc clean,
+  touched suites green except 3 failures proven identical on clean base (stash A/B; missing
+  work-kernel wasm dist). Remains: `services` (28) — its own type-fix unit.
 - **L2 | REMOVED 2026-10-19 | identical playwright configs.** `tests/fixtures/{action-forms,action-gallery}/playwright.config.ts`
   were byte-identical. Shared settings now live in `tests/fixtures/playwright.fixture-config.ts`
   (`fixtureConfig(appDir)`); each dir keeps a 4-line entry point because testDir/outputDir resolve

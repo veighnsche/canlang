@@ -211,7 +211,7 @@ interface DispatchGuardExecutionLedger {
   readonly revalidations: DispatchGuardRevalidation[];
   live: boolean;
   poisoned: boolean;
-  readonly stageStatus?: { poisoned: boolean };
+  readonly stageStatus?: { poisoned: boolean } | undefined;
 }
 const guardExecutions = new WeakMap<object, DispatchGuardExecutionLedger>();
 

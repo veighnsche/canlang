@@ -185,7 +185,7 @@ it('publishes exactly nine frozen owning descriptors covering actual constructor
     producer.validateRow(model, { ...row, archivedAt: 200 });
     const legacy = { ...row }; delete legacy.parent;
     producer.validateRow(model, legacy);
-    producer.validateRow(model, { ...row, parent: undefined });
+    producer.validateRow(model, { ...row, parent: undefined as unknown as NonNullable<StoredRow['parent']> });
     assert.equal(Object.hasOwn(legacy, 'parent'), false);
   }
   const dispatch = producer.models.find(item => item.model === WORK_DISPATCH_MODEL)!;

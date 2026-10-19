@@ -39,7 +39,7 @@ import {
 import type { StoredReceipt } from './observation.js';
 
 const NOW = 1_791_120_000_000;
-const TEXT_RESULT: CanonicalNominalResult = { name: 'TextRun', fields: DELIVERY_RESULT_LEAVES['TextRun'] };
+const TEXT_RESULT: CanonicalNominalResult = { name: 'TextRun', fields: DELIVERY_RESULT_LEAVES['TextRun']! };
 
 function association(overrides: Partial<ReceiptAssociation> = {}): ReceiptAssociation {
   return {
@@ -695,7 +695,7 @@ describe('t25a result.content: checked exact disclosure', () => {
     for (const declaredResult of [undefined, { name: 'Other', fields: TEXT_RESULT.fields },
       { name: 'TextRun', fields: [] }, { name: 'TextRun', fields: [{ name: 'content', type: 'int' }] },
       { name: 'TextRun', fields: [{ name: 'content', type: 'text' }, { name: 'content', type: 'text' }] }]) {
-      assert.throws(() => observeSelectedReceipt({ ...input(), declaredResult }), /canonical TextRun/);
+      assert.throws(() => observeSelectedReceipt({ ...input(), declaredResult: declaredResult! }), /canonical TextRun/);
     }
     assert.throws(() => observeSelectedReceipt({ ...input(), selected: ['result.missing' as ReceiptProperty] }),
       /unknown selected property/);

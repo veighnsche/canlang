@@ -1350,7 +1350,7 @@ describe('t25 join: checked result.content disclosure', () => {
   async function textWorld() {
     const world = await setupWorld();
     const delivery = { kind: 'delivery' as const, capability: 'std.TextGenerationV1', operation: 'generate', version: 1,
-      result: { name: 'TextRun', fields: [...DELIVERY_RESULT_LEAVES['TextRun']] } };
+      result: { name: 'TextRun', fields: [...DELIVERY_RESULT_LEAVES['TextRun']!] } };
     const loaded = loadArtifactDescriptors({ ...DELIVERY_SLICE, models: [{
       name: ITEM, deleteMode: 'none', fields: [{ name: 'notification', required: false, serverOnly: false,
         field: delivery }],
@@ -1456,7 +1456,7 @@ describe('t25 join: canonical ImageRun through the existing granted result', () 
   async function imageWorld() {
     const world = await setupWorld();
     const delivery = { kind: 'delivery' as const, capability: 'std.ImagesV1', operation: 'submit', version: 1,
-      result: { name: 'ImageRun', fields: [...DELIVERY_RESULT_LEAVES['ImageRun']] } };
+      result: { name: 'ImageRun', fields: [...DELIVERY_RESULT_LEAVES['ImageRun']!] } };
     const loaded = loadArtifactDescriptors({ ...DELIVERY_SLICE, models: [{ name: ITEM, deleteMode: 'none',
       fields: [{ name: 'notification', required: false, serverOnly: false, field: delivery }],
     }] }, { by: 'members' });
@@ -1476,7 +1476,7 @@ describe('t25 join: canonical ImageRun through the existing granted result', () 
     assert.equal(outcome.fenceRevision, 0);
     assert.deepEqual(scope.dependencies.map(dep => dep.kind === 'record' ? dep.model : dep.kind), [RECEIPT_MODEL]);
     const denied = await observeSelectedReceiptJoin({ ...input,
-      policy: recipientPolicy(['notification.status']), fence: undefined });
+      policy: recipientPolicy(['notification.status']), fence: undefined as unknown as NonNullable<SelectedReceiptJoinInput['fence']> });
     assertDenied(denied);
     assert.deepEqual(denied.denied, ['result']);
     for (const selector of ['result.outputs', 'result.outputs.image', 'result.outputs.image.id']) {
@@ -1645,7 +1645,7 @@ describe('t25 join: actual trusted owner execution', () => {
       call.context = context;
       call.checkpoint = { ...checkpoint! };
       await assert.rejects(observeOwnerSelectedReceiptJoin(input), /unchanged admitted call/);
-      call.checkpoint = checkpoint;
+      call.checkpoint = checkpoint!;
       call.revision = (revision + 1) as typeof revision;
       await assert.rejects(observeOwnerSelectedReceiptJoin(input), /unchanged admitted call/);
       call.revision = revision;

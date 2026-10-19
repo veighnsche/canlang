@@ -214,7 +214,7 @@ describe('t34-f4 scan: exhaustion pins dead (failed/exhausted)', () => {
   it('default policy is the adopted retry default (8 attempts): 7 resumes, 8 dead', () => {
     const resumeRow = view('a', 'running', { claimedAtMs: STALE_CLAIM }, 7);
     const deadRow = view('b', 'running', { claimedAtMs: STALE_CLAIM }, 8);
-    const plan = scan(['a', 'b'], [resumeRow, deadRow], { policy: undefined });
+    const plan = scan(['a', 'b'], [resumeRow, deadRow], { policy: undefined as unknown as NonNullable<FanoutRecoveryScanInput['policy']> });
     assert.deepEqual(plan.resume, [childIdOf('a')]);
     assert.deepEqual(plan.dead, [childIdOf('b')]);
   });

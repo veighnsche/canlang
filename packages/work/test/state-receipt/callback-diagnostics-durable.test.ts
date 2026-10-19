@@ -91,7 +91,7 @@ test('genuine D1 callback refusal survives adapter reopen and is disclosed only 
       result: { fanouts: [], bounds: { pageLimit: 100, chunkSize: 100 },
         handlers: [{ handler: HANDLER, occurrenceId: route.occurrence.occurrenceId }] } }, context());
     await commit({ writes: [...due.effects.writes ?? [], ...route.effects.writes ?? [], ...sourceReceipt.writes ?? []],
-      schedules: due.effects.schedules });
+      schedules: due.effects.schedules ?? [] });
     const terminal = await stageHandlerOccurrenceTerminal({ sourceOccurrence: NOTICE, handler: HANDLER,
       event: origin.event, scope, expectedVersion: 1, receipt: { status: 'failed', result: null, code: 'require-false',
         message: 'handler requirement rejected the occurrence', recordedAtMs: 100 } }, context());

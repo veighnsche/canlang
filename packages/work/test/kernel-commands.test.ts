@@ -789,7 +789,7 @@ describe('installed dispatch guard joins the actual original registry commit (me
     for (const misuse of ['precreated', 'no-stage', 'copied-stage', 'foreign-stage']) {
       const f = await fixture({}, false, allocateClaim);
       let retained: DispatchGuardPhase | undefined;
-      const make = (stage?: SystemCommandContext) => runDispatchGuardPhase({ stage,
+      const make = (stage?: SystemCommandContext) => runDispatchGuardPhase({ ...(stage === undefined ? {} : { stage }),
         predicate: 'current.membership', frozenInputs: {}, stateSnapshot: f.row,
         checkpoint: { revision: f.revision, owner: 'team-1' }, intent: f.intent, evaluateGuard: () => true });
       if (misuse === 'precreated') retained = await make();
