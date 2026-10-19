@@ -27,6 +27,14 @@ export interface FileReferenceProfileBound {
   readonly valueTypes?: CanonicalValueTypes;
 }
 const invalid = (message: string): never => { throw new StateError('validation', `File reference profile: ${message}`); };
+/** System-managed top-level fields never bear stored File slots. Single source for the guard below and runtime census skips. */
+const SYSTEM_MANAGED_TOP_LEVEL_FIELDS: ReadonlySet<string> = new Set(
+  ['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'parent'],
+);
+/** Shared reserved-field set for runtime census skips; loaded through the producer channel. */
+export function systemManagedTopLevelFields(): ReadonlySet<string> {
+  return SYSTEM_MANAGED_TOP_LEVEL_FIELDS;
+}
 const MAX_NODES = 20_000, MAX_DEPTH = 32;
 type Constraint = ReturnType<typeof modelFieldConstraintSchema>;
 const profiles = new WeakMap<FileReferenceProfile, {
@@ -440,7 +448,7 @@ function checkFieldMarkers(canonical: CanonicalFieldDef): void {
 export function bindFileReferenceProfile(bound: FileReferenceProfileBound, model: ModelName, field: string): FileReferenceProfile {
   try {
     if (typeof field !== 'string' || field === '' || field.includes('.') ||
-        ['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'parent'].includes(field)) return invalid('top-level stored field required.');
+        SYSTEM_MANAGED_TOP_LEVEL_FIELDS.has(field)) return invalid('top-level stored field required.');
     const resolved = resolveOwningField(bound, model, field);
     const { names, schema, canonical, source, tag } = resolved;
     compareOwningField(canonical, source);

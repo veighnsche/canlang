@@ -73,9 +73,12 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   vs `packages/work/src/kernel/*` and `packages/work/src/{receipt,recovery,schedule}/`: kernel concepts are
   name-mirrored across two packages without byte equality. Canonical: kernel facts in `work-kernel`,
   dispatch in `work`; needs an ownership ruling per concept before any merge.
-- **M4 | remove | census reserved-field mirror.** `FILE_CENSUS_RESERVED_FIELDS`
-  (`packages/cloudflare/src/runtime/invoke.ts:3566`) duplicates State's system-field guard set
-  (`bindFileReferenceProfile`), kept in sync by comment. Canonical: export the set from State and import it.
+- **M4 | REMOVED 2026-10-19 | census reserved-field mirror.** `FILE_CENSUS_RESERVED_FIELDS`
+  (`packages/cloudflare/src/runtime/invoke.ts`) duplicated State's system-field guard set. State now owns
+  one `SYSTEM_MANAGED_TOP_LEVEL_FIELDS` set (`packages/state/src/ports/file-reference-profile.ts`), used by
+  its own guard and exported as `systemManagedTopLevelFields()` through `ports/index.ts` → state index;
+  all three invoke.ts census skips load it through the existing producer channel (no static worker import,
+  no bundle-boundary change). Checks: state file suites 52/0, cloudflare staging+owner suites 6/6.
 - **M5 | decide | dual derive evaluation.** The same derives execute under reader-bound (evaluate) and
   reader-less (scenario) `c` contexts — the owner-hydration unit was forced to runtime hydration because
   emitted variants cannot be distinguished — and page-scope queries now also evaluate the compiled

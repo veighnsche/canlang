@@ -17,6 +17,7 @@ export {
 } from './file-references.js';
 export {
   bindFileReferenceProfile,
+  systemManagedTopLevelFields,
   fileReferenceOccurrences,
   type FileReferenceProfile,
   type FileReferenceProfileBound,

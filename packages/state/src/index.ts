@@ -136,6 +136,7 @@ export {
   createReadPort,
   createFileReferenceConsumer,
   bindFileReferenceProfile,
+  systemManagedTopLevelFields,
   fileReferenceOccurrences,
   type FileReferenceProfile,
   type FileReferenceProfileBound,
