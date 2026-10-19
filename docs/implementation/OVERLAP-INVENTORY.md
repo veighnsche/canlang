@@ -19,9 +19,11 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   base is stricter (`exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `composite:true`, …).
   The second group never adopted the base. Canonical: `tsconfig.base.json`. Removal needs a
   decision (adopt base + fix fallout, or a shared relaxed base), not a mechanical swap.
-- **L2 | remove | identical playwright configs.** `tests/fixtures/{action-forms,action-gallery}/playwright.config.ts`
-  are byte-identical. Thin one to a re-export of a shared config under `tests/fixtures/`, or confirm
-  the runner only needs one.
+- **L2 | REMOVED 2026-10-19 | identical playwright configs.** `tests/fixtures/{action-forms,action-gallery}/playwright.config.ts`
+  were byte-identical. Shared settings now live in `tests/fixtures/playwright.fixture-config.ts`
+  (`fixtureConfig(appDir)`); each dir keeps a 4-line entry point because testDir/outputDir resolve
+  relative to the caller's location. Checks: `tsc -p tests/e2e/tsconfig.json` clean, both configs
+  `--list` their own spec. (The prompt-pipeline config differs — devices/workspace settings — and stays.)
 - **L3 | keep | one source in three places.** `packages/state/test/fixtures/numeric-control/source.can`
   is byte-identical to two dated docs snapshots (`docs/implementation/capability-roadmap-20261008/…`,
   `docs/implementation/compiler-completion/numeric-control-producer/…`). Docs copies are frozen

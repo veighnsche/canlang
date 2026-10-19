@@ -13,6 +13,7 @@
     "../fixtures/action-gallery/playwright",
     "../fixtures/action-gallery/playwright.config.ts",
     "../fixtures/action-forms/playwright",
-    "../fixtures/action-forms/playwright.config.ts"
+    "../fixtures/action-forms/playwright.config.ts",
+    "../fixtures/playwright.fixture-config.ts"
   ]
 }
