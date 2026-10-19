@@ -890,7 +890,7 @@ function staticRequest(input: JudgmentEvaluationInput, binding: InstalledJudgmen
   return { body: JSON.stringify({ model, state: input.state, questions: wire }), specification: frozen.specification, order: frozen.order };
 }
 function sameOrderedIds(a: readonly { readonly id: string }[], b: readonly { readonly id: string }[]): boolean {
-  return a.length === b.length && a.every((q, index) => q.id === b[index].id);
+  return a.length === b.length && a.every((q, index) => q.id === b[index]?.id);
 }
 function canonicalFailure(completion: CapabilityCompletion<JudgmentBatchResult>): CapabilityCompletion<JudgmentEvaluationResult> {
   if (completion.status === 'succeeded') return { delivery_id: completion.delivery_id, status: 'failed', result: null,

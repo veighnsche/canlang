@@ -540,7 +540,7 @@ export function startControlledMailServer(
         sendBody(res, 200, { reference: 'mail_get' });
         return;
       }
-      if (method === 'GET' && rawPath.startsWith('/deliveries/')) {
+      if (method === 'GET' && rawPath!.startsWith('/deliveries/')) {
         handleDeliveryLookup(res, rawPath!);
         return;
       }

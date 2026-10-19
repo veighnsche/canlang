@@ -103,7 +103,7 @@ export interface OllamaTextGenerationInstallation {
    * request used for transport. Estimates are not supported; absence refuses
    * installed generation. Supplying a callback alone does not qualify a model.
    */
-  readonly countInputTokens?: (request: FrozenChatRequest) => number;
+  readonly countInputTokens?: ((request: FrozenChatRequest) => number) | undefined;
 }
 
 export class ModelValidationError extends Error {

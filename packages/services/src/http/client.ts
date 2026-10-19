@@ -264,7 +264,7 @@ async function fetchWithRedirects(
       response = await fetch(hop.url.href, {
         method: hop.method,
         headers,
-        body: hop.body,
+        body: hop.body ?? null,
         signal,
         redirect: 'manual',
         credentials: 'omit',

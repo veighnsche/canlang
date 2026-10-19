@@ -613,8 +613,8 @@ export class ComfyUINativeAdapter implements MediaPort {
       exactFields(definition, WORKFLOW_FIELDS) && definition.graph === mapping.workflow &&
       (['prompt', 'negative', 'width', 'height'] as const).every((field) =>
         exactFields(definition[field], ['node', 'key']) &&
-        definition[field].node === mapping.inputs[field].node &&
-        definition[field].key === mapping.inputs[field].key);
+        definition[field].node === mapping.inputs[field]?.node &&
+        definition[field].key === mapping.inputs[field]?.key);
     if (!definitionMatches(config.workflow)) {
       throw new MappingValidationError('Installed workflow must match the actual graph artifact and four mapped destinations');
     }

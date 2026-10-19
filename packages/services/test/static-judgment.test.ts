@@ -70,9 +70,9 @@ it('joins one frozen source to actual HTTP evaluation with exact numeric values 
     assert.deepEqual((result.route as JudgmentChoiceAnswer).probabilities.map(p => p.option), ['billing', 'support']);
     assert.ok(Object.hasOwn(result, '__proto__'));
     assert.deepEqual((result['__proto__'] as JudgmentNoulAnswer).probability, parseDecimal('1'));
-    const sent = JSON.parse(requests[0].body);
-    assert.equal(requests[0].method, 'POST');
-    assert.equal(requests[0].path, '/v1/systemone');
+    const sent = JSON.parse(requests[0]!.body);
+    assert.equal(requests[0]!.method, 'POST');
+    assert.equal(requests[0]!.path, '/v1/systemone');
     assert.equal(sent.model, 'model-exact');
     assert.equal(sent.state, input.state);
     assert.deepEqual(Object.keys(sent.questions), source.order);
@@ -80,7 +80,7 @@ it('joins one frozen source to actual HTTP evaluation with exact numeric values 
     assert.deepEqual(sent.questions.urgency.criteria, ['Routine', 'Urgent']);
     assert.deepEqual(sent.questions.human.criteria, { true: 'Staff action required', false: 'Fully automatic' });
     assert.deepEqual(Object.keys(sent.questions.route.criteria), ['billing', 'support']);
-    assert.equal(countedBodies[0], requests[0].body);
+    assert.equal(countedBodies[0], requests[0]!.body);
 
     const invalidBodies = [
       body.replace(/,"usage":\{[^}]+\}/, ''),
@@ -171,8 +171,8 @@ it('freezes runtime choices through the shared inventory and validates the actua
   ] };
   const candidates = { pick: [{ id: 'alpha', description: 'First candidate' }] };
   const frozen = freezeJudgmentSource(declaration, descriptor, 'en', candidates);
-  candidates.pick[0].description = 'Changed after freezing';
-  assert.deepEqual(frozen.specification.choice[0].options, [
+  candidates.pick[0]!.description = 'Changed after freezing';
+  assert.deepEqual(frozen.specification.choice[0]!.options, [
     { id: 'none', description: 'No selection' }, { id: 'alpha', description: 'First candidate' },
   ]);
   assert.notEqual(freezeJudgmentSource(declaration, descriptor, 'en', candidates).specification.revision,
@@ -186,21 +186,21 @@ it('freezes runtime choices through the shared inventory and validates the actua
     assert.throws(() => freezeJudgmentSource(declaration, descriptor, 'en', options));
   }
   const withFixedCount = (count: number) => ({ ...inventory, contracts: inventory.contracts.map(contract =>
-    contract.name === `${declaration}.options` ? { ...contract, fields: [{ ...contract.fields[0],
+    contract.name === `${declaration}.options` ? { ...contract, fields: [{ ...contract.fields[0]!,
       min: Math.max(0, 2 - count), max: 26 - count, ...(count === 0 ? {} : { excludedIds: ['none', 'later'] }) }] } : contract) });
   const noFixedInventory = withFixedCount(0);
-  delete (noFixedInventory.contracts[1].fields[0] as { excludedIds?: string[] }).excludedIds;
+  delete (noFixedInventory.contracts[1]!.fields[0]! as { excludedIds?: string[] }).excludedIds;
   const noFixed = { ...descriptor, valueTypes: noFixedInventory, questions: [{
     name: 'pick', kind: 'choice' as const, runtime: true as const, instructions: 'Choose',
   }] };
   assert.equal(freezeJudgmentSource(declaration, noFixed, 'en', { pick: [
     { id: 'alpha', description: 'A' }, { id: 'beta', description: 'B' },
-  ] }).specification.choice[0].options.length, 2);
+  ] }).specification.choice[0]!.options.length, 2);
   assert.throws(() => freezeJudgmentSource(declaration, { ...noFixed,
-    questions: [{ ...noFixed.questions[0], options: [] }] }, 'en', candidates));
-  const fixedOnly = { ...descriptor, valueTypes: withFixedCount(2), questions: [{ ...descriptor.questions[0],
+    questions: [{ ...noFixed.questions[0]!, options: [] }] }, 'en', candidates));
+  const fixedOnly = { ...descriptor, valueTypes: withFixedCount(2), questions: [{ ...descriptor.questions[0]!,
     options: [{ id: 'none', description: 'No choice' }, { id: 'later', description: 'Later' }] }] };
-  assert.equal(freezeJudgmentSource(declaration, fixedOnly, 'en', { pick: [] }).specification.choice[0].options.length, 2);
+  assert.equal(freezeJudgmentSource(declaration, fixedOnly, 'en', { pick: [] }).specification.choice[0]!.options.length, 2);
   let getterCalls = 0;
   const executable = { get pick() { getterCalls += 1; return candidates.pick; } };
   assert.throws(() => freezeJudgmentSource(declaration, descriptor, 'en', executable));
@@ -221,7 +221,7 @@ it('freezes runtime choices through the shared inventory and validates the actua
     assert.equal(accepted.status, 'succeeded');
     assert.equal(accepted.result?.specification_revision, frozen.specification.revision);
     assert.deepEqual((accepted.result?.pick as JudgmentChoiceAnswer).probabilities.map(entry => entry.option), ['none', 'alpha']);
-    const sent = JSON.parse(server.requests[0].bodyText);
+    const sent = JSON.parse(server.requests[0]!.bodyText);
     assert.deepEqual(Object.keys(sent.questions.pick.criteria), ['none', 'alpha']);
     answer.answers.pick.choice = 'unknown';
     const rejected = await provider.judgment.evaluate({ source: frozen, state: 'Same evidence' }, { deliveryId: 'runtime-2' });

@@ -260,7 +260,7 @@ describe('media: workflow mapping', () => {
     );
     for (const [field, target] of [['negative', 'prompt'], ['height', 'width']] as const) {
       const collision = mappingFor();
-      collision.inputs[field] = { ...collision.inputs[target] };
+      collision.inputs[field] = { ...collision.inputs[target]! };
       assert.throws(
         () => substituteAndValidate(GRAPH, collision, inputFor()),
         MappingValidationError,
@@ -310,7 +310,7 @@ describe('media: submit', () => {
     await withServer({ kind: 'accept' }, async (server) => {
       for (const [field, target] of [['negative', 'prompt'], ['height', 'width']] as const) {
         const mapping = mappingFor();
-        mapping.inputs[field] = { ...mapping.inputs[target] };
+        mapping.inputs[field] = { ...mapping.inputs[target]! };
         const adapter = makeAdapter(server.url, { mapping });
         await assert.rejects(
           adapter.submit(inputFor(), { deliveryId: 'del_1', jobId: 'job_1' }),
@@ -931,7 +931,7 @@ function installationFor(): ComfyUIImagesInstallation {
   const mapping = mappingFor();
   return {
     binding: { capability: 'std.ImagesV1', capabilityVersion: 1, deployment: 'deployment.images', account: 'test-account' },
-    workflow: { graph: mapping.workflow, prompt: mapping.inputs.prompt, negative: mapping.inputs.negative, width: mapping.inputs.width, height: mapping.inputs.height },
+    workflow: { graph: mapping.workflow, prompt: mapping.inputs.prompt!, negative: mapping.inputs.negative!, width: mapping.inputs.width!, height: mapping.inputs.height! },
     seed: { kind: 'fixed', value: 42 },
   };
 }
@@ -967,7 +967,7 @@ describe('media: installed std Images full requests', () => {
       const original = originalOptions();
       config.workflow.prompt.node = 'changed';
       (config.seed as { value: number }).value = 100;
-      mapping.inputs.prompt.node = 'changed';
+      mapping.inputs.prompt!.node = 'changed';
       graph['6']!.inputs['text'] = 'changed';
       assert.ok(Object.isFrozen(installed.workflow.prompt));
       assert.ok(Object.isFrozen(installed.policy.seed));

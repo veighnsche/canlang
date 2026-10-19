@@ -22,7 +22,13 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   runtime via targeted casts/`!`; `schedules ?? []` provably equivalent through makeBatch; `lib`
   gains `WebWorker` per the state-lane precedent for work-kernel WASM tests). Checks: tsc clean,
   touched suites green except 3 failures proven identical on clean base (stash A/B; missing
-  work-kernel wasm dist). Remains: `services` (28) — its own type-fix unit.
+  work-kernel wasm dist). `services` adopted 2026-10-19: src fixes are truthful narrowings
+  (`body ?? null` for fetch, `?.` on guarded comparisons, `undefined`-accepting tokenizer type the
+  implementation already branches on, `!` on a provably-present split element); 22 test-only sites
+  (`!` on fixture indexes, `?? []` provably equivalent through makeBatch, casts for deliberate
+  refusal cases); `lib` gains `WebWorker` (stream types; the strictness probe alone missed this
+  because it kept default-DOM lib). Checks: tsc clean, touched suites 76/0, full package 211/4 with
+  the 4 proven identical on clean base (stash A/B; timing-sensitive stream test). L1 closed.
 - **L2 | REMOVED 2026-10-19 | identical playwright configs.** `tests/fixtures/{action-forms,action-gallery}/playwright.config.ts`
   were byte-identical. Shared settings now live in `tests/fixtures/playwright.fixture-config.ts`
   (`fixtureConfig(appDir)`); each dir keeps a 4-line entry point because testDir/outputDir resolve
