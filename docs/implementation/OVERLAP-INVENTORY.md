@@ -77,8 +77,12 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   (82 sites); effects' `is_expression` clone deleted in favor of the identical shared
   `resolve::is_expression`. Checks both slices: lib build clean, full lib suite 297/5 (same 5 pre-existing).
   Divergences found, NOT merged: ir.rs `is_expression` admits `Argument`/`Path` (resolve's does not) —
-  needs a semantic ruling; text-based `literal_string` in effects vs examples have different fallbacks;
-  `object_entries` ×3 differ in parameter order and depend on the divergent `is_expression`.
+  needs a semantic ruling; `literal_string` — SETTLED 2026-10-19 via JEV (3/3 unanimous,
+  keep-split, conf 0.98–1.0): analysis copies (effects, examples) recover quote-stripped raw text
+  when `string_value` is unset because E1006 is already recorded and downstream checks should run;
+  codegen returns `None` (fail closed, never emit from broken strings). Layer contracts documented
+  on all three functions, no behavior change;
+  `object_entries` ×3 since unified into `resolve::object_entries` (see REMOVED entry below).
   Slice three (2026-10-19): `nameref_word` ×3 — effects/examples identical clones now import the shared
   `analysis::nameref_word`; types' same-named different function (also accepts bare `Name`) renamed to
   `name_or_ref_word` (20 sites, zero behavior change) so one name means one behavior. Checks: lib build

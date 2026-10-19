@@ -7673,6 +7673,10 @@ fn literal_string_opt(db: &SourceDb, node: &SyntaxNode) -> Option<Option<String>
 }
 
 /// String value of a `Literal` string (total: non-strings yield `None`).
+/// Codegen-layer strictness: returns `None` when `string_value` is unset
+/// (broken string; E1006 already recorded) so decoding fails closed and no
+/// code is emitted from malformed text. Analysis `literal_string` copies
+/// deliberately recover via quote-stripped raw text instead.
 fn literal_string(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
     literal_string_opt(db, node).flatten()
 }

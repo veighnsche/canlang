@@ -3143,6 +3143,9 @@ fn span_slice(text: &str, span: Span) -> &str {
 
 
 /// Decoded value of a string `Literal` node (`None` when not one).
+/// Analysis-layer recovery, like effects': falls back to quote-stripping raw
+/// text when `string_value` is unset (broken string; E1006 already recorded).
+/// Codegen's `ir::literal_string` deliberately returns `None` there instead.
 fn literal_string(text: &str, node: &SyntaxNode) -> Option<String> {
     if node.kind != SyntaxKind::Literal {
         return None;

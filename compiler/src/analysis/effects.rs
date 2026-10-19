@@ -5521,6 +5521,10 @@ fn annotation_desc(text: &str, node: &SyntaxNode) -> Option<String> {
 
 /// Decoded text of a string literal node (`Literal` over one `String`
 /// leaf, or the leaf itself).
+/// Decoded value of a string node. Analysis-layer recovery: when the lexer left
+/// `string_value` unset (broken string; E1006 already recorded), falls back to
+/// quote-stripping the raw text so downstream checks still run. Codegen's
+/// `ir::literal_string` deliberately returns `None` there instead (fail closed).
 fn literal_string(text: &str, node: &SyntaxNode) -> Option<String> {
     let leaf = if node.kind == SyntaxKind::String {
         Some(node)
