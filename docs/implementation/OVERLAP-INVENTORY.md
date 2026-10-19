@@ -57,20 +57,29 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   bridges seal per-occurrence. Same inventory, different contents depending on which consumer asks
   and whether unrelated errors exist. Canonical direction: per-occurrence seals everywhere (the
   accepted CanCustomer-recover pattern); strict-gate consumers migrate one at a time.
-- **C3 | remove | per-module syntax helpers.** `kids`, `name_text`, `tight_span`, `literal_string`,
-  `object_entries`, `is_expression` are re-implemented privately in `compiler/src/ide/queries.rs`,
-  `compiler/src/lint/rules.rs`, `compiler/src/analysis/{types.rs,effects.rs,examples.rs}`,
-  `compiler/src/codegen/ir.rs` (3–5 copies each, signatures drift: text-based vs db-based `name_text`).
-  Canonical: one home in `compiler/src/syntax/` (db-based forms) exposed `pub(crate)`; migrate call sites.
+- **C3 | PARTIAL 2026-10-19 | per-module syntax helpers.** The canonical home already exists:
+  `compiler/src/analysis/mod.rs` "Shared CST helpers" (`kids`, `name_text`, `is_name`, `is_punct`,
+  `op_text`, `path_segments`, `attribute_parts`, `attribute_value`, `file_text`), imported by ~6 modules.
+  Migrated: private `kids` clones in `ide/queries.rs`, `lint/rules.rs`, `codegen/ir.rs` and text-based
+  `name_text`/`is_name` clones in `ide`/`lint` now import from `crate::analysis` (283+31+21 call sites
+  unchanged). A stale "local copies" comment in `ide/queries.rs` went with them. Checks: lib build clean,
+  full lib suite 297/5 (same 5 pre-existing). Remain: db-based `name_text` (ir.rs, legitimate — callers
+  hold db), `is_expression`, `tight_span`, `literal_string`, `object_entries` clones in
+  `analysis/{types,effects,examples}.rs` + ir.rs; each is its own follow-up slice.
 
 ## Runtime/package mirrors and dual paths
 
 - **M1 | decide | `distribution.ts` ×12.** Every `packages/*/src/distribution.ts` repeats the same
   `{modules: new URL('./', import.meta.url)}` shape with per-package extras (browser/bindings/catalog).
   Canonical: generate from the package manifest; keep only true per-package extras.
-- **M2 | remove | `catalog.ts` ×6 hand-mirrored envelopes.** `packages/{files,services,state,ui,values,work}/src/catalog.ts`
-  repeat a `{package,version,entries[]}` envelope; comments already defer to a shared envelope at the
-  L1/L2 join, and `values` already imports one. Canonical: `@canlang/contracts` CatalogEnvelope.
+- **M2 | decide (verified narrower than reported) | catalog envelopes.** Verified per file:
+  `values` already imports contracts `CatalogEnvelope`, `ui` already imports contracts `ComponentCatalog` —
+  no work there. `files`/`work` are twin-shaped (`{package, version: string, entries: {name, version}[]}`)
+  with zero external consumers, and both files defer the shared envelope to the L1/L2 contract join
+  (`docs/implementation/CONTRACTS.md`: "Define a common catalog envelope/version in the first L1/L2
+  contract join"). `services` (`version: number`) and `state` (`entries: string[]`) genuinely differ.
+  No mechanical merge is valid; the join owns the common envelope. Only anomaly worth a decision:
+  services `version: number` vs strings everywhere else.
 - **M3 | decide | split work kernel.** `packages/work-kernel/src/{every,facts,lifecycle,linkage,receipt,recovery,retry,rows}.ts`
   vs `packages/work/src/kernel/*` and `packages/work/src/{receipt,recovery,schedule}/`: kernel concepts are
   name-mirrored across two packages without byte equality. Canonical: kernel facts in `work-kernel`,

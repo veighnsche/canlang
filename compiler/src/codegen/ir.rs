@@ -41,6 +41,7 @@
 
 use crate::analysis::catalog::{Availability, Catalog, Effects, SigType, std_capability};
 use crate::analysis::effects::{CapabilityData, EffectVerb, PolicyRule};
+use crate::analysis::kids;
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
     CheckedJudgmentKind, CheckedValueConstraints, CrudOp, FixtureTarget, ModelOwner, ModuleId,
@@ -1026,15 +1027,6 @@ fn kind_noun(kind: &SymbolKind) -> &'static str {
         SymbolKind::DeriveFn { .. } => "derived function",
         SymbolKind::Preferences { .. } => "preferences",
     }
-}
-
-/// Significant children: everything except whitespace gaps and `##`
-/// comments.
-fn kids(node: &SyntaxNode) -> Vec<&SyntaxNode> {
-    node.children
-        .iter()
-        .filter(|n| !matches!(n.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
-        .collect()
 }
 
 /// Slice source text for `span` (empty when out of range; total).

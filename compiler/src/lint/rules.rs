@@ -40,7 +40,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::analysis::{CheckedProgram, NodeKey};
+use crate::analysis::{CheckedProgram, NodeKey, is_name, kids, name_text};
 use crate::diagnostic::{Diagnostic, Related, Severity};
 use crate::source::Span;
 use crate::syntax::{NodeDetail, SyntaxKind, SyntaxNode};
@@ -205,30 +205,9 @@ pub(crate) fn check_file(
 // --- sibling-owned and must not be modified, so they are not reused) ---
 
 /// Significant children: skips `Trivia`/`Comment` leaves.
-fn kids(node: &SyntaxNode) -> Vec<&SyntaxNode> {
-    node.children
-        .iter()
-        .filter(|c| !matches!(c.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
-        .collect()
-}
-
 /// Source text of a token leaf, if `node` is one.
 fn token_text<'a>(node: &SyntaxNode, text: &'a str) -> Option<&'a str> {
     node.token().map(|token| token.text(text))
-}
-
-/// Text of a `Name` leaf, if `node` is one.
-fn name_text<'a>(node: &SyntaxNode, text: &'a str) -> Option<&'a str> {
-    if node.kind == SyntaxKind::Name {
-        token_text(node, text)
-    } else {
-        None
-    }
-}
-
-/// Whether `node` is a `Name` leaf with spelling `word`.
-fn is_name(node: &SyntaxNode, text: &str, word: &str) -> bool {
-    name_text(node, text) == Some(word)
 }
 
 /// Whether the subtree already holds a syntax error (parser-diagnosed).

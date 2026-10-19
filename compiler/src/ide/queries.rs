@@ -22,7 +22,7 @@ use crate::analysis::resolve::{
     resolve_program,
 };
 use crate::analysis::types::ResolvedType;
-use crate::analysis::{CheckedProgram, NodeKey, check_program};
+use crate::analysis::{CheckedProgram, NodeKey, check_program, kids, name_text};
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{NodeDetail, SyntaxKind, SyntaxNode};
@@ -1906,26 +1906,6 @@ impl<'a> Snapshot<'a> {
             })
             .map(|n| n.span)
             .unwrap_or(symbol.span)
-    }
-}
-
-// --- Shared CST helpers (local copies: the analysis-internal ones are
-// out of scope for this module and may shift under the sibling agent) ---
-
-/// Significant children: skips `Trivia`/`Comment` leaves.
-fn kids(node: &SyntaxNode) -> Vec<&SyntaxNode> {
-    node.children
-        .iter()
-        .filter(|c| !matches!(c.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
-        .collect()
-}
-
-/// Text of a `Name` leaf, if `node` is one.
-fn name_text<'t>(node: &SyntaxNode, text: &'t str) -> Option<&'t str> {
-    if node.kind == SyntaxKind::Name {
-        node.token().map(|t| t.text(text))
-    } else {
-        None
     }
 }
 
