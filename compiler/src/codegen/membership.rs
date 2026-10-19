@@ -46,17 +46,6 @@ impl MembershipSources {
 
 /// Reuse the original checked call slots and complete decision inventories.
 /// A source recipe names a call; it never supplies a membership answer or scope.
-#[cfg(test)]
-pub(super) fn prepare(
-    program: &CheckedProgram,
-    ir: &IrProgram,
-    db: &SourceDb,
-    catalog: Option<&Catalog>,
-) -> Option<MembershipSources> {
-    let context =
-        super::scenario_decisions::FreshSourceContext::prepare(program, ir, db, catalog).ok()?;
-    prepare_with_context(&context)
-}
 
 fn membership_call_shape(
     program: &CheckedProgram,

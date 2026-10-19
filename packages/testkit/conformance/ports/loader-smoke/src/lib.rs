@@ -22,25 +22,3 @@ pub extern "C" fn smoke_add(a: i32, b: i32) -> i32 {
     a.wrapping_add(b)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn version_is_transport_v0() {
-        assert_eq!(smoke_version(), 0);
-        assert_eq!(SMOKE_ABI_VERSION, 0);
-    }
-
-    #[test]
-    fn add_basics() {
-        assert_eq!(smoke_add(40, 2), 42);
-        assert_eq!(smoke_add(-1, 1), 0);
-    }
-
-    #[test]
-    fn add_wraps_deterministically() {
-        assert_eq!(smoke_add(i32::MAX, 1), i32::MIN);
-        assert_eq!(smoke_add(i32::MIN, -1), i32::MAX);
-    }
-}

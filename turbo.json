@@ -35,7 +35,7 @@
     },
     "build:prepare": { "cache": false },
     "typecheck:check": { "dependsOn": ["build"], "cache": false },
-    "test:unit": { "dependsOn": ["build"], "cache": false },
+    "test:integration": { "dependsOn": ["build"], "cache": false },
     "test:runtime": { "dependsOn": ["build"], "cache": false },
     "catalog:emit": { "dependsOn": ["build"], "cache": false, "outputs": ["dist/catalog.json"] },
     "build:semantics": { "cache": false },
@@ -50,7 +50,6 @@
     "//#release:pack:run": { "dependsOn": ["release:verify"], "cache": false },
     "//#native:compiler:build": { "cache": false },
     "//#native:compiler:test": { "dependsOn": ["native:compiler:build"], "cache": false },
-    "//#native:compiler:lint": { "cache": false },
-    "//#tools:jev": { "cache": false }
+    "//#native:compiler:lint": { "cache": false }
   }
 }

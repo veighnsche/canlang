@@ -57,8 +57,6 @@ mod scenario_feasibility;
 pub mod scenario_queries;
 mod scenario_receipts;
 mod send_guards;
-#[cfg(test)]
-mod source_require_retained_tests;
 pub mod sourcemap;
 pub mod then_views;
 

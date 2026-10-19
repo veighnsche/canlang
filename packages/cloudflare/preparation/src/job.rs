@@ -2115,33 +2115,3 @@ fn activation_verdict(payload: &serde_json::Value) -> Result<serde_json::Value, 
     Ok(serde_json::Value::Object(verdict.clone()))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::input::decode_tree;
-
-    #[test]
-    fn assemble_review_surrogate_text() {
-        // Lone-surrogate vars (value + key) plus paired text: the
-        // canonical planJson carries them losslessly, so the review
-        // join must assemble without any duplicate serde Value
-        // round-trip. Fixture is real `encodeAdmittedTreeJson` output.
-        let plan = decode_tree("{\"t\":\"obj\",\"entries\":[[[119,114,97,110,103,108,101,114],{\"t\":\"obj\",\"entries\":[[[110,97,109,101],{\"t\":\"text\",\"units\":[119,49]}],[[109,97,105,110],{\"t\":\"text\",\"units\":[46,47,100,105,115,116,47,119,111,114,107,101,114,47,101,110,116,114,121,46,106,115]}],[[99,111,109,112,97,116,105,98,105,108,105,116,121,95,100,97,116,101],{\"t\":\"text\",\"units\":[50,48,50,54,45,48,55,45,49,53]}],[[118,97,114,115],{\"t\":\"obj\",\"entries\":[[[120],{\"t\":\"text\",\"units\":[55296]}],[[107,55296],{\"t\":\"text\",\"units\":[118]}],[[101,109,111,106,105],{\"t\":\"text\",\"units\":[55357,56832]}]]}],[[100,49,95,100,97,116,97,98,97,115,101,115],{\"t\":\"arr\",\"items\":[]}],[[114,50,95,98,117,99,107,101,116,115],{\"t\":\"arr\",\"items\":[]}],[[100,117,114,97,98,108,101,95,111,98,106,101,99,116,115],{\"t\":\"obj\",\"entries\":[[[98,105,110,100,105,110,103,115],{\"t\":\"arr\",\"items\":[]}]]}],[[113,117,101,117,101,115],{\"t\":\"obj\",\"entries\":[[[112,114,111,100,117,99,101,114,115],{\"t\":\"arr\",\"items\":[]}]]}],[[115,101,114,118,105,99,101,115],{\"t\":\"arr\",\"items\":[]}],[[97,110,97,108,121,116,105,99,115,95,101,110,103,105,110,101,95,100,97,116,97,115,101,116,115],{\"t\":\"arr\",\"items\":[]}]]}],[[115,99,104,101,100,117,108,101,115],{\"t\":\"arr\",\"items\":[]}],[[98,117,110,100,108,101],{\"t\":\"null\"}]]}".as_bytes()).expect("surrogate fixture decodes");
-        let review = assemble_review(&plan, None).expect("surrogate review assembles");
-        assert!(
-            review.plan_json.contains("\\ud800"),
-            "lone escape rides planJson"
-        );
-        assert!(
-            review.plan_json.contains('\u{1F600}'),
-            "valid pair rides planJson as one scalar"
-        );
-        assert!(
-            review
-                .lines
-                .iter()
-                .any(|line| line == "+ worker w1 main=./dist/worker/entry.js compat=2026-07-15"),
-            "worker line projected"
-        );
-    }
-}

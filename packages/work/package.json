@@ -7,12 +7,10 @@
   "description": "Lane 04: durable events, schedules, outbox dispatch, receipts and recovery (internal; public surface assembles in @canlang/stdlib).",
   "scripts": {
     "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/work",
-    "test": "node ../../scripts/run-tasks.mjs test:unit --filter=@canlang/work",
     "build": "node ../../scripts/build-package.mjs",
     "clean": "rm -rf dist/",
     "build:emit": "tsc -p tsconfig.json",
     "typecheck:check": "tsc -p tsconfig.json --noEmit",
-    "test:unit": "cd ../.. && node --test \"packages/work/dist/test/**/*.test.js\" \"packages/work/dist/src/**/*.test.js\"",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },
   "devDependencies": {

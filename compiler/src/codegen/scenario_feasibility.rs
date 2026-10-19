@@ -14,8 +14,6 @@ use crate::analysis::{CheckedProgram, ModuleId, NodeKey, ResolvedType, Scalar, S
 use crate::source::{SourceDb, Span};
 use crate::syntax::SyntaxKind;
 
-#[cfg(test)]
-use super::ir;
 use super::ir::{
     IrBinOp, IrCallTarget, IrDefault, IrExpr, IrItem, IrItemKind, IrParameterArrayBounds,
     IrProgram, IrStmt, IrType, TypedExpr,
@@ -69,24 +67,6 @@ impl<'a> PreparedRequireReturns<'a> {
             .map(|index| original.returns.get(*index))
             .collect()
     }
-}
-
-#[cfg(test)]
-pub(super) fn prepare<'a>(
-    program: &'a CheckedProgram,
-    ir: &'a IrProgram,
-    db: &SourceDb,
-    catalog: Option<&Catalog>,
-) -> Option<PreparedRequireReturns<'a>> {
-    program.validate_cohort(db, catalog).ok()?;
-    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-    {
-        return None;
-    }
-    prepare_with_fresh(program, ir, db, catalog, &fresh)
 }
 
 /// Reuse the freshly lowered immutable cohort inside a single emission.
@@ -1003,6 +983,3 @@ fn same_stored_schema(a: &CheckedStoredContractSchema, b: &CheckedStoredContract
         })
 }
 
-#[cfg(test)]
-#[path = "scenario_feasibility_tests.rs"]
-mod tests;

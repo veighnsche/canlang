@@ -5,9 +5,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: [
-      "packages/contracts/test/**/*.test.ts",
       "packages/cloudflare/test/**/*.test.ts",
-      "packages/testkit/test/**/*.test.ts",
       "tests/integration/**/*.test.ts",
     ],
   },

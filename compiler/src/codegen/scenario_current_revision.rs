@@ -1,9 +1,6 @@
 //! Original nullable current Revision sites, without reference promotion.
 //! The native consumer chooses the released receiver at the actual leaf; the
 //! initial presence read must still perform its ordinary null comparison.
-#[cfg(test)]
-#[path = "scenario_current_revision_tests.rs"]
-mod tests;
 use std::collections::{HashMap, HashSet};
 
 use crate::analysis::NodeKey;

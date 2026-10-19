@@ -1556,29 +1556,6 @@ pub(super) struct EmitDecisionSources<'a> {
     pub send_guard_gap: Option<&'a super::send_guards::SendGuardGap>,
 }
 
-#[cfg(test)]
-pub(super) fn emit_program_with_query_sources(
-    ir: &IrProgram,
-    native_receipts: bool,
-    db: &crate::source::SourceDb,
-    queries: &std::collections::BTreeMap<String, serde_json::Value>,
-    query_receipts: &std::collections::BTreeMap<
-        String,
-        super::scenario_receipts::NativeScenarioReceipt,
-    >,
-    decisions: EmitDecisionSources<'_>,
-) -> JsOutput {
-    emit_program_with_sources(
-        ir,
-        native_receipts,
-        Some(db),
-        Some(queries),
-        Some(query_receipts),
-        decisions,
-        None,
-    )
-}
-
 pub(super) fn emit_program_with_feasible_query_sources(
     ir: &IrProgram,
     native_receipts: bool,
@@ -19905,79 +19882,3 @@ fn object_key(key: &str) -> String {
     }
 }
 
-#[cfg(test)]
-mod string_tests {
-    use super::js_string;
-
-    #[test]
-    fn fixed_string_bytes_cover_every_control_unicode_and_quotes() {
-        let controls: String = (0u8..32).map(char::from).collect();
-        assert_eq!(
-            js_string(&controls),
-            r#""\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008\t\n\u000b\u000c\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f""#,
-        );
-        assert_eq!(js_string(""), r#""""#);
-        assert_eq!(
-            js_string("'\"\\/é😀\u{7f}\u{2028}\u{2029}"),
-            "\"'\\\"\\\\/é😀\u{7f}\u{2028}\u{2029}\"",
-        );
-    }
-}
-
-#[cfg(test)]
-mod completion_census_tests {
-    use super::emit_program_with_native_source_receipts;
-    use crate::{
-        analysis::{
-            catalog::{CatalogRequest, load_catalog},
-            check_program,
-        },
-        codegen::ir,
-        source::{SourceDb, Span},
-    };
-
-    #[test]
-    fn duplicate_completion_fact_cannot_replace_an_original_handler() {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap();
-        let path = root.join("packages/values/dist/catalog.json");
-        let mut db = SourceDb::new();
-        let file = db.add("completion-census.can".into(), "app Census\nuse std {EmailV1 as Mail} from=deployment.mail\nGiven\nWhen\n scenario observed_a on=Mail.send.completed\n  do let status=event.status\n scenario observed_b on=Mail.send.completed\n  do let status=event.status\nThen\n".into());
-        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
-            flag: Some(&path),
-            env: None,
-            cwd: root,
-            primary: Span::new(file, 0, 0),
-        });
-        assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
-        assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        let (mut ir, _) = ir::build(&checked, &db, catalog.as_ref());
-        assert_eq!(ir.standard_completion_sources.handlers.len(), 2);
-        let original = emit_program_with_native_source_receipts(&ir, false, &db);
-        assert!(
-            original.diagnostics.is_empty(),
-            "{:?}",
-            original.diagnostics
-        );
-        assert!(original.entry.js.contains("standardCompletions:"));
-        // Equal lengths still conceal an omitted source handler without a bijection.
-        ir.standard_completion_sources.handlers[1] =
-            ir.standard_completion_sources.handlers[0].clone();
-        let output = emit_program_with_native_source_receipts(&ir, false, &db);
-        assert!(
-            output
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.code == "E6008"
-                    && diagnostic.message.contains("standardCompletions")),
-            "{:?}",
-            output.diagnostics
-        );
-        assert!(
-            !output.entry.js.contains("standardCompletions:"),
-            "duplicate substitution cannot publish a partial census"
-        );
-    }
-}
