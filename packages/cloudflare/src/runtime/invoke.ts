@@ -991,11 +991,17 @@ interface ReadSelectorFacts {
   readonly by: ReadonlyMap<string, CanonicalByPredicate>;
 }
 
-/** Emitted metadata owns data properties; accessor execution is not provenance. */
+/** Emitted metadata owns data properties; accessor execution is not provenance.
+ESM namespaces are the one exception: they expose exports through spec-defined
+getters holding no author code (namespaces are frozen), so the binding is
+evaluated instead of rejected. */
 function readMetadataMember(object: object, key: string, where: string): { readonly value: unknown } | undefined {
   const descriptor = Object.getOwnPropertyDescriptor(object, key);
   if (descriptor === undefined) return undefined;
   if (!Object.hasOwn(descriptor, "value")) {
+    if (Object.prototype.toString.call(object) === "[object Module]" && typeof descriptor.get === "function") {
+      return { value: (object as Record<string, unknown>)[key] };
+    }
     throw new Error(`${where}: accessor metadata member ${JSON.stringify(key)} is unsupported.`);
   }
   return { value: descriptor.value as unknown };

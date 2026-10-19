@@ -12,6 +12,7 @@ fn ir() -> IrProgram {
         value_constraints: Default::default(),
         scenario_disclosures: Default::default(),
         committed_sources: Default::default(),
+        resolved_cases: Default::default(),
         standard_completion_sources: Default::default(),
         referenced_builtins: vec![],
         read_rules: vec![],
@@ -64,8 +65,9 @@ fn generated_suite_keeps_strings_inside_executable_recipe() {
         r#"export const exampleImports=[{provider:"p\"\\/\n",member:"é😀",alias:""}];"#,
         "\n",
         "export function exampleFixtures({self,other,imported}){\n",
+        "const $can$f$=imported[\"\"];\n",
         "const $can$f$776f726b6572={dependencies:[],user:async(c,s)=>({roles:[\"a\\\"\\\\/\\n\\u0008\\u000cé😀\u{2028}\u{2029}\",\"\"]})};\n",
-        "return {fixtures:{[\"worker\"]:$can$f$776f726b6572},examples:[]};\n",
+        "return {fixtures:{...imported,[\"worker\"]:$can$f$776f726b6572},examples:[]};\n",
         "}\n",
     );
     assert_eq!(emitted.module.js, expected);
