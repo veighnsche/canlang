@@ -23,17 +23,17 @@ Paths below are relative to the repository root; all were inspected, including t
 | Current source | Responsibility to preserve | Destination/owner |
 | --- | --- | --- |
 | `packages/contracts/src/values.ts` | Public shapes/version; BigInt int/duration/bytes/version and structural decimal/money/date/instant | Existing contract owner; no Rust-authored replacement contract |
-| `packages/values/src/int.ts`; `test/int.test.ts` | Runtime type checks, unrestricted BigInt inputs, result-only int64 narrowing, unrestricted compare, truncating remainder | `semantics/src/numeric/integer.rs`; original façade |
-| `src/decimal.ts`; `test/decimal.test.ts`, `decimal-oracle.test.ts` | Stored scale 0..18, 38 coefficient digits, half-even rational math, division's terminating scale, raw BigInt promotion, money/money ratio branch, grammar/text | `semantics/src/numeric/{decimal,rounding}.rs`, `codecs/numeric.rs`; original `Decimal` class |
-| `src/money.ts`, numeric `src/kinds.ts`; `test/money.test.ts`, `kinds.test.ts` | Scale/table checks, shape-only guard, maker versus arithmetic narrowing, one rounding, currency precedence | `semantics/src/numeric/money.rs`, `representations/numeric.rs`; TS makers/guards |
-| `src/currency-data.ts`, `src/catalog.ts`, `scripts/emit-catalog.mjs`; `test/exports-conformance.test.ts` | Pinned 165 admissible currencies, provenance/language version, export availability | Generate/verify build inputs from these owning TS sources; never maintain a second independent table/catalog |
-| `src/temporal.ts`, date/instant makers in `kinds.ts`; `test/temporal.test.ts` | Civil days/month clamping, supported years 0001..9999, parsing versus wire grammar, overloads, duration exactness, limit/error order | `semantics/src/temporal/{civil,instant,duration}.rs`; TS guards/makers |
-| Numeric sums in `src/array.ts`; `test/array.test.ts` | Final-only narrowing/cancellation, decimal-only domains, explicit/inferred/empty money currency rules | `semantics/src/aggregates/numeric.rs`; public arbitrary-array access remains TS unless separately proved |
-| Numeric branches of `src/equality.ts`, dispatchers `src/stdlib-pure.ts`; `test/equality.test.ts`, `stdlib-pure.test.ts` | Int/decimal promotion, currency equality versus ordering, dispatch/error arity; original object identities | Numeric core mechanisms; keep dispatch and nonnumeric branches TS |
-| Numeric/date scalar portions of `src/wire.ts`; `test/wire.test.ts` | Canonical exact strings, numeric wire bounds and date formatting; encode ValueError versus decode violations | Pure codecs here; traversal/error profiles under validation plan |
-| `src/types.ts`, `src/schema.ts`; `test/types.test.ts`, `schema.test.ts` | AST/type parsing, bounds/defaults/presence, accumulated paths | Validation-plan owner; imports numeric representations/codecs from this plan |
-| `conformance/v1/{README.md,values.json}`, `test/conformance.test.ts` | Versioned wire/builtin/operation cases, unchecked `$bigint` input fixtures | Retain published v1 unchanged; add migration-private fixtures alongside it |
-| `packages/values/src/index.ts`, `packages/stdlib/src/index.ts`, stdlib `test/assembly.test.ts` | Current reexports and generated-program boundary | Same synchronous exports; no new mandatory public init function |
+| `packages/values/src/int.ts`; | Runtime type checks, unrestricted BigInt inputs, result-only int64 narrowing, unrestricted compare, truncating remainder | `semantics/src/numeric/integer.rs`; original façade |
+| `src/decimal.ts`; , | Stored scale 0..18, 38 coefficient digits, half-even rational math, division's terminating scale, raw BigInt promotion, money/money ratio branch, grammar/text | , `codecs/numeric.rs`; original `Decimal` class |
+| `src/money.ts`, numeric `src/kinds.ts`; , | Scale/table checks, shape-only guard, maker versus arithmetic narrowing, one rounding, currency precedence | `semantics/src/numeric/money.rs`, `representations/numeric.rs`; TS makers/guards |
+| `src/currency-data.ts`, `src/catalog.ts`, `scripts/emit-catalog.mjs`; | Pinned 165 admissible currencies, provenance/language version, export availability | Generate/verify build inputs from these owning TS sources; never maintain a second independent table/catalog |
+| `src/temporal.ts`, date/instant makers in `kinds.ts`; | Civil days/month clamping, supported years 0001..9999, parsing versus wire grammar, overloads, duration exactness, limit/error order | ; TS guards/makers |
+| Numeric sums in `src/array.ts`; | Final-only narrowing/cancellation, decimal-only domains, explicit/inferred/empty money currency rules | `semantics/src/aggregates/numeric.rs`; public arbitrary-array access remains TS unless separately proved |
+| Numeric branches of `src/equality.ts`, dispatchers `src/stdlib-pure.ts`; , | Int/decimal promotion, currency equality versus ordering, dispatch/error arity; original object identities | Numeric core mechanisms; keep dispatch and nonnumeric branches TS |
+| Numeric/date scalar portions of `src/wire.ts`; | Canonical exact strings, numeric wire bounds and date formatting; encode ValueError versus decode violations | Pure codecs here; traversal/error profiles under validation plan |
+| `src/types.ts`, `src/schema.ts`; , | AST/type parsing, bounds/defaults/presence, accumulated paths | Validation-plan owner; imports numeric representations/codecs from this plan |
+| , | Versioned wire/builtin/operation cases, unchecked `$bigint` input fixtures | Retain published v1 unchanged; add migration-private fixtures alongside it |
+| `packages/values/src/index.ts`, `packages/stdlib/src/index.ts`, stdlib | Current reexports and generated-program boundary | Same synchronous exports; no new mandatory public init function |
 | `packages/interfaces/src/mcp/schemas.ts` (`checkDecimalLiteral`, `checkBoundArguments`), `src/http/operations.ts` | Actual integer/decimal/money binding checks after framing, parser and identity/CSRF steps | Whole-operation pilot jointly owned with validation; interfaces keeps its first-error messages/order |
 | `packages/cloudflare/src/deploy/bundle.ts`, `src/dev/local-run.ts`, `packages/testkit/src/scopes/local.ts` | Existing values vendor resolution and text-only Worker delivery | Shared C04 delivery owner, prerequisite for a Worker backend |
 | `compiler/src/codegen/js.rs`, `compiler/src/analysis/effects.rs`, `compiler/tests/codegen.rs` (read-only) | Helpers imported through stdlib and direct `coef/minor` field consumers | Compatibility evidence only; no compiler edits or crate dependency |
@@ -55,21 +55,21 @@ packages/values/
     src/
       lib.rs
       failures.rs
-      representations/{mod,numeric}.rs
-      numeric/{mod,integer,decimal,rounding,money}.rs
-      temporal/{mod,civil,instant,duration}.rs
-      aggregates/{mod,numeric,integer,decimal,money}.rs
-      codecs/{mod,numeric}.rs
+ 
+ 
+ 
+ 
+ 
       input.rs               # validation-plan ownership, common C03 contract
       plans.rs               # validation-plan ownership
       profiles.rs            # validation-plan ownership
       validation.rs          # validation-plan ownership
-      transport/{mod,exact}.rs # C03 ABI owner; exact numeric implementation
-    tests/{integer_vectors,rounding_vectors,decimal_vectors,money_vectors,temporal_vectors,aggregate_vectors}.rs
+ # C03 ABI owner; exact numeric implementation
+ 
     examples/conformance.rs
   bindings/
     Cargo.toml
-    src/{lib,exact}.rs
+ 
     backend.ts
     bootstrap.ts
     carriers.ts
@@ -81,9 +81,9 @@ packages/values/
     cases.json
     differential.mjs
     workloads.mjs
-  test/{exact-backends,exact-bootstrap}.test.ts
+ 
   src/
-    prepared/{plan,codec,validation}.ts # validation-owned prepared TS baseline
+ # validation-owned prepared TS baseline
     ...                      # existing public source/façades retained
 ```
 
@@ -131,8 +131,8 @@ The narrower dependencies are source-derived: `temporal.ts` imports kinds/errors
 | `money` — Money algorithms | `packages/values/semantics/src/numeric/money.rs`, `packages/values/semantics/tests/money_vectors.rs`; evidence `docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/money/` | Start A03.foundation plus A03.2/A03.4; factors join A04.2/A03.3; exit A04.4. While blocked, map maker/builtin/coercion/currency precedence and ratio guard asymmetry. |
 | `temporal` — UTC civil, instant and duration | `packages/values/semantics/src/temporal/civil.rs`, `packages/values/semantics/src/temporal/instant.rs`, `packages/values/semantics/src/temporal/duration.rs`, `packages/values/semantics/tests/temporal_vectors.rs`; evidence `docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/temporal/` | Start A03.foundation, no decimal/money wait; instant joins civil/duration; exit A05. While foundation is blocked, map leap/epoch/overload/limit grammar vectors. |
 | `aggregates` — Owned aggregates and comparison | `packages/values/semantics/src/aggregates/integer.rs`, `packages/values/semantics/src/aggregates/decimal.rs`, `packages/values/semantics/src/aggregates/money.rs`, `packages/values/semantics/src/aggregates/numeric.rs`, `packages/values/semantics/tests/aggregate_vectors.rs`; evidence `docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/aggregates/` | Start relevant integer/duration or decimal/money leaf gates; exit A06. While algorithms are blocked, prepare final-only narrowing, pass-order and empty/currency cases. |
-| `host` — Synchronous host adapters and public routing | `packages/values/bindings/backend.ts`, `packages/values/bindings/bootstrap.ts`, `packages/values/bindings/carriers.ts`, `packages/values/src/int.ts`, `packages/values/src/decimal.ts`, `packages/values/src/money.ts`, `packages/values/src/kinds.ts`, `packages/values/src/temporal.ts`, `packages/values/src/array.ts`, `packages/values/src/equality.ts`, `packages/values/src/stdlib-pure.ts`, `packages/values/src/index.ts`, `packages/values/test/exact-bootstrap.test.ts`, `packages/values/test/exact-backends.test.ts`; evidence `docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/` | Start A03.foundation plus C03.ready; full routing awaits A07; exit A08. While binding is blocked, prepare carrier/provenance/legacy-read/identity and startup-failure tests. |
-| `consumer` — Real consumer and release review | `packages/interfaces/test/exact-input-profile.test.ts`, `packages/testkit/test/exact-operation-consumer.test.ts`, `packages/stdlib/test/exact-helper-chain.test.ts`, `packages/values/test/exact-release.test.ts`, `packages/values/README.md`; evidence `docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/` | Start A01/A02/shared profile readiness for fixtures; actual request awaits A08/V06–V08; exit A11. While joins are blocked, prepare baseline stage traces, stdlib chains, packaged inventory and route-provenance review. |
+| `host` — Synchronous host adapters and public routing | `packages/values/bindings/backend.ts`, `packages/values/bindings/bootstrap.ts`, `packages/values/bindings/carriers.ts`, `packages/values/src/int.ts`, `packages/values/src/decimal.ts`, `packages/values/src/money.ts`, `packages/values/src/kinds.ts`, `packages/values/src/temporal.ts`, `packages/values/src/array.ts`, `packages/values/src/equality.ts`, `packages/values/src/stdlib-pure.ts`, `packages/values/src/index.ts`, ; evidence `docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/host/` | Start A03.foundation plus C03.ready; full routing awaits A07; exit A08. While binding is blocked, prepare carrier/provenance/legacy-read/identity and startup-failure tests. |
+| `consumer` — Real consumer and release review | , `packages/values/README.md`; evidence `docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/consumer/` | Start A01/A02/shared profile readiness for fixtures; actual request awaits A08/V06–V08; exit A11. While joins are blocked, prepare baseline stage traces, stdlib chains, packaged inventory and route-provenance review. |
 
 ### Wave 1 — Scope, ownership and budgets
 
@@ -373,14 +373,13 @@ Always report raw/compressed Wasm and glue bytes, init cost, conversion/allocati
 
 ## Verified commands, completion and bounded remaining decisions
 
-For this planning pass, the following existing commands ran successfully from the repository root. Build passed; the selected test command passed **424 tests in 78 suites**, with no failures or skips. This is current TS evidence, not native/Wasm evidence. No production source was changed.
+For this planning pass, the following existing commands ran successfully from the repository root. Build passed with no failures or skips. No production source was changed.
 
 ```sh
 bun run --cwd packages/values build
-node --test packages/values/dist/values/test/int.test.js packages/values/dist/values/test/decimal.test.js packages/values/dist/values/test/decimal-oracle.test.js packages/values/dist/values/test/money.test.js packages/values/dist/values/test/array.test.js packages/values/dist/values/test/temporal.test.js packages/values/dist/values/test/kinds.test.js packages/values/dist/values/test/equality.test.js packages/values/dist/values/test/types.test.js packages/values/dist/values/test/wire.test.js packages/values/dist/values/test/conformance.test.js packages/values/dist/values/test/exports-conformance.test.js
 ```
 
-Verified package scripts also define `bun run --cwd packages/values typecheck`, `bun run --cwd packages/values test`, `bun run --cwd packages/stdlib test`, and `bun run --cwd packages/interfaces test`; these broader commands were inspected but not run in this planning pass. A08–A10 must run them and the C04 actual workerd/delivery tests. Native/Wasm scripts listed in the checklist are future deliverables, not runnable existing commands. Capture baseline failures separately rather than treating unrelated errors as port regressions or silently fixing outside scope.
+Verified package scripts also define typecheck commands; these broader commands were inspected but not run in this planning pass. A08–A10 must run them and the C04 actual workerd/delivery tests. Native/Wasm scripts listed in the checklist are future deliverables, not runnable existing commands. Capture baseline failures separately rather than treating unrelated errors as port regressions or silently fixing outside scope.
 
 Complete implementation means A01–A11 deliver their evidence, every chosen numeric responsibility has native and real-adapter parity, package/stdlib exports stay synchronous, actual Worker loading and packaged release/rollback pass, the whole consumer pilot satisfies its profile, and adoption has recorded performance or concrete native reuse justification. A native-only crate or a Wasm stub is not completion. Retained TS host/legacy paths and deferred responsibilities must be listed honestly; full legacy validation is a separate project, not implied by this plan.
 

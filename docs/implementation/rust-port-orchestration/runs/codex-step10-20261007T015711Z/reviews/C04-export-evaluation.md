@@ -13,7 +13,7 @@ Root completed only this finite evaluation; no cheap-worker progress is invented
 ## Source pins
 
 - `packages/interfaces/src/http/export.ts`: `5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3`
-- `packages/interfaces/test/export-print.test.ts`: `d8d58be75556c910d0c0c099d66f1871caf4576c24c868e7df6f4bb98e3deb2f`
-- `packages/interfaces/test/export-route.test.ts`: `a41b82d9d9a7f4846e0f2f51b8d336d69204207a09bc8d041a6f52e3770ccf41`
-- `packages/interfaces/test/export-join.test.ts`: `27056c7b91ed4fea6f045bc3939875c1d7ea51424dce76ba4536c8bb745f5d4f`
+- : `d8d58be75556c910d0c0c099d66f1871caf4576c24c868e7df6f4bb98e3deb2f`
+- : `a41b82d9d9a7f4846e0f2f51b8d336d69204207a09bc8d041a6f52e3770ccf41`
+- : `27056c7b91ed4fea6f045bc3939875c1d7ea51424dce76ba4536c8bb745f5d4f`
 - `packages/ui/src/browser/export.ts`: `9c85f8b85632ef10383eaffba1b0aea12c48302effc0a5d609c22a0c85070e63`

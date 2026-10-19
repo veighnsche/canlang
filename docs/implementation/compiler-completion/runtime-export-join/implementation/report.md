@@ -2,7 +2,7 @@
 
 Commit `b7e18b9b` moves the original synchronous `require` and `hasRole` bodies to the supported `@canlang/state/effects/guards` subpath. Cloudflare compatibility exports and the stdlib facade expose the same function objects through the existing acyclic dependencies. The structural readonly handler context preserves existing callers. The asynchronous role API remains separate at `@canlang/state/policy/roles`; the State root exports `MembershipReader` as a type, not a runtime `hasRole` value.
 
-The owning source and behavior checks remain in `packages/state/src/effects/guards.ts`, `packages/state/test/effects/guards.test.ts`, `packages/stdlib/test/assembly.test.ts`, and `compiler/tests/selected_calls.rs` with `compiler/tests/fixtures/selected-call-consumer.mjs`. No build, test or runtime entry point uses the removed historical packet.
+The owning source and behavior checks remain in `packages/state/src/effects/guards.ts` and `compiler/tests/selected_calls.rs` with `compiler/tests/fixtures/selected-call-consumer.mjs`. No build, test or runtime entry point uses the removed historical packet.
 
 At acceptance, the focused guard/facade checks passed 8/8, and the generated mutation consumer passed through canonical memory admission: member commit/replay, handler `rule_failed` rejection/replay and live membership removal. Admission denial is reevaluated: restoring membership can admit the same previously admission-denied operation ID. An immediate repeated admission denial did not establish a permanently stored rejection receipt. These are historical outcomes, not a new run or a durable deployment result.
 

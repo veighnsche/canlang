@@ -6,7 +6,7 @@ Base 295908144f14a070ac5f62122d1d0d982ea47c89. Product read-only. Human preparat
 
 Root request: exact runtime dependency `@scure/base: 2.4.0` in packages/identity/package.json, central lock and portable delivered closure. ESM main/module index.js, types index.d.ts, no exports restriction, MIT, no runtime dependencies or declared engines. Use named `base64urlnopad` and `hex`; do not use padded base64url or uppercase-only base16.
 
-I02 writer files: packages/identity/src/sessions/tokens.ts, packages/identity/test/sessions.test.ts and packages/identity/test/accounts.test.ts. No password source change needed for this compatibility policy. Root handles manifests/lock/delivery and accepted decision recording. I03 must wait for I02 same-file release; cookie may proceed independently.
+I02 writer files: packages/identity/src/sessions/tokens.ts, and . No password source change needed for this compatibility policy. Root handles manifests/lock/delivery and accepted decision recording. I03 must wait for I02 same-file release; cookie may proceed independently.
 
 ## Frozen encoding choices
 

@@ -12,8 +12,8 @@ wrangler apply with an honest `applied` report. Files:
 - `packages/cloudflare/src/deploy/render.ts` — bundle provenance comment in TOML
 - `packages/cloudflare/src/cli/platform.ts` — runDeploy path only
 - `packages/cloudflare/src/upgrade/apply.ts` — `runWranglerDeploy` backend
-- NEW tests: `test/deploy-bundle.test.ts`, `test/deploy-plan.test.ts`,
-  `test/deploy-apply.test.ts`
+- NEW tests: ,
+ 
 
 ## Bundle proof (real `deploy --yes` run, fixture artifact)
 
@@ -26,7 +26,7 @@ Deploy dir: 80 files (`bundle.json` manifest + 79 modules), 1.3 MB.
 | `worker/assembly.js` | 33,063 | |
 | `worker/artifact.js` | 1,410 | GENERATED staged deployment |
 | `worker/mcp-handler.js` | 593,380 | bun-built handler bundle |
-| `runtime/{context,invoke,sourcemap,mcp-registry,env-assembly,grant-route}.js` | — | pinned workerd-safe set |
+| | — | pinned workerd-safe set |
 | `app/*`, `vendor/*`, `contracts/src/*` | — | artifact + producer dists |
 
 MCP bundle markers (all present; `createHandler === createMcpHandler`,
@@ -98,12 +98,12 @@ Coded against `src/worker/main.ts`' sibling-join map:
   artifact.js/determinism/failure modes/write/boot ×2; plan bundle-main
   ×4; apply backend ×7).
 - Full cloudflare suite: 298/299 green. The 1 failure is
-  `worker-main.test.ts > POST /mcp/grants … answers 501` — a P-A/P-C
+ > POST /mcp/grants … answers 501` — a P-A/P-C
   interaction (P-A's test assumes `grant-route.js` absent; P-C landed,
   so the route answers 401). It imports none of P-B's files; not mine,
   not touched.
 - `bun run typecheck` (root, strict incl. tests): clean.
-- `worker-boundary.test.ts`: green (bundle.ts reads dist via `fs`,
+- : green (bundle.ts reads dist via `fs`,
   never imports worker sources).
 
 ## Known join gaps (for the parent, not P-B defects)

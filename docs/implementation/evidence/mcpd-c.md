@@ -23,7 +23,7 @@ export async function buildProductionDeps(
 - `env.DB` missing/misshapen → throws self-identifying
   `buildProductionDeps (../runtime/env-assembly.js) requires env.DB …`
   (P-A surfaces it as 500 `deploy-join-missing`; tokens aligned with
-  P-A's `worker-main.test.ts`, which passes).
+ P-A's , which passes).
 - Workerd-safe: type-only imports, no `node:`; producers load via
   non-literal dynamic specifiers (tsc-blind, b2 precedent). P-B seam:
   the bundler must inline/scope `@canlang/identity`,
@@ -100,8 +100,7 @@ verified layout first), exported from `identity/src/index.ts`.
 
 ## Test output tails (this session)
 
-- `identity`: build ✅, `node --test dist/identity/test/**/*.test.js` —
-  58 pass / 0 fail (11 new D1).
+- `identity`: build ✅.
 - `cloudflare` (vitest): 3 new files, 18 tests pass (7 permissions +
   5 grant-route + 6 env-assembly/worker).
 - Full cloudflare file: 294 pass / 2 fail → after P-A token alignment:
@@ -113,15 +112,15 @@ verified layout first), exported from `identity/src/index.ts`.
   flakes (green in isolation and on re-run).
 - Typechecks: `cloudflare typecheck` ✅ + `build` ✅, `identity
   typecheck` ✅, root `tsc -p tsconfig.check.json` — ZERO errors in P-C
-  files (4 remaining errors all in P-B's `deploy-bundle.test.ts`).
-- `worker-boundary.test.ts`: green (`src/worker/*` untouched).
+ files (4 remaining errors all in P-B's ).
+- : green (`src/worker/*` untouched).
 
 ## Files changed (P-C only)
 
 - NEW: `packages/identity/src/storage/d1.ts`,
-  `packages/identity/test/d1.test.ts`,
+ ,
   `packages/cloudflare/src/runtime/{env-assembly,grant-route,mcp-permissions}.ts`,
-  `packages/cloudflare/test/{mcp-permissions,mcp-grant-route,mcpd-env-assembly}.test.ts`,
+ ,
   `docs/implementation/evidence/mcpd-c.md` (this file).
 - MODIFIED: `packages/identity/src/index.ts` (one export line).
 - NOT touched: `src/worker/*`, `src/deploy/*`, `src/cli/*`, `src/dev/*`,

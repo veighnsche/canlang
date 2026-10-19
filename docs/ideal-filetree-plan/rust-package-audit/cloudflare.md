@@ -62,7 +62,7 @@ name that decision separately; don't silently tighten public acceptance.
 Owner remains Cloudflare generation. First finite output: workload/compatibility
 and cost comparison ending in retain-TS or one exact language proposal. A later
 candidate must join the actual `diff` command, include input/output copying and
-serialization, startup/asset cost and worst permitted repeated/unequal lines. Current `controls.test.ts` has real diff control cases and basic binary/large
+serialization, startup/asset cost and worst permitted repeated/unequal lines. Current has real diff control cases and basic binary/large
 `textHunks` checks, not a complete tie oracle. Do not port leases, saved-group
 ownership, candidate authorization or journal promotion. There is no accepted
 new native delivery owner for this candidate; don't hide it in held preparation

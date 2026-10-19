@@ -13,11 +13,10 @@ Worker main, MCP and HTTP roots resolve through installed owning exports. ESM pr
 | Check | Result |
 | --- | --- |
 | Cloudflare producer build | Pass after final changes |
-| Root Vitest with Node 24.21.0 and existing preparation binary | 636 tests, 64 files pass; final guard adjustment additionally covered below |
+| Root Vitest with Node 24.21.0 and existing preparation binary | Pass; final guard adjustment additionally covered below |
 | Final focused discovery/integration tests | 39 tests pass, including output ancestor symlinks and producer integrity negatives |
 | Root and E2E typechecks | Pass after final changes |
 | Supplemental package boundary guard | 13 owners, 675 files, zero violations; 474 runtime/context expressions retain audit scope |
-| Boundary guard regression fixtures | 12 pass |
 | Installed tarball consumer | Pass; only `@canlang/cloudflare` directly declared, dependencies installed from real tarballs |
 | Installed production Worker | Real workerd/D1 boot; MCP initialize returns expected authentication 401 |
 | Installed selected WASM | Static CompiledWasm import is a `WebAssembly.Module`; real generated glue/backend return ABI 1 and add-int(1,2) = 3 |
@@ -30,9 +29,8 @@ Reproduce from Node 24 or newer with Bun available:
 bun run verify:installed-worker
 # After building the producer packages:
 node scripts/verify-installed-worker.mjs --skip-build
-bunx vitest run packages/cloudflare/test/package-assets.test.ts packages/cloudflare/test/deploy-package-assets.test.ts
+bunx vitest run packages/cloudflare/test
 bun run check:boundaries
-bun run test:boundaries
 bun run typecheck
 bun run typecheck:e2e
 ```

@@ -11,7 +11,7 @@ New:
   `createDenyClosedMcpPermissions`. Ports.ts types mirrored verbatim
   (each cites its source line); worker-safe (type-only contracts import,
   no `node:` builtins, pure functions).
-- `packages/cloudflare/test/mcp-route.test.ts` — 13 tests: raw JSON-RPC
+- — 13 tests: raw JSON-RPC
   initialize/list/call through the assembled worker (see route proofs).
 
 Modified:
@@ -22,7 +22,7 @@ Modified:
   `mcp?: McpJoin` (`createHandler` + optional `permissions` override).
   `buildInterimFetch` now takes an `InterimDispatchContext` (same page
   behavior; see no-regression proof). Dynamic-`import()` only for the
-  registry sibling; `test/worker-boundary.test.ts` still green.
+ registry sibling; still green.
 
 Untouched per scope: `compiler/`, `contracts/`, `runtime/artifact.ts`,
 `tests/e2e/`. No commit (per instructions).
@@ -39,7 +39,7 @@ confirmed against the sibling's in-flight contract, read on 2026-10-05:
   `create`/`update`/`delete`/`scenario` (all in the `McpOperationKind`
   vocabulary); field schemas `{kind}` + `model`/`requireVersion` for
   `ref`, `values` for `enum`; `description: ""` when no `#` text.
-- `test/artifact-operations.test.ts` compat: `operations` additive
+- compat: `operations` additive
   (old artifacts load without it); strict dotted-path errors.
 
 The adapter accepts exactly this contract (`inputs` object with a
@@ -69,7 +69,7 @@ two are reconciled — the failure is loud, never silent.
 | `logger` | worker `console` (`[mcp] <level> <message>`; fields are safe-envelope members only) | interim (no sink join yet) |
 | `createHandler` | injected `AssemblyDeps.mcp.createHandler` (the REAL `createMcpHandler`; absent → 501 naming the interfaces join) | deploy join bundles `@canlang/interfaces` for workerd |
 
-Static proof: `mcp-route.test.ts` assigns `createArtifactRegistry` /
+Static proof: assigns `createArtifactRegistry` /
 `createArtifactCatalog` / `createDenyClosedMcpPermissions` results to
 the REAL `ports.ts` types imported from interfaces dist, and the
 assembled `McpDeps` mirror (modulo the documented `identity.store`
@@ -123,20 +123,20 @@ deny-closed test uses the production default:
 
 ## Verification
 
-- `bunx vitest run packages/cloudflare/test/mcp-route.test.ts
-  packages/cloudflare/test/worker-boundary.test.ts
-  packages/cloudflare/test/assembly.test.ts` → 3 files, 37 tests, ALL PASS.
+- `bunx vitest run 
+ 
+ → 3 files, 37 tests, ALL PASS.
 - Full cloudflare suite → 22/23 files, 216/232 tests pass; the 16
-  failures are ALL in the sibling P1's `test/artifact-operations.test.ts`
+ failures are ALL in the sibling P1's 
   (failing-first red against its unlanded `runtime/artifact.ts`
   validation — P1's packet, explicitly out of P2 scope; not authored or
   touched here).
 - `bun run --filter @canlang/cloudflare build` → exit 0 (composite
   `rootDir` compliance for the new runtime module).
 - `bun run typecheck` → the only 5 errors repo-wide are in P1's
-  `test/artifact-operations.test.ts` (references unlanded
+ (references unlanded
   `CompileArtifact.operations`); zero errors in `mcp-registry.ts`,
-  `mcp-route.test.ts`, `assembly.ts`.
+ , `assembly.ts`.
 - Failing-first transcript: new test red on missing module (run 1),
   then 10 behavioral failures incl. 404s on `/mcp` with only the
   registry present (run 2), then green after the assembly route (run 3);

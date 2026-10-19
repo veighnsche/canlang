@@ -46,7 +46,7 @@ shape. See PH2/PH4 in `prepared-hook-review.md`.
 | Claim | Current evidence | Remaining proof |
 | --- | --- | --- |
 | Real package handler | Source and existing handler/route test suites | No new execution claimed by B |
-| Typed injection seam | Current assembly source; `http-operations-route.test.ts` names injected handler | Package route fixture is separate from default deployment |
+| Typed injection seam | Current assembly source; names injected handler | Package route fixture is separate from default deployment |
 | Default source wiring | main default sibling + deploy bundle builder | Exact produced/runtime bundle and deployment acceptance |
 | Absent-factory fallback | Explicit assembly interim 501 branch | Preserve independently from supplied factory success |
 | V08 native/package-workerd port | No new proof in this packet | Actual handler + real Wasm/adapter + workerd, including negative controls |

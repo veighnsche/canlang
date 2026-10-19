@@ -88,7 +88,7 @@ Change only the existing helper in `semantics/src/representations/numeric.rs` an
 
 **Owner:** R3 work assembly and leased leaf writer. **After:** N01's released work contract and the original W04 leaf prerequisites. **Difficulty:** small adapter, moderate parity.
 
-Repair `decisions/{rows,receipt,linkage,recovery}.rs` via one work-owned adapter, avoiding a dependency on values internals. Remove the integral i64-cast formatting path. Register only through the work integrator and reconcile the old standalone-rustc harness when adding a Cargo dependency.
+Repair via one work-owned adapter, avoiding a dependency on values internals. Remove the integral i64-cast formatting path. Register only through the work integrator and reconcile the old standalone-rustc harness when adding a Cargo dependency.
 
 **Exit:** all admitted diagnostic/identity bytes agree with actual JS; `1e20` cannot saturate into i64 text; JSON nonfinite→null remains distinct; number carrier bits/order/authority are unchanged. A native source-ready release is only that narrower claim; it does not close W04.4. N02/N04/N05 are not prerequisites.
 

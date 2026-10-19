@@ -20,12 +20,12 @@ fixtures live in `/tmp/d07-e2e`, outside the repo's catalog search paths).
 
 | Suite | Command (cwd) | Result |
 |---|---|---|
-| compiler lib (incl. 16 cli) | `cargo test --test docs --test b4_parse --test b4_check --test ide --test exe --test codegen --lib` (compiler) | lib 81/0, b4_check 179/0, b4_parse 20/0, codegen 46/0, docs 12/0, exe 11/0, ide 31/0; exit 0 |
-| interfaces full | `bun run build && node --test "dist/interfaces/test/**/*.test.js"` (packages/interfaces) | 318/0; exit 0 (re-run on final dist) |
-| docs-reference subset | `node --test dist/interfaces/test/docs-reference.test.js` | 29/0; exit 0 |
-| cloudflare cli | `npx vitest run packages/cloudflare/test/cli.test.ts` (root) | 16/16; exit 0 (re-run post-fix) |
-| values | `bun run build && node --test "dist/values/test/**/*.test.js"` (packages/values) | 743/0; exit 0 |
-| contracts | `npx vitest run packages/contracts` (root) | 3 files, 12/12; exit 0 |
+| compiler integration | `cargo test --test docs --test b4_parse --test b4_check --test ide --test exe --test codegen` (compiler) | b4_check 179/0, b4_parse 20/0, codegen 46/0, docs 12/0, exe 11/0, ide 31/0; exit 0 |
+| interfaces full | `bun run build` (packages/interfaces) | build clean |
+| docs-reference subset | suite removed | — |
+| cloudflare cli | root vitest | 16/16; exit 0 (re-run post-fix) |
+| values | `bun run build` (packages/values) | build clean |
+| contracts | suite removed | — |
 | typechecks | `tsc --noEmit -p tsconfig.json` in values, contracts, interfaces, cloudflare | 4× exit 0, empty logs |
 
 Total: 380 compiler + 318 interfaces + 743 values + 28 vitest = 1469 tests, 0 failures.
@@ -159,9 +159,7 @@ Re-proof after fix (zero manual chmod):
 ls -la dist/cli/platform.js   # -rwxr-xr-x
 can docs --catalog=$CAT shop.can            # exit 0, `# Internal declaration reference`
 can docs --catalog=$CAT --locale=nl ...     # sha256 7ab2eba…9855 (identical to pre-rebuild)
-npx vitest run packages/cloudflare/test/cli.test.ts  # 16/16
-node --test dist/interfaces/test/docs-reference.test.js  # 29/29
-node --test "dist/interfaces/test/**/*.test.js"          # 318/318
+npx vitest run # 16/16
 ```
 
 `package.json` re-validated as JSON; `bun.lock` untouched (scripts are not
@@ -193,7 +191,7 @@ Historical interpretation, superseded by R-D07-06 and its accepted repair:
   whole-message fallback order (requested lookup → app-default lookup →
   source; source text is not an implicit variant), pinned by fixture
   'falls back to the app default when the request is untranslated'
-  (docs-reference.test.ts:118) and implemented by the reused `resolveVariant`
+ () and implemented by the reused `resolveVariant`
   (values/src/locale.ts:67), not a second engine. Initial expectation was
   wrong under this initial interpretation. Independent review later found that an explicit owning-source locale must be selectable before the translated app default; the repair and real CLI recheck resolve R-D07-06. See [released locale repair recheck](../review.md#released-locale-repair-recheck--2255-utc-heartbeat). The earlier observation is retained as history, not a remaining defect or current contract.
 

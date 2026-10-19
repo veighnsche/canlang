@@ -150,7 +150,7 @@ Vec::new()` in the `CompileArtifact` literal
   with zero diagnostics, `canApp()` markers — plus the trusted-handler
   exclusion test and the `record`-collision omission test. Written
   failing-first (failed on missing `operations[]`).
-- `packages/cloudflare/test/artifact-operations.test.ts` (new, 20
+- (new, 20
   tests): old-artifact back-compat, valid-shape preservation, 18
   rejection cases (including both duplicate-name rejections). Written
   failing-first (16 failed pre-change).

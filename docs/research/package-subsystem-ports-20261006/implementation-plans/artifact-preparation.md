@@ -74,7 +74,7 @@ Native preparation is independent of C04's Wasm loader proof. Its typed asset/ma
 | [cli/platform.ts](../../../../packages/cloudflare/src/cli/platform.ts) | Actual `build`/`deploy` callers, refusal/error order, stdout JSON envelope and stderr review, preview/confirmed paths. Remains the host orchestrator. |
 | [deploy/activate.ts](../../../../packages/cloudflare/src/deploy/activate.ts), [upgrade/apply.ts](../../../../packages/cloudflare/src/upgrade/apply.ts) | Activation and external application owners. Neither stage is reimplemented in this core. |
 | [interfaces operation catalog](../../../../packages/interfaces/src/http/operations.ts) | Owning `catalogFromArtifactOperations` derivation, exported through interfaces; use the existing producer rather than copying its rules. |
-| Cloudflare `test/{artifact,artifact-operations,artifact-field-descriptions,compat,plan,review,release,deploy-bundle,deploy-plan,deploy-cli,deploy-apply}.test.ts` | Existing TS semantic, byte, CLI and mocked-apply fixtures. P01 records baseline and compiles dists before CLI checks; stale dists cannot prove parity. |
+| Cloudflare | Existing TS semantic, byte, CLI and mocked-apply fixtures. P01 records baseline and compiles dists before CLI checks; stale dists cannot prove parity. |
 
 The two build operations in `bundle.ts` are substantive: Bun bundles the real MCP handler, and interfaces derives the operation input catalog. One host build-adapter module owns both, with separate coarse phases at their existing positions in the job. Native preparation may retain one semantic parse while that adapter parses or materializes another artifact view; globally parsing once is not a completion criterion.
 
@@ -98,7 +98,7 @@ packages/cloudflare/
       render.rs
       review.rs
       failures.rs
-    tests/{vectors,protocol,outputs}.rs
+ 
   src/preparation/
     host.ts
     protocol.ts
@@ -113,7 +113,7 @@ packages/cloudflare/
     cases.json
     differential.mjs
     workloads.mjs
-  test/{preparation-protocol,preparation-native,preparation-cli}.test.ts
+ 
   dist/preparation/
     manifest.json
     <supported-platform>/can-preparation[.exe]
@@ -155,14 +155,14 @@ One worker owns each lane while active. Logical lanes can exceed available worke
 | Lane | Single-writer scope | Ready backlog and exit |
 | --- | --- | --- |
 | `P-contract` — Source contracts and coverage | `packages/cloudflare/README.md` | Ready items P01.1, P02.1, P11.1; release the worker when blocked, after recording evidence. |
-| `P-evidence` — Baselines, conformance and measurements | `packages/cloudflare/conformance/preparation/cases.json`; `packages/cloudflare/conformance/preparation/differential.mjs`; `packages/cloudflare/conformance/preparation/workloads.mjs`; `packages/cloudflare/test/preparation-cli.test.ts`; `packages/cloudflare/test/preparation-mixed-assets.test.ts`; `packages/cloudflare/test/preparation-native.test.ts` | Ready items P01.2, P02.3, P05.5, P05.6, P07.2, P08.2, P10.1; release the worker when blocked, after recording evidence. |
+| `P-evidence` — Baselines, conformance and measurements | `packages/cloudflare/conformance/preparation/cases.json`; `packages/cloudflare/conformance/preparation/differential.mjs`; `packages/cloudflare/conformance/preparation/workloads.mjs`; ; ; | Ready items P01.2, P02.3, P05.5, P05.6, P07.2, P08.2, P10.1; release the worker when blocked, after recording evidence. |
 | `P-coordination` — Completion review and dispatch |  | Ready items parent gates; release the worker when blocked, after recording evidence. |
 | `P-session` — Native protocol and single job integrator | `packages/cloudflare/preparation/Cargo.lock`; `packages/cloudflare/preparation/Cargo.toml`; `packages/cloudflare/preparation/rust-toolchain.toml`; `packages/cloudflare/preparation/src/job.rs`; `packages/cloudflare/preparation/src/main.rs`; `packages/cloudflare/preparation/src/protocol.rs`; `packages/cloudflare/preparation/tests/protocol.rs`; `packages/cloudflare/preparation/tests/vectors.rs`; `packages/cloudflare/src/preparation/protocol.ts` | Ready items P03.1, P03.3, P04.4, P05.4, P06.3; release the worker when blocked, after recording evidence. |
 | `P-input` — Lossless admitted-tree transport | `packages/cloudflare/preparation/src/failures.rs`; `packages/cloudflare/preparation/src/input.rs`; `packages/cloudflare/src/preparation/inputs.ts` | Ready items P03.2; release the worker when blocked, after recording evidence. |
-| `P-host` — Host launcher, build stages and CLI writer | `packages/cloudflare/src/cli/platform.ts`; `packages/cloudflare/src/preparation/build-adapter.ts`; `packages/cloudflare/src/preparation/executable.ts`; `packages/cloudflare/src/preparation/host.ts`; `packages/cloudflare/src/preparation/publication.ts`; `packages/cloudflare/test/preparation-protocol.test.ts`; `packages/cloudflare/test/preparation-publication.test.ts` | Ready items P02.2, P03.4, P05.2, P05.3, P07.1, P08.1, P10.2; release the worker when blocked, after recording evidence. |
+| `P-host` — Host launcher, build stages and CLI writer | `packages/cloudflare/src/cli/platform.ts`; `packages/cloudflare/src/preparation/build-adapter.ts`; `packages/cloudflare/src/preparation/executable.ts`; `packages/cloudflare/src/preparation/host.ts`; `packages/cloudflare/src/preparation/publication.ts`; ; | Ready items P02.2, P03.4, P05.2, P05.3, P07.1, P08.1, P10.2; release the worker when blocked, after recording evidence. |
 | `P-artifact` — Artifact indexes and semantic checks | `packages/cloudflare/preparation/src/artifact.rs`; `packages/cloudflare/preparation/tests/artifact.rs` | Ready items P04.1; release the worker when blocked, after recording evidence. |
 | `P-compatibility` — Compatibility policy calculations | `packages/cloudflare/preparation/src/compatibility.rs`; `packages/cloudflare/preparation/tests/compatibility.rs` | Ready items P04.2; release the worker when blocked, after recording evidence. |
-| `P-release` — Release calculations and native packaging | `packages/cloudflare/preparation/src/release.rs`; `packages/cloudflare/preparation/tests/release.rs`; `packages/cloudflare/scripts/build-preparation.mjs`; `packages/cloudflare/scripts/package-preparation.mjs`; `packages/cloudflare/src/preparation/executable-manifest.ts`; `packages/cloudflare/test/preparation-packaged.test.ts` | Ready items P04.3, P09.1, P09.2; release the worker when blocked, after recording evidence. |
+| `P-release` — Release calculations and native packaging | `packages/cloudflare/preparation/src/release.rs`; `packages/cloudflare/preparation/tests/release.rs`; `packages/cloudflare/scripts/build-preparation.mjs`; `packages/cloudflare/scripts/package-preparation.mjs`; `packages/cloudflare/src/preparation/executable-manifest.ts`; | Ready items P04.3, P09.1, P09.2; release the worker when blocked, after recording evidence. |
 | `P-modules` — Module paths, rewriting and graph | `packages/cloudflare/preparation/src/modules.rs`; `packages/cloudflare/preparation/tests/modules.rs` | Ready items P05.1; release the worker when blocked, after recording evidence. |
 | `P-review` — Plans, rendering and review | `packages/cloudflare/preparation/src/plan.rs`; `packages/cloudflare/preparation/src/render.rs`; `packages/cloudflare/preparation/src/review.rs`; `packages/cloudflare/preparation/tests/outputs.rs`; `packages/cloudflare/preparation/tests/plan.rs` | Ready items P06.1, P06.2; release the worker when blocked, after recording evidence. |
 
@@ -250,7 +250,7 @@ Every task records inspected source hash/checkpoint, changed files, commands/res
 - **Lane `P-host` — Host launcher, build stages and CLI writer**
   - [ ] **P03.4 — Build resolved native launcher and host lifecycle** (implementation; after `P02.2`, `P03.3`).
     - Do: Resolve the selected executable explicitly; launch by argument arrays, bound stderr and resource handling, and release private sessions on success/error/timeout/cancel. Select TS/native before evaluation.
-    - Writes: `packages/cloudflare/src/preparation/executable.ts`, `packages/cloudflare/src/preparation/host.ts`, `packages/cloudflare/test/preparation-protocol.test.ts`.
+ - Writes: `packages/cloudflare/src/preparation/executable.ts`, `packages/cloudflare/src/preparation/host.ts`, .
     - Done when: Real native launch, missing executable and version mismatch work as specified; one retained process per job; started native failure never falls through to TS.
 
 - **Lane `P-artifact` — Artifact indexes and semantic checks**
@@ -340,7 +340,7 @@ Every task records inspected source hash/checkpoint, changed files, commands/res
 - **Lane `P-host` — Host launcher, build stages and CLI writer**
   - [ ] **P07.1 — Implement contained staging and publication adapter** (implementation; after `P03.4`, `P06.2`, `C03.ready`).
     - Do: Validate private temp roots, relative paths, separator/traversal/symlink handling, exact lengths/hashes and reviewed bytes. Keep current confirmed writer/apply and failed-apply/manual-command policy.
-    - Writes: `packages/cloudflare/src/preparation/publication.ts`, `packages/cloudflare/test/preparation-publication.test.ts`.
+ - Writes: `packages/cloudflare/src/preparation/publication.ts`, .
     - Done when: Cleanup on every exit is tested; private preview staging is allowed but no deployment file publication; current partial-write behavior is classified honestly.
 
 ### Wave 9
@@ -348,7 +348,7 @@ Every task records inspected source hash/checkpoint, changed files, commands/res
 - **Lane `P-evidence` — Baselines, conformance and measurements**
   - [ ] **P05.5 — Prove JS-only bundle and real MCP output** (implementation; after `P05.4`).
     - Do: Run actual native process, source fixture differential and real MCP local-workerd loadability checks.
-    - Writes: `packages/cloudflare/test/preparation-native.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/module-parity.json`.
+ - Writes: `docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/module-parity.json`.
     - Done when: Real MCP output runs; marker-only checks are insufficient; JS-only bundle bytes/digests match without requiring a Wasm-loader proof.
 
 - **Lane `P-session` — Native protocol and single job integrator**
@@ -362,7 +362,7 @@ Every task records inspected source hash/checkpoint, changed files, commands/res
 - **Lane `P-evidence` — Baselines, conformance and measurements**
   - [ ] **P05.6 — Verify mixed text/Wasm preparation after loader proof** (implementation; after `P05.5`, `C04.ready`, `C04.graph`).
     - Do: Exercise typed byte inventory, generated glue/imports and versioned manifest/digest with actual compiled Wasm; align publication paths with C04 delivery.
-    - Writes: `packages/cloudflare/test/preparation-mixed-assets.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/mixed-assets.json`.
+ - Writes: `docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/mixed-assets.json`.
     - Done when: Exact lengths/hashes, unchanged JS-only v1 output and no Wasm-as-text rewriting are demonstrated in generated installed output.
 
 - **Lane `P-coordination` — Completion review and dispatch**
@@ -381,7 +381,7 @@ Every task records inspected source hash/checkpoint, changed files, commands/res
 - **Lane `P-evidence` — Baselines, conformance and measurements**
   - [ ] **P07.2 — Verify actual job publication and mocked apply** (implementation; after `P05`, `P06`, `P07.1`).
     - Do: Run bare/preview/confirmed/compiler-mismatch/cancel/error jobs against private directories and existing mocked apply seam.
-    - Writes: `packages/cloudflare/test/preparation-cli.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/publication.json`.
+ - Writes: `docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/publication.json`.
     - Done when: Zero deployment files for bare/preview/mismatch; mocked apply consumes exactly reviewed bundle/config; no live deploy.
 
 - **Lane `P-coordination` — Completion review and dispatch**
@@ -410,7 +410,7 @@ Every task records inspected source hash/checkpoint, changed files, commands/res
 - **Lane `P-evidence` — Baselines, conformance and measurements**
   - [ ] **P08.2 — Run full CLI and installed-dist differential** (implementation; after `P08.1`, `P02.3`, `C04.native-release`).
     - Do: Compare current/prepared TS/native using real executable and freshly built installed dist; cover all negative, preview and confirmed mocked-apply modes.
-    - Writes: `packages/cloudflare/conformance/preparation/differential.mjs`, `packages/cloudflare/test/preparation-cli.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/cli-parity.json`.
+ - Writes: `packages/cloudflare/conformance/preparation/differential.mjs`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/cli-parity.json`.
     - Done when: No unexplained traces/bytes/errors; library helper routes remain declared and passing.
 
 ### Wave 14
@@ -424,7 +424,7 @@ Every task records inspected source hash/checkpoint, changed files, commands/res
 - **Lane `P-release` — Release calculations and native packaging**
   - [ ] **P09.2 — Prove supported packaged executable launch** (implementation; after `P08`, `P09.1`, `C04.native-release`).
     - Do: Build/package and launch outside the checkout on every claimed host; test corrupt/missing/wrong-architecture/protocol/release-skew cases.
-    - Writes: `packages/cloudflare/test/preparation-packaged.test.ts`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/packaged-hosts.json`.
+ - Writes: `docs/research/package-subsystem-ports-20261006/evidence/implementation/artifact-preparation/packaged-hosts.json`.
     - Done when: Each supported host has actual build+launch evidence; unsupported hosts remain explicit; package includes executable/license/dist metadata and needs no user compiler.
 
 ### Wave 15
@@ -494,10 +494,8 @@ Before P04, C05 freezes nominated workloads and acceptable regression/startup/re
 Current commands to establish P01/P02 baselines from repository root are:
 
 ```sh
-./node_modules/.bin/vitest run packages/cloudflare/test/artifact.test.ts packages/cloudflare/test/artifact-operations.test.ts packages/cloudflare/test/artifact-field-descriptions.test.ts packages/cloudflare/test/compat.test.ts packages/cloudflare/test/plan.test.ts packages/cloudflare/test/review.test.ts packages/cloudflare/test/release.test.ts
 bun run --cwd packages/cloudflare typecheck
 bun run build
-./node_modules/.bin/vitest run packages/cloudflare/test/deploy-bundle.test.ts packages/cloudflare/test/deploy-plan.test.ts packages/cloudflare/test/deploy-cli.test.ts packages/cloudflare/test/deploy-apply.test.ts
 ```
 
 The source/test names and scripts have been inspected; these commands are execution requirements, not newly reported results. `bun run build` must pass or baseline failures must be resolved by their owner before built CLI evidence counts; do not test stale dist and call it current parity. The previous evaluation's selected TS tests and typecheck failures are historical evidence only.

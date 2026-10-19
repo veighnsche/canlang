@@ -1,6 +1,6 @@
 # Late work mirror conformance review
 
-Planning-only review of `packages/work/test/b3-mirror-conformance.test.ts`: all 902 lines read. Parent supplied main commit `1f5c1b55f68450f1f904a994d5c0a67057a77ca1` as a test-only addition; this review ran no Git, test, typecheck, build or service. Exact test and defining-source SHA256 pins are in `late-work-tests.json`. The living plan checkpoint is unchanged.
+Planning-only review of : all 902 lines read. Parent supplied main commit `1f5c1b55f68450f1f904a994d5c0a67057a77ca1` as a test-only addition; this review ran no Git, test, typecheck, build or service. Exact test and defining-source SHA256 pins are in `late-work-tests.json`. The living plan checkpoint is unchanged.
 
 The addition is useful, narrow T25 boundary conformance coverage. It consumes actual state closures/association rows in actual work kernels and asserts concrete outcomes. It does not establish full receipt lifecycle, installed app correctness or passing checks merely by existing. No demonstrated new product defect was found from source reading.
 

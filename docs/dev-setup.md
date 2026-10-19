@@ -40,15 +40,9 @@ upstream invalidation, source rollback/deletion and failed-producer blocking. It
 `bun run build:uncached` disables both cache reads and writes for reproducibility
 checks. Cached builds use `.turbo/cache` locally; remote caching is disabled.
 
-```sh
-bun run test:tools
-```
-
-plus the parser boundary suite (see the `tools` job in
-`.github/workflows/integration.yml` for the exact filter). These run the
-mocked tools tests. `python3 tools/can_parser.py draft examples` currently
-exits 1: the draft corpus evolved past the Python prototype parser (known
-drift, owned by the draft coordinator / lane-1 Rust track).
+The Python prototype has known drift: `python3 tools/can_parser.py draft examples` currently
+exits 1; the draft corpus evolved past the Python prototype parser (owned
+by the draft coordinator / lane-1 Rust track).
 
 ```sh
 bun run build:compiler

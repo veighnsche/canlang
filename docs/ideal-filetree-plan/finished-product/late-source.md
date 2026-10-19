@@ -44,7 +44,7 @@ Required gates: T04, T15, FP.CONTEXT.
 
 Exact hashes and path ledger; [independent source challenge](reviews/late-challenge-language.md). No test, build, install, deployment, provider call or source edit was performed. Active implementation records are evidence owned elsewhere, not acceptance imported by this audit.
 
-A subsequent test-only merge `1f5c1b5` adds `packages/work/test/b3-mirror-conformance.test.ts` (902 lines). It is structurally catalogued and receives a separate independent [work-test review](reviews/late-work-tests.md). Production authority/ownership and receipt qualification gates remain unchanged; reported merge-owner suite counts are not audit execution.
+A subsequent test-only merge `1f5c1b5` adds (902 lines). It is structurally catalogued and receives a separate independent [work-test review](reviews/late-work-tests.md). Production authority/ownership and receipt qualification gates remain unchanged; reported merge-owner suite counts are not audit execution.
 
 The full test review retains narrow T25 locator/grant/retention/repoint/join source expectations. Root independently checked the claims and selected D/E/F assertion bodies: type pins are directional, progress is calculated without a completion commit, both read branches share actual observer/binders and omit enrolled fence. Full T26, actual durable/current authority/disposal and installed consumer proofs remain required; no defect or passing runtime result is inferred.
 

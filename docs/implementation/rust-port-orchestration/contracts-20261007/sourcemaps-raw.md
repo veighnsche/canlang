@@ -18,15 +18,15 @@ Keep public `DecodedSegment`, `DecodedLine`, `MappedPosition`, `decodeMappings(m
 
 Complete explicit Error.message oracle:
 
-- `sourcemap: bad VLQ character ${JSON.stringify(String.fromCharCode(code))}` for first invalid UTF-16 unit within the current field/segment.
+- `sourcemap: bad VLQ character for first invalid UTF-16 unit within the current field/segment.
 - `sourcemap: empty segment`
 - `sourcemap: truncated VLQ value`
-- `sourcemap: bad segment field count ${N}` for 0/2/3/>5; currently reachable ordinary input counts 2/3/>5, since empty segment already faults.
+- `sourcemap: bad segment field count for 0/2/3/>5; currently reachable ordinary input counts 2/3/>5, since empty segment already faults.
 - Preserve source's defensive `sourcemap: bad segment field count` and count-0 branches if internal unreachable state is exposed; do not translate them to library defaults.
 
 Within a segment bad character/truncation wins over field-count rejection; segment/line order decides first fault. Structurally missing mappings is **not** proven null: valid query currently reaches decodeMappings(undefined) and a native TypeError. Wrong mappings types similarly preserve actual native failure oracle. Declared SourceMap requires a string; don't silently expand that admitted domain. Invalid query bypasses even these failures. Proxy/getter/coercion arbitrary host-object equivalence is not certified; explicit supported JSON/typed input and any retained host-object route must be stated before implementation.
 
-invoke's mapThrownError catches map/decode errors and returns undefined, preserving the original thrown message/generated position; diagnostic failure never breaks invoke's never-throws contract. It first recognizes assembled frames, then raw source suffix matches; it uses `artifact.modules.find(...).map` for fallback, not staged .map file contents. Existing `test/sourcemap.test.ts` verifies real invoke round-trip, no-map message-only, malformed-map recovery, generated/remapped frame handling and local-dev inline map delivery. Reading those tests is not fresh evidence of their execution.
+invoke's mapThrownError catches map/decode errors and returns undefined, preserving the original thrown message/generated position; diagnostic failure never breaks invoke's never-throws contract. It first recognizes assembled frames, then raw source suffix matches; it uses `artifact.modules.find(...).map` for fallback, not staged .map file contents. Existing verifies real invoke round-trip, no-map message-only, malformed-map recovery, generated/remapped frame handling and local-dev inline map delivery. Reading those tests is not fresh evidence of their execution.
 
 ## Candidate pins and why substitution is blocked
 
@@ -42,7 +42,7 @@ No async initialization is needed by these JavaScript exports. Pins are planning
 
 Published codec decode does not validate invalid alphabet/truncation/segment count to Can's errors, returns a different empty-map shape, sorts descending generated segments, and its decodeSign(1) yields -2147483648 where current decoded signed-zero accumulates as zero. Bit31/long VLQs differ under signed/unsigned shift behavior. TraceMap resolves sourceRoot/mapURL, defaults missing names, caches decoded mappings and may sort decoded input; originalPositionFor returns resolved source identity and zero-based source column. Exact GLB tie selects first duplicate; current chooses last. Its low-level traceSegment still inherits decoded/sorted/cached behavior. Library configuration alone does not supply this frozen oracle.
 
-Root chose `retain_contract_candidate_gate`; three JEV responses at `jev/response-{1,2,3}.json` advised retaining the external contract and qualification gate (.99/.95/.98). **No silent new rejection profile and no second full handwritten VLQ engine is selected to force adoption.** Alternatives for bounded E01:
+Root chose `retain_contract_candidate_gate`; three JEV responses at advised retaining the external contract and qualification gate (.99/.95/.98). **No silent new rejection profile and no second full handwritten VLQ engine is selected to force adoption.** Alternatives for bounded E01:
 
 1. Codec plus existing thin raw Can lookup: avoids trace/resolution dependency and keeps raw names/tie/unmapped semantics, but codec sorting/sign/overflow/admission still needs a demonstrably small guard/adapter. A structural token guard may check alphabet/continuation/count, but if reproducing numeric/order decoding requires a second VLQ parser this fails the intended simplification. Do not call that a completed replacement.
 2. Trace compatible-profile adapter: needs ordinary-query guards, raw index lookup, last-duplicate correction, sorting bypass, mutable cache treatment and codec malformed/numeric reconciliation. Accept only if it is smaller and fully qualified; not a presumed advantage.
@@ -72,6 +72,6 @@ Future same-line controls: producer import lengthens/shortens before real throwi
 
 ## Finite files and ownership
 
-D03 candidate leaf (only after its decision/implementation release): `packages/cloudflare/src/runtime/sourcemap.ts`; new `packages/cloudflare/test/raw-source-map-contract.test.ts`; new `packages/cloudflare/test/fixtures/raw-source-map-contract.json`; private future evidence exact files `docs/implementation/rust-port-orchestration/step2-evidence/raw-source-map/{oracle.json,candidate.json,comparison.json,host-closure.json}`. Existing sourcemap.test.ts remains read-only to the leaf; R3 owns its future actual-invoke join tests. D02 import leaf files are disjoint.
+D03 candidate leaf (only after its decision/implementation release): `packages/cloudflare/src/runtime/sourcemap.ts`; new ; new `packages/cloudflare/test/fixtures/raw-source-map-contract.json`; private future evidence exact files . Existing remains read-only to the leaf; R3 owns its future actual-invoke join tests. D02 import leaf files are disjoint.
 
-D04 R3 finite serial integration: runtime/modules.ts, deploy/bundle.ts, dev/local-run.ts; existing modules.test.ts/deploy-bundle.test.ts/sourcemap.test.ts/deploy-package-assets.test.ts; proposed `test/map-composition-contract.test.ts`; evidence `step2-evidence/map-composition/{cases.json,installed.json,worker.json,review.json}` under the same implementation directory. These are proposals and require exact one-writer acknowledgment; modules/bundle D02 handoff precedes D04. Any new runtime helper/vendor file or changed root/build/export path must be named before dispatch. No invented broad directory lease. Root/global manifests/bun.lock/build/distribution ownership stays R3; package-local native work assembly remains its designated original owner. All preparation native sources and release files stay held.
+D04 R3 finite serial integration: runtime/modules.ts, deploy/bundle.ts, dev/local-run.ts; existing ; proposed ; evidence under the same implementation directory. These are proposals and require exact one-writer acknowledgment; modules/bundle D02 handoff precedes D04. Any new runtime helper/vendor file or changed root/build/export path must be named before dispatch. No invented broad directory lease. Root/global manifests/bun.lock/build/distribution ownership stays R3; package-local native work assembly remains its designated original owner. All preparation native sources and release files stay held.

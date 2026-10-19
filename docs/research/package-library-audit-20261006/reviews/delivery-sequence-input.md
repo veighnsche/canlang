@@ -25,7 +25,7 @@ Acceptance: every request identifies exact files, owner, library entry point, ex
 Attach as corrective/requalification scope under **W04.1/W04.3**, retaining their original dependencies: W04.1 needs W02.2/W03.1/C03.ready; W04.3 needs W02.4/W03.1/C03.ready. Lease separate files to leaf owners:
 
 - `packages/work-kernel/decisions/rows.rs:231`, `receipt.rs:209`, `linkage.rs:210`, `recovery.rs:1253`.
-- Existing direct witnesses: `decisions/rows.rs:6841` js_num_matches_v8; `:6873` json_escape_matches_v8. TS donor evidence: `conformance/rows.test.ts:223`, `receipt.test.ts:106`, `recovery.test.ts:97`, `linkage.test.ts:54`; immutable `conformance/fixtures/rows/` and `fixtures/receipts/{receipt,recovery,linkage}.json`.
+- Existing direct witnesses: `decisions/rows.rs:6841` js_num_matches_v8; `:6873` json_escape_matches_v8. TS donor evidence: , ; immutable `conformance/fixtures/rows/` and .
 
 Replace only number formatting with a work-owned thin adapter over ryu-js. A proposed shared adapter path must be assigned by the work integrator; avoid casually reaching into values internals or duplicating a formatting engine. Existing files describe standalone rustc/no-dependency testability (`rows.rs:5`): explicitly update the harness/registration contract when introducing a crate dependency, rather than claim old standalone commands still test the new code.
 
@@ -43,21 +43,21 @@ New finite R3 delivery extension related to **C04.asset/C04.graph**, with a smal
 
 - `packages/cloudflare/src/deploy/bundle.ts:373` regexes, `:381` collection, `:400` validation, `:425` artifact rewrite, `:454` runtime rewrite, `:498` vendor rewrite, `:906` link records, `:931` link checks.
 - `packages/cloudflare/src/runtime/modules.ts:69`, `:77`, `:90`, `:106`; this module is Node-side staging despite its directory name.
-- Existing tests: `test/modules.test.ts:63,96,107`; `test/deploy-bundle.test.ts:224,302,314,332,373,488,503,665,676,702`.
+- Existing tests: ; .
 
 Normalize selected es-module-lexer records into a stable Can adapter and edit original UTF-16 spans with MagicString. Keep the public sync `buildDeployBundle` at bundle.ts:972: choose and qualify a compatible synchronous host entry or explicit preinitialized design. Current upstream offers JS/asm.js exports, but selected-version availability and startup must be checked. Do not accidentally ship host lexer/Wasmtime-style compilation into workerd. Preserve current approved producer/path rules and deterministic module/key/hash behavior, while documenting corrected false matches and newly detected imports as explicit behavior changes.
 
 Acceptance: comments, regex literals, escaped specifiers, multiline/brace/star reexports, literal dynamic imports with attributes, nested template substitutions, non-BMP prefixes, quote preservation, same-line length-changing edits, and multiple invalid imports. Old collection groups from/import()/side-effect forms rather than pure lexical order: consciously freeze the intended first-fault order. Separate import.meta, literal, computed and glob imports; a truthy specifier must not silently admit current full-build glob records. Preserve no-partial-files validation in modules.ts:163–166. Lexer is not complete JS validation or free-variable/CJS analysis.
 
-Retain the existing CJS/loadability guard initially (`bundle.ts:724,798,839`; tests at `deploy-bundle.test.ts:722–742`) unless a separate justified parser scope replaces it. es-module-lexer does not prove require/module.exports/free exports absence. Bun producer bundling/catalog derivation remain their current owned mechanisms.
+Retain the existing CJS/loadability guard initially (`bundle.ts:724,798,839`; tests at ) unless a separate justified parser scope replaces it. es-module-lexer does not prove require/module.exports/free exports absence. Bun producer bundling/catalog derivation remain their current owned mechanisms.
 
 ### DM1 — Strict source-map decode and lookup adapter
 
-New finite scope for LIB-05, no exact existing port task. Can proceed independently of DI1 on a lease of `packages/cloudflare/src/runtime/sourcemap.ts:52,62,88,146` and `test/sourcemap.test.ts:80–122`. Preserve exported DecodedSegment/MappedPosition/lookup shapes so invoke's consumer at `runtime/invoke.ts:280` need not change.
+New finite scope for LIB-05, no exact existing port task. Can proceed independently of DI1 on a lease of `packages/cloudflare/src/runtime/sourcemap.ts:52,62,88,146` and . Preserve exported DecodedSegment/MappedPosition/lookup shapes so invoke's consumer at `runtime/invoke.ts:280` need not change.
 
 Use sourcemap-codec and trace-mapping behind Can compatibility guards. Acceptance: current malformed-character, truncated-value, empty-segment and 1/4/5-field rejection; empty mapping behavior; generated input integer/range rules; GLB lookup; unmapped one-field segments; raw sources/names; optional invalid name behavior; duplicate columns and unsorted segments; mutable input maps and any cache invalidation. Current decoder uses bitwise accumulation and does **not** explicitly reject arithmetic overflow, negative accumulated coordinates or unsorted data. Those stronger rules need a documented policy/witness, not a false claim of preserved existing guards. Library decoding alone does not enforce current malformed-input rejection. Maintain error prefix and actual exposed failure bytes. If a thin admission guard becomes a second full VLQ decoder, stop and compare maintenance benefit before proceeding.
 
-Use raw source-table identity rather than accidentally resolving/normalizing URLs/sourceRoot into different diagnostic names. Trace library sorting/duplicate selection must not silently change Can lookup. Tests `test/sourcemap.test.ts:127,152,168,186,216,233` preserve real invocation mapping and message-only recovery. Invalid optional name index currently omits name rather than forcing null; source index failure returns null.
+Use raw source-table identity rather than accidentally resolving/normalizing URLs/sourceRoot into different diagnostic names. Trace library sorting/duplicate selection must not silently change Can lookup. Tests preserve real invocation mapping and message-only recovery. Invalid optional name index currently omits name rather than forcing null; source index failure returns null.
 
 ### DM2 — Compose edit maps through original .can maps
 
@@ -71,9 +71,9 @@ Critical consumer trap: writing a composed `.map` file alone is insufficient. in
 
 R3 serial integration after DI1/DM1/DM2 and focused manifest requests. Exact existing runtime inventory is `deploy/bundle.ts:122` PINNED_RUNTIME_FILES, including sourcemap.js. External runtime imports added by DM1 must be included in the actual shipped ESM graph through existing bundling/vendor/export mechanisms; installed node_modules on the development host do not resolve bare imports in a Worker map. Keep Node-only import/edit/composition tooling outside that runtime closure. Test missing dependency, forbidden Node builtin, dangling import and corrupt/incomplete asset controls.
 
-Existing acceptance sites: `deploy-bundle.test.ts:121,171,206,302,398,424,445,488`; `sourcemap.test.ts:257`; original shared asset/loader/installed gates. Reuse accepted archive tooling and qualify the written artifact outside checkout. No fake reply/in-memory-only map or workspace leakage. Runtime source map external dependencies are JS resources, never textified binary assets.
+Existing acceptance sites: ; ; original shared asset/loader/installed gates. Reuse accepted archive tooling and qualify the written artifact outside checkout. No fake reply/in-memory-only map or workspace leakage. Runtime source map external dependencies are JS resources, never textified binary assets.
 
-Runner distinction: Cloudflare's test/* suites are Vitest and included by root `vitest.config.ts:11`; work conformance uses node:test and its package test:unit targets emitted dist/conformance files. Cloudflare test:runtime targets a different emitted **/*.test.js family. Freeze correct affected profiles and positive test counts; do not report a runner that skipped these witnesses. Commands above are future acceptance obligations; none ran in this review.
+Runner distinction: Cloudflare's test/* suites are Vitest and included by the root vitest config; work conformance uses node:test over emitted dist files. Cloudflare test:runtime targets a different emitted test-JS family. Freeze correct affected profiles and positive test counts; do not report a runner that skipped these witnesses. Commands above are future acceptance obligations; none ran in this review.
 
 ### WN3 — Continue original actual-work consumer chain
 
@@ -83,7 +83,7 @@ After WN2 and original prerequisites, retain W05.1 pinned Wasm toolchain/glue an
 
 R3 remains sole global root/consumer manifest, lock, bundling/local-run/testkit/export/release writer; package-local native manifests remain with the designated work assembly owner. Queue small exact requests early, return accepted hash/export contracts promptly, and perform joins in short finite windows. Disjoint number leaf work, import adapter/fixtures, map adapter/fixtures, W03 facts/traces and W01 baseline evidence may advance as soon as **their own** prerequisites and leases release. No leaf edits bun.lock/global manifests to get ahead; no task waits for every unrelated library evaluation. Code can be drafted against the chosen adapter contract, but executable verification waits for the relevant dependency/assembly release and cannot be called complete in advance.
 
-DI1 and DM1 can run in parallel; DM2 is their necessary serial join. Shared modules.ts/bundle.ts and sourcemap.test.ts edits need one writer or acknowledged transfer. DJ1 is the shared installed closure join. WN1 can run alongside this chain; WN2 still awaits W03.4 and all W04 branches. Avoid changing invoke.ts in these library leaves, or schedule its explicit handoff if required. Record effort as qualitative/uncertain until measured packet completion; library code removal is not evidence that compatibility and delivery proof are cheap.
+DI1 and DM1 can run in parallel; DM2 is their necessary serial join. Shared modules.ts/bundle.ts and edits need one writer or acknowledged transfer. DJ1 is the shared installed closure join. WN1 can run alongside this chain; WN2 still awaits W03.4 and all W04 branches. Avoid changing invoke.ts in these library leaves, or schedule its explicit handoff if required. Record effort as qualitative/uncertain until measured packet completion; library code removal is not evidence that compatibility and delivery proof are cheap.
 
 ## Primary documentation and evidence limits
 

@@ -147,17 +147,17 @@ The following selected existing tests passed, **431 tests total**. They validate
 | Artifact/operations/additive descriptions/compatibility/plans/review/release | 73 passed, 7 files | [Test log](evidence/full-evaluation/artifact-tests.log) |
 | Cloudflare package-wide typecheck | Failed with four diagnostics outside selected calculation files | [Typecheck log](evidence/full-evaluation/cloudflare-typecheck.log) |
 
-The Cloudflare diagnostics are `invoke.ts:5911` (`kind` on `never`), `t34-f7-fanout-durable.test.ts:660` (not callable) and `t34-f7-fanout.test.ts:1879,1897` (missing `stageTriggerJoin`). No source changes were made to introduce or fix these baseline errors.
+The Cloudflare diagnostics are `invoke.ts:5911` (`kind` on `never`), (not callable) and (missing `stageTriggerJoin`). No source changes were made to introduce or fix these baseline errors.
 
 Reproduction commands from the repository root:
 
 ```sh
 bun run --cwd packages/values build
-node --test --test-reporter=spec packages/values/dist/values/test/{int,decimal,decimal-oracle,money,array,schema,wire,conformance}.test.js
-node --test packages/work/test/every.test.ts packages/work/test/receipt.test.ts packages/work/test/recovery.test.ts packages/work/src/recovery/t34-f4-scan.test.ts
-node --test packages/work/src/recovery/t26-resume.test.ts
+node --test --test-reporter=spec 
+
+
 bun run --cwd packages/work typecheck
-./node_modules/.bin/vitest run packages/cloudflare/test/artifact.test.ts packages/cloudflare/test/artifact-operations.test.ts packages/cloudflare/test/artifact-field-descriptions.test.ts packages/cloudflare/test/compat.test.ts packages/cloudflare/test/plan.test.ts packages/cloudflare/test/review.test.ts packages/cloudflare/test/release.test.ts
+
 bun run --cwd packages/cloudflare typecheck
 bun docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/values-boundary-probe.mjs
 bun docs/research/package-subsystem-ports-20261006/evidence/full-evaluation/work-artifact-probe.mjs

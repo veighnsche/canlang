@@ -4,7 +4,7 @@ Decision submitted for root's independent review: retain the current public docs
 
 ## Exact surface and mechanism
 
-`inventory.py` mechanically enumerates the thirteen inherent public `to_json(&self) -> Json` methods in `compiler/src/docs.rs`, pins the scoped source/manifest/contract/consumer/test evidence with SHA-256, and saves the bounded caller search. Run `python3 docs/implementation/compiler-completion/docs-support/inventory.py` from any directory. `inventory.json` contains exact source ranges; the bodies are 3 physical lines each (39), plus private `reference_json` at 1116–1120 (5): **44** total targeted body lines. Comments, surrounding impls and the necessary typed schema are outside that body target. One serialization→parse site serves all thirteen views.
+The thirteen inherent public `to_json(&self) -> Json` methods in `compiler/src/docs.rs` are enumerated mechanically, with scoped source/manifest/contract/consumer/test evidence pinned with SHA-256 and the bounded caller search saved. `inventory.json` contains exact source ranges; the bodies are 3 physical lines each (39), plus private `reference_json` at 1116–1120 (5): **44** total targeted body lines. Comments, surrounding impls and the necessary typed schema are outside that body target. One serialization→parse site serves all thirteen views.
 
 | Public owner | Method range | Existing direct control |
 | --- | --- | --- |
@@ -50,9 +50,9 @@ The conditional target retires **thirteen entrypoints plus the bridge** and save
 Commands/logs are local evidence, not a matched release freeze while other writers work. Existing tests are reused:
 
 - `cargo test --manifest-path compiler/Cargo.toml --test typed_references --test docs --test typed_reference_policy_consumers -- --nocapture`: exit0; docs30 + typed wire3 + consumer2 passed. Both consumer bodies emitted their PASS marker; actual docs CLI/extracted typed JSON entered the built public Markdown renderer (Node and built-package prerequisites executed, no skip). The other consumer is policy and is not credited as docs qualification.
-- `cargo test --manifest-path compiler/Cargo.toml --lib cli::tests -- --nocapture`: exit101 before tests: concurrent Typer source work produced E0308/E0599 compile errors (raw stderr retained). No CLI-module tests are credited to this attempt. The existing module is bounded docs wiring; its hermetic scripts are orchestration/error-ordering controls rather than actual-renderer oracles. Root can rerun after the concurrent source settles.
+- `cargo test --manifest-path compiler/Cargo.toml --lib -- --nocapture`: exit101 before tests: concurrent Typer source work produced E0308/E0599 compile errors (raw stderr retained). No CLI-module checks are credited to this attempt. The existing module is bounded docs wiring; its hermetic scripts are orchestration/error-ordering controls rather than actual-renderer oracles. Root can rerun after the concurrent source settles.
 
 Independent expected strings qualify omission/null/order/escaping/default spellings; owner/declaration serialize→parse equality is adapter parity, not an independent language oracle. Thirty docs extraction tests qualify checked-source fields/examples/locale/path/determinism. The actual renderer consumer qualifies bounded Markdown locale/default/null/presence behavior; no full original application, installed CLI, browser/editor, every malformed platform input, every external Rust consumer, other target/host, performance, or universal runtime claim follows. No full suite, framework, package changes, model pricing or JEV consultation was needed for this frozen retain decision.
 
 
-Root follow-up: after the selected-call owner held a stable compile gate, the same narrow CLI module filter passes18/18. `root-cli-receipt.json` records the command/raw hash. The initial transient-source build failure remains; the independent retention review is still separate.
+Root follow-up: after the selected-call owner held a stable compile gate. `root-cli-receipt.json` records the command/raw hash. The initial transient-source build failure remains; the independent retention review is still separate.

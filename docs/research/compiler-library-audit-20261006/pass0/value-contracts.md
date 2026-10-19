@@ -24,7 +24,7 @@ The public probe confirms valid extension/private-use tags, invalid duplicate re
 
 **C03L ready:** owner-derived admission/canonicalization vectors and stable diagnostic categories. **C03L gated:** qualify full `icu_locale_core::Locale` versus ECMA-402 admission and the pinned host's aliases; settle compile-time canonical identity for source/variant comparisons. A locale syntax parser is not a full localization runtime. Direct private values-core linkage remains deferred by L-F03.
 
-Existing nearby acceptance: `compiler/tests/analysis.rs::fixture_mime_and_quoted_locale_keys`, `compiler/tests/b4_check.rs` descriptor locale negatives, `packages/values/test/locale.test.ts` canonical duplicate/fallback checks, and the values wire tests. These do not constitute complete Rust candidate acceptance and were not rerun here.
+Existing nearby acceptance: `compiler/tests/analysis.rs::fixture_mime_and_quoted_locale_keys`, `compiler/tests/b4_check.rs` descriptor locale negatives, canonical duplicate/fallback checks, and the values wire tests. These do not constitute complete Rust candidate acceptance and were not rerun here.
 
 ## Exact scalar serialization witness
 

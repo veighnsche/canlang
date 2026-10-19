@@ -4,7 +4,7 @@ Status: verified failure and research proposal; production implementation unrele
 
 ## Owner and complete helper family
 
-Production owner: `packages/interfaces/src/docs/reference.ts`; focused existing tests: `packages/interfaces/test/docs-reference.test.ts`. Both had clean Git status before and after research. Foreign package work elsewhere does not authorize overlapping changes. Only these two production paths need release; no compiler, contracts, CLI, package manifest, dependency, decision-log or Git edits belong in the leaf.
+Production owner: `packages/interfaces/src/docs/reference.ts`; focused existing tests: . Both had clean Git status before and after research. Foreign package work elsewhere does not authorize overlapping changes. Only these two production paths need release; no compiler, contracts, CLI, package manifest, dependency, decision-log or Git edits belong in the leaf.
 
 Public export: `packages/interfaces/src/index.ts:32`. Actual downstream caller: `packages/cloudflare/src/cli/docs.ts:133` dynamically resolves the package export and emits Markdown to stdout. `docs/install.md:75` advertises stdout or output-file Markdown. DESIGN descriptions and existing decisions identify that same public renderer. No designated HTML viewer or parser was found in this owner/CLI/advertised-document family; the repository lock/manifests do not provide marked, markdown-it, remark-gfm or commonmark. This is a Markdown-generation contract, not a claim to support every Markdown implementation.
 
@@ -48,8 +48,7 @@ From repository root with current Node 24:
 
 ```
 node docs/implementation/compiler-completion/markdown-owner/research/reproduce.mjs
-node --test packages/interfaces/dist/test/docs-reference.test.js
-git status --short packages/interfaces/src/docs/reference.ts packages/interfaces/test/docs-reference.test.ts
+git status --short packages/interfaces/src/docs/reference.ts
 ```
 
 The first command rewrites only this research folder's raw evidence and candidate helper. The bundled marked path is intentionally explicit and host-dependent; it can be changed to another existing equivalent parser path without adding a project dependency. Expected candidate summary: 28/28; baseline summary is tied to the captured owner source hash and will change after implementation.

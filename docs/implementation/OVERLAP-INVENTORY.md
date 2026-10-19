@@ -40,7 +40,7 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   evidence; state fixture is canonical. No removal; do not edit the frozen copies.
 - **L4 | keep (false positive, verified 2026-10-19) | "bad" fixture is not bad.** The descriptors are
   byte-identical because the badness lives where the test intends: `teamtasks-bad.artifact.json`
-  requires `values.decimal` vs good's `state`, and `activate-cli.test.ts` asserts exactly
+  requires `values.decimal` vs good's `state`, asserting exactly
   `missing-capability`/`values.decimal`. Identical descriptors are correct, not drift.
 - **L5 | keep | compiler tests mirrored into docs.** `compiler/tests/{bdd_checked_facts.rs,message_slot_coverage.rs,temporal_message_types.rs}`
   and `compiler/tests/fixtures/action-references/execute.mjs` appear as snapshots under

@@ -10,7 +10,7 @@ Date: 2026-10-05. Branch: `muse/closeout/mcp`. Packet: `/tmp/mcp-scope.md` §c-P
   narrowers (`rpcResult`, `rpcErrorFrom`, `toolsFromList`,
   `toolResultFromCall`). Shapes mirror the `createMcpHandler` contract
   (`packages/interfaces/src/mcp/server.ts`, proven by
-  `packages/interfaces/test/mcp-server.test.ts`): grant-only Bearer auth,
+ ): grant-only Bearer auth,
   401 `{error:{code,message}}` for bad grants, `initialize`/`tools/list`/
   `tools/call` result shapes, `isError` denials, `-32602` framing errors.
 - `tests/e2e/fixtures/mcp-grants.ts` — `mintMcpGrant(baseUrl,

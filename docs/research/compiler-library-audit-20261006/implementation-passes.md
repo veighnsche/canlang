@@ -168,7 +168,7 @@ Rowan, Salsa and a JS AST/printer migration are separate architectural projects.
 
 **Priority and effort:** required completion of the selected core substitutions, with consumer scope matched to the changed boundaries.
 
-Run the compiler's applicable unit/integration suites and full required compiler checks on the final dependency graph: `cargo test --locked`, `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, plus the release build and relevant public task-runner recipes. Preserve actual commands, source/catalog/toolchain hashes and results.
+Run the compiler's applicable integration suites and full required compiler checks on the final dependency graph: `cargo test --locked`, `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, plus the release build and relevant public task-runner recipes. Preserve actual commands, source/catalog/toolchain hashes and results.
 
 Exercise actual CLI/LSP/artifact consumers, independently authored behavior and selected emitted-code execution. Qualify the changed output through the installed-package/original-app path where its owners have released the required inputs. Relevant unresolved product prerequisites remain visible; a compiler utility test does not complete T37 or the installed-release parent. Conversely, unrelated unfinished product families do not block a qualified compiler repair.
 

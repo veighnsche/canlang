@@ -6,7 +6,7 @@ Base: 295908144f14a070ac5f62122d1d0d982ea47c89. Read-only product investigation;
 
 Root request: add exact runtime dependency `cookie: 2.0.1` to packages/identity/package.json and resolve central lock/delivery closure. ESM public entry `cookie` -> dist/index.js, MIT, Node >=22, zero runtime dependencies; shipped declarations dist/index.d.ts. APIs are parseCookie and stringifySetCookie (not assumed historical parse/serialize names).
 
-I04 writer files: packages/identity/src/sessions/cookies.ts and packages/identity/test/sessions.test.ts only. Root owns manifests/lock/delivery; record accepted decision in docs/specification/DECISIONS.md through its owner. No token/password/host dependency is required.
+I04 writer files: packages/identity/src/sessions/cookies.ts and only. Root owns manifests/lock/delivery; record accepted decision in docs/specification/DECISIONS.md through its owner. No token/password/host dependency is required.
 
 ## Parsing — preserve all existing target behavior
 

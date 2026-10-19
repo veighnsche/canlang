@@ -20,7 +20,7 @@ reasons. Done when the gate records adopt-vs-scope for each facet with costs.
      `scenario review_commitment on=EligibilityReview each=Commitment as
      commitment` — bare-model cohort; body filters by nullable event keys
      (employee/location/account/roster, each null-or-match), then marks
-     `conflict=true` and emits `ReservationOutcome{unavailable}` when the
+ `conflict=true` and emits when the
      commitment is ineligible or a duty role mismatches.
   2. [CanShift.can](/Users/vince/Projects/canlang/draft/CanShift.can:243)
      `scenario review_swap on=EligibilityReview each=Swap as swap` —
@@ -383,7 +383,7 @@ L237–248, `duty_notice` at L249–252) plus the event declaration at
 (`event EligibilityReview { employee:Employee?, location:text?,
 account:user?, roster:Roster? }`). The scenario body filters by
 nullable event keys, marks `conflict=true`, and emits
-`ReservationOutcome{unavailable}`; it contains no membership-timing,
+; it contains no membership-timing,
 concurrency, or re-trigger text. No `examples` block is attached to
 this scenario (next `examples` after L237 belongs to
 `reserve_connected` at L278). Keyword census over both draft files for
@@ -1257,7 +1257,7 @@ R1.3 Execution wiring + durable substrates (T24b):
   `evidence-changed` (3700-3708). Truncation flags on every scan —
   bounded sweeps never silently truncate
   (`RecoverySweepResult`, 3437-3469).
-- Durable substrates: `t24b-dispatch-durable.test.ts` — Miniflare
+- Durable substrates: — Miniflare
   import (:28), real local D1 + real workerd DO SQLite handles
   (:128), `durableSuite("miniflare D1")` (:738) and
   `durableSuite("workerd DO")` (:744). Memory + D1/DO proven per
@@ -1378,8 +1378,8 @@ R3.2 Wired per-child staleness/revocation boundaries (T32b):
   already-fenced commit batch (storage-atomicity question for the
   durable fence proof).
 - Wire tests (existence):
-  invocation/t32b-wire.test.ts, mutation/t32b-wire-transitive.test.ts,
-  mutation/t32b-wire-durable.test.ts; state 683/683 per tasks.md:280.
+ ,
+ ; state 683/683 per tasks.md:280.
 
 R3.3 Standing obligations (owed, not waived — tasks.md:280):
 cloudflare integration (runScenarioSeam/stageWrite guards+trigger,

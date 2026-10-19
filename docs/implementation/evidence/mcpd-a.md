@@ -13,7 +13,7 @@ New:
   routed to P-C's pinned `handleMcpGrant`. Loader injection
   (`createMainFetch`) covers the in-flight joins; every default loader is the
   production dynamic import.
-- `packages/cloudflare/test/worker-main.test.ts` — 14 tests (see proofs).
+- — 14 tests (see proofs).
 - `docs/implementation/evidence/mcpd-a.md` — this file.
 
 Modified: none. `src/worker/entry.ts` untouched (not needed: `createWorkerApp`
@@ -98,14 +98,14 @@ imports; emit the siblings next to the bundle) stay honest.
 
 ## Boundary proof
 
-`test/worker-boundary.test.ts` green (2/2): `src/worker/main.ts` is
+ green (2/2): `src/worker/main.ts` is
 `import type`-only statically (contracts + sibling types); all six runtime
 siblings load via dynamic `import()`. Second boundary test (no worker imports
 from node files) untouched and green.
 
 ## Test results
 
-- New `test/worker-main.test.ts`: 14/14 (failing-first: suite failed pre-impl
+- New : 14/14 (failing-first: suite failed pre-impl
   with `Cannot find module '../src/worker/main.js'`).
 - Full cloudflare suite: 25 files, 254/254 (incl. boundary 2/2).
 - `bun run --filter @canlang/cloudflare typecheck`: exit 0.
