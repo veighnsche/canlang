@@ -68,7 +68,8 @@ function sourceSnapshot() {
     ...filesBelow(join(packageRoot,'bindings')).filter(path=>path.endsWith('.ts')),
     ...filesBelow(here).filter(path=>path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.mjs')),
     ...filesBelow(join(packageRoot,'decisions')).filter(path=>path.endsWith('.rs')),
-    join(packageRoot,'rust/lib.rs'),join(here,'registered-native.rs'),join(here,'native-numeric-text.rs'),
+    join(packageRoot,'rust/lib.rs'),join(packageRoot,'tests/registered_conformance.rs'),
+    join(packageRoot,'tests/numeric_text_corpus.rs'),join(packageRoot,'tests/native-numeric-text.rs'),
     join(packageRoot,'Cargo.toml'),join(packageRoot,'Cargo.lock'),join(packageRoot,'tsconfig.json'),join(packageRoot,'package.json'),
     join(repo,'node_modules/typescript/bin/tsc'),join(repo,'node_modules/typescript/lib/_tsc.js'),join(repo,'node_modules/typescript/package.json'),
   ];
@@ -160,7 +161,7 @@ for (const c of records) {
   observations.push({key:c.key,outcome,randomCalls:calls,fullTsFault:fullFault});
 }
 const native=spawnSync('cargo',['test','--offline','--locked','--manifest-path',join(repo,'packages/work-kernel/Cargo.toml'),'-j2',
-  'registered_conformance::shared_original_observer','--','--exact','--ignored','--nocapture'],{
+  '--test','registered_conformance','shared_original_observer','--','--exact','--ignored','--nocapture'],{
   cwd:repo,encoding:'utf8',env:{...process.env,CARGO_TARGET_DIR:join(privateRoot,'target'),CAN_WORK_SHARED_FIXTURE:fixturePath}});
 writeFileSync(join(privateRoot,'shared-native.log'),native.stdout+'\n'+native.stderr);
 assert.equal(native.status,0,`registered native observer failed; see ${privateRoot}/shared-native.log`);

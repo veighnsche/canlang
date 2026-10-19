@@ -1,32 +1,7 @@
-// Registered N03 witnesses: mechanical grouping of immutable native-numeric-text.rs.
-// Source SHA-256: add8194c697abfb55e3fb0671bb67471733d6b126db66ad43548d9a97606ac64
-// Expected values and supplied raw bits are retained, never regenerated.
-// caller_34 keeps the same successful unwrap; its tautological unit binding
-// and assertion were removed to satisfy Clippy.
-#[test]
-fn immutable_primitive_corpus() {
-    let fixture: serde_json::Value =
-        serde_json::from_str(include_str!("fixtures/numeric-text.json")).unwrap();
-    let cases = fixture["numbers"].as_array().unwrap();
-    assert_eq!(cases.len(), 10213);
-    for case in cases {
-        let bits = u64::from_str_radix(case["inputBits"].as_str().unwrap(), 16).unwrap();
-        let n = f64::from_bits(bits);
-        assert_eq!(
-            crate::decisions::numeric_text::string(n),
-            case["stringText"].as_str().unwrap(),
-            "String bits={bits:016x}"
-        );
-        assert_eq!(
-            crate::decisions::numeric_text::json_token(n),
-            case["jsonTokenText"].as_str().unwrap(),
-            "JSON bits={bits:016x}"
-        );
-        assert_eq!(n.to_bits(), bits);
-    }
-}
+// Numeric-text corpus coverage lives in tests/numeric_text_corpus.rs (same
+// frozen expectations, run through the leaf module directly).
 mod rows {
-    use crate::decisions::rows::*;
+    use canlang_work_kernel::decisions::rows::*;
     use std::rc::Rc;
     #[test]
     fn caller_0() {
@@ -1998,7 +1973,7 @@ mod rows {
     }
 }
 mod receipt {
-    use crate::decisions::receipt::*;
+    use canlang_work_kernel::decisions::receipt::*;
     use std::rc::Rc;
     #[test]
     fn caller_28() {
@@ -2545,7 +2520,7 @@ mod receipt {
     }
 }
 mod recovery {
-    use crate::decisions::recovery::*;
+    use canlang_work_kernel::decisions::recovery::*;
     #[test]
     fn caller_35() {
         let error = plan_related_progress_resume(&RelatedProgressResumeInput {
@@ -2824,7 +2799,7 @@ mod recovery {
     }
 }
 mod linkage {
-    use crate::decisions::linkage::*;
+    use canlang_work_kernel::decisions::linkage::*;
     use std::rc::Rc;
     #[test]
     fn caller_34() {
@@ -3732,7 +3707,7 @@ mod linkage {
 
 // Selected-call dispatch lives in decisions/call.rs; this conformance module
 // reuses it so the native observer and the Wasm ABI execute one dispatch.
-use crate::decisions::call as shared;
+use canlang_work_kernel::decisions::call as shared;
 
 #[test]
 #[ignore = "run by registered-differential.mjs with private original fixture inputs"]

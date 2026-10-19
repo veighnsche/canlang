@@ -3,11 +3,21 @@
 //! Sets `CAN_BUILD_COMMIT` to the short git HEAD, or `"unknown"` when git
 //! is missing, fails, or the tree has no HEAD (release tarball builds).
 //! Watches Git-resolved metadata, including worktree and packed-ref layouts.
+//!
+//! Also enforces the AGENTS.md no-unit-test ban; see
+//! tools/unitban/build_impl.rs.
+
+include!("../tools/unitban/build_impl.rs");
 
 use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!(
+        "cargo:rerun-if-changed={}/tools/unitban/build_impl.rs",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    deny_unit_tests();
     if let Some(head) = git_path("HEAD").filter(|path| path.exists()) {
         watch(&head);
         if let Some(target) = git_output(&["symbolic-ref", "-q", "HEAD"]) {

@@ -1,0 +1,16 @@
+# Files and directories where importing a test runner is expected because the
+# file IS test infrastructure (configs, e2e helpers, conformance harnesses).
+# Production code outside these paths must not import test runners; see
+# scripts/check-ts-unitban.ts. Lines are exact files, or directory prefixes
+# when they end in `/`.
+playwright.config.ts
+playwright.drafts.config.ts
+vitest.config.ts
+.vitest-pending.config.ts
+tests/e2e/
+tests/fixtures/
+packages/testkit/
+packages/cloudflare/test/
+packages/state/test/
+packages/work-kernel/conformance/
+packages/contracts/src/browser/chromium.ts

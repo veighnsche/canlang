@@ -42,6 +42,10 @@ jobs:
         run: bun run build
       - name: Check declared package boundaries
         run: bun run check:boundaries
+      - name: Enforce no-unit-test gates
+        run: bun run check:unitban
+      - name: Test work-kernel native integration targets
+        run: cargo test --locked --manifest-path packages/work-kernel/Cargo.toml --test registered_conformance --test numeric_text_corpus
       - name: Typecheck workspace assembly
         run: bun run typecheck
       - name: Build native preparation test prerequisite
