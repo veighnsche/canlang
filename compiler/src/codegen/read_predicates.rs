@@ -142,10 +142,13 @@ fn checked_context(
     Some(())
 }
 
-/// Only source Require observers may prepare beside unrelated IR refusals.
-/// Ordinary read predicates/rules remain empty; the original guard, helper
-/// closure, parameters and the complete retained IR still keep their seals.
-/// Unrelated diagnostics remain and still prevent installing the whole artifact.
+/// Requires-only fallback when per-occurrence read seals refuse beside
+/// unrelated IR refusals. The caller first attempts the full per-occurrence
+/// preparation, which admits exactly-bound observers/read predicates whose
+/// own seals verify; only when that refuses do ordinary read predicates and
+/// rules remain empty here. The original guard, helper closure, parameters
+/// and the complete retained IR still keep their seals. Unrelated diagnostics
+/// remain and still prevent installing the whole artifact.
 pub(super) fn prepare_requires_with_context(
     context: &super::scenario_decisions::FreshSourceContext<'_>,
 ) -> Option<PreparedReadPredicates> {
@@ -612,6 +615,96 @@ mod tests {
         let mut foreign = SourceDb::new();
         foreign.add("read-predicates.can".into(), BOOLEAN_SOURCE.into());
         assert!(prepare(&program, &ir, &foreign, Some(&catalog)).is_none());
+    }
+
+    const BOOLEAN_SEAL_SOURCE: &str = "app BoolSeal\nGiven\n Person {account:user,active:bool=true}\n derive staff(person:user):bool = any(Person as p,p.account==person and p.active and active_member(person,team))\n Ticket {title:text,closed:bool,owner:user}\n derive Ticket.open:bool = row.closed==false and staff(row.owner)\n policy Ticket read=members\n Hook {title:text}\n policy Hook read=members\nWhen\n scenario h on=Hook.create\n  do\n   let value=actor\nThen\n page /tickets title=\"Tickets\"\n  require actor!=null\n  list Ticket as ticket\n   status row.open\n";
+
+    /// An unrelated hook refusal must not orphan a clean Boolean observer:
+    /// the per-occurrence seals admit `row.open` while the diagnostic pool
+    /// still carries the unrelated error (a global has_ir_errors veto would
+    /// refuse here and the emitter would report the observer unavailable).
+    #[test]
+    fn unrelated_hook_gap_keeps_clean_boolean_observer() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let mut db = SourceDb::new();
+        let file = db.add("bool-seal.can".into(), BOOLEAN_SEAL_SOURCE.into());
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) =
+            crate::analysis::catalog::load_catalog(&crate::analysis::catalog::CatalogRequest {
+                flag: Some(&path),
+                env: None,
+                cwd: root,
+                primary: Span::new(file, 0, 0),
+            });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.expect("native catalog");
+        let (program, diagnostics) =
+            crate::analysis::check_program_with_given(&db, &[file], Some(&catalog), None);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+        let errors: Vec<_> = diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+            .collect();
+        assert_eq!(errors.len(), 1, "{diagnostics:?}");
+        assert_eq!(errors[0].code, "E6008");
+        assert!(
+            errors[0].message.contains("hook contextual binding"),
+            "{diagnostics:?}"
+        );
+        let context = super::super::scenario_decisions::FreshSourceContext::prepare_queries(
+            &program,
+            &ir,
+            &db,
+            Some(&catalog),
+        )
+        .expect("query context tolerates the unrelated E6008");
+        assert!(
+            context.has_ir_errors(),
+            "pool must prove the unrelated refusal exists"
+        );
+        let prepared = prepare_with_context(&context).expect("clean observer keeps its seal");
+        let observers = prepared.booleans(&ir).expect("closure still matches");
+        assert!(
+            observers.values().any(|value| value["field"] == "open"),
+            "unrelated hook gap must not veto the clean observer: {observers:?}"
+        );
+
+        // Exercise the same public pipeline as the compile command; checking
+        // only the bridge would miss the full-IR context selection defect.
+        let mut result = crate::diagnostic::DiagnosticResult::new(
+            env!("CARGO_PKG_VERSION"),
+            crate::LANGUAGE_VERSION,
+            crate::SCHEMA_VERSION,
+        );
+        result.add_sources(&db);
+        let (_artifact, diagnostics) = super::super::emit(
+            &program,
+            &super::super::EmitSources {
+                db: &db,
+                result: &result,
+                catalog: Some(&catalog),
+                options: super::super::EmitOptions {
+                    native_scenario_receipts: true,
+                    ..Default::default()
+                },
+            },
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"
+                    && diagnostic.message.contains("hook contextual binding")),
+            "unrelated refusal stays reported: {diagnostics:?}"
+        );
+        assert!(
+            !diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("original checked observer unavailable")),
+            "clean observer lowers beside the unrelated refusal: {diagnostics:?}"
+        );
     }
 
     #[test]

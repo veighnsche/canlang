@@ -241,12 +241,19 @@ pub fn emit(
     // consumers above keep the strict error-filtered context.
     let membership = query_context.and_then(membership::prepare_with_context);
     let mailbox_events = mailbox_events::prepare(program, &ir, sources.db, sources.catalog);
+    // Boolean/read inventory seals per checked occurrence inside its bridge,
+    // so unrelated IR refusals elsewhere do not orphan it; the requires-only
+    // fallback below preserves prior behavior when occurrence seals refuse.
+    // Send guards and other strict consumers keep the error-filtered context.
     let read_predicates = sources
         .options
         .native_scenario_receipts
         .then(|| match source_context {
             Some(context) => read_predicates::prepare_with_context(context),
-            None => query_context.and_then(read_predicates::prepare_requires_with_context),
+            None => query_context.and_then(|context| {
+                read_predicates::prepare_with_context(context)
+                    .or_else(|| read_predicates::prepare_requires_with_context(context))
+            }),
         })
         .flatten();
     let send_guards = sources.options.native_scenario_receipts.then(|| {
