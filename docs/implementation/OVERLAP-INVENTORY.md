@@ -150,6 +150,16 @@ Safe first: L6 (done) → L2 → M4 → M2 → C3 → C1 (when released) → M6.
 L1, M3, M5, C2, T3, T5. Settled without code change: L4, M1 (see verification notes). Every removal
 runs its affected suites once; close the item here with checks + commit before opening the next.
 
+- **C4 | REMOVED 2026-10-19 | `to_json_string` alias.** `codegen/mod.rs` re-exported
+  `artifact::to_json` under a second name with one caller (`cli.rs` JSON output). The caller now
+  uses `artifact::to_json` directly. Checks: lib+bins build clean, no new warnings, Member scoped
+  closure still emits valid JSON (`complete:true`).
+- **Divergences recorded, NOT merged (2026-10-19).** Same-named, different-behavior pairs:
+  `sort_diagnostics` (lint orders by file/start/end/code/message, check by file/start/code —
+  canonical ordering needs a ruling); `unwrap_groups` (lint unwraps 3-part groups to middle,
+  types unwraps to first expression child); `split_top_level` (generation's string-aware splitter
+  vs catalog's bracket-aware separator splitter — different jobs).
+
 ## Verification notes (no code change)
 
 - **M1 | keep (verified 2026-10-19).** The twelve `distribution.ts` files are not duplicates: ui adds

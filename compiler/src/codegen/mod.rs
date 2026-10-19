@@ -65,7 +65,7 @@ pub mod then_views;
 use crate::analysis::CheckedProgram;
 use crate::analysis::catalog::Catalog;
 use crate::analysis::resolve::SymbolId;
-use crate::codegen::artifact::{CompileArtifact, to_json};
+use crate::codegen::artifact::CompileArtifact;
 use crate::codegen::bdd::BddModule;
 use crate::codegen::ir::{IrItemKind, IrProgram, ReferencedBuiltin};
 use crate::diagnostic::{Diagnostic, DiagnosticResult};
@@ -415,11 +415,6 @@ fn emit_suites(ir: &IrProgram) -> (Vec<BddModule>, Vec<ReferencedBuiltin>, Vec<D
         }
     }
     (modules, builtins, diags)
-}
-
-/// Render a compile artifact as compact JSON per `artifact.ts`.
-pub fn to_json_string(artifact: &CompileArtifact) -> String {
-    to_json(artifact)
 }
 
 pub mod scenario_decisions;

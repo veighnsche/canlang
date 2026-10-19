@@ -1121,7 +1121,7 @@ fn run_compile(
         return emit_diagnostics(&result, &db, format);
     }
     let stdout = match format {
-        OutputFormat::Json => format!("{}\n", crate::codegen::to_json_string(&artifact)),
+        OutputFormat::Json => format!("{}\n", crate::codegen::artifact::to_json(&artifact)),
         OutputFormat::Text => {
             let mut out = String::new();
             for module in &artifact.modules {
