@@ -12279,13 +12279,14 @@ fn checked_reference_model_result<'a>(
 }
 
 fn reference_operand_type_id(ir: &IrProgram, ty: &ResolvedType) -> Option<String> {
-    let (base, array) = match ty {
+    let (base, array, nullable) = match ty {
         ResolvedType::Array {
             element,
             ordered: true,
             nonempty: false,
-        } => (element.as_ref(), true),
-        ty => (ty, false),
+        } => (element.as_ref(), true, false),
+        ResolvedType::Nullable(inner) => (inner.as_ref(), false, true),
+        ty => (ty, false, false),
     };
     let ResolvedType::Record {
         symbol,
@@ -12295,8 +12296,14 @@ fn reference_operand_type_id(ir: &IrProgram, ty: &ResolvedType) -> Option<String
         return None;
     };
     let model = ir.items.get(symbol.0 as usize)?;
-    (model.id == *symbol && matches!(model.kind, IrItemKind::Model { .. }))
-        .then(|| format!("{}{}", model.canonical, if array { "[]" } else { "" }))
+    (model.id == *symbol && matches!(model.kind, IrItemKind::Model { .. })).then(|| {
+        format!(
+            "{}{}{}",
+            model.canonical,
+            if array { "[]" } else { "" },
+            if nullable { "?" } else { "" }
+        )
+    })
 }
 
 fn stored_reference_descriptor_matches(
@@ -12308,20 +12315,29 @@ fn stored_reference_descriptor_matches(
         return false;
     };
     let array = matches!(original.ty, ResolvedType::Array { .. });
-    let base = type_id.strip_suffix("[]").unwrap_or(&type_id);
+    let nullable = matches!(original.ty, ResolvedType::Nullable(_));
+    let bare = type_id.strip_suffix("[]").unwrap_or(&type_id);
+    let base = bare.strip_suffix("?").unwrap_or(bare);
     let bound = |value: &Option<(crate::analysis::NodeKey, i64, DisclosureSource)>| {
         value
             .as_ref()
             .map(|(_, value, _)| serde_json::Value::from(*value))
     };
+    // `required` implies non-nullable, so a nullable reference is never
+    // create-required; its nullability agreement above carries the check.
+    let required = if nullable && !array {
+        !field.required
+    } else {
+        field.required == (!array || original.required_array)
+    };
     field.name == original.name
         && matches!(&field.field, JsModelFieldType::Ref { model } if model == base)
         && field.value_type.as_deref() == Some(type_id.as_str())
-        && !field.nullable
+        && field.nullable == nullable
+        && required
         && !field.server_only
         && field.default.is_none()
         && field.machine.is_none()
-        && field.required == (!array || original.required_array)
         && field.array_required == array.then_some(original.required_array)
         && field.trim == original.trim.then_some(true)
         && field.min == bound(&original.min)

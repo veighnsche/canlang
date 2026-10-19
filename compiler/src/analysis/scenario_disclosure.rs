@@ -1965,16 +1965,19 @@ impl<'a> Closure<'a> {
         false
     }
 
-    /// Canonical required Model references are operands only, never ordinary
+    /// Canonical Model references are operands only, never ordinary
     /// disclosure return types or general stored-field traversal values.
+    /// Singular nullable references keep their `?` suffix, matching the
+    /// stored-contract type identity the worker validates null against.
     fn reference_operand_type_id(&self, ty: &ResolvedType) -> Option<String> {
-        let (base, array) = match ty {
+        let (base, array, nullable) = match ty {
             ResolvedType::Array {
                 element,
                 ordered: true,
                 nonempty: false,
-            } => (element.as_ref(), true),
-            ty => (ty, false),
+            } => (element.as_ref(), true, false),
+            ResolvedType::Nullable(inner) => (inner.as_ref(), false, true),
+            ty => (ty, false, false),
         };
         let ResolvedType::Record {
             symbol,
@@ -1988,9 +1991,10 @@ impl<'a> Closure<'a> {
             return None;
         }
         Some(format!(
-            "{}{}",
+            "{}{}{}",
             declaration.canonical,
-            if array { "[]" } else { "" }
+            if array { "[]" } else { "" },
+            if nullable { "?" } else { "" }
         ))
     }
 
