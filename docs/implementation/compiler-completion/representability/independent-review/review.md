@@ -14,7 +14,7 @@ Within admitted fragments, every token endpoint and diagnostic offset in the sha
 
 ## Qualification
 
-The implementation's current-source evidence passes 57 debug syntax tests, 3 explain unit tests, 3 typed explain tests, 3 authoring explain tests, and the 3 focused public fragment release tests. Failed historical attempts remain distinguishable: the corrected tab expectation preserves existing E1003 with no token, and an unterminated string preserves existing String token kind. Successful final syntax/release evidence matches the final frozen tests.
+The implementation's current-source evidence passes 57 debug syntax tests, 3 typed explain tests, 3 authoring explain tests, and the 3 focused public fragment release tests. Failed historical attempts remain distinguishable: the corrected tab expectation preserves existing E1003 with no token, and an unterminated string preserves existing String token kind. Successful final syntax/release evidence matches the final frozen tests.
 
 The E1008 public documentation states byte length, checked addition, exact fit, empty MAX, diagnostic append, point span, and caller diagnostic preservation. Its valid/invalid examples explicitly describe public API arguments because authored CLI source cannot set the fragment base. The two changed authoring test functions invoke those actual examples through the API while retaining every other E1xxx example, UTF-8 byte-entry coverage, corpus observations, public explain JSON/text rendering, and exact observed-emission/catalog set equality. Adding E1008 does not weaken that equality assertion.
 

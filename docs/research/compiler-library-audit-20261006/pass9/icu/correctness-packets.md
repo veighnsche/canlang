@@ -16,10 +16,10 @@ E3016/E3013 slot noise. Malformed anonymous bindings retain admitted supplied
 schemas and suppress speculative unknown-binding E3005; duplicate bindings and
 value admission remain checked, and valid patterns still reject extra bindings.
 
-Verification passed **68 distinct Rust tests**: two ICU unit tests, 38 existing
+Verification passed **68 distinct Rust tests**: two ICU checks, 38 existing
 check tests reused unchanged, ten ICU profile tests, six message-slot coverage
-tests, three temporal message tests and nine anonymous-binding checks. The unit
-tests consume 63 Unicode-scalar cases from the shared corpus and pin ordered
+tests, three temporal message tests and nine anonymous-binding checks. The ICU
+checks consume 63 Unicode-scalar cases from the shared corpus and pin ordered
 usage kinds; the TS lone-surrogate case is explicitly outside Rust's authored
 string domain. After adding three choice cases, only the affected alias/choose
 and machine-template-overload test reran and passed. Initial source review found

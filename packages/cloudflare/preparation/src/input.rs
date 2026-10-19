@@ -17,8 +17,8 @@
 //! - obj:  `{t:"obj", entries:[[[u16,...], node],...]}` — entries in
 //!   host enumeration order; duplicate keys impossible post-parse.
 
-// Staged: P03.3/P04 wire `decode_tree` into the job loop; unit tests
-// below already pin the wire contract. Remove when consumed.
+// Staged: P03.3/P04 wire `decode_tree` into the job loop.
+// Remove when consumed.
 #![allow(dead_code)]
 
 use crate::failures::transport;

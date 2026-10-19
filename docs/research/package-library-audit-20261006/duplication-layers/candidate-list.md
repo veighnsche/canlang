@@ -186,7 +186,7 @@ Qualification/retirement gates: Measure parse/caller cost before adding records 
 
 Disposition: **delete**. Source: [packages/cloudflare/src/deploy/bundle.ts:184–194](../../../../packages/cloudflare/src/deploy/bundle.ts); [packages/cloudflare/src/deploy/bundle.ts:405–415](../../../../packages/cloudflare/src/deploy/bundle.ts).
 
-Caller evidence: Tracked source inventory contains no packages/state/src/*/work-loader.ts. Fanout test bridge is now packages/work/test/state-fanout/work-loader.ts; receipt test work-loader.ts:1 re-exports the real work/src/receipt/index.ts owning producer, not a standalone relocated test implementation. Both are imported by owning tests. Vendor walk uses state distribution dist tree.
+Caller evidence: Tracked source inventory contains no packages/state/src/*/work-loader.ts. Fanout test bridge was packages/work/test/state-fanout/work-loader.ts; receipt test work-loader.ts:1 re-exported the real work/src/receipt/index.ts owning producer, not a standalone relocated test implementation. Both were imported by owning tests, since removed with the unit-test suites. Vendor walk uses state distribution dist tree.
 
 Maintenance effect: Dead-key set/comment consulted for every vendor file despite relocated sources. Delete obsolete set/check/comment only after emitted/installed package closure confirms stale dist cannot introduce historical helpers.
 

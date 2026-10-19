@@ -2,7 +2,7 @@
  * TEST-ONLY — never a production backend. In-memory `StoragePort` mirroring
  * the SQL adapters' fence, version/unique/receipt-constraint, query, and
  * receipt semantics (conformance-verified, including multi-touch batch order
- * and three-valued predicates), so upper-layer unit tests run without a
+ * and three-valued predicates), so upper layers run without a
  * worker runtime.
  *
  * Parity notes: rows are JSON-normalized on write and deep-copied on every

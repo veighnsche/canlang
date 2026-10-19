@@ -52,7 +52,7 @@ shape. See PH2/PH4 in `prepared-hook-review.md`.
 | V08 native/package-workerd port | No new proof in this packet | Actual handler + real Wasm/adapter + workerd, including negative controls |
 | Default Rust/deployed adoption | No new proof in this packet | Consumed native/profile releases plus verified default route/runtime proof |
 
-Unit tests with an arbitrary injected invoker cannot establish canonical
+An arbitrary injected invoker cannot establish canonical
 bridge protection, source provenance, native execution or deployed
 adoption. No missing-seam story or source-wiring-only native claim remains.
 

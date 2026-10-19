@@ -587,7 +587,7 @@ builds, no JEV, no Git.
   inside `storage.transactionSync`, which rolls back on throw
   (`packages/state/src/storage/durable-object.ts` header).
 - Memory adapter: header-marked TEST-ONLY, never a production
-  backend; mirrors fence/constraint/query semantics for unit tests
+  backend; mirrors fence/constraint/query semantics
   (`packages/state/src/storage/memory.ts` header).
 - Hook execution today: `runHooks` runs matching hooks in written
   order with clone-in/clone-out candidates

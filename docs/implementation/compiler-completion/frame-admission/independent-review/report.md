@@ -29,7 +29,7 @@ Saved JEV responses accurately support the author's report: all three choose the
 
 ## Checks and outcomes
 
-Reused focused author receipts after inspecting their tests/logs: 32 actual stdio admission tests, original 10 reader tests and 30 LSP unit tests pass. They cover legal extension headers, equal/conflicting declarations, UTF-8 bytes, partial I/O, exact/pipelined boundaries, parse recovery, clean/torn EOF, held-open malformed-stream closure, missing/oversize declarations, absent/partial declared payload and scoped allocation refusal. Original strict Clippy receipt fails only on four separately owned `codegen/js.rs` needless_borrow findings; this review does not claim a successful strict Clippy run from that receipt. Original scoped formatting passes.
+Reused focused author receipts after inspecting their tests/logs: 32 actual stdio admission tests and original 10 reader tests pass. They cover legal extension headers, equal/conflicting declarations, UTF-8 bytes, partial I/O, exact/pipelined boundaries, parse recovery, clean/torn EOF, held-open malformed-stream closure, missing/oversize declarations, absent/partial declared payload and scoped allocation refusal. Original strict Clippy receipt fails only on four separately owned `codegen/js.rs` needless_borrow findings; this review does not claim a successful strict Clippy run from that receipt. Original scoped formatting passes.
 
 Independent commands, all exit 0:
 

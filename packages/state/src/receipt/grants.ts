@@ -83,8 +83,7 @@ export type DeliveryFieldSchema = ReadonlyMap<ModelName, ReadonlySet<string>>;
  * `buildPolicyTable` precedent): empty models, duplicate models, empty
  * field names, or traversal-shaped field names. Shared builder: the
  * artifact loader is the production caller (its whole-set guard runs
- * through this validation); direct calls survive only for focused
- * unit tests of the builder itself.
+ * through this validation).
  */
 export function createDeliverySchema(
   entries: ReadonlyArray<readonly [string, ReadonlyArray<string>]>,

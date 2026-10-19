@@ -1876,9 +1876,9 @@ fn run_docs(
     run_docs_with_platform(operands, format, locale, out, analyzer, platform_bin)
 }
 
-/// [`run_docs`] with an explicit platform binary: the test seam for the
+/// [`run_docs`] with an explicit platform binary: the seam for the
 /// renderer boundary (`None` searches `PATH`, mirroring `CAN_PLATFORM_BIN`
-/// unset). Unit tests point this at stub scripts; production [`dispatch`]
+/// unset). Production [`dispatch`]
 /// always passes the environment value.
 fn run_docs_with_platform(
     operands: &[String],

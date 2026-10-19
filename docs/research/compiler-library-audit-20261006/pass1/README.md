@@ -31,7 +31,7 @@ Recovery is deliberately local to string-consuming checks. A shared recursive `h
 
 ## Regression transfer and execution
 
-All eight ready cases in Pass 0 `witnesses/strings.json` are promoted into owning tests. Permanent coverage is in `compiler/tests/codegen.rs`, `compiler/tests/analysis.rs`, `compiler/tests/syntax.rs`, `compiler/tests/string_payload_runtime.rs` and the IR recovery unit test. Expected values use fixed decoded strings/JS literals and explicit Unicode scalar arrays; neither decoder nor a replacement library supplies the oracle.
+All eight ready cases in Pass 0 `witnesses/strings.json` are promoted into owning tests. Permanent coverage is in `compiler/tests/codegen.rs`, `compiler/tests/analysis.rs`, `compiler/tests/syntax.rs` and `compiler/tests/string_payload_runtime.rs`. Expected values use fixed decoded strings/JS literals and explicit Unicode scalar arrays; neither decoder nor a replacement library supplies the oracle.
 
 The runtime witness uses the **actual `can compile` CLI**, actual `packages/values/dist/catalog.json`, Node 24.21.0 and built workspace packages. No synthetic catalog, manually asserted `complete=true` or runtime stub is used. For each of six authored tokens it:
 

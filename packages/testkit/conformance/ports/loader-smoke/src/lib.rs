@@ -4,8 +4,8 @@
 //! dependencies, no arithmetic/validation/work semantics anywhere.
 //! `smoke_version` returns the transport major (v0 -> 0); `smoke_add`
 //! wraps on overflow so every input pair has a deterministic result.
-//! Native unit tests below are the "native executes" half of C04.1
-//! acceptance; `host.mjs` is the Node/Bun half.
+//! C04.1 acceptance drives this binding through the raw Wasm boundary;
+//! `host.mjs` is the Node/Bun half.
 
 /// Transport major version carried by this binding (v0).
 pub const SMOKE_ABI_VERSION: u32 = 0;

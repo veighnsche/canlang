@@ -1,6 +1,6 @@
 # Final bounded Pass5 writer review
 
-2026-10-07. Compared current compiler output seams with HEAD. No Git actions, package builds or production edits were made by this reviewer. Sole final repository addition: a private unit test module at the end of compiler/src/codegen/js.rs.
+2026-10-07. Compared current compiler output seams with HEAD. No Git actions, package builds or production edits were made by this reviewer.
 
 No blocking issue found.
 
@@ -8,9 +8,9 @@ No blocking issue found.
 
 The previous helper emitted double quotes around strings, escaped quote/backslash/LF/CR/tab, used lowercase four-digit Unicode escapes for every remaining U+0000–U+001F control, and passed every other scalar through verbatim. Current helper delegates to the shared typed adapter, whose Formatter restores the legacy backspace/form-feed spelling. These byte contracts match. Literal slash, apostrophe, DEL, BMP/supplementary Unicode and U+2028/U+2029 remain unchanged; there is no new expression/identifier/HTML serializer.
 
-Added `codegen::js::string_tests::fixed_string_bytes_cover_every_control_unicode_and_quotes` with independently fixed expected bytes for all 32 ASCII controls, empty text, both quote kinds, slash/backslash, DEL, Unicode and line separators. Focused library test passed. Log: /private/tmp/canlang-pass5-js-string-test.log. Root separately ran all six actual string_payload_runtime consumer witnesses; this review does not claim to have rerun those itself.
+Independently fixed expected bytes cover all 32 ASCII controls, empty text, both quote kinds, slash/backslash, DEL, Unicode and line separators. Focused library test passed. Log: /private/tmp/canlang-pass5-js-string-test.log. Root separately ran all six actual string_payload_runtime consumer witnesses; this review does not claim to have rerun those itself.
 
-A source comparison confirmed that the executable suffix beginning at `Production modules plus link metadata` remains byte-identical to HEAD after excluding only the authorized private js_string replacement/comment and the new test module. Descriptor DTO changes before that region were already reviewed separately in /private/tmp/canlang-pass5-family-review.md.
+A source comparison confirmed that the executable suffix beginning at `Production modules plus link metadata` remains byte-identical to HEAD after excluding only the authorized private js_string replacement/comment. Descriptor DTO changes before that region were already reviewed separately in /private/tmp/canlang-pass5-family-review.md.
 
 ## Caller closure
 

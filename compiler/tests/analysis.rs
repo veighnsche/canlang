@@ -796,7 +796,7 @@ fn draft_outcome_table() {
     // across 10 files (CanCRM 4, CanDesk 1, CanEvent 2, CanInvoice 1,
     // CanLeave 6, CanPropose 2, CanPurchase 5, CanRefer 1, CanReport 2,
     // CanTable 2). This table pins the error-skip behavior, not E4
-    // precision/recall (that evidence rests on the unit tests and the
+    // precision/recall (that evidence rests on the
     // explain round-trip). (Pre-B4: CanShift 4 /
     // CanVolunteer 3 held while `each=` dropped the packages.)
     // Previous regen (PR5): PR5 = PR4 - dedup + E5, attribution against

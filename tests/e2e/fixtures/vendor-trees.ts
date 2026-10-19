@@ -1,6 +1,6 @@
 /**
  * Vendor-tree staging for e2e workerd assemblies (leaf module: node-only
- * imports, unit-testable without dists). `readVendorTree` reads one built
+ * imports, verifiable without dists). `readVendorTree` reads one built
  * dist tree into staged modules; `skip` names exact dist-relative posix
  * paths to exclude — test-only bridges (lane-B `fanout/work-loader.js` +
  * `receipt/work-loader.js` carry `node:` imports that trip the workerd

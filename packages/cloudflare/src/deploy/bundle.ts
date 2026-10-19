@@ -811,7 +811,7 @@ function stageWorkerDist(workerDistDir: string): Record<string, string> {
   // within `worker/`. Deterministic order.
   const staged: Record<string, string> = {};
   for (const entry of readdirSync(workerDistDir).sort()) {
-    // Colocated worker unit tests are emitted to dist but are not Worker
+    // Colocated tests are emitted to dist but are not Worker
     // modules; they may import Node-only test producers.
     if (!entry.endsWith(".js") || entry.endsWith(".test.js")) continue;
     const full = join(workerDistDir, entry);
@@ -885,9 +885,9 @@ function readVendorTree(tree: VendorTree): Record<string, string> {
         continue;
       }
       if (!entry.endsWith(".js")) continue;
-      // T16a-followup: colocated unit tests emit beside sources (node --test
+      // T16a-followup: colocated tests emit beside sources (node --test
       // runs them from dist) but must never vendor — workerd has no
-      // node:test resolution. The deploy-bundle/cli suites pin this.
+      // node:test resolution.
       if (entry.endsWith(".test.js") || entry === "distribution.js") continue;
       // C4: TEST-ONLY bridges emit beside sources under non-test names
       // (state's `work-loader.js` file-URL juggling for the T25/F5 join

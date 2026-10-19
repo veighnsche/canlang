@@ -4,7 +4,7 @@ Both bounded packets are implemented and accepted independently. The urgent file
 
 | Packet | Implementation / outcome | Acceptance |
 | --- | --- | --- |
-| [C04F files](files/README.md) | One destination-local owned stage for fmt/docs, written through its open handle. Existing regular-file permissions are restored after writing; changed link entries follow deliberate compatibility policy. Reproduced `0600` widening is repaired. | Separate file-only releases, nine real CLI witnesses on macOS and Linux; eight controlled failure/concurrency witnesses on Linux and included in 24 CLI unit tests on the independent macOS snapshot. |
+| [C04F files](files/README.md) | One destination-local owned stage for fmt/docs, written through its open handle. Existing regular-file permissions are restored after writing; changed link entries follow deliberate compatibility policy. Reproduced `0600` widening is repaired. | Separate file-only releases, nine real CLI witnesses on macOS and Linux; eight controlled failure/concurrency witnesses on Linux and included in 24 CLI checks on the independent macOS snapshot. |
 | [C04H hash](hash/README.md) | Stable exact-byte/lowercase `sha256_hex` delegates to sha2; one hash implementation. Source, revision, migration and stale-fix consumers remain unchanged. | Old and new implementations pass 16 independent answers; six source-module tests pass on both hosts; five downstream targets pass 102 tests. |
 
 ## Integrated verification and pinned inputs

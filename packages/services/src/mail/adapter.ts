@@ -357,7 +357,7 @@ function readProviderMessage(bodyText: string): unknown {
   return undefined;
 }
 
-/** Map a send outcome by status code (exported for unit tests). */
+/** Map a send outcome by status code. */
 export function mapSendResponse(
   deliveryId: string,
   status: number,
@@ -454,7 +454,7 @@ export function mapSendError(
   throw err;
 }
 
-/** Map a reconcile outcome by status code (exported for unit tests). */
+/** Map a reconcile outcome by status code. */
 export function mapReconcileResponse(
   deliveryId: string,
   status: number,
