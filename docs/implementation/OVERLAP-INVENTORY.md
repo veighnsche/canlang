@@ -28,11 +28,10 @@ direct parent-session verification. Byte-identity claims were md5-checked.
   is byte-identical to two dated docs snapshots (`docs/implementation/capability-roadmap-20261008/…`,
   `docs/implementation/compiler-completion/numeric-control-producer/…`). Docs copies are frozen
   evidence; state fixture is canonical. No removal; do not edit the frozen copies.
-- **L4 | decide | "bad" fixture is not bad.** `packages/cloudflare/test/fixtures/teamtasks-activate/teamtasks-{bad,good}.descriptor.json`
-  are byte-identical (403B). `packages/cloudflare/src/cli/platform.ts` requires `<stem>.descriptor.json`,
-  so the file cannot simply be deleted; the fixture's badness must live in artifact/target/environment.
-  Fix: make the bad descriptor actually invalid IF descriptor-level rejection is intended, else rename
-  to a shared descriptor the test references for both stems.
+- **L4 | keep (false positive, verified 2026-10-19) | "bad" fixture is not bad.** The descriptors are
+  byte-identical because the badness lives where the test intends: `teamtasks-bad.artifact.json`
+  requires `values.decimal` vs good's `state`, and `activate-cli.test.ts` asserts exactly
+  `missing-capability`/`values.decimal`. Identical descriptors are correct, not drift.
 - **L5 | keep | compiler tests mirrored into docs.** `compiler/tests/{bdd_checked_facts.rs,message_slot_coverage.rs,temporal_message_types.rs}`
   and `compiler/tests/fixtures/action-references/execute.mjs` appear as snapshots under
   `docs/implementation/compiler-completion/`. Frozen evidence; `compiler/tests` canonical.
@@ -134,5 +133,14 @@ direct parent-session verification. Byte-identity claims were md5-checked.
 ## Removal order
 
 Safe first: L6 (done) → L2 → M4 → M2 → C3 → C1 (when released) → M6. Decisions before edits:
-L1, L4, M1, M3, M5, C2, T3, T5. Every removal runs its affected suites once; close the item here
-with checks + commit before opening the next.
+L1, M3, M5, C2, T3, T5. Settled without code change: L4, M1 (see verification notes). Every removal
+runs its affected suites once; close the item here with checks + commit before opening the next.
+
+## Verification notes (no code change)
+
+- **M1 | keep (verified 2026-10-19).** The twelve `distribution.ts` files are not duplicates: ui adds
+  `browser/`, values adds `bindings/`+`catalog.json`, cloudflare declares only `nativeCatalog` (no
+  `modules` at all). The one shared line is inherently location-relative (`import.meta.url`).
+- **`dev-server/src/artifact.rs` vs `compiler/src/codegen/artifact.rs` (verified 2026-10-19).**
+  No overlap: the dev-server file is 154 lines of CLI plumbing over serialized JSON (flag parsing,
+  version check, owning-source selection); it consumes the envelope, never rebuilds it.
