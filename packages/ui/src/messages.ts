@@ -32,6 +32,7 @@ import {
   isDateValue,
   isDatetime,
   isDecimal,
+  isRecordRef,
   messageUsages,
   parseMessageSyntax,
   parseTypeId,
@@ -1155,6 +1156,17 @@ export interface ScalarFormatOptions {
 export function formatScalar(param: MessageParamValue, options: ScalarFormatOptions): string {
   if (param === null || typeof param !== "object") {
     throw new TypeError("scalar param must be {type, value}");
+  }
+  if (isRecordRef(param)) {
+    // Stored-row identity renders as its stable `model id` label (the same
+    // fallback rowHeading uses without a title/name); the id is shown
+    // as-is, never invented. Other unknown shapes still fail closed below.
+    return renderPlainOperand(
+      { kind: "string", value: `${param.model} ${param.id}` },
+      normalizeTag(options.locale),
+      options.timeZone ?? "UTC",
+      options.currencyScales,
+    );
   }
   const operand = toOperand("value", param);
   return renderPlainOperand(

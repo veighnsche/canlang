@@ -613,6 +613,14 @@ describe("renderer helpers", () => {
     assert.throws(() => formatScalar({ type: "decimal", value: 1.1 }, { locale: "en" }));
   });
 
+  it("formatScalar renders record refs as stable model id labels", () => {
+    assert.equal(
+      formatScalar({ kind: "ref", model: "rent_catalog.Location", id: "848bb917" } as never, { locale: "en" }),
+      "rent_catalog.Location 848bb917",
+    );
+    assert.throws(() => formatScalar({ kind: "thing", id: 1 } as never, { locale: "en" }));
+  });
+
   it("isEnumTypeId accepts enum spellings and rejects scalars", () => {
     for (const type of ["enum", "enum.Expense.state", "enum:Expense.state", "expense.Expense.status"]) {
       assert.equal(isEnumTypeId(type), true, type);

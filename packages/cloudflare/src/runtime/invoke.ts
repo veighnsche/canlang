@@ -3530,6 +3530,13 @@ const nativeScenarioStoredFileSlots = new WeakMap<GeneratedOperationDef, Readonl
 const nativeScenarioNominalFileProfiles = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, {
   readonly model: string; readonly field: string; readonly profile: import('@canlang/state').FileReferenceProfile;
 }>>();
+/** System-managed top-level fields never bear stored File slots. This mirrors
+ * the owning guard in State's `bindFileReferenceProfile` (which refuses them
+ * fail-closed for direct callers); the census skips them so one system link
+ * such as `parent` cannot fail worker boot. */
+const FILE_CENSUS_RESERVED_FIELDS: ReadonlySet<string> = new Set(
+  ["id", "version", "created", "updated", "createdBy", "updatedBy", "archivedAt", "parent"],
+);
 /** Bind only actual same-loaded nominal/alias stored fields. The profile owns
  * whole-value validation; the host still owns finalization and retention. */
 async function bindFileStagingCensus(loaded: LoadedCanonicalDescriptors,
@@ -3554,7 +3561,7 @@ async function bindFileStagingCensus(loaded: LoadedCanonicalDescriptors,
         !Object.hasOwn(schema.contracts, type.base.path) &&
         !(schema.aliases !== undefined && Object.hasOwn(schema.aliases, type.base.path))) return [];
     return [{ model: model.name as ModelName, field: field.name }];
-  }));
+  })).filter(candidate => !FILE_CENSUS_RESERVED_FIELDS.has(candidate.field));
   if (candidates.length === 0) return undefined;
   const state = await loadProducerModule('@canlang/state', 'stored File census');
   const bind = requireProducerFn(state, 'bindFileReferenceProfile', 'stored File census') as
@@ -15702,6 +15709,10 @@ export function createPageReadScopeCanonical(
       ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
     const singular = new Map<string, FileValue>();
     for (const field of Object.keys(wire)) {
+      // System-managed fields (notably the `parent` ancestor link present on
+      // row wire data) never bear stored File slots; see
+      // FILE_CENSUS_RESERVED_FIELDS.
+      if (FILE_CENSUS_RESERVED_FIELDS.has(field)) continue;
       const profile = bindProfile(bound, model as ModelName, field);
       if (!profile.fileBearing) continue;
       for (const occurrence of occurrences(profile, wire[field])) {
@@ -15903,6 +15914,9 @@ export function createPageReadScopeCanonical(
       ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
       ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
           for (const field of Object.keys(fields)) {
+            // System-managed fields never bear stored File slots; see
+            // FILE_CENSUS_RESERVED_FIELDS.
+            if (FILE_CENSUS_RESERVED_FIELDS.has(field)) continue;
             if (bindProfile(bound, model as ModelName, field).fileBearing) {
               const value = nativeRecordField(loaded, model, field, fields[field]);
               Object.defineProperty(fields, field, { enumerable: true, configurable: true, writable: true, value });
