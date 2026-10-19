@@ -53,6 +53,7 @@ async function predicate(c,row){
    for(const candidate of candidates){trace.push('predicate:'+candidate.id);if(candidate.active)return true;}return false;
  }
  if(!row.accept)return true;
+ if(row.mode==='direct-nested'){return row.contact.title==='Original contact';}
  const read=async(value,label)=>{trace.push(label);return nativeReadReference(c,value);};
  if(row.mode==='copy'){try{await read({...row.contact},'copy');}catch{}return true;}
  if(row.mode==='root-copy'){try{await read({...row},'root-copy');}catch{}return true;}
@@ -127,6 +128,34 @@ test('native owner rule references stay lazy, issued, cached, sticky and scoped 
     }
     assert.deepEqual(await store.load(CUSTOMER, customer.id), customer);
     assert.deepEqual((await store.load(CONTACT, contact.id))!.data, contact.data);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+
+test('native owner rule rows hydrate nested references before predicate member reads', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-owner-rule-nested-'));
+  try {
+    const selected = artifact(), asm = await assembleModules({ artifact: selected, sourcePath: SOURCE }, {
+      workDir: directory, stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+    });
+    const module = await importVerifiedAssemblyModule(asm, MODULE, selected) as { inspect(): string[] };
+    const clock = createFrozenClock(FIXED_NOW), identities = createMemoryIdentityStore({ clock });
+    const team = await identities.createTeam({}), user = await identities.createUser({ email: 'owner-nested@example.test', password_hash: 'unused', email_verified: true });
+    await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [] });
+    const token = 'owner-rule-nested-component';
+    await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+      expires_at: new Date(FIXED_NOW + 3600000).toISOString(), last_team_id: team.team_id });
+    const identity = await resolveIdentity(identities, { session_token: token }, { clock });
+    const { store } = createTestMemoryStorage();
+    const seededCustomer = await seedRow(store, CUSTOMER, { id: uuidv7(FIXED_NOW, 901), data: { active: true } });
+    const customer = await store.load(CUSTOMER, seededCustomer.id); assert.ok(customer);
+    const contact = { ...makeRow({ id: uuidv7(FIXED_NOW, 902), data: { title: 'Original contact' } }), parent: { model: CUSTOMER, id: customer.id } };
+    await store.commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: CONTACT, row: contact }] }));
+    const invoker = buildInvoker(selected, asm, store, { appId: APP, memberships: identities, now: () => FIXED_NOW });
+    const direct = await invoker.invokeMutation({ operation: `${CHECKED}.create`, operation_id: uuidv7(FIXED_NOW, 903),
+      inputs: { contact: { id: contact.id, version: String(contact.version) }, accept: true, mode: 'direct-nested' } }, identity);
+    assert.ok('result' in direct, JSON.stringify(direct));
+    assert.deepEqual(module.inspect(), [], 'a direct nested member read performs no reference read');
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 

@@ -6966,9 +6966,58 @@ function resolveOwnerRuleFieldValue<
   throw new StateError('validation', 'Owner rule field lacks an exact loaded type association.');
 }
 
+/** Evaluated owner rows arrive with shallow nested references, so a predicate
+ * member read such as `table.active` sees `undefined` instead of bool. The
+ * evaluate scope already re-reads bare references through its installed
+ * reader; hydrate one level of declared nested references the same way before
+ * the row freezes. Unresolvable targets keep their shallow reference, which
+ * preserves the previous outcome exactly: a predicate that reads the field
+ * still fails closed, and one that never reads it still short-circuits. Leaf
+ * views stay shallow, so nested hydration always terminates. */
+async function hydrateOwnerRuleNestedReferences(native: NativeRecordScope, owner: OwnerRuleContext,
+  model: string, definition: { readonly fields: Record<string, { readonly required?: unknown; readonly nullable?: unknown; readonly array?: unknown }> },
+  record: Record<string, unknown>,
+  register: (view: Record<string, unknown>, model: string, row: StoredRow) => void,
+  nested: Map<string, Promise<Record<string, unknown> | { readonly model: string; readonly id: string }>>): Promise<void> {
+  const StateError = native.producers.errors;
+  for (const declaration of native.refs.get(model) ?? []) {
+    const field = definition.fields[declaration.field];
+    if (field === undefined) throw new StateError('validation', 'Owner rule reference lacks its declared field.');
+    const member = Object.getOwnPropertyDescriptor(record, declaration.field);
+    const value = member !== undefined && 'value' in member ? member.value : undefined;
+    if (value === undefined && field.required !== true || value === null && field.nullable === true) continue;
+    const values = field.array !== undefined && Array.isArray(value) ? value : [value];
+    if (field.array !== undefined && !Array.isArray(value)) throw new StateError('validation', 'Owner rule reference array differs from its loaded field.');
+    let changed = false;
+    const hydrated: unknown[] = [];
+    for (const reference of values) {
+      if (!isRecordRef(reference) || reference.model !== declaration.model) {
+        throw new StateError('validation', 'Owner rule reference differs from its loaded field.');
+      }
+      const key = stagedKey(declaration.model, reference.id);
+      let pending = nested.get(key);
+      if (pending === undefined) {
+        pending = (async () => {
+          try {
+            const current = await owner.read.get(declaration.model as ModelName, reference.id as RecordId);
+            if (current === null || current.id !== reference.id || current.archivedAt !== null) return reference;
+            return await nativeOwnerRuleRecord(native, declaration.model, current, owner, false, register);
+          } catch { return reference; }
+        })();
+        nested.set(key, pending);
+      }
+      const view = await pending;
+      hydrated.push(view);
+      if (view !== reference) changed = true;
+    }
+    if (changed) record[declaration.field] = field.array !== undefined ? hydrated : hydrated[0];
+  }
+}
+
 async function nativeOwnerRuleRecord(native: NativeRecordScope, model: string, row: StoredRow,
   owner: OwnerRuleContext, hydrateParent = false,
-  register?: (view: Record<string, unknown>, model: string, row: StoredRow) => void): Promise<Record<string, unknown>> {
+  register?: (view: Record<string, unknown>, model: string, row: StoredRow) => void,
+  nested?: Map<string, Promise<Record<string, unknown> | { readonly model: string; readonly id: string }>>): Promise<Record<string, unknown>> {
   const StateError = native.producers.errors;
   const definition = native.models.find(candidate => candidate.name === model);
   if (definition === undefined) throw new StateError('validation', 'Owner rule names no loaded model.');
@@ -6999,8 +7048,11 @@ async function nativeOwnerRuleRecord(native: NativeRecordScope, model: string, r
     }
   }
   bindNativeRecord(record, model, row.id, row.version);
-  freezeScenarioSnapshot(record);
   register?.(record, model, row);
+  if (nested !== undefined && register !== undefined) {
+    await hydrateOwnerRuleNestedReferences(native, owner, model, definition, record, register, nested);
+  }
+  freezeScenarioSnapshot(record);
   return record;
 }
 
@@ -7469,7 +7521,8 @@ async function loadLocalOwnerPolicyControl(input: {
               }
             }
           };
-          const hydrate = (model: string, source: StoredRow) => nativeOwnerRuleRecord(input.native, model, source, owner, false, register);
+          const nestedViews = new Map<string, Promise<Record<string, unknown> | { readonly model: string; readonly id: string }>>();
+          const hydrate = (model: string, source: StoredRow) => nativeOwnerRuleRecord(input.native, model, source, owner, false, register, nestedViews);
           const store: StoragePort = Object.freeze({ cohortIdOrder: 'utf16' as const,
             cohortIdentityPage: refuse, cohortLoad: refuse, cohortRowPage: refuse, cohortAnchorFact: refuse,
             readRevision: refuse, load: refuse, query: refuse, commit: refuse,
