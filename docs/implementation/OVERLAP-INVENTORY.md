@@ -172,3 +172,12 @@ runs its affected suites once; close the item here with checks + commit before o
 - **`dev-server/src/artifact.rs` vs `compiler/src/codegen/artifact.rs` (verified 2026-10-19).**
   No overlap: the dev-server file is 154 lines of CLI plumbing over serialized JSON (flag parsing,
   version check, owning-source selection); it consumes the envelope, never rebuilds it.
+- **Same-named cross-package files (verified 2026-10-19).** `dev-server/src/ui.rs` is a terminal UI;
+  `packages/ui` is a browser component library — different domains. `state` vs `values` `errors.ts`
+  define different error classes (and values documents a prior `DeliveryError` dedup to services).
+  `files` vs `services` `scenarios.ts` differ (empty pin vs 706-line transport tables). `ports.ts`
+  per package covers different ports. `parse` hits are methods on different types; `fixture()`
+  builders are per-suite setup with different shapes — consolidating would couple unrelated suites.
+- **`discoverDraftSources`/`selectedInventory` (verified 2026-10-19).** Single home:
+  `dev-server/src/capture.rs`; no TypeScript twin exists in-tree. The "mirroring" comment refers to
+  the accepted inventory universe, not a second implementation.
