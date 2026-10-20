@@ -6413,6 +6413,27 @@ impl<'a> Emitter<'a> {
         span: Span,
         expr_ty: &ResolvedType,
     ) -> Option<String> {
+        // Contextual roots (`c.now`, `c.actor.email`, ...) exist only on
+        // native runners, which receive the ambient invocation context.
+        // Legacy hooks never receive `c`: gap loud with the usual
+        // contextual-binding diagnostic instead of reading `undefined`.
+        // The walk reaches through nested members so `c.actor.email`
+        // names its contextual root, not the leaf.
+        if self.in_hook() && !self.hook_native() {
+            let mut root = base;
+            let mut top = field;
+            while let IrExpr::Member { base: next, field: inner } = &root.expr {
+                top = inner;
+                root = next;
+            }
+            if matches!(&root.expr, IrExpr::Name(name) if name == "c") {
+                return Some(self.hook_gap(
+                    &format!("hook contextual binding `{top}`"),
+                    "no complete native owner-policy plan binds the hook context",
+                    span,
+                ));
+            }
+        }
         match self.hook_base_class(base) {
             HookBase::Event => {
                 if field == "after" || field == "before" {

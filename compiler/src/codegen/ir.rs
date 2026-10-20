@@ -7423,9 +7423,13 @@ impl<'a> Cx<'a> {
             "c" | "row" | "event" | "result" | "parent" | "preferences" | "s" | "b" => {
                 return IrExpr::Name(name.to_string());
             }
-            // Only a complete native owner-policy plan can return contextual
-            // hook decoding. The refusal rebuild preserves exact source spans.
-            "actor" | "now" | "team" | "operation"
+            // Only a complete native owner-policy plan can return
+            // actor/team/operation hook decoding. `now` always decodes:
+            // the emitter gaps `c`-rooted reads in legacy hooks with
+            // this same diagnostic, so no undefined read can leak into
+            // a legacy two-argument runner. The refusal rebuild
+            // preserves exact source spans.
+            "actor" | "team" | "operation"
                 if scope.in_hook && !self.native_hook_context =>
             {
                 let why = "no complete native owner-policy plan binds the hook context";
