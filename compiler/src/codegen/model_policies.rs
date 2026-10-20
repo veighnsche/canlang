@@ -133,12 +133,12 @@ pub(crate) fn collect_checked_policies(
     if super::js::module_path(&ir.module(entry).name) != emitted_module {
         return None;
     }
-    let (fresh, diagnostics) = ir::rebuild_policy_source(program, ir, db, catalog);
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error)
-        || !source::matches(program, ir, &fresh)
-    {
+    let (fresh, _) = ir::rebuild_policy_source(program, ir, db, catalog);
+    // Presentation-only rebuild failures must not veto model-policy intake.
+    // source::matches verifies the policy substance (models, fields, rules,
+    // defaults, locks); UI constructs lower independently and keep reporting
+    // their own diagnostics.
+    if !source::matches(program, ir, &fresh) {
         return None;
     }
     let (plain, complete) = collect_policies(ir, emitted_module, None, None, None);
