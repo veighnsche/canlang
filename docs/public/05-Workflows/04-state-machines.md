@@ -2,6 +2,8 @@
 
 A stored scalar enum field may opt into a flat lifecycle machine. Its constant default is the initial state. Operations declare edges with `transition record.field source -> target`; each edge is owned by its declaring scenario or trusted handler. Ordinary `set`, CRUD patches, create inputs, and hook rewrites cannot assign the managed field.
 
+## Declare an operation-owned transition
+
 ```can
 Given
  Job { status:enum(queued,running,ready,failed)=queued machine }
@@ -15,3 +17,15 @@ When
 This is a fragment requiring membership, model policy, and a usable page or caller. A transition validates the operation-owned edge and current provisional source. Mismatch is a business-rule failure; malformed edge data is validation failure. A later failed guard/effect rolls back the transition. Fixture and migration snapshots may use any declared state without implying an edge was taken.
 
 V1 is a flat stored lifecycle, not a general statechart: no hierarchy, parallel/history states, callbacks, or implicit cascades. State name alone does not protect delayed completions after leaving and reentering; use an explicit version or occurrence guard. See [scenario effects](02-scenarios-and-effects.md) and [transactions](03-transactions-and-concurrency.md).
+
+## The declared edge
+
+This fragment declares only the start edge below. The other enum cases name possible stored values; they do not imply completion, failure, or retry edges.
+
+```mermaid
+stateDiagram-v2
+  accTitle: The Job start edge
+  accDescr: A new Job starts queued. The declared start scenario can transition it from queued to running; no other lifecycle edges are declared in this fragment.
+  [*] --> queued
+  queued --> running: start
+```

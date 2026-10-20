@@ -2,6 +2,8 @@
 
 A user scenario declares typed parameters, a `by` admission rule, optional leading `require` guards, and one `do` body. Parameters are explicit; a mutation record input carries an expected version. `by` runs before explicit parameter defaults. Guards and body statements then evaluate in written order. `require` failure rejects the complete provisional mutation.
 
+## Declare a guarded mutation
+
 ```can
 When
  # Finish an open task.

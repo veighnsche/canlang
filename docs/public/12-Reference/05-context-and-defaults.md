@@ -2,6 +2,8 @@
 
 An app may have one `context` block immediately after its app declaration. It sets only supported overrides and named resources; defaults omitted from source are inherited. Do not repeat defaults such as the standard runtime, D1 database, email/password authentication, team support, R2 file service, or base theme. Context does not create arbitrary provider configuration.
 
+## Declare named resources
+
 ```can
 # Coordinate calendar work.
 app CalendarDemo

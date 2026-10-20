@@ -16,6 +16,25 @@ Activation is gated by compatibility and serve readiness. If it refuses, use the
 
 Activation across D1 and several Durable Object authorities is not one transaction. If activation partly succeeds, keep affected access closed and resume; do not reopen the old runtime against mixed layouts. No zero-downtime or automatic destructive rollback is promised.
 
+Preparation failure and partial activation have different recovery boundaries: preserving the installed selection does not permit reopening an old runtime against partly converted authorities.
+
+```mermaid
+flowchart TD
+  accTitle: Recover an application upgrade
+  accDescr: Preparation failure retains the installed release and data. Valid preparation proceeds to gated activation; partial activation keeps affected access closed and resumes rather than reopening the old runtime against mixed layouts.
+  close[Close affected access and fence old runtimes] --> prepare[Prepare and validate target state]
+  prepare --> prepared{Preparation succeeds?}
+  prepared -->|No| retain[Retain installed data and release]
+  retain --> recover[Recover at the supported boundary]
+  prepared -->|Yes| activate[Attempt gated activation]
+  activate --> outcome{Activation outcome}
+  outcome -->|Refused| correct[Correct reported reasons and revalidate]
+  correct --> prepare
+  outcome -->|Partial| resume[Keep affected access closed and resume]
+  resume --> activate
+  outcome -->|Complete| verify[Verify release and pending work]
+```
+
 After activation, verify the new release and inspect pending work. If a defect requires rollback, confirm that the previous runtime remains compatible with the data and work already accepted under the new release. A code rollback cannot undo committed business operations or external side effects.
 
 The public workflow must keep this process at the app/environment level. Internal staging files and sidecar construction are implementation details, not authoring commands. See [operating an app](./05-operating-an-app.md) for the operator's status and recovery responsibilities.

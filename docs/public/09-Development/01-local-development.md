@@ -17,11 +17,48 @@ can compile Tasks.can
 
 Start the human preview using `can dev ui --source Tasks.can`. Add `--check-mode automatic` to check saved changes automatically; manual checking is the default. Use the selection flags shown by `can dev help`. The terminal reports the selected source, session status, preview address, diagnostics and available controls. `can dev ui` with no source attaches to the verified selected owner; it does not guess which app to launch. Keep the process available while using the preview.
 
+```doc-visual
+{
+  "placeholder": "Find the selected source, serving revision, preview address and available controls in the development terminal.",
+  "caption": "The actual local development terminal for a synthetic Tasks app, with marker 1 identifying the selected source, marker 2 the serving revision and marker 3 the preview address. The controls remain visible below the session status.",
+  "alt": "Local development terminal showing the selected Tasks source, serving revision, preview address and controls",
+  "production": {
+    "method": "screenshot",
+    "instructions": [
+      "Use an installed Can toolchain with a complete synthetic Tasks.can application and its required local bindings. The operator must have local workspace read/write access and permission to start and stop this preview; no production credentials or records may be used.",
+      "From that application root, run can dev ui --source Tasks.can in an interactive terminal. Keep the default manual check mode, enter check and press Enter in the development terminal, then wait for a healthy serving preview. Use only synthetic task titles and actors if any app data is visible.",
+      "Record can --version, the source revision and the actual capture date in the asset notes at capture time. Do not hard-code a tool version or date into the image.",
+      "Capture a 1280 by 800 terminal window in the dark theme with a readable monospace font. Retain the launch command identifying Tasks.can, the actual selected source revision, session/check status, serving revision, preview address and available input controls. Do not add labels or controls that the running tool does not display."
+    ],
+    "edits": [
+      "Crop desktop and unrelated terminal history, keeping the complete session status and input controls legible. Remove personal workspace path prefixes without obscuring the synthetic source filename or revision values.",
+      "Add sparse numbered rectangles around the selected source, serving revision and preview address. Explain those markers in the final caption using the exact captured labels; preserve all real terminal text.",
+      "Check the final alt text against the capture and confirm the highlighted labels remain readable at narrow article widths."
+    ]
+  }
+}
+```
+
 Preview requests run with the selected local app identity and its declared access rules. A hidden or disabled control is not an authorization rule: exercise the operation as both an allowed and a denied actor. Local preview state is isolated from production, but external services still require appropriate local bindings and credentials.
 
 ## Source changes and refresh
 
 The development owner tracks source revisions and the serving build. Accepted automatic refresh captures a coherent source revision, checks and assembles it, then advances the preview only when the new build is valid. If compilation fails, the diagnostic belongs to that revision and the last valid preview remains identifiable; do not assume a failed change became live. Recheck after saving the correction and confirm the preview reports the new source revision.
+
+A valid replacement advances the preview; a failed build leaves the previous serving revision available while you repair the source.
+
+```mermaid
+flowchart TD
+  accTitle: Refresh a local preview
+  accDescr: Automatic refresh captures and checks a saved source revision. A valid ready build replaces the preview; failure retains the last valid preview and reports diagnostics for correction.
+  saved[Save source in automatic mode] --> capture[Capture source revision]
+  capture --> build[Check and assemble]
+  build --> ready{Build valid and ready?}
+  ready -->|Yes| publish[Advance serving preview]
+  ready -->|No| retain[Keep last valid preview]
+  retain --> repair[Read diagnostics and correct source]
+  repair --> saved
+```
 
 Local business state is retained according to the selected profile and app storage contract. A source refresh is not a schema migration and does not erase application data to make a new model fit. Schema changes that need data conversion follow [schema migrations](../10-Deployment/03-schema-migrations.md).
 

@@ -2,6 +2,8 @@
 
 CanLang source uses explicit `Given`, `When`, and `Then` sections to declare data and rules, operations, and presentation. An implicit app has one ordered section triple. A package uses the same triple indented beneath `package NAME`. Blank lines and comments aid reading but do not introduce executable bindings.
 
+## A complete minimal source file
+
 ```can
 # Track team tasks.
 app Tasks

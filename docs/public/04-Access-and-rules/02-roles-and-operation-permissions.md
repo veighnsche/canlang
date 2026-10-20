@@ -2,6 +2,8 @@
 
 A role names an application concept; it does not by itself grant capabilities. A user operation's `by` clause is its call eligibility rule and is evaluated before parameter defaults, record-dependent business guards, or effects. Current membership and role facts come from the authenticated context. A denied operation must not disclose records or internal diagnostics.
 
+## Separate admission from business guards
+
 ```can
 When
  # Approve a pending request.

@@ -21,6 +21,25 @@ An inline example expects one exact code with `error(code)`; setup/compiler fail
 
 Mutation request envelopes carry a stable UUIDv7 operation ID, canonical operation identity, arguments, and expected versions for record inputs. Omission remains distinct from explicit null in normalized inputs. The receipt hashes supplied inputs and retains successful resolved defaults separately. Replaying the same identity and inputs returns the saved outcome under current disclosure rules; reusing the identity with different inputs conflicts. Reads do not create mutation receipts.
 
+## Receipt lookup before reevaluation
+
+A receipt is checked before stale versions or body evaluation. Current disclosure may withhold saved content; matching replay still does not execute the effects again.
+
+```mermaid
+flowchart TD
+  accTitle: Mutation receipt replay
+  accDescr: After authentication and canonical resolution the runtime checks the receipt. Matching supplied inputs replay the saved outcome under current disclosure, changed inputs conflict, and unseen identities must pass age and ordinary admission checks before evaluation.
+  request[Authenticated resolved request] --> receipt{Receipt exists?}
+  receipt -->|Yes| inputs{Same supplied inputs?}
+  inputs -->|Yes| replay[Replay with current disclosure]
+  inputs -->|No| conflict[Conflict]
+  receipt -->|No| age{Identity age valid?}
+  age -->|No| reject[Reject old or future identity]
+  age -->|Yes| evaluate[Ordinary admission and evaluation]
+```
+
+An old identity cannot become a new mutation after its receipt expires. The normal future-clock tolerance still applies.
+
 ## Canonical wire values
 
 At the MCP/typed JSON boundary, all int and decimal values are canonical decimal strings, including money minor units and record versions; their JSON type never changes with magnitude. Protocol-owned counts remain protocol numbers.

@@ -2,6 +2,8 @@
 
 A `Given` model declares stored records. Ownership may be app-wide, team-scoped, or contained under a parent model; choose the scope that matches who controls the data and which operation must be atomic. A contained child carries its parent relationship and shares the parent's storage owner. References preserve typed model identity and are checked for owner, lifetime, and expected version at admission.
 
+## Declare containment
+
 ```can
 Given
  Project { name:text }

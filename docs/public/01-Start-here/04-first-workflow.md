@@ -2,6 +2,8 @@
 
 Continue the `Tasks` app from the [first-app tutorial](03-first-app.md). Add a `completed_at` field and replace direct status editing with an explicit completion operation. This example shows an authored business rule, a typed mutation, and an independently written behavior example.
 
+## Declare a completion operation
+
 ```can
 # Manage team tasks and record completion.
 app Tasks

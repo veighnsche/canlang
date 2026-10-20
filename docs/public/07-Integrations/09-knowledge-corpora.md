@@ -28,4 +28,19 @@ The request carries source (1–200 scalars), positive revision, trimmed questio
 
 If a used source is revoked, withdrawn or superseded, withhold the whole answer and all citations. Unrelated publication changes may retain a still-authorized answer with its original checkpoint and a prominent historical/as-of label; a current answer requires a new explicit bounded request. `available` is false for null or invalidated used context; storage/check failures remain failures. Revocation prevents later disclosure but cannot erase bytes already received by a browser.
 
+Every disclosure depends on all context supplied to the model, including sources the answer did not cite. Losing access to any used source withholds the whole answer and its citations.
+
+```mermaid
+flowchart TD
+  accTitle: Recheck a grounded answer before disclosure
+  accDescr: Each attempted disclosure checks the originating principal and every exact source, field and file used as model context. Valid principal and context checks permit the answer and citations; revoked, withdrawn or superseded used context withholds both.
+  read[Attempted disclosure] --> principal[Check originating principal]
+  principal --> context[Check all used context]
+  context --> valid{Principal and context valid?}
+  valid -->|Yes| disclose[Answer and citations]
+  valid -->|No| withhold[Withhold whole answer]
+```
+
+Authorization or storage-check failures remain failures rather than evidence that an answer is safely available.
+
 Validated answers contain 1–20 nonblank statements of at most 2,000 scalars each, each citing retained exact context with checked revision, locator and matching quoted extraction. Source titles, revisions and quotations remain protected. Provider-authored URLs/HTML and unsupported citations are rejected; citations establish provenance, not proof of entailment.

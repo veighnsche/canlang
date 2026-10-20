@@ -2,6 +2,8 @@
 
 A scenario can schedule a typed event at an explicit instant under a stable key, replace a pending occurrence, or cancel it before dispatch. Schedule replacement and cancellation commit with the business change. `every(duration)` trusted handlers provide UTC-epoch-aligned recurring ticks; missed intervals coalesce to one current occurrence. Team-D1 handlers get independently admitted occurrences per eligible team; exclusively app-scoped handlers get one app occurrence. Root-bound `every` is outside the v1 contract: use explicit record-bound `schedule` for per-root recurrence. Calendar recurrence is authored by computing explicit instants and defining month-end, daylight-saving, and missed-cycle policy.
 
+## Recheck due work
+
 When work becomes due, the handler's current admission and guards run. A superseded or cancelled pending occurrence is skipped; already admitted work or an accepted provider message may finish. Cancellation does not prove an external action stopped. A false dispatch `send when` guard skips delivery; an authored `require` rejection is a terminal business failure. Retries reuse occurrence identity and do not repeat completed work.
 
 Use record revision or occurrence guards for stale delayed work. See [events and hooks](05-events-and-hooks.md), [time zones](../03-Data/05-dates-and-timezones.md), and [delivery recovery](../07-Integrations/02-deliveries-and-recovery.md).

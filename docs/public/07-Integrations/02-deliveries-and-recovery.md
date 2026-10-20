@@ -10,6 +10,21 @@ A send stores a frozen typed request and stable identity before dispatch. The re
 
 Queues and providers may deliver more than once or out of order. Use stable idempotency identities, sequence checks, frozen recipients/values and current-state guards. A timeout or lost receipt is uncertain, not proof of failure or success. Reconcile against the provider’s stable reference before retrying an action that could duplicate a payment, message or job. Cancellation requests do not prove the provider stopped.
 
+Keep uncertainty visible until reconciliation establishes an outcome. A failed delivery can follow remote effects, so its error alone cannot authorize resending.
+
+```mermaid
+flowchart TD
+  accTitle: Recover an uncertain delivery
+  accDescr: A frozen request is persisted before dispatch. An uncertain remote outcome requires reconciliation by its stable reference; unresolved work stays uncertain, while established outcomes return to owning business rules.
+  intent[Frozen persisted intent] --> dispatch[Dispatch]
+  dispatch --> known{Outcome established?}
+  known -->|Yes| rules[Apply owning rules]
+  known -->|No| reconcile[Reconcile stable reference]
+  reconcile --> resolved{Outcome established?}
+  resolved -->|Yes| rules
+  resolved -->|No| uncertain[Retain uncertainty]
+```
+
 External service commits are not atomic with a database transaction. Preserve pending work and report safe failure details; never claim exactly-once delivery. Typed queue publication follows the same durable intent/recovery principles. See [concurrency](../05-Workflows/03-transactions-and-concurrency.md) and [scheduling](../05-Workflows/06-scheduling-and-recurring-work.md).
 
 ## Receipt and completion fields
