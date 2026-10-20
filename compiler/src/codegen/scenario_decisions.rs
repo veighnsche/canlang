@@ -972,8 +972,12 @@ impl Consumer<'_> {
 /// complete executable owner still matches independently checked source.
 /// Keep the older read-only C23 receipt family on its original path.
 pub(super) fn owner_handler_queries(context: &FreshSourceContext<'_>, owner: &IrItem) -> Option<()> {
+    // Recurring ticks qualify alongside declared payload events: a tick
+    // carries no event inputs (DESIGN §6), so there is no payload schema
+    // for Declared-ness to vouch for, and the same-semantics re-lowering
+    // below re-verifies the whole handler either way.
     let IrItemKind::Scenario { params, trusted: true, result: None, read: false,
-        expose_excluded: false, by, effects, event_source: Some(IrEventSource::Declared(_)),
+        expose_excluded: false, by, effects, event_source: Some(IrEventSource::Declared(_) | IrEventSource::Every { .. }),
         hook: None, cohort: None, .. } = &owner.kind else { return None; };
     if !params.is_empty() || !by.is_empty() { return None; }
     fn mutation(statements: &[IrStmt]) -> bool {
