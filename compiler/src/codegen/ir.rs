@@ -21701,7 +21701,30 @@ impl<'a> Cx<'a> {
         let containment = head.and_then(|head| self.contained_collection_head(head));
         let model_id = head
             .and_then(|head| self.collection_head_model(scope.module, head))
-            .or(containment.map(|(child, _)| child));
+            .or(containment.map(|(child, _)| child))
+            .or_else(|| {
+                // A reviewed-scenario result (or another bound array of
+                // stored rows) carries its element model in its type, so a
+                // `list result` over `M[]` rows binds `row` as `M` exactly
+                // like a stored-model domain.
+                let head = head?;
+                let crate::analysis::types::ResolvedType::Array { element, .. } =
+                    self.node_type(head)
+                else {
+                    return None;
+                };
+                let crate::analysis::types::ResolvedType::Record { symbol, stored } =
+                    element.as_ref()
+                else {
+                    return None;
+                };
+                if !stored {
+                    return None;
+                }
+                let candidate = self.program.symbols.get(symbol.0 as usize)?;
+                matches!(candidate.kind, crate::analysis::resolve::SymbolKind::Model { .. })
+                    .then_some(*symbol)
+            });
         if let Some((_, parent)) = containment {
             if ui_attributes(self.db, node)
                 .iter()
