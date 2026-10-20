@@ -21697,16 +21697,20 @@ impl<'a> Cx<'a> {
         node: &SyntaxNode,
         head: Option<&SyntaxNode>,
         props: &mut Vec<(String, TypedExpr)>,
-    ) -> Option<SymbolId> {
+    ) -> Option<(SymbolId, bool)> {
         let containment = head.and_then(|head| self.contained_collection_head(head));
-        let model_id = head
+        let model_id: Option<(SymbolId, bool)> = head
             .and_then(|head| self.collection_head_model(scope.module, head))
-            .or(containment.map(|(child, _)| child))
+            .map(|id| (id, true))
+            .or(containment.map(|(child, _)| (child, true)))
             .or_else(|| {
-                // A reviewed-scenario result (or another bound array of
-                // stored rows) carries its element model in its type, so a
-                // `list result` over `M[]` rows binds `row` as `M` exactly
-                // like a stored-model domain.
+                // A reviewed-scenario result, a row-bound nested collection
+                // or another bound array of rows carries its element record
+                // in its type, so a collection over `M[]` rows binds `row`
+                // as `M`. Stored rows behave exactly like a stored-model
+                // domain; contract (value) rows flow from the same already
+                // authorized parent binding with no independent fetch, so
+                // they bind with `stored: false` and no read-grant path.
                 let head = head?;
                 let crate::analysis::types::ResolvedType::Array { element, .. } =
                     self.node_type(head)
@@ -21718,12 +21722,13 @@ impl<'a> Cx<'a> {
                 else {
                     return None;
                 };
-                if !stored {
-                    return None;
-                }
                 let candidate = self.program.symbols.get(symbol.0 as usize)?;
-                matches!(candidate.kind, crate::analysis::resolve::SymbolKind::Model { .. })
-                    .then_some(*symbol)
+                (matches!(candidate.kind, crate::analysis::resolve::SymbolKind::Model { .. })
+                    || matches!(
+                        candidate.kind,
+                        crate::analysis::resolve::SymbolKind::Contract { .. }
+                    ))
+                .then_some((*symbol, *stored))
             });
         if let Some((_, parent)) = containment {
             if ui_attributes(self.db, node)
@@ -21739,15 +21744,15 @@ impl<'a> Cx<'a> {
             }
             props.push(("parent".to_string(), self.decode_expr(scope, parent)));
         }
-        let Some(id) = model_id else {
+        let Some((id, stored)) = model_id else {
             self.diags.push(Diagnostic::error(
                 "E6008",
-                "collection domain must be a checked stored model or contained child".to_string(),
+                "collection domain must be a checked stored model, contained child, or bound array of checked rows".to_string(),
                 head.map(|head| head.span).unwrap_or(node.span),
             ));
             return None;
         };
-        Some(id)
+        Some((id, stored))
     }
 
     fn gallery_image_field_valid(
@@ -22308,6 +22313,7 @@ fn push_text_array_prop(
         scope: &Scope,
         node: &SyntaxNode,
         model_id: Option<SymbolId>,
+        stored: bool,
         as_name: &Option<String>,
     ) -> (String, Option<(SymbolId, String)>, Scope) {
         // Both source spellings refer to this checked row. Use a named
@@ -22336,7 +22342,7 @@ fn push_text_array_prop(
                 row_name.clone(),
                 ResolvedType::Record {
                     symbol: model,
-                    stored: true,
+                    stored,
                 },
             );
             unowned
@@ -22391,6 +22397,7 @@ fn push_text_array_prop(
         node: &SyntaxNode,
         word: &str,
         model_id: Option<SymbolId>,
+        stored: bool,
         as_name: Option<String>,
         mut props: Vec<(String, TypedExpr)>,
     ) -> Option<IrUi> {
@@ -22410,7 +22417,7 @@ fn push_text_array_prop(
         self.decode_collection_count(scope.module, word, &mut child_nodes, &mut props);
         self.decode_collection_pagination(model_id, &as_name, &mut child_nodes, &mut props);
         let (row_name, row_ctx, unowned) =
-            Self::collection_row_scope(scope, node, model_id, &as_name);
+            Self::collection_row_scope(scope, node, model_id, stored, &as_name);
         Some(self.finish_collection(
             scope,
             node,
@@ -22433,7 +22440,7 @@ fn push_text_array_prop(
             }
         }
         let admitted = self.decode_collection_admitted(node, word)?;
-        let id = self.decode_collection_domain(scope, node, head, &mut props)?;
+        let (id, stored) = self.decode_collection_domain(scope, node, head, &mut props)?;
         if word == "gallery" {
             self.decode_collection_gallery(node, id, &mut props)?;
         }
@@ -22441,7 +22448,7 @@ fn push_text_array_prop(
         let as_name =
             self.decode_collection_query_alias(scope, node, head, query, id, word, &mut props);
         self.decode_collection_attrs(scope, node, id, word, admitted, &mut props);
-        return self.decode_collection_body(scope, node, word, Some(id), as_name, props);
+        return self.decode_collection_body(scope, node, word, Some(id), stored, as_name, props);
     }
 
     /// Decode a bare `delete` leaf to the `deleteRecord`
