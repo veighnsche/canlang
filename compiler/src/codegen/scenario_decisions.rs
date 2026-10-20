@@ -2921,6 +2921,11 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
             return None;
         }
         for (page, expected_page) in module.pages.iter().zip(&expected_module.pages) {
+            // Each page join is pairwise, so the node budget bounds one
+            // page, not the whole world: without this reset, large cohorts
+            // accumulate past the cap at an arbitrary page and the caller
+            // bridge (e.g. membership) loses every occurrence.
+            join.nodes = 0;
             join_predicate_page(&mut join, page, expected_page)?;
             let (page_node, page_key) = resolve_page_node(&mut consumer, trees, page.span)?;
             let owner = format!("{}.{}", page.owner, page.fn_name);
