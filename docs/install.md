@@ -17,7 +17,7 @@ curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
 
 The public website serves the byte-identical installer from the qualified [v0.1.1 release](https://github.com/veighnsche/canlang/releases/tag/v0.1.1). It detects macOS Apple Silicon or Linux x86-64 with glibc, resolves one release version, and downloads the matching archive and SHA-256 checksum from that tag. The v0.1.1 Linux bundle requires glibc 2.39 or newer.
 
-The installer configures your shell PATH. Open a new terminal, then run `can --version`. Write and run applications in your own folder; no source checkout, catalog build or runtime overrides are required. Follow the [first application tutorial](public/01-Getting-started/02-installation.md) and [local development guide](public/03-Build-and-operate/01-local-development.md). The script supports pinned versions with `bash -s -- --version VERSION` after
+The installer configures your shell PATH. Open a new terminal, then run `can --version`. Write and run applications in your own folder; no source checkout, catalog build or runtime overrides are required. Follow the [first application tutorial](public/01-Start-here/03-first-app.md) and [local development guide](public/09-Development/01-local-development.md). The script supports pinned versions with `bash -s -- --version VERSION` after
 the pipe. See the [website agent handoff](implementation/lean-install/website-handoff.md)
 for the exact source, publication gates and copy-ready deployment prompt.
 
@@ -176,7 +176,7 @@ install -m 755 target/release/can ~/.local/bin/can
 
 ## Optional source workspace and release verification (contributors)
 
-These instructions build and check CanLang itself. They are not prerequisites for using the standalone release. The [contributor guide](public/01-Getting-started/03-contributor-setup.md) covers complete source setup.
+These instructions build and check CanLang itself. They are not prerequisites for using the standalone release. The [developer guide](dev-setup.md) covers complete source setup.
 
 From the repository root, use Bun 1.4.2 and Node.js 22+ (Node 24 is the
 verified runtime test profile):

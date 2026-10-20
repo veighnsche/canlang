@@ -6,6 +6,8 @@ The CanLang repository owns this public user handbook; the Soda OS website publi
 
 Only numbered Markdown pages inside this directory are handbook content. This README describes the export contract and is not a published page. Engineering records, research, draft implementation status and the rest of the repository are outside the public export.
 
+The handbook describes the accepted finished-product contract. Keep current implementation gaps and release qualification in engineering records; do not turn temporary limitations into permanent public semantics. [FILETREE.md](FILETREE.md) records page ownership and the source-informed structure and is also excluded from publication.
+
 Use `NN-Section/NN-slug.md` paths. Section and page numbers establish reading order. Every page slug must be unique across sections; exactly one `NN-index.md` supplies the handbook landing page. Its website path is `/docs/canlang`; other pages use `/docs/canlang/slug`.
 
 ## Page structure
