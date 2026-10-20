@@ -115,7 +115,7 @@ pub(crate) fn collect_local_policies(
     ir: &IrProgram,
     emitted_module: &str,
 ) -> Option<LocalPolicies> {
-    collect_policies(ir, emitted_module, None, None, None)
+    collect_policies(ir, emitted_module, None, None, None).0
 }
 
 /// Source-backed intake for the original current-Revision policy closure.
@@ -141,8 +141,11 @@ pub(crate) fn collect_checked_policies(
     {
         return None;
     }
-    if let Some(existing) = collect_local_policies(ir, emitted_module) {
-        return Some(existing);
+    let (plain, complete) = collect_policies(ir, emitted_module, None, None, None);
+    if complete {
+        if let Some(existing) = plain {
+            return Some(existing);
+        }
     }
     let profiles = ir
         .invariants
@@ -172,6 +175,7 @@ pub(crate) fn collect_checked_policies(
         Some(&chat_fields),
         Some((program, db, catalog)),
     )
+    .0
 }
 
 fn collect_hook_triggers(ir: &IrProgram) -> Option<Vec<(&IrItem, IrHook, String)>> {
@@ -581,20 +585,32 @@ fn collect_model_policies(
     Some(())
 }
 
+/// Policy collection with a completeness flag: `true` when every model
+/// fully collected (nothing skipped). The checked intake only accepts
+/// the cheap plain result when it is complete; a partial plain result
+/// must not shadow the richer contextual collection, which can admit
+/// models the context-free pass cannot describe.
 fn collect_policies(
     ir: &IrProgram,
     emitted_module: &str,
     checked_profiles: Option<&[CurrentRevisionRuleProfile]>,
     checked_chat_fields: Option<&std::collections::HashSet<SymbolId>>,
     checked_context: Option<(&CheckedProgram, &SourceDb, Option<&Catalog>)>,
-) -> Option<LocalPolicies> {
-    let checked_hooks = collect_hook_triggers(ir)?;
+) -> (Option<LocalPolicies>, bool) {
+    let Some(checked_hooks) = collect_hook_triggers(ir) else {
+        return (None, false);
+    };
+    let mut complete = true;
     let mut descriptors = Vec::new();
     let mut bindings = Vec::new();
     let mut hook_bindings = Vec::new();
     let mut dependency_bindings = Vec::new();
     for model in &ir.items {
-        collect_model_policies(
+        let before_descriptors = descriptors.len();
+        let before_bindings = bindings.len();
+        let before_hooks = hook_bindings.len();
+        let before_deps = dependency_bindings.len();
+        let kept = collect_model_policies(
             ir,
             model,
             &checked_hooks,
@@ -606,17 +622,33 @@ fn collect_policies(
             &mut bindings,
             &mut hook_bindings,
             &mut dependency_bindings,
-        )?;
+        );
+        if kept.is_none() {
+            // Per-model isolation: a model whose rules cannot be fully
+            // described contributes nothing, but no longer vetoes every
+            // other model's descriptors and hook bindings. Its hooks stay
+            // legacy until its own rules collect. Roll back that model's
+            // partial rule pushes so shared vectors stay exact.
+            descriptors.truncate(before_descriptors);
+            bindings.truncate(before_bindings);
+            hook_bindings.truncate(before_hooks);
+            dependency_bindings.truncate(before_deps);
+            complete = false;
+            continue;
+        }
     }
     if descriptors.is_empty() {
-        None
+        (None, complete)
     } else {
-        Some(LocalPolicies {
-            descriptors,
-            bindings,
-            hook_bindings,
-            dependency_bindings,
-        })
+        (
+            Some(LocalPolicies {
+                descriptors,
+                bindings,
+                hook_bindings,
+                dependency_bindings,
+            }),
+            complete,
+        )
     }
 }
 
