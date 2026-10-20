@@ -10963,7 +10963,16 @@ fn null_equality(
                         .as_ref()
                         .map(|predicate| self.lower_expr(predicate))
                         .unwrap_or_else(|| {
-                            assert!(contained_count, "checked source query predicate");
+                            // An order-only first carries no predicate: the
+                            // receipt order selects the first stored row and
+                            // every row admits. Where-queries keep the exact
+                            // predicate below.
+                            assert!(
+                                contained_count
+                                    || (source.first.is_some()
+                                        && source.predicate.is_none()),
+                                "checked source query predicate"
+                            );
                             "true".into()
                         });
                     self.exit_scope();

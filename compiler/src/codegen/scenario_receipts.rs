@@ -6433,7 +6433,10 @@ fn checked_native_first_query_source_plan(
         return None;
     }
     let first = query.first.as_ref()?;
-    if query.dependencies.is_empty() {
+    // An order-only first carries no predicate and no transported inputs,
+    // so empty dependencies are its honest state; a where-query with no
+    // dependencies is malformed and keeps the refusal.
+    if query.dependencies.is_empty() && query.predicate.is_some() {
         return None;
     }
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
@@ -8186,6 +8189,27 @@ pub(super) fn checked_first_query_order(
         {
             Some(())
         }
+        // Order-only first (no where predicate): the recorded id-order
+        // and the scanned id-order re-verify exactly as in the where
+        // arms; the vacuous predicate needs no clause join.
+        ([original], [actual], [_, clause])
+            if first_query_id_order_matches(original, actual)
+                && clause.kind == crate::analysis::types::CheckedQueryClauseKind::Order
+                && clause.expressions.as_slice() == [original.node] =>
+        {
+            Some(())
+        }
+        ([original], [actual], [archived, _, clause])
+            if first_query_id_order_matches(original, actual)
+                && matches!(
+                    archived.kind,
+                    crate::analysis::types::CheckedQueryClauseKind::Archived
+                )
+                && clause.kind == crate::analysis::types::CheckedQueryClauseKind::Order
+                && clause.expressions.as_slice() == [original.node] =>
+        {
+            Some(())
+        }
         ([original], [actual], [_, _, clause])
             if first_query_id_order_matches(original, actual)
                 && clause.kind == crate::analysis::types::CheckedQueryClauseKind::Order
@@ -8677,6 +8701,16 @@ pub(super) fn checked_first_query_predicate(
 ) -> Option<()> {
     let first = query.first.as_ref()?;
     predicate_dependency_types(query)?;
+    // Order-only first (no where predicate): no conjuncts, no
+    // dependencies, no transported inputs. Vacuous truth — the authored
+    // order re-verifies in checked_first_query_order. Anything recorded
+    // refuses, keeping the admission fail-closed.
+    if scan.where_pred.is_none() {
+        return (query.dependencies.is_empty()
+            && query.inputs.is_empty()
+            && query.predicate.is_none())
+        .then_some(());
+    }
     // Flatten an `and` chain order-preserving; a lone `==` is one conjunct.
     let (conjuncts, operand_nodes) = flatten_predicate_conjuncts(first, query, scan)?;
     // Pair each conjunct with its field dependency; duplicate fields pair
@@ -8911,7 +8945,7 @@ fn owner_first_query_tail_mismatch(
     alias: &crate::analysis::types::CheckedQueryClause,
     predicate: &crate::analysis::types::CheckedQueryClause,
     source_alias: crate::analysis::NodeKey,
-    source_predicate: crate::analysis::NodeKey,
+    source_predicate: Option<crate::analysis::NodeKey>,
     scan: &IrQuery,
     query_model_name: &str,
     first_parent: bool,
@@ -8919,8 +8953,15 @@ fn owner_first_query_tail_mismatch(
     alias.node != source_alias
         || !matches!(&alias.kind, crate::analysis::types::CheckedQueryClauseKind::As { name } if !name.is_empty())
         || !alias.expressions.is_empty()
-        || predicate.kind != crate::analysis::types::CheckedQueryClauseKind::Where
-        || predicate.expressions.as_slice() != [source_predicate]
+        || match source_predicate {
+            Some(source_predicate) => {
+                predicate.kind != crate::analysis::types::CheckedQueryClauseKind::Where
+                    || predicate.expressions.as_slice() != [source_predicate]
+            }
+            // Order-only first: the second clause is the authored order,
+            // whose correspondence re-verified in checked_first_query_order.
+            None => predicate.kind != crate::analysis::types::CheckedQueryClauseKind::Order,
+        }
         || !matches!(&scan.domain, super::ir::IrQueryDomain::Model(model) if model == query_model_name)
         || !first_parent
         || scan.where_async
@@ -8941,7 +8982,7 @@ fn checked_owner_first_query_ir<'a>(
     let (query, facts) = select_owner_first_query(ir, owner, node, db)?;
     let first = query.first.as_ref()?;
     let source_alias = query.alias?;
-    let source_predicate = query.predicate?;
+    let source_predicate = query.predicate;
     let (id, domain, scan) = first_query_call_shape(actual)?;
     let source = scan.source.as_deref()?;
     let collection = scan.collection_call.as_deref()?;

@@ -11885,15 +11885,23 @@ impl<'a> Closure<'a> {
             [archived, alias, predicate]
                 if matches!(archived.kind, CheckedQueryClauseKind::Archived) =>
             {
-                (alias, predicate, None, Some(archived))
+                (alias, Some(predicate), None, Some(archived))
             }
             [archived, alias, predicate, order]
                 if matches!(archived.kind, CheckedQueryClauseKind::Archived) =>
             {
-                (alias, predicate, Some(order), Some(archived))
+                (alias, Some(predicate), Some(order), Some(archived))
             }
-            [alias, predicate] => (alias, predicate, None, None),
-            [alias, predicate, order] => (alias, predicate, Some(order), None),
+            // Order-only first (no where predicate): the id-ordered scan
+            // records no predicate, no dependencies and no transported
+            // inputs; the authored order re-verifies in the order follow-up.
+            [alias, order]
+                if matches!(order.kind, CheckedQueryClauseKind::Order) =>
+            {
+                (alias, None, Some(order), None)
+            }
+            [alias, predicate] => (alias, Some(predicate), None, None),
+            [alias, predicate, order] => (alias, Some(predicate), Some(order), None),
             _ => return None,
         };
         // The grammar admits only the exact `archived=include` spelling, so
@@ -11921,8 +11929,10 @@ impl<'a> Closure<'a> {
             || alias.node != fact.alias
             || !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
             || !alias.expressions.is_empty()
-            || predicate.kind != CheckedQueryClauseKind::Where
-            || predicate.expressions.len() != 1
+            || predicate.is_some_and(|predicate| {
+                predicate.kind != CheckedQueryClauseKind::Where
+                    || predicate.expressions.len() != 1
+            })
             || order.is_some_and(|order| {
                 order.kind != CheckedQueryClauseKind::Order || order.expressions.len() != 1
             })
@@ -11931,11 +11941,24 @@ impl<'a> Closure<'a> {
         {
             return None;
         }
-        let predicate_node = predicate.expressions[0];
-        // A where predicate is one `==` conjunct or an `and` chain of them,
-        // flattened order-preserving. Any other shape (`or`, comparisons,
-        // calls) keeps the closure refusal below.
-        let mut pending = vec![predicate_node];
+        // An order-only first (no where predicate) records no conjuncts, no
+        // dependencies and no transported inputs; the authored order
+        // re-verifies in the order follow-up below.
+        let mut members: Vec<(
+            NodeKey,
+            SymbolId,
+            ResolvedType,
+            NodeKey,
+            Option<(NodeKey, SymbolId)>,
+        )> = Vec::new();
+        let mut operand_texts: Vec<Option<String>> = Vec::new();
+        let mut operand_receivers: Vec<Option<NodeKey>> = Vec::new();
+        let predicate_node: Option<NodeKey> = if let Some(predicate) = predicate {
+            let predicate_node = predicate.expressions[0];
+            // A where predicate is one `==` conjunct or an `and` chain of them,
+            // flattened order-preserving. Any other shape (`or`, comparisons,
+            // calls) keeps the closure refusal below.
+            let mut pending = vec![predicate_node];
         let mut conjuncts = Vec::new();
         while let Some(node) = pending.pop() {
             if let Some((left, right)) = self.query_binary(node, "and") {
@@ -11959,15 +11982,6 @@ impl<'a> Closure<'a> {
         // Each conjunct admits exactly like the former single predicate: a
         // stored-row field compared against an actor/param/event operand.
         // Dependencies and transported inputs accumulate per conjunct.
-        let mut members: Vec<(
-            NodeKey,
-            SymbolId,
-            ResolvedType,
-            NodeKey,
-            Option<(NodeKey, SymbolId)>,
-        )> = Vec::new();
-        let mut operand_texts: Vec<Option<String>> = Vec::new();
-        let mut operand_receivers: Vec<Option<NodeKey>> = Vec::new();
         for conjunct in &conjuncts {
             let (member, operand) = self.query_binary(*conjunct, "==")?;
             let field = self.query_member(member, alias.node, fact.model)?;
@@ -12055,6 +12069,10 @@ impl<'a> Closure<'a> {
             // instead of span arithmetic.
             operand_receivers.push(member_operand.as_ref().map(|(_, _, receiver)| *receiver));
         }
+            Some(predicate_node)
+        } else {
+            None
+        };
         // Bound before dependencies: the opaque query id anchors them.
         let id = self.opaque("query", fact.query, "").ok()?;
         let dependencies = members
@@ -12074,7 +12092,11 @@ impl<'a> Closure<'a> {
             .iter()
             .filter_map(|(_, _, _, _, input)| *input)
             .collect::<Vec<_>>();
-        let operand = members.first().map(|member| member.3)?;
+        // An order-only first carries no predicate operand: the alias
+        // anchors the required field, and no reader touches it while
+        // dependencies and inputs stay empty (checked_first_query_predicate
+        // takes the where-less branch for exactly that state).
+        let operand = members.first().map(|member| member.3).unwrap_or(alias.node);
         let extra_operands = members
             .iter()
             .skip(1)
@@ -12138,7 +12160,7 @@ impl<'a> Closure<'a> {
             model: fact.model,
             model_name: owner.canonical.clone(),
             alias: Some(alias.node),
-            predicate: Some(predicate_node),
+            predicate: predicate_node,
             inputs,
             order,
             limit: None,

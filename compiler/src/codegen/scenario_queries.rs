@@ -3337,7 +3337,10 @@ fn check_first_dependencies<'i, 'g>(
     &'i IrItem,
 )>> {
     use crate::analysis::scenario_disclosure::DependencyRole;
-    if q.dependencies.is_empty()
+    // An order-only first carries no predicate and no transported inputs,
+    // so empty dependencies are its honest state; a where-query with no
+    // dependencies is malformed and keeps the refusal.
+    if (q.dependencies.is_empty() && q.predicate.is_some())
         || declared.iter().any(|id| {
             ir.items
                 .get(id.0 as usize)
