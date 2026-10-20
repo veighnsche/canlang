@@ -395,13 +395,20 @@ impl HookProfile<'_> {
                 self.event_parent_class(base, aliases)
             }
             IrExpr::Member { base, field } => {
-                // CAN18-v1 direct snapshot stored-reference edges only
+                // Direct snapshot stored-reference edges
                 // (`event.after.<ref>`, `event.before.<ref>` on update, or
-                // the same through a snapshot alias). Deeper chains
-                // (`parent.<ref>`, `<ref>.<leaf>.<x>`) stay unclassified so
-                // parent tails and deep traversals keep their refusal.
+                // the same through a snapshot alias) plus one parent step
+                // (`event.after.parent.<ref>` and the same through a parent
+                // alias): the parent linkage identity resolves the owning
+                // model, and the declared stored-reference edge resolves
+                // the target the same way. Deeper chains
+                // (`<ref>.<leaf>.<x>`, grandparent tails) stay unclassified
+                // so deep traversals keep their refusal.
                 let (base_model, base_class) = self.event_class(base, aliases)?;
-                if !matches!(base_class, EventAlias::Snapshot) {
+                if !matches!(
+                    base_class,
+                    EventAlias::Snapshot | EventAlias::ParentIdentity
+                ) {
                     return None;
                 }
                 let target = self.event_reference_target(base_model, field)?;
@@ -511,9 +518,13 @@ impl HookProfile<'_> {
             }
         }
         match (stripped(left), stripped(right)) {
+            // Email joins the exact-equality scalars: it is string-backed,
+            // and snapshot leaf reads of it are already admitted, so an
+            // `event.before`/`event.after` email comparison lowers through
+            // the same shared binary lowering as every other equality here.
             (
                 ResolvedType::Scalar(
-                    Scalar::Int | Scalar::Date | Scalar::Datetime | Scalar::Duration | Scalar::Bool | Scalar::Text,
+                    Scalar::Int | Scalar::Date | Scalar::Datetime | Scalar::Duration | Scalar::Bool | Scalar::Text | Scalar::Email,
                 ),
                 ResolvedType::Scalar(_),
             ) => stripped(left) == stripped(right),
@@ -539,12 +550,24 @@ impl HookProfile<'_> {
             IrExpr::Null if expr.ty == ResolvedType::Null => Some(true),
             IrExpr::Text(value)
                 if expr.ty == ResolvedType::Scalar(Scalar::Text)
-                    || matches!(&expr.ty, ResolvedType::Enum { cases, .. } if self.leaf(&expr.ty) && cases.contains(value)) =>
+                    || matches!(&expr.ty, ResolvedType::Enum { cases, .. } if self.leaf(&expr.ty) && cases.contains(value))
+                    // Builtin-parameter enums (e.g. a named fold mode)
+                    // have no declaring field; resolved case membership
+                    // is the correspondence (same basis as the Name arm
+                    // below; the emitter already quotes these as strings).
+                    || matches!(&expr.ty, ResolvedType::Enum { owner: None, cases } if cases.contains(value)) =>
             {
                 Some(true)
             }
             IrExpr::Name(name) if locals.get(name) == Some(&expr.ty) => Some(true),
             IrExpr::Name(name) if matches!(&expr.ty, ResolvedType::Enum { cases, .. } if self.leaf(&expr.ty) && cases.contains(name)) => {
+                Some(true)
+            }
+            // Builtin-parameter enums (e.g. a named fold mode) have no
+            // declaring field; resolved case membership is the
+            // correspondence. The emitter already quotes these as strings,
+            // as ordinary scenario bodies using the same builtins prove.
+            IrExpr::Name(name) if matches!(&expr.ty, ResolvedType::Enum { owner: None, cases } if cases.contains(name)) => {
                 Some(true)
             }
             IrExpr::Date(_) if expr.ty == ResolvedType::Scalar(Scalar::Date) => Some(true),
@@ -1243,6 +1266,67 @@ impl HookProfile<'_> {
         })
     }
 
+    /// Snapshot rows project to linkage for stored-record create inputs: the
+    /// snapshot always carries the trigger identity, and the engine stages
+    /// record inputs as `{model, id}` (the parent slot already lowers this
+    /// way). Admits only when the declared field is the same stored model;
+    /// anything else falls through to the leaf/contract rules below.
+    #[allow(clippy::too_many_arguments)]
+    fn snapshot_record_input(
+        &mut self,
+        model: SymbolId,
+        name: &str,
+        value: &TypedExpr,
+        locals: &HashMap<String, ResolvedType>,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>,
+        depth: usize,
+    ) -> Option<bool> {
+        // Non-event values fall through to the leaf/contract rules below;
+        // only snapshot rows take the linkage projection.
+        if !matches!(
+            self.event_class(value, aliases),
+            Some((_, EventAlias::Snapshot))
+        ) {
+            return Some(false);
+        }
+        let want = value.ty.nullable_inner().unwrap_or(&value.ty);
+        let ResolvedType::Record { symbol, stored: true } = want else {
+            return Some(false);
+        };
+        let mut declared = false;
+        for item in self.program.items.iter() {
+            if item.name != name || item.module != self.module {
+                continue;
+            }
+            let IrItemKind::Field {
+                owner,
+                ty: IrType::Known(field_ty),
+                ..
+            } = &item.kind
+            else {
+                continue;
+            };
+            if *owner != model {
+                continue;
+            }
+            let have = field_ty.nullable_inner().unwrap_or(field_ty);
+            if *have
+                == (ResolvedType::Record {
+                    symbol: *symbol,
+                    stored: true,
+                })
+            {
+                declared = true;
+                break;
+            }
+        }
+        if !declared {
+            return Some(false);
+        }
+        self.expr(value, locals, aliases, depth + 1)?;
+        Some(true)
+    }
+
     fn input(
         &mut self,
         model: SymbolId,
@@ -1283,6 +1367,9 @@ impl HookProfile<'_> {
                 continue;
             }
             if self.nullable_reference_null(model, name, value) {
+                continue;
+            }
+            if self.snapshot_record_input(model, name, value, locals, aliases, depth)? {
                 continue;
             }
             let ty = self.field(model, name, true)?;
@@ -1344,6 +1431,17 @@ impl HookProfile<'_> {
             // model; every supplied writable field is validated
             // against that model.
             self.input(self.model, changes, locals, aliases, depth + 1)?;
+        } else if let IrExpr::Member { base: _, field } = &record.expr
+            && field == "parent"
+            && let Some((parent_model, EventAlias::ParentIdentity)) =
+                self.event_class(record, aliases)
+            && parent_model != self.model
+        {
+            // Staged parent update: the engine addresses the stored
+            // parent row by model plus linkage id (lower_hook_set
+            // stages exactly this shape for non-after targets);
+            // changes validate against the parent's declared fields.
+            self.input(parent_model, changes, locals, aliases, depth + 1)?;
         } else if let IrExpr::Name(name) = &record.expr {
             // Staged update of a bound full row (contained
             // query items) or staged binding: addressed by

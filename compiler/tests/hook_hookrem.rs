@@ -157,78 +157,92 @@ fn codes(diags: &[Diagnostic]) -> Vec<String> {
 /// File 19 shape (spans 11789..11832, 12187..12230):
 /// `event.after.parent.parent.location.timezone` — grandparent ancestry
 /// prefix (`Obligation -> Term -> Agreement`) followed by the stored
-/// reference hop (`Agreement.location`) and the leaf read. The outermost
-/// access gaps with the exact transitive-load prerequisite; no inner hop
-/// lowers.
+/// reference hop (`Agreement.location`) and the leaf read. The whole chain
+/// lowers through sequential transitive loads: one `load` per parent hop,
+/// one `loadReference` for the stored hop, then the leaf off loaded data.
 #[test]
-fn hookrem_grandparent_reference_tail_refused() {
+fn hookrem_grandparent_reference_tail_lowers() {
     let src = "app T\nGiven\n L { tz:text }\n A { loc:L }\n M in A { zone:text }\n C in M { t:text }\nWhen\n scenario arm on=C.create\n  do\n   let z=event.after.parent.parent.loc.tz\n   set event.after {t=z}\nThen\n";
     let (js, diags, path) = hookrem_js(src);
     let _ = std::fs::remove_file(&path);
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message.contains("hook parent content")
-            && d.message.contains("need the transitive load")),
-        "grandparent reference tail refuses loud: {}",
+        diags.is_empty(),
+        "grandparent reference chain lowers clean: {}",
         codes(&diags).join("\n")
     );
-    assert!(js.contains("has no lowering"), "fail-closed placeholder:\n{js}");
     assert!(
-        !js.contains("transitive.load"),
-        "no partial transitive load for the refused chain:\n{js}"
+        js.contains("transitive.load($hookScope,\"T.M\","),
+        "first parent hop loads:\n{js}"
+    );
+    assert!(
+        js.contains("transitive.load($hookScope,\"T.A\","),
+        "second parent hop loads:\n{js}"
+    );
+    assert!(
+        js.contains("transitive.loadReference($hookScope,\"T.L\","),
+        "stored hop loads by reference:\n{js}"
+    );
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder remains:\n{js}"
     );
 }
 
 /// File 20 shape (spans 14464..14500, 14962..14998, 15223..15259):
 /// `event.after.parent.location.timezone` — direct-parent prefix
 /// (`Plan -> Asset`) followed by the stored reference hop
-/// (`Asset.location`). Same missing prerequisite as the file-19 tail.
+/// (`Asset.location`). The parent hop loads, then the stored hop loads by
+/// reference; the leaf reads off loaded data.
 #[test]
-fn hookrem_parent_reference_tail_refused() {
+fn hookrem_parent_reference_tail_lowers() {
     let src = "app T\nGiven\n L { tz:text }\n A { loc:L }\n P in A { n:text, t:text }\nWhen\n scenario arm on=P.create\n  do\n   let z=event.after.parent.loc.tz\n   set event.after {t=z}\nThen\n";
     let (js, diags, path) = hookrem_js(src);
     let _ = std::fs::remove_file(&path);
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message.contains("hook parent content")
-            && d.message.contains("need the transitive load")),
-        "parent reference tail refuses loud: {}",
+        diags.is_empty(),
+        "parent reference chain lowers clean: {}",
         codes(&diags).join("\n")
     );
-    assert!(js.contains("has no lowering"), "fail-closed placeholder:\n{js}");
+    assert!(
+        js.contains("transitive.load($hookScope,\"T.A\","),
+        "parent hop loads:\n{js}"
+    );
+    assert!(
+        js.contains("transitive.loadReference($hookScope,\"T.L\","),
+        "stored hop loads by reference:\n{js}"
+    );
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder remains:\n{js}"
+    );
 }
 
 /// File 19 exact composition (`event.after.parent.timezone ??
-/// event.after.parent.parent.location.timezone`): the covered depth-1
-/// prefix lowers through the landed scope-2 stack (decision/value
-/// transitive load over the declared `timezone?` field) while the
-/// uncovered tail refuses loud in the same hook. One E6008 only.
+/// event.after.parent.parent.location.timezone`): the depth-1 prefix
+/// lowers through the landed scope-2 stack (decision/value transitive load
+/// over the declared `timezone?` field) and the grandparent tail now
+/// lowers through its own sequential chain in the same hook. No E6008.
 #[test]
-fn hookrem_covered_prefix_lowers_while_tail_refuses() {
+fn hookrem_covered_prefix_lowers_while_tail_lowers() {
     let src = "app T\nGiven\n L { tz:timezone }\n A { loc:L }\n M in A { zone:timezone? }\n C in M { t:text, tz:timezone }\nWhen\n scenario arm on=C.create\n  do\n   let z=event.after.parent.zone ?? event.after.parent.parent.loc.tz\n   set event.after {tz=z}\nThen\n";
     let (js, diags, path) = hookrem_js(src);
     let _ = std::fs::remove_file(&path);
-    let tails: Vec<&Diagnostic> = diags
-        .iter()
-        .filter(|d| {
-            d.code == "E6008"
-                && d.message.contains("hook parent content")
-                && d.message.contains("need the transitive load")
-        })
-        .collect();
-    assert_eq!(
-        tails.len(),
-        1,
-        "exactly the tail refuses: {}",
+    assert!(
+        diags.is_empty(),
+        "both arms lower clean: {}",
         codes(&diags).join("\n")
     );
     assert!(
         js.contains("transitive.load($hookScope,\"T.M\","),
-        "covered direct-parent prefix still loads:\n{js}"
+        "direct-parent prefix still loads:\n{js}"
     );
     assert!(
-        js.contains("has no lowering"),
-        "uncovered tail stays fail-closed:\n{js}"
+        js.contains("transitive.loadReference($hookScope,\"T.L\","),
+        "grandparent tail stored hop loads by reference:\n{js}"
+    );
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder remains:\n{js}"
     );
 }
 

@@ -28,6 +28,7 @@
     "test:e2e": "node scripts/run-tasks.mjs test:e2e:run",
     "check:boundaries": "node scripts/check-package-boundaries.mjs",
     "check:unitban": "scripts/check-no-unit-tests.sh && bun scripts/check-ts-unitban.ts",
+    "verify:prepush": "bun run check:unitban && cargo test --locked --manifest-path packages/work-kernel/Cargo.toml --test registered_conformance --test numeric_text_corpus",
     "verify:installed-worker": "node scripts/verify-installed-worker.mjs",
     "verify:installed-types": "node scripts/verify-installed-types.mjs",
     "build:uncached": "node scripts/run-tasks.mjs build --cache=",

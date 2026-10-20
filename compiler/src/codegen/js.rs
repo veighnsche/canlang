@@ -6102,6 +6102,295 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    /// Deep event-rooted chains (`event.after.parent…`, parent-anchored
+    /// references, grandparent tails): resolve every step against declared
+    /// models, then emit sequential transitive loads ending in a leaf or
+    /// id read. Each load enrolls its row exactly like the single-level
+    /// parent load, so per-row authority is unchanged; snapshots resolve
+    /// linkage inline and never traverse reference content directly.
+    /// Single-level reads keep their existing paths; anything
+    /// unresolvable gaps loud with the usual parent-content diagnostic.
+    fn hook_chain_gap(
+        &mut self,
+        base: &TypedExpr,
+        field: &str,
+        span: Span,
+        expr_ty: &ResolvedType,
+    ) -> String {
+        const GAP_TITLE: &str = "hook parent content";
+        const GAP_MESSAGE: &str = "parent linkage carries identity only (`{model, id}`); parent field reads need the transitive load and have no hook lowering";
+        if self.hook_closure_depth > 0 {
+            return self.hook_gap(
+                "hook parent content",
+                "parent field reads inside hook closures have no hook lowering",
+                span,
+            );
+        }
+        // Collect fields outermost-first, then walk root-outward. Only
+        // field names are needed: models resolve symbolically from the
+        // root, and emitted texts lower from the root name directly.
+        let mut levels: Vec<String> = Vec::new();
+        let mut cursor = base;
+        loop {
+            match &cursor.expr {
+                IrExpr::Member {
+                    base: inner,
+                    field: inner_field,
+                } => {
+                    levels.push(inner_field.clone());
+                    cursor = inner;
+                }
+                _ => break,
+            }
+        }
+        if levels.len() > 8 {
+            return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+        }
+        let mut steps: Vec<String> = levels.into_iter().rev().collect();
+        steps.push(field.to_string());
+        // Resolve the chain root: `event.after|before` or a
+        // snapshot/parent alias. Anything else stays refused.
+        enum ChainRoot {
+            Snapshot,
+            Linkage,
+        }
+        let (text, model, kind) = match &cursor.expr {
+            IrExpr::Name(name) if name == "event" => {
+                let Some(first) = steps.first() else {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                };
+                if first != "after" && first != "before" {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                }
+                let Some(hook) = self.hook.as_ref() else {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                };
+                let Some(trigger_item) = self.ir.items.get(hook.trigger.0 as usize) else {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                };
+                if trigger_item.id != hook.trigger {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                }
+                let first = steps.remove(0);
+                (format!("event.{first}"), trigger_item.id, ChainRoot::Snapshot)
+            }
+            IrExpr::Name(alias_name) => {
+                let alias_class = self.hook_alias_lookup(alias_name);
+                let ResolvedType::Record { symbol, stored: true } = &cursor.ty else {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                };
+                match alias_class {
+                    Some(Some(HookAlias::Snapshot)) => {
+                        (self.lower_expr(cursor), *symbol, ChainRoot::Snapshot)
+                    }
+                    Some(Some(HookAlias::Parent)) => {
+                        (self.lower_expr(cursor), *symbol, ChainRoot::Linkage)
+                    }
+                    _ => return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span),
+                }
+            }
+            _ => return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span),
+        };
+        // Validate each step against declared models and collect the
+        // load plan: parent steps navigate ChildOf edges, reference
+        // steps navigate declared stored references, and only the final
+        // step may read a leaf (or id).
+        enum Plan {
+            Parent { canonical: String },
+            Ref { field: String, canonical: String },
+        }
+        let mut plan: Vec<(String, Plan)> = Vec::new();
+        let mut current = model;
+        for (index, step_field) in steps.iter().enumerate() {
+            let last = index + 1 == steps.len();
+            if step_field == "parent" && !last {
+                let Some(child_item) = self.ir.items.get(current.0 as usize) else {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                };
+                if child_item.id != current {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                }
+                let IrItemKind::Model {
+                    owner: IrOwner::ChildOf(parent_symbol),
+                    ..
+                } = &child_item.kind
+                else {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                };
+                let Some(parent_item) = self.ir.items.get(parent_symbol.0 as usize) else {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                };
+                if parent_item.id != *parent_symbol {
+                    return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+                }
+                plan.push((
+                    step_field.clone(),
+                    Plan::Parent {
+                        canonical: parent_item.canonical.clone(),
+                    },
+                ));
+                current = *parent_symbol;
+                continue;
+            }
+            if last {
+                break;
+            }
+            // Intermediate reference step: declared stored reference on
+            // the current model.
+            let mut target: Option<SymbolId> = None;
+            for item in self.ir.items.iter() {
+                if item.name != *step_field {
+                    continue;
+                }
+                let IrItemKind::Field {
+                    owner,
+                    ty: IrType::Known(ty),
+                    ..
+                } = &item.kind
+                else {
+                    continue;
+                };
+                if *owner != current {
+                    continue;
+                }
+                if let ResolvedType::Record { symbol, stored: true } = ty {
+                    if self
+                        .ir
+                        .items
+                        .get(symbol.0 as usize)
+                        .is_some_and(|t| t.id == *symbol)
+                    {
+                        target = Some(*symbol);
+                        break;
+                    }
+                }
+            }
+            let Some(target) = target else {
+                return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+            };
+            let Some(target_item) = self.ir.items.get(target.0 as usize) else {
+                return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+            };
+            if target_item.id != target {
+                return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+            }
+            plan.push((
+                step_field.clone(),
+                Plan::Ref {
+                    field: step_field.clone(),
+                    canonical: target_item.canonical.clone(),
+                },
+            ));
+            current = target;
+        }
+
+        // Final step: linkage id or a declared leaf on the current model.
+        let Some(final_field) = steps.last() else {
+            return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+        };
+        let leaf_ok = if final_field == "id" {
+            true
+        } else {
+            match expr_ty {
+                ResolvedType::Scalar(_) => {
+                    self.hook_parent_field_allowed(current, final_field, expr_ty)
+                }
+                _ => false,
+            }
+        };
+        if final_field == "version" || !leaf_ok {
+            return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+        }
+        // Emit one fenced scope with sequential loads. Every parent and
+        // reference step enrolls its row exactly like the single-level
+        // loads, so authority tracking is unchanged.
+        let site = self.hook_read_site();
+        let mut stmts: Vec<String> = Vec::new();
+        stmts.push(
+            "if($hookLink==null)throw new Error(\"hook parent content missing\");".to_string(),
+        );
+        stmts.push(format!(
+            "const $hookScope=await $hookCtx.transitive.openScope({});",
+            js_string(site)
+        ));
+        stmts.push("let $hookRow=null;".to_string());
+        let mut link = "$hookLink".to_string();
+        let mut cur_kind = match kind {
+            ChainRoot::Snapshot => "snapshot",
+            ChainRoot::Linkage => "linkage",
+        };
+        // A linkage root carries identity only, so load its row before
+        // traversing further.
+        if cur_kind == "linkage" {
+            let Some(root_item) = self.ir.items.get(model.0 as usize) else {
+                return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+            };
+            if root_item.id != model {
+                return self.hook_gap(GAP_TITLE, GAP_MESSAGE, span);
+            }
+            stmts.push(format!(
+                "$hookRow=await $hookCtx.transitive.load($hookScope,{},$hookLink.id);if($hookRow===null)throw new Error(\"hook parent content missing\");",
+                js_string(&root_item.canonical)
+            ));
+            link = "$hookRow".to_string();
+            cur_kind = "row";
+        }
+        for (step_field, step_plan) in &plan {
+            match step_plan {
+                Plan::Parent { canonical } => {
+                    let _ = step_field;
+                    stmts.push(format!(
+                        "let $hookParent={link}.parent;if($hookParent==null)throw new Error(\"hook parent content missing\");"
+                    ));
+                    stmts.push(format!(
+                        "$hookRow=await $hookCtx.transitive.load($hookScope,{},$hookParent.id);if($hookRow===null)throw new Error(\"hook parent content missing\");",
+                        js_string(canonical)
+                    ));
+                    link = "$hookRow".to_string();
+                    cur_kind = "row";
+                }
+                Plan::Ref { field, canonical } => {
+                    let ref_link = if cur_kind == "snapshot" {
+                        format!("{link}.{field}")
+                    } else {
+                        format!("{link}.data.{field}")
+                    };
+                    stmts.push(format!(
+                        "let $hookRef={ref_link};if($hookRef==null)throw new Error(\"hook reference content missing\");"
+                    ));
+                    stmts.push(format!(
+                        "$hookRow=await $hookCtx.transitive.loadReference($hookScope,{},$hookRef.id);if($hookRow===null)throw new Error(\"hook reference content missing\");",
+                        js_string(canonical)
+                    ));
+                    link = "$hookRow".to_string();
+                    cur_kind = "row";
+                }
+            }
+        }
+        let access = if object_key(final_field) == *final_field {
+            format!(".{final_field}")
+        } else {
+            format!("[{}]", js_string(final_field))
+        };
+        let tail = if final_field == "id" {
+            format!("{link}.id")
+        } else if cur_kind == "snapshot" {
+            format!("{link}{access}")
+        } else {
+            format!("{link}.data{access}")
+        };
+        let tail = if expr_ty.nullable_inner().is_some() {
+            format!("({tail} ?? null)")
+        } else {
+            tail
+        };
+        stmts.push(format!("return {tail};"));
+        format!(
+            "(await (async($hookLink)=>{{{}}}))({text})",
+            stmts.join(""),
+        )
+    }
+
     /// Traversal guard for hook member reads. Returns the throwing
     /// placeholder (after reporting `E6008`) exactly when the read passes
     /// through event reference content, staged identities, nested closures
@@ -6193,11 +6482,7 @@ impl<'a> Emitter<'a> {
                 "reads through event references need the transitive load and have no hook lowering",
                 span,
             )),
-            HookBase::DeepParent => Some(self.hook_gap(
-                "hook parent content",
-                "parent linkage carries identity only (`{model, id}`); parent field reads need the transitive load and have no hook lowering",
-                span,
-            )),
+            HookBase::DeepParent => Some(self.hook_chain_gap(base, field, span, expr_ty)),
             HookBase::DeepStaged => Some(self.hook_gap(
                 "hook staged content",
                 "staged bindings carry identity only (`{id}`); staged field reads have no hook lowering",
@@ -11866,11 +12151,42 @@ fn null_equality(
                 parenthesize_operand(&base, &value.expr)
             );
         }
-        let data = self.lower_expr(&TypedExpr::new(
-            IrExpr::Object(data_entries),
-            ResolvedType::Unknown,
-            span,
-        ));
+        let mut data_parts: Vec<String> = Vec::new();
+        for (key, value) in &data_entries {
+            // Snapshot rows project to linkage for stored-record inputs
+            // (the profiler admits exactly these shapes): the staged write
+            // carries `{model, id}` like the parent slot. Anything else
+            // lowers inline as before.
+            let linkage_model = match value.ty.nullable_inner().unwrap_or(&value.ty) {
+                ResolvedType::Record { symbol, stored: true } => {
+                    match self.hook_base_class(value) {
+                        HookBase::Root | HookBase::Snapshot => self
+                            .ir
+                            .items
+                            .get(symbol.0 as usize)
+                            .map(|item| item.canonical.clone()),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            };
+            if let Some(link_model) = linkage_model {
+                let base = self.lower_expr(value);
+                let id = format!(
+                    "{}.id",
+                    parenthesize_operand(&base, &value.expr)
+                );
+                let linkage = if matches!(&value.ty, ResolvedType::Record { .. }) {
+                    format!("{{model:{},id:{id}}}", js_string(&link_model))
+                } else {
+                    format!("({base}==null?null:{{model:{},id:{id}}})", js_string(&link_model))
+                };
+                data_parts.push(format!("{}:{linkage}", object_key(key)));
+            } else {
+                data_parts.push(format!("{}:{}", object_key(key), self.lower_expr(value)));
+            }
+        }
+        let data = format!("{{{}}}", data_parts.join(","));
         let id_ref = binding.clone().map(|name| self.bind(&name));
         if self.in_hook() {
             // Staged bindings carry the bound `{id}` identity: bare and

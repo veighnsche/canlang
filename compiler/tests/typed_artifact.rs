@@ -75,6 +75,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
         export: "canApp".into(),
         input_style: None,
         member: vec!["z".into(), "a".into()],
+        source: None,
     }];
     artifact.operations = vec![JsOperation {
         name: "Z.go".into(),
