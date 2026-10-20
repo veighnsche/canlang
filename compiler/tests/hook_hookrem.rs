@@ -335,20 +335,27 @@ fn hookrem_toplevel_location_reference_refused() {
 
 /// File 8 shape (spans 59122..59148, 59519..59545):
 /// `policy_snapshot_1.sequence` — field read off a hook-staged binding
-/// (`create ResourcePolicy {...} as policy_snapshot_1`). Staged bindings
-/// carry identity only (`{id}`); no staged-content loader exists at any
-/// owner, so the read refuses loud instead of reading `undefined`.
+/// (`create ResourcePolicy {...} as policy_snapshot_1`). Native hooks
+/// pair the staged id with the supplied data in one local object, so
+/// reads of explicitly written fields observe exactly what the hook
+/// staged (evaluated once, shared with the stage call). Anything else
+/// off a staged binding still refuses loud.
 #[test]
-fn hookrem_staged_binding_field_refused() {
+fn hookrem_staged_binding_field_lowers() {
     let src = "app T\nGiven\n M { seq:text }\n C in M { t:text }\nWhen\n scenario arm on=C.create\n  do\n   create M {seq=\"s1\"} as snap\n   let s=snap.seq\n   set event.after {t=s}\nThen\n";
     let (js, diags, path) = hookrem_js(src);
     let _ = std::fs::remove_file(&path);
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message.contains("hook staged content")
-            && d.message.contains("staged field reads have no hook lowering")),
-        "staged binding field refuses loud: {}",
+        diags.is_empty(),
+        "supplied staged field lowers clean: {}",
         codes(&diags).join("\n")
     );
-    assert!(js.contains("has no lowering"), "fail-closed placeholder:\n{js}");
+    assert!(
+        js.contains("$hookCtx.stage("),
+        "staged write still stages:\n{js}"
+    );
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder remains:\n{js}"
+    );
 }

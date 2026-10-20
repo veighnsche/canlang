@@ -47,6 +47,7 @@ pub fn local_hook_supported(program: &IrProgram, scenario: SymbolId) -> bool {
         module: item.module,
         remaining: 4096,
         hook_body_derives: Vec::new(),
+        staged_data: HashMap::new(),
     };
     if !profile.model_supported(hook.model) {
         return false;
@@ -69,6 +70,12 @@ struct HookProfile<'a> {
     /// A linkage-carrying helper whose body reaches itself (directly or
     /// through another linkage helper) refuses instead of recursing.
     hook_body_derives: Vec<String>,
+    /// Explicitly supplied staged-create data fields by source alias.
+    /// Mirrors the native emitter's staged local binding: reads of
+    /// exactly these fields observe what the hook staged. Entries are
+    /// scoped like aliases (branches and loop bodies discard theirs)
+    /// and a staged update to the alias drops its entry.
+    staged_data: HashMap<String, HashSet<String>>,
 }
 
 /// Row-binding class for hook locals. A snapshot alias
@@ -602,6 +609,22 @@ impl HookProfile<'_> {
             .event_class(base, aliases)
             .is_some_and(|(_, class)| matches!(class,
                 EventAlias::ParentIdentity | EventAlias::ReferenceIdentity))
+            && self.hook_snapshot_field(model, field, ty)
+        {
+            return Some(());
+        }
+        // Staged data reads: the native emitter pairs the staged id
+        // with this same supplied data, so exactly the explicitly
+        // written fields (never `id`, never server-set fields) read
+        // what the hook staged. Staged updates drop the entry above.
+        if let IrExpr::Name(name) = &base.expr
+            && aliases
+                .get(name)
+                .is_some_and(|(_, class)| *class == EventAlias::Staged)
+            && self
+                .staged_data
+                .get(name)
+                .is_some_and(|fields| fields.contains(field))
             && self.hook_snapshot_field(model, field, ty)
         {
             return Some(());
@@ -1447,12 +1470,15 @@ impl HookProfile<'_> {
             // query items) or staged binding: addressed by
             // model plus record id. Same-model staging stays
             // checker-barred (E4052); event aliases never
-            // qualify as set targets.
+            // qualify as set targets. A staged update leaves no
+            // local state behind, so the alias no longer offers
+            // its created data to reads.
             if aliases.get(name).is_some_and(|(_, class)| {
                 *class != EventAlias::Staged
             }) {
                 return None;
             }
+            self.staged_data.remove(name);
             let mut row_ty = locals.get(name)?;
             while let ResolvedType::Nullable(inner) = row_ty {
                 row_ty = inner;
@@ -1508,7 +1534,10 @@ impl HookProfile<'_> {
         );
         let mut inner_aliases = aliases.clone();
         inner_aliases.remove(item);
+        // Loop-body writes discard like the cloned aliases.
+        let saved_staged = self.staged_data.clone();
         self.statements(body, &mut inner_locals, &mut inner_aliases, depth + 1)?;
+        self.staged_data = saved_staged;
         Some(true)
     }
     fn visit_create_statement(
@@ -1540,9 +1569,23 @@ impl HookProfile<'_> {
         self.input(target.id, input, locals, aliases, depth + 1)?;
         if let Some(name) = binding {
             // The bound `{id}` identity serves bare and `.id`
-            // uses (emit payloads, cancellation keys); field
-            // reads through it refuse like parent linkage.
+            // uses (emit payloads, cancellation keys); other fields
+            // read exactly when the native emitter pairs the staged
+            // id with this same supplied data (see hook_member_expr).
+            // `id` is never a data field (the staged identity owns
+            // it) and `parent` travels as linkage, never data, on
+            // both sides — so neither is admittable here.
             aliases.insert(name.clone(), (target.id, EventAlias::Staged));
+            if let IrExpr::Object(entries) = &input.expr {
+                self.staged_data.insert(
+                    name.clone(),
+                    entries
+                        .iter()
+                        .map(|(key, _)| key.clone())
+                        .filter(|key| key != "id" && key != "parent")
+                        .collect(),
+                );
+            }
             locals.insert(
                 name.clone(),
                 ResolvedType::Record {
@@ -1573,18 +1616,23 @@ impl HookProfile<'_> {
             return None;
         }
         self.expr(cond, locals, aliases, depth + 1)?;
+        // Branch writes discard like the cloned aliases: a staged
+        // alias created on one arm must not offer its data after it.
+        let saved_staged = self.staged_data.clone();
         self.statements(
             then_branch,
             &mut locals.clone(),
             &mut aliases.clone(),
             depth + 1,
         )?;
+        self.staged_data = saved_staged.clone();
         self.statements(
             else_branch,
             &mut locals.clone(),
             &mut aliases.clone(),
             depth + 1,
         )?;
+        self.staged_data = saved_staged;
         Some(true)
     }
     fn visit_scheduled_statement(

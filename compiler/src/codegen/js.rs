@@ -4305,6 +4305,12 @@ pub struct Emitter<'a> {
     /// `Some` classifies the binding; `None` shadows an outer alias with a
     /// plain value. Consulted only while hook lowering is active.
     hook_aliases: Vec<HashMap<String, Option<HookAlias>>>,
+    /// Explicitly supplied staged-create data fields by source alias.
+    /// Native hooks bind each staged alias to a local `{id, ...data}`
+    /// object, so reads of exactly these fields observe the same values
+    /// the stage call carries (evaluated once). Cleared with the alias
+    /// scopes on hook exit and invalidated by staged updates.
+    hook_staged_data: HashMap<String, HashSet<String>>,
     /// Closure nesting inside hook lowering (lambdas and query row
     /// closures). Top-level parent-content reads lower via the transitive
     /// parent load (`await` is legal in the async run function); nested
@@ -4572,6 +4578,7 @@ impl<'a> Emitter<'a> {
             pages: Vec::new(),
             hook: None,
             hook_aliases: vec![HashMap::new()],
+            hook_staged_data: HashMap::new(),
             hook_closure_depth: 0,
             hook_decision_depth: 0,
             hook_helper_links: None,
@@ -5628,6 +5635,7 @@ impl<'a> Emitter<'a> {
         for scope in &mut self.hook_aliases {
             scope.clear();
         }
+        self.hook_staged_data.clear();
     }
 
     /// Drain diagnostics, builtin references, callables and pages.
@@ -6421,6 +6429,17 @@ impl<'a> Emitter<'a> {
             HookBase::Parent => self.hook_parent_gap(base, field, span, expr_ty),
             HookBase::Staged => {
                 if field == "id" {
+                    None
+                } else if self.hook_native()
+                    && matches!(&base.expr, IrExpr::Name(name)
+                        if self
+                            .hook_staged_data
+                            .get(name)
+                            .is_some_and(|fields| fields.contains(field)))
+                {
+                    // The native stage call paired this alias with its
+                    // supplied data, so the field reads exactly what the
+                    // hook staged (evaluated once, shared with the call).
                     None
                 } else {
                     Some(self.hook_gap(
@@ -12190,10 +12209,23 @@ fn null_equality(
         let id_ref = binding.clone().map(|name| self.bind(&name));
         if self.in_hook() {
             // Staged bindings carry the bound `{id}` identity: bare and
-            // `.id` uses lower; field reads gap loud (see hook_member_gap).
+            // `.id` uses lower; other field reads gap loud unless the
+            // native stage call below paired the id with the supplied
+            // data (see hook_member_gap). `id` is never a data field:
+            // the staged identity owns it.
             if let Some(source) = binding {
                 if let Some(scope) = self.hook_aliases.last_mut() {
                     scope.insert(source.clone(), Some(HookAlias::Staged));
+                }
+                if self.hook_native() {
+                    self.hook_staged_data.insert(
+                        source.clone(),
+                        data_entries
+                            .iter()
+                            .map(|(key, _)| key.clone())
+                            .filter(|key| key != "id")
+                            .collect(),
+                    );
                 }
             }
         }
@@ -12221,13 +12253,29 @@ fn null_equality(
             "$hookCtx.triggerId+\"/staged/\"+(($hookCtx.operationId??\"0\"))+\"/\"+{site}+\"/\"+(($hookCtx.hookOccurrence??0))+({slot}===0?\"\":\"/\"+{slot})"
         );
         if self.hook_native() {
+            // With a bound alias, keep the single data evaluation in a
+            // local const and pair it with the deterministic staged id, so
+            // reads of explicitly supplied fields observe exactly what the
+            // stage call carries. The spread comes first so a data `id`
+            // could never shadow the staged identity.
+            if let Some(name) = id_ref {
+                let data_slot = binding_ident("n", &self.binding_seq.to_string());
+                self.binding_seq += 1;
+                let call = format!("$hookCtx.stage({{op:\"create\",model:{},id:{name}.id{parent_text},data:{data_slot}}})", js_string(model));
+                return vec![
+                    (format!("{pad}const {slot}=$stagedNext++;"), span),
+                    (format!("{pad}const {data_slot}={data};"), span),
+                    (
+                        format!("{pad}const {name}={{...{data_slot},id:{id_value}}};"),
+                        span,
+                    ),
+                    (format!("{pad}{call};"), span),
+                ];
+            }
             let call = format!("$hookCtx.stage({{op:\"create\",model:{},id:{id_value}{parent_text},data:{data}}})", js_string(model));
             return vec![
                 (format!("{pad}const {slot}=$stagedNext++;"), span),
-                (match id_ref {
-                    Some(name) => format!("{pad}const {name}={call};"),
-                    None => format!("{pad}{call};"),
-                }, span),
+                (format!("{pad}{call};"), span),
             ];
         }
         let mut lines: Vec<(String, Span)> = match &id_ref {
@@ -12266,6 +12314,11 @@ fn null_equality(
         span: Span,
         pad: &str,
     ) -> Vec<(String, Span)> {
+        // A staged update leaves no local state behind, so a staged
+        // alias written here no longer offers its created data to reads.
+        if let IrExpr::Name(name) = &record.expr {
+            self.hook_staged_data.remove(name);
+        }
         if matches!(&record.expr, IrExpr::Member { base, field }
             if field == "after" && matches!(&base.expr, IrExpr::Name(name) if name == "event"))
         {
