@@ -1,0 +1,58 @@
+# Review and send replies through a configured test mailbox.
+app MailReplies
+use std {MailboxV1 as Post,IncomingEmail,MailReply} from=deployment.inbox
+Given
+ role agent
+ Message {mailbox:text,source:text,envelope:IncomingEmail,reply:Reply?}
+ Reply in Message {request:MailReply,delivery:delivery(Post.reply)?,reconciliation:delivery(Post.reconcile)?}
+ policy Message read=agent
+ policy Reply read=agent
+ unique Message fields=mailbox,source
+ lock Message fields=mailbox,source,envelope
+ lock Reply fields=request when=row.delivery!=null
+ lock Reply fields=delivery when=row.delivery!=null
+When
+ scenario receive on=Post.received
+  do
+   let existing=first(Message as message where message.envelope.mailbox==event.value.mailbox and message.envelope.source==event.value.source)
+   if existing==null
+    create Message {mailbox=event.value.mailbox,source=event.value.source,envelope=event.value} as message
+   else
+    require existing.envelope==event.value
+ scenario prepare(message:Message,to:MailReply.to,subject:text,body:text,attachments:file[]=[]) by=agent
+  require message.reply==null and message.envelope.body_complete and message.envelope.attachments_complete
+  require trim(body)!=""
+  do
+   let request=MailReply {source=operation.id,mailbox=message.envelope.mailbox,message=message.envelope.source,to,subject,body,attachments}
+   create Reply {parent=message,request} as reply
+   set message {reply}
+ scenario revise(reply:Reply,to:MailReply.to,subject:text,body:text,attachments:file[]=[]) by=agent
+  require reply.delivery==null and trim(body)!=""
+  do
+   let request=MailReply {source=reply.request.source,mailbox=reply.request.mailbox,message=reply.request.message,to,subject,body,attachments}
+   set reply {request}
+ scenario send_reply(reply:Reply) by=agent
+  require reply.delivery==null
+  do
+   send Post.reply {value=reply.request} as delivery
+   set reply {delivery}
+ scenario reconcile(reply:Reply) by=agent
+  require reply.delivery!=null and reply.delivery.result?.state!=accepted
+  require reply.reconciliation==null or (reply.reconciliation.status!=pending and reply.reconciliation.result?.state!=accepted)
+  do
+   send Post.reconcile {source=reply.request.source} as reconciliation
+   set reply {reconciliation}
+Then
+ page / title="Incoming messages"
+  list Message
+   text row.envelope.sender,row.envelope.subject
+   text row.envelope.body,row.envelope.body_complete,row.envelope.attachments_complete
+   action prepare
+ page /replies title="Reviewed replies" poll=2s
+  list Reply columns=delivery.status,reconciliation.status
+   text row.request.to,row.request.subject
+   text row.request.body,row.request.attachments
+   text row.delivery?.result?.state,row.reconciliation?.result?.state
+   action revise
+   action send_reply
+   action reconcile

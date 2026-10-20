@@ -1,0 +1,35 @@
+app InterfaceTasks
+Given
+ Todo {title:text trim min=1 max=120 unique,done:bool=false,evidence:file?}
+ Checkpoint {owner:user server=actor unique,checked:datetime}
+ policy Todo read=members
+ policy Checkpoint read=members and row.owner==actor
+When
+ crud Todo by=members fields=title,done,evidence
+ scenario matching(title:Todo.title) read=true -> Todo[] by=members
+  do return (Todo as task where task.title==title)
+ scenario add(title:Todo.title) by=members -> Todo
+  do
+   create Todo {title} as task
+   return task
+ scenario open_tasks() read=true -> Todo[] by=members
+  do return (Todo as task where not task.done order=task.title)
+ scenario check_in() by=members
+  do
+   let checkpoint=first(Checkpoint as item where item.owner==actor)
+   if checkpoint==null
+    create Checkpoint {checked=now} as created
+   else
+    set checkpoint {checked=now}
+Then
+ page / title="Import and review tasks" poll=2s
+  form add import=csv review=matching
+   input title
+  table Todo columns=title,done,evidence order=title
+   pagination
+ page /open title="Open task report"
+  form open_tasks
+ page /activity title="Explicit refresh" poll=5s refresh=check_in
+  form check_in
+  list Checkpoint
+   text row.checked

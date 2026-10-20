@@ -70,7 +70,7 @@ curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
 
 The installer detects macOS Apple Silicon or Linux x86-64 with glibc and downloads the matching bundle and checksum from one GitHub release version. The v0.1.1 Linux bundle requires glibc 2.39 or newer. It installs under `~/.can` and configures your shell PATH. Open a new terminal, then run `can --version`.
 
-The bundle contains the compiler, language catalog, private Node runtime, local Worker engine and production dependencies. You do not need to install Rust, Node, Bun, npm packages or a browser. Write and run applications in your own folder using the [installation tutorial](docs/public/01-Start-here/02-installation.md) and [local development guide](docs/public/09-Development/01-local-development.md). Browser automation is a [separate optional development add-on](docs/install.md#optional-browser-development-tools).
+The bundle contains the compiler, language catalog, private Node runtime, local Worker engine and production dependencies. You do not need to install Rust, Node, Bun, npm packages or a browser. Write and run applications in your own folder using the [installation tutorial](docs/public/01-Get-started/03-installation.md) and [local development guide](docs/public/01-Get-started/06-local-development.md). Browser automation is a [separate optional development add-on](docs/install.md#optional-browser-development-tools).
 
 ## Getting the source (optional, for contributors)
 
@@ -116,7 +116,7 @@ The [VS Code-compatible extension](editors/vscode/README.md) provides highlighti
 
 ## Documentation
 
-- [Public handbook](docs/public/01-Start-here/01-index.md): application authoring, interfaces, integrations, generation, development, and deployment.
+- [Public handbook](docs/public/01-Get-started/01-index.md): application authoring, interfaces, integrations, generation, development, and deployment.
 - [Requirements](docs/specification/REQUIREMENTS.md): purpose, scope, and product goals.
 - [Language design](docs/specification/DESIGN.md): semantics, defaults, permissions, operations, integrations, and interfaces.
 - [Grammar](docs/specification/GRAMMAR.md): exact syntax and layout rules, including one-space indentation.

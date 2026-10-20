@@ -1,9 +1,0 @@
-# Defaults and validation
-
-A stored field's type and modifiers define accepted values. `=expr` supplies a create default; `server=expr` assigns a server-owned value. `trim`, `min`, `max`, and `unique` constrain accepted input or stored state according to the field's type. Every required create field must be supplied, defaulted, or server-owned. A nullable field defaults to null; a nonnullable array defaults to `[]`. The stored-field spelling `T[]!` requires an explicit array input. Constraints run after normalization; `min` and `max` are inclusive length bounds on text/arrays and value bounds on numeric fields.
-
-## Update omission and parameter defaults
-
-On update, omitted fields stay unchanged; explicit null clears a nullable field. Create defaults do not run again during update. A scenario parameter typed as `Model.field` reuses that field's value constraints, but not its storage default, server ownership, required-array creation marker, uniqueness, or permissions. Explicit parameter defaults are pure and evaluated once when omitted. `by` admission is evaluated before explicit parameter defaults, so it cannot depend on them; use a leading `require` when a check needs resolved defaults.
-
-Validation failure rejects the operation before commit. Defaults do not grant read access, invent a reference lookup, or bypass owner checks. See [types and values](../02-Language/03-types-and-values.md) for omission/null semantics and [CRUD lifecycle](../05-Workflows/01-crud-and-record-lifecycle.md) for allowlists and patch behavior.

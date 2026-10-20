@@ -1,0 +1,62 @@
+app KnowledgeReview
+use std {KnowledgeRequest,TextRun,IndexState}
+Given
+ role editor
+ Topic {name:text max=100,reader:user,active:bool=true}
+ Revision in Topic {title:text max=200,body:text max=20000,published:bool=false}
+ corpus Handbook model=Revision scope=parent title=title content=body where=row.published and row.parent.active from=deployment.knowledge
+ Question in Topic {owner:user server=actor,value:KnowledgeRequest,request:delivery(Handbook.answer)?,cancellation:delivery(Handbook.cancel)?,reconciliation:delivery(Handbook.reconcile)?,stop_requested:bool=false,review_note:text?}
+ derive Revision.index:IndexState = Handbook.status(row)
+ derive Question.state:TextRun.state? = row.request?.progress?.state
+ derive Question.answer:Handbook.Answer? = row.request?.progress?.answer
+ policy Topic read=members and (row.reader==actor or editor)
+ policy Revision read=members and (editor or (row.published and row.parent.active and row.parent.reader==actor))
+ policy Question read=members and row.owner==actor
+ lock Revision fields=parent,title,body
+ lock Question fields=parent,owner,value,request
+When
+ crud Topic by=editor fields=active create_fields=name,reader delete=none
+ crud Revision by=editor fields=published create_fields=parent,title,body delete=none
+ scenario refresh(revision:Revision) by=editor
+  require revision.published and revision.parent.active
+  do send Handbook.refresh {record=revision} as request
+ scenario ask(topic:Topic,question:KnowledgeRequest.question) by=members -> Question
+  require topic.reader==actor and topic.active
+  do
+   let value=KnowledgeRequest {source=operation.id,revision=1,question,profile="handbook",policy_revision="policy-1",max_input_tokens=8192,max_output_tokens=1024,max_duration=120s,min_sources=1,max_sources=4}
+   create Question {parent=topic,value} as asked
+   send Handbook.answer {scope=topic,value} when=active_member(asked.owner,team) and topic.active and topic.reader==asked.owner and not asked.stop_requested as request
+   set asked {request}
+   return asked
+ scenario stop(question:Question) by=members
+  require question.owner==actor and not (question.state in [succeeded,failed,cancelled]) and question.cancellation?.status!=pending
+  do
+   send Handbook.cancel {source=question.value.source,revision=question.value.revision} as cancellation
+   set question {stop_requested=true,cancellation}
+ scenario reconcile(question:Question) by=members
+  require question.owner==actor and question.reconciliation?.status!=pending
+  do
+   send Handbook.reconcile {source=question.value.source,revision=question.value.revision} as reconciliation
+   set question {reconciliation}
+ scenario review(question:Question,note:text) by=members
+  require question.owner==actor and question.state==succeeded and Handbook.available(question.answer) and trim(note)!=""
+  do set question {review_note=note}
+Then
+ page /sources title="Publish handbook sources" poll=2s
+  require editor
+  table Topic columns=name,reader,active
+  table Revision columns=title,published,index
+   action refresh
+   text row.index
+ page / title="Ask the handbook" poll=1s
+  require members
+  list Topic
+   text row.name
+   action ask
+  list Question
+   text row.value.question,row.request?.status,row.state,row.request?.progress?.coverage,row.request?.progress?.detail
+   content row.answer
+   action stop
+   action reconcile
+   action review
+   text row.review_note

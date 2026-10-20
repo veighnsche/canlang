@@ -1,0 +1,55 @@
+# Look up remote accounts and retain their verified progress.
+app AccountLookup uses=[lookup]
+package lookup
+ use lookup_api {Observation}
+ use lookup_api {AccountsV1 as Remote} from=deployment.accounts
+ Given
+  Lookup {account:text trim min=1,source:text unique,requested_by:user server=actor,request:delivery(Remote.read)?,reconciliation:delivery(Remote.reconcile)?,snapshot:Observation?}
+  policy Lookup read=row.requested_by==actor
+  invariant Lookup: row.snapshot==null or (row.snapshot.source==row.source and ((row.snapshot.state==found and row.snapshot.name!=null) or (row.snapshot.state!=found and row.snapshot.name==null)))
+  lock Lookup fields=account,source,requested_by,request
+ When
+  scenario start(account:text) by=members
+   do
+    create Lookup {account,source=operation.id} as lookup
+    send Remote.read {source=lookup.source,account=lookup.account} as request
+    set lookup {request}
+  scenario reconcile(lookup:Lookup) by=members
+   require lookup.requested_by==actor and lookup.request!=null
+   require lookup.snapshot==null or lookup.snapshot.state in [queued,running,unknown]
+   require lookup.reconciliation==null or lookup.reconciliation.status!=pending
+   do
+    send Remote.reconcile {source=lookup.source} as reconciliation
+    set lookup {reconciliation}
+  scenario completed on=Remote.read.completed
+   do
+    for lookup in Lookup as item where item.request?.id==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      require event.result.source==lookup.source
+      if lookup.snapshot==null or (event.result.sequence>lookup.snapshot.sequence and lookup.snapshot.state in [queued,running,unknown])
+       set lookup {snapshot=event.result}
+  scenario reconciled on=Remote.reconcile.completed
+   do
+    for lookup in Lookup as item where item.reconciliation?.id==event.delivery_id limit=1
+     if event.status==succeeded and event.result!=null
+      require event.result.source==lookup.source
+      if lookup.snapshot==null or (event.result.sequence>lookup.snapshot.sequence and lookup.snapshot.state in [queued,running,unknown])
+       set lookup {snapshot=event.result}
+  scenario progressed on=Remote.changed
+   do
+    for lookup in Lookup as item where item.source==event.value.source limit=1
+     if lookup.snapshot==null or (event.value.sequence>lookup.snapshot.sequence and lookup.snapshot.state in [queued,running,unknown])
+      set lookup {snapshot=event.value}
+ Then
+  page / title="Account lookups" poll=2s
+   form start display=inline
+   list Lookup columns=account,request.status,reconciliation.status
+    card "Verified remote observation"
+     require row.snapshot!=null
+     text row.snapshot.state,row.snapshot.completed
+     text row.snapshot.name,row.snapshot.detail
+    card "Delivery diagnostic"
+     require row.request!=null and row.request.error!=null
+     text row.request.error.message
+    action reconcile
+    pagination

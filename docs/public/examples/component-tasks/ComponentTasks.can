@@ -1,0 +1,15 @@
+# Explore task components with canonical data and actions.
+app ComponentTasks
+Given
+ Todo {title:text trim min=1,note:text?,done:bool=false,priority:enum(low,normal,high)=normal,score:int=3 min=1 max=5,due:date?,code:text min=6 max=6,image:file?}
+ Photo {title:text,image:file}
+ policy Todo read=members
+ policy Photo read=members
+When
+ crud Todo by=members fields=title,note,done,priority,score,due,code,image
+ crud Photo by=members fields=title,image
+Then
+ page / title="Component examples"
+  form Todo.create display=inline
+  list Todo columns=title,done
+   edit

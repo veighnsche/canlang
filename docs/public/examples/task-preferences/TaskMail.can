@@ -1,0 +1,21 @@
+# Send task notices in the recipient's chosen language.
+app TaskMail
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Contact {name:text trim min=1,email:email,preferred_locale:locale?}
+ Todo {title:text trim min=1}
+ message notice_subject = "Task reminder"@{nl="Taakherinnering"}
+ message reminder(name:text,title:text) = "Hello {name}, please review {title}."@{nl="Hallo {name}, bekijk {title}."}
+ policy Contact read=members
+ policy Todo read=members
+When
+ crud Contact by=members fields=name,email,preferred_locale delete=none
+ crud Todo by=members fields=title delete=none
+ scenario notify(contact:Contact,task:Todo) by=members
+  do
+   send Mail.send {to=contact.email,subject=format(notice_subject,locale=contact.preferred_locale),body=format(reminder(contact.name,task.title),locale=contact.preferred_locale)} as notice
+Then
+ page / title="Task notices"
+  form Contact.create display=inline
+  form Todo.create display=inline
+  form notify display=inline

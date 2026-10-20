@@ -1,0 +1,18 @@
+# Attach finalized evidence to a private receipt record.
+app ReceiptFiles
+Given
+ Receipt {title:text trim min=1,evidence:file,owner:user server=actor}
+ policy Receipt read=row.owner==actor
+When
+ crud Receipt by=members fields=title,evidence when=row.owner==actor
+Then
+ page / title="Receipt evidence"
+  form Receipt.create display=inline
+   input title
+   file_input evidence
+   primary "Save receipt" submit=true
+  list Receipt columns=title
+   link target=row.evidence caption="Open evidence"
+   edit fields=title,evidence
+   delete
+   pagination

@@ -1,0 +1,9 @@
+package lookup_api
+ Given
+  export contract Observation {source:text,sequence:int min=1,state:enum(queued,running,found,missing,failed,unknown),completed:int min=0,name:text?,detail:text?}
+  export capability AccountsV1 version=1
+   read(source:text,account:text) -> Observation
+   reconcile(source:text) -> Observation
+   event changed {value:Observation}
+ When
+ Then

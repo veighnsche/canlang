@@ -1,0 +1,33 @@
+app VerifiedTasks
+Given
+ role reviewer
+ Todo {title:text trim min=1,done:bool=false}
+ policy Todo read=members
+ fixture pending=Todo {title="Prepare demo"}
+ fixture checker=user {roles=[reviewer]}
+ fixture member=user {}
+When
+ crud Todo by=members fields=title delete=none
+ scenario complete(task:Todo) by=reviewer
+  require not task.done
+  do set task {done=true}
+  examples task=pending
+   as,task.done -> task.done
+   checker,false -> true
+   checker,true -> error(rule_failed)
+   member,false -> error(forbidden)
+  examples seed=[pending,checker,member]
+   do
+    call complete {task=pending} by=member -> error(forbidden)
+    pending.done -> false
+    call complete {task=pending} by=checker
+    pending.done -> true
+    call complete {task=pending} by=checker -> error(rule_failed)
+    pending.done -> true
+Then
+ page / title="Verified tasks"
+  require members
+  form Todo.create
+  list Todo
+   text row.title,row.done
+   action complete

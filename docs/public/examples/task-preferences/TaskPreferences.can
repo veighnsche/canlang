@@ -1,0 +1,34 @@
+# Choose how to browse team tasks. @{nl="Kies hoe je teamtaken bekijkt."}
+app TaskPreferences
+Given
+ message task_count(n:int) = "{n, plural, =0 {No tasks} one {# task} other {# tasks}}"@{nl="{n, plural, =0 {Geen taken} one {# taak} other {# taken}}"}
+ message add_task = "Add task"@{nl="Taak toevoegen"}
+ Todo {title:text trim min=1,done:bool=false label={values={true="Finished"@{nl="Afgerond"},false="Open"@{nl="Open"}}}} label="Task"@{nl="Taak"}
+ policy Todo read=members
+When
+ crud Todo by=members fields=title,done label={create=add_task}
+Then
+ preferences {view:enum(all,unfinished,finished)=all label={text="Task view"@{nl="Taakweergave"},values={all="All"@{nl="Alles"},unfinished="Unfinished"@{nl="Open"},finished="Finished"@{nl="Afgerond"}}},expand_help:bool=false label="Expand help"@{nl="Help uitklappen"}}
+ page / title="Tasks"@{nl="Taken"}
+  form Todo.create display=inline
+  text task_count(count(Todo))
+  tabs preferences.view
+  list Todo as task where preferences.view==all or (preferences.view==unfinished and not task.done) or (preferences.view==finished and task.done) columns=title,done
+   edit
+   pagination
+  details "Help"@{nl="Help"} open=preferences.expand_help
+   text "Choose a task view above."@{nl="Kies hierboven een taakweergave."}
+ page /panels title="Saved panels"@{nl="Opgeslagen panelen"}
+  tabs preferences.view
+   tab all
+    list Todo columns=title,done
+   tab unfinished
+    list Todo as task where not task.done columns=title,done
+   tab finished
+    list Todo as task where task.done columns=title,done
+ page /help title="Help"@{nl="Help"}
+  tabs
+   tab "Reading"@{nl="Lezen"}
+    text "Use the task list to inspect current work."@{nl="Bekijk het huidige werk in de takenlijst."}
+   tab "Editing"@{nl="Bewerken"}
+    text "Edit a task to change its title or completion."@{nl="Bewerk een taak om de titel of voltooiing te wijzigen."}

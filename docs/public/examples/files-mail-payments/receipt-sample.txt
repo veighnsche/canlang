@@ -1,0 +1,5 @@
+Synthetic receipt for documentation
+Reference: DEMO-001
+Description: Sample stationery
+Total: EUR 12.50
+No real purchase or personal data.

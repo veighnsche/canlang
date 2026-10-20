@@ -17,7 +17,7 @@ curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
 
 The public website serves the byte-identical installer from the qualified [v0.1.1 release](https://github.com/veighnsche/canlang/releases/tag/v0.1.1). It detects macOS Apple Silicon or Linux x86-64 with glibc, resolves one release version, and downloads the matching archive and SHA-256 checksum from that tag. The v0.1.1 Linux bundle requires glibc 2.39 or newer.
 
-The installer configures your shell PATH. Open a new terminal, then run `can --version`. Write and run applications in your own folder; no source checkout, catalog build or runtime overrides are required. Follow the [first application tutorial](public/01-Start-here/03-first-app.md) and [local development guide](public/09-Development/01-local-development.md). The script supports pinned versions with `bash -s -- --version VERSION` after
+The installer configures your shell PATH. Open a new terminal, then run `can --version`. Write and run applications in your own folder; no source checkout, catalog build or runtime overrides are required. Follow the [first application tutorial](public/01-Get-started/05-first-app.md) and [local development guide](public/01-Get-started/06-local-development.md). The script supports pinned versions with `bash -s -- --version VERSION` after
 the pipe. See the [website agent handoff](implementation/lean-install/website-handoff.md)
 for the exact source, publication gates and copy-ready deployment prompt.
 

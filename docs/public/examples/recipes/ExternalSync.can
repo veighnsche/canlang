@@ -1,0 +1,39 @@
+app ExternalSync
+Given
+ role synchronizer
+ role reviewer
+ Account {external_id:text trim min=1 unique,name:text trim min=1,source_revision:int=0 min=0,local_revision:int=0 min=0}
+ Proposal {account:Account,source_revision:int min=1,name:text trim min=1,base_local_revision:int,applied:bool=false}
+ policy Account read=members
+ policy Proposal read=reviewer or synchronizer
+ unique Proposal fields=account,source_revision
+ lock Account fields=external_id
+ lock Proposal fields=account,source_revision,name,base_local_revision
+When
+ crud Account by=reviewer fields=external_id,name update=none delete=none
+ scenario edit(account:Account,name:Account.name) by=reviewer
+  do set account {name,local_revision=account.local_revision+1}
+ scenario propose(account:Account,source_revision:int,name:Account.name) by=synchronizer -> Proposal
+  require source_revision>account.source_revision
+  do
+   let previous=first(Proposal as proposal where proposal.account==account and proposal.source_revision==source_revision)
+   if previous!=null
+    require previous.name==name
+    return previous
+   create Proposal {account,source_revision,name,base_local_revision=account.local_revision} as proposal
+   return proposal
+ scenario apply(proposal:Proposal) by=reviewer
+  require not proposal.applied and proposal.source_revision>proposal.account.source_revision
+  require proposal.base_local_revision==proposal.account.local_revision
+  do
+   set proposal.account {name=proposal.name,source_revision=proposal.source_revision}
+   set proposal {applied=true}
+Then
+ page / title="Review external account names"
+  form Account.create
+  form propose
+  table Account columns=external_id,name,source_revision,local_revision
+   action edit
+  list Proposal
+   text row.account,row.source_revision,row.name,row.applied
+   action apply

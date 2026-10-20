@@ -1,0 +1,18 @@
+package team_notes
+ use task_board {Todo as Task,complete as finish_task}
+ Given
+  Note {task:Task,title:text trim min=1,resolved:bool=false}
+  policy Note read=members
+ When
+  crud Note by=members fields=task,title when=not row.resolved delete=none
+  scenario resolve(note:Note) by=members
+   require not note.resolved
+   do
+    call finish_task {task=note.task}
+    set note {resolved=true}
+ Then
+  page /notes title="Linked notes"
+   form Note.create display=inline
+   list Note columns=task,title,resolved
+    edit
+    action resolve

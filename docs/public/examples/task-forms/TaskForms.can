@@ -1,0 +1,62 @@
+# Edit project tasks through canonical forms and typed actions.
+app TaskForms
+Given
+ Project {name:text trim min=1}
+ Todo {project:Project,title:text trim min=1,done:bool=false,note:text?}
+ policy Project read=members
+ policy Todo read=members
+When
+ crud Project by=members fields=name delete=none
+ crud Todo by=members fields=project,title,note
+ scenario tasks_for(project:Project) read=true -> Todo[] by=members
+  do return (Todo as task where task.project==project and not task.done)
+ scenario complete_task(project:Project,task:Todo choices={read=tasks_for(project=project),labels=["title"]},note:text?=null) by=members
+  require task.project==project and not task.done
+  do set task {done=true,note}
+ scenario complete_from_invocation(task:Todo,note:text?=null) by=members
+  do
+   let request=invocation(complete_task,{project=task.project,task,note})
+   call request {}
+Then
+ page / title="Task forms"
+  form Project.create display=inline
+   input name
+   primary "Create project" submit=true
+  form Todo.create display=inline
+   select project
+   input title
+   textarea note
+   primary "Create task" submit=true
+  card "Complete a task"
+   form complete_task display=inline
+    select project
+    select task
+    textarea note
+    primary "Complete task" submit=true
+  card "Find open tasks"
+   form tasks_for display=inline
+    select project
+    primary "Find tasks" submit=true
+    list result columns=title,note
+     pagination
+  list Project as project
+   text project.name
+   form Todo.create arguments={project=project} fields=title,note display=inline
+    input title
+    textarea note
+    primary "Add task to this project" submit=true
+ page /tasks title="Edit and complete tasks"
+  list Todo as task columns=title,done,note
+   card "Task controls"
+    text task.title,task.done
+    primary "Edit task" action=Todo.update arguments={record=task} fields=title,note
+    secondary "Archive task" action=Todo.delete arguments={record=task}
+   card "Typed completion form"
+    form action(complete_task,{project=task.project,task=task}) display=inline
+     textarea note
+     primary "Complete with note" submit=true
+   card "Complete invocation"
+    form complete_from_invocation arguments={task=task} display=inline
+     textarea note
+     primary "Submit complete call" submit=true
+   pagination

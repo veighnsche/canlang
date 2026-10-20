@@ -1,0 +1,30 @@
+app Reminders
+Given
+ Todo {title:text trim min=1,owner:user server=actor,due:datetime?,generation:int=0,done:bool=false,reminded:datetime?,escalated:bool=false}
+ event Reminder {task:Todo,generation:int}
+ derive reminder_key(task:Todo):text = format("task:{id}",{id=task.id})
+ policy Todo read=members and row.owner==actor
+ lock Todo fields=owner
+When
+ crud Todo by=members fields=title when=row.owner==actor and not row.done delete=none
+ scenario arrange(task:Todo,due:datetime) by=members
+  require task.owner==actor and not task.done and due>now
+  do
+   let generation=task.generation+1
+   set task {due,generation,escalated=false}
+   schedule reminder_key(task) at=due event=Reminder {task,generation}
+ scenario finish(task:Todo) by=members
+  require task.owner==actor and not task.done
+  do
+   set task {done=true,due=null,generation=task.generation+1,escalated=false}
+   cancel reminder_key(task)
+ scenario remind on=Reminder
+  require not event.task.done and event.task.generation==event.generation and event.task.due!=null and event.task.due<=now
+  do set event.task {reminded=now,escalated=true,due=null}
+Then
+ page / title="Task reminders" poll=2s
+  form Todo.create
+  list Todo
+   text row.title,row.due,row.done,row.reminded,row.escalated
+   action arrange
+   action finish

@@ -1,9 +1,0 @@
-# Actions and invocations
-
-An `action(...)` value is a typed reference to one or more enabled canonical user mutations. An `invocation(...)` is a complete typed call value for enabled local user mutations with operation identity and all required inputs. `action(target,{recordParameter=row})` binds every record parameter, preserving identity and expected version, and leaves non-record inputs to the form. An invocation instead supplies its owning input object with `invocation(target,{arguments})`. Arbitrary partial argument binding or conversion from text/JSON is invalid. Binding an action in a page or form does not create a second mutation implementation; the canonical operation still checks admission, current versions, guards, and rules.
-
-## Review the complete proposed call
-
-A reviewed invocation must show the complete operation and argument set, including target identity and expected version where relevant. Present that proposal to the authorized user and require explicit confirmation before execution. Tool or UI selection does not grant authority, and a model-generated suggestion is not consent. Never let an agent construct a privileged arbitrary call or bypass the operation schema.
-
-The server validates the invocation again at execution and applies ordinary receipt/replay rules. See [scenarios](02-scenarios-and-effects.md), [operation permissions](../04-Access-and-rules/02-roles-and-operation-permissions.md), and the [reviewed AI recipe](../11-Recipes/05-reviewed-ai-actions.md).

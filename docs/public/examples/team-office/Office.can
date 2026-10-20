@@ -1,0 +1,8 @@
+# Manage the team's task board.
+app TeamTasks uses=[task_board]
+# Keep notes linked to team tasks.
+app TeamNotes uses=[team_notes]
+# Manage tasks and linked notes together.
+app TeamOffice uses=[TeamTasks,TeamNotes]
+context
+ theme density=compact

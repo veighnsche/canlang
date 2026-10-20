@@ -1,0 +1,75 @@
+app ImageReview
+context
+ files types="application/json,image/png,image/jpeg"
+use std {WorkflowDefinition,WorkflowInput,ImageRequest,ImageRun}
+use std {ImagesV1 as Images} from=deployment.images
+Given
+ role designer
+ Workflow {owner:user server=actor,definition:WorkflowDefinition,inspection:delivery(Images.inspect)?,validation:delivery(Images.validate)?}
+ Run {owner:user server=actor,workflow:Workflow,value:ImageRequest,request:delivery(Images.submit)?,cancellation:delivery(Images.cancel)?,reconciliation:delivery(Images.reconcile)?,stop_requested:bool=false,selected:file?}
+ derive Run.state:ImageRun.state? = row.request?.progress?.state
+ policy Workflow read=designer and row.owner==actor
+ policy Run read=designer and row.owner==actor
+ lock Workflow fields=owner,definition
+ lock Run fields=owner,workflow,value,request
+ lock Run fields=selected when=row.selected!=null
+When
+ scenario inspect(graph:file,prompt_node:text,negative_node:text,size_node:text) by=designer -> Workflow
+  do
+   let definition=WorkflowDefinition {graph,prompt=WorkflowInput {node=prompt_node,key="text"},negative=WorkflowInput {node=negative_node,key="text"},width=WorkflowInput {node=size_node,key="width"},height=WorkflowInput {node=size_node,key="height"}}
+   create Workflow {definition} as workflow
+   send Images.inspect {graph} as inspection
+   set workflow {inspection}
+   return workflow
+ scenario validate(workflow:Workflow) by=designer
+  require workflow.owner==actor and workflow.inspection?.status==succeeded and workflow.validation==null
+  do
+   send Images.validate {value=workflow.definition} as validation
+   set workflow {validation}
+ scenario generate(workflow:Workflow,prompt:ImageRequest.prompt,negative:ImageRequest.negative="") by=designer -> Run
+  require workflow.owner==actor and trim(prompt)!=""
+  require workflow.validation?.status==succeeded and workflow.validation?.result?.valid==true and workflow.validation?.result?.digest!=null
+  do
+   let digest=workflow.validation?.result?.digest
+   require digest!=null
+   let value=ImageRequest {source=operation.id,revision=1,workflow=workflow.definition,validation=digest,prompt,negative,width=512,height=512,max_outputs=1,max_duration=120s}
+   create Run {workflow,value} as run
+   send Images.submit {value} when=designer(run.owner) and active_member(run.owner,team) and not run.stop_requested as request
+   set run {request}
+   return run
+ scenario stop(run:Run) by=designer
+  require run.owner==actor and not (run.state in [succeeded,failed,cancelled]) and run.cancellation?.status!=pending
+  do
+   send Images.cancel {source=run.value.source,revision=run.value.revision} as cancellation
+   set run {stop_requested=true,cancellation}
+ scenario reconcile(run:Run) by=designer
+  require run.owner==actor and run.reconciliation?.status!=pending
+  do
+   send Images.reconcile {source=run.value.source,revision=run.value.revision} as reconciliation
+   set run {reconciliation}
+ scenario select_output(run:Run,position:int) by=designer
+  require run.owner==actor and run.state==succeeded and run.selected==null
+  do
+   let progress=run.request?.progress
+   require progress!=null
+   let output=first(progress.outputs as item where item.position==position)
+   require output!=null
+   set run {selected=output.image}
+Then
+ page / title="Inspect and validate workflows" poll=1s
+  require designer
+  primary "Inspect workflow" action=inspect
+  list Workflow
+   text row.definition,row.inspection?.status,row.inspection?.result
+   action validate
+   text row.validation?.status,row.validation?.result
+   action generate
+ page /runs title="Review generated images" poll=1s
+  require designer
+  list Run
+   text row.value.prompt,row.request?.status,row.state
+   text row.request?.progress?.outputs,row.request?.progress?.charged_jobs,row.request?.progress?.detail
+   action stop
+   action reconcile
+   action select_output
+   text row.selected

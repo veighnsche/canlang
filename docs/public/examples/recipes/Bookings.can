@@ -1,0 +1,27 @@
+app Bookings
+Given
+ role manager
+ Resource {name:text trim min=1,price:money,active:bool=true}
+ Booking {resource:Resource,starts:datetime,ends:datetime,account:user server=actor,price:money,cancelled:bool=false}
+ policy Resource read=members
+ policy Booking read=members
+ invariant Resource: row.price.minor>=0
+ invariant Booking: row.starts<row.ends
+ lock Booking fields=resource,starts,ends,account,price
+When
+ crud Resource by=manager fields=name,price,active delete=none
+ scenario reserve(resource:Resource,starts:datetime,ends:datetime) by=members -> Booking
+  require resource.active and starts>=now and starts<ends
+  require not any(Booking as booking,booking.resource==resource and not booking.cancelled and overlaps(starts,ends,booking.starts,booking.ends))
+  do
+   create Booking {resource,starts,ends,price=resource.price} as booking
+   return booking
+ scenario cancel_booking(booking:Booking) by=members
+  require booking.account==actor and not booking.cancelled
+  do set booking {cancelled=true}
+Then
+ page / title="Reserve a resource"
+  form reserve
+  table Resource columns=name,price,active
+  table Booking columns=resource,starts,ends,account,price,cancelled
+   action cancel_booking

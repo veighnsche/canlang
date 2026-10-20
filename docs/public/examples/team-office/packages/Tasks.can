@@ -1,0 +1,15 @@
+package task_board
+ Given
+  export Todo {title:text trim min=1,done:bool=false}
+  policy Todo read=members
+ When
+  crud Todo by=members fields=title delete=none
+  export scenario complete(task:Todo) by=members
+   require not task.done
+   do set task {done=true}
+ Then
+  page / title="Team tasks"
+   form Todo.create display=inline
+   list Todo columns=title,done
+    edit
+    action complete

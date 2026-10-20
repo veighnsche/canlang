@@ -1,0 +1,54 @@
+# Check source-level builtin expressions in a task context.
+app BuiltinLookup
+Given
+ Todo {title:text,done:bool=false}
+ Step in Todo {title:text}
+ Credential {token:secret server=random_secret()}
+ policy Todo read=members
+ policy Step read=members
+When
+ scenario finish(task:Todo) by=members
+  require not task.done
+  do set task {done=true}
+ scenario inspect(person:user,task:Todo) read=true -> bool by=members
+  do
+   let value_count=count([4,7,4])
+   let value_flatten=flatten(Todo as task select task.Step)
+   let value_sum=sum([4,7,4])
+   let value_min=min([4,7,4])
+   let value_max=max([4,7,4])
+   let value_any=any([4,7,4] as n,n>5)
+   let value_all=all([4,7,4] as n,n>0)
+   let value_first=first([4,7,4])
+   let value_group=group([4,7,4] as n,n)
+   let value_at=at([4,7,4],1)
+   let value_choose=choose(true,"Open","Closed")
+   let value_abs=abs(-7)
+   let value_round=round(2.345,2)
+   let value_lower=lower("TASK")
+   let value_upper=upper("Task")
+   let value_trim=trim("  task  ")
+   let value_contains=contains("Release checklist","check")
+   let value_starts_with=starts_with("EXP-001","EXP-")
+   let value_join=join(["Review","Publish"]," / ")
+   let value_format=format("Task {n}: {name}",{n=3,name="Review"})
+   let value_app_url=app_url("/tasks")
+   let value_overlaps=overlaps(date("2026-10-20"),date("2026-10-22"),date("2026-10-21"),date("2026-10-23"))
+   let value_local_date=local_date(datetime("2026-10-20T23:30:00.000Z"),"Europe/Brussels")
+   let value_local_instant=local_instant(date("2026-10-20"),"09:00","Europe/Brussels",earlier)
+   let value_add_days=add_days(date("2026-10-20"),2)
+   let value_add_months=add_months(date("2024-01-31"),1)
+   let value_date_year=date_year(date("2026-10-20"))
+   let value_weekday=weekday(date("2026-10-20"))
+   let value_dates=dates(date("2026-10-20"),date("2026-10-23"),3)
+   let value_money=money(12.345,"EUR")
+   let value_date=date("2024-02-29")
+   let value_datetime=datetime("2026-10-20T09:00:00+02:00")
+   let current_member=active_member(person,team)
+   let task_action=action(finish,{task})
+   let task_invocation=invocation(finish,{task})
+   return current_member
+Then
+ page / title="Builtin lookup"
+  form inspect display=inline
+   text result

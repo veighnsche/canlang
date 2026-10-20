@@ -1,0 +1,70 @@
+# Browse team tasks through pages and collection presentations.
+app TaskPages
+Given
+ Todo {title:text trim min=1,status:enum(open,doing,done)=open,starts:datetime,ends:datetime}
+ Step in Todo {title:text trim min=1,done:bool=false}
+ Photo {title:text trim min=1,image:file}
+ policy Todo read=members
+ policy Step read=members
+ policy Photo read=members
+ invariant Todo: row.ends>=row.starts
+When
+ crud Todo by=members fields=title,status,starts,ends
+ crud Step by=members fields=title,done
+ crud Photo by=members fields=title,image
+ scenario find_tasks(search_text:text) read=true -> Todo[] by=members
+  do return (Todo as task where contains(task.title,search_text))
+Then
+ view TaskSummary(row:Todo)
+  card "Task"
+   text row.title,row.status,row.starts,row.ends
+ page / title="Tasks" group="Work" order=-1
+  form Todo.create display=inline
+  list Todo as task search=title filter=status order=-created empty="No tasks match."
+   show TaskSummary {row=task}
+   link target=app_url(format("/tasks/{id}",{id=task.id})) caption="Open task"
+   edit
+   pagination
+ page /tasks/{Todo.id} title="Task details"
+  breadcrumbs
+  show TaskSummary {row=row}
+  form Step.create display=inline
+  list Step as step columns=title,done
+   edit
+   pagination
+ page /table title="Task table" group="Work"
+  table Todo columns=title,status,starts,ends search=title filter=status order=starts display=split
+   show TaskSummary {row=row}
+   edit
+   pagination
+ page /board title="Task board" group="Work"
+  board Todo by=status columns=title,starts order=starts
+   show TaskSummary {row=row}
+   edit
+   pagination
+ page /agenda title="Task agenda" group="Work"
+  calendar Todo start=starts end=ends columns=title,status order=starts
+   text row.title,row.status
+   edit
+   pagination
+ page /photos title="Photos" group="Media"
+  form Photo.create display=inline
+  gallery Photo image=image columns=title search=title order=-created
+   text row.title
+   edit
+   pagination
+ page /steps title="Task steps" group="Work"
+  list Todo as task order=title
+   text task.title
+   list Step as step columns=title,done
+    text task.title,step.title,step.done
+    edit
+   pagination
+ page /search/{search_text:text} data=find_tasks(search_text=search_text) title="Search results"
+  list result columns=title,status
+   pagination
+ page /owner title="Owner overview" nav=none
+  require owner
+  text "Team owner overview"
+  table Todo columns=title,status
+   pagination
