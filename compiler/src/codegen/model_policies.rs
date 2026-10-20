@@ -184,8 +184,11 @@ fn collect_hook_triggers(ir: &IrProgram) -> Option<Vec<(&IrItem, IrHook, String)
         else {
             continue;
         };
+        // Per-hook admission: an unsupported hook stays legacy instead
+        // of vetoing native bindings for every other hook in the
+        // composition. Duplicate trigger keys still refuse outright.
         if !local_hook_supported(ir, item.id) {
-            return None;
+            continue;
         }
         let model = ir.items.get(hook.model.0 as usize)?;
         let operation = format!("{}.{}", model.canonical, hook.op.as_str());

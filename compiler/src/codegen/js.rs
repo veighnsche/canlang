@@ -18930,9 +18930,16 @@ impl<'a> Emitter<'a> {
                 &format!("const crudWhen={{{}}};", entries.join(",")),
             );
         }
-        let native_hooks = local_policies.is_some_and(|plan| !plan.hook_bindings.is_empty());
-        if native_hooks {
-            self.emit_hooks_map(out, entry_span, true);
+        let native_hooks: HashSet<String> = local_policies
+            .map(|plan| {
+                plan.hook_bindings
+                    .iter()
+                    .map(|binding| binding.id.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !native_hooks.is_empty() {
+            self.emit_hooks_map(out, entry_span, &native_hooks);
         }
         out.push(entry_span, Some("canApp".to_string()), "return {");
         if !self.ir.crud_when.is_empty() {
@@ -18994,10 +19001,10 @@ impl<'a> Emitter<'a> {
         self.emit_retention_map(out, entry_span);
         self.emit_preferences_valid(out, entry_span);
         self.emit_derives_map(out, entry_span);
-        if native_hooks {
+        if !native_hooks.is_empty() {
             out.push(entry_span, Some("canApp".to_string()), "hooks,");
         } else {
-            self.emit_hooks_map(out, entry_span, false);
+            self.emit_hooks_map(out, entry_span, &native_hooks);
         }
         if let Some(plan) = local_policies {
             self.emit_model_policy_bindings(out, entry_span, plan);
@@ -19349,7 +19356,12 @@ impl<'a> Emitter<'a> {
     /// Checked native hooks receive State's original projected snapshots and
     /// owning context; their policy binding reuses this exact callback. Legacy
     /// profiles retain the existing engine convention until their owner joins.
-    fn emit_hooks_map(&mut self, out: &mut JsWriter, span: Span, native: bool) {
+    fn emit_hooks_map(
+        &mut self,
+        out: &mut JsWriter,
+        span: Span,
+        native_hooks: &HashSet<String>,
+    ) {
         let hooks: Vec<IrItem> = self
             .ir
             .items
@@ -19373,12 +19385,21 @@ impl<'a> Emitter<'a> {
             let hook = *hook;
             let handler = binding_ident("s", &item.canonical);
             let key = hook_trigger_key(self.ir, &hook);
+            // Per-hook profile: a hook the owner-policy plan binds runs
+            // native (receives `c`); the rest keep the legacy convention
+            // in the same map. The const form is used when any hook is
+            // native so the return object can reference the map.
+            let hook_native = native_hooks.contains(&item.canonical);
             let prefix = if index == 0 {
-                if native { "const hooks={" } else { "hooks:{" }
+                if !native_hooks.is_empty() {
+                    "const hooks={"
+                } else {
+                    "hooks:{"
+                }
             } else {
                 ""
             };
-            let context_arg = if native { ",c" } else { "" };
+            let context_arg = if hook_native { ",c" } else { "" };
             out.push(
                 item.span,
                 Some(item.canonical.clone()),
@@ -19392,7 +19413,7 @@ impl<'a> Emitter<'a> {
             out.push(
                 item.span,
                 Some(item.canonical.clone()),
-                if native {
+                if hook_native {
                     "const event={before:$hookCtx.before,after:$hookCtx.after};"
                 } else {
                     "const event={after:{...$candidate,id:$hookCtx.triggerId,version:($hookCtx.before?$hookCtx.before.version+1:1),parent:($hookCtx.before?$hookCtx.before.parent:null)},before:($hookCtx.before?{...$hookCtx.before.data,id:$hookCtx.before.id,version:$hookCtx.before.version,parent:$hookCtx.before.parent}:null)};"
@@ -19405,7 +19426,7 @@ impl<'a> Emitter<'a> {
             );
             out.push(item.span, Some(item.canonical.clone()), "let $pending;");
             self.enter_scope();
-            self.enter_hook(hook.model, native, &item.canonical);
+            self.enter_hook(hook.model, hook_native, &item.canonical);
             for guard in guards {
                 for (line, span) in self.lower_stmt(guard, 0) {
                     out.push(span, Some(item.canonical.clone()), &line);
@@ -19431,7 +19452,7 @@ impl<'a> Emitter<'a> {
         out.push(
             span,
             Some("canApp".to_string()),
-            if native { "};" } else { "}," },
+            if !native_hooks.is_empty() { "};" } else { "}," },
         );
     }
 
