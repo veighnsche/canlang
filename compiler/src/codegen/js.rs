@@ -20313,6 +20313,13 @@ impl<'a> Emitter<'a> {
         effects: &[IrStmt],
     ) {
         if let Some(decision) = self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.rent_movement_refund_decision.clone())
+            && item.canonical == "rent_reservations.refund_movement_credit"
+        {
+            self.emit_rent_movement_refund_decision_body(out,item,guards,effects,&decision);
+            return;
+        }
+        if let Some(decision) = self.receipt_capture.as_ref()
             .and_then(|receipt| receipt.plan.refer_reject_decision.clone())
             && item.canonical == "refer.reject_source"
         {
@@ -20364,6 +20371,48 @@ impl<'a> Emitter<'a> {
                 out.push(span, Some(item.canonical.clone()), &line);
             }
         }
+    }
+
+    fn emit_rent_movement_refund_decision_body(
+        &mut self, out: &mut JsWriter, item: &IrItem,
+        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
+    ) {
+        if guards.len()!=2 || effects.len()!=2 {
+            self.unsupported("movement-credit refund owner decision",
+                "the exact authored body is missing",item.span);
+            return;
+        }
+        let previous_owner=self.owner_handler_body;
+        let previous_query=self.query_capture.take();
+        self.owner_handler_body=true;
+        self.enter_scope();
+        let names=["movement","charge_source","amount","reason"].iter()
+            .map(|name|format!("{}:{}",object_key(name),self.bind(name)))
+            .collect::<Vec<_>>();
+        self.stdlib.insert("nativeScenarioRentMovementRefundDecision".into());
+        out.push(item.span,Some(item.canonical.clone()),
+            &format!("await nativeScenarioRentMovementRefundDecision(c,{},async(c,{{{}}})=>{{",
+                descriptor_json(decision),names.join(",")));
+        if let IrItemKind::Scenario { by, .. } = &item.kind {
+            if !matches!(by.as_slice(), [IrGuard::Role(role)] if role == "rent_reservations.billing") {
+                self.unsupported("movement-credit refund owner decision",
+                    "the original billing admission is missing", item.span);
+                return;
+            }
+            self.stdlib.insert("check".into());
+            self.stdlib.insert("hasRole".into());
+            out.push(item.span, Some(item.canonical.clone()),
+                "check(await hasRole(c,\"rent_reservations.billing\",c.actor),\"forbidden\");");
+        }
+        for stmt in guards.iter().chain(effects) {
+            for (line,span) in self.lower_stmt(stmt,0) {
+                out.push(span,Some(item.canonical.clone()),&line);
+            }
+        }
+        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
+        self.exit_scope();
+        self.owner_handler_body=previous_owner;
+        self.query_capture=previous_query;
     }
 
     fn emit_refer_reject_decision_body(

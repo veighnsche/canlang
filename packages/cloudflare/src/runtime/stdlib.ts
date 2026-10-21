@@ -85,7 +85,7 @@ export { nativeReadBoolean, nativeReadReference } from './native-read-boolean.js
 export { nativeScenarioRequire, nativeScenarioEventDecision, nativeScenarioTermDecision,
   nativeScenarioLeaveRequestDecision, nativeScenarioLeaveDecideDecision,
   nativeScenarioReferRejectDecision, nativeScenarioMemberRetryDecision,
-  nativeScenarioInvoiceOverdueDecision,
+  nativeScenarioInvoiceOverdueDecision, nativeScenarioRentMovementRefundDecision,
   withLeaveDecideAllowance } from './native-scenario-require.js';
 export { delivery } from '@canlang/state/effects/delivery';
 

@@ -1,0 +1,58 @@
+## Original CanRent refund with both booking and adjustment credit paths.
+app CanRent uses=[rent_reservations]
+
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+
+package invoice
+ use std {OperationOutcome}
+ Given
+  export capability BillingV1 version=1
+   refund(source:text,amount:money,reason:text) -> OperationOutcome
+ When
+ Then
+
+package rent_reservations
+ use rent_catalog {Location}
+ use employee {Employee,can_work}
+ use invoice {BillingV1 as Billing} from=deployment.billing
+ Given
+  role billing
+  Resource {location:Location}
+  Booking in Resource {source:text,collected:money?,refunded:money?}
+  Adjustment in Booking {source:text,state:enum(pending,paid,expired,review,refunded)=pending,collected:money?,refunded:money?,hidden:bool=false}
+  MovementCredit in Movement {charge_source:text,amount:money,baseline:money,delivery:text unique,state:enum(pending,paid,failed,unknown,review)=pending,reason:text,hidden:bool=false}
+  export Movement in Booking {state:enum(holding,waiting_money,committing,adopted,cancelling,cancelled,review)=holding,credit_due:money?}
+  derive credit_baseline(charge_source:text,current:money):money = max([current]+(MovementCredit as credit where credit.charge_source==charge_source and credit.state!=failed select credit.baseline+credit.amount)) ?? current
+  policy Adjustment read=members and not row.hidden
+  policy MovementCredit read=members and not row.hidden
+ When
+  scenario refund_movement_credit(movement:Movement,charge_source:text,amount:money,reason:text) by=billing label="Refund movement credit"@{nl="Verplaatsingstegoed terugbetalen"}
+   require can_work(actor,movement.parent.parent.location) and movement.state==adopted and movement.credit_due!=null and amount.currency==movement.credit_due.currency and amount.minor>0 and trim(reason)!=""
+   require amount<=movement.credit_due-sum(movement.MovementCredit as credit where credit.state!=failed select credit.amount,movement.credit_due.currency)
+   do
+    let booking=movement.parent
+    if charge_source==booking.source
+     require booking.collected!=null and booking.refunded!=null and amount<=booking.collected-booking.refunded
+     let refunded=booking.refunded
+     send Billing.refund {source=charge_source,amount,reason} as refund
+     create MovementCredit {parent=movement,charge_source,amount,baseline=credit_baseline(charge_source,refunded),delivery=refund.id,reason} as credit
+    else
+     let adjustment=first(booking.Adjustment as row where row.source==charge_source and row.state==paid)
+     require adjustment!=null and adjustment.collected!=null and adjustment.refunded!=null and amount<=adjustment.collected-adjustment.refunded
+     let refunded=adjustment.refunded
+     send Billing.refund {source=charge_source,amount,reason} as refund
+     create MovementCredit {parent=movement,charge_source,amount,baseline=credit_baseline(charge_source,refunded),delivery=refund.id,reason} as credit
+ Then

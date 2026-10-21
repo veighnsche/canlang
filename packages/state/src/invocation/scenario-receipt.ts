@@ -864,6 +864,127 @@ function checkReferRejectDecisionPlan(value: unknown, transport: unknown): Refer
   return deepFreeze(raw) as unknown as ReferRejectDecisionPlan;
 }
 
+/** Exact authored collection and effect occurrences of the movement refund. */
+export interface RentMovementRefundDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'rent_reservations.refund_movement_credit';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly parameters: readonly [
+    { readonly name: 'movement'; readonly type: 'rent_reservations.Movement' },
+    { readonly name: 'charge_source'; readonly type: 'text' },
+    { readonly name: 'amount'; readonly type: 'money' },
+    { readonly name: 'reason'; readonly type: 'text' },
+  ];
+  readonly sites: {
+    readonly header: TermDecisionSite; readonly remaining: TermDecisionSite;
+    readonly branch: TermDecisionSite; readonly adjustmentFirst: TermDecisionSite;
+    readonly bookingSend: TermDecisionSite & { readonly operation: 'invoice.BillingV1.refund' };
+    readonly bookingCreate: TermDecisionSite & { readonly model: 'rent_reservations.MovementCredit' };
+    readonly adjustmentSend: TermDecisionSite & { readonly operation: 'invoice.BillingV1.refund' };
+    readonly adjustmentCreate: TermDecisionSite & { readonly model: 'rent_reservations.MovementCredit' };
+    readonly bookingBaseline: TermDecisionSite; readonly adjustmentBaseline: TermDecisionSite;
+  };
+  readonly roleSite: TermDecisionSite;
+  readonly membershipSite: TermDecisionSite;
+  readonly querySites: readonly {
+    readonly id: string; readonly stage: 'header' | 'remaining' | 'adjustment' | 'baseline';
+    readonly model: 'employee.Employee' | 'rent_reservations.MovementCredit' | 'rent_reservations.Adjustment';
+    readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly queryNode: TermDecisionSite['node']; readonly callSite: TermDecisionSite['node'];
+    readonly aliasSite: TermDecisionSite['node']; readonly predicateSite: TermDecisionSite['node'];
+    readonly domainKind: 'team' | 'child'; readonly ownerPath: readonly string[];
+    readonly order: readonly string[];
+    readonly deriveChain: readonly { readonly source: ScenarioResultDisclosurePlan['source'];
+      readonly callSite: TermDecisionSite['node']; readonly derive: string }[];
+  }[];
+}
+function checkRentMovementRefundDecisionPlan(value: unknown, transport: unknown): RentMovementRefundDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'parameters', 'sites', 'roleSite', 'membershipSite', 'querySites']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as ScenarioResultDisclosurePlan['source'];
+  const carrier = transport as ScenarioResultDisclosurePlan['source'];
+  if (raw['version'] !== 1 || raw['owner'] !== 'rent_reservations.refund_movement_credit' ||
+      source.module !== 'rent_reservations' || source.path !== carrier.path || source.sha256 !== carrier.sha256 ||
+      stableStringify(list(raw['parameters'])) !== stableStringify([
+        { name: 'movement', type: 'rent_reservations.Movement' }, { name: 'charge_source', type: 'text' },
+        { name: 'amount', type: 'money' }, { name: 'reason', type: 'text' },
+      ])) return invalid('movement refund needs its exact owning source and four inputs.');
+  const span = (value: unknown): { readonly start: number; readonly end: number } => {
+    const node = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
+        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number) ||
+        !Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
+      return invalid('movement refund requires nonempty checked source intervals.');
+    }
+    return node as { readonly start: number; readonly end: number };
+  };
+  const ids = new Set<string>();
+  const site = (value: unknown, extra?: Readonly<{ readonly key: string; readonly value: string }>): TermDecisionSite => {
+    const item = object(value, ['id', 'source', 'node', 'statement', ...(extra === undefined ? [] : [extra.key])]);
+    const id = text(item['id']); origin(item['source']);
+    const node = span(item['node']), statement = span(item['statement']);
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify(item['source']) !== stableStringify(source) ||
+        node.start < statement.start || node.end > statement.end ||
+        extra !== undefined && item[extra.key] !== extra.value) {
+      return invalid('movement refund site differs from its checked source.');
+    }
+    ids.add(id); return item as unknown as TermDecisionSite;
+  };
+  const sites = object(raw['sites'], ['header', 'remaining', 'branch', 'adjustmentFirst',
+    'bookingSend', 'bookingCreate', 'adjustmentSend', 'adjustmentCreate',
+    'bookingBaseline', 'adjustmentBaseline']);
+  const checkedSites = Object.fromEntries(Object.entries(sites).map(([name, value]) => [name,
+    site(value, name.endsWith('Send') ? { key: 'operation', value: 'invoice.BillingV1.refund' } :
+      name.endsWith('Create') ? { key: 'model', value: 'rent_reservations.MovementCredit' } : undefined)])) as
+    Record<keyof RentMovementRefundDecisionPlan['sites'], TermDecisionSite>;
+  site(raw['roleSite']); site(raw['membershipSite']);
+  if (checkedSites.header.statement.end > checkedSites.remaining.statement.start ||
+      checkedSites.remaining.statement.end > checkedSites.branch.statement.start ||
+      checkedSites.branch.statement.start > checkedSites.bookingSend.statement.start ||
+      checkedSites.bookingSend.statement.end > checkedSites.bookingCreate.statement.start ||
+      checkedSites.adjustmentFirst.statement.start > checkedSites.adjustmentSend.statement.start ||
+      checkedSites.adjustmentSend.statement.end > checkedSites.adjustmentCreate.statement.start) {
+    return invalid('movement refund source sites are out of original order.');
+  }
+  const queries = list(raw['querySites']);
+  if (queries.length !== 4) return invalid('movement refund needs its four complete original query sites.');
+  const expected = [
+    { stage: 'header', model: 'employee.Employee', domainKind: 'team', ownerPath: [], derive: 'employee.can_work' },
+    { stage: 'remaining', model: 'rent_reservations.MovementCredit', domainKind: 'child', ownerPath: ['movement'], derive: null },
+    { stage: 'adjustment', model: 'rent_reservations.Adjustment', domainKind: 'child', ownerPath: ['movement', 'parent'], derive: null },
+    { stage: 'baseline', model: 'rent_reservations.MovementCredit', domainKind: 'team', ownerPath: [], derive: 'rent_reservations.credit_baseline' },
+  ];
+  for (const [index, value] of queries.entries()) {
+    const item = object(value, ['id', 'stage', 'model', 'source', 'queryNode', 'callSite', 'aliasSite',
+      'predicateSite', 'domainKind', 'ownerPath', 'order', 'deriveChain']);
+    const id = text(item['id']); origin(item['source']);
+    for (const field of ['queryNode', 'callSite', 'aliasSite', 'predicateSite']) span(item[field]);
+    const want = expected[index]!;
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify({ stage: item['stage'], model: item['model'], domainKind: item['domainKind'],
+          ownerPath: item['ownerPath'], order: item['order'] }) !==
+          stableStringify({ stage: want.stage, model: want.model, domainKind: want.domainKind,
+            ownerPath: want.ownerPath, order: [] })) {
+      return invalid('movement refund query differs from its exact source domain.');
+    }
+    ids.add(id);
+    const chain = list(item['deriveChain']);
+    if (chain.length !== (want.derive === null ? 0 : 1)) {
+      return invalid('movement refund query lacks its original helper call.');
+    }
+    if (want.derive !== null) {
+      const step = object(chain[0], ['source', 'callSite', 'derive']);
+      origin(step['source']); span(step['callSite']);
+      if (step['derive'] !== want.derive ||
+          stableStringify(step['source']) !== stableStringify(source)) {
+        return invalid('movement refund query differs from its original helper.');
+      }
+    }
+  }
+  return deepFreeze(raw) as unknown as RentMovementRefundDecisionPlan;
+}
+
 /** Loader checker; callers cannot turn this data into a bound generated def. */
 export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResultDisclosurePlan {
   const plan = object(dataCopy(value), ['version', 'source', 'returns',
@@ -874,7 +995,8 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'leaveDecideDecision') ? ['leaveDecideDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'referRejectDecision') ? ['referRejectDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'memberRetryDecision') ? ['memberRetryDecision'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceOverdueDecision') ? ['invoiceOverdueDecision'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceOverdueDecision') ? ['invoiceOverdueDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentMovementRefundDecision') ? ['rentMovementRefundDecision'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
@@ -884,6 +1006,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'referRejectDecision')) checkReferRejectDecisionPlan(plan['referRejectDecision'], plan['source']);
   if (Object.hasOwn(plan, 'memberRetryDecision')) checkMemberRetryDecisionPlan(plan['memberRetryDecision'], plan['source']);
   if (Object.hasOwn(plan, 'invoiceOverdueDecision')) checkInvoiceOverdueDecisionPlan(plan['invoiceOverdueDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'rentMovementRefundDecision')) checkRentMovementRefundDecisionPlan(plan['rentMovementRefundDecision'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -977,6 +1100,7 @@ interface BoundPlan {
   readonly referRejectDecision?: ReferRejectDecisionPlan;
   readonly memberRetryDecision?: MemberRetryDecisionPlan;
   readonly invoiceOverdueDecision?: InvoiceOverdueDecisionPlan;
+  readonly rentMovementRefundDecision?: RentMovementRefundDecisionPlan;
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
   readonly resultModel: ModelName | undefined;
   readonly inputs: readonly CanonicalInputDef[];
@@ -1342,6 +1466,11 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
       issued.site.stage === 'leading-require' &&
       issued.site.node.start === state.bound.memberRetryDecision.membershipSite.node.start &&
       issued.site.node.end === state.bound.memberRetryDecision.membershipSite.node.end;
+    const rentRefundNested = !send && state.bound.rentMovementRefundDecision !== undefined &&
+      refer?.call === call && refer.owner === 'rent_reservations.refund_movement_credit' &&
+      !owner.busy && owner.stage === 0 && issued.site.stage === 'leading-require' &&
+      issued.site.node.start === state.bound.rentMovementRefundDecision.membershipSite.node.start &&
+      issued.site.node.end === state.bound.rentMovementRefundDecision.membershipSite.node.end;
     const priorPending = eventNested || termNested ? 1 : 0;
     if (owner.executingCall !== call || state.returnId !== null || state.pending !== priorPending || owner.capture.pending !== priorPending ||
         issued.site.stage === 'leading-require' && owner.stage !== 0 ||
@@ -1349,6 +1478,7 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
         state.bound.leaveDecideDecision !== undefined && !leaveDecideNested ||
         state.bound.referRejectDecision !== undefined && !referNested ||
         state.bound.memberRetryDecision !== undefined && !memberRetryNested ||
+        state.bound.rentMovementRefundDecision !== undefined && !rentRefundNested ||
         owner.callGuards.length >= MAX_ITEMS) return invalid('membership capture is concurrent, completed, stale or outside its authored stage.');
     const activeSend = owner.activeSend;
     if (send ? activeSend === null || activeSend.call !== call || activeSend.stage !== owner.stage ||
@@ -1376,7 +1506,7 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
           termNested && owner!.activeTermDecision !== term ||
           leaveNested && owner!.activeLeaveDecision !== leave ||
           leaveDecideNested && owner!.activeLeaveDecideDecision !== leaveDecide ||
-          (referNested || memberRetryNested) && owner!.activeOwnerDecision !== refer) {
+          (referNested || memberRetryNested || rentRefundNested) && owner!.activeOwnerDecision !== refer) {
         return invalid('membership read crossed its exact active call/query stage.');
       }
     };
@@ -1717,6 +1847,9 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   const rawInvoiceOverdueDecision = (plan as ScenarioResultDisclosurePlan & { readonly invoiceOverdueDecision?: unknown }).invoiceOverdueDecision;
   const invoiceOverdueDecision = rawInvoiceOverdueDecision === undefined ? undefined :
     checkInvoiceOverdueDecisionPlan(rawInvoiceOverdueDecision, plan.source);
+  const rawRentMovementRefundDecision = plan.rentMovementRefundDecision;
+  const rentMovementRefundDecision = rawRentMovementRefundDecision === undefined ? undefined :
+    checkRentMovementRefundDecisionPlan(rawRentMovementRefundDecision, plan.source);
   if (eventDecision !== undefined) {
     const inspection = models.find(model => model.name === 'maintain.Inspection');
     const planModel = models.find(model => model.name === 'maintain.Plan');
@@ -1856,6 +1989,27 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
       return invalid('overdue decision lacks its exact void Invoice and balance-domain declarations.');
     }
   }
+  if (rentMovementRefundDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    if (def.kind !== 'scenario' || def.name !== rentMovementRefundDecision.owner || declared !== 'void' ||
+        inputs.length !== 4 || inputs[0]?.name !== 'movement' || inputs[0].kind !== 'ref' ||
+        inputs[0].model !== 'rent_reservations.Movement' || !inputs[0].required ||
+        inputs[1]?.name !== 'charge_source' || inputs[1].kind !== 'string' || inputs[1].valueType !== 'text' || !inputs[1].required ||
+        inputs[2]?.name !== 'amount' || inputs[2].kind !== 'money' || !inputs[2].required ||
+        inputs[3]?.name !== 'reason' || inputs[3].kind !== 'string' || inputs[3].valueType !== 'text' || !inputs[3].required ||
+        models.find(model => model.name === 'rent_reservations.Movement')?.parent !== 'rent_reservations.Booking' ||
+        models.find(model => model.name === 'rent_reservations.Booking')?.parent !== 'rent_reservations.Resource' ||
+        models.find(model => model.name === 'rent_reservations.MovementCredit')?.parent !== 'rent_reservations.Movement' ||
+        models.find(model => model.name === 'rent_reservations.Adjustment')?.parent !== 'rent_reservations.Booking' ||
+        !models.some(model => model.name === 'rent_reservations.Resource') ||
+        !models.some(model => model.name === 'employee.Employee') ||
+        !models.some(model => model.name === 'rent_catalog.Location') ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('movement refund lacks its exact void owner, inputs and financial domains.');
+    }
+  }
   const resultModel = modelResultType(declared);
   if (resultModel !== undefined && (def.kind !== 'scenario' ||
       models.filter(model => model.name === resultModel).length !== 1 ||
@@ -1981,6 +2135,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     ...(referRejectDecision === undefined ? {} : { referRejectDecision }),
     ...(memberRetryDecision === undefined ? {} : { memberRetryDecision }),
     ...(invoiceOverdueDecision === undefined ? {} : { invoiceOverdueDecision }),
+    ...(rentMovementRefundDecision === undefined ? {} : { rentMovementRefundDecision }),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,
@@ -3120,6 +3275,10 @@ interface Capture {
     readonly balance: MoneyValue; readonly credits: readonly StoredRow[];
     readonly attempts: readonly StoredRow[]; readonly payments: readonly StoredRow[];
     readonly deliveryId: string };
+  rentMovementRefundDecision?: { readonly movement: StoredRow; readonly booking: StoredRow;
+    readonly resource: StoredRow; readonly adjustment: StoredRow | null;
+    readonly chargeSource: string; readonly amount: MoneyValue; readonly reason: string;
+    readonly baseline: MoneyValue; readonly deliveryId: string; readonly createdId: string };
 }
 const captures = new WeakMap<AdmittedCall, Capture>();
 const captureContexts = new WeakMap<object, Capture>();
@@ -3639,6 +3798,13 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
     if (producer.app !== call.context.app || binding === undefined || target === undefined || request.from !== binding.from ||
         typeof request.arguments !== 'object' || request.arguments === null || Array.isArray(request.arguments)) return invalid('send differs from its owning app/binding/target route.');
     if (ledger.ordinal >= MAX_ITEMS) return invalid('send occurrence budget exceeded.');
+    const refund = owner.activeOwnerDecision;
+    if (refund?.owner === 'rent_reservations.refund_movement_credit' &&
+        (refund.call !== call || owner.stage !== 0 || refund.staged !== 0 || ledger.ordinal !== 0 ||
+          refund.queryIndex !== refund.queries.length - 1 || Object.hasOwn(received, 'when') ||
+          binding.binding !== 'rent_reservations.Billing' || source !== 'invoice.BillingV1.refund')) {
+      return invalid('movement refund SEND differs from its original selected branch.');
+    }
     let sourceGuard: ScenarioReceiptSourceSendGuard | undefined, accepted = true;
     if (Object.hasOwn(received, 'when')) {
       const when = object(received['when'], ['rule', 'inputs']), rule = text(when['rule']);
@@ -3955,7 +4121,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     // most 4,000 rows, so a full query can prove it did not truncate.
     const extendedOwner = state.bound.leaveRequestDecision !== undefined ||
       state.bound.leaveDecideDecision !== undefined || state.bound.referRejectDecision !== undefined ||
-      state.bound.memberRetryDecision !== undefined || state.bound.invoiceOverdueDecision !== undefined;
+      state.bound.memberRetryDecision !== undefined || state.bound.invoiceOverdueDecision !== undefined ||
+      state.bound.rentMovementRefundDecision !== undefined;
     const maxRows = !extendedOwner ? MAX_ITEMS : 4_001;
     if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
         (bounds['maxRows'] as number) > maxRows ||
@@ -4064,6 +4231,9 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
               owner.stage !== finite.staged ||
               finite.owner === 'member_terms.retry_collection' &&
                 (owner.framework?.ordinal !== 1 || finite.staged !== 0) ||
+              finite.owner === 'rent_reservations.refund_movement_credit' &&
+                (owner.framework?.ordinal !== 1 || finite.staged !== 0 ||
+                  finite.queryIndex !== finite.queries.length) ||
               stableStringify(Object.keys(write.data ?? {}).sort()) !== stableStringify(expected.fields)) {
             return invalid('owner decision write differs from its original fields and parent.');
           }
@@ -5709,6 +5879,245 @@ export async function executeScenarioReceiptReferRejectDecision(call: AdmittedCa
       }
       await authority.revalidate();
       if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Referral rejection moved beyond commit.');
+      return true;
+    } }));
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+}
+
+/** The admitted Movement, containing Booking and Resource, and all four
+ * original owner domains determine the one branch and its financial effects. */
+export async function executeScenarioReceiptRentMovementRefundDecision(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: RentMovementRefundDecisionPlan;
+  readonly checked: RentMovementRefundDecisionPlan;
+  readonly evaluate: (frame: {
+    readonly movement: StoredRow; readonly booking: StoredRow; readonly resource: StoredRow;
+    readonly read: (model: ModelName, id: RecordId) => StoredRow | null;
+    readonly query: (siteId: string, model: ModelName,
+      parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+    readonly role: (name: string, subject: UserRef) => Promise<boolean>;
+  }) => Promise<unknown>;
+}): Promise<void> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  try {
+    const profile = state.bound.rentMovementRefundDecision;
+    if (profile === undefined || owner === undefined || owner.session === null || owner.framework === null ||
+        owner.stage !== 0 || owner.busy || owner.activeOwnerDecision !== null || state.pending !== 0 ||
+        state.returnId !== null || state.rentMovementRefundDecision !== undefined ||
+        owner.executingCall !== call || owner.maxRows !== 4_001 ||
+        owner.callGuards.length >= MAX_ITEMS - 4 || typeof input.evaluate !== 'function') {
+      return invalid('movement refund needs its unique live initial owner stage and finite SEND ledger.');
+    }
+    const original = checkRentMovementRefundDecisionPlan(dataCopy(input.original), state.bound.plan.source);
+    const checked = checkRentMovementRefundDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
+    if (stableStringify(original) !== stableStringify(checked) ||
+        stableStringify(original) !== stableStringify(profile)) {
+      return invalid('movement refund differs from its independently checked original source.');
+    }
+    const refs = call.recordRefs.filter(ref => ref.param === 'movement' &&
+      ref.model === 'rent_reservations.Movement');
+    const ref = refs[0];
+    const wire = decodeValue('rent_reservations.Movement', admittedInputWire(call.inputs, 'movement')) as
+      { readonly id: string };
+    const chargeSource = decodeValue('text', admittedInputWire(call.inputs, 'charge_source')) as string;
+    const amount = decodeValue('money', admittedInputWire(call.inputs, 'amount')) as MoneyValue;
+    const reason = decodeValue('text', admittedInputWire(call.inputs, 'reason')) as string;
+    if (refs.length !== 1 || ref === undefined || ref.id !== wire.id ||
+        ref.expectedVersion === null || ref.row.version !== ref.expectedVersion ||
+        chargeSource.length === 0 || reason.trim() === '' || amount.minor <= 0n) {
+      return invalid('movement refund needs its exact admitted Movement and positive refund inputs.');
+    }
+    const load = async (model: ModelName, id: RecordId): Promise<StoredRow | null> =>
+      ownerOperation(owner, () => owner.session!.views.final.get(model, id));
+    const movement = await load('rent_reservations.Movement' as ModelName, ref.id);
+    if (movement === null || movement.archivedAt !== null ||
+        movement.parent?.model !== 'rent_reservations.Booking' ||
+        stableStringify(movement) !== stableStringify(ref.row)) {
+      throw new StateError('conflict', 'Refund Movement differs from its admitted row.');
+    }
+    const booking = await load('rent_reservations.Booking' as ModelName, movement.parent.id);
+    if (booking === null || booking.archivedAt !== null ||
+        booking.parent?.model !== 'rent_reservations.Resource') {
+      throw new StateError('forbidden', 'Refund Movement lacks its current Booking.');
+    }
+    const resource = await load('rent_reservations.Resource' as ModelName, booking.parent.id);
+    if (resource === null || resource.archivedAt !== null || resource.parent !== null) {
+      throw new StateError('forbidden', 'Refund Booking lacks its current Resource.');
+    }
+    const key = (model: string, id: string) => `${model}\0${id}`;
+    const rows = new Map<string, StoredRow>([
+      [key('rent_reservations.Movement', movement.id), movement],
+      [key('rent_reservations.Booking', booking.id), booking],
+      [key('rent_reservations.Resource', resource.id), resource],
+    ]);
+    const source = decodeValue('text', booking.data['source']) as string;
+    const bookingBranch = chargeSource === source;
+    const movementParent = Object.freeze({ model: 'rent_reservations.Movement' as ModelName, id: movement.id });
+    const bookingParent = Object.freeze({ model: 'rent_reservations.Booking' as ModelName, id: booking.id });
+    const expectedQueries = Object.freeze([
+      { id: profile.querySites[1]!.id, stage: 0, model: 'rent_reservations.MovementCredit' as ModelName,
+        parent: movementParent },
+      ...(!bookingBranch ? [{ id: profile.querySites[2]!.id, stage: 0,
+        model: 'rent_reservations.Adjustment' as ModelName, parent: bookingParent }] : []),
+      { id: profile.querySites[3]!.id, stage: 0, model: 'rent_reservations.MovementCredit' as ModelName },
+    ]);
+    const lease: OwnerDecisionLease = { call, owner: profile.owner, staged: 0, queryIndex: 0,
+      stagedIds: [], stages: Object.freeze([{ op: 'create', model: 'rent_reservations.MovementCredit' as ModelName,
+        parent: movementParent, fields: Object.freeze(['amount', 'baseline', 'charge_source', 'delivery', 'reason']) }]),
+      queries: expectedQueries };
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner);
+      if (owner.executingCall !== call || owner.activeOwnerDecision !== lease || owner.busy ||
+          state.pending !== 0 || state.returnId !== null || owner.stage !== lease.staged) {
+        return invalid('movement refund crossed its original serial owner stage.');
+      }
+    };
+    const domains = new Map<string, { readonly model: ModelName;
+      readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+      readonly rows: readonly StoredRow[] }>();
+    const domainKey = (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) =>
+      stableStringify([model, parent ?? null]);
+    const readDomain = async (model: ModelName,
+      parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+      const identity = domainKey(model, parent);
+      let domain = domains.get(identity);
+      if (domain === undefined) {
+        const scanned = await ownerOperation(owner, () => owner.session!.views.final.query({ model,
+          ...(parent === undefined ? {} : { parent }), authority: 'owner', archived: 'exclude',
+          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
+        if (scanned.length > 4_000 || scanned.some(row => row.archivedAt !== null ||
+            (parent === undefined ? model === 'employee.Employee' ? row.parent !== null :
+              row.parent?.model !== 'rent_reservations.Movement' :
+              row.parent?.model !== parent.model || row.parent.id !== parent.id))) {
+          return invalid('movement refund collection exceeds or differs from its complete owner domain.');
+        }
+        domain = Object.freeze({ model, ...(parent === undefined ? {} : { parent }),
+          rows: Object.freeze([...scanned]) });
+        domains.set(identity, domain);
+        for (const row of scanned) rows.set(key(model, row.id), row);
+      }
+      return domain.rows;
+    };
+    const query = async (siteId: string, model: ModelName,
+      parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+      healthy();
+      const isBaseline = siteId === profile.querySites[3]!.id;
+      if ((isBaseline ? owner.framework!.ordinal !== 1 : owner.framework!.ordinal !== 0)) {
+        return invalid('movement refund queried outside its original SEND position.');
+      }
+      claimOwnerDecisionQuery(owner, lease, siteId, model, parent);
+      const found = await readDomain(model, parent);
+      healthy(); return found;
+    };
+    const memberships = scenarioReceiptMemberships(call, store);
+    const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
+    const membership = actorUserId === null || teamId === null ? null :
+      await memberships.findMembership(teamId, actorUserId);
+    const context: ByContext = { actorUserId, teamId, membership, memberships };
+    const location = decodeValue('rent_catalog.Location', resource.data['location']) as { readonly id: string };
+    let evaluated = false, roleUses = 0;
+    const authority = await observeRowGrantAuthority(context, async observed => {
+      if (evaluated) return true;
+      if (observed.actorUserId !== actorUserId || observed.teamId !== teamId || actorUserId === null ||
+          !await hasRole(observed, 'rent_reservations.billing', actorUserId)) {
+        throw new StateError('forbidden', 'Movement refund requires its current billing role.');
+      }
+      evaluated = true;
+      const employees = await readDomain('employee.Employee' as ModelName);
+      const works = employees.some(employee => {
+        const user = decodeValue('user', employee.data['user']) as UserRef;
+        if (user.id !== actorUserId || employee.data['active'] !== true) return false;
+        const home = decodeValue('rent_catalog.Location', employee.data['home']) as { readonly id: string };
+        const additional = decodeValue('rent_catalog.Location[]', employee.data['locations']) as
+          readonly { readonly id: string }[];
+        return employee.data['operator_wide'] === true || home.id === location.id ||
+          additional.some(candidate => candidate.id === location.id);
+      });
+      if (!works) throw new StateError('forbidden', 'Movement refund actor lacks the current work location.');
+      owner.activeOwnerDecision = lease;
+      try {
+        const role = async (name: string, subject: UserRef): Promise<boolean> => {
+          healthy();
+          if (name !== 'rent_reservations.billing' || !isUserRef(subject) ||
+              subject.id !== actorUserId || ++roleUses !== 1 || owner.stage !== 0) {
+            return invalid('movement refund role differs from its checked billing actor.');
+          }
+          const answer = await hasRole(observed, name, subject.id);
+          healthy(); return answer;
+        };
+        const read = (model: ModelName, id: RecordId): StoredRow | null => {
+          healthy(); return rows.get(key(model, id)) ?? null;
+        };
+        const answer = await input.evaluate(Object.freeze({ movement, booking, resource, read, query, role }));
+        healthy();
+        if (answer !== undefined) return invalid('movement refund original body must return void.');
+      } finally { owner.activeOwnerDecision = null; }
+      return true;
+    });
+    const remaining = domains.get(domainKey('rent_reservations.MovementCredit' as ModelName, movementParent))?.rows;
+    const adjustmentRows = domains.get(domainKey('rent_reservations.Adjustment' as ModelName, bookingParent))?.rows;
+    const globalCredits = domains.get(domainKey('rent_reservations.MovementCredit' as ModelName))?.rows;
+    const adjustment = bookingBranch ? null : adjustmentRows?.find(row =>
+      row.data['source'] === chargeSource && row.data['state'] === 'paid') ?? null;
+    const due = decodeValue('money?', movement.data['credit_due'] ?? null) as MoneyValue | null;
+    const collected = decodeValue('money?', (bookingBranch ? booking : adjustment)?.data['collected'] ?? null) as MoneyValue | null;
+    const refunded = decodeValue('money?', (bookingBranch ? booking : adjustment)?.data['refunded'] ?? null) as MoneyValue | null;
+    if (!authority.value || roleUses !== 1 || remaining === undefined || globalCredits === undefined ||
+        (!bookingBranch && adjustmentRows === undefined) || due === null || collected === null || refunded === null ||
+        movement.data['state'] !== 'adopted' || amount.currency !== due.currency ||
+        collected.currency !== amount.currency || refunded.currency !== amount.currency) {
+      return invalid('movement refund omitted its original financial branch and complete domains.');
+    }
+    const used = sumMoney(remaining.filter(row => row.data['state'] !== 'failed').map(row =>
+      decodeValue('money', row.data['amount']) as MoneyValue), due.currency);
+    if (amount.minor > subtractMoney(due, used).minor ||
+        amount.minor > subtractMoney(collected, refunded).minor) {
+      return invalid('movement refund exceeded its original remaining credit or paid balance.');
+    }
+    let baseline = refunded;
+    for (const credit of globalCredits) {
+      if (credit.data['charge_source'] !== chargeSource || credit.data['state'] === 'failed') continue;
+      const candidate = addMoney(decodeValue('money', credit.data['baseline']) as MoneyValue,
+        decodeValue('money', credit.data['amount']) as MoneyValue);
+      if (candidate.currency !== baseline.currency) return invalid('movement refund baseline currency differs.');
+      if (candidate.minor > baseline.minor) baseline = candidate;
+    }
+    const ledger = owner.framework;
+    const queued = ledger.queued.values().next().value;
+    if (Number(owner.stage) !== 1 || lease.staged !== 1 || lease.queryIndex !== lease.queries.length ||
+        ledger.ordinal !== 1 || ledger.queued.size !== 1 || ledger.skipped.size !== 0 ||
+        queued === undefined || lease.stagedIds.length !== 1 || !bookingBranch && adjustment === null) {
+      return invalid('movement refund omitted its selected SEND, baseline query or CREATE.');
+    }
+    await authority.revalidate();
+    state.rentMovementRefundDecision = { movement, booking, resource, adjustment, chargeSource, amount,
+      reason, baseline, deliveryId: queued.intentId, createdId: lease.stagedIds[0]! };
+    owner.callGuards.push(Object.freeze({ name: `movement-refund:${profile.sites.branch.id}`, evaluate: async () => {
+      if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
+        return invalid('movement refund needs its actual finalized source effects.');
+      }
+      if (await store.readRevision() !== call.revision) {
+        throw new StateError('conflict', 'Movement refund moved before commit.');
+      }
+      for (const [identity, row] of rows) {
+        const separator = identity.indexOf('\0');
+        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
+          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
+        if (stableStringify(current) !== stableStringify(row)) {
+          throw new StateError('forbidden', 'Movement refund source row changed before commit.');
+        }
+      }
+      for (const domain of domains.values()) {
+        const current = await store.query({ model: domain.model,
+          ...(domain.parent === undefined ? {} : { parent: domain.parent }), authority: 'owner',
+          archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
+        if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
+          throw new StateError('forbidden', 'Movement refund source domain changed before commit.');
+        }
+      }
+      await authority.revalidate();
+      if (await store.readRevision() !== call.revision) {
+        throw new StateError('conflict', 'Movement refund moved beyond commit.');
+      }
       return true;
     } }));
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
@@ -8304,6 +8713,54 @@ function verifyInvoiceOverdueEffects(call: AdmittedCall,
     return invalid('overdue Mail body differs from its original Invoice link.');
   }
 }
+function verifyRentMovementRefundEffects(call: AdmittedCall,
+  decision: NonNullable<Capture['rentMovementRefundDecision']>, owner: ReceiptOwnerSession | undefined,
+  effects: ExecutionEffects): void {
+  const ledger = owner?.framework;
+  if (owner === undefined || owner.finalized === null || owner.commitEffects === null ||
+      ledger === null || ledger === undefined ||
+      call.def.name !== 'rent_reservations.refund_movement_credit' || effects.result !== null ||
+      owner.stage !== 1 || owner.finalized.writes.length !== 1 ||
+      owner.finalized.schedules.length !== 0 || effects.schedules.length !== 0 ||
+      ledger.ordinal !== 1 || ledger.queued.size !== 1 || ledger.skipped.size !== 0 ||
+      effects.outbox.length !== 1) {
+    return invalid('movement refund lacks its one Billing refund and one MovementCredit CREATE.');
+  }
+  const intent = ledger.queued.values().next().value;
+  if (intent === undefined || intent.intentId !== decision.deliveryId ||
+      intent.operationId !== call.context.operationId || intent.operation !== call.context.operation ||
+      intent.target !== 'invoice.BillingV1.refund' || intent.occurrenceIndex !== 0 ||
+      intent.dispatchGuard !== undefined || effects.outbox[0]?.intentId !== intent.intentId) {
+    return invalid('movement refund differs from its one original Billing refund SEND.');
+  }
+  const request = object(intent.arguments, ['binding', 'from', 'arguments']);
+  const args = object(request['arguments'], ['source', 'amount', 'reason']);
+  if (request['binding'] !== 'rent_reservations.Billing' ||
+      args['source'] !== decision.chargeSource || args['reason'] !== decision.reason ||
+      stableStringify(args['amount']) !== stableStringify(encodeValue('money', decision.amount))) {
+    return invalid('movement refund SEND arguments differ from its admitted source, amount or reason.');
+  }
+  const write = owner.finalized.writes[0];
+  const hiddenDefault = owner.capture.bound.artifactModels
+    .get('rent_reservations.MovementCredit' as ModelName)?.fields.some(field =>
+      field.name === 'hidden' && field.field.kind === 'boolean' &&
+      field.default?.kind === 'literal' && field.default.value === false) === true;
+  if (write?.kind !== 'insert' || write.model !== 'rent_reservations.MovementCredit' ||
+      write.row.id !== decision.createdId || write.row.version !== 1 || write.row.archivedAt !== null ||
+      write.row.parent?.model !== 'rent_reservations.Movement' ||
+      write.row.parent.id !== decision.movement.id ||
+      stableStringify(write.row.data) !== stableStringify({
+        charge_source: decision.chargeSource,
+        amount: encodeValue('money', decision.amount),
+        baseline: encodeValue('money', decision.baseline),
+        delivery: decision.deliveryId,
+        reason: decision.reason,
+        state: 'pending',
+        ...(hiddenDefault ? { hidden: false } : {}),
+      })) {
+    return invalid('movement refund CREATE differs from its selected Movement, baseline or delivery.');
+  }
+}
 function verifyReferRejectEffects(call: AdmittedCall, decision: NonNullable<Capture['referRejectDecision']>,
   owner: ReceiptOwnerSession | undefined, effects: ExecutionEffects): void {
   const create = decision.first !== null && !decision.reversed;
@@ -8452,6 +8909,12 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   if (bound.invoiceOverdueDecision !== undefined) {
     if (state?.invoiceOverdueDecision === undefined) return invalid('overdue omitted its original due owner decision.');
     verifyInvoiceOverdueEffects(call, state.invoiceOverdueDecision, owner, effects, dueAdmission);
+  }
+  if (bound.rentMovementRefundDecision !== undefined) {
+    if (state?.rentMovementRefundDecision === undefined) {
+      return invalid('movement refund omitted its original owner decision.');
+    }
+    verifyRentMovementRefundEffects(call, state.rentMovementRefundDecision, owner, effects);
   }
   // One checked empty path permits the ordinary implicit void return. Its
   // success receipt carries no business result and still saves changed rows.

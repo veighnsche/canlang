@@ -190,6 +190,7 @@ export interface ScenarioResultDisclosurePlan {
   readonly version: 1;
   readonly source: ScenarioReceiptSourceOrigin;
   readonly invoiceOverdueDecision?: unknown;
+  readonly rentMovementRefundDecision?: unknown;
   readonly queries?: readonly ScenarioReceiptQueryPlan[];
   readonly returns: ReadonlyArray<{
     readonly id: string;

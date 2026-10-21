@@ -394,7 +394,7 @@ pub(super) fn collect_retry_receipt(
             leave_decide_decision: None,
             refer_reject_decision: None,
             member_retry_decision: Some(decision),
-            invoice_overdue_decision: None,
+            invoice_overdue_decision: None, rent_movement_refund_decision: None,
             queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),

@@ -140,6 +140,23 @@ export async function nativeScenarioInvoiceOverdueDecision(context: unknown, des
   return evaluate(descriptor, body);
 }
 
+const rentMovementRefundReaders = new WeakMap<object, LeaveEvaluate>();
+
+/** One admitted Movement owner executes the checked refund and credit body. */
+export function bindNativeScenarioRentMovementRefundDecision(context: object, evaluate: LeaveEvaluate): void {
+  if (rentMovementRefundReaders.has(context)) throw new StateError('validation', 'Movement refund decision cannot be rebound.');
+  rentMovementRefundReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioRentMovementRefundDecision(context: unknown, descriptor: unknown,
+  body: Function): Promise<void> {
+  const evaluate = typeof context === 'object' && context !== null ? rentMovementRefundReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof body !== 'function') {
+    throw new StateError('validation', 'Movement refund needs its actual admitted owner mutation.');
+  }
+  return evaluate(descriptor, body);
+}
+
 type AllowanceEvaluate = (descriptor: unknown, row: unknown, body: Function) => Promise<unknown>;
 const leaveDecideAllowances = new WeakMap<object, AllowanceEvaluate>();
 

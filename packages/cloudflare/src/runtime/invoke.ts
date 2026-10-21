@@ -142,6 +142,7 @@ import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioRece
 import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNativeSourceSendMembership, openNativeSourceSendMembershipFrame, bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
   bindNativeAuthorityReportMembership, hasNativeAuthorityReportMembership, openNativeAuthorityReportMembershipFrame,
   bindNativeEventDecisionRole, bindNativeLeaveRequestRole, bindNativeReferRejectRole,
+  bindNativeRentMovementRefundRole,
   hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
   type NativeMembershipFrame } from './native-membership.js';
 import type { ScenarioReceiptMembershipSite, ScenarioReceiptRequireSource } from '@canlang/state/invocation';
@@ -157,7 +158,8 @@ import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSo
 import { bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
-  bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision } from './native-scenario-require.js';
+  bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
+  bindNativeScenarioRentMovementRefundDecision } from './native-scenario-require.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -1479,6 +1481,7 @@ interface StateInvokeProducer {
   readonly executeScenarioReceiptReferRejectDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptReferRejectDecision;
   readonly executeScenarioReceiptMemberRetryDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptMemberRetryDecision;
   readonly executeScenarioReceiptInvoiceOverdueDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptInvoiceOverdueDecision;
+  readonly executeScenarioReceiptRentMovementRefundDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptRentMovementRefundDecision;
   readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
   readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
@@ -1793,6 +1796,9 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['executeScenarioReceiptInvoiceOverdueDecision'] !== 'function' ? {} : {
       executeScenarioReceiptInvoiceOverdueDecision: scenarioMod['executeScenarioReceiptInvoiceOverdueDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptInvoiceOverdueDecision']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptRentMovementRefundDecision'] !== 'function' ? {} : {
+      executeScenarioReceiptRentMovementRefundDecision: scenarioMod['executeScenarioReceiptRentMovementRefundDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptRentMovementRefundDecision']>,
     }),
     ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
       observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
@@ -9103,7 +9109,7 @@ async function runScenarioExecution(
   };
   const ownerBounds = receiptAware && (scenarioDef?.name === 'leave.request' || scenarioDef?.name === 'leave.decide' ||
     scenarioDef?.name === 'refer.reject_source' || scenarioDef?.name === 'member_terms.retry_collection' ||
-    scenarioDef?.name === 'invoice.overdue')
+    scenarioDef?.name === 'invoice.overdue' || scenarioDef?.name === 'rent_reservations.refund_movement_credit')
     ? Object.freeze({ maxRows: 4_001, maxWork: 200_000 }) : SCENARIO_RECEIPT_OWNER_BOUNDS;
   const ownerOptions = {
     table: loaded.table as ModelTable, bounds: ownerBounds,
@@ -9487,8 +9493,11 @@ async function runScenarioExecution(
   let leaveDecideReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let referRejectReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let memberRetryReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
+  let rentMovementRefundReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let leaveDecisionCreateParent: { calendarId: string; requestId: string | null } | null = null;
   let referRejectCreateParent: { advocateId: string; advocateView: Record<string, unknown> } | null = null;
+  let rentMovementRefundCreateParent: { movementId: string; movementVersion: number;
+    movementView: Record<string, unknown> } | null = null;
   const scope: CanonicalEffectsScope = {
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
@@ -9501,6 +9510,7 @@ async function runScenarioExecution(
         if (leaveDecideReadRecords !== null) return leaveDecideReadRecords(model, query);
         if (referRejectReadRecords !== null) return referRejectReadRecords(model, query);
         if (memberRetryReadRecords !== null) return memberRetryReadRecords(model, query);
+        if (rentMovementRefundReadRecords !== null) return rentMovementRefundReadRecords(model, query);
         const rows = await scope.readModel(model, query);
         for (const row of rows) {
           if (!trustedOwnerReads) await viewerNavigation.captureQuerySource(model, row);
@@ -9577,6 +9587,9 @@ async function runScenarioExecution(
         if (referRejectCreateParent !== null && model !== 'refer.Credit') {
           return refuseRecordBinding('Referral rejection may create only its checked Credit reversal.');
         }
+        if (rentMovementRefundCreateParent !== null && model !== 'rent_reservations.MovementCredit') {
+          return refuseRecordBinding('Movement refund may create only its checked Credit.');
+        }
         let fields = data;
         let parent: CanonicalStagedWrite['parent'];
         const ownership = loaded.containment.get(model);
@@ -9602,16 +9615,31 @@ async function runScenarioExecution(
               binding.model !== 'refer.Advocate' || binding.id !== referParent.advocateId)) {
             return refuseRecordBinding('Referral reversal parent differs from its checked Evidence Advocate.');
           }
+          const refundParent = rentMovementRefundCreateParent;
+          if (refundParent !== null && (model !== 'rent_reservations.MovementCredit' ||
+              candidate !== refundParent.movementView || binding.model !== 'rent_reservations.Movement' ||
+              binding.id !== refundParent.movementId)) {
+            return refuseRecordBinding('Movement refund Credit parent differs from its admitted Movement.');
+          }
           // Bound views retain their admitted metadata after own writes. State's
           // current staged row supplies the version for this source read.
           const current = await overlay.load(binding.model as ModelName, binding.id as RecordId);
           if (current === null) throw new StateError('not_found', 'Create parent record not found.');
           if (current.id !== binding.id) return refuseRecordBinding('Create parent identity changed.');
-          const navigation = trustedOwnerReads || leaveParent !== null || referParent !== null
-            ? ownerNavigation : viewerNavigation;
-          const authorized = await navigation.authorizeReference(
-            makeRecordRef(binding.model, binding.id, BigInt(current.version)));
-          parent = { model: authorized.model as ModelName, id: authorized.id as RecordId };
+          if (refundParent !== null) {
+            const original = ownerRows.get(stagedKey(binding.model, binding.id));
+            if (current.version !== refundParent.movementVersion || original === undefined ||
+                stableStringify(current) !== stableStringify(original)) {
+              return refuseRecordBinding('Movement refund CREATE lost its admitted parent row.');
+            }
+            parent = { model: binding.model as ModelName, id: binding.id as RecordId };
+          } else {
+            const navigation = trustedOwnerReads || leaveParent !== null || referParent !== null
+              ? ownerNavigation : viewerNavigation;
+            const authorized = await navigation.authorizeReference(
+              makeRecordRef(binding.model, binding.id, BigInt(current.version)));
+            parent = { model: authorized.model as ModelName, id: authorized.id as RecordId };
+          }
           fields = Object.fromEntries(Object.entries(source).filter(([name]) => name !== 'parent'));
         }
         const id = nextCreateId(model);
@@ -11566,6 +11594,125 @@ async function runScenarioExecution(
               healthy();
               if (answer !== undefined) return refuseRecordBinding('Member retry original body must return void.');
             } finally { active = false; memberRetryReadRecords = null; }
+          } });
+      } catch (error) { recordEngineFailure(error); throw error; }
+    });
+  }
+  if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
+      scenarioDef?.name === 'rent_reservations.refund_movement_credit') {
+    const actualCall = call as AdmittedCall;
+    const checked = (scenarioDef.descriptor.result?.disclosure as
+      { readonly rentMovementRefundDecision?: import('@canlang/state/invocation').RentMovementRefundDecisionPlan } | undefined)
+      ?.rentMovementRefundDecision;
+    const execute = loaded.producers.invoke.executeScenarioReceiptRentMovementRefundDecision;
+    if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
+      return refuseRecordBinding('Movement refund needs its exact installed owner decision.');
+    }
+    let consumed = false, active = false;
+    bindNativeScenarioRentMovementRefundDecision(ctx, async (descriptor, body) => {
+      try {
+        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
+            nativeScenarioExecutions.get(actualCall) === undefined) {
+          return refuseRecordBinding('Movement refund differs from its unique checked source occurrence.');
+        }
+        consumed = true;
+        await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
+          evaluate: async frame => {
+            const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+            if (assertCall === undefined || active || rentMovementRefundReadRecords !== null ||
+                memberRetryReadRecords !== null || referRejectReadRecords !== null) {
+              return refuseRecordBinding('Movement refund needs its serial live State owner decision.');
+            }
+            const healthy = () => assertCall(actualCall, receiptStore);
+            const supplied = localPolicyObject(argument);
+            const movementRef = nativeRecordReference(localPolicyMember(supplied, 'movement'));
+            if (movementRef?.model !== 'rent_reservations.Movement' || movementRef.id !== frame.movement.id ||
+                movementRef.version !== BigInt(frame.movement.version) ||
+                frame.movement.parent?.model !== 'rent_reservations.Booking' ||
+                frame.movement.parent.id !== frame.booking.id ||
+                frame.booking.parent?.model !== 'rent_reservations.Resource' ||
+                frame.booking.parent.id !== frame.resource.id || frame.resource.parent !== null) {
+              return refuseRecordBinding('Movement refund differs from its admitted Booking and Resource.');
+            }
+            for (const [model, row] of [
+              ['rent_reservations.Resource', frame.resource], ['rent_reservations.Booking', frame.booking],
+              ['rent_reservations.Movement', frame.movement],
+            ] as const) {
+              const key = stagedKey(model, row.id);
+              const known = ownerRows.get(key);
+              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
+                return refuseRecordBinding('Movement refund owner ancestry changed before source execution.');
+              }
+              ownerRows.set(key, row);
+              if (model !== 'rent_reservations.Resource') await ownerNavigation.prepare(model, row);
+              healthy();
+            }
+            const movement = recordView('rent_reservations.Movement', frame.movement);
+            rentMovementRefundCreateParent = { movementId: frame.movement.id,
+              movementVersion: frame.movement.version, movementView: movement };
+            active = true;
+            rentMovementRefundReadRecords = async (model, selection) => {
+              healthy();
+              if (!active || !isUnknownRecord(selection) ||
+                  !['employee.Employee', 'rent_reservations.MovementCredit',
+                    'rent_reservations.Adjustment'].includes(model) ||
+                  Reflect.ownKeys(selection).some(key => typeof key !== 'string' ||
+                    !['parent', 'where', 'order', 'limit', 'archived', 'authority', 'ownerDecisionSource'].includes(key)) ||
+                  selection.limit !== undefined || selection.order !== undefined ||
+                  selection.archived !== undefined && selection.archived !== 'exclude' ||
+                  selection.authority !== undefined && selection.authority !== 'viewer') {
+                return refuseRecordBinding('Movement refund query differs from its checked owner collection.');
+              }
+              const parent = selection.parent === undefined ? undefined :
+                nativeRecordReference(selection.parent) ??
+                (isRecordRef(selection.parent) ? selection.parent : undefined);
+              const stage = model === 'employee.Employee' && selection.parent === undefined ? 'header' :
+                model === 'rent_reservations.MovementCredit' && parent?.model === 'rent_reservations.Movement' &&
+                  parent.id === frame.movement.id ? 'remaining' :
+                model === 'rent_reservations.Adjustment' && parent?.model === 'rent_reservations.Booking' &&
+                  parent.id === frame.booking.id ? 'adjustment' :
+                model === 'rent_reservations.MovementCredit' && selection.parent === undefined ? 'baseline' : undefined;
+              const site = checked.querySites.find(candidate => candidate.stage === stage && candidate.model === model);
+              const source = selection['ownerDecisionSource'];
+              const sourceId = isUnknownRecord(source) && Reflect.ownKeys(source).length === 1 ? source['id'] : undefined;
+              if (site === undefined || stage === undefined || selection.parent !== undefined && parent === undefined ||
+                  sourceId !== undefined && sourceId !== site.id ||
+                  (stage === 'header' ? selection.where !== undefined : typeof selection.where !== 'function')) {
+                return refuseRecordBinding('Movement refund query lacks its exact source site and parent.');
+              }
+              const domain = await frame.query(site.id, model as ModelName,
+                parent === undefined ? undefined : { model: parent.model as ModelName, id: parent.id as RecordId });
+              healthy();
+              const result: Record<string, unknown>[] = [];
+              for (const row of domain) {
+                const key = stagedKey(model, row.id);
+                const known = ownerRows.get(key);
+                if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
+                  return refuseRecordBinding('Movement refund source domain changed within its owner frame.');
+                }
+                ownerRows.set(key, row);
+                const view = recordView(model, row);
+                const match = selection.where === undefined ? true :
+                  await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
+                healthy();
+                if (typeof match !== 'boolean') {
+                  return refuseRecordBinding('Movement refund query predicate must return Bool.');
+                }
+                if (match) result.push(view);
+              }
+              return Object.freeze(result);
+            };
+            let closeRole: (() => void) | undefined;
+            try {
+              closeRole = bindNativeRentMovementRefundRole(ctx, frame.role);
+              const answer = await Reflect.apply(body, undefined, [ctx, Object.freeze({
+                movement, charge_source: supplied['charge_source'], amount: supplied['amount'],
+                reason: supplied['reason'],
+              })]);
+              healthy();
+              if (answer !== undefined) return refuseRecordBinding('Movement refund original body must return void.');
+            } finally { closeRole?.(); active = false; rentMovementRefundReadRecords = null;
+              rentMovementRefundCreateParent = null; }
           } });
       } catch (error) { recordEngineFailure(error); throw error; }
     });

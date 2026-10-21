@@ -190,6 +190,19 @@ installed regression covers 13 due cases, eight altered-source refusals, and
 provider dispatch after a later payment. The remaining 71 diagnostics are
 separate sites.
 
+The next exact-catalog 24-source release capture reports 70 diagnostics
+(`complete:true`, `omitted:0`). All 26 source paths and hashes match the
+71-diagnostic capture. Its only site change removes the original
+`CanRent.refund_movement_credit` Adjustment `first` `E6008` at bytes
+95541–95625, with no added diagnostic. The checked owner decision covers the
+original work-location guard, both booking and adjustment refund branches,
+the remaining-credit cap and global baseline, and one Billing refund SEND
+paired with one MovementCredit CREATE. State fences the Movement ancestry and
+complete Employee, Adjustment, and Credit domains at commit. The installed
+regression covers both branches, hidden rows, balance and authority denials,
+commit races, and five altered-source refusals. The remaining 70 diagnostics
+are separate sites.
+
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
 **Implementation status, 2026-10-21:** The first owner-decision repair is now
@@ -523,10 +536,9 @@ test covers hidden rows, source-stage races, a successful Mail/SET, two
 post-queue dispatch races, and five altered sources that remain refused.
 
 The [exact event-row SEND carrier design](design/event-send-owner-row.md)
-specifies the remaining compiler, Cloudflare, and State proof for
-`CanInvoice.overdue`. Its guard reads derived `Invoice.balance`, whose Credit,
-Attempt, and ExternalPayment dependencies still lack a bounded frozen
-source-owner snapshot and commit fence. That handler remains refused.
+is implemented for `CanInvoice.overdue`. Its derived `Invoice.balance` now
+uses complete Credit, Attempt, and ExternalPayment domains under a bounded
+owner snapshot and commit fence; the full-draft clearance is recorded above.
 
 A bounded ordinary mutation SEND repair now carries a checked field narrowed
 from its nullable declaration after a successful source `require`; the
