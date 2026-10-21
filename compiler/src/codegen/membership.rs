@@ -186,6 +186,18 @@ fn collect_membership_sites(
             }
             continue;
         }
+        if item.canonical == "leave.decide" {
+            if let Some(source) = super::leave_decisions::collect_leave_decide_membership_sites(context,item) {
+                sites.insert(item.canonical.clone(),serde_json::Value::Array(source));
+            }
+            continue;
+        }
+        if item.canonical == "refer.reject_source" {
+            if let Some(source) = super::refer_decisions::collect_reject_membership_sites(context,item) {
+                sites.insert(item.canonical.clone(),serde_json::Value::Array(source));
+            }
+            continue;
+        }
         let require_fields = program.scenario_disclosures().get(&item.id).is_some_and(|disclosure| {
             matches!(disclosure, crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked)
                 if !checked.require_consumptions.is_empty())

@@ -75,7 +75,7 @@ export { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, sele
 // Generated pure helpers retain their Values producer identity.
 export {
   ValueError, int64, datetime, compareInstant, addDuration, subtractDuration, overlaps, abs, all, any, at, sum, min, max, join, trim, starts_with, compareScalar, choose, concat, flatten, group, format,
-  parseDecimal, addDecimal, compareDecimal, multiplyDecimal, money, addMoney, subtractMoney, multiplyMoney, compareMoney, equalMoney,
+  parseDecimal, addDecimal, compareDecimal, multiplyDecimal, money, addMoney, subtractMoney, negateMoney, multiplyMoney, compareMoney, equalMoney,
   divideDurationMs, remainderDuration, multiplyDuration, durationBetween, first,
   date, add_days, add_months, date_year, local_date, local_instant, compareDate, dates, weekday, decodeValue, encodeValue, normalizeSchema, makeMessageDescriptor,
 } from '@canlang/values';
@@ -83,7 +83,9 @@ export const same = sameNativeReference;
 export { active_member } from './native-membership.js';
 export { nativeReadBoolean, nativeReadReference } from './native-read-boolean.js';
 export { nativeScenarioRequire, nativeScenarioEventDecision, nativeScenarioTermDecision,
-  nativeScenarioLeaveRequestDecision } from './native-scenario-require.js';
+  nativeScenarioLeaveRequestDecision, nativeScenarioLeaveDecideDecision,
+  nativeScenarioReferRejectDecision,
+  withLeaveDecideAllowance } from './native-scenario-require.js';
 export { delivery } from '@canlang/state/effects/delivery';
 
 /** Whole historical callback observation through the installed current viewer scope. */
@@ -136,6 +138,7 @@ export interface CreateInput {
 export interface RecordsQuery {
   /** Compiler-stamped query site; the host checks it against the bound source census. */
   readonly authoritySource?: Readonly<{ readonly id: string }>;
+  readonly ownerDecisionSource?: Readonly<{ readonly id: string }>;
   readonly parent?: unknown;
   readonly where?: QueryPredicate;
   readonly order?: ReadonlyArray<OrderTerm> | {
@@ -318,6 +321,7 @@ function coerceRecordsLimit(query: RecordsQuery): unknown {
 function buildRecordsSelection(query: RecordsQuery, order: RecordsOrder | undefined): Record<string, unknown> {
   return {
     ...(query.authoritySource === undefined ? {} : { authoritySource: query.authoritySource }),
+    ...(query.ownerDecisionSource === undefined ? {} : { ownerDecisionSource: query.ownerDecisionSource }),
     ...(query.parent === undefined ? {} : { parent: query.parent }),
     ...(query.where === undefined ? {} : { where: query.where }),
     ...(query.order === undefined || order !== undefined ? {} : { order: query.order as ReadonlyArray<OrderTerm> }),

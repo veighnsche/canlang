@@ -4,11 +4,13 @@ packages/cloudflare/src/runtime/native-cross-model-promotion.integration.test.ts
 packages/cloudflare/src/runtime/native-event-send-due.integration.test.ts
 packages/cloudflare/src/runtime/native-event-send-notice.integration.test.ts
 packages/cloudflare/src/runtime/native-event-send-reminder.integration.test.ts
+packages/cloudflare/src/runtime/native-leave-decide.integration.test.ts
 packages/cloudflare/src/runtime/native-leave-request.integration.test.ts
 packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts
 packages/cloudflare/src/runtime/native-local-rules.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean-graph.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean.integration.test.ts
+packages/cloudflare/src/runtime/native-refer-reject-source.integration.test.ts
 packages/cloudflare/src/runtime/native-reference-arrays-d1.integration.test.ts
 packages/cloudflare/src/runtime/native-rent-resource-report.integration.test.ts
 packages/cloudflare/src/runtime/native-rule-owner-search.integration.test.ts

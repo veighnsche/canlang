@@ -3595,7 +3595,7 @@ pub(crate) fn checked_query_rule_fields(
             let IrCallTarget::Builtin { id, awaited: false } = target else {
                 return Some(false);
             };
-            if !matches!(id.as_str(), "any" | "all" | "sum" | "count" | "money" | "trim" | "local_instant" | "add_days" | "date" | "overlaps") {
+            if !matches!(id.as_str(), "any" | "all" | "sum" | "count" | "money" | "trim" | "starts_with" | "local_instant" | "add_days" | "date" | "overlaps") {
                 return None;
             }
             let formal = self.call_arguments(value, id, args)?;

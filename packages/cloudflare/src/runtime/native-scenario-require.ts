@@ -71,3 +71,55 @@ export async function nativeScenarioLeaveRequestDecision(context: unknown, descr
   }
   return evaluate(descriptor, body);
 }
+
+const leaveDecideReaders = new WeakMap<object, LeaveEvaluate>();
+
+/** The complete Leave decision body belongs to its one admitted mutation owner. */
+export function bindNativeScenarioLeaveDecideDecision(context: object, evaluate: LeaveEvaluate): void {
+  if (leaveDecideReaders.has(context)) throw new StateError('validation', 'Leave decision cannot be rebound.');
+  leaveDecideReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioLeaveDecideDecision(context: unknown, descriptor: unknown,
+  body: Function): Promise<void> {
+  const evaluate = typeof context === 'object' && context !== null ? leaveDecideReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof body !== 'function') {
+    throw new StateError('validation', 'Leave decision needs its actual admitted mutation owner.');
+  }
+  return evaluate(descriptor, body);
+}
+
+const referRejectReaders = new WeakMap<object, LeaveEvaluate>();
+
+/** A stamped finite owner decision may run only in its live admitted mutation. */
+export function bindNativeScenarioReferRejectDecision(context: object, evaluate: LeaveEvaluate): void {
+  if (referRejectReaders.has(context)) throw new StateError('validation', 'Referral rejection decision cannot be rebound.');
+  referRejectReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioReferRejectDecision(context: unknown, descriptor: unknown,
+  body: Function): Promise<void> {
+  const evaluate = typeof context === 'object' && context !== null ? referRejectReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof body !== 'function') {
+    throw new StateError('validation', 'Referral rejection needs its actual admitted mutation owner.');
+  }
+  return evaluate(descriptor, body);
+}
+
+type AllowanceEvaluate = (descriptor: unknown, row: unknown, body: Function) => Promise<unknown>;
+const leaveDecideAllowances = new WeakMap<object, AllowanceEvaluate>();
+
+/** An Allowance aggregate is available only inside its checked Leave decision. */
+export function bindNativeLeaveDecideAllowance(context: object, evaluate: AllowanceEvaluate): void {
+  if (leaveDecideAllowances.has(context)) throw new StateError('validation', 'Leave Allowance aggregate cannot be rebound.');
+  leaveDecideAllowances.set(context, evaluate);
+}
+
+export async function withLeaveDecideAllowance(context: unknown, descriptor: unknown,
+  row: unknown, body: Function): Promise<unknown> {
+  const evaluate = typeof context === 'object' && context !== null ? leaveDecideAllowances.get(context) : undefined;
+  if (evaluate === undefined || typeof body !== 'function') {
+    throw new StateError('validation', 'Leave Allowance aggregate needs its actual admitted owner decision.');
+  }
+  return evaluate(descriptor, row, body);
+}

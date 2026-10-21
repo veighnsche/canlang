@@ -486,18 +486,228 @@ function checkLeaveRequestDecisionPlan(value: unknown, transport: unknown): Leav
   return deepFreeze(raw) as unknown as LeaveRequestDecisionPlan;
 }
 
+export interface LeaveDecideDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'leave.decide';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly sites: {
+    readonly header: TermDecisionSite;
+    readonly revisionLet: TermDecisionSite;
+    readonly approveIf: TermDecisionSite;
+    readonly portionRequire: TermDecisionSite;
+    readonly approvedSet: TermDecisionSite & { readonly model: 'leave.Request' };
+    readonly send: TermDecisionSite;
+    readonly deliverySet: TermDecisionSite & { readonly model: 'leave.Request' };
+    readonly rejectedSet: TermDecisionSite & { readonly model: 'leave.Request' };
+  };
+  readonly membershipSite: TermDecisionSite;
+  readonly roleSite: TermDecisionSite;
+  readonly querySites: readonly {
+    readonly id: string;
+    readonly stage: 'header' | 'approve' | 'allowance';
+    readonly model: ModelName;
+    readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly callSite: TermDecisionSite['node'];
+    readonly aliasSite: TermDecisionSite['node'];
+    readonly predicateSite: TermDecisionSite['node'];
+    readonly domainKind: 'team' | 'child' | 'global';
+    readonly ownerPath: readonly string[];
+    readonly order: readonly string[];
+    readonly aggregate?: 'sum';
+    readonly selectionSite?: TermDecisionSite['node'];
+    readonly deriveChain: readonly { readonly source: ScenarioResultDisclosurePlan['source'];
+      readonly callSite: TermDecisionSite['node']; readonly derive: string }[];
+  }[];
+  readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly node: TermDecisionSite['node']; readonly statement: TermDecisionSite['statement'] };
+}
+
+function checkLeaveDecideDecisionPlan(value: unknown, transport: unknown): LeaveDecideDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'sites', 'querySites', 'membershipSite', 'roleSite', 'sendRule']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as { path: string; sha256: string; module: string };
+  const carrier = transport as { path: string; sha256: string; module: string };
+  if (raw['version'] !== 1 || raw['owner'] !== 'leave.decide' || source.module !== 'leave' ||
+      source.path !== carrier.path || source.sha256 !== carrier.sha256) {
+    return invalid('leave decision requires its exact owning source.');
+  }
+  const checkedSpan = (value: unknown): void => {
+    const span = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(span['start']) || !Number.isSafeInteger(span['end']) ||
+        (span['start'] as number) < 0 || (span['end'] as number) <= (span['start'] as number) ||
+        !Number.isSafeInteger(span['kind']) || (span['kind'] as number) < 0) {
+      return invalid('leave decision requires a nonempty checked syntax interval.');
+    }
+  };
+  const checkedSite = (value: unknown, extra: readonly string[] = []): void => {
+    const site = object(value, ['id', 'source', 'node', 'statement', ...extra]);
+    if (!/^[a-f0-9]{64}$/.test(text(site['id']))) return invalid('leave decision needs a checked site identity.');
+    origin(site['source']); checkedSpan(site['node']); checkedSpan(site['statement']);
+    if (stableStringify(site['source']) !== stableStringify(raw['source'])) {
+      return invalid('leave decision site differs from its original source.');
+    }
+  };
+  const sites = object(raw['sites'], ['header', 'revisionLet', 'approveIf', 'portionRequire',
+    'approvedSet', 'send', 'deliverySet', 'rejectedSet']);
+  for (const key of ['header', 'revisionLet', 'approveIf', 'portionRequire', 'send'] as const) checkedSite(sites[key]);
+  for (const key of ['approvedSet', 'deliverySet', 'rejectedSet'] as const) {
+    checkedSite(sites[key], ['model']);
+    if ((sites[key] as { readonly model: unknown }).model !== 'leave.Request') {
+      return invalid('leave decision SET requires its original Request target.');
+    }
+  }
+  checkedSite(raw['membershipSite']);
+  checkedSite(raw['roleSite']);
+  const queries = list(raw['querySites']);
+  const shapes = [
+    { stage: 'header', model: 'employee.Employee', domainKind: 'team', ownerPath: [] },
+    { stage: 'approve', model: 'leave.Portion', domainKind: 'child', ownerPath: ['request'] },
+    { stage: 'allowance', model: 'leave.Portion', domainKind: 'global', ownerPath: [], aggregate: 'sum' },
+  ];
+  if (queries.length !== shapes.length) return invalid('leave decision requires its complete Employee and Portion domains.');
+  for (const [index, value] of queries.entries()) {
+    const query = object(value, ['id', 'stage', 'model', 'source', 'callSite', 'aliasSite',
+      'predicateSite', 'domainKind', 'ownerPath', 'order', 'deriveChain',
+      ...(index === 2 ? ['aggregate', 'selectionSite'] : [])]);
+    if (!/^[a-f0-9]{64}$/.test(text(query['id'])) ||
+        stableStringify({ stage: query['stage'], model: query['model'], domainKind: query['domainKind'],
+          ownerPath: query['ownerPath'], order: query['order'],
+          ...(index === 2 ? { aggregate: query['aggregate'] } : {}) }) !==
+          stableStringify({ ...shapes[index], order: [] })) {
+      return invalid('leave decision query differs from its original owner domain.');
+    }
+    origin(query['source']); checkedSpan(query['callSite']); checkedSpan(query['aliasSite']); checkedSpan(query['predicateSite']);
+    if (index === 2) checkedSpan(query['selectionSite']);
+    const chain = list(query['deriveChain']);
+    if (chain.length !== (index === 1 ? 0 : 1)) return invalid('leave decision query lacks its exact helper chain.');
+    for (const step of chain) {
+      const item = object(step, ['source', 'callSite', 'derive']);
+      origin(item['source']); checkedSpan(item['callSite']); text(item['derive']);
+    }
+  }
+  const sendRule = object(raw['sendRule'], ['rule', 'source', 'node', 'statement']);
+  text(sendRule['rule']); origin(sendRule['source']); checkedSpan(sendRule['node']); checkedSpan(sendRule['statement']);
+  if (stableStringify(sendRule['source']) !== stableStringify(raw['source']) ||
+      stableStringify(sendRule['node']) !== stableStringify((sites['send'] as TermDecisionSite).node) ||
+      stableStringify(sendRule['statement']) !== stableStringify((sites['send'] as TermDecisionSite).statement)) {
+    return invalid('leave decision SEND Rule differs from its original guarded occurrence.');
+  }
+  return deepFreeze(raw) as unknown as LeaveDecideDecisionPlan;
+}
+
+export interface ReferRejectDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'refer.reject_source';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly sites: {
+    readonly header: TermDecisionSite;
+    readonly set: TermDecisionSite & { readonly model: 'refer.SourceEvidence' };
+    readonly first: TermDecisionSite;
+    readonly createIf: TermDecisionSite;
+    readonly absence: TermDecisionSite;
+    readonly create: TermDecisionSite & { readonly model: 'refer.Credit' };
+  };
+  readonly roleSite: TermDecisionSite;
+  readonly membershipSite: TermDecisionSite;
+  readonly querySites: readonly {
+    readonly id: string;
+    readonly stage: 'header' | 'first' | 'absence';
+    readonly model: 'employee.Employee' | 'refer.Credit';
+    readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly queryNode: TermDecisionSite['node'];
+    readonly callSite: TermDecisionSite['node'];
+    readonly aliasSite: TermDecisionSite['node'];
+    readonly predicateSite: TermDecisionSite['node'];
+    readonly domainKind: 'team' | 'child';
+    readonly ownerPath: readonly string[];
+    readonly order: readonly string[];
+    readonly deriveChain: readonly { readonly source: ScenarioResultDisclosurePlan['source'];
+      readonly callSite: TermDecisionSite['node']; readonly derive: string }[];
+  }[];
+}
+
+function checkReferRejectDecisionPlan(value: unknown, transport: unknown): ReferRejectDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'sites', 'roleSite', 'membershipSite', 'querySites']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as { path: string; sha256: string; module: string };
+  const carrier = transport as { path: string; sha256: string; module: string };
+  if (raw['version'] !== 1 || raw['owner'] !== 'refer.reject_source' || source.module !== 'refer' ||
+      source.path !== carrier.path || source.sha256 !== carrier.sha256) {
+    return invalid('referral rejection needs its exact owning source.');
+  }
+  const span = (value: unknown): void => {
+    const node = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
+        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number) ||
+        !Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
+      return invalid('referral rejection needs a nonempty checked source interval.');
+    }
+  };
+  const site = (value: unknown, extra: readonly string[] = []): void => {
+    const item = object(value, ['id', 'source', 'node', 'statement', ...extra]);
+    if (!/^[a-f0-9]{64}$/.test(text(item['id'])) ||
+        stableStringify(item['source']) !== stableStringify(raw['source'])) {
+      return invalid('referral rejection site differs from its checked source identity.');
+    }
+    span(item['node']); span(item['statement']);
+  };
+  const sites = object(raw['sites'], ['header', 'set', 'first', 'createIf', 'absence', 'create']);
+  for (const name of ['header', 'first', 'createIf', 'absence'] as const) site(sites[name]);
+  site(sites['set'], ['model']); site(sites['create'], ['model']);
+  if ((sites['set'] as { model: unknown }).model !== 'refer.SourceEvidence' ||
+      (sites['create'] as { model: unknown }).model !== 'refer.Credit') {
+    return invalid('referral rejection requires its original evidence and reversal targets.');
+  }
+  site(raw['roleSite']); site(raw['membershipSite']);
+  const queries = list(raw['querySites']);
+  if (queries.length !== 3) return invalid('referral rejection requires its Employee and both Credit query sites.');
+  for (const [index, value] of queries.entries()) {
+    const query = object(value, ['id', 'stage', 'model', 'source', 'queryNode', 'callSite', 'aliasSite',
+      'predicateSite', 'domainKind', 'ownerPath', 'order', 'deriveChain']);
+    const header = index === 0;
+    origin(query['source']);
+    const querySource = query['source'] as { path: string; sha256: string; module: string };
+    if (!/^[a-f0-9]{64}$/.test(text(query['id'])) ||
+        querySource.path !== source.path || querySource.sha256 !== source.sha256 ||
+        querySource.module !== (header ? 'employee' : 'refer') ||
+        stableStringify({ stage: query['stage'], model: query['model'], domainKind: query['domainKind'],
+          ownerPath: query['ownerPath'], order: query['order'] }) !==
+          stableStringify(header ? { stage: 'header', model: 'employee.Employee', domainKind: 'team',
+            ownerPath: [], order: [] } : { stage: index === 1 ? 'first' : 'absence', model: 'refer.Credit',
+            domainKind: 'child', ownerPath: ['evidence', 'advocate'], order: index === 1 ? ['credit.id'] : [] })) {
+      return invalid('referral rejection query differs from its exact source order or parent.');
+    }
+    span(query['queryNode']); span(query['callSite']); span(query['aliasSite']); span(query['predicateSite']);
+    const chain = list(query['deriveChain']);
+    if (chain.length !== (header ? 1 : 0)) return invalid('referral rejection query lacks its exact helper chain.');
+    if (header) {
+      const step = object(chain[0], ['source', 'callSite', 'derive']);
+      origin(step['source']); span(step['callSite']);
+      if (step['derive'] !== 'employee.can_work' ||
+          stableStringify(step['source']) !== stableStringify(raw['source'])) {
+        return invalid('referral rejection needs its original Employee helper.');
+      }
+    }
+  }
+  return deepFreeze(raw) as unknown as ReferRejectDecisionPlan;
+}
+
 /** Loader checker; callers cannot turn this data into a bound generated def. */
 export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResultDisclosurePlan {
   const plan = object(dataCopy(value), ['version', 'source', 'returns',
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'queries') ? ['queries'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'eventDecision') ? ['eventDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'termDecision') ? ['termDecision'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'leaveRequestDecision') ? ['leaveRequestDecision'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'leaveRequestDecision') ? ['leaveRequestDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'leaveDecideDecision') ? ['leaveDecideDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'referRejectDecision') ? ['referRejectDecision'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
   if (Object.hasOwn(plan, 'termDecision')) checkTermDecisionPlan(plan['termDecision'], plan['source']);
   if (Object.hasOwn(plan, 'leaveRequestDecision')) checkLeaveRequestDecisionPlan(plan['leaveRequestDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'leaveDecideDecision')) checkLeaveDecideDecisionPlan(plan['leaveDecideDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'referRejectDecision')) checkReferRejectDecisionPlan(plan['referRejectDecision'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -587,6 +797,8 @@ interface BoundPlan {
   readonly eventDecision?: EventDecisionPlan;
   readonly termDecision?: TermDecisionPlan;
   readonly leaveRequestDecision?: LeaveRequestDecisionPlan;
+  readonly leaveDecideDecision?: LeaveDecideDecisionPlan;
+  readonly referRejectDecision?: ReferRejectDecisionPlan;
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
   readonly resultModel: ModelName | undefined;
   readonly inputs: readonly CanonicalInputDef[];
@@ -935,10 +1147,24 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
       issued.site.stage === 'body-condition' &&
       issued.site.node.start === leave.profile.membershipSite.node.start &&
       issued.site.node.end === leave.profile.membershipSite.node.end;
+    const leaveDecide = owner.activeLeaveDecideDecision;
+    const leaveDecideNested = !send && state.bound.leaveDecideDecision !== undefined &&
+      leaveDecide?.call === call && !owner.busy && owner.stage === 0 &&
+      issued.site.stage === 'body-condition' &&
+      issued.site.node.start === leaveDecide.profile.membershipSite.node.start &&
+      issued.site.node.end === leaveDecide.profile.membershipSite.node.end;
+    const refer = owner.activeOwnerDecision;
+    const referNested = !send && state.bound.referRejectDecision !== undefined &&
+      refer?.call === call && refer.owner === 'refer.reject_source' && !owner.busy && owner.stage === 0 &&
+      issued.site.stage === 'body-condition' &&
+      issued.site.node.start === state.bound.referRejectDecision.membershipSite.node.start &&
+      issued.site.node.end === state.bound.referRejectDecision.membershipSite.node.end;
     const priorPending = eventNested || termNested ? 1 : 0;
     if (owner.executingCall !== call || state.returnId !== null || state.pending !== priorPending || owner.capture.pending !== priorPending ||
         issued.site.stage === 'leading-require' && owner.stage !== 0 ||
         state.bound.leaveRequestDecision !== undefined && !leaveNested ||
+        state.bound.leaveDecideDecision !== undefined && !leaveDecideNested ||
+        state.bound.referRejectDecision !== undefined && !referNested ||
         owner.callGuards.length >= MAX_ITEMS) return invalid('membership capture is concurrent, completed, stale or outside its authored stage.');
     const activeSend = owner.activeSend;
     if (send ? activeSend === null || activeSend.call !== call || activeSend.stage !== owner.stage ||
@@ -964,7 +1190,11 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
           (query.activeSlot !== slot || query.complete) || state!.pending !== priorPending + 1 ||
           eventNested && owner!.activeEventDecision !== event ||
           termNested && owner!.activeTermDecision !== term ||
-          leaveNested && owner!.activeLeaveDecision !== leave) return invalid('membership read crossed its exact active call/query stage.');
+          leaveNested && owner!.activeLeaveDecision !== leave ||
+          leaveDecideNested && owner!.activeLeaveDecideDecision !== leaveDecide ||
+          referNested && owner!.activeOwnerDecision !== refer) {
+        return invalid('membership read crossed its exact active call/query stage.');
+      }
     };
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Membership observation moved beyond its admitted revision.');
     healthy();
@@ -1291,6 +1521,12 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   const rawLeaveRequestDecision = (plan as ScenarioResultDisclosurePlan & { readonly leaveRequestDecision?: unknown }).leaveRequestDecision;
   const leaveRequestDecision = rawLeaveRequestDecision === undefined ? undefined :
     checkLeaveRequestDecisionPlan(rawLeaveRequestDecision, plan.source);
+  const rawLeaveDecideDecision = (plan as ScenarioResultDisclosurePlan & { readonly leaveDecideDecision?: unknown }).leaveDecideDecision;
+  const leaveDecideDecision = rawLeaveDecideDecision === undefined ? undefined :
+    checkLeaveDecideDecisionPlan(rawLeaveDecideDecision, plan.source);
+  const rawReferRejectDecision = (plan as ScenarioResultDisclosurePlan & { readonly referRejectDecision?: unknown }).referRejectDecision;
+  const referRejectDecision = rawReferRejectDecision === undefined ? undefined :
+    checkReferRejectDecisionPlan(rawReferRejectDecision, plan.source);
   if (eventDecision !== undefined) {
     const inspection = models.find(model => model.name === 'maintain.Inspection');
     const planModel = models.find(model => model.name === 'maintain.Plan');
@@ -1352,6 +1588,40 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
         plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
         (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
       return invalid('leave request decision lacks its exact void owner source and model declarations.');
+    }
+  }
+  if (leaveDecideDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    if (def.kind !== 'scenario' || def.name !== leaveDecideDecision.owner || declared !== 'void' ||
+        inputs.length !== 3 || inputs[0]?.name !== 'request' || inputs[0].kind !== 'ref' ||
+        inputs[0].model !== 'leave.Request' || !inputs[0].required ||
+        inputs[1]?.name !== 'approve' || inputs[1].kind !== 'boolean' || !inputs[1].required ||
+        inputs[2]?.name !== 'reason' || inputs[2].kind !== 'string' || inputs[2].valueType !== 'text' ||
+        !inputs[2].required ||
+        models.find(model => model.name === 'leave.Request')?.parent !== 'leave.Calendar' ||
+        models.find(model => model.name === 'leave.Calendar')?.parent !== 'employee.Employee' ||
+        models.find(model => model.name === 'leave.Portion')?.parent !== 'leave.Request' ||
+        models.find(model => model.name === 'leave.Allowance')?.parent !== 'employee.Employee' ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('leave decision lacks its exact void owner source and model declarations.');
+    }
+  }
+  if (referRejectDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    if (def.kind !== 'scenario' || def.name !== referRejectDecision.owner || declared !== 'void' ||
+        inputs.length !== 2 || inputs[0]?.name !== 'evidence' || inputs[0].kind !== 'ref' ||
+        inputs[0].model !== 'refer.SourceEvidence' || !inputs[0].required ||
+        inputs[1]?.name !== 'reason' || inputs[1].kind !== 'string' ||
+        inputs[1].valueType !== 'text' || !inputs[1].required ||
+        !models.some(model => model.name === 'refer.SourceEvidence' && model.parent === undefined) ||
+        models.find(model => model.name === 'refer.Advocate')?.parent !== 'refer.Program' ||
+        models.find(model => model.name === 'refer.Credit')?.parent !== 'refer.Advocate' ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('referral rejection lacks its exact void owner source and model declarations.');
     }
   }
   const resultModel = modelResultType(declared);
@@ -1475,6 +1745,8 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     ...(eventDecision === undefined ? {} : { eventDecision }),
     ...(termDecision === undefined ? {} : { termDecision }),
     ...(leaveRequestDecision === undefined ? {} : { leaveRequestDecision }),
+    ...(leaveDecideDecision === undefined ? {} : { leaveDecideDecision }),
+    ...(referRejectDecision === undefined ? {} : { referRejectDecision }),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,
@@ -2581,6 +2853,13 @@ interface Capture {
     readonly years: readonly { readonly year: bigint; readonly days: readonly StoredRow[];
       readonly allowance: StoredRow | null }[]; readonly requestId: string;
     readonly portionIds: readonly string[] };
+  leaveDecideDecision?: { readonly request: StoredRow; readonly calendar: StoredRow;
+    readonly employee: StoredRow; readonly approve: boolean; readonly reason: string;
+    readonly reserveRevision: bigint; readonly portionRows: readonly StoredRow[];
+    readonly stageCount: number; readonly allowanceRows: readonly StoredRow[] };
+  referRejectDecision?: { readonly evidence: StoredRow; readonly advocate: StoredRow;
+    readonly first: StoredRow | null; readonly reversed: boolean; readonly reason: string;
+    readonly creditRows: readonly StoredRow[]; readonly createdId: string | null };
 }
 const captures = new WeakMap<AdmittedCall, Capture>();
 const captureContexts = new WeakMap<object, Capture>();
@@ -2625,6 +2904,45 @@ interface FrameworkLedger {
   readonly skipped: Map<string, AuthoredSkippedDelivery>;
   ordinal: number;
 }
+interface OwnerDecisionStage {
+  readonly op: 'update' | 'create';
+  readonly model: ModelName;
+  readonly id?: RecordId;
+  readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+  readonly fields: readonly string[];
+}
+interface OwnerDecisionQuerySite {
+  readonly id: string;
+  readonly stage: number;
+  readonly model: ModelName;
+  readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+  readonly repeatAtStage?: boolean;
+}
+/** A finite source-order lease shared by exact owner decision profiles. */
+interface OwnerDecisionLease {
+  readonly call: AdmittedCall;
+  readonly owner: string;
+  readonly stages: readonly OwnerDecisionStage[];
+  readonly queries: readonly OwnerDecisionQuerySite[];
+  readonly stagedIds: string[];
+  staged: number;
+  queryIndex: number;
+}
+function claimOwnerDecisionQuery(owner: ReceiptOwnerSession, lease: OwnerDecisionLease,
+  siteId: string, model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>): void {
+  let expected = lease.queries[lease.queryIndex];
+  if (expected?.repeatAtStage === true && owner.stage > expected.stage) {
+    lease.queryIndex++;
+    expected = lease.queries[lease.queryIndex];
+  }
+  if (owner.activeOwnerDecision !== lease || owner.executingCall !== lease.call ||
+      expected === undefined || expected.id !== siteId || expected.stage !== owner.stage ||
+      expected.model !== model || (expected.parent === undefined ? parent !== undefined :
+        parent === undefined || stableStringify(expected.parent) !== stableStringify(parent))) {
+    return invalid('owner decision collection lacks its exact source-order site and parent.');
+  }
+  if (expected.repeatAtStage !== true) lease.queryIndex++;
+}
 interface ReceiptOwnerSession {
   readonly call: AdmittedCall;
   readonly store: StoragePort;
@@ -2655,6 +2973,9 @@ interface ReceiptOwnerSession {
   activeTermDecision: { readonly call: AdmittedCall; readonly site: TermDecisionSite } | null;
   activeLeaveDecision: { readonly call: AdmittedCall; readonly profile: LeaveRequestDecisionPlan;
     readonly staged: string[] } | null;
+  activeLeaveDecideDecision: { readonly call: AdmittedCall; readonly profile: LeaveDecideDecisionPlan;
+    readonly requestId: RecordId; readonly approve: boolean; staged: number } | null;
+  activeOwnerDecision: OwnerDecisionLease | null;
 }
 const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
 const ownerContexts = new WeakMap<object, ReceiptOwnerSession>();
@@ -2838,6 +3159,52 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
       values[input.name] = wire;
     }
   }
+  const leaveDecide = state.bound.leaveDecideDecision;
+  if (leaveDecide !== undefined && owner.activeLeaveDecideDecision !== null) {
+    const lease = owner.activeLeaveDecideDecision;
+    const selected = models[0];
+    const original = call.recordRefs.find(ref => ref.param === 'request' && ref.model === 'leave.Request' &&
+      ref.id === lease.requestId);
+    if (!lease.approve || lease.call !== call || lease.profile !== leaveDecide ||
+        owner.stage !== 1 || lease.staged !== 1 || owner.framework?.ordinal !== 0 ||
+        guard.rule !== leaveDecide.sendRule.rule || models.length !== 1 ||
+        selected?.name !== 'request' || selected.profile.model !== 'leave.Request' ||
+        guard.inputs.length !== 2 || guard.inputs[0]?.name !== 'request' ||
+        guard.inputs[1]?.name !== 'reserve_revision' || original === undefined ||
+        selected.row.id !== original.id || selected.row.version !== original.row.version + 1 ||
+        !sameModelLifetime(original.row, selected.row) ||
+        decodeValue('int', values['reserve_revision']) !==
+          decodeValue('int', original.row.data['schedule_revision']) ||
+        stableStringify(selected.row.data) !== stableStringify({ ...original.row.data,
+          state: 'approved', decision: admittedInputWire(call.inputs, 'reason'),
+          schedule_source: call.context.operationId, sync: 'pending' })) {
+      return invalid('leave decision SEND needs its exact post-approval Request and frozen revision.');
+    }
+    const snapshot = deepFreeze({ ...selected.row, parent: selected.row.parent ?? null,
+      data: dataCopy(selected.row.data),
+      sourcePresence: selected.sourcePresence });
+    modelLexicalSnapshotOccurrences(selected.profile, snapshot);
+    values.request = snapshot;
+    owner.callGuards.push(Object.freeze({ name: `leave-decide-send:${guard.rule}`, evaluate: async () => {
+      if (owner.finalized === null || owner.capture.poisoned) return invalid('leave decision SEND lacks final effects.');
+      const writes = owner.finalized.writes.filter(write => write.model === 'leave.Request' &&
+        (write.kind === 'insert' ? write.row.id : write.id) === original.id);
+      const write = writes[0];
+      // Both authored SETs stage serially, then coalesce into one committed
+      // Request update and one storage version increment.
+      if (writes.length !== 1 || write?.kind !== 'update' || write.row.version !== original.row.version + 1 ||
+          !sameModelLifetime(original.row, write.row) ||
+          stableStringify(write.row.data) !== stableStringify({ ...selected.row.data,
+            reserve_delivery: owner.framework?.queued.values().next().value?.intentId ?? null })) {
+        return invalid('leave decision SEND lost its exact subsequent delivery SET.');
+      }
+      if (await owner.store.readRevision() !== call.revision) {
+        throw new StateError('conflict', 'Leave decision SEND moved beyond its original checkpoint.');
+      }
+      return true;
+    } }));
+    return deepFreeze(Object.fromEntries(guard.inputs.map(input => [input.name, values[input.name]])));
+  }
   if (models.length === 0) return deepFreeze(values);
   const privateEvent = event !== undefined && models.length === 1 && models[0]!.name === 'eventTerm';
   if (owner.session === null || !privateEvent && (producer?.app !== call.context.app || producer.readPolicies === undefined) ||
@@ -2970,6 +3337,11 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
       const guard = producer.sendGuards?.find(item => item.rule === rule);
       if (guard === undefined || guard.binding !== binding.binding || guard.target !== source ||
           producer.evaluateGuard === undefined) return invalid('SEND when lacks its exact checked owner/binding/target guard.');
+      const leave = owner.activeLeaveDecideDecision;
+      if (leave !== null && (!leave.approve || leave.call !== call || owner.stage !== 1 || leave.staged !== 1 ||
+          ledger.ordinal !== 0 || rule !== leave.profile.sendRule.rule)) {
+        return invalid('leave decision SEND differs from its one post-approval source stage.');
+      }
       const active = Object.freeze({ call, guard, stage: owner.stage }); owner.activeSend = active;
       try {
         const lexical = await captureSendLexical(call, owner, guard, when['inputs'] as Readonly<Record<string, unknown>>);
@@ -3258,12 +3630,14 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
           !('value' in Object.getOwnPropertyDescriptor(input, key)!))) return invalid('owner session accepts only its defining mutation options.');
     if (typeof input.bounds !== 'object' || input.bounds === null || Array.isArray(input.bounds)) return invalid('owner session requires finite bounds.');
     const bounds = object(dataCopy(input.bounds), ['maxWork', 'maxRows']);
-    // The extra row is a sentinel: an admitted Leave domain contains at most
-    // 4,000 rows, so a full query can prove it did not truncate.
-    const maxRows = state.bound.leaveRequestDecision === undefined ? MAX_ITEMS : 4_001;
+    // The extra row is a sentinel: admitted bounded owner domains contain at
+    // most 4,000 rows, so a full query can prove it did not truncate.
+    const extendedOwner = state.bound.leaveRequestDecision !== undefined ||
+      state.bound.leaveDecideDecision !== undefined || state.bound.referRejectDecision !== undefined;
+    const maxRows = !extendedOwner ? MAX_ITEMS : 4_001;
     if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
         (bounds['maxRows'] as number) > maxRows ||
-        state.bound.leaveRequestDecision !== undefined && (bounds['maxWork'] !== 200_000 || bounds['maxRows'] !== 4_001)) {
+        extendedOwner && (bounds['maxWork'] !== 200_000 || bounds['maxRows'] !== 4_001)) {
       return invalid('owner row bound exceeds its exact saved disclosure budget.');
     }
     const producer = frameworkProducers.get(call.def as GeneratedOperationDef);
@@ -3274,7 +3648,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
       framework: producer === undefined ? null : { producer, rows: new Map(), queued: new Map(), skipped: new Map(), ordinal: 0 },
       ...inputDefaultSlots(call, state.bound), computedIndex: 0,
       session: null, options: input, executingCall: call, callCount: 0, callDepth: 0, calls: [], callGuards: [], storedFileChecks: [], modelResults: [], activeSend: null,
-      activeEventDecision: null, activeTermDecision: null, activeLeaveDecision: null };
+      activeEventDecision: null, activeTermDecision: null, activeLeaveDecision: null,
+      activeLeaveDecideDecision: null, activeOwnerDecision: null };
     ownerSessions.set(call, owner);
     ownerContexts.set(call.context, owner);
     const session = await ownerOperation(owner, () => beginOwnerMutation({ ...input, context: call.context, store,
@@ -3295,7 +3670,10 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
       // Query influence remains unsupported by disclosure v1. Individual
       // current rows still come from the real bounded owner read.
       query: spec => ownerOperation(owner, async () => {
-        if (owner.activeLeaveDecision !== null) return invalid('leave request collections require their exact checked source site.');
+        if (owner.activeLeaveDecision !== null || owner.activeLeaveDecideDecision !== null ||
+            owner.activeOwnerDecision !== null) {
+          return invalid('owner decision collections require their exact checked source site.');
+        }
         const selection = deepFreeze(dataCopy(spec));
         const rows = await source.query(selection);
         if (current) for (const row of rows) issue(selection.model, row);
@@ -3331,9 +3709,50 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
             return invalid('leave request stages require one original Request then at most ten Portion creates.');
           }
         }
+        const decide = owner.activeLeaveDecideDecision;
+        if (decide !== null) {
+          const [write] = Array.isArray(writes) ? writes : [writes];
+          const keys = write?.data === undefined ? [] : Object.keys(write.data).sort();
+          const expected = decide.approve ? decide.staged === 0
+            ? ['decision', 'schedule_source', 'state', 'sync'] : ['reserve_delivery']
+            : ['decision', 'state'];
+          if (Array.isArray(writes) && writes.length !== 1 || write === undefined ||
+              write.op !== 'update' || write.model !== 'leave.Request' ||
+              write.id !== decide.requestId || write.parent !== undefined ||
+              write.transition !== undefined || write.when !== undefined ||
+              decide.staged >= (decide.approve ? 2 : 1) || owner.stage !== decide.staged ||
+              stableStringify(keys) !== stableStringify(expected) ||
+              (owner.framework?.ordinal ?? 0) !== (decide.approve && decide.staged === 1 ? 1 : 0)) {
+            return invalid('leave decision stages require its exact approve or reject Request SET order.');
+          }
+        }
+        const finite = owner.activeOwnerDecision;
+        if (finite !== null) {
+          const [write] = Array.isArray(writes) ? writes : [writes];
+          const expected = finite.stages[finite.staged];
+          if (expected === undefined || Array.isArray(writes) && writes.length !== 1 ||
+              write === undefined || write.op !== expected.op || write.model !== expected.model ||
+              expected.id !== undefined && write.id !== expected.id ||
+              typeof write.id !== 'string' || write.id.length === 0) {
+            return invalid('owner decision write differs from its finite checked source stage.');
+          }
+          if ((expected.parent === undefined ? write.parent !== undefined :
+                stableStringify(write.parent) !== stableStringify(expected.parent)) ||
+              write.transition !== undefined || write.when !== undefined ||
+              owner.stage !== finite.staged ||
+              stableStringify(Object.keys(write.data ?? {}).sort()) !== stableStringify(expected.fields)) {
+            return invalid('owner decision write differs from its original fields and parent.');
+          }
+        }
         await session.stage(writes, options);
         owner.stage += 1;
         if (leave !== null) leave.staged.push((Array.isArray(writes) ? writes[0] : writes).id!);
+        if (decide !== null) decide.staged += 1;
+        if (finite !== null) {
+          const write = Array.isArray(writes) ? writes[0]! : writes;
+          finite.stagedIds.push(write.id!);
+          finite.staged += 1;
+        }
       }),
       finalize: async () => {
         try {
@@ -3365,7 +3784,9 @@ export function closeScenarioReceiptExecution(call: AdmittedCall): void {
   const owner = ownerSessions.get(call);
   if (owner !== undefined) {
     owner.closed = true;
-    if (owner.busy || owner.activeLeaveDecision !== null || owner.executingCall !== call || owner.finalized === null) owner.capture.poisoned = true;
+    if (owner.busy || owner.activeLeaveDecision !== null || owner.activeLeaveDecideDecision !== null ||
+        owner.activeOwnerDecision !== null ||
+        owner.executingCall !== call || owner.finalized === null) owner.capture.poisoned = true;
   }
   const state = captures.get(call);
   if (state !== undefined && state.pending !== 0) state.poisoned = true;
@@ -3708,6 +4129,9 @@ function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void) {
     if (domains.size >= MAX_ITEMS || owner.session === null) return invalid('policy collection exceeds its owning stage.');
     const rows = await owner.session.views.final.query({model, authority: 'owner', archived: 'exclude',
       order: [{field: 'id', direction: 'asc'}], limit: owner.maxRows, ...(parent === undefined ? {} : {parent})});
+    if (owner.capture.bound.leaveDecideDecision !== undefined && rows.length > 4_000) {
+      return invalid('leave decision source Require exceeds its complete owner domain bound.');
+    }
     healthy();
     const copied = deepFreeze(dataCopy(rows));
     domains.set(key, {model, parent, rows: copied});
@@ -4547,6 +4971,420 @@ export async function executeScenarioReceiptLeaveRequestDecision(call: AdmittedC
       }
       await authority.revalidate();
       if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Leave request moved beyond outer commit.');
+      return true;
+    } }));
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+}
+
+/** The original Leave approval body is one serial owner decision. Its global
+ * allowance aggregate is narrowed only by the actual source-issued Allowance
+ * identity; every matching Portion and its Request parent remains observed. */
+export async function executeScenarioReceiptLeaveDecideDecision(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: LeaveDecideDecisionPlan;
+  readonly checked: LeaveDecideDecisionPlan;
+  readonly evaluate: (frame: {
+    readonly request: StoredRow;
+    readonly calendar: StoredRow;
+    readonly employee: StoredRow;
+    readonly read: (model: ModelName, id: RecordId) => StoredRow | null;
+    readonly query: (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+    readonly withAllowance: (allowance: StoredRow, calculate: () => Promise<unknown>) => Promise<unknown>;
+  }) => Promise<unknown>;
+}): Promise<void> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  try {
+    const profile = state.bound.leaveDecideDecision;
+    if (profile === undefined || owner === undefined || owner.session === null || owner.stage !== 0 ||
+        owner.busy || owner.activeLeaveDecideDecision !== null || state.pending !== 0 || state.returnId !== null ||
+        state.leaveDecideDecision !== undefined || owner.executingCall !== call ||
+        owner.callGuards.length >= MAX_ITEMS || typeof input.evaluate !== 'function') {
+      return invalid('leave decision needs its unique active initial owner stage.');
+    }
+    const original = checkLeaveDecideDecisionPlan(dataCopy(input.original), state.bound.plan.source);
+    const checked = checkLeaveDecideDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
+    if (stableStringify(original) !== stableStringify(checked) ||
+        stableStringify(original) !== stableStringify(profile)) {
+      return invalid('leave decision differs from its independently checked source.');
+    }
+    const refs = call.recordRefs.filter(ref => ref.param === 'request' && ref.model === 'leave.Request');
+    const ref = refs[0];
+    const wire = decodeValue('leave.Request', admittedInputWire(call.inputs, 'request')) as { readonly id: string };
+    const approve = decodeValue('bool', admittedInputWire(call.inputs, 'approve')) as boolean;
+    const reason = decodeValue('text', admittedInputWire(call.inputs, 'reason')) as string;
+    if (refs.length !== 1 || ref === undefined || ref.id !== wire.id ||
+        ref.expectedVersion === null || ref.row.version !== ref.expectedVersion ||
+        typeof approve !== 'boolean' || typeof reason !== 'string') {
+      return invalid('leave decision needs its exact admitted Request, Bool and reason.');
+    }
+    const load = async (model: ModelName, id: RecordId): Promise<StoredRow | null> =>
+      ownerOperation(owner, () => owner.session!.views.final.get(model, id));
+    const request = await load('leave.Request' as ModelName, ref.id);
+    if (request === null || request.archivedAt !== null ||
+        stableStringify(request) !== stableStringify(ref.row) || request.parent?.model !== 'leave.Calendar') {
+      throw new StateError('conflict', 'Leave decision Request differs from its admitted row.');
+    }
+    const calendar = await load('leave.Calendar' as ModelName, request.parent.id);
+    if (calendar === null || calendar.archivedAt !== null || calendar.parent?.model !== 'employee.Employee') {
+      throw new StateError('forbidden', 'Leave decision lacks its current Calendar.');
+    }
+    const employee = await load('employee.Employee' as ModelName, calendar.parent.id);
+    if (employee === null || employee.archivedAt !== null || employee.parent !== null) {
+      throw new StateError('forbidden', 'Leave decision lacks its current Employee owner.');
+    }
+    const key = (model: string, id: string) => `${model}\0${id}`;
+    const rows = new Map<string, StoredRow>([[key('leave.Request', request.id), request],
+      [key('leave.Calendar', calendar.id), calendar], [key('employee.Employee', employee.id), employee]]);
+    type Domain = { readonly model: ModelName; readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+      readonly allowanceId?: RecordId; readonly rows: readonly StoredRow[] };
+    const domains = new Map<string, Domain>();
+    const lease = { call, profile, requestId: request.id, approve, staged: 0 };
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner);
+      if (owner.executingCall !== call || owner.activeLeaveDecideDecision !== lease || owner.busy ||
+          state.pending !== 0 || state.returnId !== null) {
+        return invalid('leave decision crossed its original serial owner stage.');
+      }
+    };
+    let portionQueries = 0, activeAllowance: StoredRow | null = null;
+    const allowanceUses: StoredRow[] = [];
+    const query = async (model: ModelName,
+      parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+      healthy();
+      // The header Employee scan runs inside its separately bound source
+      // Require observer. This callback owns only the approval Portions.
+      if (owner.stage !== 0 || model !== 'leave.Portion' || (activeAllowance === null ?
+          !approve || parent?.model !== 'leave.Request' || parent.id !== request.id || portionQueries++ !== 0 :
+          parent !== undefined || portionQueries !== 1)) {
+        return invalid('leave decision collection differs from its exact source stage or parent.');
+      }
+      const allowanceId = activeAllowance?.id;
+      const identity = JSON.stringify([model, parent ?? null, allowanceId ?? null]);
+      let domain = domains.get(identity);
+      if (domain === undefined) {
+        const found = await ownerOperation(owner, () => owner.session!.views.final.query({ model,
+          authority: 'owner', archived: 'exclude', order: [{ field: 'id', direction: 'asc' }],
+          limit: owner.maxRows,
+          ...(parent === undefined ? {} : { parent }),
+          ...(allowanceId === undefined ? {} : { where: { op: 'eq' as const, field: 'allowance', value: { id: allowanceId } } }) }));
+        if (found.length > 4_000) return invalid('leave decision collection exceeds its complete domain bound.');
+        for (const row of found) {
+          if (row.archivedAt !== null || (parent === undefined ? row.parent !== null && model === 'employee.Employee' :
+              row.parent?.model !== parent.model || row.parent.id !== parent.id) ||
+              allowanceId !== undefined &&
+                (decodeValue('leave.Allowance?', row.data['allowance'] ?? null) as { readonly id: string } | null)?.id !== allowanceId) {
+            return invalid('leave decision collection contains a foreign, archived or unselected owner row.');
+          }
+          rows.set(key(model, row.id), row);
+          if (allowanceId !== undefined) {
+            if (row.parent?.model !== 'leave.Request') return invalid('allowance Portion lost its Request parent.');
+            const parentRow = await load('leave.Request' as ModelName, row.parent.id);
+            if (parentRow === null || parentRow.archivedAt !== null) {
+              throw new StateError('forbidden', 'Allowance Portion parent Request is unavailable.');
+            }
+            rows.set(key('leave.Request', parentRow.id), parentRow);
+          }
+        }
+        domain = { model, ...(parent === undefined ? {} : { parent }),
+          ...(allowanceId === undefined ? {} : { allowanceId }), rows: Object.freeze([...found]) };
+        domains.set(identity, domain);
+      }
+      healthy(); return domain.rows;
+    };
+    const withAllowance = async (allowance: StoredRow, calculate: () => Promise<unknown>): Promise<unknown> => {
+      healthy();
+      if (!approve || owner.stage !== 0 || portionQueries !== 1 || activeAllowance !== null ||
+          allowance.archivedAt !== null || allowance.parent?.model !== 'employee.Employee' ||
+          typeof calculate !== 'function') return invalid('leave decision Allowance lacks its checked Portion occurrence.');
+      const current = await load('leave.Allowance' as ModelName, allowance.id);
+      if (current === null || stableStringify(current) !== stableStringify(allowance)) {
+        throw new StateError('forbidden', 'Leave decision Allowance changed before its aggregate.');
+      }
+      rows.set(key('leave.Allowance', current.id), current);
+      activeAllowance = current;
+      try {
+        const value = await calculate();
+        healthy();
+        const domain = domains.get(JSON.stringify(['leave.Portion', null, current.id]));
+        if (domain === undefined) return invalid('leave decision omitted its exact Allowance Portion aggregate.');
+        let used = 0n;
+        for (const portion of domain.rows) {
+          const parent = rows.get(key('leave.Request', portion.parent!.id));
+          if (parent === undefined) return invalid('allowance aggregate lacks its current Request parent.');
+          if (parent.data['state'] === 'approved') used += decodeValue('int', portion.data['days']) as bigint;
+        }
+        const expected = (decodeValue('int', current.data['days']) as bigint) - used;
+        if ((decodeValue('int', encodeValue('int', value as bigint)) as bigint) !== expected) {
+          return invalid('leave decision Allowance.remaining differs from its complete owner aggregate.');
+        }
+        allowanceUses.push(current);
+        return value;
+      } finally { activeAllowance = null; }
+    };
+    const memberships = scenarioReceiptMemberships(call, store);
+    const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
+    const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
+    const context: ByContext = { actorUserId, teamId, membership, memberships };
+    let evaluated = false;
+    const authority = await observeRowGrantAuthority(context, async observed => {
+      if (evaluated) return true;
+      if (observed.actorUserId !== actorUserId || observed.teamId !== teamId) {
+        return invalid('leave decision Identity differs from its admitted actor.');
+      }
+      evaluated = true; owner.activeLeaveDecideDecision = lease;
+      try {
+        const read = (model: ModelName, id: RecordId): StoredRow | null => {
+          healthy(); return rows.get(key(model, id)) ?? null;
+        };
+        const answer = await input.evaluate(Object.freeze({ request, calendar, employee, read, query, withAllowance }));
+        healthy();
+        if (answer !== undefined) return invalid('leave decision body must complete its original void path.');
+      } finally { owner.activeLeaveDecideDecision = null; }
+      return true;
+    });
+    if (!authority.value ||
+        (approve ? portionQueries !== 1 || lease.staged !== 2 || Number(owner.stage) !== 2 ||
+          owner.framework?.ordinal !== 1 || owner.framework.skipped.size !== 0 || owner.framework.queued.size !== 1 :
+          portionQueries !== 0 || allowanceUses.length !== 0 || lease.staged !== 1 || Number(owner.stage) !== 1 ||
+          (owner.framework?.ordinal ?? 0) !== 0)) {
+      return invalid('leave decision omitted its exact approval or rejection source effects.');
+    }
+    const portions = domains.get(JSON.stringify(['leave.Portion', { model: 'leave.Request', id: request.id }, null]))?.rows ?? [];
+    if (approve) {
+      const charged = portions.filter(row => row.data['allowance'] !== null && row.data['allowance'] !== undefined);
+      if (charged.length !== allowanceUses.length) return invalid('leave decision missed a charged Portion aggregate.');
+      const pending = new Map<string, bigint>();
+      for (const portion of charged) {
+        const id = (decodeValue('leave.Allowance', portion.data['allowance']) as { readonly id: string }).id;
+        if (!allowanceUses.some(row => row.id === id)) return invalid('leave decision read a different Portion Allowance.');
+        pending.set(id, (pending.get(id) ?? 0n) + (decodeValue('int', portion.data['days']) as bigint));
+      }
+      for (const [id, extra] of pending) {
+        const allowance = rows.get(key('leave.Allowance', id))!;
+        const domain = domains.get(JSON.stringify(['leave.Portion', null, id]));
+        if (domain === undefined) return invalid('leave decision lost its shared Allowance domain.');
+        let approved = 0n;
+        for (const row of domain.rows) if (rows.get(key('leave.Request', row.parent!.id))?.data['state'] === 'approved') {
+          approved += decodeValue('int', row.data['days']) as bigint;
+        }
+        if (approved + extra > (decodeValue('int', allowance.data['days']) as bigint)) {
+          throw new StateError('rule_failed', 'Leave Allowance would be overdrawn.');
+        }
+      }
+    }
+    await authority.revalidate();
+    state.leaveDecideDecision = { request, calendar, employee, approve, reason,
+      reserveRevision: decodeValue('int', request.data['schedule_revision']) as bigint,
+      portionRows: Object.freeze([...portions]), stageCount: lease.staged,
+      allowanceRows: Object.freeze([...new Map(allowanceUses.map(row => [row.id, row])).values()]) };
+    owner.callGuards.push(Object.freeze({ name: `leave-decide:${profile.sites.header.id}`, evaluate: async () => {
+      if (owner.finalized === null || owner.capture.poisoned || owner.activeLeaveDecideDecision !== null) {
+        return invalid('leave decision needs its actual finalized serial owner effects.');
+      }
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Leave decision moved before outer commit.');
+      for (const [identity, row] of rows) {
+        const separator = identity.indexOf('\0');
+        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
+          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
+        if (stableStringify(current) !== stableStringify(row)) {
+          throw new StateError('forbidden', 'Leave decision owner row changed before commit.');
+        }
+      }
+      for (const domain of domains.values()) {
+        const current = await store.query({ model: domain.model, authority: 'owner', archived: 'exclude',
+          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows,
+          ...(domain.parent === undefined ? {} : { parent: domain.parent }),
+          ...(domain.allowanceId === undefined ? {} :
+            { where: { op: 'eq' as const, field: 'allowance', value: { id: domain.allowanceId } } }) });
+        if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
+          throw new StateError('forbidden', 'Leave decision owner collection changed before commit.');
+        }
+      }
+      await authority.revalidate();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Leave decision moved beyond outer commit.');
+      return true;
+    } }));
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+}
+
+/** Execute a compiler-stamped finite owner decision with source-order SET,
+ * child-domain reads and optional CREATE. No caller-supplied row/query claim
+ * can substitute for the active mutation session's current owner views. */
+export async function executeScenarioReceiptReferRejectDecision(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: ReferRejectDecisionPlan;
+  readonly checked: ReferRejectDecisionPlan;
+  readonly evaluate: (frame: {
+    readonly evidence: StoredRow;
+    readonly advocate: StoredRow;
+    readonly program: StoredRow;
+    readonly read: (model: ModelName, id: RecordId) => StoredRow | null;
+    readonly query: (siteId: string, model: ModelName,
+      parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+    readonly role: (role: string, subject: UserRef) => Promise<boolean>;
+  }) => Promise<unknown>;
+}): Promise<void> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  try {
+    const profile = state.bound.referRejectDecision;
+    if (profile === undefined || owner === undefined || owner.session === null || owner.stage !== 0 ||
+        owner.busy || owner.activeOwnerDecision !== null || state.pending !== 0 || state.returnId !== null ||
+        state.referRejectDecision !== undefined || owner.executingCall !== call ||
+        owner.callGuards.length >= MAX_ITEMS || typeof input.evaluate !== 'function') {
+      return invalid('referral rejection needs its unique active initial owner stage.');
+    }
+    const original = checkReferRejectDecisionPlan(dataCopy(input.original), state.bound.plan.source);
+    const checked = checkReferRejectDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
+    if (stableStringify(original) !== stableStringify(checked) ||
+        stableStringify(original) !== stableStringify(profile)) {
+      return invalid('referral rejection differs from its independently checked source.');
+    }
+    const refs = call.recordRefs.filter(ref => ref.param === 'evidence' && ref.model === 'refer.SourceEvidence');
+    const ref = refs[0];
+    const wire = decodeValue('refer.SourceEvidence', admittedInputWire(call.inputs, 'evidence')) as { readonly id: string };
+    const reason = decodeValue('text', admittedInputWire(call.inputs, 'reason')) as string;
+    if (refs.length !== 1 || ref === undefined || ref.id !== wire.id ||
+        ref.expectedVersion === null || ref.row.version !== ref.expectedVersion || typeof reason !== 'string') {
+      return invalid('referral rejection needs its exact admitted Evidence and reason.');
+    }
+    const load = async (model: ModelName, id: RecordId): Promise<StoredRow | null> =>
+      ownerOperation(owner, () => owner.session!.views.final.get(model, id));
+    const evidence = await load('refer.SourceEvidence' as ModelName, ref.id);
+    if (evidence === null || evidence.archivedAt !== null || evidence.parent !== null ||
+        stableStringify(evidence) !== stableStringify(ref.row)) {
+      throw new StateError('conflict', 'Referral Evidence differs from its admitted row.');
+    }
+    const advocateRef = decodeValue('refer.Advocate', evidence.data['advocate']) as { readonly id: RecordId };
+    const advocate = await load('refer.Advocate' as ModelName, advocateRef.id);
+    if (advocate === null || advocate.archivedAt !== null || advocate.parent?.model !== 'refer.Program') {
+      throw new StateError('forbidden', 'Referral Evidence lacks its current Advocate.');
+    }
+    const program = await load('refer.Program' as ModelName, advocate.parent.id);
+    if (program === null || program.archivedAt !== null || program.parent !== null) {
+      throw new StateError('forbidden', 'Referral Advocate lacks its current Program.');
+    }
+    const key = (model: string, id: string) => `${model}\0${id}`;
+    const rows = new Map<string, StoredRow>([[key('refer.SourceEvidence', evidence.id), evidence],
+      [key('refer.Advocate', advocate.id), advocate], [key('refer.Program', program.id), program]]);
+    const creditParent = Object.freeze({ model: 'refer.Advocate' as ModelName, id: advocate.id });
+    const lease: OwnerDecisionLease = { call, owner: profile.owner, staged: 0, queryIndex: 0,
+      stagedIds: [], stages: Object.freeze([
+        { op: 'update', model: 'refer.SourceEvidence' as ModelName, id: evidence.id,
+          fields: Object.freeze(['reason', 'reversed']) },
+        { op: 'create', model: 'refer.Credit' as ModelName, parent: creditParent,
+          fields: Object.freeze(['amount', 'customer', 'qualification', 'reversal', 'source']) },
+      ]), queries: Object.freeze(profile.querySites.map(item => Object.freeze(item.stage === 'header' ?
+        { id: item.id, stage: 0, model: 'employee.Employee' as ModelName, repeatAtStage: true } :
+        { id: item.id, stage: 1, model: 'refer.Credit' as ModelName, parent: creditParent }))) };
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner);
+      if (owner.executingCall !== call || owner.activeOwnerDecision !== lease || owner.busy ||
+          state.pending !== 0 || state.returnId !== null) {
+        return invalid('referral rejection crossed its original serial owner stage.');
+      }
+    };
+    const domains: Array<{ readonly siteId: string; readonly model: ModelName;
+      readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+      readonly rows: readonly StoredRow[] }> = [];
+    const domainCache = new Map<string, readonly StoredRow[]>();
+    let headerQueries = 0;
+    let roleContext: ByContext | null = null, roleUses = 0;
+    const query = async (siteId: string, model: ModelName,
+      parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+      healthy();
+      if (roleUses !== 1) return invalid('referral rejection queried owner rows before its checked role.');
+      claimOwnerDecisionQuery(owner, lease, siteId, model, parent);
+      if (model === 'employee.Employee' && ++headerQueries > 4_000) {
+        return invalid('referral rejection header exceeds its finite location bound.');
+      }
+      const domainKey = stableStringify([model, parent ?? null]);
+      let found = domainCache.get(domainKey);
+      if (found === undefined) {
+        const scanned = await ownerOperation(owner, () => owner.session!.views.final.query({
+          model, ...(parent === undefined ? {} : { parent }), authority: 'owner', archived: 'exclude',
+          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
+        if (scanned.length > 4_000 || scanned.some(row => row.archivedAt !== null ||
+            (parent === undefined ? row.parent !== null :
+              row.parent?.model !== parent.model || row.parent.id !== parent.id))) {
+          return invalid('referral rejection scan exceeds or differs from its complete owner domain.');
+        }
+        found = Object.freeze([...scanned]);
+        domainCache.set(domainKey, found);
+        for (const row of found) rows.set(key(model, row.id), row);
+      }
+      domains.push(Object.freeze({ siteId, model, ...(parent === undefined ? {} : { parent }), rows: found }));
+      healthy(); return found;
+    };
+    const memberships = scenarioReceiptMemberships(call, store);
+    const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
+    const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
+    const context: ByContext = { actorUserId, teamId, membership, memberships };
+    const role = async (name: string, subject: UserRef): Promise<boolean> => {
+      healthy();
+      if (roleContext === null || name !== 'refer.program_manager' || !isUserRef(subject) ||
+          subject.id !== actorUserId || ++roleUses !== 1 || owner.stage !== 0) {
+        return invalid('referral rejection role differs from its checked program manager.');
+      }
+      const answer = await hasRole(roleContext, name, subject.id);
+      healthy(); return answer;
+    };
+    let evaluated = false;
+    const authority = await observeRowGrantAuthority(context, async observed => {
+      if (evaluated) return true;
+      if (observed.actorUserId !== actorUserId || observed.teamId !== teamId) {
+        return invalid('referral rejection Identity differs from its admitted actor.');
+      }
+      evaluated = true; roleContext = observed; owner.activeOwnerDecision = lease;
+      try {
+        const read = (model: ModelName, id: RecordId): StoredRow | null => {
+          healthy(); return rows.get(key(model, id)) ?? null;
+        };
+        const answer = await input.evaluate(Object.freeze({ evidence, advocate, program, read, query, role }));
+        healthy();
+        if (answer !== undefined) return invalid('referral rejection body must complete its original void path.');
+      } finally { owner.activeOwnerDecision = null; roleContext = null; }
+      return true;
+    });
+    const locations = decodeValue('rent_catalog.Location[]', program.data['locations']) as readonly { readonly id: string }[];
+    const firstDomain = domains.find(domain => domain.siteId === profile.querySites[1]!.id)?.rows;
+    const source = decodeValue('text', evidence.data['source']) as string;
+    const first = firstDomain?.find(row => row.data['source'] === source &&
+      (row.data['reversal'] ?? null) === null) ?? null;
+    const absenceDomain = domains.find(domain => domain.siteId === profile.querySites[2]!.id)?.rows;
+    const reversed = first === null ? false : absenceDomain?.some(row =>
+      (decodeValue('refer.Credit?', row.data['reversal'] ?? null) as { readonly id: string } | null)?.id === first.id) ?? false;
+    const shouldCreate = first !== null && !reversed;
+    if (!authority.value || roleUses !== 1 || headerQueries !== locations.length ||
+        domains.length !== headerQueries + (first === null ? 1 : 2) ||
+        lease.queryIndex !== (first === null ? 2 : 3) || lease.staged !== (shouldCreate ? 2 : 1) ||
+        Number(owner.stage) !== lease.staged || (owner.framework?.ordinal ?? 0) !== 0 ||
+        (owner.framework?.queued.size ?? 0) !== 0 || (owner.framework?.skipped.size ?? 0) !== 0) {
+      return invalid('referral rejection omitted its exact Credit selection, absence or reversal effects.');
+    }
+    await authority.revalidate();
+    state.referRejectDecision = { evidence, advocate, first, reversed, reason,
+      creditRows: Object.freeze([...(absenceDomain ?? firstDomain!)]),
+      createdId: shouldCreate ? lease.stagedIds[1]! : null };
+    owner.callGuards.push(Object.freeze({ name: `refer-reject:${profile.sites.first.id}`, evaluate: async () => {
+      if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
+        return invalid('referral rejection needs its actual finalized source effects.');
+      }
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Referral rejection moved before commit.');
+      for (const [identity, row] of rows) {
+        const separator = identity.indexOf('\0');
+        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
+          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
+        if (stableStringify(current) !== stableStringify(row)) {
+          throw new StateError('forbidden', 'Referral rejection owner row changed before commit.');
+        }
+      }
+      for (const domain of domains) {
+        const current = await store.query({ model: domain.model, ...(domain.parent === undefined ? {} : { parent: domain.parent }),
+          authority: 'owner', archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
+        if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
+          throw new StateError('forbidden', 'Referral rejection owner domain changed before commit.');
+        }
+      }
+      await authority.revalidate();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Referral rejection moved beyond commit.');
       return true;
     } }));
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
@@ -6614,6 +7452,107 @@ function verifyLeaveRequestEffects(call: AdmittedCall, decision: NonNullable<Cap
     }
   }
 }
+function verifyLeaveDecideEffects(call: AdmittedCall, decision: NonNullable<Capture['leaveDecideDecision']>,
+  owner: ReceiptOwnerSession | undefined, effects: ExecutionEffects): void {
+  const sends = owner?.framework;
+  const expectedStages = decision.approve ? 2 : 1;
+  if (owner === undefined || owner.finalized === null || owner.commitEffects === null ||
+      call.def.name !== 'leave.decide' || effects.result !== null || owner.stage !== expectedStages ||
+      decision.stageCount !== expectedStages || owner.finalized.writes.length !== 1 ||
+      owner.finalized.schedules.length !== 0 || effects.schedules.length !== 0 ||
+      sends === null || sends === undefined || sends.skipped.size !== 0 ||
+      sends.ordinal !== (decision.approve ? 1 : 0) || sends.queued.size !== (decision.approve ? 1 : 0) ||
+      effects.outbox.length !== sends.queued.size) {
+    return invalid('leave decision lacks its exact Request and optional reserve SEND effects.');
+  }
+  const write = owner.finalized.writes[0];
+  if (write?.kind !== 'update' || write.model !== 'leave.Request' || write.id !== decision.request.id ||
+      write.row.id !== decision.request.id || write.row.archivedAt !== null ||
+      write.row.version !== decision.request.version + 1 ||
+      !sameModelLifetime(decision.request, write.row)) {
+    return invalid('leave decision changed a foreign or incorrectly versioned Request.');
+  }
+  const [queued] = sends.queued.values();
+  const boundRequest = decision.approve && queued !== undefined ?
+    object(queued.arguments, ['binding', 'from', 'arguments']) : undefined;
+  if (decision.approve && (queued === undefined ||
+      queued.target !== 'shift.ScheduleV1.reserve' || queued.operationId !== call.context.operationId ||
+      queued.operation !== call.context.operation ||
+      queued.dispatchGuard !== owner.capture.bound.leaveDecideDecision?.sendRule.rule ||
+      effects.outbox[0]?.intentId !== queued.intentId ||
+      boundRequest?.['binding'] !== 'leave.StaffSchedule' ||
+      !Object.hasOwn(boundRequest['arguments'] as object, 'value'))) {
+    return invalid('leave decision lost its original StaffSchedule reserve SEND.');
+  }
+  const expected = decision.approve ? { ...decision.request.data,
+    state: 'approved', decision: admittedInputWire(call.inputs, 'reason'),
+    schedule_source: call.context.operationId, sync: 'pending', reserve_delivery: queued!.intentId } :
+    { ...decision.request.data, state: 'rejected', decision: admittedInputWire(call.inputs, 'reason') };
+  if (stableStringify(write.row.data) !== stableStringify(expected) ||
+      decodeValue('int', write.row.data['schedule_revision']) !== decision.reserveRevision) {
+    return invalid('leave decision Request differs from its original SET fields and source revision.');
+  }
+  if (decision.approve) {
+    const request = (boundRequest!['arguments'] as Record<string, unknown>)['value'] as Record<string, unknown>;
+    const employee = decodeValue('user', decision.employee.data['user']) as UserRef;
+    const location = decodeValue('rent_catalog.Location', decision.request.data['location']) as { readonly id: string };
+    if (!isUserRef(employee) || request['source'] !== call.context.operationId ||
+        stableStringify(request['employee']) !== stableStringify({ id: employee.id }) ||
+        request['location'] !== location.id || request['skill'] !== 'absence' || request['kind'] !== 'absence' ||
+        decodeValue('int', request['revision']) !== decision.reserveRevision) {
+      return invalid('leave reserve request differs from its checked employee, location or revision.');
+    }
+  }
+}
+function verifyReferRejectEffects(call: AdmittedCall, decision: NonNullable<Capture['referRejectDecision']>,
+  owner: ReceiptOwnerSession | undefined, effects: ExecutionEffects): void {
+  const create = decision.first !== null && !decision.reversed;
+  const expectedStages = create ? 2 : 1;
+  if (owner === undefined || owner.finalized === null || owner.commitEffects === null ||
+      call.def.name !== 'refer.reject_source' || effects.result !== null ||
+      owner.stage !== expectedStages || owner.finalized.writes.length !== expectedStages ||
+      owner.finalized.schedules.length !== 0 || effects.schedules.length !== 0 ||
+      effects.outbox.length !== 0 || (owner.framework?.ordinal ?? 0) !== 0 ||
+      (owner.framework?.queued.size ?? 0) !== 0 || (owner.framework?.skipped.size ?? 0) !== 0) {
+    return invalid('referral rejection lacks its exact Evidence and optional reversal effects.');
+  }
+  const evidenceWrites = owner.finalized.writes.filter(write => write.model === 'refer.SourceEvidence' &&
+    (write.kind === 'insert' ? write.row.id : write.id) === decision.evidence.id);
+  const evidenceWrite = evidenceWrites[0];
+  if (evidenceWrites.length !== 1 || evidenceWrite?.kind !== 'update' ||
+      evidenceWrite.row.id !== decision.evidence.id || evidenceWrite.row.archivedAt !== null ||
+      evidenceWrite.row.version !== decision.evidence.version + 1 ||
+      !sameModelLifetime(decision.evidence, evidenceWrite.row) ||
+      stableStringify(evidenceWrite.row.data) !== stableStringify({ ...decision.evidence.data,
+        reversed: true, reason: admittedInputWire(call.inputs, 'reason') })) {
+    return invalid('referral rejection Evidence differs from its original SET.');
+  }
+  const credits = owner.finalized.writes.filter(write => write.model === 'refer.Credit');
+  if (!create) {
+    if (credits.length !== 0 || decision.createdId !== null) {
+      return invalid('referral rejection created an unselected reversal.');
+    }
+    return;
+  }
+  const first = decision.first!;
+  const credit = credits[0];
+  if (credits.length !== 1 || credit?.kind !== 'insert' || decision.createdId !== credit.row.id ||
+      credit.row.version !== 1 || credit.row.archivedAt !== null ||
+      credit.row.parent?.model !== 'refer.Advocate' || credit.row.parent.id !== decision.advocate.id ||
+      stableStringify(Object.keys(credit.row.data).sort()) !==
+        stableStringify(['amount', 'customer', 'qualification', 'reversal', 'source']) ||
+      credit.row.data['source'] !== `${first.data['source']}:reversal` ||
+      stableStringify(credit.row.data['customer']) !== stableStringify(first.data['customer']) ||
+      credit.row.data['qualification'] !== admittedInputWire(call.inputs, 'reason') ||
+      (decodeValue('refer.Credit', credit.row.data['reversal']) as { readonly id: string }).id !== first.id) {
+    return invalid('referral reversal differs from its first selected Credit and original CREATE.');
+  }
+  const originalAmount = decodeValue('money', first.data['amount']) as { readonly minor: bigint; readonly currency: string };
+  const reversalAmount = decodeValue('money', credit.row.data['amount']) as { readonly minor: bigint; readonly currency: string };
+  if (reversalAmount.currency !== originalAmount.currency || reversalAmount.minor !== -originalAmount.minor) {
+    return invalid('referral reversal amount differs from the selected Credit.');
+  }
+}
 /** Invoke alone calls this after execution; no executor-supplied association is accepted. */
 export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffects): ScenarioReceiptAssociation | undefined {
   let state = captures.get(call);
@@ -6697,6 +7636,14 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   if (bound.leaveRequestDecision !== undefined) {
     if (state?.leaveRequestDecision === undefined) return invalid('leave request omitted its original owner decision.');
     verifyLeaveRequestEffects(call, state.leaveRequestDecision, owner, effects);
+  }
+  if (bound.leaveDecideDecision !== undefined) {
+    if (state?.leaveDecideDecision === undefined) return invalid('leave decision omitted its original owner decision.');
+    verifyLeaveDecideEffects(call, state.leaveDecideDecision, owner, effects);
+  }
+  if (bound.referRejectDecision !== undefined) {
+    if (state?.referRejectDecision === undefined) return invalid('referral rejection omitted its original owner decision.');
+    verifyReferRejectEffects(call, state.referRejectDecision, owner, effects);
   }
   // One checked empty path permits the ordinary implicit void return. Its
   // success receipt carries no business result and still saves changed rows.

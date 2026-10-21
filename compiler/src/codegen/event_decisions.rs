@@ -865,7 +865,7 @@ pub(super) fn collect_maintain_receipt(
             source,
             event_decision: Some(decision),
             term_decision: None,
-            leave_request_decision: None,
+            leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None,
             queries: Vec::new(),
             returns: vec![returned],
         },

@@ -30,6 +30,8 @@ export {
   executeScenarioReceiptEventDecision, type EventDecisionPlan,
   executeScenarioReceiptTermDecision, type TermDecisionPlan,
   executeScenarioReceiptLeaveRequestDecision, type LeaveRequestDecisionPlan,
+  executeScenarioReceiptLeaveDecideDecision, type LeaveDecideDecisionPlan,
+  executeScenarioReceiptReferRejectDecision, type ReferRejectDecisionPlan,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
   noteDueWorkAdmission, type DueWorkAdmission,

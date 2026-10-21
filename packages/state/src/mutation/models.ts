@@ -418,7 +418,8 @@ export type ModelTable = ReadonlyMap<ModelName, InterimModelDef>;
 export type UniqueGroupProfile =
   | ({ readonly fields: readonly [string, string]; readonly cases: readonly string[] } &
     ({ readonly kind: 'ref-enum'; readonly refModel: ModelName } | { readonly kind: 'user-enum' }))
-  | { readonly fields: readonly [string, string]; readonly kind: 'leave-year-bucket' };
+  | { readonly fields: readonly [string, string]; readonly kind: 'leave-year-bucket' }
+  | { readonly fields: readonly [string, string]; readonly kind: 'refer-settlement-payment-reference' };
 function checkedUniqueGroups(raw: unknown): readonly (readonly string[])[] {
   if (!Array.isArray(raw) || Reflect.ownKeys(raw).length !== raw.length + 1) throw new Error('Unique groups must be own data arrays.');
   const result: string[][] = [];
@@ -474,7 +475,7 @@ function isScalarValueTypeClaim(field: InterimFieldDef): boolean {
   // only when the literal check fails. A single hoisted read would change
   // accessor-observed read counts.
   return field.valueType === 'file[]!' ||
-    /^(int|datetime|text|bool|decimal|money|date|duration|currency|email|timezone|url|user|file)(\[\])?\??$/.test(field.valueType!);
+    /^(int|datetime|text|bool|decimal|money|date|duration|currency|email|timezone|url|user|file)(?:\[\](?:!|\?)?|\?)?$/.test(field.valueType!);
 }
 
 function isNominalValueTypeClaim(parsed: ParsedTypeId, schema: NormalizedSchema | undefined): boolean {
@@ -490,10 +491,10 @@ function isValueTypeClaimValid(
   const nominal = isNominalValueTypeClaim(parsed, schema);
   const reference = parsed.base.kind === 'nominal' && modelNames.has(parsed.base.path);
   if (reference && nominal) throw new Error('Model and value declaration namespaces overlap.');
-  const enumeration = parsed.base.kind === 'enum' && !parsed.requiredArray;
+  const enumeration = parsed.base.kind === 'enum';
   return (scalar || nominal || reference || enumeration) && printTypeId(parsed) === field.valueType &&
     parsed.array === (field.array !== undefined) &&
-    (!(nominal || reference || parsed.base.kind === 'file') || parsed.requiredArray === (field.array?.required === true)) &&
+    parsed.requiredArray === (field.array?.required === true) &&
     (!Object.hasOwn(field, 'nullable') || typeof field.nullable === 'boolean' && parsed.nullable === field.nullable);
 }
 
@@ -754,6 +755,16 @@ function checkUniqueGroup(
       enumField.array === undefined && enumField.nullable !== true && enumField.valueType === 'text') {
     groups.set(key, Object.freeze({ fields: Object.freeze([first, second]) as readonly [string, string],
       kind: 'leave-year-bucket' as const }));
+    return;
+  }
+  if (ctx.model === 'refer.Settlement' && first === 'payment_source' && second === 'reference' &&
+      ctx.def.containment?.parent === 'refer.Advocate' &&
+      ctx.def.uniqueWhen?.[key] === undefined && !refFields.has(first) && !refFields.has(second) &&
+      [refField, enumField].every(field => field.required && !field.serverOnly &&
+        field.default === undefined && field.array === undefined && field.nullable !== true &&
+        field.valueType === 'text')) {
+    groups.set(key, Object.freeze({ fields: Object.freeze([first, second]) as readonly [string, string],
+      kind: 'refer-settlement-payment-reference' as const }));
     return;
   }
   checkUniqueGroupFields(refField, enumField);

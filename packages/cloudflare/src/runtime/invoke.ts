@@ -141,7 +141,8 @@ import { hasRole as stateSubjectRole } from '@canlang/state/policy/roles';
 import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNativeSourceSendMembership, openNativeSourceSendMembershipFrame, bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
   bindNativeAuthorityReportMembership, hasNativeAuthorityReportMembership, openNativeAuthorityReportMembershipFrame,
-  bindNativeEventDecisionRole, bindNativeLeaveRequestRole, hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
+  bindNativeEventDecisionRole, bindNativeLeaveRequestRole, bindNativeReferRejectRole,
+  hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
   type NativeMembershipFrame } from './native-membership.js';
 import type { ScenarioReceiptMembershipSite, ScenarioReceiptRequireSource } from '@canlang/state/invocation';
 import type { CanonicalFileBinding, FileAttachment, FileStagingCensus } from './file-staging.js';
@@ -154,7 +155,8 @@ import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
 import { bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
-  bindNativeScenarioLeaveRequestDecision } from './native-scenario-require.js';
+  bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
+  bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision } from './native-scenario-require.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -1472,6 +1474,8 @@ interface StateInvokeProducer {
   readonly executeScenarioReceiptEventDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptEventDecision;
   readonly executeScenarioReceiptTermDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptTermDecision;
   readonly executeScenarioReceiptLeaveRequestDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptLeaveRequestDecision;
+  readonly executeScenarioReceiptLeaveDecideDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptLeaveDecideDecision;
+  readonly executeScenarioReceiptReferRejectDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptReferRejectDecision;
   readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
   readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
@@ -1774,6 +1778,12 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['executeScenarioReceiptLeaveRequestDecision'] !== 'function' ? {} : {
       executeScenarioReceiptLeaveRequestDecision: scenarioMod['executeScenarioReceiptLeaveRequestDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptLeaveRequestDecision']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptLeaveDecideDecision'] !== 'function' ? {} : {
+      executeScenarioReceiptLeaveDecideDecision: scenarioMod['executeScenarioReceiptLeaveDecideDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptLeaveDecideDecision']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptReferRejectDecision'] !== 'function' ? {} : {
+      executeScenarioReceiptReferRejectDecision: scenarioMod['executeScenarioReceiptReferRejectDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptReferRejectDecision']>,
     }),
     ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
       observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
@@ -3098,6 +3108,21 @@ async function joinOwningUnconditionalUniques(
           secretFields.get(name as ModelName)?.has('bucket') !== true &&
           !groups.some(group => stableStringify(group) === stableStringify(fields));
         if (leaveAllowanceKey) { groups.push(Object.freeze([...fields])); continue; }
+        const referSettlementKey = !conditional && name === 'refer.Settlement' &&
+          owner === 'refer' && fields.length === 2 &&
+          fields[0] === 'payment_source' && fields[1] === 'reference' &&
+          original[0]!.parent === 'refer.Advocate' &&
+          sourceRef.length === 1 && sourceEnum.length === 1 &&
+          ref?.field.kind === 'string' && role?.field.kind === 'string' &&
+          ref.required === true && role.required === true &&
+          ref.nullable !== true && role.nullable !== true &&
+          ref.array === undefined && role.array === undefined &&
+          canonicalRef?.valueType === 'text' && canonicalEnum?.valueType === 'text' &&
+          declaredRefType === 'text' && declaredRoleType === 'text' &&
+          secretFields.get(name as ModelName)?.has('payment_source') !== true &&
+          secretFields.get(name as ModelName)?.has('reference') !== true &&
+          !groups.some(group => stableStringify(group) === stableStringify(fields));
+        if (referSettlementKey) { groups.push(Object.freeze([...fields])); continue; }
         if (conditional || fields.length !== 2 || fields[0] === fields[1] ||
             fields.some(field => field.includes(',') || field.includes('.')) ||
             owner === '' || !name.startsWith(`${owner}.`) ||
@@ -3693,6 +3718,13 @@ interface NativeSourceSendGuard {
 }
 const nativeSourceSendOwners = new WeakMap<GeneratedOperationDef, { readonly ownerPackage: string }>();
 const nativeSourceSendGuards = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, NativeSourceSendGuard>>();
+function nativeLeaveDecideReserveGuard(def: GeneratedOperationDef, selected: NativeSourceSendGuard): boolean {
+  const decision = (def.descriptor.result?.disclosure as
+    { readonly leaveDecideDecision?: import('@canlang/state/invocation').LeaveDecideDecisionPlan } | undefined)?.leaveDecideDecision;
+  return def.name === 'leave.decide' && decision?.owner === 'leave.decide' &&
+    decision.sendRule.rule === selected.guard.rule && selected.guard.owner === 'leave.decide' &&
+    selected.guard.binding === 'leave.StaffSchedule' && selected.guard.target === 'shift.ScheduleV1.reserve';
+}
 // The State evaluator supplies this exact lexical object. A copied envelope,
 // matching operation id or caller-provided context cannot select a native call.
 const nativeSourceSendCalls = new WeakMap<object, { readonly call: AdmittedCall; readonly active: NativeScenarioExecution }>();
@@ -9040,7 +9072,8 @@ async function runScenarioExecution(
     due?.observeFramework?.({ writes });
     return [...existing, ...writes, ...termScheduleSourceWrites];
   };
-  const ownerBounds = receiptAware && scenarioDef?.name === 'leave.request'
+  const ownerBounds = receiptAware && (scenarioDef?.name === 'leave.request' || scenarioDef?.name === 'leave.decide' ||
+    scenarioDef?.name === 'refer.reject_source')
     ? Object.freeze({ maxRows: 4_001, maxWork: 200_000 }) : SCENARIO_RECEIPT_OWNER_BOUNDS;
   const ownerOptions = {
     table: loaded.table as ModelTable, bounds: ownerBounds,
@@ -9192,6 +9225,7 @@ async function runScenarioExecution(
   }
   const views = new Map<string, Record<string, unknown>>();
   const recordBindings = new Map<Record<string, unknown>, { model: string; id: string; version: number }>();
+  let referRejectEvidenceLink: { readonly evidenceId: string; readonly advocate: StoredRow } | null = null;
   // Only exact values evaluated from an owner-issued stored field can become
   // protected child operands. General Values refs and copied carriers stay refs.
   const storedReferences = new WeakMap<object, {
@@ -9233,6 +9267,14 @@ async function runScenarioExecution(
         }
         bindNullableStoredReference(ownerSession, scenarioReceiptFrame, target, loaded, declaration,
           value, record, modelName, field, sourceRow, wire, refuseRecordBinding);
+        if (referRejectEvidenceLink !== null && modelName === 'refer.SourceEvidence' &&
+            row.id === referRejectEvidenceLink.evidenceId && field === 'advocate') {
+          const link = nativeRecordReference(value) ?? (isRecordRef(value) ? value : undefined);
+          if (link?.model !== 'refer.Advocate' || link.id !== referRejectEvidenceLink.advocate.id) {
+            return refuseRecordBinding('Referral Evidence lost its checked Advocate reference.');
+          }
+          return recordView('refer.Advocate', referRejectEvidenceLink.advocate);
+        }
         return value;
       },
     });
@@ -9403,7 +9445,10 @@ async function runScenarioExecution(
   let eventDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let termDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let leaveDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
+  let leaveDecideReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
+  let referRejectReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let leaveDecisionCreateParent: { calendarId: string; requestId: string | null } | null = null;
+  let referRejectCreateParent: { advocateId: string; advocateView: Record<string, unknown> } | null = null;
   const scope: CanonicalEffectsScope = {
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
@@ -9413,6 +9458,8 @@ async function runScenarioExecution(
         if (eventDecisionReadRecords !== null) return eventDecisionReadRecords(model, query);
         if (termDecisionReadRecords !== null) return termDecisionReadRecords(model, query);
         if (leaveDecisionReadRecords !== null) return leaveDecisionReadRecords(model, query);
+        if (leaveDecideReadRecords !== null) return leaveDecideReadRecords(model, query);
+        if (referRejectReadRecords !== null) return referRejectReadRecords(model, query);
         const rows = await scope.readModel(model, query);
         for (const row of rows) {
           if (!trustedOwnerReads) await viewerNavigation.captureQuerySource(model, row);
@@ -9486,6 +9533,9 @@ async function runScenarioExecution(
         if (leaveDecisionCreateParent !== null && model !== 'leave.Request' && model !== 'leave.Portion') {
           return refuseRecordBinding('Leave request may create only its checked Request and Portions.');
         }
+        if (referRejectCreateParent !== null && model !== 'refer.Credit') {
+          return refuseRecordBinding('Referral rejection may create only its checked Credit reversal.');
+        }
         let fields = data;
         let parent: CanonicalStagedWrite['parent'];
         const ownership = loaded.containment.get(model);
@@ -9506,12 +9556,18 @@ async function runScenarioExecution(
               binding.model !== 'leave.Request' || binding.id !== leaveParent.requestId)) {
             return refuseRecordBinding('Leave request create parent differs from its checked source order.');
           }
+          const referParent = referRejectCreateParent;
+          if (referParent !== null && (model !== 'refer.Credit' || candidate !== referParent.advocateView ||
+              binding.model !== 'refer.Advocate' || binding.id !== referParent.advocateId)) {
+            return refuseRecordBinding('Referral reversal parent differs from its checked Evidence Advocate.');
+          }
           // Bound views retain their admitted metadata after own writes. State's
           // current staged row supplies the version for this source read.
           const current = await overlay.load(binding.model as ModelName, binding.id as RecordId);
           if (current === null) throw new StateError('not_found', 'Create parent record not found.');
           if (current.id !== binding.id) return refuseRecordBinding('Create parent identity changed.');
-          const navigation = trustedOwnerReads || leaveParent !== null ? ownerNavigation : viewerNavigation;
+          const navigation = trustedOwnerReads || leaveParent !== null || referParent !== null
+            ? ownerNavigation : viewerNavigation;
           const authorized = await navigation.authorizeReference(
             makeRecordRef(binding.model, binding.id, BigInt(current.version)));
           parent = { model: authorized.model as ModelName, id: authorized.id as RecordId };
@@ -10085,9 +10141,11 @@ async function runScenarioExecution(
         let guardedDefinition: unknown;
         if (when !== undefined) {
           const actual = call as AdmittedCall;
-          const selected = nativeSourceSendGuards.get(actual.def as GeneratedOperationDef)?.get(when.rule);
+          const def = actual.def as GeneratedOperationDef;
+          const selected = nativeSourceSendGuards.get(def)?.get(when.rule);
           if ((!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.TextGenerationV1.generate'].includes(source) &&
-              !isResourceSendTarget(selected?.definition, bindingKey, source)) ||
+              !isResourceSendTarget(selected?.definition, bindingKey, source) &&
+              !(selected !== undefined && nativeLeaveDecideReserveGuard(def, selected))) ||
               ownerSession === undefined || selected === undefined ||
               selected.guard.binding !== bindingKey || selected.guard.target !== source || selected.guard.owner !== scope.operation ||
               selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !sendSnapshots?.has(input.type) &&
@@ -11083,6 +11141,260 @@ async function runScenarioExecution(
               healthy();
               if (answer !== undefined) return refuseRecordBinding('Leave request original body must return void.');
             } finally { closeRole?.(); leaveDecisionReadRecords = null; leaveDecisionCreateParent = null; }
+          } });
+      } catch (error) { recordEngineFailure(error); throw error; }
+    });
+  }
+  if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
+      scenarioDef?.name === 'leave.decide') {
+    const actualCall = call as AdmittedCall;
+    const checked = (scenarioDef.descriptor.result?.disclosure as
+      { readonly leaveDecideDecision?: import('@canlang/state/invocation').LeaveDecideDecisionPlan } | undefined)?.leaveDecideDecision;
+    const execute = loaded.producers.invoke.executeScenarioReceiptLeaveDecideDecision;
+    if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
+      return refuseRecordBinding('Leave decision needs its exact installed owner decision.');
+    }
+    let consumed = false, active = false;
+    bindNativeScenarioLeaveDecideDecision(ctx, async (descriptor, body) => {
+      try {
+        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
+            nativeScenarioExecutions.get(actualCall) === undefined) {
+          return refuseRecordBinding('Leave decision differs from its unique checked source occurrence.');
+        }
+        consumed = true;
+        await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
+          evaluate: async frame => {
+            const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+            if (assertCall === undefined || active || leaveDecideReadRecords !== null ||
+                leaveDecisionReadRecords !== null) {
+              return refuseRecordBinding('Leave decision needs its serial live State owner decision.');
+            }
+            const healthy = () => assertCall(actualCall, receiptStore);
+            const supplied = localPolicyObject(argument);
+            const requestRef = nativeRecordReference(localPolicyMember(supplied, 'request'));
+            if (requestRef?.model !== 'leave.Request' || requestRef.id !== frame.request.id ||
+                requestRef.version !== BigInt(frame.request.version) ||
+                frame.request.parent?.model !== 'leave.Calendar' ||
+                frame.request.parent.id !== frame.calendar.id ||
+                frame.calendar.parent?.model !== 'employee.Employee' ||
+                frame.calendar.parent.id !== frame.employee.id) {
+              return refuseRecordBinding('Leave decision Request differs from its admitted owner row.');
+            }
+            for (const [model, row] of [
+              ['leave.Request', frame.request], ['leave.Calendar', frame.calendar],
+              ['employee.Employee', frame.employee],
+            ] as const) {
+              const key = stagedKey(model, row.id);
+              const known = ownerRows.get(key);
+              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
+                return refuseRecordBinding('Leave decision owner ancestry differs from its admitted row.');
+              }
+              ownerRows.set(key, row);
+            }
+            await ownerNavigation.prepare('leave.Request', frame.request);
+            healthy();
+            const request = recordView('leave.Request', frame.request);
+            active = true;
+            leaveDecideReadRecords = async (model, selection) => {
+              healthy();
+              if (model !== 'leave.Portion' ||
+                  !isUnknownRecord(selection) || Reflect.ownKeys(selection).some(key =>
+                    typeof key !== 'string' || !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+                  selection.limit !== undefined || selection.archived !== undefined && selection.archived !== 'exclude' ||
+                  selection.authority !== undefined && selection.authority !== 'viewer' ||
+                  selection.order !== undefined) {
+                return refuseRecordBinding('Leave decision query differs from its checked collection site.');
+              }
+              const parent = selection.parent === undefined ? undefined :
+                nativeRecordReference(selection.parent) ??
+                  (isRecordRef(selection.parent) ? selection.parent : undefined);
+              const globalPortions = model === 'leave.Portion' && selection.parent === undefined;
+              if (globalPortions ? typeof selection.where !== 'function' :
+                  parent?.model !== 'leave.Request' || parent.id !== frame.request.id || selection.where !== undefined) {
+                return refuseRecordBinding('Leave decision query parent or predicate differs from its source.');
+              }
+              const domain = await frame.query(model as ModelName, parent === undefined ? undefined :
+                { model: parent.model as ModelName, id: parent.id as RecordId });
+              healthy();
+              const result: Record<string, unknown>[] = [];
+              for (const row of domain) {
+                ownerRows.set(stagedKey(model, row.id), row);
+                if (globalPortions) {
+                  if (row.parent?.model !== 'leave.Request' || frame.read === undefined) {
+                    return refuseRecordBinding('Leave decision aggregate lacks its checked Request parent.');
+                  }
+                  const parentRow = frame.read('leave.Request' as ModelName, row.parent.id);
+                  if (parentRow === null) return refuseRecordBinding('Leave decision aggregate parent is unavailable.');
+                  ownerRows.set(stagedKey('leave.Request', parentRow.id), parentRow);
+                }
+                await ownerNavigation.prepare('leave.Portion', row);
+                healthy();
+                const view = recordView(model, row);
+                const match = selection.where === undefined ? true :
+                  await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
+                healthy();
+                if (typeof match !== 'boolean') {
+                  return refuseRecordBinding('Leave decision source predicate must return Bool.');
+                }
+                if (match) result.push(view);
+              }
+              return Object.freeze(result);
+            };
+            bindNativeLeaveDecideAllowance(ctx, async (allowanceDescriptor, reference, calculate) => {
+              healthy();
+              if (!active || stableStringify(allowanceDescriptor) !== stableStringify(checked) ||
+                  typeof reference !== 'object' || reference === null || typeof calculate !== 'function') {
+                return refuseRecordBinding('Leave decision Allowance differs from its original derived occurrence.');
+              }
+              const provenance = storedReferences.get(reference);
+              const link = nativeRecordReference(reference) ??
+                (isRecordRef(reference) ? reference : undefined);
+              const source = provenance === undefined ? undefined : recordBindings.get(provenance.sourceView as Record<string, unknown>);
+              const sourceRow = source === undefined ? null : frame.read('leave.Portion' as ModelName, source.id as RecordId);
+              const sourceAllowance = sourceRow === null ? undefined :
+                nativeRecordField(loaded, 'leave.Portion', 'allowance', sourceRow.data['allowance']);
+              const sourceLink = nativeRecordReference(sourceAllowance) ??
+                (isRecordRef(sourceAllowance) ? sourceAllowance : undefined);
+              if (provenance?.sourceModel !== 'leave.Portion' || provenance.field !== 'allowance' ||
+                  provenance.model !== 'leave.Allowance' || source?.model !== 'leave.Portion' ||
+                  source.id !== provenance.sourceId || link?.model !== 'leave.Allowance' ||
+                  link.id !== provenance.id || sourceRow === null ||
+                  sourceRow.parent?.model !== 'leave.Request' || sourceRow.parent.id !== frame.request.id ||
+                  sourceLink?.model !== 'leave.Allowance' || sourceLink.id !== link.id) {
+                return refuseRecordBinding('Leave decision Allowance requires its actual Portion field reference.');
+              }
+              const current = await readOwnerRow('leave.Allowance' as ModelName, link.id as RecordId);
+              healthy();
+              if (current === null || current.archivedAt !== null) {
+                return refuseRecordBinding('Leave decision Allowance is unavailable.');
+              }
+              const allowance = recordView('leave.Allowance', current);
+              return frame.withAllowance(current, async () => {
+                const value = await Reflect.apply(calculate, undefined, [allowance]);
+                healthy();
+                return value;
+              });
+            });
+            try {
+              const answer = await Reflect.apply(body, undefined, [ctx, Object.freeze({
+                request, approve: supplied['approve'], reason: supplied['reason'],
+              })]);
+              healthy();
+              if (answer !== undefined) return refuseRecordBinding('Leave decision original body must return void.');
+            } finally { active = false; leaveDecideReadRecords = null; }
+          } });
+      } catch (error) { recordEngineFailure(error); throw error; }
+    });
+  }
+  if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
+      scenarioDef?.name === 'refer.reject_source') {
+    const actualCall = call as AdmittedCall;
+    const checked = (scenarioDef.descriptor.result?.disclosure as
+      { readonly referRejectDecision?: import('@canlang/state/invocation').ReferRejectDecisionPlan } | undefined)?.referRejectDecision;
+    const execute = loaded.producers.invoke.executeScenarioReceiptReferRejectDecision;
+    if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
+      return refuseRecordBinding('Referral rejection needs its exact installed owner decision.');
+    }
+    let consumed = false, active = false;
+    bindNativeScenarioReferRejectDecision(ctx, async (descriptor, body) => {
+      try {
+        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
+            nativeScenarioExecutions.get(actualCall) === undefined) {
+          return refuseRecordBinding('Referral rejection differs from its unique checked source occurrence.');
+        }
+        consumed = true;
+        await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
+          evaluate: async frame => {
+            const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+            if (assertCall === undefined || active || referRejectReadRecords !== null ||
+                leaveDecideReadRecords !== null) {
+              return refuseRecordBinding('Referral rejection needs its serial live State owner decision.');
+            }
+            const healthy = () => assertCall(actualCall, receiptStore);
+            const supplied = localPolicyObject(argument);
+            const evidenceRef = nativeRecordReference(localPolicyMember(supplied, 'evidence'));
+            const advocateField = nativeRecordField(loaded, 'refer.SourceEvidence', 'advocate',
+              frame.evidence.data['advocate']);
+            const advocateRef = nativeRecordReference(advocateField) ??
+              (isRecordRef(advocateField) ? advocateField : undefined);
+            if (evidenceRef?.model !== 'refer.SourceEvidence' || evidenceRef.id !== frame.evidence.id ||
+                evidenceRef.version !== BigInt(frame.evidence.version) || frame.evidence.parent !== null ||
+                advocateRef?.model !== 'refer.Advocate' || advocateRef.id !== frame.advocate.id ||
+                frame.advocate.parent?.model !== 'refer.Program' ||
+                frame.advocate.parent.id !== frame.program.id || frame.program.parent !== null) {
+              return refuseRecordBinding('Referral rejection Evidence differs from its admitted Advocate and Program.');
+            }
+            for (const [model, row] of [
+              ['refer.SourceEvidence', frame.evidence], ['refer.Advocate', frame.advocate],
+              ['refer.Program', frame.program],
+            ] as const) {
+              const key = stagedKey(model, row.id);
+              const known = ownerRows.get(key);
+              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
+                return refuseRecordBinding('Referral rejection owner ancestry differs from its admitted row.');
+              }
+              ownerRows.set(key, row);
+              await ownerNavigation.prepare(model, row);
+              healthy();
+            }
+            const evidence = recordView('refer.SourceEvidence', frame.evidence);
+            active = true;
+            referRejectReadRecords = async (model, selection) => {
+              healthy();
+              if (!active || !['employee.Employee', 'refer.Credit'].includes(model) || !isUnknownRecord(selection) ||
+                  Reflect.ownKeys(selection).some(key => typeof key !== 'string' ||
+                    !['parent', 'where', 'order', 'limit', 'archived', 'authority', 'ownerDecisionSource'].includes(key)) ||
+                  selection.limit !== undefined ||
+                  selection.archived !== undefined && selection.archived !== 'exclude' ||
+                  selection.authority !== undefined && selection.authority !== 'viewer') {
+                return refuseRecordBinding('Referral rejection query differs from its checked owner collection.');
+              }
+              const source = selection['ownerDecisionSource'];
+              const id = isUnknownRecord(source) && Reflect.ownKeys(source).length === 1 ? source['id'] : undefined;
+              const site = checked.querySites.find(value => value.id === id);
+              const header = model === 'employee.Employee';
+              const parent = header ? undefined : nativeRecordReference(selection.parent) ??
+                (isRecordRef(selection.parent) ? selection.parent : undefined);
+              if (site === undefined || site.model !== model ||
+                  (header ? site.stage !== 'header' || selection.parent !== undefined :
+                    site.stage === 'header' || parent?.model !== 'refer.Advocate' || parent.id !== frame.advocate.id) ||
+                  (site.stage === 'first' ? typeof selection.where !== 'function' : selection.where !== undefined) ||
+                  stableStringify(selection.order ?? []) !== stableStringify(site.order.map(field =>
+                    field === 'credit.id' ? 'id' : field))) {
+                return refuseRecordBinding('Referral rejection query lacks its exact source site, order or parent.');
+              }
+              const domain = await frame.query(site.id, model as ModelName,
+                header ? undefined : { model: 'refer.Advocate' as ModelName, id: frame.advocate.id });
+              healthy();
+              const result: Record<string, unknown>[] = [];
+              for (const row of domain) {
+                ownerRows.set(stagedKey(model, row.id), row);
+                await ownerNavigation.prepare(model, row);
+                healthy();
+                const view = recordView(model, row);
+                const match = selection.where === undefined ? true :
+                  await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
+                healthy();
+                if (typeof match !== 'boolean') {
+                  return refuseRecordBinding('Referral rejection query predicate must return Bool.');
+                }
+                if (match) result.push(view);
+              }
+              return Object.freeze(result);
+            };
+            let closeRole: (() => void) | undefined;
+            try {
+              referRejectEvidenceLink = { evidenceId: frame.evidence.id, advocate: frame.advocate };
+              referRejectCreateParent = { advocateId: frame.advocate.id,
+                advocateView: recordView('refer.Advocate', frame.advocate) };
+              closeRole = bindNativeReferRejectRole(ctx, frame.role);
+              const answer = await Reflect.apply(body, undefined, [ctx, Object.freeze({
+                evidence, reason: supplied['reason'],
+              })]);
+              healthy();
+              if (answer !== undefined) return refuseRecordBinding('Referral rejection original body must return void.');
+            } finally { closeRole?.(); active = false; referRejectReadRecords = null;
+              referRejectEvidenceLink = null; referRejectCreateParent = null; }
           } });
       } catch (error) { recordEngineFailure(error); throw error; }
     });
@@ -19028,7 +19340,8 @@ export async function bindNativeEmailDispatchGuards(input: {
     for (const selected of nativeSourceSendGuards.get(def)?.values() ?? []) {
       const targetOwner = resourceSendOwner(selected.definition, selected.guard.binding, selected.guard.target);
       if ((!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.TextGenerationV1.generate'].includes(selected.guard.target) &&
-          targetOwner === undefined) || (targetOwner ?? selected.ownerPackage) !== scope.ownerPackage ||
+          targetOwner === undefined && !nativeLeaveDecideReserveGuard(def, selected)) ||
+          (targetOwner ?? selected.ownerPackage) !== scope.ownerPackage ||
           selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !sendSnapshots?.has(slot.type) &&
             !(isResourceSendTarget(selected.definition, selected.guard.binding, selected.guard.target) && nativeResourceLexicalType(slot.type, loaded.valueSchema, new Set(), selected.guard.target.endsWith('.publish') && input.files !== undefined)))) continue;
       const sites = (loaded.membershipSources.get(def.name) ?? []).filter(site => site.stage === 'send-dispatch' &&
@@ -19049,6 +19362,15 @@ export async function bindNativeEmailDispatchGuards(input: {
       throw new Error('Native guarded SEND fence requires its original installed guard/owner/binding.');
     }
     const { def, selected, sourceScope } = installed;
+    const leaveDecision = selected.guard.owner === 'leave.decide' ?
+      (def.descriptor.result?.disclosure as
+        { readonly leaveDecideDecision?: import('@canlang/state/invocation').LeaveDecideDecisionPlan } | undefined)?.leaveDecideDecision : undefined;
+    if (selected.guard.owner === 'leave.decide' &&
+        (leaveDecision?.owner !== 'leave.decide' ||
+          leaveDecision.sendRule.rule !== selected.guard.rule ||
+          !sendSnapshots?.has('leave.Request'))) {
+      throw new Error('Leave dispatch requires its exact installed owner decision and Request snapshot.');
+    }
     let staged: { input: DispatchClaimGuardInput; retained: RetainedOutboxIntent; lexical: Readonly<Record<string, unknown>>;
       opaque: NonNullable<Awaited<ReturnType<typeof nativeOpaqueFileStaging>>>; row: StoredRow;
       identity: ResolvedIdentity; currentIdentity: () => Promise<ResolvedIdentity> } | undefined;
@@ -19086,7 +19408,11 @@ export async function bindNativeEmailDispatchGuards(input: {
           now: actual.input.context.now, source: 'dispatch', operationId: originalIntent.operationId } });
       const inputs: Record<string, unknown> = Object.create(null);
       const eventDecision = selected.guard.eventSource?.ownerDecision;
-      const referenceNavigation = eventDecision !== undefined || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
+      // The leave source guard captures Request after the approval SET; its
+      // final delivery-id SET changes that same row before dispatch. The
+      // current Request is separately reloaded and checked below, and the
+      // original predicate reads only its three scalar fields.
+      const referenceNavigation = eventDecision !== undefined || leaveDecision !== undefined || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
         loaded, artifact, snapshots: sendSnapshots,
         roots: selected.guard.inputs.filter(slot => sendSnapshots.has(slot.type)).map(slot => ({
           type: slot.type, wire: localPolicyMember(actual.lexical, slot.name) })),
@@ -19094,6 +19420,39 @@ export async function bindNativeEmailDispatchGuards(input: {
         healthy, failure: poison,
         parentOnly: selected.guard.eventSource !== undefined,
       });
+      let leaveRequest: StoredRow | null = null;
+      let leaveCurrent = false;
+      let recheckLeave: (() => Promise<boolean>) | undefined;
+      if (leaveDecision !== undefined) {
+        const frozen = sendSnapshots!.snapshot('leave.Request', localPolicyMember(actual.lexical, 'request'));
+        const reserveRevision = decodeCanonicalValue(loaded.valueSchema, 'int',
+          localPolicyMember(actual.lexical, 'reserve_revision'));
+        if (frozen.parent?.model !== 'leave.Calendar' || frozen.archivedAt !== null ||
+            frozen.data['state'] !== 'approved' || frozen.data['schedule_source'] !== originalIntent.operationId ||
+            decodeCanonicalValue(loaded.valueSchema, 'int', frozen.data['schedule_revision']) !== reserveRevision) {
+          return reject();
+        }
+        const current = async () => {
+          const row = await store.cohortLoad({ model: 'leave.Request' as ModelName,
+            id: frozen.id, expectedRevision: actual.input.revision });
+          const valid = row !== null && row.archivedAt === null && row.id === frozen.id &&
+            row.version >= frozen.version && row.created === frozen.created &&
+            row.createdBy === frozen.createdBy && stableStringify(row.parent) === stableStringify(frozen.parent) &&
+            row.data['state'] === 'approved' && row.data['schedule_source'] === originalIntent.operationId &&
+            row.data['reserve_delivery'] === originalIntent.intentId &&
+            decodeCanonicalValue(loaded.valueSchema, 'int', row.data['schedule_revision']) === reserveRevision;
+          return { row, valid };
+        };
+        const observed = await current(); healthy();
+        leaveRequest = observed.row; leaveCurrent = observed.valid;
+        recheckLeave = async () => {
+          const checked = await current();
+          // Work revalidates a false guard before recording its skip too.
+          // Keep the observed current row stable for either verdict.
+          return checked.valid === observed.valid &&
+            stableStringify(checked.row) === stableStringify(observed.row);
+        };
+      }
       if (eventDecision !== undefined) {
         if (sendSnapshots === undefined || selected.guard.owner !== 'maintain.remind' ||
             eventDecision.owner !== 'maintain.remind') return reject();
@@ -19105,6 +19464,10 @@ export async function bindNativeEmailDispatchGuards(input: {
         const wire = localPolicyMember(actual.lexical, slot.name);
         Object.defineProperty(inputs, slot.name, { enumerable: true,
           value: maintainFrame !== undefined && slot.name === 'eventTerm' ? maintainFrame.root :
+            leaveDecision !== undefined && slot.name === 'request' && leaveCurrent ?
+              sendSnapshots!.view('leave.Request', { ...leaveRequest!, sourcePresence: {
+                fields: Object.keys(leaveRequest!.data),
+              } }, healthy) :
             sendSnapshots?.has(slot.type) ? sendSnapshots.view(slot.type, wire, healthy, referenceNavigation?.reference)
             : decodeCanonicalValue(loaded.valueSchema, slot.type, wire) });
       }
@@ -19119,6 +19482,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         await verifyCheckedAssembly(asm, artifact);
         await referenceNavigation?.revalidate();
         await maintainFrame?.revalidate();
+        if (recheckLeave !== undefined && !await recheckLeave()) return false;
         return current.actor === null && stableStringify(current.team) === stableStringify(identity.team);
       });
       let frame: NativeMembershipFrame | undefined;
@@ -19128,6 +19492,7 @@ export async function bindNativeEmailDispatchGuards(input: {
           poison);
         if (maintainFrame !== undefined) closeEventRole = bindNativeEventDecisionRole(c, maintainFrame.role);
         frame.assertCompleted(); healthy();
+        if (leaveDecision !== undefined && !leaveCurrent) return false;
         const answer: unknown = await selected.evaluate(c, Object.freeze(inputs));
         frame.assertCompleted(); healthy();
         await referenceNavigation?.revalidate(); healthy();

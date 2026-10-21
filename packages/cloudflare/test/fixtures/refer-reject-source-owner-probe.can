@@ -1,0 +1,85 @@
+# Exact CanRefer.reject_source source closure.
+app CanRefer uses=[refer]
+
+package rent_catalog
+ Given
+  export Location { name:text trim min=1, address:text, timezone:timezone, currency:currency, hours:text label="Opening hours summary"@{nl="Samenvatting openingsuren"}, arrival:text label="Arrival instructions"@{nl="Aankomstinstructies"}, active:bool=true } label="Location"@{nl="Locatie"}
+  policy Location read=public fields=name,address,timezone,currency,hours,arrival,active
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export role hr label="Human resources"@{nl="Personeelszaken"}
+  export Employee { user:user unique, name:text? trim min=1 label="Work name"@{nl="Werknaam"}, home:Location label="Home location"@{nl="Standplaats"}, locations:Location[] label="Locations"@{nl="Locaties"}, operator_wide:bool=false label="All operator locations"@{nl="Alle locaties van de exploitant"}, active:bool=true, start:date label="Employment start"@{nl="Start dienstverband"}, end:date? label="Employment end"@{nl="Einde dienstverband"}, manager:user? label="Line manager"@{nl="Leidinggevende"}, role:text label="Work role"@{nl="Werkrol"}, skills:text[] label="Skills"@{nl="Vaardigheden"}, private_notes:text? label="Private HR notes"@{nl="Privénotities personeelszaken"}, document:file? label="HR document"@{nl="Personeelsdocument"} } label="Employee"@{nl="Medewerker"}
+  export derive staff(person:user):bool = any(Employee as e,e.user==person and e.active and active_member(person,team))
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=hr
+  policy Employee read=members and staff(actor) fields=user,name,home,locations,operator_wide,active,role,skills
+  policy Employee read=authenticated where=row.user==actor
+  invariant Employee: row.end==null or row.end>=row.start
+ When
+ Then
+
+package invoice
+ Given
+  export contract SaleMilestone { source:text, revision:int min=1, customer:text, account:user, location:text, product:text, amount:money, purchased_at:datetime, occurred:datetime, milestone:enum(paid,completed,cancellation_passed,reversed), attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration? }
+  export contract Qualification { source:text, revision:int min=1, customer:text, account:user, location:text, product:text, amount:money, purchased_at:datetime, occurred:datetime, milestone:SaleMilestone.milestone, attribution:text?, exclusive_program:text?, attributed_at:datetime?, attribution_window:duration?, first_customer:bool, history_known:bool }
+ When
+ Then
+
+package refer
+ use rent_catalog {Location}
+ use employee {can_work}
+ use invoice {Qualification}
+ Given
+  message balances_title = "Earned and paid rewards"@{nl="Verdiende en uitbetaalde beloningen"}
+  message label_Program = "Referral program"@{nl="Verwijzingsprogramma"}
+  message label_Credit = "Reward credit"@{nl="Beloningstegoed"}
+  message label_Credit_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Settlement_paid = "Payment date"@{nl="Betaaldatum"}
+  message label_Settlement_method = "Payment method"@{nl="Betaalmethode"}
+  role program_manager label="Program manager"@{nl="Programmabeheerder"}
+  role finance label="Finance"@{nl="Financiën"}
+  export Program { name:text, locations:Location[] label="Locations"@{nl="Locaties"}, products:text[]! label="Products"@{nl="Producten"}, reward:money label="Cash reward"@{nl="Geldbeloning"}, destination:url label="Referral destination"@{nl="Verwijzingsbestemming"}, window:duration=30d label="Attribution window"@{nl="Toewijzingstermijn"}, active:bool=true } label=label_Program
+  export Advocate in Program { account:user server=actor label="User account"@{nl="Gebruikersaccount"}, email:email, code:text unique label="Referral code"@{nl="Verwijzingscode"} } label="Advocate"@{nl="Ambassadeur"}
+  SourceEvidence { advocate:Advocate, source:text unique label=label_Credit_source, value:Qualification, reversed:bool=false label="Source disqualified"@{nl="Bron gediskwalificeerd"}, reason:text? } label="Source qualification evidence"@{nl="Bronkwalificatiebewijs"}
+  lock Advocate fields=account,email,code
+  lock SourceEvidence fields=advocate,source
+  Credit in Advocate { source:text unique label=label_Credit_source, customer:text label="Customer reference"@{nl="Klantreferentie"}, amount:money, reversal:Credit? label="Reversal reference"@{nl="Terugboekingsreferentie"}, qualification:text label="Qualification evidence"@{nl="Kwalificatiebewijs"} } label=label_Credit
+  Settlement in Advocate { payment_source:text label="Payment source"@{nl="Betaalbron"}, source:text unique label=label_Credit_source, amount:money, reference:text, paid:date label=label_Settlement_paid, method:text label=label_Settlement_method, evidence:text, author:user server=actor label="Recorded by"@{nl="Vastgelegd door"} } label="Cash settlement"@{nl="Uitbetaling"}
+  Allocation in Settlement { credit:Credit label=label_Credit, amount:money } label="Payment allocation"@{nl="Betalingstoewijzing"}
+  derive Advocate.earned:money = sum(row.Credit as credit select credit.amount,row.parent.reward.currency) label="Earned rewards"@{nl="Verdiende beloningen"}
+  derive Advocate.paid:money = sum(row.Settlement as settlement select settlement.amount,row.parent.reward.currency) label="Paid rewards"@{nl="Uitbetaalde beloningen"}
+  derive Advocate.owed:money = max([money(0,row.parent.reward.currency),row.paid-row.earned]) label="Owed rewards"@{nl="Verschuldigde beloningen"}
+  derive Advocate.available:money = max([money(0,row.parent.reward.currency),row.earned-row.paid]) label="Available reward balance"@{nl="Beschikbaar beloningssaldo"}
+  policy Program read=public fields=name,reward,destination,active
+  policy Program read=program_manager or finance where=all(row.locations as location,can_work(actor,location))
+  policy Advocate read=public fields=code,parent
+  policy SourceEvidence read=program_manager or finance where=all(row.advocate.parent.locations as location,can_work(actor,location))
+  policy Advocate read=authenticated where=actor.email_verified and row.account==actor
+  policy Advocate read=program_manager or finance where=all(row.parent.locations as location,can_work(actor,location))
+  policy Credit read=authenticated where=actor.email_verified and row.parent.account==actor
+  policy Credit read=program_manager or finance where=all(row.parent.parent.locations as location,can_work(actor,location))
+  policy Settlement read=authenticated where=actor.email_verified and row.parent.account==actor
+  policy Settlement read=finance where=all(row.parent.parent.locations as location,can_work(actor,location))
+  policy Allocation read=authenticated where=actor.email_verified and row.parent.parent.account==actor
+  policy Allocation read=finance where=all(row.parent.parent.parent.locations as location,can_work(actor,location))
+  invariant Program: row.reward.minor>0 and starts_with(row.destination,"https://") and row.window>0m and count(row.locations)>0 and count(row.products)>0 and all(Credit as credit where credit.parent.parent==row,credit.amount.currency==row.reward.currency)
+  invariant Advocate: not any(Advocate as advocate,advocate.id!=row.id and advocate.code==row.code)
+  unique Settlement fields=payment_source,reference
+  invariant Allocation: row.amount.currency==row.credit.amount.currency and row.amount.minor>0 and row.credit.parent==row.parent.parent and sum(Allocation as allocation where allocation.credit==row.credit select allocation.amount,row.amount.currency)<=row.credit.amount
+  lock Credit fields=source,customer,amount,reversal,qualification
+  lock Settlement fields=payment_source,source,amount,reference,paid,method,evidence,author
+  lock Allocation fields=credit,amount
+ When
+  # Reject an attributed source with an accountable reason while preserving all payment evidence. @{nl="Wijs een toegewezen bron met een verantwoordbare reden af en behoud al het betalingsbewijs."}
+  scenario reject_source(evidence:SourceEvidence,reason:text) by=program_manager label="Reject source qualification"@{nl="Bronkwalificatie afwijzen"}
+   require all(evidence.advocate.parent.locations as location,can_work(actor,location)) and trim(reason)!=""
+   do
+    set evidence {reversed=true,reason}
+    let credit=first(evidence.advocate.Credit as credit where credit.source==evidence.source and credit.reversal==null order=credit.id)
+    if credit!=null and not any(evidence.advocate.Credit as item,item.reversal==credit)
+     create Credit {parent=evidence.advocate,source=format("{source}:reversal",{source=credit.source}),customer=credit.customer,amount=-credit.amount,reversal=credit,qualification=reason} as reversal
+ Then

@@ -5855,7 +5855,18 @@ impl<'a> Emitter<'a> {
             None => args.get(1),
         };
         matches!(predicate, Some(TypedExpr { expr: IrExpr::Lambda { body, .. }, .. })
-            if expr_uses_async(body) || self.boolean_body || self.boolean_helper)
+            if expr_uses_async(body) || self.boolean_body || self.boolean_helper
+                || self.leave_decide_async_predicate(body.span))
+    }
+
+    fn leave_decide_async_predicate(&self, span: Span) -> bool {
+        self.owner_handler_body && self.receipt_capture.as_ref()
+            .and_then(|receipt|receipt.plan.leave_decide_decision.as_ref())
+            .is_some_and(|decision| {
+                let site=&decision["querySites"][1]["predicateSite"];
+                site["start"].as_u64()==Some(span.start as u64)
+                    && site["end"].as_u64()==Some(span.end as u64)
+            })
     }
 
     /// Whether hook lowering is active.
@@ -7991,17 +8002,32 @@ impl<'a> Emitter<'a> {
                 // A source-owned guard or checked owner rule consumes a derived
                 // scalar's original body under the same current-row observer. No stored
                 // value is fabricated and no standalone read transaction opens.
+                let leave_nullable_allowance = self.owner_handler_body
+                    && field=="remaining"
+                    && self.receipt_capture.as_ref()
+                        .and_then(|receipt|receipt.plan.leave_decide_decision.as_ref())
+                        .is_some_and(|decision| {
+                            decision["sites"]["portionRequire"]["node"]["start"].as_u64()
+                                .is_some_and(|start|start<=span.start as u64)
+                            && decision["sites"]["portionRequire"]["node"]["end"].as_u64()
+                                .is_some_and(|end|span.end as u64<=end)
+                        });
+                let derived_model=match &base.ty {
+                    ResolvedType::Record{symbol,stored:true}=>Some(*symbol),
+                    ResolvedType::Nullable(inner) if leave_nullable_allowance=>match inner.as_ref() {
+                        ResolvedType::Record{symbol,stored:true}=>Some(*symbol),
+                        _=>None,
+                    },
+                    _=>None,
+                };
                 if (self.source_guard_body || self.owner_handler_body)
-                    && let ResolvedType::Record {
-                        symbol: model,
-                        stored: true,
-                    } = &base.ty
+                    && let Some(model)=derived_model
                     && let Some(derived) = self.ir.items.iter().find_map(|item| match &item.kind {
                         IrItemKind::DeriveField {
                             model: owner,
                             expr: Some(body),
                             ..
-                        } if owner == model && item.name == *field && body.ty == expr.ty => {
+                        } if *owner == model && item.name == *field && body.ty == expr.ty => {
                             Some(body.clone())
                         }
                         _ => None,
@@ -8022,6 +8048,20 @@ impl<'a> Emitter<'a> {
                     let body = self.lower_business_expr(&derived, "source guard derived scalar");
                     self.source_guard_derive_depth -= 1;
                     self.exit_scope();
+                    if leave_nullable_allowance
+                        && self.ir.items.get(model.0 as usize)
+                            .is_some_and(|item|item.canonical=="leave.Allowance")
+                        && let Some(decision)=self.receipt_capture.as_ref()
+                            .and_then(|receipt|receipt.plan.leave_decide_decision.as_ref())
+                        && decision["sites"]["portionRequire"]["node"]["start"].as_u64()
+                            .is_some_and(|start|start<=span.start as u64)
+                        && decision["sites"]["portionRequire"]["node"]["end"].as_u64()
+                            .is_some_and(|end|span.end as u64<=end)
+                    {
+                        let descriptor=descriptor_json(decision);
+                        self.stdlib.insert("withLeaveDecideAllowance".into());
+                        return format!("(await withLeaveDecideAllowance(c,{descriptor},{receiver},async({row})=>({body})))");
+                    }
                     return format!("(await (async({row})=>({body}))({receiver}))");
                 }
                 if let Some(linked) = self.hook_helper_member(base, field, span, &expr.ty) {
@@ -8153,7 +8193,10 @@ impl<'a> Emitter<'a> {
                         parts.push(format!("{}:{default}", object_key(name)));
                     }
                 }
-                if let ResolvedType::Record { symbol, stored: false } = &expr.ty {
+                // A checked Contract literal can carry either IR record flag
+                // at a nested capability-input site. The symbol's actual
+                // declaration, not that flag, owns its literal defaults.
+                if let ResolvedType::Record { symbol, .. } = &expr.ty {
                     let defaults = self.ir.items.get(symbol.0 as usize).and_then(|item| {
                         let IrItemKind::Contract { fields, .. } = &item.kind else { return None; };
                         Some(fields.iter().filter_map(|id| {
@@ -8364,7 +8407,8 @@ impl<'a> Emitter<'a> {
                     self.hook_closure_depth -= 1;
                 }
                 self.exit_scope();
-                if expr_uses_async(body) || self.boolean_body {
+                if expr_uses_async(body) || self.boolean_body
+                    || self.leave_decide_async_predicate(body.span) {
                     format!("async({param})=>{body_text}")
                 } else {
                     format!("({param})=>{body_text}")
@@ -11240,6 +11284,25 @@ fn null_equality(
         }
         match &query.domain {
             crate::codegen::ir::IrQueryDomain::Model(model) => {
+                // A private serial owner decision may issue only its checked
+                // stored-model occurrences. The marker identifies the exact
+                // source call, rather than granting authority by model name.
+                let refer_decision = self.receipt_capture.as_ref()
+                    .and_then(|receipt|receipt.plan.refer_reject_decision.as_ref())
+                    .filter(|_|self.owner_handler_body);
+                let refer_site_id = refer_decision.and_then(|decision| {
+                    let node=query.source.as_ref()?.node;
+                    decision["querySites"].as_array()?.iter().find(|site|
+                        site["model"]==*model
+                        && site["queryNode"]==serde_json::json!({
+                            "start":node.start,"end":node.end,"kind":node.kind
+                        }))?["id"].as_str().map(str::to_owned)
+                });
+                if refer_decision.is_some() && refer_site_id.is_none() {
+                    self.unsupported("owner decision query",
+                        "stored-model read lacks its exact checked source site",span);
+                    return self.throw_expr("unsealed owner decision query");
+                }
                 let unsealed_authority_query = self.authority_queries.is_some_and(|prepared| {
                     prepared.reaches(span) && prepared.matched_site(span, query, model).is_none()
                 });
@@ -11249,6 +11312,9 @@ fn null_equality(
                 }
                 self.stdlib.insert("records".to_string());
                 let mut opts = Vec::new();
+                if let Some(id)=refer_site_id {
+                    opts.push(format!("ownerDecisionSource:{{id:{}}}",js_string(&id)));
+                }
                 if let Some(prepared) = self.authority_queries {
                     if let Some(site) = prepared.matched_site(span, query, model) {
                         opts.push(format!("authoritySource:{{id:{}}}", js_string(&site.id)));
@@ -18994,19 +19060,12 @@ impl<'a> Emitter<'a> {
             })
         };
         let mut value_type = required_file_array_value_type(self.model_value_type(ty), required_array);
-        // Stored reference IDs must retain the field's exact required-array
-        // marker, just as the accompanying array descriptor does.
-        if required_array && let IrType::Known(resolved) = ty {
-            let (base, nullable) = match resolved {
-                ResolvedType::Nullable(inner) => (inner.as_ref(), true),
-                base => (base, false),
-            };
-            if let ResolvedType::Array { element, .. } = base
-                && matches!(element.as_ref(), ResolvedType::Record { stored: true, .. })
-                && let Some(name) = value_type.as_mut()
-            {
-                name.insert(name.len() - usize::from(nullable), '!');
-            }
+        // The value codec and the explicit array marker must describe the
+        // same authored `[]!` declaration, including scalar and nominal
+        // arrays. File arrays may already carry the suffix above.
+        if required_array && !nullable && let Some(name) = value_type.as_mut()
+            && name.ends_with("[]") {
+            name.push('!');
         }
         JsModelField {
             name: field_item.name.clone(),
@@ -20236,6 +20295,20 @@ impl<'a> Emitter<'a> {
         effects: &[IrStmt],
     ) {
         if let Some(decision) = self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.refer_reject_decision.clone())
+            && item.canonical == "refer.reject_source"
+        {
+            self.emit_refer_reject_decision_body(out,item,guards,effects,&decision);
+            return;
+        }
+        if let Some(decision) = self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.leave_decide_decision.clone())
+            && item.canonical == "leave.decide"
+        {
+            self.emit_leave_decide_decision_body(out,item,guards,effects,&decision);
+            return;
+        }
+        if let Some(decision) = self.receipt_capture.as_ref()
             .and_then(|receipt| receipt.plan.leave_request_decision.clone())
             && item.canonical == "leave.request"
         {
@@ -20259,6 +20332,81 @@ impl<'a> Emitter<'a> {
                 out.push(span, Some(item.canonical.clone()), &line);
             }
         }
+    }
+
+    fn emit_refer_reject_decision_body(
+        &mut self, out: &mut JsWriter, item: &IrItem,
+        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
+    ) {
+        if guards.len()!=1 || effects.len()!=3 {
+            self.unsupported("referral rejection owner decision",
+                "the exact authored body is missing",item.span);
+            return;
+        }
+        let previous_owner=self.owner_handler_body;
+        let previous_query=self.query_capture.take();
+        self.owner_handler_body=true;
+        self.enter_scope();
+        let names=["evidence","reason"].iter()
+            .map(|name|format!("{}:{}",object_key(name),self.bind(name)))
+            .collect::<Vec<_>>();
+        self.stdlib.insert("nativeScenarioReferRejectDecision".into());
+        out.push(item.span,Some(item.canonical.clone()),
+            &format!("await nativeScenarioReferRejectDecision(c,{},async(c,{{{}}})=>{{",
+                descriptor_json(decision),names.join(",")));
+        if let IrItemKind::Scenario { by, .. } = &item.kind {
+            if !matches!(by.as_slice(), [IrGuard::Role(role)] if role == "refer.program_manager") {
+                self.unsupported("referral rejection owner decision",
+                    "the original role admission is missing", item.span);
+                return;
+            }
+            // State's checked owner lease observes this exact source role at
+            // the original pre-query stage. The three-argument form consumes
+            // the actor's authenticated subject-role observation.
+            self.stdlib.insert("check".into());
+            self.stdlib.insert("hasRole".into());
+            out.push(item.span, Some(item.canonical.clone()),
+                "check(await hasRole(c,\"refer.program_manager\",c.actor),\"forbidden\");");
+        }
+        for stmt in guards.iter().chain(effects) {
+            for (line,span) in self.lower_stmt(stmt,0) {
+                out.push(span,Some(item.canonical.clone()),&line);
+            }
+        }
+        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
+        self.exit_scope();
+        self.owner_handler_body=previous_owner;
+        self.query_capture=previous_query;
+    }
+
+    fn emit_leave_decide_decision_body(
+        &mut self, out: &mut JsWriter, item: &IrItem,
+        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
+    ) {
+        if guards.len()!=1 || effects.len()!=2 {
+            self.unsupported("leave decide owner decision","the exact authored body is missing",item.span);
+            return;
+        }
+        let previous_owner=self.owner_handler_body;
+        let previous_query=self.query_capture.take();
+        self.owner_handler_body=true;
+        self.enter_scope();
+        let names=["request","approve","reason"].iter()
+            .map(|name|format!("{}:{}",object_key(name),self.bind(name)))
+            .collect::<Vec<_>>();
+        self.stdlib.insert("nativeScenarioLeaveDecideDecision".into());
+        out.push(item.span,Some(item.canonical.clone()),
+            &format!("await nativeScenarioLeaveDecideDecision(c,{},async(c,{{{}}})=>{{",
+                descriptor_json(decision),names.join(",")));
+        for stmt in guards.iter().chain(effects) {
+            for (line,span) in self.lower_stmt(stmt,0) {
+                out.push(span,Some(item.canonical.clone()),&line);
+            }
+        }
+        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
+        self.exit_scope();
+        self.owner_handler_body=previous_owner;
+        self.query_capture=previous_query;
     }
 
     fn emit_leave_request_decision_body(
@@ -20438,7 +20586,15 @@ impl<'a> Emitter<'a> {
                             "const $receiptChoices=new Map();",
                         );
                     }
-                    self.emit_admission_check(out, by, item.span);
+                    // This source-stamped owner decision observes its original
+                    // role admission inside the same serial lease as the
+                    // header, query and effects. Other scenarios keep their
+                    // existing pre-body admission stage.
+                    if !(item.canonical == "refer.reject_source"
+                        && self.receipt_capture.as_ref().is_some_and(|receipt|
+                            receipt.plan.refer_reject_decision.is_some())) {
+                        self.emit_admission_check(out, by, item.span);
+                    }
                     self.emit_scenario_param_defaults(out, item, trusted, params, &default_observer);
                     self.viewer_read_body = *read && !*trusted && !*scope_authority;
                     self.emit_scenario_body_stmts(out, item, guards, effects);

@@ -142,6 +142,30 @@ success, source refusals, commit races, a 201-day request, and refusal of an
 oversized owner collection. The remaining 75 diagnostics are separate source
 sites.
 
+The following release capture reports 74 diagnostics (`complete:true`,
+`omitted:0`), removing only the original `CanLeave.decide` guarded
+`StaffSchedule.reserve` SEND refusal at offset 12743. The checked owner
+decision evaluates the original approval guard over current Request,
+Employee, Portion, and Allowance rows, stages the two Request SETs and
+the exact reserve intent atomically, and rechecks the selected domains at
+commit. Its installed 15-mode integration check covers approval, rejection,
+allowance overdraw, reviewer authority, and commit races. A separate dispatch
+check claims the reserve only while the approved Request remains current and
+skips a withdrawn Request without calling the provider. The remaining 74
+diagnostics are separate sites.
+
+The next complete 24-source release capture reports 73 diagnostics
+(`complete:true`, `omitted:0`). It removes only the original
+`CanRefer.reject_source` Credit `first` refusal at offset 17240 and adds no
+diagnostic. The checked decision follows Evidence through its current Advocate
+and Program, evaluates the manager role and complete Employee and Credit
+domains, then stages the Evidence reversal and at most one negative Credit.
+The original Program invariant still checks Credit currencies. Its installed
+13-mode regression covers absent or already reversed Credit, wrong role or
+location, stale Evidence, and Program and Credit changes at commit; existing
+Settlement evidence remains unchanged. The remaining 73 diagnostics are
+separate sites.
+
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
 **Implementation status, 2026-10-21:** The first owner-decision repair is now

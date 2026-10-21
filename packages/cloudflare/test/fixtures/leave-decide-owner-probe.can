@@ -1,0 +1,92 @@
+# Exact CanLeave.decide source closure; original model and policy declarations are retained.
+app CanLeave uses=[leave]
+
+package rent_catalog
+ Given
+  export Location { name:text trim min=1, address:text, timezone:timezone, currency:currency, hours:text label="Opening hours summary"@{nl="Samenvatting openingsuren"}, arrival:text label="Arrival instructions"@{nl="Aankomstinstructies"}, active:bool=true } label="Location"@{nl="Locatie"}
+  policy Location read=public fields=name,address,timezone,currency,hours,arrival,active
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export role hr label="Human resources"@{nl="Personeelszaken"}
+  export Employee { user:user unique, name:text? trim min=1 label="Work name"@{nl="Werknaam"}, home:Location label="Home location"@{nl="Standplaats"}, locations:Location[] label="Locations"@{nl="Locaties"}, operator_wide:bool=false label="All operator locations"@{nl="Alle locaties van de exploitant"}, active:bool=true, start:date label="Employment start"@{nl="Start dienstverband"}, end:date? label="Employment end"@{nl="Einde dienstverband"}, manager:user? label="Line manager"@{nl="Leidinggevende"}, role:text label="Work role"@{nl="Werkrol"}, skills:text[] label="Skills"@{nl="Vaardigheden"}, private_notes:text? label="Private HR notes"@{nl="Privénotities personeelszaken"}, document:file? label="HR document"@{nl="Personeelsdocument"} } label="Employee"@{nl="Medewerker"}
+  export derive staff(person:user):bool = any(Employee as e,e.user==person and e.active and active_member(person,team))
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=hr
+  policy Employee read=members and staff(actor) fields=user,name,home,locations,operator_wide,active,role,skills
+  policy Employee read=authenticated where=row.user==actor
+  invariant Employee: row.end==null or row.end>=row.start
+ When
+ Then
+
+package shift
+ use std {OperationOutcome}
+ Given
+  export contract CommitmentRequest { source:text, employee:user, location:text, from:datetime, until:datetime, before:duration=0m, after:duration=0m, skill:text, kind:enum(duty,visit,appointment,absence,interview), revision:int }
+  export capability ScheduleV1 version=1
+   reserve(value:CommitmentRequest) -> OperationOutcome
+   stage(value:CommitmentRequest,previous_source:text,previous_revision:int) -> OperationOutcome
+   release(source:text,revision:int) -> OperationOutcome
+   event changed { value:OperationOutcome }
+ When
+ Then
+
+package leave
+ use employee {Employee,can_work}
+ use rent_catalog {Location}
+ use shift {ScheduleV1 as StaffSchedule} from=deployment.staff_schedule
+ Given
+  message label_preferences_year = "Year"@{nl="Jaar"}
+  message label_preferences_bucket = "Leave category"@{nl="Verlofcategorie"}
+  message label_Allowance_days = "Days"@{nl="Dagen"}
+  message label_Request_from = "Start"@{nl="Begin"}
+  message label_Request_until = "End"@{nl="Einde"}
+  message label_Request_reviewer = "Reviewer"@{nl="Beoordelaar"}
+  message label_Request_state_pending = "Pending"@{nl="In afwachting"}
+  role hr label="HR staff"@{nl="HR-medewerker"}
+  role leave_reviewer label="Leave reviewer"@{nl="Verlofbeoordelaar"}
+  Calendar in Employee { name:text, timezone:timezone, revision:int=1 min=1 } label="Working calendar"@{nl="Werkkalender"}
+  Category in Calendar { name:text unique label=label_preferences_bucket, allowance_bucket:text? label="Charged allowance category"@{nl="Belaste verlofcategorie"} } label="Leave policy"@{nl="Verlofbeleid"}
+  Day in Calendar { date:date unique label="Date"@{nl="Datum"}, working:bool label="Working day"@{nl="Werkdag"} } label="Calendar day"@{nl="Kalenderdag"}
+  Allowance in Employee { year:int label=label_preferences_year, bucket:text="vacation" label=label_preferences_bucket, days:int=20 min=0 label=label_Allowance_days } label="Allowance"@{nl="Tegoed"}
+  Request in Calendar { location:Location, from:date label=label_Request_from, until:date label=label_Request_until, bucket:text label=label_preferences_bucket, reason:text, reviewer:user label=label_Request_reviewer, timezone:timezone, allowance_bucket:text? label="Recorded charge category"@{nl="Vastgelegde belastingscategorie"}, schedule_revision:int=1 min=1, reserve_delivery:text?, release_delivery:text?, release_state:enum(none,pending,released,failed,unknown)=none label={text="Absence release"@{nl="Afwezigheid vrijgeven"},values={none="Not requested"@{nl="Niet aangevraagd"},pending=label_Request_state_pending,released="Released"@{nl="Vrijgegeven"},failed="Failed"@{nl="Mislukt"},unknown="Unknown"@{nl="Onbekend"}}}, calendar_version:int label="Calendar version"@{nl="Kalenderversie"}, state:enum(pending,approved,rejected,withdrawn,cancelled)=pending label={text="State"@{nl="Status"},values={pending=label_Request_state_pending,approved="Approved"@{nl="Goedgekeurd"},rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"},cancelled="Cancelled"@{nl="Geannuleerd"}}}, decision:text? label="Decision"@{nl="Besluit"}, schedule_source:text? label="Schedule source"@{nl="Planningsbron"}, sync:enum(none,pending,confirmed,conflict,unavailable)=none label={text="Schedule synchronization"@{nl="Planningsafstemming"},values={pending=label_Request_state_pending,none="None"@{nl="Geen"},confirmed="Confirmed"@{nl="Bevestigd"},conflict="Conflict"@{nl="Conflict"},unavailable="Unavailable"@{nl="Niet beschikbaar"}}} } label="Leave request"@{nl="Verlofaanvraag"}
+  Portion in Request { allowance:Allowance?, days:int label=label_Allowance_days, dates:date[]! label="Working dates"@{nl="Werkdagen"} } label="Yearly leave portion"@{nl="Verlofdeel per jaar"}
+  derive Day.year:int = date_year(row.date) label=label_preferences_year
+  derive Allowance.remaining:int = row.days-sum(Portion as portion where portion.allowance==row and portion.parent.state==approved select portion.days) label="Remaining"@{nl="Resterend"}
+  policy Calendar read=authenticated where=row.parent.user==actor
+  policy Calendar read=hr
+  policy Category read=authenticated where=row.parent.parent.user==actor
+  policy Category read=hr
+  policy Day read=authenticated where=row.parent.parent.user==actor
+  policy Day read=hr
+  policy Allowance read=authenticated where=row.parent.user==actor
+  policy Allowance read=hr
+  policy Request read=authenticated where=row.parent.parent.user==actor
+  policy Request read=leave_reviewer where=row.reviewer==actor and can_work(actor,row.parent.parent.home)
+  policy Request read=hr
+  policy Request read=members where=row.state==approved and can_work(actor,row.parent.parent.home) fields=location,from,until,state
+  policy Portion read=authenticated where=row.parent.parent.parent.user==actor
+  policy Portion read=hr
+  policy Portion read=leave_reviewer where=row.parent.reviewer==actor and can_work(actor,row.parent.parent.parent.home)
+  unique Allowance fields=year,bucket
+  invariant Request: row.from<=row.until and row.reviewer!=row.parent.parent.user
+  invariant Allowance: row.remaining>=0
+  lock Request fields=location,from,until,bucket,reason,reviewer,timezone,allowance_bucket,calendar_version
+  lock Portion fields=allowance,days,dates
+ When
+  # Reserve all applicable yearly allowances atomically and publish only absence dates. @{nl="Reserveer alle toepasselijke jaarlijkse tegoeden atomair en publiceer uitsluitend afwezigheidsdatums."}
+  scenario decide(request:Request,approve:bool label="Approve"@{nl="Goedkeuren"},reason:text) by=leave_reviewer label="Record decision"@{nl="Besluit vastleggen"}
+   require request.state==pending and request.reviewer==actor and request.parent.parent.user!=actor and can_work(actor,request.parent.parent.home) and trim(reason)!=""
+   do
+    let reserve_revision=request.schedule_revision
+    if approve
+     require all(request.Portion as portion,portion.allowance==null or portion.days<=portion.allowance.remaining)
+     set request {state=approved,decision=reason,schedule_source=operation.id,sync=pending}
+     send StaffSchedule.reserve {value={source=operation.id,employee=request.parent.parent.user,location=request.location.id,from=local_instant(request.from,"00:00",request.timezone,fold=earlier),until=local_instant(add_days(request.until,1),"00:00",request.timezone,fold=earlier),skill="absence",kind=absence,revision=reserve_revision}} when=request.state==approved and request.schedule_source==operation.id and request.schedule_revision==reserve_revision as delivery
+     set request {reserve_delivery=delivery.id}
+    else
+     set request {state=rejected,decision=reason}
+ Then
