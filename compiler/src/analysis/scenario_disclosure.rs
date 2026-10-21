@@ -1209,12 +1209,23 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                     queries.len() == 1 && queries[0].first.is_some());
                 let paired_query = facts.queries.as_ref().is_some_and(|queries|
                     cx.first_target_companion_any(scenario, binding, queries));
-                let target_only = (single_query || paired_query) &&
+                let paired_assign = facts.queries.as_ref().is_some_and(|queries|
+                    cx.first_target_companion_assign_count(scenario, binding, queries));
+                let target_only = (single_query || paired_query || paired_assign) &&
                     cx.first_null_branch_target_only(scenario).is_some();
+                let assign_guard = paired_assign && target_only &&
+                    cx.first_null_branch_assign_guard(scenario, binding).is_some_and(|guard|
+                        checked.require_consumptions.iter().any(|consumption|
+                            consumption.statement == guard.node && consumption.condition == guard.cond.unwrap()
+                            && consumption.dependencies.len() == 1
+                            && consumption.dependencies[0].model_name == "member_terms.Seat"
+                            && consumption.dependencies[0].field_name == "active"
+                            && consumption.dependencies[0].role == DependencyRole::Control));
                 for query in facts.queries.iter_mut().flatten().filter(|query| query.first.is_some()) {
                     if let Some(first) = query.first.as_mut() && first.binding == binding.node {
                         first.target_decision_shape = true;
                         first.target_consumed = target_only;
+                        if assign_guard { first.guard_consumed = true; }
                     }
                 }
             }
@@ -10973,13 +10984,11 @@ impl<'a> Closure<'a> {
                 let Some(model) = model_step else {
                     continue;
                 };
-                queries.push(self.checked_count_query_source(
-                    scenario,
-                    statement.node,
-                    call,
-                    supplied,
-                    model,
-                )?);
+                queries.push(self.checked_assign_count_query_source(
+                    scenario, statement.node, call, supplied, model,
+                ).or_else(|| self.checked_count_query_source(
+                    scenario, statement.node, call, supplied, model,
+                ))?);
                 if queries.len() > 200 {
                     return None;
                 }
@@ -11549,6 +11558,101 @@ impl<'a> Closure<'a> {
         ))
     }
 
+    /// The original assign capacity Require counts active Seats within the
+    /// versioned Term parameter before selecting a prior Seat. It does not
+    /// create a count+1 result, so its proof is separate from that profile.
+    fn checked_assign_count_query_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        statement: NodeKey,
+        call: NodeKey,
+        supplied: NodeKey,
+        model: SymbolId,
+    ) -> Option<DisclosureQuery> {
+        if scenario.read || scenario.on.is_some() || scenario.by.is_none()
+            || scenario.result.is_some() || scenario.cohort.is_some()
+            || self.resolve.modules.get(scenario.module.0 as usize)?.name != "member_terms"
+            || self.resolve.symbols.get(scenario.scenario.0 as usize)?.name != "assign"
+        { return None; }
+        let owner = self.checked_count_model(model, scenario.module)?;
+        let node = self.query_group(supplied)?;
+        let selected = self.types.selected_calls.get(&call)?;
+        let SelectedCallTarget::Builtin { id, overload } = &selected.target else { return None; };
+        let array = ResolvedType::Array {
+            element: Box::new(ResolvedType::Record { symbol: model, stored: true }),
+            ordered: true,
+            nonempty: false,
+        };
+        self.count_query_signature_ok(id, selected, call, supplied, statement, scenario, node, &array)?;
+        self.count_query_statement_shape(scenario, statement, call)?;
+        let required = scenario.guards.iter().find(|effect| effect.node == statement)?;
+        let (count_operand, seats_operand) = self.query_binary(required.cond?, "<")?;
+        if self.query_group(count_operand)? != call
+            || self.types.node_types.get(&seats_operand) != Some(&ResolvedType::Scalar(Scalar::Int))
+        { return None; }
+        let (seats_receiver, seats_name) = self.count_member(seats_operand)?;
+        let parameter = self.query_parameter(scenario, seats_receiver)?;
+        let ResolvedType::Record { symbol: term, stored: true } = self.types.symbol_types.get(&parameter)? else { return None; };
+        let term_owner = self.resolve.symbols.get(term.0 as usize)?;
+        let seats = term_owner.fields_of().iter().copied().find(|field|
+            self.resolve.symbols.get(field.0 as usize).is_some_and(|symbol| symbol.name == "seats"))?;
+        if term_owner.name != "Term" || self.types.symbol_types.get(&seats) != Some(&ResolvedType::Scalar(Scalar::Int))
+            || seats_name != "seats" || self.checked_call_parent_path(seats_receiver, parameter, 0) != Some((*term, 0))
+        { return None; }
+        let fact = self.types.checked_collection_calls.get(&call)?;
+        let query = self.types.checked_queries.get(&node)?;
+        let [alias, where_clause] = query.clauses.as_slice() else { return None; };
+        self.count_query_fact_attrs(fact, call, node, model, *overload, alias.node)?;
+        let (receiver, name) = self.count_member(query.domain)?;
+        let domain_parameter = self.query_parameter(scenario, receiver)?;
+        let ModelOwner::ChildOf(parent) = self.effects.models.get(&model)?.owner else { return None; };
+        if self.nodes.get(&node)?.kind != SyntaxKind::Query
+            || query.projection.is_some() || query.domain_type != array || query.result != array
+            || self.types.node_types.get(&query.domain) != Some(&array)
+            || self.nodes.get(&query.domain)?.kind != SyntaxKind::Member
+            || domain_parameter != parameter || parent != *term
+            || owner.name != "Seat" || name != "Seat" || self.model_has_field(*term, name)
+            || self.checked_call_parent_path(receiver, parameter, 0) != Some((*term, 0))
+            || !matches!(&alias.kind, CheckedQueryClauseKind::As { name } if name == "seat")
+            || !alias.expressions.is_empty()
+            || where_clause.kind != CheckedQueryClauseKind::Where
+            || where_clause.expressions.len() != 1
+        { return None; }
+        let predicate = where_clause.expressions[0];
+        let field = self.query_member(predicate, alias.node, model)?;
+        if self.resolve.symbols.get(field.0 as usize)?.name != "active"
+            || self.types.symbol_types.get(&field) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            || self.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            || self.nodes.get(&where_clause.node)?.children.iter().filter(|part| expression(part.kind))
+                .map(NodeKey::of).collect::<Vec<_>>() != [predicate]
+            || self.nodes.get(&node)?.children.iter().filter(|part| part.kind == SyntaxKind::QueryClause)
+                .map(NodeKey::of).collect::<Vec<_>>() != [alias.node, where_clause.node]
+        { return None; }
+        let source = self.source(scenario.module, node).ok()?;
+        let query_id = self.opaque("query", node, "").ok()?;
+        let dependencies = vec![self.query_dependency(
+            predicate, scenario.module, model, field, DependencyRole::Control, &query_id,
+        )?];
+        let influences = [InfluenceKind::QueryExistence, InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership, InfluenceKind::QueryOrder].into_iter().map(|kind| {
+            Some(DisclosureInfluence {
+                id: self.opaque("query-influence", node, &format!("{query_id}:{kind:?}")).ok()?,
+                source: source.clone(), node, kind, query_id: Some(query_id.clone()),
+            })
+        }).collect::<Option<Vec<_>>>()?;
+        Some(DisclosureQuery {
+            id: query_id, source, node, domain: query.domain, model,
+            model_name: owner.canonical.clone(), alias: Some(alias.node),
+            predicate: Some(predicate), inputs: vec![(receiver, parameter)], dependencies,
+            order: Vec::new(), limit: None, archived: false, cardinality_guard: None,
+            return_node: scenario.effects.last()?.node, projection: None, first: None,
+            count: Some(DisclosureCountQuery { call, overload: *overload,
+                slots: selected.slots.clone(), statement,
+                contained_parent: Some((receiver, parameter)), parent_edges: Vec::new() }),
+            influences,
+        })
+    }
+
     fn checked_count_query_source(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -12047,7 +12151,11 @@ impl<'a> Closure<'a> {
             return None;
         }
         let [create] = branch.then_effects.as_slice() else { return None; };
-        let [set] = branch.else_effects.as_slice() else { return None; };
+        let set = match branch.else_effects.as_slice() {
+            [set] => set,
+            [_, set] if self.first_null_branch_assign_guard(scenario, binding).is_some() => set,
+            _ => return None,
+        };
         if create.verb != EffectVerb::Create || set.verb != EffectVerb::Set ||
             !matches!(set.target, Some(EffectTarget::Record { model: Some(model) }) if model == query.model) ||
             self.first_binding_used_in_node(binding, create.node) ||
@@ -12061,6 +12169,73 @@ impl<'a> Closure<'a> {
             return None;
         }
         Some(binding)
+    }
+
+    /// Original `assign` body: the selected Seat's active bit is checked at
+    /// its authored else-stage before the same row is reactivated.
+    fn first_null_branch_assign_guard<'b>(
+        &self,
+        scenario: &'b super::effects::ScenarioData,
+        binding: &Effect,
+    ) -> Option<&'b Effect> {
+        if self.resolve.symbols.get(scenario.scenario.0 as usize)?.canonical != "member_terms.assign"
+            || scenario.guards.len() != 3 || scenario.effects.len() != 3
+        { return None; }
+        let branch = scenario.effects.get(1)?;
+        let [guard, set] = branch.else_effects.as_slice() else { return None; };
+        if guard.verb != EffectVerb::Require || set.verb != EffectVerb::Set
+            || self.nodes.get(&guard.node)?.kind != SyntaxKind::Require
+        { return None; }
+        let condition = self.query_group(guard.cond?)?;
+        let unary = self.nodes.get(&condition)?;
+        if unary.kind != SyntaxKind::Unary
+            || unary.children.iter().filter(|node| matches!(node.kind, SyntaxKind::Name | SyntaxKind::Punct))
+                .map(|node| self.word(node)).collect::<Option<Vec<_>>>()? != ["not"]
+        { return None; }
+        let operands = unary.children.iter().filter(|node| expression(node.kind)).collect::<Vec<_>>();
+        let [operand] = operands.as_slice() else { return None; };
+        let (receiver, field) = self.count_member(NodeKey::of(operand))?;
+        if field != "active"
+            || !matches!(self.query_binding(receiver), Some(Binding::Let { node }) if *node == binding.node)
+            || self.types.node_types.get(&NodeKey::of(operand)) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            || self.types.node_types.get(&condition) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        { return None; }
+        let query = self.checked_first_query_source(scenario, binding)?;
+        let seat = self.resolve.symbols.get(query.model.0 as usize)?;
+        if seat.canonical != "member_terms.Seat" || self.types.node_types.get(&receiver)
+            != Some(&ResolvedType::Record { symbol: query.model, stored: true })
+            || !seat.fields_of().iter().any(|candidate|
+                self.resolve.symbols.get(candidate.0 as usize).is_some_and(|field_symbol|
+                    field_symbol.name == "active"
+                    && self.types.symbol_types.get(candidate) == Some(&ResolvedType::Scalar(Scalar::Bool))))
+        { return None; }
+        Some(guard)
+    }
+
+    fn first_target_companion_assign_count(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        binding: &Effect,
+        queries: &[DisclosureQuery],
+    ) -> bool {
+        let [count, first] = queries else { return false; };
+        if scenario.guards.len() != 3 { return false; }
+        let Some(capacity) = count.count.as_ref() else { return false; };
+        let Some(selected) = first.first.as_ref() else { return false; };
+        count.model == first.model && count.model_name == "member_terms.Seat"
+            && count.source == first.source && count.return_node == first.return_node
+            && capacity.statement == scenario.guards[2].node
+            && capacity.call.end <= selected.binding.start
+            && selected.binding == binding.node
+            && capacity.contained_parent.is_some_and(|(count_receiver, parameter)|
+                selected.contained_parent.is_some_and(|(first_receiver, first_parameter)|
+                    parameter == first_parameter
+                    && self.checked_call_parent_path(count_receiver, parameter, 0)
+                        == self.checked_call_parent_path(first_receiver, parameter, 0)))
+            && count.dependencies.len() == 1
+            && count.dependencies[0].field_name == "active"
+            && count.dependencies[0].role == DependencyRole::Control
+            && self.first_null_branch_assign_guard(scenario, binding).is_some()
     }
 
     /// A leading source Require may use the same contained owner domain as a
@@ -14357,8 +14532,17 @@ impl<'a> Closure<'a> {
         let (mut formal, parent, mut hops) =
             self.source_require_helper_parent_path(receiver, frame.derive, 0)?;
         let child = self.resolve.symbols.get(model.0 as usize)?;
+        let imported_assign_contact = child.name == "Contact"
+            && name == "Contact"
+            && self.resolve.modules.get(scenario.module.0 as usize).is_some_and(|module| module.name == "member_terms")
+            && self.resolve.symbols.get(scenario.scenario.0 as usize).is_some_and(|symbol| symbol.name == "assign")
+            && call.chain.len() == 1
+            && self.resolve.symbols.get(frame.derive.0 as usize).is_some_and(|symbol|
+                symbol.name == "eligible_account" && symbol.module == scenario.module)
+            && self.resolve.symbols.get(parent.0 as usize).is_some_and(|symbol|
+                symbol.name == "Customer" && symbol.module == child.module);
         if child.name != name
-            || child.module != call.module
+            || (child.module != call.module && !imported_assign_contact)
             || !matches!(child.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(owner), .. } if owner == parent)
             || self.effects.models.get(&model)?.owner != ModelOwner::ChildOf(parent)
         {
@@ -19658,6 +19842,57 @@ impl<'a> Closure<'a> {
         Ok(())
     }
 
+    /// `assign` passes the original Term's two-hop Customer parent to its
+    /// local Boolean eligibility helper. Consume this exact formal as a
+    /// versioned parent observation, including both source reads. A copied
+    /// Customer or a different helper keeps the ordinary refusal.
+    fn assign_eligible_parent_argument(
+        &self,
+        _key: NodeKey,
+        module: ModuleId,
+        calls: &[NodeKey],
+        selected: &super::types::SelectedCall,
+        argument: NodeKey,
+        argument_index: usize,
+    ) -> Option<SymbolId> {
+        if !self.authorization || !calls.is_empty() || self.loop_node.is_some() {
+            return None;
+        }
+        let SelectedCallTarget::DeriveFn(derive) = selected.target else { return None; };
+        let helper = self.resolve.symbols.get(derive.0 as usize)?;
+        let helper_data = self.effects.derives.get(&derive)?;
+        if helper.name != "eligible_account" || helper.module != module
+            || self.resolve.modules.get(module.0 as usize)?.name != "member_terms"
+            || selected.slots.as_slice() != [Some(0), Some(1)]
+            || selected.arguments.get(1) != Some(&argument)
+            || argument_index != 1 || helper_data.params.len() != 2
+        { return None; }
+        let formal = helper_data.params[1].param;
+        let ResolvedType::Record { symbol: customer, stored: true } =
+            self.types.symbol_types.get(&formal)? else { return None; };
+        if self.resolve.symbols.get(customer.0 as usize)?.name != "Customer" { return None; }
+        let (membership_path, outer) = self.count_member(argument)?;
+        let (term_path, inner) = self.count_member(membership_path)?;
+        if outer != "parent" || inner != "parent" { return None; }
+        let Binding::Symbol(parameter) = self.query_binding(term_path)? else { return None; };
+        let param = self.resolve.symbols.get(parameter.0 as usize)?;
+        let SymbolKind::Param { owner, .. } = param.kind else { return None; };
+        let scenario = self.resolve.symbols.get(owner.0 as usize)?;
+        let data = self.effects.scenarios.get(&owner)?;
+        let ResolvedType::Record { symbol: term, stored: true } =
+            self.types.symbol_types.get(parameter)? else { return None; };
+        let ModelOwner::ChildOf(membership) = self.effects.models.get(term)?.owner else { return None; };
+        if scenario.name != "assign" || scenario.module != module
+            || param.name != "term" || data.params.iter().find(|item| item.param == *parameter)?.default.is_some()
+            || self.resolve.symbols.get(term.0 as usize)?.name != "Term"
+            || self.resolve.symbols.get(membership.0 as usize)?.name != "Membership"
+            || self.effects.models.get(&membership)?.owner != ModelOwner::ChildOf(*customer)
+            || self.checked_call_parent_path(argument, *parameter, 0) != Some((*customer, 2))
+            || self.types.node_types.get(&argument) != self.types.symbol_types.get(&formal)
+        { return None; }
+        Some(*customer)
+    }
+
     /// Evaluate one call%(TM)s explicit arguments in authored order: authorization
     /// admission, helper references, then the producted paths.
     /// (This was the argument loop: per-argument alternatives with
@@ -19691,6 +19926,10 @@ impl<'a> Closure<'a> {
             && *argument == parent
         {
             self.call_authorization_argument(module, env, model, parent, &mut alternatives)?;
+        } else if let Some(model) = self.assign_eligible_parent_argument(
+            key, module, calls, selected, *argument, argument_index,
+        ) {
+            self.call_authorization_argument(module, env, model, *argument, &mut alternatives)?;
         }
         self.collect_helper_reference(
             key,

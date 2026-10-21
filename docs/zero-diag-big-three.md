@@ -72,7 +72,7 @@ reference and fences both rows before commit. An installed test covers a
 hidden Contact, stale and cancelled appointments, changes before dispatch,
 and a Contact update at commit; two altered-source variants remain refused.
 
-The current release build completes the same 24-source capture with 84
+The preceding release build completes the same 24-source capture with 84
 diagnostics (`complete:true`, `omitted:0`). A site-by-site comparison finds
 only the cleared `CanMember.remove` source-Require `E6008` at offset 39693,
 with no new diagnostics. The exact receipt follows the required Seat through
@@ -81,6 +81,18 @@ Term.locations array and hidden Employee and CompanyRole domains, and carries
 the two-parent Membership reference into AccessChanged. An installed test
 covers both authorized branches, wrong or revoked authority, and role and
 location changes at commit. The remaining 84 are separate sites.
+
+The current release build completes the same 24-source capture with 82
+diagnostics (`complete:true`, `omitted:0`). Exactly the two original
+`CanMember.assign` sites clear: the helper-contained source-Require `E6008` at
+offset 38412 and the first-query `E6008` at offset 38861. No diagnostic sites
+were added. The checked void receipt executes the active-Seat capacity count
+before the account-matched first query, observes hidden Customer Contact,
+CompanyRole, and Seat facts as owner decisions, and fences them through the
+create/reactivate branch and AccessChanged event. An installed test covers
+hidden rows, capacity, wrong or revoked authority, commit races, and both
+successful branches; altered source lineage, query, guard, target, and event
+payloads remain refused. The remaining 82 are separate sites.
 
 ## 1. Searches inside rules (historically ~30 diagnostics)
 

@@ -1560,6 +1560,13 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
     text(dep.id); text(dep.model); text(dep.field); origin(dep.source); text(value.queryId);
     const site = sites[value.siteIndex];
     const query = bound.plan.queries?.find(query => query.id === value.queryId);
+    const seatPair = query === undefined ? undefined : countFirstSeatShape(def, bound, query.id);
+    const seatFirstMark = queryProducers.get(def)?.first?.find(mark => mark.queryId === query?.id);
+    const seatGuardOverlap = seatPair !== undefined && seatFirstMark?.targetConsumed === true &&
+      seatFirstMark.guardConsumed === true && site?.stage === 'body-require' &&
+      dep.model === seatPair.first.model &&
+      dep.field === 'active' && dep.type === 'bool' && dep.role === 'control' &&
+      value.node.start >= seatFirstMark.statement.end;
     if (!Number.isSafeInteger(value.siteIndex) || value.siteIndex < 0 ||
         site === undefined || site.owner !== def.name || !['leading-require', 'body-require'].includes(site.stage) ||
         stableStringify(dep.source) !== stableStringify(site.source) ||
@@ -1576,7 +1583,8 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
         // checks. Every other overlap keeps the result path exactly.
         (bound.plan.returns.some(returned => returned.dependencies.some(other => other.id === dep.id)) &&
           !((bound.plan.queries?.length ?? 0) === 1 && bound.resultModel === undefined &&
-            query.dependencies.some(item => item.role === 'control' && item.field !== 'parent' && item.field === dep.field))) ||
+            query.dependencies.some(item => item.role === 'control' && item.field !== 'parent' && item.field === dep.field)) &&
+          !seatGuardOverlap) ||
         bound.plan.queries?.some(query => query.dependencies.some(other => other.id === dep.id))) {
       return invalid('execution Contract dependency requires its exact owning Require, first query and unique occurrence.');
     }
@@ -1630,6 +1638,39 @@ export interface ScenarioReceiptQueryFirstMetadata {
   /** Exact void null-branch create-or-update target, independently proved by
    * the compiler; no selected field flows into values or a result. */
   readonly targetConsumed?: true;
+}
+/** The checked paid-seat assignment has one pre-write capacity count followed
+ * by one first-selected create/reactivation target. The ordered query plan is
+ * the compiler's source inventory; both occurrences retain the same admitted
+ * Term parent and their exact CONTROL fields. No other void query pair gains
+ * owner-domain authority from a first marker. */
+function countFirstSeatShape(def: GeneratedOperationDef, bound: BoundPlan,
+  firstQueryId: string): { readonly count: ScenarioReceiptQueryPlan; readonly first: ScenarioReceiptQueryPlan } | undefined {
+  const queries = bound.plan.queries;
+  if (def.name !== 'member_terms.assign' || bound.type !== 'void' || bound.resultModel !== undefined ||
+      queries?.length !== 2 || queries[1]?.id !== firstQueryId) return undefined;
+  const [count, first] = queries;
+  if (count === undefined || first === undefined || count.id === first.id ||
+      count.model !== 'member_terms.Seat' || first.model !== count.model ||
+      count.parent?.model !== 'member_terms.Term' || count.parent.origin.kind !== 'admitted-reference' ||
+      count.parent.origin.parameter !== 'term' ||
+      stableStringify(count.parent) !== stableStringify(first.parent) ||
+      stableStringify(count.source) !== stableStringify(bound.plan.source) ||
+      stableStringify(first.source) !== stableStringify(bound.plan.source) ||
+      count.archived !== 'exclude' || first.archived !== 'exclude' ||
+      count.limit !== null || first.limit !== null || count.order.length !== 0 ||
+      first.order.length !== 1 || first.order[0]?.field !== 'id' || first.order[0].direction !== 'asc' ||
+      count.dependencies.length !== 1 || count.dependencies[0]?.role !== 'control' ||
+      count.dependencies[0].field !== 'active' || count.dependencies[0].type !== 'bool' ||
+      first.dependencies.length !== 1 || first.dependencies[0]?.role !== 'control' ||
+      first.dependencies[0].field !== 'account' || first.dependencies[0].type !== 'user' ||
+      bound.plan.returns.length === 0 ||
+      !bound.plan.returns.every(returned => {
+        const ids = returnQueryIds(returned);
+        return ids.length === 2 && ids.includes(count.id) && ids.includes(first.id);
+      }) || queryParentInputModel(def, 'term', count.parent.model, bound.artifactModels) !== count.parent.model ||
+      bound.artifactModels.get(count.model)?.parent !== count.parent.model) return undefined;
+  return { count, first };
 }
 function firstQueryNode(value: unknown): { readonly start: number; readonly end: number } {
   const node = object(value, ['start', 'end']);
@@ -1698,7 +1739,8 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
     if (rawObject !== undefined && Object.hasOwn(rawObject, 'guardConsumed') && metadata.guardConsumed !== true ||
         rawObject !== undefined && Object.hasOwn(rawObject, 'presenceConsumed') && metadata.presenceConsumed !== true ||
         rawObject !== undefined && Object.hasOwn(rawObject, 'targetConsumed') && metadata.targetConsumed !== true ||
-        metadata.targetConsumed === true && (metadata.guardConsumed === true || metadata.presenceConsumed === true)) {
+        metadata.targetConsumed === true && (metadata.presenceConsumed === true ||
+          metadata.guardConsumed === true && countFirstSeatShape(def, bound, queryId) === undefined)) {
       return invalid('first guard mark requires its exact checked decision-consumed occurrence.');
     }
     const interval = firstQueryNode(metadata.query), node = firstQueryNode(metadata.node), statement = firstQueryNode(metadata.statement);
@@ -1770,6 +1812,30 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
     ...(readPolicies === undefined ? {} : { readPolicies }),
     ...(first.length === 0 ? {} : { first: deepFreeze(first) }),
     ...(producer.captureAnyPredicate === undefined ? {} : { captureAnyPredicate: producer.captureAnyPredicate }) }));
+}
+function countFirstSeatProfile(def: GeneratedOperationDef, bound: BoundPlan): {
+  readonly count: ScenarioReceiptQueryPlan;
+  readonly first: ScenarioReceiptQueryPlan;
+  readonly activeDependencyId: string;
+} | undefined {
+  const producer = queryProducers.get(def), mark = producer?.first?.[0];
+  if (producer?.first?.length !== 1 || mark?.targetConsumed !== true || mark.guardConsumed !== true ||
+      mark.presenceConsumed === true || bound.anyQueries.size !== 0 ||
+      querySelections.get(def)?.size !== 0) return undefined;
+  const shape = countFirstSeatShape(def, bound, mark.queryId);
+  if (shape === undefined) return undefined;
+  const seatRead = producer.readPolicies?.get(shape.count.model);
+  const termRead = producer.readPolicies?.get(shape.count.parent!.model);
+  if (seatRead === undefined || !('grants' in seatRead) ||
+      termRead === undefined || !('grants' in termRead)) return undefined;
+  const matching = [...referenceProducers.get(def)?.boundExecutionDependencies.values() ?? []]
+    .filter(value => value.association.queryId === shape.first.id);
+  const active = matching[0];
+  if (matching.length !== 1 || active?.association.dependency.model !== shape.first.model ||
+      active.association.dependency.field !== 'active' || active.association.dependency.type !== 'bool' ||
+      active.association.dependency.role !== 'control' ||
+      active.association.node.start < mark.statement.end) return undefined;
+  return { ...shape, activeDependencyId: active.association.dependency.id };
 }
 /** Query source authority comes from its exact installed consumer. Legacy
  * reference producer behavior remains when no query-owned map supplies it. */
@@ -3432,8 +3498,19 @@ function guardConsumedDecisionPolicies(call: AdmittedCall, owner: ReceiptOwnerSe
   const producer = queryProducers.get(call.def as GeneratedOperationDef);
   const marked = producer?.first?.find(value => value.queryId === plan.id);
   const stored = marked?.guardConsumed === true, presence = marked?.presenceConsumed === true;
+  const countFirstSeat = countFirstSeatProfile(call.def as GeneratedOperationDef, state.bound);
+  const countExecution = state.queries[0], firstExecution = state.queries[1];
+  const selectedIndex = firstExecution?.selectedIndices[0];
+  const selected = selectedIndex === undefined ? undefined : firstExecution?.candidates[selectedIndex]?.row;
+  const selectedSeatGuard = stored && countFirstSeat?.first.id === plan.id && owner.stage === 0 &&
+    countExecution?.plan.id === countFirstSeat.count.id && countExecution.stage === owner.stage &&
+    countExecution.ownerDecision && countExecution.complete && countExecution.countSelected &&
+    firstExecution?.plan.id === plan.id && firstExecution.complete && firstExecution.firstSelected &&
+    firstExecution.owner === owner && firstExecution.stage === owner.stage && firstExecution.ownerDecision && selected !== undefined &&
+    issuedIds.size === 1 && issuedIds.has(selected.id);
   if (!stored && !presence || state.bound.resultModel !== undefined ||
-      (state.bound.plan.queries?.length ?? 0) !== 1 || producer?.readPolicies === undefined) return undefined;
+      (state.bound.plan.queries?.length ?? 0) !== 1 && !selectedSeatGuard ||
+      producer?.readPolicies === undefined) return undefined;
   // Contained queries additionally require the exact admitted versioned
   // parent reference (the same checks as resolveQueryParent); any other
   // parent origin stays refused. The decision grant then verifies each
@@ -3618,6 +3695,19 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
     if (plan === undefined || producer === undefined || producer.app !== call.context.app || state.queries.some(query => query.plan.id === plan.id)) return invalid('one actual execution per checked query occurrence required.');
     if (any !== (anyProfile !== undefined)) return invalid('query execution must match its exact source-bound ANY occurrence.');
     const firstMark = producer.first?.find(value => value.queryId === plan.id);
+    const countFirstSeat = countFirstSeatProfile(call.def as GeneratedOperationDef, state.bound);
+    if (countFirstSeat !== undefined && plan.id === countFirstSeat.count.id &&
+        (owner.stage !== 0 || state.queries.length !== 0)) {
+      return invalid('seat capacity count must execute first at its original pre-write owner stage.');
+    }
+    if (countFirstSeat !== undefined && plan.id === countFirstSeat.first.id) {
+      const count = state.queries[0];
+      if (owner.stage !== 0 || state.queries.length !== 1 || count?.plan.id !== countFirstSeat.count.id ||
+          count.stage !== owner.stage || !count.ownerDecision || !count.complete || !count.countSelected ||
+          count.firstSelected || count.anyConsumed || count.selectionConsumed) {
+        return invalid('seat target first requires the original consumed capacity count before its query.');
+      }
+    }
     const otherAny = [...state.bound.anyQueries.values()].find(value => value.queryId !== plan.id);
     const pairedFirst = firstMark?.presenceConsumed === true && state.bound.resultModel === undefined &&
       state.bound.type === 'void' && state.bound.plan.queries?.length === 2 &&
@@ -3639,10 +3729,12 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
     if (firstMark?.presenceConsumed === true && state.bound.plan.queries?.length === 2 && !pairedFirst) {
       return invalid('decision-only first requires its exact checked companion ANY domain.');
     }
-    if (firstMark?.targetConsumed === true && !targetFirst && !pairedTarget) {
+    if (firstMark?.targetConsumed === true && !targetFirst && !pairedTarget &&
+        !(countFirstSeat !== undefined && plan.id === countFirstSeat.first.id)) {
       return invalid('selected write target requires its exact checked void decision.');
     }
-    const ownerDecision = pairedAny === true || pairedFirst === true || pairedTarget === true || targetFirst;
+    const ownerDecision = pairedAny === true || pairedFirst === true || pairedTarget === true || targetFirst ||
+      countFirstSeat !== undefined && (plan.id === countFirstSeat.count.id || plan.id === countFirstSeat.first.id);
     const predicate = input.predicate;
     if (anyProfile?.kind === 'predicate') {
       const captured = producer.captureAnyPredicate?.(call, plan.id);
@@ -3925,7 +4017,11 @@ export async function bindScenarioReceiptQueryCount(call: AdmittedCall, store: S
   try {
     object(input, ['query']);
     const query = queryHandles.get(input.query);
-    if (owner === undefined || state.bound.resultModel === undefined || owner.busy || state.pending !== 0 || state.returnId !== null ||
+    const countFirstSeat = countFirstSeatProfile(call.def as GeneratedOperationDef, state.bound);
+    const voidSeatCount = state.bound.resultModel === undefined && countFirstSeat !== undefined &&
+      query?.plan.id === countFirstSeat.count.id && query.ownerDecision && query.stage === 0 &&
+      owner?.stage === 0 && state.queries.length === 1 && state.queries[0] === query;
+    if (owner === undefined || state.bound.resultModel === undefined && !voidSeatCount || owner.busy || state.pending !== 0 || state.returnId !== null ||
         owner.executingCall !== call || query === undefined || query.call !== call || query.owner !== owner ||
         query.stage !== owner.stage || !query.complete || query.firstSelected || query.countSelected || query.selectionConsumed || query.anyConsumed ||
         querySelections.get(call.def as GeneratedOperationDef)?.has(query.plan.id) === true ||
@@ -5084,6 +5180,18 @@ export function selectScenarioReceiptReturn(call: AdmittedCall, store: StoragePo
     if (state.pending !== 0 || ownerSessions.get(call)?.busy === true) { state.poisoned = true; return invalid('return selection cannot precede pending owner reads/observations.'); }
     const returned = state.bound.plan.returns.find(entry => entry.id === returnId);
     if (state.returnId !== null || returned === undefined) return invalid('one actual checked return path required.');
+    const countFirstSeat = countFirstSeatProfile(call.def as GeneratedOperationDef, state.bound);
+    if (countFirstSeat !== undefined) {
+      const [count, first] = state.queries;
+      const selected = first?.selectedIndices[0] !== undefined;
+      if (state.queries.length !== 2 || count?.plan.id !== countFirstSeat.count.id ||
+          first?.plan.id !== countFirstSeat.first.id || count.stage !== 0 || first.stage !== 0 ||
+          !count.ownerDecision || !first.ownerDecision || !count.complete || !first.complete ||
+          !count.countSelected || !first.firstSelected ||
+          (executedDependencies.get(state)?.has(countFirstSeat.activeDependencyId) === true) !== selected) {
+        return invalid('seat assignment requires its consumed capacity count, selected target and guarded active read before effects return.');
+      }
+    }
     requireReturnDependencies(state, returned, state.observations);
     if (returned.intrinsics?.some(dep => !state.intrinsics.some(entry => entry.dependencyId === dep.id))) {
       return invalid('required observations must complete before selecting the actual return.');

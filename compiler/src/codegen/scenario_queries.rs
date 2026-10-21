@@ -1326,7 +1326,9 @@ fn match_complete_returned(
 ) -> Option<()> {
     let target_pair = original.source_facts()?.queries.as_deref().is_some_and(|queries|
         super::scenario_receipts::checked_any_first_target_return_order(
-            queries, expected_influences, &returned.influences));
+            queries, expected_influences, &returned.influences)
+            || super::scenario_receipts::checked_assign_count_first_target_return_order(
+                queries, expected_influences, &returned.influences));
     if !standalone_first
         && !void_tail
         && super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
@@ -3139,6 +3141,18 @@ fn checked_count_query_plan(
     )?;
     let count = query.count.as_ref()?;
     let selected = program.types.selected_calls.get(&count.call)?;
+    if owner.canonical == "member_terms.assign" {
+        let fact = program.types.checked_collection_calls.get(&count.call)?;
+        let checked = program.types.checked_queries.get(&query.node)?;
+        if !matches!(&selected.target, SelectedCallTarget::Builtin {id,overload}
+            if id == "count" && *overload == count.overload)
+            || selected.slots != count.slots || selected.arguments.as_slice() != [query.node]
+            || fact.node != count.call || fact.query != query.node
+            || fact.model != query.model || fact.builtin != "count"
+            || checked.node != query.node || checked.domain != query.domain
+        { return None; }
+        return Some(plan);
+    }
     check_count_shape(
         program,
         query,

@@ -1,0 +1,47 @@
+app MemberAssignProbe uses=[member_terms]
+package rent_catalog
+ Given
+  export Location {name:text}
+  policy Location read=members
+ When
+ Then
+package customer
+ use rent_catalog {Location}
+ Given
+  export Customer {name:text,kind:enum(individual,company),active:bool=true}
+  export Contact in Customer {account:user?,verified:bool=false,hidden:bool=false}
+  export CompanyRole in Customer {account:user,role:enum(administrator,booker,billing),locations:Location[]=[],active:bool=true,hidden:bool=false}
+  export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+  export derive has_location_role(person:user,org:Customer,role:CompanyRole.role,location:Location):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active and location in grant.locations)
+  export derive owns(person:user,org:Customer):bool = org.kind==individual and any(org.Contact as contact,contact.account==person and contact.verified)
+  policy Customer read=members
+  policy Contact read=members and not row.hidden
+  policy CompanyRole read=members and not row.hidden
+ When
+ Then
+package member_terms
+ use rent_catalog {Location}
+ use customer {Customer,Contact,CompanyRole,has_role,has_location_role,owns}
+ Given
+  Membership in Customer {revoked:bool=false,access_revision:int=0}
+  Term in Membership {paid:bool=false,until:datetime,locations:Location[]!,seats:int}
+  Seat in Term {account:user,active:bool=true,removed_reason:text?,hidden:bool=false}
+  event AccessChanged {membership:Membership,revision:int}
+  derive eligible_account(person:user,customer:Customer):bool = customer.active and customer.archived_at==null and any(customer.Contact as contact,contact.account==person and contact.verified) and (owns(person,customer) or has_role(person,customer,booker) or has_role(person,customer,administrator))
+  policy Membership read=members
+  policy Term read=members
+  policy Seat read=members and not row.hidden
+ When
+  scenario assign(term:Term,account:user) by=authenticated
+   require has_role(actor,term.parent.parent,administrator) and term.paid and not term.parent.revoked and term.until>now and all(term.locations as location,has_location_role(actor,term.parent.parent,administrator,location))
+   require eligible_account(account,term.parent.parent)
+   require count(term.Seat as seat where seat.active)<term.seats
+   do
+    let previous=first(term.Seat as seat where seat.account==account order=seat.id)
+    if previous==null
+     create Seat {parent=term,account} as seat
+    else
+     require not previous.active
+     set previous {active=true,removed_reason=null}
+    emit AccessChanged {membership=term.parent,revision=term.parent.access_revision+1}
+ Then

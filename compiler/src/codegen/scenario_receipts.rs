@@ -5021,6 +5021,154 @@ fn pair_query_shape_valid(
     Some(())
 }
 
+/// Original assign evaluates its active-Seat capacity Require before the
+/// target FIRST Let. This pair keeps that exact source order and one Term
+/// containment domain while granting no other COUNT/FIRST composition.
+fn assign_count_first_shape_valid(
+    count: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    first: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> Option<()> {
+    let capacity = count.count.as_ref()?;
+    let target = first.first.as_ref()?;
+    let (_, count_parameter) = capacity.contained_parent?;
+    let (_, first_parameter) = target.contained_parent?;
+    if count.first.is_some() || first.count.is_some()
+        || count.model_name != "member_terms.Seat" || first.model_name != count.model_name
+        || count.model != first.model || count.id == first.id
+        || count.source != first.source || count.return_node != first.return_node
+        || count_parameter != first_parameter
+        || capacity.statement.kind != SyntaxKind::Require as u8
+        || capacity.statement.end > target.binding.start
+        || !capacity.parent_edges.is_empty()
+        || count.alias.is_none() || count.predicate.is_none()
+        || count.dependencies.len() != 1
+        || count.dependencies[0].role != DependencyRole::Control
+        || count.dependencies[0].field_name != "active"
+        || first.order.len() != 1 || first.order[0].field_name != "id"
+        || first.dependencies.len() != 1 || first.dependencies[0].field_name != "account"
+        || !target.target_consumed || !target.guard_consumed
+    { return None; }
+    Some(())
+}
+
+fn assign_term_membership(
+    value: &TypedExpr,
+    term: crate::analysis::SymbolId,
+    membership: crate::analysis::SymbolId,
+) -> bool {
+    value.ty == ResolvedType::Record { symbol: membership, stored: true }
+        && matches!(&value.expr, IrExpr::Member { base, field }
+            if field == "parent"
+                && base.ty == ResolvedType::Record { symbol: term, stored: true }
+                && matches!(&base.expr, IrExpr::Name(name) if name == "term"))
+}
+
+/// The assign receipt owns a particular eligibility subject and revision
+/// event. Generic source-Require admission proves the helper's hidden reads,
+/// but it does not by itself prove that its Customer argument is the Term's
+/// owner or that the final notification names this Membership and revision.
+fn checked_assign_header_and_event(
+    ir: &IrProgram,
+    owner: &IrItem,
+    guards: &[IrStmt],
+    effects: &[IrStmt],
+) -> Option<()> {
+    let IrItemKind::Scenario { params, by, .. } = &owner.kind else { return None; };
+    let [term_id, account_id] = params.as_slice() else { return None; };
+    let term = ir.items.get(term_id.0 as usize)?;
+    let account = ir.items.get(account_id.0 as usize)?;
+    let IrItemKind::Param {
+        owner: term_owner, index: 0,
+        ty: IrType::Known(ResolvedType::Record { symbol: term_model, stored: true }),
+        array_bounds: None, default: None, default_node: None, default_copy_source: None, ..
+    } = &term.kind else { return None; };
+    let IrItemKind::Param {
+        owner: account_owner, index: 1,
+        ty: IrType::Known(ResolvedType::Scalar(Scalar::User)),
+        array_bounds: None, default: None, default_node: None, default_copy_source: None, ..
+    } = &account.kind else { return None; };
+    let term_model_item = ir.items.get(term_model.0 as usize)?;
+    let IrItemKind::Model { owner: IrOwner::ChildOf(membership_model), .. } = &term_model_item.kind
+        else { return None; };
+    let membership_item = ir.items.get(membership_model.0 as usize)?;
+    let IrItemKind::Model { owner: IrOwner::ChildOf(customer_model), .. } = &membership_item.kind
+        else { return None; };
+    let customer_item = ir.items.get(customer_model.0 as usize)?;
+    if term.name != "term" || account.name != "account"
+        || *term_owner != owner.id || *account_owner != owner.id
+        || term_model_item.canonical != "member_terms.Term"
+        || membership_item.canonical != "member_terms.Membership"
+        || customer_item.canonical != "customer.Customer"
+        || !matches!(by.as_slice(), [IrGuard::Role(role)] if role == "authenticated")
+    { return None; }
+    let [_, IrStmt::Require { cond: eligible, .. }, _] = guards else { return None; };
+    let (target, args, slots) = match &eligible.expr {
+        IrExpr::Call { target, args } => (target, args.as_slice(), None),
+        IrExpr::BoundCall { target, args, slots } => (target, args.as_slice(), Some(slots.as_slice())),
+        _ => return None,
+    };
+    let [person, customer] = args else { return None; };
+    let IrExpr::Member { base: membership, field } = &customer.expr else { return None; };
+    if eligible.ty != ResolvedType::Scalar(Scalar::Bool)
+        || !matches!(target, IrCallTarget::DeriveFn(name) if name == "member_terms.eligible_account")
+        || slots.is_some_and(|slots| slots != [Some(0), Some(1)])
+        || person.ty != ResolvedType::Scalar(Scalar::User)
+        || !matches!(&person.expr, IrExpr::Name(name) if name == "account")
+        || customer.ty != (ResolvedType::Record { symbol: *customer_model, stored: true })
+        || field != "parent"
+        || !assign_term_membership(membership, *term_model, *membership_model)
+    { return None; }
+    let [IrStmt::Let { value: selected, .. }, IrStmt::If { .. }, IrStmt::Emit { event, payload, .. }] = effects
+        else { return None; };
+    let (target, args, slots) = match &selected.expr {
+        IrExpr::Call { target, args } => (target, args.as_slice(), None),
+        IrExpr::BoundCall { target, args, slots } => (target, args.as_slice(), Some(slots.as_slice())),
+        _ => return None,
+    };
+    let [domain] = args else { return None; };
+    let IrExpr::Query(scan) = &domain.expr else { return None; };
+    let predicate = scan.where_pred.as_deref()?;
+    let IrExpr::Binary { op: IrBinOp::Eq, left, right } = &predicate.expr else { return None; };
+    if !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "first")
+        || slots.is_some_and(|slots| slots != [Some(0)])
+        || scan.where_param != "row"
+        || left.ty != ResolvedType::Scalar(Scalar::User)
+        || right.ty != ResolvedType::Scalar(Scalar::User)
+        || !matches!(&left.expr, IrExpr::Member { base, field }
+            if field == "account" && matches!(&base.expr, IrExpr::Name(name) if name == "row"))
+        || !matches!(&right.expr, IrExpr::Name(name) if name == "account")
+    { return None; }
+    let IrExpr::Object(entries) = &payload.expr else { return None; };
+    let [(membership_name, membership), (revision_name, revision)] = entries.as_slice()
+        else { return None; };
+    let IrExpr::Binary { op: IrBinOp::Add, left, right } = &revision.expr else { return None; };
+    let IrExpr::Member { base: revision_membership, field: revision_field } = &left.expr
+        else { return None; };
+    if event != "member_terms.AccessChanged"
+        || payload.ty != ResolvedType::Unknown
+        || membership_name != "membership" || revision_name != "revision"
+        || !assign_term_membership(membership, *term_model, *membership_model)
+        || revision.ty != ResolvedType::Scalar(Scalar::Int)
+        || left.ty != ResolvedType::Scalar(Scalar::Int)
+        || right.ty != ResolvedType::Scalar(Scalar::Int)
+        || revision_field != "access_revision"
+        || !assign_term_membership(revision_membership, *term_model, *membership_model)
+        || !matches!(right.expr, IrExpr::Int(1))
+    { return None; }
+    Some(())
+}
+
+pub(super) fn checked_assign_count_first_target_return_order(
+    queries: &[crate::analysis::scenario_disclosure::DisclosureQuery],
+    expected: &[crate::analysis::scenario_disclosure::DisclosureInfluence],
+    returned: &[crate::analysis::scenario_disclosure::DisclosureInfluence],
+) -> bool {
+    let [count, first] = queries else { return false; };
+    assign_count_first_shape_valid(count, first).is_some()
+        && count.influences.iter().chain(&first.influences).eq(expected.iter())
+        && first.influences.iter().chain(&count.influences).eq(returned.iter())
+}
+
 fn ancestor_count_shape_valid(ancestor: &crate::analysis::scenario_disclosure::DisclosureQuery) -> Option<()> {
     if ancestor.first.is_some()
         || ancestor.count.is_none()
@@ -5142,6 +5290,7 @@ pub(super) fn checked_native_query_influences(
     match queries {
         [query] => single_query_shape_valid(query)?,
         [first, count] if first.first.is_some() && count.count.is_some() => pair_query_shape_valid(first, count)?,
+        [count, first] if count.count.is_some() && first.first.is_some() => assign_count_first_shape_valid(count, first)?,
         [ancestor, first, count] => triple_query_shape_valid(ancestor, first, count, &queries[1..])?,
         [any, first] => any_first_shape_valid(any, first)?,
         [any, ancestor, first, count] => {
@@ -5512,6 +5661,10 @@ fn first_query_expected_plan(
                 checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db);
             merge_native_query_plans(any_plan?, first_plan?)
         }
+        [count, first] if count.count.is_some() && first.first.is_some() => merge_native_query_plans(
+            checked_native_assign_count_query_plan(ir, owner, checked, count, db, entry_module)?,
+            checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db)?,
+        ),
         [first, count] => merge_native_query_plans(
             checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db)?,
             checked_native_count_query_plan(ir, owner, count, db, entry_module, source_context)?,
@@ -6463,7 +6616,7 @@ fn first_query_returns_valid(
 ) -> bool {
     let target_pair = !standalone_first && checked.source_facts.as_deref()
         .and_then(|facts| facts.queries.as_deref())
-        .is_some_and(|queries| matches!(queries, [_, first] if first == query &&
+        .is_some_and(|queries| matches!(queries, [any, first] if any.first.is_none() && any.count.is_none() && first == query &&
             first.first.as_ref().is_some_and(|first| first.target_consumed)));
     query.projection.is_none()
         && query.cardinality_guard.is_none()
@@ -6482,6 +6635,11 @@ fn first_query_returns_valid(
                 } else if target_pair {
                     checked.source_facts.as_deref().and_then(|facts| facts.queries.as_deref())
                         .is_some_and(|queries| checked_any_first_target_return_order(
+                            queries, expected_influences, &returned.influences))
+                } else if void_tail && checked.source_facts.as_deref().and_then(|facts| facts.queries.as_deref())
+                    .is_some_and(|queries| matches!(queries, [count, first] if count.count.is_some() && first == query)) {
+                    checked.source_facts.as_deref().and_then(|facts| facts.queries.as_deref())
+                        .is_some_and(|queries| checked_assign_count_first_target_return_order(
                             queries, expected_influences, &returned.influences))
                 } else if standalone_first {
                     returned
@@ -8069,6 +8227,115 @@ fn native_count_plan(
     })
 }
 
+/// Capacity COUNT for the original void assign, before its target FIRST.
+/// Rejoin the checked source occurrence to the executable guard and scan;
+/// the ordinary contained-count plan below is reserved for COUNT+1 Create.
+pub(super) fn checked_native_assign_count_query_plan(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
+    entry: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    use super::ir::IrQueryDomain;
+    if owner.canonical != "member_terms.assign" || checked.scenario != owner.id
+        || query.model_name != "member_terms.Seat" || checked.source != query.source
+    { return None; }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let queries = facts.queries.as_deref()?;
+    let [count_query, first_query] = queries else { return None; };
+    assign_count_first_shape_valid(count_query, first_query)?;
+    if count_query != query { return None; }
+    let count = query.count.as_ref()?;
+    let (receiver, _) = count.contained_parent?;
+    let IrItemKind::Scenario { guards, effects, result: None, read: false,
+        trusted: false, cohort: None, .. } = &owner.kind else { return None; };
+    let [_, _, IrStmt::Require { cond, span }] = guards.as_slice() else { return None; };
+    checked_assign_header_and_event(ir, owner, guards, effects)?;
+    if *span != node_span(count.statement) || cond.ty != ResolvedType::Scalar(Scalar::Bool) {
+        return None;
+    }
+    let IrExpr::Binary { op: IrBinOp::Lt, left, right } = &cond.expr else { return None; };
+    if left.span != node_span(count.call) || right.ty != ResolvedType::Scalar(Scalar::Int) {
+        return None;
+    }
+    let (target, args, slots) = match &left.expr {
+        IrExpr::Call { target, args } => (target, args.as_slice(), None),
+        IrExpr::BoundCall { target, args, slots } => (target, args.as_slice(), Some(slots.as_slice())),
+        _ => return None,
+    };
+    let [domain] = args else { return None; };
+    let IrExpr::Query(scan) = &domain.expr else { return None; };
+    let parent = scan.parent.as_deref()?;
+    let predicate = scan.where_pred.as_deref()?;
+    let checked_scan = scan.source.as_deref()?;
+    let checked_call = scan.collection_call.as_deref()?;
+    let [active] = query.dependencies.as_slice() else { return None; };
+    if !matches!(target, IrCallTarget::Builtin {id, ..} if id == "count")
+        || slots.is_some_and(|actual| actual != count.slots.as_slice())
+        || count.slots.as_slice() != [Some(0)]
+        || left.ty != ResolvedType::Scalar(Scalar::Int)
+        || domain.span != node_span(query.node)
+        || checked_scan.node != query.node || checked_scan.domain != query.domain
+        || checked_call.node != count.call || checked_call.query != query.node
+        || !matches!(&scan.domain, IrQueryDomain::Model(model) if model == &query.model_name)
+        || scan.where_param != "row" || scan.where_async || !scan.order.is_empty()
+        || scan.value_order.is_some() || scan.limit.is_some() || scan.archived.is_some()
+        || scan.select.is_some() || scan.select_param.is_some()
+        || scan.contract_collection_call.is_some()
+        || parent.span != node_span(receiver)
+        || predicate.span != node_span(query.predicate?)
+        || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+        || !matches!(&predicate.expr, IrExpr::Member {base,field}
+            if field == "active" && matches!(&base.expr, IrExpr::Name(name) if name == "row"))
+        || !matches!(&right.expr, IrExpr::Member {base,field}
+            if field == "seats" && matches!(&base.expr, IrExpr::Name(name) if name == "term"))
+        || !matches!(&parent.expr, IrExpr::Name(name) if name == "term")
+        || active.model != query.model || active.field_name != "active"
+        || active.ty != ResolvedType::Scalar(Scalar::Bool)
+        || active.role != DependencyRole::Control
+        || active.node != query.predicate?
+        || checked.returns.is_empty()
+        || !checked_void_effect_tail(owner, checked)
+        || effects.first().is_none_or(|effect| !matches!(effect, IrStmt::Let {span,..}
+            if *span == node_span(first_query.first.as_ref().unwrap().binding)))
+    { return None; }
+    let parameter = checked_count_query_parent(ir, owner, query, db)?;
+    let parent_id = match &parameter.kind {
+        IrItemKind::Param {ty: IrType::Known(ResolvedType::Record {symbol,stored:true}), ..} => *symbol,
+        _ => return None,
+    };
+    let schema = checked_first_query_schema(ir, owner, query, db)?;
+    if !schema.fields.iter().any(|field| field.id == active.field && field.name == "active"
+        && field.ty == active.ty) { return None; }
+    let influences = native_count_influences(query)?;
+    let returns = checked.returns.iter().map(|returned| {
+        let selected = returned.influences.iter().filter(|value|
+            value.query_id.as_deref() == Some(query.id.as_str())).collect::<Vec<_>>();
+        if selected.len() != 4 || selected.iter().map(|value| value.id.as_str())
+            .ne(query.influences.iter().map(|value| value.id.as_str())) { return None; }
+        Some(ReceiptReturn {id: returned.id.clone(), source: transport_source(&returned.source, entry)?,
+            influences: influences.clone(), dependencies: Vec::new(), intrinsics: Vec::new(), projection: None})
+    }).collect::<Option<Vec<_>>>()?;
+    Some(ReceiptDisclosurePlan {
+        version: 1, source: transport_source(&query.source, entry)?,
+        queries: vec![ReceiptQuery {
+            id: query.id.clone(), source: transport_source(&query.source, entry)?,
+            model: query.model_name.clone(),
+            parent: Some(ReceiptQueryParent {
+                source: transport_source(&query.source, entry)?,
+                model: ir.items.get(parent_id.0 as usize)?.canonical.clone(),
+                origin: ReceiptQueryParentOrigin::AdmittedReference {parameter: parameter.name.clone()},
+            }), order: Vec::new(), limit: None, archived: "exclude".into(),
+            dependencies: vec![ReceiptQueryDependency {
+                id: active.id.clone(), source: transport_source(&active.source, entry)?,
+                role: ReceiptRole::Control, field: "active".into(), type_id: active.type_id.clone(),
+            }],
+        }], returns,
+    })
+}
+
 pub(super) fn checked_native_count_query_plan(
     ir: &IrProgram,
     owner: &IrItem,
@@ -8077,6 +8344,10 @@ pub(super) fn checked_native_count_query_plan(
     entry: &str,
     source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
+    if owner.canonical == "member_terms.assign" {
+        let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else { return None; };
+        return checked_native_assign_count_query_plan(ir, owner, checked, query, db, entry);
+    }
     let count = query.count.as_ref()?;
     if count.contained_parent.is_none() {
         return checked_native_ancestor_count_query_plan(ir, owner, query, db, entry, source_context);
@@ -14859,6 +15130,15 @@ fn checked_created_statements(
             return None;
         }
         if let Some(value) = value {
+            if owner.canonical == "member_terms.assign"
+                && matches!(statement, IrStmt::Require { .. })
+                && let Some([count, first]) = facts.queries.as_deref()
+                && count.count.as_ref().is_some_and(|capacity| capacity.statement == crate::analysis::NodeKey::of(authored))
+                && first.first.is_some()
+            {
+                checked_native_assign_count_query_plan(ir, owner, checked, count, db, &checked.source.module)?;
+                continue;
+            }
             let node = authored.children.iter().find(|node| {
                 matches!(
                     node.kind,
@@ -17451,6 +17731,17 @@ impl<'a> Sites<'a> {
                                         .or_default()
                                         .push(actual);
                                 }
+                                continue;
+                            }
+                            if owner.canonical == "member_terms.assign" {
+                                let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else { return None; };
+                                checked_native_assign_count_query_plan(
+                                    ir, owner, checked, query, db?, &query.source.module,
+                                )?;
+                                // This guard consumes a source-authenticated
+                                // query at its original Require stage. Its
+                                // candidate's active bit belongs to the query
+                                // plan, not a root receipt Member site.
                                 continue;
                             }
                             let original = facts.creates.as_deref()?.iter().find(|created| {

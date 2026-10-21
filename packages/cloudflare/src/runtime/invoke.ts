@@ -5386,8 +5386,9 @@ async function loadCanonicalDescriptorsInternal(
     }
     bindNativeOwnerMembership(def, { source: ownerSites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites: ownerSites });
   }
-  await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
+  // Selected-row execution dependencies bind against the checked first-query mark.
   await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
+  await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
   if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
   if (rowPolicyAssembly !== undefined) await verifyAssemblerModuleCapability(asm, artifact);

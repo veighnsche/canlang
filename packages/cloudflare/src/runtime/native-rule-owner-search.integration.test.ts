@@ -655,3 +655,145 @@ it('removes a seat only through its current company role or staffed term locatio
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
+
+it('assigns a paid seat through current hidden customer and capacity facts',
+  { timeout: 120000 }, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-member-assign-owner-'));
+    try {
+      const { artifact, asm } = await installed('member-assign-owner-probe.can', directory);
+      for (const mode of ['create-hidden', 'reactivate-hidden', 'existing-active-target',
+        'capacity-hidden', 'wrong-account', 'wrong-customer', 'wrong-customer-contact',
+        'wrong-customer-role', 'wrong-location', 'revoked-admin', 'unpaid', 'expired',
+        'membership-revoked', 'admin-revoked-at-commit', 'contact-revoked-at-commit',
+        'location-grant-revoked-at-commit', 'capacity-filled-at-commit'] as const) {
+        const { now, identities, identity, user: actor } = await member(`member-assign-${mode}`);
+        const target = await identities.createUser({ email: `target-${mode}@owner-search.test`,
+          password_hash: 'unused', email_verified: true });
+        const otherAccount = await identities.createUser({ email: `other-${mode}@owner-search.test`,
+          password_hash: 'unused', email_verified: true });
+        const backing = createMemoryStorage();
+        const location = { ...makeRow({ id: asId('location-1'), data: { name: 'First' } }), parent: null };
+        const elsewhere = { ...makeRow({ id: asId('location-2'), data: { name: 'Elsewhere' } }), parent: null };
+        const customer = { ...makeRow({ id: asId('customer-1'), data: {
+          name: 'Current company', kind: 'company', active: true } }), parent: null };
+        const foreign = { ...makeRow({ id: asId('customer-2'), data: {
+          name: 'Other company', kind: 'company', active: true } }), parent: null };
+        const membership = { ...makeRow({ id: asId('membership-1'), data: {
+          revoked: mode === 'membership-revoked', access_revision: '7' } }),
+          parent: { model: asModel('customer.Customer'), id: customer.id } };
+        const term = { ...makeRow({ id: asId('term-1'), data: {
+          paid: mode !== 'unpaid', until: new Date(now + (mode === 'expired' ? -1000 : 86400000)).toISOString(),
+          locations: [{ id: location.id }], seats: mode === 'capacity-hidden' ||
+            mode === 'capacity-filled-at-commit' ? '1' : '2' } }),
+          parent: { model: asModel('member_terms.Membership'), id: membership.id } };
+        const grant = { ...makeRow({ id: asId('grant-admin'), data: {
+          account: { id: actor.user_id }, role: 'administrator',
+          locations: [{ id: mode === 'wrong-location' ? elsewhere.id : location.id }],
+          active: mode !== 'revoked-admin', hidden: true } }),
+          parent: { model: asModel('customer.Customer'), id: customer.id } };
+        const contactParent = mode === 'wrong-customer' || mode === 'wrong-customer-contact'
+          ? foreign : customer;
+        const bookerParent = mode === 'wrong-customer' || mode === 'wrong-customer-role'
+          ? foreign : customer;
+        const contact = { ...makeRow({ id: asId('contact-target'), data: {
+          account: { id: mode === 'wrong-account' ? otherAccount.user_id : target.user_id },
+          verified: true, hidden: true } }),
+          parent: { model: asModel('customer.Customer'), id: contactParent.id } };
+        const booker = { ...makeRow({ id: asId('grant-booker'), data: {
+          account: { id: target.user_id }, role: 'booker', locations: [], active: true,
+          hidden: true } }),
+          parent: { model: asModel('customer.Customer'), id: bookerParent.id } };
+        const oldSeat = { ...makeRow({ id: asId('seat-existing'), data: {
+          account: { id: mode === 'reactivate-hidden' || mode === 'existing-active-target'
+            ? target.user_id : otherAccount.user_id },
+          active: mode !== 'reactivate-hidden',
+          removed_reason: mode === 'reactivate-hidden' ? 'Previously removed' : null,
+          hidden: true } }),
+          parent: { model: asModel('member_terms.Term'), id: term.id } };
+        const writes: Array<{ kind: 'insert'; model: ModelName; row: StoredRow }> = [
+          { kind: 'insert', model: asModel('rent_catalog.Location'), row: location },
+          { kind: 'insert', model: asModel('rent_catalog.Location'), row: elsewhere },
+          { kind: 'insert', model: asModel('customer.Customer'), row: customer },
+          { kind: 'insert', model: asModel('customer.Customer'), row: foreign },
+          { kind: 'insert', model: asModel('member_terms.Membership'), row: membership },
+          { kind: 'insert', model: asModel('member_terms.Term'), row: term },
+          { kind: 'insert', model: asModel('customer.CompanyRole'), row: grant },
+          { kind: 'insert', model: asModel('customer.CompanyRole'), row: booker },
+          { kind: 'insert', model: asModel('customer.Contact'), row: contact },
+        ];
+        if (mode === 'reactivate-hidden' || mode === 'existing-active-target' ||
+            mode === 'capacity-hidden') writes.push({
+          kind: 'insert', model: asModel('member_terms.Seat'), row: oldSeat });
+        await backing.commit(makeBatch(await backing.readRevision(), { writes }));
+        let injected = false;
+        const race = mode.endsWith('-at-commit');
+        const store = race ? { ...backing, commit: async (batch: Parameters<typeof backing.commit>[0]) => {
+          if (!injected) {
+            injected = true;
+            if (mode === 'capacity-filled-at-commit') {
+              await backing.commit(makeBatch(await backing.readRevision(), { writes: [{
+                kind: 'insert', model: asModel('member_terms.Seat'), row: oldSeat,
+              }] }));
+            } else {
+              const changeContact = mode === 'contact-revoked-at-commit';
+              const changedModel = asModel(changeContact ? 'customer.Contact' : 'customer.CompanyRole');
+              const current = await backing.load(changedModel, changeContact ? contact.id : grant.id);
+              assert.ok(current);
+              await backing.commit(makeBatch(await backing.readRevision(), { writes: [{
+                kind: 'update', model: changedModel, id: current.id,
+                expectedVersion: current.version,
+                row: { ...current, version: asVersion(current.version + 1), updated: now,
+                  data: { ...current.data, ...(changeContact ? { verified: false }
+                    : mode === 'location-grant-revoked-at-commit' ? { locations: [] }
+                    : { active: false }) } },
+              }] }));
+            }
+          }
+          return backing.commit(batch);
+        } } : backing;
+        const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+        for (const operation of ['customer.Contact.read', 'customer.CompanyRole.read'] as const) {
+          const visible = await invoker.invokeRead({ operation, inputs: {} }, identity);
+          assert.ok('result' in visible, `${mode}: ${JSON.stringify(visible)}`);
+          assert.equal((visible.result as { records: unknown[] }).records.length, 0, mode);
+        }
+        if (mode === 'reactivate-hidden' || mode === 'existing-active-target' ||
+            mode === 'capacity-hidden') {
+          const visible = await invoker.invokeRead({ operation: 'member_terms.Seat.read', inputs: {} }, identity);
+          assert.ok('result' in visible, `${mode}: ${JSON.stringify(visible)}`);
+          assert.equal((visible.result as { records: unknown[] }).records.length, 0, mode);
+        }
+        const outcome = await invoker.invokeMutation({ operation: 'member_terms.assign',
+          operation_id: operationId(now), inputs: { term: { id: term.id, version: String(term.version) },
+            account: { id: target.user_id } } }, identity);
+        const commits = mode === 'create-hidden' || mode === 'reactivate-hidden';
+        assert.equal('result' in outcome ? outcome.result.status : outcome.error.code,
+          commits ? 'committed' : 'rule_failed', `${mode}: ${JSON.stringify(outcome)}`);
+        const seats = await backing.query({ model: asModel('member_terms.Seat'), authority: 'owner' });
+        assert.equal(seats.length, mode === 'reactivate-hidden' || mode === 'existing-active-target' ||
+          mode === 'capacity-hidden' || mode === 'capacity-filled-at-commit' ? 1 : commits ? 1 : 0, mode);
+        const targetSeats = seats.filter(seat => (seat.data.account as { id: string }).id === target.user_id);
+        assert.equal(targetSeats.length, commits || mode === 'existing-active-target' ? 1 : 0, mode);
+        if (commits) {
+          assert.equal(targetSeats[0]?.data.active, true, mode);
+          assert.equal(targetSeats[0]?.data.removed_reason, null, mode);
+          if (mode === 'reactivate-hidden') assert.equal(targetSeats[0]?.id, oldSeat.id);
+          else assert.notEqual(targetSeats[0]?.id, oldSeat.id);
+        }
+        if (mode === 'existing-active-target') {
+          assert.equal(targetSeats[0]?.id, oldSeat.id);
+          assert.equal(targetSeats[0]?.version, oldSeat.version);
+          assert.equal(targetSeats[0]?.data.active, true);
+        }
+        const events = await backing.query({ model: asModel('work.occurrence'), authority: 'owner' });
+        assert.equal(events.length, commits ? 1 : 0, mode);
+        if (commits) {
+          const result = events[0]?.data.result as Record<string, unknown>;
+          assert.equal(result.kind, 'declared-event-source', mode);
+          assert.equal(result.event, 'member_terms.AccessChanged', mode);
+          assert.deepEqual(result.payload, { membership: { id: membership.id }, revision: '8' }, mode);
+        }
+        if (race) assert.equal(injected, true, mode);
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });

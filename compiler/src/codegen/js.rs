@@ -8653,6 +8653,57 @@ impl<'a> Emitter<'a> {
             ordered: true,
             nonempty: false,
         };
+        // The original assign capacity Require is a filtered count before
+        // the selected target FIRST. Its final native receipt has already
+        // sealed both occurrences and their order; consume this exact issued
+        // query through countQuery so State can attest the capacity read.
+        if self.query_capture.as_ref().is_some_and(|capture| {
+            capture.owner == "member_terms.assign"
+                && matches!(capture.queries.as_slice(), [capacity, selected]
+                    if capacity.id == source.id && capacity.count.is_some() && selected.first.is_some())
+        }) && self.receipt_capture.is_some() {
+            let Some(fact) = query.source.as_deref() else { return false; };
+            let Some(collection) = query.collection_call.as_deref() else { return false; };
+            let Some(predicate) = query.where_pred.as_deref() else { return false; };
+            let [active] = source.dependencies.as_slice() else { return false; };
+            return count.call.file == at.file
+                && count.call.start == at.start
+                && count.call.end == at.end
+                && matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "count")
+                && slots.is_none_or(|slots| slots == [Some(0)])
+                && count.slots == [Some(0)]
+                && *result == ResolvedType::Scalar(Scalar::Int)
+                && domain.ty == array
+                && domain.span == Span::new(source.node.file, source.node.start, source.node.end)
+                && parent.span == Span::new(parent_node.file, parent_node.start, parent_node.end)
+                && matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+                && matches!(&parameter.kind, IrItemKind::Param {ty:IrType::Known(ty),default:None,..}
+                    if ty == &parent.ty && matches!(ty,ResolvedType::Record {stored:true,..}))
+                && matches!(&query.domain, super::ir::IrQueryDomain::Model(model)
+                    if model == &source.model_name && model == "member_terms.Seat")
+                && source.first.is_none()
+                && source.projection.is_none()
+                && source.alias.is_some()
+                && source.predicate.is_some_and(|node| predicate.span == Span::new(node.file,node.start,node.end))
+                && source.cardinality_guard.is_none()
+                && count.parent_edges.is_empty()
+                && fact.node == source.node && fact.domain == source.domain && fact.result == array
+                && fact.projection.is_none()
+                && collection.node == count.call && collection.builtin == "count"
+                && collection.overload == count.overload && collection.query == source.node
+                && collection.model == source.model && Some(collection.alias) == source.alias
+                && collection.predicate.is_none()
+                && query.contract_collection_call.is_none()
+                && query.where_param == "row" && !query.where_async
+                && matches!(&predicate.expr, IrExpr::Member {base,field}
+                    if field == "active" && matches!(&base.expr, IrExpr::Name(name) if name == "row"))
+                && active.field_name == "active"
+                && active.role == crate::analysis::scenario_disclosure::DependencyRole::Control
+                && active.ty == ResolvedType::Scalar(Scalar::Bool)
+                && query.order.is_empty() && query.value_order.is_none()
+                && query.limit.is_none() && query.archived.is_none()
+                && query.select.is_none() && query.select_param.is_none();
+        }
         count.call.file == at.file
             && count.call.start == at.start
             && count.call.end == at.end
