@@ -3,17 +3,19 @@
 Status: the initial source-`Require` and confined any-plus-first repair is
 implemented. A checked void `first` null branch can now use one owner-selected
 row as its authorized update target or create when absent; copied selected
-fields without separate value proof are refused. Other consumer-specific
-proof and original-app query diagnostics below remain future work. The
-observations in this document describe the runtime before the repair.
-The latest recovered-draft 2026-10-21 24-source compile has 87 diagnostics
-(`omitted:0`):
-nine of the fourteen helper-contained `ChildOf` guard refusals cleared, while
-five remain. Two viewer `first` sites cleared; nineteen original `first`
-correspondence diagnostics remain. A checked direct `any` plus `first` update
-target now runs over hidden owner rows in an installed probe, but the original
-`CanCustomer.accept` also has helper guard queries and still requires a
-composite owner-stage proof.
+fields without separate value proof are refused. `CanCustomer.accept` now
+composes the helper `all` observations with the direct any-plus-first pair,
+matches its final Emit, and stages exactly one declared event in the owner
+transaction. Hidden rows, unrelated parents, races, and an unrelated Mail
+binding have installed-runtime coverage. Other consumer-specific proofs
+remain future work. The observations below describe the runtime before the
+repair. The latest recovered-draft 2026-10-21 24-source compile has 86
+diagnostics (`complete:true`, `omitted:0`). Earlier repairs cleared nine of the
+fourteen helper-contained `ChildOf` guard refusals, while
+five remain. Two viewer `first` sites cleared. Nineteen original `first`
+correspondence diagnostics remained in the preceding 87-diagnostic capture;
+the original `CanCustomer.accept` refusal is the one newly cleared site, so
+eighteen remain.
 
 ## Contract and observed break
 
@@ -41,9 +43,9 @@ Classify each query occurrence through its checked use-def closure, including pu
 
 Give generated code only an opaque, stage-bound selected-row handle with getters for the fields and relationships in that checked closure. Raw owner rows, unchecked field access and an untracked cast into a result or effect must remain unavailable. A mixed query keeps one original selection but separate execution and disclosure dependency records.
 
-This matters for the current diagnostic group: of 21 original-app first-query correspondence sites, six are derives whose authority depends on where they are invoked (two occur in `CanRent`'s explicit `scope=authority` report), two are ordinary `read=true` preview queries and must stay viewer-filtered, and thirteen are mutation-body queries with varying branch, effect, guard and return consumers. The proof should follow each actual call site and binding, not label all 21 as a single owner-query profile.
+This matters for the original diagnostic group: of 21 first-query correspondence sites, six are derives whose authority depends on where they are invoked (two occur in `CanRent`'s explicit `scope=authority` report), two are ordinary `read=true` preview queries and must stay viewer-filtered, and thirteen are mutation-body queries with varying branch, effect, guard and return consumers. The proof should follow each actual call site and binding, not label all 21 as a single owner-query profile.
 
-The thirteen mutation-body sites break down by actual use, rather than by the `first` syntax:
+The thirteen original mutation-body sites break down by actual use, rather than by the `first` syntax:
 
 | Sites | Selected row's consumers | Required treatment |
 | --- | --- | --- |
@@ -52,7 +54,7 @@ The thirteen mutation-body sites break down by actual use, rather than by the `f
 | `CanRefer.settle`, `CanPurchase.receive` (2) | Idempotency decision and possible `return existing` | Owner decision selection; returning the selected row requires independent current and replay-time result disclosure. |
 | `CanEvent.change_schedule` (1) | `retained?.account` copied into a new row, with no guard use of `retained` | Keep ordinary viewer authority unless a separate, explicit effect-source authority contract is established. This occurrence cannot borrow owner-decision authority from nearby guards. |
 
-The four other derive sites are `CanInvoice.first_paid_invoice`, `CanRefer.latest_capture`, and `CanShift.previous_work`/`next_work`: their invocation in a mutation or handler decision gets that site's owner authority, while the helper declaration itself grants none. The two `CanRent.saved_rows` occurrences feed an expressly authorized report result, whose `scope=authority` and output proof own their disclosure. The two `CanLeave.preview` occurrences are ordinary viewer reads. This classification fixes the semantic lane for every current `first` diagnostic; accepting each source shape still requires its exact compiler correspondence.
+The four other derive sites are `CanInvoice.first_paid_invoice`, `CanRefer.latest_capture`, and `CanShift.previous_work`/`next_work`: their invocation in a mutation or handler decision gets that site's owner authority, while the helper declaration itself grants none. The two `CanRent.saved_rows` occurrences feed an expressly authorized report result, whose `scope=authority` and output proof own their disclosure. The two `CanLeave.preview` occurrences are ordinary viewer reads. This classification fixes the semantic lane for the original `first` diagnostics; accepting each source shape still requires its exact compiler correspondence.
 
 At that boundary:
 

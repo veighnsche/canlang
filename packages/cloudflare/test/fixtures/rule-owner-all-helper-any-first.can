@@ -4,8 +4,9 @@ Given
  P {v:int,locations:Location[]=[]}
  C in P {account:user,role:enum(administrator,booker),locations:Location[]=[],active:bool=true,hidden:bool=false}
  I in P {role:C.role,invited_by:user,locations:Location[],done:bool=false}
- derive authorized(person:user,parent:P):bool = any(parent.C as grant,grant.account==person and grant.role==administrator and grant.active)
- derive authorized_at(person:user,parent:P,location:Location):bool = any(parent.C as grant,grant.account==person and grant.role==administrator and grant.active and location in grant.locations)
+ event AccessChanged {customer:P,account:user,revision:int}
+ derive authorized(person:user,parent:P,role:C.role):bool = any(parent.C as grant,grant.account==person and grant.role==role and grant.active)
+ derive authorized_at(person:user,parent:P,role:C.role,location:Location):bool = any(parent.C as grant,grant.account==person and grant.role==role and grant.active and location in grant.locations)
  policy Location read=members
  policy P read=members fields=v,locations
  policy C read=members and not row.hidden fields=parent,account,role,locations,active,hidden
@@ -15,14 +16,14 @@ When
  crud C by=members fields=parent,account,role,active
  crud I by=members fields=parent,role,done
  scenario accept(invitation:I) by=members
-  require authorized(invitation.invited_by,invitation.parent)
-  require all(invitation.locations as location, location in invitation.parent.locations and authorized_at(invitation.invited_by,invitation.parent,location))
+  require authorized(invitation.invited_by,invitation.parent,administrator) and all(invitation.locations as location, location in invitation.parent.locations and authorized_at(invitation.invited_by,invitation.parent,administrator,location))
   require not any(invitation.parent.C as grant,grant.account==actor and grant.role==invitation.role and grant.active)
   do
    let previous=first(invitation.parent.C as grant where grant.account==actor and grant.role==invitation.role order=grant.id)
    if previous==null
     create C {parent=invitation.parent,account=actor,role=invitation.role,locations=invitation.locations} as grant
    else
-    set previous {active=true}
+    set previous {active=true,locations=invitation.locations}
    set invitation {done=true}
+   emit AccessChanged {customer=invitation.parent,account=actor,revision=invitation.version+1}
 Then

@@ -41,19 +41,26 @@ before that had 98; the 92-diagnostic capture clears the original
 `CanDesk.handoff` call, `CanPurchase.accept_invoice` created-result, and
 `CanLeave.cancel`/`retry_release` guarded-SEND refusals, as well as nine
 helper-contained source-`Require` and two viewer `CanLeave.preview` first-query
-sites. `CanCustomer.accept` still lacks a multi-query owner receipt, and
-`CanLeave.decide` still lacks a complete native owner receipt. The sections below
-distinguish installed and full-draft clearances from remaining gaps. The
-prebuilt compiler came from another commit, so its 106-to-92 count change is
+sites. At that earlier capture, `CanCustomer.accept` still lacked a multi-query
+owner receipt, and `CanLeave.decide` still lacked a complete native owner
+receipt. The sections below distinguish installed and full-draft clearances
+from remaining gaps. The prebuilt compiler came from another commit, so its
+106-to-92 count change is
 an observed capture comparison rather than isolated per-change attribution.
 
-The current release build over the recovered draft completed with 87
+The preceding release build over the recovered draft completed with 87
 diagnostics (`complete:true`, `omitted:0`). Compared site-by-site with the
 88-diagnostic recovered-draft capture before the event repair, exactly the
 two original `CanContract.notice` and `CanContract.due` guarded-SEND refusals
 cleared. One unrelated `CanShift` external `active_member` diagnostic appeared
 in the new composition; the total 88-to-87 change therefore understates the
 two event-site clearances and is not a general zero-diagnostic claim.
+
+The latest release build completes the same 24-source capture with 86
+diagnostics (`complete:true`, `omitted:0`). A site-by-site comparison shows
+exactly one cleared diagnostic and no new ones: the original
+`CanCustomer.accept` first-query `E6008` at offset 14313. CanCustomer now has
+zero diagnostics; the remaining 86 are separate sites.
 
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
@@ -73,42 +80,29 @@ and failures below record the *pre-repair reproduction*.
 
 A separate checked profile pairs one leading `any` guard with a contained
 `first` null-branch update target over the same original parent and model.
-Installed integration checks cover hidden active blockers, hidden inactive
-targets, visible rows, and an unrelated-parent refusal. The original
-`CanCustomer.accept` still reports `first query: original native query
-correspondence` in the complete 24-source capture: its earlier
-`has_role`/`has_location_role` helpers search `CompanyRole` before the direct
-`any` and write-target `first`. The `has_location_role` call repeats inside
-`all(invitation.locations as location, ...)`, so one syntactic helper query
-can execute for several bound locations. Today's helper query inventory seals
-only narrower formal/domain shapes, the source-`Require` observer does not
-admit that `all` call, and the native receipt plus State write-target gate
-recognize only the exact two-query pair. A complete composite profile must
-seal each helper argument back to the original `Invitation` and its declared
-location array, record the repeated child-domain observations in authored
-order, and compose those guards with the direct pair at their original owner
-stage. State must fence every observed domain and selected target against the
-same revision while allowing hidden guard rows to decide the mutation without
-granting a result read. Increasing the accepted query count alone would leave
-the repeated helper calls and ordering unproved, so this original site remains
-fail-closed pending those compiler and State interfaces.
-
-A scratch-only disclosure probe found its first source decline at
-`has_role(invitation.invited_by,invitation.parent,administrator)`: the helper's
-Contract wire does not have the required direct local consumer. Bypassing
-that call in memory exposes the nested `all(invitation.locations...)` query
-closure, and bypassing that Require exposes the `Location[]` copy into the
-new `CompanyRole`. These are independent source/value dependencies before
-the first-selected existing-role or create/SET target can be admitted; no
-draft or compiler source was changed by the probe.
+`CanCustomer.accept` now composes that pair with its earlier `has_role` and
+repeated per-location `has_location_role` source-`Require` observations. The
+compiler admits the helpers' role formal only when it reuses the declared
+`CompanyRole.role` enum field. It also verifies the original
+`invitation.parent` reference in the final event payload and matches the
+void create/SET/Emit effects to their source statements. State fences the
+hidden owner observations and selected target at commit; the genuine owner
+finalizer stages the emitted Work source, including when an unrelated Mail
+binding exists. Installed checks cover hidden administrators, every required
+location, an unrelated parent, a hidden inactive existing target, a commit
+race, and exactly one correctly populated event on success. Copied parent
+paths remain refused. The full recovered-draft capture confirms the original
+`CanCustomer.accept` diagnostic is gone.
 
 The nearest remaining void mutation is `CanMember.assign`: its
 `first(term.Seat...)` drives a null-branch create or selected-row update,
 but the leading decision also counts active `Seat` rows and evaluates
 `has_role`, per-location `has_location_role`, and `eligible_account` helper
-searches over other stored models. The current State gate admits a single
-target query or an exact same-model two-query pair. Extending that gate just
-for the `first` would omit the other guard domains and their source order.
+searches over other stored models. The admitted helper-observation plus
+same-model pair does not yet cover its Seat count and `eligible_account`
+cross-model observations. Admitting only the `first` would omit those guard
+domains and their source order.
+
 The other original mutation-body sites additionally copy selected fields
 into effects, return an existing selected row, or select after earlier
 effects and nested loops; they require corresponding value, result, and
@@ -388,7 +382,7 @@ unproved event handler, leaving its separate valid mutation owner clear.
 CanContract private profiles. The five
 additional original Invoice standard-trigger failures are classified there.
 
-The current recovered-draft release capture finished with 87 diagnostics
+The preceding recovered-draft release capture finished with 87 diagnostics
 (`complete:true`, `omitted:0`), including 21 guarded-SEND refusals: 14 at
 unprepared guard sites and seven at owners whose native receipt still lacks
 complete correspondence. The compiler now indexes only original guarded-SEND

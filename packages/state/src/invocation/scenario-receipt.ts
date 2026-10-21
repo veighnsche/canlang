@@ -5059,28 +5059,33 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
       return invalid('executor writes differ from the actual finalized owner effects.');
     }
     if (returnedWork.length !== 0 || committedWork.length !== 0) {
-      // Due Work writes ride alongside (never through) the domain owner
-      // session. Both sides must agree, and the returned pair must match the
-      // recorded installed-producer staging byte-for-byte (issuance, not a
-      // model-name strip): the executor can neither drop owner-staged Work
-      // writes nor substitute forged bytes.
+      // A declared event emitted by an ordinary receipt owner stages its
+      // Work source through that owner's genuine finalization callback. Its
+      // Work writes must be the exact finalized source suffix; business writes
+      // still match the separate disclosure below. Due handlers retain their
+      // stronger recorded terminal-pair admission.
       if (dueAdmission === undefined) {
-        return invalid('executor work.schedule/work.occurrence writes lack their recorded due admission.');
-      }
-      if (stableStringify(dataCopy(returnedWork)) !== stableStringify(dataCopy(committedWork)) &&
-        committedWork.length !== 0) {
-        return invalid('executor Work writes differ from the actual finalized owner effects.');
-      }
-      const terminalStatus = verifyDueWorkWrites(call, dueAdmission, returnedWork, effects.result);
-      // Only the actual branded authored-failure shape (empty domain, null
-      // result, failed Work terminal) deliberately lacks a successful State
-      // return. A completed handler with zero domain writes follows the
-      // normal checked return/capture/association handling below; empty
-      // writes never waive it. Decided AFTER the independent framework-outbox
-      // and owned-schedule checks: refusal still proves every retained guard
-      // before its receipt association is withheld.
-      if (returnedDomain.length === 0 && effects.result === null && terminalStatus === 'failed') {
-        dueEmptyNoAssociation = true;
+        if (owner.options.stageSources === undefined ||
+            owner.finalized.writes.some(isDueWorkWrite) ||
+            stableStringify(dataCopy(returnedWork)) !== stableStringify(dataCopy(committedWork))) {
+          return invalid('executor source Work writes differ from the actual finalized owner sources.');
+        }
+      } else {
+        if (stableStringify(dataCopy(returnedWork)) !== stableStringify(dataCopy(committedWork)) &&
+            committedWork.length !== 0) {
+          return invalid('executor Work writes differ from the actual finalized owner effects.');
+        }
+        const terminalStatus = verifyDueWorkWrites(call, dueAdmission, returnedWork, effects.result);
+        // Only the actual branded authored-failure shape (empty domain, null
+        // result, failed Work terminal) deliberately lacks a successful State
+        // return. A completed handler with zero domain writes follows the
+        // normal checked return/capture/association handling below; empty
+        // writes never waive it. Decided AFTER the independent framework-outbox
+        // and owned-schedule checks: refusal still proves every retained guard
+        // before its receipt association is withheld.
+        if (returnedDomain.length === 0 && effects.result === null && terminalStatus === 'failed') {
+          dueEmptyNoAssociation = true;
+        }
       }
     }
     if (owner.framework !== null && stableStringify(dataCopy(effects.outbox)) !== stableStringify(owner.commitEffects.outbox)) {

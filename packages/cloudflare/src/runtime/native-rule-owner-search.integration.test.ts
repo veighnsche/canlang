@@ -12,7 +12,7 @@ import type { CompileArtifact, ModelName, StoredRow } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createMemoryStorage } from '@canlang/state/storage/memory';
-import { asId, asModel, makeBatch, makeRow } from '@canlang/state/testing/invocation/fixtures';
+import { asId, asModel, asVersion, makeBatch, makeRow } from '@canlang/state/testing/invocation/fixtures';
 import { buildInvoker } from '../worker/assembly.js';
 import { assembleModules } from './modules.js';
 
@@ -95,6 +95,26 @@ it('refuses an any guard over a different parent from the selected first target'
   const report = JSON.parse(result.stdout) as { diagnostics: { code: string; message: string }[] };
   assert.ok(report.diagnostics.some(diagnostic => diagnostic.code === 'E6008' &&
     diagnostic.message.includes('selected first row has an unproved decision, write target or value sink')));
+});
+
+it('refuses an all-helper owner query through an unproved parent copy', () => {
+  const result = spawnSync(compiler, ['compile', '--format=json', '--native-scenario-receipts',
+    '--catalog', catalog, fixture('rule-owner-all-helper-any-first-copied-parent.can')],
+  { cwd: root, encoding: 'utf8' });
+  assert.equal(result.status, 10);
+  const report = JSON.parse(result.stdout) as { diagnostics: { code: string; message: string }[] };
+  assert.ok(report.diagnostics.some(diagnostic => diagnostic.code === 'E6008' &&
+    diagnostic.message.includes('owner-domain correspondence')));
+});
+
+it('refuses an emitted parent reference through an unproved copy', () => {
+  const result = spawnSync(compiler, ['compile', '--format=json', '--native-scenario-receipts',
+    '--catalog', catalog, fixture('rule-owner-all-helper-any-first-copied-emit.can')],
+  { cwd: root, encoding: 'utf8' });
+  assert.equal(result.status, 10);
+  const report = JSON.parse(result.stdout) as { diagnostics: { code: string; message: string }[] };
+  assert.ok(report.diagnostics.some(diagnostic => diagnostic.code === 'E6008' &&
+    diagnostic.message.includes('original native query correspondence')));
 });
 
 it('runs source Require helpers and direct child scans over hidden owner rows',
@@ -404,50 +424,128 @@ it('observes every original location in an all-helper guard before an owner any/
   { timeout: 120000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'can-owner-all-helper-'));
     try {
+      for (const binding of ['plain', 'unrelated-mail'] as const) {
+        const { artifact, asm } = await installed(binding === 'plain'
+          ? 'rule-owner-all-helper-any-first.can' : 'rule-owner-all-helper-any-first-bound.can', directory);
+        const app = binding === 'plain' ? 'AllHelperAnyFirstProbe' : 'bound_customer';
+        for (const mode of binding === 'plain'
+          ? ['hidden-admin', 'missing-location', 'hidden-other-parent-admin',
+            'hidden-active-booker', 'hidden-inactive-booker'] : ['hidden-admin']) {
+          const { now, identities, identity, user } = await member(`all-helper-${mode}`);
+          const store = createMemoryStorage();
+          const first = { ...makeRow({ id: asId('location-1'), data: { name: 'First' } }), parent: null };
+          const second = { ...makeRow({ id: asId('location-2'), data: { name: 'Second' } }), parent: null };
+          const locations = [{ id: first.id }, { id: second.id }];
+          const parent = { ...makeRow({ id: asId('parent-1'), data: { v: '1', locations } }), parent: null };
+          const other = { ...makeRow({ id: asId('parent-2'), data: { v: '2', locations } }), parent: null };
+          const invitation = { ...makeRow({ id: asId('invitation-1'), data: {
+            role: 'booker', invited_by: { id: user.user_id }, locations, done: false } }),
+            parent: { model: model(app, 'P'), id: parent.id } };
+          const child = (id: string, role: string, active: boolean, allowed: typeof locations,
+            owner = parent) => ({
+            ...makeRow({ id: asId(id), data: { account: { id: user.user_id }, role,
+              locations: allowed, active, hidden: true } }),
+            parent: { model: model(app, 'P'), id: owner.id },
+          });
+          const writes: Array<{ kind: 'insert'; model: ModelName; row: StoredRow }> = [
+            { kind: 'insert', model: model(app, 'Location'), row: first },
+            { kind: 'insert', model: model(app, 'Location'), row: second },
+            { kind: 'insert', model: model(app, 'P'), row: parent },
+            { kind: 'insert', model: model(app, 'I'), row: invitation },
+            { kind: 'insert', model: model(app, 'C'), row: child('admin-1', 'administrator', true,
+              mode === 'missing-location' ? locations.slice(0, 1) : locations,
+              mode === 'hidden-other-parent-admin' ? other : parent) },
+          ];
+          if (mode === 'hidden-other-parent-admin') writes.splice(2, 0,
+            { kind: 'insert', model: model(app, 'P'), row: other });
+          if (mode.endsWith('booker')) writes.push({ kind: 'insert', model: model(app, 'C'),
+            row: child('booker-1', 'booker', mode === 'hidden-active-booker',
+              mode === 'hidden-inactive-booker' ? [] : locations) });
+          await store.commit(makeBatch(await store.readRevision(), { writes }));
+          const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+          const visible = await invoker.invokeRead({ operation: `${app}.C.read`, inputs: {} }, identity);
+          assert.ok('result' in visible, JSON.stringify(visible));
+          assert.equal((visible.result as { records: unknown[] }).records.length, 0, mode);
+          const outcome = await invoker.invokeMutation({ operation: `${app}.accept`,
+            operation_id: operationId(now), inputs: { invitation: { id: invitation.id,
+              version: String(invitation.version) } } }, identity);
+          const commits = mode === 'hidden-admin' || mode === 'hidden-inactive-booker';
+          assert.equal('result' in outcome ? outcome.result.status : outcome.error.code,
+            commits ? 'committed' : 'rule_failed', `${mode}: ${JSON.stringify(outcome)}`);
+          assert.equal((await store.load(model(app, 'I'), invitation.id))?.data.done, commits, mode);
+          const roles = await store.query({ model: model(app, 'C'), authority: 'owner' });
+          const bookers = roles.filter(role => role.data.role === 'booker');
+          assert.equal(bookers.length, mode.endsWith('booker') ? 1 : commits ? 1 : 0, mode);
+          if (commits) {
+            assert.equal(bookers[0]?.data.active, true, mode);
+            assert.deepEqual(bookers[0]?.data.locations, locations, mode);
+            if (mode === 'hidden-inactive-booker') assert.equal(bookers[0]?.id, 'booker-1', mode);
+          }
+          const occurrences = await store.query({ model: asModel('work.occurrence'), authority: 'owner' });
+          assert.equal(occurrences.length, commits ? 1 : 0, mode);
+          if (commits) {
+            const result = occurrences[0]?.data.result as Record<string, unknown>;
+            assert.equal(result.kind, 'declared-event-source', mode);
+            assert.equal(result.event, `${app}.AccessChanged`, mode);
+            assert.deepEqual(result.payload, { customer: { id: parent.id },
+              account: { id: user.user_id }, revision: String(invitation.version + 1) }, mode);
+          }
+        }
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+it('retries every hidden all-helper observation when its owner row changes before commit',
+  { timeout: 120000 }, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-owner-all-helper-race-'));
+    try {
       const { artifact, asm } = await installed('rule-owner-all-helper-any-first.can', directory);
       const app = 'AllHelperAnyFirstProbe';
-      for (const mode of ['hidden-admin', 'missing-location', 'hidden-active-booker',
-        'hidden-inactive-booker']) {
-        const { now, identities, identity, user } = await member(`all-helper-${mode}`);
-        const store = createMemoryStorage();
-        const first = { ...makeRow({ id: asId('location-1'), data: { name: 'First' } }), parent: null };
-        const second = { ...makeRow({ id: asId('location-2'), data: { name: 'Second' } }), parent: null };
-        const locations = [{ id: first.id }, { id: second.id }];
-        const parent = { ...makeRow({ id: asId('parent-1'), data: { v: '1', locations } }), parent: null };
-        const invitation = { ...makeRow({ id: asId('invitation-1'), data: {
-          role: 'booker', invited_by: { id: user.user_id }, locations, done: false } }),
-          parent: { model: model(app, 'P'), id: parent.id } };
-        const child = (id: string, role: string, active: boolean, allowed: typeof locations) => ({
-          ...makeRow({ id: asId(id), data: { account: { id: user.user_id }, role,
-            locations: allowed, active, hidden: true } }),
-          parent: { model: model(app, 'P'), id: parent.id },
-        });
-        const writes: Array<{ kind: 'insert'; model: ModelName; row: StoredRow }> = [
-          { kind: 'insert', model: model(app, 'Location'), row: first },
-          { kind: 'insert', model: model(app, 'Location'), row: second },
-          { kind: 'insert', model: model(app, 'P'), row: parent },
-          { kind: 'insert', model: model(app, 'I'), row: invitation },
-          { kind: 'insert', model: model(app, 'C'), row: child('admin-1', 'administrator', true,
-            mode === 'missing-location' ? locations.slice(0, 1) : locations) },
-        ];
-        if (mode.endsWith('booker')) writes.push({ kind: 'insert', model: model(app, 'C'),
-          row: child('booker-1', 'booker', mode === 'hidden-active-booker', locations) });
-        await store.commit(makeBatch(await store.readRevision(), { writes }));
-        const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
-        const visible = await invoker.invokeRead({ operation: `${app}.C.read`, inputs: {} }, identity);
-        assert.ok('result' in visible, JSON.stringify(visible));
-        assert.equal((visible.result as { records: unknown[] }).records.length, 0, mode);
-        const outcome = await invoker.invokeMutation({ operation: `${app}.accept`,
-          operation_id: operationId(now), inputs: { invitation: { id: invitation.id,
-            version: String(invitation.version) } } }, identity);
-        const commits = mode === 'hidden-admin' || mode === 'hidden-inactive-booker';
-        assert.equal('result' in outcome ? outcome.result.status : outcome.error.code,
-          commits ? 'committed' : 'rule_failed', `${mode}: ${JSON.stringify(outcome)}`);
-        assert.equal((await store.load(model(app, 'I'), invitation.id))?.data.done, commits, mode);
-        const roles = await store.query({ model: model(app, 'C'), authority: 'owner' });
-        const bookers = roles.filter(role => role.data.role === 'booker');
-        assert.equal(bookers.length, mode.endsWith('booker') ? 1 : commits ? 1 : 0, mode);
-        if (commits) assert.equal(bookers[0]?.data.active, true, mode);
-      }
+      const { now, identities, identity, user } = await member('all-helper-race');
+      const backing = createMemoryStorage();
+      const first = { ...makeRow({ id: asId('location-1'), data: { name: 'First' } }), parent: null };
+      const second = { ...makeRow({ id: asId('location-2'), data: { name: 'Second' } }), parent: null };
+      const locations = [{ id: first.id }, { id: second.id }];
+      const parent = { ...makeRow({ id: asId('parent-1'), data: { v: '1', locations } }), parent: null };
+      const invitation = { ...makeRow({ id: asId('invitation-1'), data: {
+        role: 'booker', invited_by: { id: user.user_id }, locations, done: false } }),
+        parent: { model: model(app, 'P'), id: parent.id } };
+      const admin = { ...makeRow({ id: asId('admin-1'), data: {
+        account: { id: user.user_id }, role: 'administrator', locations, active: true, hidden: true } }),
+        parent: { model: model(app, 'P'), id: parent.id } };
+      await backing.commit(makeBatch(await backing.readRevision(), { writes: [
+        { kind: 'insert', model: model(app, 'Location'), row: first },
+        { kind: 'insert', model: model(app, 'Location'), row: second },
+        { kind: 'insert', model: model(app, 'P'), row: parent },
+        { kind: 'insert', model: model(app, 'I'), row: invitation },
+        { kind: 'insert', model: model(app, 'C'), row: admin },
+      ] }));
+      let injected = false;
+      const store = { ...backing, commit: async (batch: Parameters<typeof backing.commit>[0]) => {
+        if (!injected) {
+          injected = true;
+          const current = await backing.load(model(app, 'C'), admin.id);
+          assert.ok(current);
+          await backing.commit(makeBatch(await backing.readRevision(), { writes: [{
+            kind: 'update', model: model(app, 'C'), id: current.id,
+            expectedVersion: current.version,
+            row: { ...current, version: asVersion(current.version + 1),
+              data: { ...current.data, locations: locations.slice(0, 1) } },
+          }] }));
+        }
+        return backing.commit(batch);
+      } };
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+      const outcome = await invoker.invokeMutation({ operation: `${app}.accept`,
+        operation_id: operationId(now), inputs: { invitation: { id: invitation.id,
+          version: String(invitation.version) } } }, identity);
+      assert.equal(injected, true);
+      assert.equal('result' in outcome ? outcome.result.status : outcome.error.code, 'rule_failed',
+        JSON.stringify(outcome));
+      assert.equal((await backing.load(model(app, 'I'), invitation.id))?.data.done, false);
+      const roles = await backing.query({ model: model(app, 'C'), authority: 'owner' });
+      assert.equal(roles.filter(role => role.data.role === 'booker').length, 0);
+      assert.deepEqual(roles.find(role => role.id === admin.id)?.data.locations, locations.slice(0, 1));
+      assert.equal((await backing.query({ model: asModel('work.occurrence'), authority: 'owner' })).length, 0);
     } finally { await rm(directory, { recursive: true, force: true }); }
   });

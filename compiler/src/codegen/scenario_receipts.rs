@@ -14757,6 +14757,23 @@ fn checked_created_statements(
                 }
                 (SyntaxKind::Call, *span, None)
             }
+            IrStmt::Emit { event, payload, span } if void_owner => {
+                let mut proofs = checked.effects.iter().filter(|proof| node_span(proof.node) == *span);
+                let proof = proofs.next()?;
+                let DisclosureEffectKind::Emit { event: original_event } = proof.kind else {
+                    return None;
+                };
+                let event_item = ir.items.get(original_event.0 as usize)?;
+                if proofs.next().is_some()
+                    || event_item.module != owner.module
+                    || event_item.canonical != *event
+                    || !matches!(event_item.kind, IrItemKind::Event { .. })
+                {
+                    return None;
+                }
+                checked_created_object_entries(ir, original, payload, authored, *span, db)?;
+                (SyntaxKind::Emit, *span, None)
+            }
             IrStmt::Return { span, .. } => (SyntaxKind::Return, *span, None),
             _ => return None,
         };

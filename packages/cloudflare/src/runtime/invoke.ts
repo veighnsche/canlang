@@ -8585,7 +8585,7 @@ async function runScenarioExecution(
     secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
     ...(ownerControl === undefined ? {} : { policies: ownerControl.policies }),
     encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
-    ...(trustedOwnerReads && !receiptAware ? { stageSources: emissionSourceStage }
+    ...((trustedOwnerReads || receiptAware) ? { stageSources: emissionSourceStage }
       : stageSources === undefined ? {} : { stageSources }),
   };
   const rootOwnerSession = !useOwnerSession || child !== undefined ? undefined : receiptAware
@@ -9443,7 +9443,8 @@ async function runScenarioExecution(
     ...(judgmentSpecification === undefined ? {} : { judgmentSpecification }),
     emitDeferred: async (event, payload) => {
       try {
-        if (!trustedOwnerReads || receiptAware || child !== undefined || rootOwnerSession === undefined) {
+        if ((!trustedOwnerReads && !receiptAware) || (receiptAware && due !== undefined) ||
+            child !== undefined || rootOwnerSession === undefined) {
           throw new StateError('validation', 'Domain events require their private owning source finalizer.');
         }
         if (emittedEvents.length >= 200 || typeof event !== 'string') throw new StateError('limit', 'Domain event bound exceeded.');

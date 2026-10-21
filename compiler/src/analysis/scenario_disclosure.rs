@@ -13784,6 +13784,44 @@ impl<'a> Closure<'a> {
         }
     }
 
+    /// A helper's role parameter may reuse one declared enum field. Keep the
+    /// original field domain and exact checked type: an arbitrary enum alias,
+    /// default, or constrained value is not an owner-decision input here.
+    fn source_require_owned_enum_formal(&self, parameter: &super::effects::ParamData) -> bool {
+        let Some(ty @ ResolvedType::Enum { cases, .. }) =
+            self.types.symbol_types.get(&parameter.param) else {
+            return false;
+        };
+        if cases.is_empty()
+            || parameter.default.is_some()
+            || self.types.value_constraints.contains_key(&parameter.param)
+        {
+            return false;
+        }
+        let Some(node) = self.nodes.get(&parameter.type_node) else {
+            return false;
+        };
+        if node.kind != SyntaxKind::NamedType {
+            return false;
+        }
+        let Some(path) = node.children.iter().find(|child| child.kind == SyntaxKind::Path) else {
+            return false;
+        };
+        let Some(TypeRef::FieldChain { fields, .. }) =
+            self.resolve.node_typeref.get(&NodeKey::of(path)) else {
+            return false;
+        };
+        let [field] = fields.as_slice() else {
+            return false;
+        };
+        self.types.field_reuse_sources.get(&parameter.param) == Some(field)
+            && self.types.symbol_types.get(field) == Some(ty)
+            && matches!(
+                self.resolve.symbols.get(field.0 as usize).map(|symbol| &symbol.kind),
+                Some(SymbolKind::Field { .. })
+            )
+    }
+
     /// An unrelated optional File input may be present on the operation, but
     /// the source-Require observer may carry it only as its literal null
     /// default. Check every Require expression for an original binding to
@@ -14006,6 +14044,7 @@ impl<'a> Closure<'a> {
                     .symbol_types
                     .get(&param.param)
                     .is_none_or(|ty| !self.source_require_input(ty))
+                    && !self.source_require_owned_enum_formal(param)
         }) || self.types.symbol_results.get(id)
             != Some(&Some(ResolvedType::Scalar(Scalar::Bool)))
         {
@@ -23973,6 +24012,62 @@ impl<'a> Closure<'a> {
                 self.product(effect.node, &paths, &values)
             }
 
+            /// An event may carry the original required child input's one-hop
+            /// parent reference when its declared field has that exact stored
+            /// Model type. This is a reference value, not permission to read
+            /// the parent row or a selected query result.
+            fn external_effect_parent_reference(
+                &self,
+                event: SymbolId,
+                module: ModuleId,
+                argument: &super::effects::EffectArg,
+                key: NodeKey,
+                value: &ValuePath,
+            ) -> Option<()> {
+                let Some(ReferenceOrigin::Parent { parameter, model, depth: 1 }) =
+                    value.reference_origin else {
+                    return None;
+                };
+                if value.record != Some(model)
+                    || value.first_query.is_some()
+                    || value.model_result.is_some()
+                    || value.delivery.is_some()
+                    || value.members.is_some()
+                    || value.query_child.is_some()
+                {
+                    return None;
+                }
+                let key = self.query_group(key)?;
+                let (base, name) = self.count_member(key)?;
+                if name != "parent"
+                    || !matches!(self.query_binding(base), Some(Binding::Symbol(actual)) if *actual == parameter)
+                    || !matches!(self.resolve.symbols.get(parameter.0 as usize)?.kind,
+                        SymbolKind::Param { .. })
+                    || self.nodes.get(&argument.key_node)?.kind != SyntaxKind::Name
+                    || self.word(self.nodes.get(&argument.key_node)?) != Some(argument.key.as_str())
+                {
+                    return None;
+                }
+                let declaration = self.resolve.symbols.get(event.0 as usize)?;
+                let SymbolKind::Event { fields } = &declaration.kind else {
+                    return None;
+                };
+                if declaration.module != module {
+                    return None;
+                }
+                let field = fields.iter().copied().find(|field| {
+                    self.resolve.symbols.get(field.0 as usize)
+                        .is_some_and(|symbol| symbol.name == argument.key)
+                })?;
+                let ty = self.types.symbol_types.get(&field)?;
+                if !matches!(ty, ResolvedType::Record { symbol, stored: true } if *symbol == model)
+                    || self.types.node_types.get(&key) != Some(ty)
+                {
+                    return None;
+                }
+                Some(())
+            }
+
             /// One external effect argument: pure values joined onto the paths.
             fn external_effect_argument(
                 &mut self,
@@ -23980,6 +24075,7 @@ impl<'a> Closure<'a> {
                 module: ModuleId,
                 env: &Env,
                 calls: &[NodeKey],
+                event: Option<SymbolId>,
                 argument: &super::effects::EffectArg,
                 paths: Vec<ValuePath>,
             ) -> Result<Vec<ValuePath>, DisclosureDecline> {
@@ -23989,7 +24085,11 @@ impl<'a> Closure<'a> {
                     None => self.lexical(argument.key_node, module, env, calls)?,
                 };
                 if values.iter().any(|value| {
-                    value.record.is_some() || value.delivery.is_some() || value.members.is_some()
+                    value.delivery.is_some() || value.members.is_some()
+                        || value.record.is_some() && event.is_none_or(|event| {
+                            self.external_effect_parent_reference(event, module, argument, key, value)
+                                .is_none()
+                        })
                 }) {
                     return Err(self.fail(key, "opaque external effect input"));
                 }
@@ -24024,8 +24124,9 @@ impl<'a> Closure<'a> {
                 for key in keys.drain(..).flatten() {
                     paths = self.external_effect_key(effect, module, env, calls, key, paths)?;
                 }
+                let payload_event = event.filter(|_| matches!(effect.verb, EffectVerb::Emit));
                 for argument in &effect.args {
-                    paths = self.external_effect_argument(effect, module, env, calls, argument, paths)?;
+                    paths = self.external_effect_argument(effect, module, env, calls, payload_event, argument, paths)?;
                 }
                 let kind = match effect.verb {
                     EffectVerb::Emit => DisclosureEffectKind::Emit { event: event.unwrap() },
