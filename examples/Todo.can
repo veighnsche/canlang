@@ -9,7 +9,8 @@ When
   examples update record=task
    as,changes.done,request.record.version -> record.done
    members,true,1 -> true
-   members,true,0 -> error(conflict)
+   members,true,2 -> error(conflict)
+   members,true,0 -> error(validation)
    public,true,1 -> error(forbidden)
 Then
  preferences { view:enum(all,open,done)=all label={text="Show",values={all="All",open="Open",done="Done"}} }

@@ -21,6 +21,9 @@ export interface NativeFileInventoryInput {
   readonly now: () => number;
   /** Trusted host rechecks the actual configured physical owner. */
   readonly verifyOwner: () => Promise<void>;
+  /** Soda may reopen unchanged declarations after presentation/module edits.
+   * Historical source identities remain installed; live code is verified above. */
+  readonly retainUnchangedDeclarations?: boolean;
 }
 
 function data(value: unknown, key: string): unknown {
@@ -423,6 +426,24 @@ export async function installNativeFileInventory(input: NativeFileInventoryInput
   const declarationSet: FrameworkOpaqueDeclarationSet = immutable({ id: `${inventoryIdentity.snapshotId}:declarations`,
     inventory: inventoryIdentity, snapshot, sources: artifact.sources, canonicalModels: loaded.models,
     artifactModels: artifact.models, valueTypes, originalContracts, valueDefaults, declarations });
+  if (installed !== null && input.retainUnchangedDeclarations === true) {
+    const originals = installed.inventory.opaqueDeclarationSets;
+    const storageDeclarations = (set: FrameworkOpaqueDeclarationSet) => ({
+      canonicalModels: set.canonicalModels, artifactModels: set.artifactModels, valueTypes: set.valueTypes,
+      originalContracts: set.originalContracts, valueDefaults: set.valueDefaults,
+      declarations: set.declarations.map(({ id, profile }) => ({ id, profile })),
+    });
+    if (originals?.length !== 1 || !equal(installed.inventory.frameworkModels, baseInventory.frameworkModels) ||
+        !equal(storageDeclarations(originals[0]!), storageDeclarations(declarationSet))) {
+      throw new Error('Soda installed storage declarations changed; migration/restore must be explicit');
+    }
+    // Retained rows reference their original source declarations and snapshot.
+    // Replacing these facts would be a migration, even if only the title changed.
+    await store.installFileReferenceInventory({ expectedRevision, authority,
+      inventory: installed.inventory, snapshot: installed.snapshot });
+    await verifyCurrent();
+    return Object.freeze({ inventory: installed.inventory, verifyCurrent });
+  }
   if (installed !== null && !equal(installed.inventory.opaqueDeclarationSets, [declarationSet])) {
     throw new Error('File retirement original installed declaration closure changed.');
   }

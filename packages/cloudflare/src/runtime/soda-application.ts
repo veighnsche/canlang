@@ -69,7 +69,7 @@ export function createSodaApplicationClass(deployment: SodaActorDeployment): new
         // framework models, so per-package installs would collide on shared
         // model declarations. Scope already carries ownerPackage: app.appId.
         await installNativeFileInventory({ artifact, asm: staged.modules, scope,
-          store: stateStore, authority, now: Date.now,
+          store: stateStore, authority, now: Date.now, retainUnchangedDeclarations: true,
           verifyOwner: async () => {
             if (await identities.findTeamById(selected.owner) === null) throw new Error('Soda State owner is unavailable');
           } });
@@ -82,10 +82,8 @@ export function createSodaApplicationClass(deployment: SodaActorDeployment): new
         // State's declaration inventory stores an algorithm-qualified digest;
         // the portable descriptor retains the existing raw SHA-256 contract.
         const installed = await stateStore.readInstalledSnapshot(app.appId);
-        const expectedDigest = descriptor.identity.artifactDigest;
-        if (installed !== null && installed.digest !== expectedDigest && installed.digest !== `sha256:${expectedDigest}`) {
-          throw new Error('Soda installed State snapshot differs from the exact compiled artifact');
-        }
+        // Reopening the same declaration layout preserves its original snapshot.
+        // installNativeFileInventory above checked the current declarations first.
         const activationDescriptor = installed === null ? descriptor : { ...descriptor,
           identity: { ...descriptor.identity, artifactDigest: installed.digest } };
         const verdict = await activate({ artifact, descriptor: activationDescriptor, environment,

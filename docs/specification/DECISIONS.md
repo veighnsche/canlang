@@ -1,5 +1,17 @@
 # Canlang language design decisions
 
+## 2026-10-19 — Soda app updates preserve unchanged storage schemas
+
+Separate retained storage identity from the complete artifact digest. `getSodaStorageFingerprint` hashes the compiler artifact's models and nominal value types; bundle production and retained storage use that same owner. Soda storage v2 preserves app/resource identity, while v1 can seed v2 only with its original artifact. Native Soda compares matching nonempty storage labels before replacing changed app bytes. A title-only update now serves the new title and retains a Todo created before restart. Schema changes still require an unsupported migration and refuse. Historical declaration inventory stays verified; source-bound opaque file/SEND operations may still refuse changed sources and are not covered by this ordinary Todo update result.
+
+## 2026-10-19 — Soda gateway preserves browser redirects
+
+The installed Todo login returned a fresh sign-in page because the native HTTP gateway followed the worker’s redirect internally. Forward with `redirect: manual` so the browser receives the original status, Location and separate Set-Cookie headers. Identity remains responsible for login and team selection; the gateway only relays their responses.
+
+## 2026-10-19 — Todo examples distinguish malformed versions from conflicts
+
+The installed Todo starter expected `conflict` for record version `0`, but mutation admission requires a positive canonical version and returns `validation`. Keep the zero-version row with its correct rejection; add version `2` against the fresh version-`1` fixture to exercise a valid mismatched version and its conflict response. Successful update and unauthenticated refusal remain covered. Runtime admission is unchanged.
+
 ## 2026-10-18 — reuse invariant producer bundles across owned builds (T22)
 
 **Accepted implementation choice:** `deploy/bundle.ts` keeps per-kind

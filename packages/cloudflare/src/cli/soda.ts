@@ -5,7 +5,7 @@ import { open, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadArtifactFile } from '../runtime/artifact.js';
-import { buildSodaBundle, preflightSodaDeployment, SODA_PROVIDER_INVENTORY } from '../deploy/soda.js';
+import { buildSodaBundle, getSodaStorageFingerprint, preflightSodaDeployment, SODA_PROVIDER_INVENTORY } from '../deploy/soda.js';
 import type { SodaBundle } from '../deploy/soda.js';
 import { bundleMixedSha256, inventorizeAssets, assertLinksResolve, assertWorkerdLoadable } from '../deploy/bundle.js';
 import { provisionSodaStorage, startSodaRuntime } from '../deploy/soda-run.js';
@@ -26,7 +26,9 @@ async function loadBundle(path: string): Promise<SodaBundle> {
   }
   assertLinksResolve(input.bundle.modules, Object.keys(input.bundle.binaries));
   assertWorkerdLoadable(input.bundle.modules);
-  return input;
+  // Older unchanged-artifact bundles predate the exported schema fingerprint.
+  // prepareStorage still requires exact v1 artifact identity before seeding v2.
+  return { ...input, storageFingerprint: input.storageFingerprint ?? getSodaStorageFingerprint(input.artifact) };
 }
 
 async function secretFile(path: string): Promise<unknown> {

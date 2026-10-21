@@ -4,10 +4,10 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { constants } from 'node:fs';
 import type { Server, IncomingMessage, ServerResponse } from 'node:http';
-import { lstat, mkdir, open, readFile, realpath, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, realpath, rename, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { startSodaWorker, type SodaWorker } from './soda-workerd.js';
-import { preflightSodaDeployment } from './soda.js';
+import { getSodaStorageFingerprint, preflightSodaDeployment } from './soda.js';
 import type { SodaBundle } from './soda.js';
 import { DEFAULT_FILE_POLICY } from '@canlang/files/upload';
 import { SESSION_COOKIE_NAME, PRESESSION_COOKIE_NAME } from '@canlang/identity';
@@ -50,16 +50,29 @@ async function prepareStorage(input: SodaBundle, dataDir: string): Promise<void>
   if (!isAbsolute(dataDir)) throw new Error('Soda data directory must be absolute');
   const stat = await lstat(dataDir);
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('Soda requires an existing data mount');
-  const identity = JSON.stringify({ schema: 'canlang.soda.storage.v1', app: input.descriptor.identity.appName,
-    artifactDigest: input.descriptor.identity.artifactDigest,
-    resources: input.environment.resources.map(item => [item.requirement.binding, item.resourceId]).sort() });
+  const storageFingerprint = getSodaStorageFingerprint(input.artifact);
+  if (input.storageFingerprint !== storageFingerprint) throw new Error('Soda bundle storage fingerprint differs from its artifact');
+  const resources = input.environment.resources.map(item => [item.requirement.binding, item.resourceId]).sort();
+  const identity = JSON.stringify({ schema: 'canlang.soda.storage.v2', app: input.descriptor.identity.appName,
+    storageFingerprint, resources });
+  const legacyIdentity = JSON.stringify({ schema: 'canlang.soda.storage.v1', app: input.descriptor.identity.appName,
+    artifactDigest: input.descriptor.identity.artifactDigest, resources });
   const path = join(dataDir, 'storage.json');
   try {
     const file = await open(path, 'wx', 0o600);
     try { await file.writeFile(identity); await file.sync(); } finally { await file.close(); }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-    if (await readFile(path, 'utf8') !== identity) throw new Error('Soda data identity differs; migration/restore must be explicit');
+    const existing = await readFile(path, 'utf8');
+    if (existing !== identity) {
+      if (existing !== legacyIdentity) throw new Error('Soda data identity differs; migration/restore must be explicit');
+      // Only the exact legacy artifact can attest the schema of retained data.
+      // The writer fence is held; atomically seed v2 before admitting updates.
+      const staged = join(dataDir, `storage-${randomBytes(12).toString('hex')}.json`);
+      const file = await open(staged, 'wx', 0o600);
+      try { await file.writeFile(identity); await file.sync(); } finally { await file.close(); }
+      await rename(staged, path);
+    }
   }
   for (const name of ['d1', 'objects', 'tmp']) await mkdir(join(dataDir, name), { recursive: true, mode: 0o700 });
 }
@@ -126,7 +139,7 @@ async function forward(request: IncomingMessage, response: ServerResponse, runti
     .filter(value => [SESSION_COOKIE_NAME, PRESESSION_COOKIE_NAME].includes(value.split('=', 1)[0]!));
   if (cookies.length !== 0) headers.push(['cookie', cookies.join('; ')]);
   const method = request.method ?? 'GET';
-  const result = await runtime.dispatchUrl(new URL(path, origin).href, { method, headers,
+  const result = await runtime.dispatchUrl(new URL(path, origin).href, { method, headers, redirect: 'manual',
     ...(['GET', 'HEAD'].includes(method) ? {} : { body: Buffer.concat(chunks) }) });
   response.statusCode = result.status;
   result.headers.forEach((value, name) => {

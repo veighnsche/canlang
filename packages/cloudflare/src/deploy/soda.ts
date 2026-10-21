@@ -89,7 +89,15 @@ function checkSodaOrigin(artifact: CompileArtifact, environment: EnvironmentSele
   } catch { failures.push('Soda requires a canonical explicit CAN_AUTH_ORIGIN'); }
 }
 
+/** Storage declarations belong to the compiler artifact, independently of page/module bytes.
+ * Keep this versioned fingerprint shared by retained storage and native image labels. */
+export function getSodaStorageFingerprint(artifact: CompileArtifact): string {
+  return createHash('sha256').update(JSON.stringify({ schema: 'canlang.soda.layout.v1',
+    models: artifact.models ?? [], valueTypes: artifact.valueTypes ?? null })).digest('hex');
+}
+
 export interface SodaBundle {
+  readonly storageFingerprint: string;
   readonly artifact: CompileArtifact;
   readonly descriptor: CompatibilityDescriptor;
   readonly environment: EnvironmentSelection;
@@ -121,5 +129,6 @@ export default {fetch(request,env) { return env.SODA_APPLICATION.get(env.SODA_AP
   bundle.mixedSha256 = bundleMixedSha256(bundle.mainModule, inventorizeAssets(bundle.modules, bundle.binaries));
   assertLinksResolve(bundle.modules, Object.keys(bundle.binaries));
   assertWorkerdLoadable(bundle.modules);
-  return { artifact, descriptor, environment, compatibilityDate, compatibilityFlags, bundle };
+  return { artifact, descriptor, environment, compatibilityDate, compatibilityFlags, bundle,
+    storageFingerprint: getSodaStorageFingerprint(artifact) };
 }
