@@ -123,6 +123,23 @@ export async function nativeScenarioMemberRetryDecision(context: unknown, descri
   return evaluate(descriptor, body);
 }
 
+const invoiceOverdueReaders = new WeakMap<object, LeaveEvaluate>();
+
+/** The overdue Mail decision belongs to its admitted Invoice due event. */
+export function bindNativeScenarioInvoiceOverdueDecision(context: object, evaluate: LeaveEvaluate): void {
+  if (invoiceOverdueReaders.has(context)) throw new StateError('validation', 'Invoice overdue decision cannot be rebound.');
+  invoiceOverdueReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioInvoiceOverdueDecision(context: unknown, descriptor: unknown,
+  body: Function): Promise<void> {
+  const evaluate = typeof context === 'object' && context !== null ? invoiceOverdueReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof body !== 'function') {
+    throw new StateError('validation', 'Invoice overdue needs its actual admitted due mutation owner.');
+  }
+  return evaluate(descriptor, body);
+}
+
 type AllowanceEvaluate = (descriptor: unknown, row: unknown, body: Function) => Promise<unknown>;
 const leaveDecideAllowances = new WeakMap<object, AllowanceEvaluate>();
 

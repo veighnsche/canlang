@@ -1,0 +1,27 @@
+# Original CanInvoice.overdue with its Invoice balance owner dependencies.
+app CanInvoice uses=[invoice]
+
+package customer
+ Given
+  export Customer { name:text }
+ When
+ Then
+
+package invoice
+ use customer {Customer}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  export Invoice in Customer { recipient_email:email, description:text, currency:currency, state:enum(draft,issued,void_pending,void)=draft, total:money, hidden:bool=false }
+  Attempt in Invoice { kind:enum(collection,refund), status:enum(pending,unknown,succeeded,failed)=pending, amount:money }
+  Credit in Invoice { amount:money }
+  ExternalPayment in Invoice { amount:money }
+  event Overdue { invoice:Invoice, revision:int }
+  derive Invoice.credits:money = sum(row.Credit as credit select credit.amount,row.currency)
+  derive Invoice.received:money = sum(row.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalPayment as payment select payment.amount,row.currency)
+  derive Invoice.balance:money = max([money(0,row.currency),row.total-row.credits-row.received])
+  policy Invoice read=members and not row.hidden
+ When
+  scenario overdue on=Overdue
+   require event.invoice.state==issued and event.invoice.balance.minor>0
+   do send Mail.send {to=event.invoice.recipient_email,subject=format("Invoice overdue"@{nl="Factuur achterstallig"},locale=null),body=format("{description} {url}",{description=event.invoice.description,url=app_url(format("/finance/invoice/{invoice}",{invoice=event.invoice.id}))})} when=event.invoice.state==issued and event.invoice.balance.minor>0 as notice
+ Then

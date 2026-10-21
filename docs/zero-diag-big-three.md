@@ -179,6 +179,17 @@ commit races, and six dispatch cases that recheck the current Term and
 Membership before Billing is called. Five altered source variants remain
 refused. The remaining 72 diagnostics are separate sites.
 
+The next exact-catalog 24-source release capture reports 71 diagnostics
+(`complete:true`, `omitted:0`). All source paths and hashes match the
+72-diagnostic capture. Its sole site change removes the original
+`CanInvoice.overdue` guarded Mail `E6008` at bytes 73254–73315; no diagnostic
+was added. The checked due decision uses the retained Work event and current
+Invoice, computes `balance` from complete Credit, Attempt, and ExternalPayment
+domains, and fences those domains before committing one Mail intent. The
+installed regression covers 13 due cases, eight altered-source refusals, and
+provider dispatch after a later payment. The remaining 71 diagnostics are
+separate sites.
+
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
 **Implementation status, 2026-10-21:** The first owner-decision repair is now

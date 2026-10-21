@@ -62,6 +62,7 @@ mod term_decisions;
 mod leave_decisions;
 mod refer_decisions;
 mod member_retry_decisions;
+mod invoice_overdue_decisions;
 mod send_guards;
 pub mod sourcemap;
 pub mod then_views;

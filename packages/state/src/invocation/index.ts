@@ -33,6 +33,7 @@ export {
   executeScenarioReceiptLeaveDecideDecision, type LeaveDecideDecisionPlan,
   executeScenarioReceiptReferRejectDecision, type ReferRejectDecisionPlan,
   executeScenarioReceiptMemberRetryDecision, type MemberRetryDecisionPlan,
+  executeScenarioReceiptInvoiceOverdueDecision, type InvoiceOverdueDecisionPlan,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
   noteDueWorkAdmission, type DueWorkAdmission,

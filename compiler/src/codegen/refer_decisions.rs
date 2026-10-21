@@ -637,7 +637,7 @@ pub(super) fn collect_reject_receipt(
             leave_request_decision: None,
             leave_decide_decision: None,
             refer_reject_decision: Some(decision),
-            member_retry_decision: None,
+            member_retry_decision: None, invoice_overdue_decision: None,
             queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),
