@@ -651,14 +651,20 @@ async function authorizeCall(def: InterimOperationDef | GeneratedOperationDef,
  * It neither looks up a receipt nor commits a separate transaction.
  */
 // Internal owner-CALL join. The receipt owner issues this identity only after
-// authenticating its stored source field and physical Files observations. It
+// authenticating the original stored source or admitted parent File input. It
 // is deliberately absent from the public State exports and request inputs.
-const ownerStoredFileInputs = new WeakMap<object, { readonly def: GeneratedOperationDef;
-  readonly inputs: ClosedInputs; readonly wires: ReadonlyMap<string, string> }>();
-export function bindOwnerStageStoredFileInputs(def: GeneratedOperationDef, inputs: ClosedInputs,
-  names: readonly string[]): object {
+const ownerProvenFileInputs = new WeakMap<object, { readonly def: GeneratedOperationDef;
+  readonly inputs: ClosedInputs; readonly wires: ReadonlyMap<string, string>;
+  readonly forwarded: ReadonlySet<string> }>();
+export function bindOwnerStageFileInputs(def: GeneratedOperationDef, inputs: ClosedInputs,
+  storedNames: readonly string[], forwardedNames: readonly string[]): object {
+  const names = [...storedNames, ...forwardedNames];
+  if (new Set(names).size !== names.length || names.some(name => !Object.hasOwn(inputs, name))) {
+    throw new StateError('validation', 'Owner File inputs require distinct actual source slots.');
+  }
   const proof = Object.freeze({});
-  ownerStoredFileInputs.set(proof, { def, inputs, wires: new Map(names.map(name => [name, stableStringify(inputs[name])])) });
+  ownerProvenFileInputs.set(proof, { def, inputs,
+    wires: new Map(names.map(name => [name, stableStringify(inputs[name])])), forwarded: new Set(forwardedNames) });
   return proof;
 }
 
@@ -666,16 +672,17 @@ type OwnerStoredFileBinding = {
   readonly def: GeneratedOperationDef;
   readonly inputs: ClosedInputs;
   readonly wires: ReadonlyMap<string, string>;
+  readonly forwarded: ReadonlySet<string>;
 } | undefined;
 
-/** Take (and void) the one-shot stored-File binding, proving exact reuse. */
+/** Take (and void) the one-shot source-File binding, proving exact reuse. */
 function consumeOwnerStoredFileBinding(input: {
   readonly def: GeneratedOperationDef;
   readonly inputs: ClosedInputs;
   readonly storedFiles?: object;
 }): OwnerStoredFileBinding {
-  const files = input.storedFiles === undefined ? undefined : ownerStoredFileInputs.get(input.storedFiles);
-  if (input.storedFiles !== undefined) ownerStoredFileInputs.delete(input.storedFiles);
+  const files = input.storedFiles === undefined ? undefined : ownerProvenFileInputs.get(input.storedFiles);
+  if (input.storedFiles !== undefined) ownerProvenFileInputs.delete(input.storedFiles);
   if (input.storedFiles !== undefined && (files?.def !== input.def || files.inputs !== input.inputs)) {
     throw new StateError('validation', 'Owner File inputs require their exact unused stored source binding.');
   }
@@ -698,8 +705,19 @@ function normalizeOneOwnerStageInput(
 ): void {
   if (field.kind === 'ref') return;
   if (field.kind === 'file') {
+    // A source-supplied null carries no File authority. The child call
+    // still has to supply this exact nullable input explicitly.
+    if (field.valueType === 'file?' && field.required === false &&
+        Object.hasOwn(input.inputs, field.name) && normalized[field.name] === null) return;
+    if (field.valueType === 'file?' && field.required === false &&
+        Object.hasOwn(input.inputs, field.name) && files?.forwarded.has(field.name) &&
+        files.wires.get(field.name) === stableStringify(normalized[field.name])) {
+      try { decodeValue('file?', normalized[field.name]); }
+      catch { throw new StateError('validation', 'Invalid forwarded owner File input.'); }
+      return;
+    }
     if (field.valueType !== 'file[]' || input.def.inputArrays[field.name]?.required !== false ||
-        !Object.hasOwn(input.inputs, field.name) || !files?.wires.has(field.name) ||
+        !Object.hasOwn(input.inputs, field.name) || !files?.wires.has(field.name) || files.forwarded.has(field.name) ||
         files.wires.get(field.name) !== stableStringify(normalized[field.name])) {
       throw new StateError('validation', 'Owner File array inputs require their exact authenticated stored field.');
     }

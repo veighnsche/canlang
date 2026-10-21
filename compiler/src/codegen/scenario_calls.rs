@@ -35,10 +35,18 @@ pub struct CallInput {
     pub ty: ResolvedType,
 }
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StaticScenarioCallFileInput {
-    pub name: String,
-    pub dependency_id: String,
+#[serde(untagged)]
+pub enum StaticScenarioCallFileInput {
+    Stored {
+        name: String,
+        #[serde(rename = "dependencyId")]
+        dependency_id: String,
+    },
+    Forwarded {
+        name: String,
+        #[serde(rename = "parentParameter")]
+        parent_parameter: String,
+    },
 }
 #[derive(Debug, Clone)]
 pub struct StaticScenarioCall {
@@ -53,7 +61,7 @@ pub struct StaticScenarioCall {
     pub result: CallResultFact,
     pub binding: Option<String>,
     pub inputs: Vec<CallInput>,
-    /// Original stored File occurrences are supplied by this parent dependency.
+    /// Original stored File occurrences or exact parent File parameters.
     pub file_inputs: Vec<StaticScenarioCallFileInput>,
 }
 
@@ -2748,6 +2756,86 @@ fn dispatch_nullable_input(
     Some(true)
 }
 
+/// A singular File may cross a same-owner CALL only as the unchanged original
+/// parent parameter. The child declaration is checked by
+/// `explicit_nullable_value_input`; the active parent input and receiving
+/// File assignment are checked again by State.
+fn forwarded_nullable_file_parameter(
+    ir: &IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    operations: &[JsOperation],
+    db: &SourceDb,
+) -> Option<String> {
+    let file_type = ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::File)));
+    if value.ty != file_type {
+        return None;
+    }
+    let IrExpr::Name(name) = &value.expr else {
+        return None;
+    };
+    if db.get(value.span.file)?.text.get(value.span.start as usize..value.span.end as usize)? != name {
+        return None;
+    }
+    let IrItemKind::Scenario { params, effects, .. } = &owner.kind else {
+        return None;
+    };
+    let source = checked_source(ir, owner, db)?;
+    let mut originals = params.iter().enumerate().filter_map(|(index, id)| {
+        let parameter = ir.items.get(id.0 as usize)?;
+        (parameter.name == *name).then_some((index, parameter))
+    });
+    let (index, parameter) = originals.next()?;
+    if originals.next().is_some() || source.parameters.get(index)?.parameter != parameter.id ||
+        source.parameters[index].ty != file_type ||
+        !matches!(&parameter.kind, IrItemKind::Param {
+            owner: actual, index: actual_index, ty: IrType::Known(actual_type),
+            array_bounds: None, ..
+        } if *actual == owner.id && *actual_index == index && *actual_type == file_type) ||
+        // A same-spelled local binding would change what the CALL reads.
+        effects_bind_name(effects, name)
+    {
+        return None;
+    }
+    let operation = operations.iter().find(|entry| entry.name == owner.canonical)?;
+    let mut inputs = operation.inputs.iter().filter(|input| input.name == *name);
+    let input = inputs.next()?;
+    if inputs.next().is_some() || !matches!(input.field, JsMcpField::File) ||
+        input.value_type.as_deref() != Some("file?") || !input.nullable || input.required ||
+        input.array_required.is_some() || input.computed_default
+    {
+        return None;
+    }
+    Some(name.clone())
+}
+
+fn effects_bind_name(effects: &[IrStmt], name: &str) -> bool {
+    let mut pending: Vec<_> = effects.iter().collect();
+    let mut visited = 0usize;
+    while let Some(effect) = pending.pop() {
+        visited += 1;
+        if visited > 16384 {
+            return true;
+        }
+        match effect {
+            IrStmt::Let { name: bound, .. } | IrStmt::For { item: bound, .. }
+                if bound == name => return true,
+            IrStmt::Create { binding: Some(bound), .. }
+            | IrStmt::Call { binding: Some(bound), .. }
+            | IrStmt::Send { binding: Some(bound), .. } if bound == name => return true,
+            IrStmt::If { then_branch, else_branch, .. } => {
+                pending.extend(then_branch.iter().chain(else_branch));
+            }
+            IrStmt::Match { arms, .. } => {
+                pending.extend(arms.iter().flat_map(|arm| &arm.body));
+            }
+            IrStmt::For { body, .. } => pending.extend(body),
+            _ => {}
+        }
+    }
+    false
+}
+
 fn dispatch_value_input(
     ir: &IrProgram,
     child: &IrItem,
@@ -2809,6 +2897,16 @@ fn dispatch_call_input(
         }
         protected_query_input(ir, owner, param, value, input, operations, db)?;
     } else if dispatch_value_input(ir, child, param, ty, value, input, db)? {
+        if *ty == ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::File))) {
+            if !matches!(value.expr, IrExpr::Null) {
+                let parent_parameter =
+                    forwarded_nullable_file_parameter(ir, owner, value, operations, db)?;
+                file_inputs.push(StaticScenarioCallFileInput::Forwarded {
+                    name: name.clone(),
+                    parent_parameter,
+                });
+            }
+        }
     } else if ordinary_file_array(ty) {
         let dependency_id = explicit_stored_file_input(
             ir,
@@ -2819,7 +2917,7 @@ fn dispatch_call_input(
             (entry, feasibility),
             db,
         )?;
-        file_inputs.push(StaticScenarioCallFileInput {
+        file_inputs.push(StaticScenarioCallFileInput::Stored {
             name: name.clone(),
             dependency_id,
         });

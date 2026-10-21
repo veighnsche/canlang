@@ -1224,6 +1224,14 @@ export type FrameworkOpaquePayloadOrigin =
   | { readonly kind: 'handler-result'; readonly occurrenceId: OccurrenceId;
       readonly operationId: OperationId; readonly handler: FrameworkOpaqueCallable;
       readonly event: FrameworkOpaqueEventInputOrigin }
+  /** Direct due dispatch consumes a keyed schedule without making a separate
+   * handler occurrence. Its terminal Work result is the selected void handler
+   * result, bound to that exact scheduled event and receipt fields. */
+  | { readonly kind: 'scheduled-handler-result'; readonly occurrenceId: OccurrenceId;
+      readonly operationId: OperationId; readonly handler: FrameworkOpaqueCallable;
+      readonly event: FrameworkOpaqueEventInputOrigin;
+      readonly terminal: { readonly status: 'completed' | 'failed'; readonly result: null;
+        readonly code: string | null; readonly message: string | null } }
   | FrameworkOpaqueSourceRoutingOrigin
   | FrameworkOpaqueStandardCompletionOrigin
   | FrameworkOpaqueSendGuardOrigin

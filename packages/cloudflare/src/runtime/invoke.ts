@@ -3591,7 +3591,7 @@ async function bindFileStagingCensus(loaded: LoadedCanonicalDescriptors,
         !Object.hasOwn(schema.contracts, type.base.path) &&
         !(schema.aliases !== undefined && Object.hasOwn(schema.aliases, type.base.path))) return [];
     return [{ model: model.name as ModelName, field: field.name }];
-  })).filter(candidate => !systemManagedFields.has(candidate.field));
+  }));
   if (candidates.length === 0) return undefined;
   const state = await loadProducerModule('@canlang/state', 'stored File census');
   const bind = requireProducerFn(state, 'bindFileReferenceProfile', 'stored File census') as
@@ -3601,12 +3601,14 @@ async function bindFileStagingCensus(loaded: LoadedCanonicalDescriptors,
   const systemManagedTopLevelFields = requireProducerFn(state, 'systemManagedTopLevelFields', 'stored File census') as
     typeof import('@canlang/state/ports/file-reference-profile').systemManagedTopLevelFields;
   const systemManagedFields = systemManagedTopLevelFields();
+  const authoredCandidates = candidates.filter(candidate => !systemManagedFields.has(candidate.field));
+  if (authoredCandidates.length === 0) return undefined;
   const bound = { canonicalModels: loaded.models,
     artifactModels: new Map((artifact.models ?? []).map(model => [model.name as ModelName, model])),
     ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
     valueSchema: schema };
   const fields = new Map<string, Map<string, ReturnType<typeof bind>>>();
-  for (const candidate of candidates) {
+  for (const candidate of authoredCandidates) {
     const profile = bind(bound, candidate.model, candidate.field);
     if (!profile.fileBearing) continue;
     let model = fields.get(candidate.model);
@@ -3644,7 +3646,9 @@ async function bindNativeScenarioNominalFiles(loaded: LoadedCanonicalDescriptors
 }
 function nativeScenarioStoredFileNames(parent: GeneratedOperationDef, target: GeneratedOperationDef): ReadonlySet<string> {
   return new Set([...(nativeScenarioStoredFileSlots.get(parent)?.values() ?? [])]
-    .filter(site => site.target === target).flatMap(site => site.fileInputs.map(slot => slot.name)));
+    .filter(site => site.target === target).flatMap(site => site.fileInputs
+      .filter((slot): slot is { readonly name: string; readonly dependencyId: string } => 'dependencyId' in slot)
+      .map(slot => slot.name)));
 }
 interface NativeSourceSendGuard {
   readonly guard: ScenarioReceiptSendGuard;
@@ -3763,6 +3767,8 @@ async function prepareNativeSendGuardReferences(input: {
   readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
   readonly healthy: () => void;
   readonly failure: (error: unknown) => void;
+  /** Checked private event guards in this profile navigate containment only. */
+  readonly parentOnly?: boolean;
 }) {
   const { loaded, artifact, snapshots, healthy } = input;
   const StateError = loaded.producers.errors;
@@ -3771,6 +3777,7 @@ async function prepareNativeSendGuardReferences(input: {
   const key = (model: string, id: string) => `${model}\0${id}`;
   const links = (model: string, row: StoredRow): { model: string; id: string }[] => {
     const found: { model: string; id: string }[] = row.parent == null ? [] : [row.parent];
+    if (input.parentOnly) return found;
     for (const field of artifact.models?.find(item => item.name === model)?.fields ?? []) {
       if (field.field.kind !== 'ref' || field.array !== undefined || row.data[field.name] == null) continue;
       const value = nativeRecordField(loaded, model, field.name, row.data[field.name]);
@@ -3876,6 +3883,15 @@ function nativeScenarioStoredFileInput(def: GeneratedOperationDef,
     field.required === false && field.default?.kind === 'literal' &&
     Array.isArray(field.default.value) && nativeCallArray(field.default.value, 0).length === 0;
 }
+/** An authored child call supplies this exact nullable File slot explicitly.
+ * State admits null alone; a non-null File still needs source-backed staging. */
+function nativeScenarioNullableFileInput(def: GeneratedOperationDef,
+  field: CanonicalOperationDescriptor['inputs'][number]): boolean {
+  return field.kind === 'file' && field.valueType === 'file?' &&
+    field.required === false && !Object.hasOwn(def.inputArrays, field.name) &&
+    !Object.hasOwn(def.inputNullableRefs ?? {}, field.name) &&
+    (field.default === undefined || field.default.kind === 'literal' && field.default.value === null);
+}
 /** A read target is a query only with its complete contract-array disclosure plan. */
 function isNativeScenarioQueryContractArray(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef): boolean {
   const result = def.descriptor.result, plan = result?.disclosure;
@@ -3926,8 +3942,9 @@ function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: Gen
       Object.keys(def.inputNullableRefs ?? {}).some(name => !query || !def.descriptor.inputs.some(field => field.name === name && field.kind === 'ref')) ||
       def.descriptor.inputs.some(field => {
         const scalar = nativeScenarioScalarInput(loaded, field);
-        const file = scenario && nativeScenarioStoredFileInput(def, field, storedFiles);
-        const protectedRef = scenario && storedFiles.size !== 0 && field.kind === 'ref' && field.required === true &&
+        const file = scenario && (nativeScenarioStoredFileInput(def, field, storedFiles) ||
+          nativeScenarioNullableFileInput(def, field));
+        const protectedRef = scenario && field.kind === 'ref' && field.required === true &&
           field.default === undefined && !Object.hasOwn(def.inputArrays, field.name) &&
           !Object.hasOwn(def.inputNullableRefs ?? {}, field.name) && loaded.models.some(model => model.name === field.model);
         return isNativeScenarioFieldInadmissible(field, scalar, file, protectedRef, query, def, loaded, storedFiles);
@@ -4019,24 +4036,43 @@ async function bindNativeScenarioCalls(asm: AssembledModules, artifact: CompileA
       if (names.length !== 1 || names[0]!.length > 256) throw new AssemblyCorrespondenceError('Native call requires one static canonical target.');
       const target = generatedScenarioDef({ def: loaded.registry.get(names[0]!) });
       if (target === undefined || target.name !== names[0]) throw new AssemblyCorrespondenceError('Native call target lacks its actual generated registry owner.');
-      const fileInputs: Array<{ readonly name: string; readonly dependencyId: string }> = [], fileNames = new Set<string>();
+      const fileInputs: NonNullable<ScenarioReceiptCallSite['fileInputs']>[number][] = [], fileNames = new Set<string>();
+      const storedNames = new Set<string>();
       if (hasFiles) {
         for (const value of nativeCallArray(localPolicyMember(site, 'fileInputs'), target.descriptor.inputs.length)) {
-          const slot = localPolicyObject(value, ['name', 'dependencyId']);
-          const name = localPolicyMember(slot, 'name'), dependencyId = localPolicyMember(slot, 'dependencyId');
-          if (Object.keys(slot).length !== 2 || typeof name !== 'string' || name.length === 0 || name.length > 256 ||
-              typeof dependencyId !== 'string' || dependencyId.length === 0 || dependencyId.length > 256 || fileNames.has(name) ||
-              !plan.returns.some(returned => returned.dependencies.some(dependency => dependency.id === dependencyId && dependency.type === 'file[]'))) {
-            throw new AssemblyCorrespondenceError('Stored File call slot lacks its exact original source dependency.');
+          const stored = typeof value === 'object' && value !== null && Object.hasOwn(value, 'dependencyId');
+          const slot = localPolicyObject(value, stored ? ['name', 'dependencyId'] : ['name', 'parentParameter']);
+          const name = localPolicyMember(slot, 'name');
+          if (Object.keys(slot).length !== 2 || typeof name !== 'string' || name.length === 0 || name.length > 256 || fileNames.has(name)) {
+            throw new AssemblyCorrespondenceError('File call slot requires one exact source input.');
           }
-          fileNames.add(name); fileInputs.push(Object.freeze({ name, dependencyId }));
+          if (stored) {
+            const dependencyId = localPolicyMember(slot, 'dependencyId');
+            if (typeof dependencyId !== 'string' || dependencyId.length === 0 || dependencyId.length > 256 ||
+                !plan.returns.some(returned => returned.dependencies.some(dependency => dependency.id === dependencyId && dependency.type === 'file[]'))) {
+              throw new AssemblyCorrespondenceError('Stored File call slot lacks its exact original source dependency.');
+            }
+            storedNames.add(name); fileInputs.push(Object.freeze({ name, dependencyId }));
+          } else {
+            const parentParameter = localPolicyMember(slot, 'parentParameter');
+            const parent = def.descriptor.inputs.find(field => field.name === parentParameter);
+            const child = target.descriptor.inputs.find(field => field.name === name);
+            if (typeof parentParameter !== 'string' || parentParameter.length === 0 || parentParameter.length > 256 ||
+                parent === undefined || child === undefined ||
+                !nativeScenarioNullableFileInput(def, parent) || !nativeScenarioNullableFileInput(target, child)) {
+              throw new AssemblyCorrespondenceError('Forwarded File call slot lacks exact original nullable parent and child declarations.');
+            }
+            fileInputs.push(Object.freeze({ name, parentParameter }));
+          }
+          fileNames.add(name);
         }
         if (fileInputs.length === 0 || fileInputs.some(slot => !target.descriptor.inputs.some(field =>
-            field.name === slot.name && nativeScenarioStoredFileInput(target, field, fileNames)))) {
-          throw new AssemblyCorrespondenceError('Stored File call slot differs from its explicit ordinary owning input.');
+            field.name === slot.name && ('dependencyId' in slot ? nativeScenarioStoredFileInput(target, field, storedNames) :
+              nativeScenarioNullableFileInput(target, field))))) {
+          throw new AssemblyCorrespondenceError('File call slot differs from its explicit ordinary owning input.');
         }
       }
-      assertNativeScenarioTarget(loaded, target, fileNames);
+      assertNativeScenarioTarget(loaded, target, storedNames);
       if (hasFiles) {
         let parentSlots = storedSlots.get(def);
         if (parentSlots === undefined) { parentSlots = new Map(); storedSlots.set(def, parentSlots); }
@@ -4100,13 +4136,13 @@ async function bindNativeScenarioCalls(asm: AssembledModules, artifact: CompileA
 /** Bind framework authority only from the original checked source module and
  * literal installed producers. Request options cannot supply these ports. */
 async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: CompileArtifact,
-  loaded: LoadedCanonicalDescriptors): Promise<void> {
+  loaded: LoadedCanonicalDescriptors, privateHandler?: string): Promise<void> {
   const { registry, producers } = loaded;
   const deliveryFields = artifact.models?.some(model => model.fields.some(field => field.field.kind === 'delivery')) === true;
   for (const value of registry.values()) {
     const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
     if (def === undefined || plan === undefined) continue;
-    const callable = artifact.callables.find(entry => entry.kind === 'operation' && entry.id === def.name &&
+    const callable = artifact.callables.find(entry => entry.kind === (def.name === privateHandler ? 'handler' : 'operation') && entry.id === def.name &&
       entry.module === plan.source.module);
     if (callable === undefined) throw new AssemblyCorrespondenceError('Scenario framework source lacks its exact owning callable.');
     const module = await importVerifiedAssemblyModule(asm, callable.module, artifact);
@@ -4245,8 +4281,10 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
     const selected = new Map<string, NativeSourceSendGuard>();
     const guards: ScenarioReceiptSendGuard[] = [];
     for (const entry of entries) {
-      const emitted = localPolicyObject(entry, ['rule', 'owner', 'source', 'node', 'statement', 'target', 'binding', 'sourceBinding', 'inputs', 'inputDeclaration']);
-      if (Object.keys(emitted).length !== 10 || emitted.owner !== def.name ||
+      const eventGuard = isUnknownRecord(entry) && Object.hasOwn(entry, 'eventSource');
+      const emitted = localPolicyObject(entry, ['rule', 'owner', 'source', 'node', 'statement', 'target', 'binding', 'sourceBinding', 'inputs', 'inputDeclaration',
+        ...(eventGuard ? ['eventSource'] : [])]);
+      if (Object.keys(emitted).length !== (eventGuard ? 11 : 10) || emitted.owner !== def.name ||
           !isUnknownRecord(emitted.source) || emitted.source.path !== plan.source.path ||
           emitted.source.sha256 !== plan.source.sha256 || emitted.source.module !== ownerPackage ||
           typeof emitted.rule !== 'string' || selected.has(emitted.rule) ||
@@ -4275,6 +4313,42 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         }
         return Object.freeze({ name: input.name, type: input.type as CanTypeId });
       });
+      let eventSource: ScenarioReceiptSendGuard['eventSource'];
+      if (eventGuard) {
+        const source = localPolicyObject(emitted.eventSource, ['event', 'handler', 'modelField', 'revisionField', 'predicate']);
+        const modelField = localPolicyObject(source.modelField, ['name', 'model', 'declaration', 'occurrence', 'fields']);
+        const revisionField = localPolicyObject(source.revisionField, ['name', 'type', 'declaration', 'occurrence']);
+        const originalEvent = own(originalOperation, 'event');
+        const declaredInputs = typeof originalEvent === 'string'
+          ? own(own(own(definition, 'events'), originalEvent), 'inputs') : undefined;
+        const declaredModel = own(declaredInputs, String(modelField.name));
+        const declaredRevision = own(declaredInputs, String(revisionField.name));
+        const modelInput = def.descriptor.inputs.find(input => input.name === modelField.name);
+        const revisionInput = def.descriptor.inputs.find(input => input.name === revisionField.name);
+        const fields = nativeCallArray(modelField.fields, 200) as string[];
+        const declaredFields = artifact.models?.find(model => model.name === modelField.model)?.fields;
+        const interval = (value: unknown): boolean => {
+          const span = localPolicyObject(value, ['start', 'end']);
+          return Object.keys(span).length === 2 && Number.isSafeInteger(span.start) &&
+            Number.isSafeInteger(span.end) && (span.start as number) >= 0 && (span.end as number) > (span.start as number);
+        };
+        if (callable.kind !== 'handler' || typeof source.event !== 'string' || source.event !== originalEvent ||
+            source.handler !== def.name || typeof modelField.name !== 'string' || typeof modelField.model !== 'string' ||
+            typeof revisionField.name !== 'string' || revisionField.type !== 'int' ||
+            modelField.name === revisionField.name || !interval(modelField.declaration) || !interval(modelField.occurrence) ||
+            !interval(revisionField.declaration) || !interval(revisionField.occurrence) || !interval(source.predicate) ||
+            fields.some((field, index) => typeof field !== 'string' || index > 0 && fields[index - 1]! >= field ||
+              declaredFields?.filter(item => item.name === field && item.field.kind !== 'secret').length !== 1) ||
+            stableStringify(source.predicate) !== stableStringify(emitted.node) ||
+            own(declaredModel, 'type') !== modelField.model || own(declaredRevision, 'type') !== 'int' ||
+            modelInput?.kind !== 'ref' || modelInput.model !== modelField.model || !modelInput.required ||
+            revisionInput?.kind !== 'integer' || !revisionInput.required ||
+            inputs.length !== 2 || inputs[0]?.name !== 'eventTerm' || inputs[0]?.type !== modelField.model ||
+            inputs[1]?.name !== 'eventRevision' || inputs[1]?.type !== 'int') {
+          throw new AssemblyCorrespondenceError('Event SEND guard lacks its original declared event, handler and typed field proof.');
+        }
+        eventSource = captureDispatchPreclaimData(source) as ScenarioReceiptSendGuard['eventSource'];
+      }
       const inputDeclaration = captureDispatchPreclaimData(localPolicyObject(emitted.inputDeclaration, ['kind', 'canonical', 'artifact'])) as NativeSourceSendGuard['inputDeclaration'];
       if (inputDeclaration.kind !== 'inputs' || inputDeclaration.canonical.length !== inputs.length ||
           inputDeclaration.artifact.length !== inputs.length || inputs.some((input, index) =>
@@ -4286,7 +4360,8 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
       }
       const guard: ScenarioReceiptSendGuard = captureDispatchPreclaimData({ rule: emitted.rule,
         owner: def.name, source: plan.source, node: emitted.node as ScenarioReceiptSendGuard['node'],
-        target: emitted.target, binding: emitted.binding, inputs });
+        target: emitted.target, binding: emitted.binding, inputs,
+        ...(eventSource === undefined ? {} : { eventSource }) });
       guards.push(guard);
       const logicalGuard: ScenarioReceiptSendGuard = captureDispatchPreclaimData({ ...guard, source: emitted.source as unknown as ScenarioReceiptSendGuard['source'] });
       selected.set(guard.rule, Object.freeze({ guard, logicalGuard, inputDeclaration, ownerPackage, definition,
@@ -4306,6 +4381,42 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
       sites: (loaded.membershipSources.get(def.name) ?? []).filter(site => site.stage === 'send-dispatch') });
     nativeSourceSendGuards.set(def, selected);
   }
+}
+
+/** Dispatch is a fresh load, long after the private due handler definition
+ * that queued an intent has gone out of scope. Rebuild only original handlers
+ * with a compiler SEND census from their verified module and checked private
+ * invocation, so the retained Work guard can rejoin its installed Rule. */
+async function bindPrivateScenarioSendDefinitions(asm: AssembledModules, artifact: CompileArtifact,
+  loaded: LoadedCanonicalDescriptors): Promise<readonly GeneratedOperationDef[]> {
+  const result: GeneratedOperationDef[] = [];
+  for (const callable of artifact.callables.filter(entry => entry.kind === 'handler')) {
+    const module = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+    const where = `Private SEND handler ${JSON.stringify(callable.id)}`;
+    const own = (value: unknown, key: string): unknown =>
+      isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+    const definition = own(module, 'appDefinition');
+    const operation = own(own(definition, 'operations'), callable.id);
+    const raw = own(operation, 'sendGuards');
+    if (raw === undefined) continue;
+    if (nativeCallArray(raw, 200).length === 0) continue;
+    const invocation = own(operation, 'invocation');
+    if (!isUnknownRecord(invocation) || invocation.name !== callable.id || invocation.kind !== 'scenario') {
+      throw new AssemblyCorrespondenceError('Private SEND guard lacks its checked handler invocation.');
+    }
+    const descriptors = loaded.producers.registry.loadArtifactDescriptors(
+      { ...artifact, operations: [invocation] }, { by: () => 'owner' });
+    const def = descriptors.registry.get(callable.id) as GeneratedOperationDef | undefined;
+    if (def?.descriptor.result?.disclosure === undefined) {
+      throw new AssemblyCorrespondenceError('Private SEND guard lacks its complete source receipt.');
+    }
+    await bindScenarioFrameworkProducers(asm, artifact, { ...loaded, registry: descriptors.registry }, callable.id);
+    if ((nativeSourceSendGuards.get(def)?.size ?? 0) !== nativeCallArray(raw, 200).length) {
+      throw new AssemblyCorrespondenceError('Private SEND guard inventory differs from its checked handler.');
+    }
+    result.push(def);
+  }
+  return Object.freeze(result);
 }
 
 type NativeQuerySelectionMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['selections']>[number];
@@ -8364,13 +8475,14 @@ async function runScenarioExecution(
     ? new Set<string>() : nativeScenarioStoredFileNames(childParent, scenarioDef);
   if (child !== undefined && (!receiptAware || (scenarioDef?.descriptor.inputs ?? []).some(field =>
       field.kind !== 'delivery' && (field.computedDefault === true || (field.default !== undefined &&
-        // Explicit scalar defaults and the exact bound stored File[] slot do
+        // Explicit scalar or null File defaults and the exact bound stored File[] slot do
         // not evaluate defaults. Omission, computed and reference defaults
         // remain refused before the child executes.
         (field.default.kind !== 'literal' || (!nativeScenarioScalarInput(loaded, field) &&
+          !nativeScenarioNullableFileInput(scenarioDef!, field) &&
           !nativeScenarioStoredFileInput(scenarioDef!, field, childStoredFiles)) ||
           !Object.hasOwn(call.inputs, field.name))))))) {
-    throw new loaded.producers.errors('validation', 'Child scenarios require checked disclosure and explicitly supplied owning scalar or bound stored File literal-default inputs.');
+    throw new loaded.producers.errors('validation', 'Child scenarios require checked disclosure and explicitly supplied owning scalar, null File, or bound stored File literal-default inputs.');
   }
   const actorUserId = call.context.actor?.userId ?? null;
   const teamId = call.context.team?.teamId ?? null;
@@ -9672,6 +9784,7 @@ async function runScenarioExecution(
           roots: selected.guard.inputs.filter(input => sendSnapshots.has(input.type)).map(input => ({
             type: input.type, wire: localPolicyMember(frame.inputs, input.name) })),
           read: (model, id) => ownerSession!.read(model, id), healthy: assertGuard, failure: recordEngineFailure,
+          parentOnly: selected.guard.eventSource !== undefined,
         });
         const inputs: Record<string, unknown> = Object.create(null);
         for (const input of selected.guard.inputs) {
@@ -9844,6 +9957,9 @@ async function runScenarioExecution(
       },
     });
     nativeScenarioExecutions.set(actualCall, active);
+    const frameEventSources = [...(nativeSourceSendGuards.get(actualCall.def as GeneratedOperationDef)?.values() ?? [])]
+      .flatMap(selected => selected.guard.eventSource === undefined ? [] : [selected.guard.eventSource]);
+    if (frameEventSources.length > 1) return refuseRecordBinding('Private receipt has more than one original event source.');
     scenarioReceiptFrame = openScenarioReceiptFrame(ctx, actualCall, receiptStore, recordEngineFailure,
       async (site, target, inputs) => {
         if (binding === undefined || invokeCall === undefined || assertCall === undefined ||
@@ -9855,7 +9971,9 @@ async function runScenarioExecution(
         if (selected === undefined || selected.name !== target) return refuseRecordBinding('Native call target differs from its owning checked occurrence.');
         const storedSlot = nativeScenarioStoredFileSlots.get(actualCall.def as GeneratedOperationDef)?.get(site);
         if (storedSlot !== undefined && storedSlot.target !== selected) return refuseRecordBinding('Stored File call lost its original target identity.');
-        assertNativeScenarioTarget(loaded, selected, new Set(storedSlot?.fileInputs.map(slot => slot.name) ?? []));
+        assertNativeScenarioTarget(loaded, selected, new Set(storedSlot?.fileInputs
+          .filter((slot): slot is { readonly name: string; readonly dependencyId: string } => 'dependencyId' in slot)
+          .map(slot => slot.name) ?? []));
         const prepared: Record<string, unknown> = Object.create(null);
         try {
           const own = localPolicyObject(inputs, selected.descriptor.inputs.map(field => field.name));
@@ -10158,7 +10276,7 @@ async function runScenarioExecution(
           return refuseRecordBinding('Nullable target lost its complete authority after navigation.');
         }
         return recordView(origin.model, row);
-      });
+      }, frameEventSources[0]);
   }
   for (const ref of call.recordRefs ?? []) {
     const row = ownerSession === undefined ? ref.row : await readOwnerRow(ref.model as ModelName, ref.row.id);
@@ -10236,7 +10354,13 @@ async function runScenarioExecution(
           const type = field.kind === 'ref' ? `${field.model}${Object.hasOwn(scenarioDef.inputArrays, field.name) ? '[]' : ''}${field.nullable ? '?' : ''}` :
             field.valueType ?? (field.kind === 'enum' && field.enumValues !== undefined ? `enum(${field.enumValues.join(',')})` : field.kind);
           const parsed = parseTypeId(parameter.typeId);
-          if (field.name !== parameter.name || type !== parameter.typeId || parsed.array || parsed.nullable ||
+          // A checked guard may carry an unrelated literal-null `file?`
+          // operation input. It is never read by this owner-stage observer;
+          // a supplied File still needs its separate File provenance path.
+          const unusedNullFile = parameter.typeId === 'file?' && parsed.nullable &&
+            !parsed.array && localPolicyMember(suppliedValues, parameter.name) === null;
+          if (field.name !== parameter.name || type !== parameter.typeId || parsed.array ||
+              (parsed.nullable && !unusedNullFile) ||
               parsed.base.kind === 'nominal' && !loaded.models.some(model => model.name === parameter.typeId) ||
               !Object.hasOwn(admittedParameters, parameter.name) ||
               localPolicyMember(suppliedValues, parameter.name) !== admittedParameters[parameter.name]) {
@@ -10573,7 +10697,8 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
   // Original File assignments and verified stored File CALL slots consume the
   // same receiving producer. Unrelated scalar receipts need no File port.
   const storedIds = new Set([...(nativeScenarioStoredFileSlots.get(def)?.values() ?? [])]
-    .flatMap(site => site.fileInputs.map(slot => slot.dependencyId)));
+    .flatMap(site => site.fileInputs.filter((slot): slot is { readonly name: string; readonly dependencyId: string } =>
+      'dependencyId' in slot).map(slot => slot.dependencyId)));
   const nominalProfiles = nativeScenarioNominalFileProfiles.get(def);
   const selectedIds = new Set((nativeScenarioQuerySelections.get(def) ?? []).flatMap(selection =>
     selection.fields.filter(field => field.name === 'attachments').map(field => field.dependencyId)));
@@ -13250,10 +13375,15 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
   const member = (value: unknown, key: string): unknown =>
     isUnknownRecord(value) ? readMetadataMember(value, key, 'Due handler')?.value : undefined;
   const definition = member(module, 'appDefinition');
+  const appDefaultLocale = member(definition, 'appDefaultLocale');
+  const originalAppDefaultLocale = member(module, '__canlangAppDefaultLocale');
   const handler = member(member(definition, 'operations'), opts.handler);
   const invocation = member(handler, 'invocation');
   const inputs = member(member(member(definition, 'events'), opts.due.event), 'inputs');
-  if (opts.due.scope.app !== opts.app || member(handler, 'event') !== opts.due.event ||
+  if (opts.due.scope.app !== opts.app || member(definition, 'id') !== opts.app ||
+      typeof appDefaultLocale !== 'string' || appDefaultLocale.length === 0 ||
+      appDefaultLocale !== originalAppDefaultLocale ||
+      member(handler, 'event') !== opts.due.event ||
       member(member(definition, 'packages'), opts.due.scope.ownerPackage) === undefined ||
       !isUnknownRecord(invocation) || member(invocation, 'name') !== opts.handler ||
       member(invocation, 'kind') !== 'scenario' || !isUnknownRecord(inputs)) {
@@ -13336,6 +13466,20 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
   if (identity.actor !== null || (identity.team?.team_id ?? 'app') !== opts.due.scope.owner) {
     throw new Error('Due identity does not match its verified owner.');
   }
+  const opaque = await nativeOpaqueFileStaging(loaded, opts, opts.due.scope,
+    async () => { await resolveDueOwner(opts, now); });
+  let retainedFileSource: RetainedOpaqueFileSource | undefined;
+  if (opaque !== null) {
+    const tables = await loadProducerModule('@canlang/work/kernel/tables', 'due File source');
+    const model = requireProducerString(tables, 'WORK_SCHEDULE_MODEL', 'due File source') as ModelName;
+    const row = await opts.store.load(model, opts.due.occurrenceId as RecordId);
+    const binding = preflight.occurrence.filePayloadOrigin;
+    if (row === null || binding === undefined || binding.origin.kind !== 'event-input') {
+      throw new Error('Due File source lacks its exact original physical row and event header.');
+    }
+    retainedFileSource = { model, row, field: 'payload', binding };
+    await opaque.revalidateSource(retainedFileSource, await opts.store.readRevision(), opts.files);
+  }
   const ui = await loadProducerModule('@canlang/ui', 'operation identity producer');
   const mintOperationId = requireProducerFn(ui, 'mintOperationId', 'operation identity producer') as
     typeof import('@canlang/ui').mintOperationId;
@@ -13350,7 +13494,8 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
     typeof import('@canlang/work/kernel/occurrence-staging').workOccurrencePutReceiptCommand.stage;
   const occurrenceIds: string[] = [];
   const mutationOpts: CanonicalMutationOpts = { ...opts, operation: opts.handler, operationId,
-    identity, inputs: admittedInputs, source: 'schedule', memberships: opts.identities, now: () => now };
+    identity, inputs: admittedInputs, source: 'schedule', memberships: opts.identities, now: () => now,
+    formatting: { appDefault: appDefaultLocale } };
   // C24 scope-1: bind the internal handler query/reference producers from
   // the verified module inventory before State admission. Handlers without
   // a checked disclosure skip binding and keep their existing behavior.
@@ -13362,6 +13507,10 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
   // to the private handler def via State's per-def plan inventory.
   await bindPrivateDueHandlerProducers(opts.asm, opts.artifact, loaded, privateDef, definition, handler,
     { identity, store: opts.store, now: () => now });
+  // The public framework inventory is bound at assembly load. A private due
+  // handler gets its own one-shot State definition and exact verified module
+  // guard inventory only after Work selects the genuine handler/source.
+  await bindScenarioFrameworkProducers(opts.asm, opts.artifact, privateLoaded, opts.handler);
   // C24 scope-1: the State receipt result stays void-null inside the
   // admission; the Work delivery outcome (completed/failed + occurrence)
   // rides a side channel so the same fence still commits schedule,
@@ -13393,6 +13542,7 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
           event: opts.due.event, occurrenceId: opts.due.occurrenceId, key: opts.due.key,
           scope: { app: opts.due.scope.app, owner: opts.due.scope.owner, ownerPackage: opts.due.scope.ownerPackage },
           scheduleWrite: structuredClone(stagedSchedule[0]),
+          eventPayload: structuredClone(due.occurrence.payload),
         });
         const stagedFramework: CanonicalStagedDomainWrite[] = [];
         let business: CanonicalExecutionEffects;
@@ -13438,8 +13588,41 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
         if (stableStringify(orderedWork(businessWork)) !== stableStringify(orderedWork(expectedWork))) {
           throw new Error('Due handler work.schedule write differs from its staged admission and installed continuation stages.');
         }
-        const terminal = await stageReceipt({ occurrenceId: opts.due.occurrenceId, status,
-          result: business.result ?? null, code: refusal?.code ?? null, message: refusal?.message ?? null }, stageContext);
+        const terminalInput = { occurrenceId: opts.due.occurrenceId, status,
+          result: business.result ?? null, code: refusal?.code ?? null, message: refusal?.message ?? null };
+        let terminal = await stageReceipt(terminalInput, stageContext);
+        if (opaque !== null) {
+          const tables = await loadProducerModule('@canlang/work/kernel/tables', 'due File receipt');
+          const model = requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'due File receipt') as ModelName;
+          const rows = (terminal.writes ?? []).filter(write => write.model === model && write.kind === 'insert');
+          if (rows.length !== 1 || rows[0]!.kind !== 'insert' ||
+              retainedFileSource?.binding.origin.kind !== 'event-input' ||
+              retainedFileSource.binding.origin.target.kind !== 'schedule' ||
+              retainedFileSource.binding.origin.occurrenceId !== opts.due.occurrenceId ||
+              retainedFileSource.binding.origin.declaration.kind !== 'declared-event' ||
+              retainedFileSource.binding.origin.declaration.event !== opts.due.event ||
+              call.checkpoint === undefined) {
+            throw new Error('Due File result lacks its exact genuine receipt slot and event origin.');
+          }
+          const handler = opaque.callable(opts.handler);
+          if (handler.artifact.result?.type !== 'void' ||
+              rows[0]!.row.data['result'] !== null ||
+              rows[0]!.row.data['status'] !== status ||
+              rows[0]!.row.data['code'] !== terminalInput.code ||
+              rows[0]!.row.data['message'] !== terminalInput.message) {
+            throw new Error('Due File result differs from its actual void handler terminal stage.');
+          }
+          const filePayloadOrigin = await opaque.prepare({ expectedRevision: call.checkpoint.revision,
+            model, row: rows[0]!.row, field: 'result', scope: opts.due.scope,
+            origin: { kind: 'scheduled-handler-result', occurrenceId: opts.due.occurrenceId as OccurrenceId,
+              operationId: call.context.operationId, handler, event: retainedFileSource.binding.origin,
+              terminal: { status, result: null, code: terminalInput.code, message: terminalInput.message } },
+            projection: { kind: 'result', path: [], declarationId: handler.resultDeclarationId,
+              presence: 'no-result' },
+            value: business.result ?? null, identity, ...(opts.files === undefined ? {} : { files: opts.files }),
+            retainedSource: retainedFileSource });
+          terminal = await stageReceipt({ ...terminalInput, filePayloadOrigin }, stageContext);
+        }
         if ((terminal.outboxAck?.length ?? 0) !== 0) throw new Error('Due receipt cannot acknowledge outbox work.');
         workOutcome = { status, occurrenceId: opts.due.occurrenceId, result: business.result ?? null };
         // The State admission commits schedule + business + terminal writes
@@ -14748,9 +14931,6 @@ async function runReadScenarioSeam(
     memberships: opts.memberships, authority: decision === undefined ? 'viewer' : 'owner', sourceReadOpts: opts, failure: error => {
       if (error instanceof Error) navigationFailures.set(error.message, error);
     } });
-  const reader = loaded.producers.transact.createReadInvoker({
-    registry: loaded.registry, models: loaded.models, policy: loaded.policy, store: opts.store, memberships: opts.memberships,
-  });
   const readings: Array<{ model: string; query: CanonicalReadQuery; projection: string; sourcePredicate: boolean }> = [];
   const dependencyProjection = (records: readonly ProjectedRecord[]): string => JSON.stringify(
     [...records].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
@@ -14782,7 +14962,7 @@ async function runReadScenarioSeam(
   };
   const readModel = async (model: string, query: CanonicalReadQuery, dependencies?: ProjectedRecord[],
     nativePredicate?: (record: ProjectedRecord) => Promise<boolean>): Promise<CanonicalReadServed> => {
-    if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
+    if (loaded.ruledModels.has(model) && !loaded.sourceReadPolicies.has(model)) throw ruledReadRefusal(StateError, model);
     if (Object.keys(query).some(key => !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
         (query.authority !== undefined && query.authority !== 'viewer') ||
         (query.archived !== undefined && query.archived !== 'exclude')) {
@@ -14858,6 +15038,12 @@ async function runReadScenarioSeam(
       ...(order === undefined ? {} : { order }),
       ...(limit === undefined ? {} : { limit: limit as number }),
     };
+    const sourceReads = createSourceReadPolicyAdapter({ loaded, opts,
+      revision: call.revision, now: opts.now ?? Date.now });
+    const reader = loaded.producers.transact.createReadInvoker({
+      registry: loaded.registry, models: loaded.models, policy: loaded.policy, store: opts.store,
+      memberships: opts.memberships, sourceReadPolicies: sourceReads.policies(model),
+    });
     const served = await reader({ envelope: { operation: `${model}.read`, inputs: {} }, identity: opts.identity, selection });
     if (served.revision !== call.revision || await opts.store.readRevision() !== call.revision) {
       throw new StateError('conflict', 'State changed during the read scenario query.');
@@ -17835,12 +18021,13 @@ async function revalidateNativeSendGuardOrigin(loaded: LoadedCanonicalDescriptor
   const opaque = await nativeOpaqueFileStaging(loaded, opts, scope, healthy);
   const dispatch = tables.readDispatchRow(row);
   const guard = dispatch.sourceGuard, header = dispatch.filePayloadOrigin;
+  const { eventSource: _eventSource, ...retainedDeclaration } = selected.guard;
   if (opaque === null || guard === undefined || header === undefined || header.origin.kind !== 'send-guard' ||
       originalIntent.dispatchGuard !== selected.guard.rule || dispatch.guardVerdict !== true ||
       stableStringify({ rule: guard.rule, source: guard.source, owner: guard.owner, node: guard.node }) !==
       stableStringify({ rule: selected.guard.rule, source: selected.guard.source, owner: selected.guard.owner, node: selected.guard.node }) ||
       header.scope.app !== scope.app || header.scope.owner !== scope.owner || header.scope.ownerPackage !== scope.ownerPackage ||
-      stableStringify(header.origin.declaration) !== stableStringify(selected.guard) ||
+      stableStringify(header.origin.declaration) !== stableStringify(retainedDeclaration) ||
       stableStringify(header.origin.intent) !== stableStringify({ intentId: originalIntent.intentId, operation: originalIntent.operation,
     operationId: originalIntent.operationId, target: originalIntent.target, occurrenceIndex: originalIntent.occurrenceIndex,
     dispatchGuard: originalIntent.dispatchGuard })) {
@@ -17868,7 +18055,9 @@ export async function revalidateQueueSourceGuard(
     throw new Error('Queue guarded source requires its original committed outbox.');
   }
   const intent = retained.intent;
-  const def = generatedScenarioDef({ def: loaded.registry.get(intent.operation) });
+  const privateDefinitions = await bindPrivateScenarioSendDefinitions(opts.asm, opts.artifact, loaded);
+  const def = generatedScenarioDef({ def: loaded.registry.get(intent.operation) ??
+    privateDefinitions.find(candidate => candidate.name === intent.operation) });
   const selected = def === undefined || intent.dispatchGuard == null ? undefined : nativeSourceSendGuards.get(def)?.get(intent.dispatchGuard);
   if (selected === undefined || resourceSendOwner(selected.definition, selected.guard.binding, intent.target) !== scope.ownerPackage ||
       !intent.target.endsWith('.publish') || intent.operationId !== dispatch.operationId || intent.target !== dispatch.source ||
@@ -17902,17 +18091,19 @@ export async function bindNativeEmailDispatchGuards(input: {
   const { asm, artifact, store, identities, revalidateAuthority } = input;
   const scope = captureDispatchPreclaimData(input.scope);
   const loaded = await loadCanonicalDescriptors(asm, artifact, store);
+  const privateDefinitions = await bindPrivateScenarioSendDefinitions(asm, artifact, loaded);
+  const sendDefinitions = [...loaded.registry.values(), ...privateDefinitions];
   const work = await import('@canlang/work/dispatch');
   const tables = await import('@canlang/work/kernel/tables');
   const admissions = new WeakMap<import('@canlang/work/dispatch').DispatchGuardExecution, ResolvedIdentity>();
   const sendSnapshots = await loadNativeSendModelSnapshots(loaded, artifact,
-    [...loaded.registry.values()].flatMap(value => {
+    sendDefinitions.flatMap(value => {
       const def = generatedScenarioDef({ def: value });
       return def === undefined ? [] : [...(nativeSourceSendGuards.get(def)?.values() ?? [])]
         .flatMap(selected => selected.guard.inputs.map(slot => slot.type));
     }));
   const guards = new Map<string, { def: GeneratedOperationDef; selected: NativeSourceSendGuard; sourceScope: WorkScope }>();
-  for (const value of loaded.registry.values()) {
+  for (const value of sendDefinitions) {
     const def = generatedScenarioDef({ def: value });
     if (def === undefined) continue;
     for (const selected of nativeSourceSendGuards.get(def)?.values() ?? []) {
@@ -17978,6 +18169,7 @@ export async function bindNativeEmailDispatchGuards(input: {
           type: slot.type, wire: localPolicyMember(actual.lexical, slot.name) })),
         read: (model, id) => store.cohortLoad({ model, id, expectedRevision: actual.input.revision }),
         healthy, failure: poison,
+        parentOnly: selected.guard.eventSource !== undefined,
       });
       for (const slot of selected.guard.inputs) {
         const wire = localPolicyMember(actual.lexical, slot.name);

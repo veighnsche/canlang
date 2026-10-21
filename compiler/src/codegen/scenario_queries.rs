@@ -101,6 +101,7 @@ fn declare_fact_symbols(
     program: &CheckedProgram,
     source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
     spans: &mut Vec<Span>,
+    require_queries: bool,
 ) -> Option<()> {
     use crate::analysis::scenario_disclosure::CheckedDecisionCallTarget;
     for parameter in &source.parameters {
@@ -126,7 +127,12 @@ fn declare_fact_symbols(
             }
         }
     }
-    for query in source.queries.as_ref()? {
+    let queries = if require_queries {
+        source.queries.as_deref()?
+    } else {
+        source.queries.as_deref().unwrap_or_default()
+    };
+    for query in queries {
         spans.push(declaration_span(program, query.model)?);
     }
     Some(())
@@ -177,10 +183,29 @@ fn declare_create_symbols(
     Some(())
 }
 
-fn checked_query_diagnostics(
+pub(super) fn checked_query_diagnostics(
     program: &CheckedProgram,
     owner: &IrItem,
     diagnostics: &[crate::diagnostic::Diagnostic],
+) -> Option<()> {
+    checked_owner_diagnostics(program, owner, diagnostics, true)
+}
+
+/// A SEND owner may have no query inventory. The same diagnostic closure
+/// still covers its body, consumed helpers and schema declarations.
+pub(super) fn checked_send_diagnostics(
+    program: &CheckedProgram,
+    owner: &IrItem,
+    diagnostics: &[crate::diagnostic::Diagnostic],
+) -> Option<()> {
+    checked_owner_diagnostics(program, owner, diagnostics, false)
+}
+
+fn checked_owner_diagnostics(
+    program: &CheckedProgram,
+    owner: &IrItem,
+    diagnostics: &[crate::diagnostic::Diagnostic],
+    require_queries: bool,
 ) -> Option<()> {
     let source = program
         .scenario_disclosures()
@@ -189,7 +214,7 @@ fn checked_query_diagnostics(
     // Symbol/IR spans cover declaration names only. A refusal inside an
     // original initializer or helper body belongs to the consumed closure too.
     let mut spans = vec![Span::new(source.node.file, source.node.start, source.node.end)];
-    declare_fact_symbols(program, source, &mut spans)?;
+    declare_fact_symbols(program, source, &mut spans, require_queries)?;
     declare_schema_symbols(program, source, &mut spans)?;
     let overlaps = |a: Span, b: Span| a.file == b.file && a.start <= b.end && b.start <= a.end;
     for diagnostic in diagnostics {
@@ -1299,13 +1324,16 @@ fn match_complete_returned(
     returned: &DisclosureReturn,
     emitted: &ReceiptReturn,
 ) -> Option<()> {
+    let target_pair = original.source_facts()?.queries.as_deref().is_some_and(|queries|
+        super::scenario_receipts::checked_any_first_target_return_order(
+            queries, expected_influences, &returned.influences));
     if !standalone_first
         && !void_tail
         && super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
         || returned.id != emitted.id
         || returned.source != original.source_facts()?.source
         || !standalone_first && !void_tail && returned.model_result.is_none()
-        || !mixed && !standalone_first && returned.influences != expected_influences
+        || !mixed && !standalone_first && !target_pair && returned.influences != expected_influences
         || standalone_first
             && returned
                 .influences

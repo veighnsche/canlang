@@ -3535,7 +3535,12 @@ impl PublicCompletionProfile<'_> {
     }
 
     fn envelope_adjusted(&self, expr: &TypedExpr, envelope_shell: bool) -> Option<()> {
-        let expected = self.envelope_type(expr)?;
+        // Only paths rooted in the checked completion envelope need this
+        // adjustment. Row fields, literals, and local values are validated
+        // by their own profile arms below.
+        let Some(expected) = self.envelope_type(expr) else {
+            return Some(());
+        };
         // Anchored member lowering retains untyped intermediate objects;
         // only a checked leaf's exact owning envelope path can use them.
         let shell = envelope_shell

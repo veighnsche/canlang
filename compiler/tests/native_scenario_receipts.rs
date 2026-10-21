@@ -543,14 +543,17 @@ fn intrinsic_compile_output_keeps_admitted_identity_distinct_from_row_fields() {
             assert_eq!(path["dependencies"], serde_json::json!([]));
         }
     }
-    for name in ["nullable_version", "body_actor"] {
-        assert!(
-            operation(&artifact, name)["result"]
-                .get("disclosure")
-                .is_none(),
-            "unsupported context remains whole omitted: {name}"
-        );
-    }
+    assert!(
+        operation(&artifact, "nullable_version")["result"]
+            .get("disclosure")
+            .is_none(),
+        "nullable model version remains whole omitted"
+    );
+    let actor = &operation(&artifact, "body_actor")["result"]["disclosure"];
+    assert_eq!(actor["version"], 1);
+    assert_eq!(actor["returns"].as_array().unwrap().len(), 1);
+    assert_eq!(actor["returns"][0]["dependencies"], serde_json::json!([]));
+    assert_eq!(actor["returns"][0]["influences"], serde_json::json!([]));
     let js = artifact["modules"]
         .as_array()
         .unwrap()
@@ -831,7 +834,6 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
         "composite",
         "model_array",
         "required_array",
-        "model",
         "machine_read",
     ] {
         assert!(
@@ -841,6 +843,16 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
             "whole unsupported recipe omitted: {name}"
         );
     }
+    let model = &operation(&artifact, "model")["result"]["disclosure"];
+    assert_eq!(model["version"], 1);
+    let paths = model["returns"].as_array().unwrap();
+    assert_eq!(paths.len(), 1);
+    assert_eq!(paths[0]["dependencies"].as_array().unwrap().len(), 1);
+    assert_eq!(paths[0]["dependencies"][0]["model"], "NativeReceipts.Item");
+    assert_eq!(paths[0]["dependencies"][0]["field"], "id");
+    assert_eq!(paths[0]["dependencies"][0]["role"], "data");
+    assert_eq!(paths[0]["dependencies"][0]["type"], "text");
+    assert_eq!(paths[0]["influences"], serde_json::json!([]));
     let runner = scratch.path().join("native.mjs");
     std::fs::write(&runner, RUNNER).unwrap();
     let output = Command::new("node")

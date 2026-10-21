@@ -7,6 +7,7 @@
 //
 // Usage:
 //   bun scripts/capture.mjs [--list-only] [--out FILE] [--baseline FILE] <file...>
+//   CAN_COMPILER_BIN=compiler/target/release/can bun scripts/capture.mjs --out FILE <file...>
 // Each <file> is a basename (CanRent, CanRent.can), a repo-relative path,
 // or a package/app key (rent_catalog). Dependencies come from `uses=[...]`
 // and `use NAME` declarations, closed transitively over provider files.
@@ -14,10 +15,12 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { readdirSync, statSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 
 const ROOT = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).stdout.trim();
-const COMPILER = join(ROOT, "compiler/target/debug/can");
+const COMPILER = process.env.CAN_COMPILER_BIN
+  ? resolve(ROOT, process.env.CAN_COMPILER_BIN)
+  : join(ROOT, "compiler/target/debug/can");
 const CATALOG = "packages/values/dist/catalog.json";
 
 const args = process.argv.slice(2);

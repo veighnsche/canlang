@@ -1,0 +1,23 @@
+app LeadingHelperFieldProbe
+Given
+ Location {label:text}
+ Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+ Ticket {location:Location,done:bool=false}
+ Handoff {ticket:Ticket}
+ policy Location read=members
+ policy Employee read=members and not row.hidden
+ policy Ticket read=members
+ policy Handoff read=members
+ derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+When
+ crud Location by=members fields=label
+ crud Employee by=members fields=user,home,locations,operator_wide,active
+ crud Ticket by=members fields=location,done
+ crud Handoff by=members fields=ticket
+ scenario handoff(ticket:Ticket,photo:file?=null) -> Handoff by=members
+  require can_work(actor,ticket.location)
+  do
+   create Handoff {ticket} as handoff
+   set ticket {done=true}
+   return handoff
+Then

@@ -477,6 +477,13 @@ function opaqueOccurrences(state: FileGuardState, model: string, row: StoredRow,
   if (historical === undefined || !fileGuardEqual(binding.inventory, historical.declarationSet.inventory)) return refuse('complete original historical declarations required');
   try { validateOpaqueFileOrigin(historical, binding); }
   catch { return refuse('original opaque source/declaration recipe disagrees'); }
+  if (binding.origin.kind === 'scheduled-handler-result' &&
+      (model !== 'work.occurrence' || field !== 'result' || role !== 'retained-result' ||
+        row.id !== binding.origin.occurrenceId ||
+        !fileGuardEqual({ status: row.data['status'], result: row.data['result'],
+          code: row.data['code'], message: row.data['message'] }, binding.origin.terminal))) {
+    return refuse('direct due result differs from its genuine terminal Work receipt.');
+  }
   const found = collectOpaqueProjections(profile, original, historical, binding, model, row, field, state);
   const facts = collectOpaqueFacts(binding, state);
   if (found.length !== facts.size || found.some(reference => facts.get(stableStringify(reference.path)) !== reference.ref)) return refuse('typed File positions and original receiving facts disagree');
@@ -737,6 +744,14 @@ function checkBarrierField(old: StoredRow, entry: FileGuardRow, field: string): 
   const { files: oldFiles, ...oldIdentity } = left;
   const { files: newFiles, ...newIdentity } = right;
   if (!fileGuardEqual(oldIdentity, newIdentity) || !Array.isArray(oldFiles) || !Array.isArray(newFiles)) return refuse('original opaque lifetime binding cannot be replaced');
+  // A keyed schedule's event arguments are the due handler's private source.
+  // Its state/version can advance to admitted, but the original payload must
+  // remain the bytes captured with the installed event-input header.
+  if (oldIdentity.origin.kind === 'event-input' && oldIdentity.origin.target.kind === 'schedule' &&
+      oldIdentity.slot.model === 'work.schedule' && oldIdentity.slot.field === 'payload' &&
+      !fileGuardEqual(old.data['payload'], entry.row.data['payload'])) {
+    return refuse('original scheduled event payload cannot change within its retained lifetime');
+  }
   const retained = new Map(oldFiles.map(evidence => [evidence.file.ref, evidence.file]));
   for (const evidence of newFiles) if (retained.has(evidence.file.ref) &&
       !fileGuardEqual(retained.get(evidence.file.ref), evidence.file)) return refuse('original receiving File facts cannot be renewed');

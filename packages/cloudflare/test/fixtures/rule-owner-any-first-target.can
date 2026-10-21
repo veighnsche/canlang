@@ -1,0 +1,22 @@
+app AnyFirstTargetProbe
+Given
+ P {v:int}
+ C in P {account:user,role:enum(administrator,booker),active:bool=true,hidden:bool=false}
+ I in P {role:C.role,done:bool=false}
+ policy P read=members fields=v
+ policy C read=members and not row.hidden fields=parent,account,role,active,hidden
+ policy I read=members fields=parent,role,done
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,account,role,active
+ crud I by=members fields=parent,role,done
+ scenario accept(invitation:I) by=members
+  require not any(invitation.parent.C as grant,grant.account==actor and grant.role==invitation.role and grant.active)
+  do
+   let previous=first(invitation.parent.C as grant where grant.account==actor and grant.role==invitation.role order=grant.id)
+   if previous==null
+    create C {parent=invitation.parent,account=actor,role=invitation.role} as grant
+   else
+    set previous {active=true}
+   set invitation {done=true}
+Then

@@ -1560,6 +1560,53 @@ pub(super) struct EmitDecisionSources<'a> {
     pub send_guard_gap: Option<&'a super::send_guards::SendGuardGap>,
 }
 
+/// A missing executable Rule will receive a precise diagnostic while the
+/// SEND body lowers. Omit the earlier owner-wide refusal only when its exact
+/// original guarded-SEND census is still present in the executable IR.
+fn missing_source_checked_send_rule(
+    ir: &IrProgram,
+    owner: &IrItem,
+    prepared: Option<&HashMap<Span, super::send_guards::PreparedSendGuard>>,
+) -> bool {
+    fn collect(statements: &[IrStmt], spans: &mut Vec<Span>) {
+        for statement in statements {
+            match statement {
+                IrStmt::Send { when: Some(_), span, .. } => spans.push(*span),
+                IrStmt::If { then_branch, else_branch, .. } => {
+                    collect(then_branch, spans);
+                    collect(else_branch, spans);
+                }
+                IrStmt::For { body, .. } => collect(body, spans),
+                IrStmt::Match { arms, .. } => {
+                    for arm in arms { collect(&arm.body, spans); }
+                }
+                _ => {}
+            }
+        }
+    }
+    let IrItemKind::Scenario { guards, effects, hook: None, .. } = &owner.kind else {
+        return false;
+    };
+    let Some(source_sites) = ir.scenario_disclosures.get(&owner.id)
+        .and_then(|disclosure| disclosure.source_facts())
+        .and_then(|facts| facts.decision_sites.as_ref())
+    else { return false; };
+    let source_sites: Vec<Span> = source_sites.iter().filter(|site| {
+        site.owner == owner.id
+            && site.stage == crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch
+    }).map(|site| Span::new(site.statement.file, site.statement.start, site.statement.end)).collect();
+    if source_sites.is_empty() { return false; }
+    let source_unique: HashSet<Span> = source_sites.iter().copied().collect();
+    if source_unique.len() != source_sites.len() { return false; }
+    let mut executable = Vec::new();
+    collect(guards, &mut executable);
+    collect(effects, &mut executable);
+    let executable_unique: HashSet<Span> = executable.iter().copied().collect();
+    executable.len() == source_sites.len()
+        && executable_unique == source_unique
+        && executable.iter().any(|span| prepared.is_none_or(|guards| !guards.contains_key(span)))
+}
+
 pub(super) fn emit_program_with_feasible_query_sources(
     ir: &IrProgram,
     native_receipts: bool,
@@ -2662,11 +2709,13 @@ fn emit_program_with_sources(
                 ir,
                 SymbolId(index as u32),
             ) {
-                emitter.diags.push(Diagnostic::error(
-                    "E6008",
-                    "send dispatch guard needs exact original native receipt and sealed Rule correspondence".into(),
-                    item.span,
-                ));
+                if !missing_source_checked_send_rule(ir, item, emitter.send_guards) {
+                    emitter.diags.push(Diagnostic::error(
+                        "E6008",
+                        "send dispatch guard needs exact original native receipt and sealed Rule correspondence".into(),
+                        item.span,
+                    ));
+                }
             } else if super::scenario_receipts::has_original_images_source(
                 ir,
                 SymbolId(index as u32),
@@ -4429,6 +4478,10 @@ pub struct Emitter<'a> {
     source_guard_body: bool,
     source_guard_derive_depth: usize,
     boolean_helper: bool,
+    /// A declared ordinary read scenario uses the canonical viewer reader.
+    /// Its checked stored-model query may feed pure `first(array)` without
+    /// claiming an owner mutation receipt.
+    viewer_read_body: bool,
     /// True while lowering a `scope=authority` report body (DESIGN §442
     /// decision mode): helper calls resolve to the decision variant where
     /// dual-emitted, falling back to the emitted variant otherwise.
@@ -4659,6 +4712,7 @@ impl<'a> Emitter<'a> {
             source_guard_body: false,
             source_guard_derive_depth: 0,
             boolean_helper: false,
+            viewer_read_body: false,
             authority_body: false,
             record_page_render: false,
             native_source_predicates: false,
@@ -8442,6 +8496,29 @@ impl<'a> Emitter<'a> {
 
     /// Stored-model first needs its checked native recipe. A value-array
     /// query already produces a supplied ordered array for the pure builtin.
+    fn viewer_read_first_query(&self, target: &IrCallTarget, args: &[TypedExpr], span: Span) -> bool {
+        if !self.viewer_read_body
+            || !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "first")
+        {
+            return false;
+        }
+        let [domain] = args else { return false; };
+        let IrExpr::Query(query) = &domain.expr else { return false; };
+        let crate::codegen::ir::IrQueryDomain::Model(_) = &query.domain else { return false; };
+        let (Some(source), Some(call)) = (query.source.as_deref(), query.collection_call.as_deref())
+        else { return false; };
+        call.builtin == "first"
+            && call.node.file == span.file
+            && call.node.start == span.start
+            && call.node.end == span.end
+            && call.query == source.node
+            && call.predicate.is_none()
+            && source.result == domain.ty
+            && source.projection.is_none()
+            && query.select.is_none()
+            && query.limit.is_none()
+    }
+
     fn unprepared_first_query(
         &mut self,
         target: &IrCallTarget,
@@ -8451,6 +8528,7 @@ impl<'a> Emitter<'a> {
         if self.native_source_predicates
             && !self.boolean_body
             && !self.owner_handler_body
+            && !self.viewer_read_first_query(target, args, span)
             && matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "first")
             && args.iter().any(|argument| {
                 matches!(&argument.expr, IrExpr::Query(query)
@@ -11746,6 +11824,23 @@ fn null_equality(
                     .send_guards
                     .and_then(|guards| guards.get(span))
                     .cloned();
+                if prepared.is_none() && when.is_some() && self.native_source_predicates {
+                    // One owner can be refused while another has sealed
+                    // guards. Report this SEND even if no owner-wide receipt
+                    // was collected, and never use a legacy callback.
+                    self.unsupported(
+                        "send dispatch guard",
+                        "original native SEND guard and frozen lexical transport are unavailable",
+                        when.as_ref().expect("checked guarded send").span,
+                    );
+                    return vec![(
+                        format!(
+                            "{pad}throw new Error({});",
+                            js_string("guarded send has no native source proof")
+                        ),
+                        *span,
+                    )];
+                }
                 if prepared.is_none()
                     && let Some(condition) = when
                     && super::ir::expr_uses_async(condition)
@@ -14888,7 +14983,18 @@ impl<'a> Emitter<'a> {
             .map(|id| self.ir.module(id))
             .and_then(|module| module.app_default_locale.as_deref())
         {
-            members.push(format!("appDefaultLocale:{}", js_string(locale)));
+            // The exported primitive is an immutable ESM binding. Runtime
+            // compares it with the richer, mutable appDefinition metadata
+            // before using the selected app's default for private handlers.
+            out.push(
+                entry_span,
+                Some("__canlangAppDefaultLocale".to_string()),
+                &format!(
+                    "export const __canlangAppDefaultLocale={};",
+                    js_string(locale)
+                ),
+            );
+            members.push("appDefaultLocale:__canlangAppDefaultLocale".to_string());
         }
         // Alternative authored app assemblies, keyed by declared identity.
         let compositions: Vec<String> = self
@@ -19107,10 +19213,18 @@ impl<'a> Emitter<'a> {
                     })
                     .collect::<Vec<_>>()
                     .join("");
+                let event_binding = guard.event_source.as_ref().map_or_else(String::new, |source| {
+                    format!(
+                        "const {}={{{}:$can$send$inputs[{}],{}:$can$send$inputs[{}]}};",
+                        self.bind("event"),
+                        object_key(&source.model_field), js_string(source.model_slot),
+                        object_key(&source.revision_field), js_string(source.revision_slot),
+                    )
+                });
                 let predicate = self.lower_expr(&guard.predicate);
                 self.exit_scope();
                 entries.push(format!(
-                    "{}:async(c,$can$send$inputs)=>{{{bindings}return {predicate};}}",
+                    "{}:async(c,$can$send$inputs)=>{{{bindings}{event_binding}return {predicate};}}",
                     object_key(&guard.rule)
                 ));
             }
@@ -20056,6 +20170,7 @@ impl<'a> Emitter<'a> {
                     }
                     self.emit_admission_check(out, by, item.span);
                     self.emit_scenario_param_defaults(out, item, trusted, params, &default_observer);
+                    self.viewer_read_body = *read && !*trusted && !*scope_authority;
                     self.emit_scenario_body_stmts(out, item, guards, effects);
                     if let Some(selection) = self.receipt_return_selection(item.span, true, false) {
                         out.push(
@@ -20065,6 +20180,7 @@ impl<'a> Emitter<'a> {
                         );
                     }
                     self.owner_handler_body = false;
+                    self.viewer_read_body = false;
                     self.receipt_capture = None;
                     self.current_revision_binding = None;
                     self.query_capture = None;

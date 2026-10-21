@@ -23,7 +23,7 @@ import { queryRecordsObserved, orderSourceReadRecords, projectSavedRecordForView
   type ObservedQueryResult } from '../query/engine.js';
 import { captureSourceReadPolicies, projectInstalledSourceRowAndAncestors, type ViewerSourceReadPolicy } from '../query/source-policy.js';
 import { MAX_MEMBERSHIP_SNAPSHOT_USERS, type Membership, type MembershipSnapshot, type ResolvedIdentity } from '@canlang/contracts';
-import { admitOwnerStageCall, bindOwnerStageStoredFileInputs, type AdmittedCall } from './admission.js';
+import { admitOwnerStageCall, bindOwnerStageFileInputs, type AdmittedCall } from './admission.js';
 import { assertScenarioReceiptExecution, scenarioReceiptMemberships, type ExecutionEffects } from './invoke.js';
 import { beginOwnerMutation, type OwnerMutationInput, type OwnerMutationReadView,
   type OwnerMutationSession, type MutationWritesResult } from '../mutation/pipeline.js';
@@ -372,7 +372,8 @@ export interface ScenarioReceiptCallSite {
   /** null preserves an owning target's opaque/undeclared result fact. */
   readonly resultType: CanTypeId | null;
   /** Checked original stored-field occurrence for this exact static CALL slot. */
-  readonly fileInputs?: readonly { readonly name: string; readonly dependencyId: string }[];
+  readonly fileInputs?: readonly ({ readonly name: string; readonly dependencyId: string } |
+    { readonly name: string; readonly parentParameter: string })[];
 }
 export interface ScenarioReceiptCallFrame {
   /** Exact invoking root or active child; private native lifetimes key on it. */
@@ -667,12 +668,27 @@ export function bindScenarioReceiptCallProducer(def: GeneratedOperationDef, prod
     }
     const slots = new Set<string>();
     for (const raw of list(site.fileInputs ?? [])) {
-      const slot = object(raw, ['name', 'dependencyId']), name = text(slot['name']), dependency = text(slot['dependencyId']);
+      const stored = typeof raw === 'object' && raw !== null && Object.hasOwn(raw, 'dependencyId');
+      const slot = object(raw, stored ? ['name', 'dependencyId'] : ['name', 'parentParameter']);
+      const name = text(slot['name']);
       const callee = targets.get(site.targets[0]!.operation)!;
       const field = callee.descriptor.inputs.find(field => field.name === name);
-      if (site.kind !== 'operation' || slots.has(name) || !bound.fileDependencies.has(dependency) ||
-          field?.kind !== 'file' || field.valueType !== 'file[]' || callee.inputArrays[name]?.required !== false) {
-        return invalid('stored File CALL slot differs from its exact source dependency and ordinary File array parameter.');
+      if (site.kind !== 'operation' || slots.has(name)) return invalid('unique source File CALL slot required.');
+      if (stored) {
+        const dependency = text(slot['dependencyId']);
+        if (!bound.fileDependencies.has(dependency) || field?.kind !== 'file' ||
+            field.valueType !== 'file[]' || callee.inputArrays[name]?.required !== false) {
+          return invalid('stored File CALL slot differs from its exact source dependency and ordinary File array parameter.');
+        }
+      } else {
+        const parent = text(slot['parentParameter']);
+        const sourceField = def.descriptor.inputs.find(input => input.name === parent);
+        if (field?.kind !== 'file' || field.valueType !== 'file?' || field.required !== false ||
+            sourceField?.kind !== 'file' || sourceField.valueType !== 'file?' || sourceField.required !== false ||
+            sourceField.default !== undefined && (sourceField.default.kind !== 'literal' || sourceField.default.value !== null) ||
+            Object.hasOwn(callee.inputArrays, name) || Object.hasOwn(def.inputArrays, parent)) {
+          return invalid('forwarded File CALL slot differs from its original nullable parent and child inputs.');
+        }
       }
       slots.add(name);
     }
@@ -735,7 +751,8 @@ export async function invokeScenarioReceiptCall(call: AdmittedCall, store: Stora
     if (def.kind === 'read' && !boundPlans.get(def)?.plan.returns.every(entry => entry.projection !== undefined)) return invalid('read/query call requires its defining checked query projection.');
     if ((def.kind === 'scenario' || def.kind === 'read') && !boundPlans.has(def)) return invalid('callee requires its complete checked source result closure.');
     const state = captures.get(call)!;
-    const fileBindings = (site.fileInputs ?? []).map(slot => {
+    const fileBindings = (site.fileInputs ?? []).filter((slot): slot is { readonly name: string; readonly dependencyId: string } =>
+      'dependencyId' in slot).map(slot => {
       const observed = [...state.observations].reverse().find(entry => entry.dependencyId === slot.dependencyId && entry.files !== undefined);
       const issued = observed === undefined ? undefined : storedFileInputs.get(observed);
       if (issued?.call !== call || issued.owner !== owner || issued.stage !== owner!.stage || issued.used) {
@@ -744,6 +761,15 @@ export async function invokeScenarioReceiptCall(call: AdmittedCall, store: Stora
       issued.used = true;
       return { name: slot.name, revalidate: issued.revalidate,
         wire: dependencyObservedWire(state.bound.fileDependencies.get(slot.dependencyId)!.dependency, observed!.row) };
+    });
+    const forwardedFiles = (site.fileInputs ?? []).filter((slot): slot is { readonly name: string; readonly parentParameter: string } =>
+      'parentParameter' in slot).map(slot => {
+      if (!Object.hasOwn(call.inputs, slot.parentParameter)) {
+        // The original optional `file?` parameter evaluates to null when
+        // omitted. A nonnull value can never be inferred from its absence.
+        return { name: slot.name, wire: null };
+      }
+      return { name: slot.name, wire: call.inputs[slot.parentParameter] };
     });
     const context = deepFreeze(dataCopy({ ...owner.call.context, operation: def.name, source: site.source.path }));
     // A copied child never becomes active; its genuine context still locates
@@ -813,7 +839,13 @@ export async function invokeScenarioReceiptCall(call: AdmittedCall, store: Stora
       await binding.revalidate(); ownerHealthy(owner);
       if (owner.executingCall !== current) return invalid('stored File admission crossed its actual child lifetime.');
     }
-    const storedFiles = fileBindings.length === 0 ? undefined : bindOwnerStageStoredFileInputs(def, prepared, fileBindings.map(value => value.name));
+    for (const binding of forwardedFiles) {
+      if (!Object.hasOwn(prepared, binding.name) || stableStringify(prepared[binding.name]) !== stableStringify(binding.wire)) {
+        return invalid('prepared File CALL slot differs from its original admitted parent input.');
+      }
+    }
+    const storedFiles = fileBindings.length === 0 && forwardedFiles.length === 0 ? undefined :
+      bindOwnerStageFileInputs(def, prepared, fileBindings.map(value => value.name), forwardedFiles.map(value => value.name));
     const admitted = await ownerOperation(owner, () => admitOwnerStageCall({ def, inputs: prepared,
       ...(storedFiles === undefined ? {} : { storedFiles }),
       context, read: underlying.views.final, memberships, revision: current.revision,
@@ -1047,6 +1079,19 @@ export interface ScenarioReceiptSendGuard {
   readonly node: { readonly start: number; readonly end: number };
   readonly binding: string; readonly target: string;
   readonly inputs: readonly { readonly name: string; readonly type: CanTypeId }[];
+  /** Original declared-event field proof; only a genuine due Work admission
+   * can supply these two frozen lexical inputs. */
+  readonly eventSource?: {
+    readonly event: string; readonly handler: string;
+    readonly modelField: { readonly name: string; readonly model: string;
+      readonly declaration: { readonly start: number; readonly end: number };
+      readonly occurrence: { readonly start: number; readonly end: number };
+      readonly fields: readonly string[] };
+    readonly revisionField: { readonly name: string; readonly type: 'int';
+      readonly declaration: { readonly start: number; readonly end: number };
+      readonly occurrence: { readonly start: number; readonly end: number } };
+    readonly predicate: { readonly start: number; readonly end: number };
+  };
 }
 export interface ScenarioReceiptSendGuardFrame {
   readonly call: AdmittedCall; readonly guard: ScenarioReceiptSendGuard;
@@ -1101,7 +1146,8 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
   const guardRules = new Set<string>(), guardNodes = new Set<string>();
   const modelInputs = new Map<string, ReadonlyMap<string, ModelLexicalSnapshotProfile>>();
   for (const value of list(metadata.sendGuards ?? [])) {
-    const guard = object(value, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
+    const guard = object(value, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs',
+      ...(Object.hasOwn(value as object, 'eventSource') ? ['eventSource'] : [])]);
     const rule = text(guard['rule']); origin(guard['source']);
     const node = object(guard['node'], ['start', 'end']);
     const occurrence = stableStringify(guard['node']);
@@ -1113,7 +1159,8 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
     const binding = metadata.bindings.find(item => item.binding === guard['binding']);
     if (binding === undefined || !binding.targets.some(item => item.source === guard['target'])) return invalid('SEND guard differs from checked binding/target.');
     const inputs = new Set<string>(), models = new Map<string, ModelLexicalSnapshotProfile>();
-    for (const value of list(guard['inputs'])) {
+    const guardInputs = list(guard['inputs']);
+    for (const value of guardInputs) {
       const input = object(value, ['name', 'type']), name = text(input['name']), type = text(input['type']);
       const parsed = parseTypeId(type);
       if (inputs.has(name) || printTypeId(parsed) !== type) return invalid('exact unique canonical SEND lexical type required.');
@@ -1125,6 +1172,37 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
         ...(bound.valueTypes === undefined ? {} : { valueTypes: bound.valueTypes }) }, type as CanTypeId);
       if (model !== undefined) models.set(name, model);
     }
+    if (Object.hasOwn(guard, 'eventSource')) {
+      const event = object(guard['eventSource'], ['event', 'handler', 'modelField', 'revisionField', 'predicate']);
+      const modelField = object(event['modelField'], ['name', 'model', 'declaration', 'occurrence', 'fields']);
+      const revisionField = object(event['revisionField'], ['name', 'type', 'declaration', 'occurrence']);
+      const interval = (value: unknown) => {
+        const span = object(value, ['start', 'end']);
+        return Number.isSafeInteger(span['start']) && Number.isSafeInteger(span['end']) &&
+          (span['start'] as number) >= 0 && (span['end'] as number) > (span['start'] as number);
+      };
+      const modelName = text(modelField['model']), modelNameField = text(modelField['name']);
+      const revisionName = text(revisionField['name']);
+      const fields = list(modelField['fields']).map(text);
+      const declaredFields = bound.artifactModels.get(modelName as ModelName)?.fields;
+      const ref = def.descriptor.inputs.find(input => input.name === modelNameField);
+      const revision = def.descriptor.inputs.find(input => input.name === revisionName);
+      if (event['handler'] !== def.name || typeof event['event'] !== 'string' || event['event'] === '' ||
+          modelNameField === revisionName || !interval(modelField['declaration']) || !interval(modelField['occurrence']) ||
+          !interval(revisionField['declaration']) || !interval(revisionField['occurrence']) || !interval(event['predicate']) ||
+          fields.some((field, index) => index > 0 && fields[index - 1]! >= field ||
+            declaredFields?.filter(item => item.name === field && item.field.kind !== 'secret').length !== 1) ||
+          stableStringify(event['predicate']) !== stableStringify(guard['node']) ||
+          ref?.kind !== 'ref' || ref.model !== modelName || !ref.required ||
+          Object.hasOwn(def.inputArrays, modelNameField) ||
+          revision?.kind !== 'integer' || !revision.required ||
+          guardInputs.length !== 2 || !inputs.has('eventTerm') || !inputs.has('eventRevision') ||
+          guardInputs.some(value => {
+            const input = value as { readonly name: string; readonly type: string };
+            return input.name === 'eventTerm' ? input.type !== modelName : input.name !== 'eventRevision' || input.type !== 'int';
+          }) ||
+          !models.has('eventTerm')) return invalid('event SEND requires its exact declared private field and typed lexical census.');
+    }
     modelInputs.set(rule, models);
   }
   frameworkProducers.set(def, Object.freeze({ ...deepFreeze(metadata), stage: producer.stage, read: producer.read,
@@ -1135,6 +1213,31 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
 
 function primitiveInputType(type: unknown): type is CanTypeId {
   return typeof type === 'string' && /^(text|bool|int|date|datetime|decimal|money|duration|currency|user)$/.test(type);
+}
+
+/** The compiler's bounded private Work profiles use frozen Rule slot names
+ * in their receipt intrinsics. At admission the handler still has the exact
+ * declared event input names; no arbitrary handler gets this alias. */
+function declaredEventIntrinsic(def: GeneratedOperationDef): { readonly modelField: string; readonly model: ModelName } | undefined {
+  if (def.name === 'agreements.notice') return { modelField: 'term', model: 'agreements.Term' as ModelName };
+  if (def.name === 'agreements.due') return { modelField: 'obligation', model: 'agreements.Obligation' as ModelName };
+  return undefined;
+}
+
+function admittedEventIntrinsic(call: AdmittedCall, parameter: string): ScenarioReceiptSendGuard['eventSource'] | undefined {
+  if (parameter !== 'eventTerm' && parameter !== 'eventRevision') return undefined;
+  const def = call.def as GeneratedOperationDef, expected = declaredEventIntrinsic(def);
+  const sources = frameworkProducers.get(def)?.sendGuards?.flatMap(guard => guard.eventSource === undefined ? [] : [guard.eventSource]) ?? [];
+  const source = sources.length === 1 ? sources[0] : undefined;
+  const due = dueWorkAdmissions.get(call);
+  if (expected === undefined || source === undefined || source.handler !== def.name ||
+      source.modelField.name !== expected.modelField || source.modelField.model !== expected.model ||
+      source.revisionField.name !== 'revision' || due?.event !== source.event || due.eventPayload === undefined ||
+      call.context.kind !== 'trusted' || call.context.source !== 'schedule' ||
+      call.context.trustedSource !== `schedule:${source.event}`) {
+    return invalid('event intrinsic requires its original due Work source and checked private handler.');
+  }
+  return source;
 }
 
 /** Exact required Contract fields from the original same-load input schema.
@@ -1181,6 +1284,10 @@ function admittedInputWire(inputs: ClosedInputs, parameter: string): unknown {
 
 function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
   if (dependency.kind !== 'admitted-input') return false;
+  if (dependency.parameter === 'eventRevision') {
+    if (declaredEventIntrinsic(def) === undefined || dependency.type !== 'int') return false;
+    return primitiveInput(def, { ...dependency, parameter: 'revision' });
+  }
   if (dependency.parameter.includes('/')) {
     const leaf = contractInputLeaf(def, dependency.parameter);
     return leaf !== undefined && leaf.model === undefined && primitiveInputType(leaf.type) && leaf.type === dependency.type;
@@ -1201,6 +1308,14 @@ function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptI
 
 function versionedReferenceInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
   if (dependency.kind !== 'admitted-reference-version') return false;
+  if (dependency.parameter === 'eventTerm') {
+    const event = declaredEventIntrinsic(def);
+    const input = def.descriptor.inputs.find(field => field.name === event?.modelField);
+    return event !== undefined && dependency.model === event.model && input?.kind === 'ref' &&
+      input.model === event.model && input.required && input.nullable !== true &&
+      input.default === undefined && input.computedDefault !== true &&
+      def.inputArrays[input.name] === undefined;
+  }
   return requiredVersionedReferenceInput(def, dependency.parameter, dependency.model);
 }
 function requiredVersionedReferenceInput(def: GeneratedOperationDef, parameter: string, model: ModelName): boolean {
@@ -1512,8 +1627,11 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
       return invalid('first guard mark requires its exact checked decision-consumed occurrence.');
     }
     const interval = firstQueryNode(metadata.query), node = firstQueryNode(metadata.node), statement = firstQueryNode(metadata.statement);
+    const containedOrderOnlyTarget = metadata.targetConsumed === true && query?.parent !== undefined &&
+      query.order.length === 1 && bound.plan.queries?.length === 1 &&
+      bound.resultModel === undefined && bound.type === 'void';
     if (query === undefined || !checkedFirstQueryParent(bound, def, query, policy, readPolicies) || query.limit !== null || query.archived !== 'exclude' ||
-        query.dependencies.length === 0 ||
+        query.dependencies.length === 0 && !containedOrderOnlyTarget ||
         query.dependencies.some(dependency => dependency.role !== 'control' ||
           (!['bool','int','decimal','text','money','date','datetime','duration','currency','user'].includes(dependency.type) &&
             !(dependency.type.length > 0 && bound.artifactModels.get(query.model)?.fields.some(field => field.name === dependency.field &&
@@ -2033,6 +2151,27 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
   const profiles = frameworkModelInputs.get(call.def as GeneratedOperationDef)?.get(guard.rule);
   const producer = referenceProducers.get(call.def as GeneratedOperationDef);
   const inputs = object(supplied, guard.inputs.map(input => input.name)), values: Record<string, unknown> = {};
+  const event = guard.eventSource, due = event === undefined ? undefined : dueWorkAdmissions.get(call);
+  if (event !== undefined) {
+    if (due === undefined || due.event !== event.event || event.handler !== call.def.name ||
+        call !== owner.call || owner.executingCall !== call || due.eventPayload === undefined ||
+        call.context.kind !== 'trusted' || call.context.source !== 'schedule' ||
+        call.context.trustedSource !== `schedule:${event.event}`) {
+      return invalid('event SEND requires its actual admitted due Work source and private owner call.');
+    }
+    const payload = object(due.eventPayload, [event.modelField.name, event.revisionField.name]);
+    const sourceTerm = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly model: string; readonly id: string };
+    const admittedTerm = decodeValue(event.modelField.model,
+      admittedInputWire(call.inputs, event.modelField.name)) as { readonly model: string; readonly id: string };
+    const sourceRevision = decodeValue('int', payload[event.revisionField.name]);
+    const admittedRevision = decodeValue('int', admittedInputWire(call.inputs, event.revisionField.name));
+    const lexicalRevision = decodeValue('int', inputs['eventRevision']);
+    if (sourceTerm.model !== event.modelField.model || admittedTerm.model !== event.modelField.model ||
+        sourceTerm.id === '' || sourceTerm.id !== admittedTerm.id ||
+        sourceRevision !== admittedRevision || sourceRevision !== lexicalRevision) {
+      return invalid('event SEND lexical values differ from its retained Work payload and admitted handler inputs.');
+    }
+  }
   const models: Array<{ readonly name: string; readonly profile: ModelLexicalSnapshotProfile; readonly row: StoredRow;
     readonly sourcePresence: Readonly<{ readonly fields: readonly string[] }> }> = [];
   // Preserve private row identity before copying any input or yielding.
@@ -2044,6 +2183,11 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
         return invalid('SEND model input requires its actual current-stage owner row.');
       }
       const row = checkedRow(dataCopy(actual));
+      if (event !== undefined && input.name === 'eventTerm') {
+        const payload = object(due!.eventPayload, [event.modelField.name, event.revisionField.name]);
+        const ref = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly id: string };
+        if (row.id !== ref.id || row.archivedAt !== null) return invalid('event SEND model differs from its current retained source row.');
+      }
       models.push({ name: input.name, profile, row, sourcePresence: deepFreeze({ fields: Object.keys(row.data) }) });
     } else {
       const wire = dataCopy(inputs[input.name]);
@@ -2054,11 +2198,12 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
     }
   }
   if (models.length === 0) return deepFreeze(values);
-  if (owner.session === null || producer?.app !== call.context.app || producer.readPolicies === undefined ||
+  const privateEvent = event !== undefined && models.length === 1 && models[0]!.name === 'eventTerm';
+  if (owner.session === null || !privateEvent && (producer?.app !== call.context.app || producer.readPolicies === undefined) ||
       owner.busy || state.pending !== 0 || owner.callGuards.length + models.length >= MAX_ITEMS) {
     return invalid('SEND model snapshot requires its complete installed source grant and nonconcurrent owner stage.');
   }
-  const reads = producer.readPolicies;
+  const reads = producer?.readPolicies;
   owner.busy = true; state.pending++;
   const healthy = () => {
     capture(call, owner.store); ownerHealthy(owner);
@@ -2072,6 +2217,33 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
     const membership = actorUserId === null || teamId === null ? null : await reader.findMembership(teamId, actorUserId); healthy();
     const context: ByContext = { actorUserId, teamId, membership, memberships: reader };
     for (const { name, profile, row, sourcePresence } of models) {
+      if (privateEvent && name === 'eventTerm') {
+        const fields = event!.modelField.fields;
+        const snapshot = deepFreeze({ ...row, parent: row.parent ?? null,
+          data: dataCopy(Object.fromEntries(fields.filter(field => Object.hasOwn(row.data, field))
+            .map(field => [field, row.data[field]]))), sourcePresence });
+        modelLexicalSnapshotOccurrences(profile, snapshot);
+        values[name] = snapshot;
+        owner.callGuards.push(Object.freeze({ name: `send-event:${guard.rule}:${stage}`, evaluate: async () => {
+          if (owner.finalized === null) return invalid('event SEND lacks actual final owner effects.');
+          const final = owner.finalized;
+          const write = final.writes.find(write => write.model === profile.model &&
+            (write.kind === 'insert' ? write.row.id : write.id) === row.id);
+          const current = write === undefined
+            ? await owner.store.cohortLoad({ model: profile.model, id: row.id, expectedRevision: call.revision })
+            : write.kind === 'remove' ? null : write.row;
+          if (owner.finalized !== final || owner.capture.poisoned || current === null ||
+              !sameModelLifetime(row, current) || stableStringify(current) !== stableStringify(row)) {
+            throw new StateError('forbidden', 'event SEND source row changed before commit.');
+          }
+          if (await owner.store.readRevision() !== call.revision) {
+            throw new StateError('conflict', 'event SEND source moved beyond its checkpoint.');
+          }
+          return true;
+        } }));
+        continue;
+      }
+      if (reads === undefined || producer === undefined) return invalid('SEND model lacks installed source grants.');
       const read = reads.get(profile.model);
       if (read === undefined || !('grants' in read)) return invalid('SEND model requires original ordered source field grants.');
       const policyDomains = ownerPolicyDomains(owner, healthy);
@@ -2259,11 +2431,16 @@ export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: St
           const prepared = { ...row, data: { ...row.data, filePayloadOrigin: header } };
           const original = readReceiptRow(prepared).filePayloadOrigin!.origin;
           if (!isGeneratedOperationDef(call.def)) return invalid('receipt origin lacks its generated owning operation.');
-          // Opaque File headers retain the nonvoid result declaration, while
-          // the independently bound execution descriptor owns its disclosure.
+          // New File headers retain only the result type. Legacy explicit-void
+          // headers still carry their full original disclosure; their installed
+          // profile determines which exact shape this comparison must use.
           const descriptor = call.def.descriptor;
           const { disclosure: _execution, ...resultDeclaration } = descriptor.result ?? {};
-          const fileDescriptor = descriptor.result !== undefined && descriptor.result.type !== 'void'
+          const retainedResult = original.kind === 'delivery-result' || original.kind === 'delivery-skipped'
+            ? original.caller.canonical.result : undefined;
+          const slimResult = descriptor.result?.type !== 'void' ||
+            retainedResult !== undefined && !Object.hasOwn(retainedResult, 'disclosure');
+          const fileDescriptor = descriptor.result !== undefined && slimResult
             ? { ...descriptor, result: resultDeclaration } : descriptor;
           if (header.scope.app !== call.context.app || header.scope.owner !== call.checkpoint.owner ||
               (original.kind !== 'delivery-result' && original.kind !== 'delivery-skipped') ||
@@ -3349,21 +3526,26 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
       state.bound.type === 'void' && state.bound.plan.queries?.length === 2 &&
       otherAny?.kind === 'predicate' && otherAny.model === plan.model &&
       stableStringify(otherAny.query.parent) === stableStringify(plan.parent);
+    const pairedTarget = firstMark?.targetConsumed === true && state.bound.resultModel === undefined &&
+      state.bound.type === 'void' && state.bound.plan.queries?.length === 2 &&
+      otherAny?.kind === 'predicate' && otherAny.model === plan.model &&
+      stableStringify(otherAny.query.parent) === stableStringify(plan.parent);
     const otherFirst = state.bound.plan.queries?.find(query => query.id !== plan.id);
     const pairedAny = anyProfile?.kind === 'predicate' && state.bound.resultModel === undefined &&
       state.bound.type === 'void' && state.bound.plan.queries?.length === 2 && otherFirst !== undefined &&
       otherFirst.model === plan.model && stableStringify(otherFirst.parent) === stableStringify(plan.parent) &&
-      producer.first?.some(value => value.queryId === otherFirst.id && value.presenceConsumed === true) === true;
+      producer.first?.some(value => value.queryId === otherFirst.id &&
+        (value.presenceConsumed === true || value.targetConsumed === true)) === true;
     const targetFirst = firstMark?.targetConsumed === true && state.bound.resultModel === undefined &&
       state.bound.type === 'void' && state.bound.plan.queries?.length === 1 &&
       state.bound.anyQueries.size === 0;
     if (firstMark?.presenceConsumed === true && state.bound.plan.queries?.length === 2 && !pairedFirst) {
       return invalid('decision-only first requires its exact checked companion ANY domain.');
     }
-    if (firstMark?.targetConsumed === true && !targetFirst) {
+    if (firstMark?.targetConsumed === true && !targetFirst && !pairedTarget) {
       return invalid('selected write target requires its exact checked void decision.');
     }
-    const ownerDecision = pairedAny === true || pairedFirst === true || targetFirst;
+    const ownerDecision = pairedAny === true || pairedFirst === true || pairedTarget === true || targetFirst;
     const predicate = input.predicate;
     if (anyProfile?.kind === 'predicate') {
       const captured = producer.captureAnyPredicate?.(call, plan.id);
@@ -3843,11 +4025,103 @@ function wholeReferenceGrant(policy: NonNullable<ReturnType<PolicyTable['get']>>
     (profile.kind === 'parent' || grant.fields.includes(profile.field)));
 }
 
+/** A declared due event is a private owner source. Its root is the exact
+ * admitted Work reference; containment navigation can only follow that
+ * current row's actual parent chain. This grants the handler's checked
+ * parent dependency without substituting a null-actor viewer policy. */
+async function observeEventOwnerReferenceAuthority(call: AdmittedCall, store: StoragePort,
+  owner: ReceiptOwnerSession, state: Capture, dependencyId: string, row: StoredRow,
+  profile: StoredReferenceFieldProfile, model: ModelName): Promise<(() => Promise<void>) | undefined> {
+  const sources = frameworkProducers.get(call.def as GeneratedOperationDef)?.sendGuards
+    ?.flatMap(guard => guard.eventSource === undefined ? [] : [guard.eventSource]) ?? [];
+  if (sources.length === 0 || profile.kind !== 'parent') return undefined;
+  const source = admittedEventIntrinsic(call, 'eventTerm');
+  if (source === undefined || owner.call !== call || owner.session === null ||
+      owner.callGuards.length >= MAX_ITEMS) return invalid('event parent requires its actual due owner source.');
+  const due = dueWorkAdmissions.get(call)!;
+  const payload = object(due.eventPayload, [source.modelField.name, source.revisionField.name]);
+  const workRef = decodeValue(source.modelField.model, payload[source.modelField.name]) as { readonly id: string };
+  const admittedRef = call.recordRefs.find(ref => ref.param === source.modelField.name &&
+    ref.model === source.modelField.model && ref.id === workRef.id);
+  if (admittedRef === undefined ||
+      (decodeValue(source.modelField.model, admittedInputWire(call.inputs, source.modelField.name)) as { readonly id: string }).id !== workRef.id ||
+      decodeValue('int', payload[source.revisionField.name]) !==
+        decodeValue('int', admittedInputWire(call.inputs, source.revisionField.name))) {
+    return invalid('event parent lacks its exact retained Work reference and revision.');
+  }
+  const stage = owner.stage;
+  const healthy = () => {
+    capture(call, store); ownerHealthy(owner);
+    if (owner.executingCall !== call || owner.stage !== stage || !owner.busy || state.pending !== 1 ||
+        state.returnId !== null) return invalid('event parent crossed its original owner observation.');
+  };
+  const chain: Array<{ readonly model: ModelName; readonly row: StoredRow }> = [];
+  let currentModel = source.modelField.model as ModelName;
+  let currentId = admittedRef.id;
+  for (let depth = 0; depth < 8; depth++) {
+    healthy();
+    const current = await owner.session.views.final.get(currentModel, currentId);
+    healthy();
+    if (current === null || current.archivedAt !== null || current.id !== currentId ||
+        (depth === 0 && !sameModelLifetime(admittedRef.row, current))) {
+      throw new StateError('forbidden', 'Event parent source row lifetime is unavailable.');
+    }
+    chain.push({ model: currentModel, row: deepFreeze(dataCopy(current)) });
+    if (currentModel === model && currentId === row.id) {
+      if (stableStringify(current) !== stableStringify(row) || current.parent?.model !== profile.target ||
+          storedReferenceWire(profile, current) === undefined) {
+        throw new StateError('forbidden', 'Event parent differs from its current source row.');
+      }
+      const saved = chain.map(entry => ({ model: entry.model, row: entry.row }));
+      const revalidate = async () => {
+        healthy();
+        for (const entry of saved) {
+          const now = await owner.session!.views.final.get(entry.model, entry.row.id);
+          healthy();
+          if (now === null || stableStringify(now) !== stableStringify(entry.row)) {
+            throw new StateError('forbidden', 'Event parent source changed during its original observation.');
+          }
+        }
+        if (await store.readRevision() !== call.revision) {
+          throw new StateError('conflict', 'Event parent source moved beyond its admitted checkpoint.');
+        }
+      };
+      await revalidate();
+      owner.callGuards.push(Object.freeze({ name: `event-parent:${call.def.name}:${dependencyId}:${stage}`, evaluate: async () => {
+        const final = owner.finalized;
+        if (final === null || owner.capture.poisoned) return invalid('event parent lacks actual final owner effects.');
+        for (const entry of saved) {
+          const write = final.writes.find(write => write.model === entry.model &&
+            (write.kind === 'insert' ? write.row.id : write.id) === entry.row.id);
+          const now = write === undefined
+            ? await store.cohortLoad({ model: entry.model, id: entry.row.id, expectedRevision: call.revision })
+            : write.kind === 'remove' ? null : write.row;
+          if (owner.finalized !== final || owner.capture.poisoned || now === null ||
+              stableStringify(now) !== stableStringify(entry.row)) {
+            throw new StateError('forbidden', 'Event parent source changed before commit.');
+          }
+        }
+        if (await store.readRevision() !== call.revision) {
+          throw new StateError('conflict', 'Event parent source moved beyond its original checkpoint.');
+        }
+        return true;
+      } }));
+      return revalidate;
+    }
+    if (current.parent === null || current.parent === undefined) break;
+    currentModel = current.parent.model;
+    currentId = current.parent.id;
+  }
+  return undefined;
+}
+
 /** Current origin authority is observed before native promotion. The exact
  * facts survive child awaits and join Invoke's mandatory private guard ledger;
  * target admission remains independent and no target row is loaded here. */
 async function observeReferenceAuthority(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
   state: Capture, dependencyId: string, row: StoredRow, profile: StoredReferenceFieldProfile, model: ModelName): Promise<() => Promise<void>> {
+  const eventOwner = await observeEventOwnerReferenceAuthority(call, store, owner, state, dependencyId, row, profile, model);
+  if (eventOwner !== undefined) return eventOwner;
   const producer = referenceProducers.get(call.def as GeneratedOperationDef);
   if (producer === undefined || producer.app !== call.context.app || owner.session === null ||
       stableStringify(producer.source) !== stableStringify(state.bound.plan.source)) return invalid('matching installed reference source policy required.');
@@ -4412,7 +4686,15 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
       if (observed.wire !== call.context.operationId) return invalid('intrinsic identity differs from the admitted operation.');
       observation = { dependencyId: dependency.id, kind: dependency.kind, wire: call.context.operationId };
     } else if (dependency.kind === 'admitted-input') {
-      const wire = dataCopy(admittedInputWire(call.inputs, dependency.parameter)); scalarWire(dependency.type, wire);
+      const event = admittedEventIntrinsic(call, dependency.parameter);
+      const parameter = event === undefined ? dependency.parameter : event.revisionField.name;
+      const wire = dataCopy(admittedInputWire(call.inputs, parameter)); scalarWire(dependency.type, wire);
+      if (event !== undefined) {
+        const payload = object(dueWorkAdmissions.get(call)!.eventPayload, [event.modelField.name, event.revisionField.name]);
+        if (decodeValue('int', payload[event.revisionField.name]) !== decodeValue('int', wire)) {
+          return invalid('event revision intrinsic differs from retained Work input.');
+        }
+      }
       if (stableStringify(wire) !== stableStringify(observed.wire) ||
           stableStringify(encodeValue(dependency.type, decodeValue(dependency.type, wire))) !== stableStringify(wire)) {
         return invalid('intrinsic input differs from its original canonical admitted wire.');
@@ -4420,10 +4702,17 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
       observation = { dependencyId: dependency.id, kind: dependency.kind, wire };
     } else {
       const member = Object.getOwnPropertyDescriptor(input, 'reference');
-      const reference = call.recordRefs.find(ref => ref.param === dependency.parameter);
+      const event = admittedEventIntrinsic(call, dependency.parameter);
+      const parameter = event === undefined ? dependency.parameter : event.modelField.name;
+      const reference = call.recordRefs.find(ref => ref.param === parameter);
+      const sourceRef = event === undefined ? undefined : decodeValue(event.modelField.model,
+        object(dueWorkAdmissions.get(call)!.eventPayload, [event.modelField.name, event.revisionField.name])[event.modelField.name]) as
+        { readonly model: string; readonly id: string };
       if (member === undefined || !('value' in member) || reference === undefined || member.value !== reference ||
           reference.model !== dependency.model || reference.id !== reference.row.id ||
-          reference.expectedVersion !== reference.row.version || observed.wire !== String(reference.row.version)) {
+          (event === undefined && reference.expectedVersion !== reference.row.version) ||
+          (event !== undefined && (sourceRef?.model !== event.modelField.model || sourceRef.id !== reference.id)) ||
+          observed.wire !== String(reference.row.version)) {
         return invalid('intrinsic version requires its exact original admitted reference and wire.');
       }
       const row = checkedRow(dataCopy(reference.row));
@@ -4437,7 +4726,9 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
     state.pending += 1; acquired = true;
     if (observation.kind === 'admitted-reference-version') {
       if (activeCalls.has(call)) {
-        const reference = call.recordRefs.find(ref => ref.param === (dependency.kind === 'admitted-reference-version' ? dependency.parameter : ''))!;
+        const event = dependency.kind === 'admitted-reference-version' ? admittedEventIntrinsic(call, dependency.parameter) : undefined;
+        const parameter = event === undefined ? dependency.kind === 'admitted-reference-version' ? dependency.parameter : '' : event.modelField.name;
+        const reference = call.recordRefs.find(ref => ref.param === parameter)!;
         const issued = ownerRows.get(reference.row);
         if (owner === undefined || issued?.session !== owner || issued.model !== observation.model || issued.stage > owner.stage) {
           return invalid('child original reference requires its privately admitted owner-stage row.');
@@ -4648,6 +4939,8 @@ export interface DueWorkAdmission {
   readonly key: string;
   readonly scope: { readonly app: string; readonly owner: string; readonly ownerPackage: string };
   readonly scheduleWrite: unknown;
+  /** Original staged Work payload, required only by typed event SENDs. */
+  readonly eventPayload?: unknown;
 }
 const dueWorkAdmissions = new WeakMap<AdmittedCall, DueWorkAdmission>();
 export function noteDueWorkAdmission(call: AdmittedCall, admission: DueWorkAdmission): void {
@@ -4665,10 +4958,17 @@ export function noteDueWorkAdmission(call: AdmittedCall, admission: DueWorkAdmis
   if (typeof staged !== 'object' || staged === null || Array.isArray(staged) ||
     (staged as { readonly model?: unknown }).model !== 'work.schedule' ||
     (staged as { readonly kind?: unknown }).kind !== 'update') return invalid('due Work admission requires its staged schedule update.');
+  if (Object.hasOwn(admission, 'eventPayload')) {
+    const write = staged as { readonly row?: { readonly data?: { readonly payload?: unknown } } };
+    if (typeof admission.eventPayload !== 'object' || admission.eventPayload === null || Array.isArray(admission.eventPayload) ||
+        stableStringify(dataCopy(write.row?.data?.payload)) !== stableStringify(dataCopy(admission.eventPayload))) {
+      return invalid('due event payload differs from its installed staged Work head.');
+    }
+  }
   const context = call.context as { readonly kind?: unknown; readonly source?: unknown; readonly trustedSource?: unknown };
   if (context.kind !== 'trusted' || context.source !== 'schedule' ||
     context.trustedSource !== `schedule:${admission.event}`) return invalid('due Work admission differs from its admitted trusted schedule call.');
-  dueWorkAdmissions.set(call, admission);
+  dueWorkAdmissions.set(call, deepFreeze(dataCopy(admission)));
 }
 function isDueWorkWrite(write: unknown): boolean {
   return typeof write === 'object' && write !== null &&

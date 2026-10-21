@@ -3459,17 +3459,27 @@ fn serialize_require_params(
             owner: declared_owner,
             index: declared_index,
             ty: IrType::Known(ty),
-            default: None,
+            default,
+            default_node,
+            default_copy_source,
             ..
         } = &item.kind
         else {
             return None;
         };
+        let exact_null_file = matches!(ty,
+            ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
+            && matches!((default, default_node, checked.default),
+                (Some(IrDefault::Literal(value)), Some(node), Some(original_node))
+                    if *node == original_node && value.ty == ResolvedType::Null
+                        && matches!(value.expr, IrExpr::Null)
+                        && value.span == Span::new(node.file, node.start, node.end))
+            && default_copy_source.is_none() && checked.constraints.is_none();
         if *id != checked.parameter
             || *declared_owner != owner.id
             || *declared_index != index
             || *ty != checked.ty
-            || checked.default.is_some()
+            || !(default.is_none() && checked.default.is_none() || exact_null_file)
         {
             return None;
         }

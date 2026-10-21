@@ -1,0 +1,30 @@
+app LeadingHelperCrossHandoff
+Given
+ Location {label:text}
+ Employee {user:user,home:Location,active:bool=true,hidden:bool=false}
+ Asset {location:Location,active:bool=true}
+ Repair in Asset {title:text,photo:file?}
+ Ticket {location:Location,subject:text,repair:Repair?}
+ policy Location read=members
+ policy Employee read=members and not row.hidden
+ policy Asset read=members
+ policy Repair read=members
+ policy Ticket read=members
+ derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and e.home==location)
+When
+ crud Location by=members fields=label
+ crud Employee by=members fields=user,home,active
+ crud Asset by=members fields=location,active
+ crud Ticket by=members fields=location,subject,repair
+ scenario report(asset:Asset,title:text,photo:file?=null) -> Repair by=members
+  require asset.active and trim(title)!=""
+  do
+   create Repair {parent=asset,title,photo} as repair
+   return repair
+ scenario handoff(ticket:Ticket,asset:Asset,photo:file?=null) -> Repair by=members
+  require can_work(actor,ticket.location) and ticket.repair==null and asset.location==ticket.location
+  do
+   call report {asset,title=ticket.subject,photo} as repair
+   set ticket {repair}
+   return repair
+Then

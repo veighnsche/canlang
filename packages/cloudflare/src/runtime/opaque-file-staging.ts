@@ -79,6 +79,9 @@ function resultDeclaration<T>(value: T): T {
   const { disclosure: _execution, ...declaration } = copied as Record<string, unknown>;
   return Object.freeze(declaration) as T;
 }
+function retainsVoidDisclosure(profile: FrameworkOpaqueDeclaration['profile']): boolean {
+  return profile.kind === 'void' && Object.hasOwn(profile.canonical, 'disclosure');
+}
 
 export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
   const { store, artifact, canonicalModels, valueTypes, operations, verify } = input;
@@ -168,8 +171,10 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
         !['result', 'void'].includes(result.profile.kind) || !equal(inputs.source.callable, actual[0]) ||
         !equal(result.source, inputs.source) || !equal(inputs.profile.canonical, operation.canonical.inputs) ||
         !equal(inputs.profile.artifact, operation.artifact.inputs.fields) ||
-        !equal(result.profile.canonical, result.profile.kind === 'result' ? resultDeclaration(operation.canonical.result) : operation.canonical.result) ||
-        !equal(result.profile.artifact, result.profile.kind === 'result' ? resultDeclaration(operation.artifact.result) : operation.artifact.result)) {
+        !equal(result.profile.canonical, retainsVoidDisclosure(result.profile) ?
+          operation.canonical.result : resultDeclaration(operation.canonical.result)) ||
+        !equal(result.profile.artifact, retainsVoidDisclosure(result.profile) ?
+          operation.artifact.result : resultDeclaration(operation.artifact.result))) {
       refuse('callable lacks its complete genuine input/result declaration');
     }
     return { actual: actual[0]!, operation, inputs, result, source: inputs.source as CallableDeclarationSource };
@@ -178,13 +183,14 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     const { actual, operation, result, source } = checkedCallable(id);
     // This nongrant header must match the installed File declaration exactly.
     // The full execution descriptors remain in the independently checked
-    // operation snapshot; explicit void retains its original full declaration.
+    // operation snapshot. Old installed full-void profiles keep their shape.
     if (result.profile.kind === 'result' && (operation.canonical.result === undefined || operation.artifact.result === undefined)) {
       refuse('nonvoid callable lacks its original result');
     }
-    const canonical = result.profile.kind === 'result' ? Object.freeze({ ...operation.canonical,
+    const slimResult = !retainsVoidDisclosure(result.profile);
+    const canonical = slimResult ? Object.freeze({ ...operation.canonical,
       result: resultDeclaration(operation.canonical.result!) }) : operation.canonical;
-    const descriptor = result.profile.kind === 'result' ? Object.freeze({ ...operation.artifact,
+    const descriptor = slimResult ? Object.freeze({ ...operation.artifact,
       result: resultDeclaration(operation.artifact.result!) }) : operation.artifact;
     return Object.freeze({ source: source.source, callable: actual, canonical,
       artifact: descriptor, resultDeclarationId: result.id });
@@ -192,7 +198,9 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
   const sendGuard = (guard: ScenarioReceiptSendGuard, profile?: Extract<FrameworkOpaqueDeclarationSet['declarations'][number]['profile'], { kind: 'inputs' }>): {
     readonly declaration: FrameworkOpaqueSendGuardDeclaration; readonly inputsDeclarationId: string;
   } => {
-    const original = captureData(guard);
+    // The event field proof governs source-stage SEND capture. The retained
+    // Work declaration has the historical guard/typed-input census only.
+    const { eventSource: _eventSource, ...original } = captureData(guard);
     const matches = set.declarations.filter(candidate => candidate.source.kind === 'send-guard' &&
       candidate.profile.kind === 'inputs' && equal(candidate.source, { kind: 'send-guard', ...original }));
     if (matches.length !== 1 || matches[0]!.source.kind !== 'send-guard') refuse('send guard lacks its exact installed original lexical input declaration');

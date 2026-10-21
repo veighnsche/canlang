@@ -133,6 +133,13 @@ fn payments_collect_bounded_profile_lowers_with_typed_invocation() {
 #[test]
 fn unbounded_and_unlisted_terminal_bodies_still_refuse() {
     let catalog = catalog();
+    // The original Invoice Attempt stores an optional delivery ID; widening
+    // the admitted row comparison needs its own checked correlation proof.
+    assert_carrier_refusal(
+        &PAYMENTS_SOURCE.replace("delivery:text,", "delivery:text?,"),
+        &catalog,
+        "nullable delivery correlation",
+    );
     // Other `limit` values are not the bounded delivery correlation.
     assert_carrier_refusal(
         &PAYMENTS_SOURCE.replace("limit=1", "limit=2"),

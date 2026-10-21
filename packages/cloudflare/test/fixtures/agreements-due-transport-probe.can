@@ -1,0 +1,16 @@
+app DueProbe uses=[agreements]
+package agreements
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  Agreement { email:email, active:bool=true }
+  Term in Agreement { terminated:bool=false, expired:bool=false, notice_suppressed:bool=false }
+  Obligation in Term { title:text, done:bool=false }
+  NoticeDelivery in Term { obligation:Obligation?, revision:int, delivery:delivery(Mail.send)? }
+  event ObligationDue { obligation:Obligation, revision:int }
+ When
+  scenario due on=ObligationDue
+   do
+    if event.obligation.version==event.revision and not event.obligation.done and not event.obligation.parent.terminated and event.obligation.parent.parent.active
+     send Mail.send {to=event.obligation.parent.parent.email,subject="Due",body=event.obligation.title} when=event.obligation.version==event.revision and not event.obligation.done and not event.obligation.parent.terminated and event.obligation.parent.parent.active as delivery
+     create NoticeDelivery {parent=event.obligation.parent,obligation=event.obligation,revision=event.revision,delivery} as notice
+ Then

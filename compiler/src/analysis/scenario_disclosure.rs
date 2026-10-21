@@ -843,7 +843,10 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                 // may prove its closure below; every other trusted shape
                 // keeps this refusal, and the finite-query fast path never
                 // applies to handlers.
-                if scenario.on.is_some() && cx.hook_first_complete(scenario).is_none() {
+                if scenario.on.is_some()
+                    && cx.hook_first_complete(scenario).is_none()
+                    && cx.hook_delivery_event(scenario).is_none()
+                {
                     return Err(cx.fail(scenario.node, "trusted handler"));
                 }
                 if scenario.on.is_none()
@@ -1204,7 +1207,10 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
             if let Some(binding) = cx.first_null_branch_decision(scenario) {
                 let single_query = facts.queries.as_ref().is_some_and(|queries|
                     queries.len() == 1 && queries[0].first.is_some());
-                let target_only = single_query && cx.first_null_branch_target_only(scenario).is_some();
+                let paired_query = facts.queries.as_ref().is_some_and(|queries|
+                    cx.first_target_companion_any(scenario, binding, queries));
+                let target_only = (single_query || paired_query) &&
+                    cx.first_null_branch_target_only(scenario).is_some();
                 for query in facts.queries.iter_mut().flatten().filter(|query| query.first.is_some()) {
                     if let Some(first) = query.first.as_mut() && first.binding == binding.node {
                         first.target_decision_shape = true;
@@ -1775,6 +1781,8 @@ struct ValuePath {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReferenceOrigin {
     Parameter(SymbolId),
+    /// Original `event.term` in the exact declared notice handler.
+    EventRow { field: SymbolId, node: NodeKey },
     /// Required Model slot reached through the original Contract parameter.
     ParameterMember {
         parameter: SymbolId,
@@ -3842,7 +3850,7 @@ impl<'a> Closure<'a> {
             self.source_require_params_ok(scenario) && decision_sites.as_ref().is_some_and(|sites|
             sites.iter().any(|site| matches!(site.stage,
                 CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire) &&
-                site.calls.iter().any(|call| self.unproved_helper_contained_any(call))));
+                site.calls.iter().any(|call| self.unproved_helper_contained_any(scenario, call))));
         Some(CheckedScenarioSource {
             by_role,
             scenario: scenario.scenario,
@@ -7528,9 +7536,19 @@ impl<'a> Closure<'a> {
         file_array: bool,
         inline_selections: &[CheckedInlineSelectionSource],
         current_revision: &Option<CurrentRevisionSource>,
+        notice_event: bool,
     ) -> bool {
         model
             && !matches!(ty, ResolvedType::Record { symbol, .. } if self.is_contract_symbol(*symbol))
+            && !(notice_event
+                && self.resolve.symbols.get(id.0 as usize)
+                    .is_some_and(|owner| owner.canonical == "agreements.Term")
+                && member.canonical == "agreements.Term.snapshot"
+                && matches!(ty, ResolvedType::Nullable(inner)
+                    if matches!(inner.as_ref(), ResolvedType::Record {symbol,..}
+                        if self.resolve.symbols.get(symbol.0 as usize)
+                            .is_some_and(|contract| contract.canonical == "agreements.ExecutedParties"
+                                && matches!(contract.kind, SymbolKind::Contract { .. })))))
             && self.reference_operand_type_id(ty).is_none()
             && !result_type(ty)
             && !file_array
@@ -7803,6 +7821,7 @@ impl<'a> Closure<'a> {
         observer_fields: &HashSet<(SymbolId, SymbolId)>,
         inline_selections: &[CheckedInlineSelectionSource],
         current_revision: &Option<CurrentRevisionSource>,
+        notice_event: bool,
     ) -> Option<()> {
         let member = self.resolve.symbols.get(field.0 as usize)?;
         if model
@@ -7823,6 +7842,7 @@ impl<'a> Closure<'a> {
             file_array,
             inline_selections,
             current_revision,
+            notice_event,
         ) {
             return Some(());
         }
@@ -7888,6 +7908,7 @@ impl<'a> Closure<'a> {
         observer_fields: &HashSet<(SymbolId, SymbolId)>,
         inline_selections: &[CheckedInlineSelectionSource],
         current_revision: &Option<CurrentRevisionSource>,
+        notice_event: bool,
     ) -> Option<()> {
         let declaration = self.resolve.symbols.get(id.0 as usize)?;
         let (order, node) = match &declaration.kind {
@@ -7924,6 +7945,7 @@ impl<'a> Closure<'a> {
                 observer_fields,
                 inline_selections,
                 current_revision,
+                notice_event,
             )?;
         }
         if !model || !fields.is_empty() || parent.is_some() {
@@ -7960,6 +7982,23 @@ impl<'a> Closure<'a> {
             pending.push((fact.revision, true));
         }
         self.stored_contract_param_seed(scenario, &mut pending)?;
+        if let Some((_, row, _)) = self.hook_delivery_event(scenario) {
+            let ResolvedType::Record { symbol: model, stored: true } =
+                self.types.symbol_types.get(&row)? else { return None; };
+            pending.push((*model, true));
+            let hops = if self.resolve.symbols.get(scenario.scenario.0 as usize)?.canonical
+                == "agreements.due" { 2 } else { 1 };
+            let mut child = *model;
+            for _ in 0..hops {
+                let SymbolKind::Model { owner: ModelOwner::ChildOf(parent), .. } =
+                    self.resolve.symbols.get(child.0 as usize)?.kind else { return None; };
+                if self.effects.models.get(&child)?.owner != ModelOwner::ChildOf(parent) {
+                    return None;
+                }
+                pending.push((parent, true));
+                child = parent;
+            }
+        }
         self.stored_contract_expression_seed(scenario, &mut pending)?;
         // Retain the owning Model census of actual helper query calls. These
         // original source facts supply no query execution or reference grant.
@@ -8000,6 +8039,9 @@ impl<'a> Closure<'a> {
         let mut seen = HashSet::new();
         let mut inventory = Vec::new();
         let mut field_count = 0usize;
+        let notice_event = self.hook_delivery_event(scenario).is_some()
+            && self.resolve.symbols.get(scenario.scenario.0 as usize)
+                .is_some_and(|owner| owner.canonical == "agreements.notice");
         while let Some((id, model)) = pending.pop() {
             if !seen.insert(id) {
                 continue;
@@ -8017,6 +8059,7 @@ impl<'a> Closure<'a> {
                 &observer_fields,
                 &inline_selections,
                 &current_revision,
+                notice_event,
             )?;
         }
         Some(inventory)
@@ -11702,6 +11745,96 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
+    /// The two declared agreement delivery handlers each have one conditional
+    /// SEND followed by its child record. Every event row use is checked
+    /// against the exact original declared field and owning stored model.
+    fn hook_delivery_event(&self, scenario: &super::effects::ScenarioData) -> Option<(SymbolId, SymbolId, SymbolId)> {
+        let HandlerSource::Event(event) = scenario.on.as_ref()? else { return None; };
+        let scenario_symbol = self.resolve.symbols.get(scenario.scenario.0 as usize)?;
+        let event_symbol = self.resolve.symbols.get(event.0 as usize)?;
+        let (event_name, row_name, model_name) = match scenario_symbol.canonical.as_str() {
+            "agreements.notice" => ("agreements.Notice", "term", "agreements.Term"),
+            "agreements.due" => ("agreements.ObligationDue", "obligation", "agreements.Obligation"),
+            _ => return None,
+        };
+        let SymbolKind::Event { fields } = &event_symbol.kind else { return None; };
+        let [branch] = scenario.effects.as_slice() else { return None; };
+        let [send, create] = branch.then_effects.as_slice() else { return None; };
+        let EffectTarget::Model(created) = create.target.as_ref()? else { return None; };
+        if event_symbol.canonical != event_name
+            || scenario_symbol.module != scenario.module || event_symbol.module != scenario.module
+            || scenario.read || scenario.by.is_some() || scenario.result.is_some()
+            || scenario.cohort.is_some() || !scenario.params.is_empty()
+            || !scenario.guards.is_empty() || fields.len() != 2
+            || branch.verb != EffectVerb::If || branch.cond.is_none()
+            || !branch.else_effects.is_empty() || !branch.match_arms.is_empty()
+            || send.verb != EffectVerb::Send || send.when.is_none() || send.binding.is_none()
+            || create.verb != EffectVerb::Create || create.binding.is_none()
+            || !send.then_effects.is_empty() || !send.else_effects.is_empty()
+            || !create.then_effects.is_empty() || !create.else_effects.is_empty()
+            || self.resolve.symbols.get(created.0 as usize)?.canonical != "agreements.NoticeDelivery"
+        { return None; }
+        let row = fields.iter().copied().find(|field|
+            self.resolve.symbols.get(field.0 as usize).is_some_and(|field| field.name == row_name))?;
+        let revision = fields.iter().copied().find(|field|
+            self.resolve.symbols.get(field.0 as usize).is_some_and(|field| field.name == "revision"))?;
+        let ResolvedType::Record { symbol: model, stored: true } =
+            self.types.symbol_types.get(&row)? else { return None; };
+        if self.resolve.symbols.get(model.0 as usize)?.canonical != model_name
+            || self.types.symbol_types.get(&revision) != Some(&ResolvedType::Scalar(Scalar::Int))
+            || !fields.iter().all(|field| self.resolve.symbols.get(field.0 as usize)
+                .is_some_and(|symbol| matches!(symbol.kind,
+                    SymbolKind::Field { owner, .. } if owner == *event)))
+        { return None; }
+        Some((*event, row, revision))
+    }
+
+    fn hook_delivery_field(&self, key: NodeKey, module: ModuleId) -> Option<(SymbolId, SymbolId)> {
+        let (receiver, name) = self.count_member(key)?;
+        let node = self.nodes.get(&receiver)?;
+        if node.kind != SyntaxKind::NameRef
+            || !matches!(self.query_binding(receiver), Some(Binding::Context(ContextVar::Event)))
+        { return None; }
+        let mut owners = self.effects.scenarios.values().filter(|scenario|
+            scenario.module == module && scenario.node.file == key.file
+                && scenario.node.start <= key.start && key.end <= scenario.node.end);
+        let owner = owners.next()?;
+        if owners.next().is_some() { return None; }
+        let (_, row, revision) = self.hook_delivery_event(owner)?;
+        let field = if self.resolve.symbols.get(row.0 as usize)?.name == name {
+            row
+        } else if name == "revision" {
+            revision
+        } else {
+            return None;
+        };
+        (self.types.node_types.get(&key) == self.types.symbol_types.get(&field))
+            .then_some((owner.scenario, field))
+    }
+
+    /// Direct containment hops from the original declared event row. The
+    /// first member must still be `event.term` or `event.obligation`; copied
+    /// lexical rows cannot inherit this path.
+    fn checked_delivery_parent_path(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        field: SymbolId,
+        remaining: usize,
+    ) -> Option<(SymbolId, u8)> {
+        if remaining > 2 { return None; }
+        if self.hook_delivery_field(key, module).is_some_and(|(_, original)| original == field) {
+            let ResolvedType::Record { symbol, stored: true } =
+                self.types.symbol_types.get(&field)? else { return None; };
+            return Some((*symbol, 0));
+        }
+        if remaining == 0 { return None; }
+        let (base, name) = self.count_member(key)?;
+        if name != "parent" { return None; }
+        let (child, prior) = self.checked_delivery_parent_path(base, module, field, remaining - 1)?;
+        self.call_parent_hop_valid(key, base, child, prior)
+    }
+
     /// C23 hook slice skeleton: a declared-event handler (`on=Event`) with no
     /// caller parameters, no result, no cohort, no header guards and exactly
     /// one `let` plus one `require`. The returned event symbol authorizes the
@@ -11838,7 +11971,7 @@ impl<'a> Closure<'a> {
             scenario.result.is_some() || scenario.cohort.is_some() {
             return None;
         }
-        let [binding, branch] = scenario.effects.as_slice() else { return None; };
+        let [binding, branch, ..] = scenario.effects.as_slice() else { return None; };
         if binding.verb != EffectVerb::Let || branch.verb != EffectVerb::If ||
             !branch.match_arms.is_empty() { return None; }
         self.checked_first_query_source(scenario, binding)?;
@@ -11855,9 +11988,20 @@ impl<'a> Closure<'a> {
         &self, scenario: &'b super::effects::ScenarioData,
     ) -> Option<&'b Effect> {
         let binding = self.first_null_branch_decision(scenario)?;
-        let [_, branch] = scenario.effects.as_slice() else { return None; };
+        let [_, branch, suffix @ ..] = scenario.effects.as_slice() else { return None; };
         let query = self.checked_first_query_source(scenario, binding)?;
-        if query.dependencies.is_empty() || query.archived || query.limit.is_some() {
+        // An order-only selection has no control dependencies by design.
+        // Its original contained-parent path still bounds the owner domain;
+        // an unscoped order-only scan cannot acquire target authority here.
+        if (query.dependencies.is_empty() && query.first.as_ref()?.contained_parent.is_none()) ||
+            query.archived || query.limit.is_some() {
+            return None;
+        }
+        // The selected row may be the write target in this branch only.
+        // Subsequent effects execute in source order but receive no grant to
+        // read or transport that row. A use in any later effect needs its
+        // own checked value/result flow and remains refused here.
+        if suffix.iter().any(|effect| self.first_binding_used_in_node(binding, effect.node)) {
             return None;
         }
         let [create] = branch.then_effects.as_slice() else { return None; };
@@ -11875,6 +12019,40 @@ impl<'a> Closure<'a> {
             return None;
         }
         Some(binding)
+    }
+
+    /// A leading source Require may use the same contained owner domain as a
+    /// later null-branch first target. This pairs the two original query
+    /// occurrences without extending target authority to another model,
+    /// parent path or effect value. The receipt and State recheck the pair.
+    fn first_target_companion_any(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        binding: &Effect,
+        queries: &[DisclosureQuery],
+    ) -> bool {
+        let [any, first] = queries else { return false; };
+        let Some(selected) = first.first.as_ref() else { return false; };
+        let Some((first_receiver, parameter)) = selected.contained_parent else { return false; };
+        let Some((any_receiver, child_name)) = self.count_member(any.domain) else { return false; };
+        let Some((first_parent, first_hops)) = self.checked_call_parent_path(first_receiver, parameter, 0) else { return false; };
+        let Some((any_parent, any_hops)) = self.checked_call_parent_path(any_receiver, parameter, 0) else { return false; };
+        let Some(model) = self.resolve.symbols.get(first.model.0 as usize) else { return false; };
+        if selected.binding != binding.node || any.first.is_some() || any.count.is_some() ||
+            any.alias.is_none() || any.predicate.is_none() || any.projection.is_some() ||
+            any.cardinality_guard.is_some() || any.model != first.model ||
+            any.source != first.source || any.return_node != first.return_node ||
+            any.node.end > binding.node.start || any.inputs.len() != 1 || first.inputs.len() != 1 ||
+            any.inputs[0].1 != first.inputs[0].1 || first_parent != any_parent ||
+            first_hops != any_hops || model.name != child_name {
+            return false;
+        }
+        self.checked_decision_sites(scenario).is_some_and(|sites| sites.iter().any(|site|
+            site.stage == CheckedDecisionStage::LeadingRequire &&
+            site.calls.iter().any(|call| matches!(&call.target,
+                CheckedDecisionCallTarget::Builtin { id, .. } if id == "any") &&
+                self.types.checked_collection_calls.get(&call.node).is_some_and(|fact|
+                    fact.query == any.node && fact.model == any.model))))
     }
 
     /// C23 hook event operand: the predicate compares the row field against
@@ -13606,14 +13784,71 @@ impl<'a> Closure<'a> {
         }
     }
 
+    /// An unrelated optional File input may be present on the operation, but
+    /// the source-Require observer may carry it only as its literal null
+    /// default. Check every Require expression for an original binding to
+    /// that parameter; an omitted or copied decision input is never inferred.
+    fn source_require_unused_null_file_input(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        parameter: &super::effects::ParamData,
+        index: usize,
+    ) -> bool {
+        let Some(symbol) = self.resolve.symbols.get(parameter.param.0 as usize) else {
+            return false;
+        };
+        let SymbolKind::Param { owner, index: declared, type_node } = symbol.kind else {
+            return false;
+        };
+        let Some(ResolvedType::Nullable(inner)) = self.types.symbol_types.get(&parameter.param) else {
+            return false;
+        };
+        if owner != scenario.scenario || symbol.module != scenario.module || declared != index
+            || type_node != parameter.type_node
+            || inner.as_ref() != &ResolvedType::Scalar(Scalar::File)
+            || self.types.value_constraints.contains_key(&parameter.param)
+            || self.types.field_reuse_sources.contains_key(&parameter.param)
+        {
+            return false;
+        }
+        let Some(ty) = self.nodes.get(&parameter.type_node) else { return false; };
+        let mut named = ty.children.iter().filter(|child| child.kind == SyntaxKind::NamedType);
+        let Some(named_type) = named.next() else { return false; };
+        if ty.kind != SyntaxKind::NullableType || named.next().is_some()
+            || !self.direct_builtin_parameter_type(NodeKey::of(named_type), Scalar::File) {
+            return false;
+        }
+        let Some(default) = parameter.default else { return false; };
+        let Some(literal) = self.nodes.get(&default) else { return false; };
+        if default.file != scenario.node.file || literal.kind != SyntaxKind::Literal
+            || self.word(literal) != Some("null")
+            || self.types.node_types.get(&default) != Some(&ResolvedType::Null)
+        {
+            return false;
+        }
+        let Some(sites) = self.checked_decision_sites(scenario) else { return false; };
+        let mut pending = sites.into_iter()
+            .filter(|site| matches!(site.stage, CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire))
+            .map(|site| site.node).collect::<Vec<_>>();
+        let mut visited = 0usize;
+        while let Some(key) = pending.pop() {
+            visited += 1;
+            if visited > 16384 || matches!(self.query_binding(key),
+                Some(Binding::Symbol(id)) if *id == parameter.param) {
+                return false;
+            }
+            let Some(node) = self.nodes.get(&key) else { return false; };
+            pending.extend(node.children.iter().map(NodeKey::of));
+        }
+        true
+    }
+
     fn source_require_params_ok(&self, scenario: &super::effects::ScenarioData) -> bool {
-        !scenario.params.iter().any(|param| {
-            param.default.is_some()
-                || self
-                    .types
-                    .symbol_types
-                    .get(&param.param)
-                    .is_none_or(|ty| !self.source_require_input(ty))
+        !scenario.params.iter().enumerate().any(|(index, param)| {
+            (param.default.is_some()
+                || self.types.symbol_types.get(&param.param)
+                    .is_none_or(|ty| !self.source_require_input(ty)))
+                && !self.source_require_unused_null_file_input(scenario, param, index)
         }) && scenario
             .params
             .iter()
@@ -13859,7 +14094,128 @@ impl<'a> Closure<'a> {
         }
     }
 
-    fn unproved_helper_contained_any(&self, call: &CheckedDecisionCall) -> bool {
+    /// Follow a helper's original formal, optionally through `.parent`,
+    /// without treating a lexical copy or a same-typed derive result as the
+    /// admitted owner row. Each hop uses the same checked ChildOf validation
+    /// as a direct scenario-parameter path.
+    fn source_require_helper_parent_path(
+        &self,
+        key: NodeKey,
+        derive: SymbolId,
+        depth: usize,
+    ) -> Option<(SymbolId, SymbolId, u8)> {
+        if depth > 2 {
+            return None;
+        }
+        let key = self.query_group(key)?;
+        let node = self.nodes.get(&key)?;
+        if node.kind == SyntaxKind::NameRef {
+            let Some(Binding::Symbol(formal)) = self.query_binding(key) else {
+                return None;
+            };
+            let helper = self.effects.derives.get(&derive)?;
+            let parameter = helper.params.iter().find(|param| param.param == *formal)?;
+            let ResolvedType::Record { symbol: model, stored: true } =
+                self.types.symbol_types.get(formal)? else {
+                    return None;
+                };
+            if parameter.default.is_some()
+                || self.types.node_types.get(&key) != self.types.symbol_types.get(formal)
+                || !matches!(self.resolve.symbols.get(model.0 as usize)?.kind, SymbolKind::Model { .. })
+            {
+                return None;
+            }
+            return Some((*formal, *model, 0));
+        }
+        if node.kind != SyntaxKind::Member || depth == 2 {
+            return None;
+        }
+        let (base, name) = self.count_member(key)?;
+        if name != "parent" {
+            return None;
+        }
+        let (formal, child, prior) = self.source_require_helper_parent_path(base, derive, depth + 1)?;
+        let (parent, hops) = self.call_parent_hop_valid(key, base, child, prior)?;
+        Some((formal, parent, hops))
+    }
+
+    /// A helper-contained `parent.Child` has the same owner domain as a
+    /// direct source Require only when every call frame substitutes its
+    /// formal with an exact original parent path. Matching Model types alone
+    /// cannot establish which owner row the query will scan.
+    fn source_require_helper_contained_any(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        call: &CheckedDecisionCall,
+        query: &super::types::CheckedQuery,
+        model: SymbolId,
+    ) -> Option<()> {
+        let frame = call.chain.last()?;
+        let (receiver, name) = self.count_member(query.domain)?;
+        let (mut formal, parent, mut hops) =
+            self.source_require_helper_parent_path(receiver, frame.derive, 0)?;
+        let child = self.resolve.symbols.get(model.0 as usize)?;
+        if child.name != name
+            || child.module != call.module
+            || !matches!(child.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(owner), .. } if owner == parent)
+            || self.effects.models.get(&model)?.owner != ModelOwner::ChildOf(parent)
+        {
+            return None;
+        }
+        for index in (0..call.chain.len()).rev() {
+            let frame = &call.chain[index];
+            let helper = self.effects.derives.get(&frame.derive)?;
+            let selected = self.types.selected_calls.get(&frame.node)?;
+            let SelectedCallTarget::DeriveFn(target) = &selected.target else {
+                return None;
+            };
+            let slot = helper.params.iter().position(|param| param.param == formal)?;
+            if *target != frame.derive || selected.slots.len() != helper.params.len()
+                || helper.params[slot].default.is_some()
+            {
+                return None;
+            }
+            let argument = *selected.arguments.get(*selected.slots.get(slot)?.as_ref()?)?;
+            if self.types.node_types.get(&argument) != self.types.symbol_types.get(&formal) {
+                return None;
+            }
+            if index == 0 {
+                let (actual, path_hops) = scenario.params.iter().find_map(|parameter| {
+                    self.checked_call_parent_path(argument, parameter.param, 0)
+                        .map(|(actual, path_hops)| (actual, path_hops))
+                })?;
+                let ResolvedType::Record { symbol: expected, stored: true } =
+                    self.types.symbol_types.get(&formal)? else {
+                        return None;
+                    };
+                if actual != *expected || hops.checked_add(path_hops)? > 2 {
+                    return None;
+                }
+            } else {
+                let (outer_formal, actual, path_hops) =
+                    self.source_require_helper_parent_path(argument, call.chain[index - 1].derive, 0)?;
+                let ResolvedType::Record { symbol: expected, stored: true } =
+                    self.types.symbol_types.get(&formal)? else {
+                        return None;
+                    };
+                if actual != *expected {
+                    return None;
+                }
+                hops = hops.checked_add(path_hops)?;
+                if hops > 2 {
+                    return None;
+                }
+                formal = outer_formal;
+            }
+        }
+        Some(())
+    }
+
+    fn unproved_helper_contained_any(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        call: &CheckedDecisionCall,
+    ) -> bool {
         let Some(frame) = call.chain.last() else { return false; };
         if !matches!(&call.target, CheckedDecisionCallTarget::Builtin { id, .. } if id == "any") {
             return false;
@@ -13873,7 +14229,8 @@ impl<'a> Closure<'a> {
         let Some(child) = self.resolve.symbols.get(fact.model.0 as usize) else { return false; };
         helper.params.iter().any(|param| param.param == *parameter) && child.name == name &&
             matches!(child.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(owner), .. } if owner == *parent) &&
-            self.effects.models.get(&fact.model).is_some_and(|model| model.owner == ModelOwner::ChildOf(*parent))
+            self.effects.models.get(&fact.model).is_some_and(|model| model.owner == ModelOwner::ChildOf(*parent)) &&
+            self.source_require_helper_contained_any(scenario, call, query, fact.model).is_none()
     }
 
     fn source_require_any_call(
@@ -13949,7 +14306,9 @@ impl<'a> Closure<'a> {
                 return Some(false);
             }
         } else if domain_node.kind == SyntaxKind::Member {
-            if !self.source_require_any_member(query, &array, call)? {
+            if !self.source_require_any_member(query, &array, call).unwrap_or(false)
+                && self.source_require_helper_contained_any(scenario, call, query, fact.model).is_none()
+            {
                 *supported = false;
                 return Some(false);
             }
@@ -13961,6 +14320,75 @@ impl<'a> Closure<'a> {
         }
         *helper_query = true;
         Some(true)
+    }
+
+    /// An `all` in a pre-write Require may iterate only the original stored
+    /// model input's own reference array. Its nested helper searches are
+    /// observed at the same owner stage, once for each actual array member.
+    /// A copied array or a query with filtering/projection would lose that
+    /// source correspondence and remains outside this observer profile.
+    fn source_require_all_input_array(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        call: &CheckedDecisionCall,
+    ) -> Option<()> {
+        let fact = self.types.checked_collection_calls.get(&call.node)?;
+        let [Some(domain_slot), Some(predicate_slot)] = call.slots.as_slice() else {
+            return None;
+        };
+        let (domain, domain_ty) = call.arguments.get(*domain_slot)?;
+        let (predicate, predicate_ty) = call.arguments.get(*predicate_slot)?;
+        let query = self.types.checked_queries.get(domain)?;
+        let [alias] = query.clauses.as_slice() else {
+            return None;
+        };
+        let ResolvedType::Array { element, ordered: true, nonempty: false } = domain_ty else {
+            return None;
+        };
+        let ResolvedType::Record { symbol: item_model, stored: true } = element.as_ref() else {
+            return None;
+        };
+        let (receiver, name) = self.count_member(query.domain)?;
+        let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
+            return None;
+        };
+        let ResolvedType::Record { symbol: owner_model, stored: true } =
+            self.types.symbol_types.get(parameter)? else {
+            return None;
+        };
+        let field = self.effects.models.get(owner_model)?.fields.iter().find(|field| {
+            self.resolve.symbols.get(field.field.0 as usize)
+                .is_some_and(|decl| decl.name == name)
+        })?;
+        if !call.chain.is_empty()
+            || fact.node != call.node
+            || fact.builtin != "all"
+            || fact.overload != 0
+            || fact.query != *domain
+            || fact.alias != alias.node
+            || !matches!(&alias.kind, CheckedQueryClauseKind::As { name } if !name.is_empty())
+            || !alias.expressions.is_empty()
+            || fact.model != *item_model
+            || fact.predicate.as_ref().is_none_or(|value| value.node != *predicate
+                || value.ty != ResolvedType::Scalar(Scalar::Bool))
+            || call.arguments.len() != 2
+            || self.types.node_types.get(&call.node)
+                != Some(&ResolvedType::Scalar(Scalar::Bool))
+            || *predicate_ty != ResolvedType::Scalar(Scalar::Bool)
+            || query.node != *domain
+            || query.domain_type != *domain_ty
+            || query.result != *domain_ty
+            || query.projection.is_some()
+            || self.types.node_types.get(&query.domain) != Some(domain_ty)
+            || self.checked_call_parent_path(receiver, *parameter, 0) != Some((*owner_model, 0))
+            || !scenario.params.iter().any(|input| input.param == *parameter)
+            || self.types.symbol_types.get(&field.field) != Some(domain_ty)
+            || field.default.is_some()
+            || field.server.is_some()
+        {
+            return None;
+        }
+        Some(())
     }
 
     fn source_require_call(
@@ -13981,6 +14409,13 @@ impl<'a> Closure<'a> {
             }
             CheckedDecisionCallTarget::Builtin { id, overload } if id == "any" => {
                 self.source_require_any_call(scenario, body, call, id, overload, helper_query, supported)
+            }
+            CheckedDecisionCallTarget::Builtin { id, overload: 0 } if id == "all" => {
+                if self.source_require_all_input_array(scenario, call).is_none() {
+                    *supported = false;
+                    return Some(false);
+                }
+                Some(true)
             }
             CheckedDecisionCallTarget::Builtin { id, overload: 0 } if id == "trim" => {
                 if call.arguments.len() != 1
@@ -14081,6 +14516,8 @@ impl<'a> Closure<'a> {
             && !site.calls.iter().any(|call| {
                 matches!(&call.target, CheckedDecisionCallTarget::Builtin {id, ..} if id == "any")
                     && self.types.checked_collection_calls.get(&call.node).is_some_and(|fact| fact.query == key)
+                    || matches!(&call.target, CheckedDecisionCallTarget::Builtin {id, ..} if id == "all")
+                        && self.types.checked_collection_calls.get(&call.node).is_some_and(|fact| fact.query == key)
                     || body && matches!(&call.target, CheckedDecisionCallTarget::Builtin {id, ..} if matches!(id.as_str(), "sum" | "count"))
                         && call.arguments.iter().any(|(argument, _)| self.query_group(*argument) == Some(key))
             })
@@ -15155,6 +15592,35 @@ impl<'a> Closure<'a> {
         field_name: &str,
         ty: &ResolvedType,
     ) -> Result<Option<Vec<ValuePath>>, DisclosureDecline> {
+        if calls.is_empty() && self.loop_node.is_none()
+            && let Some((_, field)) = self.hook_delivery_field(key, module)
+        {
+            let name = self.resolve.symbols.get(field.0 as usize)
+                .ok_or_else(|| self.fail(key, "missing declared event field"))?.name.as_str();
+            if name == "term" || name == "obligation" {
+                let ResolvedType::Record { symbol: model, stored: true } = ty else {
+                    return Err(self.fail(key, "notice event Term type mismatch"));
+                };
+                let model_name = self.resolve.symbols.get(model.0 as usize)
+                    .ok_or_else(|| self.fail(key, "missing notice Term model"))?.canonical.clone();
+                return Ok(Some(vec![ValuePath {
+                    record: Some(*model),
+                    reference_origin: Some(ReferenceOrigin::EventRow { field, node: key }),
+                    reference: Some(DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                        parameter: field, parameter_name: "eventTerm".into(),
+                        model: *model, model_name,
+                    }),
+                    ..ValuePath::default()
+                }]));
+            }
+            if name == "revision" && *ty == ResolvedType::Scalar(Scalar::Int) {
+                let input = ValuePath {
+                    input: Some((field, "eventRevision".into(), Scalar::Int)),
+                    ..ValuePath::default()
+                };
+                return self.input_value(key, module, calls, input).map(|value| Some(vec![value]));
+            }
+        }
         if calls.is_empty()
             && self.loop_node.is_none()
             && let Some((parameter, ResolvedType::Scalar(scalar), path)) =
@@ -15606,8 +16072,11 @@ impl<'a> Closure<'a> {
         model: SymbolId,
         value: &mut ValuePath,
     ) -> Result<(), DisclosureDecline> {
-        let (parameter, depth) = match value.reference_origin {
-            Some(ReferenceOrigin::Parameter(parameter)) => (parameter, 0),
+        let (parameter, depth, event_row) = match value.reference_origin {
+            Some(ReferenceOrigin::Parameter(parameter)) => (parameter, 0, false),
+            Some(ReferenceOrigin::EventRow { field, node }) if node == base_key
+                && self.hook_delivery_field(base_key, module)
+                    .is_some_and(|(_, original)| original == field) => (field, 0, true),
             Some(ReferenceOrigin::ParameterMember { parameter, node })
                 if Some(node) == self.query_group(base_key)
                     && self
@@ -15616,13 +16085,13 @@ impl<'a> Closure<'a> {
                             root == parameter && target == model
                         }) =>
             {
-                (parameter, 0)
+                (parameter, 0, false)
             }
             Some(ReferenceOrigin::Parent {
                 parameter,
                 model: original,
                 depth,
-            }) if original == model && depth == 1 => (parameter, depth),
+            }) if original == model && depth == 1 => (parameter, depth, false),
             _ => {
                 return Err(
                     self.fail(key, "parent needs required original scenario parameter")
@@ -15647,8 +16116,14 @@ impl<'a> Closure<'a> {
             stored: true,
         };
         if !calls.is_empty()
-            || self.checked_call_parent_path(key, parameter, 0)
-                != Some((*parent, depth + 1))
+            || (event_row
+                && self.hook_delivery_field(base_key, module)
+                    .is_none_or(|(_, field)| field != parameter))
+            || (!event_row
+                && self.checked_call_parent_path(key, parameter, 0)
+                    != Some((*parent, depth + 1))
+                && self.checked_delivery_parent_path(key, module, parameter, 2)
+                    != Some((*parent, depth + 1)))
             || fields.iter().any(|field| {
                 self.resolve
                     .symbols
@@ -16047,17 +16522,37 @@ impl<'a> Closure<'a> {
         &self,
         key: NodeKey,
         calls: &[NodeKey],
+        base_key: NodeKey,
         model: SymbolId,
         field_ty: &ResolvedType,
         field_id: SymbolId,
         owner: &'a Symbol,
         value: &mut ValuePath,
     ) -> Result<String, DisclosureDecline> {
-        let ResolvedType::Record {
-            symbol: contract, ..
-        } = field_ty
-        else {
-            return Err(self.fail(key, "missing owning canonical Contract declaration"));
+        let (contract, nullable) = match field_ty {
+            ResolvedType::Record { symbol, .. } => (*symbol, false),
+            ResolvedType::Nullable(inner)
+                if matches!(inner.as_ref(), ResolvedType::Record { .. }) => {
+                let ResolvedType::Record { symbol, .. } = inner.as_ref() else {
+                    return Err(self.fail(key, "missing owning canonical Contract declaration"));
+                };
+                let Some((_, event_field)) = self.hook_delivery_field(base_key, owner.module) else {
+                    return Err(self.fail(key, "nullable Contract needs original notice event row"));
+                };
+                if !calls.is_empty()
+                    || self.loop_node.is_some()
+                    || owner.canonical != "agreements.Term"
+                    || self.resolve.symbols.get(event_field.0 as usize)
+                        .is_none_or(|event_field| event_field.name != "term")
+                    || self.count_member(key) != Some((base_key, "snapshot"))
+                    || self.resolve.symbols.get(field_id.0 as usize)
+                        .is_none_or(|field| field.name != "snapshot")
+                {
+                    return Err(self.fail(key, "nullable Contract needs original notice snapshot"));
+                }
+                (*symbol, true)
+            }
+            _ => return Err(self.fail(key, "missing owning canonical Contract declaration")),
         };
         let contract = self
             .resolve
@@ -16087,7 +16582,7 @@ impl<'a> Closure<'a> {
             return Err(self.fail(key, "unsupported stored Contract field occurrence"));
         }
         value.contract_value = Some(ContractValue::Singular(contract.id));
-        Ok(contract.canonical.clone())
+        Ok(format!("{}{}", contract.canonical, if nullable { "?" } else { "" }))
     }
 
     fn expr_member_parent_origin(
@@ -16229,7 +16724,13 @@ impl<'a> Closure<'a> {
             .symbol_types
             .get(&field.id)
             .ok_or_else(|| self.fail(key, "missing stored field type"))?;
-        if field_ty != ty || field.module != owner.module {
+        // Flow checking can narrow a nullable field after a successful
+        // `require field != null`. Keep the declared nullable field in the
+        // source dependency below; only its checked non-null occurrence may
+        // use the narrower expression type.
+        let narrowed_nullable =
+            matches!(field_ty, ResolvedType::Nullable(inner) if inner.as_ref() == ty);
+        if (field_ty != ty && !narrowed_nullable) || field.module != owner.module {
             return Err(self.fail(key, "stored field schema identity mismatch"));
         }
         Ok((owner, field, field_ty))
@@ -16338,10 +16839,14 @@ impl<'a> Closure<'a> {
             value.first_query = None;
             value.reference_origin = None;
             type_id
-        } else if matches!(field_ty, ResolvedType::Record { .. }) {
+        } else if matches!(field_ty, ResolvedType::Record { .. })
+            || matches!(field_ty, ResolvedType::Nullable(inner)
+                if matches!(inner.as_ref(), ResolvedType::Record { .. }))
+        {
             self.expr_member_contract_record_type(
                 key,
                 calls,
+                base_key,
                 model,
                 field_ty,
                 field.id,
@@ -16378,7 +16883,25 @@ impl<'a> Closure<'a> {
         value: &mut ValuePath,
     ) -> Result<(), DisclosureDecline> {
         self.expr_member_model_guard(key, module, base_key, value)?;
+        let notice_snapshot_title = field_name == "title"
+            && *ty == ResolvedType::Scalar(Scalar::Text)
+            && matches!(value.contract_value, Some(ContractValue::Singular(contract))
+                if self.resolve.symbols.get(contract.0 as usize)
+                    .is_some_and(|contract| contract.canonical == "agreements.ExecutedParties"))
+            && self.count_member(base_key).is_some_and(|(event_term, name)|
+                name == "snapshot"
+                    && self.hook_delivery_field(event_term, module)
+                        .is_some_and(|(_, field)| self.resolve.symbols.get(field.0 as usize)
+                            .is_some_and(|field| field.name == "term")))
+            && value.reads.iter().any(|read| read.node == base_key
+                && read.model_name == "agreements.Term" && read.field_name == "snapshot"
+                && read.calls.is_empty() && read.query_id.is_none());
         self.expr_member_contract_value(key, module, base_key, field_name, ty, value)?;
+        if notice_snapshot_title {
+            // The whole nullable Contract was observed at its original Term
+            // field; its checked local title has no separate stored row.
+            return Ok(());
+        }
         let Some(model) =
             self.expr_member_composite_value(key, base_key, field_name, ty, value)?
         else {
@@ -16743,6 +17266,8 @@ impl<'a> Closure<'a> {
             .ok_or_else(|| self.fail(key, "missing checked operator"))?;
         let (current_null_check, first_null_check, input_null_check) =
             self.binary_null_checks(key, module, env, calls, op, &children);
+        let notice_snapshot_null_check =
+            self.notice_snapshot_null_check(key, module, calls, op, &children);
         // Exact original required Model slots, direct or in Contracts, may
         // consume checked containment in equality. Both operands retain their
         // own admission provenance and must name the same model. Arbitrary
@@ -16753,6 +17278,7 @@ impl<'a> Closure<'a> {
             self.binary_parent_comparison(module, env, calls, op, &children);
         if !first_null_check
             && !input_null_check
+            && !notice_snapshot_null_check
             && !admitted_parent_comparison
             && matches!(op, "??" | "==" | "!=")
             && children.iter().any(|operand| {
@@ -16796,14 +17322,61 @@ impl<'a> Closure<'a> {
                 &children,
                 left,
                 current_null_check,
-                input_null_check,
+                input_null_check || notice_snapshot_null_check,
                 admitted_parent_comparison,
             )
         }
     }
 
+    /// The original notice IF may test the nullable stored Contract snapshot
+    /// for presence. This observes that exact Term field as control; it does
+    /// not make an arbitrary nullable reference selectable or copyable.
+    fn notice_snapshot_null_check(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        calls: &[NodeKey],
+        op: &str,
+        children: &[&SyntaxNode],
+    ) -> bool {
+        let [snapshot, null] = children else { return false; };
+        if op != "!=" || !calls.is_empty() || self.loop_node.is_some()
+            || self.types.node_types.get(&NodeKey::of(null)) != Some(&ResolvedType::Null)
+            || self.types.node_types.get(&key) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        { return false; }
+        let snapshot = NodeKey::of(snapshot);
+        let Some((receiver, "snapshot")) = self.count_member(snapshot) else { return false; };
+        let Some((scenario, term_field)) = self.hook_delivery_field(receiver, module) else {
+            return false;
+        };
+        let Some(owner) = self.effects.scenarios.get(&scenario) else { return false; };
+        let Some(branch) = owner.effects.first() else { return false; };
+        if owner.effects.len() != 1 || branch.verb != EffectVerb::If
+            || branch.cond.is_none_or(|cond| cond.file != key.file
+                || cond.start > key.start || key.end > cond.end)
+        { return false; }
+        let Some(ResolvedType::Record { symbol: term, stored: true }) =
+            self.types.symbol_types.get(&term_field) else { return false; };
+        let Some(SymbolKind::Model { fields, .. }) =
+            self.resolve.symbols.get(term.0 as usize).map(|item| &item.kind) else { return false; };
+        let mut snapshots = fields.iter().filter_map(|field|
+            self.resolve.symbols.get(field.0 as usize)).filter(|field| field.name == "snapshot");
+        let Some(field) = snapshots.next() else { return false; };
+        let Some(ResolvedType::Nullable(inner)) = self.types.symbol_types.get(&field.id) else {
+            return false;
+        };
+        let ResolvedType::Record { symbol: contract, .. } = inner.as_ref() else {
+            return false;
+        };
+        snapshots.next().is_none()
+            && self.types.node_types.get(&snapshot) == self.types.symbol_types.get(&field.id)
+            && self.resolve.symbols.get(contract.0 as usize)
+                .is_some_and(|contract| contract.canonical == "agreements.ExecutedParties"
+                    && matches!(contract.kind, SymbolKind::Contract { .. }))
+    }
+
     /// A binary's null checks: the current-Revision presence test, the
-    /// first-query `let` absence primitive and the nullable input test.
+    /// first-query `let` absence primitive, and exact nullable input tests.
     fn binary_null_checks(
         &self,
         key: NodeKey,
@@ -16836,13 +17409,60 @@ impl<'a> Closure<'a> {
         let input_null_check = matches!(op, "==" | "!=") && calls.is_empty()
             && [(children[0], children[1]), (children[1], children[0])].iter().any(|(value, null)| {
                 let input = NodeKey::of(value);
-                self.types.node_types.get(&NodeKey::of(null)) == Some(&ResolvedType::Null)
-                    && value.kind == SyntaxKind::NameRef
-                    && matches!(self.query_binding(input), Some(Binding::Symbol(parameter))
+                if self.types.node_types.get(&NodeKey::of(null)) != Some(&ResolvedType::Null) {
+                    return false;
+                }
+                if value.kind == SyntaxKind::NameRef {
+                    return matches!(self.query_binding(input), Some(Binding::Symbol(parameter))
                         if env.get(&Local::Symbol(*parameter)).is_some_and(|value| {
                             value.reference_origin == Some(ReferenceOrigin::NullableParameter(*parameter))
                                 && value.record.is_some()
-                        }))
+                        }));
+                }
+                // The original required row's one nullable stored-reference
+                // field is observed as a control dependency at this getter.
+                // A copied row, second hop, or reference value used elsewhere
+                // still has no absence carrier.
+                let Some((receiver, _)) = self.count_member(input) else {
+                    return false;
+                };
+                let Some((parameter, _)) =
+                    self.original_call_model_parameter(receiver, key, module)
+                else {
+                    return false;
+                };
+                // This absence bit may authorize the owning mutation only.
+                // Returning or copying the nullable reference still needs a
+                // separate result grant, which this profile does not issue.
+                let mut owners = self.effects.scenarios.values().filter(|scenario| {
+                    scenario.module == module
+                        && scenario.node.file == key.file
+                        && scenario.node.start <= key.start
+                        && key.end <= scenario.node.end
+                });
+                let Some(owner) = owners.next() else {
+                    return false;
+                };
+                if owners.next().is_some()
+                    || !owner.guards.iter().any(|guard| {
+                        guard.verb == EffectVerb::Require
+                            && guard.cond.is_some_and(|condition| {
+                                condition.file == key.file
+                                    && condition.start <= key.start
+                                    && key.end <= condition.end
+                            })
+                    })
+                {
+                    return false;
+                }
+                matches!(self.types.node_types.get(&input),
+                    Some(ResolvedType::Nullable(inner))
+                        if matches!(inner.as_ref(), ResolvedType::Record { stored: true, .. }))
+                    && self.call_parameter_field(input, parameter).is_some()
+                    && env.get(&Local::Symbol(parameter)).is_some_and(|value| {
+                        value.reference_origin == Some(ReferenceOrigin::Parameter(parameter))
+                            && value.record.is_some()
+                    })
             });
         (current_null_check, first_null_check, input_null_check)
     }
@@ -21562,6 +22182,51 @@ impl<'a> Closure<'a> {
                     && self.word(node) == Some(original.binding.as_str())
             }
 
+            /// A model returned by the immediately preceding checked child
+            /// call may fill one stored reference on this same root path.
+            /// The source binding and evaluated call result must be identical;
+            /// an intervening statement or copied lexical value is refused.
+            fn preceding_set_call(
+                &self,
+                effect: &Effect,
+                module: ModuleId,
+                key: NodeKey,
+                called: NodeKey,
+            ) -> bool {
+                let Some(node) = self.nodes.get(&key) else {
+                    return false;
+                };
+                if !matches!(node.kind, SyntaxKind::Name | SyntaxKind::NameRef)
+                    || !matches!(self.query_binding(key), Some(Binding::CallAs {node}) if *node == called)
+                {
+                    return false;
+                }
+                let mut owners = self.effects.scenarios.values().filter(|scenario| {
+                    scenario.module == module
+                        && scenario.node.file == effect.node.file
+                        && scenario.node.start <= effect.node.start
+                        && effect.node.end <= scenario.node.end
+                });
+                let Some(owner) = owners.next() else {
+                    return false;
+                };
+                if owners.next().is_some() {
+                    return false;
+                }
+                let Some(position) = owner.effects.iter().position(|statement| statement.node == effect.node)
+                else {
+                    return false;
+                };
+                let Some(previous) = position.checked_sub(1).and_then(|index| owner.effects.get(index))
+                else {
+                    return false;
+                };
+                previous.verb == EffectVerb::Call
+                    && previous.node == called
+                    && matches!((previous.binding.as_deref(), self.word(node)),
+                        (Some(expected), Some(actual)) if expected == actual)
+            }
+
             /// CALL-only stored File[] observation. No ordinary expression/result or
             /// File intrinsic gains admission from this source-backed input leaf.
             fn call_file_array_operand(
@@ -22457,7 +23122,10 @@ impl<'a> Closure<'a> {
                         if self.original_call_model_parameter(key, effect.node, module) == Some((parameter, model)))
                         || matches!(value.model_result,
                             Some(DisclosureModelResult::Create { model: actual, node })
-                            if actual == model && self.preceding_call_create(effect, module, key, model, node)))
+                            if actual == model && self.preceding_call_create(effect, module, key, model, node))
+                        || matches!(value.model_result,
+                            Some(DisclosureModelResult::Call { model: actual, node, .. })
+                            if actual == model && self.preceding_set_call(effect, module, key, node)))
             }
 
             fn set_reference_type(&self, ty: &ResolvedType, calls: &[NodeKey]) -> Option<SymbolId> {
@@ -22640,6 +23308,13 @@ impl<'a> Closure<'a> {
                 file_inputs: &mut Vec<DisclosureFileInput>,
             ) -> Result<Vec<ValuePath>, DisclosureDecline> {
                 if !file {
+                    let key = arg.value.unwrap_or(arg.key_node);
+                    if let Some(Binding::CallAs { node }) = self.query_binding(key) {
+                        let value = env.get(&Local::Call(*node)).cloned().ok_or_else(|| {
+                            self.fail(key, "bound child result lacks its original evaluated call")
+                        })?;
+                        return Ok(vec![self.input_value(key, module, calls, value)?]);
+                    }
                     return match arg.value {
                         Some(value) => self.expr(value, module, env, calls),
                         None => self.lexical(arg.key_node, module, env, calls),

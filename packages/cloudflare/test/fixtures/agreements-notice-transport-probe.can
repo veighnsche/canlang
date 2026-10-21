@@ -1,0 +1,16 @@
+app NoticeProbe uses=[agreements]
+package agreements
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  Agreement { email:email, active:bool=true }
+  contract ExecutedParties { title:text }
+  Term in Agreement { executed:bool=false, snapshot:ExecutedParties?, terminated:bool=false, expired:bool=false, notice_suppressed:bool=false }
+  NoticeDelivery in Term { revision:int, delivery:delivery(Mail.send)? }
+  event Notice { term:Term, revision:int }
+ When
+  scenario notice on=Notice
+   do
+    if event.term.version==event.revision and event.term.executed and event.term.snapshot!=null and not event.term.terminated and not event.term.expired and not event.term.notice_suppressed and event.term.parent.active
+     send Mail.send {to=event.term.parent.email,subject=format("Agreement notice deadline"@{nl="Opzegdeadline overeenkomst"},locale=null),body=event.term.snapshot.title} when=event.term.version==event.revision and not event.term.terminated and not event.term.expired and not event.term.notice_suppressed and event.term.parent.active as delivery
+     create NoticeDelivery {parent=event.term,revision=event.revision,delivery} as notice
+ Then

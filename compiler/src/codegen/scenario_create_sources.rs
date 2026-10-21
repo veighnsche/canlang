@@ -7015,22 +7015,27 @@ impl<'a> SourceExpressions<'a> {
         if scan.value_order.is_some() {
             return None;
         }
-        SourceExpressions {
-            ir: self.ir,
-            db: self.db,
-            original: self.original,
-            owner: self.owner,
-            nodes: self.nodes,
-            text: self.text,
-            operands: self.operands,
-            membership_call: self.membership_call,
-            query_alias: Some((alias_name, &scan.where_param)),
+        match (scan.where_pred.as_ref(), query.predicate) {
+            (Some(predicate), Some(source)) => {
+                SourceExpressions {
+                    ir: self.ir,
+                    db: self.db,
+                    original: self.original,
+                    owner: self.owner,
+                    nodes: self.nodes,
+                    text: self.text,
+                    operands: self.operands,
+                    membership_call: self.membership_call,
+                    query_alias: Some((alias_name, &scan.where_param)),
+                }
+                .expression(predicate, source, depth + 1)?;
+            }
+            // The checked order-only first has no predicate or transported
+            // input. Its domain and id order were joined above, so there is
+            // no predicate expression for this constructor prefix to match.
+            (None, None) if query.dependencies.is_empty() && query.inputs.is_empty() => {}
+            _ => return None,
         }
-        .expression(
-            scan.where_pred.as_ref()?,
-            query.predicate?,
-            depth + 1,
-        )?;
         Some(())
     }
     fn match_first_call(

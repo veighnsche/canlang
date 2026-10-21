@@ -6,6 +6,55 @@ descriptions were too categorical: current code supports some of the shapes
 they called refused. Investigate each issue against the compiler and installed
 runtime before choosing a design.
 
+The parent commit before the recovery pinned `draft` to
+`fe2502ea4c57140ad3fccea3bd976119445440d4`, but that object is unavailable
+from the draft remote. Canlang now pins the recovered draft main merge commit
+`bbf29d178a43bca6dcce486d501c0b3d43fc9ebe`. The 2026-10-21
+reproduction uses the earlier draft main `32cc63933a8310ea9b6f00f67dd6e2117e1f7324`;
+its 24 source operands also generate two contribution sources. A prebuilt
+compiler capture on that published revision completed with 106 diagnostics
+(`complete:true`, `omitted:0`). It is a different compiler build and draft
+revision from the earlier capture below, so count changes alone do not
+establish the effect of a particular fix.
+
+The October 20 Canlang gitlink update identifies `fe2502e` as a later draft
+revision and describes four optional-navigation insertions in
+`apps/CanLeave/CanLeave.can`. An October 21 migration archive preserved that
+exact two-line source change; [its patch](recovery/canleave-fe2502e-source.patch)
+is also kept in this repository so it does not depend on the missing submodule
+object. Recovery commit `80e4f0829ecff14f6d19ea947f5137e97dd8d8dc`
+reconstructs it on the earlier main and is now merged into draft main at
+`bbf29d178a43bca6dcce486d501c0b3d43fc9ebe`; it is not the missing Git
+object. A four-source compile with the same release compiler and catalog
+reports 10 diagnostics on the earlier main versus 7 on the recovered source:
+precisely the three `CanLeave` value
+query order `E6008` diagnostics disappear. The recovered 24-source capture
+completed with 88 diagnostics (`complete:true`, `omitted:0`). Compared with the
+92-diagnostic capture below, it also lacks an unrelated `CanShift` external
+`active_member` diagnostic, so that full-capture difference cannot all be
+attributed to the recovered draft change. Canlang commit `0eb9162c` replaces
+the unavailable `fe2502e` gitlink with the current draft main merge commit.
+
+An earlier release build on published draft main completed the same
+24-source capture with 92 diagnostics (`complete:true`, `omitted:0`). A build
+before that had 98; the 92-diagnostic capture clears the original
+`CanDesk.handoff` call, `CanPurchase.accept_invoice` created-result, and
+`CanLeave.cancel`/`retry_release` guarded-SEND refusals, as well as nine
+helper-contained source-`Require` and two viewer `CanLeave.preview` first-query
+sites. `CanCustomer.accept` still lacks a multi-query owner receipt, and
+`CanLeave.decide` still lacks a complete native owner receipt. The sections below
+distinguish installed and full-draft clearances from remaining gaps. The
+prebuilt compiler came from another commit, so its 106-to-92 count change is
+an observed capture comparison rather than isolated per-change attribution.
+
+The current release build over the recovered draft completed with 87
+diagnostics (`complete:true`, `omitted:0`). Compared site-by-site with the
+88-diagnostic recovered-draft capture before the event repair, exactly the
+two original `CanContract.notice` and `CanContract.due` guarded-SEND refusals
+cleared. One unrelated `CanShift` external `active_member` diagnostic appeared
+in the new composition; the total 88-to-87 change therefore understates the
+two event-site clearances and is not a general zero-diagnostic claim.
+
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
 **Implementation status, 2026-10-21:** The first owner-decision repair is now
@@ -13,23 +62,89 @@ implemented for independently checked source-`Require` guards and the confined
 `any` plus decision-only `first` composition. Installed-runtime integration
 checks show hidden blockers reject, a membership-free guard executes, an
 unreadable anchor adds no viewer-read prerequisite, and ordinary `read=true`
-queries remain viewer-filtered. Helper-contained `ChildOf` scans without exact
-domain proof now fail at compilation with `E6008`. A further checked void
-`first` null branch now selects an owner row for either a create or an
-authorized update target, including when that row is hidden or has no read
-policy; a selected field copied into the update without value proof is
-explicitly refused. The tables and failures
-below record the *pre-repair reproduction*; they are retained to explain the
-defect. This change does not claim to clear the original app's remaining
-query correspondence diagnostics or implement mixed result/effect flows.
+queries remain viewer-filtered. Helper-contained `ChildOf` scans now admit
+only exact original parent-parameter substitution; a copied or unproved
+receiver still gets `E6008`. A checked void `first` null branch can select an
+owner row for a create or an authorized update target, including a hidden
+row, while copied selected fields and later unproved uses remain refused.
+An order-only contained `first` target has a separate checked empty-predicate
+receipt and State admission; an unscoped version remains refused. The tables
+and failures below record the *pre-repair reproduction*.
 
-The current 24-source compile finishes with 103 diagnostics (`complete:true`,
+A separate checked profile pairs one leading `any` guard with a contained
+`first` null-branch update target over the same original parent and model.
+Installed integration checks cover hidden active blockers, hidden inactive
+targets, visible rows, and an unrelated-parent refusal. The original
+`CanCustomer.accept` still reports `first query: original native query
+correspondence` in the complete 24-source capture: its earlier
+`has_role`/`has_location_role` helpers search `CompanyRole` before the direct
+`any` and write-target `first`. The `has_location_role` call repeats inside
+`all(invitation.locations as location, ...)`, so one syntactic helper query
+can execute for several bound locations. Today's helper query inventory seals
+only narrower formal/domain shapes, the source-`Require` observer does not
+admit that `all` call, and the native receipt plus State write-target gate
+recognize only the exact two-query pair. A complete composite profile must
+seal each helper argument back to the original `Invitation` and its declared
+location array, record the repeated child-domain observations in authored
+order, and compose those guards with the direct pair at their original owner
+stage. State must fence every observed domain and selected target against the
+same revision while allowing hidden guard rows to decide the mutation without
+granting a result read. Increasing the accepted query count alone would leave
+the repeated helper calls and ordering unproved, so this original site remains
+fail-closed pending those compiler and State interfaces.
+
+A scratch-only disclosure probe found its first source decline at
+`has_role(invitation.invited_by,invitation.parent,administrator)`: the helper's
+Contract wire does not have the required direct local consumer. Bypassing
+that call in memory exposes the nested `all(invitation.locations...)` query
+closure, and bypassing that Require exposes the `Location[]` copy into the
+new `CompanyRole`. These are independent source/value dependencies before
+the first-selected existing-role or create/SET target can be admitted; no
+draft or compiler source was changed by the probe.
+
+The nearest remaining void mutation is `CanMember.assign`: its
+`first(term.Seat...)` drives a null-branch create or selected-row update,
+but the leading decision also counts active `Seat` rows and evaluates
+`has_role`, per-location `has_location_role`, and `eligible_account` helper
+searches over other stored models. The current State gate admits a single
+target query or an exact same-model two-query pair. Extending that gate just
+for the `first` would omit the other guard domains and their source order.
+The other original mutation-body sites additionally copy selected fields
+into effects, return an existing selected row, or select after earlier
+effects and nested loops; they require corresponding value, result, and
+stage proofs rather than a generic `first` allowance.
+
+An exact leading helper `can_work(actor,ticket.location)` over a required
+original Model field uses the source-`Require` observer, whose installed
+predicate reads the hidden owner domain and fences it at the initial stage.
+The `CanDesk.handoff` shape also has an unrelated `photo:file?=null` input.
+Its source-`Require` admission now verifies that exact literal-null declaration
+is unused by every Require guard; the fresh-IR serializer rejoins the null
+default, and the Cloudflare loader accepts only an actual null for this
+observer. A non-null File still needs separate owner-stage File provenance.
+Installed probes with a created model result and with a child
+call→set→returned Repair both commit for a hidden active Employee, reject
+hidden inactive or unrelated rows, and leave ordinary `Employee.read`
+viewer-filtered. They cover a compound null/model guard and null File
+forwarding, but full imported `CanDesk.handoff` clearance still requires the
+complete 24-source capture. That capture now clears the original
+`CanDesk.handoff` call-effect `E6008` at offset 19160; two independent
+CanDesk list-filter diagnostics remain.
+
+An ordinary viewer `read=true` body can now apply a source-checked model
+`first` to the canonical viewer `records` result. The installed regression
+checks hidden rows, an authored `where` clause, ordering, and membership
+revocation. In a four-source dependent compile, the two original
+`CanLeave.preview` first-query refusals cleared; its two mutation `request`
+first-query refusals did not. This viewer path grants no owner decision query.
+
+An earlier 24-source compile finished with 103 diagnostics (`complete:true`,
 `omitted:0`), compared with 91 in the 2026-10-20 capture. Fourteen newly
 explicit `E6008` refusals are helper-contained `ChildOf` source-`Require`
-shapes that still lack exact parent substitution; two former send-guard
+shapes that still lacked exact parent substitution; two former send-guard
 diagnostics cleared. All 21 original `first` correspondence diagnostics
-remain. The new target-only `first` profile is verified on a focused
-installed-runtime fixture, not yet an accepted original-app site.
+remained in that earlier capture. It predates the exact helper and viewer
+repairs above.
 
 **Observed on 2026-10-20:** the compiler accepts at least one leading
 scenario `require` that calls a helper containing `any(...)`. With native
@@ -165,7 +280,7 @@ its sole consumer, `require c!=null`. The runtime treats it as absent. The
 third row isolates the leading `any` defect because its visible inactive
 child keeps that later `first` satisfied.
 
-The current capture's 21 `first query: original native query correspondence`
+The earlier capture's 21 `first query: original native query correspondence`
 diagnostics are heterogeneous: six occur in derive declarations (including
 two used by an explicit `read=true scope=authority` report), two in
 `CanLeave.preview` (`read=true` without that scope, so viewer authority), and thirteen in
@@ -173,6 +288,39 @@ mutation scenario bodies. The latter include idempotent create/update
 branches, effect-target or field selection, guarded evidence, and returned
 existing rows. They cannot all acquire owner authority from the spelling
 `first`; the original consumer and any result/effect flow must be checked.
+
+The six derive-declaration sites were checked separately against the current
+source and runtime. None has a safe local `first` exception. The native
+first-query receipt currently binds a source-backed **scenario-body** `let`
+and its original consumer; a derive has no such admission or frozen query
+stage. The new pure-first exception belongs only to an ordinary viewer
+`read=true` body, not a helper whose authority varies by caller. In
+particular:
+
+| Derive `first` sites | Missing correspondence |
+| --- | --- |
+| `CanInvoice.first_paid_invoice` | `received` and the `first_receipt(invoice)` order key depend on payment child domains. Its callers both decide and create/update `CommercialHistory`; the first row, all candidate/order dependencies, and the effect consumer need one owner-fenced proof. |
+| `CanRefer.latest_capture` | The exported nullable `Capture` selection follows advocate/partner references, reads their collection memberships and `now`, and is called from other apps' mutation guards. A helper-local grant would cross both owner and module boundaries. |
+| Two nested `CanRent.saved_rows` selections | Each point chooses a `ResourcePolicy` and `LocationPolicy` by dynamic `left`, inside nested `flatten` projections returned by `resource_report`. That report has explicit `scope=authority`, but its current State decision query accepts only bounded data-only selections; the Cloudflare host rejects callback predicates and contained-parent filters. The source needs a per-point owner snapshot and a result grant for the complete `Contribution[]`. |
+| `CanShift.previous_work` and `next_work` | `travel_entered` calls both helpers repeatedly from mutation and trusted-event decisions, then reads nullable selected-row fields. The predicates use dynamic employee/skip/time values and order by time, so each call needs the inherited owner stage, whole candidate order, selected fields, and commit-fence correspondence. |
+
+Among mutation-body sites, `CanInvoice.issue` takes the order-only first row
+of unscoped global `Defaults`, reads its retry fields in a Require, and copies
+three fields into the Invoice SET. The same owner also has a `Line` count,
+an Invoice `any` guard, a `can_work` helper, a Line sum, settlement and EMIT,
+guarded SEND, and SCHEDULE. The current first receipt has no selected-Defaults
+field dependencies and State's decision grant accepts one query; the existing
+order-only target profile requires a contained parent. A correct extension
+must fence those original guard domains and selected Defaults fields together
+with the mutation value lineage, rather than admitting that `first` alone.
+
+The underlying refusal in [`js.rs`](../compiler/src/codegen/js.rs) therefore
+remains appropriate for the six derive sites; allowing `first` over an unfenced model
+array would change the query authority or expose a stale selected row. A
+future implementation should issue a checked derive-call-site recipe under
+the caller's actual viewer or owner mode and test hidden candidates, ties,
+parent changes, and concurrent row/domain changes through the installed
+runtime.
 
 The existing bounded owner query was checked with nonblocking rows: 200
 `Secret` rows allowed the mutation, while 201 produced `validation` /
@@ -201,18 +349,136 @@ bounded queries, and commit-time revalidation. These probes have not exercised
 
 ## 2. Event handlers that send or create (historically ~17 diagnostics)
 
-The original note described a narrow receipt-aware event-handler shape and
-said every failing handler was declined. Current code has additional ordinary
-handler paths, so that statement is not a reliable current classification.
-The exact remaining failures and the authority for outside event data need
-their own source and runtime investigation.
+The original `CanContract.notice` and `CanContract.due` handlers now have an
+exact declared-event SEND profile. The compiler matches their complete
+IF→Mail SEND→NoticeDelivery CREATE shapes, the declared `Notice` or
+`ObligationDue` model field and revision, original source and IR occurrences,
+and the guarded Rule's typed inputs. The private Work due path supplies the
+retained event payload; State binds it to the current owner row and fences
+that row and its navigated Term/Agreement parents before commit. An installed
+notice probe sends and creates once for a current Term, and a due probe does
+the same for a current Obligation. The notice probe also checks the nullable
+executed-party snapshot and localized subject against the verified app locale.
+Stale revisions, a null snapshot, terminated or done rows, inactive parents,
+and changes after scheduling produce no Mail intent or NoticeDelivery. Forged
+occurrences, changed retained schedule payloads, tampered terminal status,
+and undeclared event fields are refused. New File inventories retain only the
+void result type rather than duplicating the large checked disclosure; an
+unchanged older full-void inventory reopens, while an altered plan is refused.
+The two original CanContract SEND `E6008` sites clear in the complete recovered
+24-source capture.
+
+The [exact event-row SEND carrier design](design/event-send-owner-row.md)
+specifies the remaining compiler, Cloudflare, and State proof for
+`CanInvoice.overdue`. Its guard reads derived `Invoice.balance`, whose Credit,
+Attempt, and ExternalPayment dependencies still lack a bounded frozen
+source-owner snapshot and commit fence. That handler remains refused.
+
+A bounded ordinary mutation SEND repair now carries a checked field narrowed
+from its nullable declaration after a successful source `require`; the
+original declaration remains part of the transport proof. SEND guard
+preparation stages each owning scenario atomically and checks its fresh IR
+diagnostics, while the whole-IR and checked-type correspondence seals remain
+fatal. A missing native guard emits `E6008` and a runtime throw instead of
+falling back to a callback. The installed test commits exactly one Mail intent
+for a current nonnull recipient and none for a null recipient or a failed
+state guard. A mixed-source negative fixture reports `E6008` only in the
+unproved event handler, leaving its separate valid mutation owner clear.
+`event` remains refused as a free SEND guard name outside the two exact
+CanContract private profiles. The five
+additional original Invoice standard-trigger failures are classified there.
+
+The current recovered-draft release capture finished with 87 diagnostics
+(`complete:true`, `omitted:0`), including 21 guarded-SEND refusals: 14 at
+unprepared guard sites and seven at owners whose native receipt still lacks
+complete correspondence. The compiler now indexes only original guarded-SEND
+scenario subtrees, so the corpus no longer trips the 200,000-node global CST
+census before owner preparation. The original `CanLeave.cancel` and
+`CanLeave.retry_release` SEND refusals cleared in the complete corpus; its
+`decide` SEND guard is prepared, but the owner still reports a native receipt
+refusal. Its first checked disclosure decline is the contained
+`all(request.Portion as portion,...)` guard: the present source-`Require`
+observer only admits a stored reference-array `all`, and this one also reads
+derived allowance `remaining`. It needs a bounded owner child-domain and
+derived-dependency receipt before the SEND stage can be admitted. A scratch
+closure with only that guard removed then declines `request.timezone` inside
+the SEND payload's `local_instant(...)`: the stored timezone field lacks an
+exact receipt value transport. The branch's SET→SEND→SET effects still need
+their own complete owner-stage match. The two
+original `CanMaintain` ordinary guarded SEND sites at offsets
+20318 and 21253, and the `CanEvent` site at 60773, also cleared. The guarded
+`CanInvoice.overdue` event SEND still reports `E6008` at its predicate (offset
+73254), as do other unproved event/source shapes. Clearing an owner's
+SEND Rule does not by itself admit its whole scenario receipt.
 
 ## 3. Data flowing across two models (historically ~20 diagnostics)
 
-The original note called cross-model search/create/return scenarios a blanket
-compiler refusal. Current code supports some cross-model flows, so the
-remaining failing shapes need to be identified individually. Their proof and
-result-disclosure boundaries have not been reproduced in this investigation.
+**Implementation status, 2026-10-21:** Cross-model search/create/return is
+not a blanket refusal. The original `CanCRM.promote_research` compiles with
+zero diagnostics; an installed-runtime regression now checks its `first`
+selection, Deal and ResearchIntake creates, returned Deal, replay, and changed
+evidence. That run exposed a use-before-initialization in Cloudflare's File
+staging census, now fixed in [`invoke.ts`](../packages/cloudflare/src/runtime/invoke.ts).
+
+The remaining original `CanDesk.handoff` call effect had two independent
+source-proof gaps: its leading `ticket.repair==null` guard selected a nullable
+reference, and `set ticket {repair}` consumed the immediately preceding
+`CallAs` result. The compiler now admits those exact shapes while retaining
+their original source and result lineage. In a 15-source imported CanDesk
+closure copied from published draft main, the handoff's `E6008` call-effect
+diagnostic cleared; that closure still had 32 other diagnostics. A separate
+installed-runtime regression creates one child Repair, stores its returned
+reference on Ticket atomically, and rejects a repeated handoff without a
+duplicate. A further exact source and owner-stage carrier now forwards a
+nonnull optional `photo:file?` through the same-owner child call. The
+installed integration checks a real finalized File, omission, invalid File
+reference refusal, child retention, and replay; the earlier null-input case
+still checks that no File access occurs. The tested sources and runtime
+assertions are
+[`native-cross-model-promotion.can`](../packages/cloudflare/test/fixtures/native-cross-model-promotion.can),
+[`native-cross-model-handoff.can`](../packages/cloudflare/test/fixtures/native-cross-model-handoff.can),
+and [`native-cross-model-promotion.integration.test.ts`](../packages/cloudflare/src/runtime/native-cross-model-promotion.integration.test.ts).
+The complete published 24-source capture now clears the original
+`CanDesk.handoff` call-effect refusal. Its leading
+`can_work(actor,ticket.location)` helper guard passes through the checked
+source-`Require` owner observation, including the unrelated literal-null
+`photo:file?` parameter. An installed combined regression checks the helper
+decision over hidden Employee rows and the child create/set/return path.
+Two unrelated list-filter diagnostics in CanDesk remain.
+
+The original `CanPurchase.accept_invoice` create-result diagnostic exposed a
+different exact-source mismatch. After creating Payable, the scenario sets
+the required `invoice_document:InvoiceDocument` input to reference it and
+returns the new Payable. Created-result receipts now reuse the existing
+source-matched required-parameter SET proof, which checks the original
+parameter, authored receiver, type, and source span. The untouched original
+five-source CanPurchase subset clears that created-result `E6008` while its
+independent first-query/stat diagnostics remain. The installed regression in
+[`native-created-result-required-set.can`](../packages/cloudflare/test/fixtures/native-created-result-required-set.can)
+checks the create, SET, and returned-row identity plus the repeated-call
+guard. The complete published 24-source capture also clears the original
+`CanPurchase.accept_invoice` created-result refusal.
+
+The next original call-effect candidate, `CanPropose.offer_alternative`,
+remains outside this profile. A focused compiler trace located the first
+failure in its child `propose.revise`: the `can_work` helper's
+`any(Employee...)` query in the shared Employees source has no complete
+query closure there. Its first effect is also a filtered
+`proposal.Revision` loop with a conditional second SET. Source loop closure
+admits only an unfiltered original array or contained-member domain and a
+body of direct SETs; the `ForMember` receipt likewise requires an unfiltered
+contained collection. The parent therefore has no complete model-result
+child to call. Independently, it SETs a field on the returned replacement
+and copies `revision.Item` with a CREATE inside another loop, while the
+current per-element loop proof admits only SET. A call allowance alone would
+bypass filtered-query authority, branch decisions, and per-element creates.
+The four CanRent fulfillment wrappers reach children with branch, SEND,
+schedule, cancel, and evidence creates; CanField's conditional inspection
+call reaches a child with cancel and conditional Repair creation. Their
+remaining `E6008` call sites require complete child receipts for those
+effects rather than a generic call allowance. The required loop/query,
+per-row mutation, and item-copy interfaces are specified in the
+[contained mutation loop design](design/cross-model-contained-loop.md).
 
 ## Other historical claim
 

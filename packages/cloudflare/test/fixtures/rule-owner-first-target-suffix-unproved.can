@@ -1,0 +1,19 @@
+app FirstTargetProbe
+Given
+ Parent {label:text}
+ Child in Parent {role:text,v:int,hidden:bool=false}
+ policy Parent read=members
+ policy Child read=members and not row.hidden
+When
+ crud Parent by=members fields=label
+ crud Child by=members fields=parent,role,v,hidden
+ scenario ensure(parent:Parent,role:text) by=members
+  do
+   let previous=first(parent.Child as child where child.role==role order=child.id)
+   if previous==null
+    create Child {parent,role,v=1} as child
+   else
+    set previous {v=2}
+   set parent {label="done"}
+   require previous==null
+Then

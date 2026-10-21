@@ -1,7 +1,7 @@
 //! Private original SEND predicate preparation; no execution authority.
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::analysis::effects::{Effect, EffectVerb, ScenarioData};
+use crate::analysis::effects::{Effect, EffectTarget, EffectVerb, HandlerSource, ScenarioData};
 use crate::analysis::resolve::{self, Binding, Symbol, SymbolId, SymbolKind};
 use crate::analysis::scenario_disclosure::{
     CheckedDecisionPosition, CheckedDecisionSite, CheckedDecisionStage, CheckedScenarioSource,
@@ -65,6 +65,17 @@ pub(super) struct PreparedSendGuard {
     pub predicate: TypedExpr,
     pub descriptor: serde_json::Value,
     pub inputs: Vec<PreparedSendInput>,
+    pub event_source: Option<PreparedSendEventSource>,
+}
+
+/// The two fields of an exact private due payload are frozen by State.
+/// This is separate from ordinary caller-supplied lexical SEND inputs.
+#[derive(Clone)]
+pub(super) struct PreparedSendEventSource {
+    pub model_slot: &'static str,
+    pub revision_slot: &'static str,
+    pub model_field: String,
+    pub revision_field: String,
 }
 
 /// Only this module constructs a prepared inventory. All editable IR is sealed.
@@ -117,6 +128,180 @@ pub(super) fn source_preparation_gap(
         SourcePreparationGap::Cst(span) => gap("original SEND CST is invalid", Some(span)),
         SourcePreparationGap::Resolution => gap("original SEND lexical resolution failed", None),
     }
+}
+
+/// Only the two private agreement due handlers may transport a declared
+/// event into a SEND Rule. Their fields are authenticated against Work by
+/// State; a caller-provided `event` object never reaches this path.
+#[allow(clippy::too_many_arguments)]
+fn private_due_event_source(
+    original: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    resolved: &resolve::ResolveTables,
+    nodes: &HashMap<NodeKey, &SyntaxNode>,
+    owner: &IrItem,
+    predicate: NodeKey,
+    predicate_node: &SyntaxNode,
+    send: &IrStmt,
+) -> Result<Option<(Vec<PreparedSendInput>, serde_json::Value)>, SendGuardGap> {
+    let Some(scenario) = original.effects.scenarios.get(&owner.id) else { return Ok(None) };
+    let Some(HandlerSource::Event(event_id)) = scenario.on.as_ref() else { return Ok(None) };
+    let Some(event) = resolved.symbols.get(event_id.0 as usize) else { return Ok(None) };
+    let SymbolKind::Event { fields } = &event.kind else { return Ok(None) };
+    let (model_field_name, model_name) = match (owner.canonical.as_str(), event.canonical.as_str()) {
+        ("agreements.notice", "agreements.Notice") => ("term", "agreements.Term"),
+        ("agreements.due", "agreements.ObligationDue") => ("obligation", "agreements.Obligation"),
+        _ => return Ok(None),
+    };
+    if event.module != owner.module || scenario.module != owner.module
+        || scenario.read || scenario.by.is_some() || scenario.result.is_some()
+        || scenario.cohort.is_some() || !scenario.params.is_empty()
+        || !scenario.guards.is_empty() || fields.len() != 2
+    { return Ok(None); }
+    let [branch] = scenario.effects.as_slice() else { return Ok(None) };
+    let [source_send, source_create] = branch.then_effects.as_slice() else { return Ok(None) };
+    let Some(branch_cond) = branch.cond else { return Ok(None) };
+    if branch.verb != EffectVerb::If || !branch.else_effects.is_empty()
+        || !branch.match_arms.is_empty() || source_send.verb != EffectVerb::Send
+        || source_send.when != Some(predicate) || source_create.verb != EffectVerb::Create
+        || !source_send.then_effects.is_empty() || !source_send.else_effects.is_empty()
+        || !source_create.then_effects.is_empty() || !source_create.else_effects.is_empty()
+    { return Ok(None); }
+    let Some(EffectTarget::Model(created)) = source_create.target.as_ref() else { return Ok(None) };
+    if resolved.symbols.get(created.0 as usize).map(|symbol| symbol.canonical.as_str())
+        != Some("agreements.NoticeDelivery") { return Ok(None); }
+    let IrItemKind::Scenario {
+        trusted: true, event_source: Some(super::ir::IrEventSource::Declared(ir_event)),
+        hook: None, cohort: None, result: None, read: false, by, guards, effects, ..
+    } = &owner.kind else { return Ok(None) };
+    let [IrStmt::If { cond, then_branch, else_branch, span: branch_span }] = effects.as_slice()
+        else { return Ok(None) };
+    let [IrStmt::Send { operation, when: Some(ir_when), span: send_span, .. },
+         IrStmt::Create { model, .. }] = then_branch.as_slice() else { return Ok(None) };
+    let IrStmt::Send { span, .. } = send else { return Ok(None) };
+    if ir_event != &event.canonical || !by.is_empty() || !guards.is_empty()
+        || !else_branch.is_empty() || operation != "std.EmailV1.send"
+        || model != "agreements.NoticeDelivery" || *send_span != *span
+        || *branch_span != Span::new(branch.node.file, branch.node.start, branch.node.end)
+        || cond.span != Span::new(branch_cond.file, branch_cond.start, branch_cond.end)
+        || ir_when.span != Span::new(predicate.file, predicate.start, predicate.end)
+        || nodes.get(&predicate).is_none()
+    { return Ok(None); }
+
+    let mut term = None;
+    let mut revision = None;
+    for field in fields {
+        let Some(symbol) = resolved.symbols.get(field.0 as usize) else { return Ok(None) };
+        let SymbolKind::Field { owner: declared_event, type_node } = symbol.kind else { return Ok(None) };
+        if declared_event != *event_id || symbol.module != event.module { return Ok(None); }
+        match symbol.name.as_str() {
+            name if name == model_field_name => term = Some((symbol, type_node)),
+            "revision" => revision = Some((symbol, type_node)),
+            _ => return Ok(None),
+        }
+    }
+    let (Some((term, term_declaration)), Some((revision, revision_declaration))) = (term, revision)
+        else { return Ok(None) };
+    let Some(ResolvedType::Record { symbol: term_model, stored: true }) =
+        original.types.symbol_types.get(&term.id) else { return Ok(None) };
+    let term_ty = ResolvedType::Record { symbol: *term_model, stored: true };
+    if resolved.symbols.get(term_model.0 as usize).map(|symbol| symbol.canonical.as_str())
+        != Some(model_name)
+        || original.types.symbol_types.get(&revision.id) != Some(&ResolvedType::Scalar(Scalar::Int))
+    { return Ok(None); }
+
+    // Every original `event` occurrence must be the direct receiver of one
+    // checked declared field; aliases and other payload fields stay refused.
+    let event_roots: HashSet<_> = predicate_node.descendants()
+        .filter(|node| node.kind == SyntaxKind::NameRef)
+        .filter(|node| matches!(resolved.node_binding.get(&NodeKey::of(node)),
+            Some(Binding::Context(resolve::ContextVar::Event))))
+        .map(NodeKey::of).collect();
+    let mut matched_roots = HashSet::new();
+    let mut term_use = None;
+    let mut revision_use = None;
+    for member in predicate_node.descendants().filter(|node| node.kind == SyntaxKind::Member) {
+        let Some(base) = member.children.iter().find(|child| resolve::is_expression(child.kind))
+            else { continue };
+        let root = NodeKey::of(base);
+        if !event_roots.contains(&root) { continue; }
+        let Some(name) = member.children.iter().rev().find(|child| child.kind == SyntaxKind::Name)
+            .and_then(|child| db.get(child.span.file).and_then(|source| name_text(child, &source.text)))
+            else { return Ok(None) };
+        let key = NodeKey::of(member);
+        match name {
+            name if name == model_field_name && original.types.node_types.get(&key) == Some(&term_ty) => {
+                term_use.get_or_insert((key, root));
+            }
+            "revision" if original.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int)) => {
+                revision_use.get_or_insert((key, root));
+            }
+            _ => return Ok(None),
+        }
+        matched_roots.insert(root);
+    }
+    if event_roots.is_empty() || event_roots != matched_roots { return Ok(None); }
+    let (Some((term_use, term_root)), Some((revision_use, revision_root))) = (term_use, revision_use)
+        else { return Ok(None) };
+    let Some(SymbolKind::Model { fields: stored_fields, .. }) = resolved.symbols
+        .get(term_model.0 as usize).map(|symbol| &symbol.kind) else { return Ok(None) };
+    let mut direct_fields = HashSet::<String>::new();
+    for member in predicate_node.descendants().filter(|node| node.kind == SyntaxKind::Member) {
+        let Some(base) = member.children.iter().find(|child| resolve::is_expression(child.kind))
+            else { continue };
+        if base.kind != SyntaxKind::Member { continue; }
+        let Some(root) = base.children.iter().find(|child| resolve::is_expression(child.kind))
+            else { continue };
+        if !event_roots.contains(&NodeKey::of(root)) { continue; }
+        let Some(base_field) = base.children.iter().rev().find(|child| child.kind == SyntaxKind::Name)
+            .and_then(|child| db.get(child.span.file).and_then(|source| name_text(child, &source.text)))
+            else { return Ok(None) };
+        if base_field != model_field_name || original.types.node_types.get(&NodeKey::of(base)) != Some(&term_ty)
+        { return Ok(None); }
+        let Some(field) = member.children.iter().rev().find(|child| child.kind == SyntaxKind::Name)
+            .and_then(|child| db.get(child.span.file).and_then(|source| name_text(child, &source.text)))
+            else { return Ok(None) };
+        if field == "version" || field == "parent" { continue; }
+        if !stored_fields.iter().any(|id| resolved.symbols.get(id.0 as usize).is_some_and(|symbol|
+            symbol.name == field && matches!(symbol.kind, SymbolKind::Field { owner: declared, .. } if declared == *term_model)))
+            || !original.types.node_types.contains_key(&NodeKey::of(member))
+        { return Ok(None); }
+        direct_fields.insert(field.to_string());
+    }
+    let mut direct_fields = direct_fields.into_iter().collect::<Vec<_>>();
+    direct_fields.sort();
+    let event_ty = ResolvedType::Record { symbol: *event_id, stored: false };
+    let make_input = |name: &str, field: &str, ty: ResolvedType, declaration: NodeKey,
+                      use_site: NodeKey, root: NodeKey, ordinal| {
+        PreparedSendInput {
+            name: name.to_string(),
+            type_id: input_type(&ty, original, ir, None, 0).unwrap_or_default(),
+            value: TypedExpr::new(IrExpr::Member {
+                base: Box::new(TypedExpr::new(IrExpr::Name("event".to_string()), event_ty.clone(),
+                    Span::new(root.file, root.start, root.end))),
+                field: field.to_string(),
+            }, ty,
+                Span::new(use_site.file, use_site.start, use_site.end)),
+            declaration, symbol: None, owner: owner.id, ordinal, narrowing: None,
+        }
+    };
+    let model_input = make_input("eventTerm", model_field_name, term_ty, term_declaration,
+        term_use, term_root, 0);
+    let revision_input = make_input("eventRevision", "revision", ResolvedType::Scalar(Scalar::Int),
+        revision_declaration, revision_use, revision_root, 1);
+    if model_input.type_id.is_empty() || revision_input.type_id != "int" { return Ok(None); }
+    let site = |node: NodeKey| serde_json::json!({"start":node.start,"end":node.end});
+    let descriptor = serde_json::json!({
+        "event": event.canonical, "handler": owner.canonical,
+        "modelField": {"name":model_field_name, "model":model_name,
+            "fields":direct_fields,
+            "declaration":site(term_declaration), "occurrence":site(term_use)},
+        "revisionField": {"name":"revision", "type":"int",
+            "declaration":site(revision_declaration), "occurrence":site(revision_use)},
+        "predicate":site(predicate),
+    });
+    Ok(Some((vec![model_input, revision_input], descriptor)))
 }
 
 fn prepare_send_guard(
@@ -178,7 +363,10 @@ fn prepare_send_guard(
     let node = nodes
         .get(&fact.node)
         .ok_or_else(|| gap("missing original SEND predicate CST", Some(*span)))?;
-    let inputs = free_inputs(
+    let event_source = private_due_event_source(
+        original, ir, db, resolved, nodes, owner, fact.node, node, send,
+    )?;
+    let mut inputs = free_inputs(
         FreeInputSource {
             program: original,
             ir,
@@ -190,17 +378,30 @@ fn prepare_send_guard(
         fact.node,
         node,
         predicate,
+        event_source.is_some(),
     )?;
+    if let Some((event_inputs, _)) = &event_source {
+        if inputs.iter().any(|input| event_inputs.iter().any(|event| event.name == input.name)) {
+            return Err(gap("event SEND slots collide with lexical inputs", Some(*span)));
+        }
+        for mut input in event_inputs.iter().cloned() {
+            input.ordinal = inputs.len();
+            inputs.push(input);
+        }
+    }
     let rule = format!(
         "{}.sendWhen.{}.{}.{}",
         owner.canonical, site.source.sha256, site.node.start, site.node.end
     );
-    let descriptor = serde_json::json!({
+    let mut descriptor = serde_json::json!({
         "rule": rule, "owner": owner.canonical, "source": site.source,
         "node": site.node, "statement": site.statement,
         "target": operation, "binding": deployment_binding, "sourceBinding": binding,
         "inputs": inputs.iter().map(|input| serde_json::json!({"name":input.name,"type":input.type_id})).collect::<Vec<_>>(),
     });
+    if let Some((_, event)) = &event_source {
+        descriptor["eventSource"] = event.clone();
+    }
     Ok((
         *span,
         PreparedSendGuard {
@@ -208,6 +409,12 @@ fn prepare_send_guard(
             predicate: predicate.clone(),
             descriptor,
             inputs,
+            event_source: event_source.map(|_| PreparedSendEventSource {
+                model_slot: "eventTerm",
+                revision_slot: "eventRevision",
+                model_field: if owner.canonical == "agreements.due" { "obligation" } else { "term" }.into(),
+                revision_field: "revision".into(),
+            }),
         },
     ))
 }
@@ -235,6 +442,20 @@ fn prepare_owner_guards(
     collect_sends(effects, &mut sends, 0)?;
     if sends.is_empty() {
         return Ok(None);
+    }
+    // A fresh IR refusal in this scenario, a consumed helper, or a schema
+    // declaration invalidates its SEND proof. Unrelated owners cannot.
+    if super::scenario_queries::checked_send_diagnostics(
+        original,
+        owner,
+        context.ir_diagnostics(),
+    )
+    .is_none()
+    {
+        return Err(gap(
+            "original SEND owner's checked closure has IR diagnostics",
+            Some(owner.span),
+        ));
     }
     let sites = super::scenario_decisions::serialize_original_decision_sources_with_context(
         context, owner,
@@ -306,24 +527,59 @@ pub(super) fn prepare_with_context(
     {
         return Err(gap("original whole IR execution closure mismatch", None));
     }
+    // Only a scenario containing a checked guarded SEND can supply lexical
+    // nodes to a SEND Rule. Index those complete original scenario subtrees,
+    // not unrelated declarations or applications in the same compilation.
+    let mut owner_ranges = HashMap::<crate::source::SourceId, Vec<(u32, u32)>>::new();
+    for owner in &ir.items {
+        let IrItemKind::Scenario { guards: leading, effects, .. } = &owner.kind else {
+            continue;
+        };
+        let mut sends = Vec::new();
+        if collect_sends(leading, &mut sends, 0).is_err()
+            || collect_sends(effects, &mut sends, 0).is_err()
+            || sends.is_empty()
+        {
+            continue;
+        }
+        let Some(source) = original.scenario_disclosures().get(&owner.id)
+            .and_then(|disclosure| disclosure.source_facts())
+        else {
+            continue;
+        };
+        owner_ranges.entry(source.node.file).or_default()
+            .push((source.node.start, source.node.end));
+    }
     let mut nodes = HashMap::new();
-    for (_, tree) in trees {
+    for (file, tree) in trees {
+        let Some(ranges) = owner_ranges.get(file) else { continue; };
         for node in tree.descendants() {
-            if nodes.len() >= 200000 {
+            let key = NodeKey::of(node);
+            if !ranges.iter().any(|(start, end)| key.start >= *start && key.end <= *end) {
+                continue;
+            }
+            if nodes.len() >= 200000 && !nodes.contains_key(&key) {
                 return Err(gap("SEND source census capacity exceeded", Some(node.span)));
             }
-            nodes.insert(NodeKey::of(node), node);
+            nodes.insert(key, node);
         }
     }
     let mut guards = HashMap::new();
     let mut by_owner = BTreeMap::new();
     for owner in &ir.items {
-        if let Some(descriptors) = prepare_owner_guards(context, owner, &nodes, &mut guards)? {
-            by_owner.insert(
-                owner.canonical.clone(),
-                serde_json::Value::Array(descriptors),
-            );
+        // Stage one owner's complete guard inventory atomically. A failure
+        // at its second SEND cannot leave its first Rule installed.
+        let mut owned = HashMap::new();
+        let Ok(Some(descriptors)) =
+            prepare_owner_guards(context, owner, &nodes, &mut owned)
+        else {
+            continue;
+        };
+        if owned.keys().any(|span| guards.contains_key(span)) {
+            return Err(gap("duplicate original SEND guard across owners", Some(owner.span)));
         }
+        guards.extend(owned);
+        by_owner.insert(owner.canonical.clone(), serde_json::Value::Array(descriptors));
     }
     Ok(PreparedSendGuards {
         guards,
@@ -388,6 +644,12 @@ fn declaration_type(
         )
     };
     let ty = match binding {
+        Binding::Context(resolve::ContextVar::Event) => {
+            return Err(gap(
+                "event SEND guard has no typed event-field transport",
+                Some(Span::new(key.file, key.start, key.end)),
+            ));
+        }
         Binding::Context(_) | Binding::Builtin { .. } | Binding::Predicate => return Ok(None),
         Binding::Symbol(id) => {
             let symbol = resolved.symbols.get(id.0 as usize).ok_or_else(fail)?;
@@ -1193,6 +1455,7 @@ fn collect_source_names(
     source: FreeInputSource<'_>,
     predicate_key: NodeKey,
     predicate_node: &SyntaxNode,
+    event_source: bool,
 ) -> Result<
     (
         Vec<PreparedSendInput>,
@@ -1227,6 +1490,9 @@ fn collect_source_names(
                 Some(node.span),
             ));
         };
+        if event_source && matches!(binding, Binding::Context(resolve::ContextVar::Event)) {
+            continue;
+        }
         let Some(ty) =
             declaration_type(program, resolved, nodes, owner, predicate_key, key, binding)?
         else {
@@ -1330,6 +1596,7 @@ fn check_evaluated_name(
     name: &str,
     identities: &HashMap<String, String>,
     evaluated: &mut HashSet<Span>,
+    event_source: bool,
 ) -> Result<(), SendGuardGap> {
     let program = source.program;
     let resolved = source.resolved;
@@ -1346,6 +1613,9 @@ fn check_evaluated_name(
             Some(value.span),
         )
     })?;
+    if event_source && matches!(binding, Binding::Context(resolve::ContextVar::Event)) {
+        return Ok(());
+    }
     if declaration_type(program, resolved, nodes, owner, predicate_key, key, binding)?.is_some()
     {
         if !identities.contains_key(name) {
@@ -1364,6 +1634,7 @@ fn check_evaluated_names(
     predicate_key: NodeKey,
     predicate: &TypedExpr,
     identities: &HashMap<String, String>,
+    event_source: bool,
 ) -> Result<HashSet<Span>, SendGuardGap> {
     let owner = source.owner;
     let mut pending = vec![(predicate, 0usize)];
@@ -1387,6 +1658,7 @@ fn check_evaluated_names(
                     name,
                     identities,
                     &mut evaluated,
+                    event_source,
                 )?;
             }
             IrExpr::Member { base, .. }
@@ -1439,10 +1711,11 @@ fn free_inputs(
     predicate_key: NodeKey,
     predicate_node: &SyntaxNode,
     predicate: &TypedExpr,
+    event_source: bool,
 ) -> Result<Vec<PreparedSendInput>, SendGuardGap> {
     let (inputs, identities, source_reads) =
-        collect_source_names(source, predicate_key, predicate_node)?;
-    let evaluated = check_evaluated_names(source, predicate_key, predicate, &identities)?;
+        collect_source_names(source, predicate_key, predicate_node, event_source)?;
+    let evaluated = check_evaluated_names(source, predicate_key, predicate, &identities, event_source)?;
     if source_reads != evaluated {
         return Err(gap(
             "source/evaluated free SEND name census differs",

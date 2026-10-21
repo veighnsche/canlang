@@ -2,7 +2,7 @@
  * Generated source receives only observer/selection/call facades, never this constructor.
  */
 import type { CanTypeId, CanValue, FinalizedFileObservation, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioResultDisclosurePlan, ProjectedRecord, StoragePort, StoredRow } from '@canlang/contracts';
-import type { AdmittedCall, ScenarioReceiptAnyPredicate } from '@canlang/state/invocation';
+import type { AdmittedCall, ScenarioReceiptAnyPredicate, ScenarioReceiptSendGuard } from '@canlang/state/invocation';
 import { executeScenarioReceiptAny as executeStateAny } from '@canlang/state';
 import { observeScenarioReceiptDependency as observeStateDependency,
   observeScenarioReceiptIntrinsic as observeStateIntrinsic,
@@ -98,6 +98,7 @@ interface Frame extends QueryFrame {
   readonly store: StoragePort;
   readonly owner: object;
   readonly intrinsics: ReadonlyMap<string, ScenarioReceiptIntrinsicDependency>;
+  readonly eventSource?: ScenarioReceiptSendGuard['eventSource'];
   readonly sourceViews: WeakMap<object, object>;
   readonly observedFields: WeakMap<object, Map<string, { readonly model: string; readonly wire: unknown; readonly dependencyId: string;
     readonly nullableGetter?: NullableStoredReferenceGetter }>>;
@@ -203,13 +204,15 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>,
   queryProducer?: NativeQueryProducer, observeDependency?: ScenarioReceiptDependencyObserver,
   promoteStoredReference?: ScenarioReceiptStoredReferencePromotion,
-  promoteNullableStoredReference?: ScenarioReceiptNullableStoredReferencePromotion): ScenarioReceiptFrame {
+  promoteNullableStoredReference?: ScenarioReceiptNullableStoredReferencePromotion,
+  eventSource?: ScenarioReceiptSendGuard['eventSource']): ScenarioReceiptFrame {
   assertScenarioReceiptCallExecution(call, store);
   if (frames.has(c) || readFrames.has(c) || framedCalls.has(call)) return refuse('Scenario receipt context or admitted attempt cannot be rebound.');
   const intrinsics = new Map(isGeneratedOperationDef(call.def)
     ? call.def.descriptor.result?.disclosure?.returns.flatMap(entry =>
       (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
   const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics, selectionChecks: [], capturedAny: null,
+    ...(eventSource === undefined ? {} : { eventSource }),
     ...(promoteStoredReference === undefined ? {} : { promoteStoredReference }),
     ...(promoteNullableStoredReference === undefined ? {} : { promoteNullableStoredReference }),
     nullableStoredReferenceGetters: new WeakMap(),
@@ -461,7 +464,10 @@ export function observeScenarioReceiptIntrinsic(c: HandlerContext, dependencyId:
       try { wire = encodeValue(dependency.type, evaluated as CanValue); }
       catch { return refuse('Scenario intrinsic requires its actual typed native value.'); }
       if (dependency.kind === 'admitted-reference-version') {
-        const reference = captureNativeScenarioReceiptReference(nativeReference, frame.owner, dependency.parameter);
+        const parameter = dependency.parameter === 'eventTerm'
+          ? frame.eventSource?.modelField.name ?? refuse('Event version requires its installed declared source field.')
+          : dependency.parameter;
+        const reference = captureNativeScenarioReceiptReference(nativeReference, frame.owner, parameter);
         if (reference.model !== dependency.model || evaluated !== BigInt(reference.row.version) || typeof wire !== 'string') {
           return refuse('Scenario intrinsic version differs from its original admitted native binding.');
         }

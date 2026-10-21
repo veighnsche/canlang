@@ -1,0 +1,21 @@
+app CrossModelPromotion
+Given
+ Source {active:bool=true}
+ Deal {source:Source,title:text}
+ contract Lead {source:Source,title:text}
+ Intake {key:text unique,lead:Lead,deal:Deal}
+ policy Source read=members
+ policy Deal read=members
+ policy Intake read=members
+When
+ scenario promote(key:text,lead:Lead) -> Deal by=members
+  require starts_with(key,"lead:") and lead.source.active
+  do
+   let existing=first(Intake as intake where intake.key==key)
+   if existing!=null
+    require existing.lead==lead
+    return existing.deal
+   create Deal {source=lead.source,title=lead.title} as deal
+   create Intake {key,lead,deal} as intake
+   return deal
+Then

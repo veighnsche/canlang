@@ -1,0 +1,14 @@
+app CrossModelRequiredSet
+Given
+ Payable {amount:int}
+ Invoice {payable:Payable?}
+ policy Payable read=members
+ policy Invoice read=members
+When
+ scenario accept(invoice:Invoice,amount:int) -> Payable by=members
+  require invoice.payable==null and amount>0
+  do
+   create Payable {amount} as payable
+   set invoice {payable}
+   return payable
+Then

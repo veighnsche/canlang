@@ -513,7 +513,7 @@ export function readWorkFilePayloadOrigin(
   const scope = closedOriginRecord(origin['scope'], ['app', 'owner', 'ownerPackage'], 'filePayloadOrigin.scope');
   for (const key of ['app', 'owner', 'ownerPackage']) checkString(scope, key, 'filePayloadOrigin.scope');
   const recipe = checkRecord(origin['origin'], 'filePayloadOrigin.origin');
-  if (!['delivery-result', 'event-input', 'handler-result', 'source-routing', 'standard-completion', 'send-guard'].includes(checkString(recipe, 'kind', 'filePayloadOrigin.origin'))) {
+  if (!['delivery-result', 'event-input', 'handler-result', 'scheduled-handler-result', 'source-routing', 'standard-completion', 'send-guard'].includes(checkString(recipe, 'kind', 'filePayloadOrigin.origin'))) {
     throw new KernelTableError('filePayloadOrigin.origin has an unknown kind.');
   }
   checkOriginFiles(origin);

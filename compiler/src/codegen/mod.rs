@@ -242,7 +242,8 @@ pub fn emit(
     // Boolean/read inventory seals per checked occurrence inside its bridge,
     // so unrelated IR refusals elsewhere do not orphan it; the requires-only
     // fallback below preserves prior behavior when occurrence seals refuse.
-    // Send guards and other strict consumers keep the error-filtered context.
+    // SEND guards separately seal each owning scenario below; an unrelated
+    // IR refusal must not erase another owner's exact guard.
     let read_predicates = sources
         .options
         .native_scenario_receipts
@@ -259,10 +260,7 @@ pub fn emit(
             .as_ref()
             .expect("native source preparation was attempted")
         {
-            Ok(context) if !context.has_ir_errors() => send_guards::prepare_with_context(context),
-            Ok(_) => Err(send_guards::source_preparation_gap(
-                scenario_decisions::SourcePreparationGap::Ir,
-            )),
+            Ok(context) => send_guards::prepare_with_context(context),
             Err(error) => Err(send_guards::source_preparation_gap(*error)),
         }
     });

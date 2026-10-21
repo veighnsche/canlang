@@ -6,9 +6,14 @@ row as its authorized update target or create when absent; copied selected
 fields without separate value proof are refused. Other consumer-specific
 proof and original-app query diagnostics below remain future work. The
 observations in this document describe the runtime before the repair.
-The current full-app compile has 103 diagnostics: 14 explicit refusals for
-helper-contained `ChildOf` guard scans without exact parent substitution,
-while the 21 original `first` correspondence diagnostics remain.
+The latest recovered-draft 2026-10-21 24-source compile has 87 diagnostics
+(`omitted:0`):
+nine of the fourteen helper-contained `ChildOf` guard refusals cleared, while
+five remain. Two viewer `first` sites cleared; nineteen original `first`
+correspondence diagnostics remain. A checked direct `any` plus `first` update
+target now runs over hidden owner rows in an installed probe, but the original
+`CanCustomer.accept` also has helper guard queries and still requires a
+composite owner-stage proof.
 
 ## Contract and observed break
 

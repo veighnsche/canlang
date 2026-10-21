@@ -1,5 +1,8 @@
 docs/implementation/compiler-completion/temporal-presentation-join/ui-freeze/packages/ui/test/messages.test.ts
 packages/cloudflare/src/runtime/derived-columns.integration.test.ts
+packages/cloudflare/src/runtime/native-cross-model-promotion.integration.test.ts
+packages/cloudflare/src/runtime/native-event-send-due.integration.test.ts
+packages/cloudflare/src/runtime/native-event-send-notice.integration.test.ts
 packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts
 packages/cloudflare/src/runtime/native-local-rules.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean-graph.integration.test.ts
@@ -7,7 +10,9 @@ packages/cloudflare/src/runtime/native-read-boolean.integration.test.ts
 packages/cloudflare/src/runtime/native-reference-arrays-d1.integration.test.ts
 packages/cloudflare/src/runtime/native-rule-owner-search.integration.test.ts
 packages/cloudflare/src/runtime/native-scenario-receipts-d1.integration.test.ts
+packages/cloudflare/src/runtime/native-send-nullable-narrowing.integration.test.ts
 packages/cloudflare/src/runtime/native-staff-can-work.integration.test.ts
+packages/cloudflare/src/runtime/native-viewer-first.integration.test.ts
 packages/cloudflare/src/runtime/promptlab-activation-collision.integration.test.ts
 packages/cloudflare/src/runtime/promptlab-native-acceptance.integration.test.ts
 packages/cloudflare/src/runtime/t34c-work-installed.integration.test.ts

@@ -1,0 +1,10 @@
+app NativeViewerFirst
+Given
+ Item {label:text,hidden:bool}
+ policy Item read=members and not row.hidden fields=label
+When
+ scenario preview() read=true -> text? by=members
+  do
+   let selected=first(Item as row where row.label!="Ignored" order=row.id)
+   return selected?.label
+Then

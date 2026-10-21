@@ -377,6 +377,37 @@ function resolveHandlerResult(ctx: OpaqueResolveContext): void {
   projectResult([], handler.resultDeclarationId, data.result, data.status === 'failed');
 }
 
+/** Direct keyed due delivery has a schedule row, without an intermediate
+ * handler-occurrence row. Keep that physical distinction in its result recipe. */
+function resolveScheduledHandlerResult(ctx: OpaqueResolveContext): void {
+  const { row, data, origin, ownerScope, declaration, projectResult } = ctx;
+  closed(origin, ['kind', 'occurrenceId', 'operationId', 'handler', 'event', 'terminal']);
+  same(origin.occurrenceId, row.id, 'direct due result occurrence'); string(origin.operationId);
+  const handler = callable(origin.handler);
+  if (handler.callable.kind !== 'handler' || handler.canonical.kind !== 'scenario') return refuse('direct due handler required.');
+  const eventInput = object(origin.event), lineage = object(eventInput.lineage);
+  const sourceRow = { ...row, data: { occurrenceId: row.id, key: lineage.key, replaces: lineage.replaces,
+    event: object(eventInput.declaration).event, scopeApp: ownerScope.app,
+    scopeOwner: ownerScope.owner, scopeOwnerPackage: ownerScope.ownerPackage } } as StoredRow;
+  event(origin.event, sourceRow, WORK_SCHEDULE_MODEL, ownerScope, false);
+  if (object(eventInput.target).kind !== 'schedule' || object(eventInput.declaration).kind !== 'declared-event') {
+    return refuse('direct due requires its original scheduled declared event.');
+  }
+  const eventInputs = declaration(string(object(eventInput.declaration).inputsDeclarationId), ['inputs']);
+  if (eventInputs.profile.kind !== 'inputs') return refuse('direct due event inputs required.');
+  same(handler.source, object(eventInput.declaration).source, 'direct due owning source');
+  same(handler.canonical.inputs, eventInputs.profile.canonical, 'direct due handler inputs');
+  same(handler.artifact.inputs.fields, eventInputs.profile.artifact, 'direct due authored inputs');
+  const terminal = closed(origin.terminal, ['status', 'result', 'code', 'message']);
+  same({ status: data.status, result: data.result, code: data.code, message: data.message }, terminal,
+    'direct due physical terminal');
+  if (terminal.result !== null || !['completed', 'failed'].includes(string(terminal.status))) {
+    return refuse('direct due void terminal required.');
+  }
+  if (declaration(handler.resultDeclarationId, ['void']).profile.kind !== 'void') return refuse('direct due void result declaration required.');
+  projectResult([], handler.resultDeclarationId, data.result, data.status === 'failed');
+}
+
 /** Scheduled-cohorts/routes branch of source routing. */
 function resolveScheduledRoutes(ctx: OpaqueResolveContext, recipe: Data, kind: unknown): void {
   const { row, data, ownerScope } = ctx;
@@ -750,6 +781,8 @@ export const resolveWorkOpaqueField: NonNullable<FrameworkFileReferenceProducer[
     resolveSchedulePayload(ctx, model);
   } else if (origin.kind === 'handler-result') {
     resolveHandlerResult(ctx);
+  } else if (origin.kind === 'scheduled-handler-result') {
+    resolveScheduledHandlerResult(ctx);
   } else if (origin.kind === 'source-routing') {
     resolveSourceRouting(ctx);
   } else if (origin.kind === 'standard-completion') {

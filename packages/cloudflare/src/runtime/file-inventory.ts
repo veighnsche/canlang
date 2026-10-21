@@ -249,7 +249,9 @@ function assertSendGuard(entry: unknown, artifact: CompileArtifact,
   const rule = data(guard, 'rule') as string;
   const rules = artifact.callables.filter(candidate => candidate.kind === 'rule' && candidate.id === rule &&
     candidate.module === callable.module && equal(candidate.member, ['sendWhen', rule]));
-  if (Object.keys(guard).sort().join(',') !== 'binding,inputDeclaration,inputs,node,owner,rule,source,sourceBinding,statement,target' ||
+  if (!['binding,inputDeclaration,inputs,node,owner,rule,source,sourceBinding,statement,target',
+    'binding,eventSource,inputDeclaration,inputs,node,owner,rule,source,sourceBinding,statement,target']
+    .includes(Object.keys(guard).sort().join(',')) ||
       data(guard, 'owner') !== callable.id || originalSource.path !== source.source.path ||
       originalSource.sha256 !== source.source.sha256 || originalSource.module !== owningPackage ||
       rules.length !== 1 || rules[0]!.inputStyle !== undefined || profile.kind !== 'inputs') {
@@ -277,15 +279,17 @@ function declareCallableResult(
   callable: CompileArtifact['callables'][number],
   source: CallableSource,
   canonical: CanonicalOperationDescriptor, operation: ArtifactOperation,
-  declarations: FrameworkOpaqueDeclaration[]): void {
+  declarations: FrameworkOpaqueDeclaration[], retainFullVoidDisclosure: boolean): void {
   if (canonical.result === undefined && operation.result === undefined) return;
   if (canonical.result === undefined || operation.result === undefined || !equal(canonical.result, operation.result)) {
     throw new Error('File retirement original callable results disagree.');
   }
   declarations.push({ id: `${callable.id}:result`, source,
-    // Explicit void still retains the Compiler's original disclosure plan.
+    // Fresh File profiles need the type alone; the verified loaded descriptor
+    // owns the execution plan. Reopened legacy profiles retain their full plan.
     profile: canonical.result.type === 'void' ? { kind: 'void',
-      canonical: { ...canonical.result, type: 'void' }, artifact: { ...operation.result, type: 'void' } } :
+      canonical: retainFullVoidDisclosure ? { ...canonical.result, type: 'void' } : { type: 'void' },
+      artifact: retainFullVoidDisclosure ? { ...operation.result, type: 'void' } : { type: 'void' } } :
       // The opaque closure binds a result's File profile from its type
       // alone; the disclosure plan stays with the loaded descriptor and
       // is not persisted a second time inside this inventory.
@@ -296,14 +300,15 @@ function declareCallableResult(
 function declareCallable(artifact: CompileArtifact, captures: readonly ModuleCapture[],
   loaded: Awaited<ReturnType<typeof loadCanonicalDescriptors>>,
   callable: CompileArtifact['callables'][number], declarations: FrameworkOpaqueDeclaration[],
-  models: readonly ArtifactModel[]): void {
+  models: readonly ArtifactModel[], legacyVoidResultIds: ReadonlySet<string>): void {
   if (callable.kind !== 'operation' && callable.kind !== 'handler') return;
   const { source, operation, canonical } = resolveCallableOperation(artifact, captures, loaded, callable);
   declarations.push({ id: `${callable.id}:inputs`, source,
     profile: { kind: 'inputs', canonical: canonical.inputs, artifact: operation.inputs.fields } });
   declareSendGuards(artifact, captures, callable, source, declarations);
   declarations.push(...nativeCapabilityResultDeclarations(source, loaded.models, models));
-  declareCallableResult(callable, source, canonical, operation, declarations);
+  declareCallableResult(callable, source, canonical, operation, declarations,
+    legacyVoidResultIds.has(`${callable.id}:result`));
 }
 
 function declareModuleEvents(artifact: CompileArtifact, captures: readonly ModuleCapture[],
@@ -407,16 +412,20 @@ export async function installNativeFileInventory(input: NativeFileInventoryInput
   if (artifact.models === undefined) throw new Error('File retirement requires complete model declarations.');
   const valueTypes = checkedNativeValueTypes(artifact, definition, loaded.valueTypes);
   const inventoryIdentity = Object.freeze({ owner: scope.ownerPackage, snapshotId: `native-file:${digest}`, digest });
+  const installed = await store.readFileReferenceInventory(scope.ownerPackage);
+  await verifyCurrent();
+  const legacyVoidResultIds = new Set(installed?.inventory.opaqueDeclarationSets?.flatMap(set =>
+    set.declarations.filter(declaration => declaration.profile.kind === 'void' &&
+      Object.hasOwn(declaration.profile.canonical, 'disclosure') &&
+      Object.hasOwn(declaration.profile.artifact, 'disclosure')).map(declaration => declaration.id)) ?? []);
   const declarations: FrameworkOpaqueDeclaration[] = [];
   for (const callable of artifact.callables) {
-    declareCallable(artifact, captures, loaded, callable, declarations, artifact.models);
+    declareCallable(artifact, captures, loaded, callable, declarations, artifact.models, legacyVoidResultIds);
   }
   declareModuleEvents(artifact, captures, loaded, declarations);
   const baseInventory = immutable({ ...inventoryIdentity,
     canonicalModels: loaded.models, artifactModels: artifact.models, valueTypes,
     frameworkModels: [...STATE_FILE_REFERENCE_PRODUCER.models, ...WORK_FILE_REFERENCE_PRODUCER.models] });
-  const installed = await store.readFileReferenceInventory(scope.ownerPackage);
-  await verifyCurrent();
   const expectedRevision = await store.readRevision();
   await verifyCurrent();
   const originalSnapshot = await store.readInstalledSnapshot(scope.ownerPackage);

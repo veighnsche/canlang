@@ -1,0 +1,15 @@
+app NullableSendPartial
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Request {recipient:email?,state:enum(active,cancelled)=active,attempt:delivery(Mail.send)?}
+ policy Request read=owner
+ event Ping {request:Request}
+When
+ scenario retry(request:Request) by=owner
+  require request.state==cancelled and request.recipient!=null
+  do
+   send Mail.send {to=request.recipient,subject="Retry",body="Recorded recipient"} when=request.state==cancelled as delivery
+   set request {attempt=delivery}
+ scenario ping on=Ping
+  do send Mail.send {to="recipient@example.test",subject="Ping",body="Ping"} when=event.request.state==cancelled as notice
+Then

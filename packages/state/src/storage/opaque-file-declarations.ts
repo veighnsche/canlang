@@ -327,6 +327,7 @@ function originalDeliveryInstance(bound: BoundOpaqueDeclarations, selected: Fram
     const event = original.kind === 'standard-completion' ? original.declaration
       : original.kind === 'event-input' ? original.declaration
       : original.kind === 'handler-result' ? original.event.declaration
+      : original.kind === 'scheduled-handler-result' ? original.event.declaration
       : original.kind === 'source-routing' && (original.recipe.kind === 'scheduled-cohorts' || original.recipe.kind === 'scheduled-routes')
         ? original.recipe.event.declaration : undefined;
     if (event?.kind !== 'standard-completion') return refuse('original delivery instance is absent from this payload origin.');
@@ -843,6 +844,33 @@ function origin(bound: BoundOpaqueDeclarations, value: FrameworkOpaquePayloadOri
     same(value.occurrenceId, value.event.occurrenceId);
     if (value.event.target.kind !== 'handler') return refuse('actual handler input target required.');
     same(value.handler, value.event.target.handler);
+  } else if (value.kind === 'scheduled-handler-result') {
+    record(value, ['kind', 'occurrenceId', 'operationId', 'handler', 'event', 'terminal']);
+    string(value.occurrenceId); string(value.operationId); callable(bound, value.handler); eventOrigin(bound, value.event);
+    if (value.handler.callable.kind !== 'handler' || value.event.target.kind !== 'schedule' ||
+        value.event.lineage.kind !== 'schedule' || value.event.declaration.kind !== 'declared-event') {
+      return refuse('direct due result requires its original scheduled declared event and handler.');
+    }
+    same(value.occurrenceId, value.event.occurrenceId);
+    same(value.occurrenceId, value.event.sourceOccurrence);
+    same(value.handler.source, value.event.declaration.source);
+    const inputs = declaration(bound, value.event.declaration.inputsDeclarationId, 'inputs').declaration;
+    if (inputs.profile.kind !== 'inputs' || value.handler.canonical.kind !== 'scenario' ||
+        value.handler.artifact.kind !== 'scenario' ||
+        declaration(bound, value.handler.resultDeclarationId).declaration.profile.kind !== 'void') {
+      return refuse('direct due result requires the original void scenario handler and event inputs.');
+    }
+    same(inputs.profile.canonical, value.handler.canonical.inputs);
+    same(inputs.profile.artifact, value.handler.artifact.inputs.fields);
+    record(value.terminal, ['status', 'result', 'code', 'message']);
+    if (value.terminal.result !== null ||
+        value.terminal.status !== 'completed' && value.terminal.status !== 'failed' ||
+        value.terminal.code !== null && typeof value.terminal.code !== 'string' ||
+        value.terminal.message !== null && typeof value.terminal.message !== 'string' ||
+        value.terminal.status === 'completed' && (value.terminal.code !== null || value.terminal.message !== null) ||
+        value.terminal.status === 'failed' && (value.terminal.code === null || value.terminal.message === null)) {
+      return refuse('direct due result requires its exact void terminal outcome.');
+    }
   } else if (value.kind === 'source-routing') {
     record(value, ['kind', 'occurrenceId', 'revision', 'recipe']); string(value.occurrenceId); integer(value.revision);
     const recipe = value.recipe;

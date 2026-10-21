@@ -1,0 +1,22 @@
+diff --git a/apps/CanLeave/CanLeave.can b/apps/CanLeave/CanLeave.can
+index 29151ed..7d66dfa 100644
+--- a/apps/CanLeave/CanLeave.can
++++ b/apps/CanLeave/CanLeave.can
+@@ -108,7 +108,7 @@ package leave label="Leave"@{nl="Verlof"}
+      require policy.allowance_bucket==null or allowance!=null
+      create Portion {parent=request,allowance,days=count(year.items),dates=year.items as day select day.date} as portion
+    examples seed=[vacation,reviewer_worker,december_30,december_31,january_1,january_2,allowance_2099,allowance_2100] calendar=calendar from=date("2099-12-30") until=date("2100-01-02") bucket="vacation" reason="Year-end leave" reviewer=assigned_reviewer
+-    as -> Portion as portion where portion.parent.parent==calendar order=portion.allowance.year select portion.allowance.year,Portion as portion where portion.parent.parent==calendar order=portion.allowance.year select portion.days
++    as -> Portion as portion where portion.parent.parent==calendar order=portion.allowance?.year select portion.allowance?.year,Portion as portion where portion.parent.parent==calendar order=portion.allowance?.year select portion.days
+     members -> [2099,2100],[2,1]
+    examples seed=[vacation,reviewer_worker,december_30,december_31,january_2,allowance_2099,allowance_2100] calendar=calendar from=date("2099-12-30") until=date("2100-01-02") bucket="vacation" reason="Year-end leave" reviewer=assigned_reviewer
+     as -> count(calendar.Request)
+@@ -163,7 +163,7 @@ package leave label="Leave"@{nl="Verlof"}
+      retained!=null -> true
+      call Day.update {record=december_30,changes={working=false}} by=leave_hr
+      call Category.update {record=vacation,changes={allowance_bucket=null}} by=leave_hr
+-     retained.calendar_version,retained.allowance_bucket,retained.Portion as portion order=portion.allowance.year select portion.days -> 1,"vacation",[2,1]
++     retained.calendar_version,retained.allowance_bucket,retained.Portion as portion order=portion.allowance?.year select portion.days -> 1,"vacation",[2,1]
+      call decide {request=retained,approve=true,reason="Recorded dates checked"} by=assigned_reviewer
+      allowance_2099.remaining,allowance_2100.remaining -> 18,19
+      let accepted=first(calendar.Request as row where row.id==retained.id order=row.id)
