@@ -35,11 +35,12 @@ async function installed(name: string, directory: string) {
     stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
   return { artifact, asm };
 }
-async function member(mode: string) {
+async function member(mode: string, roles: readonly string[] = []) {
   const now = Date.now(), identities = createMemoryIdentityStore({ clock: createFrozenClock(now) });
   const team = await identities.createTeam({ timezone: 'UTC' });
   const user = await identities.createUser({ email: `${mode}@owner-search.test`, password_hash: 'unused', email_verified: true });
-  await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [] });
+  await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false,
+    roles: roles.map(role => ({ role, granted_at: new Date(now).toISOString(), granted_by: user.user_id })) });
   const token = `owner-search-${mode}-${randomBytes(8).toString('hex')}`;
   await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
     last_team_id: team.team_id, expires_at: new Date(now + 3600000).toISOString() });
@@ -547,5 +548,110 @@ it('retries every hidden all-helper observation when its owner row changes befor
       assert.equal(roles.filter(role => role.data.role === 'booker').length, 0);
       assert.deepEqual(roles.find(role => role.id === admin.id)?.data.locations, locations.slice(0, 1));
       assert.equal((await backing.query({ model: asModel('work.occurrence'), authority: 'owner' })).length, 0);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+it('removes a seat only through its current company role or staffed term location',
+  { timeout: 120000 }, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-member-remove-owner-'));
+    try {
+      const { artifact, asm } = await installed('member-remove-owner-probe.can', directory);
+      for (const mode of ['hidden-admin', 'revoked-admin', 'other-customer-admin',
+        'manager-hidden-worker', 'manager-other-location', 'manager-inactive-worker',
+        'admin-revoked-at-commit', 'manager-term-location-changed-at-commit'] as const) {
+        const manager = mode.startsWith('manager-');
+        const { now, identities, identity, user } = await member(`member-remove-${mode}`,
+          manager ? ['member_terms.member_manager'] : []);
+        const backing = createMemoryStorage();
+        const location = { ...makeRow({ id: asId('location-1'), data: { name: 'First' } }), parent: null };
+        const elsewhere = { ...makeRow({ id: asId('location-2'), data: { name: 'Elsewhere' } }), parent: null };
+        const customer = { ...makeRow({ id: asId('customer-1'), data: { name: 'Current company' } }), parent: null };
+        const other = { ...makeRow({ id: asId('customer-2'), data: { name: 'Other company' } }), parent: null };
+        const membership = { ...makeRow({ id: asId('membership-1'), data: { access_revision: '7' } }),
+          parent: { model: asModel('customer.Customer'), id: customer.id } };
+        const term = { ...makeRow({ id: asId('term-1'), data: { locations: [{ id: location.id }] } }),
+          parent: { model: asModel('member_terms.Membership'), id: membership.id } };
+        const seat = { ...makeRow({ id: asId('seat-1'), data: { active: true, removed_reason: null } }),
+          parent: { model: asModel('member_terms.Term'), id: term.id } };
+        const grant = { ...makeRow({ id: asId('grant-1'), data: { account: { id: user.user_id },
+          role: manager ? 'booker' : 'administrator', locations: [],
+          active: mode !== 'revoked-admin', hidden: true } }),
+          parent: { model: asModel('customer.Customer'),
+            id: mode === 'other-customer-admin' ? other.id : customer.id } };
+        const worker = { ...makeRow({ id: asId('worker-1'), data: { user: { id: user.user_id },
+          home: { id: mode === 'manager-other-location' ? elsewhere.id : location.id },
+          locations: [], operator_wide: false, active: mode !== 'manager-inactive-worker', hidden: true } }),
+          parent: null };
+        const writes: Array<{ kind: 'insert'; model: ModelName; row: StoredRow }> = [
+          { kind: 'insert', model: asModel('rent_catalog.Location'), row: location },
+          { kind: 'insert', model: asModel('rent_catalog.Location'), row: elsewhere },
+          { kind: 'insert', model: asModel('customer.Customer'), row: customer },
+          { kind: 'insert', model: asModel('customer.Customer'), row: other },
+          { kind: 'insert', model: asModel('member_terms.Membership'), row: membership },
+          { kind: 'insert', model: asModel('member_terms.Term'), row: term },
+          { kind: 'insert', model: asModel('member_terms.Seat'), row: seat },
+        ];
+        writes.push({ kind: 'insert', model: asModel('employee.Employee'), row: worker });
+        writes.push({ kind: 'insert', model: asModel('customer.CompanyRole'), row: grant });
+        await backing.commit(makeBatch(await backing.readRevision(), { writes }));
+        let injected = false;
+        const store = mode === 'admin-revoked-at-commit' ||
+          mode === 'manager-term-location-changed-at-commit'
+          ? { ...backing, commit: async (batch: Parameters<typeof backing.commit>[0]) => {
+            if (!injected) {
+              injected = true;
+              const changeTerm = mode === 'manager-term-location-changed-at-commit';
+              const changedModel = asModel(changeTerm ? 'member_terms.Term' : 'customer.CompanyRole');
+              const current = await backing.load(changedModel, changeTerm ? term.id : grant.id);
+              assert.ok(current);
+              await backing.commit(makeBatch(await backing.readRevision(), { writes: [{
+                kind: 'update', model: changedModel, id: current.id,
+                expectedVersion: current.version,
+                row: { ...current, version: asVersion(current.version + 1), updated: now,
+                  data: { ...current.data, ...(changeTerm
+                    ? { locations: [{ id: elsewhere.id }] }
+                    : { active: false }) } },
+              }] }));
+            }
+            return backing.commit(batch);
+          } }
+          : backing;
+        const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+        {
+          const visible = await invoker.invokeRead({ operation: 'customer.CompanyRole.read', inputs: {} }, identity);
+          assert.ok('result' in visible, JSON.stringify(visible));
+          assert.equal((visible.result as { records: unknown[] }).records.length, 0, mode);
+        }
+        {
+          const visible = await invoker.invokeRead({ operation: 'employee.Employee.read', inputs: {} }, identity);
+          assert.ok('result' in visible, JSON.stringify(visible));
+          assert.equal((visible.result as { records: unknown[] }).records.length, 0, mode);
+        }
+        const outcome = await invoker.invokeMutation({ operation: 'member_terms.remove',
+          operation_id: operationId(now), inputs: { seat: { id: seat.id, version: String(seat.version) },
+            reason: 'No longer assigned' } }, identity);
+        const commits = mode === 'hidden-admin' || mode === 'manager-hidden-worker';
+        assert.equal('result' in outcome ? outcome.result.status : outcome.error.code,
+          commits ? 'committed' : 'rule_failed', `${mode}: ${JSON.stringify(outcome)}`);
+        assert.equal((await backing.load(asModel('member_terms.Seat'), seat.id))?.data.active,
+          !commits, mode);
+        assert.equal((await backing.load(asModel('member_terms.Seat'), seat.id))?.data.removed_reason,
+          commits ? 'No longer assigned' : null, mode);
+        const events = await backing.query({ model: asModel('work.occurrence'), authority: 'owner' });
+        assert.equal(events.length, commits ? 1 : 0, mode);
+        if (commits) {
+          const result = events[0]?.data.result as Record<string, unknown>;
+          assert.equal(result.kind, 'declared-event-source', mode);
+          assert.equal(result.event, 'member_terms.AccessChanged', mode);
+          assert.deepEqual(result.payload, { membership: { id: membership.id }, revision: '8' }, mode);
+        }
+        if (mode === 'admin-revoked-at-commit' ||
+            mode === 'manager-term-location-changed-at-commit') assert.equal(injected, true);
+        if (mode === 'admin-revoked-at-commit') assert.equal(
+          (await backing.load(asModel('customer.CompanyRole'), grant.id))?.data.active, false);
+        if (mode === 'manager-term-location-changed-at-commit') assert.deepEqual(
+          (await backing.load(asModel('member_terms.Term'), term.id))?.data.locations,
+          [{ id: elsewhere.id }]);
+      }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });

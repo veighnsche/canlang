@@ -1,0 +1,45 @@
+app MemberRemoveProbe uses=[member_terms]
+package rent_catalog
+ Given
+  export Location {name:text}
+  policy Location read=members
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[]=[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+package customer
+ use rent_catalog {Location}
+ Given
+  export Customer {name:text}
+  export CompanyRole in Customer {account:user,role:enum(administrator,booker,billing),locations:Location[]=[],active:bool=true,hidden:bool=false}
+  export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+  policy Customer read=members
+  policy CompanyRole read=members and not row.hidden
+ When
+ Then
+package member_terms
+ use rent_catalog {Location}
+ use employee {can_work}
+ use customer {Customer,CompanyRole,has_role}
+ Given
+  role member_manager
+  Membership in Customer {access_revision:int=0}
+  Term in Membership {locations:Location[]!}
+  Seat in Term {active:bool=true,removed_reason:text?}
+  event AccessChanged {membership:Membership,revision:int}
+  policy Membership read=members
+  policy Term read=members
+  policy Seat read=members
+ When
+  scenario remove(seat:Seat,reason:text) by=authenticated or member_manager
+   require seat.active and trim(reason)!="" and (has_role(actor,seat.parent.parent.parent,administrator) or (member_manager and any(seat.parent.locations as location,can_work(actor,location))))
+   do
+    set seat {active=false,removed_reason=reason}
+    emit AccessChanged {membership=seat.parent.parent,revision=seat.parent.parent.access_revision+1}
+ Then

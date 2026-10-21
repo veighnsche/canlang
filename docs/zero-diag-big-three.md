@@ -62,7 +62,7 @@ exactly one cleared diagnostic and no new ones: the original
 `CanCustomer.accept` first-query `E6008` at offset 14313. CanCustomer now has
 zero diagnostics; the remaining 86 are separate sites.
 
-The current release build completes the same 24-source capture with 85
+The preceding release build completes the same 24-source capture with 85
 diagnostics (`complete:true`, `omitted:0`). The only site change is the cleared
 `CanBook.remind` guarded-SEND `E6008` at offset 34178; no new diagnostics
 appear. The checked handler ties the original header Require and SEND Rule to
@@ -71,6 +71,16 @@ create. State promotes the Contact only through the observed Appointment
 reference and fences both rows before commit. An installed test covers a
 hidden Contact, stale and cancelled appointments, changes before dispatch,
 and a Contact update at commit; two altered-source variants remain refused.
+
+The current release build completes the same 24-source capture with 84
+diagnostics (`complete:true`, `omitted:0`). A site-by-site comparison finds
+only the cleared `CanMember.remove` source-Require `E6008` at offset 39693,
+with no new diagnostics. The exact receipt follows the required Seat through
+Term, Membership, and Customer for the role lookup, observes the stored
+Term.locations array and hidden Employee and CompanyRole domains, and carries
+the two-parent Membership reference into AccessChanged. An installed test
+covers both authorized branches, wrong or revoked authority, and role and
+location changes at commit. The remaining 84 are separate sites.
 
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
@@ -103,6 +113,14 @@ location, an unrelated parent, a hidden inactive existing target, a commit
 race, and exactly one correctly populated event on success. Copied parent
 paths remain refused. The full recovered-draft capture confirms the original
 `CanCustomer.accept` diagnostic is gone.
+
+`CanMember.remove` now has a separate source-Require owner receipt for its
+three-parent role lookup and one-parent Term.locations search. The compiler
+admits only the original Seat ancestry, required stored array, and exact
+two-parent AccessChanged payload; renamed-profile variants still refuse.
+The installed owner-search suite passes with hidden CompanyRole and Employee
+rows, a manager or administrator success, denied authority, and commit races.
+The complete 24-source capture clears its original helper-domain diagnostic.
 
 The nearest remaining void mutation is `CanMember.assign`: its
 `first(term.Seat...)` drives a null-branch create or selected-row update,

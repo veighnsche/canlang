@@ -3407,6 +3407,17 @@ impl<'a> Closure<'a> {
         child: SymbolId,
         prior: u8,
     ) -> Option<(SymbolId, u8)> {
+        self.call_parent_hop_valid_with_limit(key, base, child, prior, 2)
+    }
+
+    fn call_parent_hop_valid_with_limit(
+        &self,
+        key: NodeKey,
+        base: NodeKey,
+        child: SymbolId,
+        prior: u8,
+        limit: u8,
+    ) -> Option<(SymbolId, u8)> {
         let declaration = self.resolve.symbols.get(child.0 as usize)?;
         let SymbolKind::Model {
             owner: ModelOwner::ChildOf(parent),
@@ -3420,7 +3431,7 @@ impl<'a> Closure<'a> {
             symbol: *parent,
             stored: true,
         };
-        if prior >= 2
+        if prior >= limit
             || fields.iter().any(|field| {
                 self.resolve
                     .symbols
@@ -13431,6 +13442,65 @@ impl<'a> Closure<'a> {
             .then_some(())
     }
 
+    /// `remove` also searches the original Seat's Term.locations reference
+    /// array. The array is a checked stored field of the one-hop parent, not
+    /// a ChildOf collection; keep this admission tied to that owner and field.
+    fn source_require_remove_term_locations_any(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        query: &super::types::CheckedQuery,
+        location: SymbolId,
+    ) -> Option<()> {
+        let scenario_symbol = self.resolve.symbols.get(scenario.scenario.0 as usize)?;
+        let scenario_module = self.resolve.modules.get(scenario.module.0 as usize)?;
+        let location_symbol = self.resolve.symbols.get(location.0 as usize)?;
+        let location_module = self.resolve.modules.get(location_symbol.module.0 as usize)?;
+        if scenario_symbol.name != "remove" || scenario_symbol.module != scenario.module
+            || scenario_module.name != "member_terms"
+            || location_symbol.name != "Location" || location_module.name != "rent_catalog"
+            || !matches!(location_symbol.kind, SymbolKind::Model { .. })
+        {
+            return None;
+        }
+        let seat = scenario.params.iter().find(|param| {
+            self.resolve.symbols.get(param.param.0 as usize).is_some_and(|symbol|
+                symbol.name == "seat" && symbol.module == scenario.module
+                    && matches!(symbol.kind, SymbolKind::Param { owner, .. } if owner == scenario.scenario))
+        })?;
+        if seat.default.is_some() { return None; }
+        let ResolvedType::Record { symbol: seat_model, stored: true } =
+            self.types.symbol_types.get(&seat.param)? else { return None; };
+        let seat_symbol = self.resolve.symbols.get(seat_model.0 as usize)?;
+        let ModelOwner::ChildOf(term) = self.effects.models.get(seat_model)?.owner else { return None; };
+        let term_symbol = self.resolve.symbols.get(term.0 as usize)?;
+        if seat_symbol.name != "Seat" || seat_symbol.module != scenario.module
+            || term_symbol.name != "Term" || term_symbol.module != scenario.module
+        {
+            return None;
+        }
+        let (receiver, name) = self.count_member(query.domain)?;
+        if name != "locations"
+            || self.checked_call_parent_path(receiver, seat.param, 0) != Some((term, 1))
+        {
+            return None;
+        }
+        let field = self.effects.models.get(&term)?.fields.iter().find(|field| {
+            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|symbol|
+                symbol.name == "locations"
+                    && matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == term))
+        })?;
+        let expected = ResolvedType::Array {
+            element: Box::new(ResolvedType::Record { symbol: location, stored: true }),
+            ordered: true,
+            nonempty: false,
+        };
+        (field.required_array && field.default.is_none() && field.server.is_none()
+            && self.types.symbol_types.get(&field.field) == Some(&expected)
+            && query.domain_type == expected
+            && self.types.node_types.get(&query.domain) == Some(&expected))
+            .then_some(())
+    }
+
     /// Literal scalar/owned-enum alternatives are data, never transported row,
     /// File, delivery, Contract or copied lexical authority.
     fn source_require_literal_array(&self, key: NodeKey) -> Option<()> {
@@ -14209,6 +14279,68 @@ impl<'a> Closure<'a> {
         Some((formal, parent, hops))
     }
 
+    /// The original member removal passes its Seat's Customer ancestor to
+    /// `customer.has_role`. Admit that third containment edge only for this
+    /// exact helper/domain and original required Seat parameter. The regular
+    /// source Require parent-path limit remains two everywhere else.
+    fn source_require_remove_role_customer_path(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        call: &CheckedDecisionCall,
+        argument: NodeKey,
+        customer: SymbolId,
+        company_role: SymbolId,
+    ) -> Option<(SymbolId, u8)> {
+        let [frame] = call.chain.as_slice() else { return None; };
+        let scenario_symbol = self.resolve.symbols.get(scenario.scenario.0 as usize)?;
+        let scenario_module = self.resolve.modules.get(scenario.module.0 as usize)?;
+        let helper_symbol = self.resolve.symbols.get(frame.derive.0 as usize)?;
+        let helper_module = self.resolve.modules.get(helper_symbol.module.0 as usize)?;
+        let customer_symbol = self.resolve.symbols.get(customer.0 as usize)?;
+        let role_symbol = self.resolve.symbols.get(company_role.0 as usize)?;
+        if scenario_symbol.name != "remove"
+            || scenario_symbol.module != scenario.module
+            || scenario_module.name != "member_terms"
+            || helper_symbol.name != "has_role"
+            || helper_module.name != "customer"
+            || customer_symbol.name != "Customer"
+            || customer_symbol.module != helper_symbol.module
+            || role_symbol.name != "CompanyRole"
+            || role_symbol.module != helper_symbol.module
+        {
+            return None;
+        }
+        let seat = scenario.params.iter().find(|param| {
+            self.resolve.symbols.get(param.param.0 as usize).is_some_and(|symbol|
+                symbol.name == "seat"
+                    && symbol.module == scenario.module
+                    && matches!(symbol.kind, SymbolKind::Param { owner, .. } if owner == scenario.scenario))
+        })?;
+        if seat.default.is_some() { return None; }
+        let ResolvedType::Record { symbol: seat_model, stored: true } =
+            self.types.symbol_types.get(&seat.param)? else { return None; };
+        let seat_symbol = self.resolve.symbols.get(seat_model.0 as usize)?;
+        let ModelOwner::ChildOf(term) = self.effects.models.get(seat_model)?.owner else { return None; };
+        let term_symbol = self.resolve.symbols.get(term.0 as usize)?;
+        let ModelOwner::ChildOf(membership) = self.effects.models.get(&term)?.owner else { return None; };
+        let membership_symbol = self.resolve.symbols.get(membership.0 as usize)?;
+        if seat_symbol.name != "Seat" || seat_symbol.module != scenario.module
+            || term_symbol.name != "Term" || term_symbol.module != scenario.module
+            || membership_symbol.name != "Membership" || membership_symbol.module != scenario.module
+            || self.effects.models.get(&membership)?.owner != ModelOwner::ChildOf(customer)
+        {
+            return None;
+        }
+        let (base, name) = self.count_member(argument)?;
+        if name != "parent" || self.nodes.get(&argument)?.kind != SyntaxKind::Member
+            || self.checked_call_parent_path(base, seat.param, 0) != Some((membership, 2))
+        {
+            return None;
+        }
+        let (actual, hops) = self.call_parent_hop_valid_with_limit(argument, base, membership, 2, 3)?;
+        (actual == customer && hops == 3).then_some((actual, hops))
+    }
+
     /// A helper-contained `parent.Child` has the same owner domain as a
     /// direct source Require only when every call frame substitutes its
     /// formal with an exact original parent path. Matching Model types alone
@@ -14250,15 +14382,23 @@ impl<'a> Closure<'a> {
                 return None;
             }
             if index == 0 {
-                let (actual, path_hops) = scenario.params.iter().find_map(|parameter| {
+                let ordinary = scenario.params.iter().find_map(|parameter| {
                     self.checked_call_parent_path(argument, parameter.param, 0)
                         .map(|(actual, path_hops)| (actual, path_hops))
-                })?;
+                });
                 let ResolvedType::Record { symbol: expected, stored: true } =
                     self.types.symbol_types.get(&formal)? else {
                         return None;
                     };
-                if actual != *expected || hops.checked_add(path_hops)? > 2 {
+                let (actual, path_hops, limit) = if let Some((actual, path_hops)) = ordinary {
+                    (actual, path_hops, 2)
+                } else {
+                    let (actual, path_hops) = self.source_require_remove_role_customer_path(
+                        scenario, call, argument, *expected, model,
+                    )?;
+                    (actual, path_hops, 3)
+                };
+                if actual != *expected || hops.checked_add(path_hops)? > limit {
                     return None;
                 }
             } else {
@@ -14353,6 +14493,7 @@ impl<'a> Closure<'a> {
             if self
                 .source_require_contained_any(scenario, query, fact.model)
                 .is_none()
+                && self.source_require_remove_term_locations_any(scenario, query, fact.model).is_none()
             {
                 *supported = false;
                 return Some(false);
@@ -24062,10 +24203,10 @@ impl<'a> Closure<'a> {
                 self.product(effect.node, &paths, &values)
             }
 
-            /// An event may carry the original required child input's one-hop
-            /// parent reference when its declared field has that exact stored
-            /// Model type. This is a reference value, not permission to read
-            /// the parent row or a selected query result.
+            /// An event may carry the original required child input's checked
+            /// parent reference when its declared field has that stored Model
+            /// type. Member removal's AccessChanged.membership is the one
+            /// admitted two-hop form; neither grants a parent-row read.
             fn external_effect_parent_reference(
                 &self,
                 event: SymbolId,
@@ -24074,7 +24215,7 @@ impl<'a> Closure<'a> {
                 key: NodeKey,
                 value: &ValuePath,
             ) -> Option<()> {
-                let Some(ReferenceOrigin::Parent { parameter, model, depth: 1 }) =
+                let Some(ReferenceOrigin::Parent { parameter, model, depth }) =
                     value.reference_origin else {
                     return None;
                 };
@@ -24089,8 +24230,20 @@ impl<'a> Closure<'a> {
                 }
                 let key = self.query_group(key)?;
                 let (base, name) = self.count_member(key)?;
+                let declaration = self.resolve.symbols.get(event.0 as usize)?;
+                let two_parent_membership = depth == 2
+                    && declaration.canonical == "member_terms.AccessChanged"
+                    && argument.key == "membership"
+                    && self.resolve.symbols.get(model.0 as usize)?.canonical == "member_terms.Membership"
+                    && matches!(self.resolve.symbols.get(parameter.0 as usize)?.kind,
+                        SymbolKind::Param { owner, .. }
+                        if self.resolve.symbols.get(owner.0 as usize)
+                            .is_some_and(|symbol| symbol.canonical == "member_terms.remove"))
+                    && self.checked_call_parent_path(key, parameter, 0) == Some((model, 2));
                 if name != "parent"
-                    || !matches!(self.query_binding(base), Some(Binding::Symbol(actual)) if *actual == parameter)
+                    || !(depth == 1
+                        && matches!(self.query_binding(base), Some(Binding::Symbol(actual)) if *actual == parameter)
+                        || two_parent_membership)
                     || !matches!(self.resolve.symbols.get(parameter.0 as usize)?.kind,
                         SymbolKind::Param { .. })
                     || self.nodes.get(&argument.key_node)?.kind != SyntaxKind::Name
@@ -24098,7 +24251,6 @@ impl<'a> Closure<'a> {
                 {
                     return None;
                 }
-                let declaration = self.resolve.symbols.get(event.0 as usize)?;
                 let SymbolKind::Event { fields } = &declaration.kind else {
                     return None;
                 };
