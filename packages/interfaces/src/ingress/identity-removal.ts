@@ -198,7 +198,7 @@ async function verifyIngressSignatures(
       { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
     for (const mac of signatures) {
       // Host HMAC verification owns the timing-safe comparison.
-      if (await globalThis.crypto.subtle.verify('HMAC', key, mac.slice(), signed)) acceptedKeys.add(encoded);
+      if (await globalThis.crypto.subtle.verify('HMAC', key, Uint8Array.from(mac), Uint8Array.from(signed))) acceptedKeys.add(encoded);
     }
   }
   return acceptedKeys;
