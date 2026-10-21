@@ -842,6 +842,15 @@ fn prepare_owner_guards(
         }
         return Ok(Some(vec![guard.descriptor]));
     }
+    if owner.canonical == "invoice.issue" {
+        let (span, guard) = super::invoice_issue_decisions::prepare_issue_send_guard(context, owner)
+            .ok_or_else(|| gap("exact invoice issue SEND owner unavailable", Some(owner.span)))?;
+        if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
+            || guards.insert(span, guard.clone()).is_some() {
+            return Err(gap("invoice issue SEND dispatch census mismatch", Some(owner.span)));
+        }
+        return Ok(Some(vec![guard.descriptor]));
+    }
     // A fresh IR refusal in this scenario, a consumed helper, or a schema
     // declaration invalidates its SEND proof. Unrelated owners cannot.
     if super::scenario_queries::checked_send_diagnostics(

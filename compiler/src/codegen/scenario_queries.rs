@@ -2024,7 +2024,7 @@ fn plan_direct_query(
     let influences = assemble_direct_influences(q)?;
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None,source: origin(&source.source, entry_module),
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None,source: origin(&source.source, entry_module),
         queries: vec![ReceiptQuery {
             id: q.id.clone(),
             source: origin(&q.source, entry_module),
@@ -2475,7 +2475,7 @@ fn checked_inline_selection_query_plan(
     let returns = assemble_inline_returns(checked, fact, source, entry)?;
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None,source: origin(&source.source, entry),
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None,source: origin(&source.source, entry),
         queries: vec![query],
         returns,
     })
@@ -3068,7 +3068,7 @@ fn checked_transcript_query_plan(
     }
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None,source: origin(&source.source, entry),
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None,source: origin(&source.source, entry),
         queries,
         returns,
     })
@@ -3554,7 +3554,7 @@ fn checked_first_query_plan(
     let parent = first_query_parent(ir, owner, q, query, db, entry)?;
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None,source: origin(&q.source, entry),
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None,source: origin(&q.source, entry),
         queries: vec![ReceiptQuery {
             id: q.id.clone(),
             source: origin(&q.source, entry),

@@ -66,6 +66,7 @@ mod member_retry_decisions;
 mod invoice_overdue_decisions;
 mod invoice_collect_decisions;
 mod rent_notice_decisions;
+mod invoice_issue_decisions;
 mod send_guards;
 pub mod sourcemap;
 pub mod then_views;

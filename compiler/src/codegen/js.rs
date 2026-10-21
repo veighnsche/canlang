@@ -11307,23 +11307,38 @@ fn null_equality(
                 let owner_decision = self.receipt_capture.as_ref()
                     .and_then(|receipt|receipt.plan.refer_reject_decision.as_ref()
                         .or(receipt.plan.member_retry_decision.as_ref())
-                        .or(receipt.plan.invoice_collect_decision.as_ref()))
+                        .or(receipt.plan.invoice_collect_decision.as_ref())
+                        .or(receipt.plan.invoice_issue_decision.as_ref()))
                     .filter(|_|self.owner_handler_body);
                 // Source Require lowering temporarily suspends receipt_capture,
                 // and imported pure helpers are emitted outside the handler.
                 // Their exact checked invoice collection sites still carry the
                 // same source marker when called under that owner's lease.
-                let invoice_collect_decision = self.native_receipts.values()
-                    .find_map(|receipt|receipt.plan.invoice_collect_decision.as_ref());
-                let owner_site_id = owner_decision.or(invoice_collect_decision).and_then(|decision| {
-                    let node=query.source.as_ref()?.node;
-                    decision["querySites"].as_array()?.iter().find(|site|
+                let owner_site_id = owner_decision.into_iter().chain(
+                    self.native_receipts.values().flat_map(|receipt| [
+                        receipt.plan.invoice_collect_decision.as_ref(),
+                        receipt.plan.invoice_issue_decision.as_ref(),
+                    ].into_iter().flatten())).find_map(|decision| {
+                    decision["querySites"].as_array()?.iter().find(|site| {
+                        let exact_node=query.source.as_ref().is_some_and(|source| {
+                            let node=source.node;
+                            (self.source_paths.is_empty() || self.source_paths.get(&node.file)
+                                .is_some_and(|path|site["source"]["path"]==path.as_str()))
+                                && site["queryNode"]==serde_json::json!({
+                                    "start":node.start,"end":node.end,"kind":node.kind
+                                })
+                        });
+                        // Bare `count(invoice.Line)` has a checked builtin and
+                        // typed model-member argument, but no checked query fact.
+                        // The exact issue source/IR profile binds that one span.
+                        let issue_count=query.source.is_none()
+                            && decision["owner"]=="invoice.issue"
+                            && site["stage"]=="lineCount"
+                            && site["queryNode"]["start"]==span.start
+                            && site["queryNode"]["end"]==span.end;
                         site["model"]==*model
-                        && (self.source_paths.is_empty() || self.source_paths.get(&node.file)
-                            .is_some_and(|path|site["source"]["path"]==path.as_str()))
-                        && site["queryNode"]==serde_json::json!({
-                            "start":node.start,"end":node.end,"kind":node.kind
-                        }))?["id"].as_str().map(str::to_owned)
+                            && (exact_node || issue_count)
+                    })?["id"].as_str().map(str::to_owned)
                 });
                 if owner_decision.is_some() && owner_site_id.is_none() {
                     self.unsupported("owner decision query",
@@ -20350,6 +20365,13 @@ impl<'a> Emitter<'a> {
             return;
         }
         if let Some(decision) = self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.invoice_issue_decision.clone())
+            && item.canonical == "invoice.issue"
+        {
+            self.emit_invoice_issue_decision_body(out,item,guards,effects,&decision);
+            return;
+        }
+        if let Some(decision) = self.receipt_capture.as_ref()
             .and_then(|receipt| receipt.plan.invoice_collect_decision.clone())
             && item.canonical == "invoice.collect"
         {
@@ -20435,6 +20457,50 @@ impl<'a> Emitter<'a> {
             &format!("await nativeScenarioRentNoticeDecision(c,{},async(c,{{{event}}})=>{{",
                 descriptor_json(decision)));
         for stmt in guards.iter().chain(effects) {
+            for (line,span) in self.lower_stmt(stmt,0) {
+                out.push(span,Some(item.canonical.clone()),&line);
+            }
+        }
+        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
+        self.exit_scope();
+        self.owner_handler_body=previous_owner;
+        self.query_capture=previous_query;
+    }
+
+    fn emit_invoice_issue_decision_body(&mut self, out: &mut JsWriter, item: &IrItem,
+        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value) {
+        if guards.len()!=2 || effects.len()!=7 ||
+            !matches!(&effects[0], IrStmt::Let {name,..} if name == "defaults") {
+            self.unsupported("invoice issue owner decision",
+                "the exact authored defaults stage is missing",item.span);
+            return;
+        }
+        let previous_owner=self.owner_handler_body;
+        let previous_query=self.query_capture.take();
+        self.owner_handler_body=true;
+        self.enter_scope();
+        let invoice=format!("{}:{}",object_key("invoice"),self.bind("invoice"));
+        let number=format!("{}:{}",object_key("number"),self.bind("number"));
+        let first_defaults=self.bind("firstDefaults");
+        self.stdlib.insert("nativeScenarioInvoiceIssueDecision".into());
+        out.push(item.span,Some(item.canonical.clone()),
+            &format!("await nativeScenarioInvoiceIssueDecision(c,{},async(c,{{{invoice},{number},firstDefaults:{first_defaults}}})=>{{",
+                descriptor_json(decision)));
+        if let IrItemKind::Scenario { by, .. } = &item.kind {
+            let admission=self.lower_admission(by);
+            out.push(item.span,Some(item.canonical.clone()),&format!("{admission};"));
+        }
+        for stmt in guards {
+            for (line,span) in self.lower_stmt(stmt,0) {
+                out.push(span,Some(item.canonical.clone()),&line);
+            }
+        }
+        if let IrStmt::Let {name,span,..}=&effects[0] {
+            let bound=self.bind(name);
+            out.push(*span,Some(item.canonical.clone()),
+                &format!("const {bound}=await {first_defaults}();"));
+        }
+        for stmt in &effects[1..] {
             for (line,span) in self.lower_stmt(stmt,0) {
                 out.push(span,Some(item.canonical.clone()),&line);
             }
