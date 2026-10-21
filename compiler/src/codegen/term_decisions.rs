@@ -29,8 +29,8 @@ const LOCATION_REQUIRE: &str = "location!=null and actor.email_verified and capt
 const CAPTURE_REQUIRE: &str =
     "capture==latest_capture(membership.parent,actor,location,\"membership\")";
 const PREVIOUS_REQUIRE: &str = "previous==null or previous.capture==capture";
-const CAN_WORK: &str = "any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))";
-const HAS_ROLE: &str =
+pub(super) const CAN_WORK: &str = "any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))";
+pub(super) const HAS_ROLE: &str =
     "any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)";
 const CYCLE_BOUNDARY: &str = "local_instant(add_months(membership.anchor,offset*membership.months),\"00:00\",membership.timezone,fold=earlier)";
 const LATEST_CAPTURE: &str = "first(customer.Capture as capture where capture.account==person and capture.captured+capture.window>=now and ((capture.advocate!=null and capture.advocate.parent.active and capture.advocate.account!=person and location in capture.advocate.parent.locations and product in capture.advocate.parent.products) or (capture.partner!=null and capture.partner.active and capture.partner.account!=person and location in capture.partner.locations and product in capture.partner.products)) order=-capture.captured)";
@@ -40,19 +40,19 @@ fn slice<'a>(db: &'a SourceDb, key: NodeKey) -> Option<&'a str> {
         .text
         .get(key.start as usize..key.end as usize)
 }
-fn text<'a>(db: &'a SourceDb, key: NodeKey) -> Option<&'a str> {
+pub(super) fn text<'a>(db: &'a SourceDb, key: NodeKey) -> Option<&'a str> {
     Some(slice(db, key)?.trim())
 }
-fn span(key: NodeKey) -> Span {
+pub(super) fn span(key: NodeKey) -> Span {
     Span::new(key.file, key.start, key.end)
 }
-fn interval(key: NodeKey) -> Value {
+pub(super) fn interval(key: NodeKey) -> Value {
     json!({"start":key.start,"end":key.end,"kind":key.kind})
 }
 fn plain_interval(key: NodeKey) -> Value {
     json!({"start":key.start,"end":key.end})
 }
-fn symbol(program: &CheckedProgram, canonical: &str) -> Option<SymbolId> {
+pub(super) fn symbol(program: &CheckedProgram, canonical: &str) -> Option<SymbolId> {
     let mut hits = program
         .symbols
         .iter()
@@ -60,14 +60,14 @@ fn symbol(program: &CheckedProgram, canonical: &str) -> Option<SymbolId> {
     let id = hits.next()?.id;
     hits.next().is_none().then_some(id)
 }
-fn record_is(program: &CheckedProgram, ty: &ResolvedType, canonical: &str) -> bool {
+pub(super) fn record_is(program: &CheckedProgram, ty: &ResolvedType, canonical: &str) -> bool {
     matches!(ty, ResolvedType::Record {symbol,stored:true}
         if program.symbols.get(symbol.0 as usize).is_some_and(|item| item.canonical == canonical))
 }
 fn nullable_record_is(program: &CheckedProgram, ty: &ResolvedType, canonical: &str) -> bool {
     matches!(ty, ResolvedType::Nullable(inner) if record_is(program,inner,canonical))
 }
-fn source(program: &CheckedProgram, db: &SourceDb, key: NodeKey, module: &str) -> Option<Value> {
+pub(super) fn source(program: &CheckedProgram, db: &SourceDb, key: NodeKey, module: &str) -> Option<Value> {
     let owner = program
         .modules
         .iter()
@@ -76,7 +76,7 @@ fn source(program: &CheckedProgram, db: &SourceDb, key: NodeKey, module: &str) -
     (key.end as usize <= file.text.len() && file.sha256 == sha256_hex(file.text.as_bytes()))
         .then(|| json!({"path":file.path,"sha256":file.sha256,"module":module}))
 }
-fn site(
+pub(super) fn site(
     program: &CheckedProgram,
     db: &SourceDb,
     module: &str,
@@ -101,10 +101,10 @@ fn site(
     );
     Some(json!({"id":id,"source":origin,"node":interval(node),"statement":interval(statement)}))
 }
-fn no_children(effect: &Effect) -> bool {
+pub(super) fn no_children(effect: &Effect) -> bool {
     effect.then_effects.is_empty() && effect.else_effects.is_empty() && effect.match_arms.is_empty()
 }
-fn args_match(db: &SourceDb, effect: &Effect, expected: &[(&str, Option<&str>)]) -> bool {
+pub(super) fn args_match(db: &SourceDb, effect: &Effect, expected: &[(&str, Option<&str>)]) -> bool {
     effect.args.len() == expected.len()
         && effect.args.iter().zip(expected).all(|(arg, (key, value))| {
             arg.key == *key
@@ -115,7 +115,7 @@ fn args_match(db: &SourceDb, effect: &Effect, expected: &[(&str, Option<&str>)])
                 }
         })
 }
-fn derive(
+pub(super) fn derive(
     program: &CheckedProgram,
     db: &SourceDb,
     canonical: &str,
@@ -172,7 +172,7 @@ fn derive(
     };
     okay.then_some((id, expr))
 }
-fn selected_derive(program: &CheckedProgram, within: NodeKey, target: SymbolId) -> Option<NodeKey> {
+pub(super) fn selected_derive(program: &CheckedProgram, within: NodeKey, target: SymbolId) -> Option<NodeKey> {
     let mut hits = program
         .types
         .selected_calls
@@ -188,7 +188,7 @@ fn selected_derive(program: &CheckedProgram, within: NodeKey, target: SymbolId) 
     let hit = hits.next()?;
     hits.next().is_none().then_some(hit)
 }
-fn selected_collection(
+pub(super) fn selected_collection(
     program: &CheckedProgram,
     within: NodeKey,
     builtin: &str,
@@ -240,7 +240,7 @@ fn selected_collection(
     let hit = hits.next()?;
     hits.next().is_none().then_some(hit)
 }
-fn frame(program: &CheckedProgram, db: &SourceDb, call: NodeKey, derive: &str) -> Option<Value> {
+pub(super) fn frame(program: &CheckedProgram, db: &SourceDb, call: NodeKey, derive: &str) -> Option<Value> {
     let module = &program
         .modules
         .iter()
@@ -254,7 +254,7 @@ fn frame(program: &CheckedProgram, db: &SourceDb, call: NodeKey, derive: &str) -
         json!({"source":source(program,db,call,module)?,"callSite":interval(call),"derive":derive}),
     )
 }
-fn query_site(
+pub(super) fn query_site(
     program: &CheckedProgram,
     db: &SourceDb,
     call: NodeKey,
@@ -332,14 +332,14 @@ fn query_site(
         "domainKind":domain_kind,"ownerPath":owner_path,"order":order,
         "deriveChain":derive_chain}))
 }
-fn original_ir_match(context: &FreshSourceContext<'_>, item: &IrItem) -> Option<()> {
+pub(super) fn original_ir_match(context: &FreshSourceContext<'_>, item: &IrItem) -> Option<()> {
     let fresh = context.fresh().items.get(item.id.0 as usize)?;
     (fresh.canonical == item.canonical
         && format!("{:?}", fresh.kind) == format!("{:?}", item.kind)
         && format!("{:?}", context.fresh().modules) == format!("{:?}", context.ir().modules))
     .then_some(())
 }
-fn checked_closure(
+pub(super) fn checked_closure(
     context: &FreshSourceContext<'_>,
     scenario: NodeKey,
     helper_ids: &[SymbolId],
@@ -846,7 +846,7 @@ pub(super) fn collect_term_receipt(
             source,
             event_decision: None,
             term_decision: Some(decision),
-            leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None,
+            leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None,
             queries: Vec::new(),
             returns: vec![returned],
         },

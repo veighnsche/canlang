@@ -166,6 +166,19 @@ location, stale Evidence, and Program and Credit changes at commit; existing
 Settlement evidence remains unchanged. The remaining 73 diagnostics are
 separate sites.
 
+The following complete 24-source release capture reports 72 diagnostics
+(`complete:true`, `omitted:0`). It removes only the original
+`CanMember.retry_collection` guarded `Billing.charge` refusal at byte 57869;
+all 24 source hashes match the 73-diagnostic capture, and no diagnostic was
+added. The source-bound owner decision checks the current Term, its Membership
+and Customer, the hidden Employee and CompanyRole authority domains, the
+original guarded charge payload, and the following Term delivery SET in one
+commit. A false SEND guard keeps its authored skipped delivery and Term SET.
+The installed regression covers 19 mutation cases, including authority and
+commit races, and six dispatch cases that recheck the current Term and
+Membership before Billing is called. Five altered source variants remain
+refused. The remaining 72 diagnostics are separate sites.
+
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
 **Implementation status, 2026-10-21:** The first owner-decision repair is now

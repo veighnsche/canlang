@@ -13,7 +13,7 @@
  */
 import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, FrameworkFilePayloadOrigin, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, FinalizedFileObservation, FinalizedFileReceiver, RetainedFinalizedFile, ScenarioReceiptFileAssignment, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
-import { compareDate, date_year, decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, makeDeliveryRef, makeRecordRef, isUserRef, type DateValue, type UserRef, type NormalizedSchema } from '@canlang/values';
+import { compareDate, date_year, decodeValue, encodeValue, local_date, parseTypeId, printTypeId, validateValue, makeDeliveryRef, makeRecordRef, isUserRef, type DateValue, type DatetimeValue, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import { buildPolicyTable, evalPredicateForRow, type ByContext, type PolicyTable } from '../policy/grants.js';
@@ -626,6 +626,119 @@ export interface ReferRejectDecisionPlan {
   }[];
 }
 
+/** The original CanMember retry has one guarded charge followed by one Term SET. */
+export interface MemberRetryDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'member_terms.retry_collection';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly parameters: readonly [{ readonly name: 'term'; readonly model: 'member_terms.Term'; readonly nullable: false }];
+  readonly sites: {
+    readonly header: readonly [TermDecisionSite, TermDecisionSite];
+    readonly locationFirst: TermDecisionSite;
+    readonly locationRequire: TermDecisionSite;
+    readonly send: TermDecisionSite;
+    readonly set: TermDecisionSite & { readonly model: 'member_terms.Term' };
+  };
+  readonly roleSite: TermDecisionSite;
+  readonly membershipSite: TermDecisionSite;
+  readonly querySites: readonly {
+    readonly id: string;
+    readonly stage: 'header';
+    readonly model: 'employee.Employee' | 'customer.CompanyRole';
+    readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly queryNode: TermDecisionSite['node'];
+    readonly callSite: TermDecisionSite['node'];
+    readonly aliasSite: TermDecisionSite['node'];
+    readonly predicateSite: TermDecisionSite['node'];
+    readonly domainKind: 'tenant-root' | 'contained-child';
+    readonly ownerPath: readonly string[];
+    readonly order: readonly string[];
+    readonly deriveChain: readonly { readonly source: ScenarioResultDisclosurePlan['source'];
+      readonly callSite: TermDecisionSite['node']; readonly derive: string }[];
+  }[];
+  readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly node: TermDecisionSite['node']; readonly statement: TermDecisionSite['statement'] };
+}
+function checkMemberRetryDecisionPlan(value: unknown, transport: unknown): MemberRetryDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'parameters', 'sites', 'roleSite', 'membershipSite', 'querySites', 'sendRule']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as { path: string; sha256: string; module: string };
+  const carrier = transport as { readonly path: string; readonly sha256: string };
+  if (raw['version'] !== 1 || raw['owner'] !== 'member_terms.retry_collection' || source.module !== 'member_terms' ||
+      source.path !== carrier.path || source.sha256 !== carrier.sha256 ||
+      stableStringify(list(raw['parameters'])) !== stableStringify([
+        { name: 'term', model: 'member_terms.Term', nullable: false },
+      ])) return invalid('member retry requires its exact owning source and Term input.');
+  const ids = new Set<string>();
+  const span = (value: unknown): void => {
+    const node = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
+        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number) ||
+        !Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
+      return invalid('member retry needs a nonempty checked source interval.');
+    }
+  };
+  const site = (value: unknown, extra: readonly string[] = []): void => {
+    const entry = object(value, ['id', 'source', 'node', 'statement', ...extra]);
+    const id = text(entry['id']); origin(entry['source']); span(entry['node']); span(entry['statement']);
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify(entry['source']) !== stableStringify(source)) {
+      return invalid('member retry site differs from its checked source identity.');
+    }
+    ids.add(id);
+  };
+  const sites = object(raw['sites'], ['header', 'locationFirst', 'locationRequire', 'send', 'set']);
+  const header = list(sites['header']);
+  if (header.length !== 2) return invalid('member retry needs both original Requires.');
+  for (const entry of header) site(entry);
+  site(sites['locationFirst']); site(sites['locationRequire']); site(sites['send']); site(sites['set'], ['model']);
+  if ((sites['set'] as { readonly model: unknown }).model !== 'member_terms.Term') {
+    return invalid('member retry SET needs its original Term target.');
+  }
+  const ordered = [...header, sites['locationFirst'], sites['locationRequire'], sites['send'], sites['set']] as TermDecisionSite[];
+  if (ordered.some((item, index) => {
+    const statement = item.statement;
+    return item.node.start < statement.start || item.node.end > statement.end ||
+      index > 0 && statement.start < ordered[index - 1]!.statement.end;
+  })) return invalid('member retry sites differ from the original Requires, FIRST, SEND, SET order.');
+  site(raw['roleSite']); site(raw['membershipSite']);
+  const queries = list(raw['querySites']);
+  if (queries.length !== 2) return invalid('member retry needs its Employee and CompanyRole domains.');
+  for (const [index, value] of queries.entries()) {
+    const item = object(value, ['id', 'stage', 'model', 'source', 'queryNode', 'callSite', 'aliasSite',
+      'predicateSite', 'domainKind', 'ownerPath', 'order', 'deriveChain']);
+    const id = text(item['id']); origin(item['source']);
+    span(item['queryNode']); span(item['callSite']); span(item['aliasSite']); span(item['predicateSite']);
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) || item['stage'] !== 'header' ||
+        stableStringify({ model: item['model'], domainKind: item['domainKind'], ownerPath: item['ownerPath'], order: item['order'] }) !==
+          stableStringify(index === 0 ? { model: 'employee.Employee', domainKind: 'tenant-root', ownerPath: [], order: [] } :
+            { model: 'customer.CompanyRole', domainKind: 'contained-child', ownerPath: ['parent'], order: [] })) {
+      return invalid('member retry query differs from its bounded source domain.');
+    }
+    ids.add(id);
+    const querySource = item['source'] as { readonly module: string; readonly path: string; readonly sha256: string };
+    if (querySource.module !== (index === 0 ? 'employee' : 'customer')) {
+      return invalid('member retry query differs from its original helper module.');
+    }
+    const chain = list(item['deriveChain']);
+    if (chain.length !== 1) return invalid('member retry query needs its original helper chain.');
+    const step = object(chain[0], ['source', 'callSite', 'derive']);
+    origin(step['source']); span(step['callSite']);
+    if (step['derive'] !== (index === 0 ? 'employee.can_work' : 'customer.has_role') ||
+        stableStringify(step['source']) !== stableStringify(source)) {
+      return invalid('member retry query differs from its original helper.');
+    }
+  }
+  const rule = object(raw['sendRule'], ['rule', 'source', 'node', 'statement']);
+  text(rule['rule']); origin(rule['source']); span(rule['node']); span(rule['statement']);
+  if (stableStringify(rule['source']) !== stableStringify(source) ||
+      stableStringify(rule['node']) !== stableStringify((sites['send'] as TermDecisionSite).node) ||
+      stableStringify(rule['statement']) !== stableStringify((sites['send'] as TermDecisionSite).statement)) {
+    return invalid('member retry SEND lacks its original guarded occurrence.');
+  }
+  return deepFreeze(raw) as unknown as MemberRetryDecisionPlan;
+}
+
 function checkReferRejectDecisionPlan(value: unknown, transport: unknown): ReferRejectDecisionPlan {
   const raw = object(value, ['version', 'owner', 'source', 'sites', 'roleSite', 'membershipSite', 'querySites']);
   origin(raw['source']); origin(transport);
@@ -700,7 +813,8 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'termDecision') ? ['termDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'leaveRequestDecision') ? ['leaveRequestDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'leaveDecideDecision') ? ['leaveDecideDecision'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'referRejectDecision') ? ['referRejectDecision'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'referRejectDecision') ? ['referRejectDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'memberRetryDecision') ? ['memberRetryDecision'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
@@ -708,6 +822,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'leaveRequestDecision')) checkLeaveRequestDecisionPlan(plan['leaveRequestDecision'], plan['source']);
   if (Object.hasOwn(plan, 'leaveDecideDecision')) checkLeaveDecideDecisionPlan(plan['leaveDecideDecision'], plan['source']);
   if (Object.hasOwn(plan, 'referRejectDecision')) checkReferRejectDecisionPlan(plan['referRejectDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'memberRetryDecision')) checkMemberRetryDecisionPlan(plan['memberRetryDecision'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -799,6 +914,7 @@ interface BoundPlan {
   readonly leaveRequestDecision?: LeaveRequestDecisionPlan;
   readonly leaveDecideDecision?: LeaveDecideDecisionPlan;
   readonly referRejectDecision?: ReferRejectDecisionPlan;
+  readonly memberRetryDecision?: MemberRetryDecisionPlan;
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
   readonly resultModel: ModelName | undefined;
   readonly inputs: readonly CanonicalInputDef[];
@@ -1159,12 +1275,18 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
       issued.site.stage === 'body-condition' &&
       issued.site.node.start === state.bound.referRejectDecision.membershipSite.node.start &&
       issued.site.node.end === state.bound.referRejectDecision.membershipSite.node.end;
+    const memberRetryNested = !send && state.bound.memberRetryDecision !== undefined &&
+      refer?.call === call && refer.owner === 'member_terms.retry_collection' && !owner.busy && owner.stage === 0 &&
+      issued.site.stage === 'leading-require' &&
+      issued.site.node.start === state.bound.memberRetryDecision.membershipSite.node.start &&
+      issued.site.node.end === state.bound.memberRetryDecision.membershipSite.node.end;
     const priorPending = eventNested || termNested ? 1 : 0;
     if (owner.executingCall !== call || state.returnId !== null || state.pending !== priorPending || owner.capture.pending !== priorPending ||
         issued.site.stage === 'leading-require' && owner.stage !== 0 ||
         state.bound.leaveRequestDecision !== undefined && !leaveNested ||
         state.bound.leaveDecideDecision !== undefined && !leaveDecideNested ||
         state.bound.referRejectDecision !== undefined && !referNested ||
+        state.bound.memberRetryDecision !== undefined && !memberRetryNested ||
         owner.callGuards.length >= MAX_ITEMS) return invalid('membership capture is concurrent, completed, stale or outside its authored stage.');
     const activeSend = owner.activeSend;
     if (send ? activeSend === null || activeSend.call !== call || activeSend.stage !== owner.stage ||
@@ -1192,7 +1314,7 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
           termNested && owner!.activeTermDecision !== term ||
           leaveNested && owner!.activeLeaveDecision !== leave ||
           leaveDecideNested && owner!.activeLeaveDecideDecision !== leaveDecide ||
-          referNested && owner!.activeOwnerDecision !== refer) {
+          (referNested || memberRetryNested) && owner!.activeOwnerDecision !== refer) {
         return invalid('membership read crossed its exact active call/query stage.');
       }
     };
@@ -1527,6 +1649,9 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   const rawReferRejectDecision = (plan as ScenarioResultDisclosurePlan & { readonly referRejectDecision?: unknown }).referRejectDecision;
   const referRejectDecision = rawReferRejectDecision === undefined ? undefined :
     checkReferRejectDecisionPlan(rawReferRejectDecision, plan.source);
+  const rawMemberRetryDecision = (plan as ScenarioResultDisclosurePlan & { readonly memberRetryDecision?: unknown }).memberRetryDecision;
+  const memberRetryDecision = rawMemberRetryDecision === undefined ? undefined :
+    checkMemberRetryDecisionPlan(rawMemberRetryDecision, plan.source);
   if (eventDecision !== undefined) {
     const inspection = models.find(model => model.name === 'maintain.Inspection');
     const planModel = models.find(model => model.name === 'maintain.Plan');
@@ -1622,6 +1747,21 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
         plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
         (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
       return invalid('referral rejection lacks its exact void owner source and model declarations.');
+    }
+  }
+  if (memberRetryDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    if (def.kind !== 'scenario' || def.name !== memberRetryDecision.owner || declared !== 'void' ||
+        inputs.length !== 1 || inputs[0]?.name !== 'term' || inputs[0].kind !== 'ref' ||
+        inputs[0].model !== 'member_terms.Term' || !inputs[0].required ||
+        models.find(model => model.name === 'member_terms.Term')?.parent !== 'member_terms.Membership' ||
+        models.find(model => model.name === 'member_terms.Membership')?.parent !== 'customer.Customer' ||
+        models.find(model => model.name === 'customer.CompanyRole')?.parent !== 'customer.Customer' ||
+        !models.some(model => model.name === 'employee.Employee') ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('member retry lacks its exact void owner source and model declarations.');
     }
   }
   const resultModel = modelResultType(declared);
@@ -1747,6 +1887,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     ...(leaveRequestDecision === undefined ? {} : { leaveRequestDecision }),
     ...(leaveDecideDecision === undefined ? {} : { leaveDecideDecision }),
     ...(referRejectDecision === undefined ? {} : { referRejectDecision }),
+    ...(memberRetryDecision === undefined ? {} : { memberRetryDecision }),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,
@@ -2860,6 +3001,9 @@ interface Capture {
   referRejectDecision?: { readonly evidence: StoredRow; readonly advocate: StoredRow;
     readonly first: StoredRow | null; readonly reversed: boolean; readonly reason: string;
     readonly creditRows: readonly StoredRow[]; readonly createdId: string | null };
+  memberRetryDecision?: { readonly term: StoredRow; readonly membership: StoredRow;
+    readonly customer: StoredRow; readonly locationId: string; readonly deliveryId: string;
+    readonly queued: boolean };
 }
 const captures = new WeakMap<AdmittedCall, Capture>();
 const captureContexts = new WeakMap<object, Capture>();
@@ -3205,6 +3349,47 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
     } }));
     return deepFreeze(Object.fromEntries(guard.inputs.map(input => [input.name, values[input.name]])));
   }
+  const memberRetry = state.bound.memberRetryDecision;
+  const memberLease = owner.activeOwnerDecision;
+  if (memberRetry !== undefined && memberLease?.owner === 'member_terms.retry_collection') {
+    const selected = models[0];
+    const original = call.recordRefs.find(ref => ref.param === 'term' && ref.model === 'member_terms.Term');
+    if (memberLease.call !== call || owner.stage !== 0 || memberLease.staged !== 0 ||
+        owner.framework?.ordinal !== 0 || guard.rule !== memberRetry.sendRule.rule ||
+        guard.binding !== 'member_terms.Billing' || guard.target !== 'invoice.BillingV1.charge' ||
+        guard.inputs.length !== 1 || guard.inputs[0]?.name !== 'term' ||
+        guard.inputs[0].type !== 'member_terms.Term' || models.length !== 1 ||
+        selected?.name !== 'term' || selected.profile.model !== 'member_terms.Term' ||
+        original === undefined || selected.row.id !== original.id ||
+        selected.row.version !== original.row.version ||
+        !sameModelLifetime(original.row, selected.row) ||
+        stableStringify(selected.row) !== stableStringify(original.row)) {
+      return invalid('member retry SEND needs its unchanged admitted Term and original charge guard.');
+    }
+    const snapshot = deepFreeze({ ...selected.row, parent: selected.row.parent ?? null,
+      data: dataCopy(selected.row.data), sourcePresence: selected.sourcePresence });
+    modelLexicalSnapshotOccurrences(selected.profile, snapshot);
+    values.term = snapshot;
+    owner.callGuards.push(Object.freeze({ name: `member-retry-send:${guard.rule}`, evaluate: async () => {
+      if (owner.finalized === null || owner.capture.poisoned) return invalid('member retry SEND lacks final effects.');
+      const ledger = owner.framework;
+      const delivery = ledger?.queued.values().next().value?.intentId ?? ledger?.skipped.values().next().value?.deliveryId;
+      const writes = owner.finalized.writes.filter(write => write.model === 'member_terms.Term' &&
+        (write.kind === 'insert' ? write.row.id : write.id) === original.id);
+      const write = writes[0];
+      if (writes.length !== 1 || write?.kind !== 'update' || write.row.version !== original.row.version + 1 ||
+          !sameModelLifetime(original.row, write.row) || delivery === undefined ||
+          stableStringify(write.row.data) !== stableStringify({ ...original.row.data,
+            charge_delivery: delivery, collection: 'pending' })) {
+        return invalid('member retry SEND lost its exact subsequent Term delivery SET.');
+      }
+      if (await owner.store.readRevision() !== call.revision) {
+        throw new StateError('conflict', 'Member retry SEND moved beyond its original checkpoint.');
+      }
+      return true;
+    } }));
+    return deepFreeze(Object.fromEntries(guard.inputs.map(input => [input.name, values[input.name]])));
+  }
   if (models.length === 0) return deepFreeze(values);
   const privateEvent = event !== undefined && models.length === 1 && models[0]!.name === 'eventTerm';
   if (owner.session === null || !privateEvent && (producer?.app !== call.context.app || producer.readPolicies === undefined) ||
@@ -3341,6 +3526,13 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
       if (leave !== null && (!leave.approve || leave.call !== call || owner.stage !== 1 || leave.staged !== 1 ||
           ledger.ordinal !== 0 || rule !== leave.profile.sendRule.rule)) {
         return invalid('leave decision SEND differs from its one post-approval source stage.');
+      }
+      const member = owner.activeOwnerDecision;
+      if (member?.owner === 'member_terms.retry_collection' &&
+          (member.call !== call || owner.stage !== 0 || member.staged !== 0 ||
+            ledger.ordinal !== 0 || rule !== owner.capture.bound.memberRetryDecision?.sendRule.rule ||
+            binding.binding !== 'member_terms.Billing' || source !== 'invoice.BillingV1.charge')) {
+        return invalid('member retry SEND differs from its one original guarded charge stage.');
       }
       const active = Object.freeze({ call, guard, stage: owner.stage }); owner.activeSend = active;
       try {
@@ -3633,7 +3825,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     // The extra row is a sentinel: admitted bounded owner domains contain at
     // most 4,000 rows, so a full query can prove it did not truncate.
     const extendedOwner = state.bound.leaveRequestDecision !== undefined ||
-      state.bound.leaveDecideDecision !== undefined || state.bound.referRejectDecision !== undefined;
+      state.bound.leaveDecideDecision !== undefined || state.bound.referRejectDecision !== undefined ||
+      state.bound.memberRetryDecision !== undefined;
     const maxRows = !extendedOwner ? MAX_ITEMS : 4_001;
     if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
         (bounds['maxRows'] as number) > maxRows ||
@@ -3740,6 +3933,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
                 stableStringify(write.parent) !== stableStringify(expected.parent)) ||
               write.transition !== undefined || write.when !== undefined ||
               owner.stage !== finite.staged ||
+              finite.owner === 'member_terms.retry_collection' &&
+                (owner.framework?.ordinal !== 1 || finite.staged !== 0) ||
               stableStringify(Object.keys(write.data ?? {}).sort()) !== stableStringify(expected.fields)) {
             return invalid('owner decision write differs from its original fields and parent.');
           }
@@ -5385,6 +5580,229 @@ export async function executeScenarioReceiptReferRejectDecision(call: AdmittedCa
       }
       await authority.revalidate();
       if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Referral rejection moved beyond commit.');
+      return true;
+    } }));
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+}
+
+/** One admitted Term, its current containing rows and the exact two header
+ * source collections form the complete authority for the original retry. */
+export async function executeScenarioReceiptMemberRetryDecision(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: MemberRetryDecisionPlan;
+  readonly checked: MemberRetryDecisionPlan;
+  readonly evaluate: (frame: {
+    readonly term: StoredRow;
+    readonly membership: StoredRow;
+    readonly customer: StoredRow;
+    readonly read: (model: ModelName, id: RecordId) => StoredRow | null;
+    readonly query: (siteId: string, model: ModelName,
+      parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+  }) => Promise<unknown>;
+}): Promise<void> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  try {
+    const profile = state.bound.memberRetryDecision;
+    if (profile === undefined || owner === undefined || owner.session === null || owner.framework === null ||
+        owner.stage !== 0 || owner.busy || owner.activeOwnerDecision !== null || state.pending !== 0 ||
+        state.returnId !== null || state.memberRetryDecision !== undefined || owner.executingCall !== call ||
+        owner.callGuards.length >= MAX_ITEMS - 4 || typeof input.evaluate !== 'function') {
+      return invalid('member retry needs its unique live initial owner stage and SEND ledger.');
+    }
+    const original = checkMemberRetryDecisionPlan(dataCopy(input.original), state.bound.plan.source);
+    const checked = checkMemberRetryDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
+    if (stableStringify(original) !== stableStringify(checked) ||
+        stableStringify(original) !== stableStringify(profile)) {
+      return invalid('member retry differs from its independently checked original source.');
+    }
+    const refs = call.recordRefs.filter(ref => ref.param === 'term' && ref.model === 'member_terms.Term');
+    const ref = refs[0];
+    const wire = decodeValue('member_terms.Term', admittedInputWire(call.inputs, 'term')) as { readonly id: string };
+    if (refs.length !== 1 || ref === undefined || ref.id !== wire.id ||
+        ref.expectedVersion === null || ref.row.version !== ref.expectedVersion) {
+      return invalid('member retry needs its exact admitted versioned Term.');
+    }
+    const load = async (model: ModelName, id: RecordId): Promise<StoredRow | null> =>
+      ownerOperation(owner, () => owner.session!.views.final.get(model, id));
+    const term = await load('member_terms.Term' as ModelName, ref.id);
+    if (term === null || term.archivedAt !== null || term.parent?.model !== 'member_terms.Membership' ||
+        stableStringify(term) !== stableStringify(ref.row)) {
+      throw new StateError('conflict', 'Member retry Term differs from its admitted row.');
+    }
+    const membership = await load('member_terms.Membership' as ModelName, term.parent.id);
+    if (membership === null || membership.archivedAt !== null || membership.parent?.model !== 'customer.Customer') {
+      throw new StateError('forbidden', 'Member retry lacks its current Membership.');
+    }
+    const customer = await load('customer.Customer' as ModelName, membership.parent.id);
+    if (customer === null || customer.archivedAt !== null || customer.parent !== null) {
+      throw new StateError('forbidden', 'Member retry lacks its current Customer.');
+    }
+    const key = (model: string, id: string) => `${model}\0${id}`;
+    const rows = new Map<string, StoredRow>([
+      [key('member_terms.Term', term.id), term],
+      [key('member_terms.Membership', membership.id), membership],
+      [key('customer.Customer', customer.id), customer],
+    ]);
+    ownerRows.set(term, { session: owner, stage: 0, model: 'member_terms.Term' as ModelName });
+    const locations = decodeValue('rent_catalog.Location[]', term.data['locations']) as readonly { readonly id: string }[];
+    if (locations.length === 0 || locations.length > 4_000 || locations.some(location =>
+        typeof location.id !== 'string' || location.id === '')) {
+      throw new StateError('rule_failed', 'Member retry needs its original nonempty Term location selection.');
+    }
+    const locationId = [...locations].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)[0]!.id;
+    const until = decodeValue('datetime', term.data['until']) as DatetimeValue;
+    if (!['failed', 'unknown'].includes(term.data['collection'] as string) ||
+        term.data['cancellation'] !== 'none' || until.ms <= BigInt(call.context.now)) {
+      throw new StateError('rule_failed', 'Member retry no longer satisfies its original collection and time Require.');
+    }
+    const parent = Object.freeze({ model: 'customer.Customer' as ModelName, id: customer.id });
+    const lease: OwnerDecisionLease = { call, owner: profile.owner, staged: 0, queryIndex: 0,
+      stagedIds: [], stages: Object.freeze([{ op: 'update', model: 'member_terms.Term' as ModelName,
+        id: term.id, fields: Object.freeze(['charge_delivery', 'collection']) }]), queries: Object.freeze([]) };
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner);
+      if (owner.executingCall !== call || owner.activeOwnerDecision !== lease || owner.busy ||
+          state.pending !== 0 || state.returnId !== null) {
+        return invalid('member retry crossed its original serial owner stage.');
+      }
+    };
+    const domains = new Map<string, { readonly model: ModelName;
+      readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+      readonly rows: readonly StoredRow[] }>();
+    const sourceQueries: string[] = [];
+    const readDomain = async (model: ModelName,
+      selectedParent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+      const identity = stableStringify([model, selectedParent ?? null]);
+      let domain = domains.get(identity);
+      if (domain === undefined) {
+        const scanned = await ownerOperation(owner, () => owner.session!.views.final.query({ model,
+          ...(selectedParent === undefined ? {} : { parent: selectedParent }),
+          authority: 'owner', archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
+        if (scanned.length > 4_000 || scanned.some(row => row.archivedAt !== null ||
+            (selectedParent === undefined ? row.parent !== null :
+              row.parent?.model !== selectedParent.model || row.parent.id !== selectedParent.id))) {
+          return invalid('member retry collection exceeds or differs from its complete owner domain.');
+        }
+        domain = Object.freeze({ model, ...(selectedParent === undefined ? {} : { parent: selectedParent }),
+          rows: Object.freeze([...scanned]) });
+        domains.set(identity, domain);
+        for (const row of scanned) rows.set(key(model, row.id), row);
+      }
+      return domain.rows;
+    };
+    let expectedSites: readonly string[] = [];
+    const query = async (siteId: string, model: ModelName,
+      selectedParent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+      healthy();
+      const expected = expectedSites[sourceQueries.length];
+      if (owner.stage !== 0 || siteId !== expected ||
+          (siteId === profile.querySites[0]!.id ?
+            model !== 'employee.Employee' || selectedParent !== undefined :
+            siteId !== profile.querySites[1]!.id || model !== 'customer.CompanyRole' ||
+              stableStringify(selectedParent) !== stableStringify(parent))) {
+        return invalid('member retry queried outside its exact header source order or parent.');
+      }
+      sourceQueries.push(siteId);
+      const found = await readDomain(model, selectedParent);
+      healthy(); return found;
+    };
+    const memberships = scenarioReceiptMemberships(call, store);
+    const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
+    const active = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
+    const context: ByContext = { actorUserId, teamId, membership: active, memberships };
+    let evaluated = false;
+    const authority = await observeRowGrantAuthority(context, async observed => {
+      if (evaluated) return true;
+      if (observed.actorUserId !== actorUserId || observed.teamId !== teamId || actorUserId === null) {
+        return invalid('member retry Identity differs from its authenticated admitted actor.');
+      }
+      evaluated = true;
+      const manager = await hasRole(observed, 'member_terms.member_manager', actorUserId);
+      const account = decodeValue('user', membership.data['account']) as UserRef;
+      const owns = account.id === actorUserId;
+      let employeeRows: readonly StoredRow[] = [];
+      if (manager) employeeRows = await readDomain('employee.Employee' as ModelName);
+      const works = (location: string): boolean => manager && employeeRows.some(employee => {
+        const user = decodeValue('user', employee.data['user']) as UserRef;
+        if (user.id !== actorUserId || employee.data['active'] !== true) return false;
+        const home = decodeValue('rent_catalog.Location', employee.data['home']) as { readonly id: string };
+        const additional = decodeValue('rent_catalog.Location[]', employee.data['locations']) as readonly { readonly id: string }[];
+        return employee.data['operator_wide'] === true || home.id === location ||
+          additional.some(candidate => candidate.id === location);
+      });
+      const firstWork = manager ? locations.findIndex(location => works(location.id)) : -1;
+      const managerAuthorized = manager && firstWork >= 0;
+      const employeeQueries = manager ? firstWork < 0 ? locations.length : firstWork + 1 : 0;
+      let billingRows: readonly StoredRow[] = [];
+      if (!managerAuthorized && !owns) billingRows = await readDomain('customer.CompanyRole' as ModelName, parent);
+      const billingAuthorized = billingRows.some(grant => {
+        const user = decodeValue('user', grant.data['account']) as UserRef;
+        return user.id === actorUserId && grant.data['role'] === 'billing' && grant.data['active'] === true;
+      });
+      if (!managerAuthorized && !owns && !billingAuthorized) {
+        throw new StateError('forbidden', 'Member retry actor lacks its original manager, account or billing Require.');
+      }
+      expectedSites = Object.freeze([
+        ...Array(employeeQueries).fill(profile.querySites[0]!.id),
+        ...(!managerAuthorized && !owns ? [profile.querySites[1]!.id] : []),
+      ]);
+      owner.activeOwnerDecision = lease;
+      try {
+        const read = (model: ModelName, id: RecordId): StoredRow | null => {
+          healthy(); return rows.get(key(model, id)) ?? null;
+        };
+        const answer = await input.evaluate(Object.freeze({ term, membership, customer, read, query }));
+        healthy();
+        if (answer !== undefined) return invalid('member retry original body must return void.');
+      } finally { owner.activeOwnerDecision = null; }
+      if (stableStringify(sourceQueries) !== stableStringify(expectedSites)) {
+        return invalid('member retry omitted or reordered its original header owner queries.');
+      }
+      return true;
+    });
+    const ledger = owner.framework;
+    const queued = ledger.queued.size === 1;
+    const skipped = ledger.skipped.size === 1;
+    const deliveryId = queued ? ledger.queued.values().next().value?.intentId :
+      ledger.skipped.values().next().value?.deliveryId;
+    const from = decodeValue('datetime', term.data['from']) as DatetimeValue;
+    const cancelledAt = decodeValue('datetime?', membership.data['cancellation_at'] ?? null) as DatetimeValue | null;
+    const consentMatches = stableStringify(membership.data['consent'] ?? null) ===
+      stableStringify(term.data['consent'] ?? null);
+    const shouldQueue = term.data['cancellation'] === 'none' && until.ms > BigInt(call.context.now) &&
+      membership.data['revoked'] !== true && (term.data['automatic'] !== true ||
+        membership.data['recurrence'] === true && consentMatches &&
+          (cancelledAt === null || from.ms < cancelledAt.ms));
+    if (!authority.value || Number(owner.stage) !== 1 || lease.staged !== 1 ||
+        lease.stagedIds[0] !== term.id || ledger.ordinal !== 1 || queued === skipped ||
+        queued !== shouldQueue || deliveryId === undefined ||
+        sourceQueries.length !== expectedSites.length) {
+      return invalid('member retry omitted its exact guarded SEND and subsequent Term SET.');
+    }
+    await authority.revalidate();
+    state.memberRetryDecision = { term, membership, customer, locationId, deliveryId, queued };
+    owner.callGuards.push(Object.freeze({ name: `member-retry:${profile.sites.send.id}`, evaluate: async () => {
+      if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
+        return invalid('member retry needs its actual finalized source effects.');
+      }
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Member retry moved before commit.');
+      for (const [identity, row] of rows) {
+        const separator = identity.indexOf('\0');
+        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
+          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
+        if (stableStringify(current) !== stableStringify(row)) {
+          throw new StateError('forbidden', 'Member retry owner row changed before commit.');
+        }
+      }
+      for (const domain of domains.values()) {
+        const current = await store.query({ model: domain.model,
+          ...(domain.parent === undefined ? {} : { parent: domain.parent }),
+          authority: 'owner', archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
+        if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
+          throw new StateError('forbidden', 'Member retry owner domain changed before commit.');
+        }
+      }
+      await authority.revalidate();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Member retry moved beyond commit.');
       return true;
     } }));
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
@@ -7504,6 +7922,79 @@ function verifyLeaveDecideEffects(call: AdmittedCall, decision: NonNullable<Capt
     }
   }
 }
+function verifyMemberRetryEffects(call: AdmittedCall, decision: NonNullable<Capture['memberRetryDecision']>,
+  owner: ReceiptOwnerSession | undefined, effects: ExecutionEffects): void {
+  const ledger = owner?.framework;
+  if (owner === undefined || owner.finalized === null || owner.commitEffects === null || ledger === null ||
+      ledger === undefined || call.def.name !== 'member_terms.retry_collection' || effects.result !== null ||
+      owner.stage !== 1 || owner.finalized.writes.length !== 1 || owner.finalized.schedules.length !== 0 ||
+      effects.schedules.length !== 0 || ledger.ordinal !== 1 ||
+      ledger.queued.size !== (decision.queued ? 1 : 0) ||
+      ledger.skipped.size !== (decision.queued ? 0 : 1) ||
+      effects.outbox.length !== (decision.queued ? 1 : 0)) {
+    return invalid('member retry lacks its one guarded charge and one Term update.');
+  }
+  const write = owner.finalized.writes[0];
+  if (write?.kind !== 'update' || write.model !== 'member_terms.Term' ||
+      write.id !== decision.term.id || write.row.id !== decision.term.id ||
+      write.row.archivedAt !== null || write.row.version !== decision.term.version + 1 ||
+      !sameModelLifetime(decision.term, write.row) ||
+      stableStringify(write.row.data) !== stableStringify({ ...decision.term.data,
+        charge_delivery: decision.deliveryId, collection: 'pending' })) {
+    return invalid('member retry changed a foreign Term or fields beyond its original SET.');
+  }
+  const queued = ledger.queued.values().next().value;
+  const skipped = ledger.skipped.values().next().value;
+  const intent = decision.queued ? queued : skipped;
+  if (intent === undefined || intent.operationId !== call.context.operationId ||
+      intent.operation !== call.context.operation || intent.target !== 'invoice.BillingV1.charge' ||
+      (decision.queued ? queued!.intentId : skipped!.deliveryId) !== decision.deliveryId ||
+      (decision.queued ? queued!.dispatchGuard : skipped!.guard?.rule) !==
+        owner.capture.bound.memberRetryDecision?.sendRule.rule ||
+      decision.queued && effects.outbox[0]?.intentId !== queued!.intentId) {
+    return invalid('member retry lost its exact original guarded Billing charge.');
+  }
+  const request = object(decision.queued ? queued!.arguments : skipped!.request,
+    ['binding', 'from', 'arguments']);
+  const argumentsValue = object(request['arguments'], ['value']);
+  const charge = argumentsValue['value'];
+  const value = object(charge,
+    ['source', 'customer', 'location', 'description', 'amount', 'due', 'consent', 'items',
+      ...(typeof charge === 'object' && charge !== null && Object.hasOwn(charge, 'issuer') ? ['issuer'] : []),
+      ...(typeof charge === 'object' && charge !== null && Object.hasOwn(charge, 'terms') ? ['terms'] : [])]);
+  const items = list(value['items']);
+  if (request['binding'] !== 'member_terms.Billing' || items.length !== 1 ||
+      value['source'] !== decision.term.data['source'] || value['customer'] !== decision.customer.id ||
+      value['location'] !== decision.locationId || value['description'] !== decision.term.data['title'] ||
+      stableStringify(value['amount']) !== stableStringify(decision.term.data['price']) ||
+      stableStringify(value['consent']) !== stableStringify(decision.term.data['consent'] ?? null) ||
+      Object.hasOwn(value, 'issuer') && value['issuer'] !== null ||
+      Object.hasOwn(value, 'terms') && value['terms'] !== null) {
+    return invalid('member retry charge differs from its immutable Term and Customer snapshot.');
+  }
+  const from = decodeValue('datetime', decision.term.data['from']) as DatetimeValue;
+  const timezone = decodeValue('timezone', decision.membership.data['timezone']) as string;
+  const due = encodeValue('date', local_date(from, timezone));
+  if (stableStringify(value['due']) !== stableStringify(due)) {
+    return invalid('member retry due date differs from its original Membership timezone.');
+  }
+  const item = object(items[0], ['title', 'quantity', 'price', 'tax', 'discount', 'unit',
+    'from', 'until', 'location', 'reference']);
+  const price = decodeValue('money', decision.term.data['price']) as { readonly currency: string };
+  const tax = decodeValue('money', item['tax']) as { readonly minor: bigint; readonly currency: string };
+  const discount = decodeValue('money', item['discount']) as { readonly minor: bigint; readonly currency: string };
+  if (item['title'] !== decision.term.data['title'] ||
+      decodeValue('int', item['quantity']) !== 1n ||
+      stableStringify(item['price']) !== stableStringify(decision.term.data['price']) ||
+      tax.minor !== 0n || tax.currency !== price.currency ||
+      discount.minor !== 0n || discount.currency !== price.currency ||
+      item['unit'] !== 'term' ||
+      stableStringify(item['from']) !== stableStringify(decision.term.data['from']) ||
+      stableStringify(item['until']) !== stableStringify(decision.term.data['until']) ||
+      item['location'] !== decision.locationId || item['reference'] !== decision.term.data['source']) {
+    return invalid('member retry charge item differs from its original frozen Term payload.');
+  }
+}
 function verifyReferRejectEffects(call: AdmittedCall, decision: NonNullable<Capture['referRejectDecision']>,
   owner: ReceiptOwnerSession | undefined, effects: ExecutionEffects): void {
   const create = decision.first !== null && !decision.reversed;
@@ -7644,6 +8135,10 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   if (bound.referRejectDecision !== undefined) {
     if (state?.referRejectDecision === undefined) return invalid('referral rejection omitted its original owner decision.');
     verifyReferRejectEffects(call, state.referRejectDecision, owner, effects);
+  }
+  if (bound.memberRetryDecision !== undefined) {
+    if (state?.memberRetryDecision === undefined) return invalid('member retry omitted its original owner decision.');
+    verifyMemberRetryEffects(call, state.memberRetryDecision, owner, effects);
   }
   // One checked empty path permits the ordinary implicit void return. Its
   // success receipt carries no business result and still saves changed rows.

@@ -84,7 +84,7 @@ export { active_member } from './native-membership.js';
 export { nativeReadBoolean, nativeReadReference } from './native-read-boolean.js';
 export { nativeScenarioRequire, nativeScenarioEventDecision, nativeScenarioTermDecision,
   nativeScenarioLeaveRequestDecision, nativeScenarioLeaveDecideDecision,
-  nativeScenarioReferRejectDecision,
+  nativeScenarioReferRejectDecision, nativeScenarioMemberRetryDecision,
   withLeaveDecideAllowance } from './native-scenario-require.js';
 export { delivery } from '@canlang/state/effects/delivery';
 

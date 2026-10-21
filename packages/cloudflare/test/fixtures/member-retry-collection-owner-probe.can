@@ -1,0 +1,70 @@
+# Exact CanMember.retry_collection source closure and invoice charge contract.
+app CanMember uses=[member_terms]
+
+package rent_catalog
+ Given
+  export Location { active:bool=true }
+  policy Location read=members
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee { user:user unique, home:Location, locations:Location[], operator_wide:bool=false, active:bool=true, hidden:bool=false }
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+
+package customer
+ Given
+  export Customer { kind:enum(individual,company), active:bool=true }
+  export CompanyRole in Customer { account:user, role:enum(administrator,booker,billing), active:bool=true, hidden:bool=false }
+  export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+  policy Customer read=members
+  policy CompanyRole read=members and not row.hidden
+ When
+ Then
+
+package invoice
+ use std {OperationOutcome}
+ use customer {Customer}
+ Given
+  export Invoice in Customer { state:enum(draft,issued,void_pending,void)=draft }
+  export contract DocumentLine { title:text, quantity:decimal, price:money, tax:money, discount:money, unit:text?, from:datetime?, until:datetime?, location:text?, reference:text? }
+  export contract Charge { source:text, customer:text, location:text, description:text, amount:money, due:date, issuer:text?, terms:text?, items:DocumentLine[]?, consent:text? }
+  export contract Settlement { source:text, invoice:text, revision:int, amount:money, collected:money, refunded:money, collection_pending:bool, refund_pending:bool, state:Invoice.state, recorded_at:datetime }
+  export capability BillingV1 version=1
+   charge(value:Charge) -> OperationOutcome
+   cancel(source:text,reason:text) -> OperationOutcome
+   refund(source:text,amount:money,reason:text) -> OperationOutcome
+   reconcile(source:text) -> Settlement?
+   event settled { value:Settlement }
+ When
+ Then
+
+package member_terms
+ use customer {Customer,CompanyRole,has_role}
+ use rent_catalog {Location}
+ use employee {can_work}
+ use invoice {BillingV1 as Billing} from=deployment.billing
+ Given
+  role member_manager
+  export Membership in Customer { account:user, revoked:bool=false, recurrence:bool=false, consent:text?, cancellation_at:datetime?, timezone:timezone }
+  export Term in Membership { source:text unique, from:datetime, until:datetime, price:money, locations:Location[]!, collection:enum(pending,confirmed,failed,unknown)=pending, charge_delivery:text?, cancellation:enum(none,pending,applied)=none, title:text, automatic:bool=false, consent:text? }
+  policy Membership read=authenticated where=row.account==actor or has_role(actor,row.parent,administrator)
+  policy Membership read=member_manager where=any(row.Term as term,any(term.locations as location,can_work(actor,location)))
+  policy Term read=authenticated where=row.parent.account==actor or has_role(actor,row.parent.parent,administrator) or has_role(actor,row.parent.parent,billing)
+  policy Term read=member_manager where=any(row.locations as location,can_work(actor,location))
+  lock Term fields=source,from,until,price,locations,title,automatic,consent
+ When
+  scenario retry_collection(term:Term) by=member_manager or authenticated label="Retry term invoice"@{nl="Termijnfactuur opnieuw proberen"}
+   require (member_manager and any(term.locations as location,can_work(actor,location))) or term.parent.account==actor or has_role(actor,term.parent.parent,billing)
+   require term.collection in [failed,unknown] and term.until>now and term.cancellation==none
+   do
+    let location=first(term.locations as site order=site.id)
+    require location!=null
+    send Billing.charge {value={source=term.source,customer=term.parent.parent.id,location=location.id,description=term.title,amount=term.price,due=local_date(term.from,term.parent.timezone),consent=term.consent,items=[{title=term.title,quantity=1,price=term.price,tax=money(0,term.price.currency),discount=money(0,term.price.currency),unit="term",from=term.from,until=term.until,location=location.id,reference=term.source}]}} when=term.cancellation==none and term.until>now and not term.parent.revoked and (not term.automatic or (term.parent.recurrence and term.parent.consent==term.consent and (term.parent.cancellation_at==null or term.from<term.parent.cancellation_at))) as delivery
+    set term {charge_delivery=delivery.id,collection=pending}
+ Then

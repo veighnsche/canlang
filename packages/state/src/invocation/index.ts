@@ -32,6 +32,7 @@ export {
   executeScenarioReceiptLeaveRequestDecision, type LeaveRequestDecisionPlan,
   executeScenarioReceiptLeaveDecideDecision, type LeaveDecideDecisionPlan,
   executeScenarioReceiptReferRejectDecision, type ReferRejectDecisionPlan,
+  executeScenarioReceiptMemberRetryDecision, type MemberRetryDecisionPlan,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
   noteDueWorkAdmission, type DueWorkAdmission,

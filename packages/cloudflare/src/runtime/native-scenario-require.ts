@@ -106,6 +106,23 @@ export async function nativeScenarioReferRejectDecision(context: unknown, descri
   return evaluate(descriptor, body);
 }
 
+const memberRetryReaders = new WeakMap<object, LeaveEvaluate>();
+
+/** The exact CanMember retry body belongs to its one admitted Term owner. */
+export function bindNativeScenarioMemberRetryDecision(context: object, evaluate: LeaveEvaluate): void {
+  if (memberRetryReaders.has(context)) throw new StateError('validation', 'Member retry decision cannot be rebound.');
+  memberRetryReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioMemberRetryDecision(context: unknown, descriptor: unknown,
+  body: Function): Promise<void> {
+  const evaluate = typeof context === 'object' && context !== null ? memberRetryReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof body !== 'function') {
+    throw new StateError('validation', 'Member retry needs its actual admitted Term mutation owner.');
+  }
+  return evaluate(descriptor, body);
+}
+
 type AllowanceEvaluate = (descriptor: unknown, row: unknown, body: Function) => Promise<unknown>;
 const leaveDecideAllowances = new WeakMap<object, AllowanceEvaluate>();
 
