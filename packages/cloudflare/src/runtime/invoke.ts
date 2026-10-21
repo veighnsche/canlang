@@ -161,7 +161,8 @@ import { bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeS
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
-  bindNativeScenarioRentMovementRefundDecision, bindNativeScenarioInvoiceCollectDecision } from './native-scenario-require.js';
+  bindNativeScenarioRentMovementRefundDecision, bindNativeScenarioInvoiceCollectDecision,
+  bindNativeScenarioRentNoticeDecision } from './native-scenario-require.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -1485,6 +1486,7 @@ interface StateInvokeProducer {
   readonly executeScenarioReceiptInvoiceOverdueDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptInvoiceOverdueDecision;
   readonly executeScenarioReceiptRentMovementRefundDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptRentMovementRefundDecision;
   readonly executeScenarioReceiptInvoiceCollectDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptInvoiceCollectDecision;
+  readonly executeScenarioReceiptRentNoticeDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptRentNoticeDecision;
   readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
   readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
@@ -1496,6 +1498,7 @@ interface StateInvokeProducer {
   readonly projectReadScenarioQueryResult?: typeof import('@canlang/state/invocation').projectReadScenarioQueryResult;
   readonly bindScenarioReceiptCallProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptCallProducer;
   readonly noteDueWorkAdmission?: typeof import('@canlang/state/invocation').noteDueWorkAdmission;
+  readonly noteRetainedEventAdmission?: typeof import('@canlang/state/invocation').noteRetainedEventAdmission;
   readonly invokeScenarioReceiptCall?: typeof import('@canlang/state/invocation').invokeScenarioReceiptCall;
   readonly assertScenarioReceiptCallExecution?: typeof import('@canlang/state/invocation').assertScenarioReceiptCallExecution;
   readonly readScenarioReceiptStoredReferenceRow?: typeof import('@canlang/state/invocation').readScenarioReceiptStoredReferenceRow;
@@ -1806,6 +1809,9 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     ...(typeof scenarioMod['executeScenarioReceiptInvoiceCollectDecision'] !== 'function' ? {} : {
       executeScenarioReceiptInvoiceCollectDecision: scenarioMod['executeScenarioReceiptInvoiceCollectDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptInvoiceCollectDecision']>,
     }),
+    ...(typeof scenarioMod['executeScenarioReceiptRentNoticeDecision'] !== 'function' ? {} : {
+      executeScenarioReceiptRentNoticeDecision: scenarioMod['executeScenarioReceiptRentNoticeDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptRentNoticeDecision']>,
+    }),
     ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
       observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
     }),
@@ -1840,6 +1846,9 @@ function scenarioReceiptBindingsTail(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['noteDueWorkAdmission'] !== 'function' ? {} : {
       noteDueWorkAdmission: scenarioMod['noteDueWorkAdmission'] as NonNullable<StateInvokeProducer['noteDueWorkAdmission']>,
+    }),
+    ...(typeof scenarioMod['noteRetainedEventAdmission'] !== 'function' ? {} : {
+      noteRetainedEventAdmission: scenarioMod['noteRetainedEventAdmission'] as NonNullable<StateInvokeProducer['noteRetainedEventAdmission']>,
     }),
     ...(typeof scenarioMod['invokeScenarioReceiptCall'] !== 'function' ? {} : {
       invokeScenarioReceiptCall: scenarioMod['invokeScenarioReceiptCall'] as NonNullable<StateInvokeProducer['invokeScenarioReceiptCall']>,
@@ -4889,6 +4898,15 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         const invoiceOverdueEvent = def.name === 'invoice.overdue' &&
           invoiceOverdueDecision?.owner === 'invoice.overdue' &&
           invoiceOverdueDecision.sendRule.rule === emitted.rule;
+        const rentNoticeDecision = (plan as typeof plan & { readonly rentNoticeDecision?: {
+          readonly owner: string; readonly event: string;
+          readonly sendRules: readonly { readonly kind: string; readonly rule: string }[];
+        } }).rentNoticeDecision;
+        const rentNoticeRule = rentNoticeDecision?.sendRules.find(item => item.rule === emitted.rule);
+        const rentNoticeEvent = (def.name === 'rent_reservations.correspondence' ||
+          def.name === 'rent_reservations.remind') && rentNoticeDecision?.owner === def.name &&
+          rentNoticeDecision.event === source.event && rentNoticeRule !== undefined;
+        const rentNoticeFields = rentNoticeRule?.kind === 'cancellation' ? ['version'] : ['status', 'version'];
         const interval = (value: unknown): boolean => {
           const span = localPolicyObject(value, ['start', 'end']);
           return Object.keys(span).length === 2 && Number.isSafeInteger(span.start) &&
@@ -4903,8 +4921,12 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
             !interval(source.predicate) ||
             (def.name === 'invoice.overdue' && (!invoiceOverdueEvent ||
               stableStringify(fields) !== stableStringify(['balance', 'state']))) ||
+            ((def.name === 'rent_reservations.correspondence' || def.name === 'rent_reservations.remind') &&
+              (!rentNoticeEvent || stableStringify(fields) !== stableStringify(rentNoticeFields) ||
+                modelField.name !== 'booking' || modelField.model !== 'rent_reservations.Booking' ||
+                revisionField.name !== 'revision')) ||
             fields.some((field, index) => typeof field !== 'string' || index > 0 && fields[index - 1]! >= field ||
-              (invoiceOverdueEvent && field === 'balance' ? false :
+              ((invoiceOverdueEvent && field === 'balance') || (rentNoticeEvent && field === 'version') ? false :
                 declaredFields?.filter(item => item.name === field && item.field.kind !== 'secret').length !== 1)) ||
             stableStringify(source.predicate) !== stableStringify(emitted.node) ||
             own(declaredModel, 'type') !== modelField.model || own(declaredRevision, 'type') !== 'int' ||
@@ -9089,7 +9111,15 @@ async function runScenarioExecution(
     typeof call.context.trustedSource === 'string' &&
     call.context.trustedSource.startsWith('schedule:') &&
     opts.artifact.callables.some(entry => entry.id === opts.operation && entry.kind === 'handler');
-  if (receiptAware && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || cohort !== undefined || (due !== undefined && !internalHandlerDue))) {
+  const internalRentNoticeRetained = receiptAware && due !== undefined && cohort === undefined &&
+    receiptStore !== undefined && child === undefined && beginReceiptMutation !== undefined &&
+    scenarioDef?.name === 'rent_reservations.correspondence' &&
+    call.context.kind === 'trusted' && call.context.source === 'schedule' &&
+    call.context.trustedSource === 'event:rent_reservations.ReservationChanged' &&
+    nativeDeclaredEventCalls.has(call.context) &&
+    opts.artifact.callables.some(entry => entry.id === opts.operation && entry.kind === 'handler');
+  if (receiptAware && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || cohort !== undefined ||
+      (due !== undefined && !internalHandlerDue && !internalRentNoticeRetained))) {
     throw new loaded.producers.errors('validation', 'Saved scenario mutation requires its installed State producer and actual admitted receipt execution.');
   }
   if (receiptAware && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
@@ -9206,10 +9236,18 @@ async function runScenarioExecution(
   let invoiceCollectEmit: ((event: string, payload: Readonly<Record<string, unknown>>,
     occurrenceId: string) => void) | null = null;
   let invoiceCollectCancel: ((key: string) => void) | null = null;
+  let rentNoticeHooks: {
+    readonly present: (field: 'subject' | 'body', value: unknown) => string;
+    readonly cancel: (key: string) => void;
+    readonly notice: (id: string) => void;
+    readonly schedule: (key: string, at: number, event: string,
+      payload: Readonly<Record<string, unknown>>) => void;
+  } | null = null;
   const termScheduleSourceWrites: DomainWrite[] = [];
+  const rentNoticeSourceWrites: DomainWrite[] = [];
   const emissionSourceStage: OwnerMutationSourceStager = async token => {
     const existing = stageSources === undefined ? [] : await stageSources(token);
-    if (emittedEvents.length === 0) return [...existing, ...termScheduleSourceWrites];
+    if (emittedEvents.length === 0) return [...existing, ...termScheduleSourceWrites, ...rentNoticeSourceWrites];
     const writes = await stageDeclaredEventSources(token, emittedEvents,
       { maxSources: 200, maxHandlers: 200, maxMembers: 1_000, chunkSize: 100 });
     const eventById = new Map(emittedEvents.map(event => [event.occurrenceId, event]));
@@ -9218,8 +9256,60 @@ async function runScenarioExecution(
     const occurrenceModel = requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'declared source occurrence row');
     const newOccurrence = requireProducerFn(tables, 'newOccurrenceRow', 'declared source occurrence row') as
       typeof import('@canlang/work/kernel/tables').newOccurrenceRow;
+    const handlerModule = await loadProducerModule('@canlang/work/kernel/handler-occurrence', 'declared source handler row');
+    const handlerModel = requireProducerString(handlerModule, 'WORK_HANDLER_OCCURRENCE_MODEL', 'declared source handler row');
+    const stampHandler = requireProducerFn(handlerModule, 'withHandlerOccurrenceFilePayloadOrigin', 'declared source handler row') as
+      typeof import('@canlang/work/kernel/handler-occurrence').withHandlerOccurrenceFilePayloadOrigin;
     const stamped: DomainWrite[] = [];
     for (const write of writes) {
+      if (write.kind === 'insert' && write.model === handlerModel) {
+        const sourceOccurrence = write.row.data['sourceOccurrence'];
+        const handler = write.row.data['handler'];
+        const event = typeof sourceOccurrence === 'string' ? eventById.get(sourceOccurrence as OccurrenceId) : undefined;
+        if (event === undefined || typeof handler !== 'string' ||
+            event.routes.handlers.filter(route => route.handler === handler && route.cohort === undefined).length !== 1 ||
+            write.row.data['event'] !== event.event ||
+            stableStringify(write.row.data['payload']) !== stableStringify(event.payload) ||
+            write.row.data['scopeApp'] !== event.routes.scope.app ||
+            write.row.data['scopeOwner'] !== event.routes.scope.owner ||
+            write.row.data['scopeOwnerPackage'] !== event.routes.scope.ownerPackage) {
+          return refuseRecordBinding('Declared source handler route differs from its authored EMIT.');
+        }
+        const scope = event.routes.scope;
+        if (call.checkpoint === undefined || scope.app !== call.context.app ||
+            scope.owner !== call.checkpoint.owner || receiptStore === undefined ||
+            scope.ownerPackage !== event.event.slice(0, event.event.lastIndexOf('.'))) {
+          return refuseRecordBinding('Declared source handler needs its admitted owner scope.');
+        }
+        let opaque = opaqueByPackage.get(scope.ownerPackage);
+        if (opaque === undefined) {
+          opaque = await nativeOpaqueFileStaging(loaded, opts, scope, async () => {
+            loaded.producers.invoke.assertScenarioReceiptCallExecution?.(call as AdmittedCall, receiptStore);
+          });
+          opaqueByPackage.set(scope.ownerPackage, opaque);
+        }
+        if (opaque === null) { stamped.push(write); continue; }
+        const declaration = opaque.event(event.event);
+        const filePayloadOrigin = await opaque.prepare({ expectedRevision: call.checkpoint.revision,
+          model: handlerModel as ModelName, row: write.row, field: 'payload', scope,
+          origin: { kind: 'event-input', occurrenceId: write.row.id as OccurrenceId,
+            sourceOccurrence: event.occurrenceId, declaration,
+            lineage: { kind: 'source', sourceOccurrence: event.occurrenceId },
+            target: { kind: 'handler', handler: opaque.callable(handler) } },
+          projection: { kind: 'inputs', path: [], declarationId: declaration.inputsDeclarationId },
+          value: event.payload, identity: opts.identity,
+          ...(opts.files === undefined ? {} : { files: opts.files }) });
+        const row = stampHandler(write.row, filePayloadOrigin);
+        if (row.id !== write.row.id || row.version !== write.row.version ||
+            row.parent !== write.row.parent || row.archivedAt !== write.row.archivedAt ||
+            row.created !== write.row.created || row.updated !== write.row.updated ||
+            row.createdBy !== write.row.createdBy || row.updatedBy !== write.row.updatedBy ||
+            stableStringify(row.data['payload']) !== stableStringify(write.row.data['payload'])) {
+          return refuseRecordBinding('Declared source handler origin changed its original route row.');
+        }
+        stamped.push({ kind: 'insert', model: write.model, row });
+        continue;
+      }
       if (write.kind !== 'insert' || write.model !== occurrenceModel) {
         stamped.push(write); continue;
       }
@@ -9277,12 +9367,14 @@ async function runScenarioExecution(
       stamped.push({ kind: 'insert', model: write.model, row });
     }
     due?.observeFramework?.({ writes: stamped });
-    return [...existing, ...stamped, ...termScheduleSourceWrites];
+    return [...existing, ...stamped, ...termScheduleSourceWrites, ...rentNoticeSourceWrites];
   };
   const ownerBounds = receiptAware && (scenarioDef?.name === 'leave.request' || scenarioDef?.name === 'leave.decide' ||
     scenarioDef?.name === 'refer.reject_source' || scenarioDef?.name === 'member_terms.retry_collection' ||
     scenarioDef?.name === 'invoice.overdue' || scenarioDef?.name === 'rent_reservations.refund_movement_credit' ||
-    scenarioDef?.name === 'invoice.collect')
+    scenarioDef?.name === 'invoice.collect' ||
+    scenarioDef?.name === 'rent_reservations.correspondence' ||
+    scenarioDef?.name === 'rent_reservations.remind')
     ? Object.freeze({ maxRows: 4_001, maxWork: 200_000 }) : SCENARIO_RECEIPT_OWNER_BOUNDS;
   const ownerOptions = {
     table: loaded.table as ModelTable, bounds: ownerBounds,
@@ -9447,6 +9539,8 @@ async function runScenarioExecution(
   const invoiceCollectSlot: { current: { readonly invoice: StoredRow;
     readonly derived: (field: 'balance' | 'received' | 'refunded' |
       'collection_pending' | 'refund_pending') => unknown } | null } = { current: null };
+  const rentNoticeLocationSlot: { current: { readonly resource: StoredRow;
+    readonly location: StoredRow } | null } = { current: null };
   const recordView = (modelName: string, row: StoredRow, queryParent = false): Record<string, unknown> => {
     const key = stagedKey(modelName, row.id);
     const existing = queryParent ? undefined : views.get(key);
@@ -9499,6 +9593,18 @@ async function runScenarioExecution(
         }
         bindNullableStoredReference(ownerSession, scenarioReceiptFrame, target, loaded, declaration,
           value, record, modelName, field, sourceRow, wire, refuseRecordBinding);
+        if (modelName === 'rent_reservations.Resource' && field === 'location' &&
+            rentNoticeLocationSlot.current?.resource.id === row.id) {
+          const slot = rentNoticeLocationSlot.current;
+          const reference = nativeRecordReference(value) ?? (isRecordRef(value) ? value : undefined);
+          if (reference?.model !== 'rent_catalog.Location' || reference.id !== slot.location.id ||
+              reference.version !== undefined && reference.version !== BigInt(slot.location.version) ||
+              stableStringify(sourceRow) !== stableStringify(slot.resource)) {
+            return refuseRecordBinding('Rent notice Location differs from its checked Resource reference.');
+          }
+          const locationView = recordView('rent_catalog.Location', slot.location);
+          return locationView;
+        }
         if (referRejectEvidenceLink !== null && modelName === 'refer.SourceEvidence' &&
             row.id === referRejectEvidenceLink.evidenceId && field === 'advocate') {
           const link = nativeRecordReference(value) ?? (isRecordRef(value) ? value : undefined);
@@ -9621,12 +9727,20 @@ async function runScenarioExecution(
       effects.writes[0].model === 'work.schedule' &&
       (effects.outbox?.length ?? 0) === 0 && (effects.history?.length ?? 0) === 0 &&
       (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
-    if (ownerSession !== undefined && !isDueAdmission && !privateFramework && !termSchedule && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
+    const rentNoticeFramework = rentNoticeHooks !== null && receiptAware &&
+      (scenarioDef?.name === 'rent_reservations.correspondence' ||
+        scenarioDef?.name === 'rent_reservations.remind') &&
+      (effects.writes ?? []).every(write => ['work.schedule', 'work.occurrence',
+        'work.dispatch', 'work.supersession'].includes(write.model)) &&
+      (effects.outbox?.length ?? 0) === 0 && (effects.history?.length ?? 0) === 0 &&
+      (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
+    if (ownerSession !== undefined && !isDueAdmission && !privateFramework && !termSchedule && !rentNoticeFramework && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
         (effects.uniqueReleases?.length ?? 0) !== 0)) {
       refuseRecordBinding('Saved scenario deferred domain effects require their defining owner-session join.');
     }
     if (termSchedule) termScheduleSourceWrites.push(...effects.writes!);
+    if (rentNoticeFramework) rentNoticeSourceWrites.push(...effects.writes ?? []);
     if (effects !== due?.effects) due?.observeFramework?.(effects);
     for (const write of effects.writes ?? []) {
       stagedWrites.push(write);
@@ -9847,10 +9961,21 @@ async function runScenarioExecution(
           }
           fields = Object.fromEntries(Object.entries(source).filter(([name]) => name !== 'parent'));
         }
+        if (model === 'rent_reservations.Notice' &&
+            (scenarioDef?.name === 'rent_reservations.correspondence' ||
+              scenarioDef?.name === 'rent_reservations.remind')) {
+          if (rentNoticeHooks === null || !Object.hasOwn(fields, 'subject') ||
+              !Object.hasOwn(fields, 'body')) {
+            return refuseRecordBinding('Rent Notice CREATE needs its active checked presentation.');
+          }
+          fields = { ...fields, subject: rentNoticeHooks.present('subject', fields.subject),
+            body: rentNoticeHooks.present('body', fields.body) };
+        }
         const id = nextCreateId(model);
         const row = await scope.stageWrite({ op: "create", model, id, data: fields,
           ...(parent === undefined ? {} : { parent }) });
         if (row === null) throw new StateError("validation", "Create staged no record.");
+        if (model === 'rent_reservations.Notice' && rentNoticeHooks !== null) rentNoticeHooks.notice(row.id);
         if (leaveDecisionCreateParent !== null && model === 'leave.Request') {
           if (leaveDecisionCreateParent.requestId !== null) {
             return refuseRecordBinding('Leave request may create only one Request.');
@@ -10353,9 +10478,19 @@ async function runScenarioExecution(
         let effects = await stage(request, selected.context);
         const opaque = await nativeOpaqueFileStaging(loaded, opts, selected.scope, async () => {
           if (call.checkpoint?.owner !== selected.scope.owner) throw new Error('Scheduled File owner changed.');
-          if (actorUserId === null || teamId === null ||
-              await readCallerRolesSnapshot(opts.memberships, teamId, actorUserId) !== callerRolesSnapshot) {
-            throw new Error('Scheduled File receiving authority changed.');
+          if (internalRentNoticeRetained && rentNoticeHooks !== null &&
+              scenarioDef?.name === 'rent_reservations.correspondence' &&
+              event === 'rent_reservations.Reminder' &&
+              selected.scope.ownerPackage === 'rent_reservations') {
+            if (receiptStore === undefined ||
+                loaded.producers.invoke.assertScenarioReceiptCallExecution === undefined) {
+              throw new Error('Scheduled Rent Reminder lost its live State owner.');
+            }
+            loaded.producers.invoke.assertScenarioReceiptCallExecution(call as AdmittedCall, receiptStore);
+            await resolvePrivateSourceOwner(opts.memberships as IdentityStore, selected.scope, call.context.now);
+          } else if (actorUserId === null || teamId === null ||
+                     await readCallerRolesSnapshot(opts.memberships, teamId, actorUserId) !== callerRolesSnapshot) {
+              throw new Error('Scheduled File receiving authority changed.');
           }
         });
         if (opaque !== null) {
@@ -10384,6 +10519,7 @@ async function runScenarioExecution(
           }
           effects = await stage({ ...request, filePayloadOrigin }, selected.context);
         }
+        rentNoticeHooks?.schedule(key, Number(at.ms), event, Object.freeze({ ...arguments_ }));
         appendDeferredEffects(effects);
       } catch (error) { deferredFailure(error); }
     },
@@ -10396,6 +10532,7 @@ async function runScenarioExecution(
         const stage = requireProducerFn(command, 'stage', 'work keyed schedule producer') as
           typeof import('@canlang/work/kernel/schedule-staging').workScheduleCancelCommand.stage;
         const effects = await stage({ key, scope: selected.scope }, selected.context);
+        rentNoticeHooks?.cancel(key);
         if (scenarioDef?.name === 'invoice.collect') {
           if (invoiceCollectCancel === null) {
             return refuseRecordBinding('Invoice collect CANCEL needs its live checked owner decision.');
@@ -10888,7 +11025,22 @@ async function runScenarioExecution(
     nativeScenarioExecutions.set(actualCall, active);
     const frameEventSources = [...(nativeSourceSendGuards.get(actualCall.def as GeneratedOperationDef)?.values() ?? [])]
       .flatMap(selected => selected.guard.eventSource === undefined ? [] : [selected.guard.eventSource]);
-    if (frameEventSources.length > 1) return refuseRecordBinding('Private receipt has more than one original event source.');
+    const pairedRentNoticeSource = scenarioDef?.name === 'rent_reservations.correspondence' &&
+      frameEventSources.length === 2 &&
+      (scenarioDef.descriptor.result?.disclosure as { readonly rentNoticeDecision?: {
+        readonly owner: string; readonly event: string; readonly sendRules: readonly unknown[];
+      } } | undefined)?.rentNoticeDecision?.owner === scenarioDef.name &&
+      frameEventSources.every(source => source.event === 'rent_reservations.ReservationChanged' &&
+        source.handler === scenarioDef.name && source.modelField.name === 'booking' &&
+        source.modelField.model === 'rent_reservations.Booking' &&
+        source.revisionField.name === 'revision' && source.revisionField.type === 'int' &&
+        stableStringify(source.modelField.declaration) ===
+          stableStringify(frameEventSources[0]!.modelField.declaration) &&
+        stableStringify(source.revisionField.declaration) ===
+          stableStringify(frameEventSources[0]!.revisionField.declaration));
+    if (frameEventSources.length > 1 && !pairedRentNoticeSource) {
+      return refuseRecordBinding('Private receipt has more than one original event source.');
+    }
     scenarioReceiptFrame = openScenarioReceiptFrame(ctx, actualCall, receiptStore, recordEngineFailure,
       async (site, target, inputs) => {
         if (binding === undefined || invokeCall === undefined || assertCall === undefined ||
@@ -12165,6 +12317,74 @@ async function runScenarioExecution(
       } catch (error) { recordEngineFailure(error); throw error; }
     });
   }
+  if ((internalHandlerDue || internalRentNoticeRetained) && receiptStore !== undefined &&
+      ownerSession !== undefined &&
+      (scenarioDef?.name === 'rent_reservations.correspondence' ||
+        scenarioDef?.name === 'rent_reservations.remind')) {
+    const actualCall = call as AdmittedCall;
+    const checked = (scenarioDef.descriptor.result?.disclosure as
+      { readonly rentNoticeDecision?: import('@canlang/state/invocation').RentNoticeDecisionPlan } | undefined)
+      ?.rentNoticeDecision;
+    const execute = loaded.producers.invoke.executeScenarioReceiptRentNoticeDecision;
+    const selected = [...(nativeSourceSendGuards.get(scenarioDef)?.values() ?? [])].filter(guard =>
+      guard.guard.owner === scenarioDef.name);
+    if (checked === undefined || execute === undefined || sendSnapshots === undefined ||
+        checked.owner !== scenarioDef.name ||
+        checked.event !== (scenarioDef.name === 'rent_reservations.correspondence'
+          ? 'rent_reservations.ReservationChanged' : 'rent_reservations.Reminder') ||
+        opts.formatting?.appDefault === undefined ||
+        selected.length !== checked.sendRules.length ||
+        [...selected.map(item => item.guard.rule)].sort().join('\0') !==
+          [...checked.sendRules.map(item => item.rule)].sort().join('\0')) {
+      return refuseRecordBinding('Rent notice needs its exact retained event, checked presentation and guarded Mail sends.');
+    }
+    let consumed = false;
+    bindNativeScenarioRentNoticeDecision(ctx, async (descriptor, body) => {
+      try {
+        if (consumed || rentNoticeHooks !== null ||
+            stableStringify(descriptor) !== stableStringify(checked) ||
+            nativeScenarioExecutions.get(actualCall) === undefined) {
+          return refuseRecordBinding('Rent notice differs from its unique checked source handler.');
+        }
+        consumed = true;
+        await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
+          appDefault: opts.formatting!.appDefault,
+          evaluate: async frame => {
+            const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+            if (assertCall === undefined || rentNoticeHooks !== null) {
+              return refuseRecordBinding('Rent notice needs its serial live State owner decision.');
+            }
+            const healthy = () => assertCall(actualCall, receiptStore);
+            for (const [model, row] of [
+              ['rent_catalog.Location', frame.location],
+              ['rent_reservations.Resource', frame.resource],
+              ['rent_reservations.Booking', frame.event.booking],
+            ] as const) {
+              const key = stagedKey(model, row.id);
+              const known = ownerRows.get(key);
+              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
+                return refuseRecordBinding('Rent notice owner ancestry changed before source execution.');
+              }
+              ownerRows.set(key, row);
+              await ownerNavigation.prepare(model, row);
+              healthy();
+            }
+            const event = Object.freeze({
+              booking: recordView('rent_reservations.Booking', frame.event.booking),
+              revision: frame.event.revision,
+            });
+            rentNoticeHooks = { present: frame.present, cancel: frame.cancel,
+              notice: frame.notice, schedule: frame.schedule };
+            rentNoticeLocationSlot.current = { resource: frame.resource, location: frame.location };
+            try {
+              const answer = await Reflect.apply(body, undefined, [ctx, Object.freeze({ event })]);
+              healthy();
+              if (answer !== undefined) return refuseRecordBinding('Rent notice original body must return void.');
+            } finally { rentNoticeHooks = null; rentNoticeLocationSlot.current = null; }
+          } });
+      } catch (error) { recordEngineFailure(error); throw error; }
+    });
+  }
   if (internalHandlerDue && receiptStore !== undefined && scenarioDef?.name === 'maintain.remind') {
     const actualCall = call as AdmittedCall;
     const checked = (scenarioDef.descriptor.result?.disclosure as
@@ -12279,7 +12499,7 @@ async function runScenarioExecution(
     // write-free owner session for the clean branded authored failure only,
     // then rethrow the ORIGINAL error for the due catch to stage the exact
     // failed Work receipt. All other failures keep existing propagation.
-    if (internalHandlerDue && rootOwnerSession !== undefined) {
+    if ((internalHandlerDue || internalRentNoticeRetained) && rootOwnerSession !== undefined) {
       const refusalGuards = await loadProducerModule('@canlang/state/effects/guards', 'due refusal thrown require');
       if ((requireProducerFn(refusalGuards, 'isAuthoredRequireFailure', 'due refusal thrown require') as
         typeof import('@canlang/state/effects/guards').isAuthoredRequireFailure)(error)) {
@@ -12302,7 +12522,7 @@ async function runScenarioExecution(
     // receipt. Genuine engine/observer/poison failures keep the immediate
     // throw with existing poisoning/rejected-receipt semantics — never
     // cleared by code or message match.
-    const guardsMod = internalHandlerDue && rootOwnerSession !== undefined
+    const guardsMod = (internalHandlerDue || internalRentNoticeRetained) && rootOwnerSession !== undefined
       ? await loadProducerModule('@canlang/state/effects/guards', 'due refusal authored require') : undefined;
     const isCleanRequire = guardsMod !== undefined &&
       (requireProducerFn(guardsMod, 'isAuthoredRequireFailure', 'due refusal authored require') as
@@ -12315,7 +12535,7 @@ async function runScenarioExecution(
     // admission sees a clean owner close and the due path can return its
     // precise failed Work receipt. Other failures keep the existing
     // poisoning/rejected-receipt semantics below.
-    if (internalHandlerDue && rootOwnerSession !== undefined) {
+    if ((internalHandlerDue || internalRentNoticeRetained) && rootOwnerSession !== undefined) {
       try {
         await rootOwnerSession.finalize();
       } catch (error) {
@@ -15494,7 +15714,23 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     { ...opts.artifact, operations: [route.invocation] }, { by: () => 'owner' });
   const privateDef = descriptors.registry.get(selector.handler) as GeneratedOperationDef | undefined;
   if (privateDef === undefined) throw new Error('Retained ordinary handler descriptor was not checked.');
+  let rentNoticeAppDefault: string | undefined;
+  if (selector.handler === 'rent_reservations.correspondence') {
+    const callable = opts.artifact.callables.find(entry => entry.id === selector.handler && entry.kind === 'handler');
+    if (callable === undefined) throw new AssemblyCorrespondenceError('Rent notice handler lost its checked callable.');
+    const module = await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
+    const declaredDefault = privateSourceMember(route.definition, 'appDefaultLocale');
+    const compiledDefault = privateSourceMember(module, '__canlangAppDefaultLocale');
+    if (typeof declaredDefault !== 'string' || declaredDefault === '' ||
+        declaredDefault !== compiledDefault) {
+      throw new AssemblyCorrespondenceError('Rent notice formatting differs from its checked app default.');
+    }
+    rentNoticeAppDefault = declaredDefault;
+  }
   const privateLoaded = { ...loaded, registry: descriptors.registry };
+  if (selector.handler === 'rent_reservations.correspondence') {
+    await bindScenarioFrameworkProducers(opts.asm, opts.artifact, privateLoaded, selector.handler);
+  }
   const handlerModule = await loadProducerModule('@canlang/work/kernel/handler-occurrence', 'retained private handler');
   const stageRetained = requireProducerFn(handlerModule, 'stageRetainedHandlerOccurrence', 'retained private handler') as
     typeof import('@canlang/work/kernel/handler-occurrence').stageRetainedHandlerOccurrence;
@@ -15623,8 +15859,13 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
   } };
   const mutationOpts: CanonicalMutationOpts = { ...opts, operation: selector.handler, operationId,
     ...(opts.createRecordAllocator === undefined ? {} : { allocateRecordId: await opts.createRecordAllocator(selector.handler, operationId) }),
-    identity, inputs: admittedInputs, source: sourceKind, memberships: opts.identities, now: () => now };
+    identity, inputs: admittedInputs, source: sourceKind, memberships: opts.identities, now: () => now,
+    ...(rentNoticeAppDefault === undefined ? {} : { formatting: { appDefault: rentNoticeAppDefault } }) };
   const committedSourceStage = await canonicalCommittedSourceStage(privateLoaded);
+  const retainedRentNoticeReceipt = declared && selector.handler === 'rent_reservations.correspondence' &&
+    rentNoticeAppDefault !== undefined;
+  let retainedRentNoticeOutcome: { readonly status: 'completed' | 'failed';
+    readonly occurrenceId: string; readonly result: unknown } | undefined;
   try {
     const outcome = await loaded.producers.invoke.invoke({ registry: descriptors.registry,
       envelope: { operation: selector.handler, operation_id: operationId, inputs: admittedInputs },
@@ -15646,6 +15887,18 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         }
         await resolvePrivateSourceOwner(opts.identities, selector.scope, call.context.now);
         await verifyCommitted();
+        if (declared && selector.handler === 'rent_reservations.correspondence') {
+          const note = loaded.producers.invoke.noteRetainedEventAdmission;
+          if (note === undefined || call.checkpoint === undefined) {
+            throw new AssemblyCorrespondenceError('Rent notice lacks its retained State event admission.');
+          }
+          note(call as never, { event: 'rent_reservations.ReservationChanged',
+            sourceOccurrenceId: selector.sourceOccurrence,
+            handlerOccurrenceId: current.occurrence.occurrenceId,
+            scope: { app: selector.scope.app, owner: selector.scope.owner,
+              ownerPackage: selector.scope.ownerPackage },
+            eventPayload: structuredClone(current.occurrence.payload) });
+        }
         if (opaque !== null) {
           if (call.checkpoint === undefined) throw new Error('Retained File handler has no canonical checkpoint.');
           await opaque.revalidateSource(retainedFileSource!, call.checkpoint.revision, opts.files);
@@ -15702,14 +15955,17 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         }
         if ((terminal.effects.outboxAck?.length ?? 0) !== 0) throw new Error('Retained handler cannot acknowledge provider work.');
         const effects = terminal.effects;
+        const terminalOutcome = { status, occurrenceId: current.occurrence.occurrenceId,
+          result: business.result ?? null };
+        if (retainedRentNoticeReceipt) retainedRentNoticeOutcome = terminalOutcome;
         return { ...business, guards: commitGuards,
           writes: [...business.writes, ...effects.writes ?? []], history: [...business.history, ...effects.history ?? []],
           outbox: [...business.outbox, ...effects.outbox ?? []], schedules: [...business.schedules, ...effects.schedules ?? []],
           uniqueClaims: [...business.uniqueClaims, ...effects.uniqueClaims ?? []],
           uniqueReleases: [...business.uniqueReleases, ...effects.uniqueReleases ?? []],
-          result: { status, occurrenceId: current.occurrence.occurrenceId, result: business.result ?? null } };
+          result: retainedRentNoticeReceipt ? business.result ?? null : terminalOutcome };
       } });
-    return outcome.result;
+    return retainedRentNoticeOutcome ?? outcome.result;
   } catch (error) {
     if (error instanceof RetainedHandlerOccurrenceChanged) return error.outcome;
     throw error;

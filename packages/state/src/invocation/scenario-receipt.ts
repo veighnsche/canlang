@@ -13,7 +13,7 @@
  */
 import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, FrameworkFilePayloadOrigin, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, FinalizedFileObservation, FinalizedFileReceiver, RetainedFinalizedFile, ScenarioReceiptFileAssignment, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
-import { addMoney, compareDate, date_year, decodeValue, encodeValue, local_date, money, parseTypeId, printTypeId, subtractMoney, sumMoney, validateValue, makeDeliveryRef, makeRecordRef, isUserRef, type DateValue, type DatetimeValue, type MoneyValue, type UserRef, type NormalizedSchema } from '@canlang/values';
+import { addMoney, canonicalLocale, compareDate, date_year, decodeValue, encodeValue, formatMessage, local_date, makeMessageDescriptor, money, parseTypeId, printTypeId, subtractMoney, sumMoney, validateValue, makeDeliveryRef, makeRecordRef, isUserRef, type DateValue, type DatetimeValue, type MoneyValue, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { isAuthoredRequireFailure } from '../effects/guards.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
@@ -1131,6 +1131,81 @@ function checkInvoiceCollectDecisionPlan(value: unknown, transport: unknown): In
   return deepFreeze(raw) as unknown as InvoiceCollectDecisionPlan;
 }
 
+/** Exact private Work correspondence and reminder, including the sole
+ * presentation-bearing Notice fields paired with each original Mail SEND. */
+export interface RentNoticeDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'rent_reservations.correspondence' | 'rent_reservations.remind';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly event: 'rent_reservations.ReservationChanged' | 'rent_reservations.Reminder';
+  readonly sites: Readonly<Record<string, TermDecisionSite & { readonly operation?: string;
+    readonly model?: string; readonly event?: string }>>;
+  readonly sendRules: readonly { readonly kind: 'confirmation' | 'cancellation' | 'reminder';
+    readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly node: TermDecisionSite['node']; readonly statement: TermDecisionSite['statement'] }[];
+}
+function checkRentNoticeDecisionPlan(value: unknown, transport: unknown): RentNoticeDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'event', 'sites', 'sendRules']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as ScenarioResultDisclosurePlan['source'];
+  const owner = raw['owner'];
+  const correspondence = owner === 'rent_reservations.correspondence';
+  if (raw['version'] !== 1 || (!correspondence && owner !== 'rent_reservations.remind') ||
+      raw['event'] !== (correspondence ? 'rent_reservations.ReservationChanged' : 'rent_reservations.Reminder') ||
+      source.module !== 'rent_reservations' || source.path !== (transport as typeof source).path ||
+      source.sha256 !== (transport as typeof source).sha256) {
+    return invalid('Rent Notice needs its exact declared event and owning source.');
+  }
+  const keys = correspondence ? ['header', 'cancel', 'confirmedIf', 'confirmationSubject',
+    'confirmationBody', 'confirmationSend', 'confirmationCreate', 'scheduleIf', 'schedule',
+    'cancelledIf', 'cancellationSubject', 'cancellationBody', 'cancellationSend', 'cancellationCreate'] :
+    ['header', 'reminderSubject', 'reminderBody', 'reminderSend', 'reminderCreate'];
+  const sites = object(raw['sites'], keys);
+  const ids = new Set<string>();
+  let previous = -1;
+  for (const key of keys) {
+    const extra = key.endsWith('Send') ? ['operation', 'std.EmailV1.send'] :
+      key.endsWith('Create') ? ['model', 'rent_reservations.Notice'] :
+      key === 'schedule' ? ['event', 'rent_reservations.Reminder'] : null;
+    const site = object(sites[key], ['id', 'source', 'node', 'statement', ...(extra === null ? [] : [extra[0]!])]);
+    const node = object(site['node'], ['start', 'end', 'kind']);
+    const statement = object(site['statement'], ['start', 'end', 'kind']);
+    const id = text(site['id']); origin(site['source']);
+    for (const span of [node, statement]) {
+      if (!Number.isSafeInteger(span['start']) || !Number.isSafeInteger(span['end']) ||
+          !Number.isSafeInteger(span['kind']) || (span['start'] as number) < 0 ||
+          (span['end'] as number) <= (span['start'] as number) || (span['kind'] as number) < 0) {
+        return invalid('Rent Notice site lacks a checked source interval.');
+      }
+    }
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify(site['source']) !== stableStringify(source) ||
+        (node['start'] as number) < (statement['start'] as number) ||
+        (node['end'] as number) > (statement['end'] as number) ||
+        (statement['start'] as number) < previous ||
+        extra !== null && site[extra[0]!] !== extra[1]) {
+      return invalid('Rent Notice site differs from its original effect order.');
+    }
+    ids.add(id); previous = statement['start'] as number;
+  }
+  const expected = correspondence ? [['confirmation', 'confirmationSend'], ['cancellation', 'cancellationSend']] :
+    [['reminder', 'reminderSend']];
+  const rules = list(raw['sendRules']);
+  if (rules.length !== expected.length) return invalid('Rent Notice needs its complete SEND Rule census.');
+  for (const [index, value] of rules.entries()) {
+    const item = object(value, ['kind', 'rule', 'source', 'node', 'statement']);
+    const [kind, siteKey] = expected[index]!;
+    const send = sites[siteKey!]! as TermDecisionSite;
+    if (item['kind'] !== kind || typeof item['rule'] !== 'string' || item['rule'] === '' ||
+        stableStringify(item['source']) !== stableStringify(source) ||
+        stableStringify(item['node']) !== stableStringify(send.node) ||
+        stableStringify(item['statement']) !== stableStringify(send.statement)) {
+      return invalid('Rent Notice SEND Rule differs from its exact original source.');
+    }
+  }
+  return deepFreeze(raw) as unknown as RentNoticeDecisionPlan;
+}
+
 /** Loader checker; callers cannot turn this data into a bound generated def. */
 export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResultDisclosurePlan {
   const plan = object(dataCopy(value), ['version', 'source', 'returns',
@@ -1143,7 +1218,8 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'memberRetryDecision') ? ['memberRetryDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceOverdueDecision') ? ['invoiceOverdueDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentMovementRefundDecision') ? ['rentMovementRefundDecision'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceCollectDecision') ? ['invoiceCollectDecision'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceCollectDecision') ? ['invoiceCollectDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentNoticeDecision') ? ['rentNoticeDecision'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
@@ -1155,6 +1231,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'invoiceOverdueDecision')) checkInvoiceOverdueDecisionPlan(plan['invoiceOverdueDecision'], plan['source']);
   if (Object.hasOwn(plan, 'rentMovementRefundDecision')) checkRentMovementRefundDecisionPlan(plan['rentMovementRefundDecision'], plan['source']);
   if (Object.hasOwn(plan, 'invoiceCollectDecision')) checkInvoiceCollectDecisionPlan(plan['invoiceCollectDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'rentNoticeDecision')) checkRentNoticeDecisionPlan(plan['rentNoticeDecision'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -1250,6 +1327,7 @@ interface BoundPlan {
   readonly invoiceOverdueDecision?: InvoiceOverdueDecisionPlan;
   readonly rentMovementRefundDecision?: RentMovementRefundDecisionPlan;
   readonly invoiceCollectDecision?: InvoiceCollectDecisionPlan;
+  readonly rentNoticeDecision?: RentNoticeDecisionPlan;
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
   readonly resultModel: ModelName | undefined;
   readonly inputs: readonly CanonicalInputDef[];
@@ -2002,6 +2080,9 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   const rawInvoiceCollectDecision = plan.invoiceCollectDecision;
   const invoiceCollectDecision = rawInvoiceCollectDecision === undefined ? undefined :
     checkInvoiceCollectDecisionPlan(rawInvoiceCollectDecision, plan.source);
+  const rawRentNoticeDecision = plan.rentNoticeDecision;
+  const rentNoticeDecision = rawRentNoticeDecision === undefined ? undefined :
+    checkRentNoticeDecisionPlan(rawRentNoticeDecision, plan.source);
   if (eventDecision !== undefined) {
     const inspection = models.find(model => model.name === 'maintain.Inspection');
     const planModel = models.find(model => model.name === 'maintain.Plan');
@@ -2180,6 +2261,39 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
       return invalid('Invoice collection lacks its exact void owner, input and collection domains.');
     }
   }
+  if (rentNoticeDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    const model = (name: string) => models.find(item => item.name === name);
+    const field = (name: string, member: string, kind: string) =>
+      model(name)?.fields.filter(item => item.name === member && item.field.kind === kind &&
+        item.array === undefined && item.nullable !== true).length === 1;
+    if (def.kind !== 'scenario' || def.name !== rentNoticeDecision.owner || declared !== 'void' ||
+        inputs.length !== 2 || inputs[0]?.name !== 'booking' || inputs[0].kind !== 'ref' ||
+        inputs[0].model !== 'rent_reservations.Booking' || !inputs[0].required ||
+        inputs[1]?.name !== 'revision' || inputs[1].kind !== 'integer' || !inputs[1].required ||
+        model('rent_reservations.Booking')?.parent !== 'rent_reservations.Resource' ||
+        model('rent_reservations.Notice')?.parent !== 'rent_reservations.Booking' ||
+        !model('rent_catalog.Location') ||
+        !field('rent_reservations.Booking', 'status', 'enum') ||
+        !field('rent_reservations.Booking', 'email', 'string') ||
+        !field('rent_reservations.Booking', 'source', 'string') ||
+        !field('rent_reservations.Booking', 'terms', 'string') ||
+        !field('rent_reservations.Booking', 'from', 'datetime') ||
+        !field('rent_reservations.Booking', 'until', 'datetime') ||
+        !field('rent_reservations.Resource', 'name', 'string') ||
+        !field('rent_reservations.Resource', 'location', 'ref') ||
+        !field('rent_catalog.Location', 'name', 'string') ||
+        !field('rent_catalog.Location', 'arrival', 'string') ||
+        !field('rent_reservations.Notice', 'kind', 'enum') ||
+        !field('rent_reservations.Notice', 'revision', 'integer') ||
+        !field('rent_reservations.Notice', 'subject', 'string') ||
+        !field('rent_reservations.Notice', 'body', 'string') ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('Rent Notice lacks its exact private event, Booking ancestry and Notice model.');
+    }
+  }
   const resultModel = modelResultType(declared);
   if (resultModel !== undefined && (def.kind !== 'scenario' ||
       models.filter(model => model.name === resultModel).length !== 1 ||
@@ -2307,6 +2421,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     ...(invoiceOverdueDecision === undefined ? {} : { invoiceOverdueDecision }),
     ...(rentMovementRefundDecision === undefined ? {} : { rentMovementRefundDecision }),
     ...(invoiceCollectDecision === undefined ? {} : { invoiceCollectDecision }),
+    ...(rentNoticeDecision === undefined ? {} : { rentNoticeDecision }),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,
@@ -2480,6 +2595,8 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
           fields.some((field, index) => index > 0 && fields[index - 1]! >= field ||
             (bound.invoiceOverdueDecision !== undefined && field === 'balance' ?
               !bound.artifactModels.has('invoice.Invoice' as ModelName) :
+            bound.rentNoticeDecision !== undefined && modelName === 'rent_reservations.Booking' &&
+              field === 'version' ? false :
               declaredFields?.filter(item => item.name === field && item.field.kind !== 'secret').length !== 1)) ||
           stableStringify(event['predicate']) !== stableStringify(guard['node']) ||
           ref?.kind !== 'ref' || ref.model !== modelName || !ref.required ||
@@ -2513,6 +2630,20 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
             stableStringify(fields) !== stableStringify(['balance', 'state']) ||
             Object.hasOwn(event, 'recipientPath')) {
           return invalid('overdue SEND differs from its exact Invoice balance and guarded Mail source.');
+        }
+      }
+      if (bound.rentNoticeDecision !== undefined) {
+        const notice = bound.rentNoticeDecision;
+        const selected = notice.sendRules.find(item => item.rule === rule);
+        if (def.name !== notice.owner || event['event'] !== notice.event ||
+            modelName !== 'rent_reservations.Booking' || modelNameField !== 'booking' ||
+            revisionName !== 'revision' || guard['binding'] !== 'rent_reservations.Mail' ||
+            guard['target'] !== 'std.EmailV1.send' || selected === undefined ||
+            stableStringify(guard['node']) !== stableStringify({
+              start: selected.node.start, end: selected.node.end }) ||
+            stableStringify(fields) !== stableStringify(selected.kind === 'cancellation' ?
+              ['version'] : ['status', 'version']) || Object.hasOwn(event, 'recipientPath')) {
+          return invalid('Rent Notice SEND differs from its exact Booking branch and guarded Mail source.');
         }
       }
       if (Object.hasOwn(event, 'recipientPath')) {
@@ -2573,6 +2704,9 @@ function declaredEventIntrinsic(def: GeneratedOperationDef): { readonly modelFie
   if (def.name === 'appointments.remind') return { modelField: 'appointment', model: 'appointments.Appointment' as ModelName };
   if (def.name === 'maintain.remind') return { modelField: 'inspection', model: 'maintain.Inspection' as ModelName };
   if (def.name === 'invoice.overdue') return { modelField: 'invoice', model: 'invoice.Invoice' as ModelName };
+  if (def.name === 'rent_reservations.correspondence' || def.name === 'rent_reservations.remind') {
+    return { modelField: 'booking', model: 'rent_reservations.Booking' as ModelName };
+  }
   return undefined;
 }
 
@@ -2580,16 +2714,31 @@ function admittedEventIntrinsic(call: AdmittedCall, parameter: string): Scenario
   if (parameter !== 'eventTerm' && parameter !== 'eventRevision') return undefined;
   const def = call.def as GeneratedOperationDef, expected = declaredEventIntrinsic(def);
   const sources = frameworkProducers.get(def)?.sendGuards?.flatMap(guard => guard.eventSource === undefined ? [] : [guard.eventSource]) ?? [];
-  const source = sources.length === 1 ? sources[0] : undefined;
+  const source = sources.length > 0 && sources.every(item => item.event === sources[0]!.event &&
+    item.handler === sources[0]!.handler && item.modelField.name === sources[0]!.modelField.name &&
+    item.modelField.model === sources[0]!.modelField.model &&
+    item.revisionField.name === sources[0]!.revisionField.name) ? sources[0] : undefined;
   const due = dueWorkAdmissions.get(call);
+  const retained = retainedEventAdmissions.get(call);
+  const eventAdmission = source !== undefined && due !== undefined && due.event === source.event && due.eventPayload !== undefined &&
+    call.context.kind === 'trusted' && call.context.source === 'schedule' &&
+    call.context.trustedSource === `schedule:${source.event}` ||
+    source !== undefined && retained !== undefined && retained.event === source.event && retained.eventPayload !== undefined &&
+    call.context.kind === 'trusted' && call.context.source === 'schedule' &&
+    call.context.trustedSource === `event:${source.event}`;
   if (expected === undefined || source === undefined || source.handler !== def.name ||
       source.modelField.name !== expected.modelField || source.modelField.model !== expected.model ||
-      source.revisionField.name !== 'revision' || due?.event !== source.event || due.eventPayload === undefined ||
-      call.context.kind !== 'trusted' || call.context.source !== 'schedule' ||
-      call.context.trustedSource !== `schedule:${source.event}`) {
+      source.revisionField.name !== 'revision' || !eventAdmission) {
     return invalid('event intrinsic requires its original due Work source and checked private handler.');
   }
   return source;
+}
+function admittedWorkEventPayload(call: AdmittedCall, event: string): unknown {
+  const due = dueWorkAdmissions.get(call);
+  if (due?.event === event) return due.eventPayload;
+  const retained = retainedEventAdmissions.get(call);
+  if (retained?.event === event) return retained.eventPayload;
+  return undefined;
 }
 
 /** Maintain's checked reminder sends before its sole business SET. The
@@ -3457,6 +3606,13 @@ interface Capture {
     readonly eventPayload: Readonly<Record<string, unknown>>;
     readonly attempts: readonly StoredRow[]; readonly credits: readonly StoredRow[];
     readonly payments: readonly StoredRow[]; readonly externalRefunds: readonly StoredRow[] };
+  rentNoticeDecision?: { readonly booking: StoredRow; readonly resource: StoredRow;
+    readonly location: StoredRow; readonly revision: bigint;
+    readonly branch: 'confirmation' | 'cancellation' | 'reminder' | 'none';
+    readonly subject: string | null; readonly body: string | null;
+    readonly deliveryId: string | null; readonly noticeId: string | null;
+    readonly scheduleKey: string; readonly scheduleAt: number | null;
+    readonly sourceRow: StoredRow | null; readonly handlerRow: StoredRow | null };
 }
 const captures = new WeakMap<AdmittedCall, Capture>();
 const captureContexts = new WeakMap<object, Capture>();
@@ -3702,15 +3858,17 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
   const profiles = frameworkModelInputs.get(call.def as GeneratedOperationDef)?.get(guard.rule);
   const producer = referenceProducers.get(call.def as GeneratedOperationDef);
   const inputs = object(supplied, guard.inputs.map(input => input.name)), values: Record<string, unknown> = {};
-  const event = guard.eventSource, due = event === undefined ? undefined : dueWorkAdmissions.get(call);
+  const event = guard.eventSource;
+  const eventPayload = event === undefined ? undefined : admittedWorkEventPayload(call, event.event);
   if (event !== undefined) {
-    if (due === undefined || due.event !== event.event || event.handler !== call.def.name ||
-        call !== owner.call || owner.executingCall !== call || due.eventPayload === undefined ||
+    if (eventPayload === undefined || event.handler !== call.def.name ||
+        call !== owner.call || owner.executingCall !== call ||
         call.context.kind !== 'trusted' || call.context.source !== 'schedule' ||
-        call.context.trustedSource !== `schedule:${event.event}`) {
+        call.context.trustedSource !== `schedule:${event.event}` &&
+        call.context.trustedSource !== `event:${event.event}`) {
       return invalid('event SEND requires its actual admitted due Work source and private owner call.');
     }
-    const payload = object(due.eventPayload, [event.modelField.name, event.revisionField.name]);
+    const payload = object(eventPayload, [event.modelField.name, event.revisionField.name]);
     const sourceTerm = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly model: string; readonly id: string };
     const admittedTerm = decodeValue(event.modelField.model,
       admittedInputWire(call.inputs, event.modelField.name)) as { readonly model: string; readonly id: string };
@@ -3735,14 +3893,18 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
       }
       const row = checkedRow(dataCopy(actual));
       if (event !== undefined && input.name === 'eventTerm') {
-        const payload = object(due!.eventPayload, [event.modelField.name, event.revisionField.name]);
+        const payload = object(eventPayload, [event.modelField.name, event.revisionField.name]);
         const ref = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly id: string };
         if (row.id !== ref.id || row.archivedAt !== null) return invalid('event SEND model differs from its current retained source row.');
-        if (call.def.name === 'maintain.remind' || call.def.name === 'invoice.overdue') {
+        if (call.def.name === 'maintain.remind' || call.def.name === 'invoice.overdue' ||
+            call.def.name === 'rent_reservations.correspondence' || call.def.name === 'rent_reservations.remind') {
           const admitted = call.recordRefs.find(candidate => candidate.param === event.modelField.name &&
             candidate.model === event.modelField.model && candidate.id === ref.id);
           const invoice = call.def.name === 'invoice.overdue';
-          if (event.event !== (invoice ? 'invoice.Overdue' : 'maintain.Reminder') ||
+          const notice = call.def.name.startsWith('rent_reservations.');
+          if (event.event !== (invoice ? 'invoice.Overdue' : notice ?
+              call.def.name === 'rent_reservations.correspondence' ?
+                'rent_reservations.ReservationChanged' : 'rent_reservations.Reminder' : 'maintain.Reminder') ||
               owner.stage !== 0 || admitted === undefined ||
               !sameModelLifetime(admitted.row, row) || stableStringify(admitted.row) !== stableStringify(row)) {
             return invalid('event SEND requires its unchanged admitted row at the original source stage.');
@@ -3751,6 +3913,10 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
               owner.activeOwnerDecision.call !== call || owner.activeOwnerDecision.staged !== 0 ||
               owner.framework?.ordinal !== 0)) {
             return invalid('overdue SEND requires its active sealed Invoice balance decision.');
+          }
+          if (notice && (owner.activeOwnerDecision?.owner !== call.def.name ||
+              owner.activeOwnerDecision.call !== call || owner.framework?.ordinal !== 0)) {
+            return invalid('Rent Notice SEND requires its active sealed Booking decision.');
           }
         }
       }
@@ -4042,6 +4208,12 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
             ledger.ordinal !== 0 || rule !== owner.capture.bound.invoiceCollectDecision?.sendRule.rule ||
             binding.binding !== 'invoice.Payments' || source !== 'std.PaymentsV1.collect')) {
         return invalid('Invoice collection SEND differs from its original post-CREATE guarded payment.');
+      }
+      if ((member?.owner === 'rent_reservations.correspondence' || member?.owner === 'rent_reservations.remind') &&
+          (member.call !== call || owner.stage !== 0 || ledger.ordinal !== 0 ||
+            !owner.capture.bound.rentNoticeDecision?.sendRules.some(item => item.rule === rule) ||
+            binding.binding !== 'rent_reservations.Mail' || source !== 'std.EmailV1.send')) {
+        return invalid('Rent Notice SEND differs from its original guarded Mail branch.');
       }
       const active = Object.freeze({ call, guard, stage: owner.stage }); owner.activeSend = active;
       try {
@@ -4337,7 +4509,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
       state.bound.leaveDecideDecision !== undefined || state.bound.referRejectDecision !== undefined ||
       state.bound.memberRetryDecision !== undefined || state.bound.invoiceOverdueDecision !== undefined ||
       state.bound.rentMovementRefundDecision !== undefined ||
-      state.bound.invoiceCollectDecision !== undefined;
+      state.bound.invoiceCollectDecision !== undefined ||
+      state.bound.rentNoticeDecision !== undefined;
     const maxRows = !extendedOwner ? MAX_ITEMS : 4_001;
     if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
         (bounds['maxRows'] as number) > maxRows ||
@@ -6880,6 +7053,255 @@ export async function executeScenarioReceiptInvoiceCollectDecision(call: Admitte
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
 }
 
+/** The private Rent handler pairs one source-bound Mail delivery with the
+ * stored Notice, and preserves the original correspondence schedule order. */
+export async function executeScenarioReceiptRentNoticeDecision(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: RentNoticeDecisionPlan;
+  readonly checked: RentNoticeDecisionPlan;
+  readonly appDefault: string;
+  readonly evaluate: (frame: {
+    readonly event: { readonly booking: StoredRow; readonly revision: bigint };
+    readonly resource: StoredRow;
+    readonly location: StoredRow;
+    readonly present: (field: 'subject' | 'body', value: unknown) => string;
+    readonly cancel: (key: string) => void;
+    readonly notice: (id: string) => void;
+    readonly schedule: (key: string, at: number, event: string,
+      payload: Readonly<Record<string, unknown>>) => void;
+  }) => Promise<unknown>;
+}): Promise<void> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  try {
+    const profile = state.bound.rentNoticeDecision;
+    if (profile === undefined || owner === undefined || owner.session === null || owner.framework === null ||
+        owner.stage !== 0 || owner.busy || owner.activeOwnerDecision !== null || state.pending !== 0 ||
+        state.returnId !== null || state.rentNoticeDecision !== undefined || owner.executingCall !== call ||
+        owner.maxRows !== 4_001 || owner.callGuards.length >= MAX_ITEMS - 6 ||
+        typeof input.evaluate !== 'function' || typeof input.appDefault !== 'string' ||
+        canonicalLocale(input.appDefault) !== input.appDefault) {
+      return invalid('Rent Notice needs its unique current Work handler and checked locale.');
+    }
+    const original = checkRentNoticeDecisionPlan(dataCopy(input.original), state.bound.plan.source);
+    const checked = checkRentNoticeDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
+    if (stableStringify(original) !== stableStringify(checked) ||
+        stableStringify(original) !== stableStringify(profile)) {
+      return invalid('Rent Notice differs from its independently checked source.');
+    }
+    const source = admittedEventIntrinsic(call, 'eventTerm');
+    const eventPayload = admittedWorkEventPayload(call, profile.event);
+    if (source?.event !== profile.event || source.modelField.name !== 'booking' ||
+        source.modelField.model !== 'rent_reservations.Booking' ||
+        source.revisionField.name !== 'revision' || eventPayload === undefined) {
+      return invalid('Rent Notice needs its genuine declared or scheduled Work event.');
+    }
+    const payload = object(eventPayload, ['booking', 'revision']);
+    const bookingRef = decodeValue('rent_reservations.Booking', payload['booking']) as { readonly id: string };
+    const revision = decodeValue('int', payload['revision']) as bigint;
+    const admittedBooking = decodeValue('rent_reservations.Booking', admittedInputWire(call.inputs, 'booking')) as
+      { readonly id: string };
+    const admittedRevision = decodeValue('int', admittedInputWire(call.inputs, 'revision')) as bigint;
+    const ref = call.recordRefs.find(candidate => candidate.param === 'booking' &&
+      candidate.model === 'rent_reservations.Booking' && candidate.id === bookingRef.id);
+    if (ref === undefined || bookingRef.id !== admittedBooking.id || revision !== admittedRevision) {
+      return invalid('Rent Notice differs from the retained Work Booking and revision.');
+    }
+    const rows = new Map<string, StoredRow>();
+    const remember = (model: string, row: StoredRow): void => { rows.set(`${model}\0${row.id}`, row); };
+    const booking = await ownerOperation(owner, () => owner.session!.views.final.get(
+      'rent_reservations.Booking' as ModelName, ref.id));
+    if (booking === null || booking.archivedAt !== null ||
+        booking.parent?.model !== 'rent_reservations.Resource' ||
+        !sameModelLifetime(ref.row, booking) || stableStringify(booking) !== stableStringify(ref.row)) {
+      throw new StateError('conflict', 'Rent Notice Booking differs from its admitted event source.');
+    }
+    remember('rent_reservations.Booking', booking);
+    const resource = await ownerOperation(owner, () => owner.session!.views.final.get(
+      'rent_reservations.Resource' as ModelName, booking.parent!.id));
+    if (resource === null || resource.archivedAt !== null || resource.parent !== null) {
+      return invalid('Rent Notice Booking lacks its original live Resource parent.');
+    }
+    remember('rent_reservations.Resource', resource);
+    const locationRef = decodeValue('rent_catalog.Location', resource.data['location']) as { readonly id: string };
+    const location = await ownerOperation(owner, () => owner.session!.views.final.get(
+      'rent_catalog.Location' as ModelName, locationRef.id as RecordId));
+    if (location === null || location.archivedAt !== null || location.parent !== null) {
+      return invalid('Rent Notice Resource lacks its original live Location reference.');
+    }
+    remember('rent_catalog.Location', location);
+    let sourceRow: StoredRow | null = null, handlerRow: StoredRow | null = null;
+    const retained = retainedEventAdmissions.get(call);
+    if (profile.owner === 'rent_reservations.correspondence') {
+      if (retained?.event !== profile.event || retained.scope.app !== call.context.app ||
+          retained.scope.ownerPackage !== 'rent_reservations') {
+        return invalid('correspondence needs its retained declared event admission.');
+      }
+      sourceRow = await store.cohortLoad({ model: 'work.occurrence' as ModelName,
+        id: retained.sourceOccurrenceId as RecordId, expectedRevision: call.revision });
+      handlerRow = await store.cohortLoad({ model: 'work.handler_occurrence' as ModelName,
+        id: retained.handlerOccurrenceId as RecordId, expectedRevision: call.revision });
+      const sourceResult = sourceRow?.data['result'];
+      const result = sourceResult !== null && typeof sourceResult === 'object' && !Array.isArray(sourceResult) ?
+        sourceResult as Readonly<Record<string, unknown>> : null;
+      const routes = result?.['handlers'];
+      if (sourceRow === null || handlerRow === null || sourceRow.archivedAt !== null ||
+          handlerRow.archivedAt !== null || sourceRow.id !== retained.sourceOccurrenceId ||
+          handlerRow.id !== retained.handlerOccurrenceId || sourceRow.data['status'] !== 'completed' ||
+          sourceRow.data['code'] !== null || sourceRow.data['message'] !== null ||
+          result?.['kind'] !== 'declared-event-source' || result['event'] !== profile.event ||
+          stableStringify(result['payload']) !== stableStringify(eventPayload) ||
+          stableStringify(result['scope']) !== stableStringify(retained.scope) ||
+          !Array.isArray(routes) || !routes.some(route => stableStringify(route) === stableStringify({
+            handler: profile.owner, kind: 'ordinary', occurrenceId: retained.handlerOccurrenceId })) ||
+          handlerRow.data['state'] !== 'pending' || handlerRow.data['sourceOccurrence'] !== retained.sourceOccurrenceId ||
+          handlerRow.data['handler'] !== profile.owner || handlerRow.data['event'] !== profile.event ||
+          stableStringify(handlerRow.data['payload']) !== stableStringify(eventPayload) ||
+          handlerRow.data['scopeApp'] !== retained.scope.app ||
+          handlerRow.data['scopeOwner'] !== retained.scope.owner ||
+          handlerRow.data['scopeOwnerPackage'] !== retained.scope.ownerPackage) {
+        return invalid('correspondence lost its physical declared Work source and handler route.');
+      }
+      remember('work.occurrence', sourceRow);
+      remember('work.handler_occurrence', handlerRow);
+    } else if (dueWorkAdmissions.get(call)?.event !== profile.event) {
+      return invalid('reminder needs its original due Work schedule.');
+    }
+    if (await store.readRevision() !== call.revision) {
+      throw new StateError('conflict', 'Rent Notice source moved beyond its Work checkpoint.');
+    }
+    ownerRows.set(booking, { session: owner, stage: 0, model: 'rent_reservations.Booking' as ModelName });
+    const status = booking.data['status'];
+    const branch: NonNullable<Capture['rentNoticeDecision']>['branch'] =
+      profile.owner === 'rent_reservations.remind' ? 'reminder' : status === 'confirmed' ? 'confirmation' :
+      ['cancelled', 'expired', 'no_show'].includes(String(status)) ? 'cancellation' : 'none';
+    const lease: OwnerDecisionLease = { call, owner: profile.owner, staged: 0, queryIndex: 0,
+      stagedIds: [], stages: branch === 'none' ? Object.freeze([]) : Object.freeze([{
+        op: 'create', model: 'rent_reservations.Notice' as ModelName,
+        parent: Object.freeze({ model: 'rent_reservations.Booking' as ModelName, id: booking.id }),
+        fields: Object.freeze(['body', 'delivery', 'kind', 'revision', 'subject']),
+      }]), queries: Object.freeze([]) };
+    const localeOptions = { locale: null, appDefault: input.appDefault, sourceLang: 'en',
+      timeZone: call.context.team?.timezone ?? 'UTC' } as const;
+    const phrase = (en: string, nl: string) =>
+      formatMessage(makeMessageDescriptor(en, { nl }), localeOptions);
+    const subjectMessage = branch === 'confirmation' ? phrase('Workspace confirmed', 'Werkplek bevestigd') :
+      branch === 'cancellation' ? phrase('Workspace booking changed', 'Werkplekreservering gewijzigd') :
+      branch === 'reminder' ? phrase('Workspace arrival reminder', 'Herinnering werkplekaankomst') : null;
+    const bodyMessage = branch === 'confirmation' ? formatMessage(makeMessageDescriptor(
+      '{location}; {resource}; {from,date} {from,time} – {until,date} {until,time}; {arrival}; {terms}; /workspace/my-bookings',
+      { nl: '{location}; {resource}; {from,date} {from,time} – {until,date} {until,time}; {arrival}; {terms}; /workspace/my-bookings' },
+      { location: { type: 'text', value: String(location.data['name']) },
+        resource: { type: 'text', value: String(resource.data['name']) },
+        from: { type: 'datetime', value: decodeValue('datetime', booking.data['from']) as DatetimeValue },
+        until: { type: 'datetime', value: decodeValue('datetime', booking.data['until']) as DatetimeValue },
+        arrival: { type: 'text', value: String(location.data['arrival']) },
+        terms: { type: 'text', value: String(booking.data['terms']) } }), localeOptions) : null;
+    const subject = subjectMessage?.text ?? null;
+    const body = branch === 'confirmation' ? bodyMessage!.text : branch === 'cancellation' ?
+      String(booking.data['terms']) : branch === 'reminder' ? String(location.data['arrival']) : null;
+    let cancelled = false, noticeId: string | null = null, scheduleAt: number | null = null;
+    const presented: Array<'subject' | 'body'> = [];
+    const present = (field: 'subject' | 'body', value: unknown): string => {
+      if (owner.activeOwnerDecision !== lease || branch === 'none' || noticeId !== null ||
+          owner.framework!.ordinal !== 1 || presented.length >= 2 ||
+          field !== (presented.length === 0 ? 'subject' : 'body')) {
+        return invalid('Rent Notice presentation crossed its original SEND and CREATE order.');
+      }
+      const expected = field === 'subject' ? subjectMessage : bodyMessage;
+      const plain = field === 'body' && branch !== 'confirmation';
+      if (plain) {
+        if (typeof value !== 'string' || value !== body) return invalid('Rent Notice plain body changed.');
+      } else {
+        const carried = object(dataCopy(value), ['text', 'locale']);
+        if (expected === null || carried['text'] !== expected.text || carried['locale'] !== expected.locale) {
+          return invalid('Rent Notice formatted carrier differs from its original selected locale and source fields.');
+        }
+      }
+      presented.push(field); return (field === 'subject' ? subject : body)!;
+    };
+    const scheduleKey = [call.context.app, 'rent_reservations',
+      call.context.team?.teamId ?? call.context.app, booking.data['source']].map(part =>
+      encodeURIComponent(String(part))).join('/');
+    const cancel = (key: string): void => {
+      if (profile.owner !== 'rent_reservations.correspondence' || cancelled ||
+          owner.activeOwnerDecision !== lease || owner.stage !== 0 || owner.framework!.ordinal !== 0 ||
+          key !== booking.data['source']) return invalid('Rent correspondence CANCEL changed its original booking source.');
+      cancelled = true;
+    };
+    const notice = (id: string): void => {
+      if (branch === 'none' || noticeId !== null || owner.activeOwnerDecision !== lease ||
+          !cancelled && profile.owner === 'rent_reservations.correspondence' ||
+          presented.length !== 2 || owner.framework!.ordinal !== 1 ||
+          owner.framework!.queued.size !== 1 || owner.framework!.skipped.size !== 0 ||
+          owner.stage !== 1 || lease.staged !== 1 || typeof id !== 'string' || id === '') {
+        return invalid('Rent Notice CREATE omitted its exact prior guarded Mail SEND.');
+      }
+      noticeId = id;
+    };
+    const schedule = (key: string, at: number, event: string,
+      scheduledPayload: Readonly<Record<string, unknown>>): void => {
+      const from = decodeValue('datetime', booking.data['from']) as DatetimeValue;
+      const expectedAt = Number(from.ms - 3_600_000n);
+      if (branch !== 'confirmation' || noticeId === null || scheduleAt !== null ||
+          owner.activeOwnerDecision !== lease || from.ms <= BigInt(call.context.now + 3_600_000) ||
+          !Number.isSafeInteger(expectedAt) || at !== expectedAt || key !== booking.data['source'] ||
+          event !== 'rent_reservations.Reminder' ||
+          stableStringify(dataCopy(scheduledPayload)) !== stableStringify({ booking: payload['booking'], revision: payload['revision'] })) {
+        return invalid('Rent correspondence schedule differs from its original future Reminder.');
+      }
+      scheduleAt = at;
+    };
+    owner.activeOwnerDecision = lease;
+    try {
+      const answer = await input.evaluate(Object.freeze({ event: Object.freeze({ booking, revision }),
+        resource, location, present, cancel, notice, schedule }));
+      if (answer !== undefined) return invalid('Rent Notice original handler must return void.');
+    } finally { owner.activeOwnerDecision = null; }
+    const scheduled = branch === 'confirmation' &&
+      (decodeValue('datetime', booking.data['from']) as DatetimeValue).ms > BigInt(call.context.now + 3_600_000);
+    const queued = owner.framework.queued.values().next().value;
+    if (revision !== BigInt(booking.version) ||
+        cancelled !== (profile.owner === 'rent_reservations.correspondence') ||
+        noticeId === null && branch !== 'none' || noticeId !== null && branch === 'none' ||
+        presented.length !== (branch === 'none' ? 0 : 2) ||
+        scheduleAt !== null !== scheduled || owner.stage !== (branch === 'none' ? 0 : 1) ||
+        lease.staged !== (branch === 'none' ? 0 : 1) ||
+        owner.framework.ordinal !== (branch === 'none' ? 0 : 1) ||
+        owner.framework.queued.size !== (branch === 'none' ? 0 : 1) ||
+        owner.framework.skipped.size !== 0 ||
+        branch !== 'none' && queued?.dispatchGuard !== profile.sendRules.find(rule => rule.kind === branch)?.rule) {
+      return invalid('Rent Notice omitted its original Require, branch, Mail, Notice or schedule.');
+    }
+    state.rentNoticeDecision = { booking, resource, location, revision, branch, subject, body,
+      deliveryId: queued?.intentId ?? null, noticeId, scheduleKey, scheduleAt, sourceRow, handlerRow };
+    owner.callGuards.push(Object.freeze({ name: `rent-notice:${profile.sites['header']!.id}`, evaluate: async () => {
+      if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
+        return invalid('Rent Notice needs its finalized source effects.');
+      }
+      if (await store.readRevision() !== call.revision) {
+        throw new StateError('conflict', 'Rent Notice moved before commit.');
+      }
+      for (const [identity, row] of rows) {
+        const separator = identity.indexOf('\0');
+        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
+          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
+        if (stableStringify(current) !== stableStringify(row)) {
+          throw new StateError('forbidden', 'Rent Notice source row changed before commit.');
+        }
+      }
+      if (await store.readRevision() !== call.revision) {
+        throw new StateError('conflict', 'Rent Notice moved beyond commit.');
+      }
+      return true;
+    } }));
+  } catch (error) {
+    if (!isAuthoredRequireFailure(error) || owner?.stage !== 0 || owner.framework?.ordinal !== 0 ||
+        owner.framework.queued.size !== 0 || owner.framework.skipped.size !== 0) {
+      state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true;
+    }
+    throw error;
+  }
+}
+
 /** The private due Invoice may read its own complete balance ledger, despite
  * having no viewer actor. The authored Require and SEND use this one frozen
  * source-stage graph; the committed intent retains the original true Rule. */
@@ -7870,8 +8292,8 @@ async function observeEventOwnerReferenceAuthority(call: AdmittedCall, store: St
   const source = admittedEventIntrinsic(call, 'eventTerm');
   if (source === undefined || owner.call !== call || owner.session === null ||
       owner.callGuards.length >= MAX_ITEMS) return invalid('event parent requires its actual due owner source.');
-  const due = dueWorkAdmissions.get(call)!;
-  const payload = object(due.eventPayload, [source.modelField.name, source.revisionField.name]);
+  const payload = object(admittedWorkEventPayload(call, source.event),
+    [source.modelField.name, source.revisionField.name]);
   const workRef = decodeValue(source.modelField.model, payload[source.modelField.name]) as { readonly id: string };
   const admittedRef = call.recordRefs.find(ref => ref.param === source.modelField.name &&
     ref.model === source.modelField.model && ref.id === workRef.id);
@@ -8605,7 +9027,8 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
       const parameter = event === undefined ? dependency.parameter : event.revisionField.name;
       const wire = dataCopy(admittedInputWire(call.inputs, parameter)); scalarWire(dependency.type, wire);
       if (event !== undefined) {
-        const payload = object(dueWorkAdmissions.get(call)!.eventPayload, [event.modelField.name, event.revisionField.name]);
+        const payload = object(admittedWorkEventPayload(call, event.event),
+          [event.modelField.name, event.revisionField.name]);
         if (decodeValue('int', payload[event.revisionField.name]) !== decodeValue('int', wire)) {
           return invalid('event revision intrinsic differs from retained Work input.');
         }
@@ -8621,7 +9044,8 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
       const parameter = event === undefined ? dependency.parameter : event.modelField.name;
       const reference = call.recordRefs.find(ref => ref.param === parameter);
       const sourceRef = event === undefined ? undefined : decodeValue(event.modelField.model,
-        object(dueWorkAdmissions.get(call)!.eventPayload, [event.modelField.name, event.revisionField.name])[event.modelField.name]) as
+        object(admittedWorkEventPayload(call, event.event),
+          [event.modelField.name, event.revisionField.name])[event.modelField.name]) as
         { readonly model: string; readonly id: string };
       if (member === undefined || !('value' in member) || reference === undefined || member.value !== reference ||
           reference.model !== dependency.model || reference.id !== reference.row.id ||
@@ -8875,6 +9299,40 @@ export interface DueWorkAdmission {
   /** Original staged Work payload, required only by typed event SENDs. */
   readonly eventPayload?: unknown;
 }
+/** Retained ordinary handler admission from the installed Work producer. The
+ * executor also loads both physical rows at the admitted revision; these
+ * copied coordinates cannot mint a declared event or a handler route. */
+export interface RetainedEventAdmission {
+  readonly event: 'rent_reservations.ReservationChanged';
+  readonly sourceOccurrenceId: string;
+  readonly handlerOccurrenceId: string;
+  readonly scope: { readonly app: string; readonly owner: string; readonly ownerPackage: string };
+  readonly eventPayload: Readonly<Record<string, unknown>>;
+}
+const retainedEventAdmissions = new WeakMap<AdmittedCall, RetainedEventAdmission>();
+export function noteRetainedEventAdmission(call: AdmittedCall, admission: RetainedEventAdmission): void {
+  if (retainedEventAdmissions.has(call)) return invalid('duplicate retained Work event admission.');
+  const raw = object(dataCopy(admission), ['event', 'sourceOccurrenceId', 'handlerOccurrenceId', 'scope', 'eventPayload']);
+  const scope = object(raw['scope'], ['app', 'owner', 'ownerPackage']);
+  for (const key of ['sourceOccurrenceId', 'handlerOccurrenceId'] as const) {
+    if (text(raw[key]) === '') return invalid('retained Work event needs its physical occurrence ids.');
+  }
+  for (const key of ['app', 'owner', 'ownerPackage'] as const) if (text(scope[key]) === '') {
+    return invalid('retained Work event needs its original scope.');
+  }
+  object(raw['eventPayload'], ['booking', 'revision']);
+  if (raw['event'] !== 'rent_reservations.ReservationChanged' ||
+      call.def.name !== 'rent_reservations.correspondence' ||
+      call.context.kind !== 'trusted' || call.context.source !== 'schedule' ||
+      call.context.trustedSource !== `event:${raw['event']}` ||
+      call.context.app !== scope['app'] ||
+      (call.context.team?.teamId ?? call.context.app) !== scope['owner'] ||
+      scope['ownerPackage'] !== 'rent_reservations' ||
+      raw['handlerOccurrenceId'] !== `handler/v1/${encodeURIComponent(raw['sourceOccurrenceId'] as string)}/${encodeURIComponent(call.def.name)}`) {
+    return invalid('retained Work event differs from its admitted declared handler.');
+  }
+  retainedEventAdmissions.set(call, deepFreeze(raw) as unknown as RetainedEventAdmission);
+}
 const dueWorkAdmissions = new WeakMap<AdmittedCall, DueWorkAdmission>();
 export function noteDueWorkAdmission(call: AdmittedCall, admission: DueWorkAdmission): void {
   if (dueWorkAdmissions.has(call)) return invalid('duplicate due Work admission for one admitted call.');
@@ -8966,6 +9424,51 @@ function verifyDueWorkWrites(call: AdmittedCall, admission: DueWorkAdmission, wr
     return invalid('due completed terminal requires null code/message.');
   }
   return status;
+}
+
+/** Retained declared handlers append their terminal Work pair outside the
+ * owner's business finalizer. The pair is tied to the physical route loaded
+ * at admission; all preceding Work writes remain byte-equal to that finalizer. */
+function verifyRetainedNoticeTerminal(call: AdmittedCall, admission: RetainedEventAdmission,
+  original: StoredRow | null, pair: readonly unknown[]): void {
+  if (original === null || pair.length !== 2) return invalid('Rent correspondence lacks its exact retained terminal pair.');
+  const update = object(pair[0], ['kind', 'model', 'id', 'expectedVersion', 'row']);
+  const insert = object(pair[1], ['kind', 'model', 'row']);
+  const changed = checkedRow(dataCopy(update['row']));
+  const receipt = checkedRow(dataCopy(insert['row']));
+  if (update['kind'] !== 'update' || update['model'] !== 'work.handler_occurrence' ||
+      update['id'] !== admission.handlerOccurrenceId || update['expectedVersion'] !== original.version ||
+      changed.id !== original.id || changed.version !== original.version + 1 ||
+      !sameModelLifetime(original, changed) || changed.updated !== call.context.now ||
+      changed.updatedBy !== call.context.trustedSource ||
+      stableStringify(changed.data) !== stableStringify({ ...original.data, state: 'completed' }) ||
+      insert['kind'] !== 'insert' || insert['model'] !== 'work.occurrence' ||
+      receipt.id !== admission.handlerOccurrenceId || receipt.version !== 1 ||
+      receipt.archivedAt !== null || receipt.parent !== null ||
+      receipt.created !== call.context.now || receipt.updated !== call.context.now ||
+      receipt.createdBy !== call.context.trustedSource || receipt.updatedBy !== call.context.trustedSource) {
+    return invalid('Rent correspondence terminal changed its original retained route.');
+  }
+  const data = object(receipt.data, ['occurrenceId', 'status', 'result', 'code', 'message', 'recordedAtMs',
+    ...(Object.hasOwn(receipt.data, 'filePayloadOrigin') ? ['filePayloadOrigin'] : [])]);
+  if (data['occurrenceId'] !== admission.handlerOccurrenceId || data['status'] !== 'completed' ||
+      data['result'] !== null || data['code'] !== null || data['message'] !== null ||
+      data['recordedAtMs'] !== call.context.now ||
+      Object.hasOwn(original.data, 'filePayloadOrigin') !== Object.hasOwn(data, 'filePayloadOrigin')) {
+    return invalid('Rent correspondence terminal lacks its exact completed void receipt.');
+  }
+  if (Object.hasOwn(data, 'filePayloadOrigin')) {
+    const header = object(data['filePayloadOrigin'], ['version', 'inventory', 'declarationSetId', 'slot',
+      'scope', 'origin', 'files']);
+    const origin = object(header['origin'], ['kind', 'occurrenceId', 'operationId', 'handler', 'event']);
+    if (origin['kind'] !== 'handler-result' || origin['occurrenceId'] !== admission.handlerOccurrenceId ||
+        origin['operationId'] !== call.context.operationId ||
+        stableStringify(origin['event']) !== stableStringify(
+          (original.data['filePayloadOrigin'] as { origin: unknown }).origin) ||
+        (origin['handler'] as { callable?: { id?: unknown } }).callable?.id !== call.def.name) {
+      return invalid('Rent correspondence terminal File header lost its retained handler source.');
+    }
+  }
 }
 
 /** The checked term source has two successful void tails. A hidden previous
@@ -9334,6 +9837,135 @@ function verifyInvoiceCollectEffects(call: AdmittedCall,
     return invalid('Invoice collection lacks its exact declared InvoiceSettlement Work occurrence.');
   }
 }
+function verifyRentNoticeEffects(call: AdmittedCall,
+  decision: NonNullable<Capture['rentNoticeDecision']>, owner: ReceiptOwnerSession | undefined,
+  effects: ExecutionEffects, due: DueWorkAdmission | undefined): void {
+  const ledger = owner?.framework;
+  const profile = owner?.capture.bound.rentNoticeDecision;
+  if (owner === undefined || owner.finalized === null || owner.commitEffects === null ||
+      ledger === null || ledger === undefined || profile === undefined ||
+      call.def.name !== profile.owner || effects.result !== null ||
+      owner.stage !== (decision.branch === 'none' ? 0 : 1) ||
+      effects.uniqueClaims.length !== 0 ||
+      effects.uniqueReleases.length !== 0) {
+    return invalid('Rent Notice lacks its exact source effects and void result.');
+  }
+  const business = owner.finalized.writes.filter(write => !write.model.startsWith('work.'));
+  const notices = business.filter(write => write.model === 'rent_reservations.Notice');
+  const active = decision.branch !== 'none';
+  if (business.length !== (active ? 1 : 0) || notices.length !== business.length ||
+      ledger.ordinal !== (active ? 1 : 0) || ledger.queued.size !== (active ? 1 : 0) ||
+      ledger.skipped.size !== 0 || effects.outbox.length !== (active ? 1 : 0)) {
+    return invalid('Rent Notice changed another row or omitted its guarded Mail and Notice pair.');
+  }
+  const history = effects.history[0], noticeWrite = notices[0];
+  if (effects.history.length !== (active ? 1 : 0) || active &&
+      (noticeWrite?.kind !== 'insert' || history?.model !== 'rent_reservations.Notice' ||
+        history.recordId !== noticeWrite.row.id || history.version !== noticeWrite.row.version ||
+        history.operation !== call.context.operation || history.operationId !== call.context.operationId ||
+        history.actor !== call.context.trustedSource || history.at !== call.context.now ||
+        history.change !== 'create' || history.before !== null ||
+        stableStringify(history.after) !== stableStringify(noticeWrite.row.data))) {
+    return invalid('Rent Notice history differs from its sole original CREATE.');
+  }
+  if (active) {
+    const write = notices[0];
+    const queued = ledger.queued.values().next().value;
+    const noticeModel = owner.capture.bound.artifactModels.get('rent_reservations.Notice' as ModelName);
+    if (write?.kind !== 'insert' || noticeModel === undefined || queued === undefined ||
+        write.row.id !== decision.noticeId || write.row.version !== 1 || write.row.archivedAt !== null ||
+        write.row.parent?.model !== 'rent_reservations.Booking' ||
+        write.row.parent.id !== decision.booking.id ||
+        queued.intentId !== decision.deliveryId || queued.operation !== call.context.operation ||
+        queued.operationId !== call.context.operationId || queued.target !== 'std.EmailV1.send' ||
+        queued.occurrenceIndex !== 0 ||
+        queued.dispatchGuard !== profile.sendRules.find(rule => rule.kind === decision.branch)?.rule ||
+        effects.outbox[0]?.intentId !== queued.intentId) {
+      return invalid('Rent Notice row or Mail intent differs from its exact selected branch.');
+    }
+    const expected: Record<string, unknown> = {
+      kind: decision.branch, revision: encodeValue('int', decision.revision),
+      subject: decision.subject, body: decision.body,
+      delivery: encodeValue('delivery(std.EmailV1.send)?', makeDeliveryRef(queued.intentId, queued.target)),
+    };
+    const explicit = new Set(Object.keys(expected));
+    for (const field of noticeModel.fields) {
+      if (explicit.has(field.name) || field.default?.kind === 'derived') continue;
+      if (field.default?.kind === 'literal') expected[field.name] = field.default.value;
+      else if (field.default?.kind === 'server' && field.default.init === 'now') {
+        expected[field.name] = new Date(call.context.now).toISOString();
+      } else if (field.nullable === true) expected[field.name] = null;
+      else if (field.array?.required === false) expected[field.name] = [];
+      else return invalid('Rent Notice has an unproved omitted source field.');
+    }
+    if (stableStringify(write.row.data) !== stableStringify(expected)) {
+      return invalid('Rent Notice stored presentation differs from its original Mail source.');
+    }
+    const request = object(queued.arguments, ['binding', 'from', 'arguments']);
+    const value = request['arguments'];
+    const args = object(value, ['to', 'subject', 'body',
+      ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'attachments') ? ['attachments'] : [])]);
+    if (request['binding'] !== 'rent_reservations.Mail' ||
+        args['to'] !== decision.booking.data['email'] ||
+        args['subject'] !== decision.subject || args['body'] !== decision.body ||
+        Object.hasOwn(args, 'attachments') && list(args['attachments']).length !== 0) {
+      return invalid('Rent Notice Mail arguments differ from the same Booking and presentation.');
+    }
+  }
+  const scheduleOps = effects.schedules;
+  const scheduleKey = decision.scheduleKey;
+  const correspondence = profile.owner === 'rent_reservations.correspondence';
+  const expectedDueKey = due === undefined ? null : [due.scope.app, due.scope.ownerPackage,
+    due.scope.owner, due.key].map(encodeURIComponent).join('/');
+  if (scheduleOps.length > (correspondence ? decision.scheduleAt === null ? 1 : 2 : 1) ||
+      scheduleOps.some((op, index) => op.key !== (correspondence ? scheduleKey : expectedDueKey) ||
+        op.op !== (correspondence && decision.scheduleAt !== null && index === scheduleOps.length - 1 ?
+          'replace' : 'cancel')) ||
+      !correspondence && (due === undefined || stableStringify(scheduleOps) !==
+        stableStringify([{ op: 'cancel', key: expectedDueKey }])) ||
+      correspondence && decision.scheduleAt !== null &&
+        (scheduleOps.length === 0 || scheduleOps[scheduleOps.length - 1]?.op !== 'replace')) {
+    return invalid('Rent Notice Work schedule effects differ from the original source key and branch.');
+  }
+  if (correspondence && decision.scheduleAt !== null) {
+    const replacement = scheduleOps[scheduleOps.length - 1];
+    if (replacement?.op !== 'replace' || replacement.at !== decision.scheduleAt ||
+        replacement.event !== 'rent_reservations.Reminder' ||
+        stableStringify(replacement.payload) !== stableStringify({
+          booking: encodeValue('rent_reservations.Booking', makeRecordRef('rent_reservations.Booking',
+            decision.booking.id, BigInt(decision.booking.version))),
+          revision: encodeValue('int', decision.revision) })) {
+      return invalid('Rent Notice replacement Reminder differs from the original event payload.');
+    }
+  }
+  const work = effects.writes.filter(write => write.model.startsWith('work.'));
+  if (work.some(write => !['work.schedule', 'work.occurrence', 'work.dispatch', 'work.supersession',
+    'work.receipt', 'work.receipt_association', 'work.handler_occurrence'].includes(write.model))) {
+    return invalid('Rent Notice contains unrelated Work table writes.');
+  }
+  const reminderInserts = work.filter(write => write.model === 'work.schedule' && write.kind === 'insert');
+  if (reminderInserts.length !== (correspondence && decision.scheduleAt !== null ? 1 : 0)) {
+    return invalid('Rent Notice omitted or added a physical Reminder schedule head.');
+  }
+  const scopeOwner = call.context.team?.teamId ?? call.context.app;
+  for (const write of work.filter(write => write.model === 'work.schedule')) {
+    const row = write.kind === 'remove' ? null : write.row;
+    if (row === null || row.data['key'] !== decision.booking.data['source'] ||
+        row.data['scopeApp'] !== call.context.app || row.data['scopeOwner'] !== scopeOwner ||
+        row.data['scopeOwnerPackage'] !== 'rent_reservations') {
+      return invalid('Rent Notice Work schedule row left its original scoped Booking key.');
+    }
+    if (correspondence && write.kind === 'insert' &&
+        (decision.scheduleAt === null || row.data['event'] !== 'rent_reservations.Reminder' ||
+          row.data['at'] !== decision.scheduleAt ||
+          stableStringify(row.data['payload']) !== stableStringify({
+            booking: encodeValue('rent_reservations.Booking', makeRecordRef('rent_reservations.Booking',
+              decision.booking.id, BigInt(decision.booking.version))),
+            revision: encodeValue('int', decision.revision) }))) {
+      return invalid('Rent Notice Work Reminder row differs from the selected future schedule.');
+    }
+  }
+}
 function verifyRentMovementRefundEffects(call: AdmittedCall,
   decision: NonNullable<Capture['rentMovementRefundDecision']>, owner: ReceiptOwnerSession | undefined,
   effects: ExecutionEffects): void {
@@ -9436,6 +10068,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   let state = captures.get(call);
   const owner = ownerSessions.get(call); ownerSessions.delete(call);
   const dueAdmission = dueWorkAdmissions.get(call); dueWorkAdmissions.delete(call);
+  const retainedEventAdmission = retainedEventAdmissions.get(call); retainedEventAdmissions.delete(call);
   if (owner !== undefined) {
     if (!owner.closed || owner.finalized === null || owner.commitEffects === null || owner.capture.poisoned || owner.capture.pending !== 0) {
       return invalid('owner session must finalize successfully inside its actual execution.');
@@ -9448,10 +10081,14 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     let dueEmptyNoAssociation = false;
     const returned = effects.writes as readonly unknown[];
     const committed = owner.commitEffects.writes as readonly unknown[];
-    const returnedWork = returned.filter(isDueWorkWrite);
-    const committedWork = committed.filter(isDueWorkWrite);
-    const returnedDomain = returned.filter(write => !isDueWorkWrite(write));
-    const committedDomain = committed.filter(write => !isDueWorkWrite(write));
+    const isFrameworkWork = (write: unknown): boolean => state?.bound.rentNoticeDecision !== undefined &&
+      typeof write === 'object' && write !== null &&
+      typeof (write as { readonly model?: unknown }).model === 'string' &&
+      (write as { readonly model: string }).model.startsWith('work.') || isDueWorkWrite(write);
+    const returnedWork = returned.filter(isFrameworkWork);
+    const committedWork = committed.filter(isFrameworkWork);
+    const returnedDomain = returned.filter(write => !isFrameworkWork(write));
+    const committedDomain = committed.filter(write => !isFrameworkWork(write));
     if (stableStringify(dataCopy(returnedDomain)) !== stableStringify(dataCopy(committedDomain))) {
       return invalid('executor writes differ from the actual finalized owner effects.');
     }
@@ -9462,17 +10099,28 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
       // still match the separate disclosure below. Due handlers retain their
       // stronger recorded terminal-pair admission.
       if (dueAdmission === undefined) {
+        const retainedNotice = retainedEventAdmission !== undefined &&
+          state?.bound.rentNoticeDecision?.owner === 'rent_reservations.correspondence' &&
+          state.rentNoticeDecision !== undefined;
+        const ownerWork = retainedNotice ? returnedWork.slice(0, committedWork.length) : returnedWork;
         if (owner.options.stageSources === undefined ||
-            owner.finalized.writes.some(isDueWorkWrite) && state?.termDecision === undefined ||
-            stableStringify(dataCopy(returnedWork)) !== stableStringify(dataCopy(committedWork))) {
+            owner.finalized.writes.some(isFrameworkWork) && state?.termDecision === undefined &&
+              state?.rentNoticeDecision === undefined ||
+            stableStringify(dataCopy(ownerWork)) !== stableStringify(dataCopy(committedWork))) {
           return invalid('executor source Work writes differ from the actual finalized owner sources.');
         }
+        if (retainedNotice) verifyRetainedNoticeTerminal(call, retainedEventAdmission!,
+          state!.rentNoticeDecision!.handlerRow, returnedWork.slice(committedWork.length));
       } else {
-        if (stableStringify(dataCopy(returnedWork)) !== stableStringify(dataCopy(committedWork)) &&
+        const dueNotice = state?.bound.rentNoticeDecision?.owner === 'rent_reservations.remind' &&
+          state.rentNoticeDecision !== undefined;
+        const ownerWork = dueNotice ? returnedWork.slice(0, committedWork.length) : returnedWork;
+        if (stableStringify(dataCopy(ownerWork)) !== stableStringify(dataCopy(committedWork)) &&
             committedWork.length !== 0) {
           return invalid('executor Work writes differ from the actual finalized owner effects.');
         }
-        const terminalStatus = verifyDueWorkWrites(call, dueAdmission, returnedWork, effects.result);
+        const terminalWork = dueNotice ? returnedWork.slice(committedWork.length) : returnedWork;
+        const terminalStatus = verifyDueWorkWrites(call, dueAdmission, terminalWork, effects.result);
         // Only the actual branded authored-failure shape (empty domain, null
         // result, failed Work terminal) deliberately lacks a successful State
         // return. A completed handler with zero domain writes follows the
@@ -9536,6 +10184,14 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
       return invalid('Invoice collection omitted its original complete owner decision.');
     }
     verifyInvoiceCollectEffects(call, state.invoiceCollectDecision, owner, effects);
+  }
+  if (bound.rentNoticeDecision !== undefined) {
+    if (state?.rentNoticeDecision === undefined ||
+        (bound.rentNoticeDecision.owner === 'rent_reservations.correspondence') !==
+          (retainedEventAdmission !== undefined)) {
+      return invalid('Rent Notice omitted its original declared or due Work decision.');
+    }
+    verifyRentNoticeEffects(call, state.rentNoticeDecision, owner, effects, dueAdmission);
   }
   if (bound.rentMovementRefundDecision !== undefined) {
     if (state?.rentMovementRefundDecision === undefined) {

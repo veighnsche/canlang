@@ -254,6 +254,138 @@ fn invoice_overdue_event_source(
     Ok(Some((vec![model_input,revision_input],descriptor)))
 }
 
+/// The three authored booking notices retain the declared Booking and revision
+/// as dispatch Rule inputs. The complete handler is admitted separately by
+/// the rent notice receipt; this only seals the exact SEND predicate transport.
+#[allow(clippy::too_many_arguments)]
+fn rent_notice_event_source(
+    original: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    resolved: &resolve::ResolveTables,
+    owner: &IrItem,
+    predicate: NodeKey,
+    predicate_node: &SyntaxNode,
+    send: &IrStmt,
+) -> Result<Option<(Vec<PreparedSendInput>, serde_json::Value)>, SendGuardGap> {
+    let (event_name, expected) = match owner.canonical.as_str() {
+        "rent_reservations.correspondence" => (
+            "rent_reservations.ReservationChanged",
+            ["event.booking.status==confirmed and event.booking.version==event.revision",
+                "event.booking.version==event.revision"].as_slice(),
+        ),
+        "rent_reservations.remind" => (
+            "rent_reservations.Reminder",
+            ["event.booking.status==confirmed and event.booking.version==event.revision"].as_slice(),
+        ),
+        _ => return Ok(None),
+    };
+    let Some(scenario) = original.effects.scenarios.get(&owner.id) else { return Ok(None) };
+    let Some(HandlerSource::Event(event_id)) = scenario.on else { return Ok(None) };
+    let Some(event) = resolved.symbols.get(event_id.0 as usize) else { return Ok(None) };
+    let SymbolKind::Event { fields } = &event.kind else { return Ok(None) };
+    let slice = |node: NodeKey| db.get(node.file).and_then(|file|
+        file.text.get(node.start as usize..node.end as usize)).map(str::trim);
+    let Some(text) = slice(predicate) else { return Ok(None) };
+    let IrItemKind::Scenario { trusted: true,
+        event_source: Some(super::ir::IrEventSource::Declared(ir_event)),
+        hook: None, cohort: None, result: None, read: false, by, params, .. } = &owner.kind
+        else { return Ok(None) };
+    let IrStmt::Send { operation, when: Some(ir_when), binding: Some(binding), span, .. } = send
+        else { return Ok(None) };
+    if event.canonical != event_name || event.module != owner.module ||
+        scenario.module != owner.module || scenario.read || scenario.by.is_some() ||
+        scenario.result.is_some() || scenario.cohort.is_some() || !scenario.params.is_empty() ||
+        fields.len() != 2 || !expected.contains(&text) ||
+        ir_event != event_name || !by.is_empty() || !params.is_empty() ||
+        operation != "std.EmailV1.send" || binding != "delivery" ||
+        ir_when.span != Span::new(predicate.file,predicate.start,predicate.end) ||
+        original.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool)) ||
+        !matches!(send,IrStmt::Send { span: actual, .. } if actual == span) {
+        return Ok(None);
+    }
+    let mut source_sends = Vec::new();
+    fn find_sends<'a>(effects: &'a [Effect], out: &mut Vec<&'a Effect>) {
+        for effect in effects {
+            if effect.verb == EffectVerb::Send { out.push(effect); }
+            find_sends(&effect.then_effects, out);
+            find_sends(&effect.else_effects, out);
+        }
+    }
+    find_sends(&scenario.effects, &mut source_sends);
+    let mut selected = source_sends.into_iter().filter(|effect| effect.when == Some(predicate));
+    let Some(source_send) = selected.next() else { return Ok(None) };
+    if selected.next().is_some() || source_send.target_node.and_then(slice) != Some("Mail.send") ||
+        source_send.binding.as_deref() != Some("delivery") ||
+        Span::new(source_send.node.file,source_send.node.start,source_send.node.end) != *span ||
+        source_send.args.iter().map(|arg|arg.key.as_str()).collect::<Vec<_>>() != ["to","subject","body"] {
+        return Ok(None);
+    }
+    let Some(model_field) = resolved.symbols.get(fields[0].0 as usize) else { return Ok(None) };
+    let Some(revision_field) = resolved.symbols.get(fields[1].0 as usize) else { return Ok(None) };
+    let (SymbolKind::Field {owner: model_owner,type_node:model_decl},
+        SymbolKind::Field {owner: revision_owner,type_node:revision_decl}) =
+        (&model_field.kind,&revision_field.kind) else { return Ok(None) };
+    let Some(ResolvedType::Record {symbol: booking,stored:true}) =
+        original.types.symbol_types.get(&model_field.id) else { return Ok(None) };
+    let booking_ty = ResolvedType::Record {symbol:*booking,stored:true};
+    if *model_owner != event_id || *revision_owner != event_id ||
+        model_field.name != "booking" || revision_field.name != "revision" ||
+        resolved.symbols.get(booking.0 as usize).map(|item|item.canonical.as_str()) != Some("rent_reservations.Booking") ||
+        original.types.symbol_types.get(&revision_field.id) != Some(&ResolvedType::Scalar(Scalar::Int)) {
+        return Ok(None);
+    }
+    let Some(file) = db.get(predicate.file) else { return Ok(None) };
+    let mut booking_uses = Vec::new();
+    let mut revision_uses = Vec::new();
+    for member in predicate_node.descendants().filter(|node| node.kind == SyntaxKind::Member) {
+        let key = NodeKey::of(member);
+        let text = file.text.get(member.span.start as usize..member.span.end as usize).map(str::trim);
+        if text == Some("event.booking") && original.types.node_types.get(&key) == Some(&booking_ty) {
+            booking_uses.push((key,member));
+        } else if text == Some("event.revision") &&
+            original.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int)) {
+            revision_uses.push((key,member));
+        }
+    }
+    let required_bookings = if text.starts_with("event.booking.status") { 2 } else { 1 };
+    if booking_uses.len() != required_bookings || revision_uses.len() != 1 { return Ok(None); }
+    let root = |node: &SyntaxNode| node.descendants().find(|child| child.kind == SyntaxKind::NameRef &&
+        file.text.get(child.span.start as usize..child.span.end as usize) == Some("event") &&
+        matches!(resolved.node_binding.get(&NodeKey::of(child)),Some(Binding::Context(resolve::ContextVar::Event))))
+        .map(NodeKey::of);
+    let Some(booking_root) = root(booking_uses[0].1) else { return Ok(None) };
+    let Some(revision_root) = root(revision_uses[0].1) else { return Ok(None) };
+    let event_ty = ResolvedType::Record {symbol:event_id,stored:false};
+    let make_input = |name:&str,field:&str,ty:ResolvedType,declaration:NodeKey,
+        use_site:NodeKey,root:NodeKey,ordinal| PreparedSendInput {
+        name:name.into(),type_id:input_type(&ty,original,ir,None,0).unwrap_or_default(),
+        value:TypedExpr::new(IrExpr::Member {base:Box::new(TypedExpr::new(
+            IrExpr::Name("event".into()),event_ty.clone(),
+            Span::new(root.file,root.start,root.end))),field:field.into()},ty,
+            Span::new(use_site.file,use_site.start,use_site.end)),
+        declaration,symbol:None,owner:owner.id,ordinal,narrowing:None,
+    };
+    let booking_input = make_input("eventTerm","booking",booking_ty,*model_decl,
+        booking_uses[0].0,booking_root,0);
+    let revision_input = make_input("eventRevision","revision",ResolvedType::Scalar(Scalar::Int),
+        *revision_decl,revision_uses[0].0,revision_root,1);
+    if booking_input.type_id != "rent_reservations.Booking" || revision_input.type_id != "int" {
+        return Ok(None);
+    }
+    let site = |node:NodeKey| serde_json::json!({"start":node.start,"end":node.end});
+    let descriptor = serde_json::json!({
+        "event":event_name,"handler":owner.canonical,
+        "modelField":{"name":"booking","model":"rent_reservations.Booking",
+            "fields":if required_bookings == 2 {vec!["status","version"]} else {vec!["version"]},
+            "declaration":site(*model_decl),"occurrence":site(booking_uses[0].0)},
+        "revisionField":{"name":"revision","type":"int",
+            "declaration":site(*revision_decl),"occurrence":site(revision_uses[0].0)},
+        "predicate":site(predicate),
+    });
+    Ok(Some((vec![booking_input,revision_input],descriptor)))
+}
+
 /// Only checked agreement and appointment delivery handlers may transport a
 /// declared event into a SEND Rule. State authenticates their Work event row.
 #[allow(clippy::too_many_arguments)]
@@ -270,6 +402,11 @@ fn private_delivery_event_source(
 ) -> Result<Option<(Vec<PreparedSendInput>, serde_json::Value)>, SendGuardGap> {
     if owner.canonical == "invoice.overdue" {
         return invoice_overdue_event_source(original, ir, db, resolved, owner,
+            predicate, predicate_node, send);
+    }
+    if owner.canonical == "rent_reservations.correspondence" ||
+        owner.canonical == "rent_reservations.remind" {
+        return rent_notice_event_source(original, ir, db, resolved, owner,
             predicate, predicate_node, send);
     }
     let Some(scenario) = original.effects.scenarios.get(&owner.id) else { return Ok(None) };
@@ -662,6 +799,7 @@ fn prepare_send_guard(
                     "agreements.due" => "obligation",
                     "appointments.remind" => "appointment",
                     "invoice.overdue" => "invoice",
+                    "rent_reservations.correspondence" | "rent_reservations.remind" => "booking",
                     _ => "term",
                 }.into(),
                 revision_field: "revision".into(),

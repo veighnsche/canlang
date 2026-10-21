@@ -11692,8 +11692,29 @@ fn null_equality(
                 return vec![(format!("{pad}{refused};"), *span)];
             }
         } else if let Some(value) = consumers.iter().find(|value| self.expr_formatted(value)) {
+            let notice_sink = match stmt {
+                IrStmt::Create { model, input, span, .. }
+                    if model == "rent_reservations.Notice" && self.owner_handler_body => {
+                    self.receipt_capture.as_ref()
+                        .and_then(|receipt| receipt.plan.rent_notice_decision.as_ref())
+                        .is_some_and(|decision| {
+                            let names = ["confirmationCreate", "cancellationCreate", "reminderCreate"];
+                            let positions = self.formatted_positions(input);
+                            names.iter().any(|name| {
+                                decision["sites"][name]["model"] == "rent_reservations.Notice" &&
+                                decision["sites"][name]["statement"]["start"] == span.start &&
+                                decision["sites"][name]["statement"]["end"] == span.end
+                            }) && !positions.is_empty() && positions.iter().all(|(path, _)|
+                                path.as_slice() == ["subject"] || path.as_slice() == ["body"])
+                        })
+                }
+                _ => false,
+            };
+            if notice_sink { /* The complete original handler and values are rechecked by State. */ }
+            else {
             let refused = self.formatted_refusal("formatted business statement", value.span);
             return vec![(format!("{pad}{refused};"), value.span)];
+            }
         }
         match stmt {
             IrStmt::Let { name, value, span } => {
@@ -20322,6 +20343,13 @@ impl<'a> Emitter<'a> {
         effects: &[IrStmt],
     ) {
         if let Some(decision) = self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.rent_notice_decision.clone())
+            && matches!(item.canonical.as_str(),"rent_reservations.correspondence" | "rent_reservations.remind")
+        {
+            self.emit_rent_notice_decision_body(out,item,guards,effects,&decision);
+            return;
+        }
+        if let Some(decision) = self.receipt_capture.as_ref()
             .and_then(|receipt| receipt.plan.invoice_collect_decision.clone())
             && item.canonical == "invoice.collect"
         {
@@ -20387,6 +20415,34 @@ impl<'a> Emitter<'a> {
                 out.push(span, Some(item.canonical.clone()), &line);
             }
         }
+    }
+
+    fn emit_rent_notice_decision_body(&mut self, out: &mut JsWriter, item: &IrItem,
+        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value) {
+        let expected = if item.canonical == "rent_reservations.correspondence" {3} else {4};
+        if guards.len()!=1 || effects.len()!=expected {
+            self.unsupported("booking notice owner decision",
+                "the exact authored event body is missing",item.span);
+            return;
+        }
+        let previous_owner=self.owner_handler_body;
+        let previous_query=self.query_capture.take();
+        self.owner_handler_body=true;
+        self.enter_scope();
+        let event=format!("{}:{}",object_key("event"),self.bind("event"));
+        self.stdlib.insert("nativeScenarioRentNoticeDecision".into());
+        out.push(item.span,Some(item.canonical.clone()),
+            &format!("await nativeScenarioRentNoticeDecision(c,{},async(c,{{{event}}})=>{{",
+                descriptor_json(decision)));
+        for stmt in guards.iter().chain(effects) {
+            for (line,span) in self.lower_stmt(stmt,0) {
+                out.push(span,Some(item.canonical.clone()),&line);
+            }
+        }
+        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
+        self.exit_scope();
+        self.owner_handler_body=previous_owner;
+        self.query_capture=previous_query;
     }
 
     fn emit_invoice_collect_decision_body(

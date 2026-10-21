@@ -73,6 +73,7 @@ fn operation_order_omissions_and_present_empty_metadata() {
         result: None,
         disclosure: None,
         root_authority: None,
+        authority_query_sites: None,
     };
     assert_eq!(
         operations_json(&[operation]),

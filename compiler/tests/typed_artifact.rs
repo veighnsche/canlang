@@ -84,6 +84,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
         result: None,
         disclosure: None,
         root_authority: None,
+        authority_query_sites: None,
         inputs: vec![
             JsOperationField {
                 min: None,

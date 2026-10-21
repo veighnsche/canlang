@@ -220,6 +220,21 @@ altered-source refusals, event-header removal at commit, and four dispatch
 outcomes. The
 remaining 69 diagnostics are separate sites.
 
+The next exact-catalog 24-source release capture reports 63 diagnostics
+(`complete:true`, `omitted:0`). All 26 source paths and hashes match the
+69-diagnostic capture. Exactly six original `CanRent.correspondence` and
+`CanRent.remind` guarded Mail/Notice `E6008` sites clear at byte intervals
+155596–155669, 155681–155797, 156229–156266, 156278–156394,
+156730–156803, and 156815–156926; no diagnostic is added. The native receipt
+binds the original declared-event or due Work source, current Booking,
+Resource and Location ancestry, formatted subject and body, guarded Mail
+intent, Notice CREATE, and correspondence CANCEL/Reminder SCHEDULE to one
+serial owner decision. Ordinary emitted handler routes retain their own
+source-bound File payload headers. The installed File-inventory regression
+covers eight changed-source refusals and nine runtime modes, including all
+three Notice branches, stale or retired Booking, hidden parents, and the
+actual due Reminder.
+
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
 **Implementation status, 2026-10-21:** The first owner-decision repair is now

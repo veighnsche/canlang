@@ -1,0 +1,50 @@
+## Exact CanRent correspondence and reminder handlers with their owning record ancestry.
+app CanRent uses=[rent_reservations]
+
+package rent_catalog
+ Given
+  export Location {name:text,arrival:text,hidden:bool=false}
+  policy Location read=members and not row.hidden
+ When
+ Then
+
+package rent_reservations
+ use rent_catalog {Location}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  export Resource {location:Location,name:text,hidden:bool=false}
+  export Booking in Resource {source:text unique,email:email,from:datetime,until:datetime,terms:text,status:enum(held,pending,confirmed,occupied,completed,cancelled,expired,review,no_show)=held,hidden:bool=false}
+  export Notice in Booking {kind:enum(confirmation,reminder,cancellation),revision:int,subject:text,body:text,delivery:delivery(Mail.send)?}
+  event Kickoff {booking:Booking}
+  event Reminder {booking:Booking,revision:int}
+  export event ReservationChanged {booking:Booking,revision:int}
+  policy Resource read=members and not row.hidden
+  policy Booking read=members and not row.hidden
+  policy Notice read=members
+ When
+  scenario source_bridge on=Kickoff
+   do emit ReservationChanged {booking=event.booking,revision=event.booking.version}
+  scenario correspondence on=ReservationChanged
+   require event.booking.version==event.revision
+   do
+    cancel event.booking.source
+    if event.booking.status==confirmed
+     let subject=format("Workspace confirmed"@{nl="Werkplek bevestigd"},locale=null)
+     let body=format("{location}; {resource}; {from,date} {from,time} – {until,date} {until,time}; {arrival}; {terms}; /workspace/my-bookings"@{nl="{location}; {resource}; {from,date} {from,time} – {until,date} {until,time}; {arrival}; {terms}; /workspace/my-bookings"}(location=event.booking.parent.location.name,resource=event.booking.parent.name,from=event.booking.from,until=event.booking.until,arrival=event.booking.parent.location.arrival,terms=event.booking.terms),locale=null)
+     send Mail.send {to=event.booking.email,subject,body} when=event.booking.status==confirmed and event.booking.version==event.revision as delivery
+     create Notice {parent=event.booking,kind=confirmation,revision=event.revision,subject,body,delivery} as notice
+     if event.booking.from>now+1h
+      schedule event.booking.source at=event.booking.from-1h event=Reminder {booking=event.booking,revision=event.revision}
+    if event.booking.status in [cancelled,expired,Booking.status.no_show]
+     let subject=format("Workspace booking changed"@{nl="Werkplekreservering gewijzigd"},locale=null)
+     let body=event.booking.terms
+     send Mail.send {to=event.booking.email,subject,body} when=event.booking.version==event.revision as delivery
+     create Notice {parent=event.booking,kind=cancellation,revision=event.revision,subject,body,delivery} as notice
+  scenario remind on=Reminder
+   require event.booking.status==confirmed and event.booking.version==event.revision
+   do
+    let subject=format("Workspace arrival reminder"@{nl="Herinnering werkplekaankomst"},locale=null)
+    let body=event.booking.parent.location.arrival
+    send Mail.send {to=event.booking.email,subject,body} when=event.booking.status==confirmed and event.booking.version==event.revision as delivery
+    create Notice {parent=event.booking,kind=reminder,revision=event.revision,subject,body,delivery} as notice
+ Then

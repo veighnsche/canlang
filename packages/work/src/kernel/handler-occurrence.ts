@@ -106,6 +106,49 @@ export function readHandlerOccurrenceRow(row: StoredRow): HandlerOccurrenceRowDa
   return Object.freeze(occurrence);
 }
 
+/** Bind an ordinary route produced by the same owner finalizer to its exact
+ * declared-event File source. The route is still an insert: this preserves
+ * every byte of its identity, lifetime and typed payload. */
+export function withHandlerOccurrenceFilePayloadOrigin(
+  row: StoredRow, filePayloadOrigin: FrameworkFilePayloadOrigin,
+): StoredRow {
+  const original = readHandlerOccurrenceRow(row);
+  const expectedFields = ['event', 'handler', 'occurrenceId', 'payload', 'scopeApp',
+    'scopeOwner', 'scopeOwnerPackage', 'sourceOccurrence', 'state'];
+  if (original.state !== 'pending' || original.filePayloadOrigin !== undefined ||
+      row.version !== 1 || row.archivedAt !== null || row.parent !== null ||
+      row.created !== row.updated || row.createdBy !== row.updatedBy ||
+      !sameJson(Object.keys(row.data).sort(), expectedFields)) {
+    throw new KernelTableError('Declared event route needs its original unbound pending insert.');
+  }
+  const header = readWorkFilePayloadOrigin({ filePayloadOrigin }, row,
+    WORK_HANDLER_OCCURRENCE_MODEL, 'payload', 'deferred-input');
+  const origin = header?.origin;
+  if (header === undefined || origin?.kind !== 'event-input' || origin.occurrenceId !== row.id ||
+      origin.sourceOccurrence !== original.sourceOccurrence ||
+      origin.lineage.kind !== 'source' ||
+      origin.lineage.sourceOccurrence !== original.sourceOccurrence ||
+      origin.declaration.kind !== 'declared-event' || origin.declaration.event !== original.event ||
+      origin.target.kind !== 'handler' || origin.target.handler.callable.id !== original.handler ||
+      header.scope.app !== original.scopeApp || header.scope.owner !== original.scopeOwner ||
+      header.scope.ownerPackage !== original.scopeOwnerPackage ||
+      header.inventory.owner !== original.scopeOwnerPackage) {
+    throw new KernelTableError('Declared event route header differs from its original Work source and handler.');
+  }
+  const data = snapshotKernelJsonValue({ ...row.data, filePayloadOrigin: header },
+    'declared event handler route');
+  const bound: StoredRow = Object.freeze({ id: row.id, version: row.version,
+    created: row.created, updated: row.updated, createdBy: row.createdBy,
+    updatedBy: row.updatedBy, archivedAt: row.archivedAt, parent: row.parent, data });
+  const checked = readHandlerOccurrenceRow(bound);
+  if (checked.filePayloadOrigin === undefined ||
+      !sameJson({ ...checked, filePayloadOrigin: undefined },
+        { ...original, filePayloadOrigin: undefined })) {
+    throw new KernelTableError('Declared event route binding changed the original route.');
+  }
+  return bound;
+}
+
 function matches(data: HandlerOccurrenceRowData, input: HandlerOccurrenceSelector): boolean {
   return data.sourceOccurrence === input.sourceOccurrence && data.handler === input.handler &&
     data.event === input.event && data.scopeApp === input.scope.app &&

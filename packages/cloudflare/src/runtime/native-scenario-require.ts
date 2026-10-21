@@ -174,6 +174,23 @@ export async function nativeScenarioInvoiceCollectDecision(context: unknown, des
   return evaluate(descriptor, body);
 }
 
+const rentNoticeReaders = new WeakMap<object, LeaveEvaluate>();
+
+/** The exact CanRent notice handler runs inside its retained event owner. */
+export function bindNativeScenarioRentNoticeDecision(context: object, evaluate: LeaveEvaluate): void {
+  if (rentNoticeReaders.has(context)) throw new StateError('validation', 'Rent notice decision cannot be rebound.');
+  rentNoticeReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioRentNoticeDecision(context: unknown, descriptor: unknown,
+  body: Function): Promise<void> {
+  const evaluate = typeof context === 'object' && context !== null ? rentNoticeReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof body !== 'function') {
+    throw new StateError('validation', 'Rent notice needs its actual retained owner event.');
+  }
+  return evaluate(descriptor, body);
+}
+
 type AllowanceEvaluate = (descriptor: unknown, row: unknown, body: Function) => Promise<unknown>;
 const leaveDecideAllowances = new WeakMap<object, AllowanceEvaluate>();
 
