@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { execFile, spawnSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,16 +35,16 @@ async function installed(name: string, directory: string) {
     stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
   return { artifact, asm };
 }
-async function member(mode: string, roles: readonly string[] = []) {
+async function member(mode: string, roles: readonly string[] = [], emailVerified = true) {
   const now = Date.now(), identities = createMemoryIdentityStore({ clock: createFrozenClock(now) });
   const team = await identities.createTeam({ timezone: 'UTC' });
-  const user = await identities.createUser({ email: `${mode}@owner-search.test`, password_hash: 'unused', email_verified: true });
-  await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false,
+  const user = await identities.createUser({ email: `${mode}@owner-search.test`, password_hash: 'unused', email_verified: emailVerified });
+  const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false,
     roles: roles.map(role => ({ role, granted_at: new Date(now).toISOString(), granted_by: user.user_id })) });
   const token = `owner-search-${mode}-${randomBytes(8).toString('hex')}`;
   await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
     last_team_id: team.team_id, expires_at: new Date(now + 3600000).toISOString() });
-  return { now, identities, user, identity: await resolveIdentity(identities, { session_token: token },
+  return { now, identities, team, user, membership, identity: await resolveIdentity(identities, { session_token: token },
     { clock: createFrozenClock(now) }) };
 }
 
@@ -794,6 +794,254 @@ it('assigns a paid seat through current hidden customer and capacity facts',
           assert.deepEqual(result.payload, { membership: { id: membership.id }, revision: '8' }, mode);
         }
         if (race) assert.equal(injected, true, mode);
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+it('requests the original member term once from current hidden renewal, capture and authority rows',
+  { timeout: 120000 }, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-member-term-owner-'));
+    try {
+      const { artifact, asm } = await installed('member-term-owner-probe.can', directory);
+      const modes = [
+        'create-no-capture', 'create-explicit-null', 'replay-hidden', 'replay-mismatch',
+        'cycle-zero', 'boundary-expired', 'plan-inactive', 'membership-revoked',
+        'capture-advocate-hidden', 'capture-partner', 'capture-stale',
+        'capture-wrong-customer', 'capture-wrong-account', 'capture-superseded-hidden',
+        'capture-tied-hidden', 'capture-unverified-actor',
+        'capture-program-inactive', 'capture-product-ineligible',
+        'manager-hidden-worker', 'manager-inactive-worker', 'billing-hidden-role',
+        'plan-locations-changed-at-commit', 'capture-window-changed-at-commit',
+        'program-revoked-at-commit', 'partner-revoked-at-commit',
+        'membership-revoked-at-commit', 'billing-role-revoked-at-commit',
+        'manager-worker-revoked-at-commit', 'identity-revoked-during-schedule',
+        'plan-inactive-at-commit',
+      ] as const;
+      for (const mode of modes) {
+        const manager = mode.startsWith('manager-');
+        const billing = mode.startsWith('billing-');
+        const partner = mode === 'capture-partner' || mode === 'partner-revoked-at-commit';
+        const withCapture = mode.startsWith('capture-') || mode === 'plan-locations-changed-at-commit'
+          || mode === 'program-revoked-at-commit' || mode === 'partner-revoked-at-commit';
+        const { now, identities, team, identity, user: actor, membership: authMembership } = await member(`member-term-${mode}`,
+          manager ? ['member_terms.member_manager'] : [], mode !== 'capture-unverified-actor');
+        const otherUser = await identities.createUser({ email: `other-${mode}@owner-search.test`,
+          password_hash: 'unused', email_verified: true });
+        const backing = createMemoryStorage();
+        const site = { ...makeRow({ id: asId('site-1'), data: { active: true } }), parent: null };
+        const otherSite = { ...makeRow({ id: asId('site-2'), data: { active: true } }), parent: null };
+        const customer = { ...makeRow({ id: asId('customer-1'), data: {
+          kind: 'company', locations: [{ id: site.id }], active: true } }), parent: null };
+        const otherCustomer = { ...makeRow({ id: asId('customer-2'), data: {
+          kind: 'company', locations: [{ id: otherSite.id }], active: true } }), parent: null };
+        const plan = { ...makeRow({ id: asId('plan-1'), data: {
+          active: mode !== 'plan-inactive', locations: [{ id: site.id }] } }), parent: null };
+        const membership = { ...makeRow({ id: asId('membership-1'), data: {
+          account: { id: manager || billing ? otherUser.user_id : actor.user_id },
+          plan: { id: plan.id }, revoked: mode === 'membership-revoked',
+          anchor: mode === 'boundary-expired' ? '2020-01-01' : '2090-01-01', months: '1',
+          timezone: 'UTC', consent: 'consent-1' } }),
+          parent: { model: asModel('customer.Customer'), id: customer.id } };
+        const role = { ...makeRow({ id: asId('billing-role'), data: {
+          account: { id: actor.user_id }, role: 'billing', active: true,
+          locations: [{ id: site.id }], hidden: true } }),
+          parent: { model: asModel('customer.Customer'), id: customer.id } };
+        const employee = { ...makeRow({ id: asId('worker-1'), data: {
+          user: { id: actor.user_id }, home: { id: site.id }, locations: [],
+          operator_wide: false, active: mode !== 'manager-inactive-worker', hidden: true } }),
+          parent: null };
+        const program = { ...makeRow({ id: asId('program-1'), data: {
+          active: mode !== 'capture-program-inactive', locations: [{ id: site.id }],
+          products: [mode === 'capture-product-ineligible' ? 'office' : 'membership'] } }),
+          parent: null };
+        const advocate = { ...makeRow({ id: asId('advocate-1'), data: {
+          account: { id: otherUser.user_id } } }),
+          parent: { model: asModel('refer.Program'), id: program.id } };
+        const partnerRow = { ...makeRow({ id: asId('partner-1'), data: {
+          active: true, account: { id: otherUser.user_id },
+          locations: [{ id: site.id }], products: ['membership'] } }), parent: null };
+        const captured = new Date(now - (mode === 'capture-stale' ? 31 : 1) * 86400000).toISOString();
+        const capture = { ...makeRow({ id: asId('capture-1'), data: {
+          advocate: partner ? null : { id: advocate.id },
+          partner: partner ? { id: partnerRow.id } : null,
+          account: { id: mode === 'capture-wrong-account' ? otherUser.user_id : actor.user_id },
+          captured, window: '2592000000', hidden: mode === 'capture-advocate-hidden' } }),
+          parent: { model: asModel('customer.Customer'),
+            id: mode === 'capture-wrong-customer' ? otherCustomer.id : customer.id } };
+        const newerCapture = { ...makeRow({ id: asId('capture-2'), data: {
+          advocate: { id: advocate.id }, partner: null, account: { id: actor.user_id },
+          captured: mode === 'capture-tied-hidden' ? captured : new Date(now).toISOString(),
+          window: '2592000000', hidden: true } }),
+          parent: { model: asModel('customer.Customer'), id: customer.id } };
+        const previous = { ...makeRow({ id: asId('renewal-1'), data: {
+          capture: mode === 'replay-mismatch' ? { id: capture.id } : null,
+          cycle: '1', requester: { id: actor.user_id }, consent: 'consent-1', hidden: true } }),
+          parent: { model: asModel('member_terms.Membership'), id: membership.id } };
+        const writes: Array<{ kind: 'insert'; model: ModelName; row: StoredRow }> = [
+          { kind: 'insert', model: asModel('rent_catalog.Location'), row: site },
+          { kind: 'insert', model: asModel('rent_catalog.Location'), row: otherSite },
+          { kind: 'insert', model: asModel('customer.Customer'), row: customer },
+          { kind: 'insert', model: asModel('customer.Customer'), row: otherCustomer },
+          { kind: 'insert', model: asModel('member_plans.Plan'), row: plan },
+          { kind: 'insert', model: asModel('member_terms.Membership'), row: membership },
+          { kind: 'insert', model: asModel('refer.Program'), row: program },
+          { kind: 'insert', model: asModel('refer.Advocate'), row: advocate },
+          { kind: 'insert', model: asModel('affiliate.Partner'), row: partnerRow },
+        ];
+        if (billing) writes.push({ kind: 'insert', model: asModel('customer.CompanyRole'), row: role });
+        if (manager) writes.push({ kind: 'insert', model: asModel('employee.Employee'), row: employee });
+        if (withCapture || mode === 'replay-mismatch') writes.push({
+          kind: 'insert', model: asModel('sales_attribution.Capture'), row: capture });
+        if (mode === 'capture-superseded-hidden' || mode === 'capture-tied-hidden') writes.push({
+          kind: 'insert', model: asModel('sales_attribution.Capture'), row: newerCapture });
+        if (mode.startsWith('replay-')) writes.push({
+          kind: 'insert', model: asModel('member_terms.Renewal'), row: previous });
+        await backing.commit(makeBatch(await backing.readRevision(), { writes }));
+        const race = mode.endsWith('-at-commit') || mode === 'identity-revoked-during-schedule';
+        let injected = false;
+        const committed: Array<Parameters<typeof backing.commit>[0]> = [];
+        const store = { ...backing,
+          query: async (spec: Parameters<typeof backing.query>[0]) => {
+            if (mode === 'identity-revoked-during-schedule' && spec.model === asModel('work.schedule') && !injected) {
+              injected = true;
+              await identities.removeMembership(authMembership.membership_id);
+            }
+            return backing.query(spec);
+          },
+          commit: async (batch: Parameters<typeof backing.commit>[0]) => {
+            if (race && mode !== 'identity-revoked-during-schedule' && !injected) {
+              injected = true;
+              const target = mode === 'plan-locations-changed-at-commit' ? ['member_plans.Plan', plan.id, { locations: [{ id: otherSite.id }] }]
+                : mode === 'plan-inactive-at-commit' ? ['member_plans.Plan', plan.id, { active: false }]
+                : mode === 'capture-window-changed-at-commit' ? ['sales_attribution.Capture', capture.id, { window: '0' }]
+                : mode === 'program-revoked-at-commit' ? ['refer.Program', program.id, { active: false }]
+                : mode === 'partner-revoked-at-commit' ? ['affiliate.Partner', partnerRow.id, { active: false }]
+                : mode === 'membership-revoked-at-commit' ? ['member_terms.Membership', membership.id, { revoked: true }]
+                : mode === 'billing-role-revoked-at-commit' ? ['customer.CompanyRole', role.id, { active: false }]
+                : ['employee.Employee', employee.id, { active: false }];
+              const [name, id, change] = target as [string, string, Record<string, unknown>];
+              const current = await backing.load(asModel(name), asId(id)); assert.ok(current);
+              await backing.commit(makeBatch(await backing.readRevision(), { writes: [{
+                kind: 'update', model: asModel(name), id: current.id, expectedVersion: current.version,
+                row: { ...current, version: asVersion(current.version + 1), updated: now,
+                  data: { ...current.data, ...change } },
+              }] }));
+            }
+            const result = await backing.commit(batch);
+            committed.push(batch);
+            return result;
+          } };
+        const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+        if (mode.startsWith('replay-')) {
+          const visible = await invoker.invokeRead({ operation: 'member_terms.Renewal.read', inputs: {} }, identity);
+          assert.ok('result' in visible, `${mode}: ${JSON.stringify(visible)}`);
+          assert.equal((visible.result as { records: unknown[] }).records.length, 0, mode);
+        }
+        if (mode === 'capture-advocate-hidden') {
+          const visible = await invoker.invokeRead({ operation: 'sales_attribution.Capture.read', inputs: {} }, identity);
+          assert.ok('result' in visible, `${mode}: ${JSON.stringify(visible)}`);
+          assert.equal((visible.result as { records: unknown[] }).records.length, 0, mode);
+        }
+        if (manager) {
+          const visible = await invoker.invokeRead({ operation: 'employee.Employee.read', inputs: {} }, identity);
+          assert.ok('result' in visible, `${mode}: ${JSON.stringify(visible)}`);
+          assert.equal((visible.result as { records: unknown[] }).records.length, 0, mode);
+        }
+        if (billing) {
+          const visible = await invoker.invokeRead({ operation: 'customer.CompanyRole.read', inputs: {} }, identity);
+          assert.ok('result' in visible, `${mode}: ${JSON.stringify(visible)}`);
+          assert.equal((visible.result as { records: unknown[] }).records.length, 0, mode);
+        }
+        const outcome = await invoker.invokeMutation({ operation: 'member_terms.term',
+          operation_id: operationId(now), inputs: {
+            membership: { id: membership.id, version: String(membership.version) },
+            cycle: mode === 'cycle-zero' ? '0' : '1',
+            ...(withCapture ? { capture: { id: capture.id, version: String(capture.version) } }
+              : mode === 'create-explicit-null' ? { capture: null } : {}),
+          } }, identity).catch((error: unknown) => {
+            throw new Error(`${mode}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+          });
+        const created = ['create-no-capture', 'create-explicit-null', 'capture-advocate-hidden',
+          'capture-partner', 'capture-tied-hidden',
+          'manager-hidden-worker', 'billing-hidden-role'].includes(mode);
+        const replay = mode === 'replay-hidden';
+        assert.equal('result' in outcome ? outcome.result.status : outcome.error.code,
+          created || replay ? 'committed' : mode === 'identity-revoked-during-schedule' ? 'forbidden'
+            : mode === 'capture-window-changed-at-commit' || mode === 'membership-revoked-at-commit'
+              ? 'conflict' : 'rule_failed',
+          `${mode}: ${JSON.stringify(outcome)}`);
+        const renewals = await backing.query({ model: asModel('member_terms.Renewal'), authority: 'owner' });
+        assert.equal(renewals.length, mode.startsWith('replay-') || created ? 1 : 0, mode);
+        if (created) {
+          assert.equal(renewals[0]?.data.cycle, '1', mode);
+          assert.deepEqual(renewals[0]?.data.capture, withCapture ? { id: capture.id } : null, mode);
+          assert.deepEqual(renewals[0]?.data.requester, { id: actor.user_id }, mode);
+          assert.equal(renewals[0]?.data.consent, 'consent-1', mode);
+        }
+        if (replay) assert.equal(renewals[0]?.version, previous.version, mode);
+        const schedules = committed.flatMap(batch => batch.schedules ?? []);
+        assert.equal(schedules.length, created ? 1 : 0, `${mode}: schedule count`);
+        const lineage = await backing.query({ model: asModel('work.schedule'), authority: 'owner' });
+        assert.equal(lineage.length, created ? 1 : 0, `${mode}: schedule lineage count`);
+        if (created) {
+          const schedule = schedules[0]; assert.ok(schedule && schedule.op === 'replace');
+          const scopedKey = ['CanMember', 'member_terms', team.team_id, renewals[0]!.id]
+            .map(encodeURIComponent).join('/');
+          assert.equal(schedule.key, scopedKey, mode);
+          assert.equal(schedule.at, now, `${mode}: authored at=now`);
+          assert.equal(schedule.event, 'member_terms.RenewalDue', mode);
+          assert.deepEqual(schedule.payload, { renewal: { id: renewals[0]?.id, version: '1' } }, mode);
+          assert.deepEqual(await backing.scheduleGet(scopedKey), {
+            key: schedule.key, at: schedule.at, event: schedule.event, payload: schedule.payload }, mode);
+          assert.equal(lineage[0]?.data.key, renewals[0]?.id, `${mode}: bare lineage key`);
+          assert.equal(lineage[0]?.data.scopeApp, 'CanMember', mode);
+          assert.equal(lineage[0]?.data.scopeOwnerPackage, 'member_terms', mode);
+          assert.equal(lineage[0]?.data.scopeOwner, team.team_id, mode);
+          assert.equal(lineage[0]?.data.state, 'pending', mode);
+          assert.deepEqual(lineage[0]?.data.payload, schedule.payload, mode);
+        }
+        if (race) assert.equal(injected, true, mode);
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+it('refuses changed term replay, capture selection, and scheduled-event source bodies',
+  { timeout: 120000 }, async () => {
+    const original = await readFile(fixture('member-term-owner-probe.can'), 'utf8');
+    const source = await readFile(join(root, 'draft/apps/CanMember/CanMember.can'), 'utf8');
+    const refer = await readFile(join(root, 'draft/apps/CanRefer/CanRefer.can'), 'utf8');
+    for (const line of source.split('\n').slice(230, 245)) {
+      if (line.includes('scenario term(') || line.trim().startsWith('require ') ||
+          line.trim().startsWith('let ') || line.trim().startsWith('if ') ||
+          line.trim().startsWith('create Renewal ') || line.trim().startsWith('schedule ')) {
+        assert.ok(original.includes(line), `term retains the original source line: ${line}`);
+      }
+    }
+    const helper = refer.split('\n').find(line => line.includes('export derive latest_capture('));
+    assert.ok(helper && original.includes(helper));
+    const changes = [
+      ['cycle-guard', 'require cycle>0 and not membership.revoked',
+        'require cycle>=0 and not membership.revoked'],
+      ['capture-helper', 'capture.captured+capture.window>=now',
+        'capture.captured+capture.window>now'],
+      ['replay-key', 'request.cycle==cycle', 'request.cycle!=cycle'],
+      ['replay-capture', 'previous.capture==capture', 'previous.capture!=capture'],
+      ['latest-capture', 'capture==latest_capture(', 'capture!=latest_capture('],
+      ['scheduled-time', 'schedule renewal.id at=now event=RenewalDue {renewal}',
+        'schedule renewal.id at=now+1d event=RenewalDue {renewal}'],
+    ] as const;
+    const directory = await mkdtemp(join(tmpdir(), 'can-member-term-mutants-'));
+    try {
+      for (const [name, before, after] of changes) {
+        assert.equal(original.split(before).length, 2, `${name}: unique original source`);
+        const path = join(directory, `${name}.can`);
+        await writeFile(path, original.replace(before, after));
+        const result = spawnSync(compiler, ['compile', '--format=json', '--native-scenario-receipts',
+          '--catalog', catalog, path], { cwd: root, encoding: 'utf8' });
+        assert.equal(result.status, 10, `${name}: ${result.stdout} ${result.stderr}`);
+        const report = JSON.parse(result.stdout) as { diagnostics: { code: string; message: string }[] };
+        assert.ok(report.diagnostics.some(diagnostic => diagnostic.code === 'E6008'),
+          `${name}: changed source must retain a native refusal`);
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });

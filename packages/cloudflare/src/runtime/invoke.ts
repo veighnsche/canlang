@@ -152,7 +152,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioRequire, bindNativeScenarioEventDecision } from './native-scenario-require.js';
+import { bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision } from './native-scenario-require.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -1468,6 +1468,7 @@ interface StateInvokeProducer {
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
   readonly executeScenarioReceiptRequire?: typeof import('@canlang/state/invocation').executeScenarioReceiptRequire;
   readonly executeScenarioReceiptEventDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptEventDecision;
+  readonly executeScenarioReceiptTermDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptTermDecision;
   readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
   readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
@@ -1763,6 +1764,9 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['executeScenarioReceiptEventDecision'] !== 'function' ? {} : {
       executeScenarioReceiptEventDecision: scenarioMod['executeScenarioReceiptEventDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptEventDecision']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptTermDecision'] !== 'function' ? {} : {
+      executeScenarioReceiptTermDecision: scenarioMod['executeScenarioReceiptTermDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptTermDecision']>,
     }),
     ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
       observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
@@ -3891,6 +3895,159 @@ async function prepareNativeSendGuardReferences(input: {
       }
     }
   } });
+}
+
+/** The paid-term callback sees only versioned rows supplied by its State owner
+ * frame. Linked model fields are prepared before the synchronous generated
+ * expression reads them; every accessed field and complete collection domain
+ * is observed by State, including candidates hidden from the caller. */
+async function prepareTermOwnerDecisionViews(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly membership: StoredRow;
+  readonly capture: StoredRow | null;
+  readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
+  readonly query: (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+  readonly observer: import('@canlang/state/invocation').ScenarioReceiptRequireObserver;
+  readonly healthy: () => void;
+}) {
+  const { loaded, healthy } = input, StateError = loaded.producers.errors;
+  const views = new Map<string, Promise<Record<string, unknown>>>();
+  const rows = new WeakMap<object, StoredRow>();
+  const linked = (model: string): readonly [string, string][] => model === 'member_terms.Membership'
+    ? [['plan', 'member_plans.Plan']] : model === 'sales_attribution.Capture'
+      ? [['advocate', 'refer.Advocate'], ['partner', 'affiliate.Partner']] : [];
+  const hydrate = (model: string, row: StoredRow, depth = 0): Promise<Record<string, unknown>> => {
+    if (depth > 8) throw new StateError('validation', 'Term owner reference path exceeds its checked depth.');
+    const key = stagedKey(model, row.id);
+    const existing = views.get(key);
+    if (existing !== undefined) return existing;
+    const pending = (async () => {
+      healthy();
+      const links = new Map<string, unknown>();
+      const targets = linked(model);
+      for (const [field, target] of targets) {
+        const wire = row.data[field];
+        if (wire === null || wire === undefined) { links.set(field, null); continue; }
+        const ref = decodeValue(target, wire) as { readonly id: string };
+        const current = await input.read(target as ModelName, ref.id as RecordId);
+        healthy();
+        links.set(field, current === null
+          ? new StateError('not_found', 'Term owner linked record is unavailable.')
+          : await hydrate(target, current, depth + 1));
+      }
+      let parent: unknown;
+      if (row.parent !== null && row.parent !== undefined) {
+        if (model === 'member_terms.Membership' || model === 'sales_attribution.Capture' ||
+            model === 'refer.Advocate') {
+          const current = await input.read(row.parent.model, row.parent.id);
+          healthy();
+          parent = current === null ? new StateError('not_found', 'Term owner parent is unavailable.')
+            : await hydrate(row.parent.model, current, depth + 1);
+        } else parent = makeRecordRef(row.parent.model, row.parent.id);
+      } else parent = null;
+      const record: Record<string, unknown> = Object.create(null);
+      const metadata = nativeRecordMetadata(row, loaded.models.find(item => item.name === model)?.fields);
+      for (const field of Object.keys(row.data)) {
+        const value = links.has(field) ? links.get(field) : nativeRecordField(loaded, model, field, row.data[field]);
+        Object.defineProperty(record, field, { enumerable: true, get: () => {
+          healthy(); input.observer.field(model, row, field);
+          if (value instanceof Error) throw value;
+          return value;
+        } });
+      }
+      for (const [field, value] of Object.entries(metadata)) {
+        if (Object.hasOwn(record, field)) continue;
+        Object.defineProperty(record, field, { enumerable: true, get: () => {
+          healthy(); input.observer.field(model, row, field);
+          return value;
+        } });
+      }
+      if (row.parent !== null && row.parent !== undefined) {
+        Object.defineProperty(record, 'parent', { enumerable: true, get: () => {
+          healthy(); input.observer.field(model, row, 'parent');
+          if (parent instanceof Error) throw parent;
+          return parent;
+        } });
+      }
+      bindNativeRecord(record, model, row.id, row.version);
+      rows.set(record, row);
+      return Object.freeze(record);
+    })();
+    views.set(key, pending);
+    return pending;
+  };
+  const readRecords = async (c: HandlerContext, model: string, selection: CanonicalReadQuery): Promise<ReadonlyArray<Record<string, unknown>>> => {
+    healthy();
+    if (!['employee.Employee', 'customer.CompanyRole', 'sales_attribution.Capture', 'member_terms.Renewal'].includes(model) ||
+        !isUnknownRecord(selection) || Reflect.ownKeys(selection).some(key =>
+          typeof key !== 'string' || !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+        selection.limit !== undefined || selection.archived !== undefined && selection.archived !== 'exclude' ||
+        selection.authority !== undefined && selection.authority !== 'viewer' ||
+        selection.where !== undefined && typeof selection.where !== 'function') {
+      throw new StateError('validation', 'Term query differs from its checked source collection.');
+    }
+    const parent = selection.parent === undefined ? undefined :
+      nativeRecordReference(selection.parent) ?? (isRecordRef(selection.parent) ? selection.parent : undefined);
+    if (selection.parent !== undefined && parent === undefined) {
+      throw new StateError('validation', 'Term query needs its authenticated owner parent.');
+    }
+    const authoredOrder = model === 'sales_attribution.Capture' ? ['-captured'] :
+      model === 'member_terms.Renewal' ? ['id'] : undefined;
+    if (stableStringify(selection.order ?? null) !== stableStringify(authoredOrder ?? null) ||
+        (model === 'sales_attribution.Capture' || model === 'member_terms.Renewal') !==
+          (selection.where !== undefined)) {
+      throw new StateError('validation', 'Term query predicate or order differs from its original site.');
+    }
+    const domain = await input.query(model as ModelName, parent === undefined ? undefined :
+      { model: parent.model as ModelName, id: parent.id as RecordId });
+    healthy();
+    input.observer.query(model, domain.map(row => ({ ...row, parent: row.parent ?? null })), undefined, parent === undefined ? undefined :
+      { model: parent.model, id: parent.id });
+    const matched: StoredRow[] = [];
+    for (const row of domain) {
+      const view = await hydrate(model, row);
+      const verdict = selection.where === undefined ? true : await selection.where(view, c);
+      healthy();
+      if (typeof verdict !== 'boolean') throw new StateError('validation', 'Term query predicate must return Bool.');
+      if (verdict) matched.push(row);
+    }
+    const terms = authoredOrder === undefined ? [{ field: 'id', direction: 'asc' as const }] :
+      authoredOrder.map(term => ({ field: term.startsWith('-') ? term.slice(1) : term,
+        direction: term.startsWith('-') ? 'desc' as const : 'asc' as const }));
+    for (const row of matched) for (const term of terms) {
+      const view = await hydrate(model, row);
+      Reflect.get(view, term.field);
+    }
+    const engine = await loadProducerModule('@canlang/state/query/engine', 'term owner exact ordering');
+    const sort = requireProducerFn(engine, 'orderSourceReadRecords', 'term owner exact ordering') as
+      typeof import('@canlang/state/query/engine').orderSourceReadRecords;
+    const declaration = loaded.models.find(candidate => candidate.name === model);
+    if (declaration === undefined) throw new StateError('validation', 'Term query model lacks its declaration.');
+    const projected = matched.map(row => ({ ...row, parent: row.parent ?? null }));
+    const ordered = sort(projected, declaration, terms);
+    healthy();
+    const served: Record<string, unknown>[] = [];
+    for (const row of ordered) served.push(await hydrate(model,
+      matched.find(candidate => candidate.id === row.id)!));
+    return Object.freeze(served);
+  };
+  const membership = await hydrate('member_terms.Membership', input.membership);
+  const capture = input.capture === null ? null : await hydrate('sales_attribution.Capture', input.capture);
+  return Object.freeze({
+    membership, capture,
+    readRecords,
+    selected: (value: unknown): StoredRow | null => {
+      if (value === null) return null;
+      const row = typeof value === 'object' && value !== null ? rows.get(value) : undefined;
+      const reference = nativeRecordReference(value);
+      if (row === undefined || row.parent?.model !== 'member_terms.Membership' ||
+          reference?.model !== 'member_terms.Renewal' || reference.id !== row.id ||
+          reference.version !== BigInt(row.version)) {
+        throw new StateError('validation', 'Term FIRST returned a copied or foreign Renewal.');
+      }
+      return row;
+    },
+  });
 }
 
 /** Exact Maintain event Bool frame. Its singular path is the admitted Work
@@ -8840,13 +8997,14 @@ async function runScenarioExecution(
     throw new StateError('validation', 'Committed scenario sources require the actual admitted owner store.');
   }
   const emittedEvents: import('@canlang/work').DeclaredEventSourceInput[] = [];
+  const termScheduleSourceWrites: DomainWrite[] = [];
   const emissionSourceStage: OwnerMutationSourceStager = async token => {
     const existing = stageSources === undefined ? [] : await stageSources(token);
-    if (emittedEvents.length === 0) return existing;
+    if (emittedEvents.length === 0) return [...existing, ...termScheduleSourceWrites];
     const writes = await stageDeclaredEventSources(token, emittedEvents,
       { maxSources: 200, maxHandlers: 200, maxMembers: 1_000, chunkSize: 100 });
     due?.observeFramework?.({ writes });
-    return [...existing, ...writes];
+    return [...existing, ...writes, ...termScheduleSourceWrites];
   };
   const ownerOptions = {
     table: loaded.table as ModelTable, bounds: SCENARIO_RECEIPT_OWNER_BOUNDS,
@@ -9146,11 +9304,19 @@ async function runScenarioExecution(
     // above/below; declared domain rows still go through State's owner session.
     const privateFramework = trustedOwnerReads && !receiptAware && (effects.writes ?? []).every(write => ownerFrameworkModels.has(write.model)) &&
       (effects.history?.length ?? 0) === 0 && (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
-    if (ownerSession !== undefined && !isDueAdmission && !privateFramework && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
+    const termSchedule = receiptAware && scenarioDef?.name === 'member_terms.term' &&
+      termScheduleSourceWrites.length === 0 && effects.schedules?.length === 1 &&
+      effects.schedules[0]?.op === 'replace' && effects.schedules[0].event === 'member_terms.RenewalDue' &&
+      effects.writes?.length === 1 && effects.writes[0]?.kind === 'insert' &&
+      effects.writes[0].model === 'work.schedule' &&
+      (effects.outbox?.length ?? 0) === 0 && (effects.history?.length ?? 0) === 0 &&
+      (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
+    if (ownerSession !== undefined && !isDueAdmission && !privateFramework && !termSchedule && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
         (effects.uniqueReleases?.length ?? 0) !== 0)) {
       refuseRecordBinding('Saved scenario deferred domain effects require their defining owner-session join.');
     }
+    if (termSchedule) termScheduleSourceWrites.push(...effects.writes!);
     if (effects !== due?.effects) due?.observeFramework?.(effects);
     for (const write of effects.writes ?? []) {
       stagedWrites.push(write);
@@ -9199,6 +9365,7 @@ async function runScenarioExecution(
     }
   };
   let eventDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
+  let termDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   const scope: CanonicalEffectsScope = {
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
@@ -9206,6 +9373,7 @@ async function runScenarioExecution(
     ...(callable?.inputStyle !== "parameters" && !trustedOwnerReads ? {} : {
       readRecords: async (model: string, query: CanonicalReadQuery) => {
         if (eventDecisionReadRecords !== null) return eventDecisionReadRecords(model, query);
+        if (termDecisionReadRecords !== null) return termDecisionReadRecords(model, query);
         const rows = await scope.readModel(model, query);
         for (const row of rows) {
           if (!trustedOwnerReads) await viewerNavigation.captureQuerySource(model, row);
@@ -10718,6 +10886,57 @@ async function runScenarioExecution(
             return predicate;
           },
         });
+      } catch (error) { recordEngineFailure(error); throw error; }
+    });
+  }
+  if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
+      scenarioDef?.name === 'member_terms.term') {
+    const actualCall = call as AdmittedCall;
+    const checked = (scenarioDef.descriptor.result?.disclosure as
+      { readonly termDecision?: import('@canlang/state/invocation').TermDecisionPlan } | undefined)?.termDecision;
+    const execute = loaded.producers.invoke.executeScenarioReceiptTermDecision;
+    if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
+      return refuseRecordBinding('Term needs its exact installed owner decision.');
+    }
+    let consumed = false;
+    bindNativeScenarioTermDecision(ctx, async (descriptor, select) => {
+      try {
+        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
+            nativeScenarioExecutions.get(actualCall) === undefined) {
+          return refuseRecordBinding('Term decision differs from its unique checked original occurrence.');
+        }
+        consumed = true;
+        let selected: unknown;
+        const result = await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
+          evaluate: async frame => {
+            const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+            if (assertCall === undefined) return refuseRecordBinding('Term decision lacks its live State execution.');
+            const healthy = () => assertCall(actualCall, receiptStore);
+            const views = await prepareTermOwnerDecisionViews({ loaded,
+              membership: frame.membership, capture: frame.capture, read: frame.read,
+              query: frame.query, observer: frame.observer, healthy });
+            if (termDecisionReadRecords !== null) {
+              return refuseRecordBinding('Term decision cannot overlap another owner callback.');
+            }
+            termDecisionReadRecords = (model, query) => views.readRecords(ctx, model, query);
+            try {
+              selected = await Reflect.apply(select, undefined, [ctx, Object.freeze({
+                membership: views.membership, cycle: frame.cycle, capture: views.capture,
+              })]);
+              healthy();
+              return views.selected(selected);
+            } finally { termDecisionReadRecords = null; }
+          } });
+        if (result === null) {
+          if (selected !== null) return refuseRecordBinding('Term decision lost its original null FIRST.');
+          return null;
+        }
+        if (selected === null || typeof selected !== 'object' ||
+            nativeRecordReference(selected)?.id !== result.id ||
+            nativeRecordReference(selected)?.version !== BigInt(result.version)) {
+          return refuseRecordBinding('Term decision lost its selected current Renewal.');
+        }
+        return selected;
       } catch (error) { recordEngineFailure(error); throw error; }
     });
   }

@@ -35,3 +35,21 @@ export async function nativeScenarioEventDecision(context: unknown, descriptor: 
   }
   return evaluate(descriptor, predicate);
 }
+
+type TermEvaluate = (descriptor: unknown, select: Function) => Promise<unknown>;
+const termReaders = new WeakMap<object, TermEvaluate>();
+
+/** The paid-term query closure is bound only to its live admitted mutation. */
+export function bindNativeScenarioTermDecision(context: object, evaluate: TermEvaluate): void {
+  if (termReaders.has(context)) throw new StateError('validation', 'Term decision reader cannot be rebound.');
+  termReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioTermDecision(context: unknown, descriptor: unknown,
+  select: Function): Promise<unknown> {
+  const evaluate = typeof context === 'object' && context !== null ? termReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof select !== 'function') {
+    throw new StateError('validation', 'Term decision needs its actual admitted mutation owner.');
+  }
+  return evaluate(descriptor, select);
+}

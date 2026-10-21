@@ -1,0 +1,103 @@
+# Exact source-closure probe for CanMember.term and the imported latest_capture.
+app CanMember uses=[member_terms]
+
+package rent_catalog
+ Given
+  export Location { active:bool=true }
+  policy Location read=members
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee { user:user unique, home:Location, locations:Location[], operator_wide:bool=false, active:bool=true, hidden:bool=false }
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+
+package customer
+ use rent_catalog {Location}
+ Given
+  export Customer { kind:enum(individual,company), locations:Location[], active:bool=true }
+  export Contact in Customer { account:user?, verified:bool=false }
+  export CompanyRole in Customer { account:user, role:enum(administrator,booker,billing), locations:Location[], active:bool=true, hidden:bool=false }
+  export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+  policy Customer read=members
+  policy Contact read=members
+  policy CompanyRole read=members and not row.hidden
+ When
+ Then
+
+package refer
+ use rent_catalog {Location}
+ Given
+  export Program { active:bool=true, locations:Location[], products:text[]! }
+  export Advocate in Program { account:user }
+  policy Program read=members
+  policy Advocate read=members
+ When
+ Then
+
+package affiliate
+ use rent_catalog {Location}
+ Given
+  export Partner { active:bool=true, account:user, locations:Location[], products:text[]! }
+  policy Partner read=members
+ When
+ Then
+
+package sales_attribution
+ use customer {Customer}
+ use rent_catalog {Location}
+ use refer {Advocate}
+ use affiliate {Partner}
+ Given
+  export Capture in Customer { advocate:Advocate?, partner:Partner?, account:user, captured:datetime, window:duration, hidden:bool=false }
+  export derive latest_capture(customer:Customer,person:user,location:Location,product:text):Capture? = first(customer.Capture as capture where capture.account==person and capture.captured+capture.window>=now and ((capture.advocate!=null and capture.advocate.parent.active and capture.advocate.account!=person and location in capture.advocate.parent.locations and product in capture.advocate.parent.products) or (capture.partner!=null and capture.partner.active and capture.partner.account!=person and location in capture.partner.locations and product in capture.partner.products)) order=-capture.captured)
+  policy Capture read=members and not row.hidden
+ When
+ Then
+
+package member_plans
+ use rent_catalog {Location}
+ Given
+  export Plan { active:bool=true, locations:Location[] }
+  policy Plan read=members
+ When
+ Then
+
+package member_terms
+ use customer {Customer,CompanyRole,has_role}
+ use rent_catalog {Location}
+ use employee {can_work}
+ use member_plans {Plan}
+ use sales_attribution {Capture,latest_capture}
+ Given
+  message label_Term = "Paid term"@{nl="Betaalde termijn"}
+  message label_Term_cycle = "Billing cycle"@{nl="Facturatiecyclus"}
+  role member_manager
+  export Membership in Customer { account:user, plan:Plan, revoked:bool=false, anchor:date, months:int=1, timezone:timezone, consent:text? }
+  Renewal in Membership { capture:Capture?, cycle:int, requester:user?, consent:text?, hidden:bool=false }
+  event RenewalDue { renewal:Renewal }
+  derive cycle_boundary(membership:Membership,offset:int):datetime = local_instant(add_months(membership.anchor,offset*membership.months),"00:00",membership.timezone,fold=earlier)
+  policy Membership read=members
+  policy Renewal read=members and not row.hidden
+ When
+  # Request an identified cycle without ending an earlier paid term.
+  export scenario term(membership:Membership,cycle:int label=label_Term_cycle,capture:Capture?=null) by=member_manager or authenticated label=label_Term
+   require cycle>0 and not membership.revoked and membership.plan.active
+   require (member_manager and any(membership.plan.locations as location,can_work(actor,location))) or membership.account==actor or has_role(actor,membership.parent,billing)
+   require cycle_boundary(membership,cycle)>now
+   do
+    if capture!=null
+     let location=first(membership.plan.locations as site order=site.id)
+     require location!=null and actor.email_verified and capture.parent==membership.parent and capture.account==membership.account and capture.account==actor
+     require capture==latest_capture(membership.parent,actor,location,"membership")
+    let previous=first(membership.Renewal as request where request.cycle==cycle order=request.id)
+    require previous==null or previous.capture==capture
+    if previous==null
+     create Renewal {parent=membership,cycle,capture,requester=actor,consent=membership.consent} as renewal
+     schedule renewal.id at=now event=RenewalDue {renewal}
+ Then

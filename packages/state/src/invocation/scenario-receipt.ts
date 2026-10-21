@@ -13,7 +13,7 @@
  */
 import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, FrameworkFilePayloadOrigin, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, FinalizedFileObservation, FinalizedFileReceiver, RetainedFinalizedFile, ScenarioReceiptFileAssignment, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
-import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, makeDeliveryRef, isUserRef, type UserRef, type NormalizedSchema } from '@canlang/values';
+import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, makeDeliveryRef, makeRecordRef, isUserRef, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import { buildPolicyTable, evalPredicateForRow, type ByContext, type PolicyTable } from '../policy/grants.js';
@@ -263,14 +263,138 @@ function checkEventDecisionPlan(value: unknown, transport: unknown): EventDecisi
   return deepFreeze(raw) as unknown as EventDecisionPlan;
 }
 
+export interface TermDecisionSite {
+  readonly id: string;
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly node: EventDecisionSite['node'];
+  readonly statement: EventDecisionSite['statement'];
+}
+export interface TermDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'member_terms.term';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly parameters: readonly [
+    { readonly name: 'membership'; readonly model: 'member_terms.Membership'; readonly nullable: false },
+    { readonly name: 'cycle'; readonly type: 'int' },
+    { readonly name: 'capture'; readonly model: 'sales_attribution.Capture'; readonly nullable: true },
+  ];
+  readonly sites: {
+    readonly header: readonly [TermDecisionSite, TermDecisionSite, TermDecisionSite];
+    readonly captureIf: TermDecisionSite;
+    readonly locationFirst: TermDecisionSite;
+    readonly captureRequires: readonly [TermDecisionSite, TermDecisionSite];
+    readonly renewalFirst: TermDecisionSite;
+    readonly previousRequire: TermDecisionSite;
+    readonly createIf: TermDecisionSite;
+    readonly create: TermDecisionSite & { readonly model: 'member_terms.Renewal' };
+    readonly schedule: TermDecisionSite & { readonly event: 'member_terms.RenewalDue' };
+  };
+  readonly membershipSite: TermDecisionSite;
+  readonly querySites: readonly {
+    readonly id: string;
+    readonly stage: 'header' | 'capture' | 'renewal';
+    readonly model: 'employee.Employee' | 'customer.CompanyRole' | 'sales_attribution.Capture' | 'member_terms.Renewal';
+    readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly callSite: TermDecisionSite['node'];
+    readonly aliasSite: TermDecisionSite['node'];
+    readonly predicateSite: TermDecisionSite['node'];
+    readonly domainKind: 'tenant-root' | 'contained-child';
+    readonly ownerPath: readonly string[];
+    readonly deriveChain: readonly { readonly source: ScenarioResultDisclosurePlan['source'];
+      readonly callSite: TermDecisionSite['node']; readonly derive: string }[];
+    readonly order: readonly string[];
+  }[];
+}
+function checkTermDecisionPlan(value: unknown, transport: unknown): TermDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'parameters', 'sites', 'membershipSite', 'querySites']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as { path: string; sha256: string; module: string };
+  const carrier = transport as { path: string; sha256: string; module: string };
+  if (raw['version'] !== 1 || raw['owner'] !== 'member_terms.term' ||
+      source.module !== 'member_terms' || source.path !== carrier.path || source.sha256 !== carrier.sha256) {
+    return invalid('term decision requires its exact owning source.');
+  }
+  const parameters = list(raw['parameters']);
+  if (parameters.length !== 3 ||
+      stableStringify(parameters) !== stableStringify([
+        { name: 'membership', model: 'member_terms.Membership', nullable: false },
+        { name: 'cycle', type: 'int' },
+        { name: 'capture', model: 'sales_attribution.Capture', nullable: true },
+      ])) return invalid('term decision requires its exact three admitted inputs.');
+  const checkedSpan = (value: unknown): void => {
+    const span = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(span['start']) || !Number.isSafeInteger(span['end']) ||
+        (span['start'] as number) < 0 || (span['end'] as number) <= (span['start'] as number) ||
+        !Number.isSafeInteger(span['kind']) || (span['kind'] as number) < 0) {
+      return invalid('term decision requires its nonempty original syntax interval.');
+    }
+  };
+  const checkedSite = (value: unknown, own: boolean, extra: readonly string[] = []): void => {
+    const site = object(value, ['id', 'source', 'node', 'statement', ...extra]);
+    if (!/^[a-f0-9]{64}$/.test(text(site['id']))) return invalid('term decision requires a checked site identity.');
+    origin(site['source']);
+    if (own && stableStringify(site['source']) !== stableStringify(raw['source'])) {
+      return invalid('term decision source site differs from its owning scenario.');
+    }
+    checkedSpan(site['node']); checkedSpan(site['statement']);
+  };
+  const sites = object(raw['sites'], ['header', 'captureIf', 'locationFirst', 'captureRequires',
+    'renewalFirst', 'previousRequire', 'createIf', 'create', 'schedule']);
+  const header = list(sites['header']), captureRequires = list(sites['captureRequires']);
+  if (header.length !== 3 || captureRequires.length !== 2) return invalid('term decision requires every authored guard.');
+  for (const site of [...header, ...captureRequires,
+    ...['captureIf', 'locationFirst', 'renewalFirst', 'previousRequire', 'createIf'].map(key => sites[key])]) {
+    checkedSite(site, true);
+  }
+  checkedSite(sites['create'], true, ['model']);
+  if (object(sites['create'], ['id', 'source', 'node', 'statement', 'model'])['model'] !== 'member_terms.Renewal') {
+    return invalid('term create must target its checked Renewal.');
+  }
+  checkedSite(sites['schedule'], true, ['event']);
+  if (object(sites['schedule'], ['id', 'source', 'node', 'statement', 'event'])['event'] !== 'member_terms.RenewalDue') {
+    return invalid('term schedule must target its checked RenewalDue event.');
+  }
+  checkedSite(raw['membershipSite'], true);
+  const queries = list(raw['querySites']);
+  const shapes = [
+    { stage: 'header', model: 'employee.Employee', domainKind: 'tenant-root', ownerPath: [], order: [] },
+    { stage: 'header', model: 'customer.CompanyRole', domainKind: 'contained-child', ownerPath: ['parent'], order: [] },
+    { stage: 'capture', model: 'sales_attribution.Capture', domainKind: 'contained-child', ownerPath: ['parent'],
+      order: ['-captured', 'id'] },
+    { stage: 'renewal', model: 'member_terms.Renewal', domainKind: 'contained-child', ownerPath: [], order: ['id'] },
+  ];
+  if (queries.length !== shapes.length) return invalid('term decision requires its four complete owner domains.');
+  for (const [index, value] of queries.entries()) {
+    const query = object(value, ['id', 'stage', 'model', 'source', 'callSite', 'aliasSite', 'predicateSite',
+      'domainKind', 'ownerPath', 'deriveChain', 'order']);
+    if (!/^[a-f0-9]{64}$/.test(text(query['id']))) return invalid('term query requires its checked identity.');
+    const shape = shapes[index]!;
+    if (stableStringify({ stage: query['stage'], model: query['model'], domainKind: query['domainKind'],
+      ownerPath: query['ownerPath'], order: query['order'] }) !==
+        stableStringify(shape)) return invalid('term decision query differs from its original domain and order.');
+    origin(query['source']); checkedSpan(query['callSite']); checkedSpan(query['aliasSite']); checkedSpan(query['predicateSite']);
+    const chain = list(query['deriveChain']);
+    if (chain.length > 8 || (index === 3 ? chain.length !== 0 : chain.length === 0)) {
+      return invalid('term decision query needs its bounded original helper path.');
+    }
+    for (const step of chain) {
+      const item = object(step, ['source', 'callSite', 'derive']);
+      origin(item['source']); checkedSpan(item['callSite']); text(item['derive']);
+    }
+  }
+  return deepFreeze(raw) as unknown as TermDecisionPlan;
+}
+
 /** Loader checker; callers cannot turn this data into a bound generated def. */
 export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResultDisclosurePlan {
   const plan = object(dataCopy(value), ['version', 'source', 'returns',
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'queries') ? ['queries'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'eventDecision') ? ['eventDecision'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'eventDecision') ? ['eventDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'termDecision') ? ['termDecision'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'termDecision')) checkTermDecisionPlan(plan['termDecision'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -358,6 +482,7 @@ function modelResultWire(result: unknown): RecordId {
 interface BoundPlan {
   anyQueries: ReadonlyMap<string, ScenarioQueryAnyProfile>;
   readonly eventDecision?: EventDecisionPlan;
+  readonly termDecision?: TermDecisionPlan;
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
   readonly resultModel: ModelName | undefined;
   readonly inputs: readonly CanonicalInputDef[];
@@ -696,15 +821,19 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
       event.decision === (send ? 'when' : 'if') &&
       issued.site.stage === (send ? 'send-dispatch' : 'body-condition') &&
       issued.site.node.start === event.site.node.start && issued.site.node.end === event.site.node.end;
-    const priorPending = eventNested ? 1 : 0;
+    const term = owner.activeTermDecision;
+    const termNested = !send && term?.call === call && owner.busy && owner.stage === 0 &&
+      issued.site.stage === 'body-condition' &&
+      issued.site.node.start === term.site.node.start && issued.site.node.end === term.site.node.end;
+    const priorPending = eventNested || termNested ? 1 : 0;
     if (owner.executingCall !== call || state.returnId !== null || state.pending !== priorPending || owner.capture.pending !== priorPending ||
         issued.site.stage === 'leading-require' && owner.stage !== 0 || owner.callGuards.length >= MAX_ITEMS) return invalid('membership capture is concurrent, completed, stale or outside its authored stage.');
     const activeSend = owner.activeSend;
     if (send ? activeSend === null || activeSend.call !== call || activeSend.stage !== owner.stage ||
         stableStringify(activeSend.guard.node) !== stableStringify(issued.site.node) : activeSend !== null) return invalid('membership differs from its genuine owner or source SEND occurrence.');
     const query = state.queries.find(value => value.call === call && value.owner === owner && value.stage === owner!.stage && value.activeSlot !== null) ?? null;
-    if (owner.busy && query === null && !eventNested || !owner.busy && query !== null ||
-        eventNested && query !== null) return invalid('membership query capture requires its actual active candidate slot.');
+    if (owner.busy && query === null && !eventNested && !termNested || !owner.busy && query !== null ||
+        (eventNested || termNested) && query !== null) return invalid('membership query capture requires its actual active candidate slot.');
     const stage = owner.stage, slot = query?.activeSlot ?? null;
     state.pending += 1; acquired = true;
     // Synchronous literal capture consumes the native evaluated arguments once,
@@ -721,7 +850,8 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
       capture(call, store); ownerHealthy(owner!);
       if (owner!.executingCall !== call || owner!.stage !== stage || owner!.activeSend !== activeSend || query !== null &&
           (query.activeSlot !== slot || query.complete) || state!.pending !== priorPending + 1 ||
-          eventNested && owner!.activeEventDecision !== event) return invalid('membership read crossed its exact active call/query stage.');
+          eventNested && owner!.activeEventDecision !== event ||
+          termNested && owner!.activeTermDecision !== term) return invalid('membership read crossed its exact active call/query stage.');
     };
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Membership observation moved beyond its admitted revision.');
     healthy();
@@ -1043,6 +1173,8 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   const plan = checkScenarioResultDisclosurePlan(claim), declared = def.descriptor.result!.type;
   const rawEventDecision = (plan as ScenarioResultDisclosurePlan & { readonly eventDecision?: unknown }).eventDecision;
   const eventDecision = rawEventDecision === undefined ? undefined : checkEventDecisionPlan(rawEventDecision, plan.source);
+  const rawTermDecision = (plan as ScenarioResultDisclosurePlan & { readonly termDecision?: unknown }).termDecision;
+  const termDecision = rawTermDecision === undefined ? undefined : checkTermDecisionPlan(rawTermDecision, plan.source);
   if (eventDecision !== undefined) {
     const inspection = models.find(model => model.name === 'maintain.Inspection');
     const planModel = models.find(model => model.name === 'maintain.Plan');
@@ -1058,6 +1190,27 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
         !models.some(model => model.name === 'employee.Employee') ||
         !models.some(model => model.name === 'rent_catalog.Location')) {
       return invalid('event decision lacks its exact private Inspection, parent and collection declarations.');
+    }
+  }
+  if (termDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    if (def.kind !== 'scenario' || def.name !== termDecision.owner || declared !== 'void' ||
+        inputs.length !== 3 || inputs[0]?.name !== 'membership' || inputs[0].kind !== 'ref' ||
+        inputs[0].model !== 'member_terms.Membership' || !inputs[0].required ||
+        inputs[1]?.name !== 'cycle' || inputs[1].kind !== 'integer' || !inputs[1].required ||
+        inputs[2]?.name !== 'capture' || inputs[2].kind !== 'ref' ||
+        inputs[2].model !== 'sales_attribution.Capture' || inputs[2].nullable !== true ||
+        models.find(model => model.name === 'member_terms.Membership')?.parent !== 'customer.Customer' ||
+        models.find(model => model.name === 'member_terms.Renewal')?.parent !== 'member_terms.Membership' ||
+        models.find(model => model.name === 'sales_attribution.Capture')?.parent !== 'customer.Customer' ||
+        models.find(model => model.name === 'customer.CompanyRole')?.parent !== 'customer.Customer' ||
+        models.find(model => model.name === 'refer.Advocate')?.parent !== 'refer.Program' ||
+        !['member_plans.Plan', 'employee.Employee', 'refer.Program', 'affiliate.Partner', 'rent_catalog.Location']
+          .every(name => models.some(model => model.name === name)) ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('term decision lacks its exact void owner source and model declarations.');
     }
   }
   const resultModel = modelResultType(declared);
@@ -1179,6 +1332,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   }
   boundPlans.set(def, { plan, type, resultModel, anyQueries: new Map(), models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
     ...(eventDecision === undefined ? {} : { eventDecision }),
+    ...(termDecision === undefined ? {} : { termDecision }),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,
@@ -2278,6 +2432,8 @@ interface Capture {
   queryResult: unknown | undefined;
   modelResult?: { readonly existing: boolean; readonly returnId: string; readonly model: ModelName; readonly row: StoredRow; readonly wire: Readonly<{ id: RecordId }> };
   readonly files: Array<ScenarioReceiptFileAssignmentLocator & { readonly file: RetainedFinalizedFile }>;
+  termDecision?: { readonly membership: StoredRow; readonly capture: StoredRow | null;
+    readonly previous: StoredRow | null; readonly cycle: bigint };
 }
 const captures = new WeakMap<AdmittedCall, Capture>();
 const captureContexts = new WeakMap<object, Capture>();
@@ -2349,6 +2505,7 @@ interface ReceiptOwnerSession {
   activeSend: { readonly call: AdmittedCall; readonly guard: ScenarioReceiptSendGuard; readonly stage: number } | null;
   activeEventDecision: { readonly call: AdmittedCall; readonly decision: 'if' | 'when';
     readonly site: EventDecisionSite } | null;
+  activeTermDecision: { readonly call: AdmittedCall; readonly site: TermDecisionSite } | null;
 }
 const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
 const ownerContexts = new WeakMap<object, ReceiptOwnerSession>();
@@ -2962,7 +3119,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
       framework: producer === undefined ? null : { producer, rows: new Map(), queued: new Map(), skipped: new Map(), ordinal: 0 },
       ...inputDefaultSlots(call, state.bound), computedIndex: 0,
       session: null, options: input, executingCall: call, callCount: 0, callDepth: 0, calls: [], callGuards: [], storedFileChecks: [], modelResults: [], activeSend: null,
-      activeEventDecision: null };
+      activeEventDecision: null, activeTermDecision: null };
     ownerSessions.set(call, owner);
     ownerContexts.set(call.context, owner);
     const session = await ownerOperation(owner, () => beginOwnerMutation({ ...input, context: call.context, store,
@@ -3777,6 +3934,243 @@ export async function executeScenarioReceiptEventDecision(call: AdmittedCall, st
       return true;
     } }));
     return authority.value;
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+  finally { if (acquired) { state.pending--; owner!.busy = false; } }
+}
+
+/** The paid-term callback is one source-stamped, pre-write owner decision.
+ * It observes the current admitted Membership/Capture and complete hidden
+ * helper domains, then records the exact selected Renewal for the void effect
+ * gate. Nothing in this frame grants a viewer read or an outward result. */
+export async function executeScenarioReceiptTermDecision(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: TermDecisionPlan;
+  readonly checked: TermDecisionPlan;
+  readonly evaluate: (frame: {
+    readonly membership: StoredRow;
+    readonly capture: StoredRow | null;
+    readonly cycle: bigint;
+    readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
+    readonly query: (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+    readonly observer: ScenarioReceiptRequireObserver;
+  }) => Promise<StoredRow | null>;
+}): Promise<StoredRow | null> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  let acquired = false;
+  try {
+    const profile = state.bound.termDecision;
+    if (profile === undefined || owner === undefined || owner.session === null ||
+        owner.stage !== 0 || owner.busy || state.pending !== 0 || state.returnId !== null ||
+        owner.executingCall !== call || state.termDecision !== undefined ||
+        owner.callGuards.length >= MAX_ITEMS || typeof input.evaluate !== 'function') {
+      return invalid('term decision needs its one active pre-write owner stage.');
+    }
+    const original = checkTermDecisionPlan(dataCopy(input.original), state.bound.plan.source);
+    const checked = checkTermDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
+    if (stableStringify(original) !== stableStringify(checked) ||
+        stableStringify(original) !== stableStringify(profile)) {
+      return invalid('term decision differs from its independently checked source.');
+    }
+    const membershipRefs = call.recordRefs.filter(ref => ref.param === 'membership' &&
+      ref.model === 'member_terms.Membership');
+    const captureRefs = call.recordRefs.filter(ref => ref.param === 'capture' &&
+      ref.model === 'sales_attribution.Capture');
+    const membershipRef = membershipRefs[0], captureRef = captureRefs[0];
+    const admittedCapture = Object.hasOwn(call.inputs, 'capture')
+      ? admittedInputWire(call.inputs, 'capture') : null;
+    const captureValue = admittedCapture === null ? null :
+      decodeValue('sales_attribution.Capture', admittedCapture) as { readonly id: string };
+    const cycle = decodeValue('int', admittedInputWire(call.inputs, 'cycle')) as bigint;
+    if (membershipRefs.length !== 1 || membershipRef === undefined ||
+        membershipRef.expectedVersion === null || membershipRef.row.version !== membershipRef.expectedVersion ||
+        membershipRef.id !== membershipRef.row.id ||
+        (decodeValue('member_terms.Membership', admittedInputWire(call.inputs, 'membership')) as { readonly id: string }).id !== membershipRef.id ||
+        (captureValue === null ? captureRefs.length !== 0 :
+          captureRefs.length !== 1 || captureRef?.id !== captureValue.id ||
+          captureRef.expectedVersion === null || captureRef.row.version !== captureRef.expectedVersion ||
+          captureRef.id !== captureRef.row.id)) {
+      return invalid('term decision needs its exact admitted versioned Membership and optional Capture.');
+    }
+    owner.busy = true; state.pending++; acquired = true;
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner);
+      if (owner.stage !== 0 || owner.executingCall !== call || !owner.busy ||
+          state.pending !== 1 || state.returnId !== null) {
+        return invalid('term decision crossed its original pre-write owner stage.');
+      }
+    };
+    const key = (model: string, id: string) => `${model}\0${id}`;
+    const rows = new Map<string, StoredRow>();
+    const membership = await owner.session.views.final.get('member_terms.Membership' as ModelName, membershipRef.id); healthy();
+    if (membership === null || membership.archivedAt !== null ||
+        stableStringify(membership) !== stableStringify(membershipRef.row) ||
+        membership.parent?.model !== 'customer.Customer') {
+      throw new StateError('conflict', 'Term Membership differs from its admitted row.');
+    }
+    rows.set(key('member_terms.Membership', membership.id), membership);
+    const captureRow = captureRef === undefined ? null :
+      await owner.session.views.final.get('sales_attribution.Capture' as ModelName, captureRef.id); healthy();
+    if (captureRef !== undefined && (captureRow === null || captureRow.archivedAt !== null ||
+        stableStringify(captureRow) !== stableStringify(captureRef.row))) {
+      throw new StateError('conflict', 'Term Capture differs from its admitted row.');
+    }
+    if (captureRow !== null) rows.set(key('sales_attribution.Capture', captureRow.id), captureRow);
+    const referenceId = (type: string, wire: unknown): string | null => {
+      if (wire === null || wire === undefined) return null;
+      return (decodeValue(type, wire) as { readonly id: string }).id;
+    };
+    const linkAllowed = (model: ModelName, id: RecordId): boolean => {
+      if (model === 'member_terms.Membership') return id === membership.id;
+      if (model === 'customer.Customer') return id === membership.parent?.id ||
+        [...rows.values()].some(row => rows.get(key('sales_attribution.Capture', row.id)) === row &&
+          row.parent?.model === model && row.parent.id === id);
+      if (model === 'member_plans.Plan') return id === referenceId('member_plans.Plan', membership.data['plan']);
+      if (model === 'sales_attribution.Capture') return rows.has(key(model, id));
+      if (model === 'refer.Advocate') return [...rows.values()].some(row =>
+        row.parent?.model === 'customer.Customer' && rows.get(key('sales_attribution.Capture', row.id)) === row &&
+        referenceId('refer.Advocate?', row.data['advocate']) === id);
+      if (model === 'affiliate.Partner') return [...rows.values()].some(row =>
+        rows.get(key('sales_attribution.Capture', row.id)) === row &&
+        referenceId('affiliate.Partner?', row.data['partner']) === id);
+      if (model === 'refer.Program') return [...rows.values()].some(row =>
+        rows.get(key('refer.Advocate', row.id)) === row && row.parent?.id === id);
+      if (model === 'rent_catalog.Location') {
+        const plan = rows.get(key('member_plans.Plan', referenceId('member_plans.Plan', membership.data['plan']) ?? ''));
+        const locations = plan === undefined ? [] : decodeValue('rent_catalog.Location[]', plan.data['locations']) as readonly { readonly id: string }[];
+        return locations.some(location => location.id === id);
+      }
+      return rows.has(key(model, id));
+    };
+    const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+      healthy();
+      if (!linkAllowed(model, id)) return invalid('term decision read differs from its checked reference path.');
+      const existing = rows.get(key(model, id));
+      if (existing !== undefined) return existing;
+      const row = await owner.session!.views.final.get(model, id); healthy();
+      if (row !== null) {
+        if (row.archivedAt !== null ||
+            model === 'refer.Advocate' && row.parent?.model !== 'refer.Program' ||
+            model === 'sales_attribution.Capture' && row.parent?.model !== 'customer.Customer') {
+          throw new StateError('forbidden', 'Term decision reference lifetime is unavailable.');
+        }
+        rows.set(key(model, id), row);
+      }
+      return row;
+    };
+    type Domain = { readonly model: ModelName; readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+      readonly rows: readonly StoredRow[] };
+    const domains: Domain[] = [];
+    let phase: 'header' | 'capture' | 'renewal' = 'header';
+    let captureQueries = 0, renewalQueries = 0, observedQueries = 0, companyQueries = 0;
+    const query = async (model: ModelName,
+      parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+      healthy();
+      const customer = { model: 'customer.Customer' as ModelName, id: membership.parent!.id };
+      const memberParent = { model: 'member_terms.Membership' as ModelName, id: membership.id };
+      const sameParent = (expected: typeof customer | undefined) => expected === undefined ? parent === undefined :
+        parent?.model === expected.model && parent.id === expected.id;
+      if (domains.length >= MAX_ITEMS || (
+          model === 'employee.Employee' ? phase !== 'header' || !sameParent(undefined) :
+          model === 'customer.CompanyRole' ? phase !== 'header' || !sameParent(customer) || companyQueries++ !== 0 :
+          model === 'sales_attribution.Capture' ? captureRow === null || phase === 'renewal' ||
+            !sameParent(customer) || captureQueries++ !== 0 :
+          model === 'member_terms.Renewal' ? !sameParent(memberParent) || renewalQueries++ !== 0 : true)) {
+        return invalid('term decision query differs from its checked owner collection and source order.');
+      }
+      if (model === 'sales_attribution.Capture') phase = 'capture';
+      if (model === 'member_terms.Renewal') phase = 'renewal';
+      const found = await owner.session!.views.final.query({ model, authority: 'owner', archived: 'exclude',
+        order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows,
+        ...(parent === undefined ? {} : { parent }) });
+      healthy();
+      for (const row of found) {
+        if (row.archivedAt !== null || (parent === undefined ? row.parent !== null :
+            row.parent?.model !== parent.model || row.parent.id !== parent.id)) {
+          return invalid('term decision query returned a foreign or archived owner row.');
+        }
+        rows.set(key(model, row.id), row);
+      }
+      const domain = Object.freeze([...found]);
+      domains.push({ model, ...(parent === undefined ? {} : { parent }), rows: domain });
+      return domain;
+    };
+    const observer: ScenarioReceiptRequireObserver = Object.freeze({
+      field: (model: string, projected: StoredRow | ProjectedRecord, field: string) => {
+        healthy();
+        const source = rows.get(key(model, projected.id));
+        if (source === undefined || source.version !== projected.version ||
+            !state.bound.artifactModels.has(model as ModelName) ||
+            !['parent', 'id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt'].includes(field) &&
+              !state.bound.artifactModels.get(model as ModelName)!.fields.some(entry => entry.name === field)) {
+          return invalid('term decision field lacks its actual owner row and declaration.');
+        }
+      },
+      query: (model: string, records: readonly ProjectedRecord[], id?: string,
+        parent?: Readonly<{ model: string; id: string }>) => {
+        healthy();
+        const domain = domains[observedQueries++];
+        if (id !== undefined || domain?.model !== model ||
+            stableStringify(domain?.parent ?? null) !== stableStringify(parent ?? null) ||
+            stableStringify(domain?.rows.map(row => [row.id, row.version])) !==
+              stableStringify(records.map(row => [row.id, row.version]))) {
+          return invalid('term decision query lacks its complete original owner domain.');
+        }
+      },
+    });
+    const memberships = scenarioReceiptMemberships(call, store);
+    const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
+    const identity = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId); healthy();
+    const context: ByContext = { actorUserId, teamId, membership: identity, memberships };
+    let answer: StoredRow | null | undefined;
+    const authority = await observeRowGrantAuthority(context, async observed => {
+      if (answer !== undefined) return answer;
+      if (observed.actorUserId !== context.actorUserId || observed.teamId !== context.teamId) {
+        return invalid('term decision Identity differs from its admitted actor.');
+      }
+      owner.activeTermDecision = Object.freeze({ call, site: profile.membershipSite });
+      try { answer = await input.evaluate(Object.freeze({ membership, capture: captureRow, cycle, read, query, observer })); }
+      finally { owner.activeTermDecision = null; }
+      if (answer !== null && (typeof answer !== 'object' || answer.archivedAt !== null ||
+          rows.get(key('member_terms.Renewal', answer.id)) !== answer)) {
+        return invalid('term decision returned a foreign selected Renewal.');
+      }
+      healthy(); return answer;
+    });
+    await authority.revalidate(); healthy();
+    const selected = authority.value;
+    const expected = (domains.find(domain => domain.model === 'member_terms.Renewal')?.rows ?? [])
+      .filter(row => decodeValue('int', row.data['cycle']) === cycle)
+      .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)[0] ?? null;
+    if (renewalQueries !== 1 || captureQueries !== (captureRow === null ? 0 : 1) ||
+        observedQueries !== domains.length || selected !== expected ||
+        selected !== null && stableStringify(selected.data['capture'] ?? null) !==
+          stableStringify(captureRow === null ? null : { id: captureRow.id })) {
+      return invalid('term decision lost its optional Capture and mandatory first Renewal selection.');
+    }
+    state.termDecision = { membership, capture: captureRow, previous: selected, cycle };
+    owner.callGuards.push(Object.freeze({ name: `term-decision:${profile.sites.renewalFirst.id}`, evaluate: async () => {
+      if (owner.finalized === null || owner.capture.poisoned) return invalid('term decision needs actual final owner effects.');
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Term decision moved before outer commit.');
+      for (const [identity, row] of rows) {
+        const separator = identity.indexOf('\0');
+        const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
+          id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
+        if (stableStringify(current) !== stableStringify(row)) {
+          throw new StateError('forbidden', 'Term decision referenced row changed before commit.');
+        }
+      }
+      for (const domain of domains) {
+        const current = await store.query({ model: domain.model, authority: 'owner', archived: 'exclude',
+          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows,
+          ...(domain.parent === undefined ? {} : { parent: domain.parent }) });
+        if (stableStringify(current) !== stableStringify(domain.rows)) {
+          throw new StateError('forbidden', 'Term decision owner query domain changed before commit.');
+        }
+      }
+      await authority.revalidate();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Term decision moved beyond outer commit.');
+      return true;
+    } }));
+    return selected;
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
   finally { if (acquired) { state.pending--; owner!.busy = false; } }
 }
@@ -5584,6 +5978,9 @@ export function selectScenarioReceiptReturn(call: AdmittedCall, store: StoragePo
     if (state.pending !== 0 || ownerSessions.get(call)?.busy === true) { state.poisoned = true; return invalid('return selection cannot precede pending owner reads/observations.'); }
     const returned = state.bound.plan.returns.find(entry => entry.id === returnId);
     if (state.returnId !== null || returned === undefined) return invalid('one actual checked return path required.');
+    if (state.bound.termDecision !== undefined && state.termDecision === undefined) {
+      return invalid('paid term return omitted its complete original owner decision.');
+    }
     const countFirstSeat = countFirstSeatProfile(call.def as GeneratedOperationDef, state.bound);
     if (countFirstSeat !== undefined) {
       const [count, first] = state.queries;
@@ -5727,6 +6124,60 @@ function verifyDueWorkWrites(call: AdmittedCall, admission: DueWorkAdmission, wr
   }
   return status;
 }
+
+/** The checked term source has two successful void tails. A hidden previous
+ * Renewal is an idempotent replay; absence creates exactly one child and its
+ * keyed RenewalDue schedule in the same committed effect set. */
+function verifyPaidTermEffects(call: AdmittedCall, decision: NonNullable<Capture['termDecision']>,
+  owner: ReceiptOwnerSession | undefined, effects: ExecutionEffects): void {
+  if (owner === undefined || owner.finalized === null || call.def.name !== 'member_terms.term' ||
+      effects.result !== null || effects.outbox.length !== 0 ||
+      owner.finalized.schedules.length !== 0) {
+    return invalid('paid term lacks its exact void owner effects.');
+  }
+  const writes = owner.finalized.writes;
+  const work = owner.commitEffects!.writes.filter(isDueWorkWrite);
+  if (decision.previous !== null) {
+    if (owner.stage !== 0 || writes.length !== 0 || work.length !== 0 || effects.schedules.length !== 0) {
+      return invalid('existing paid Renewal cannot create or schedule another term.');
+    }
+    return;
+  }
+  const write = writes[0], schedule = effects.schedules[0], scheduled = work[0];
+  if (owner.stage !== 1 || writes.length !== 1 || write?.kind !== 'insert' ||
+      write.model !== 'member_terms.Renewal' || effects.schedules.length !== 1 ||
+      schedule?.op !== 'replace' || work.length !== 1 || scheduled?.kind !== 'insert' ||
+      scheduled.model !== 'work.schedule') {
+    return invalid('new paid term requires one Renewal insert and one schedule.');
+  }
+  const row = write.row;
+  const actor = call.context.actor?.userId;
+  const scope = call.checkpoint?.owner;
+  const expectedKey = scope === undefined ? null :
+    [call.context.app, 'member_terms', scope, row.id].map(encodeURIComponent).join('/');
+  const lineage = scheduled.row;
+  const payload = { renewal: encodeValue('member_terms.Renewal',
+    makeRecordRef('member_terms.Renewal', row.id, BigInt(row.version))) };
+  if (row.version !== 1 || row.archivedAt !== null || row.parent?.model !== 'member_terms.Membership' ||
+      row.parent.id !== decision.membership.id ||
+      decodeValue('int', row.data['cycle']) !== decision.cycle ||
+      stableStringify(row.data['capture'] ?? null) !==
+        stableStringify(decision.capture === null ? null : { id: decision.capture.id }) ||
+      actor === undefined || stableStringify(row.data['requester']) !== stableStringify({ id: actor }) ||
+      stableStringify(row.data['consent'] ?? null) !== stableStringify(decision.membership.data['consent'] ?? null) ||
+      expectedKey === null || schedule.key !== expectedKey || schedule.at !== call.context.now ||
+      schedule.event !== 'member_terms.RenewalDue' ||
+      stableStringify(schedule.payload) !== stableStringify(payload) ||
+      lineage.version !== 1 || lineage.archivedAt !== null || lineage.parent !== null ||
+      lineage.data['occurrenceId'] !== lineage.id || lineage.data['key'] !== row.id ||
+      lineage.data['scopeApp'] !== call.context.app || lineage.data['scopeOwner'] !== scope ||
+      lineage.data['scopeOwnerPackage'] !== 'member_terms' || lineage.data['at'] !== call.context.now ||
+      lineage.data['event'] !== 'member_terms.RenewalDue' || lineage.data['state'] !== 'pending' ||
+      lineage.data['replaces'] !== null ||
+      stableStringify(lineage.data['payload']) !== stableStringify(schedule.payload)) {
+    return invalid('paid Renewal or RenewalDue differs from its original CREATE and SCHEDULE.');
+  }
+}
 /** Invoke alone calls this after execution; no executor-supplied association is accepted. */
 export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffects): ScenarioReceiptAssociation | undefined {
   let state = captures.get(call);
@@ -5759,7 +6210,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
       // stronger recorded terminal-pair admission.
       if (dueAdmission === undefined) {
         if (owner.options.stageSources === undefined ||
-            owner.finalized.writes.some(isDueWorkWrite) ||
+            owner.finalized.writes.some(isDueWorkWrite) && state?.termDecision === undefined ||
             stableStringify(dataCopy(returnedWork)) !== stableStringify(dataCopy(committedWork))) {
           return invalid('executor source Work writes differ from the actual finalized owner sources.');
         }
@@ -5803,6 +6254,10 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   const writes = owner?.finalized?.writes ?? effects.writes, result = effects.result;
   const bound = boundPlans.get(call.def as GeneratedOperationDef);
   if (bound === undefined) return undefined;
+  if (bound.termDecision !== undefined) {
+    if (state?.termDecision === undefined) return invalid('paid term omitted its original owner decision.');
+    verifyPaidTermEffects(call, state.termDecision, owner, effects);
+  }
   // One checked empty path permits the ordinary implicit void return. Its
   // success receipt carries no business result and still saves changed rows.
   if (bound.type === 'void' && bound.plan.returns.length === 1 && bound.plan.returns[0]!.dependencies.length === 0 &&

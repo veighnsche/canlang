@@ -27,7 +27,7 @@ export interface OwnerMutationSourceStageView {
   readonly consumeWork: (amount?: number) => void;
 }
 const FRAMEWORK_MODELS = new Set(['work.handler_occurrence', 'work.occurrence', 'work.fanout_intent',
-  'work.fanout_checkpoint', 'work.fanout_child']);
+  'work.fanout_checkpoint', 'work.fanout_child', 'work.schedule']);
 const stageIdentity = Symbol('owner-mutation-source-stage');
 interface StageLedger {
   phase: 'active' | 'checking' | 'closed';

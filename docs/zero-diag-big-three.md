@@ -110,6 +110,16 @@ guarded-SEND `E6008` at offset 37041 and adds no diagnostic. Its source-bound
 event decision and Work preclaim check are described below; the remaining 81
 are separate sites.
 
+The next complete 24-source release capture reports 79 diagnostics
+(`complete:true`, `omitted:0`). It removes the original `CanMember.term`
+Renewal `first` `E6008` at offsets 31244–31324 with no new diagnostic. The
+other removal is an unrelated `CanShift` `active_member` `E6007`: rebuilding
+the native catalog marked that capability implemented, whereas the earlier
+capture used an external entry. With the earlier catalog, the term change
+alone takes the count from 81 to 80. The shared
+`sales_attribution.latest_capture` helper still reports its own `E6008`
+because CanPropose and CanRent call it outside the term owner decision.
+
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
 **Implementation status, 2026-10-21:** The first owner-decision repair is now
@@ -152,11 +162,18 @@ The complete 24-source capture clears its original helper-domain diagnostic.
 
 `CanMember.assign` now pairs its active-Seat count with the account-matched
 `first(term.Seat...)`, preserving their source order and all cross-model
-helper observations through the create or reactivation branch. The nearest
-remaining Member query is `term`'s `first(membership.Renewal...)`: its
-selected row feeds a capture comparison and a null-branch create/schedule,
-after an optional capture-validation branch with another owner query. That
-presence and selected-value flow needs its own checked receipt.
+helper observations through the create or reactivation branch.
+
+`CanMember.term` now has a separate source-bound owner decision for its
+optional Capture validation, hidden authority collections, and mandatory
+`first(membership.Renewal...)`. The selected Renewal's capture must match
+the request; replay writes nothing, while the null branch creates one Renewal
+and stages its versioned `RenewalDue` Work schedule in the same owner commit.
+The owner session rechecks referenced rows, complete query domains, and
+actor authority before commit. Its original `latest_capture` helper executes
+only inside this checked term decision; other callers retain the ordinary
+helper refusal. The installed integration matrix covers hidden captures,
+roles, workers and renewals, source changes, and current-row races.
 
 The other original mutation-body sites additionally copy selected fields
 into effects, return an existing selected row, or select after earlier

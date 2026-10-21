@@ -2680,6 +2680,13 @@ fn emit_program_with_sources(
                     );
                     continue;
                 }
+                if item.canonical == "member_terms.term"
+                    && recipe.plan.term_decision.is_some()
+                    && decisions.source_context.is_some_and(|context|
+                        super::term_decisions::latest_capture_private_only(context,item))
+                {
+                    emitter.private_term_helper_only = true;
+                }
                 emitter.native_receipts.insert(item.id, recipe);
             } else if ir.scenario_disclosures.get(&item.id)
                 .and_then(|value| value.source_facts())
@@ -4443,6 +4450,7 @@ pub struct Emitter<'a> {
     formatted_bindings: Vec<HashMap<String, bool>>,
     formatted_derives: BTreeSet<String>,
     native_receipts: HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+    private_term_helper_only: bool,
     execution_dependencies:
         BTreeMap<String, Vec<super::scenario_receipts::ReceiptRequireConsumption>>,
     native_call_sites: HashMap<SymbolId, Vec<super::scenario_calls::StaticScenarioCall>>,
@@ -4684,6 +4692,7 @@ impl<'a> Emitter<'a> {
             formatted_bindings: vec![HashMap::new()],
             formatted_derives: BTreeSet::new(),
             native_receipts: HashMap::new(),
+            private_term_helper_only: false,
             execution_dependencies: BTreeMap::new(),
             native_call_sites: HashMap::new(),
             receipt_call_sites: Vec::new(),
@@ -19817,6 +19826,18 @@ impl<'a> Emitter<'a> {
                     ""
                 };
                 match expr {
+                    Some(_) if !owner_mode && !boolean_body
+                        && item.canonical == "sales_attribution.latest_capture"
+                        && self.private_term_helper_only =>
+                    {
+                        // The exact term profile proves the only checked call
+                        // to this helper is inside its private owner callback.
+                        // Keep the ordinary export fail-closed; the selected
+                        // owner variant below performs the checked FIRST.
+                        out.push(item.span,Some(item.canonical.clone()),
+                            &format!("{export}async function {name}({}){{throw new Error('latest_capture requires its checked term owner');}}",
+                                signature.join(",")));
+                    }
                     Some(expr) => {
                         let mut defaults = String::new();
                         for (id, name) in params.iter().zip(signature.iter().skip(1)) {
@@ -20131,6 +20152,13 @@ impl<'a> Emitter<'a> {
         guards: &[IrStmt],
         effects: &[IrStmt],
     ) {
+        if let Some(decision) = self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.term_decision.clone())
+            && item.canonical == "member_terms.term"
+        {
+            self.emit_term_decision_body(out,item,guards,effects,&decision);
+            return;
+        }
         for guard in guards {
             for (line, span) in self.lower_stmt(guard, 0) {
                 out.push(span, Some(item.canonical.clone()), &line);
@@ -20140,6 +20168,48 @@ impl<'a> Emitter<'a> {
             for (line, span) in self.lower_stmt(effect, 0) {
                 out.push(span, Some(item.canonical.clone()), &line);
             }
+        }
+    }
+
+    fn emit_term_decision_body(
+        &mut self, out: &mut JsWriter, item: &IrItem,
+        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
+    ) {
+        let [capture_branch,previous_let,previous_require,create_branch] = effects else {
+            self.unsupported("term owner decision","the exact authored body is missing",item.span);
+            return;
+        };
+        let previous_owner = self.owner_handler_body;
+        let previous_query = self.query_capture.take();
+        self.owner_handler_body = true;
+        self.enter_scope();
+        let membership = self.bind("membership");
+        let cycle = self.bind("cycle");
+        let capture = self.bind("capture");
+        self.stdlib.insert("nativeScenarioTermDecision".into());
+        out.push(item.span,Some(item.canonical.clone()),
+            &format!("const $termPrevious=await nativeScenarioTermDecision(c,{},async(c,{{membership:{membership},cycle:{cycle},capture:{capture}}})=>{{",
+                descriptor_json(decision)));
+        for guard in guards {
+            for (line,span) in self.lower_stmt(guard,0) {
+                out.push(span,Some(item.canonical.clone()),&line);
+            }
+        }
+        for effect in [capture_branch,previous_let,previous_require] {
+            for (line,span) in self.lower_stmt(effect,0) {
+                out.push(span,Some(item.canonical.clone()),&line);
+            }
+        }
+        let selected = self.reference("previous");
+        out.push(item.span,Some(item.canonical.clone()),&format!("return {selected};}});"));
+        self.exit_scope();
+        self.owner_handler_body = previous_owner;
+        self.query_capture = previous_query;
+        let previous = self.bind("previous");
+        out.push(item.span,Some(item.canonical.clone()),
+            &format!("const {previous}=$termPrevious;"));
+        for (line,span) in self.lower_stmt(create_branch,0) {
+            out.push(span,Some(item.canonical.clone()),&line);
         }
     }
 

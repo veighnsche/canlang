@@ -57,6 +57,7 @@ mod scenario_feasibility;
 pub mod scenario_queries;
 mod scenario_receipts;
 mod event_decisions;
+mod term_decisions;
 mod send_guards;
 pub mod sourcemap;
 pub mod then_views;
