@@ -2709,7 +2709,8 @@ fn emit_program_with_sources(
                 ir,
                 SymbolId(index as u32),
             ) {
-                if !missing_source_checked_send_rule(ir, item, emitter.send_guards) {
+                if item.canonical == "maintain.remind"
+                    || !missing_source_checked_send_rule(ir, item, emitter.send_guards) {
                     emitter.diags.push(Diagnostic::error(
                         "E6008",
                         "send dispatch guard needs exact original native receipt and sealed Rule correspondence".into(),
@@ -12146,7 +12147,31 @@ fn null_equality(
                 if in_hook {
                     self.hook_decision_depth += 1;
                 }
-                let cond_text = self.lower_expr(cond);
+                let event_decision = self.receipt_capture.as_ref()
+                    .and_then(|receipt| receipt.plan.event_decision.clone());
+                let cond_text = if let Some(decision) = event_decision {
+                    let site = &decision["ifSite"];
+                    if site["statement"]["start"].as_u64() != Some(u64::from(span.start))
+                        || site["statement"]["end"].as_u64() != Some(u64::from(span.end))
+                        || site["node"]["start"].as_u64() != Some(u64::from(cond.span.start))
+                        || site["node"]["end"].as_u64() != Some(u64::from(cond.span.end))
+                    {
+                        self.unsupported("event owner decision",
+                            "original IF decision no longer matches its complete event receipt",*span);
+                        "false".into()
+                    } else {
+                        self.enter_scope();
+                        let inspection = self.bind("inspection");
+                        let event = self.bind("event");
+                        let expression = self.lower_expr(cond);
+                        self.exit_scope();
+                        self.stdlib.insert("nativeScenarioEventDecision".into());
+                        format!("await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision}})=>{{const {inspection}=eventTerm;const {event}={{inspection:eventTerm,revision:eventRevision}};return {expression};}})",
+                            descriptor_json(&decision))
+                    }
+                } else {
+                    self.lower_expr(cond)
+                };
                 if in_hook {
                     self.hook_decision_depth -= 1;
                 }
@@ -19265,12 +19290,17 @@ impl<'a> Emitter<'a> {
                     .collect::<Vec<_>>()
                     .join("");
                 let event_binding = guard.event_source.as_ref().map_or_else(String::new, |source| {
-                    format!(
+                    let event = format!(
                         "const {}={{{}:$can$send$inputs[{}],{}:$can$send$inputs[{}]}};",
                         self.bind("event"),
                         object_key(&source.model_field), js_string(source.model_slot),
                         object_key(&source.revision_field), js_string(source.revision_slot),
-                    )
+                    );
+                    match source.lexical_alias.as_deref() {
+                        Some(alias) => format!("{event}const {}=$can$send$inputs[{}];",
+                            self.bind(alias),js_string(source.model_slot)),
+                        None => event,
+                    }
                 });
                 let predicate = self.lower_expr(&guard.predicate);
                 self.exit_scope();

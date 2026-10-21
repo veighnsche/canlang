@@ -82,7 +82,7 @@ export {
 export const same = sameNativeReference;
 export { active_member } from './native-membership.js';
 export { nativeReadBoolean, nativeReadReference } from './native-read-boolean.js';
-export { nativeScenarioRequire } from './native-scenario-require.js';
+export { nativeScenarioRequire, nativeScenarioEventDecision } from './native-scenario-require.js';
 export { delivery } from '@canlang/state/effects/delivery';
 
 /** Whole historical callback observation through the installed current viewer scope. */

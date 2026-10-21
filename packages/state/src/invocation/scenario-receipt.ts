@@ -17,7 +17,7 @@ import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, make
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import { buildPolicyTable, evalPredicateForRow, type ByContext, type PolicyTable } from '../policy/grants.js';
-import { evaluateBy, type MembershipReader } from '../policy/roles.js';
+import { evaluateBy, hasRole, type MembershipReader } from '../policy/roles.js';
 import { checkedMembershipFact, checkedAuthoritySnapshot, observeRowGrantAuthority } from '../policy/membership-facts.js';
 import { queryRecordsObserved, orderSourceReadRecords, projectSavedRecordForViewer, projectCurrentRecordForViewerPolicy, projectSourceRowFields,
   type ObservedQueryResult } from '../query/engine.js';
@@ -153,11 +153,124 @@ function origin(value: unknown): void {
   if (typeof source['sha256'] !== 'string' || !/^[a-f0-9]{64}$/.test(source['sha256'])) return invalid('exact source digest required.');
 }
 
+export interface EventDecisionSite {
+  readonly id: string;
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly node: { readonly start: number; readonly end: number; readonly kind: number };
+  readonly statement: { readonly start: number; readonly end: number; readonly kind: number };
+}
+export interface EventDecisionQuerySite {
+  readonly id: string;
+  readonly decision: 'if' | 'when';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly callSite: EventDecisionSite['node'];
+  readonly aliasSite: EventDecisionSite['node'];
+  readonly predicateSite: EventDecisionSite['node'];
+  readonly model: 'maintain.Cancellation' | 'employee.Employee';
+  readonly domainKind: 'event-child' | 'tenant-root';
+  readonly ownerPath: readonly string[];
+  readonly deriveChain: readonly { readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly callSite: EventDecisionSite['node']; readonly derive: string }[];
+}
+export interface EventDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'maintain.remind';
+  readonly event: 'maintain.Reminder';
+  readonly rowField: 'inspection';
+  readonly rowModel: 'maintain.Inspection';
+  readonly revisionField: 'revision';
+  readonly letSite: EventDecisionSite;
+  readonly ifSite: EventDecisionSite;
+  readonly whenSite: EventDecisionSite;
+  readonly sendSite: EventDecisionSite;
+  readonly setSite: EventDecisionSite & { readonly target: 'eventTerm'; readonly field: 'reminded_at'; readonly value: 'now' };
+  readonly querySites: readonly EventDecisionQuerySite[];
+  readonly roleSites: readonly { readonly id: string; readonly decision: 'if' | 'when';
+    readonly source: ScenarioResultDisclosurePlan['source']; readonly callSite: EventDecisionSite['node'];
+    readonly role: 'maintain.technician'; readonly deriveChain: EventDecisionQuerySite['deriveChain'] }[];
+}
+function checkEventDecisionPlan(value: unknown, transport: unknown): EventDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'event', 'rowField', 'rowModel', 'revisionField',
+    'letSite', 'ifSite', 'whenSite', 'sendSite', 'setSite', 'querySites', 'roleSites']);
+  const receiptSource = object(transport, ['path', 'sha256', 'module']);
+  if (raw['version'] !== 1 || raw['owner'] !== 'maintain.remind' || raw['event'] !== 'maintain.Reminder' ||
+      raw['rowField'] !== 'inspection' || raw['rowModel'] !== 'maintain.Inspection' ||
+      raw['revisionField'] !== 'revision') return invalid('event decision requires its exact Maintain handler and event fields.');
+  const span = (value: unknown): void => {
+    const node = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
+        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number)) {
+      return invalid('event decision needs a nonempty original source interval.');
+    }
+    // Compiler AST kinds are sealed numeric syntax tags in the source map.
+    if (!Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
+      return invalid('event decision needs its original syntax kind.');
+    }
+  };
+  const ids = new Set<string>();
+  const siteId = (value: unknown): void => {
+    const id = text(value);
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id)) return invalid('event decision needs unique checked source identities.');
+    ids.add(id);
+  };
+  const site = (value: unknown, set = false): void => {
+    const item = object(value, ['id', 'source', 'node', 'statement', ...(set ? ['target', 'field', 'value'] : [])]);
+    siteId(item['id']); origin(item['source']); span(item['node']); span(item['statement']);
+    const originalSource = object(item['source'], ['path', 'sha256', 'module']);
+    if (originalSource['module'] !== 'maintain' ||
+        originalSource['path'] !== receiptSource['path'] ||
+        originalSource['sha256'] !== receiptSource['sha256']) {
+      return invalid('event decision site differs from its owning source.');
+    }
+    if (set && (item['target'] !== 'eventTerm' || item['field'] !== 'reminded_at' || item['value'] !== 'now')) {
+      return invalid('event decision SET requires its exact Inspection.reminded_at assignment.');
+    }
+  };
+  for (const key of ['letSite', 'ifSite', 'whenSite', 'sendSite'] as const) site(raw[key]);
+  site(raw['setSite'], true);
+  const chain = (value: unknown): void => {
+    const entries = list(value);
+    if (entries.length === 0 || entries.length > 8) return invalid('event decision requires its bounded original derive chain.');
+    for (const entry of entries) {
+      const item = object(entry, ['source', 'callSite', 'derive']);
+      origin(item['source']); span(item['callSite']); text(item['derive']);
+    }
+  };
+  const queries = list(raw['querySites']);
+  if (queries.length !== 4) return invalid('event decision needs both complete source query domains.');
+  for (const [index, entry] of queries.entries()) {
+    const item = object(entry, ['id', 'decision', 'source', 'callSite', 'aliasSite', 'predicateSite',
+      'model', 'domainKind', 'ownerPath', 'deriveChain']);
+    siteId(item['id']); origin(item['source']); span(item['callSite']); span(item['aliasSite']); span(item['predicateSite']);
+    const decision = index < 2 ? 'if' : 'when';
+    const cancellation = index % 2 === 0;
+    if (item['decision'] !== decision || item['model'] !== (cancellation ? 'maintain.Cancellation' : 'employee.Employee') ||
+        item['domainKind'] !== (cancellation ? 'event-child' : 'tenant-root') ||
+        stableStringify(list(item['ownerPath'])) !== stableStringify(cancellation ? ['parent', 'parent'] : [])) {
+      return invalid('event decision query differs from its ordered Cancellation/Employee source domains.');
+    }
+    chain(item['deriveChain']);
+  }
+  const roles = list(raw['roleSites']);
+  if (roles.length !== 2) return invalid('event decision requires its two original technician role sites.');
+  for (const [index, entry] of roles.entries()) {
+    const item = object(entry, ['id', 'decision', 'source', 'callSite', 'role', 'deriveChain']);
+    siteId(item['id']); origin(item['source']); span(item['callSite']); chain(item['deriveChain']);
+    if (item['decision'] !== (index === 0 ? 'if' : 'when') || item['role'] !== 'maintain.technician') {
+      return invalid('event decision role differs from its original technician call.');
+    }
+  }
+  return deepFreeze(raw) as unknown as EventDecisionPlan;
+}
+
 /** Loader checker; callers cannot turn this data into a bound generated def. */
 export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResultDisclosurePlan {
-  const plan = object(dataCopy(value), ['version', 'source', 'returns', ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'queries') ? ['queries'] : [])]);
+  const plan = object(dataCopy(value), ['version', 'source', 'returns',
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'queries') ? ['queries'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'eventDecision') ? ['eventDecision'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
+  if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -244,6 +357,7 @@ function modelResultWire(result: unknown): RecordId {
 }
 interface BoundPlan {
   anyQueries: ReadonlyMap<string, ScenarioQueryAnyProfile>;
+  readonly eventDecision?: EventDecisionPlan;
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
   readonly resultModel: ModelName | undefined;
   readonly inputs: readonly CanonicalInputDef[];
@@ -577,13 +691,20 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
         (send ? issued.site.stage !== 'send-dispatch' : issued.site.stage === 'send-dispatch') ||
         issued.site.stage === 'read-policy' || issued.site.stage === 'read-predicate') return invalid('membership requires its actual bound source lifetime, never a current-read or deferred dispatch execution.');
     ownerHealthy(owner);
-    if (owner.executingCall !== call || state.returnId !== null || state.pending !== 0 || owner.capture.pending !== 0 ||
+    const event = owner.activeEventDecision;
+    const eventNested = event?.call === call && owner.busy && owner.stage === 0 &&
+      event.decision === (send ? 'when' : 'if') &&
+      issued.site.stage === (send ? 'send-dispatch' : 'body-condition') &&
+      issued.site.node.start === event.site.node.start && issued.site.node.end === event.site.node.end;
+    const priorPending = eventNested ? 1 : 0;
+    if (owner.executingCall !== call || state.returnId !== null || state.pending !== priorPending || owner.capture.pending !== priorPending ||
         issued.site.stage === 'leading-require' && owner.stage !== 0 || owner.callGuards.length >= MAX_ITEMS) return invalid('membership capture is concurrent, completed, stale or outside its authored stage.');
     const activeSend = owner.activeSend;
     if (send ? activeSend === null || activeSend.call !== call || activeSend.stage !== owner.stage ||
         stableStringify(activeSend.guard.node) !== stableStringify(issued.site.node) : activeSend !== null) return invalid('membership differs from its genuine owner or source SEND occurrence.');
     const query = state.queries.find(value => value.call === call && value.owner === owner && value.stage === owner!.stage && value.activeSlot !== null) ?? null;
-    if (owner.busy && query === null || !owner.busy && query !== null) return invalid('membership query capture requires its actual active candidate slot.');
+    if (owner.busy && query === null && !eventNested || !owner.busy && query !== null ||
+        eventNested && query !== null) return invalid('membership query capture requires its actual active candidate slot.');
     const stage = owner.stage, slot = query?.activeSlot ?? null;
     state.pending += 1; acquired = true;
     // Synchronous literal capture consumes the native evaluated arguments once,
@@ -599,7 +720,8 @@ async function evaluateOwnerMembership(call: AdmittedCall, store: StoragePort,
     const healthy = () => {
       capture(call, store); ownerHealthy(owner!);
       if (owner!.executingCall !== call || owner!.stage !== stage || owner!.activeSend !== activeSend || query !== null &&
-          (query.activeSlot !== slot || query.complete) || state!.pending !== 1) return invalid('membership read crossed its exact active call/query stage.');
+          (query.activeSlot !== slot || query.complete) || state!.pending !== priorPending + 1 ||
+          eventNested && owner!.activeEventDecision !== event) return invalid('membership read crossed its exact active call/query stage.');
     };
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Membership observation moved beyond its admitted revision.');
     healthy();
@@ -919,6 +1041,25 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   if (claim === undefined) return;
   if (def.kind !== 'scenario' && def.kind !== 'read') return invalid('dependency plans require a scenario or checked read.');
   const plan = checkScenarioResultDisclosurePlan(claim), declared = def.descriptor.result!.type;
+  const rawEventDecision = (plan as ScenarioResultDisclosurePlan & { readonly eventDecision?: unknown }).eventDecision;
+  const eventDecision = rawEventDecision === undefined ? undefined : checkEventDecisionPlan(rawEventDecision, plan.source);
+  if (eventDecision !== undefined) {
+    const inspection = models.find(model => model.name === 'maintain.Inspection');
+    const planModel = models.find(model => model.name === 'maintain.Plan');
+    const cancellation = models.find(model => model.name === 'maintain.Cancellation');
+    const inputs = def.descriptor.inputs;
+    if (def.kind !== 'scenario' || def.name !== eventDecision.owner || declared !== 'void' ||
+        inputs.length !== 2 || inputs[0]?.name !== eventDecision.rowField ||
+        inputs[0].kind !== 'ref' || inputs[0].model !== eventDecision.rowModel || !inputs[0].required ||
+        inputs[1]?.name !== eventDecision.revisionField || inputs[1].kind !== 'integer' || !inputs[1].required ||
+        inspection?.parent !== 'maintain.Plan' || planModel?.parent !== 'maintain.Asset' ||
+        cancellation?.parent !== 'maintain.Asset' ||
+        !models.some(model => model.name === 'maintain.Asset') ||
+        !models.some(model => model.name === 'employee.Employee') ||
+        !models.some(model => model.name === 'rent_catalog.Location')) {
+      return invalid('event decision lacks its exact private Inspection, parent and collection declarations.');
+    }
+  }
   const resultModel = modelResultType(declared);
   if (resultModel !== undefined && (def.kind !== 'scenario' ||
       models.filter(model => model.name === resultModel).length !== 1 ||
@@ -1037,6 +1178,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     return invalid('query parent requires its declared required singular versioned reference input.');
   }
   boundPlans.set(def, { plan, type, resultModel, anyQueries: new Map(), models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
+    ...(eventDecision === undefined ? {} : { eventDecision }),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,
@@ -1091,6 +1233,8 @@ export interface ScenarioReceiptSendGuard {
       readonly declaration: { readonly start: number; readonly end: number };
       readonly occurrence: { readonly start: number; readonly end: number } };
     readonly predicate: { readonly start: number; readonly end: number };
+    /** Compiler-sealed IF/WHEN owner domains, exact against this bound plan. */
+    readonly ownerDecision?: EventDecisionPlan;
     /** Compiler-checked SEND recipient expression, confined to the private
      * reminder handler's exact Appointment.contact -> Contact.email path. */
     readonly recipientPath?: {
@@ -1185,7 +1329,8 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
     if (Object.hasOwn(guard, 'eventSource')) {
       const rawEvent = guard['eventSource'];
       const event = object(rawEvent, ['event', 'handler', 'modelField', 'revisionField', 'predicate',
-        ...(typeof rawEvent === 'object' && rawEvent !== null && Object.hasOwn(rawEvent, 'recipientPath') ? ['recipientPath'] : [])]);
+        ...(typeof rawEvent === 'object' && rawEvent !== null && Object.hasOwn(rawEvent, 'recipientPath') ? ['recipientPath'] : []),
+        ...(typeof rawEvent === 'object' && rawEvent !== null && Object.hasOwn(rawEvent, 'ownerDecision') ? ['ownerDecision'] : [])]);
       const modelField = object(event['modelField'], ['name', 'model', 'declaration', 'occurrence', 'fields']);
       const revisionField = object(event['revisionField'], ['name', 'type', 'declaration', 'occurrence']);
       const interval = (value: unknown) => {
@@ -1214,6 +1359,16 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
             return input.name === 'eventTerm' ? input.type !== modelName : input.name !== 'eventRevision' || input.type !== 'int';
           }) ||
           !models.has('eventTerm')) return invalid('event SEND requires its exact declared private field and typed lexical census.');
+      if (Object.hasOwn(event, 'ownerDecision')) {
+        const checked = checkEventDecisionPlan(event['ownerDecision'], bound.plan.source);
+        if (bound.eventDecision === undefined || def.name !== 'maintain.remind' ||
+            stableStringify(checked) !== stableStringify(bound.eventDecision) ||
+            checked.whenSite.node.start !== node['start'] || checked.whenSite.node.end !== node['end']) {
+          return invalid('event SEND owner decision differs from its checked original IF/WHEN receipt.');
+        }
+      } else if (bound.eventDecision !== undefined) {
+        return invalid('event SEND omitted its checked original owner decision.');
+      }
       if (Object.hasOwn(event, 'recipientPath')) {
         const path = object(event['recipientPath'], ['sourceField', 'leafField', 'sourceDependencyId', 'leafDependencyId']);
         const sourceDependencyId = text(path['sourceDependencyId']), leafDependencyId = text(path['leafDependencyId']);
@@ -1270,6 +1425,7 @@ function declaredEventIntrinsic(def: GeneratedOperationDef): { readonly modelFie
   if (def.name === 'agreements.notice') return { modelField: 'term', model: 'agreements.Term' as ModelName };
   if (def.name === 'agreements.due') return { modelField: 'obligation', model: 'agreements.Obligation' as ModelName };
   if (def.name === 'appointments.remind') return { modelField: 'appointment', model: 'appointments.Appointment' as ModelName };
+  if (def.name === 'maintain.remind') return { modelField: 'inspection', model: 'maintain.Inspection' as ModelName };
   return undefined;
 }
 
@@ -1287,6 +1443,30 @@ function admittedEventIntrinsic(call: AdmittedCall, parameter: string): Scenario
     return invalid('event intrinsic requires its original due Work source and checked private handler.');
   }
   return source;
+}
+
+/** Maintain's checked reminder sends before its sole business SET. The
+ * original event row is a pre-write observation, so the final owner overlay
+ * may differ only by that exact `reminded_at=now` assignment. */
+function maintainReminderOwnWrite(call: AdmittedCall, owner: ReceiptOwnerSession,
+  event: NonNullable<ScenarioReceiptSendGuard['eventSource']>, original: StoredRow,
+  current: StoredRow | null, writes: readonly DomainWrite[]): boolean {
+  if (call.def.name !== 'maintain.remind' || event.event !== 'maintain.Reminder' ||
+      event.handler !== 'maintain.remind' || event.modelField.name !== 'inspection' ||
+      event.modelField.model !== 'maintain.Inspection' || event.revisionField.name !== 'revision' ||
+      current === null || owner.stage !== 1 || owner.framework?.ordinal !== 1 ||
+      owner.framework.queued.size !== 1 || owner.framework.skipped.size !== 0 ||
+      writes.length !== 1 || writes[0]?.kind !== 'update' ||
+      writes[0].model !== 'maintain.Inspection' || writes[0].id !== original.id ||
+      current.id !== original.id || current.version !== original.version + 1 ||
+      current.updated !== call.context.now || current.updatedBy !== call.context.trustedSource ||
+      !sameModelLifetime(original, current) ||
+      !Object.hasOwn(current.data, 'reminded_at') ||
+      current.data['reminded_at'] !== new Date(call.context.now).toISOString()) return false;
+  const restored = { ...current, version: original.version, updated: original.updated,
+    updatedBy: original.updatedBy,
+    data: { ...current.data, reminded_at: original.data['reminded_at'] } };
+  return stableStringify(restored) === stableStringify(original);
 }
 
 /** The only non-containment read admitted from a due event is the checked
@@ -2167,6 +2347,8 @@ interface ReceiptOwnerSession {
   readonly storedFileChecks: Array<() => Promise<void>>;
   readonly modelResults: Array<{ readonly existing: boolean; readonly model: ModelName; readonly row: StoredRow }>;
   activeSend: { readonly call: AdmittedCall; readonly guard: ScenarioReceiptSendGuard; readonly stage: number } | null;
+  activeEventDecision: { readonly call: AdmittedCall; readonly decision: 'if' | 'when';
+    readonly site: EventDecisionSite } | null;
 }
 const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
 const ownerContexts = new WeakMap<object, ReceiptOwnerSession>();
@@ -2332,6 +2514,14 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
         const payload = object(due!.eventPayload, [event.modelField.name, event.revisionField.name]);
         const ref = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly id: string };
         if (row.id !== ref.id || row.archivedAt !== null) return invalid('event SEND model differs from its current retained source row.');
+        if (call.def.name === 'maintain.remind') {
+          const admitted = call.recordRefs.find(candidate => candidate.param === event.modelField.name &&
+            candidate.model === event.modelField.model && candidate.id === ref.id);
+          if (event.event !== 'maintain.Reminder' || owner.stage !== 0 || admitted === undefined ||
+              !sameModelLifetime(admitted.row, row) || stableStringify(admitted.row) !== stableStringify(row)) {
+            return invalid('maintain reminder SEND requires its unchanged event Inspection at the original source stage.');
+          }
+        }
       }
       models.push({ name: input.name, profile, row, sourcePresence: deepFreeze({ fields: Object.keys(row.data) }) });
     } else {
@@ -2377,8 +2567,11 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
           const current = write === undefined
             ? await owner.store.cohortLoad({ model: profile.model, id: row.id, expectedRevision: call.revision })
             : write.kind === 'remove' ? null : write.row;
+          const maintain = call.def.name === 'maintain.remind' && event?.event === 'maintain.Reminder';
           if (owner.finalized !== final || owner.capture.poisoned || current === null ||
-              !sameModelLifetime(row, current) || stableStringify(current) !== stableStringify(row)) {
+              !sameModelLifetime(row, current) || (maintain
+                ? !maintainReminderOwnWrite(call, owner, event, row, current, final.writes)
+                : stableStringify(current) !== stableStringify(row))) {
             throw new StateError('forbidden', 'event SEND source row changed before commit.');
           }
           if (await owner.store.readRevision() !== call.revision) {
@@ -2768,7 +2961,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
       commitEffects: null, consumeWork: null, maxRows: bounds['maxRows'] as number,
       framework: producer === undefined ? null : { producer, rows: new Map(), queued: new Map(), skipped: new Map(), ordinal: 0 },
       ...inputDefaultSlots(call, state.bound), computedIndex: 0,
-      session: null, options: input, executingCall: call, callCount: 0, callDepth: 0, calls: [], callGuards: [], storedFileChecks: [], modelResults: [], activeSend: null };
+      session: null, options: input, executingCall: call, callCount: 0, callDepth: 0, calls: [], callGuards: [], storedFileChecks: [], modelResults: [], activeSend: null,
+      activeEventDecision: null };
     ownerSessions.set(call, owner);
     ownerContexts.set(call.context, owner);
     const session = await ownerOperation(owner, () => beginOwnerMutation({ ...input, context: call.context, store,
@@ -3373,6 +3567,213 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
       });
       await current.revalidate(); await authority.revalidate(); finalHealthy();
       if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Source Require moved beyond its original revision.');
+      return true;
+    } }));
+    return authority.value;
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+  finally { if (acquired) { state.pending--; owner!.busy = false; } }
+}
+
+/** The private Maintain event's original IF and WHEN borrow the admitted
+ * Inspection owner stage. Each installed Bool runs once over actual current
+ * rows; complete hidden collection domains and current Identity are retained
+ * until the same atomic commit. No other event gains a query capability. */
+export async function executeScenarioReceiptEventDecision(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: EventDecisionPlan;
+  readonly checked: EventDecisionPlan;
+  readonly decision: 'if' | 'when';
+  readonly evaluate: (frame: {
+    readonly root: StoredRow;
+    readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
+    readonly query: (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+    readonly observer: ScenarioReceiptRequireObserver;
+    readonly role: (role: string, subject: UserRef) => Promise<boolean>;
+  }) => Promise<boolean>;
+}): Promise<boolean> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  let acquired = false;
+  try {
+    const profile = state.bound.eventDecision;
+    if (profile === undefined || owner === undefined || owner.session === null ||
+        owner.stage !== 0 || owner.busy || state.pending !== 0 || state.returnId !== null ||
+        owner.executingCall !== call || owner.callGuards.length >= MAX_ITEMS ||
+        typeof input.evaluate !== 'function' || !['if', 'when'].includes(input.decision)) {
+      return invalid('event decision needs its exact active initial private owner stage.');
+    }
+    const original = checkEventDecisionPlan(dataCopy(input.original), state.bound.plan.source);
+    const checked = checkEventDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
+    if (stableStringify(original) !== stableStringify(checked) ||
+        stableStringify(original) !== stableStringify(profile)) {
+      return invalid('event decision differs from its independently checked source.');
+    }
+    const decision = input.decision, site = decision === 'if' ? profile.ifSite : profile.whenSite;
+    const occurrence = `event-decision:${site.id}`;
+    if (owner.callGuards.some(guard => guard.name === occurrence) ||
+        (decision === 'if' ? owner.activeSend !== null :
+          owner.activeSend?.call !== call || owner.activeSend.guard.eventSource?.event !== profile.event ||
+          owner.activeSend.guard.node.start !== site.node.start || owner.activeSend.guard.node.end !== site.node.end)) {
+      return invalid('event decision crossed its unique original IF or SEND WHEN occurrence.');
+    }
+    const event = admittedEventIntrinsic(call, 'eventTerm');
+    const due = dueWorkAdmissions.get(call);
+    if (event === undefined || due?.eventPayload === undefined ||
+        event.event !== profile.event || event.modelField.name !== profile.rowField ||
+        event.modelField.model !== profile.rowModel || event.revisionField.name !== profile.revisionField) {
+      return invalid('event decision needs the actual admitted Reminder Work row.');
+    }
+    const payload = object(due.eventPayload, [profile.rowField, profile.revisionField]);
+    const workRef = decodeValue(profile.rowModel, payload[profile.rowField]) as { readonly id: string };
+    const workRevision = decodeValue('int', payload[profile.revisionField]);
+    const admittedRef = call.recordRefs.find(ref => ref.param === profile.rowField &&
+      ref.model === profile.rowModel && ref.id === workRef.id);
+    if (admittedRef === undefined || workRevision !== decodeValue('int', admittedInputWire(call.inputs, profile.revisionField)) ||
+        (decodeValue(profile.rowModel, admittedInputWire(call.inputs, profile.rowField)) as { readonly id: string }).id !== workRef.id) {
+      return invalid('event decision differs from its admitted Inspection and revision.');
+    }
+    owner.busy = true; state.pending++; acquired = true;
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner);
+      if (owner.stage !== 0 || owner.executingCall !== call || !owner.busy || state.pending !== 1 ||
+          state.returnId !== null) return invalid('event decision crossed its source owner stage.');
+    };
+    const rowKey = (model: string, id: string) => `${model}\0${id}`;
+    const rows = new Map<string, StoredRow>();
+    const root = await owner.session.views.final.get(profile.rowModel as ModelName, admittedRef.id); healthy();
+    if (root === null || root.archivedAt !== null ||
+        stableStringify(root) !== stableStringify(admittedRef.row) ||
+        root.parent?.model !== 'maintain.Plan') {
+      throw new StateError('conflict', 'Event Inspection differs from its admitted source row.');
+    }
+    rows.set(rowKey(profile.rowModel, root.id), root);
+    const permitted = new Set(['maintain.Inspection', 'maintain.Plan', 'maintain.Asset',
+      'maintain.Cancellation', 'employee.Employee', 'rent_catalog.Location']);
+    const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+      healthy();
+      const plan = root.parent === null || root.parent === undefined ? undefined :
+        rows.get(rowKey('maintain.Plan', root.parent.id));
+      const asset = plan?.parent === null || plan?.parent === undefined ? undefined :
+        rows.get(rowKey('maintain.Asset', plan.parent.id));
+      const location = asset === undefined ? undefined :
+        decodeValue('rent_catalog.Location', asset.data['location']) as { readonly id: string };
+      if (!permitted.has(model) ||
+          model === 'maintain.Inspection' && id !== root.id ||
+          model === 'maintain.Plan' && id !== root.parent?.id ||
+          model === 'maintain.Asset' && id !== plan?.parent?.id ||
+          model === 'rent_catalog.Location' && id !== location?.id ||
+          (model === 'maintain.Cancellation' || model === 'employee.Employee') &&
+            !rows.has(rowKey(model, id))) return invalid('event decision read differs from its checked owner path.');
+      const key = rowKey(model, id), cached = rows.get(key);
+      if (cached !== undefined) return cached;
+      const row = await owner.session!.views.final.get(model, id); healthy();
+      if (row !== null && (row.archivedAt !== null ||
+          model === 'maintain.Plan' && row.parent?.model !== 'maintain.Asset' ||
+          model === 'maintain.Cancellation' && row.parent?.model !== 'maintain.Asset')) {
+        throw new StateError('forbidden', 'Event decision parent or target lifetime is unavailable.');
+      }
+      if (row !== null) rows.set(key, row);
+      return row;
+    };
+    const policyDomains = ownerPolicyDomains(owner, healthy);
+    const expected = profile.querySites.filter(query => query.decision === decision);
+    let queryIndex = 0;
+    const query = async (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+      const site = expected[queryIndex];
+      const plan = root.parent === null || root.parent === undefined ? undefined :
+        rows.get(rowKey('maintain.Plan', root.parent.id));
+      const assetId = plan?.parent?.model === 'maintain.Asset' ? plan.parent.id : undefined;
+      if (site === undefined || model !== site.model ||
+          (site.domainKind === 'event-child' ? parent?.model !== 'maintain.Asset' || parent.id !== assetId : parent !== undefined)) {
+        return invalid('event decision query differs from its ordered original owner domain.');
+      }
+      queryIndex++;
+      const domain = await policyDomains.capture(model, parent);
+      for (const row of domain) rows.set(rowKey(model, row.id), row);
+      return domain;
+    };
+    const domains: Array<{ readonly model: ModelName; readonly ids: readonly string[];
+      readonly parent?: Readonly<{ model: ModelName; id: RecordId }> }> = [];
+    const observer: ScenarioReceiptRequireObserver = Object.freeze({
+      field: (model: string, projected: StoredRow | ProjectedRecord, field: string) => {
+        healthy();
+        const row = rows.get(rowKey(model, projected.id));
+        if (row === undefined || row.version !== projected.version ||
+            !state.bound.artifactModels.has(model as ModelName) ||
+            !['parent', 'id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt'].includes(field) &&
+              !state.bound.artifactModels.get(model as ModelName)!.fields.some(entry => entry.name === field)) {
+          return invalid('event decision field lacks its actual owner row and declaration.');
+        }
+      },
+      query: (model: string, records: readonly ProjectedRecord[], id?: string,
+        parent?: Readonly<{ model: string; id: string }>) => {
+        healthy();
+        if (id !== undefined || domains.length >= 2 || records.some(record =>
+          rows.get(rowKey(model, record.id))?.version !== record.version)) {
+          return invalid('event decision query lacks its complete owner collection.');
+        }
+        domains.push({ model: model as ModelName, ids: Object.freeze(records.map(record => record.id)),
+          ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) });
+      },
+    });
+    const memberships = scenarioReceiptMemberships(call, store);
+    const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
+    const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
+    healthy();
+    const context: ByContext = { actorUserId, teamId, membership, memberships };
+    let answer: boolean | undefined;
+    let roleContext: ByContext | null = null, roleUses = 0;
+    const role = async (name: string, subject: UserRef): Promise<boolean> => {
+      healthy();
+      const plan = root.parent === null || root.parent === undefined ? undefined :
+        rows.get(rowKey('maintain.Plan', root.parent.id));
+      const expected = plan === undefined ? undefined : decodeValue('user', plan.data['assignee']);
+      if (roleContext === null || owner.activeEventDecision?.site !== site ||
+          name !== 'maintain.technician' || !isUserRef(subject) ||
+          !isUserRef(expected) || subject.id !== expected.id || ++roleUses !== 1) {
+        return invalid('event decision role differs from the actual checked Plan assignee.');
+      }
+      const result = await hasRole(roleContext, name, subject.id);
+      healthy(); return result;
+    };
+    const authority = await observeRowGrantAuthority(context, async observed => {
+      if (answer !== undefined) return answer;
+      if (observed.actorUserId !== context.actorUserId || observed.teamId !== context.teamId) {
+        return invalid('event decision Identity differs from its admitted source.');
+      }
+      const active = Object.freeze({ call, decision, site });
+      owner.activeEventDecision = active; roleContext = observed;
+      try { answer = await input.evaluate(Object.freeze({ root, read, query, observer, role })); }
+      finally { roleContext = null; owner.activeEventDecision = null; }
+      if (typeof answer !== 'boolean') return invalid('event decision original source must return Bool.');
+      healthy(); return answer;
+    });
+    await authority.revalidate(); healthy();
+    if (domains.length !== queryIndex || queryIndex > 2) return invalid('event decision query observations differ from source order.');
+    owner.callGuards.push(Object.freeze({ name: occurrence, evaluate: async () => {
+      const final = owner.finalized;
+      if (final === null || owner.capture.poisoned) return invalid('event decision needs actual finalized owner effects.');
+      const finalHealthy = () => {
+        if (owner.finalized !== final || owner.capture.poisoned) return invalid('event decision final owner changed.');
+      };
+      const retained = policyDomains.retained(finalHealthy);
+      for (const domain of domains) {
+        const current = await retained(domain.model, domain.parent);
+        if (stableStringify(current.map(row => row.id)) !== stableStringify(domain.ids)) {
+          throw new StateError('forbidden', 'Event decision owner query domain changed.');
+        }
+      }
+      if (authority.value) {
+        const write = final.writes.find(write => write.model === profile.rowModel &&
+          (write.kind === 'insert' ? write.row.id : write.id) === root.id);
+        if (!maintainReminderOwnWrite(call, owner, event, root,
+          write === undefined || write.kind === 'remove' ? null : write.row, final.writes)) {
+          throw new StateError('forbidden', 'Event decision lost its exact SEND then Inspection SET.');
+        }
+      } else if (decision === 'if' && (owner.stage !== 0 || final.writes.length !== 0 ||
+          owner.framework?.queued.size !== 0)) {
+        throw new StateError('forbidden', 'False event IF cannot stage a SEND or SET.');
+      }
+      await authority.revalidate(); finalHealthy();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Event decision moved beyond its admitted revision.');
       return true;
     } }));
     return authority.value;
@@ -4294,8 +4695,11 @@ async function observeEventOwnerReferenceAuthority(call: AdmittedCall, store: St
           const now = write === undefined
             ? await store.cohortLoad({ model: entry.model, id: entry.row.id, expectedRevision: call.revision })
             : write.kind === 'remove' ? null : write.row;
+          const ownReminder = call.def.name === 'maintain.remind' &&
+            entry.model === source.modelField.model && entry.row.id === admittedRef.id &&
+            maintainReminderOwnWrite(call, owner, source, entry.row, now, final.writes);
           if (owner.finalized !== final || owner.capture.poisoned || now === null ||
-              stableStringify(now) !== stableStringify(entry.row)) {
+              !ownReminder && stableStringify(now) !== stableStringify(entry.row)) {
             throw new StateError('forbidden', 'Event parent source changed before commit.');
           }
         }

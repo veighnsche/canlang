@@ -76,6 +76,8 @@ pub(super) struct PreparedSendEventSource {
     pub revision_slot: &'static str,
     pub model_field: String,
     pub revision_field: String,
+    /// A source-proven `let alias=event.<model>` bound to the authenticated row.
+    pub lexical_alias: Option<String>,
 }
 
 /// Only this module constructs a prepared inventory. All editable IR is sealed.
@@ -536,6 +538,7 @@ fn prepare_send_guard(
                     _ => "term",
                 }.into(),
                 revision_field: "revision".into(),
+                lexical_alias: None,
             }),
         },
     ))
@@ -564,6 +567,15 @@ fn prepare_owner_guards(
     collect_sends(effects, &mut sends, 0)?;
     if sends.is_empty() {
         return Ok(None);
+    }
+    if owner.canonical == "maintain.remind" {
+        let (span, guard) = super::event_decisions::prepare_maintain_remind(context, owner)
+            .ok_or_else(|| gap("exact event owner decision unavailable", Some(owner.span)))?;
+        if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
+            || guards.insert(span,guard.clone()).is_some() {
+            return Err(gap("event SEND dispatch census mismatch",Some(owner.span)));
+        }
+        return Ok(Some(vec![guard.descriptor]));
     }
     // A fresh IR refusal in this scenario, a consumed helper, or a schema
     // declaration invalidates its SEND proof. Unrelated owners cannot.

@@ -78,6 +78,18 @@ const dispatches = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, {
   readonly producer: ScenarioDispatchMembershipProducer<DispatchGuardExecution> | undefined;
 }>>();
 const dispatchExecutions = new WeakMap<DispatchGuardExecution, Frame>();
+const eventRoles = new WeakMap<HandlerContext, (role: string, subject: UserRef) => Promise<boolean>>();
+/** The checked Maintain IF/WHEN installs this only inside its live owner
+ * decision callback. State validates the role, actual Plan assignee and fence. */
+export function bindNativeEventDecisionRole(c: HandlerContext,
+  evaluate: (role: string, subject: UserRef) => Promise<boolean>): () => void {
+  const frame = checked(c);
+  if (frame.call === undefined && frame.dispatch === undefined || eventRoles.has(c)) {
+    return refuse('event subject role requires its unique live owner decision.');
+  }
+  eventRoles.set(c, evaluate);
+  return () => { eventRoles.delete(c); };
+}
 export function hasNativeOwnerMembership(def: GeneratedOperationDef): boolean { return owners.has(def); }
 const refuse = (message: string): never => { throw new StateError('validation', `Native membership: ${message}`); };
 function fail(frame: Frame, error: unknown): never {
@@ -491,6 +503,20 @@ function checkSubjectCheckpoint(frame: Frame, observation: NonNullable<Frame['ob
 export async function nativeReadSubjectRole(c: HandlerContext, role: string, subject: unknown): Promise<boolean> {
   const frame = checked(c);
   try {
+    const eventRole = eventRoles.get(c);
+    if (eventRole !== undefined) {
+      if (frame.call === undefined && frame.dispatch === undefined || frame.pending || frame.captured !== null) {
+        return refuse('event subject role crossed its owner decision frame.');
+      }
+      const userSubject = checkSubjectPerson(subject, role);
+      frame.pending = true;
+      const answer = await eventRole(role, userSubject);
+      checked(c);
+      if (eventRoles.get(c) !== eventRole || typeof answer !== 'boolean') {
+        return refuse('event subject role lost its exact State observation.');
+      }
+      return answer;
+    }
     if (frame.observation === undefined || frame.call !== undefined) {
       return refuse('subject hasRole requires its actual coherent State source-read policy context; owner mutation subject role ledger is unavailable.');
     }

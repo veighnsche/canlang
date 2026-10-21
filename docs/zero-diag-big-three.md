@@ -83,7 +83,7 @@ the two-parent Membership reference into AccessChanged. An installed test
 covers both authorized branches, wrong or revoked authority, and role and
 location changes at commit. The remaining 84 are separate sites.
 
-The current release build completes the same 24-source capture with 82
+The preceding release build completes the same 24-source capture with 82
 diagnostics (`complete:true`, `omitted:0`). Exactly the two original
 `CanMember.assign` sites clear: the helper-contained source-Require `E6008` at
 offset 38412 and the first-query `E6008` at offset 38861. No diagnostic sites
@@ -97,10 +97,18 @@ payloads remain refused. The remaining 82 are separate sites.
 
 The later CanEvent source correction freezes the narrowed Resource, sets a
 pending venue change to `confirming` before its guarded `Rooms.confirm` SEND,
-then stores the delivery receipt. Previously the source-stage guard saw
-`holding` and skipped the confirmation. A complete 24-source compile after
-this correction still reports 82 diagnostics with the same per-file messages;
+then stores the delivery receipt. Before that correction the source-stage
+guard would see `holding` and skip the confirmation. A complete 24-source
+compile after this correction still reports 82 diagnostics with the same
+per-file messages;
 the `Rooms.confirm` native SEND receipt remains unfinished.
+
+The current release build completes the 24-source capture with 81 diagnostics
+(`complete:true`, `omitted:0`). A per-file message comparison against the
+82-diagnostic capture removes exactly the original `CanMaintain.remind`
+guarded-SEND `E6008` at offset 37041 and adds no diagnostic. Its source-bound
+event decision and Work preclaim check are described below; the remaining 81
+are separate sites.
 
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
@@ -415,6 +423,17 @@ the required `Appointment.contact` reference into `customer.Contact.email`;
 the generated receipt pairs those original observations before the protected
 target is read. The installed hidden-Contact and race checks pass, and the
 complete 24-source capture clears precisely that SEND site.
+
+The `CanMaintain.remind` event handler now has a source-bound owner decision
+for its original IF and guarded Mail SEND. The checked profile follows the
+Reminder's Inspection through Plan and Asset, observes the complete hidden
+Cancellation and Employee collections, and checks the technician role and
+membership of the actual assignee. State admits only the original SEND then
+`Inspection.reminded_at=now` write and revalidates those observations at
+commit. Work re-evaluates the original guard against current owner rows and
+rechecks the same domains and role before it claims queued Mail. The installed
+test covers hidden rows, source-stage races, a successful Mail/SET, two
+post-queue dispatch races, and five altered sources that remain refused.
 
 The [exact event-row SEND carrier design](design/event-send-owner-row.md)
 specifies the remaining compiler, Cloudflare, and State proof for

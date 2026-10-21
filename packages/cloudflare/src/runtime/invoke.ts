@@ -137,9 +137,10 @@ import type { AdmittedCall, ScenarioReceiptCallFrame, ScenarioReceiptCallSite,
   ScenarioReceiptSendGuard, ScenarioReceiptSendGuardFrame, ScenarioReceiptSendProducerInput,
   ScenarioReceiptDeliveryOriginFrame } from '@canlang/state/invocation';
 import { stableStringify } from '@canlang/state/invocation';
+import { hasRole as stateSubjectRole } from '@canlang/state/policy/roles';
 import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNativeSourceSendMembership, openNativeSourceSendMembershipFrame, bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
-  hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
+  bindNativeEventDecisionRole, hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
   type NativeMembershipFrame } from './native-membership.js';
 import type { ScenarioReceiptMembershipSite, ScenarioReceiptRequireSource } from '@canlang/state/invocation';
 import type { CanonicalFileBinding, FileAttachment, FileStagingCensus } from './file-staging.js';
@@ -151,7 +152,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioRequire } from './native-scenario-require.js';
+import { bindNativeScenarioRequire, bindNativeScenarioEventDecision } from './native-scenario-require.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -1466,6 +1467,7 @@ interface StateInvokeProducer {
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
   readonly executeScenarioReceiptRequire?: typeof import('@canlang/state/invocation').executeScenarioReceiptRequire;
+  readonly executeScenarioReceiptEventDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptEventDecision;
   readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
   readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
@@ -1758,6 +1760,9 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['executeScenarioReceiptRequire'] !== 'function' ? {} : {
       executeScenarioReceiptRequire: scenarioMod['executeScenarioReceiptRequire'] as NonNullable<StateInvokeProducer['executeScenarioReceiptRequire']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptEventDecision'] !== 'function' ? {} : {
+      executeScenarioReceiptEventDecision: scenarioMod['executeScenarioReceiptEventDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptEventDecision']>,
     }),
     ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
       observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
@@ -3767,8 +3772,11 @@ async function prepareNativeSendGuardReferences(input: {
   readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
   readonly healthy: () => void;
   readonly failure: (error: unknown) => void;
+  readonly observeField?: (model: string, row: StoredRow, field: string) => void;
   /** Checked private event guards in this profile navigate containment only. */
   readonly parentOnly?: boolean;
+  /** Maintain's sealed owner decision traverses only Inspection→Plan→Asset→Location. */
+  readonly maintainOnly?: boolean;
 }) {
   const { loaded, artifact, snapshots, healthy } = input;
   const StateError = loaded.producers.errors;
@@ -3776,6 +3784,18 @@ async function prepareNativeSendGuardReferences(input: {
   const entries = new Map<string, Entry>(), used = new Set<Entry>();
   const key = (model: string, id: string) => `${model}\0${id}`;
   const links = (model: string, row: StoredRow): { model: string; id: string }[] => {
+    if (input.maintainOnly) {
+      if (model === 'maintain.Inspection' && row.parent?.model === 'maintain.Plan' ||
+          model === 'maintain.Plan' && row.parent?.model === 'maintain.Asset') return [row.parent!];
+      if (model === 'maintain.Asset') {
+        const location = nativeRecordField(loaded, model, 'location', row.data['location']);
+        if (!isRecordRef(location) || location.model !== 'rent_catalog.Location') {
+          throw new StateError('validation', 'Maintain Asset lacks its declared Location link.');
+        }
+        return [location];
+      }
+      return [];
+    }
     const found: { model: string; id: string }[] = row.parent == null ? [] : [row.parent];
     if (input.parentOnly) return found;
     for (const field of artifact.models?.find(item => item.name === model)?.fields ?? []) {
@@ -3833,10 +3853,19 @@ async function prepareNativeSendGuardReferences(input: {
       if (depth >= 32) throw new StateError('validation', 'SEND reference path exceeds its defining bound.');
       if (entry === undefined) throw new StateError('validation', 'SEND target is outside its prepared declaration.');
       observe(entry);
-      return snapshots.view(model, entry.row!, healthy, (model, id) => reference(model, id, depth + 1));
+      const view = snapshots.view(model, entry.row!, healthy, (model, id) => reference(model, id, depth + 1));
+      if (input.observeField === undefined) return view;
+      const tracked = new Proxy(view, { get: (target, field, receiver) => {
+        const value = Reflect.get(target, field, receiver);
+        if (typeof field === 'string') input.observeField!(model, entry.row!, field);
+        return value;
+      } });
+      bindNativeRecord(tracked, model, entry.id, entry.row!.version);
+      return tracked;
     } catch (error) { input.failure(error); throw error; }
   };
-  return Object.freeze({ reference, finalizedReader: (writes: readonly DomainWrite[], physical: typeof input.read) => {
+  return Object.freeze({ reference, hasPrepared: (model: string, id: string) => entries.has(key(model, id)),
+    finalizedReader: (writes: readonly DomainWrite[], physical: typeof input.read) => {
     const final = new Map<string, StoredRow | null>();
     for (const entry of used) for (const write of writes) {
       const id = write.kind === 'insert' || write.kind === 'update' ? write.row.id : write.id;
@@ -3862,6 +3891,195 @@ async function prepareNativeSendGuardReferences(input: {
       }
     }
   } });
+}
+
+/** Exact Maintain event Bool frame. Its singular path is the admitted Work
+ * Inspection; the only collection ports are the checked Asset.Cancellation
+ * child domain and tenant Employee domain supplied by State or Work. */
+async function prepareMaintainEventDecisionViews(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly artifact: CompileArtifact;
+  readonly snapshots: NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
+  readonly root: StoredRow;
+  readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
+  readonly query: (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+  readonly observer?: import('@canlang/state/invocation').ScenarioReceiptRequireObserver;
+  readonly healthy: () => void;
+  readonly failure: (error: unknown) => void;
+}) {
+  const { loaded, snapshots, healthy } = input;
+  const StateError = loaded.producers.errors;
+  const track = (model: string, row: StoredRow, value: Readonly<Record<string, unknown>>) => {
+    if (input.observer === undefined) return value;
+    const tracked = new Proxy(value, { get: (target, field, receiver) => {
+      const result = Reflect.get(target, field, receiver);
+      if (typeof field === 'string') input.observer!.field(model, row, field);
+      return result;
+    } });
+    bindNativeRecord(tracked, model, row.id, row.version);
+    return tracked;
+  };
+  const navigation = await prepareNativeSendGuardReferences({ loaded, artifact: input.artifact, snapshots,
+    roots: [{ type: 'maintain.Inspection', wire: input.root }], read: input.read,
+    healthy, failure: input.failure,
+    ...(input.observer === undefined ? {} : { observeField: input.observer.field }),
+    maintainOnly: true });
+  const reference = (model: string, id: string): unknown => {
+    // Stored helper equality may compare an unrelated reference. A target on
+    // the checked Inspection path is always read (and any failed read stays a
+    // failure); only an unprepared foreign identity remains an opaque Ref.
+    if (!navigation.hasPrepared(model, id) &&
+        (model === 'maintain.Plan' || model === 'rent_catalog.Location')) return makeRecordRef(model, id);
+    return navigation.reference(model, id);
+  };
+  const root = track('maintain.Inspection', input.root,
+    snapshots.view('maintain.Inspection', input.root, healthy, reference));
+  const readRecords = async (c: HandlerContext, model: string, selection: CanonicalReadQuery): Promise<ReadonlyArray<Record<string, unknown>>> => {
+    healthy();
+    if (model !== 'maintain.Cancellation' && model !== 'employee.Employee' ||
+        !isUnknownRecord(selection) || Reflect.ownKeys(selection).some(key =>
+          typeof key !== 'string' || !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+        selection.order !== undefined || selection.limit !== undefined ||
+        selection.archived !== undefined && selection.archived !== 'exclude' ||
+        selection.authority !== undefined && selection.authority !== 'viewer' ||
+        selection.where !== undefined && typeof selection.where !== 'function') {
+      throw new StateError('validation', 'Maintain event query differs from its checked source collection.');
+    }
+    const parent = selection.parent === undefined ? undefined :
+      nativeRecordReference(selection.parent) ?? (isRecordRef(selection.parent) ? selection.parent : undefined);
+    if (model === 'maintain.Cancellation' ? parent?.model !== 'maintain.Asset' : parent !== undefined) {
+      throw new StateError('validation', 'Maintain event collection parent differs from its Inspection Asset.');
+    }
+    const rows = await input.query(model as ModelName,
+      parent === undefined ? undefined : { model: parent.model as ModelName, id: parent.id as RecordId });
+    healthy();
+    input.observer?.query(model, rows.map(row => ({ ...row, parent: row.parent ?? null })), undefined,
+      parent === undefined ? undefined : { model: parent.model, id: parent.id });
+    const matched: Record<string, unknown>[] = [];
+    for (const row of rows) {
+      const view = track(model, row, snapshots.view(model, row, healthy, reference));
+      const verdict: unknown = selection.where === undefined ? true : await selection.where(view, c);
+      healthy();
+      if (typeof verdict !== 'boolean') throw new StateError('validation', 'Maintain event query predicate must return Bool.');
+      if (verdict) matched.push(view);
+    }
+    return Object.freeze(matched);
+  };
+  return Object.freeze({ root, readRecords, revalidate: navigation.revalidate });
+}
+
+/** Work rechecks the frozen Maintain Rule against current private owner rows
+ * at its real claim revision. The two collection reads are whole domains;
+ * their contents and the technician grant are checked again before provider
+ * dispatch, while the Mail request itself remains the queued lexical value. */
+async function prepareMaintainDispatchDecision(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly artifact: CompileArtifact;
+  readonly snapshots: NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
+  readonly frozen: unknown;
+  readonly store: StoragePort;
+  readonly revision: Revision;
+  readonly teamId: string;
+  readonly identities: IdentityStore;
+  readonly healthy: () => void;
+  readonly failure: (error: unknown) => void;
+}) {
+  const { loaded, store, revision, snapshots } = input;
+  const StateError = loaded.producers.errors;
+  const frozen = snapshots.snapshot('maintain.Inspection', input.frozen);
+  const checkRevision = async () => {
+    if (await store.readRevision() !== revision) {
+      throw new StateError('conflict', 'Maintain dispatch owner domain moved beyond its Work claim.');
+    }
+  };
+  const readCurrent = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+    await checkRevision();
+    const row = await store.cohortLoad({ model, id, expectedRevision: revision });
+    await checkRevision();
+    return row;
+  };
+  const current = await readCurrent('maintain.Inspection' as ModelName, frozen.id);
+  if (current === null || current.archivedAt !== null || current.parent?.model !== 'maintain.Plan' ||
+      current.created !== frozen.created || current.createdBy !== frozen.createdBy ||
+      stableStringify(current.parent) !== stableStringify(frozen.parent) ||
+      current.version < frozen.version + 1) {
+    throw new StateError('not_found', 'Maintain dispatch lost its original Inspection.');
+  }
+  const rows = new Map<string, StoredRow>([[`maintain.Inspection\0${current.id}`, current]]);
+  const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+    input.healthy();
+    const row = await readCurrent(model, id);
+    input.healthy();
+    if (row !== null) rows.set(`${model}\0${id}`, row);
+    return row;
+  };
+  const domains: Array<{ readonly model: ModelName; readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+    readonly rows: readonly StoredRow[] }> = [];
+  const queryCurrent = async (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+    await checkRevision();
+    const found = await store.query({ model, ...(parent === undefined ? {} : { parent }),
+      order: [{ field: 'id', direction: 'asc' }], archived: 'exclude', authority: 'owner',
+      limit: SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows + 1 });
+    await checkRevision();
+    if (found.length > SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows || found.some((row, index) =>
+        row.archivedAt !== null || index > 0 && found[index - 1]!.id >= row.id ||
+        parent !== undefined && (row.parent?.model !== parent.model || row.parent.id !== parent.id) ||
+        parent === undefined && row.parent !== null)) {
+      throw new StateError('validation', 'Maintain dispatch query lacks its complete ordered owner domain.');
+    }
+    return Object.freeze(found);
+  };
+  let queryIndex = 0;
+  const query = async (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => {
+    input.healthy();
+    const plan = rows.get(`maintain.Plan\0${current.parent!.id}`);
+    const assetId = plan?.parent?.model === 'maintain.Asset' ? plan.parent.id : undefined;
+    if (queryIndex === 0 ? model !== 'maintain.Cancellation' || parent?.model !== 'maintain.Asset' || parent.id !== assetId :
+        queryIndex !== 1 || model !== 'employee.Employee' || parent !== undefined) {
+      throw new StateError('validation', 'Maintain dispatch query differs from its ordered checked domains.');
+    }
+    queryIndex++;
+    const found = await queryCurrent(model, parent);
+    domains.push({ model, ...(parent === undefined ? {} : { parent }), rows: found });
+    input.healthy(); return found;
+  };
+  const views = await prepareMaintainEventDecisionViews({ loaded, artifact: input.artifact,
+    snapshots, root: current, read, query, healthy: input.healthy, failure: input.failure });
+  let roleFact: { readonly subject: string; readonly value: boolean } | null = null;
+  const role = async (name: string, subject: { readonly kind: string; readonly id: string }): Promise<boolean> => {
+    input.healthy();
+    const plan = rows.get(`maintain.Plan\0${current.parent!.id}`);
+    const expected = plan === undefined ? undefined : decodeCanonicalValue(loaded.valueSchema, 'user', plan.data['assignee']);
+    if (roleFact !== null || name !== 'maintain.technician' ||
+        !isUnknownRecord(expected) || expected['kind'] !== 'user' || expected['id'] !== subject.id ||
+        subject.kind !== 'user') {
+      throw new StateError('validation', 'Maintain dispatch role differs from current Plan assignee.');
+    }
+    const value = await stateSubjectRole({ actorUserId: null, teamId: input.teamId,
+      memberships: input.identities }, name, subject.id);
+    await checkRevision(); input.healthy();
+    roleFact = { subject: subject.id, value };
+    return value;
+  };
+  const revalidate = async () => {
+    const root = await readCurrent('maintain.Inspection' as ModelName, current.id);
+    if (stableStringify(root) !== stableStringify(current)) {
+      throw new StateError('conflict', 'Maintain dispatch Inspection changed during its guard.');
+    }
+    await views.revalidate(readCurrent);
+    for (const domain of domains) {
+      const live = await queryCurrent(domain.model, domain.parent);
+      if (stableStringify(live) !== stableStringify(domain.rows)) {
+        throw new StateError('conflict', 'Maintain dispatch owner collection changed during its guard.');
+      }
+    }
+    if (roleFact !== null && await stateSubjectRole({ actorUserId: null, teamId: input.teamId,
+      memberships: input.identities }, 'maintain.technician', roleFact.subject) !== roleFact.value) {
+      throw new StateError('conflict', 'Maintain dispatch technician grant changed during its guard.');
+    }
+    await checkRevision();
+  };
+  return Object.freeze({ root: views.root, readRecords: views.readRecords, role, revalidate });
 }
 const NATIVE_CALL_SCALARS = new Set(['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'user']);
 /** Only the same-load owning scalar or bounded-text alias inventory selects a codec.
@@ -4316,7 +4534,8 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
       let eventSource: ScenarioReceiptSendGuard['eventSource'];
       if (eventGuard) {
         const source = localPolicyObject(emitted.eventSource, ['event', 'handler', 'modelField', 'revisionField', 'predicate',
-          ...(isUnknownRecord(emitted.eventSource) && Object.hasOwn(emitted.eventSource, 'recipientPath') ? ['recipientPath'] : [])]);
+          ...(isUnknownRecord(emitted.eventSource) && Object.hasOwn(emitted.eventSource, 'recipientPath') ? ['recipientPath'] : []),
+          ...(isUnknownRecord(emitted.eventSource) && Object.hasOwn(emitted.eventSource, 'ownerDecision') ? ['ownerDecision'] : [])]);
         const modelField = localPolicyObject(source.modelField, ['name', 'model', 'declaration', 'occurrence', 'fields']);
         const revisionField = localPolicyObject(source.revisionField, ['name', 'type', 'declaration', 'occurrence']);
         const originalEvent = own(originalOperation, 'event');
@@ -4347,6 +4566,13 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
             inputs.length !== 2 || inputs[0]?.name !== 'eventTerm' || inputs[0]?.type !== modelField.model ||
             inputs[1]?.name !== 'eventRevision' || inputs[1]?.type !== 'int') {
           throw new AssemblyCorrespondenceError('Event SEND guard lacks its original declared event, handler and typed field proof.');
+        }
+        const checkedDecision = (plan as typeof plan & { readonly eventDecision?: unknown }).eventDecision;
+        if (Object.hasOwn(source, 'ownerDecision') ?
+            def.name !== 'maintain.remind' || checkedDecision === undefined ||
+              stableStringify(source.ownerDecision) !== stableStringify(checkedDecision) :
+            checkedDecision !== undefined) {
+          throw new AssemblyCorrespondenceError('Event SEND owner decision differs from its independently checked receipt.');
         }
         if (Object.hasOwn(source, 'recipientPath')) {
           const path = localPolicyObject(source.recipientPath, ['sourceField', 'leafField', 'sourceDependencyId', 'leafDependencyId']);
@@ -5374,6 +5600,8 @@ async function loadCanonicalDescriptorsInternal(
     const ownerSites = sites.filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
     if (!ownerSites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'))) continue;
     const def = generatedScenarioDef({ def: canonical.registry.get(owner) });
+    if (def === undefined && owner === 'maintain.remind' && artifact.callables.some(callable =>
+      callable.id === owner && callable.kind === 'handler')) continue;
     if (def === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked scenario.');
     // The SEND-guard binding already associated this def's logical site
     // source with its transported plan source. An owner without SEND guards
@@ -8970,12 +9198,14 @@ async function runScenarioExecution(
       throw error;
     }
   };
+  let eventDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   const scope: CanonicalEffectsScope = {
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
     operationId: call.context.operationId,
     ...(callable?.inputStyle !== "parameters" && !trustedOwnerReads ? {} : {
       readRecords: async (model: string, query: CanonicalReadQuery) => {
+        if (eventDecisionReadRecords !== null) return eventDecisionReadRecords(model, query);
         const rows = await scope.readModel(model, query);
         for (const row of rows) {
           if (!trustedOwnerReads) await viewerNavigation.captureQuerySource(model, row);
@@ -9820,7 +10050,8 @@ async function runScenarioExecution(
           currentSend();
           if (!guardOpen) return refuseRecordBinding('Source SEND native context is closed.');
         };
-        const referenceNavigation = sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
+        const eventDecision = selected.guard.eventSource?.ownerDecision;
+        const referenceNavigation = eventDecision !== undefined || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
           loaded, artifact: opts.artifact, snapshots: sendSnapshots,
           roots: selected.guard.inputs.filter(input => sendSnapshots.has(input.type)).map(input => ({
             type: input.type, wire: localPolicyMember(frame.inputs, input.name) })),
@@ -9855,7 +10086,41 @@ async function runScenarioExecution(
           selected.guard.rule, recordEngineFailure);
         try {
           membership.assertCompleted(); currentSend();
-          const accepted: unknown = await selected.evaluate(fresh, Object.freeze(inputs));
+          const accepted: unknown = eventDecision === undefined ? await selected.evaluate(fresh, Object.freeze(inputs)) :
+            await (async () => {
+              const execute = loaded.producers.invoke.executeScenarioReceiptEventDecision;
+              if (execute === undefined || sendSnapshots === undefined ||
+                  eventDecisionReadRecords !== null) {
+                return refuseRecordBinding('Maintain SEND WHEN needs its exact active owner decision.');
+              }
+              return execute(actualCall, receiptStore, { original: eventDecision, checked: eventDecision,
+                decision: 'when', evaluate: async ownerFrame => {
+                  const frozen = sendSnapshots.snapshot('maintain.Inspection', localPolicyMember(frame.inputs, 'eventTerm'));
+                  const { data: frozenData, ...frozenHeader } = frozen;
+                  const { data: ownerData, ...ownerHeader } = ownerFrame.root;
+                  if (stableStringify(frozenHeader) !== stableStringify(ownerHeader) ||
+                      Object.entries(frozenData).some(([name, value]) =>
+                        !Object.hasOwn(ownerData, name) || stableStringify(value) !== stableStringify(ownerData[name]))) {
+                    return refuseRecordBinding('Maintain SEND WHEN differs from its frozen admitted Inspection.');
+                  }
+                  const views = await prepareMaintainEventDecisionViews({ loaded, artifact: opts.artifact,
+                    snapshots: sendSnapshots, root: ownerFrame.root, read: ownerFrame.read,
+                    query: ownerFrame.query, observer: ownerFrame.observer,
+                    healthy: assertGuard, failure: recordEngineFailure });
+                  eventDecisionReadRecords = (model, query) => views.readRecords(fresh, model, query);
+                  let closeRole: (() => void) | undefined;
+                  try {
+                    closeRole = bindNativeEventDecisionRole(fresh, ownerFrame.role);
+                    const guardInputs = Object.freeze({ ...inputs, eventTerm: views.root });
+                    const verdict = await selected.evaluate(fresh, guardInputs);
+                    await views.revalidate();
+                    if (typeof verdict !== 'boolean') {
+                      return refuseRecordBinding('Maintain SEND WHEN must return Bool.');
+                    }
+                    return verdict;
+                  } finally { closeRole?.(); eventDecisionReadRecords = null; }
+                } });
+            })();
           membership.assertCompleted(); currentSend();
           await referenceNavigation?.revalidate(); assertGuard();
           if (typeof accepted !== 'boolean') return refuseRecordBinding('Original SEND predicate must return Bool.');
@@ -10453,6 +10718,52 @@ async function runScenarioExecution(
             return predicate;
           },
         });
+      } catch (error) { recordEngineFailure(error); throw error; }
+    });
+  }
+  if (internalHandlerDue && receiptStore !== undefined && scenarioDef?.name === 'maintain.remind') {
+    const actualCall = call as AdmittedCall;
+    const checked = (scenarioDef.descriptor.result?.disclosure as
+      { readonly eventDecision?: import('@canlang/state/invocation').EventDecisionPlan } | undefined)?.eventDecision;
+    const selected = [...(nativeSourceSendGuards.get(scenarioDef)?.values() ?? [])].filter(guard =>
+      guard.guard.eventSource?.ownerDecision !== undefined);
+    if (checked === undefined || selected.length !== 1 || sendSnapshots === undefined ||
+        stableStringify(selected[0]!.guard.eventSource?.ownerDecision) !== stableStringify(checked) ||
+        loaded.producers.invoke.executeScenarioReceiptEventDecision === undefined) {
+      return refuseRecordBinding('Maintain event IF needs its exact installed owner decision and model snapshots.');
+    }
+    let consumed = false;
+    bindNativeScenarioEventDecision(ctx, async (descriptor, predicate) => {
+      try {
+        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
+            nativeScenarioExecutions.get(actualCall) === undefined) {
+          return refuseRecordBinding('Maintain event IF differs from its unique checked original occurrence.');
+        }
+        consumed = true;
+        const execute = loaded.producers.invoke.executeScenarioReceiptEventDecision!;
+        return await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
+          decision: 'if', evaluate: async frame => {
+            const views = await prepareMaintainEventDecisionViews({ loaded, artifact: opts.artifact,
+              snapshots: sendSnapshots, root: frame.root, read: frame.read, query: frame.query,
+              observer: frame.observer, healthy: () => {
+                loaded.producers.invoke.assertScenarioReceiptCallExecution!(actualCall, receiptStore);
+              }, failure: recordEngineFailure });
+            if (eventDecisionReadRecords !== null) {
+              return refuseRecordBinding('Maintain event IF cannot overlap another owner decision.');
+            }
+            eventDecisionReadRecords = (model, query) => views.readRecords(ctx, model, query);
+            let closeRole: (() => void) | undefined;
+            try {
+              closeRole = bindNativeEventDecisionRole(ctx, frame.role);
+              const eventRevision = decodeCanonicalValue(loaded.valueSchema, 'int',
+                localPolicyMember(actualCall.inputs, 'revision'));
+              const answer = await Reflect.apply(predicate, undefined, [ctx,
+                Object.freeze({ eventTerm: views.root, eventRevision })]);
+              await views.revalidate();
+              if (typeof answer !== 'boolean') return refuseRecordBinding('Maintain event IF must return Bool.');
+              return answer;
+            } finally { closeRole?.(); eventDecisionReadRecords = null; }
+          } });
       } catch (error) { recordEngineFailure(error); throw error; }
     });
   }
@@ -13552,6 +13863,20 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
   // handler gets its own one-shot State definition and exact verified module
   // guard inventory only after Work selects the genuine handler/source.
   await bindScenarioFrameworkProducers(opts.asm, opts.artifact, privateLoaded, opts.handler);
+  if (privateDef.name === 'maintain.remind') {
+    const sites = (privateLoaded.membershipSources.get(privateDef.name) ?? []).filter(site =>
+      site.stage === 'body-condition');
+    const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', 'Maintain event membership')?.value : undefined;
+    const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', 'Maintain event membership')?.value : undefined;
+    if (sites.length !== 1 || !sites[0]!.calls.some(call =>
+        call.target.kind === 'builtin' && call.target.id === 'active_member') ||
+        typeof app !== 'string' || app === '' || !isUnknownRecord(operations) ||
+        readMetadataMember(operations, privateDef.name, 'Maintain event membership') === undefined) {
+      throw new AssemblyCorrespondenceError('Maintain event IF lacks its exact original nested membership source.');
+    }
+    bindNativeOwnerMembership(privateDef, { source: sites[0]!.source,
+      app, sites });
+  }
   // C24 scope-1: the State receipt result stays void-null inside the
   // admission; the Work delivery outcome (completed/failed + occurrence)
   // rides a side channel so the same fence still commits schedule,
@@ -15985,7 +16310,7 @@ export function createPageReadScopeCanonical(
   // field) resolves through the completed outer cell.
   const derivedCells = new Map<string, { readonly value: unknown }>();
   const derivedActive = new Set<string>();
-  const derivedKey = (model: string, id: string, field: string): string => `${model} ${id} ${field}`;
+  const derivedKey = (model: string, id: string, field: string): string => `${model}\0${id}\0${field}`;
   // Render-frozen clock as the Datetime value compiled derives compare against.
   const derivedNow = makeDatetime(BigInt(Date.parse(opts.identity.admitted_at)));
   const derivableFields = async (name: string): Promise<ReadonlyArray<string>> => {
@@ -18191,11 +18516,14 @@ export async function bindNativeEmailDispatchGuards(input: {
         }
       };
       const reject = (): never => refuse(new Error('Native guarded SEND historical guard context is read only; live model/query effects require their owning join.'));
+      let maintainFrame: Awaited<ReturnType<typeof prepareMaintainDispatchDecision>> | undefined;
       const physical = new Proxy(Object.create(null) as StoragePort, {
         get: reject, set: reject, defineProperty: reject, deleteProperty: reject, ownKeys: reject });
       const canonical: CanonicalEffectsScope = Object.freeze({ operation: selected.guard.owner,
         operationId: originalIntent.operationId, stageWrite: reject, createRecord: reject, setRecord: reject,
-        deleteRecord: reject, readModel: reject, readRecords: reject, observeDelivery: reject,
+        deleteRecord: reject, readModel: reject,
+        readRecords: (model: string, query: CanonicalReadQuery) => maintainFrame === undefined
+          ? reject() : maintainFrame.readRecords(c, model, query), observeDelivery: reject,
         builtinRoles: Object.freeze([]) });
       const identity = actual.identity;
       if (identity.actor !== null || identity.team?.team_id !== scope.owner) return reject();
@@ -18204,7 +18532,8 @@ export async function bindNativeEmailDispatchGuards(input: {
         qualified: { actor: null, team: { teamId: identity.team.team_id, timezone: identity.team.timezone },
           now: actual.input.context.now, source: 'dispatch', operationId: originalIntent.operationId } });
       const inputs: Record<string, unknown> = Object.create(null);
-      const referenceNavigation = sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
+      const eventDecision = selected.guard.eventSource?.ownerDecision;
+      const referenceNavigation = eventDecision !== undefined || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
         loaded, artifact, snapshots: sendSnapshots,
         roots: selected.guard.inputs.filter(slot => sendSnapshots.has(slot.type)).map(slot => ({
           type: slot.type, wire: localPolicyMember(actual.lexical, slot.name) })),
@@ -18212,10 +18541,18 @@ export async function bindNativeEmailDispatchGuards(input: {
         healthy, failure: poison,
         parentOnly: selected.guard.eventSource !== undefined,
       });
+      if (eventDecision !== undefined) {
+        if (sendSnapshots === undefined || selected.guard.owner !== 'maintain.remind' ||
+            eventDecision.owner !== 'maintain.remind') return reject();
+        maintainFrame = await prepareMaintainDispatchDecision({ loaded, artifact, snapshots: sendSnapshots,
+          frozen: localPolicyMember(actual.lexical, 'eventTerm'), store, revision: actual.input.revision,
+          teamId: scope.owner, identities, healthy, failure: poison });
+      }
       for (const slot of selected.guard.inputs) {
         const wire = localPolicyMember(actual.lexical, slot.name);
         Object.defineProperty(inputs, slot.name, { enumerable: true,
-          value: sendSnapshots?.has(slot.type) ? sendSnapshots.view(slot.type, wire, healthy, referenceNavigation?.reference)
+          value: maintainFrame !== undefined && slot.name === 'eventTerm' ? maintainFrame.root :
+            sendSnapshots?.has(slot.type) ? sendSnapshots.view(slot.type, wire, healthy, referenceNavigation?.reference)
             : decodeCanonicalValue(loaded.valueSchema, slot.type, wire) });
       }
       healthy(); admissions.set(execution, identity);
@@ -18228,20 +18565,24 @@ export async function bindNativeEmailDispatchGuards(input: {
         const current = await actual.currentIdentity();
         await verifyCheckedAssembly(asm, artifact);
         await referenceNavigation?.revalidate();
+        await maintainFrame?.revalidate();
         return current.actor === null && stableStringify(current.team) === stableStringify(identity.team);
       });
       let frame: NativeMembershipFrame | undefined;
+      let closeEventRole: (() => void) | undefined;
       try {
         frame = openNativeDispatchMembershipFrame(c, def, predicate, execution, identity.team,
           poison);
+        if (maintainFrame !== undefined) closeEventRole = bindNativeEventDecisionRole(c, maintainFrame.role);
         frame.assertCompleted(); healthy();
         const answer: unknown = await selected.evaluate(c, Object.freeze(inputs));
         frame.assertCompleted(); healthy();
         await referenceNavigation?.revalidate(); healthy();
+        await maintainFrame?.revalidate(); healthy();
         if (typeof answer !== 'boolean') return refuse(new Error('Original native SEND predicate must return Bool.'));
         return answer;
       } catch (error) { return refuse(error); }
-      finally { open = false; frame?.close(); }
+      finally { open = false; closeEventRole?.(); frame?.close(); }
     };
     nativeEmailPreclaims.set(evaluator, { prepare: async (claim, retained) => {
       if (staged !== undefined || entered || poisoned || claim.data.state !== 'pending' ||

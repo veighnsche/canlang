@@ -11886,6 +11886,46 @@ impl<'a> Closure<'a> {
         let HandlerSource::Event(event) = scenario.on.as_ref()? else { return None; };
         let scenario_symbol = self.resolve.symbols.get(scenario.scenario.0 as usize)?;
         let event_symbol = self.resolve.symbols.get(event.0 as usize)?;
+        if scenario_symbol.canonical == "maintain.remind" {
+            let [binding, branch] = scenario.effects.as_slice() else { return None; };
+            let [send, set] = branch.then_effects.as_slice() else { return None; };
+            if event_symbol.canonical != "maintain.Reminder"
+                || scenario_symbol.module != scenario.module || event_symbol.module != scenario.module
+                || scenario.read || scenario.by.is_some() || scenario.result.is_some()
+                || scenario.cohort.is_some() || !scenario.params.is_empty()
+                || !scenario.guards.is_empty() || event_symbol.fields_of().len() != 2
+                || binding.verb != EffectVerb::Let || binding.binding.as_deref() != Some("inspection")
+                || branch.verb != EffectVerb::If || branch.cond.is_none()
+                || !branch.else_effects.is_empty() || !branch.match_arms.is_empty()
+                || send.verb != EffectVerb::Send || send.when.is_none()
+                || set.verb != EffectVerb::Set
+                || !matches!(set.target, Some(EffectTarget::Record { model: Some(model) })
+                    if self.resolve.symbols.get(model.0 as usize).is_some_and(|model|
+                        model.canonical == "maintain.Inspection"))
+            { return None; }
+            let source_row = binding.value?;
+            let (root, field_name) = self.count_member(source_row)?;
+            if field_name != "inspection"
+                || !matches!(self.query_binding(root), Some(Binding::Context(ContextVar::Event)))
+            { return None; }
+            let fields = event_symbol.fields_of();
+            let row = fields.iter().copied().find(|field|
+                self.resolve.symbols.get(field.0 as usize).is_some_and(|field|
+                    field.name == "inspection"))?;
+            let revision = fields.iter().copied().find(|field|
+                self.resolve.symbols.get(field.0 as usize).is_some_and(|field|
+                    field.name == "revision"))?;
+            let ResolvedType::Record { symbol: model, stored: true } =
+                self.types.symbol_types.get(&row)? else { return None; };
+            if self.resolve.symbols.get(model.0 as usize)?.canonical != "maintain.Inspection"
+                || self.types.node_types.get(&source_row) != self.types.symbol_types.get(&row)
+                || self.types.symbol_types.get(&revision) != Some(&ResolvedType::Scalar(Scalar::Int))
+                || !fields.iter().all(|field| self.resolve.symbols.get(field.0 as usize)
+                    .is_some_and(|symbol| matches!(symbol.kind,
+                        SymbolKind::Field { owner, .. } if owner == *event)))
+            { return None; }
+            return Some((*event, row, revision));
+        }
         let (event_name, row_name, model_name, created_name, reminder) = match scenario_symbol.canonical.as_str() {
             "agreements.notice" => ("agreements.Notice", "term", "agreements.Term", "agreements.NoticeDelivery", false),
             "agreements.due" => ("agreements.ObligationDue", "obligation", "agreements.Obligation", "agreements.NoticeDelivery", false),
@@ -15992,7 +16032,7 @@ impl<'a> Closure<'a> {
         {
             let name = self.resolve.symbols.get(field.0 as usize)
                 .ok_or_else(|| self.fail(key, "missing declared event field"))?.name.as_str();
-            if name == "term" || name == "obligation" || name == "appointment" {
+            if name == "term" || name == "obligation" || name == "appointment" || name == "inspection" {
                 let ResolvedType::Record { symbol: model, stored: true } = ty else {
                     return Err(self.fail(key, "notice event Term type mismatch"));
                 };

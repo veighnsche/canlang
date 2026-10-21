@@ -17,3 +17,21 @@ export async function nativeScenarioRequire(context: unknown, predicate: Functio
   }
   return evaluate(predicate, inputs);
 }
+
+type EventEvaluate = (descriptor: unknown, predicate: Function) => Promise<boolean>;
+const eventReaders = new WeakMap<object, EventEvaluate>();
+
+/** Only the live due-handler context can evaluate its checked private IF. */
+export function bindNativeScenarioEventDecision(context: object, evaluate: EventEvaluate): void {
+  if (eventReaders.has(context)) throw new StateError('validation', 'Event decision reader cannot be rebound.');
+  eventReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioEventDecision(context: unknown, descriptor: unknown,
+  predicate: Function): Promise<boolean> {
+  const evaluate = typeof context === 'object' && context !== null ? eventReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof predicate !== 'function') {
+    throw new StateError('validation', 'Event decision needs its actual admitted due owner.');
+  }
+  return evaluate(descriptor, predicate);
+}
