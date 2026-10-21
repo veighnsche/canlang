@@ -23,6 +23,7 @@ export {
 } from './engine.js';
 export { queryRecordHistoryForViewer, type ViewerHistoryInput, type ViewerHistoryResult } from './history.js';
 export { projectCurrentRecordForViewerSourcePolicies, readRecordsAtSourceObservation,
+  readOwnerDecisionRecordsAtSourceObservation,
   type SourceObservationRecordsInput, type SourceObservationRecord,
   type CurrentRecordSourcePolicyInput, type CurrentRecordSourcePolicyResult,
   type ViewerSourceReadPolicy } from './source-policy.js';

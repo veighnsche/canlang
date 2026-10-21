@@ -1,0 +1,14 @@
+app AuthorityProbe
+Given
+ Anchor {label:text}
+ Secret in Anchor {blocked:bool,hidden:bool}
+ policy Anchor read=members
+ policy Secret read=members and not row.hidden
+ derive has_block(anchor:Anchor,person:user):bool = any(anchor.Secret as secret,secret.blocked and active_member(person,team))
+When
+ scenario enter(anchor:Anchor) -> bool by=members
+  require not has_block(anchor,actor)
+  do
+   set anchor {label="entered"}
+   return true
+Then

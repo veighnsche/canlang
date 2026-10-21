@@ -165,6 +165,22 @@ export function withinInstalledSourceReadQuery<Result>(observation: Readonly<Vie
   return withinInstalledSourceReadLease(observation, input, true, execute);
 }
 
+/** A genuine source-Require predicate may borrow only its State-issued owner
+ * rows. Ordinary source reads and read-policy control queries use the viewer
+ * path above and cannot enter this lease. */
+export function withinInstalledOwnerDecisionQuery<Result>(observation: Readonly<ViewerGenerationCallbackReadObservation>,
+  input: { readonly store: StoragePort; readonly model: ModelName },
+  execute: (checkpoint: () => Promise<void>, ownerRows: InstalledSourceOwnerRows) => Promise<Result>): Promise<Result> {
+  const lifetime = observationLifetime(observation);
+  if (lifetime?.stage !== 'read-predicate' || lifetime.ownerRows?.query === undefined) {
+    return fail('owner decision query needs its active checked source Require.');
+  }
+  return withinInstalledSourceReadLease(observation, input, true, async (checkpoint, _loadRow, ownerRows, control) => {
+    if (control || ownerRows?.query === undefined) return fail('owner decision query lost its original owner domain.');
+    return execute(checkpoint, ownerRows);
+  });
+}
+
 async function withinInstalledSourceReadLease<Result>(observation: Readonly<ViewerGenerationCallbackReadObservation>,
   input: { readonly store: StoragePort; readonly model: ModelName; readonly id?: RecordId }, collection: boolean,
   execute: (checkpoint: () => Promise<void>,

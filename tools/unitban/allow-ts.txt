@@ -5,6 +5,7 @@ packages/cloudflare/src/runtime/native-local-rules.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean-graph.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean.integration.test.ts
 packages/cloudflare/src/runtime/native-reference-arrays-d1.integration.test.ts
+packages/cloudflare/src/runtime/native-rule-owner-search.integration.test.ts
 packages/cloudflare/src/runtime/native-scenario-receipts-d1.integration.test.ts
 packages/cloudflare/src/runtime/native-staff-can-work.integration.test.ts
 packages/cloudflare/src/runtime/promptlab-activation-collision.integration.test.ts

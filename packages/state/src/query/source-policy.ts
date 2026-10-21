@@ -7,7 +7,7 @@ import { checkedMembershipFact, observeRowGrantAuthority } from '../policy/membe
 import { isEqualOrUnder, isMetadataPath, withPolicyRow, type ByContext, type PolicyTable } from '../policy/grants.js';
 import { evaluateBy, validateByPredicate } from '../policy/roles.js';
 import { FenceConflictError } from '../storage/port.js';
-import { captureInstalledSourceOwnerRows, evaluateInstalledReadPolicy, withinInstalledReadObservation, withinInstalledSourceReadQuery, type InstalledSourceOwnerRows } from '../receipt/read-policy-membership.js';
+import { captureInstalledSourceOwnerRows, evaluateInstalledReadPolicy, withinInstalledOwnerDecisionQuery, withinInstalledReadObservation, withinInstalledSourceReadQuery, type InstalledSourceOwnerRows } from '../receipt/read-policy-membership.js';
 import { projectCurrentRecordForViewerPolicy, projectSourceRowFields,
   type BaseQueryInput, type ViewerPageParentPolicy } from './engine.js';
 
@@ -379,6 +379,38 @@ export interface SourceObservationRecordsInput {
 export interface SourceObservationRecord {
   readonly record: ProjectedRecord;
   readonly sourcePresence: readonly string[];
+}
+
+/** Private source-Require scan. The read-predicate lifetime and its bounded
+ * owner-row closure are issued by State's active mutation, never by a source
+ * query option. Values remain inside that one bool-returning evaluation. */
+export async function readOwnerDecisionRecordsAtSourceObservation(input: Pick<SourceObservationRecordsInput,
+  'observation' | 'store' | 'model' | 'id' | 'parent'>): Promise<readonly SourceObservationRecord[]> {
+  const { observation, store } = input;
+  const model = text(input.model) as ModelName;
+  const id = input.id === undefined ? undefined : text(input.id) as RecordId;
+  const parent = input.parent === undefined ? undefined : Object.freeze({
+    model: text(input.parent.model) as ModelName, id: text(input.parent.id) as RecordId,
+  });
+  return withinInstalledOwnerDecisionQuery(observation, { store, model }, async (checkpoint, ownerRows) => {
+    await checkpoint();
+    const rows = id === undefined ? await ownerRows.query!(model, parent) :
+      [await ownerRows.read(model, id)].filter((row): row is StoredRow => row !== null);
+    await checkpoint();
+    const result: SourceObservationRecord[] = [];
+    for (const row of rows) {
+      ownerRows.assertHealthy();
+      if (row.id !== id && id !== undefined) invalid();
+      if (row.archivedAt !== null || parent !== undefined &&
+          (row.parent?.model !== parent.model || row.parent.id !== parent.id)) continue;
+      const record = projectSourceRowFields(row, [{ fields: Object.keys(row.data) }], []);
+      result.push(deepFreeze({ record, sourcePresence: Object.keys(row.data) }));
+      observation.fence?.enroll({ kind: 'record', model, id: row.id, version: row.version });
+      await checkpoint();
+    }
+    observation.fence?.enroll({ kind: 'query', model, authority: 'owner' });
+    return Object.freeze(result);
+  });
 }
 
 /** Shared source-observation scan (one candidate domain). */

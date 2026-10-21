@@ -19,7 +19,8 @@ import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import { buildPolicyTable, evalPredicateForRow, type ByContext, type PolicyTable } from '../policy/grants.js';
 import { evaluateBy, type MembershipReader } from '../policy/roles.js';
 import { checkedMembershipFact, checkedAuthoritySnapshot, observeRowGrantAuthority } from '../policy/membership-facts.js';
-import { queryRecordsObserved, projectSavedRecordForViewer, projectCurrentRecordForViewerPolicy, projectSourceRowFields } from '../query/engine.js';
+import { queryRecordsObserved, orderSourceReadRecords, projectSavedRecordForViewer, projectCurrentRecordForViewerPolicy, projectSourceRowFields,
+  type ObservedQueryResult } from '../query/engine.js';
 import { captureSourceReadPolicies, projectInstalledSourceRowAndAncestors, type ViewerSourceReadPolicy } from '../query/source-policy.js';
 import { MAX_MEMBERSHIP_SNAPSHOT_USERS, type Membership, type MembershipSnapshot, type ResolvedIdentity } from '@canlang/contracts';
 import { admitOwnerStageCall, bindOwnerStageStoredFileInputs, type AdmittedCall } from './admission.js';
@@ -1436,6 +1437,9 @@ export interface ScenarioReceiptQueryFirstMetadata {
    * read, hence no execution dependency). Honored only for the single-query
    * decision shape with no bound execution reads for the query. */
   readonly presenceConsumed?: true;
+  /** Exact void null-branch create-or-update target, independently proved by
+   * the compiler; no selected field flows into values or a result. */
+  readonly targetConsumed?: true;
 }
 function firstQueryNode(value: unknown): { readonly start: number; readonly end: number } {
   const node = object(value, ['start', 'end']);
@@ -1497,11 +1501,14 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
     const rawObject = typeof raw === 'object' && raw !== null ? raw : undefined;
     const metadata = object(raw, ['queryId', 'source', 'query', 'node', 'statement',
       ...(rawObject !== undefined && Object.hasOwn(rawObject, 'guardConsumed') ? ['guardConsumed'] : []),
-      ...(rawObject !== undefined && Object.hasOwn(rawObject, 'presenceConsumed') ? ['presenceConsumed'] : [])]);
+      ...(rawObject !== undefined && Object.hasOwn(rawObject, 'presenceConsumed') ? ['presenceConsumed'] : []),
+      ...(rawObject !== undefined && Object.hasOwn(rawObject, 'targetConsumed') ? ['targetConsumed'] : [])]);
     const queryId = text(metadata.queryId), query = bound.plan.queries.find(query => query.id === queryId);
     origin(metadata.source);
     if (rawObject !== undefined && Object.hasOwn(rawObject, 'guardConsumed') && metadata.guardConsumed !== true ||
-        rawObject !== undefined && Object.hasOwn(rawObject, 'presenceConsumed') && metadata.presenceConsumed !== true) {
+        rawObject !== undefined && Object.hasOwn(rawObject, 'presenceConsumed') && metadata.presenceConsumed !== true ||
+        rawObject !== undefined && Object.hasOwn(rawObject, 'targetConsumed') && metadata.targetConsumed !== true ||
+        metadata.targetConsumed === true && (metadata.guardConsumed === true || metadata.presenceConsumed === true)) {
       return invalid('first guard mark requires its exact checked decision-consumed occurrence.');
     }
     const interval = firstQueryNode(metadata.query), node = firstQueryNode(metadata.node), statement = firstQueryNode(metadata.statement);
@@ -1522,7 +1529,8 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
           value.node.start === node.start && value.node.end === node.end)) return invalid('first requires its unique original unscoped checked Let and call.');
     first.push({ queryId, source: query.source, query: interval, node, statement,
       ...(metadata.guardConsumed === true ? { guardConsumed: true as const } : {}),
-      ...(metadata.presenceConsumed === true ? { presenceConsumed: true as const } : {}) });
+      ...(metadata.presenceConsumed === true ? { presenceConsumed: true as const } : {}),
+      ...(metadata.targetConsumed === true ? { targetConsumed: true as const } : {}) });
   }
   const selections = new Map<string, ScenarioQuerySelectionProfile>();
   for (const metadata of list(dataCopy(producer.selections ?? []))) {
@@ -1586,6 +1594,7 @@ export interface ScenarioReceiptQueryResult {
 }
 interface QueryExecution {
   readonly call: AdmittedCall; readonly owner: ReceiptOwnerSession; readonly stage: number;
+  readonly ownerDecision: boolean;
   readonly plan: ScenarioReceiptQueryPlan; readonly handle: ScenarioReceiptQueryHandle;
   parent?: NonNullable<ScenarioReceiptQueryObservation['parent']>;
   readonly candidates: { readonly row: StoredRow; readonly record: ProjectedRecord;
@@ -2876,13 +2885,13 @@ export interface ScenarioReceiptRequireObserver {
 }
 
 /** One original pre-write Require, evaluated once on the genuine admitted row.
- * Its ordinary source queries borrow this owner stage; only reached fields,
- * complete visible query domains and current Identity survive to the fence. */
+ * Its source queries borrow this owner stage; complete owner domains and
+ * current Identity survive to the fence. */
 export async function executeScenarioReceiptRequire(call: AdmittedCall, store: StoragePort, input: {
   readonly original: ScenarioReceiptRequireSource;
+  /** Independently loaded from the verified source-Require inventory. */
+  readonly checked: ScenarioReceiptRequireSource;
   readonly parameter: string;
-  readonly policy: PolicyTable;
-  readonly readPolicies: (model: string) => ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
   readonly capture: (observer: ScenarioReceiptRequireObserver) => InstalledSourceQueryPredicate;
 }): Promise<boolean> {
   const state = capture(call, store), owner = ownerSessions.get(call);
@@ -2890,23 +2899,21 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
   try {
     if (owner === undefined || owner.session === null || owner.stage !== 0 || owner.busy ||
         state.pending !== 0 || state.returnId !== null || owner.executingCall !== call ||
-        owner.callGuards.length >= MAX_ITEMS || !(input.policy instanceof Map)) {
+        owner.callGuards.length >= MAX_ITEMS) {
       return invalid('source Require needs its actual initial owner stage.');
     }
     const original = deepFreeze(dataCopy(input.original));
     const sites = checkScenarioReceiptMembershipSites(original.sites);
-    const source = membershipSource(call.def as GeneratedOperationDef, state.bound);
+    const checked = deepFreeze(dataCopy(input.checked));
+    const source = checked.source;
     const [site] = sites;
-    const owning = membershipProducers.get(call.def as GeneratedOperationDef)?.sites.filter(candidate =>
-      (candidate.stage === 'leading-require' || candidate.stage === 'body-require') &&
-      stableStringify(candidate.node) === stableStringify(original.node) &&
-      stableStringify(candidate.statement) === stableStringify(original.statement));
-    if (original.owner !== call.def.name || stableStringify(original.source) !== stableStringify(source) ||
+    if (stableStringify(checked) !== stableStringify(original) ||
+        source.path !== state.bound.plan.source.path || source.sha256 !== state.bound.plan.source.sha256 ||
+        original.owner !== call.def.name || stableStringify(original.source) !== stableStringify(source) ||
         sites.length !== 1 || site === undefined || site.stage !== 'read-predicate' || site.owner !== call.def.name ||
         stableStringify(site.source) !== stableStringify(source) ||
         stableStringify(site.node) !== stableStringify(original.node) ||
-        stableStringify(site.statement) !== stableStringify(original.statement) || owning?.length !== 1 ||
-        stableStringify(site.calls) !== stableStringify(owning[0]!.calls)) {
+        stableStringify(site.statement) !== stableStringify(original.statement)) {
       return invalid('source Require needs its exact original guard and independently checked read observer.');
     }
     const reference = call.recordRefs.find(ref => ref.param === input.parameter);
@@ -2947,12 +2954,6 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
     if (root === null || stableStringify(root) !== stableStringify(reference.row)) {
       throw new StateError('conflict', 'Source Require model differs from its admitted row.');
     }
-    const policies = new Map<string, ReadonlyMap<ModelName, ViewerSourceReadPolicy>>();
-    const policyFor = (model: string) => {
-      if (!policies.has(model)) policies.set(model, captureSourceReadPolicies(input.readPolicies(model)));
-      return policies.get(model)!;
-    };
-    const fields = new Map<string, { model: ModelName; row: StoredRow; fields: Set<string> }>();
     const domains: Array<{ model: ModelName; ids: readonly string[]; id?: RecordId;
       parent?: Readonly<{ model: ModelName; id: RecordId }> }> = [];
     const observe = <T>(action: () => T): T => {
@@ -2967,9 +2968,9 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
         }
         // Metadata identity is already tied to this issued row, without a data grant.
         if (!state.bound.artifactModels.get(model as ModelName)!.fields.some(entry => entry.name === field) && field !== 'parent') return;
-        const key = rowKey(model, row.id);
-        if (!fields.has(key)) fields.set(key, { model: model as ModelName, row, fields: new Set() });
-        fields.get(key)!.fields.add(field); policyFor(model);
+        // The row/field identity is checked here. Its owner value belongs to
+        // this original stage; this operation's later writes cannot revoke
+        // the decision, while the storage revision fence catches other writers.
       }),
       query: (model: string, records: readonly ProjectedRecord[], id?: string,
         parent?: Readonly<{ model: string; id: string }>) => observe(() => {
@@ -2977,7 +2978,6 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
             records.some(record => rows.get(rowKey(model, record.id))?.version !== record.version)) {
           return invalid('source query needs its complete genuine owning domain.');
         }
-        policyFor(model);
         domains.push({ model: model as ModelName, ids: Object.freeze(records.map(record => record.id)),
           ...(id === undefined ? {} : { id: id as RecordId }),
           ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) });
@@ -2990,21 +2990,15 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
     const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
     healthy();
     const context: ByContext = { actorUserId, teamId, membership, memberships };
-    const project = (model: ModelName, row: StoredRow, observed: ByContext,
-      load: typeof read, assertHealthy: () => void, policyQuery = policyDomains.capture) =>
-      projectInstalledSourceRowAndAncestors({ model, row, readPolicies: policyFor(model), policy: input.policy,
-        context: observed, revision: call.revision, fence: undefined, store, rows: new Map([[rowKey(model, row.id), row]]),
-        ownerRows: { read: load, assertHealthy, policyQuery } });
+    const ownerRecord = (row: StoredRow) => projectSourceRowFields(row,
+      [{ fields: Object.keys(row.data) }], []);
     let answer: boolean | undefined;
     const authority = await observeRowGrantAuthority(context, async observed => {
       // The first pass records all actual source subjects. Snapshot validation
       // may call this collector again; the original authored guard runs once.
       if (answer !== undefined) return answer;
-      const projected = await project(reference.model, root, observed, read, healthy);
-      healthy();
-      if (projected.record === null) throw new StateError('forbidden', 'Source Require record is not readable.');
-      answer = await evaluateInstalledReadPredicate(predicate, projected.record, {
-        context: observed, row: { ...root, data: projected.record.data }, revision: call.revision, fence: undefined,
+      answer = await evaluateInstalledReadPredicate(predicate, ownerRecord(root), {
+        context: observed, row: root, revision: call.revision, fence: undefined,
         sourcePresence: Object.freeze(Object.keys(root.data)),
       }, store, { read, assertHealthy: healthy, query, policyQuery: policyDomains.capture });
       healthy(); return answer;
@@ -3016,19 +3010,8 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
       const finalHealthy = () => {
         if (owner.finalized !== final || owner.capture.poisoned) return invalid('source Require final capture changed.');
       };
-      // Final effects and the cohort revision are fixed for this guard. Share
-      // only raw row loads across projections; evaluate every policy again.
-      const finalRows = new Map<string, StoredRow | null>();
-      const finalRead = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
-        finalHealthy();
-        const key = rowKey(model, id);
-        if (finalRows.has(key)) return finalRows.get(key)!;
-        const write = final.writes.find(write => write.model === model && (write.kind === 'insert' ? write.row.id : write.id) === id);
-        const row = write === undefined ? await store.cohortLoad({ model, id, expectedRevision: call.revision }) :
-          write.kind === 'remove' ? null : write.row;
-        finalHealthy(); finalRows.set(key, row); return row;
-      };
-      const finalDomains = policyDomains.retained(finalHealthy, final.writes);
+      // The original decision is retained across this operation's own
+      // writes. Recheck its complete pre-write domains at the fenced revision.
       // Source guards execute at their original pre-write stage. Own later
       // effects do not replace that domain; current Identity still rechecks it.
       // Consumed fields separately retain their final-overlay authority below.
@@ -3039,25 +3022,12 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
         if (!rows.has(key)) throw new StateError('forbidden', 'Source Require requested an unobserved original row.');
         return rows.get(key)!;
       };
-      const current = await observeRowGrantAuthority(context, async observed => {
-        for (const reached of fields.values()) {
-          const row = await finalRead(reached.model, reached.row.id);
-          if (row === null || !sameModelLifetime(reached.row, row)) throw new StateError('forbidden', 'Source Require row lifetime changed.');
-          const projected = await project(reached.model, row, observed, finalRead, finalHealthy, finalDomains);
-          if (projected.record === null || [...reached.fields].some(field => field === 'parent'
-            ? projected.record!.parent == null : !Object.hasOwn(projected.record!.data, field))) {
-            throw new StateError('forbidden', 'Source Require consumed field authority changed.');
-          }
-        }
+      const current = await observeRowGrantAuthority(context, async _observed => {
         for (const domain of domains) {
           const candidates = domain.id === undefined ? await originalDomains(domain.model, domain.parent) :
             [await originalRead(domain.model, domain.id)].filter((row): row is StoredRow => row !== null);
-          const ids: string[] = [];
-          for (const row of candidates) {
-            const projected = await project(domain.model, row, observed, originalRead, finalHealthy, originalDomains);
-            if (projected.record !== null) ids.push(projected.record.id);
-          }
-          if (stableStringify(ids) !== stableStringify(domain.ids)) throw new StateError('forbidden', 'Source Require visible query domain changed.');
+          const ids = candidates.map(row => row.id);
+          if (stableStringify(ids) !== stableStringify(domain.ids)) throw new StateError('forbidden', 'Source Require owner query domain changed.');
         }
         return true;
       });
@@ -3337,6 +3307,28 @@ export async function executeScenarioReceiptAny(call: AdmittedCall, store: Stora
   const result = await executeScenarioReceiptQueryMode(call, store, input, true);
   return result.count !== 0;
 }
+/** Exact owner-domain observation for a checked mutation decision. The caller
+ * owns the active stage, bounded domain and commit fence; this path performs
+ * no viewer projection or source read-policy evaluation. */
+async function observeOwnerDecisionQuery(domain: readonly StoredRow[], model: CanonicalModelDescriptor,
+  plan: ScenarioReceiptQueryPlan, revision: AdmittedCall['revision'],
+  predicate: (record: ProjectedRecord, row: StoredRow) => boolean | Promise<boolean>): Promise<ObservedQueryResult> {
+  const candidates: Array<{ row: StoredRow; record: ProjectedRecord; matched: boolean }> = [];
+  for (const row of domain) {
+    const record = projectSourceRowFields(row, [{ fields: Object.keys(row.data) }], []);
+    const matched = await predicate(record, row);
+    if (typeof matched !== 'boolean') return invalid('owner decision query predicate requires bool.');
+    candidates.push({ row, record, matched });
+  }
+  const selected = candidates.map((candidate, index) => ({ ...candidate, index }))
+    .filter(candidate => candidate.matched);
+  const ordered = orderSourceReadRecords(selected.map(candidate => candidate.record), model,
+    plan.order.length === 0 ? [{ field: 'id', direction: 'asc' }] : plan.order);
+  if (plan.limit !== null && ordered.length > plan.limit) return invalid('owner decision query exceeds its declared limit.');
+  const selectedIndices = ordered.map(record => selected.find(candidate => candidate.record === record)!.index);
+  return { records: [...ordered], revision, candidates, selectedIndices };
+}
+
 async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: StoragePort, input: {
   readonly queryId: string;
   readonly predicate: (candidate: { readonly slot: ScenarioReceiptQuerySlot; readonly record: ProjectedRecord }) => boolean | Promise<boolean>;
@@ -3351,12 +3343,33 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
     const anyProfile = state.bound.anyQueries.get(input.queryId);
     if (plan === undefined || producer === undefined || producer.app !== call.context.app || state.queries.some(query => query.plan.id === plan.id)) return invalid('one actual execution per checked query occurrence required.');
     if (any !== (anyProfile !== undefined)) return invalid('query execution must match its exact source-bound ANY occurrence.');
+    const firstMark = producer.first?.find(value => value.queryId === plan.id);
+    const otherAny = [...state.bound.anyQueries.values()].find(value => value.queryId !== plan.id);
+    const pairedFirst = firstMark?.presenceConsumed === true && state.bound.resultModel === undefined &&
+      state.bound.type === 'void' && state.bound.plan.queries?.length === 2 &&
+      otherAny?.kind === 'predicate' && otherAny.model === plan.model &&
+      stableStringify(otherAny.query.parent) === stableStringify(plan.parent);
+    const otherFirst = state.bound.plan.queries?.find(query => query.id !== plan.id);
+    const pairedAny = anyProfile?.kind === 'predicate' && state.bound.resultModel === undefined &&
+      state.bound.type === 'void' && state.bound.plan.queries?.length === 2 && otherFirst !== undefined &&
+      otherFirst.model === plan.model && stableStringify(otherFirst.parent) === stableStringify(plan.parent) &&
+      producer.first?.some(value => value.queryId === otherFirst.id && value.presenceConsumed === true) === true;
+    const targetFirst = firstMark?.targetConsumed === true && state.bound.resultModel === undefined &&
+      state.bound.type === 'void' && state.bound.plan.queries?.length === 1 &&
+      state.bound.anyQueries.size === 0;
+    if (firstMark?.presenceConsumed === true && state.bound.plan.queries?.length === 2 && !pairedFirst) {
+      return invalid('decision-only first requires its exact checked companion ANY domain.');
+    }
+    if (firstMark?.targetConsumed === true && !targetFirst) {
+      return invalid('selected write target requires its exact checked void decision.');
+    }
+    const ownerDecision = pairedAny === true || pairedFirst === true || targetFirst;
     const predicate = input.predicate;
     if (anyProfile?.kind === 'predicate') {
       const captured = producer.captureAnyPredicate?.(call, plan.id);
       if (captured !== predicate) return invalid('predicate ANY requires its exact once-captured active source callback.');
     }
-    const execution: QueryExecution = { call, owner, stage: owner.stage, plan, handle: Object.freeze({}), candidates: [],
+    const execution: QueryExecution = { call, owner, stage: owner.stage, ownerDecision, plan, handle: Object.freeze({}), candidates: [],
       selectedIndices: [], activeSlot: null, complete: false, firstSelected: false, countSelected: false, anyConsumed: false, selectionConsumed: false, selectionSlot: null };
     queryHandles.set(execution.handle, execution); state.queries.push(execution);
     const memberships = scenarioReceiptMemberships(owner.call, store);
@@ -3366,18 +3379,12 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
       const domain = await owner.session!.views.final.query({ model: plan.model, authority: 'owner',
         ...(parent === undefined ? {} : { parent }), limit: owner.maxRows, archived: plan.archived });
       for (const row of domain) ownerRows.set(row, { session: owner, stage: owner.stage, model: plan.model });
-      // DESIGN442: a marked first-query occurrence of the confined decision
-      // shape evaluates its declared control reads as the recorded owner
-      // decision over its issued owner-domain rows. Unmarked queries keep
-      // the viewer base exactly.
+      // The exact checked any/first decision pair uses the owner domain.
+      // Other query occurrences keep the viewer base below.
       const decisionPolicies = guardConsumedDecisionPolicies(call, owner, state, plan, [],
         new Set(domain.map(row => row.id)));
       const adapter = { ...store, readRevision: () => store.readRevision(), query: async () => domain };
-      // DESIGN442: the verified owner decision grant (sourceReadPolicies
-      // above) carries the marked Require decision's declared control reads
-      // through the existing verified grant machinery; without the grant the
-      // engine keeps ordinary viewer checks (fail-closed). No parallel
-      // string list excuses checks (0411).
+      // Other queries keep ordinary viewer checks and source policies.
       const base = { model: plan.model, modelDescriptor: queryModelDescriptor(state.bound, plan), authority: 'viewer' as const,
         policy: producer.policy, context, memberships, store: producer.readPolicies === undefined ? adapter : store,
         ...(producer.readPolicies === undefined ? {} : { sourceReadPolicies: decisionPolicies ?? producer.readPolicies }), archived: plan.archived,
@@ -3400,10 +3407,10 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
         return stageRows.get(key)!;
       } };
       const sourceAuthorities: Array<Awaited<ReturnType<typeof observeModelQuerySourceAuthority>> | undefined> = [];
-      const observed = await queryRecordsObserved(base, async (record, row) => {
+      const observeCandidate = async (record: ProjectedRecord, row: StoredRow) => {
         ownerHealthy(owner);
         if (owner.executingCall !== call || owner.stage !== execution.stage) return invalid('query predicate crossed its original owner stage.');
-        const sourceAuthority = producer.readPolicies !== undefined || state.bound.resultModel !== undefined || plan.parent !== undefined || plan.dependencies.some(dep => dep.field === 'parent')
+        const sourceAuthority = !ownerDecision && (producer.readPolicies !== undefined || state.bound.resultModel !== undefined || plan.parent !== undefined || plan.dependencies.some(dep => dep.field === 'parent'))
           ? await observeModelQuerySourceAuthority(call, store, owner, state, plan.model, row,
             (any || selection !== undefined || (plan.parent !== undefined || producer.readPolicies !== undefined) && state.bound.resultModel === undefined) ? [] : plan.dependencies.map(dependency => dependency.field),
             0, predicateDomain, decisionPolicies) : undefined;
@@ -3424,8 +3431,12 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
           await sourceAuthority?.requireFields(plan.dependencies.filter(dependency => candidate.dependencies.has(dependency.id)).map(dependency => dependency.field));
           candidate.matched = accepted; return accepted;
         } finally { execution.activeSlot = null; }
-      }, requiredFields, producer.readPolicies === undefined ? undefined : domain,
-      producer.readPolicies === undefined ? undefined : stageReader);
+      };
+      const observed = ownerDecision
+        ? await observeOwnerDecisionQuery(domain, queryModelDescriptor(state.bound, plan), plan, call.revision, observeCandidate)
+        : await queryRecordsObserved(base, observeCandidate, requiredFields,
+          producer.readPolicies === undefined ? undefined : domain,
+          producer.readPolicies === undefined ? undefined : stageReader);
       if (observed.candidates.length !== execution.candidates.length || observed.candidates.some((candidate, index) =>
         candidate.row !== execution.candidates[index]!.row || candidate.matched !== execution.candidates[index]!.matched)) return invalid('actual query engine lost original candidate correspondence.');
       if (any) {
@@ -3442,9 +3453,9 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
           execution.activeSlot = candidate.slot;
           try {
             const profile = anyProfile!;
-            // Every value comes from the viewer-projected record. Stored-bool
-            // retains its exact verdict check; predicate capture authenticates
-            // source while immediate markers retain only actually read fields.
+            // Every value comes from this occurrence's checked projection.
+            // Predicate capture authenticates source; immediate markers retain
+            // only fields that the checked callback actually read.
             if (profile.kind !== 'predicate') await sourceAuthorities[index]!.requireFields([profile.field]);
             const accepted = await predicate(Object.freeze({ slot: candidate.slot, record: queryPredicateRecord(execution, index, store) }));
             stageHealthy();
@@ -3455,13 +3466,13 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
                   [...candidate.dependencies][0] !== profile.dependencyIds[0] ||
                   [...candidate.reads].some(([field, count]) => candidate.markers.get(field) !== count) ||
                   [...candidate.dependencies].some(id => !profile.dependencyIds.includes(id))) return invalid('predicate ANY requires its proved first read and exact executed CONTROL markers.');
-              await sourceAuthorities[index]!.requireFields(plan.dependencies.filter(dependency => candidate.dependencies.has(dependency.id)).map(dependency => dependency.field));
+              if (!ownerDecision) await sourceAuthorities[index]!.requireFields(plan.dependencies.filter(dependency => candidate.dependencies.has(dependency.id)).map(dependency => dependency.field));
               stageHealthy();
             } else if (typeof accepted !== 'boolean' || accepted !== candidate.record.data[profile.field] ||
                 candidate.pendingRead !== null || candidate.reads.size !== 1 || candidate.reads.get(profile.field) !== 1 ||
                 candidate.markers.get(profile.field) !== 1 || candidate.dependencies.size !== 1 ||
                 !candidate.dependencies.has(profile.dependencyId)) return invalid('ANY requires its one actual stored-bool read, immediate marker and exact verdict.');
-            await sourceAuthorities[index]!.revalidate(); stageHealthy();
+            await sourceAuthorities[index]?.revalidate(); stageHealthy();
             candidate.matched = accepted;
             if (accepted) { selected.push(index); break; }
           } finally { execution.activeSlot = null; }
@@ -3476,7 +3487,7 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
       }
       // Projection DATA belongs only to actually selected rows. False
       // candidates establish visibility/control, not selected field access.
-      if ((plan.parent !== undefined || producer.readPolicies !== undefined) && (state.bound.resultModel === undefined || selection !== undefined)) for (const index of execution.selectedIndices) {
+      if (!ownerDecision && (plan.parent !== undefined || producer.readPolicies !== undefined) && (state.bound.resultModel === undefined || selection !== undefined)) for (const index of execution.selectedIndices) {
         const candidate = execution.candidates[index]!;
         await sourceAuthorities[index]?.requireFields(plan.dependencies.filter(dependency => dependency.role === 'data' ||
           candidate.dependencies.has(dependency.id)).map(dependency => dependency.field));
@@ -3486,6 +3497,7 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
       if (owner.callGuards.length >= MAX_ITEMS) return invalid('query commit guard budget exceeded.');
       owner.callGuards.push(Object.freeze({ name: `query:${call.def.name}:${plan.id}`, evaluate: async () => {
         if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query checkpoint moved before outer commit.');
+        if (ownerDecision) return true;
         const guardInput = { ...base }; delete guardInput.limit;
         const final = owner.finalized;
         const finalHealthy = () => {
@@ -3614,7 +3626,7 @@ export async function selectScenarioReceiptQueryFirstRow(call: AdmittedCall, sto
           .filter(dependency => dependency.model === query.plan.model).map(dependency => dependency.field)))];
       const decisionPolicies = row === null ? undefined : guardConsumedDecisionPolicies(call, owner, state,
         query.plan, decisionFields, new Set([row.id]));
-      if (row !== null) await observeModelQuerySourceAuthority(call, store, owner, state, query.plan.model, row,
+      if (row !== null && !query.ownerDecision) await observeModelQuerySourceAuthority(call, store, owner, state, query.plan.model, row,
         decisionFields, 0, undefined, decisionPolicies);
       query.firstSelected = true; return row;
     }, call);

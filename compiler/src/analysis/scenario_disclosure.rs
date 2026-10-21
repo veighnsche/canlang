@@ -210,6 +210,13 @@ pub struct DisclosureFirstQuery {
     /// Unused bindings and `require true` reference nothing and stay
     /// unmarked; body/value copies stay viewer.
     pub presence_consumed: bool,
+    /// Exact void `let first; if selected==null create; else set selected`
+    /// shape. The selected row is only a branch decision and authorized set
+    /// target; no selected field flows into an effect value or result.
+    pub target_consumed: bool,
+    /// This null-branch site consumes `first` as a decision, but its full
+    /// target/value closure may still be unproved and must be refused.
+    pub target_decision_shape: bool,
     /// A true contained Member scans this original required parent parameter.
     /// An unscoped model scan has no contained parent selector. Mirrors the
     /// count contained-parent correspondence; the predicate operand keeps its
@@ -486,6 +493,9 @@ pub struct CheckedScenarioSource {
     pub creates: Option<Vec<CheckedScenarioCreate>>,
     /// Optional bounded source inventory, never permission or effect admission.
     pub decision_sites: Option<Vec<CheckedDecisionSite>>,
+    /// A helper's implicit ChildOf collection lacks the exact formal-to-
+    /// admitted-parent substitution needed by source-Require.
+    pub unproved_helper_contained_requires: bool,
     /// Original full leading Require conditions owned by the scenario observer.
     pub(crate) source_requires: Option<Vec<CheckedDecisionSite>>,
     /// Original supported query occurrences; this inventory grants no closure.
@@ -1162,6 +1172,43 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                             }
                             first.guard_consumed = true;
                         }
+                    }
+                }
+            }
+            // A leading checked ANY followed by a decision-only first has a
+            // second, separately authored owner decision. Admit only the
+            // confined let/nonnull-require/create tail; the selected binding
+            // must not flow into the create's values or a caller result.
+            if scenario.on.is_none() && !scenario.read && scenario.by.is_some()
+                && scenario.result.is_none() && scenario.cohort.is_none()
+                && scenario.guards.len() == 1
+                && let [binding, guard, create] = scenario.effects.as_slice()
+                && binding.verb == EffectVerb::Let
+                && guard.verb == EffectVerb::Require
+                && create.verb == EffectVerb::Create
+                && cx.checked_first_query_source(scenario, binding).is_some()
+                && let Some(cond) = guard.cond
+                && cx.first_binding_nonnull_only(binding, cond)
+                && !cx.first_binding_used_in_node(binding, create.node)
+                && cx.checked_decision_sites(scenario).is_some_and(|sites| sites.iter().any(|site|
+                    site.stage == CheckedDecisionStage::LeadingRequire
+                        && site.calls.iter().any(|call| matches!(&call.target,
+                            CheckedDecisionCallTarget::Builtin { id, .. } if id == "any"))))
+            {
+                for query in facts.queries.iter_mut().flatten().filter(|query| query.first.is_some()) {
+                    if let Some(first) = query.first.as_mut() && first.binding == binding.node {
+                        first.presence_consumed = true;
+                    }
+                }
+            }
+            if let Some(binding) = cx.first_null_branch_decision(scenario) {
+                let single_query = facts.queries.as_ref().is_some_and(|queries|
+                    queries.len() == 1 && queries[0].first.is_some());
+                let target_only = single_query && cx.first_null_branch_target_only(scenario).is_some();
+                for query in facts.queries.iter_mut().flatten().filter(|query| query.first.is_some()) {
+                    if let Some(first) = query.first.as_mut() && first.binding == binding.node {
+                        first.target_decision_shape = true;
+                        first.target_consumed = target_only;
                     }
                 }
             }
@@ -3789,6 +3836,13 @@ impl<'a> Closure<'a> {
         let parameters = self.source_fact_params(scenario)?;
         let calls = self.source_fact_calls(scenario)?;
         let by_role = self.source_fact_by_role(scenario);
+        let decision_sites = self.checked_decision_sites(scenario);
+        let unproved_helper_contained_requires = !scenario.read && scenario.on.is_none() &&
+            scenario.cohort.is_none() && !scenario.scope_authority &&
+            self.source_require_params_ok(scenario) && decision_sites.as_ref().is_some_and(|sites|
+            sites.iter().any(|site| matches!(site.stage,
+                CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire) &&
+                site.calls.iter().any(|call| self.unproved_helper_contained_any(call))));
         Some(CheckedScenarioSource {
             by_role,
             scenario: scenario.scenario,
@@ -3800,7 +3854,8 @@ impl<'a> Closure<'a> {
             calls,
             expression_types: self.checked_create_expression_types(scenario.node, scenario.module),
             creates: self.checked_create_sources(scenario),
-            decision_sites: self.checked_decision_sites(scenario),
+            decision_sites,
+            unproved_helper_contained_requires,
             source_requires: self.checked_source_requires(scenario),
             queries: self.checked_query_sources(scenario),
             transcripts: self.checked_transcript_sources(scenario),
@@ -11753,6 +11808,75 @@ impl<'a> Closure<'a> {
         false
     }
 
+    fn first_binding_nonnull_only(&self, binding: &Effect, cond: NodeKey) -> bool {
+        let Some((left, right)) = self.query_binary(cond, "!=") else { return false; };
+        [(left, right), (right, left)].iter().any(|(value, null)|
+            matches!(self.query_binding(*value), Some(Binding::Let { node }) if *node == binding.node)
+                && self.types.node_types.get(null) == Some(&ResolvedType::Null))
+    }
+
+    fn first_binding_used_in_node(&self, binding: &Effect, root: NodeKey) -> bool {
+        let mut pending = vec![root];
+        let mut steps = 0;
+        while let Some(key) = pending.pop() {
+            steps += 1;
+            if steps > 16384 { return true; }
+            if matches!(self.query_binding(key), Some(Binding::Let { node }) if *node == binding.node) {
+                return true;
+            }
+            if let Some(node) = self.nodes.get(&key) {
+                pending.extend(node.children.iter().map(NodeKey::of));
+            }
+        }
+        false
+    }
+
+    fn first_null_branch_decision<'b>(
+        &self, scenario: &'b super::effects::ScenarioData,
+    ) -> Option<&'b Effect> {
+        if scenario.on.is_some() || scenario.read || scenario.by.is_none() ||
+            scenario.result.is_some() || scenario.cohort.is_some() {
+            return None;
+        }
+        let [binding, branch] = scenario.effects.as_slice() else { return None; };
+        if binding.verb != EffectVerb::Let || branch.verb != EffectVerb::If ||
+            !branch.match_arms.is_empty() { return None; }
+        self.checked_first_query_source(scenario, binding)?;
+        let (left, right) = self.query_binary(branch.cond?, "==")?;
+        if ![(left, right), (right, left)].iter().any(|(value, null)|
+            matches!(self.query_binding(*value), Some(Binding::Let { node }) if *node == binding.node)
+                && self.types.node_types.get(null) == Some(&ResolvedType::Null)) {
+            return None;
+        }
+        Some(binding)
+    }
+
+    fn first_null_branch_target_only<'b>(
+        &self, scenario: &'b super::effects::ScenarioData,
+    ) -> Option<&'b Effect> {
+        let binding = self.first_null_branch_decision(scenario)?;
+        let [_, branch] = scenario.effects.as_slice() else { return None; };
+        let query = self.checked_first_query_source(scenario, binding)?;
+        if query.dependencies.is_empty() || query.archived || query.limit.is_some() {
+            return None;
+        }
+        let [create] = branch.then_effects.as_slice() else { return None; };
+        let [set] = branch.else_effects.as_slice() else { return None; };
+        if create.verb != EffectVerb::Create || set.verb != EffectVerb::Set ||
+            !matches!(set.target, Some(EffectTarget::Record { model: Some(model) }) if model == query.model) ||
+            self.first_binding_used_in_node(binding, create.node) ||
+            set.args.iter().any(|arg| arg.value.is_some_and(|value| self.first_binding_used_in_node(binding, value))) {
+            return None;
+        }
+        let set_node = self.nodes.get(&set.node)?;
+        let target = set_node.children.iter().find(|child| child.kind == SyntaxKind::Path)?;
+        let source = self.db.get(target.span.file)?;
+        if source.text.get(target.span.start as usize..target.span.end as usize)?.trim() != binding.binding.as_deref()? {
+            return None;
+        }
+        Some(binding)
+    }
+
     /// C23 hook event operand: the predicate compares the row field against
     /// one declared text field read off the handler's `event` binding
     /// (`event.source`, never a longer chain). The event declaration owns
@@ -12182,6 +12306,8 @@ impl<'a> Closure<'a> {
                 // other shape keeps ordinary viewer behavior.
                 guard_consumed: false,
                 presence_consumed: false,
+                target_consumed: false,
+                target_decision_shape: false,
                 contained_parent,
             }),
             count: None,
@@ -13731,6 +13857,23 @@ impl<'a> Closure<'a> {
         } else {
             Some(true)
         }
+    }
+
+    fn unproved_helper_contained_any(&self, call: &CheckedDecisionCall) -> bool {
+        let Some(frame) = call.chain.last() else { return false; };
+        if !matches!(&call.target, CheckedDecisionCallTarget::Builtin { id, .. } if id == "any") {
+            return false;
+        }
+        let Some(fact) = self.types.checked_collection_calls.get(&call.node) else { return false; };
+        let Some(query) = self.types.checked_queries.get(&fact.query) else { return false; };
+        let Some((base, name)) = self.count_member(query.domain) else { return false; };
+        let Some(Binding::Symbol(parameter)) = self.query_binding(base) else { return false; };
+        let Some(helper) = self.effects.derives.get(&frame.derive) else { return false; };
+        let Some(ResolvedType::Record { symbol: parent, stored: true }) = self.types.symbol_types.get(parameter) else { return false; };
+        let Some(child) = self.resolve.symbols.get(fact.model.0 as usize) else { return false; };
+        helper.params.iter().any(|param| param.param == *parameter) && child.name == name &&
+            matches!(child.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(owner), .. } if owner == *parent) &&
+            self.effects.models.get(&fact.model).is_some_and(|model| model.owner == ModelOwner::ChildOf(*parent))
     }
 
     fn source_require_any_call(

@@ -8,6 +8,29 @@ runtime before choosing a design.
 
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
+**Implementation status, 2026-10-21:** The first owner-decision repair is now
+implemented for independently checked source-`Require` guards and the confined
+`any` plus decision-only `first` composition. Installed-runtime integration
+checks show hidden blockers reject, a membership-free guard executes, an
+unreadable anchor adds no viewer-read prerequisite, and ordinary `read=true`
+queries remain viewer-filtered. Helper-contained `ChildOf` scans without exact
+domain proof now fail at compilation with `E6008`. A further checked void
+`first` null branch now selects an owner row for either a create or an
+authorized update target, including when that row is hidden or has no read
+policy; a selected field copied into the update without value proof is
+explicitly refused. The tables and failures
+below record the *pre-repair reproduction*; they are retained to explain the
+defect. This change does not claim to clear the original app's remaining
+query correspondence diagnostics or implement mixed result/effect flows.
+
+The current 24-source compile finishes with 103 diagnostics (`complete:true`,
+`omitted:0`), compared with 91 in the 2026-10-20 capture. Fourteen newly
+explicit `E6008` refusals are helper-contained `ChildOf` source-`Require`
+shapes that still lack exact parent substitution; two former send-guard
+diagnostics cleared. All 21 original `first` correspondence diagnostics
+remain. The new target-only `first` profile is verified on a focused
+installed-runtime fixture, not yet an accepted original-app site.
+
 **Observed on 2026-10-20:** the compiler accepts at least one leading
 scenario `require` that calls a helper containing `any(...)`. With native
 scenario receipts enabled, it emits `nativeScenarioRequire` and a receipt
@@ -84,6 +107,78 @@ Two more boundaries were checked with the same write-bearing scenario:
 
 These are observed behavior boundaries, not fixes or proof that they share
 one root cause.
+
+The [owner-state rule-search design](design/rule-search-owner-authority.md)
+specifies the authority, source proof, stage, commit and disclosure boundaries.
+
+Additional compiled-runtime probes expose further boundaries. Keeping the
+original root helper query but granting `Secret.read` only `anchor` makes a
+visible blocking row reject with `forbidden` / `Record field is not readable.`
+The row remains in storage, and no business write occurs. Omitting
+`Secret.read` entirely makes the same compiled guard commit past a blocking
+row. A root `Secret` query that reads `secret.parent` for a declared
+`Secret in Anchor` child still rejects a visible blocker and commits past a
+hidden one.
+
+A direct leading `require not any(anchor.Secret as secret,...)` has a native
+receipt and shows the same hidden-child commit. The emitted function uses
+`nativeScenarioRequire`, the same source-`Require` observer as the root helper.
+With no child row and an `Anchor.read` rule that rejects its label, this
+direct guard also returns `forbidden` / `Source Require record is not
+readable.` before its business test, confirming the extra viewer prerequisite
+on the same path.
+A helper containing the same `anchor.Secret` collection has **no** native
+receipt disclosure: the source checker admits declared array fields through
+helpers but not this implicit `ChildOf` collection. With `active_member`, the artifact fails installation
+(`Membership owner lacks its original checked disclosure source.`); without
+it, the generic scenario refuses the ruled child model at invocation. The
+direct and helper-contained cases need distinct compiler admission proofs;
+admitted guards should inherit the same decision authority.
+
+A separate admitted composition was exercised from
+[`any-first-composition.can`](../compiler/tests/fixtures/any-first-composition.can).
+Its leading `require not any(invitation.parent.C as grant,...)` tests
+`grant.account==actor and grant.role==invitation.role and grant.active`;
+the body selects `first(...)` by account and role, requires a nonnull row,
+then creates `D`. The runtime probe added `C.hidden:bool=false` and
+`policy C read=members and not row.hidden` to the fixture. It seeded valid
+parent `P` and invitation `I` rows plus these `C` rows, compiled with native
+receipts, and invoked `accept` with a real member session:
+
+| Owner-state `C` rows | Caller-visible `C` | Outcome | `D` rows |
+| --- | ---: | --- | ---: |
+| Visible inactive | 1 | Committed | 1 |
+| Visible active | 1 | Rejected, `rule_failed` | 0 |
+| Visible inactive + hidden active | 1 | **Committed** | **1** |
+| Hidden inactive only | 0 | **Rejected, `rule_failed`** | **0** |
+
+The third case should reject: the hidden active row matches the leading
+guard, and the visible inactive row keeps the later `first` query satisfiable
+so it cannot mask the guard defect. The emitted function uses
+`executeScenarioReceiptAny` plus `executeScenarioReceiptQuery`, without
+`nativeScenarioRequire`. State's `executeScenarioReceiptQueryMode` captures
+the bounded owner domain, then calls viewer-only `queryRecordsObserved` with
+the source read policies; the hidden candidate drops out before the guard's
+predicate. This is a second observed authority seam. In the fourth row, the
+hidden inactive child does not match `any`, but should satisfy `first` and
+its sole consumer, `require c!=null`. The runtime treats it as absent. The
+third row isolates the leading `any` defect because its visible inactive
+child keeps that later `first` satisfied.
+
+The current capture's 21 `first query: original native query correspondence`
+diagnostics are heterogeneous: six occur in derive declarations (including
+two used by an explicit `read=true scope=authority` report), two in
+`CanLeave.preview` (`read=true` without that scope, so viewer authority), and thirteen in
+mutation scenario bodies. The latter include idempotent create/update
+branches, effect-target or field selection, guarded evidence, and returned
+existing rows. They cannot all acquire owner authority from the spelling
+`first`; the original consumer and any result/effect flow must be checked.
+
+The existing bounded owner query was checked with nonblocking rows: 200
+`Secret` rows allowed the mutation, while 201 produced `validation` /
+`Owner mutation query exceeds its row bound.` with no business write. The
+storage implementation still labels content expiry as a later slice, so no
+current runtime expiry result is claimed for these probes.
 
 The revision fence was exercised separately. Each run began with no `Secret`
 row; an external writer inserted a blocking row after the first guard scan,
@@ -172,7 +267,9 @@ tainted sink):
   placeholder `collapse`/`skeleton` pair (2); one collection call over a
   multi-collection predicate (big-three item 2 downstream, 1).
 
-Current census (91): send-dispatch-guard 27 and first-query correspondence
-21 are the big-three core; the rest is the refused surface above. Anything
+The 2026-10-20 census (91): send-dispatch-guard 27 and first-query correspondence
+21 are prominent big-three-related diagnostic groups, but the latter spans
+different evaluation sites as classified above. The rest is the refused
+surface above. Anything
 that clears the big three must preserve the refusals listed here — they
 are the same seal, not separate limitations.

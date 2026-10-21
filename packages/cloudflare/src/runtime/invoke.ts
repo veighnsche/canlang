@@ -141,7 +141,7 @@ import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioRece
 import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNativeSourceSendMembership, openNativeSourceSendMembershipFrame, bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
   hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
   type NativeMembershipFrame } from './native-membership.js';
-import type { ScenarioReceiptMembershipSite } from '@canlang/state/invocation';
+import type { ScenarioReceiptMembershipSite, ScenarioReceiptRequireSource } from '@canlang/state/invocation';
 import type { CanonicalFileBinding, FileAttachment, FileStagingCensus } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
@@ -2394,6 +2394,8 @@ export interface LoadedCanonicalDescriptors {
   readonly sourceReadPolicies: ReadonlyMap<string, CheckedPageSourceReadPolicy>;
   /** Original checked outer decisions; never executable authority from request metadata. */
   readonly membershipSources: ReadonlyMap<string, readonly ScenarioReceiptMembershipSite[]>;
+  /** Independently sealed source-Require sites, including zero-membership guards. */
+  readonly requireSources: ReadonlyMap<string, readonly ScenarioReceiptRequireSource[]>;
   readonly models: ReadonlyArray<CanonicalModelDescriptor>;
   /** Defining State attachments retain reference/containment identity without field tags. */
   readonly refs: ReadonlyMap<string, readonly { readonly field: string; readonly model: string }[]>;
@@ -4338,12 +4340,14 @@ async function assertCheckedFirstQuery<Query extends { readonly id: unknown; rea
   metadata: Record<string, unknown>, source: Record<string, unknown>,
   queryNode: Record<string, unknown>, node: Record<string, unknown>, statement: Record<string, unknown>,
   guardConsumed: boolean | undefined, presenceConsumed: boolean | undefined,
+  targetConsumed: boolean | undefined,
   interval: (value: Record<string, unknown>) => boolean,
   query: Query | undefined, planSource: unknown, artifact: CompileArtifact, defName: string,
   failure: string,
 ): Promise<Query> {
-  if (Object.keys(metadata).length !== 5 + (guardConsumed === undefined ? 0 : 1) + (presenceConsumed === undefined ? 0 : 1) ||
-      guardConsumed === false || presenceConsumed === false ||
+  if (Object.keys(metadata).length !== 5 + (guardConsumed === undefined ? 0 : 1) + (presenceConsumed === undefined ? 0 : 1) +
+      (targetConsumed === undefined ? 0 : 1) ||
+      guardConsumed === false || presenceConsumed === false || targetConsumed === false ||
       Object.keys(source).length !== 3 || query === undefined ||
       stableStringify(captureDispatchPreclaimData(source)) !== stableStringify(query.source) ||
       stableStringify(query.source) !== stableStringify(planSource) ||
@@ -4379,7 +4383,7 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     const operation = isUnknownRecord(operations) ? readMetadataMember(operations, def.name, where)?.value : undefined;
     const rawFirst = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryFirst', where)?.value : undefined;
     const first = rawFirst === undefined ? [] : await Promise.all(nativeCallArray(rawFirst, plan.queries.length).map(async value => {
-      const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement', 'guardConsumed', 'presenceConsumed']);
+      const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement', 'guardConsumed', 'presenceConsumed', 'targetConsumed']);
       const source = localPolicyObject(metadata.source, ['path', 'sha256', 'module']);
       const queryNode = localPolicyObject(metadata.query, ['start', 'end']);
       const node = localPolicyObject(metadata.node, ['start', 'end']);
@@ -4390,15 +4394,17 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
       // only as exact `true`; any other spelling keeps the refusal.
       const guardConsumed = Object.hasOwn(metadata, 'guardConsumed') ? metadata.guardConsumed === true : undefined;
       const presenceConsumed = Object.hasOwn(metadata, 'presenceConsumed') ? metadata.presenceConsumed === true : undefined;
+      const targetConsumed = Object.hasOwn(metadata, 'targetConsumed') ? metadata.targetConsumed === true : undefined;
       const query = await assertCheckedFirstQuery(metadata, source, queryNode, node, statement,
-        guardConsumed, presenceConsumed, interval, plan.queries!.find(query => query.id === metadata.queryId),
+        guardConsumed, presenceConsumed, targetConsumed, interval, plan.queries!.find(query => query.id === metadata.queryId),
         plan.source, artifact, def.name, 'First query lacks its original checked Let, call and owning source.');
       return captureDispatchPreclaimData({ queryId: query.id, source: query.source,
         query: { start: queryNode.start as number, end: queryNode.end as number },
         node: { start: node.start as number, end: node.end as number },
         statement: { start: statement.start as number, end: statement.end as number },
         ...(guardConsumed === true ? { guardConsumed: true as const } : {}),
-        ...(presenceConsumed === true ? { presenceConsumed: true as const } : {}) }) as NativeQueryFirstMetadata;
+        ...(presenceConsumed === true ? { presenceConsumed: true as const } : {}),
+        ...(targetConsumed === true ? { targetConsumed: true as const } : {}) }) as NativeQueryFirstMetadata;
     }));
     const rawAny = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryAny', where)?.value : undefined;
     const any = rawAny === undefined ? [] : nativeCallArray(rawAny, plan.queries.length).map(value => {
@@ -4823,6 +4829,47 @@ async function loadCheckedCallbackReadGrants(asm: AssembledModules, artifact: Co
   return { callbacks: result, reads };
 }
 
+/** Source-Require identities come from the independently sealed compiler
+ * inventory, including guards that never call active_member. */
+async function loadCheckedRequireSources(asm: AssembledModules, artifact: CompileArtifact):
+  Promise<ReadonlyMap<string, readonly ScenarioReceiptRequireSource[]>> {
+  const inventory = new Map<string, readonly ScenarioReceiptRequireSource[]>();
+  for (const module of Object.keys(asm.moduleUrls)) {
+    const imported = await importVerifiedAssemblyModule(asm, module, artifact);
+    const exported = isUnknownRecord(imported)
+      ? readMetadataMember(imported, 'canScenarioRequireSources', 'Scenario Require source')?.value : undefined;
+    if (exported === undefined) continue;
+    if (typeof exported !== 'function') throw new AssemblyCorrespondenceError('Scenario Require inventory needs its original emitted function.');
+    const raw = localPolicyObject(await exported());
+    if (Object.keys(raw).length > 200) throw new AssemblyCorrespondenceError('Scenario Require inventory exceeds its checked owner bound.');
+    for (const owner of Object.keys(raw)) {
+      const sources = nativeCallArray(raw[owner], 200).map(value => {
+        const site = localPolicyObject(value, ['source', 'owner', 'node', 'statement', 'parameters', 'sites']);
+        if (Object.keys(site).length !== 6 || site.owner !== owner) {
+          throw new AssemblyCorrespondenceError('Scenario Require inventory differs from its checked owner.');
+        }
+        const source = captureDispatchPreclaimData(site) as unknown as ScenarioReceiptRequireSource;
+        if (!artifact.sources.some(original => original.path === source.source.path &&
+            original.sha256 === source.source.sha256) || source.sites.length !== 1 ||
+            source.sites[0]?.stage !== 'read-predicate' || source.sites[0]?.owner !== owner) {
+          throw new AssemblyCorrespondenceError('Scenario Require inventory differs from its original source observer.');
+        }
+        return source;
+      });
+      if (sources.length === 0 || new Set(sources.map(site => stableStringify([site.source, site.node]))).size !== sources.length) {
+        throw new AssemblyCorrespondenceError('Scenario Require inventory repeats an original site.');
+      }
+      const previous = inventory.get(owner);
+      if (previous !== undefined && stableStringify(previous) !== stableStringify(sources)) {
+        throw new AssemblyCorrespondenceError('Scenario Require owner has conflicting source inventories.');
+      }
+      inventory.set(owner, Object.freeze(sources));
+    }
+    await verifyCheckedAssembly(asm, artifact);
+  }
+  return inventory;
+}
+
 /** The compiler's checked export is read only from original verified modules.
  * Its source vocabulary describes decisions; State still owns every lifetime. */
 async function loadCheckedMembershipSources(asm: AssembledModules, artifact: CompileArtifact):
@@ -5143,6 +5190,7 @@ async function loadCanonicalDescriptorsInternal(
     callbackReadGrants: sourceReadInventory.callbacks,
     sourceReadPolicies: sourceReadInventory.reads,
     membershipSources: await loadCheckedMembershipSources(asm, artifact),
+    requireSources: await loadCheckedRequireSources(asm, artifact),
     committedChanges,
     registry: loaded.registry,
     models: loaded.models,
@@ -6043,6 +6091,7 @@ function createSourceReadPolicyAdapter(input: {
     observation: Readonly<ViewerGenerationCallbackReadObservation>,
     installed: import('@canlang/state/receipt').InstalledSourceReadPredicate | import('@canlang/state/receipt').InstalledSourceQueryPredicate): Promise<boolean> => {
     const { context, row, revision: currentRevision, fence: currentFence } = observation;
+    const ownerDecision = input.observer?.predicate === installed;
     await verifyCheckedAssembly(input.opts.asm, input.opts.artifact);
     const actor = input.opts.identity.actor, team = input.opts.identity.team;
     if (context.actorUserId !== (actor?.user_id ?? null) || context.teamId !== (team?.team_id ?? null) ||
@@ -6064,7 +6113,7 @@ function createSourceReadPolicyAdapter(input: {
       ...(membership === null ? [] : ['members']), ...(membership?.is_owner === true ? ['owner'] : [])];
     const navigation = await createContainmentNavigation({ loaded, store: input.opts.store,
       revision: currentRevision, actorUserId: context.actorUserId, teamId: context.teamId,
-      memberships: context.memberships, coherentContext: context, authority: 'viewer',
+      memberships: context.memberships, coherentContext: context, authority: ownerDecision ? 'owner' : 'viewer',
       sourceReadOpts: input.opts, sourceObservation: observation,
       ...(input.preferences === undefined ? {} : { sourcePreferences: input.preferences }),
       ...(currentFence === undefined ? {} : { fence: currentFence }), failure: error => { failure = error; } });
@@ -6105,12 +6154,16 @@ function createSourceReadPolicyAdapter(input: {
         await checkpoint();
         if (!loaded.models.some(candidate => candidate.name === model)) throw new StateError('validation', 'Source query requires its declared model.');
         const source = await loadProducerModule(STATE_QUERY_SPECIFIER, 'installed source expression query');
-        const read = requireProducerFn(source, 'readRecordsAtSourceObservation', 'installed source expression query') as
-          typeof import('@canlang/state/query').readRecordsAtSourceObservation;
-        const records = await read({ observation, store: input.opts.store, model: model as ModelName,
+        const request = { observation, store: input.opts.store, model: model as ModelName,
           ...(id === undefined ? {} : { id: id as RecordId }),
           ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }),
-          readPolicies: policies(model), policy: loaded.policy as import('@canlang/state/query').SourceObservationRecordsInput['policy'] });
+        };
+        const records = ownerDecision
+          ? await (requireProducerFn(source, 'readOwnerDecisionRecordsAtSourceObservation', 'installed owner decision query') as
+            typeof import('@canlang/state/query').readOwnerDecisionRecordsAtSourceObservation)(request)
+          : await (requireProducerFn(source, 'readRecordsAtSourceObservation', 'installed source expression query') as
+            typeof import('@canlang/state/query').readRecordsAtSourceObservation)({ ...request, readPolicies: policies(model),
+              policy: loaded.policy as import('@canlang/state/query').SourceObservationRecordsInput['policy'] });
         if (input.observer?.predicate === installed) {
           input.observer.reads.query(model, records.map(entry => entry.record), id, parent);
         }
@@ -10145,18 +10198,18 @@ async function runScenarioExecution(
           throw new AssemblyCorrespondenceError('Scenario Require differs from its original owning source.');
         }
         const original = captureDispatchPreclaimData(source) as unknown as import('@canlang/state/invocation').ScenarioReceiptRequireSource;
-        const originalSites = loaded.membershipSources.get(scenarioDef.name) ?? [];
-        const matches = originalSites.filter(site => (site.stage === 'leading-require' || site.stage === 'body-require') &&
+        const originalSites = loaded.requireSources.get(scenarioDef.name) ?? [];
+        const matches = originalSites.filter(site =>
           stableStringify(site.source) === stableStringify(original.source) &&
           stableStringify(site.node) === stableStringify(original.node) &&
           stableStringify(site.statement) === stableStringify(original.statement));
         const [observerSite] = original.sites;
-        if (matches.length !== 1 || original.sites.length !== 1 || observerSite === undefined ||
+        if (matches.length !== 1 || stableStringify(matches[0]) !== stableStringify(original) ||
+            original.sites.length !== 1 || observerSite === undefined ||
             observerSite.stage !== 'read-predicate' || observerSite.owner !== scenarioDef.name ||
             stableStringify(observerSite.source) !== stableStringify(original.source) ||
             stableStringify(observerSite.node) !== stableStringify(original.node) ||
             stableStringify(observerSite.statement) !== stableStringify(original.statement) ||
-            stableStringify(observerSite.calls) !== stableStringify(matches[0]!.calls) ||
             !opts.artifact.sources.some(source => source.path === original.source.path && source.sha256 === original.source.sha256)) {
           throw new AssemblyCorrespondenceError('Scenario Require lacks its complete independently checked original guard observer.');
         }
@@ -10200,9 +10253,7 @@ async function runScenarioExecution(
         const execute = loaded.producers.invoke.executeScenarioReceiptRequire;
         if (execute === undefined) return refuseRecordBinding('Source Require needs its installed owner observation producer.');
         let adapter: ReturnType<typeof createSourceReadPolicyAdapter>;
-        return await execute(actualCall, receiptStore, { original, parameter,
-          policy: loaded.policy as Parameters<typeof execute>[2]['policy'],
-          readPolicies: model => adapter.policies(model),
+        return await execute(actualCall, receiptStore, { original, checked: matches[0]!, parameter,
           capture: reads => {
             const predicate: import('@canlang/state/receipt').InstalledSourceQueryPredicate = async (_record, observation) => {
               if (observation === undefined) throw new AssemblyCorrespondenceError('Scenario Require lacks its genuine owner-stage observation.');
@@ -13095,7 +13146,7 @@ async function bindPrivateDueHandlerProducers(
   }
   const rawFirst = member(operation, 'queryFirst');
   const first = rawFirst === undefined ? [] : await Promise.all(nativeCallArray(rawFirst, plan.queries!.length).map(async value => {
-    const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement', 'guardConsumed', 'presenceConsumed']);
+    const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement', 'guardConsumed', 'presenceConsumed', 'targetConsumed']);
     const source = localPolicyObject(metadata.source, ['path', 'sha256', 'module']);
     const queryNode = localPolicyObject(metadata.query, ['start', 'end']);
     const node = localPolicyObject(metadata.node, ['start', 'end']);
@@ -13106,15 +13157,17 @@ async function bindPrivateDueHandlerProducers(
     // only as exact `true`; any other spelling keeps the refusal.
     const guardConsumed = Object.hasOwn(metadata, 'guardConsumed') ? metadata.guardConsumed === true : undefined;
     const presenceConsumed = Object.hasOwn(metadata, 'presenceConsumed') ? metadata.presenceConsumed === true : undefined;
+    const targetConsumed = Object.hasOwn(metadata, 'targetConsumed') ? metadata.targetConsumed === true : undefined;
     const query = await assertCheckedFirstQuery(metadata, source, queryNode, node, statement,
-      guardConsumed, presenceConsumed, interval, plan.queries!.find(query => query.id === metadata.queryId),
+      guardConsumed, presenceConsumed, targetConsumed, interval, plan.queries!.find(query => query.id === metadata.queryId),
       plan.source, artifact, privateDef.name, 'Due handler first query lacks its original checked Let, call and owning source.');
     return captureDispatchPreclaimData({ queryId: query.id, source: query.source,
       query: { start: queryNode.start as number, end: queryNode.end as number },
       node: { start: node.start as number, end: node.end as number },
       statement: { start: statement.start as number, end: statement.end as number },
       ...(guardConsumed === true ? { guardConsumed: true as const } : {}),
-      ...(presenceConsumed === true ? { presenceConsumed: true as const } : {}) });
+      ...(presenceConsumed === true ? { presenceConsumed: true as const } : {}),
+      ...(targetConsumed === true ? { targetConsumed: true as const } : {}) });
   }));
   const rawAny = member(operation, 'queryAny');
   const rawSelections = member(operation, 'querySelections');

@@ -2605,6 +2605,16 @@ fn emit_program_with_sources(
                     feasibility,
                 )
             {
+                if ir.scenario_disclosures.get(&item.id)
+                    .and_then(|value| value.source_facts())
+                    .and_then(|facts| facts.queries.as_ref())
+                    .is_some_and(|queries| queries.iter().any(|query| query.first.as_ref()
+                        .is_some_and(|first| first.target_decision_shape && !first.target_consumed)))
+                {
+                    emitter.unsupported("first decision target",
+                        "selected first row has an unproved decision, write target or value sink", item.span);
+                    continue;
+                }
                 let requires = ir.scenario_disclosures.get(&item.id)
                     .and_then(|value| value.source_facts())
                     .and_then(|facts| facts.source_requires.as_deref())
@@ -2624,6 +2634,20 @@ fn emit_program_with_sources(
                     continue;
                 }
                 emitter.native_receipts.insert(item.id, recipe);
+            } else if ir.scenario_disclosures.get(&item.id)
+                .and_then(|value| value.source_facts())
+                .and_then(|facts| facts.queries.as_ref())
+                .is_some_and(|queries| queries.iter().any(|query| query.first.as_ref()
+                    .is_some_and(|first| first.target_decision_shape && !first.target_consumed)))
+            {
+                emitter.unsupported("first decision target",
+                    "selected first row has an unproved decision, write target or value sink", item.span);
+            } else if ir.scenario_disclosures.get(&item.id)
+                .and_then(|value| value.source_facts())
+                .is_some_and(|facts| facts.unproved_helper_contained_requires)
+            {
+                emitter.unsupported("scenario source requirement",
+                    "helper collection in Require lacks exact owner-domain correspondence", item.span);
             } else if super::scenario_receipts::has_original_transcript_source(
                 ir,
                 SymbolId(index as u32),
@@ -2775,6 +2799,21 @@ fn emit_program_with_sources(
     if native_receipts && !emitter.source_requires.is_empty() {
         body.push(entry_span,Some("canScenarioRequireSource".into()),
             "const $can$require$sources=new WeakMap();function $can$require$issue(source,predicate){$can$require$sources.set(predicate,source);return predicate;}export function canScenarioRequireSource(predicate){const source=$can$require$sources.get(predicate);return source===undefined?null:JSON.parse(source);}");
+        // This source-backed census exists even when no active_member occurs.
+        // Its values are the same sealed identities issued to genuine Require
+        // closures; the verified loader compares both independently of the
+        // membership inventory.
+        let mut inventory: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+        for identity in emitter.source_requires.values() {
+            let owner = identity["owner"].as_str().expect("sealed Require owner");
+            inventory.entry(owner.to_owned()).or_default().push(identity.clone());
+        }
+        for sites in inventory.values_mut() {
+            sites.sort_by_key(|site| site.to_string());
+        }
+        let payload = descriptor_json(&descriptor_json(&inventory));
+        body.push(entry_span, Some("canScenarioRequireSources".into()),
+            &format!("export function canScenarioRequireSources(){{return JSON.parse({payload});}}"));
     }
     if native_receipts && !emitter.membership_predicates.is_empty() {
         body.push(entry_span, Some("canReadPredicateSource".into()),
@@ -16153,6 +16192,9 @@ impl<'a> Emitter<'a> {
                 }
                 if first.presence_consumed {
                     entry["presenceConsumed"] = serde_json::json!(true);
+                }
+                if first.target_consumed {
+                    entry["targetConsumed"] = serde_json::json!(true);
                 }
                 Some(entry)
             }).collect();
