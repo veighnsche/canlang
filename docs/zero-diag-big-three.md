@@ -8,8 +8,9 @@ runtime before choosing a design.
 
 The parent commit before the recovery pinned `draft` to
 `fe2502ea4c57140ad3fccea3bd976119445440d4`, but that object is unavailable
-from the draft remote. Canlang now pins the recovered draft main merge commit
-`bbf29d178a43bca6dcce486d501c0b3d43fc9ebe`. The 2026-10-21
+from the draft remote. The recovered draft main merge commit is
+`bbf29d178a43bca6dcce486d501c0b3d43fc9ebe`; Canlang now pins its
+CanEvent source-order correction `974fd40`. The 2026-10-21
 reproduction uses the earlier draft main `32cc63933a8310ea9b6f00f67dd6e2117e1f7324`;
 its 24 source operands also generate two contribution sources. A prebuilt
 compiler capture on that published revision completed with 106 diagnostics
@@ -94,6 +95,13 @@ hidden rows, capacity, wrong or revoked authority, commit races, and both
 successful branches; altered source lineage, query, guard, target, and event
 payloads remain refused. The remaining 82 are separate sites.
 
+The later CanEvent source correction freezes the narrowed Resource, sets a
+pending venue change to `confirming` before its guarded `Rooms.confirm` SEND,
+then stores the delivery receipt. Previously the source-stage guard saw
+`holding` and skipped the confirmation. A complete 24-source compile after
+this correction still reports 82 diagnostics with the same per-file messages;
+the `Rooms.confirm` native SEND receipt remains unfinished.
+
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
 **Implementation status, 2026-10-21:** The first owner-decision repair is now
@@ -134,14 +142,13 @@ The installed owner-search suite passes with hidden CompanyRole and Employee
 rows, a manager or administrator success, denied authority, and commit races.
 The complete 24-source capture clears its original helper-domain diagnostic.
 
-The nearest remaining void mutation is `CanMember.assign`: its
-`first(term.Seat...)` drives a null-branch create or selected-row update,
-but the leading decision also counts active `Seat` rows and evaluates
-`has_role`, per-location `has_location_role`, and `eligible_account` helper
-searches over other stored models. The admitted helper-observation plus
-same-model pair does not yet cover its Seat count and `eligible_account`
-cross-model observations. Admitting only the `first` would omit those guard
-domains and their source order.
+`CanMember.assign` now pairs its active-Seat count with the account-matched
+`first(term.Seat...)`, preserving their source order and all cross-model
+helper observations through the create or reactivation branch. The nearest
+remaining Member query is `term`'s `first(membership.Renewal...)`: its
+selected row feeds a capture comparison and a null-branch create/schedule,
+after an optional capture-validation branch with another owner query. That
+presence and selected-value flow needs its own checked receipt.
 
 The other original mutation-body sites additionally copy selected fields
 into effects, return an existing selected row, or select after earlier
