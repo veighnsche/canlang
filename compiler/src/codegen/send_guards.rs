@@ -5,7 +5,7 @@ use crate::analysis::effects::{Effect, EffectTarget, EffectVerb, HandlerSource, 
 use crate::analysis::resolve::{self, Binding, Symbol, SymbolId, SymbolKind};
 use crate::analysis::scenario_disclosure::{
     CheckedDecisionPosition, CheckedDecisionSite, CheckedDecisionStage, CheckedScenarioSource,
-    DisclosureFirstQuery, DisclosureQuery,
+    DependencyRole, DisclosureFirstQuery, DisclosureQuery, ScenarioDisclosure,
 };
 use crate::analysis::types::{
     CheckedCollectionCall, CheckedQuery, SelectedCall, SelectedCallTarget,
@@ -68,7 +68,7 @@ pub(super) struct PreparedSendGuard {
     pub event_source: Option<PreparedSendEventSource>,
 }
 
-/// The two fields of an exact private due payload are frozen by State.
+/// The declared event row and revision are frozen by State.
 /// This is separate from ordinary caller-supplied lexical SEND inputs.
 #[derive(Clone)]
 pub(super) struct PreparedSendEventSource {
@@ -130,11 +130,10 @@ pub(super) fn source_preparation_gap(
     }
 }
 
-/// Only the two private agreement due handlers may transport a declared
-/// event into a SEND Rule. Their fields are authenticated against Work by
-/// State; a caller-provided `event` object never reaches this path.
+/// Only checked agreement and appointment delivery handlers may transport a
+/// declared event into a SEND Rule. State authenticates their Work event row.
 #[allow(clippy::too_many_arguments)]
-fn private_due_event_source(
+fn private_delivery_event_source(
     original: &CheckedProgram,
     ir: &IrProgram,
     db: &SourceDb,
@@ -149,42 +148,71 @@ fn private_due_event_source(
     let Some(HandlerSource::Event(event_id)) = scenario.on.as_ref() else { return Ok(None) };
     let Some(event) = resolved.symbols.get(event_id.0 as usize) else { return Ok(None) };
     let SymbolKind::Event { fields } = &event.kind else { return Ok(None) };
-    let (model_field_name, model_name) = match (owner.canonical.as_str(), event.canonical.as_str()) {
-        ("agreements.notice", "agreements.Notice") => ("term", "agreements.Term"),
-        ("agreements.due", "agreements.ObligationDue") => ("obligation", "agreements.Obligation"),
+    let (model_field_name, model_name, created_name, reminder) = match (owner.canonical.as_str(), event.canonical.as_str()) {
+        ("agreements.notice", "agreements.Notice") => ("term", "agreements.Term", "agreements.NoticeDelivery", false),
+        ("agreements.due", "agreements.ObligationDue") => ("obligation", "agreements.Obligation", "agreements.NoticeDelivery", false),
+        ("appointments.remind", "appointments.Reminder") => ("appointment", "appointments.Appointment", "appointments.Notice", true),
         _ => return Ok(None),
     };
     if event.module != owner.module || scenario.module != owner.module
         || scenario.read || scenario.by.is_some() || scenario.result.is_some()
         || scenario.cohort.is_some() || !scenario.params.is_empty()
-        || !scenario.guards.is_empty() || fields.len() != 2
+        || fields.len() != 2
     { return Ok(None); }
-    let [branch] = scenario.effects.as_slice() else { return Ok(None) };
-    let [source_send, source_create] = branch.then_effects.as_slice() else { return Ok(None) };
-    let Some(branch_cond) = branch.cond else { return Ok(None) };
-    if branch.verb != EffectVerb::If || !branch.else_effects.is_empty()
-        || !branch.match_arms.is_empty() || source_send.verb != EffectVerb::Send
+    let (source_send, source_create, branch) = if reminder {
+        let [source_send, source_create] = scenario.effects.as_slice() else { return Ok(None) };
+        let [source_guard] = scenario.guards.as_slice() else { return Ok(None) };
+        if source_guard.verb != EffectVerb::Require || source_guard.cond.is_none()
+            || !source_guard.then_effects.is_empty() || !source_guard.else_effects.is_empty()
+            || !source_guard.match_arms.is_empty() { return Ok(None); }
+        (source_send, source_create, None)
+    } else {
+        let [branch] = scenario.effects.as_slice() else { return Ok(None) };
+        let [source_send, source_create] = branch.then_effects.as_slice() else { return Ok(None) };
+        if !scenario.guards.is_empty() || branch.verb != EffectVerb::If
+            || branch.cond.is_none() || !branch.else_effects.is_empty()
+            || !branch.match_arms.is_empty() { return Ok(None); }
+        (source_send, source_create, Some(branch))
+    };
+    if source_send.verb != EffectVerb::Send
         || source_send.when != Some(predicate) || source_create.verb != EffectVerb::Create
         || !source_send.then_effects.is_empty() || !source_send.else_effects.is_empty()
         || !source_create.then_effects.is_empty() || !source_create.else_effects.is_empty()
     { return Ok(None); }
     let Some(EffectTarget::Model(created)) = source_create.target.as_ref() else { return Ok(None) };
     if resolved.symbols.get(created.0 as usize).map(|symbol| symbol.canonical.as_str())
-        != Some("agreements.NoticeDelivery") { return Ok(None); }
+        != Some(created_name) { return Ok(None); }
     let IrItemKind::Scenario {
         trusted: true, event_source: Some(super::ir::IrEventSource::Declared(ir_event)),
         hook: None, cohort: None, result: None, read: false, by, guards, effects, ..
     } = &owner.kind else { return Ok(None) };
-    let [IrStmt::If { cond, then_branch, else_branch, span: branch_span }] = effects.as_slice()
-        else { return Ok(None) };
-    let [IrStmt::Send { operation, when: Some(ir_when), span: send_span, .. },
-         IrStmt::Create { model, .. }] = then_branch.as_slice() else { return Ok(None) };
+    let (ir_send, ir_create) = if reminder {
+        let [IrStmt::Require {cond, span, ..}] = guards.as_slice() else { return Ok(None); };
+        let [source_guard] = scenario.guards.as_slice() else { return Ok(None); };
+        let Some(header_cond) = source_guard.cond else { return Ok(None); };
+        if *span != Span::new(source_guard.node.file, source_guard.node.start, source_guard.node.end)
+            || cond.span != Span::new(header_cond.file, header_cond.start, header_cond.end)
+        { return Ok(None); }
+        let [ir_send, ir_create] = effects.as_slice() else { return Ok(None) };
+        (ir_send, ir_create)
+    } else {
+        let [IrStmt::If { cond, then_branch, else_branch, span: branch_span }] = effects.as_slice()
+            else { return Ok(None) };
+        let Some(branch) = branch else { return Ok(None) };
+        let Some(branch_cond) = branch.cond else { return Ok(None) };
+        if !else_branch.is_empty()
+            || *branch_span != Span::new(branch.node.file, branch.node.start, branch.node.end)
+            || cond.span != Span::new(branch_cond.file, branch_cond.start, branch_cond.end)
+        { return Ok(None); }
+        let [ir_send, ir_create] = then_branch.as_slice() else { return Ok(None) };
+        (ir_send, ir_create)
+    };
+    let IrStmt::Send { operation, when: Some(ir_when), span: send_span, .. } = ir_send else { return Ok(None) };
+    let IrStmt::Create { model, .. } = ir_create else { return Ok(None) };
     let IrStmt::Send { span, .. } = send else { return Ok(None) };
-    if ir_event != &event.canonical || !by.is_empty() || !guards.is_empty()
-        || !else_branch.is_empty() || operation != "std.EmailV1.send"
-        || model != "agreements.NoticeDelivery" || *send_span != *span
-        || *branch_span != Span::new(branch.node.file, branch.node.start, branch.node.end)
-        || cond.span != Span::new(branch_cond.file, branch_cond.start, branch_cond.end)
+    if ir_event != &event.canonical || !by.is_empty()
+        || (!reminder && !guards.is_empty()) || operation != "std.EmailV1.send"
+        || model != created_name || *send_span != *span
         || ir_when.span != Span::new(predicate.file, predicate.start, predicate.end)
         || nodes.get(&predicate).is_none()
     { return Ok(None); }
@@ -269,6 +297,95 @@ fn private_due_event_source(
         { return Ok(None); }
         direct_fields.insert(field.to_string());
     }
+    let mut recipient_path = None;
+    if reminder {
+        let IrStmt::Send {args, ..} = ir_send else { return Ok(None) };
+        let IrStmt::Create {input, ..} = ir_create else { return Ok(None) };
+        let IrExpr::Object(send_entries) = &args.expr else { return Ok(None) };
+        let IrExpr::Object(create_entries) = &input.expr else { return Ok(None) };
+        let [(_, recipient), _, (_, body)] = send_entries.as_slice() else { return Ok(None) };
+        if send_entries[0].0 != "to" || send_entries[1].0 != "subject"
+            || send_entries[2].0 != "body" { return Ok(None); }
+        let IrExpr::Member {base: contact, field: email_field} = &recipient.expr else { return Ok(None) };
+        let IrExpr::Member {base: appointment, field: contact_field} = &contact.expr else { return Ok(None) };
+        let IrExpr::Member {base: event_root, field: appointment_field} = &appointment.expr else { return Ok(None) };
+        if email_field != "email" || contact_field != "contact"
+            || appointment_field != "appointment"
+            || !matches!(&event_root.expr, IrExpr::Name(name) if name == "event")
+            || appointment.ty != term_ty
+            || db.get(recipient.span.file).and_then(|source| source.text
+                .get(recipient.span.start as usize..recipient.span.end as usize))
+                != Some("event.appointment.contact.email")
+            || db.get(body.span.file).and_then(|source| source.text
+                .get(body.span.start as usize..body.span.end as usize))
+                != Some("event.appointment.parent.parent.instructions")
+        { return Ok(None); }
+        let ResolvedType::Record {symbol: contact_model, stored: true} = contact.ty else { return Ok(None) };
+        if resolved.symbols.get(contact_model.0 as usize).map(|symbol| symbol.canonical.as_str())
+            != Some("customer.Contact") { return Ok(None); }
+        let contact_decl = stored_fields.iter().filter_map(|id| resolved.symbols.get(id.0 as usize))
+            .find(|field| field.name == "contact" && matches!(field.kind,
+                SymbolKind::Field {owner: declared, ..} if declared == *term_model));
+        let Some(contact_decl) = contact_decl else { return Ok(None) };
+        if original.types.symbol_types.get(&contact_decl.id) != Some(&contact.ty) { return Ok(None); }
+        let Some(SymbolKind::Model {fields: contact_fields, ..}) = resolved.symbols
+            .get(contact_model.0 as usize).map(|symbol| &symbol.kind) else { return Ok(None) };
+        let email_decl = contact_fields.iter().filter_map(|id| resolved.symbols.get(id.0 as usize))
+            .find(|field| field.name == "email" && matches!(field.kind,
+                SymbolKind::Field {owner: declared, ..} if declared == contact_model));
+        let Some(email_decl) = email_decl else { return Ok(None) };
+        if original.types.symbol_types.get(&email_decl.id) != Some(&recipient.ty) { return Ok(None); }
+        let source_entry = create_entries.iter().find(|entry| entry.0 == "source");
+        let Some((_, active_source)) = source_entry else { return Ok(None) };
+        let IrExpr::Member {base: source_appointment, field: active_name} = &active_source.expr
+            else { return Ok(None) };
+        if active_name != "active_source" || source_appointment.ty != term_ty
+            || !matches!(&source_appointment.expr, IrExpr::Member {base, field}
+                if field == "appointment" && matches!(&base.expr, IrExpr::Name(name) if name == "event"))
+            || db.get(active_source.span.file).and_then(|source| source.text
+                .get(active_source.span.start as usize..active_source.span.end as usize))
+                != Some("event.appointment.active_source")
+            || !stored_fields.iter().any(|id| resolved.symbols.get(id.0 as usize).is_some_and(|field|
+                field.name == "active_source" && matches!(field.kind,
+                    SymbolKind::Field {owner: declared, ..} if declared == *term_model)
+                    && original.types.symbol_types.get(id) == Some(&active_source.ty)))
+        { return Ok(None); }
+        direct_fields.insert("contact".into());
+        direct_fields.insert("active_source".into());
+        let Some(ScenarioDisclosure::Complete(disclosure)) =
+            original.scenario_disclosures().get(&owner.id) else { return Ok(None) };
+        let mut dependency_pair = None;
+        for returned in &disclosure.returns {
+            let at = |span: Span, model: &str, field: &str| {
+                let mut reads = returned.dependencies.iter().filter(|read|
+                    read.node.file == span.file
+                        && read.node.start == span.start && read.node.end == span.end
+                        && read.role == DependencyRole::Data && read.calls.is_empty()
+                        && read.query_id.is_none() && read.model_name == model
+                        && read.field_name == field);
+                let read = reads.next()?;
+                reads.next().is_none().then_some(read)
+            };
+            let Some(source_read) = at(contact.span, model_name, "contact") else { return Ok(None) };
+            let Some(leaf_read) = at(recipient.span, "customer.Contact", "email") else { return Ok(None) };
+            let Some(source_index) = returned.dependencies.iter().position(|read| read == source_read)
+                else { return Ok(None) };
+            let Some(leaf_index) = returned.dependencies.iter().position(|read| read == leaf_read)
+                else { return Ok(None) };
+            if source_index >= leaf_index { return Ok(None); }
+            let pair = (source_read.id.clone(), leaf_read.id.clone());
+            if dependency_pair.as_ref().is_some_and(|prior| prior != &pair) { return Ok(None); }
+            dependency_pair = Some(pair);
+        }
+        let Some((source_dependency_id, leaf_dependency_id)) = dependency_pair else { return Ok(None) };
+        recipient_path = Some(serde_json::json!({
+            "sourceDependencyId":source_dependency_id,"leafDependencyId":leaf_dependency_id,
+            "sourceField":{"name":"contact","model":model_name,
+                "node":{"start":contact.span.start,"end":contact.span.end}},
+            "leafField":{"name":"email","model":"customer.Contact",
+                "node":{"start":recipient.span.start,"end":recipient.span.end}},
+        }));
+    }
     let mut direct_fields = direct_fields.into_iter().collect::<Vec<_>>();
     direct_fields.sort();
     let event_ty = ResolvedType::Record { symbol: *event_id, stored: false };
@@ -292,7 +409,7 @@ fn private_due_event_source(
         revision_declaration, revision_use, revision_root, 1);
     if model_input.type_id.is_empty() || revision_input.type_id != "int" { return Ok(None); }
     let site = |node: NodeKey| serde_json::json!({"start":node.start,"end":node.end});
-    let descriptor = serde_json::json!({
+    let mut descriptor = serde_json::json!({
         "event": event.canonical, "handler": owner.canonical,
         "modelField": {"name":model_field_name, "model":model_name,
             "fields":direct_fields,
@@ -301,6 +418,7 @@ fn private_due_event_source(
             "declaration":site(revision_declaration), "occurrence":site(revision_use)},
         "predicate":site(predicate),
     });
+    if let Some(path) = recipient_path { descriptor["recipientPath"] = path; }
     Ok(Some((vec![model_input, revision_input], descriptor)))
 }
 
@@ -363,7 +481,7 @@ fn prepare_send_guard(
     let node = nodes
         .get(&fact.node)
         .ok_or_else(|| gap("missing original SEND predicate CST", Some(*span)))?;
-    let event_source = private_due_event_source(
+    let event_source = private_delivery_event_source(
         original, ir, db, resolved, nodes, owner, fact.node, node, send,
     )?;
     let mut inputs = free_inputs(
@@ -412,7 +530,11 @@ fn prepare_send_guard(
             event_source: event_source.map(|_| PreparedSendEventSource {
                 model_slot: "eventTerm",
                 revision_slot: "eventRevision",
-                model_field: if owner.canonical == "agreements.due" { "obligation" } else { "term" }.into(),
+                model_field: match owner.canonical.as_str() {
+                    "agreements.due" => "obligation",
+                    "appointments.remind" => "appointment",
+                    _ => "term",
+                }.into(),
                 revision_field: "revision".into(),
             }),
         },

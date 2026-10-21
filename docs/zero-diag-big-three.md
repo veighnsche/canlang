@@ -56,11 +56,21 @@ cleared. One unrelated `CanShift` external `active_member` diagnostic appeared
 in the new composition; the total 88-to-87 change therefore understates the
 two event-site clearances and is not a general zero-diagnostic claim.
 
-The latest release build completes the same 24-source capture with 86
+The preceding release build completes the same 24-source capture with 86
 diagnostics (`complete:true`, `omitted:0`). A site-by-site comparison shows
 exactly one cleared diagnostic and no new ones: the original
 `CanCustomer.accept` first-query `E6008` at offset 14313. CanCustomer now has
 zero diagnostics; the remaining 86 are separate sites.
+
+The current release build completes the same 24-source capture with 85
+diagnostics (`complete:true`, `omitted:0`). The only site change is the cleared
+`CanBook.remind` guarded-SEND `E6008` at offset 34178; no new diagnostics
+appear. The checked handler ties the original header Require and SEND Rule to
+its Appointment, recipient Contact email, Calendar instructions, and Notice
+create. State promotes the Contact only through the observed Appointment
+reference and fences both rows before commit. An installed test covers a
+hidden Contact, stale and cancelled appointments, changes before dispatch,
+and a Contact update at commit; two altered-source variants remain refused.
 
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
@@ -361,6 +371,13 @@ void result type rather than duplicating the large checked disclosure; an
 unchanged older full-void inventory reopens, while an altered plan is refused.
 The two original CanContract SEND `E6008` sites clear in the complete recovered
 24-source capture.
+
+The original `CanBook.remind` handler now has a separate exact profile for its
+header Require followed by Mail SEND and Notice CREATE. Its recipient crosses
+the required `Appointment.contact` reference into `customer.Contact.email`;
+the generated receipt pairs those original observations before the protected
+target is read. The installed hidden-Contact and race checks pass, and the
+complete 24-source capture clears precisely that SEND site.
 
 The [exact event-row SEND carrier design](design/event-send-owner-row.md)
 specifies the remaining compiler, Cloudflare, and State proof for

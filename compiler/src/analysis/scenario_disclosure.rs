@@ -6972,9 +6972,17 @@ impl<'a> Closure<'a> {
                 && scenario.node.start <= key.start
                 && key.end <= scenario.node.end
         })?;
-        if scenario.read || scenario.on.is_some() {
+        if scenario.read || (scenario.on.is_some()
+            && self.resolve.symbols.get(scenario.scenario.0 as usize)?.canonical != "appointments.remind") {
             return None;
         }
+        if scenario.on.is_some()
+            && (self.count_member(key).is_none_or(|(_, name)| name != "contact")
+                || self.resolve.symbols.get(model.0 as usize)?.canonical != "appointments.Appointment"
+                || self.hook_delivery_field(base, module).is_none_or(|(_, field)|
+                    self.resolve.symbols.get(field.0 as usize)
+                        .is_none_or(|symbol| symbol.name != "appointment")))
+        { return None; }
         Some(match self.query_binding(base) {
             Some(Binding::Symbol(parameter)) => {
                 self.checked_call_parent_path(base, *parameter, 0) == Some((*model, 0))
@@ -6989,7 +6997,18 @@ impl<'a> Closure<'a> {
                 }),
             _ => self
                 .checked_required_model_reference_inner(base, module, depth + 1)
-                .is_some_and(|(_, _, target)| target == *model),
+                .is_some_and(|(_, _, target)| target == *model)
+                || self.count_member(key).is_some_and(|(_, name)| name == "contact")
+                    && self.types.node_types.get(&key).is_some_and(|ty|
+                        matches!(ty, ResolvedType::Record {symbol, stored: true}
+                            if self.resolve.symbols.get(symbol.0 as usize)
+                                .is_some_and(|target| target.canonical == "customer.Contact")))
+                    && self.hook_delivery_field(base, module)
+                    .is_some_and(|(_, field)| self.resolve.symbols.get(field.0 as usize)
+                        .is_some_and(|symbol| symbol.name == "appointment")
+                        && self.types.symbol_types.get(&field) == Some(&ResolvedType::Record {
+                            symbol: *model, stored: true,
+                        })),
         })
     }
 
@@ -7986,8 +8005,8 @@ impl<'a> Closure<'a> {
             let ResolvedType::Record { symbol: model, stored: true } =
                 self.types.symbol_types.get(&row)? else { return None; };
             pending.push((*model, true));
-            let hops = if self.resolve.symbols.get(scenario.scenario.0 as usize)?.canonical
-                == "agreements.due" { 2 } else { 1 };
+            let hops = if matches!(self.resolve.symbols.get(scenario.scenario.0 as usize)?.canonical.as_str(),
+                "agreements.due" | "appointments.remind") { 2 } else { 1 };
             let mut child = *model;
             for _ in 0..hops {
                 let SymbolKind::Model { owner: ModelOwner::ChildOf(parent), .. } =
@@ -11745,34 +11764,46 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
-    /// The two declared agreement delivery handlers each have one conditional
-    /// SEND followed by its child record. Every event row use is checked
-    /// against the exact original declared field and owning stored model.
+    /// Checked delivery handlers own either a conditional agreement SEND/CREATE
+    /// or the reminder's header-guarded flat SEND/CREATE. Every event row use
+    /// retains its original declared field and owning stored model.
     fn hook_delivery_event(&self, scenario: &super::effects::ScenarioData) -> Option<(SymbolId, SymbolId, SymbolId)> {
         let HandlerSource::Event(event) = scenario.on.as_ref()? else { return None; };
         let scenario_symbol = self.resolve.symbols.get(scenario.scenario.0 as usize)?;
         let event_symbol = self.resolve.symbols.get(event.0 as usize)?;
-        let (event_name, row_name, model_name) = match scenario_symbol.canonical.as_str() {
-            "agreements.notice" => ("agreements.Notice", "term", "agreements.Term"),
-            "agreements.due" => ("agreements.ObligationDue", "obligation", "agreements.Obligation"),
+        let (event_name, row_name, model_name, created_name, reminder) = match scenario_symbol.canonical.as_str() {
+            "agreements.notice" => ("agreements.Notice", "term", "agreements.Term", "agreements.NoticeDelivery", false),
+            "agreements.due" => ("agreements.ObligationDue", "obligation", "agreements.Obligation", "agreements.NoticeDelivery", false),
+            "appointments.remind" => ("appointments.Reminder", "appointment", "appointments.Appointment", "appointments.Notice", true),
             _ => return None,
         };
         let SymbolKind::Event { fields } = &event_symbol.kind else { return None; };
-        let [branch] = scenario.effects.as_slice() else { return None; };
-        let [send, create] = branch.then_effects.as_slice() else { return None; };
+        let (send, create) = if reminder {
+            let [send, create] = scenario.effects.as_slice() else { return None; };
+            let [guard] = scenario.guards.as_slice() else { return None; };
+            if guard.verb != EffectVerb::Require || guard.cond.is_none()
+                || !guard.then_effects.is_empty() || !guard.else_effects.is_empty()
+                || !guard.match_arms.is_empty() { return None; }
+            (send, create)
+        } else {
+            let [branch] = scenario.effects.as_slice() else { return None; };
+            let [send, create] = branch.then_effects.as_slice() else { return None; };
+            if branch.verb != EffectVerb::If || branch.cond.is_none()
+                || !branch.else_effects.is_empty() || !branch.match_arms.is_empty()
+                || !scenario.guards.is_empty() { return None; }
+            (send, create)
+        };
         let EffectTarget::Model(created) = create.target.as_ref()? else { return None; };
         if event_symbol.canonical != event_name
             || scenario_symbol.module != scenario.module || event_symbol.module != scenario.module
             || scenario.read || scenario.by.is_some() || scenario.result.is_some()
             || scenario.cohort.is_some() || !scenario.params.is_empty()
-            || !scenario.guards.is_empty() || fields.len() != 2
-            || branch.verb != EffectVerb::If || branch.cond.is_none()
-            || !branch.else_effects.is_empty() || !branch.match_arms.is_empty()
+            || fields.len() != 2
             || send.verb != EffectVerb::Send || send.when.is_none() || send.binding.is_none()
             || create.verb != EffectVerb::Create || create.binding.is_none()
             || !send.then_effects.is_empty() || !send.else_effects.is_empty()
             || !create.then_effects.is_empty() || !create.else_effects.is_empty()
-            || self.resolve.symbols.get(created.0 as usize)?.canonical != "agreements.NoticeDelivery"
+            || self.resolve.symbols.get(created.0 as usize)?.canonical != created_name
         { return None; }
         let row = fields.iter().copied().find(|field|
             self.resolve.symbols.get(field.0 as usize).is_some_and(|field| field.name == row_name))?;
@@ -11813,7 +11844,7 @@ impl<'a> Closure<'a> {
     }
 
     /// Direct containment hops from the original declared event row. The
-    /// first member must still be `event.term` or `event.obligation`; copied
+    /// first member must be the handler's exact declared event row; copied
     /// lexical rows cannot inherit this path.
     fn checked_delivery_parent_path(
         &self,
@@ -15636,7 +15667,7 @@ impl<'a> Closure<'a> {
         {
             let name = self.resolve.symbols.get(field.0 as usize)
                 .ok_or_else(|| self.fail(key, "missing declared event field"))?.name.as_str();
-            if name == "term" || name == "obligation" {
+            if name == "term" || name == "obligation" || name == "appointment" {
                 let ResolvedType::Record { symbol: model, stored: true } = ty else {
                     return Err(self.fail(key, "notice event Term type mismatch"));
                 };
@@ -15809,10 +15840,22 @@ impl<'a> Closure<'a> {
         base_key: NodeKey,
         value: &ValuePath,
     ) -> Result<(), DisclosureDecline> {
+        let reminder_contact_email = self.count_member(key)
+            .is_some_and(|(base, name)| base == base_key && name == "email")
+            && self.count_member(base_key).is_some_and(|(event_row, name)|
+                name == "contact"
+                    && self.hook_delivery_field(event_row, module)
+                        .is_some_and(|(scenario, field)|
+                            self.resolve.symbols.get(scenario.0 as usize)
+                                .is_some_and(|symbol| symbol.canonical == "appointments.remind")
+                            && self.resolve.symbols.get(field.0 as usize)
+                                .is_some_and(|symbol| symbol.name == "appointment")))
+            && matches!(value.model_result,
+                Some(DisclosureModelResult::Reference {node, ..}) if node == base_key);
         if matches!(
             value.model_result,
             Some(DisclosureModelResult::Reference { .. })
-        ) && !matches!(value.model_result,
+        ) && !reminder_contact_email && !matches!(value.model_result,
             Some(DisclosureModelResult::Reference {model, node, ..})
                 if Some(node) == self.query_group(base_key)
                     && self.checked_required_model_reference(key, module)
@@ -16295,6 +16338,13 @@ impl<'a> Closure<'a> {
                             if Some(node) == self.query_group(base_key)
                                 && self.checked_contract_input_reference(node, module)
                                     .is_some_and(|(root, target, _)| root == parameter && target == model))
+                    || matches!(value.reference_origin,
+                        Some(ReferenceOrigin::EventRow {field, node})
+                            if node == base_key
+                                && self.hook_delivery_field(base_key, module)
+                                    .is_some_and(|(_, original)| original == field)
+                                && self.resolve.symbols.get(field.0 as usize)
+                                    .is_some_and(|symbol| symbol.name == "appointment"))
                     || matches!(value.model_result,
                         Some(DisclosureModelResult::Reference {model: target, node, source_model, field})
                             if target == model && Some(node) == self.query_group(base_key)

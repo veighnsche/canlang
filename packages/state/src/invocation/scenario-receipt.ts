@@ -1091,6 +1091,16 @@ export interface ScenarioReceiptSendGuard {
       readonly declaration: { readonly start: number; readonly end: number };
       readonly occurrence: { readonly start: number; readonly end: number } };
     readonly predicate: { readonly start: number; readonly end: number };
+    /** Compiler-checked SEND recipient expression, confined to the private
+     * reminder handler's exact Appointment.contact -> Contact.email path. */
+    readonly recipientPath?: {
+      readonly sourceDependencyId: string;
+      readonly leafDependencyId: string;
+      readonly sourceField: { readonly name: string; readonly model: string;
+        readonly node: { readonly start: number; readonly end: number } };
+      readonly leafField: { readonly name: string; readonly model: string;
+        readonly node: { readonly start: number; readonly end: number } };
+    };
   };
 }
 export interface ScenarioReceiptSendGuardFrame {
@@ -1173,7 +1183,9 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
       if (model !== undefined) models.set(name, model);
     }
     if (Object.hasOwn(guard, 'eventSource')) {
-      const event = object(guard['eventSource'], ['event', 'handler', 'modelField', 'revisionField', 'predicate']);
+      const rawEvent = guard['eventSource'];
+      const event = object(rawEvent, ['event', 'handler', 'modelField', 'revisionField', 'predicate',
+        ...(typeof rawEvent === 'object' && rawEvent !== null && Object.hasOwn(rawEvent, 'recipientPath') ? ['recipientPath'] : [])]);
       const modelField = object(event['modelField'], ['name', 'model', 'declaration', 'occurrence', 'fields']);
       const revisionField = object(event['revisionField'], ['name', 'type', 'declaration', 'occurrence']);
       const interval = (value: unknown) => {
@@ -1202,6 +1214,42 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
             return input.name === 'eventTerm' ? input.type !== modelName : input.name !== 'eventRevision' || input.type !== 'int';
           }) ||
           !models.has('eventTerm')) return invalid('event SEND requires its exact declared private field and typed lexical census.');
+      if (Object.hasOwn(event, 'recipientPath')) {
+        const path = object(event['recipientPath'], ['sourceField', 'leafField', 'sourceDependencyId', 'leafDependencyId']);
+        const sourceDependencyId = text(path['sourceDependencyId']), leafDependencyId = text(path['leafDependencyId']);
+        const sourceField = object(path['sourceField'], ['name', 'model', 'node']);
+        const leafField = object(path['leafField'], ['name', 'model', 'node']);
+        const appointment = bound.artifactModels.get('appointments.Appointment' as ModelName);
+        const contact = bound.artifactModels.get('customer.Contact' as ModelName);
+        const link = appointment?.fields.filter(field => field.name === 'contact');
+        const email = contact?.fields.filter(field => field.name === 'email');
+        const checkedPair = bound.plan.returns.length > 0 && bound.plan.returns.every(returned => {
+          const source = returned.dependencies.filter(dep => dep.id === sourceDependencyId);
+          const leaf = returned.dependencies.filter(dep => dep.id === leafDependencyId);
+          return source.length === 1 && leaf.length === 1 && source[0]!.role === 'data' && leaf[0]!.role === 'data' &&
+            source[0]!.queryId === undefined && leaf[0]!.queryId === undefined &&
+            source[0]!.model === 'appointments.Appointment' && source[0]!.field === 'contact' &&
+            source[0]!.type === 'customer.Contact' && leaf[0]!.model === 'customer.Contact' && leaf[0]!.field === 'email' &&
+            stableStringify(source[0]!.source) === stableStringify(leaf[0]!.source) &&
+            stableStringify(source[0]!.source) === stableStringify(bound.plan.source) &&
+            returned.dependencies.indexOf(source[0]!) < returned.dependencies.indexOf(leaf[0]!);
+        });
+        if (def.name !== 'appointments.remind' || event['event'] !== 'appointments.Reminder' ||
+            modelName !== 'appointments.Appointment' || modelNameField !== 'appointment' || revisionName !== 'revision' ||
+            sourceDependencyId === leafDependencyId || !checkedPair ||
+            sourceField['model'] !== modelName || sourceField['name'] !== 'contact' ||
+            leafField['model'] !== 'customer.Contact' || leafField['name'] !== 'email' ||
+            !interval(sourceField['node']) || !interval(leafField['node']) ||
+            (sourceField['node'] as { start: number }).start !== (leafField['node'] as { start: number }).start ||
+            (sourceField['node'] as { end: number }).end >= (leafField['node'] as { end: number }).end ||
+            !fields.includes('contact') || link?.length !== 1 || link[0]!.field.kind !== 'ref' ||
+            link[0]!.field.model !== 'customer.Contact' || !link[0]!.required ||
+            link[0]!.array !== undefined || link[0]!.nullable === true ||
+            email?.length !== 1 || email[0]!.field.kind !== 'string' || email[0]!.valueType !== 'email' ||
+            !email[0]!.required || email[0]!.nullable === true || email[0]!.array !== undefined) {
+          return invalid('event SEND recipient requires its exact declared Appointment.contact and Contact.email expression.');
+        }
+      }
     }
     modelInputs.set(rule, models);
   }
@@ -1221,6 +1269,7 @@ function primitiveInputType(type: unknown): type is CanTypeId {
 function declaredEventIntrinsic(def: GeneratedOperationDef): { readonly modelField: string; readonly model: ModelName } | undefined {
   if (def.name === 'agreements.notice') return { modelField: 'term', model: 'agreements.Term' as ModelName };
   if (def.name === 'agreements.due') return { modelField: 'obligation', model: 'agreements.Obligation' as ModelName };
+  if (def.name === 'appointments.remind') return { modelField: 'appointment', model: 'appointments.Appointment' as ModelName };
   return undefined;
 }
 
@@ -1238,6 +1287,32 @@ function admittedEventIntrinsic(call: AdmittedCall, parameter: string): Scenario
     return invalid('event intrinsic requires its original due Work source and checked private handler.');
   }
   return source;
+}
+
+/** The only non-containment read admitted from a due event is the checked
+ * reminder SEND recipient. Its two ordered receipt dependencies must name the
+ * exact stored link and email leaf in one source/return; a same-model row or
+ * free-standing Contact reference is never sufficient. */
+function admittedEventRecipientDependencies(call: AdmittedCall, state: Capture): {
+  readonly sourceId: string; readonly leafId: string;
+} | undefined {
+  if (call.def.name !== 'appointments.remind') return undefined;
+  const source = admittedEventIntrinsic(call, 'eventTerm');
+  if (source?.recipientPath?.sourceField.name !== 'contact' ||
+      source.recipientPath.sourceField.model !== 'appointments.Appointment' ||
+      source.recipientPath.leafField.name !== 'email' ||
+      source.recipientPath.leafField.model !== 'customer.Contact') return undefined;
+  const sourceId = source.recipientPath.sourceDependencyId, leafId = source.recipientPath.leafDependencyId;
+  if (sourceId === leafId || state.bound.referenceDependencies.get(sourceId)?.profile.kind !== 'field' ||
+      state.bound.plan.returns.length === 0 || !state.bound.plan.returns.every(returned => {
+        const link = returned.dependencies.find(dependency => dependency.id === sourceId);
+        const leaf = returned.dependencies.find(dependency => dependency.id === leafId);
+        return link?.role === 'data' && leaf?.role === 'data' && link.queryId === undefined && leaf.queryId === undefined &&
+          link.model === 'appointments.Appointment' && link.field === 'contact' && link.type === 'customer.Contact' &&
+          leaf.model === 'customer.Contact' && leaf.field === 'email' &&
+          returned.dependencies.indexOf(link) < returned.dependencies.indexOf(leaf);
+      })) return undefined;
+  return { sourceId, leafId };
 }
 
 /** Exact required Contract fields from the original same-load input schema.
@@ -2031,6 +2106,10 @@ const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
 const ownerContexts = new WeakMap<object, ReceiptOwnerSession>();
 const ownerRows = new WeakMap<StoredRow, {
   readonly session: ReceiptOwnerSession; readonly stage: number; readonly model: ModelName;
+}>();
+const eventRecipientRows = new WeakMap<StoredRow, {
+  readonly call: AdmittedCall; readonly owner: ReceiptOwnerSession; readonly stage: number;
+  readonly sourceId: string; readonly leafId: string;
 }>();
 
 const DISPATCH_MODEL = 'work.dispatch' as ModelName;
@@ -2952,58 +3031,76 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
         stableStringify(currentSource) !== stableStringify(observation!.row)) {
       throw new StateError('forbidden', 'Stored scalar source changed after its original observation.');
     }
-    await observeModelQuerySourceAuthority(call, store, owner, state, source.model, currentSource,
-      [reference.dependency.field], 1); healthy();
+    const recipient = admittedEventRecipientDependencies(call, state);
+    const privateRecipient = !nullable && recipient?.sourceId === input.sourceDependencyId &&
+      recipient.leafId === input.scalarLeafDependencyId && source.model === 'appointments.Appointment' &&
+      scalar.model === 'customer.Contact' && scalar.field === 'email';
+    if (!privateRecipient) {
+      await observeModelQuerySourceAuthority(call, store, owner, state, source.model, currentSource,
+        [reference.dependency.field], 1); healthy();
+    }
     const wire = storedReferenceWire(reference.profile, currentSource) as { id: RecordId } | null;
     const target = wire === null ? null : await owner.session.views.final.get(scalar.model, wire.id); healthy();
     if (wire !== null && (target === null || target.archivedAt !== null)) throw new StateError('forbidden', 'Stored scalar target lifetime is unavailable.');
     const narrowed = state.bound.narrowedDependencies.get(scalar.id);
     if (target !== null && narrowed !== undefined) capturedNarrowedControl(call, owner, state, narrowed, target);
-    const targetAuthority = target === null ? null : await observeModelQuerySourceAuthority(call, store, owner, state,
+    const targetAuthority = target === null || privateRecipient ? null : await observeModelQuerySourceAuthority(call, store, owner, state,
       scalar.model, target, targetId ? [] : [scalar.field], 1); healthy();
+    const recipientRevalidate = privateRecipient && target !== null
+      ? await observeEventRecipientTargetAuthority(call, store, owner, state, currentSource, target,
+        input.sourceDependencyId, input.scalarLeafDependencyId) : undefined;
+    healthy();
     await issued.revalidate(); healthy();
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Stored scalar projection moved beyond its admitted checkpoint.');
     healthy();
     await targetAuthority?.revalidate(); healthy();
-    // Source and target can depend on distinct related subjects. Their final
-    // conjunction must use one complete Identity snapshot before disclosure.
-    const memberships = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
-      teamId = call.context.team?.teamId ?? null;
-    const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId); healthy();
-    const policyDomains = ownerPolicyDomains(owner, healthy);
-    const authority = await observeRowGrantAuthority({ actorUserId, teamId, membership, memberships }, async context => {
-      for (const entry of [{ model: source.model, row: currentSource, field: reference.dependency.field },
-        ...(target === null ? [] : [{ model: scalar.model, row: target, field: scalar.field }])]) {
-        const producer = querySourceProducer(call.def as GeneratedOperationDef, entry.model), read = producer?.readPolicies?.get(entry.model);
-        if (producer?.app !== call.context.app || producer.readPolicies === undefined || read === undefined || !('grants' in read)) {
-          return invalid('stored scalar conjunction requires its installed source and target grants.');
+    await recipientRevalidate?.(); healthy();
+    // Ordinary stored-reference reads can depend on distinct subjects; they
+    // retain their complete Identity conjunction. The event recipient instead
+    // has the exact Work-root/Contact owner fence above.
+    if (!privateRecipient) {
+      const memberships = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
+        teamId = call.context.team?.teamId ?? null;
+      const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId); healthy();
+      const policyDomains = ownerPolicyDomains(owner, healthy);
+      const authority = await observeRowGrantAuthority({ actorUserId, teamId, membership, memberships }, async context => {
+        for (const entry of [{ model: source.model, row: currentSource, field: reference.dependency.field },
+          ...(target === null ? [] : [{ model: scalar.model, row: target, field: scalar.field }])]) {
+          const producer = querySourceProducer(call.def as GeneratedOperationDef, entry.model), read = producer?.readPolicies?.get(entry.model);
+          if (producer?.app !== call.context.app || producer.readPolicies === undefined || read === undefined || !('grants' in read)) {
+            return invalid('stored scalar conjunction requires its installed source and target grants.');
+          }
+          let projected: Awaited<ReturnType<typeof projectInstalledSourceRowAndAncestors>>;
+          try {
+            projected = await projectInstalledSourceRowAndAncestors({ model: entry.model, row: entry.row,
+              readPolicies: producer.readPolicies, policy: producer.policy, context, revision: call.revision,
+              fence: undefined, store, rows: new Map([[`${entry.model}\0${entry.row.id}`, entry.row]]), ownerRows: {
+                assertHealthy: healthy, policyQuery: policyDomains.capture, read: async (model, id) => {
+                  healthy(); const row = await owner.session!.views.final.get(model, id); healthy(); return row;
+                },
+              } });
+          } catch (error) {
+            if (error instanceof FenceConflictError) throw new StateError('conflict', 'Stored scalar conjunction moved beyond its checkpoint.');
+            throw error;
+          }
+          healthy();
+          if (projected.record === null || (targetId && entry.model === scalar.model && entry.field === 'id'
+            ? projected.record.id !== entry.row.id
+            : !projected.grants.some(grant => grant.fields.includes(entry.field)) || !Object.hasOwn(projected.record.data, entry.field))) {
+            throw new StateError('forbidden', 'Stored scalar source or target authority is unavailable.');
+          }
         }
-        let projected: Awaited<ReturnType<typeof projectInstalledSourceRowAndAncestors>>;
-        try {
-          projected = await projectInstalledSourceRowAndAncestors({ model: entry.model, row: entry.row,
-            readPolicies: producer.readPolicies, policy: producer.policy, context, revision: call.revision,
-            fence: undefined, store, rows: new Map([[`${entry.model}\0${entry.row.id}`, entry.row]]), ownerRows: {
-              assertHealthy: healthy, policyQuery: policyDomains.capture, read: async (model, id) => {
-                healthy(); const row = await owner.session!.views.final.get(model, id); healthy(); return row;
-              },
-            } });
-        } catch (error) {
-          if (error instanceof FenceConflictError) throw new StateError('conflict', 'Stored scalar conjunction moved beyond its checkpoint.');
-          throw error;
-        }
-        healthy();
-        if (projected.record === null || (targetId && entry.model === scalar.model && entry.field === 'id'
-          ? projected.record.id !== entry.row.id
-          : !projected.grants.some(grant => grant.fields.includes(entry.field)) || !Object.hasOwn(projected.record.data, entry.field))) {
-          throw new StateError('forbidden', 'Stored scalar source or target authority is unavailable.');
-        }
-      }
-      return true;
-    }); healthy();
-    await authority.revalidate(); healthy();
-    if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Stored scalar final authority moved beyond its checkpoint.');
-    healthy();
-    if (target !== null) ownerRows.set(target, { session: owner, stage, model: scalar.model });
+        return true;
+      }); healthy();
+      await authority.revalidate(); healthy();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Stored scalar final authority moved beyond its checkpoint.');
+      healthy();
+    }
+    if (target !== null) {
+      ownerRows.set(target, { session: owner, stage, model: scalar.model });
+      if (privateRecipient) eventRecipientRows.set(target, { call, owner, stage,
+        sourceId: input.sourceDependencyId, leafId: input.scalarLeafDependencyId });
+    }
     return target;
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; poisonSourceOwner(); throw error; }
   finally { if (acquired) { state.pending--; owner!.busy = false; } }
@@ -4034,7 +4131,11 @@ async function observeEventOwnerReferenceAuthority(call: AdmittedCall, store: St
   profile: StoredReferenceFieldProfile, model: ModelName): Promise<(() => Promise<void>) | undefined> {
   const sources = frameworkProducers.get(call.def as GeneratedOperationDef)?.sendGuards
     ?.flatMap(guard => guard.eventSource === undefined ? [] : [guard.eventSource]) ?? [];
-  if (sources.length === 0 || profile.kind !== 'parent') return undefined;
+  const recipient = admittedEventRecipientDependencies(call, state);
+  const recipientLink = recipient?.sourceId === dependencyId && profile.kind === 'field' &&
+    model === 'appointments.Appointment' && profile.field === 'contact' &&
+    profile.target === 'customer.Contact' && !profile.array && !profile.nullable;
+  if (sources.length === 0 || profile.kind !== 'parent' && !recipientLink) return undefined;
   const source = admittedEventIntrinsic(call, 'eventTerm');
   if (source === undefined || owner.call !== call || owner.session === null ||
       owner.callGuards.length >= MAX_ITEMS) return invalid('event parent requires its actual due owner source.');
@@ -4068,9 +4169,10 @@ async function observeEventOwnerReferenceAuthority(call: AdmittedCall, store: St
     }
     chain.push({ model: currentModel, row: deepFreeze(dataCopy(current)) });
     if (currentModel === model && currentId === row.id) {
-      if (stableStringify(current) !== stableStringify(row) || current.parent?.model !== profile.target ||
+      if (stableStringify(current) !== stableStringify(row) ||
+          (recipientLink ? depth !== 0 || !Object.hasOwn(current.data, 'contact') : current.parent?.model !== profile.target) ||
           storedReferenceWire(profile, current) === undefined) {
-        throw new StateError('forbidden', 'Event parent differs from its current source row.');
+        throw new StateError('forbidden', 'Event reference differs from its current source row.');
       }
       const saved = chain.map(entry => ({ model: entry.model, row: entry.row }));
       const revalidate = async () => {
@@ -4113,6 +4215,76 @@ async function observeEventOwnerReferenceAuthority(call: AdmittedCall, store: St
     currentId = current.parent.id;
   }
   return undefined;
+}
+
+/** A private Reminder may read only the Contact actually stored on its Work
+ * appointment. Freeze both rows and the email-bearing target at observation,
+ * then compare those same full rows against the final atomic commit. */
+async function observeEventRecipientTargetAuthority(call: AdmittedCall, store: StoragePort,
+  owner: ReceiptOwnerSession, state: Capture, source: StoredRow, target: StoredRow,
+  sourceDependencyId: string, leafDependencyId: string): Promise<() => Promise<void>> {
+  const pair = admittedEventRecipientDependencies(call, state);
+  if (pair?.sourceId !== sourceDependencyId || pair.leafId !== leafDependencyId ||
+      owner.call !== call || owner.session === null || owner.callGuards.length >= MAX_ITEMS ||
+      target.archivedAt !== null || !Object.hasOwn(target.data, 'email')) {
+    return invalid('event recipient requires its exact current Appointment.contact and Contact.email dependency pair.');
+  }
+  const due = dueWorkAdmissions.get(call)!;
+  const event = admittedEventIntrinsic(call, 'eventTerm')!;
+  const payload = object(due.eventPayload, [event.modelField.name, event.revisionField.name]);
+  const ref = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly id: string };
+  const sourceProfile = state.bound.referenceDependencies.get(sourceDependencyId)?.profile;
+  const contactRef = sourceProfile === undefined ? undefined : storedReferenceWire(sourceProfile, source) as { readonly id: string };
+  if (source.id !== ref.id || source.archivedAt !== null || contactRef?.id !== target.id ||
+      !call.recordRefs.some(admitted => admitted.param === event.modelField.name &&
+        admitted.model === event.modelField.model && admitted.id === source.id && sameModelLifetime(admitted.row, source))) {
+    throw new StateError('forbidden', 'Event recipient is not linked from its admitted Work appointment.');
+  }
+  const stage = owner.stage;
+  const healthy = () => {
+    capture(call, store); ownerHealthy(owner);
+    if (owner.executingCall !== call || owner.stage !== stage || !owner.busy || state.pending !== 1 ||
+        state.returnId !== null) return invalid('event recipient crossed its original owner observation.');
+  };
+  const saved = [
+    { model: 'appointments.Appointment' as ModelName, row: deepFreeze(dataCopy(source)) },
+    { model: 'customer.Contact' as ModelName, row: deepFreeze(dataCopy(target)) },
+  ];
+  const revalidate = async () => {
+    healthy();
+    for (const entry of saved) {
+      const current = await owner.session!.views.final.get(entry.model, entry.row.id);
+      healthy();
+      if (current === null || stableStringify(current) !== stableStringify(entry.row)) {
+        throw new StateError('forbidden', 'Event recipient changed during its original observation.');
+      }
+    }
+    if (await store.readRevision() !== call.revision) {
+      throw new StateError('conflict', 'Event recipient moved beyond its admitted checkpoint.');
+    }
+  };
+  await revalidate();
+  owner.callGuards.push(Object.freeze({ name: `event-recipient:${call.def.name}:${sourceDependencyId}:${leafDependencyId}:${stage}:${owner.callGuards.length}`,
+    evaluate: async () => {
+      const final = owner.finalized;
+      if (final === null || owner.capture.poisoned) return invalid('event recipient lacks actual final owner effects.');
+      for (const entry of saved) {
+        const write = final.writes.find(write => write.model === entry.model &&
+          (write.kind === 'insert' ? write.row.id : write.id) === entry.row.id);
+        const current = write === undefined
+          ? await store.cohortLoad({ model: entry.model, id: entry.row.id, expectedRevision: call.revision })
+          : write.kind === 'remove' ? null : write.row;
+        if (owner.finalized !== final || owner.capture.poisoned || current === null ||
+            stableStringify(current) !== stableStringify(entry.row)) {
+          throw new StateError('forbidden', 'Event recipient changed before commit.');
+        }
+      }
+      if (await store.readRevision() !== call.revision) {
+        throw new StateError('conflict', 'Event recipient moved beyond its original checkpoint.');
+      }
+      return true;
+    } }));
+  return revalidate;
 }
 
 /** Current origin authority is observed before native promotion. The exact
@@ -4469,6 +4641,15 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       state.bound.plan.returns.some(returned => returned.dependencies.some(other => other.id === observed.dependencyId));
     const dependency = execution?.association.dependency ?? state.bound.plan.returns.flatMap(entry => entry.dependencies).find(dep => dep.id === observed.dependencyId);
     if (dependency === undefined || dependency.model !== observed.model || dependency.field !== observed.field) return invalid('native observation disagrees with its checked dependency.');
+    const recipient = admittedEventRecipientDependencies(call, state);
+    if (recipient?.leafId === dependency.id) {
+      const issuedRecipient = eventRecipientRows.get(input.row);
+      if (owner === undefined || issuedRecipient?.call !== call || issuedRecipient.owner !== owner ||
+          issuedRecipient.stage !== owner.stage || issuedRecipient.sourceId !== recipient.sourceId ||
+          issuedRecipient.leafId !== recipient.leafId || observed.model !== 'customer.Contact' || observed.field !== 'email') {
+        return invalid('event recipient email requires its exact promoted Contact row.');
+      }
+    }
     if (state.observations.length + state.intrinsics.length + (executedDependencies.get(state)?.size ?? 0) >= MAX_ITEMS) return invalid('observation budget exceeded.');
     const row = checkedRow(observed.row);
     const narrowed = state.bound.narrowedDependencies.get(dependency.id);

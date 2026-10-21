@@ -4315,7 +4315,8 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
       });
       let eventSource: ScenarioReceiptSendGuard['eventSource'];
       if (eventGuard) {
-        const source = localPolicyObject(emitted.eventSource, ['event', 'handler', 'modelField', 'revisionField', 'predicate']);
+        const source = localPolicyObject(emitted.eventSource, ['event', 'handler', 'modelField', 'revisionField', 'predicate',
+          ...(isUnknownRecord(emitted.eventSource) && Object.hasOwn(emitted.eventSource, 'recipientPath') ? ['recipientPath'] : [])]);
         const modelField = localPolicyObject(source.modelField, ['name', 'model', 'declaration', 'occurrence', 'fields']);
         const revisionField = localPolicyObject(source.revisionField, ['name', 'type', 'declaration', 'occurrence']);
         const originalEvent = own(originalOperation, 'event');
@@ -4346,6 +4347,44 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
             inputs.length !== 2 || inputs[0]?.name !== 'eventTerm' || inputs[0]?.type !== modelField.model ||
             inputs[1]?.name !== 'eventRevision' || inputs[1]?.type !== 'int') {
           throw new AssemblyCorrespondenceError('Event SEND guard lacks its original declared event, handler and typed field proof.');
+        }
+        if (Object.hasOwn(source, 'recipientPath')) {
+          const path = localPolicyObject(source.recipientPath, ['sourceField', 'leafField', 'sourceDependencyId', 'leafDependencyId']);
+          const sourceField = localPolicyObject(path.sourceField, ['name', 'model', 'node']);
+          const leafField = localPolicyObject(path.leafField, ['name', 'model', 'node']);
+          const appointment = artifact.models?.find(model => model.name === 'appointments.Appointment');
+          const contact = artifact.models?.find(model => model.name === 'customer.Contact');
+          const link = appointment?.fields.filter(field => field.name === 'contact');
+          const email = contact?.fields.filter(field => field.name === 'email');
+          const checkedPair = typeof path.sourceDependencyId === 'string' && path.sourceDependencyId !== '' &&
+            typeof path.leafDependencyId === 'string' && path.leafDependencyId !== '' &&
+            path.sourceDependencyId !== path.leafDependencyId && plan.returns.length > 0 &&
+            plan.returns.every(returned => {
+              const link = returned.dependencies.filter(dep => dep.id === path.sourceDependencyId);
+              const leaf = returned.dependencies.filter(dep => dep.id === path.leafDependencyId);
+              return link.length === 1 && leaf.length === 1 && link[0]!.role === 'data' && leaf[0]!.role === 'data' &&
+                link[0]!.queryId === undefined && leaf[0]!.queryId === undefined &&
+                link[0]!.model === 'appointments.Appointment' && link[0]!.field === 'contact' &&
+                link[0]!.type === 'customer.Contact' && leaf[0]!.model === 'customer.Contact' && leaf[0]!.field === 'email' &&
+                stableStringify(link[0]!.source) === stableStringify(leaf[0]!.source) &&
+                stableStringify(link[0]!.source) === stableStringify(plan.source) &&
+                returned.dependencies.indexOf(link[0]!) < returned.dependencies.indexOf(leaf[0]!);
+            });
+          if (def.name !== 'appointments.remind' || source.event !== 'appointments.Reminder' ||
+              modelField.name !== 'appointment' || modelField.model !== 'appointments.Appointment' ||
+              revisionField.name !== 'revision' || sourceField.name !== 'contact' ||
+              sourceField.model !== 'appointments.Appointment' || leafField.name !== 'email' ||
+              leafField.model !== 'customer.Contact' || !checkedPair ||
+              !interval(sourceField.node) || !interval(leafField.node) ||
+              (sourceField.node as { start: number }).start !== (leafField.node as { start: number }).start ||
+              (sourceField.node as { end: number }).end >= (leafField.node as { end: number }).end ||
+              !fields.includes('contact') || link?.length !== 1 || link[0]!.field.kind !== 'ref' ||
+              link[0]!.field.model !== 'customer.Contact' || !link[0]!.required ||
+              link[0]!.array !== undefined || link[0]!.nullable === true ||
+              email?.length !== 1 || email[0]!.field.kind !== 'string' || email[0]!.valueType !== 'email' ||
+              !email[0]!.required || email[0]!.nullable === true || email[0]!.array !== undefined) {
+            throw new AssemblyCorrespondenceError('Event SEND recipient lacks its exact Appointment.contact and Contact.email source path.');
+          }
         }
         eventSource = captureDispatchPreclaimData(source) as ScenarioReceiptSendGuard['eventSource'];
       }

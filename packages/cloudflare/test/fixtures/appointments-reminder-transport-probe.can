@@ -1,0 +1,27 @@
+app ReminderProbe uses=[appointments]
+package customer
+ Given
+  export Customer {name:text}
+  export Contact in Customer {email:email,hidden:bool=false}
+  policy Contact read=members and not row.hidden
+ When
+ Then
+package appointments
+ use customer {Customer,Contact}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  Calendar {instructions:text}
+  Type in Calendar {name:text}
+  Appointment in Type {customer:Customer,contact:Contact,state:enum(pending,confirmed,cancelled)=pending,active_source:text,hidden:bool=false}
+  Notice in Appointment {kind:enum(confirmation,reminder),source:text,delivery:delivery(Mail.send)?}
+  event Reminder {appointment:Appointment,revision:int}
+  policy Calendar read=public
+  policy Type read=public
+  policy Appointment read=members and not row.hidden
+ When
+  scenario remind on=Reminder
+   require event.appointment.state==confirmed and event.appointment.version==event.revision
+   do
+    send Mail.send {to=event.appointment.contact.email,subject=format("Appointment reminder"@{nl="Afspraakherinnering"},locale=null),body=event.appointment.parent.parent.instructions} when=event.appointment.state==confirmed and event.appointment.version==event.revision as delivery
+    create Notice {parent=event.appointment,kind=reminder,source=event.appointment.active_source,delivery} as notice
+ Then

@@ -1954,6 +1954,20 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&item.id)? else {
         return None;
     };
+    let reminder_recipient = if item.canonical == "appointments.remind" {
+        let [IrStmt::Send {span, ..}, IrStmt::Create {..}] = effects.as_slice()
+            else { return None; };
+        let guard = send_guards?.get(span)?;
+        let path = guard.descriptor.get("eventSource")?.get("recipientPath")?;
+        let source_id = path.get("sourceDependencyId")?.as_str()?;
+        let leaf_id = path.get("leafDependencyId")?.as_str()?;
+        if guard.event_source.as_ref()?.model_field != "appointment"
+            || source_id.is_empty() || leaf_id.is_empty() || source_id == leaf_id
+        { return None; }
+        Some((source_id.to_string(), leaf_id.to_string()))
+    } else {
+        None
+    };
     let returned_paths: Vec<_> = match feasibility
         .filter(|_| super::scenario_feasibility::requires_projection(checked, ir))
     {
@@ -2332,8 +2346,25 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             {
                 return None;
             }
-            let source_dependency_id =
-                profile_scalar_pair.map(|(reference, _)| reference.id.clone());
+            let source_dependency_id = profile_scalar_pair.map(|(reference, _)| reference.id.clone())
+                .or_else(|| reminder_recipient.as_ref().and_then(|(source, leaf)| {
+                    if dependency.id != *leaf { return None; }
+                    let mut source_reads = returned.dependencies.iter().filter(|read|
+                        read.id == *source && read.model_name == "appointments.Appointment"
+                            && read.field_name == "contact" && read.type_id == "customer.Contact"
+                            && read.role == DependencyRole::Data && read.calls.is_empty()
+                            && read.query_id.is_none() && read.source == dependency.source);
+                    let source_read = source_reads.next()?;
+                    if source_reads.next().is_some()
+                        || dependency.model_name != "customer.Contact"
+                        || dependency.field_name != "email"
+                        || dependency.role != DependencyRole::Data
+                        || !dependency.calls.is_empty() || dependency.query_id.is_some()
+                        || returned.dependencies.iter().position(|read| read == source_read)?
+                            >= returned.dependencies.iter().position(|read| read == dependency)?
+                    { return None; }
+                    Some(source.clone())
+                }));
             let current_reference = current_sites.as_ref().is_some_and(|current| {
                 [
                     current.presence_read.control,
@@ -11016,12 +11047,13 @@ fn checked_delivery_event_row_name(owner: &IrItem) -> Option<&'static str> {
     match owner.canonical.as_str() {
         "agreements.notice" => Some("term"),
         "agreements.due" => Some("obligation"),
+        "appointments.remind" => Some("appointment"),
         _ => None,
     }
 }
 
 /// The event's original declared field, retained as a flattened private
-/// handler input. Only the two exact delivery sources may root observations
+/// handler input. Only the exact delivery sources may root observations
 /// in this row; an arbitrary event member or lexical copy cannot match.
 fn checked_notice_event_field(
     ir: &IrProgram,
@@ -11039,6 +11071,7 @@ fn checked_notice_event_field(
     let (expected_event, row_name) = match owner.canonical.as_str() {
         "agreements.notice" => ("agreements.Notice", "term"),
         "agreements.due" => ("agreements.ObligationDue", "obligation"),
+        "appointments.remind" => ("appointments.Reminder", "appointment"),
         _ => return None,
     };
     if source != expected_event || !matches!(field_name, "revision") && field_name != row_name
@@ -11075,6 +11108,38 @@ fn checked_notice_event_row_path(
             ty: IrType::Known(ResolvedType::Record { symbol, stored: true }), ..
         } = &ir.items.get(field.0 as usize)?.kind else { return None; };
         return Some(*symbol);
+    }
+    if owner.canonical == "appointments.remind" {
+        let IrExpr::Member { base, field } = &value.expr else { return None; };
+        if field == "contact"
+            && checked_notice_event_field(ir, owner, base, "appointment", db).is_some()
+            && db.get(value.span.file)?.text
+                .get(value.span.start as usize..value.span.end as usize)?
+                == "event.appointment.contact"
+        {
+            let appointment = match base.ty {
+                ResolvedType::Record { symbol, stored: true } => symbol,
+                _ => return None,
+            };
+            let contact = match value.ty {
+                ResolvedType::Record { symbol, stored: true } => symbol,
+                _ => return None,
+            };
+            if ir.items.get(appointment.0 as usize)?.canonical != "appointments.Appointment"
+                || ir.items.get(contact.0 as usize)?.canonical != "customer.Contact"
+            { return None; }
+            let IrItemKind::Model { fields, .. } = &ir.items.get(appointment.0 as usize)?.kind
+                else { return None; };
+            let mut matching = fields.iter().filter_map(|id| ir.items.get(id.0 as usize))
+                .filter(|item| item.name == "contact");
+            let declared = matching.next()?;
+            if matching.next().is_some() || !matches!(&declared.kind,
+                IrItemKind::Field { owner: field_owner,
+                    ty: IrType::Known(ResolvedType::Record {symbol, stored: true}), .. }
+                    if *field_owner == appointment && *symbol == contact)
+            { return None; }
+            return Some(contact);
+        }
     }
     let IrExpr::Member { field, .. } = &value.expr else { return None; };
     if field != "parent" { return None; }
@@ -12129,6 +12194,16 @@ fn reference_parent_schema<'a>(
     } else if checked_contract_parameter_path(ir, owner, base, Some(db)).is_some() {
         let models = super::js::Emitter::source_models(ir, db)?;
         Some(checked_contract_parameter_row(ir, owner, base, &models, db)?)
+    } else if owner.canonical == "appointments.remind"
+        && let Some(model) = checked_notice_event_row_path(ir, owner, base, db)
+    {
+        let source = super::scenario_calls::checked_source(ir, owner, db)?;
+        let mut schemas = source.stored_contracts.as_deref()?.iter()
+            .filter(|schema| schema.model && schema.id == model);
+        let schema = schemas.next()?;
+        if schemas.next().is_some() { return None; }
+        match_stored_contract_schema(ir, schema, db)?;
+        Some(schema)
     } else if let Some((_, parent)) = checked_parent_reference(ir, owner, base, db) {
         Some(parent)
     } else {
@@ -14186,6 +14261,9 @@ fn scenario_create_nesting(
     } else if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) {
         // Every void create keeps its own ordered effect/schema/source proof;
         // no created-model result pair is consumed by this owner.
+        if owner.canonical == "appointments.remind" {
+            event_reminder_create_tail(ir, owner, checked, original, proof.node, binding, db)?;
+        }
     } else if facts.creates.as_deref()?.len() == 2 {
         let (first, second) = checked_created_pair(ir, owner, db)?;
         if proof.node != first.node && proof.node != second.node {
@@ -15305,6 +15383,88 @@ fn conditional_branch_create_tail(
     branch_arm_vocabulary(checked, then_branch, else_branch, create)?;
     branch_trailing_vocabulary(checked, effects, position)?;
     branch_binding_contained(cond, then_branch, else_branch, effects, position, binding)
+}
+
+/// The reminder's flat SEND result is consumed by its immediately following
+/// Notice. This is the only event handler admitted to this top-level shape.
+fn event_reminder_create_tail(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    create: crate::analysis::NodeKey,
+    binding: &str,
+    db: &SourceDb,
+) -> Option<()> {
+    let IrItemKind::Scenario {
+        trusted: true,
+        event_source: Some(super::ir::IrEventSource::Declared(event)),
+        hook: None, cohort: None, read: false, result: None,
+        params, by, guards, effects, ..
+    } = &owner.kind else { return None; };
+    let [IrStmt::Require {cond, span: require_span}] = guards.as_slice()
+        else { return None; };
+    let [IrStmt::Send {
+        operation, when: Some(when), binding: Some(delivery),
+        span: send_span, ..
+    }, IrStmt::Create {
+        model, input, binding: Some(created), when: None, span: create_span,
+    }] = effects.as_slice() else { return None; };
+    let [send_proof, create_proof] = checked.effects.as_slice() else { return None; };
+    let facts = checked.source_facts.as_deref()?;
+    let [source_create] = facts.creates.as_deref()? else { return None; };
+    let source_require = checked_effect_node(ir, owner,
+        crate::analysis::NodeKey {file:require_span.file,start:require_span.start,
+            end:require_span.end,kind:SyntaxKind::Require as u8}, db)?;
+    let source_cond = source_require.children.iter().find(|child|
+        matches!(child.kind, SyntaxKind::NameRef | SyntaxKind::Member | SyntaxKind::Binary
+            | SyntaxKind::Unary | SyntaxKind::Group | SyntaxKind::Call))?;
+    if owner.canonical != "appointments.remind"
+        || event != "appointments.Reminder"
+        || model != "appointments.Notice" || operation != "std.EmailV1.send"
+        || !params.is_empty() || !by.is_empty()
+        || delivery != "delivery" || created != "notice" || binding != "notice"
+        || create != original.node || source_create.node != create
+        || *create_span != node_span(create)
+        || *send_span != node_span(send_proof.node)
+        || source_require.kind != SyntaxKind::Require || source_require.span != *require_span
+        || cond.span != source_cond.span
+        || !matches!(&send_proof.kind, DisclosureEffectKind::Send {when: Some(node), ..}
+            if when.span == node_span(*node))
+        || !matches!(&create_proof.kind, DisclosureEffectKind::Create {model: id, ..}
+            if *id == original.model)
+        || create_proof.node != create || source_create.model != original.model
+    { return None; }
+    let text = &db.get(cond.span.file)?.text;
+    if text.get(cond.span.start as usize..cond.span.end as usize)?.trim()
+        != text.get(when.span.start as usize..when.span.end as usize)?.trim()
+        || when.ty != ResolvedType::Scalar(Scalar::Bool)
+        || cond.ty != ResolvedType::Scalar(Scalar::Bool)
+    { return None; }
+    let IrExpr::Object(entries) = &input.expr else { return None; };
+    let [(parent_name, parent), (kind_name, kind), (source_name, source),
+        (delivery_name, delivery_value)] = entries.as_slice() else { return None; };
+    let ResolvedType::Record {symbol: appointment, stored: true} = parent.ty
+        else { return None; };
+    if parent_name != "parent" || kind_name != "kind" || source_name != "source"
+        || delivery_name != "delivery"
+        || original.definition.declaration.owner
+            != crate::analysis::resolve::ModelOwner::ChildOf(appointment)
+        || checked_notice_event_field(ir, owner, parent, "appointment", db).is_none()
+        || !matches!(&kind.expr, IrExpr::Text(name) if name == "reminder")
+        || db.get(kind.span.file)?.text.get(kind.span.start as usize..kind.span.end as usize)?
+            != "reminder"
+        || !matches!(&source.expr, IrExpr::Member {base,field}
+            if field == "active_source"
+                && checked_notice_event_field(ir, owner, base, "appointment", db).is_some())
+        || db.get(source.span.file)?.text.get(source.span.start as usize..source.span.end as usize)?
+            != "event.appointment.active_source"
+        || !matches!(&delivery_value.expr, IrExpr::Name(name) if name == delivery)
+        || db.get(delivery_value.span.file)?.text
+            .get(delivery_value.span.start as usize..delivery_value.span.end as usize)?
+            != delivery
+    { return None; }
+    Some(())
 }
 
 /// A trusted declared agreement delivery has one transaction arm: the original guarded
