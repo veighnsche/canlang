@@ -9002,7 +9002,7 @@ impl<'a> Cx<'a> {
                     .iter()
                     .enumerate()
                     .map(|(source, key)| {
-                        if matches!(id.as_str(), "any" | "all")
+                        if matches!(id.as_str(), "any" | "all" | "group")
                             && let Some(marker) = signature
                                 .params
                                 .iter()

@@ -399,6 +399,26 @@ export interface ArtifactModel {
  * immutable); root-model creates carry none.
  */
 export interface ArtifactOperation {
+  /** Complete compiler-checked stored-query census for a scoped authority report. */
+  authorityQuerySites?: {
+    readonly version: 1;
+    readonly operation: string;
+    readonly source: { readonly path: string; readonly sha256: string; readonly module: string };
+    readonly sites: ReadonlyArray<{
+      readonly id: string;
+      readonly source: { readonly path: string; readonly sha256: string; readonly module: string };
+      readonly node: { readonly start: number; readonly end: number };
+      readonly model: string;
+      readonly parentModel: string | null;
+      readonly parentSite: { readonly start: number; readonly end: number } | null;
+      readonly predicateSite: { readonly start: number; readonly end: number } | null;
+      readonly predicateKind: 'none' | 'callback';
+      readonly order: ReadonlyArray<{ readonly field: string; readonly direction: 'asc' | 'desc' }>;
+      readonly archived: 'exclude';
+      readonly firstSite: { readonly start: number; readonly end: number } | null;
+      readonly deriveChain: ReadonlyArray<string>;
+    }>;
+  };
   /** Inferred single root storage authority for the checked mutation closure. */
   rootAuthority?: { binding: string; model: string; createsRoot?: true };
   /** Canonical operation identity, e.g. `expenses.approve`. */

@@ -269,6 +269,8 @@ export function viewerPageOrder(order?: ReadonlyArray<OrderTerm>): ReadonlyArray
 /** Owner query input: full stored rows, no projection. */
 export interface OwnerRecordsInput extends BaseQueryInput {
   readonly authority: 'owner';
+  /** Trusted owner capability may narrow a scan to one contained child domain. */
+  readonly parent?: RecordParent;
 }
 
 /** Record query input, narrowed by authority via the `queryRecords` overloads. */
@@ -1325,6 +1327,12 @@ async function readAuthorizedQueryRevision(
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 0)) {
     throw new StateError('validation', `Invalid query limit: ${JSON.stringify(input.limit)}.`);
   }
+  const ownerParent = input.authority === 'owner' ? (input as OwnerRecordsInput).parent : undefined;
+  if (ownerParent !== undefined && (typeof ownerParent !== 'object' || ownerParent === null ||
+      Object.keys(ownerParent).length !== 2 || typeof ownerParent.model !== 'string' || ownerParent.model === '' ||
+      typeof ownerParent.id !== 'string' || ownerParent.id === '')) {
+    throw new StateError('validation', 'Owner query parent requires one exact model and record identity.');
+  }
   const coherentPredicate = predicate !== undefined && hasInstalledSourceQueryPredicate(page?.membershipPredicate ?? predicate);
   const order = checkAuthorizedQueryOrder(input);
   if (input.where !== undefined) {
@@ -1537,6 +1545,9 @@ async function scanAuthorizedQueryRows(run: AuthorizedQueryRun): Promise<void> {
     authority: input.authority,
     order: toStorageOrder(run.order),
     archived: run.archived,
+    ...(input.authority !== 'owner' || (input as OwnerRecordsInput).parent === undefined ? {} : {
+      parent: (input as OwnerRecordsInput).parent,
+    }),
     ...(page === undefined ? {} : {
       limit: VIEWER_PAGE_MAX_CANDIDATES + 1,
       ...(page.parent === undefined ? {} : { parent: page.parent }),
@@ -1629,6 +1640,10 @@ async function matchAuthorizedQueryRows(run: AuthorizedQueryRun): Promise<Stored
   const matched: StoredRow[] = [];
   if (input.authority === 'owner') {
     for (const row of run.scanned!) {
+      const parent = (input as OwnerRecordsInput).parent;
+      if (parent !== undefined && (row.parent?.model !== parent.model || row.parent.id !== parent.id)) {
+        throw new StateError('validation', 'Owner query returned a row outside its checked parent domain.');
+      }
       if (input.where !== undefined && !evalPredicateForRow(input.where, row, run.decisionIntFields, run.implicitParent)) {
         continue;
       }

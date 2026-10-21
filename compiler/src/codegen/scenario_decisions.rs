@@ -4071,7 +4071,7 @@ fn join_lambda_query<'a>(
     let SelectedCallTarget::Builtin { id, .. } = &selected.target else {
         return None;
     };
-    if !matches!(id.as_str(), "any" | "all") {
+    if !matches!(id.as_str(), "any" | "all" | "group") {
         return None;
     }
     let predicate_slot = selected.slots.get(1).copied().flatten()?;

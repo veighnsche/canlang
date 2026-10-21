@@ -1,0 +1,90 @@
+# Exact source-closure probe for CanRent.resource_report and saved_rows.
+app CanRent uses=[rent_reservations]
+
+package rent_catalog
+ Given
+  export Location { timezone:timezone, active:bool=true }
+  export contract OpeningWeek { weekday:int,opens:text,closes:text,close_after:int,fold:enum(earlier,later) }
+  export contract OpeningDate { day:date,opens:text,closes:text,close_after:int,closed:bool,fold:enum(earlier,later) }
+  export LocationPolicy in Location { effective:datetime server=now,sequence:int,active:bool,timezone:timezone,weekly:OpeningWeek[],closed:date[],dated:OpeningDate[],hidden:bool=false }
+  policy Location read=public
+  policy LocationPolicy read=public where=not row.hidden
+  export derive policy_open(policy:LocationPolicy,from:datetime,until:datetime):bool = policy.active and from<until and all(dates(local_date(from,policy.timezone),add_days(local_date(until-1ms,policy.timezone),1),1000) as day,not (day in policy.closed) and not any(policy.dated as hours,hours.day==day and hours.closed)) and any(dates(add_days(local_date(from,policy.timezone),-1),add_days(local_date(until,policy.timezone),1),1000) as day,any(policy.dated as hours,hours.day==day and not hours.closed and local_instant(day,hours.opens,policy.timezone,fold=hours.fold)<=from and until<=local_instant(add_days(day,hours.close_after),hours.closes,policy.timezone,fold=hours.fold)) or (not any(policy.dated as hours,hours.day==day) and any(policy.weekly as hours,hours.weekday==weekday(day) and local_instant(day,hours.opens,policy.timezone,fold=hours.fold)<=from and until<=local_instant(add_days(day,hours.close_after),hours.closes,policy.timezone,fold=hours.fold))))
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee { user:user unique, home:Location, locations:Location[], operator_wide:bool=false, active:bool=true, hidden:bool=false }
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+
+package report
+ Given
+  export contract Checkpoint { source:text,revision:text,generated:datetime,state:enum(fresh,lagging,partial,unavailable),complete:bool }
+  export contract Contribution { source:text,revision:int,location:text,from:datetime,until:datetime,metric:enum(booked_minutes,saleable_minutes,excluded_minutes,occupied_minutes,cash,receivable,renewal,backlog),quantity:decimal,unit:text,amount:money?,provisional:bool=false,reversal:text? }
+  export contract ReportBatch { checkpoint:Checkpoint,rows:Contribution[]! }
+ When
+ Then
+
+package rent_reservations
+ use rent_catalog {Location,LocationPolicy,OpeningWeek,OpeningDate,policy_open}
+ use employee {can_work}
+ use report {Contribution,Checkpoint,ReportBatch}
+ Given
+  role reservation_manager
+  export Resource { location:Location,timezone:timezone,active:bool=true }
+  Booking in Resource { status:enum(held,pending,confirmed,occupied,completed,cancelled,expired,review,no_show) }
+  VenueReservation in Resource { status:enum(held,staged,confirmed,released,expired) }
+  contract BookingInterval { from:datetime,until:datetime }
+  policy Resource read=reservation_manager and can_work(actor,row.location)
+  derive next_boundary(points:datetime[],left:datetime,until:datetime):datetime = first(points as point where left<point order=point) ?? until
+  derive saved_rows(resource:Resource,points:datetime[],until:datetime):Contribution[] = flatten(points as left where left<until select flatten(resource.ResourcePolicy as policy where policy==first(resource.ResourcePolicy as candidate where candidate.effective<=left order=-candidate.sequence) select flatten(resource.location.LocationPolicy as opening where opening==first(resource.location.LocationPolicy as candidate where candidate.effective<=left order=-candidate.sequence) select [Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=booked_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum(saved_bookings(resource,policy.sequence) as booking where booking.status in [confirmed,occupied,completed] and saved_service(booking,left) select booking.quantity)+((next_boundary(points,left,until)-left)/1m)*sum(saved_venues(resource,policy.sequence) as venue where venue.status==confirmed and venue.from<=left and left<venue.until select venue.quantity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=occupied_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum(saved_bookings(resource,policy.sequence) as booking where booking.checked_in!=null and booking.checked_in<=left and left<(booking.checked_out ?? now) select booking.quantity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute",provisional=any(saved_bookings(resource,policy.sequence) as booking,booking.checked_in!=null and booking.checked_out==null)},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=saleable_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum([policy.value.capacity] as capacity where saved_saleable(policy,opening,left,next_boundary(points,left,until)) select capacity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"},Contribution {source=resource.id,revision=policy.sequence,location=resource.location.id,from=left,until=next_boundary(points,left,until),metric=excluded_minutes,quantity=((next_boundary(points,left,until)-left)/1m)*sum([policy.value.capacity] as capacity where not saved_saleable(policy,opening,left,next_boundary(points,left,until)) select capacity),unit=first(["seat-minute"] as unit where policy.value.pooled) ?? "room-minute"}])))
+  contract ReportWindow { from:datetime,until:datetime,closed:bool }
+  contract ReportDowntime { from:datetime,until:datetime?,active:bool }
+  contract ReportBooking { from:datetime,until:datetime,intervals:BookingInterval[],quantity:int,status:Booking.status,checked_in:datetime?,checked_out:datetime?,arrival_buffer:duration,departure_buffer:duration }
+  contract ReportVenue { from:datetime,until:datetime,quantity:int,status:VenueReservation.status }
+  contract ResourceEvidence { active:bool,capacity:int,pooled:bool,timezone:timezone }
+  ResourcePolicy in Resource { effective:datetime server=now,sequence:int,baseline:bool=false,value:ResourceEvidence,hidden:bool=false }
+  BookingEvidence in Resource { sequence:int,key:text,value:ReportBooking?,hidden:bool=false }
+  VenueEvidence in Resource { sequence:int,key:text,value:ReportVenue?,hidden:bool=false }
+  WindowEvidence in Resource { sequence:int,key:text,value:ReportWindow?,hidden:bool=false }
+  DowntimeEvidence in Resource { sequence:int,key:text,value:ReportDowntime?,hidden:bool=false }
+  policy ResourcePolicy read=reservation_manager and can_work(actor,row.parent.location) and not row.hidden
+  policy BookingEvidence read=reservation_manager and can_work(actor,row.parent.location) and not row.hidden
+  policy VenueEvidence read=reservation_manager and can_work(actor,row.parent.location) and not row.hidden
+  policy WindowEvidence read=reservation_manager and can_work(actor,row.parent.location) and not row.hidden
+  policy DowntimeEvidence read=reservation_manager and can_work(actor,row.parent.location) and not row.hidden
+  derive saved_bookings(resource:Resource,sequence:int):ReportBooking[] = flatten(group(resource.BookingEvidence as fact where fact.sequence<=sequence,fact.key) as item select (item.items as fact where fact==first(item.items as latest order=-latest.sequence) and fact.value!=null select fact.value))
+  derive saved_venues(resource:Resource,sequence:int):ReportVenue[] = flatten(group(resource.VenueEvidence as fact where fact.sequence<=sequence,fact.key) as item select (item.items as fact where fact==first(item.items as latest order=-latest.sequence) and fact.value!=null select fact.value))
+  derive saved_windows(resource:Resource,sequence:int):ReportWindow[] = flatten(group(resource.WindowEvidence as fact where fact.sequence<=sequence,fact.key) as item select (item.items as fact where fact==first(item.items as latest order=-latest.sequence) and fact.value!=null select fact.value))
+  derive saved_downtime(resource:Resource,sequence:int):ReportDowntime[] = flatten(group(resource.DowntimeEvidence as fact where fact.sequence<=sequence,fact.key) as item select (item.items as fact where fact==first(item.items as latest order=-latest.sequence) and fact.value!=null select fact.value))
+  derive saved_service(booking:ReportBooking,point:datetime):bool = (count(booking.intervals)==0 and booking.from<=point and point<booking.until) or any(booking.intervals as interval,interval.from+booking.arrival_buffer<=point and point<interval.until-booking.departure_buffer)
+  derive saved_saleable(policy:ResourcePolicy,opening:LocationPolicy,left:datetime,right:datetime):bool = policy.value.active and policy_open(opening,left,right) and any(saved_windows(policy.parent,policy.sequence) as window,not window.closed and window.from<=left and right<=window.until) and not any(saved_windows(policy.parent,policy.sequence) as window,window.closed and overlaps(left,right,window.from,window.until)) and not any(saved_downtime(policy.parent,policy.sequence) as downtime,downtime.active and downtime.from<right and (downtime.until==null or left<downtime.until))
+ When
+  # Export saved calendar and resource evidence; dates before the first capture remain partial. @{nl="Exporteer vastgelegde kalender- en voorzieningsbewijs; datums vóór de eerste vastlegging blijven gedeeltelijk."}
+  export scenario resource_report(resource:Resource,from:datetime,until:datetime) read=true scope=authority -> ReportBatch by=reservation_manager label="Workspace source measures"@{nl="Werkplekbronmaatstaven"}
+   require can_work(actor,resource.location) and from<until
+   do
+    let days=dates(add_days(local_date(from,resource.timezone),-1),add_days(local_date(until,resource.timezone),1),1000)
+    let policies=resource.ResourcePolicy
+    let openings=resource.location.LocationPolicy
+    let weekly=flatten(flatten(openings as policy select flatten(days as day select (policy.weekly as hours where weekday(day)==hours.weekday select [local_instant(day,hours.opens,policy.timezone,fold=hours.fold),local_instant(add_days(day,hours.close_after),hours.closes,policy.timezone,fold=hours.fold)]))))
+    let dated=flatten(flatten(openings as policy select (policy.dated as hours where not hours.closed select [local_instant(hours.day,hours.opens,policy.timezone,fold=hours.fold),local_instant(add_days(hours.day,hours.close_after),hours.closes,policy.timezone,fold=hours.fold)])))
+    let midnight=days as day select local_instant(day,"00:00",resource.timezone,fold=earlier)
+    let windows=flatten(resource.WindowEvidence as fact where fact.value!=null select [fact.value.from,fact.value.until])
+    let downtime=flatten(resource.DowntimeEvidence as fact where fact.value!=null select [fact.value.from,fact.value.until ?? until])
+    let service=flatten(resource.BookingEvidence as fact where fact.value!=null select [fact.value.from,fact.value.until,fact.value.checked_in ?? from,fact.value.checked_out ?? now])
+    let access=flatten(resource.BookingEvidence as fact where fact.value!=null select flatten(fact.value.intervals as interval select [interval.from+fact.value.arrival_buffer,interval.until-fact.value.departure_buffer]))
+    let venues=flatten(resource.VenueEvidence as fact where fact.value!=null select [fact.value.from,fact.value.until])
+    let boundaries=[from,until]+weekly+dated+midnight+windows+downtime+service+access+venues+(policies as policy select policy.effective)+(openings as policy select policy.effective)
+    let points=group((boundaries as point where from<=point and point<=until) as point,point) as point order=point.key select point.key
+    let complete=any(policies as policy,policy.effective<=from and policy.baseline) and any(openings as policy,policy.effective<=from)
+    let stamp=join([join((policies as policy order=policy.sequence select format("{id}:{sequence}",{id=policy.id,sequence=policy.sequence})),","),join((openings as policy order=policy.sequence select format("{id}:{sequence}",{id=policy.id,sequence=policy.sequence})),","),join((resource.BookingEvidence as fact order=fact.sequence select format("{id}:{sequence}",{id=fact.id,sequence=fact.sequence})),","),join((resource.VenueEvidence as fact order=fact.sequence select format("{id}:{sequence}",{id=fact.id,sequence=fact.sequence})),","),join((resource.WindowEvidence as fact order=fact.sequence select format("{id}:{sequence}",{id=fact.id,sequence=fact.sequence})),","),join((resource.DowntimeEvidence as fact order=fact.sequence select format("{id}:{sequence}",{id=fact.id,sequence=fact.sequence})),",")],":")
+    if complete
+     return ReportBatch {checkpoint=Checkpoint {source=resource.id,revision=stamp,generated=now,state=fresh,complete=true},rows=saved_rows(resource,points,until)}
+    return ReportBatch {checkpoint=Checkpoint {source=resource.id,revision=stamp,generated=now,state=partial,complete=false},rows=saved_rows(resource,points,until)}
+ Then

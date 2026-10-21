@@ -49,6 +49,8 @@ export interface CanonicalStagedWrite {
  * instead of mis-serving; the stdlib passes its query through untouched.
  */
 export interface CanonicalReadQuery {
+  /** Compiler-stamped query site for an admitted authority report. */
+  readonly authoritySource?: Readonly<{ readonly id: string }>;
   /** Retain authored containment filters so unsupported seams refuse them explicitly. */
   readonly parent?: unknown;
   readonly where?: unknown;

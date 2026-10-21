@@ -45,6 +45,7 @@ export {
   type ScenarioReceiptMutationEffects, type ScenarioReceiptMutationSession,
   readScenarioReceiptAssociation, projectScenarioReceipt, type ProjectScenarioReceiptInput,
 } from './scenario-receipt.js';
+export { checkScenarioReceiptMembershipSites } from './scenario-membership-plan.js';
 export {
   MAX_ADMISSION_ATTEMPTS,
   invoke,

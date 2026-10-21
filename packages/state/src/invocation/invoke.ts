@@ -36,6 +36,7 @@ import type {
   UniqueClaim,
   UniqueRelease,
 } from '@canlang/contracts';
+import { MAX_MEMBERSHIP_SNAPSHOT_USERS } from '@canlang/contracts';
 import type {
   DeliveryReceipt,
   MutationEnvelope,
@@ -49,7 +50,7 @@ import type { GeneratedOperationDef, OperationRegistry } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
 import type { ByPredicate, MembershipReader } from '../policy/roles.js';
 import { byDependsOnRow, evaluateBy } from '../policy/roles.js';
-import { observeRowGrantAuthority } from '../policy/membership-facts.js';
+import { checkedAuthoritySnapshot, checkedMembershipFact, observeRowGrantAuthority } from '../policy/membership-facts.js';
 import type { PolicyTable } from '../policy/grants.js';
 import {
   admit,
@@ -755,6 +756,8 @@ export interface InvokeReadInput {
   readonly registry: OperationRegistry;
   /** Checked owning declarations from trusted host wiring, never ReadSelection. */
   readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
+  /** Checked installed child declarations for owner-scoped authority reports. */
+  readonly containment?: ReadonlyMap<ModelName, InterimContainment>;
   readonly envelope: ReadEnvelope;
   readonly identity: ResolvedIdentity;
   /** Engine-local read grants (T17b transcribes the emitted read rules; T04b formalizes). */
@@ -979,6 +982,8 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
 
 /** Bounded decision-mode read selection: data-only AST, never callbacks. */
 export interface DecisionReadSelection {
+  /** Exact owning row for a checked contained-child source query. */
+  readonly parent?: RecordParent;
   readonly where?: QueryPredicate;
   readonly order?: ReadonlyArray<OrderTerm>;
   readonly limit?: number;
@@ -1003,6 +1008,8 @@ export interface DecisionReadCapability {
   /** The bound checked description identifying the information exposed. */
   readonly description: string;
   query(model: ModelName, selection?: DecisionReadSelection): Promise<DecisionReadResult>;
+  /** Current, fenced Identity observation for a checked authority-report helper. */
+  activeMember(person: string): Promise<boolean>;
 }
 
 /** Decision scans stay bounded: the default cap matches the page candidate budget; overflow fails, never truncates. */
@@ -1147,18 +1154,23 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
   // in the same fence. Each observation is retained for the post-execution
   // recheck, mirroring the viewer readings below.
   const decisionObservations: Array<{
-    readonly model: ModelName; readonly where?: QueryPredicate;
+    readonly model: ModelName; readonly parent?: RecordParent; readonly where?: QueryPredicate;
     readonly order?: ReadonlyArray<OrderTerm>; readonly limit: number; readonly projection: string;
   }> = [];
+  const decisionMemberships = new Map<string, Membership | null>();
   const runDecisionQuery = async (
-    model: ModelName, where?: QueryPredicate, order?: ReadonlyArray<OrderTerm>, limit?: number,
+    model: ModelName, parent?: RecordParent, where?: QueryPredicate, order?: ReadonlyArray<OrderTerm>, limit?: number,
   ): Promise<DecisionReadResult> => {
+    if (parent !== undefined && input.containment?.get(model)?.parent !== parent.model) {
+      throw new StateError('validation', 'Authority decision parent differs from its declared child model.');
+    }
     const bounded = limit ?? AUTHORITY_DECISION_DEFAULT_LIMIT;
     const modelDescriptor = input.models?.find((descriptor) => descriptor.name === model);
     const served = await queryRecords({
       policy: input.policy, model,
       ...(modelDescriptor !== undefined ? { modelDescriptor } : {}),
       authority: 'owner',
+      ...(parent === undefined ? {} : { parent }),
       context: { actorUserId, teamId },
       memberships: input.memberships,
       store: input.store,
@@ -1177,14 +1189,29 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
     scope: 'authority' as const,
     description: authority.description,
     query: async (model: ModelName, selection: DecisionReadSelection = {}): Promise<DecisionReadResult> => {
-      const observed = await runDecisionQuery(model, selection.where, selection.order, selection.limit);
+      const observed = await runDecisionQuery(model, selection.parent, selection.where, selection.order, selection.limit);
       decisionObservations.push({
-        model, ...(selection.where !== undefined ? { where: selection.where } : {}),
+        model, ...(selection.parent === undefined ? {} : { parent: selection.parent }),
+        ...(selection.where !== undefined ? { where: selection.where } : {}),
         ...(selection.order !== undefined ? { order: selection.order } : {}),
         limit: selection.limit ?? AUTHORITY_DECISION_DEFAULT_LIMIT,
         projection: JSON.stringify(observed.rows),
       });
       return observed;
+    },
+    activeMember: async (person: string): Promise<boolean> => {
+      if (typeof person !== 'string' || person === '' || person.length > 4096 || teamId === null ||
+          decisionMemberships.size >= MAX_MEMBERSHIP_SNAPSHOT_USERS && !decisionMemberships.has(person)) {
+        throw new StateError('validation', 'Authority report membership needs its bounded current Team and person.');
+      }
+      const fact = checkedMembershipFact(await input.memberships.findMembership(teamId, person), teamId, person);
+      if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'State changed during report membership observation.');
+      const previous = decisionMemberships.get(person);
+      if (decisionMemberships.has(person) && JSON.stringify(previous) !== JSON.stringify(fact)) {
+        throw new StateError('forbidden', 'Report membership changed during its source decision.');
+      }
+      decisionMemberships.set(person, fact);
+      return fact?.status === 'active';
     },
   } satisfies DecisionReadCapability;
   // The typed result serves as the explicit grant to the admitted `by`
@@ -1206,6 +1233,25 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
   if (JSON.stringify(live) !== membershipSnapshot) {
     throw new StateError('forbidden', 'Caller authority changed during the read scenario.');
   }
+  if (decisionMemberships.size > 0) {
+    if (teamId === null) throw new StateError('validation', 'Report membership lost its admitted Team.');
+    const users = [...decisionMemberships.keys()];
+    if (users.length === 1) {
+      const person = users[0]!;
+      const current = checkedMembershipFact(await input.memberships.findMembership(teamId, person), teamId, person);
+      if (JSON.stringify(current) !== JSON.stringify(decisionMemberships.get(person))) {
+        throw new StateError('forbidden', 'Report membership changed during its source decision.');
+      }
+    } else {
+      const snapshot = input.memberships.findMembershipsSnapshot;
+      if (typeof snapshot !== 'function') throw new StateError('validation', 'Report membership requires a coherent Identity snapshot.');
+      const facts = checkedAuthoritySnapshot(await snapshot.call(input.memberships, teamId, users), teamId, users);
+      if (users.some(person => JSON.stringify(facts.get(JSON.stringify([teamId, person]))) !==
+          JSON.stringify(decisionMemberships.get(person)))) {
+        throw new StateError('forbidden', 'Report membership changed during its source decision.');
+      }
+    }
+  }
   if (revalidateRefAuthority !== undefined) await revalidateRefAuthority();
   else if (authority !== undefined) {
     // Decision revalidation: owner rows and decision observations are
@@ -1219,7 +1265,8 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
       }
     }
     for (const observation of decisionObservations) {
-      const fresh = await runDecisionQuery(observation.model, observation.where, observation.order, observation.limit);
+      const fresh = await runDecisionQuery(observation.model, observation.parent,
+        observation.where, observation.order, observation.limit);
       if (JSON.stringify(fresh.rows) !== observation.projection) {
         throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
       }

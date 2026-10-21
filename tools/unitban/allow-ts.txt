@@ -9,6 +9,7 @@ packages/cloudflare/src/runtime/native-local-rules.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean-graph.integration.test.ts
 packages/cloudflare/src/runtime/native-read-boolean.integration.test.ts
 packages/cloudflare/src/runtime/native-reference-arrays-d1.integration.test.ts
+packages/cloudflare/src/runtime/native-rent-resource-report.integration.test.ts
 packages/cloudflare/src/runtime/native-rule-owner-search.integration.test.ts
 packages/cloudflare/src/runtime/native-scenario-receipts-d1.integration.test.ts
 packages/cloudflare/src/runtime/native-send-nullable-narrowing.integration.test.ts

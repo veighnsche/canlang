@@ -122,6 +122,8 @@ export interface ReadInvokerInput {
   readonly registry: OperationRegistry;
   /** Checked model declarations supplied by the owning host, outside per-call selection. */
   readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
+  /** Checked containment is required when an authority report narrows to a parent. */
+  readonly containment?: ReadonlyMap<ModelName, InterimContainment>;
   readonly policy: PolicyTable;
   readonly store: StoragePort;
   readonly memberships: MembershipReader;

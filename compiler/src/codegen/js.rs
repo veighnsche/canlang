@@ -874,6 +874,8 @@ pub struct JsOperation {
     pub result: Option<Cow<'static, str>>,
     /// Native evaluated-return provenance; published only with its capture recipe.
     pub disclosure: Option<serde_json::Value>,
+    /// Source/IR-sealed owner query census for an authority-scoped read.
+    pub authority_query_sites: Option<serde_json::Value>,
 }
 
 impl JsOperation {
@@ -1333,7 +1335,8 @@ impl Serialize for JsOperation {
         }
         let mut state = serializer.serialize_struct(
             "Operation",
-            4 + usize::from(self.result.is_some()) + usize::from(self.root_authority.is_some()),
+            4 + usize::from(self.result.is_some()) + usize::from(self.root_authority.is_some())
+                + usize::from(self.authority_query_sites.is_some()),
         )?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("kind", self.kind.as_str())?;
@@ -1355,6 +1358,9 @@ impl Serialize for JsOperation {
         }
         if let Some(authority) = &self.root_authority {
             state.serialize_field("rootAuthority", authority)?;
+        }
+        if let Some(sites) = &self.authority_query_sites {
+            state.serialize_field("authorityQuerySites", sites)?;
         }
         state.end()
     }
@@ -1545,6 +1551,7 @@ pub fn emit_program_with_native_source_receipts(
 #[derive(Default)]
 pub(super) struct EmitDecisionSources<'a> {
     pub source_context: Option<&'a super::scenario_decisions::FreshSourceContext<'a>>,
+    pub authority_queries: Option<&'a super::authority_query_sites::PreparedAuthorityQuerySites>,
     pub owner_handlers: Option<&'a HashSet<SymbolId>>,
     pub local_policies: Option<&'a LocalPolicies>,
     pub unique_conditions: Option<&'a [super::model_unique_conditions::CheckedUniqueCondition]>,
@@ -2485,6 +2492,7 @@ fn emit_program_with_sources(
         }
     }
     emitter.native_source_predicates = native_receipts;
+    emitter.authority_queries = decisions.authority_queries;
     emitter.owner_handlers = decisions.owner_handlers.cloned().unwrap_or_default();
     emitter.unique_conditions = decisions.unique_conditions.unwrap_or_default().to_vec();
     emitter.model_rule_origins = decisions.model_rule_origins.map(|origins| origins.to_vec());
@@ -4500,6 +4508,7 @@ pub struct Emitter<'a> {
     authority_body: bool,
     record_page_render: bool,
     native_source_predicates: bool,
+    authority_queries: Option<&'a super::authority_query_sites::PreparedAuthorityQuerySites>,
     send_guards: Option<&'a HashMap<Span, super::send_guards::PreparedSendGuard>>,
     send_guard_owners: Option<&'a BTreeMap<String, serde_json::Value>>,
     send_guard_gap: Option<&'a super::send_guards::SendGuardGap>,
@@ -4726,6 +4735,7 @@ impl<'a> Emitter<'a> {
             authority_body: false,
             record_page_render: false,
             native_source_predicates: false,
+            authority_queries: None,
             send_guards: None,
             send_guard_owners: None,
             send_guard_gap: None,
@@ -8120,6 +8130,22 @@ impl<'a> Emitter<'a> {
                         parts.push(format!("{}:{default}", object_key(name)));
                     }
                 }
+                if let ResolvedType::Record { symbol, stored: false } = &expr.ty {
+                    let defaults = self.ir.items.get(symbol.0 as usize).and_then(|item| {
+                        let IrItemKind::Contract { fields, .. } = &item.kind else { return None; };
+                        Some(fields.iter().filter_map(|id| {
+                            let field = self.ir.items.get(id.0 as usize)?;
+                            if entries.iter().any(|(name, _)| name == &field.name) { return None; }
+                            let IrItemKind::Field { default: Some(IrDefault::Literal(value)), .. } = &field.kind else {
+                                return None;
+                            };
+                            Some((field.name.clone(), value.clone()))
+                        }).collect::<Vec<_>>())
+                    }).unwrap_or_default();
+                    for (name, value) in defaults {
+                        parts.push(format!("{}:{}", object_key(&name), self.lower_expr(&value)));
+                    }
+                }
                 format!("{{{}}}", parts.join(","))
             }
             IrExpr::Query(query) => {
@@ -8545,6 +8571,10 @@ impl<'a> Emitter<'a> {
                     if matches!(query.domain, crate::codegen::ir::IrQueryDomain::Model(_)))
             })
         {
+            if matches!(args, [domain] if self.authority_queries
+                .is_some_and(|prepared| prepared.matched_first(span, domain))) {
+                return None;
+            }
             self.unsupported(
                 "first query",
                 "original native query correspondence is unavailable",
@@ -9717,6 +9747,8 @@ fn conjunct_dependency_matches<'d>(
                         if self.owner_handler_body {
                             "o"
                         } else if (self.boolean_body || self.authority_body)
+                            && !(self.authority_body && self.authority_queries
+                                .is_some_and(|prepared| prepared.reaches(span)))
                             && self.boolean_derives.contains(canonical)
                         {
                             "b"
@@ -11002,12 +11034,13 @@ fn null_equality(
         query: &crate::codegen::ir::IrQuery,
         pred: &TypedExpr,
         opts: &mut Vec<String>,
+        source_checked_authority: bool,
     ) {
         // REVIEW-9 gap 3: authority decision bodies lower
         // data-only filters to the predicate AST; anything
         // else keeps the ordinary callback below (still
         // refused fail-closed by decision mode).
-        let authority_ast = if self.authority_body && !query.where_async {
+        let authority_ast = if self.authority_body && !query.where_async && !source_checked_authority {
             Self::lower_authority_where(query)
         } else {
             None
@@ -11184,8 +11217,20 @@ fn null_equality(
         }
         match &query.domain {
             crate::codegen::ir::IrQueryDomain::Model(model) => {
+                let unsealed_authority_query = self.authority_queries.is_some_and(|prepared| {
+                    prepared.reaches(span) && prepared.matched_site(span, query, model).is_none()
+                });
+                if unsealed_authority_query {
+                    self.unsupported("authority query", "reachable stored-model read lacks exact checked source correspondence", span);
+                    return self.throw_expr("unsealed authority query");
+                }
                 self.stdlib.insert("records".to_string());
                 let mut opts = Vec::new();
+                if let Some(prepared) = self.authority_queries {
+                    if let Some(site) = prepared.matched_site(span, query, model) {
+                        opts.push(format!("authoritySource:{{id:{}}}", js_string(&site.id)));
+                    }
+                }
                 if self.hook_native() {
                     // Only the checked private hook adapter consumes this
                     // label as its inherited decision/value read site.
@@ -11197,7 +11242,9 @@ fn null_equality(
                     opts.push(format!("parent:{}", self.lower_expr(parent)));
                 }
                 if let Some(pred) = &query.where_pred {
-                    self.lower_model_where_opt(query, pred, &mut opts);
+                    let source_checked_authority = self.authority_queries
+                        .is_some_and(|prepared| prepared.matched_site(span, query, model).is_some());
+                    self.lower_model_where_opt(query, pred, &mut opts, source_checked_authority);
                 }
                 if let Some(order) = &query.value_order {
                     self.enter_scope();
@@ -16355,6 +16402,11 @@ impl<'a> Emitter<'a> {
             if let Some(origin) = Self::defining_source_origin(self.ir, item) {
                 members.push(format!("source:{}", descriptor_json(&origin)));
             }
+            if item.canonical == "rent_reservations.resource_report" {
+                if let Some(prepared) = self.authority_queries {
+                    members.push(format!("authorityQuerySites:{}", descriptor_json(&prepared.plan)));
+                }
+            }
         }
         if let Some(authority) = self.operation_root_authority(item) {
             members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
@@ -17711,6 +17763,7 @@ impl<'a> Emitter<'a> {
             result: checked_scenario_result(result.as_ref()),
             disclosure,
             root_authority: self.operation_root_authority(handler),
+            authority_query_sites: None,
         })
     }
 
@@ -17768,6 +17821,7 @@ impl<'a> Emitter<'a> {
             result: checked_scenario_result(result.as_ref()),
             disclosure,
             root_authority: self.operation_root_authority(item),
+            authority_query_sites: None,
         })
     }
 
@@ -17831,6 +17885,7 @@ impl<'a> Emitter<'a> {
             result: None,
             disclosure: None,
             root_authority: None,
+            authority_query_sites: None,
         }
     }
 
@@ -17933,6 +17988,7 @@ impl<'a> Emitter<'a> {
             result: None,
             disclosure: None,
             root_authority: None,
+            authority_query_sites: None,
         })
     }
 
@@ -18317,6 +18373,9 @@ impl<'a> Emitter<'a> {
                         result: published_result,
                         disclosure,
                         root_authority: self.operation_root_authority(item),
+                        authority_query_sites: self.authority_queries
+                            .filter(|prepared| prepared.plan["operation"].as_str() == Some(item.canonical.as_str()))
+                            .map(|prepared| prepared.plan.clone()),
                     });
                 }
                 IrItemKind::CrudOp {
@@ -18387,6 +18446,7 @@ impl<'a> Emitter<'a> {
                         result: None,
                         disclosure: None,
                         root_authority: self.operation_root_authority(item),
+                        authority_query_sites: None,
                     });
                 }
                 _ => {}

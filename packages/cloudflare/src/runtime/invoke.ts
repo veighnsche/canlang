@@ -140,6 +140,7 @@ import { stableStringify } from '@canlang/state/invocation';
 import { hasRole as stateSubjectRole } from '@canlang/state/policy/roles';
 import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNativeSourceSendMembership, openNativeSourceSendMembershipFrame, bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
+  bindNativeAuthorityReportMembership, hasNativeAuthorityReportMembership, openNativeAuthorityReportMembershipFrame,
   bindNativeEventDecisionRole, hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
   type NativeMembershipFrame } from './native-membership.js';
 import type { ScenarioReceiptMembershipSite, ScenarioReceiptRequireSource } from '@canlang/state/invocation';
@@ -1576,6 +1577,7 @@ interface StateTransactProducer {
   createReadScenarioInvoker?(input: {
     readonly registry: ReadonlyMap<string, unknown>;
     readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
+    readonly containment?: ReadonlyMap<ModelName, { readonly parent?: ModelName; readonly scope?: 'app' }>;
     readonly policy: unknown;
     readonly store: StoragePort;
     readonly memberships: CanonicalMembershipReader;
@@ -5760,6 +5762,16 @@ async function loadCanonicalDescriptorsInternal(
     if (def === undefined && owner === 'maintain.remind' && artifact.callables.some(callable =>
       callable.id === owner && callable.kind === 'handler')) continue;
     if (def === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked scenario.');
+    const report = artifact.operations?.find(operation => operation.name === owner && operation.kind === 'read');
+    if (report?.authorityQuerySites !== undefined) {
+      const source = report.authorityQuerySites.source;
+      if (def.descriptor.kind !== 'read' || stableStringify(source) !== stableStringify(ownerSites[0]!.source) ||
+          ownerSites.some(site => stableStringify(site.source) !== stableStringify(source))) {
+        throw new AssemblyCorrespondenceError('Authority report membership differs from its checked query source.');
+      }
+      bindNativeAuthorityReportMembership(def, { source, sites: ownerSites });
+      continue;
+    }
     // The SEND-guard binding already associated this def's logical site
     // source with its transported plan source. An owner without SEND guards
     // needs the same one-time association before its producer can be bound.
@@ -15456,6 +15468,90 @@ async function selectAuthorityDefiningSource(
   return { path: defining.path, sha256: defining.sha256 };
 }
 
+type AuthorityQuerySites = NonNullable<NonNullable<CompileArtifact['operations']>[number]['authorityQuerySites']>;
+type AuthorityQuerySite = AuthorityQuerySites['sites'][number];
+const boundAuthorityQuerySites = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, AuthorityQuerySite>>();
+
+/** A source marker is useful only after both checked transports, the report
+ * grant and every query site have agreed at the same verified module load. */
+function checkAuthorityQuerySites(raw: unknown, loaded: LoadedCanonicalDescriptors,
+  opts: CanonicalReadOpts, defining: { readonly path: string; readonly sha256: string },
+  ownerPackage: string): ReadonlyMap<string, AuthorityQuerySite> {
+  const fail = (): never => { throw new loaded.producers.errors('validation',
+    'Authority report query census differs from its checked source and model domains.'); };
+  const interval = (rawSpan: unknown): { readonly start: number; readonly end: number } => {
+    const span = localPolicyObject(rawSpan, ['start', 'end']);
+    if (Object.keys(span).length !== 2 || !Number.isSafeInteger(span.start) ||
+        !Number.isSafeInteger(span.end) || (span.start as number) < 0 ||
+        (span.end as number) <= (span.start as number)) return fail();
+    return { start: span.start as number, end: span.end as number };
+  };
+  const source = (rawSource: unknown): AuthorityQuerySites['source'] => {
+    const value = localPolicyObject(rawSource, ['path', 'sha256', 'module']);
+    if (Object.keys(value).length !== 3 || typeof value.path !== 'string' || value.path === '' ||
+        typeof value.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(value.sha256) ||
+        typeof value.module !== 'string' || value.module === '' ||
+        !opts.artifact.sources.some(entry => entry.path === value.path && entry.sha256 === value.sha256)) return fail();
+    return { path: value.path, sha256: value.sha256, module: value.module };
+  };
+  const value = localPolicyObject(raw, ['version', 'operation', 'source', 'sites']);
+  if (Object.keys(value).length !== 4 || value.version !== 1 || value.operation !== opts.operation ||
+      !Array.isArray(value.sites) || value.sites.length === 0 || value.sites.length > 200) return fail();
+  const root = source(value.source);
+  if (root.path !== defining.path || root.sha256 !== defining.sha256 || root.module !== ownerPackage) return fail();
+  const sites = new Map<string, AuthorityQuerySite>();
+  for (const rawSite of value.sites) {
+    const site = localPolicyObject(rawSite, ['id', 'source', 'node', 'model', 'parentModel', 'parentSite',
+      'predicateSite', 'predicateKind', 'order', 'archived', 'firstSite', 'deriveChain']);
+    if (Object.keys(site).length !== 12 || typeof site.id !== 'string' || site.id.length === 0 ||
+        site.id.length > 256 || sites.has(site.id) || typeof site.model !== 'string' || site.model === '' ||
+        !loaded.models.some(model => model.name === site.model) || site.archived !== 'exclude' ||
+        (site.predicateKind !== 'none' && site.predicateKind !== 'callback') ||
+        !Array.isArray(site.order) || site.order.length > 8 ||
+        !Array.isArray(site.deriveChain) || site.deriveChain.length > 16 ||
+        site.deriveChain.some(part => typeof part !== 'string' || part === '')) return fail();
+    const siteSource = source(site.source), node = interval(site.node);
+    const chain = site.deriveChain as string[];
+    const originCallableId = chain.length === 0 ? opts.operation : chain[chain.length - 1]!;
+    if (!originCallableId.startsWith(`${siteSource.module}.`) ||
+        chain.some(id => opts.artifact.callables.filter(callable => callable.id === id && callable.kind === 'pure').length !== 1)) {
+      return fail();
+    }
+    const originCallables = opts.artifact.callables.filter(callable => callable.id === originCallableId &&
+      callable.kind === (chain.length === 0 ? 'operation' : 'pure'));
+    const owningModule = originCallables.length === 1
+      ? opts.artifact.modules.find(module => module.path === originCallables[0]!.module) : undefined;
+    if (owningModule === undefined || !Array.isArray(owningModule.map?.sources) ||
+        !owningModule.map.sources.includes(siteSource.path)) return fail();
+    const parent = loaded.containment.get(site.model);
+    const parentModel = isUnknownRecord(parent) && typeof parent.parent === 'string' ? parent.parent : null;
+    if (site.parentModel !== parentModel ||
+        (site.parentSite === null) !== (parentModel === null) ||
+        (site.predicateSite === null) !== (site.predicateKind === 'none')) return fail();
+    const inside = (span: { readonly start: number; readonly end: number }) =>
+      span.start >= node.start && span.end <= node.end;
+    if (site.parentSite !== null && !inside(interval(site.parentSite)) ||
+        site.predicateSite !== null && !inside(interval(site.predicateSite))) return fail();
+    if (site.firstSite !== null) {
+      const first = interval(site.firstSite);
+      if (first.start > node.start || first.end < node.end) return fail();
+    }
+    const order = site.order.map(rawTerm => {
+      const term = localPolicyObject(rawTerm, ['field', 'direction']);
+      if (Object.keys(term).length !== 2 || typeof term.field !== 'string' || term.field === '' ||
+          (term.direction !== 'asc' && term.direction !== 'desc')) return fail();
+      return { field: term.field, direction: term.direction };
+    });
+    sites.set(site.id, Object.freeze({ id: site.id, source: siteSource, node, model: site.model,
+      parentModel, parentSite: site.parentSite === null ? null : interval(site.parentSite),
+      predicateSite: site.predicateSite === null ? null : interval(site.predicateSite),
+      predicateKind: site.predicateKind, order, archived: 'exclude' as const,
+      firstSite: site.firstSite === null ? null : interval(site.firstSite),
+      deriveChain: [...site.deriveChain] }) as AuthorityQuerySite);
+  }
+  return sites;
+}
+
 async function bindAuthorityReportForRead(
   loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts, scope: unknown,
 ): Promise<void> {
@@ -15478,13 +15574,46 @@ async function bindAuthorityReportForRead(
   const invokeMod = await loadProducerModule(STATE_INVOKE_SPECIFIER, "state invoke producer");
   const scopeOf = requireProducerFn(invokeMod, "authorityReportScopeOf", "state invoke producer") as
     typeof import("@canlang/state/invocation/invoke").authorityReportScopeOf;
-  if (scopeOf(def) !== undefined) return;
-  const bind = requireProducerFn(invokeMod, "bindAuthorityReportScope", "state invoke producer") as
-    typeof import("@canlang/state/invocation/invoke").bindAuthorityReportScope;
-  bind(def, {
-    description: descriptor.description,
-    source: { path: defining.path, sha256: defining.sha256, module: ownerPackage },
-  });
+  const expectedScope = { description: descriptor.description,
+    source: { path: defining.path, sha256: defining.sha256, module: ownerPackage } };
+  const existingScope = scopeOf(def);
+  if (existingScope === undefined) {
+    const bind = requireProducerFn(invokeMod, "bindAuthorityReportScope", "state invoke producer") as
+      typeof import("@canlang/state/invocation/invoke").bindAuthorityReportScope;
+    bind(def, expectedScope);
+  } else if (stableStringify(existingScope) !== stableStringify(expectedScope)) {
+    throw new StateError('validation', `${name} differs from its bound authority source.`);
+  }
+  const callable = opts.artifact.callables.find(entry => entry.kind === 'operation' && entry.id === opts.operation);
+  if (callable === undefined) throw new StateError('validation', `${name} has no checked callable for its query census.`);
+  const moduleUrl = opts.asm.moduleUrls[callable.module];
+  if (typeof moduleUrl !== 'string' || moduleUrl === '') {
+    throw new StateError('validation', `${name} has no source module for its query census.`);
+  }
+  const module = requiresVerifiedAssemblyImports(opts.asm, opts.artifact)
+    ? await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact)
+    : await import(moduleUrl);
+  const where = `Authority query census for ${JSON.stringify(opts.operation)}`;
+  const definition = isUnknownRecord(module) ? readMetadataMember(module, 'appDefinition', where)?.value : undefined;
+  const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', where)?.value : undefined;
+  const operation = isUnknownRecord(operations) ? readMetadataMember(operations, opts.operation, where)?.value : undefined;
+  const moduleSites = isUnknownRecord(operation) ? readMetadataMember(operation, 'authorityQuerySites', where)?.value : undefined;
+  const artifactSites = descriptor.authorityQuerySites;
+  if ((moduleSites === undefined) !== (artifactSites === undefined)) {
+    throw new StateError('validation', `${name} lacks matching checked and emitted authority query sites.`);
+  }
+  if (artifactSites !== undefined) {
+    if (stableStringify(captureDispatchPreclaimData(moduleSites)) !==
+        stableStringify(captureDispatchPreclaimData(artifactSites))) {
+      throw new StateError('validation', `${name} query census differs from its verified module.`);
+    }
+    const checked = checkAuthorityQuerySites(artifactSites, loaded, opts, defining, ownerPackage);
+    const previous = boundAuthorityQuerySites.get(def);
+    if (previous !== undefined && stableStringify([...previous]) !== stableStringify([...checked])) {
+      throw new StateError('validation', `${name} query census changed after binding.`);
+    }
+    boundAuthorityQuerySites.set(def, checked);
+  }
 }
 
 /** Source reads have no direct storage access and cannot stage any effect. */
@@ -15496,6 +15625,7 @@ async function runReadScenarioSeam(
   // checked fact) evaluates body reads in decision mode; ordinary calls
   // omit `decision` and keep the exact viewer path below.
   const decision = call.decision;
+  const authoritySites = boundAuthorityQuerySites.get(call.def);
   const refuse = (): never => {
     throw new StateError('validation', 'Read scenarios cannot perform effects or bypass the viewer read port.');
   };
@@ -15524,6 +15654,7 @@ async function runReadScenarioSeam(
   const decodedRefs = new WeakSet<object>();
   let activeViews = views;
   let activeDecodedRefs = decodedRefs;
+  let orderAuthorityRows: typeof import('@canlang/state/query/engine').orderSourceReadRecords | undefined;
   const recordView = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> => {
     const view = nativeProjectedRecord(loaded, model, row, navigation, recordView);
     activeViews.set(view, { model, id: row.id, version: row.version });
@@ -15547,15 +15678,25 @@ async function runReadScenarioSeam(
   };
   const readModel = async (model: string, query: CanonicalReadQuery, dependencies?: ProjectedRecord[],
     nativePredicate?: (record: ProjectedRecord) => Promise<boolean>): Promise<CanonicalReadServed> => {
-    if (loaded.ruledModels.has(model) && !loaded.sourceReadPolicies.has(model)) throw ruledReadRefusal(StateError, model);
-    if (Object.keys(query).some(key => !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+    if (decision === undefined && loaded.ruledModels.has(model) && !loaded.sourceReadPolicies.has(model)) throw ruledReadRefusal(StateError, model);
+    if (Object.keys(query).some(key => !['authoritySource', 'parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
         (query.authority !== undefined && query.authority !== 'viewer') ||
         (query.archived !== undefined && query.archived !== 'exclude')) {
       throw new StateError('validation', 'Read scenarios require finite viewer queries over current records.');
     }
+    const marker = query.authoritySource;
+    if (marker !== undefined && (!isUnknownRecord(marker) ||
+        Object.keys(marker).length !== 1 || typeof marker.id !== 'string' || marker.id === '')) {
+      throw new StateError('validation', 'Read query source marker requires its single checked site identity.');
+    }
     const parent = query.parent;
+    const navigationParent = decision !== undefined && authoritySites !== undefined &&
+      marker !== undefined && authoritySites.has(marker.id) &&
+      typeof parent === 'object' && parent !== null
+      ? navigation.resolveRecord(parent) : undefined;
     const parentBinding = typeof parent === 'object' && parent !== null
-      ? views.get(parent) ?? activeViews.get(parent) ?? nativeRecordReference(parent) : undefined;
+      ? views.get(parent) ?? activeViews.get(parent) ?? navigationParent ?? nativeRecordReference(parent) ??
+        (isRecordRef(parent) && activeDecodedRefs.has(parent) ? parent : undefined) : undefined;
     if (parent !== undefined && (parentBinding === undefined ||
         opts.artifact.models?.find(candidate => candidate.name === model)?.parent !== parentBinding.model)) {
       throw new StateError('validation', 'Containment queries require the authorized declared parent record.');
@@ -15586,6 +15727,57 @@ async function runReadScenarioSeam(
       throw new StateError('validation', 'Read scenario limit requires a non-negative safe integer.');
     }
     if (decision !== undefined) {
+      if (authoritySites !== undefined) {
+        const site = marker === undefined ? undefined : authoritySites.get(marker.id);
+        const markedOrder = query.order === undefined ? [] : Array.isArray(query.order) &&
+          query.order.every(term => typeof term === 'string' && term !== '' && term !== '-')
+          ? query.order.map(term => ({ field: term.startsWith('-') ? term.slice(1) : term,
+            direction: term.startsWith('-') ? 'desc' as const : 'asc' as const })) : null;
+        if (site === undefined || site.model !== model || markedOrder === null ||
+            stableStringify(site.order) !== stableStringify(markedOrder) ||
+            site.parentModel !== (parentBinding?.model ?? null) ||
+            (site.predicateKind === 'callback') !== (typeof where === 'function') ||
+            query.limit !== undefined || nativePredicate !== undefined ||
+            (where !== undefined && typeof where !== 'function') ||
+            (site.parentModel === null) !== (parent === undefined)) {
+          throw new StateError('validation', 'Authority report query differs from its checked source site.');
+        }
+        if (parent !== undefined && typeof parent === 'object' && parent !== null &&
+            views.get(parent) === undefined && activeViews.get(parent) === undefined &&
+            navigationParent === undefined && !activeDecodedRefs.has(parent)) {
+          throw new StateError('validation', 'Authority report parent lacks its original owner view or decoded reference.');
+        }
+        const observed = await decision.query(model as ModelName, {
+          ...(parentBinding === undefined ? {} : { parent: { model: parentBinding.model as ModelName,
+            id: parentBinding.id as RecordId } }),
+        });
+        if (observed.revision !== call.revision || await opts.store.readRevision() !== call.revision) {
+          throw new StateError('conflict', 'State changed during the authority report query.');
+        }
+        const candidates: ProjectedRecord[] = [];
+        for (const row of observed.rows) {
+          const full = { ...row, parent: row.parent ?? null };
+          await navigation.prepare(model, full);
+          const accepted = typeof where === 'function' ? await where(recordView(model, full), ctx) : true;
+          if (typeof accepted !== 'boolean') {
+            throw new StateError('validation', 'Authority report source predicate must return bool.');
+          }
+          if (accepted) candidates.push(full);
+        }
+        if (orderAuthorityRows === undefined) {
+          const engine = await loadProducerModule('@canlang/state/query/engine', 'authority report source comparator');
+          orderAuthorityRows = requireProducerFn(engine, 'orderSourceReadRecords', 'authority report source comparator') as
+            typeof import('@canlang/state/query/engine').orderSourceReadRecords;
+        }
+        const declaration = loaded.models.find(candidate => candidate.name === model);
+        if (declaration === undefined) throw new StateError('validation', 'Authority report model lacks its checked declaration.');
+        const sorted = site.order.length === 0 ? orderAuthorityRows(candidates, declaration) :
+          orderAuthorityRows(candidates, declaration, site.order as readonly OrderTerm[]);
+        return { records: [...sorted], revision: observed.revision };
+      }
+      if (marker !== undefined) {
+        throw new StateError('validation', 'Authority report query has no bound checked source census.');
+      }
       // Decision reads are data-only owner scans (DESIGN §442, the
       // `call.decision` precedent): bounded owner authority at the fence
       // revision, no read-policy recursion, no callbacks, no
@@ -15696,7 +15888,7 @@ async function runReadScenarioSeam(
       const sourcePredicate = typeof selected.where === 'function';
       const dependencies: ProjectedRecord[] | undefined = sourcePredicate ? [] : undefined;
       const served = await readModel(model, selected, dependencies);
-      readings.push({ model, query: selected, sourcePredicate,
+      if (decision === undefined || authoritySites === undefined) readings.push({ model, query: selected, sourcePredicate,
         projection: dependencies === undefined ? JSON.stringify(served.records) : dependencyProjection(dependencies) });
       return served.records;
     },
@@ -15757,9 +15949,14 @@ async function runReadScenarioSeam(
   }, (queryId, returnId, selected) => projector!(call.def, queryId, returnId, selected), error => {
     if (error instanceof Error) navigationFailures.set(error.message, error);
   });
+  const authorityMembership = decision !== undefined && hasNativeAuthorityReportMembership(call.def)
+    ? openNativeAuthorityReportMembershipFrame(ctx, call,
+      opts.identity.team === null ? null : { teamId: opts.identity.team.team_id, timezone: opts.identity.team.timezone },
+      error => { if (error instanceof Error) navigationFailures.set(error.message, error); }) : undefined;
   try {
     const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [parameters], true);
     queryFrame?.assertCompleted();
+    authorityMembership?.assertCompleted();
     if (!outcome.ok) {
       const recorded = typeof outcome.error === 'string' ? navigationFailures.get(outcome.error) : undefined;
       if (recorded !== undefined) throw recorded;
@@ -15807,7 +16004,7 @@ async function runReadScenarioSeam(
     queryFrame?.assertCompleted();
     queryFrame?.result(outcome.value);
     return result;
-  } finally { queryFrame?.close(); }
+  } finally { authorityMembership?.close(); queryFrame?.close(); }
 }
 
 export async function invokeReadCanonical(
@@ -15833,7 +16030,9 @@ export async function invokeReadCanonical(
     const createReader = loaded.producers.transact.createReadScenarioInvoker;
     if (createReader === undefined) throw new Error('State producer has no generated read scenario invoker.');
     const reader = createReader({
-      registry: loaded.registry, models: loaded.models, policy: loaded.policy, store: opts.store,
+      registry: loaded.registry, models: loaded.models,
+      containment: loaded.containment as ReadonlyMap<ModelName, { readonly parent?: ModelName; readonly scope?: 'app' }>,
+      policy: loaded.policy, store: opts.store,
       memberships: opts.memberships,
     });
     return reader({

@@ -43,6 +43,7 @@ pub mod bdd;
 mod defaults;
 pub mod ir;
 pub mod js;
+mod authority_query_sites;
 mod mailbox_events;
 mod membership;
 pub mod model_policies;
@@ -291,6 +292,7 @@ pub fn emit(
     let owner_handlers = ir.items.iter().filter_map(|owner| {
         scenario_decisions::owner_handler_queries(query_context?, owner).map(|()| owner.id)
     }).collect::<std::collections::HashSet<_>>();
+    let authority_queries = query_context.and_then(authority_query_sites::prepare_with_context);
     let js_out = js::emit_program_with_feasible_query_sources(
         &ir,
         sources.options.native_scenario_receipts,
@@ -303,6 +305,7 @@ pub fn emit(
             // elsewhere do not orphan exactly-bound derives. Strict consumers
             // above keep the error-filtered context.
             source_context: query_context,
+            authority_queries: authority_queries.as_ref(),
             owner_handlers: Some(&owner_handlers),
             local_policies: local_policies.as_ref(),
             unique_conditions: unique_conditions.as_deref(),

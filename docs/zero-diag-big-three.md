@@ -120,6 +120,16 @@ alone takes the count from 81 to 80. The shared
 `sales_attribution.latest_capture` helper still reports its own `E6008`
 because CanPropose and CanRent call it outside the term owner decision.
 
+The next native 24-source release capture reports 77 diagnostics
+(`complete:true`, `omitted:0`). Its only changes from the 79-diagnostic
+capture are the two original `CanRent.resource_report` `first` refusals in
+`saved_rows`; no new sites appear. The report now binds its 20 stored-query
+sites to the emitted source and executes the complete original body over
+owner-authorized, parent-scoped evidence at one State revision. An installed
+test covers hidden policies, ordered policy changes, partial baselines,
+wrong role/location, State and Identity read races, and a tampered query
+census. The remaining 77 diagnostics are separate source sites.
+
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
 **Implementation status, 2026-10-21:** The first owner-decision repair is now
