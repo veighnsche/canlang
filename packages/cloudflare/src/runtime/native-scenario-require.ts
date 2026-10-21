@@ -157,6 +157,23 @@ export async function nativeScenarioRentMovementRefundDecision(context: unknown,
   return evaluate(descriptor, body);
 }
 
+const invoiceCollectReaders = new WeakMap<object, LeaveEvaluate>();
+
+/** One admitted Invoice owner executes the checked collection body. */
+export function bindNativeScenarioInvoiceCollectDecision(context: object, evaluate: LeaveEvaluate): void {
+  if (invoiceCollectReaders.has(context)) throw new StateError('validation', 'Invoice collect decision cannot be rebound.');
+  invoiceCollectReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioInvoiceCollectDecision(context: unknown, descriptor: unknown,
+  body: Function): Promise<void> {
+  const evaluate = typeof context === 'object' && context !== null ? invoiceCollectReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof body !== 'function') {
+    throw new StateError('validation', 'Invoice collect needs its actual admitted owner mutation.');
+  }
+  return evaluate(descriptor, body);
+}
+
 type AllowanceEvaluate = (descriptor: unknown, row: unknown, body: Function) => Promise<unknown>;
 const leaveDecideAllowances = new WeakMap<object, AllowanceEvaluate>();
 

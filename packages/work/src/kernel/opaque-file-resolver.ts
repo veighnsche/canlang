@@ -459,6 +459,47 @@ function resolveCommittedModel(ctx: OpaqueResolveContext, recipe: Data): void {
   same(result.scope, ownerScope, 'saved source scope'); same(result.bounds, savedBounds, 'saved source bounds'); physicalRoutes(result.handlers, admitted);
 }
 
+/** An authored EMIT retains its original typed event, owner and complete route cut. */
+function resolveDeclaredEvent(ctx: OpaqueResolveContext, recipe: Data): void {
+  const { row, data, origin, ownerScope, declaration, projectInputs } = ctx;
+  closed(recipe, ['kind', 'declaration', 'payload', 'context', 'bounds', 'routes']);
+  const declared = closed(recipe.declaration, ['kind', 'source', 'event', 'inputsDeclarationId']);
+  if (declared.kind !== 'declared-event') return refuse('declared event source requires its original event declaration.');
+  source(declared.source); string(declared.event); string(declared.inputsDeclarationId);
+  const inputs = declaration(string(declared.inputsDeclarationId), ['inputs']);
+  same(inputs.source, { kind: 'event', source: declared.source, event: declared.event }, 'declared event input source');
+  const payload = object(recipe.payload);
+  const attribution = closed(recipe.context,
+    ['kind', 'app', 'operation', 'operationId', 'source', 'now', 'actor', 'team'], ['trustedSource']);
+  same(attribution.app, ownerScope.app, 'declared attribution app');
+  same(attribution.team === null ? attribution.app : closed(attribution.team, ['teamId', 'timezone']).teamId,
+    ownerScope.owner, 'declared attribution owner');
+  if (attribution.actor !== null) {
+    const actor = closed(attribution.actor, ['userId'], ['email', 'emailVerified']); string(actor.userId);
+    if (actor.email !== undefined && typeof actor.email !== 'string' ||
+        actor.emailVerified !== undefined && typeof actor.emailVerified !== 'boolean') {
+      return refuse('invalid declared source principal controls.');
+    }
+  }
+  if (attribution.team !== null) string(object(attribution.team).timezone);
+  if (attribution.trustedSource !== undefined) string(attribution.trustedSource);
+  for (const key of ['kind', 'operation', 'operationId', 'source']) string(attribution[key]);
+  same(integer(attribution.now), row.created, 'declared source admission time');
+  const savedBounds = bounds(recipe.bounds);
+  const admitted = routes(recipe.routes, row.id, string(ownerScope.owner), savedBounds);
+  const result = closed(data.result,
+    ['kind', 'event', 'payload', 'context', 'revision', 'scope', 'bounds', 'handlers']);
+  same(result.kind, 'declared-event-source', 'declared source kind');
+  same(result.event, declared.event, 'saved declared event');
+  same(result.payload, payload, 'saved declared payload');
+  same(result.context, attribution, 'saved declared attribution');
+  same(result.revision, origin.revision, 'saved declared source revision');
+  same(result.scope, ownerScope, 'saved declared source scope');
+  same(result.bounds, savedBounds, 'saved declared source bounds');
+  physicalRoutes(result.handlers, admitted);
+  projectInputs(['payload'], string(declared.inputsDeclarationId));
+}
+
 /** Queued-routes branch of source routing. */
 function resolveQueuedRoutes(ctx: OpaqueResolveContext, recipe: Data): void {
   const { row, data, origin, ownerScope, declaration, projectInputs } = ctx;
@@ -525,11 +566,13 @@ function resolveQueuedRoutes(ctx: OpaqueResolveContext, recipe: Data): void {
 function resolveSourceRouting(ctx: OpaqueResolveContext): void {
   const { row, data, origin } = ctx;
   closed(origin, ['kind', 'occurrenceId', 'revision', 'recipe']);
-  same(origin.occurrenceId, row.id, 'source routing occurrence'); integer(origin.revision, 1);
+  same(origin.occurrenceId, row.id, 'source routing occurrence');
   if (data.status !== 'completed' || data.code !== null || data.message !== null) return refuse('source routing receipt must be completed.');
   const recipe = object(origin.recipe), kind = recipe.kind;
+  integer(origin.revision, kind === 'declared-event' ? 0 : 1);
   if (kind === 'scheduled-cohorts' || kind === 'scheduled-routes') resolveScheduledRoutes(ctx, recipe, kind);
   else if (kind === 'committed-model') resolveCommittedModel(ctx, recipe);
+  else if (kind === 'declared-event') resolveDeclaredEvent(ctx, recipe);
   else if (kind === 'queued-routes') resolveQueuedRoutes(ctx, recipe);
   else return refuse('unknown source-routing recipe.');
 }

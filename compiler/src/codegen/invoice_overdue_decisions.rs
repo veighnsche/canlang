@@ -286,7 +286,7 @@ pub(super) fn collect_overdue_receipt(
             member_retry_decision: None,
             invoice_overdue_decision: Some(decision),
             rent_movement_refund_decision: None,
-            queries: Vec::new(),
+            invoice_collect_decision: None,queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),
                 source,

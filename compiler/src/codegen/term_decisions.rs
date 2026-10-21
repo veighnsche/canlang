@@ -847,7 +847,7 @@ pub(super) fn collect_term_receipt(
             event_decision: None,
             term_decision: Some(decision),
             leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-            queries: Vec::new(),
+            invoice_collect_decision: None,queries: Vec::new(),
             returns: vec![returned],
         },
         dependencies: Default::default(),

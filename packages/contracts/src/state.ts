@@ -191,6 +191,7 @@ export interface ScenarioResultDisclosurePlan {
   readonly source: ScenarioReceiptSourceOrigin;
   readonly invoiceOverdueDecision?: unknown;
   readonly rentMovementRefundDecision?: unknown;
+  readonly invoiceCollectDecision?: unknown;
   readonly queries?: readonly ScenarioReceiptQueryPlan[];
   readonly returns: ReadonlyArray<{
     readonly id: string;
@@ -1116,6 +1117,10 @@ export interface FrameworkOpaqueSourceRoutingOrigin {
         readonly change: { readonly model: ModelName; readonly recordId: RecordId;
           readonly version: RecordVersion; readonly kind: 'created' | 'updated' | 'deleted' };
         readonly payload: Readonly<CommittedChangeEvent>; readonly context: InvocationContext;
+        readonly bounds: FrameworkOpaqueSourceBounds; readonly routes: ReadonlyArray<FrameworkOpaqueSourceRoute> }
+    | { readonly kind: 'declared-event';
+        readonly declaration: Extract<FrameworkOpaqueEventDeclaration, { kind: 'declared-event' }>;
+        readonly payload: Readonly<Record<string, unknown>>; readonly context: InvocationContext;
         readonly bounds: FrameworkOpaqueSourceBounds; readonly routes: ReadonlyArray<FrameworkOpaqueSourceRoute> };
 }
 

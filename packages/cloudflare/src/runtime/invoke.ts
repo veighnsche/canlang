@@ -82,11 +82,13 @@ import type {
   FileValue,
   FinalizedFileObservation,
   FrameworkOpaqueSourceRoute,
+  FrameworkOpaqueSourceBounds,
   FrameworkFilePayloadOrigin,
   HistoryEntry,
   InvocationContext,
   Membership,
   MembershipSnapshot,
+  MoneyValue,
   ModelName,
   MutationResult,
   OccurrenceId,
@@ -142,7 +144,7 @@ import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioRece
 import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNativeSourceSendMembership, openNativeSourceSendMembershipFrame, bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
   bindNativeAuthorityReportMembership, hasNativeAuthorityReportMembership, openNativeAuthorityReportMembershipFrame,
   bindNativeEventDecisionRole, bindNativeLeaveRequestRole, bindNativeReferRejectRole,
-  bindNativeRentMovementRefundRole,
+  bindNativeRentMovementRefundRole, bindNativeInvoiceCollectRole,
   hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
   type NativeMembershipFrame } from './native-membership.js';
 import type { ScenarioReceiptMembershipSite, ScenarioReceiptRequireSource } from '@canlang/state/invocation';
@@ -159,7 +161,7 @@ import { bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeS
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
-  bindNativeScenarioRentMovementRefundDecision } from './native-scenario-require.js';
+  bindNativeScenarioRentMovementRefundDecision, bindNativeScenarioInvoiceCollectDecision } from './native-scenario-require.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -1482,6 +1484,7 @@ interface StateInvokeProducer {
   readonly executeScenarioReceiptMemberRetryDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptMemberRetryDecision;
   readonly executeScenarioReceiptInvoiceOverdueDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptInvoiceOverdueDecision;
   readonly executeScenarioReceiptRentMovementRefundDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptRentMovementRefundDecision;
+  readonly executeScenarioReceiptInvoiceCollectDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptInvoiceCollectDecision;
   readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
   readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
@@ -1799,6 +1802,9 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['executeScenarioReceiptRentMovementRefundDecision'] !== 'function' ? {} : {
       executeScenarioReceiptRentMovementRefundDecision: scenarioMod['executeScenarioReceiptRentMovementRefundDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptRentMovementRefundDecision']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptInvoiceCollectDecision'] !== 'function' ? {} : {
+      executeScenarioReceiptInvoiceCollectDecision: scenarioMod['executeScenarioReceiptInvoiceCollectDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptInvoiceCollectDecision']>,
     }),
     ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
       observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
@@ -3749,6 +3755,99 @@ function nativeMemberRetryChargeGuard(def: GeneratedOperationDef, selected: Nati
     selected.guard.owner === 'member_terms.retry_collection' &&
     selected.guard.binding === 'member_terms.Billing' &&
     selected.guard.target === 'invoice.BillingV1.charge';
+}
+function nativeInvoiceCollectPaymentGuard(def: GeneratedOperationDef, selected: NativeSourceSendGuard): boolean {
+  const decision = (def.descriptor.result?.disclosure as
+    { readonly invoiceCollectDecision?: import('@canlang/state/invocation').InvoiceCollectDecisionPlan } | undefined)?.invoiceCollectDecision;
+  return def.name === 'invoice.collect' && decision?.owner === 'invoice.collect' &&
+    decision.sendRule.rule === selected.guard.rule && selected.guard.owner === 'invoice.collect' &&
+    selected.guard.binding === 'invoice.Payments' && selected.guard.target === 'std.PaymentsV1.collect';
+}
+
+/** Recreate the exact current balance domain before a collected payment leaves Work. */
+async function prepareInvoiceCollectDispatchDecision(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly store: StoragePort;
+  readonly revision: Revision;
+  readonly snapshots: NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
+  readonly lexical: Readonly<Record<string, unknown>>;
+  readonly intent: OutboxIntent;
+}) {
+  const { loaded, store, revision, snapshots, intent } = input;
+  const originalInvoice = snapshots.snapshot('invoice.Invoice', localPolicyMember(input.lexical, 'invoice'));
+  const originalAttempt = snapshots.snapshot('invoice.Attempt', localPolicyMember(input.lexical, 'attempt'));
+  if (originalInvoice.archivedAt !== null || originalInvoice.parent?.model !== 'customer.Customer' ||
+      originalAttempt.archivedAt !== null || originalAttempt.parent?.model !== 'invoice.Invoice' ||
+      originalAttempt.parent.id !== originalInvoice.id || originalAttempt.data['kind'] !== 'collection' ||
+      originalAttempt.data['reference'] !== intent.operationId ||
+      originalAttempt.data['status'] !== 'pending' || originalAttempt.data['disabled'] === true) {
+    throw new loaded.producers.errors('validation', 'Invoice payment lost its original source Invoice or Attempt.');
+  }
+  const parent = { model: 'invoice.Invoice' as ModelName, id: originalInvoice.id };
+  const models = ['invoice.Credit', 'invoice.Attempt', 'invoice.ExternalPayment'] as const;
+  const read = async () => {
+    if (await store.readRevision() !== revision) {
+      throw new loaded.producers.errors('conflict', 'Invoice payment owner revision changed.');
+    }
+    const invoice = await store.cohortLoad({ model: 'invoice.Invoice' as ModelName,
+      id: originalInvoice.id, expectedRevision: revision });
+    const attempt = await store.cohortLoad({ model: 'invoice.Attempt' as ModelName,
+      id: originalAttempt.id, expectedRevision: revision });
+    const domains: (readonly StoredRow[])[] = [];
+    for (const model of models) {
+      const rows = await store.query({ model: model as ModelName, parent, authority: 'owner',
+        archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: 4_001 });
+      if (rows.length > 4_000 || rows.some((row, index) => row.archivedAt !== null ||
+          row.parent?.model !== parent.model || row.parent.id !== parent.id ||
+          index > 0 && rows[index - 1]!.id >= row.id)) {
+        throw new loaded.producers.errors('validation', 'Invoice payment balance lacks its complete owner child domain.');
+      }
+      domains.push(Object.freeze([...rows]));
+    }
+    if (await store.readRevision() !== revision) {
+      throw new loaded.producers.errors('conflict', 'Invoice payment owner revision changed.');
+    }
+    const lifetime = (current: StoredRow | null, original: StoredRow) => current !== null &&
+      current.archivedAt === null && current.id === original.id && current.version >= original.version &&
+      current.created === original.created && current.createdBy === original.createdBy &&
+      stableStringify(current.parent) === stableStringify(original.parent);
+    let balance: MoneyValue | null = null;
+    if (lifetime(invoice, originalInvoice) && lifetime(attempt, originalAttempt)) {
+      const currentInvoice = invoice!, currentAttempt = attempt!;
+      const currency = decodeCanonicalValue(loaded.valueSchema, 'currency', currentInvoice.data['currency']) as string;
+      const total = decodeCanonicalValue(loaded.valueSchema, 'money', currentInvoice.data['total']) as MoneyValue;
+      const amount = (row: StoredRow): MoneyValue =>
+        decodeCanonicalValue(loaded.valueSchema, 'money', row.data['amount']) as MoneyValue;
+      const credits = domains[0]!, attempts = domains[1]!, payments = domains[2]!;
+      const sum = (rows: readonly StoredRow[]) => rows.reduce((minor, row) => {
+        const value = amount(row);
+        if (value.currency !== currency) throw new loaded.producers.errors('validation', 'Invoice payment currency changed.');
+        return minor + value.minor;
+      }, 0n);
+      if (total.currency !== currency) throw new loaded.producers.errors('validation', 'Invoice payment total currency changed.');
+      const successful = attempts.filter(row => row.data['kind'] === 'collection' && row.data['status'] === 'succeeded');
+      const outstanding = total.minor - sum(credits) - sum(successful) - sum(payments);
+      balance = Object.freeze({ kind: 'money', currency, minor: outstanding > 0n ? outstanding : 0n });
+      const requested = amount(currentAttempt);
+      const eligible = currentInvoice.data['state'] === 'issued' && balance.minor > 0n &&
+        currentAttempt.data['kind'] === 'collection' && currentAttempt.data['status'] === 'pending' &&
+        currentAttempt.data['disabled'] !== true && currentAttempt.data['reference'] === intent.operationId &&
+        currentAttempt.data['delivery'] === intent.intentId && requested.currency === balance.currency &&
+        requested.minor === balance.minor;
+      return Object.freeze({ invoice, attempt, domains: Object.freeze(domains), balance, eligible });
+    }
+    return Object.freeze({ invoice, attempt, domains: Object.freeze(domains), balance, eligible: false });
+  };
+  const observed = await read();
+  const fingerprint = (value: Awaited<ReturnType<typeof read>>) => stableStringify({
+    invoice: value.invoice, attempt: value.attempt, domains: value.domains,
+    balance: value.balance === null ? null : {
+      currency: value.balance.currency, minor: value.balance.minor.toString(),
+    },
+    eligible: value.eligible,
+  });
+  return Object.freeze({ ...observed,
+    revalidate: async () => fingerprint(await read()) === fingerprint(observed) });
 }
 // The State evaluator supplies this exact lexical object. A copied envelope,
 // matching operation id or caller-provided context cannot select a native call.
@@ -6721,6 +6820,8 @@ function createSourceReadPolicyAdapter(input: {
    * Policy sub-evaluations retain their independent current-read lifetimes. */
   readonly observer?: { readonly predicate: Function;
     readonly reads: import('@canlang/state/invocation').ScenarioReceiptRequireObserver };
+  readonly ownerDecisionQuery?: (model: string, query: CanonicalReadQuery,
+    parent: { readonly model: string; readonly id: string } | undefined) => void;
 }) {
   const { loaded } = input, StateError = loaded.producers.errors;
   const evaluate = async (sourceModel: string,
@@ -6828,7 +6929,8 @@ function createSourceReadPolicyAdapter(input: {
       const readRecords = async (model: string, query: CanonicalReadQuery) => {
         try {
           if (!isUnknownRecord(query) || Reflect.ownKeys(query).some(key => typeof key !== 'string' ||
-              !['parent', 'where', 'whereSource', 'order', 'limit', 'archived', 'authority'].includes(key) ||
+              !['parent', 'where', 'whereSource', 'order', 'limit', 'archived', 'authority',
+                ...(ownerDecision && input.ownerDecisionQuery !== undefined ? ['ownerDecisionSource'] : [])].includes(key) ||
               !Object.hasOwn(Object.getOwnPropertyDescriptor(query, key)!, 'value')) ||
               query.authority !== undefined && query.authority !== 'viewer' || query.archived !== undefined && query.archived !== 'exclude') {
             throw new StateError('validation', 'Source queries require current declared viewer inputs.');
@@ -6836,6 +6938,9 @@ function createSourceReadPolicyAdapter(input: {
           const parentRef = query.parent === undefined ? undefined : nativeRecordReference(query.parent) ??
             (isRecordRef(query.parent) ? query.parent : undefined);
           if (query.parent !== undefined && parentRef === undefined) throw new StateError('validation', 'Source containment needs its genuine declared parent.');
+          if (ownerDecision && input.ownerDecisionQuery !== undefined) {
+            input.ownerDecisionQuery(model, query, parentRef);
+          }
           const selected = await readSource(model, undefined, parentRef);
           const matched: typeof selected = [];
           for (const candidate of selected) {
@@ -9098,18 +9203,86 @@ async function runScenarioExecution(
     throw new StateError('validation', 'Committed scenario sources require the actual admitted owner store.');
   }
   const emittedEvents: import('@canlang/work').DeclaredEventSourceInput[] = [];
+  let invoiceCollectEmit: ((event: string, payload: Readonly<Record<string, unknown>>,
+    occurrenceId: string) => void) | null = null;
+  let invoiceCollectCancel: ((key: string) => void) | null = null;
   const termScheduleSourceWrites: DomainWrite[] = [];
   const emissionSourceStage: OwnerMutationSourceStager = async token => {
     const existing = stageSources === undefined ? [] : await stageSources(token);
     if (emittedEvents.length === 0) return [...existing, ...termScheduleSourceWrites];
     const writes = await stageDeclaredEventSources(token, emittedEvents,
       { maxSources: 200, maxHandlers: 200, maxMembers: 1_000, chunkSize: 100 });
-    due?.observeFramework?.({ writes });
-    return [...existing, ...writes, ...termScheduleSourceWrites];
+    const eventById = new Map(emittedEvents.map(event => [event.occurrenceId, event]));
+    const opaqueByPackage = new Map<string, Awaited<ReturnType<typeof nativeOpaqueFileStaging>>>();
+    const tables = await loadProducerModule('@canlang/work/kernel/tables', 'declared source occurrence row');
+    const occurrenceModel = requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'declared source occurrence row');
+    const newOccurrence = requireProducerFn(tables, 'newOccurrenceRow', 'declared source occurrence row') as
+      typeof import('@canlang/work/kernel/tables').newOccurrenceRow;
+    const stamped: DomainWrite[] = [];
+    for (const write of writes) {
+      if (write.kind !== 'insert' || write.model !== occurrenceModel) {
+        stamped.push(write); continue;
+      }
+      const event = eventById.get(write.row.id as OccurrenceId);
+      const result = write.row.data['result'];
+      if (event === undefined || !isUnknownRecord(result) || result['kind'] !== 'declared-event-source' ||
+          result['event'] !== event.event || !isUnknownRecord(result['context']) ||
+          !isUnknownRecord(result['bounds']) ||
+          stableStringify(result['payload']) !== stableStringify(event.payload)) {
+        return refuseRecordBinding('Declared source occurrence differs from its authored EMIT.');
+      }
+      const ownerPackage = event.event.slice(0, event.event.lastIndexOf('.'));
+      if (ownerPackage === '' || call.checkpoint === undefined || receiptStore === undefined) {
+        return refuseRecordBinding('Declared source occurrence needs its admitted owner scope.');
+      }
+      const scope = Object.freeze({ app: call.context.app, owner: call.checkpoint.owner, ownerPackage });
+      let opaque = opaqueByPackage.get(ownerPackage);
+      if (opaque === undefined) {
+        opaque = await nativeOpaqueFileStaging(loaded, opts, scope, async () => {
+          loaded.producers.invoke.assertScenarioReceiptCallExecution?.(call as AdmittedCall, receiptStore);
+        });
+        opaqueByPackage.set(ownerPackage, opaque);
+      }
+      if (opaque === null) { stamped.push(write); continue; }
+      const handlers = result['handlers'];
+      if (!Array.isArray(handlers)) {
+        return refuseRecordBinding('Declared source occurrence lacks its physical route inventory.');
+      }
+      const routes = handlers.map(entry => {
+        const route = localPolicyObject(entry);
+        const handler = localPolicyMember(route, 'handler');
+        if (typeof handler !== 'string') {
+          return refuseRecordBinding('Declared source route lacks its original handler.');
+        }
+        return Object.freeze({ ...route, handler: opaque.callable(handler) }) as FrameworkOpaqueSourceRoute;
+      });
+      const declaration = opaque.event(event.event);
+      const filePayloadOrigin = await opaque.prepare({ expectedRevision: call.checkpoint.revision,
+        model: occurrenceModel as ModelName, row: write.row, field: 'result', scope,
+        origin: { kind: 'source-routing', occurrenceId: write.row.id as OccurrenceId,
+          revision: result['revision'] as Revision,
+          recipe: { kind: 'declared-event', declaration, payload: event.payload,
+            context: result['context'] as unknown as InvocationContext,
+            bounds: result['bounds'] as unknown as FrameworkOpaqueSourceBounds, routes } },
+        projection: { kind: 'inputs', path: ['payload'], declarationId: declaration.inputsDeclarationId },
+        value: result['payload'], identity: opts.identity,
+        ...(opts.files === undefined ? {} : { files: opts.files }) });
+      const row = newOccurrence({ ...write.row.data, filePayloadOrigin } as Parameters<typeof newOccurrence>[0],
+        { nowMs: write.row.created, actor: write.row.createdBy });
+      if (row.id !== write.row.id || row.version !== write.row.version ||
+          row.parent !== write.row.parent || row.archivedAt !== write.row.archivedAt ||
+          row.updated !== write.row.updated) {
+        return refuseRecordBinding('Declared source origin changed its original occurrence row.');
+      }
+      stamped.push({ kind: 'insert', model: write.model, row });
+    }
+    due?.observeFramework?.({ writes: stamped });
+    return [...existing, ...stamped, ...termScheduleSourceWrites];
   };
   const ownerBounds = receiptAware && (scenarioDef?.name === 'leave.request' || scenarioDef?.name === 'leave.decide' ||
     scenarioDef?.name === 'refer.reject_source' || scenarioDef?.name === 'member_terms.retry_collection' ||
-    scenarioDef?.name === 'invoice.overdue' || scenarioDef?.name === 'rent_reservations.refund_movement_credit')
+    scenarioDef?.name === 'invoice.overdue' || scenarioDef?.name === 'rent_reservations.refund_movement_credit' ||
+    scenarioDef?.name === 'invoice.collect')
     ? Object.freeze({ maxRows: 4_001, maxWork: 200_000 }) : SCENARIO_RECEIPT_OWNER_BOUNDS;
   const ownerOptions = {
     table: loaded.table as ModelTable, bounds: ownerBounds,
@@ -9271,6 +9444,9 @@ async function runScenarioExecution(
   }>();
   const invoiceOverdueSlot: { current: { readonly invoice: StoredRow; readonly balance: unknown;
     readonly revision: bigint } | null } = { current: null };
+  const invoiceCollectSlot: { current: { readonly invoice: StoredRow;
+    readonly derived: (field: 'balance' | 'received' | 'refunded' |
+      'collection_pending' | 'refund_pending') => unknown } | null } = { current: null };
   const recordView = (modelName: string, row: StoredRow, queryParent = false): Record<string, unknown> => {
     const key = stagedKey(modelName, row.id);
     const existing = queryParent ? undefined : views.get(key);
@@ -9288,11 +9464,22 @@ async function runScenarioExecution(
     const fields = Object.keys(model?.fields ?? snapshot.data);
     if (scenarioDef?.name === 'invoice.overdue' && modelName === 'invoice.Invoice' &&
         !fields.includes('balance')) fields.push('balance');
+    if (scenarioDef?.name === 'invoice.collect' && modelName === 'invoice.Invoice') {
+      for (const field of ['balance', 'received', 'refunded', 'collection_pending', 'refund_pending']) {
+        if (!fields.includes(field)) fields.push(field);
+      }
+    }
     for (const field of fields) Object.defineProperty(record, field, {
       enumerable: true, get: () => {
         if (modelName === 'invoice.Invoice' && field === 'balance' &&
             invoiceOverdueSlot.current?.invoice.id === row.id) {
           return invoiceOverdueSlot.current.balance;
+        }
+        if (modelName === 'invoice.Invoice' &&
+            ['balance', 'received', 'refunded', 'collection_pending', 'refund_pending'].includes(field) &&
+            invoiceCollectSlot.current?.invoice.id === row.id) {
+          return invoiceCollectSlot.current.derived(field as 'balance' | 'received' | 'refunded' |
+            'collection_pending' | 'refund_pending');
         }
         const sourceRow = current();
         const wire = sourceRow?.data[field];
@@ -9494,10 +9681,12 @@ async function runScenarioExecution(
   let referRejectReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let memberRetryReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let rentMovementRefundReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
+  let invoiceCollectReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let leaveDecisionCreateParent: { calendarId: string; requestId: string | null } | null = null;
   let referRejectCreateParent: { advocateId: string; advocateView: Record<string, unknown> } | null = null;
   let rentMovementRefundCreateParent: { movementId: string; movementVersion: number;
     movementView: Record<string, unknown> } | null = null;
+  let invoiceCollectCreateParent: { invoiceId: string; invoiceView: Record<string, unknown> } | null = null;
   const scope: CanonicalEffectsScope = {
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
@@ -9511,6 +9700,7 @@ async function runScenarioExecution(
         if (referRejectReadRecords !== null) return referRejectReadRecords(model, query);
         if (memberRetryReadRecords !== null) return memberRetryReadRecords(model, query);
         if (rentMovementRefundReadRecords !== null) return rentMovementRefundReadRecords(model, query);
+        if (invoiceCollectReadRecords !== null) return invoiceCollectReadRecords(model, query);
         const rows = await scope.readModel(model, query);
         for (const row of rows) {
           if (!trustedOwnerReads) await viewerNavigation.captureQuerySource(model, row);
@@ -9590,6 +9780,9 @@ async function runScenarioExecution(
         if (rentMovementRefundCreateParent !== null && model !== 'rent_reservations.MovementCredit') {
           return refuseRecordBinding('Movement refund may create only its checked Credit.');
         }
+        if (invoiceCollectCreateParent !== null && model !== 'invoice.Attempt') {
+          return refuseRecordBinding('Invoice collect may create only its checked Attempt.');
+        }
         let fields = data;
         let parent: CanonicalStagedWrite['parent'];
         const ownership = loaded.containment.get(model);
@@ -9621,6 +9814,12 @@ async function runScenarioExecution(
               binding.id !== refundParent.movementId)) {
             return refuseRecordBinding('Movement refund Credit parent differs from its admitted Movement.');
           }
+          const collectParent = invoiceCollectCreateParent;
+          if (collectParent !== null && (model !== 'invoice.Attempt' ||
+              candidate !== collectParent.invoiceView || binding.model !== 'invoice.Invoice' ||
+              binding.id !== collectParent.invoiceId)) {
+            return refuseRecordBinding('Invoice collect Attempt parent differs from its admitted Invoice.');
+          }
           // Bound views retain their admitted metadata after own writes. State's
           // current staged row supplies the version for this source read.
           const current = await overlay.load(binding.model as ModelName, binding.id as RecordId);
@@ -9631,6 +9830,12 @@ async function runScenarioExecution(
             if (current.version !== refundParent.movementVersion || original === undefined ||
                 stableStringify(current) !== stableStringify(original)) {
               return refuseRecordBinding('Movement refund CREATE lost its admitted parent row.');
+            }
+            parent = { model: binding.model as ModelName, id: binding.id as RecordId };
+          } else if (collectParent !== null) {
+            const original = ownerRows.get(stagedKey(binding.model, binding.id));
+            if (original === undefined || stableStringify(current) !== stableStringify(original)) {
+              return refuseRecordBinding('Invoice collect CREATE lost its staged parent row.');
             }
             parent = { model: binding.model as ModelName, id: binding.id as RecordId };
           } else {
@@ -10104,6 +10309,12 @@ async function runScenarioExecution(
         });
         const ordinal = scheduleIndex++;
         const occurrenceId = occurrenceIds[ordinal] ??= crypto.randomUUID();
+        if (scenarioDef?.name === 'invoice.collect') {
+          if (invoiceCollectEmit === null) {
+            return refuseRecordBinding('Invoice collect event requires its active owner decision.');
+          }
+          invoiceCollectEmit(event, Object.freeze({ ...arguments_ }), occurrenceId);
+        }
         emittedEvents.push(freezeScenarioSnapshot({ occurrenceId, event, payload: arguments_,
           routes: { scope: selected.scope, handlers: sourceRoutes } }) as import('@canlang/work').DeclaredEventSourceInput);
       } catch (error) { deferredFailure(error); }
@@ -10184,7 +10395,14 @@ async function runScenarioExecution(
         if (!isUnknownRecord(command)) throw new Error('Work keyed schedule producer has no cancel command.');
         const stage = requireProducerFn(command, 'stage', 'work keyed schedule producer') as
           typeof import('@canlang/work/kernel/schedule-staging').workScheduleCancelCommand.stage;
-        appendDeferredEffects(await stage({ key, scope: selected.scope }, selected.context));
+        const effects = await stage({ key, scope: selected.scope }, selected.context);
+        if (scenarioDef?.name === 'invoice.collect') {
+          if (invoiceCollectCancel === null) {
+            return refuseRecordBinding('Invoice collect CANCEL needs its live checked owner decision.');
+          }
+          invoiceCollectCancel(key);
+        }
+        appendDeferredEffects(effects);
       } catch (error) { deferredFailure(error); }
     },
     sendDeferred: async (source, request, bindingKey, when) => {
@@ -10215,7 +10433,8 @@ async function runScenarioExecution(
           if ((!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.TextGenerationV1.generate'].includes(source) &&
               !isResourceSendTarget(selected?.definition, bindingKey, source) &&
               !(selected !== undefined && (nativeLeaveDecideReserveGuard(def, selected) ||
-                nativeMemberRetryChargeGuard(def, selected)))) ||
+                nativeMemberRetryChargeGuard(def, selected) ||
+                nativeInvoiceCollectPaymentGuard(def, selected)))) ||
               ownerSession === undefined || selected === undefined ||
               selected.guard.binding !== bindingKey || selected.guard.target !== source || selected.guard.owner !== scope.operation ||
               selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !sendSnapshots?.has(input.type) &&
@@ -10405,7 +10624,12 @@ async function runScenarioExecution(
           (scenarioDef?.descriptor.result?.disclosure as
             { readonly invoiceOverdueDecision?: { readonly sendRule: { readonly rule: string } } } | undefined)
             ?.invoiceOverdueDecision?.sendRule.rule === selected.guard.rule;
-        const referenceNavigation = eventDecision !== undefined || invoiceOverdueGuard || sendSnapshots === undefined
+        const invoiceCollectGuard = selected.guard.owner === 'invoice.collect' &&
+          (scenarioDef?.descriptor.result?.disclosure as
+            { readonly invoiceCollectDecision?: { readonly sendRule: { readonly rule: string } } } | undefined)
+            ?.invoiceCollectDecision?.sendRule.rule === selected.guard.rule;
+        const referenceNavigation = eventDecision !== undefined || invoiceOverdueGuard ||
+          invoiceCollectGuard || sendSnapshots === undefined
           ? undefined : await prepareNativeSendGuardReferences({
           loaded, artifact: opts.artifact, snapshots: sendSnapshots,
           roots: selected.guard.inputs.filter(input => sendSnapshots.has(input.type)).map(input => ({
@@ -10414,6 +10638,7 @@ async function runScenarioExecution(
           parentOnly: selected.guard.eventSource !== undefined,
         });
         const inputs: Record<string, unknown> = Object.create(null);
+        let collectedInvoiceGuardInput = false;
         for (const input of selected.guard.inputs) {
           const wire = localPolicyMember(frame.inputs, input.name);
           let value: unknown = sendSnapshots?.has(input.type)
@@ -10436,11 +10661,32 @@ async function runScenarioExecution(
               get: () => { assertGuard(); return activeInvoice.balance; } });
             value = Object.freeze(view);
           }
+          if (invoiceCollectGuard && input.type === 'invoice.Invoice') {
+            const activeInvoice = invoiceCollectSlot.current;
+            if (activeInvoice === null || sendSnapshots === undefined || collectedInvoiceGuardInput) {
+              return refuseRecordBinding('Invoice collect SEND needs its unique live Invoice balance.');
+            }
+            const frozen = sendSnapshots.snapshot('invoice.Invoice', wire);
+            const current = ownerRows.get(stagedKey('invoice.Invoice', activeInvoice.invoice.id));
+            if (current == null || frozen.id !== activeInvoice.invoice.id ||
+                frozen.version !== current.version || stableStringify(frozen.data) !== stableStringify(current.data)) {
+              return refuseRecordBinding('Invoice collect SEND differs from its staged Invoice.');
+            }
+            const view = Object.create(value as object) as Record<string, unknown>;
+            Object.defineProperty(view, 'balance', { enumerable: true,
+              get: () => { assertGuard(); return activeInvoice.derived('balance'); } });
+            value = Object.freeze(view);
+            collectedInvoiceGuardInput = true;
+          }
           Object.defineProperty(inputs, input.name, { enumerable: true,
             value });
         }
         if (selected.guard.owner === 'invoice.overdue' && !invoiceOverdueGuard) {
           return refuseRecordBinding('Invoice overdue SEND lacks its exact checked Rule owner.');
+        }
+        if (selected.guard.owner === 'invoice.collect' &&
+            (!invoiceCollectGuard || !collectedInvoiceGuardInput)) {
+          return refuseRecordBinding('Invoice collect SEND lacks its exact checked Rule and Invoice.');
         }
         const guardRead = <Args extends unknown[], Result>(read: (...args: Args) => Promise<Result>) =>
           async (...args: Args): Promise<Result> => { assertGuard(); const value = await read(...args); assertGuard(); return value; };
@@ -11091,7 +11337,31 @@ async function runScenarioExecution(
             } else bindNativeReadRoleContext(predicate, original.owner);
             bindInstalledSourceQueryPredicate(predicate, { source: original.source, rule: original.owner });
             adapter = createSourceReadPolicyAdapter({ loaded, opts: { ...opts, store: receiptStore },
-              now: () => actualCall.context.now, observer: { predicate, reads } });
+              now: () => actualCall.context.now, observer: { predicate, reads },
+              ...(scenarioDef.name !== 'invoice.collect' ? {} : {
+                ownerDecisionQuery: (model: string, query: CanonicalReadQuery,
+                  parent: { readonly model: string; readonly id: string } | undefined): void => {
+                  const active = invoiceCollectSlot.current;
+                  const checked = (scenarioDef.descriptor.result?.disclosure as
+                    { readonly invoiceCollectDecision?: import('@canlang/state/invocation').InvoiceCollectDecisionPlan } | undefined)
+                    ?.invoiceCollectDecision;
+                  const source = (query as unknown as Record<string, unknown>)['ownerDecisionSource'];
+                  const id = isUnknownRecord(source) && Reflect.ownKeys(source).length === 1 ? source['id'] : undefined;
+                  const site = checked?.querySites.find(candidate => candidate.id === id);
+                  const expectedParent = site?.stage === 'authorityRole' || site?.stage === 'authorityOwn'
+                    ? { model: 'customer.Customer', id: active?.invoice.parent?.id } :
+                    site?.stage === 'authorityWork' ? undefined :
+                      { model: 'invoice.Invoice', id: active?.invoice.id };
+                  if (active === null || checked === undefined || site === undefined ||
+                      site.model !== model || query.order !== undefined || query.limit !== undefined ||
+                      (expectedParent === undefined ? parent !== undefined :
+                        parent?.model !== expectedParent.model || parent.id !== expectedParent.id) ||
+                      (site.stage === 'balanceReceivedAttempts' || site.stage === 'refundedAttempts'
+                        ? typeof query.where !== 'function' : query.where !== undefined)) {
+                    refuseRecordBinding('Invoice collect Require query differs from its checked owner source.');
+                  }
+                },
+              }) });
             return predicate;
           },
         });
@@ -11594,6 +11864,129 @@ async function runScenarioExecution(
               healthy();
               if (answer !== undefined) return refuseRecordBinding('Member retry original body must return void.');
             } finally { active = false; memberRetryReadRecords = null; }
+          } });
+      } catch (error) { recordEngineFailure(error); throw error; }
+    });
+  }
+  if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
+      scenarioDef?.name === 'invoice.collect') {
+    const actualCall = call as AdmittedCall;
+    const checked = (scenarioDef.descriptor.result?.disclosure as
+      { readonly invoiceCollectDecision?: import('@canlang/state/invocation').InvoiceCollectDecisionPlan } | undefined)
+      ?.invoiceCollectDecision;
+    const execute = loaded.producers.invoke.executeScenarioReceiptInvoiceCollectDecision;
+    const selected = [...(nativeSourceSendGuards.get(scenarioDef)?.values() ?? [])].filter(guard =>
+      guard.guard.owner === 'invoice.collect');
+    if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters' ||
+        selected.length !== 1 || selected[0]!.guard.rule !== checked.sendRule.rule) {
+      return refuseRecordBinding('Invoice collect needs its exact owner decision and guarded Payments SEND.');
+    }
+    let consumed = false, active = false;
+    bindNativeScenarioInvoiceCollectDecision(ctx, async (descriptor, body) => {
+      try {
+        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
+            nativeScenarioExecutions.get(actualCall) === undefined) {
+          return refuseRecordBinding('Invoice collect differs from its unique checked source occurrence.');
+        }
+        consumed = true;
+        await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
+          evaluate: async frame => {
+            const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+            if (assertCall === undefined || active || invoiceCollectReadRecords !== null ||
+                rentMovementRefundReadRecords !== null || invoiceCollectSlot.current !== null ||
+                invoiceCollectEmit !== null || invoiceCollectCancel !== null) {
+              return refuseRecordBinding('Invoice collect needs its serial live State owner decision.');
+            }
+            const healthy = () => assertCall(actualCall, receiptStore);
+            const supplied = localPolicyObject(argument);
+            const invoiceRef = nativeRecordReference(localPolicyMember(supplied, 'invoice'));
+            if (invoiceRef?.model !== 'invoice.Invoice' || invoiceRef.id !== frame.invoice.id ||
+                invoiceRef.version !== BigInt(frame.invoice.version) ||
+                frame.invoice.parent?.model !== 'customer.Customer' ||
+                frame.invoice.parent.id !== frame.customer.id || frame.customer.parent !== null) {
+              return refuseRecordBinding('Invoice collect differs from its admitted Invoice and Customer.');
+            }
+            for (const [model, row] of [
+              ['customer.Customer', frame.customer], ['invoice.Invoice', frame.invoice],
+            ] as const) {
+              const key = stagedKey(model, row.id);
+              const known = ownerRows.get(key);
+              if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
+                return refuseRecordBinding('Invoice collect owner ancestry changed before source execution.');
+              }
+              ownerRows.set(key, row);
+              await ownerNavigation.prepare(model, row);
+              healthy();
+            }
+            invoiceCollectSlot.current = { invoice: frame.invoice, derived: frame.derived };
+            const invoice = recordView('invoice.Invoice', frame.invoice);
+            invoiceCollectCreateParent = { invoiceId: frame.invoice.id, invoiceView: invoice };
+            invoiceCollectEmit = frame.emit;
+            invoiceCollectCancel = frame.cancel;
+            active = true;
+            invoiceCollectReadRecords = async (model, selection) => {
+              healthy();
+              if (!active || !isUnknownRecord(selection) ||
+                  Reflect.ownKeys(selection).some(key => typeof key !== 'string' ||
+                    !['parent', 'where', 'order', 'limit', 'archived', 'authority', 'ownerDecisionSource'].includes(key)) ||
+                  selection.limit !== undefined || selection.order !== undefined ||
+                  selection.archived !== undefined && selection.archived !== 'exclude' ||
+                  selection.authority !== undefined && selection.authority !== 'viewer') {
+                return refuseRecordBinding('Invoice collect query differs from its checked owner collection.');
+              }
+              const source = selection['ownerDecisionSource'];
+              const id = isUnknownRecord(source) && Reflect.ownKeys(source).length === 1 ? source['id'] : undefined;
+              const site = checked.querySites.find(candidate => candidate.id === id);
+              const parent = selection.parent === undefined ? undefined :
+                nativeRecordReference(selection.parent) ??
+                (isRecordRef(selection.parent) ? selection.parent : undefined);
+              const expectedParent = site?.stage === 'authorityRole' || site?.stage === 'authorityOwn'
+                ? { model: 'customer.Customer', id: frame.customer.id } :
+                site?.stage === 'authorityWork' ? undefined :
+                  { model: 'invoice.Invoice', id: frame.invoice.id };
+              if (site === undefined || site.model !== model ||
+                  (expectedParent === undefined ? selection.parent !== undefined :
+                    parent?.model !== expectedParent.model || parent.id !== expectedParent.id) ||
+                  (site.stage === 'balanceReceivedAttempts' || site.stage === 'refundedAttempts'
+                    ? typeof selection.where !== 'function' : selection.where !== undefined)) {
+                return refuseRecordBinding('Invoice collect query lacks its exact source site and parent.');
+              }
+              const domain = await frame.query(site.id, model as ModelName,
+                expectedParent === undefined ? undefined :
+                  { model: expectedParent.model as ModelName, id: expectedParent.id as RecordId });
+              healthy();
+              const result: Record<string, unknown>[] = [];
+              for (const row of domain) {
+                const key = stagedKey(model, row.id);
+                const known = ownerRows.get(key);
+                if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
+                  return refuseRecordBinding('Invoice collect source domain changed within its owner frame.');
+                }
+                ownerRows.set(key, row);
+                await ownerNavigation.prepare(model, row);
+                healthy();
+                const view = recordView(model, row);
+                const match = selection.where === undefined ? true :
+                  await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
+                healthy();
+                if (typeof match !== 'boolean') {
+                  return refuseRecordBinding('Invoice collect query predicate must return Bool.');
+                }
+                if (match) result.push(view);
+              }
+              return Object.freeze(result);
+            };
+            let closeRole: (() => void) | undefined;
+            try {
+              closeRole = bindNativeInvoiceCollectRole(ctx, frame.role);
+              const answer = await Reflect.apply(body, undefined, [ctx, Object.freeze({ invoice })]);
+              healthy();
+              if (answer !== undefined) return refuseRecordBinding('Invoice collect original body must return void.');
+            } finally {
+              closeRole?.(); active = false; invoiceCollectReadRecords = null;
+              invoiceCollectCreateParent = null; invoiceCollectSlot.current = null; invoiceCollectEmit = null;
+              invoiceCollectCancel = null;
+            }
           } });
       } catch (error) { recordEngineFailure(error); throw error; }
     });
@@ -19714,7 +20107,7 @@ export async function bindNativeEmailDispatchGuards(input: {
       const targetOwner = resourceSendOwner(selected.definition, selected.guard.binding, selected.guard.target);
       if ((!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.TextGenerationV1.generate'].includes(selected.guard.target) &&
           targetOwner === undefined && !nativeLeaveDecideReserveGuard(def, selected) &&
-          !nativeMemberRetryChargeGuard(def, selected)) ||
+          !nativeMemberRetryChargeGuard(def, selected) && !nativeInvoiceCollectPaymentGuard(def, selected)) ||
           (targetOwner ?? selected.ownerPackage) !== scope.ownerPackage ||
           selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !sendSnapshots?.has(slot.type) &&
             !(isResourceSendTarget(selected.definition, selected.guard.binding, selected.guard.target) && nativeResourceLexicalType(slot.type, loaded.valueSchema, new Set(), selected.guard.target.endsWith('.publish') && input.files !== undefined)))) continue;
@@ -19774,6 +20167,20 @@ export async function bindNativeEmailDispatchGuards(input: {
           !sendSnapshots?.has('invoice.Invoice'))) {
       throw new Error('Invoice overdue dispatch requires its exact installed event Mail origin.');
     }
+    const invoiceCollectDecision = selected.guard.owner === 'invoice.collect' ?
+      (def.descriptor.result?.disclosure as
+        { readonly invoiceCollectDecision?: import('@canlang/state/invocation').InvoiceCollectDecisionPlan } | undefined)
+        ?.invoiceCollectDecision : undefined;
+    if (selected.guard.owner === 'invoice.collect' &&
+        (!nativeInvoiceCollectPaymentGuard(def, selected) ||
+          invoiceCollectDecision?.owner !== 'invoice.collect' ||
+          invoiceCollectDecision.sendRule.rule !== selected.guard.rule ||
+          selected.guard.inputs.length !== 2 ||
+          selected.guard.inputs[0]?.name !== 'invoice' || selected.guard.inputs[0]?.type !== 'invoice.Invoice' ||
+          selected.guard.inputs[1]?.name !== 'attempt' || selected.guard.inputs[1]?.type !== 'invoice.Attempt' ||
+          !sendSnapshots?.has('invoice.Invoice') || !sendSnapshots.has('invoice.Attempt'))) {
+      throw new Error('Invoice collect dispatch requires its exact installed Invoice and Attempt guard.');
+    }
     let staged: { input: DispatchClaimGuardInput; retained: RetainedOutboxIntent; lexical: Readonly<Record<string, unknown>>;
       opaque: NonNullable<Awaited<ReturnType<typeof nativeOpaqueFileStaging>>>; row: StoredRow;
       identity: ResolvedIdentity; currentIdentity: () => Promise<ResolvedIdentity> } | undefined;
@@ -19816,7 +20223,7 @@ export async function bindNativeEmailDispatchGuards(input: {
       // current Request is separately reloaded and checked below, and the
       // original predicate reads only its three scalar fields.
       const referenceNavigation = eventDecision !== undefined || leaveDecision !== undefined ||
-        invoiceOverdueDecision !== undefined || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
+        invoiceOverdueDecision !== undefined || invoiceCollectDecision !== undefined || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
         loaded, artifact, snapshots: sendSnapshots,
         roots: selected.guard.inputs.filter(slot => sendSnapshots.has(slot.type)).map(slot => ({
           type: slot.type, wire: localPolicyMember(actual.lexical, slot.name) })),
@@ -19830,6 +20237,7 @@ export async function bindNativeEmailDispatchGuards(input: {
       let memberTerm: StoredRow | null = null;
       let memberCurrent = false;
       let recheckMember: (() => Promise<boolean>) | undefined;
+      let invoiceCollect: Awaited<ReturnType<typeof prepareInvoiceCollectDispatchDecision>> | undefined;
       if (leaveDecision !== undefined) {
         const frozen = sendSnapshots!.snapshot('leave.Request', localPolicyMember(actual.lexical, 'request'));
         const reserveRevision = decodeCanonicalValue(loaded.valueSchema, 'int',
@@ -19884,6 +20292,12 @@ export async function bindNativeEmailDispatchGuards(input: {
             stableStringify(checked.row) === stableStringify(observed.row);
         };
       }
+      if (invoiceCollectDecision !== undefined) {
+        invoiceCollect = await prepareInvoiceCollectDispatchDecision({ loaded, store,
+          revision: actual.input.revision, snapshots: sendSnapshots!, lexical: actual.lexical,
+          intent: originalIntent });
+        healthy();
+      }
       if (eventDecision !== undefined) {
         if (sendSnapshots === undefined || selected.guard.owner !== 'maintain.remind' ||
             eventDecision.owner !== 'maintain.remind') return reject();
@@ -19895,6 +20309,12 @@ export async function bindNativeEmailDispatchGuards(input: {
         const wire = localPolicyMember(actual.lexical, slot.name);
         Object.defineProperty(inputs, slot.name, { enumerable: true,
           value: maintainFrame !== undefined && slot.name === 'eventTerm' ? maintainFrame.root :
+            invoiceCollect !== undefined && slot.name === 'invoice' ? Object.freeze({
+              state: invoiceCollect.invoice?.data['state'], balance: invoiceCollect.balance }) :
+            invoiceCollect !== undefined && slot.name === 'attempt' ? Object.freeze({
+              amount: invoiceCollect.attempt === null ? null :
+                decodeCanonicalValue(loaded.valueSchema, 'money', invoiceCollect.attempt.data['amount']),
+              disabled: invoiceCollect.attempt?.data['disabled'] ?? false }) :
             leaveDecision !== undefined && slot.name === 'request' && leaveCurrent ?
               sendSnapshots!.view('leave.Request', { ...leaveRequest!, sourcePresence: {
                 fields: Object.keys(leaveRequest!.data),
@@ -19919,6 +20339,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         await maintainFrame?.revalidate();
         if (recheckLeave !== undefined && !await recheckLeave()) return false;
         if (recheckMember !== undefined && !await recheckMember()) return false;
+        if (invoiceCollect !== undefined && !await invoiceCollect.revalidate()) return false;
         return current.actor === null && stableStringify(current.team) === stableStringify(identity.team);
       });
       let frame: NativeMembershipFrame | undefined;
@@ -19930,6 +20351,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         frame.assertCompleted(); healthy();
         if (leaveDecision !== undefined && !leaveCurrent) return false;
         if (memberRetryDecision !== undefined && !memberCurrent) return false;
+        if (invoiceCollect !== undefined && !invoiceCollect.eligible) return false;
         // This event has no authored dispatch-time comparison. Its complete
         // balance decision was sealed with the true source-stage Work guard;
         // the verified preclaim above retains that exact verdict and intent.

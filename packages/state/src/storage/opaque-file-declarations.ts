@@ -874,7 +874,16 @@ function origin(bound: BoundOpaqueDeclarations, value: FrameworkOpaquePayloadOri
   } else if (value.kind === 'source-routing') {
     record(value, ['kind', 'occurrenceId', 'revision', 'recipe']); string(value.occurrenceId); integer(value.revision);
     const recipe = value.recipe;
-    if (recipe.kind === 'committed-model') {
+    if (recipe.kind === 'declared-event') {
+      record(recipe, ['kind', 'declaration', 'payload', 'context', 'bounds', 'routes']);
+      eventDeclaration(bound, recipe.declaration);
+      if (recipe.declaration.kind !== 'declared-event') return refuse('original declared event required.');
+      resolveOpaqueFileProjection(bound, { kind: 'inputs', path: [],
+        declarationId: recipe.declaration.inputsDeclarationId }, recipe.payload);
+      record(recipe.context, ['kind', 'app', 'actor', 'team', 'operation', 'operationId', 'source', 'now'], ['trustedSource']);
+      for (const key of ['app', 'operation', 'operationId', 'source'] as const) string(recipe.context[key]);
+      integer(recipe.context.now); bounds(recipe.bounds); routes(bound, recipe.routes);
+    } else if (recipe.kind === 'committed-model') {
       record(recipe, ['kind', 'source', 'descriptor', 'change', 'payload', 'context', 'bounds', 'routes']);
       committedDescriptor(bound, recipe.source, recipe.descriptor);
       record(recipe.change, ['model', 'recordId', 'version', 'kind']);

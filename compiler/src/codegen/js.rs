@@ -11306,12 +11306,21 @@ fn null_equality(
                 // source call, rather than granting authority by model name.
                 let owner_decision = self.receipt_capture.as_ref()
                     .and_then(|receipt|receipt.plan.refer_reject_decision.as_ref()
-                        .or(receipt.plan.member_retry_decision.as_ref()))
+                        .or(receipt.plan.member_retry_decision.as_ref())
+                        .or(receipt.plan.invoice_collect_decision.as_ref()))
                     .filter(|_|self.owner_handler_body);
-                let owner_site_id = owner_decision.and_then(|decision| {
+                // Source Require lowering temporarily suspends receipt_capture,
+                // and imported pure helpers are emitted outside the handler.
+                // Their exact checked invoice collection sites still carry the
+                // same source marker when called under that owner's lease.
+                let invoice_collect_decision = self.native_receipts.values()
+                    .find_map(|receipt|receipt.plan.invoice_collect_decision.as_ref());
+                let owner_site_id = owner_decision.or(invoice_collect_decision).and_then(|decision| {
                     let node=query.source.as_ref()?.node;
                     decision["querySites"].as_array()?.iter().find(|site|
                         site["model"]==*model
+                        && (self.source_paths.is_empty() || self.source_paths.get(&node.file)
+                            .is_some_and(|path|site["source"]["path"]==path.as_str()))
                         && site["queryNode"]==serde_json::json!({
                             "start":node.start,"end":node.end,"kind":node.kind
                         }))?["id"].as_str().map(str::to_owned)
@@ -20313,6 +20322,13 @@ impl<'a> Emitter<'a> {
         effects: &[IrStmt],
     ) {
         if let Some(decision) = self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.invoice_collect_decision.clone())
+            && item.canonical == "invoice.collect"
+        {
+            self.emit_invoice_collect_decision_body(out,item,guards,effects,&decision);
+            return;
+        }
+        if let Some(decision) = self.receipt_capture.as_ref()
             .and_then(|receipt| receipt.plan.rent_movement_refund_decision.clone())
             && item.canonical == "rent_reservations.refund_movement_credit"
         {
@@ -20371,6 +20387,39 @@ impl<'a> Emitter<'a> {
                 out.push(span, Some(item.canonical.clone()), &line);
             }
         }
+    }
+
+    fn emit_invoice_collect_decision_body(
+        &mut self, out: &mut JsWriter, item: &IrItem,
+        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
+    ) {
+        if guards.len()!=2 || effects.len()!=7 {
+            self.unsupported("invoice collection owner decision",
+                "the exact authored body is missing",item.span);
+            return;
+        }
+        let previous_owner=self.owner_handler_body;
+        let previous_query=self.query_capture.take();
+        self.owner_handler_body=true;
+        self.enter_scope();
+        let invoice=format!("{}:{}",object_key("invoice"),self.bind("invoice"));
+        self.stdlib.insert("nativeScenarioInvoiceCollectDecision".into());
+        out.push(item.span,Some(item.canonical.clone()),
+            &format!("await nativeScenarioInvoiceCollectDecision(c,{},async(c,{{{invoice}}})=>{{",
+                descriptor_json(decision)));
+        if let IrItemKind::Scenario { by, .. } = &item.kind {
+            let admission=self.lower_admission(by);
+            out.push(item.span,Some(item.canonical.clone()),&format!("{admission};"));
+        }
+        for stmt in guards.iter().chain(effects) {
+            for (line,span) in self.lower_stmt(stmt,0) {
+                out.push(span,Some(item.canonical.clone()),&line);
+            }
+        }
+        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
+        self.exit_scope();
+        self.owner_handler_body=previous_owner;
+        self.query_capture=previous_query;
     }
 
     fn emit_rent_movement_refund_decision_body(
@@ -20738,7 +20787,10 @@ impl<'a> Emitter<'a> {
                             receipt.plan.refer_reject_decision.is_some()))
                         || (item.canonical == "member_terms.retry_collection"
                         && self.receipt_capture.as_ref().is_some_and(|receipt|
-                            receipt.plan.member_retry_decision.is_some()))) {
+                            receipt.plan.member_retry_decision.is_some()))
+                        || (item.canonical == "invoice.collect"
+                            && self.receipt_capture.as_ref().is_some_and(|receipt|
+                            receipt.plan.invoice_collect_decision.is_some()))) {
                         self.emit_admission_check(out, by, item.span);
                     }
                     self.emit_scenario_param_defaults(out, item, trusted, params, &default_observer);

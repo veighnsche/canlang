@@ -985,6 +985,152 @@ function checkRentMovementRefundDecisionPlan(value: unknown, transport: unknown)
   return deepFreeze(raw) as unknown as RentMovementRefundDecisionPlan;
 }
 
+export interface InvoiceCollectDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'invoice.collect';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly parameters: readonly [{ readonly name: 'invoice'; readonly type: 'invoice.Invoice' }];
+  readonly sites: {
+    readonly header: readonly [TermDecisionSite, TermDecisionSite];
+    readonly cancel: TermDecisionSite;
+    readonly invoiceReset: TermDecisionSite & { readonly model: 'invoice.Invoice' };
+    readonly createAttempt: TermDecisionSite & { readonly model: 'invoice.Attempt' };
+    readonly send: TermDecisionSite & { readonly operation: 'std.PaymentsV1.collect' };
+    readonly deliverySet: TermDecisionSite & { readonly model: 'invoice.Attempt' };
+    readonly ledgerSet: TermDecisionSite & { readonly model: 'invoice.Invoice' };
+    readonly settlementEmit: TermDecisionSite & { readonly event: 'invoice.InvoiceSettlement' };
+  };
+  readonly roleSite: TermDecisionSite;
+  readonly membershipSite: TermDecisionSite;
+  readonly querySites: readonly {
+    readonly id: string;
+    readonly stage: 'balanceCredits' | 'balanceReceivedAttempts' | 'balanceReceivedExternal' |
+      'authorityRole' | 'authorityOwn' | 'authorityWork' | 'pendingAttempt' |
+      'refundedAttempts' | 'refundedExternal' | 'settlementCollectionPending' | 'settlementRefundPending';
+    readonly model: 'invoice.Credit' | 'invoice.Attempt' | 'invoice.ExternalPayment' |
+      'invoice.ExternalRefund' | 'customer.CompanyRole' | 'customer.Contact' | 'employee.Employee';
+    readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly queryNode: TermDecisionSite['node']; readonly callSite: TermDecisionSite['node'];
+    readonly aliasSite: TermDecisionSite['node']; readonly predicateSite: TermDecisionSite['node'] | null;
+    readonly selectionSite: TermDecisionSite['node'] | null;
+    readonly domainKind: 'child' | 'team'; readonly ownerPath: readonly string[];
+    readonly order: readonly string[];
+    readonly deriveChain: readonly { readonly source: ScenarioResultDisclosurePlan['source'];
+      readonly callSite: TermDecisionSite['node']; readonly derive: string }[];
+  }[];
+  readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly node: TermDecisionSite['node']; readonly statement: TermDecisionSite['statement'] };
+}
+function checkInvoiceCollectDecisionPlan(value: unknown, transport: unknown): InvoiceCollectDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'parameters', 'sites',
+    'roleSite', 'membershipSite', 'querySites', 'sendRule']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as ScenarioResultDisclosurePlan['source'];
+  const carrier = transport as ScenarioResultDisclosurePlan['source'];
+  if (raw['version'] !== 1 || raw['owner'] !== 'invoice.collect' || source.module !== 'invoice' ||
+      source.path !== carrier.path || source.sha256 !== carrier.sha256 ||
+      stableStringify(list(raw['parameters'])) !==
+        stableStringify([{ name: 'invoice', type: 'invoice.Invoice' }])) {
+    return invalid('Invoice collection needs its exact owning source and Invoice input.');
+  }
+  const ids = new Set<string>();
+  const span = (value: unknown): { readonly start: number; readonly end: number } => {
+    const node = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
+        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number) ||
+        !Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
+      return invalid('Invoice collection needs nonempty checked source intervals.');
+    }
+    return node as { readonly start: number; readonly end: number };
+  };
+  const site = (value: unknown, extra?: { readonly key: string; readonly value: string }): TermDecisionSite => {
+    const item = object(value, ['id', 'source', 'node', 'statement', ...(extra === undefined ? [] : [extra.key])]);
+    const id = text(item['id']); origin(item['source']);
+    const node = span(item['node']), statement = span(item['statement']);
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify(item['source']) !== stableStringify(source) ||
+        node.start < statement.start || node.end > statement.end ||
+        extra !== undefined && item[extra.key] !== extra.value) {
+      return invalid('Invoice collection site differs from its checked source.');
+    }
+    ids.add(id); return item as unknown as TermDecisionSite;
+  };
+  const sites = object(raw['sites'], ['header', 'cancel', 'invoiceReset', 'createAttempt',
+    'send', 'deliverySet', 'ledgerSet', 'settlementEmit']);
+  const header = list(sites['header']);
+  if (header.length !== 2) return invalid('Invoice collection needs both original Requires.');
+  for (const entry of header) site(entry);
+  site(sites['cancel']);
+  site(sites['invoiceReset'], { key: 'model', value: 'invoice.Invoice' });
+  site(sites['createAttempt'], { key: 'model', value: 'invoice.Attempt' });
+  site(sites['send'], { key: 'operation', value: 'std.PaymentsV1.collect' });
+  site(sites['deliverySet'], { key: 'model', value: 'invoice.Attempt' });
+  site(sites['ledgerSet'], { key: 'model', value: 'invoice.Invoice' });
+  site(sites['settlementEmit'], { key: 'event', value: 'invoice.InvoiceSettlement' });
+  site(raw['roleSite']); site(raw['membershipSite']);
+  const ordered = [...header, sites['cancel'], sites['invoiceReset'], sites['createAttempt'],
+    sites['send'], sites['deliverySet'], sites['ledgerSet'], sites['settlementEmit']] as TermDecisionSite[];
+  if (ordered.some((item, index) => index > 0 && item.statement.start < ordered[index - 1]!.statement.start)) {
+    return invalid('Invoice collection sites differ from original Require and effect order.');
+  }
+  const expected = [
+    ['balanceCredits', 'invoice.Credit', 'child', ['invoice'], null, false],
+    ['balanceReceivedAttempts', 'invoice.Attempt', 'child', ['invoice'], null, true],
+    ['balanceReceivedExternal', 'invoice.ExternalPayment', 'child', ['invoice'], null, false],
+    ['authorityRole', 'customer.CompanyRole', 'child', ['invoice', 'parent'], 'customer.has_role', true],
+    ['authorityOwn', 'customer.Contact', 'child', ['invoice', 'parent'], 'customer.owns', true],
+    ['authorityWork', 'employee.Employee', 'team', [], 'employee.can_work', true],
+    ['pendingAttempt', 'invoice.Attempt', 'child', ['invoice'], null, true],
+    ['refundedAttempts', 'invoice.Attempt', 'child', ['invoice'], null, true],
+    ['refundedExternal', 'invoice.ExternalRefund', 'child', ['invoice'], null, false],
+    ['settlementCollectionPending', 'invoice.Attempt', 'child', ['invoice'], 'invoice.settlement', true],
+    ['settlementRefundPending', 'invoice.Attempt', 'child', ['invoice'], 'invoice.settlement', true],
+  ] as const;
+  const queries = list(raw['querySites']);
+  if (queries.length !== expected.length) return invalid('Invoice collection needs its complete source query census.');
+  for (const [index, value] of queries.entries()) {
+    const item = object(value, ['id', 'stage', 'model', 'source', 'queryNode', 'callSite', 'aliasSite',
+      'predicateSite', 'selectionSite', 'domainKind', 'ownerPath', 'order', 'deriveChain']);
+    const [stage, model, domainKind, ownerPath, derive, predicate] = expected[index]!;
+    const id = text(item['id']); origin(item['source']);
+    for (const key of ['queryNode', 'callSite', 'aliasSite']) span(item[key]);
+    if (predicate ? item['predicateSite'] === null : item['predicateSite'] !== null) {
+      return invalid('Invoice collection query predicate differs from its original SUM or ANY.');
+    }
+    if (predicate) span(item['predicateSite']);
+    if (index === 0 || index === 1 || index === 2 || index === 7 || index === 8) {
+      span(item['selectionSite']);
+    } else if (item['selectionSite'] !== null) {
+      return invalid('Invoice collection query selection differs from its original SUM or ANY.');
+    }
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify([item['stage'], item['model'], item['domainKind'], item['ownerPath'], item['order']]) !==
+        stableStringify([stage, model, domainKind, ownerPath, []])) {
+      return invalid('Invoice collection query differs from its bounded source domain.');
+    }
+    ids.add(id);
+    const chain = list(item['deriveChain']);
+    if (chain.length !== (derive === null ? 0 : 1)) {
+      return invalid('Invoice collection query lacks its original helper chain.');
+    }
+    if (derive !== null) {
+      const step = object(chain[0], ['source', 'callSite', 'derive']);
+      origin(step['source']); span(step['callSite']);
+      if (step['derive'] !== derive || stableStringify(step['source']) !== stableStringify(source)) {
+        return invalid('Invoice collection query helper differs from its owning source.');
+      }
+    }
+  }
+  const rule = object(raw['sendRule'], ['rule', 'source', 'node', 'statement']);
+  text(rule['rule']); origin(rule['source']); span(rule['node']); span(rule['statement']);
+  if (stableStringify(rule['source']) !== stableStringify(source) ||
+      stableStringify(rule['node']) !== stableStringify((sites['send'] as TermDecisionSite).node) ||
+      stableStringify(rule['statement']) !== stableStringify((sites['send'] as TermDecisionSite).statement)) {
+    return invalid('Invoice collection SEND lacks its original guarded source occurrence.');
+  }
+  return deepFreeze(raw) as unknown as InvoiceCollectDecisionPlan;
+}
+
 /** Loader checker; callers cannot turn this data into a bound generated def. */
 export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResultDisclosurePlan {
   const plan = object(dataCopy(value), ['version', 'source', 'returns',
@@ -996,7 +1142,8 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'referRejectDecision') ? ['referRejectDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'memberRetryDecision') ? ['memberRetryDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceOverdueDecision') ? ['invoiceOverdueDecision'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentMovementRefundDecision') ? ['rentMovementRefundDecision'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentMovementRefundDecision') ? ['rentMovementRefundDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceCollectDecision') ? ['invoiceCollectDecision'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
@@ -1007,6 +1154,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'memberRetryDecision')) checkMemberRetryDecisionPlan(plan['memberRetryDecision'], plan['source']);
   if (Object.hasOwn(plan, 'invoiceOverdueDecision')) checkInvoiceOverdueDecisionPlan(plan['invoiceOverdueDecision'], plan['source']);
   if (Object.hasOwn(plan, 'rentMovementRefundDecision')) checkRentMovementRefundDecisionPlan(plan['rentMovementRefundDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'invoiceCollectDecision')) checkInvoiceCollectDecisionPlan(plan['invoiceCollectDecision'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -1101,6 +1249,7 @@ interface BoundPlan {
   readonly memberRetryDecision?: MemberRetryDecisionPlan;
   readonly invoiceOverdueDecision?: InvoiceOverdueDecisionPlan;
   readonly rentMovementRefundDecision?: RentMovementRefundDecisionPlan;
+  readonly invoiceCollectDecision?: InvoiceCollectDecisionPlan;
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
   readonly resultModel: ModelName | undefined;
   readonly inputs: readonly CanonicalInputDef[];
@@ -1850,6 +1999,9 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   const rawRentMovementRefundDecision = plan.rentMovementRefundDecision;
   const rentMovementRefundDecision = rawRentMovementRefundDecision === undefined ? undefined :
     checkRentMovementRefundDecisionPlan(rawRentMovementRefundDecision, plan.source);
+  const rawInvoiceCollectDecision = plan.invoiceCollectDecision;
+  const invoiceCollectDecision = rawInvoiceCollectDecision === undefined ? undefined :
+    checkInvoiceCollectDecisionPlan(rawInvoiceCollectDecision, plan.source);
   if (eventDecision !== undefined) {
     const inspection = models.find(model => model.name === 'maintain.Inspection');
     const planModel = models.find(model => model.name === 'maintain.Plan');
@@ -2010,6 +2162,24 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
       return invalid('movement refund lacks its exact void owner, inputs and financial domains.');
     }
   }
+  if (invoiceCollectDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    if (def.kind !== 'scenario' || def.name !== invoiceCollectDecision.owner || declared !== 'void' ||
+        inputs.length !== 1 || inputs[0]?.name !== 'invoice' || inputs[0].kind !== 'ref' ||
+        inputs[0].model !== 'invoice.Invoice' || !inputs[0].required ||
+        models.find(model => model.name === 'invoice.Invoice')?.parent !== 'customer.Customer' ||
+        ['invoice.Credit', 'invoice.Attempt', 'invoice.ExternalPayment', 'invoice.ExternalRefund'].some(name =>
+          models.find(model => model.name === name)?.parent !== 'invoice.Invoice') ||
+        ['customer.CompanyRole', 'customer.Contact'].some(name =>
+          models.find(model => model.name === name)?.parent !== 'customer.Customer') ||
+        !models.some(model => model.name === 'employee.Employee') ||
+        !models.some(model => model.name === 'rent_catalog.Location') ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('Invoice collection lacks its exact void owner, input and collection domains.');
+    }
+  }
   const resultModel = modelResultType(declared);
   if (resultModel !== undefined && (def.kind !== 'scenario' ||
       models.filter(model => model.name === resultModel).length !== 1 ||
@@ -2136,6 +2306,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     ...(memberRetryDecision === undefined ? {} : { memberRetryDecision }),
     ...(invoiceOverdueDecision === undefined ? {} : { invoiceOverdueDecision }),
     ...(rentMovementRefundDecision === undefined ? {} : { rentMovementRefundDecision }),
+    ...(invoiceCollectDecision === undefined ? {} : { invoiceCollectDecision }),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,
@@ -3279,6 +3450,13 @@ interface Capture {
     readonly resource: StoredRow; readonly adjustment: StoredRow | null;
     readonly chargeSource: string; readonly amount: MoneyValue; readonly reason: string;
     readonly baseline: MoneyValue; readonly deliveryId: string; readonly createdId: string };
+  invoiceCollectDecision?: { readonly invoice: StoredRow; readonly customer: StoredRow;
+    readonly balance: MoneyValue; readonly received: MoneyValue; readonly refunded: MoneyValue;
+    readonly amount: MoneyValue; readonly attemptId: string; readonly deliveryId: string;
+    readonly queued: boolean; readonly eventOccurrenceId: string;
+    readonly eventPayload: Readonly<Record<string, unknown>>;
+    readonly attempts: readonly StoredRow[]; readonly credits: readonly StoredRow[];
+    readonly payments: readonly StoredRow[]; readonly externalRefunds: readonly StoredRow[] };
 }
 const captures = new WeakMap<AdmittedCall, Capture>();
 const captureContexts = new WeakMap<object, Capture>();
@@ -3672,6 +3850,36 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
     } }));
     return deepFreeze(Object.fromEntries(guard.inputs.map(input => [input.name, values[input.name]])));
   }
+  const invoiceCollect = state.bound.invoiceCollectDecision;
+  if (invoiceCollect !== undefined && memberLease?.owner === 'invoice.collect') {
+    const invoice = models.find(item => item.name === 'invoice');
+    const attempt = models.find(item => item.name === 'attempt');
+    const admitted = call.recordRefs.find(ref => ref.param === 'invoice' && ref.model === 'invoice.Invoice');
+    if (memberLease.call !== call || owner.stage !== 2 || memberLease.staged !== 2 ||
+        owner.framework?.ordinal !== 0 || guard.rule !== invoiceCollect.sendRule.rule ||
+        guard.binding !== 'invoice.Payments' || guard.target !== 'std.PaymentsV1.collect' ||
+        guard.inputs.length !== 2 || guard.inputs[0]?.name !== 'invoice' ||
+        guard.inputs[1]?.name !== 'attempt' || models.length !== 2 ||
+        invoice?.profile.model !== 'invoice.Invoice' || attempt?.profile.model !== 'invoice.Attempt' ||
+        admitted === undefined || invoice.row.id !== admitted.id ||
+        invoice.row.version !== admitted.row.version + 1 ||
+        !sameModelLifetime(admitted.row, invoice.row) ||
+        stableStringify(invoice.row.data) !== stableStringify({ ...admitted.row.data, next_collection: null }) ||
+        attempt.row.id !== memberLease.stagedIds[1] || attempt.row.version !== 1 ||
+        attempt.row.parent?.model !== 'invoice.Invoice' || attempt.row.parent.id !== admitted.id ||
+        attempt.row.data['kind'] !== 'collection' || attempt.row.data['status'] !== 'pending' ||
+        attempt.row.data['disabled'] !== false || attempt.row.data['delivery'] !== null ||
+        attempt.row.data['reference'] !== call.context.operationId) {
+      return invalid('Invoice collection SEND needs its exact post-CREATE Invoice and pending Attempt.');
+    }
+    for (const selected of [invoice, attempt]) {
+      const snapshot = deepFreeze({ ...selected.row, parent: selected.row.parent ?? null,
+        data: dataCopy(selected.row.data), sourcePresence: selected.sourcePresence });
+      modelLexicalSnapshotOccurrences(selected.profile, snapshot);
+      values[selected.name] = snapshot;
+    }
+    return deepFreeze(Object.fromEntries(guard.inputs.map(input => [input.name, values[input.name]])));
+  }
   if (models.length === 0) return deepFreeze(values);
   const privateEvent = event !== undefined && models.length === 1 && models[0]!.name === 'eventTerm';
   if (owner.session === null || !privateEvent && (producer?.app !== call.context.app || producer.readPolicies === undefined) ||
@@ -3828,6 +4036,12 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
             ledger.ordinal !== 0 || rule !== owner.capture.bound.invoiceOverdueDecision?.sendRule.rule ||
             binding.binding !== 'invoice.Mail' || source !== 'std.EmailV1.send')) {
         return invalid('overdue SEND differs from its one original guarded Mail stage.');
+      }
+      if (member?.owner === 'invoice.collect' &&
+          (member.call !== call || owner.stage !== 2 || member.staged !== 2 ||
+            ledger.ordinal !== 0 || rule !== owner.capture.bound.invoiceCollectDecision?.sendRule.rule ||
+            binding.binding !== 'invoice.Payments' || source !== 'std.PaymentsV1.collect')) {
+        return invalid('Invoice collection SEND differs from its original post-CREATE guarded payment.');
       }
       const active = Object.freeze({ call, guard, stage: owner.stage }); owner.activeSend = active;
       try {
@@ -4122,7 +4336,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     const extendedOwner = state.bound.leaveRequestDecision !== undefined ||
       state.bound.leaveDecideDecision !== undefined || state.bound.referRejectDecision !== undefined ||
       state.bound.memberRetryDecision !== undefined || state.bound.invoiceOverdueDecision !== undefined ||
-      state.bound.rentMovementRefundDecision !== undefined;
+      state.bound.rentMovementRefundDecision !== undefined ||
+      state.bound.invoiceCollectDecision !== undefined;
     const maxRows = !extendedOwner ? MAX_ITEMS : 4_001;
     if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
         (bounds['maxRows'] as number) > maxRows ||
@@ -4734,6 +4949,18 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
     const root = await read(reference.model, reference.id);
     if (root === null || stableStringify(root) !== stableStringify(reference.row)) {
       throw new StateError('conflict', 'Source Require model differs from its admitted row.');
+    }
+    // Invoice.collect's first original Require dereferences invoice.parent.kind
+    // before a Contact collection is reached. Register that exact current
+    // parent row for the synchronous source field observer at this stage.
+    if (state.bound.invoiceCollectDecision !== undefined) {
+      if (reference.model !== 'invoice.Invoice' || root.parent?.model !== 'customer.Customer') {
+        return invalid('Invoice collection Require lacks its admitted Customer ancestry.');
+      }
+      const customer = await read('customer.Customer' as ModelName, root.parent.id);
+      if (customer === null || customer.archivedAt !== null || customer.parent !== null) {
+        return invalid('Invoice collection Require lacks its current direct Customer.');
+      }
     }
     const domains: Array<{ model: ModelName; ids: readonly string[]; id?: RecordId;
       parent?: Readonly<{ model: ModelName; id: RecordId }> }> = [];
@@ -6343,6 +6570,313 @@ export async function executeScenarioReceiptMemberRetryDecision(call: AdmittedCa
       if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Member retry moved beyond commit.');
       return true;
     } }));
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+}
+
+/** A collected Invoice is decided from one complete owner ledger and the
+ * checked customer/staff authority domains. Original effects remain source
+ * executed; this frame limits their order and recomputes their result. */
+export async function executeScenarioReceiptInvoiceCollectDecision(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: InvoiceCollectDecisionPlan;
+  readonly checked: InvoiceCollectDecisionPlan;
+  readonly evaluate: (frame: {
+    readonly invoice: StoredRow; readonly customer: StoredRow;
+    readonly read: (model: ModelName, id: RecordId) => StoredRow | null;
+    readonly query: (siteId: string, model: ModelName,
+      parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+    readonly role: (name: string, subject: UserRef) => Promise<boolean>;
+    readonly derived: (field: 'balance' | 'received' | 'refunded' | 'collection_pending' |
+      'refund_pending' | 'ledger_revision') => MoneyValue | boolean | bigint;
+    readonly cancel: (key: string) => void;
+    readonly emit: (event: string, payload: Readonly<Record<string, unknown>>, occurrenceId: string) => void;
+  }) => Promise<unknown>;
+}): Promise<void> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  try {
+    const profile = state.bound.invoiceCollectDecision;
+    if (profile === undefined || owner === undefined || owner.session === null || owner.framework === null ||
+        owner.stage !== 0 || owner.busy || owner.activeOwnerDecision !== null || state.pending !== 0 ||
+        state.returnId !== null || state.invoiceCollectDecision !== undefined || owner.executingCall !== call ||
+        owner.maxRows !== 4_001 || owner.callGuards.length >= MAX_ITEMS - 4 ||
+        typeof input.evaluate !== 'function') {
+      return invalid('Invoice collection needs its unique live initial owner stage and SEND ledger.');
+    }
+    const original = checkInvoiceCollectDecisionPlan(dataCopy(input.original), state.bound.plan.source);
+    const checked = checkInvoiceCollectDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
+    if (stableStringify(original) !== stableStringify(checked) ||
+        stableStringify(original) !== stableStringify(profile)) {
+      return invalid('Invoice collection differs from its independently checked original source.');
+    }
+    const refs = call.recordRefs.filter(ref => ref.param === 'invoice' && ref.model === 'invoice.Invoice');
+    const ref = refs[0];
+    const wire = decodeValue('invoice.Invoice', admittedInputWire(call.inputs, 'invoice')) as { readonly id: string };
+    if (refs.length !== 1 || ref === undefined || ref.id !== wire.id ||
+        ref.expectedVersion === null || ref.row.version !== ref.expectedVersion) {
+      return invalid('Invoice collection needs its exact admitted versioned Invoice.');
+    }
+    const load = async (model: ModelName, id: RecordId): Promise<StoredRow | null> =>
+      ownerOperation(owner, () => owner.session!.views.final.get(model, id));
+    const invoice = await load('invoice.Invoice' as ModelName, ref.id);
+    if (invoice === null || invoice.archivedAt !== null || invoice.parent?.model !== 'customer.Customer' ||
+        stableStringify(invoice) !== stableStringify(ref.row)) {
+      throw new StateError('conflict', 'Collected Invoice differs from its admitted row.');
+    }
+    const customer = await load('customer.Customer' as ModelName, invoice.parent.id);
+    if (customer === null || customer.archivedAt !== null || customer.parent !== null) {
+      throw new StateError('forbidden', 'Collected Invoice lacks its current Customer.');
+    }
+    const key = (model: string, id: string) => `${model}\0${id}`;
+    const rows = new Map<string, StoredRow>([[key('invoice.Invoice', invoice.id), invoice],
+      [key('customer.Customer', customer.id), customer]]);
+    const invoiceParent = Object.freeze({ model: 'invoice.Invoice' as ModelName, id: invoice.id });
+    const customerParent = Object.freeze({ model: 'customer.Customer' as ModelName, id: customer.id });
+    const domains = new Map<string, { readonly model: ModelName;
+      readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+      readonly rows: readonly StoredRow[] }>();
+    const domainKey = (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) =>
+      stableStringify([model, parent ?? null]);
+    const readDomain = async (model: ModelName,
+      parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+      const identity = domainKey(model, parent);
+      let domain = domains.get(identity);
+      if (domain === undefined) {
+        const scanned = await ownerOperation(owner, () => owner.session!.views.final.query({ model,
+          ...(parent === undefined ? {} : { parent }), authority: 'owner', archived: 'exclude',
+          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
+        if (scanned.length > 4_000 || scanned.some(row => row.archivedAt !== null ||
+            (parent === undefined ? row.parent !== null :
+              row.parent?.model !== parent.model || row.parent.id !== parent.id))) {
+          return invalid('Invoice collection exceeds or differs from its complete owner domain.');
+        }
+        domain = Object.freeze({ model, ...(parent === undefined ? {} : { parent }),
+          rows: Object.freeze([...scanned]) });
+        domains.set(identity, domain);
+        for (const row of scanned) rows.set(key(model, row.id), row);
+      }
+      return domain.rows;
+    };
+    const credits = await readDomain('invoice.Credit' as ModelName, invoiceParent);
+    const attempts = await readDomain('invoice.Attempt' as ModelName, invoiceParent);
+    const payments = await readDomain('invoice.ExternalPayment' as ModelName, invoiceParent);
+    const externalRefunds = await readDomain('invoice.ExternalRefund' as ModelName, invoiceParent);
+    const companyRoles = await readDomain('customer.CompanyRole' as ModelName, customerParent);
+    const contacts = await readDomain('customer.Contact' as ModelName, customerParent);
+    const employees = await readDomain('employee.Employee' as ModelName);
+    const currency = decodeValue('currency', invoice.data['currency']) as string;
+    const total = decodeValue('money', invoice.data['total']) as MoneyValue;
+    if (total.currency !== currency) return invalid('Collected Invoice total differs from its declared currency.');
+    const amountOf = (selected: readonly StoredRow[]) => sumMoney(selected.map(row =>
+      decodeValue('money', row.data['amount']) as MoneyValue), currency);
+    const received = addMoney(amountOf(attempts.filter(row =>
+      row.data['kind'] === 'collection' && row.data['status'] === 'succeeded')), amountOf(payments));
+    const refunded = addMoney(amountOf(attempts.filter(row =>
+      row.data['kind'] === 'refund' && row.data['status'] === 'succeeded')), amountOf(externalRefunds));
+    const outstanding = subtractMoney(subtractMoney(total, amountOf(credits)), received);
+    const balance = outstanding.minor > 0n ? outstanding : money(0n, currency);
+    const pending = attempts.some(row => row.data['kind'] === 'collection' &&
+      (row.data['status'] === 'pending' || row.data['status'] === 'unknown' ||
+        row.data['status'] === 'failed' && row.data['failure'] === 'permanent'));
+    if (invoice.data['state'] !== 'issued' || balance.minor <= 0n || pending) {
+      throw new StateError('rule_failed', 'Invoice collection fails its original issued, balance or attempt Require.');
+    }
+    const refundPending = attempts.some(row => row.data['kind'] === 'refund' &&
+      (row.data['status'] === 'pending' || row.data['status'] === 'unknown'));
+    const initialRevision = decodeValue('int', invoice.data['ledger_revision']) as bigint;
+    const location = decodeValue('rent_catalog.Location', invoice.data['location']) as { readonly id: string };
+    const memberships = scenarioReceiptMemberships(call, store);
+    const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
+    const membership = actorUserId === null || teamId === null ? null :
+      await memberships.findMembership(teamId, actorUserId);
+    const context: ByContext = { actorUserId, teamId, membership, memberships };
+    let evaluated = false, roleUses = 0, cancelled = false, emitted: {
+      readonly event: string; readonly payload: Readonly<Record<string, unknown>>; readonly occurrenceId: string } | null = null;
+    const authority = await observeRowGrantAuthority(context, async observed => {
+      if (evaluated || observed.actorUserId !== actorUserId || observed.teamId !== teamId ||
+          actorUserId === null) return invalid('Invoice collection differs from its authenticated actor.');
+      evaluated = true;
+      const billing = companyRoles.some(row => {
+        const user = decodeValue('user', row.data['account']) as UserRef;
+        return user.id === actorUserId && row.data['role'] === 'billing' && row.data['active'] === true;
+      });
+      const owns = customer.data['kind'] === 'individual' && contacts.some(row => {
+        const account = decodeValue('user?', row.data['account'] ?? null) as UserRef | null;
+        return account?.id === actorUserId && row.data['verified'] === true;
+      });
+      const finance = await hasRole(observed, 'invoice.finance', actorUserId);
+      const works = observed.membership?.status === 'active' && employees.some(row => {
+        const user = decodeValue('user', row.data['user']) as UserRef;
+        if (user.id !== actorUserId || row.data['active'] !== true) return false;
+        const home = decodeValue('rent_catalog.Location', row.data['home']) as { readonly id: string };
+        const additional = decodeValue('rent_catalog.Location[]', row.data['locations']) as
+          readonly { readonly id: string }[];
+        return row.data['operator_wide'] === true || home.id === location.id ||
+          additional.some(candidate => candidate.id === location.id);
+      });
+      if (!billing && !owns && !(finance && works)) {
+        throw new StateError('forbidden', 'Invoice collection actor lacks billing, ownership or working finance authority.');
+      }
+      const lease: OwnerDecisionLease = { call, owner: profile.owner, staged: 0, queryIndex: 0,
+        stagedIds: [], stages: Object.freeze([
+          { op: 'update', model: 'invoice.Invoice' as ModelName, id: invoice.id,
+            fields: Object.freeze(['next_collection']) },
+          { op: 'create', model: 'invoice.Attempt' as ModelName, parent: invoiceParent,
+            fields: Object.freeze(['amount', 'kind', 'reference']) },
+          { op: 'update', model: 'invoice.Attempt' as ModelName, fields: Object.freeze(['delivery']) },
+          { op: 'update', model: 'invoice.Invoice' as ModelName, id: invoice.id,
+            fields: Object.freeze(['ledger_revision']) },
+        ]), queries: Object.freeze([]) };
+      const healthy = () => {
+        capture(call, store); ownerHealthy(owner);
+        if (owner.executingCall !== call || owner.activeOwnerDecision !== lease || owner.busy ||
+            state.pending !== 0 || state.returnId !== null || owner.stage !== lease.staged) {
+          return invalid('Invoice collection crossed its original serial owner stage.');
+        }
+      };
+      const query = async (siteId: string, model: ModelName,
+        parent?: Readonly<{ model: ModelName; id: RecordId }>): Promise<readonly StoredRow[]> => {
+        healthy();
+        const site = profile.querySites.find(candidate => candidate.id === siteId);
+        const expectedParent = site?.domainKind === 'team' ? undefined :
+          site?.ownerPath.length === 2 ? customerParent : invoiceParent;
+        if (site === undefined || site.model !== model ||
+            stableStringify(parent ?? null) !== stableStringify(expectedParent ?? null)) {
+          return invalid('Invoice collection query differs from its exact source site and parent.');
+        }
+        if (site.stage === 'authorityRole' || site.stage === 'authorityOwn' ||
+            site.stage === 'authorityWork' || site.stage === 'pendingAttempt') {
+          claimOwnerDecisionQuery(owner, lease, siteId, model, parent);
+          const selected = await readDomain(model, parent);
+          healthy(); return selected;
+        }
+        if (site.stage.startsWith('settlement') ? owner.stage !== 4 : owner.stage > 4) {
+          return invalid('Invoice collection financial query crossed its original source stage.');
+        }
+        const selected = await readDomain(model, parent);
+        if (model !== 'invoice.Attempt' || owner.stage < 2) { healthy(); return selected; }
+        const current = await ownerOperation(owner, () => owner.session!.views.final.query({ model,
+          parent: invoiceParent, authority: 'owner', archived: 'exclude',
+          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
+        healthy();
+        const createdId = lease.stagedIds[1];
+        const created = current.find(row => row.id === createdId);
+        if (createdId === undefined || current.length !== selected.length + 1 ||
+            selected.some(row => stableStringify(current.find(candidate => candidate.id === row.id)) !== stableStringify(row)) ||
+            created === undefined || created.parent?.model !== 'invoice.Invoice' ||
+            created.parent.id !== invoice.id || created.archivedAt !== null ||
+            created.data['kind'] !== 'collection' || created.data['status'] !== 'pending' ||
+            created.data['reference'] !== call.context.operationId ||
+            stableStringify(created.data['amount']) !== stableStringify(encodeValue('money', balance))) {
+          return invalid('Invoice collection post-CREATE Attempt query differs from its one original pending collection.');
+        }
+        return current;
+      };
+      const role = async (name: string, subject: UserRef): Promise<boolean> => {
+        healthy();
+        if (name !== 'invoice.finance' || !isUserRef(subject) || subject.id !== actorUserId ||
+            ++roleUses !== 1 || owner.stage !== 0 || billing || owns) {
+          return invalid('Invoice collection role differs from its original finance branch.');
+        }
+        const answer = await hasRole(observed, name, subject.id);
+        healthy(); return answer;
+      };
+      const read = (model: ModelName, id: RecordId): StoredRow | null => {
+        healthy(); return rows.get(key(model, id)) ?? null;
+      };
+      const derived = (field: 'balance' | 'received' | 'refunded' | 'collection_pending' |
+        'refund_pending' | 'ledger_revision'): MoneyValue | boolean | bigint => {
+        healthy();
+        switch (field) {
+          case 'balance': return balance;
+          case 'received': return received;
+          case 'refunded': return refunded;
+          case 'collection_pending': return owner.stage >= 2 || attempts.some(row =>
+            row.data['kind'] === 'collection' && ['pending', 'unknown'].includes(row.data['status'] as string));
+          case 'refund_pending': return refundPending;
+          case 'ledger_revision': return initialRevision + (owner.stage >= 4 ? 1n : 0n);
+        }
+      };
+      const cancel = (key: string): void => {
+        healthy();
+        if (cancelled || owner.stage !== 0 || key !== `${invoice.id}:collection`) {
+          return invalid('Invoice collection CANCEL differs from its original keyed schedule.');
+        }
+        cancelled = true;
+      };
+      const emit = (event: string, payload: Readonly<Record<string, unknown>>, occurrenceId: string): void => {
+        healthy();
+        if (emitted !== null || owner.stage !== 4 || event !== 'invoice.InvoiceSettlement' ||
+            typeof occurrenceId !== 'string' || occurrenceId === '') {
+          return invalid('Invoice collection EMIT differs from its one original settlement occurrence.');
+        }
+        emitted = { event, payload: deepFreeze(dataCopy(payload)), occurrenceId };
+      };
+      owner.activeOwnerDecision = lease;
+      try {
+        const answer = await input.evaluate(Object.freeze({ invoice, customer, read, query, role, derived, cancel, emit }));
+        healthy();
+        if (answer !== undefined) return invalid('Invoice collection original body must return void.');
+      } finally { owner.activeOwnerDecision = null; }
+      if (lease.queryIndex !== 0 || lease.staged !== 4 || owner.stage !== 4 ||
+          roleUses !== 0 || !cancelled || emitted === null) {
+        return invalid('Invoice collection omitted an original query, write, role or settlement EMIT.');
+      }
+      const attemptId = lease.stagedIds[1];
+      const delivery = owner.framework!.queued.values().next().value?.intentId;
+      if (attemptId === undefined || lease.stagedIds[0] !== invoice.id ||
+          lease.stagedIds[2] !== attemptId || lease.stagedIds[3] !== invoice.id ||
+          owner.framework!.ordinal !== 1 || owner.framework!.queued.size !== 1 ||
+          owner.framework!.skipped.size !== 0 || delivery === undefined) {
+        return invalid('Invoice collection omitted its exact guarded SEND and serial Attempt effects.');
+      }
+      const expectedSettlement = {
+        source: invoice.data['source'], invoice: invoice.id,
+        revision: encodeValue('int', initialRevision + 1n), amount: invoice.data['total'],
+        collected: encodeValue('money', received), refunded: encodeValue('money', refunded),
+        collection_pending: true, refund_pending: refundPending, state: 'issued',
+        recorded_at: new Date(call.context.now).toISOString(),
+      };
+      const emittedPayload = object(emitted.payload, ['value']);
+      if (stableStringify(emittedPayload['value']) !== stableStringify(expectedSettlement)) {
+        return invalid('Invoice collection settlement differs from its complete post-write ledger.');
+      }
+      state.invoiceCollectDecision = { invoice, customer, balance, received, refunded, amount: balance,
+        attemptId, deliveryId: delivery, queued: true,
+        eventOccurrenceId: emitted.occurrenceId, eventPayload: emitted.payload,
+        attempts, credits, payments, externalRefunds };
+      owner.callGuards.push(Object.freeze({ name: `invoice-collect:${profile.sites.send.id}`, evaluate: async () => {
+        if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
+          return invalid('Invoice collection needs its actual finalized source effects.');
+        }
+        if (await store.readRevision() !== call.revision) {
+          throw new StateError('conflict', 'Invoice collection moved before commit.');
+        }
+        for (const [identity, row] of rows) {
+          const separator = identity.indexOf('\0');
+          const current = await store.cohortLoad({ model: identity.slice(0, separator) as ModelName,
+            id: identity.slice(separator + 1) as RecordId, expectedRevision: call.revision });
+          if (stableStringify(current) !== stableStringify(row)) {
+            throw new StateError('forbidden', 'Invoice collection source row changed before commit.');
+          }
+        }
+        for (const domain of domains.values()) {
+          const current = await store.query({ model: domain.model,
+            ...(domain.parent === undefined ? {} : { parent: domain.parent }), authority: 'owner',
+            archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
+          if (current.length > 4_000 || stableStringify(current) !== stableStringify(domain.rows)) {
+            throw new StateError('forbidden', 'Invoice collection source domain changed before commit.');
+          }
+        }
+        await authority.revalidate();
+        if (await store.readRevision() !== call.revision) {
+          throw new StateError('conflict', 'Invoice collection moved beyond commit.');
+        }
+        return true;
+      } }));
+      return true;
+    });
+    if (!authority.value || state.invoiceCollectDecision === undefined) {
+      return invalid('Invoice collection lost its current authority or effects.');
+    }
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
 }
 
@@ -8713,6 +9247,93 @@ function verifyInvoiceOverdueEffects(call: AdmittedCall,
     return invalid('overdue Mail body differs from its original Invoice link.');
   }
 }
+function verifyInvoiceCollectEffects(call: AdmittedCall,
+  decision: NonNullable<Capture['invoiceCollectDecision']>, owner: ReceiptOwnerSession | undefined,
+  effects: ExecutionEffects): void {
+  const ledger = owner?.framework;
+  const writes = owner?.finalized?.writes.filter(write => !write.model.startsWith('work.')) ?? [];
+  if (owner === undefined || owner.finalized === null || owner.commitEffects === null ||
+      ledger === null || ledger === undefined || call.def.name !== 'invoice.collect' ||
+      effects.result !== null || owner.stage !== 4 || writes.length !== 2 ||
+      ledger.ordinal !== 1 || ledger.queued.size !== 1 || ledger.skipped.size !== 0 ||
+      effects.outbox.length !== 1 || !decision.queued || decision.balance.minor <= 0n) {
+    return invalid('Invoice collection lacks its exact Invoice, Attempt, guarded payment and settlement effects.');
+  }
+  const invoiceWrite = writes.find(write => write.model === 'invoice.Invoice');
+  const attemptWrite = writes.find(write => write.model === 'invoice.Attempt');
+  if (invoiceWrite?.kind !== 'update' || invoiceWrite.id !== decision.invoice.id ||
+      invoiceWrite.expectedVersion !== decision.invoice.version ||
+      invoiceWrite.row.version !== decision.invoice.version + 1 ||
+      !sameModelLifetime(decision.invoice, invoiceWrite.row) ||
+      stableStringify(invoiceWrite.row.data) !== stableStringify({ ...decision.invoice.data,
+        next_collection: null,
+        ledger_revision: encodeValue('int',
+          (decodeValue('int', decision.invoice.data['ledger_revision']) as bigint) + 1n) })) {
+    return invalid('Invoice collection final Invoice differs from its original two SET statements.');
+  }
+  const attemptModel = owner.capture.bound.artifactModels.get('invoice.Attempt' as ModelName);
+  if (attemptModel === undefined) return invalid('Invoice collection lacks its checked Attempt model.');
+  const expectedAttempt: Record<string, unknown> = {
+    reference: call.context.operationId,
+    amount: encodeValue('money', decision.amount), kind: 'collection', delivery: decision.deliveryId,
+  };
+  const explicit = new Set(Object.keys(expectedAttempt));
+  for (const field of attemptModel.fields) {
+    if (explicit.has(field.name) || field.default?.kind === 'derived') continue;
+    if (field.default?.kind === 'literal') expectedAttempt[field.name] = field.default.value;
+    else if (field.default?.kind === 'server' && field.default.init === 'now') {
+      expectedAttempt[field.name] = new Date(call.context.now).toISOString();
+    } else if (field.default?.kind === 'server' && field.default.init === 'actor') {
+      const userId = call.context.actor?.userId;
+      if (userId === undefined) return invalid('Invoice collection server actor default has no authenticated actor.');
+      expectedAttempt[field.name] = { id: userId };
+    } else if (field.nullable === true) expectedAttempt[field.name] = null;
+    else if (field.array?.required === false) expectedAttempt[field.name] = [];
+    else return invalid('Invoice collection Attempt has an unproved omitted field.');
+  }
+  if (attemptWrite?.kind !== 'insert' || attemptWrite.row.id !== decision.attemptId ||
+      attemptWrite.row.version !== 1 || attemptWrite.row.archivedAt !== null ||
+      attemptWrite.row.parent?.model !== 'invoice.Invoice' ||
+      attemptWrite.row.parent.id !== decision.invoice.id ||
+      stableStringify(attemptWrite.row.data) !== stableStringify(expectedAttempt)) {
+    return invalid('Invoice collection Attempt differs from its original CREATE and delivery SET.');
+  }
+  const queued = ledger.queued.values().next().value;
+  if (queued === undefined || queued.intentId !== decision.deliveryId ||
+      queued.operationId !== call.context.operationId || queued.operation !== call.context.operation ||
+      queued.target !== 'std.PaymentsV1.collect' || queued.occurrenceIndex !== 0 ||
+      queued.dispatchGuard !== owner.capture.bound.invoiceCollectDecision?.sendRule.rule ||
+      effects.outbox[0]?.intentId !== queued.intentId) {
+    return invalid('Invoice collection differs from its one original guarded Payments SEND.');
+  }
+  const request = object(queued.arguments, ['binding', 'from', 'arguments']);
+  const args = object(request['arguments'], ['customer', 'amount', 'reference', 'consent']);
+  if (request['binding'] !== 'invoice.Payments' || args['customer'] !== decision.customer.id ||
+      args['reference'] !== call.context.operationId || args['consent'] !== null ||
+      stableStringify(args['amount']) !== stableStringify(encodeValue('money', decision.amount))) {
+    return invalid('Invoice collection payment request differs from its Customer and current balance.');
+  }
+  const scheduleKey = [call.context.app, 'invoice', call.checkpoint?.owner,
+    `${decision.invoice.id}:collection`].map(part => encodeURIComponent(String(part))).join('/');
+  if (owner.finalized.schedules.length > 1 || effects.schedules.length > 1 ||
+      owner.finalized.schedules.some(schedule => schedule.op !== 'cancel' || schedule.key !== scheduleKey) ||
+      effects.schedules.some(schedule => schedule.op !== 'cancel' || schedule.key !== scheduleKey)) {
+    return invalid('Invoice collection CANCEL changed another schedule key.');
+  }
+  const occurrences = effects.writes.filter(write => write.kind === 'insert' &&
+    write.model === 'work.occurrence' && write.row.id === decision.eventOccurrenceId);
+  const occurrence = occurrences[0];
+  const result = occurrence?.kind === 'insert' ? occurrence.row.data['result'] : null;
+  if (occurrences.length !== 1 || occurrence?.kind !== 'insert' ||
+      occurrence.row.data['status'] !== 'completed' ||
+      typeof result !== 'object' || result === null || Array.isArray(result) ||
+      (result as Record<string, unknown>)['kind'] !== 'declared-event-source' ||
+      (result as Record<string, unknown>)['event'] !== 'invoice.InvoiceSettlement' ||
+      stableStringify((result as Record<string, unknown>)['payload']) !==
+        stableStringify(decision.eventPayload)) {
+    return invalid('Invoice collection lacks its exact declared InvoiceSettlement Work occurrence.');
+  }
+}
 function verifyRentMovementRefundEffects(call: AdmittedCall,
   decision: NonNullable<Capture['rentMovementRefundDecision']>, owner: ReceiptOwnerSession | undefined,
   effects: ExecutionEffects): void {
@@ -8909,6 +9530,12 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   if (bound.invoiceOverdueDecision !== undefined) {
     if (state?.invoiceOverdueDecision === undefined) return invalid('overdue omitted its original due owner decision.');
     verifyInvoiceOverdueEffects(call, state.invoiceOverdueDecision, owner, effects, dueAdmission);
+  }
+  if (bound.invoiceCollectDecision !== undefined) {
+    if (state?.invoiceCollectDecision === undefined) {
+      return invalid('Invoice collection omitted its original complete owner decision.');
+    }
+    verifyInvoiceCollectEffects(call, state.invoiceCollectDecision, owner, effects);
   }
   if (bound.rentMovementRefundDecision !== undefined) {
     if (state?.rentMovementRefundDecision === undefined) {

@@ -103,7 +103,7 @@ compile after this correction still reports 82 diagnostics with the same
 per-file messages;
 the `Rooms.confirm` native SEND receipt remains unfinished.
 
-The current release build completes the 24-source capture with 81 diagnostics
+The following release build completes the 24-source capture with 81 diagnostics
 (`complete:true`, `omitted:0`). A per-file message comparison against the
 82-diagnostic capture removes exactly the original `CanMaintain.remind`
 guarded-SEND `E6008` at offset 37041 and adds no diagnostic. Its source-bound
@@ -202,6 +202,23 @@ complete Employee, Adjustment, and Credit domains at commit. The installed
 regression covers both branches, hidden rows, balance and authority denials,
 commit races, and five altered-source refusals. The remaining 70 diagnostics
 are separate sites.
+
+The next exact-catalog 24-source release capture reports 69 diagnostics
+(`complete:true`, `omitted:0`). All 26 source paths and hashes match the
+70-diagnostic capture. The sole removed site is the original
+`CanInvoice.collect` guarded `Payments.collect` `E6008` at bytes
+48158–48165; no diagnostic was added. The checked owner decision evaluates
+the original admission and both Requires over complete Invoice financial,
+Customer authority, Employee, and pending Attempt domains. It binds the
+scheduled cancellation, Invoice and Attempt writes, guarded payment intent,
+and emitted InvoiceSettlement to one serial commit. The declared event source
+now retains a typed, source-bound opaque payload header for Work's File
+retirement check. Dispatch reloads the Invoice, Attempt, and complete financial
+domains before calling the payment provider, refusing stale or ineligible
+claims. The installed regression covers 16 runtime modes, eight
+altered-source refusals, event-header removal at commit, and four dispatch
+outcomes. The
+remaining 69 diagnostics are separate sites.
 
 ## 1. Searches inside rules (historically ~30 diagnostics)
 

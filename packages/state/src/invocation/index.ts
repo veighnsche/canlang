@@ -35,6 +35,7 @@ export {
   executeScenarioReceiptMemberRetryDecision, type MemberRetryDecisionPlan,
   executeScenarioReceiptInvoiceOverdueDecision, type InvoiceOverdueDecisionPlan,
   executeScenarioReceiptRentMovementRefundDecision, type RentMovementRefundDecisionPlan,
+  executeScenarioReceiptInvoiceCollectDecision, type InvoiceCollectDecisionPlan,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
   noteDueWorkAdmission, type DueWorkAdmission,

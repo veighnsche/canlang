@@ -124,6 +124,16 @@ export function bindNativeRentMovementRefundRole(c: HandlerContext,
   eventRoles.set(c, evaluate);
   return () => { eventRoles.delete(c); };
 }
+/** Bind collection's finance role inside its checked Invoice owner decision. */
+export function bindNativeInvoiceCollectRole(c: HandlerContext,
+  evaluate: (role: string, subject: UserRef) => Promise<boolean>): () => void {
+  const frame = checked(c);
+  if (frame.call === undefined || eventRoles.has(c)) {
+    return refuse('invoice collect finance role requires its unique live mutation owner.');
+  }
+  eventRoles.set(c, evaluate);
+  return () => { eventRoles.delete(c); };
+}
 export function hasNativeOwnerMembership(def: GeneratedOperationDef): boolean { return owners.has(def); }
 export function hasNativeAuthorityReportMembership(def: GeneratedOperationDef): boolean { return authorityReports.has(def); }
 const refuse = (message: string): never => { throw new StateError('validation', `Native membership: ${message}`); };
