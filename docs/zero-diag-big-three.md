@@ -130,6 +130,18 @@ test covers hidden policies, ordered policy changes, partial baselines,
 wrong role/location, State and Identity read races, and a tampered query
 census. The remaining 77 diagnostics are separate source sites.
 
+The next native 24-source release capture reports 75 diagnostics
+(`complete:true`, `omitted:0`). Its only changes from the 77-diagnostic
+capture are the original `CanLeave.request` Category `first` at offsets
+10251–10333 and per-year Allowance `first` at offsets 10774–10915; no new
+sites appear. The complete source-bound request decision evaluates its
+original guards and six collection sites in one serial owner session, then
+checks the Request and yearly Portion effects against the selected days and
+allowances. An installed 16-mode check covers both cross-year and uncharged
+success, source refusals, commit races, a 201-day request, and refusal of an
+oversized owner collection. The remaining 75 diagnostics are separate source
+sites.
+
 ## 1. Searches inside rules (historically ~30 diagnostics)
 
 **Implementation status, 2026-10-21:** The first owner-decision repair is now

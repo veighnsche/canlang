@@ -77,12 +77,13 @@ export {
   ValueError, int64, datetime, compareInstant, addDuration, subtractDuration, overlaps, abs, all, any, at, sum, min, max, join, trim, starts_with, compareScalar, choose, concat, flatten, group, format,
   parseDecimal, addDecimal, compareDecimal, multiplyDecimal, money, addMoney, subtractMoney, multiplyMoney, compareMoney, equalMoney,
   divideDurationMs, remainderDuration, multiplyDuration, durationBetween, first,
-  date, add_days, add_months, local_date, local_instant, compareDate, dates, weekday, decodeValue, encodeValue, normalizeSchema, makeMessageDescriptor,
+  date, add_days, add_months, date_year, local_date, local_instant, compareDate, dates, weekday, decodeValue, encodeValue, normalizeSchema, makeMessageDescriptor,
 } from '@canlang/values';
 export const same = sameNativeReference;
 export { active_member } from './native-membership.js';
 export { nativeReadBoolean, nativeReadReference } from './native-read-boolean.js';
-export { nativeScenarioRequire, nativeScenarioEventDecision, nativeScenarioTermDecision } from './native-scenario-require.js';
+export { nativeScenarioRequire, nativeScenarioEventDecision, nativeScenarioTermDecision,
+  nativeScenarioLeaveRequestDecision } from './native-scenario-require.js';
 export { delivery } from '@canlang/state/effects/delivery';
 
 /** Whole historical callback observation through the installed current viewer scope. */

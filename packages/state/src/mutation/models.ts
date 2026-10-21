@@ -415,10 +415,10 @@ export interface InterimModelDef {
 export type ModelTable = ReadonlyMap<ModelName, InterimModelDef>;
 
 /** Checked tuple profiles attach only to table-built definitions. */
-export type UniqueGroupProfile = {
-  readonly fields: readonly [string, string];
-  readonly cases: readonly string[];
-} & ({ readonly kind: 'ref-enum'; readonly refModel: ModelName } | { readonly kind: 'user-enum' });
+export type UniqueGroupProfile =
+  | ({ readonly fields: readonly [string, string]; readonly cases: readonly string[] } &
+    ({ readonly kind: 'ref-enum'; readonly refModel: ModelName } | { readonly kind: 'user-enum' }))
+  | { readonly fields: readonly [string, string]; readonly kind: 'leave-year-bucket' };
 function checkedUniqueGroups(raw: unknown): readonly (readonly string[])[] {
   if (!Array.isArray(raw) || Reflect.ownKeys(raw).length !== raw.length + 1) throw new Error('Unique groups must be own data arrays.');
   const result: string[][] = [];
@@ -745,6 +745,17 @@ function checkUniqueGroup(
     throw new Error('Duplicate, unknown or unsupported unique group member.');
   }
   const refField = ctx.def.fields[first]!, enumField = ctx.def.fields[second]!;
+  if (ctx.model === 'leave.Allowance' && first === 'year' && second === 'bucket' &&
+      ctx.def.containment?.parent === 'employee.Employee' &&
+      ctx.def.uniqueWhen?.[key] === undefined && !refFields.has(first) && !refFields.has(second) &&
+      refField.required && refField.default === undefined && refField.array === undefined &&
+      refField.nullable !== true && (refField.valueType === undefined || refField.valueType === 'int') &&
+      enumField.required === false && enumField.default === 'vacation' &&
+      enumField.array === undefined && enumField.nullable !== true && enumField.valueType === 'text') {
+    groups.set(key, Object.freeze({ fields: Object.freeze([first, second]) as readonly [string, string],
+      kind: 'leave-year-bucket' as const }));
+    return;
+  }
   checkUniqueGroupFields(refField, enumField);
   const ref = ctx.def.refs.find(ref => ref.field === first), refType = parseTypeId(refField.valueType!);
   const enumType = parseTypeId(enumField.valueType!);

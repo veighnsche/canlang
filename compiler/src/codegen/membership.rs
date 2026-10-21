@@ -180,6 +180,12 @@ fn collect_membership_sites(
             }
             continue;
         }
+        if item.canonical == "leave.request" {
+            if let Some(source) = super::leave_decisions::collect_leave_membership_sites(context,item) {
+                sites.insert(item.canonical.clone(),serde_json::Value::Array(source));
+            }
+            continue;
+        }
         let require_fields = program.scenario_disclosures().get(&item.id).is_some_and(|disclosure| {
             matches!(disclosure, crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked)
                 if !checked.require_consumptions.is_empty())

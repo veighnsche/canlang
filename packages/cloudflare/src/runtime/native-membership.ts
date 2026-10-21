@@ -94,6 +94,16 @@ export function bindNativeEventDecisionRole(c: HandlerContext,
   eventRoles.set(c, evaluate);
   return () => { eventRoles.delete(c); };
 }
+/** The checked Leave owner callback uses the same coherent subject-role port. */
+export function bindNativeLeaveRequestRole(c: HandlerContext,
+  evaluate: (role: string, subject: UserRef) => Promise<boolean>): () => void {
+  const frame = checked(c);
+  if (frame.call === undefined || eventRoles.has(c)) {
+    return refuse('Leave reviewer role requires its unique live mutation owner.');
+  }
+  eventRoles.set(c, evaluate);
+  return () => { eventRoles.delete(c); };
+}
 export function hasNativeOwnerMembership(def: GeneratedOperationDef): boolean { return owners.has(def); }
 export function hasNativeAuthorityReportMembership(def: GeneratedOperationDef): boolean { return authorityReports.has(def); }
 const refuse = (message: string): never => { throw new StateError('validation', `Native membership: ${message}`); };

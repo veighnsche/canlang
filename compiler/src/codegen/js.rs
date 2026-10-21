@@ -7965,6 +7965,29 @@ impl<'a> Emitter<'a> {
                 format!("judgmentSpecification(c,{}{options})", js_string(judgment))
             }
             IrExpr::Member { base, field } => {
+                // `group` takes a synchronous key function. The exact leave
+                // owner receipt proves Day.year is date_year(row.date), so
+                // inline that pure checked body at its original loop site.
+                // The ordinary owner-derived-field path below awaits a
+                // helper, which is invalid inside this synchronous key.
+                if self.owner_handler_body
+                    && field == "year"
+                    && matches!(&base.expr, IrExpr::Name(name) if name == "day")
+                    && matches!(&base.ty, ResolvedType::Record {symbol,stored:true}
+                        if self.ir.items.get(symbol.0 as usize)
+                            .is_some_and(|item|item.canonical=="leave.Day"))
+                    && self.receipt_capture.as_ref().and_then(|receipt|
+                        receipt.plan.leave_request_decision.as_ref())
+                        .is_some_and(|decision| {
+                            let node=&decision["sites"]["yearLoop"]["node"];
+                            node["start"].as_u64().is_some_and(|start|start<=span.start as u64)
+                                && node["end"].as_u64().is_some_and(|end|span.end as u64<=end)
+                        })
+                {
+                    self.stdlib.insert("date_year".into());
+                    let row=self.lower_expr(base);
+                    return format!("date_year({row}.date)");
+                }
                 // A source-owned guard or checked owner rule consumes a derived
                 // scalar's original body under the same current-row observer. No stored
                 // value is fabricated and no standalone read transaction opens.
@@ -20213,6 +20236,13 @@ impl<'a> Emitter<'a> {
         effects: &[IrStmt],
     ) {
         if let Some(decision) = self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.leave_request_decision.clone())
+            && item.canonical == "leave.request"
+        {
+            self.emit_leave_request_decision_body(out,item,guards,effects,&decision);
+            return;
+        }
+        if let Some(decision) = self.receipt_capture.as_ref()
             .and_then(|receipt| receipt.plan.term_decision.clone())
             && item.canonical == "member_terms.term"
         {
@@ -20229,6 +20259,35 @@ impl<'a> Emitter<'a> {
                 out.push(span, Some(item.canonical.clone()), &line);
             }
         }
+    }
+
+    fn emit_leave_request_decision_body(
+        &mut self, out: &mut JsWriter, item: &IrItem,
+        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
+    ) {
+        if guards.len()!=3 || effects.len()!=6 {
+            self.unsupported("leave request owner decision","the exact authored body is missing",item.span);
+            return;
+        }
+        let previous_owner=self.owner_handler_body;
+        let previous_query=self.query_capture.take();
+        self.owner_handler_body=true;
+        self.enter_scope();
+        let names=["calendar","from","until","bucket","reason","reviewer"]
+            .iter().map(|name|format!("{}:{}",object_key(name),self.bind(name))).collect::<Vec<_>>();
+        self.stdlib.insert("nativeScenarioLeaveRequestDecision".into());
+        out.push(item.span,Some(item.canonical.clone()),
+            &format!("await nativeScenarioLeaveRequestDecision(c,{},async(c,{{{}}})=>{{",
+                descriptor_json(decision),names.join(",")));
+        for stmt in guards.iter().chain(effects) {
+            for (line,span) in self.lower_stmt(stmt,0) {
+                out.push(span,Some(item.canonical.clone()),&line);
+            }
+        }
+        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
+        self.exit_scope();
+        self.owner_handler_body=previous_owner;
+        self.query_capture=previous_query;
     }
 
     fn emit_term_decision_body(

@@ -53,3 +53,21 @@ export async function nativeScenarioTermDecision(context: unknown, descriptor: u
   }
   return evaluate(descriptor, select);
 }
+
+type LeaveEvaluate = (descriptor: unknown, body: Function) => Promise<void>;
+const leaveReaders = new WeakMap<object, LeaveEvaluate>();
+
+/** The complete Leave request body belongs to one admitted serial owner session. */
+export function bindNativeScenarioLeaveRequestDecision(context: object, evaluate: LeaveEvaluate): void {
+  if (leaveReaders.has(context)) throw new StateError('validation', 'Leave request decision cannot be rebound.');
+  leaveReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioLeaveRequestDecision(context: unknown, descriptor: unknown,
+  body: Function): Promise<void> {
+  const evaluate = typeof context === 'object' && context !== null ? leaveReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof body !== 'function') {
+    throw new StateError('validation', 'Leave request needs its actual admitted mutation owner.');
+  }
+  return evaluate(descriptor, body);
+}

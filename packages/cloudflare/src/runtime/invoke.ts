@@ -141,7 +141,7 @@ import { hasRole as stateSubjectRole } from '@canlang/state/policy/roles';
 import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNativeSourceSendMembership, openNativeSourceSendMembershipFrame, bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
   bindNativeAuthorityReportMembership, hasNativeAuthorityReportMembership, openNativeAuthorityReportMembershipFrame,
-  bindNativeEventDecisionRole, hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
+  bindNativeEventDecisionRole, bindNativeLeaveRequestRole, hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
   type NativeMembershipFrame } from './native-membership.js';
 import type { ScenarioReceiptMembershipSite, ScenarioReceiptRequireSource } from '@canlang/state/invocation';
 import type { CanonicalFileBinding, FileAttachment, FileStagingCensus } from './file-staging.js';
@@ -153,7 +153,8 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision } from './native-scenario-require.js';
+import { bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
+  bindNativeScenarioLeaveRequestDecision } from './native-scenario-require.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -1470,6 +1471,7 @@ interface StateInvokeProducer {
   readonly executeScenarioReceiptRequire?: typeof import('@canlang/state/invocation').executeScenarioReceiptRequire;
   readonly executeScenarioReceiptEventDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptEventDecision;
   readonly executeScenarioReceiptTermDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptTermDecision;
+  readonly executeScenarioReceiptLeaveRequestDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptLeaveRequestDecision;
   readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
   readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
@@ -1769,6 +1771,9 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['executeScenarioReceiptTermDecision'] !== 'function' ? {} : {
       executeScenarioReceiptTermDecision: scenarioMod['executeScenarioReceiptTermDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptTermDecision']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptLeaveRequestDecision'] !== 'function' ? {} : {
+      executeScenarioReceiptLeaveRequestDecision: scenarioMod['executeScenarioReceiptLeaveRequestDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptLeaveRequestDecision']>,
     }),
     ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
       observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
@@ -3076,6 +3081,23 @@ async function joinOwningUnconditionalUniques(
           models.filter(model => model.name === refModel).length === 1;
         const userIdentity = ref?.field.kind === 'user' && declaredRefType === 'user' &&
           firstType === 'user' && association.length === 0;
+        // The original Leave allowance key is a nonnullable year plus its
+        // literal-defaulted text bucket. The checked source, canonical model
+        // and actual module unique declaration must all agree on this exact
+        // ordered pair before the storage table may enforce it.
+        const leaveAllowanceKey = !conditional && name === 'leave.Allowance' &&
+          owner === 'leave' && fields.length === 2 && fields[0] === 'year' && fields[1] === 'bucket' &&
+          original[0]!.parent === 'employee.Employee' &&
+          sourceRef.length === 1 && sourceEnum.length === 1 &&
+          ref?.field.kind === 'integer' && role?.field.kind === 'string' &&
+          ref.required === true && ref.nullable !== true && ref.array === undefined &&
+          role.nullable !== true && role.array === undefined &&
+          canonicalRef?.valueType === 'int' && canonicalEnum?.valueType === 'text' &&
+          declaredRefType === 'int' && declaredRoleType === 'text' &&
+          secretFields.get(name as ModelName)?.has('year') !== true &&
+          secretFields.get(name as ModelName)?.has('bucket') !== true &&
+          !groups.some(group => stableStringify(group) === stableStringify(fields));
+        if (leaveAllowanceKey) { groups.push(Object.freeze([...fields])); continue; }
         if (conditional || fields.length !== 2 || fields[0] === fields[1] ||
             fields.some(field => field.includes(',') || field.includes('.')) ||
             owner === '' || !name.startsWith(`${owner}.`) ||
@@ -9018,8 +9040,10 @@ async function runScenarioExecution(
     due?.observeFramework?.({ writes });
     return [...existing, ...writes, ...termScheduleSourceWrites];
   };
+  const ownerBounds = receiptAware && scenarioDef?.name === 'leave.request'
+    ? Object.freeze({ maxRows: 4_001, maxWork: 200_000 }) : SCENARIO_RECEIPT_OWNER_BOUNDS;
   const ownerOptions = {
-    table: loaded.table as ModelTable, bounds: SCENARIO_RECEIPT_OWNER_BOUNDS,
+    table: loaded.table as ModelTable, bounds: ownerBounds,
     secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
     ...(ownerControl === undefined ? {} : { policies: ownerControl.policies }),
     encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
@@ -9057,8 +9081,8 @@ async function runScenarioExecution(
     },
     load: readOwnerRow,
     query: async spec => {
-      const limit = spec.limit ?? SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows;
-      if (!Number.isSafeInteger(limit) || limit < 0 || limit > SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows) {
+      const limit = spec.limit ?? ownerBounds.maxRows;
+      if (!Number.isSafeInteger(limit) || limit < 0 || limit > ownerBounds.maxRows) {
         throw new StateError('validation', 'Scenario owner query exceeds its defining row bound.');
       }
       const rows = await ownerSession.views.final.query({ ...spec, authority: 'owner', limit });
@@ -9092,7 +9116,7 @@ async function runScenarioExecution(
       if (domain === undefined) throw new StateError('validation', 'Final parent observation cannot acquire a new policy domain.');
       return domain.rows;
     }
-    if (sourceDomains.size >= SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows && !sourceDomains.has(key)) {
+    if (sourceDomains.size >= ownerBounds.maxRows && !sourceDomains.has(key)) {
       throw new StateError('limit', 'Source policy collection domain budget exceeded.');
     }
     const session = refreshingSourceRows ? navigationOwner!.session : ownerSession!;
@@ -9378,6 +9402,8 @@ async function runScenarioExecution(
   };
   let eventDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let termDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
+  let leaveDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
+  let leaveDecisionCreateParent: { calendarId: string; requestId: string | null } | null = null;
   const scope: CanonicalEffectsScope = {
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
@@ -9386,6 +9412,7 @@ async function runScenarioExecution(
       readRecords: async (model: string, query: CanonicalReadQuery) => {
         if (eventDecisionReadRecords !== null) return eventDecisionReadRecords(model, query);
         if (termDecisionReadRecords !== null) return termDecisionReadRecords(model, query);
+        if (leaveDecisionReadRecords !== null) return leaveDecisionReadRecords(model, query);
         const rows = await scope.readModel(model, query);
         for (const row of rows) {
           if (!trustedOwnerReads) await viewerNavigation.captureQuerySource(model, row);
@@ -9456,6 +9483,9 @@ async function runScenarioExecution(
     },
     createRecord: async (model, data) => {
       try {
+        if (leaveDecisionCreateParent !== null && model !== 'leave.Request' && model !== 'leave.Portion') {
+          return refuseRecordBinding('Leave request may create only its checked Request and Portions.');
+        }
         let fields = data;
         let parent: CanonicalStagedWrite['parent'];
         const ownership = loaded.containment.get(model);
@@ -9470,12 +9500,18 @@ async function runScenarioExecution(
           if (binding === undefined || binding.model !== parentModel) {
             return refuseRecordBinding('Create requires its declared parent bound in this operation.');
           }
+          const leaveParent = leaveDecisionCreateParent;
+          if (leaveParent !== null && (model === 'leave.Request' ?
+              binding.model !== 'leave.Calendar' || binding.id !== leaveParent.calendarId :
+              binding.model !== 'leave.Request' || binding.id !== leaveParent.requestId)) {
+            return refuseRecordBinding('Leave request create parent differs from its checked source order.');
+          }
           // Bound views retain their admitted metadata after own writes. State's
           // current staged row supplies the version for this source read.
           const current = await overlay.load(binding.model as ModelName, binding.id as RecordId);
           if (current === null) throw new StateError('not_found', 'Create parent record not found.');
           if (current.id !== binding.id) return refuseRecordBinding('Create parent identity changed.');
-          const navigation = trustedOwnerReads ? ownerNavigation : viewerNavigation;
+          const navigation = trustedOwnerReads || leaveParent !== null ? ownerNavigation : viewerNavigation;
           const authorized = await navigation.authorizeReference(
             makeRecordRef(binding.model, binding.id, BigInt(current.version)));
           parent = { model: authorized.model as ModelName, id: authorized.id as RecordId };
@@ -9485,6 +9521,12 @@ async function runScenarioExecution(
         const row = await scope.stageWrite({ op: "create", model, id, data: fields,
           ...(parent === undefined ? {} : { parent }) });
         if (row === null) throw new StateError("validation", "Create staged no record.");
+        if (leaveDecisionCreateParent !== null && model === 'leave.Request') {
+          if (leaveDecisionCreateParent.requestId !== null) {
+            return refuseRecordBinding('Leave request may create only one Request.');
+          }
+          leaveDecisionCreateParent.requestId = row.id;
+        }
         if (ownerSession === undefined) await stageDeliveryAssignments(model, row, fields);
         await ownerNavigation.prepare(model, row);
         return recordView(model, row);
@@ -9756,7 +9798,7 @@ async function runScenarioExecution(
             // store; business limits never choose a materialization budget.
             const querySource = initial && ownerSession !== undefined ? overlay : opts.store;
             const candidateLimit = initial && ownerSession !== undefined
-              ? SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows : maxCandidates + 1;
+              ? ownerBounds.maxRows : maxCandidates + 1;
             const base = await querySource.query({ model: model as ModelName, authority: 'owner', archived: 'include',
               ...(parent === undefined ? {} : { parent }),
               order: [{ field: 'id', direction: 'asc' }], limit: candidateLimit });
@@ -10949,6 +10991,99 @@ async function runScenarioExecution(
           return refuseRecordBinding('Term decision lost its selected current Renewal.');
         }
         return selected;
+      } catch (error) { recordEngineFailure(error); throw error; }
+    });
+  }
+  if (receiptAware && receiptStore !== undefined && ownerSession !== undefined &&
+      scenarioDef?.name === 'leave.request') {
+    const actualCall = call as AdmittedCall;
+    const checked = (scenarioDef.descriptor.result?.disclosure as
+      { readonly leaveRequestDecision?: import('@canlang/state/invocation').LeaveRequestDecisionPlan } | undefined)?.leaveRequestDecision;
+    const execute = loaded.producers.invoke.executeScenarioReceiptLeaveRequestDecision;
+    if (checked === undefined || execute === undefined || callable?.inputStyle !== 'parameters') {
+      return refuseRecordBinding('Leave request needs its exact installed owner decision.');
+    }
+    let consumed = false;
+    bindNativeScenarioLeaveRequestDecision(ctx, async (descriptor, body) => {
+      try {
+        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
+            nativeScenarioExecutions.get(actualCall) === undefined) {
+          return refuseRecordBinding('Leave request differs from its unique checked source occurrence.');
+        }
+        consumed = true;
+        await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
+          evaluate: async frame => {
+            const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+            if (assertCall === undefined || leaveDecisionReadRecords !== null) {
+              return refuseRecordBinding('Leave request needs its serial live State owner decision.');
+            }
+            const healthy = () => assertCall(actualCall, receiptStore);
+            const supplied = localPolicyObject(argument);
+            const nativeCalendar = localPolicyMember(supplied, 'calendar');
+            const calendarRef = nativeRecordReference(nativeCalendar);
+            if (calendarRef?.model !== 'leave.Calendar' || calendarRef.id !== frame.calendar.id ||
+                calendarRef.version !== BigInt(frame.calendar.version) ||
+                stableStringify(ownerRows.get(stagedKey('leave.Calendar', frame.calendar.id))) !==
+                  stableStringify(frame.calendar) ||
+                frame.calendar.parent?.model !== 'employee.Employee' ||
+                frame.calendar.parent.id !== frame.employee.id) {
+              return refuseRecordBinding('Leave request Calendar differs from its current admitted owner row.');
+            }
+            ownerRows.set(stagedKey('employee.Employee', frame.employee.id), frame.employee);
+            const ownerCalendar = recordView('leave.Calendar', frame.calendar);
+            leaveDecisionCreateParent = { calendarId: frame.calendar.id, requestId: null };
+            leaveDecisionReadRecords = async (model, selection) => {
+              healthy();
+              if (!['employee.Employee', 'leave.Request', 'leave.Day', 'leave.Category', 'leave.Allowance'].includes(model) ||
+                  !isUnknownRecord(selection) || Reflect.ownKeys(selection).some(key =>
+                    typeof key !== 'string' || !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+                  selection.limit !== undefined || selection.archived !== undefined && selection.archived !== 'exclude' ||
+                  selection.authority !== undefined && selection.authority !== 'viewer') {
+                return refuseRecordBinding('Leave request query differs from its checked collection site.');
+              }
+              const parent = selection.parent === undefined ? undefined :
+                nativeRecordReference(selection.parent) ??
+                  (isRecordRef(selection.parent) ? selection.parent : undefined);
+              const expectedParentModel = model === 'employee.Employee' ? undefined :
+                model === 'leave.Allowance' ? 'employee.Employee' : 'leave.Calendar';
+              const filter = model === 'leave.Category' || model === 'leave.Allowance' ||
+                model === 'leave.Day' && selection.where !== undefined;
+              const ordered = model === 'leave.Category' || model === 'leave.Allowance';
+              if (expectedParentModel === undefined ? selection.parent !== undefined :
+                  parent?.model !== expectedParentModel ||
+                  (expectedParentModel === 'leave.Calendar' && parent.id !== frame.calendar.id) ||
+                  (expectedParentModel === 'employee.Employee' && parent.id !== frame.calendar.parent?.id) ||
+                  (selection.where !== undefined) !== filter ||
+                  filter && typeof selection.where !== 'function' ||
+                  stableStringify(selection.order ?? null) !== stableStringify(ordered ? ['id'] : null)) {
+                return refuseRecordBinding('Leave request query parent, predicate or order differs from its source.');
+              }
+              const domain = await frame.query(model as ModelName, parent === undefined ? undefined :
+                { model: parent.model as ModelName, id: parent.id as RecordId });
+              healthy();
+              const result: Record<string, unknown>[] = [];
+              for (const row of domain) {
+                ownerRows.set(stagedKey(model, row.id), row);
+                const view = recordView(model, row);
+                const predicate = selection.where;
+                const match = predicate === undefined ? true : await Reflect.apply(predicate as Function, undefined, [view, ctx]);
+                healthy();
+                if (typeof match !== 'boolean') return refuseRecordBinding('Leave request source predicate must return Bool.');
+                if (match) result.push(view);
+              }
+              return Object.freeze(result);
+            };
+            let closeRole: (() => void) | undefined;
+            try {
+              closeRole = bindNativeLeaveRequestRole(ctx, frame.role);
+              const answer = await Reflect.apply(body, undefined, [ctx, Object.freeze({
+                calendar: ownerCalendar, from: supplied['from'], until: supplied['until'],
+                bucket: supplied['bucket'], reason: supplied['reason'], reviewer: supplied['reviewer'],
+              })]);
+              healthy();
+              if (answer !== undefined) return refuseRecordBinding('Leave request original body must return void.');
+            } finally { closeRole?.(); leaveDecisionReadRecords = null; leaveDecisionCreateParent = null; }
+          } });
       } catch (error) { recordEngineFailure(error); throw error; }
     });
   }

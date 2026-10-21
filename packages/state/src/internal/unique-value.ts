@@ -56,8 +56,20 @@ export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>,
   }
   const ref = compositeFieldValue(row.data, group.fields[0], key, def.model),
     role = compositeFieldValue(row.data, group.fields[1], key, def.model);
+  if (group.kind === 'leave-year-bucket') return leaveYearBucketUniqueValue(ref, role, row, def);
   if (group.kind === 'user-enum') return userEnumUniqueValue(ref, role, group, row, def);
   return refEnumUniqueValue(ref, role, group, row, def);
+}
+
+function leaveYearBucketUniqueValue(yearWire: unknown, bucketWire: unknown,
+  row: Pick<StoredRow, 'data' | 'parent'>, def: InterimModelDef): string {
+  let year: bigint, bucket: string;
+  try {
+    year = decodeValue('int', yearWire) as bigint;
+    bucket = decodeValue('text', bucketWire) as string;
+  } catch { return throwInvalidCompositeUnique('year,bucket', def.model); }
+  if (typeof bucket !== 'string') return throwInvalidCompositeUnique('year,bucket', def.model);
+  return JSON.stringify(['leave-year-bucket', uniqueParentScope(row, def), year.toString(), bucket]);
 }
 
 /** Conditions are table-checked local data predicates, never metadata paths. */
@@ -69,7 +81,7 @@ function compositeFieldValue(data: Readonly<Record<string, unknown>>, name: stri
 }
 
 /** User-enum tuples bind one canonical user id with a declared case. */
-function userEnumUniqueValue(ref: unknown, role: unknown, group: UniqueGroupProfile,
+function userEnumUniqueValue(ref: unknown, role: unknown, group: Extract<UniqueGroupProfile, { kind: 'user-enum' }>,
   row: Pick<StoredRow, 'data' | 'parent'>, def: InterimModelDef): string {
   const key = group.fields.join(',');
   const id = canonicalUniqueFieldValue(ref, group.fields[0], def.model, def.fields[group.fields[0]]);

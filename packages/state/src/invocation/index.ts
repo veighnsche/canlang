@@ -29,6 +29,7 @@ export {
   executeScenarioReceiptRequire, type ScenarioReceiptRequireSource, type ScenarioReceiptRequireObserver,
   executeScenarioReceiptEventDecision, type EventDecisionPlan,
   executeScenarioReceiptTermDecision, type TermDecisionPlan,
+  executeScenarioReceiptLeaveRequestDecision, type LeaveRequestDecisionPlan,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
   noteDueWorkAdmission, type DueWorkAdmission,

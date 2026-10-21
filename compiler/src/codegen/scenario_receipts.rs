@@ -36,6 +36,9 @@ pub(super) struct ReceiptDisclosurePlan {
     /// Complete checked owner decision for the exact term creation flow.
     #[serde(rename = "termDecision", skip_serializing_if = "Option::is_none")]
     pub term_decision: Option<serde_json::Value>,
+    /// Complete source-bound owner decision for bounded leave request creation.
+    #[serde(rename = "leaveRequestDecision", skip_serializing_if = "Option::is_none")]
+    pub leave_request_decision: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub queries: Vec<ReceiptQuery>,
     pub returns: Vec<ReceiptReturn>,
@@ -1946,6 +1949,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     if item.canonical == "member_terms.term" {
         return super::term_decisions::collect_term_receipt(source_context?, item, entry_module);
     }
+    if item.canonical == "leave.request" {
+        return super::leave_decisions::collect_leave_receipt(source_context?, item, entry_module);
+    }
     // C23 hook slice: a declared-event handler may carry a native receipt
     // for its exact single-first query plan. The plan join below re-proves
     // the query, so every other trusted shape keeps the refusal; only the
@@ -2102,7 +2108,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     };
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
-            version: 1, event_decision: None, term_decision: None,
+            version: 1, event_decision: None, term_decision: None, leave_request_decision: None,
             source,
             queries: effective_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
             returns: Vec::new(),
@@ -4495,7 +4501,7 @@ fn checked_guard_any_query_plan(
         });
     }
     Some(ReceiptDisclosurePlan {
-        version: 1, event_decision: None, term_decision: None,
+        version: 1, event_decision: None, term_decision: None, leave_request_decision: None,
         source: transport_source(&facts.source, entry)?,
         queries: fragments,
         returns,
@@ -4547,7 +4553,7 @@ pub(super) fn checked_native_any_direct_query_plan(
         return None;
     }
     Some(ReceiptDisclosurePlan {
-        version: 1, event_decision: None, term_decision: None,
+        version: 1, event_decision: None, term_decision: None, leave_request_decision: None,
         source: transport_source(&query.source, entry)?,
         queries: vec![fragment],
         returns: checked
@@ -4948,7 +4954,7 @@ pub(super) fn checked_native_helper_any_query_plan(
         })
         .collect::<Vec<_>>();
     Some(ReceiptDisclosurePlan {
-        version: 1, event_decision: None, term_decision: None,
+        version: 1, event_decision: None, term_decision: None, leave_request_decision: None,
         source: transport_source(&facts.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
@@ -6772,7 +6778,7 @@ fn checked_native_first_query_source_plan(
     // mismatched parent keeps the source-plan refusal.
     let parent = first_query_receipt_parent(ir, owner, query, scan, db, first, entry_module)?;
     let expected = ReceiptDisclosurePlan {
-        version: 1, event_decision: None, term_decision: None,
+        version: 1, event_decision: None, term_decision: None, leave_request_decision: None,
         source: transport_source(&checked.source, entry_module)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
@@ -7992,7 +7998,7 @@ fn checked_native_ancestor_count_query_plan(
         return None;
     }
     Some(ReceiptDisclosurePlan {
-        version: 1, event_decision: None, term_decision: None,
+        version: 1, event_decision: None, term_decision: None, leave_request_decision: None,
         source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
@@ -8206,7 +8212,7 @@ fn native_count_plan(
     influences: Vec<ReceiptInfluence>,
 ) -> Option<ReceiptDisclosurePlan> {
     Some(ReceiptDisclosurePlan {
-        version: 1, event_decision: None, term_decision: None,
+        version: 1, event_decision: None, term_decision: None, leave_request_decision: None,
         source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
@@ -8333,7 +8339,7 @@ pub(super) fn checked_native_assign_count_query_plan(
             influences: influences.clone(), dependencies: Vec::new(), intrinsics: Vec::new(), projection: None})
     }).collect::<Option<Vec<_>>>()?;
     Some(ReceiptDisclosurePlan {
-        version: 1, event_decision: None, term_decision: None, source: transport_source(&query.source, entry)?,
+        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(), source: transport_source(&query.source, entry)?,
             model: query.model_name.clone(),
