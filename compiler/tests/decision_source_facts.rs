@@ -1779,7 +1779,7 @@ fn source_require_cannot_outlive_its_defining_owner_receipt() {
     assert!(diagnostics.is_empty(),"{diagnostics:?}");
     let mut result=DiagnosticResult::new("owner-frame","1.0",1);result.add_sources(&db);
     let(artifact,diagnostics)=emit(&program,&EmitSources{db:&db,result:&result,catalog:catalog.as_ref(),options:EmitOptions{allow_incomplete_test_only:false,native_scenario_receipts:true}});
-    let artifact=serde_json::to_value(artifact).unwrap();
+    let artifact:serde_json::Value=serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
     let operation=artifact["operations"].as_array().unwrap().iter()
         .find(|operation|operation["name"]=="GuardOwnerFrame.run").unwrap();
     if operation["result"].get("disclosure").is_some() {

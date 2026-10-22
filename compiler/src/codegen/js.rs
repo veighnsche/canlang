@@ -3029,8 +3029,13 @@ fn emit_program_with_sources(
                 && !emitter.diags.iter().any(|diagnostic| diagnostic.primary == item.span
                     && diagnostic.severity == crate::diagnostic::Severity::Error)
             {
+                let reason = match ir.scenario_disclosures.get(&item.id) {
+                    Some(crate::analysis::scenario_disclosure::ScenarioDisclosure::Declined(decline)) =>
+                        format!(": {}", decline.reason),
+                    _ => String::new(),
+                };
                 emitter.unsupported("scenario source requirement",
-                    "original checked owner receipt is unavailable for its source guard", item.span);
+                    &format!("original checked owner receipt is unavailable for its source guard{reason}"), item.span);
             }
         }
     }
