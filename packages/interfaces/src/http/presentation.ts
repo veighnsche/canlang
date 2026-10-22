@@ -145,7 +145,7 @@ function filterScalarWire(type: 'int' | 'datetime' | 'currency', value: unknown)
   } catch { return refuseCollectionFilters(); }
 }
 
-type FilterInventoryKind = 'enum' | 'bool' | 'ref' | 'text' | 'date' | 'int' | 'datetime' | 'currency';
+type FilterInventoryKind = 'enum' | 'bool' | 'derived-bool' | 'ref' | 'text' | 'date' | 'int' | 'datetime' | 'currency';
 
 interface FilterInventory {
   readonly kind: FilterInventoryKind;
@@ -176,16 +176,57 @@ function admitEmptyFilterInventory(
   admitFilterInventory(inventories, occurrence, field, kind, []);
 }
 
+function admitDerivedBoolInventory(
+  inventories: Map<string, FilterInventory>,
+  occurrence: string,
+  field: string,
+  column: object,
+  cases: string[],
+): void {
+  // REVIEW 144: distinct derived-bool inventory kind. Only the
+  // sealed `unassigned`/`overdue` expansions are admitted (each
+  // pinned to its own field name), with the exact true/false
+  // inventory of a bool toggle and a well-formed source marker the
+  // compiler bound to its checked census at emission. The marker's
+  // presence (emitted only after exact compiler pins) is the
+  // authority; the preparer rechecks shape and identity.
+  if (field !== 'unassigned' && field !== 'overdue') refuseCollectionFilters();
+  if (cases.length !== 2 || !cases.includes('true') || !cases.includes('false')) refuseCollectionFilters();
+  if (ownFilterProperty(column, 'expansion') !== field) refuseCollectionFilters();
+  const source = ownFilterProperty(column, 'source');
+  if (typeof source !== 'object' || source === null || Array.isArray(source)) refuseCollectionFilters();
+  const path = ownFilterProperty(source, 'path'), sha = ownFilterProperty(source, 'sha256'),
+    module = ownFilterProperty(source, 'module'), node = ownFilterProperty(source, 'node');
+  if (typeof path !== 'string' || path.length === 0 || typeof sha !== 'string' || sha.length === 0) {
+    return refuseCollectionFilters();
+  }
+  if (module !== 'desk') refuseCollectionFilters();
+  if (typeof node !== 'object' || node === null || Array.isArray(node)) refuseCollectionFilters();
+  // Emitted integer positions arrive as BigInt literals (`236n`);
+  // normalize at this boundary with the same safe-int discipline.
+  const rawStart = ownFilterProperty(node, 'start'), rawEnd = ownFilterProperty(node, 'end');
+  const start = typeof rawStart === 'bigint' ? Number(rawStart) : rawStart;
+  const end = typeof rawEnd === 'bigint' ? Number(rawEnd) : rawEnd;
+  if (typeof start !== 'number' || typeof end !== 'number' || !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(end) || start < 0 || !(start <= end)) refuseCollectionFilters();
+  admitFilterInventory(inventories, occurrence, field, 'derived-bool', cases);
+}
+
 function setFilterInventory(
   inventories: Map<string, FilterInventory>,
   occurrence: string,
   field: string,
   type: unknown,
   cases: string[],
+  column: object,
 ): void {
   if (type === 'bool') {
     if (cases.length !== 2 || !cases.includes('true') || !cases.includes('false')) refuseCollectionFilters();
     admitFilterInventory(inventories, occurrence, field, 'bool', cases);
+    return;
+  }
+  if (type === 'derived-bool') {
+    admitDerivedBoolInventory(inventories, occurrence, field, column, cases);
     return;
   }
   // Reference controls carry no spellings: the descriptor must not
@@ -229,7 +270,7 @@ function buildFilterInventories(
       labels = ownFilterProperty(column, 'valueLabels');
     if (typeof field !== 'string' || field.trim().length === 0 || inventories.has(field) ||
         typeof labels !== 'object' || labels === null || Array.isArray(labels)) refuseCollectionFilters();
-    setFilterInventory(inventories, occurrence, field, type, Object.keys(labels));
+    setFilterInventory(inventories, occurrence, field, type, Object.keys(labels), column);
   }
   return inventories;
 }
@@ -279,6 +320,11 @@ function setFilterDefault(
   selected: Map<string, FilterSelection>,
 ): void {
   if (entry.kind === 'bool') {
+    if (value !== null && typeof value !== 'boolean') refuseCollectionFilters();
+  } else if (entry.kind === 'derived-bool') {
+    // Sealed derived-bool defaults validate exactly like the bool
+    // toggle (boolean or clear); the sealed condition is emitted at
+    // selection time, never stored.
     if (value !== null && typeof value !== 'boolean') refuseCollectionFilters();
   } else if (entry.kind === 'ref') {
     if (value !== null) {
@@ -336,6 +382,14 @@ function setFilterSelection(
   selected: Map<string, FilterSelection>,
 ): void {
   if (entry.kind === 'bool') {
+    if (value !== '' && value !== 'true' && value !== 'false') refuseCollectionFilters();
+    seen.add(field);
+    selected.set(field, value === '' ? null : value === 'true');
+    return;
+  }
+  if (entry.kind === 'derived-bool') {
+    // Sealed derived-bool selection: exactly the bool toggle
+    // spellings (true/false/clear), nothing else.
     if (value !== '' && value !== 'true' && value !== 'false') refuseCollectionFilters();
     seen.add(field);
     selected.set(field, value === '' ? null : value === 'true');
@@ -408,7 +462,23 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
     const conditions: FilterCondition[] = [];
     for (const field of inventories.keys()) {
       const value = selected.get(field);
-      if (value !== undefined && value !== null) conditions.push(Object.freeze({ field, op: 'eq', value }));
+      if (value === undefined || value === null) continue;
+      // The sealed `unassigned`/`overdue` selection translates
+      // here, after validation, to the exact stored backing-field
+      // predicate the State guard evaluates under grant coverage.
+      // No other inventory kind emits null-test operators.
+      if (inventories.get(field)?.kind === 'derived-bool') {
+        // REVIEW 153: preserve a distinct sealed condition. The
+        // query adapter maps exactly this marker to the guarded
+        // State expansion; generic null-test predicates are never
+        // this route and keep refusing downstream.
+        if ((field !== 'unassigned' && field !== 'overdue') || typeof value !== 'boolean') refuseCollectionFilters();
+        conditions.push(Object.freeze({
+          field, op: 'eq', value, derivedBool: Object.freeze({ expansion: field }),
+        }));
+        continue;
+      }
+      conditions.push(Object.freeze({ field, op: 'eq', value }));
     }
     return Object.freeze(conditions);
   };

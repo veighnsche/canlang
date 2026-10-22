@@ -333,7 +333,40 @@ export type QueryPredicate =
       readonly value: unknown;
     }
   | { readonly op: 'between'; readonly field: string; readonly lo: unknown; readonly hi: unknown }
-  | { readonly op: 'is_null' | 'not_null'; readonly field: string };
+  | { readonly op: 'is_null' | 'not_null'; readonly field: string }
+  | {
+      readonly op: 'derived_bool';
+      /**
+       * Sealed derived-bool selector identity; exactly the admitted
+       * `unassigned`/`overdue` pair (field always equals expansion).
+       */
+      readonly field: 'unassigned' | 'overdue';
+      readonly value: boolean;
+      /** Pinned expansion id from the exact authored derive body. */
+      readonly expansion: 'unassigned' | 'overdue';
+      /**
+       * Compiler-emitted owning-declaration source tuple, attached by
+       * the query adapter from the page's sealed filter descriptor.
+       * The Cloudflare page gate verifies it against the loaded
+       * artifact's checked source census before any State admission.
+       */
+      readonly source: {
+        readonly path: string;
+        readonly sha256: string;
+        readonly module: string;
+        readonly node: { readonly start: number; readonly end: number };
+      };
+      /**
+       * Trusted-time carrier for `overdue` only. The query adapter
+       * attaches exactly `{ kind: 'page-query-now' }`; the Cloudflare
+       * page host substitutes the cursor-pinned `queryTimeMs`
+       * DatetimeValue after the receipt gate and before State
+       * admission. State accepts only a genuine DatetimeValue here
+       * (never the sentinel, a number, or a forged object); absent
+       * for `unassigned`.
+       */
+      readonly time?: unknown;
+    };
 
 /** Ordering term: field path with direction. ID tie-break is implicit. */
 export interface OrderTerm {

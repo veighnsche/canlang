@@ -18329,6 +18329,244 @@ function collectionArchiveSourceMetadata(loaded: LoadedCanonicalDescriptors, mod
     decodeValue('datetime', new Date(row.archivedAt).toISOString()) } };
 }
 
+/**
+ * Sealed derived-bool page gate (REVIEWS 156-158, 170-171). Before
+ * any State admission, every `derived_bool` node in the data `where`
+ * — at any nesting depth — must be backed by the compiler-emitted
+ * artifact receipt for the exact requested collection occurrence,
+ * with its source tuple in the loaded artifact census exactly once.
+ *
+ * Identity chain (each link independently checked, none trusted from
+ * the request alone):
+ * - model is exactly `desk.Ticket`;
+ * - the host binding scope is the installed CanDesk app (REVIEW
+ *   171: `scope.ownerPackage` is the app id, NOT the source
+ *   package; the source package binds through the artifact below);
+ * - the occurrence parses as a canonical collection occurrence
+ *   whose route is exactly the one-element `['/support']` triage
+ *   list (REVIEW 170: canonical digits, safe decode, re-encode
+ *   equality, no nested/extra elements or alternate encodings);
+ * - one artifact receipt matches occurrence file/start, page route
+ *   `/support`, and model, and the artifact's own `/support` page
+ *   descriptor is owned by source package `desk`;
+ * - the predicate carries the receipt column's exact source tuple
+ *   (field, expansion, path, sha256, module `desk`, ordered node
+ *   span), and that tuple is exactly one artifact census entry.
+ *
+ * A forged occurrence, marker, model, or nesting position has no
+ * receipt/census match and refuses here. The State matcher remains
+ * defense in depth (grant/projection/secret/model, top-level
+ * conjunction only). Pages without `derived_bool` pass through
+ * untouched.
+ */
+/**
+ * Exact receipt-column vs predicate-source comparison (REVIEW 172):
+ * the artifact receipt is FLAT (`nodeStart`/`nodeEnd`) while the
+ * predicate source is NESTED (`node:{start,end}`). Compare the
+ * respective shapes explicitly; a shared-shape helper would always
+ * fail one side.
+ */
+/**
+ * Exact page-query-now sentinel the query adapter attaches to an
+ * `overdue` predicate. The host substitutes its cursor-pinned
+ * queryTimeMs after the receipt gate; any other `time` value
+ * (concrete instant, altered sentinel, extra keys) refuses.
+ */
+function isPageQueryNowSentinel(time: unknown): boolean {
+  if (!isUnknownRecord(time) || Object.keys(time).length !== 1) return false;
+  return time['kind'] === 'page-query-now';
+}
+
+function sameSealedDerivedSource(column: unknown, source: unknown): boolean {
+  if (!isUnknownRecord(column) || !isUnknownRecord(source)) return false;
+  const field = column['field'];
+  if ((field !== 'unassigned' && field !== 'overdue') || column['expansion'] !== field) return false;
+  if (column['path'] !== source['path'] || column['sha256'] !== source['sha256'] ||
+    column['module'] !== source['module']) return false;
+  const node = source['node'];
+  if (!isUnknownRecord(node)) return false;
+  if (Object.keys(node).length !== 2) return false;
+  return typeof node['start'] === 'number' && typeof node['end'] === 'number' &&
+    column['nodeStart'] === node['start'] && column['nodeEnd'] === node['end'];
+}
+
+export function assertSealedDerivedBoolPageGate(opts: {
+  readonly model: string;
+  readonly artifact: Pick<CompileArtifact, 'sources' | 'pages' | 'derivedBoolReceipts'>;
+  readonly occurrence: unknown;
+  readonly scope: unknown;
+  readonly page: unknown;
+}, where: QueryPredicate | undefined): void {
+  // REVIEW 183: every guard throws directly. A `never`-returning
+  // helper closure does not narrow across this control flow, so no
+  // such helper is used in this function.
+  const denied = (why: string): string => `Sealed derived filter refused: ${why}.`;
+  // Derived-bool placement is enforced here, before phase A and
+  // any State admission: only a bare top-level predicate or direct
+  // children of a top-level `and` (the UI query-adapter shape). An
+  // `or`/`not` nesting would otherwise pass identity checks and —
+  // on an empty domain, where no row ever runs the State per-row
+  // matcher — silently return an empty page instead of refusing.
+  const found: QueryPredicate[] = [];
+  const containsDerived = (node: QueryPredicate): boolean => {
+    if (node.op === 'derived_bool') return true;
+    if (node.op === 'and' || node.op === 'or') return node.args.some(containsDerived);
+    if (node.op === 'not') return containsDerived(node.arg);
+    return false;
+  };
+  if (where !== undefined && containsDerived(where)) {
+    if (where.op === 'derived_bool') {
+      found.push(where);
+    } else if (where.op === 'and' && Array.isArray(where.args)) {
+      for (const arg of where.args) {
+        if (arg.op === 'derived_bool') {
+          found.push(arg);
+          continue;
+        }
+        if (containsDerived(arg)) {
+          throw new AssemblyCorrespondenceError(denied('derived predicate placement'));
+        }
+      }
+    } else {
+      throw new AssemblyCorrespondenceError(denied('derived predicate placement'));
+    }
+  }
+  if (found.length === 0) return;
+  if (opts.model !== 'desk.Ticket') {
+    throw new AssemblyCorrespondenceError(denied('derived filters are bound to the exact desk.Ticket page plan'));
+  }
+  // REVIEW 172: this exact paginated list only. A matching
+  // occurrence must never admit a derived predicate through an
+  // unpaged generic read.
+  if (opts.page !== true) {
+    throw new AssemblyCorrespondenceError(denied('derived filters require the exact paginated collection read'));
+  }
+  if (!isUnknownRecord(opts.scope) || opts.scope['app'] !== 'CanDesk' || opts.scope['ownerPackage'] !== 'CanDesk') {
+    throw new AssemblyCorrespondenceError(denied('page host binding is not the installed CanDesk app'));
+  }
+  if (typeof opts.occurrence !== 'string') {
+    throw new AssemblyCorrespondenceError('Sealed derived filter refused: collection occurrence is missing.');
+  }
+  const parsed = /^can-collection-f([0-9]+)-s([0-9]+)-(.+)$/.exec(opts.occurrence);
+  if (parsed === null) {
+    throw new AssemblyCorrespondenceError('Sealed derived filter refused: collection occurrence is not a checked collection read.');
+  }
+  const [fileText, startText, suffix] = [parsed[1], parsed[2], parsed[3]];
+  if (fileText === undefined || startText === undefined || suffix === undefined ||
+    !Number.isSafeInteger(Number(fileText)) || !Number.isSafeInteger(Number(startText)) ||
+    String(Number(fileText)) !== fileText || String(Number(startText)) !== startText) {
+    throw new AssemblyCorrespondenceError('Sealed derived filter refused: collection occurrence identity is not canonical.');
+  }
+  const file = Number(fileText), start = Number(startText);
+  // REVIEW 183: guards that feed CFA narrowing throw directly;
+  // the `refuse` helper below keeps messages uniform but narrowing
+  // never relies on never-return inference.
+  let decoded: string | undefined;
+  try {
+    decoded = decodeURIComponent(suffix);
+  } catch {
+    throw new AssemblyCorrespondenceError('Sealed derived filter refused: collection occurrence route is not verifiable.');
+  }
+  if (decoded === undefined || encodeURIComponent(decoded) !== suffix) {
+    throw new AssemblyCorrespondenceError('Sealed derived filter refused: collection occurrence route encoding is not canonical.');
+  }
+  let route: unknown;
+  try {
+    route = JSON.parse(decoded);
+  } catch {
+    throw new AssemblyCorrespondenceError(denied('collection occurrence route is not verifiable'));
+  }
+  if (!Array.isArray(route) || route.length !== 1 || route[0] !== '/support') {
+    throw new AssemblyCorrespondenceError(denied('collection occurrence is not the exact triage list'));
+  }
+  const receipts = opts.artifact.derivedBoolReceipts;
+  if (!Array.isArray(receipts)) {
+    throw new AssemblyCorrespondenceError(denied('this artifact carries no sealed derived filter receipt'));
+  }
+  // REVIEW 172: exactly one matching receipt and exactly one
+  // `/support` desk page — never a first match among duplicates.
+  const matchingReceipts = receipts.filter(candidate => isUnknownRecord(candidate) &&
+    candidate['file'] === file && candidate['start'] === start &&
+    candidate['pagePath'] === '/support' && candidate['model'] === 'desk.Ticket');
+  const matching = matchingReceipts[0];
+  if (matchingReceipts.length !== 1 || matching === undefined || !isUnknownRecord(matching)) {
+    throw new AssemblyCorrespondenceError(denied('collection occurrence has no unique sealed derived receipt'));
+  }
+  const supportPages = opts.artifact.pages.filter(page => page.path === '/support' && page.owner === 'desk');
+  if (supportPages.length !== 1) {
+    throw new AssemblyCorrespondenceError(denied('triage list page is not uniquely the desk source package'));
+  }
+  const columns: unknown = matching['columns'];
+  if (!Array.isArray(columns)) {
+    throw new AssemblyCorrespondenceError(denied('sealed receipt has no columns'));
+  }
+  const census = opts.artifact.sources ?? [];
+  for (const predicate of found) {
+    const field = (predicate as { readonly field?: unknown }).field;
+    if (predicate.op !== 'derived_bool' || (field !== 'unassigned' && field !== 'overdue') ||
+      ((predicate as { readonly value?: unknown }).value !== true && (predicate as { readonly value?: unknown }).value !== false) ||
+      (predicate as { readonly expansion?: unknown }).expansion !== field) {
+      throw new AssemblyCorrespondenceError(denied('predicate identity'));
+    }
+    const source = (predicate as { readonly source?: unknown }).source;
+    if (!isUnknownRecord(source)) {
+      throw new AssemblyCorrespondenceError(denied('predicate source tuple'));
+    }
+    // The trusted instant is never request-supplied: `unassigned`
+    // must carry no `time` key at all, while `overdue` must carry
+    // exactly the page-query-now sentinel the host substitutes
+    // after this gate. A concrete instant or altered sentinel is a
+    // forgery of the trusted clock.
+    const time = (predicate as { readonly time?: unknown }).time;
+    if (field === 'overdue' ? !isPageQueryNowSentinel(time) :
+      (time !== undefined || Object.hasOwn(predicate, 'time'))) {
+      throw new AssemblyCorrespondenceError(denied('predicate time carrier'));
+    }
+    const column = columns.find((candidate: unknown) => isUnknownRecord(candidate) &&
+      candidate['field'] === field && candidate['expansion'] === field &&
+      sameSealedDerivedSource(candidate, source));
+    if (column === undefined) {
+      throw new AssemblyCorrespondenceError(denied('predicate source does not match the sealed receipt column'));
+    }
+    if (source['module'] !== 'desk') {
+      throw new AssemblyCorrespondenceError(denied('source owner'));
+    }
+    if (census.filter(candidate => candidate.path === source['path'] && candidate.sha256 === source['sha256']).length !== 1) {
+      throw new AssemblyCorrespondenceError(denied('source tuple is not exactly one artifact census entry'));
+    }
+  }
+}
+
+/**
+ * Substitute the cursor-pinned trusted instant for every sealed
+ * overdue sentinel in a gated data `where`. Runs after the receipt
+ * gate (which admits only the exact sentinel) and after
+ * `queryTimeMs` is known, before State admission. `unassigned`
+ * nodes pass through untouched; any non-sentinel `time` refuses
+ * even here, so a gate bypass can never smuggle a clock.
+ */
+export function resolveDerivedBoolNow(
+  node: QueryPredicate,
+  queryTimeMs: number,
+  StateError: CanonicalStateProducers['errors'],
+): QueryPredicate {
+  if (node.op === 'derived_bool') {
+    if (node.field !== 'overdue') return node;
+    if (!isPageQueryNowSentinel((node as { readonly time?: unknown }).time)) {
+      throw new StateError('validation', 'Overdue filter needs its trusted host instant.');
+    }
+    return { ...node, time: makeDatetime(BigInt(queryTimeMs)) };
+  }
+  if (node.op === 'and' || node.op === 'or') {
+    return { ...node, op: node.op,
+      args: node.args.map(arg => resolveDerivedBoolNow(arg, queryTimeMs, StateError)) };
+  }
+  if (node.op === 'not') {
+    return { ...node, arg: resolveDerivedBoolNow(node.arg, queryTimeMs, StateError) };
+  }
+  return node;
+}
+
 async function queryPageRowsInScope(
   opts: CanonicalPageReadOpts & { readonly model: string; readonly args: ListQueryArgs },
   scope?: NativePagePredicateScope,
@@ -18414,6 +18652,14 @@ async function queryPageRowsInScope(
   const sourcePolicies = sourceReads.policies(opts.model);
   const dataWhere: QueryPredicate | undefined = conjunctionData ??
     (whereFn !== undefined || opts.args.where === undefined ? undefined : opts.args.where as QueryPredicate);
+  // Sealed derived-bool page gate (REVIEW 172): verify every derived
+  // expansion in the data where against the artifact receipt and
+  // census here — before phase A source reads and any State
+  // admission. Later joins add only the observed id set.
+  assertSealedDerivedBoolPageGate(
+    { model: opts.model, artifact: opts.artifact, occurrence: opts.args.occurrence,
+      scope: opts.pageReads?.scope, page: opts.args.page },
+    dataWhere);
   // Phase A (any function source `where`, alone or conjoined): evaluate
   // the source predicate over the full granted domain — including rows
   // the control filters exclude — so a throwing source read or denied
@@ -18499,8 +18745,15 @@ async function queryPageRowsInScope(
       throw new StateError('validation', 'Paged collections require a trusted admission time.');
     }
     const fields = loaded.models.find(model => model.name === opts.model)?.fields ?? {};
-    const resolvedSelection = selection.where === undefined ? selection : { ...selection,
-      where: resolvePageQueryTime(selection.where, fields, queryTimeMs, StateError) };
+    // Sealed overdue sentinels become the cursor-pinned trusted
+    // instant here (same queryTimeMs every page via the cursor), so
+    // the canonical tuple/queryDefinition — and the binding digest
+    // over it — covers the exact evaluation time. Never a fresh
+    // clock per page; missing/invalid admitted_at already refused.
+    const timedWhere = selection.where === undefined ? undefined :
+      resolveDerivedBoolNow(selection.where, queryTimeMs, StateError);
+    const resolvedSelection = timedWhere === undefined ? selection : { ...selection,
+      where: resolvePageQueryTime(timedWhere, fields, queryTimeMs, StateError) };
     const createReader = loaded.producers.transact.createReadPageInvoker;
     if (createReader === undefined) throw new Error('State producer has no finite viewer page invoker.');
     const reader = createReader({ registry: loaded.registry, models: loaded.models, containment: loaded.containment,

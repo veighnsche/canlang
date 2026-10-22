@@ -373,6 +373,41 @@ function checkPredicateField(op: string, field: unknown): void {
  * queries fail deterministically even when no rows are evaluated. Mirrors the
  * storage adapters, which compile predicates before scanning.
  */
+/**
+ * Whether a predicate AST contains a sealed derived-bool expansion
+ * in any position. Shape-only; placement authorization is separate.
+ */
+function containsDerivedBoolNode(node: QueryPredicate): boolean {
+  if (node.op === 'derived_bool') return true;
+  if (node.op === 'and' || node.op === 'or') return node.args.some(containsDerivedBoolNode);
+  if (node.op === 'not') return containsDerivedBoolNode(node.arg);
+  return false;
+}
+
+/**
+ * Derived-bool placement rule (fail closed before any scan): a
+ * sealed expansion is admitted only as a bare top-level predicate
+ * or as direct children of a top-level `and` (the UI query-adapter
+ * shape). Anything nested under `or`/`not` or deeper refuses here —
+ * the per-row matcher alone cannot refuse on an empty domain (no
+ * row ever evaluates), and an unsupported nesting must never
+ * silently match nothing.
+ */
+export function assertDerivedBoolPlacement(where: QueryPredicate): void {
+  if (!containsDerivedBoolNode(where)) return;
+  if (where.op === 'derived_bool') return;
+  if (where.op === 'and' && Array.isArray(where.args)) {
+    for (const arg of where.args) {
+      if (arg.op === 'derived_bool') continue;
+      if (containsDerivedBoolNode(arg)) {
+        throw new StateError('validation', 'Derived-bool predicates require a top-level conjunction.');
+      }
+    }
+    return;
+  }
+  throw new StateError('validation', 'Derived-bool predicates require a top-level conjunction.');
+}
+
 export function validatePredicateShape(predicate: QueryPredicate): void {
   switch (predicate.op) {
     case 'and':
@@ -401,6 +436,26 @@ export function validatePredicateShape(predicate: QueryPredicate): void {
     case 'not_null':
       checkPredicateField(predicate.op, predicate.field);
       return;
+    case 'derived_bool':
+      // Sealed derived-bool expansion: exactly the admitted
+      // `unassigned`/`overdue` selectors (field always equals
+      // expansion) with a well-formed compiler source tuple.
+      // Evaluation requires the viewer grant context (backing-field
+      // coverage); the generic row evaluator below refuses it.
+      // Artifact-census membership of the tuple is the Cloudflare
+      // page gate's job (it owns the loaded artifact); State
+      // rechecks shape and model binding. `overdue` carries the
+      // host-substituted trusted instant (`time`); `unassigned`
+      // carries none, so a smuggled time refuses here.
+      if ((predicate.field !== 'unassigned' && predicate.field !== 'overdue') ||
+        typeof predicate.value !== 'boolean' || predicate.expansion !== predicate.field ||
+        !isSealedDerivedSource(predicate.source)) {
+        throw new StateError('validation', 'Invalid derived-bool predicate shape.');
+      }
+      if (predicate.field === 'overdue' ? predicate.time === undefined : predicate.time !== undefined) {
+        throw new StateError('validation', 'Invalid derived-bool time carrier.');
+      }
+      return;
     default: {
       // Unknown ops are caller errors (StateError), never programmer crashes:
       // S4 callers hand-build `where` until L1 compiles it. Build-time `when`
@@ -409,6 +464,26 @@ export function validatePredicateShape(predicate: QueryPredicate): void {
       throw new StateError('validation', `Unknown query predicate: ${JSON.stringify(op)}.`);
     }
   }
+}
+
+/**
+ * Well-formedness of a compiler-emitted derived-bool source tuple.
+ * Shape only: census membership and page-plan binding are verified
+ * by the Cloudflare page gate, which owns the loaded artifact.
+ */
+export function isSealedDerivedSource(source: unknown): boolean {
+  if (typeof source !== 'object' || source === null || Array.isArray(source)) return false;
+  const record = source as Record<string, unknown>;
+  if (typeof record['path'] !== 'string' || (record['path'] as string).length === 0 ||
+    typeof record['sha256'] !== 'string' || (record['sha256'] as string).length === 0 ||
+    typeof record['module'] !== 'string' || (record['module'] as string).length === 0) return false;
+  const node = record['node'];
+  if (typeof node !== 'object' || node === null || Array.isArray(node)) return false;
+  const range = node as Record<string, unknown>;
+  const start = range['start'], end = range['end'];
+  if (Object.keys(range).length !== 2 || typeof start !== 'number' || typeof end !== 'number' ||
+    !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || !(start <= end)) return false;
+  return Object.keys(record).length === 4;
 }
 
 /** Collect every `field` referenced by a predicate AST. */
@@ -435,6 +510,15 @@ export function collectPredicateFields(predicate: QueryPredicate): string[] {
       case 'is_null':
       case 'not_null':
         fields.push(node.field);
+        return;
+      case 'derived_bool':
+        // The sealed expansion reads exactly its pinned stored
+        // backing fields (`unassigned` one, `overdue` two); the
+        // viewer path check authorizes those fields (never the
+        // derived name) before any row is scanned.
+        if (node.field === 'unassigned') fields.push('assignee');
+        else if (node.field === 'overdue') fields.push('state', 'due');
+        else throw new StateError('validation', `Unknown query predicate: ${JSON.stringify(node.op)}.`);
         return;
       default: {
         const op = (node as QueryPredicate).op;
@@ -666,6 +750,12 @@ export function evalPredicateForRow(
     case 'not_null':
       checkPredicateField(predicate.op, predicate.field);
       return !isNullish(resolveRowPath(row, predicate.field, implicitParent));
+    case 'derived_bool':
+      // Fail closed: a derived-bool expansion discloses a computed
+      // fact, so it may only be evaluated with the row's grant
+      // coverage proven (backing field visible). Use the guarded
+      // viewer evaluator in query/engine.ts, never this bare form.
+      throw new StateError('validation', 'Derived-bool predicates require viewer grant-context evaluation.');
     default: {
       const op = (predicate as QueryPredicate).op;
       throw new StateError('validation', `Unknown query predicate: ${JSON.stringify(op)}.`);

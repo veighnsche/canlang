@@ -421,6 +421,41 @@ type SourceFilterProps = Pick<TableProps, "context" | "filter" | "defaults" | "o
 /** Collection kinds sharing the owned enum-filter pipeline. */
 type SourceFilterFactory = "calendar agenda" | "table" | "gallery" | "list" | "board";
 
+/**
+ * Read the sealed source tuple off a derived-bool filter descriptor
+ * entry. Every component is rechecked exactly; anything else refuses
+ * so a stripped or edited descriptor cannot ride the sealed path.
+ */
+function readSealedDerivedSource(column: ColumnMeta): {
+  readonly path: string; readonly sha256: string; readonly module: string;
+  readonly node: { readonly start: number; readonly end: number };
+} | undefined {
+  if (column.type !== "derived-bool" || (column.expansion !== "unassigned" && column.expansion !== "overdue") ||
+    column.expansion !== column.field) return undefined;
+  const source = column.source;
+  if (typeof source !== "object" || source === null || Array.isArray(source)) return undefined;
+  const record = source as Record<string, unknown>;
+  if (typeof record["path"] !== "string" || (record["path"] as string).length === 0 ||
+    typeof record["sha256"] !== "string" || (record["sha256"] as string).length === 0 ||
+    record["module"] !== "desk") return undefined;
+  const node = record["node"];
+  if (typeof node !== "object" || node === null || Array.isArray(node)) return undefined;
+  const range = node as Record<string, unknown>;
+  // Same BigInt normalization as the presentation boundary: the
+  // emitted literal carries positions as BigInt; the predicate
+  // carries only safe numbers downstream.
+  const rawStart = range["start"], rawEnd = range["end"];
+  const start = typeof rawStart === "bigint" ? Number(rawStart) : rawStart;
+  const end = typeof rawEnd === "bigint" ? Number(rawEnd) : rawEnd;
+  if (Object.keys(range).length !== 2 || typeof start !== "number" || typeof end !== "number" ||
+    !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || !(start <= end)) return undefined;
+  if (Object.keys(record).length !== 4) return undefined;
+  return {
+    path: record["path"] as string, sha256: record["sha256"] as string, module: "desk",
+    node: { start, end },
+  };
+}
+
 export function prepareSourceFilters(props: SourceFilterProps, factory: SourceFilterFactory): {
   readonly conditions: readonly FilterCondition[]; readonly where: unknown;
 } {
@@ -435,6 +470,43 @@ export function prepareSourceFilters(props: SourceFilterProps, factory: SourceFi
     conditions = props.context.prepareCollectionFilters(props.occurrence, props.filter, props.defaults);
   }
   const filters: QueryPredicate[] = conditions.map(condition => {
+    // Sealed derived-bool translation (REVIEWS 144/153): the
+    // presentation preparer attaches the sealed marker only after
+    // exact inventory/marker validation of an `unassigned`/`overdue`
+    // selection. The query adapter maps exactly that marker to the
+    // guarded State expansion evaluated under backing-field grant
+    // coverage. Any mismatch — and any other non-eq — refuses, so
+    // generic null-test predicates are never this route.
+    if (condition.derivedBool !== undefined) {
+      if ((condition.field !== "unassigned" && condition.field !== "overdue") || condition.op !== "eq" ||
+        typeof condition.value !== "boolean" || condition.derivedBool.expansion !== condition.field) {
+        throw new Error(`${factory}: sealed derived filter mismatch`);
+      }
+      // The source tuple travels with the predicate from the page's
+      // own sealed filter descriptor (same trusted literal the
+      // preparer validated). The Cloudflare page gate verifies it
+      // against the loaded artifact census before State admission.
+      const column = (props.filter ?? []).find(entry => entry.field === condition.field);
+      const source = column === undefined ? undefined : readSealedDerivedSource(column);
+      if (source === undefined) {
+        throw new Error(`${factory}: sealed derived filter lacks its source descriptor`);
+      }
+      if (condition.field === "overdue") {
+        // The trusted instant is never caller-supplied: the adapter
+        // attaches exactly the page-query-now sentinel the Cloudflare
+        // host substitutes with its cursor-pinned queryTimeMs after
+        // the receipt gate. Any other `time` value refuses downstream.
+        return {
+          op: "derived_bool", field: "overdue",
+          value: condition.value, expansion: "overdue", source,
+          time: Object.freeze({ kind: "page-query-now" }),
+        };
+      }
+      return {
+        op: "derived_bool", field: "unassigned",
+        value: condition.value, expansion: "unassigned", source,
+      };
+    }
     if (condition.op !== "eq") throw new Error(`${factory}: owning finite-choice equality selection required`);
     return { op: "eq", field: condition.field, value: condition.value };
   });
@@ -450,10 +522,28 @@ export function prepareSourceFilters(props: SourceFilterProps, factory: SourceFi
   return { conditions, where };
 }
 
+/**
+ * Stored backing fields a sealed derived-bool selector evaluates
+ * (REVIEW: overdue reads two). The row assertion below requires
+ * every one present; the State matcher rechecks grants per row.
+ */
+const DERIVED_BOOL_BACKING_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  unassigned: ['assignee'],
+  overdue: ['state', 'due'],
+};
+
 export function assertSourceFilterRow(props: SourceFilterProps, row: RowView, factory: SourceFilterFactory): void {
   for (const field of props.filter ?? []) {
-    if (!Object.hasOwn(row.fields, field.field)) {
-      throw new Error(`${factory}: row "${row.id}" is missing projected filter field "${field.field}"`);
+    // A sealed derived-bool selector is never projected (derived
+    // values are absent from stored rows); the assertion covers the
+    // exact stored backing fields its translation evaluates instead.
+    const backing = field.type === "derived-bool" &&
+      (field.field === "unassigned" || field.field === "overdue") &&
+      field.expansion === field.field ? DERIVED_BOOL_BACKING_FIELDS[field.field] : undefined;
+    for (const asserted of backing ?? [field.field]) {
+      if (!Object.hasOwn(row.fields, asserted)) {
+        throw new Error(`${factory}: row "${row.id}" is missing projected filter field "${asserted}"`);
+      }
     }
   }
 }

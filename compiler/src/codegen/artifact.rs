@@ -59,6 +59,43 @@ pub struct ArtifactModule {
     pub map: SourceMap,
 }
 
+/// One sealed derived-bool column of a page-gate receipt: the pinned
+/// expansion plus the owning derive declaration source.
+#[derive(Debug, Clone)]
+pub struct ArtifactDerivedBoolColumn {
+    /// Selector name as authored in `filter=`.
+    pub field: String,
+    /// Pinned expansion id (exactly the admitted `unassigned`/`overdue`).
+    pub expansion: String,
+    /// Declaring source path from the checked census.
+    pub path: String,
+    /// Declaring source SHA-256 from the checked census.
+    pub sha256: String,
+    /// Owning module name.
+    pub module: String,
+    /// Owning derive declaration span start (byte offset).
+    pub node_start: u32,
+    /// Owning derive declaration span end (exclusive).
+    pub node_end: u32,
+}
+
+/// Compiler-emitted receipt binding one page collection occurrence
+/// to its sealed derived-bool columns (see
+/// `IrDerivedBoolReceipt`).
+#[derive(Debug, Clone)]
+pub struct ArtifactDerivedBoolReceipt {
+    /// Collection node source file (occurrence prefix `f` part).
+    pub file: u32,
+    /// Collection node start byte (occurrence prefix `s` part).
+    pub start: u32,
+    /// Owning page normalized route.
+    pub page_path: String,
+    /// Canonical collection model.
+    pub model: String,
+    /// Sealed derived-bool columns of this collection, in order.
+    pub columns: Vec<ArtifactDerivedBoolColumn>,
+}
+
 /// One declared page descriptor reference.
 #[derive(Debug, Clone)]
 pub struct ArtifactPage {
@@ -243,6 +280,10 @@ pub struct CompileArtifact {
     pub runtime_bindings: Vec<super::runtime_bindings::RuntimeBinding>,
     /// Page descriptors in source order.
     pub pages: Vec<ArtifactPage>,
+    /// Sealed derived-bool collection receipts in page-decode order.
+    /// Empty (and omitted from JSON) when no collection lowers a
+    /// derived-bool selector.
+    pub derived_bool_receipts: Vec<ArtifactDerivedBoolReceipt>,
     /// Lowered migration transitions in source order (B3-I1 registry).
     pub migrations: Vec<ArtifactMigration>,
     /// Linked library/runtime requirements checked at build/activation.
@@ -449,6 +490,29 @@ pub fn assemble(
         committed_changes: js.committed_changes.clone(),
         runtime_bindings: super::runtime_bindings::inventory(ir),
         pages,
+        derived_bool_receipts: ir
+            .derived_bool_receipts
+            .iter()
+            .map(|receipt| ArtifactDerivedBoolReceipt {
+                file: receipt.file,
+                start: receipt.start,
+                page_path: receipt.page_path.clone(),
+                model: receipt.model.clone(),
+                columns: receipt
+                    .columns
+                    .iter()
+                    .map(|column| ArtifactDerivedBoolColumn {
+                        field: column.field.clone(),
+                        expansion: column.expansion.clone(),
+                        path: column.path.clone(),
+                        sha256: column.sha256.clone(),
+                        module: column.module.clone(),
+                        node_start: column.node_start,
+                        node_end: column.node_end,
+                    })
+                    .collect(),
+            })
+            .collect(),
         migrations,
         requires,
         tests,
@@ -679,6 +743,29 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
                 export: &page.export,
             })
             .collect(),
+        derived_bool_receipts: artifact
+            .derived_bool_receipts
+            .iter()
+            .map(|receipt| DerivedBoolReceiptWire {
+                file: receipt.file,
+                start: receipt.start,
+                page_path: &receipt.page_path,
+                model: &receipt.model,
+                columns: receipt
+                    .columns
+                    .iter()
+                    .map(|column| DerivedBoolColumnWire {
+                        field: &column.field,
+                        expansion: &column.expansion,
+                        path: &column.path,
+                        sha256: &column.sha256,
+                        module: &column.module,
+                        node_start: column.node_start,
+                        node_end: column.node_end,
+                    })
+                    .collect(),
+            })
+            .collect(),
         migrations: artifact
             .migrations
             .iter()
@@ -751,6 +838,8 @@ struct ArtifactWire<'a> {
     #[serde(rename = "runtimeBindings")]
     runtime_bindings: &'a [super::runtime_bindings::RuntimeBinding],
     pages: Vec<PageWire<'a>>,
+    #[serde(rename = "derivedBoolReceipts", skip_serializing_if = "Vec::is_empty")]
+    derived_bool_receipts: Vec<DerivedBoolReceiptWire<'a>>,
     migrations: Vec<MigrationWire<'a>>,
     requires: Vec<RequirementWire<'a>>,
     tests: Vec<TestWire<'a>>,
@@ -798,6 +887,30 @@ struct PageWire<'a> {
     path: &'a str,
     module: &'a str,
     export: &'a str,
+}
+
+#[derive(Serialize)]
+struct DerivedBoolColumnWire<'a> {
+    field: &'a str,
+    expansion: &'a str,
+    path: &'a str,
+    #[serde(rename = "sha256")]
+    sha256: &'a str,
+    module: &'a str,
+    #[serde(rename = "nodeStart")]
+    node_start: u32,
+    #[serde(rename = "nodeEnd")]
+    node_end: u32,
+}
+
+#[derive(Serialize)]
+struct DerivedBoolReceiptWire<'a> {
+    file: u32,
+    start: u32,
+    #[serde(rename = "pagePath")]
+    page_path: &'a str,
+    model: &'a str,
+    columns: Vec<DerivedBoolColumnWire<'a>>,
 }
 
 #[derive(Serialize)]

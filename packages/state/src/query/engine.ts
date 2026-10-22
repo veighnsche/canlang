@@ -27,7 +27,7 @@ import type {
   StoredRow,
 } from '@canlang/contracts';
 import {
-  compareInt, compareDecimal, compareMoney, compareDate, compareInstant, decodeValue, SchemaError, ValueError,
+  compareInt, compareDecimal, compareMoney, compareDate, compareInstant, decodeValue, isDatetime, SchemaError, ValueError,
   type Decimal, type MoneyValue, type DateValue, type DatetimeValue,
 } from '@canlang/values';
 import type { StoragePort } from '../storage/port.js';
@@ -40,6 +40,7 @@ import { deepFreeze } from '../internal/own-data.js';
 import { captureSourceReadPolicies, projectInstalledSourceRowAndAncestors,
   type InstalledSourceRowDecision, type ViewerSourceReadPolicy } from './source-policy.js';
 import {
+  assertDerivedBoolPlacement,
   collectPredicateFields,
   evalPredicateForRow,
   isEqualOrUnder,
@@ -208,9 +209,160 @@ export function viewerPageSearchTuple(
 
 /** Closed leaf names for one page-predicate combinator or comparison. */
 function pagePredicateFields(predicate: QueryPredicate): ReadonlyArray<string> {
+  if (predicate.op === 'derived_bool' &&
+    (predicate as { readonly expansion?: unknown }).expansion === 'overdue') {
+    return ['op', 'field', 'value', 'expansion', 'source', 'time'];
+  }
   return predicate.op === 'and' || predicate.op === 'or' ? ['op', 'args'] :
     predicate.op === 'not' ? ['op', 'arg'] : predicate.op === 'between' ? ['op', 'field', 'lo', 'hi'] :
-    predicate.op === 'is_null' || predicate.op === 'not_null' ? ['op', 'field'] : ['op', 'field', 'value'];
+    predicate.op === 'is_null' || predicate.op === 'not_null' ? ['op', 'field'] :
+    predicate.op === 'derived_bool' ? ['op', 'field', 'value', 'expansion', 'source'] : ['op', 'field', 'value'];
+}
+
+/**
+ * Guarded derived-bool evaluation for one viewer row (REVIEW 151).
+ * The sealed expansion admits exactly `unassigned` (over the owned
+ * stored `assignee`) and `overdue` (over the owned stored `state`
+ * and nullable `due`, compared against the host-substituted trusted
+ * instant) of the exact `desk.Ticket` model; every other model
+ * refuses. All of the following must hold before either branch
+ * evaluates, otherwise the whole read refuses (fail closed — a
+ * missing grant is never classified as null): the row's matched
+ * grants include every backing field, no backing field is a secret
+ * (projection would have stripped it), and every backing field is
+ * actually present in the projected row (not just named in grant
+ * text). Only then are the stored values read.
+ */
+function evalDerivedBoolForViewerRow(
+  predicate: Extract<QueryPredicate, { readonly op: 'derived_bool' }>,
+  grants: ReadonlyArray<Pick<InterimGrant, 'fields'>>,
+  row: StoredRow,
+  projected: ProjectedRecord,
+  model: string,
+  secrets: ReadonlyArray<string>,
+): boolean {
+  if (model !== 'desk.Ticket') {
+    throw new StateError('forbidden', 'Derived-bool predicates are bound to the exact desk.Ticket page plan.');
+  }
+  if ((predicate.field !== 'unassigned' && predicate.field !== 'overdue') ||
+    typeof predicate.value !== 'boolean' || predicate.expansion !== predicate.field) {
+    throw new StateError('validation', 'Invalid derived-bool predicate shape.');
+  }
+  if (predicate.field === 'unassigned') {
+    if (predicate.time !== undefined) {
+      throw new StateError('validation', 'Invalid derived-bool time carrier.');
+    }
+    if (secrets.includes('assignee')) {
+      throw new StateError('forbidden', 'Derived filter backing field must not be secret.');
+    }
+    const covered = grants.some(grant => grant.fields.includes('assignee'));
+    if (!covered || !Object.hasOwn(projected.data, 'assignee')) {
+      throw new StateError('forbidden', 'Derived filter needs the backing field grant for every evaluated row.');
+    }
+    const assigned = row.data['assignee'] !== null && row.data['assignee'] !== undefined;
+    return predicate.value ? !assigned : assigned;
+  }
+  // `overdue`: state != resolved AND due != null AND due < time.
+  // The false branch is the exact negation (resolved states and
+  // null dues are not overdue). `time` is the genuine DatetimeValue
+  // the Cloudflare host substituted for the page-query-now sentinel
+  // after the receipt gate; the sentinel itself, numbers, strings,
+  // and forged objects refuse here before any row comparison.
+  if (!isDatetime(predicate.time)) {
+    throw new StateError('validation', 'Overdue filter needs its trusted host instant.');
+  }
+  for (const backing of ['state', 'due'] as const) {
+    if (secrets.includes(backing)) {
+      throw new StateError('forbidden', 'Derived filter backing field must not be secret.');
+    }
+    const covered = grants.some(grant => grant.fields.includes(backing));
+    if (!covered || !Object.hasOwn(projected.data, backing)) {
+      throw new StateError('forbidden', 'Derived filter needs the backing field grant for every evaluated row.');
+    }
+  }
+  const state = row.data['state'];
+  const due = row.data['due'];
+  // Stored values are model-typed (`state` an enum string). `due`
+  // persists as the canonical datetime wire (RFC 3339 UTC millis,
+  // exactly what production SQL adapters stringify); in-process
+  // native DatetimeValues are accepted too. Anything else —
+  // including an arbitrary string — is a corrupt row and refuses,
+  // never silently classified into either branch.
+  if (typeof state !== 'string') {
+    throw new StateError('validation', 'Overdue filter needs its stored enum state.');
+  }
+  if (due === null || due === undefined) {
+    return predicate.value ? false : true;
+  }
+  let dated: DatetimeValue;
+  if (isDatetime(due)) {
+    dated = due;
+  } else if (typeof due === 'string') {
+    try {
+      dated = decodeValue('datetime', due) as DatetimeValue;
+    } catch (error) {
+      if (!(error instanceof SchemaError) && !(error instanceof ValueError)) throw error;
+      throw new StateError('validation', `Overdue filter needs its stored datetime wire: ${error.message}.`);
+    }
+    if (!isDatetime(dated)) {
+      throw new StateError('validation', 'Overdue filter needs its stored datetime wire.');
+    }
+  } else {
+    throw new StateError('validation', 'Overdue filter needs its stored nullable datetime due.');
+  }
+  const overdue = state !== 'resolved' && compareInstant(dated, predicate.time) < 0;
+  return predicate.value ? overdue : !overdue;
+}
+
+/**
+ * Whether a predicate AST contains a sealed derived-bool expansion
+ * in any position.
+ */
+function containsDerivedBool(node: QueryPredicate): boolean {
+  if (node.op === 'derived_bool') return true;
+  if (node.op === 'and' || node.op === 'or') return node.args.some(containsDerivedBool);
+  if (node.op === 'not') return containsDerivedBool(node.arg);
+  return false;
+}
+
+/**
+ * Viewer `where` evaluation with sealed derived-bool support. With
+ * no derived_bool present the evaluation is exactly the previous
+ * projected-row path. Otherwise the derived expansion must sit as a
+ * bare top-level predicate or a direct conjunct of a top-level
+ * `and` (the UI query-adapter shape); any nested position refuses.
+ * Each derived conjunct evaluates under the row's grant coverage;
+ * every other conjunct evaluates on the projected row as before.
+ */
+function matchViewerWhereWithDerived(
+  where: QueryPredicate,
+  projected: ProjectedRecord,
+  row: StoredRow,
+  grants: ReadonlyArray<Pick<InterimGrant, 'fields'>>,
+  intFields: ReadonlySet<string> | undefined,
+  implicitParent: boolean,
+  model: string,
+  secrets: ReadonlyArray<string>,
+): boolean {
+  if (!containsDerivedBool(where)) {
+    return evalPredicateForRow(where, projected, intFields, implicitParent);
+  }
+  const conjuncts = where.op === 'derived_bool' ? [where] :
+    where.op === 'and' ? where.args : null;
+  if (conjuncts === null) {
+    throw new StateError('validation', 'Derived-bool predicates require a top-level conjunction.');
+  }
+  for (const arg of conjuncts) {
+    if (arg.op === 'derived_bool') {
+      if (!evalDerivedBoolForViewerRow(arg, grants, row, projected, model, secrets)) return false;
+      continue;
+    }
+    if (containsDerivedBool(arg)) {
+      throw new StateError('validation', 'Derived-bool predicates require a top-level conjunction.');
+    }
+    if (!evalPredicateForRow(arg, projected, intFields, implicitParent)) return false;
+  }
+  return true;
 }
 
 /** Finite scalar operand: primitives pass through, references travel as ids. */
@@ -244,6 +396,39 @@ export function viewerPagePredicateTuple(predicate: QueryPredicate): ViewerPageT
     case 'not': return [predicate.op, viewerPagePredicateTuple(predicate.arg)];
     case 'is_null': case 'not_null':
       validatePredicateShape(predicate); return [predicate.op, predicate.field];
+    case 'derived_bool': {
+      // REVIEW 150: exact key-count branch (five for `unassigned`,
+      // six for `overdue` with its trusted instant) with a distinct
+      // canonical tuple shape carrying the sealed expansion and
+      // source tuple. Shape validation is not authorization: row
+      // evaluation still requires the guarded viewer matcher with
+      // backing-field grant coverage, and census membership plus
+      // page-plan binding are verified by the Cloudflare gate before
+      // State admission. The overdue instant travels as a safe-int
+      // millisecond number so the page binding digest covers the
+      // exact trusted time (cursor continuity without a fresh clock).
+      validatePredicateShape(predicate);
+      if ((predicate.field !== 'unassigned' && predicate.field !== 'overdue') ||
+        typeof predicate.value !== 'boolean' || predicate.expansion !== predicate.field) {
+        throw new StateError('validation', 'Invalid derived-bool predicate shape.');
+      }
+      const source = predicate.source;
+      const head = [predicate.op, predicate.field, predicate.value, predicate.expansion,
+        source.path, source.sha256, source.module, source.node.start, source.node.end] as const;
+      if (predicate.field === 'unassigned') return [...head];
+      if (!isDatetime(predicate.time)) {
+        throw new StateError('validation', 'Overdue filter needs its trusted host instant.');
+      }
+      const ms = predicate.time.ms;
+      if (typeof ms !== 'bigint') {
+        throw new StateError('validation', 'Overdue filter needs its trusted host instant.');
+      }
+      const msNumber = Number(ms);
+      if (!Number.isSafeInteger(msNumber)) {
+        throw new StateError('validation', 'Overdue filter needs its trusted host instant.');
+      }
+      return [...head, msNumber];
+    }
     case 'between':
       validatePredicateShape(predicate); return [predicate.op, predicate.field, pagePredicateScalar(predicate.lo), pagePredicateScalar(predicate.hi)];
     default:
@@ -1337,6 +1522,11 @@ async function readAuthorizedQueryRevision(
   const order = checkAuthorizedQueryOrder(input);
   if (input.where !== undefined) {
     validatePredicateShape(input.where);
+    // Derived-bool placement is enforced before any async read or
+    // scan: the per-row matcher cannot refuse on an empty domain,
+    // and unsupported or/not nesting must never silently match
+    // nothing. Every query path (direct, paged, owner) funnels here.
+    assertDerivedBoolPlacement(input.where);
   }
   // Copy only the selected scalar type claims before any asynchronous reads.
   const modelDescriptorMismatch = input.modelDescriptor !== undefined && input.modelDescriptor.name !== input.model;
@@ -1475,7 +1665,8 @@ async function matchCoherentPredicateRows(
     const projected = 'record' in authority ? authority.record :
       authority.grants.length === 0 ? null : projectRow(row, authority.grants, run.secrets);
     if (projected === null) { matches.push(false); continue; }
-    if (input.where !== undefined && !evalPredicateForRow(input.where, projected, run.decisionIntFields, run.implicitParent)) {
+    if (input.where !== undefined && !matchViewerWhereWithDerived(input.where, projected, row,
+      authority.grants, run.decisionIntFields, run.implicitParent, input.model, run.secrets)) {
       matches.push(false); continue;
     }
     const detached = cleanCopy(projected) as ProjectedRecord;
@@ -1619,7 +1810,8 @@ async function matchOneViewerRow(
     retainQuerySourcePresence(candidate.record, input.model, run.revision, presence);
     observation!.candidates.push(candidate);
   }
-  if (input.where !== undefined && !evalPredicateForRow(input.where, projected, run.decisionIntFields, run.implicitParent)) {
+  if (input.where !== undefined && !matchViewerWhereWithDerived(input.where, projected, row,
+    matching, run.decisionIntFields, run.implicitParent, input.model, run.secrets)) {
     return;
   }
   if (run.predicate !== undefined || observation !== undefined) {

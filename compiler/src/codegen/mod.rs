@@ -379,6 +379,7 @@ fn empty_artifact(db: &SourceDb) -> CompileArtifact {
         committed_changes: None,
         runtime_bindings: Vec::new(),
         pages: Vec::new(),
+        derived_bool_receipts: Vec::new(),
         migrations: Vec::new(),
         requires: Vec::new(),
         tests: Vec::new(),

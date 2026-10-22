@@ -721,9 +721,41 @@ export type ArtifactRuntimeBinding = {
   | { kind: "r2"; implicit: true }
 );
 
+/**
+ * One sealed derived-bool column of a page-gate receipt: the pinned
+ * expansion plus the owning derive declaration source tuple.
+ */
+export interface ArtifactDerivedBoolColumn {
+  readonly field: string;
+  readonly expansion: string;
+  readonly path: string;
+  readonly sha256: string;
+  readonly module: string;
+  readonly nodeStart: number;
+  readonly nodeEnd: number;
+}
+
+/**
+ * Compiler-emitted receipt binding one page collection occurrence
+ * to its sealed derived-bool columns. Loaders treat absence as no
+ * sealed derived descriptors, exactly like other optional receipts.
+ */
+export interface ArtifactDerivedBoolReceipt {
+  readonly file: number;
+  readonly start: number;
+  readonly pagePath: string;
+  readonly model: string;
+  readonly columns: ArtifactDerivedBoolColumn[];
+}
+
 export interface CompileArtifact {
   /** Same source inventory as entry appDefinition.runtimeBindings. Omission is legacy. */
   runtimeBindings?: ArtifactRuntimeBinding[];
+  /**
+   * Sealed derived-bool collection receipts in page-decode order.
+   * Absent (or empty) when no collection lowers a derived selector.
+   */
+  derivedBoolReceipts?: ArtifactDerivedBoolReceipt[];
   artifact_version: typeof ARTIFACT_VERSION;
   language_version: string;
   tool_version: string;

@@ -501,6 +501,14 @@ export interface ColumnMeta {
   readonly type: string;
   /** Bool/enum case captions keyed by stable value ("true"/case name). */
   readonly valueLabels?: Record<string, MessageValue>;
+  /**
+   * Sealed derived-bool expansion id (compiler-emitted, only on
+   * `derived-bool` columns). Presentation and UI verify this exact
+   * value before translating to a stored backing-field predicate.
+   */
+  readonly expansion?: string;
+  /** Owning derive declaration source marker for the sealed expansion. */
+  readonly source?: unknown;
 }
 
 /** Checked source column identity/type, never a field grant or rendering metadata. */
@@ -1260,6 +1268,13 @@ export interface FilterCondition {
   readonly op: FilterOperator;
   readonly value?: unknown;
   readonly upper?: unknown;
+  /**
+   * Sealed derived-bool marker (presentation-built only, after exact
+   * inventory/marker validation). The query adapter maps exactly
+   * this marker to the guarded State expansion; the marker is never
+   * request-supplied and any mismatch refuses.
+   */
+  readonly derivedBool?: { readonly expansion: 'unassigned' | 'overdue' };
 }
 
 /** Literal search over declared readable fields (accepted state, not a predicate). */

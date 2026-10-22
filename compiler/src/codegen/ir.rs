@@ -768,6 +768,9 @@ pub struct IrProgram {
         HashMap<SymbolId, crate::analysis::scenario_disclosure::ScenarioDisclosure>,
     /// Declaration census retained by the checked builder, never a wire claim.
     pub committed_sources: CheckedCommittedSources,
+    /// Sealed derived-bool collection receipts in page-decode order,
+    /// serialized into the artifact for the Cloudflare page gate.
+    pub derived_bool_receipts: Vec<IrDerivedBoolReceipt>,
     /// Checked closed-enum-case nodes retained for source correspondence:
     /// only members admitted here may lower to a case constant. The
     /// source-expression matcher consults this identity rather than
@@ -936,6 +939,7 @@ fn empty_program(catalog_version: &str) -> IrProgram {
         value_constraints: HashMap::new(),
         scenario_disclosures: HashMap::new(),
         committed_sources: CheckedCommittedSources::default(),
+        derived_bool_receipts: Vec::new(),
         resolved_cases: HashSet::new(),
         standard_completion_sources: CheckedStandardCompletionSources::default(),
         catalog_version: catalog_version.to_string(),
@@ -1111,6 +1115,16 @@ struct Cx<'a> {
     callback_reads: Vec<String>,
     callback_value_lists: Vec<String>,
     callback_sources: Vec<CheckedGenerationCallbackSource>,
+    /// Decoded derive bodies by DeriveField symbol, for source-sealed
+    /// derived-bool filter pins (filled during model decoding, read
+    /// during page filter decoding).
+    derived_bodies: HashMap<SymbolId, TypedExpr>,
+    /// Sealed derived-bool receipts completed with their owning page
+    /// route at page decode (moved into the program at build).
+    derived_bool_receipts: Vec<IrDerivedBoolReceipt>,
+    /// Receipts collected by collection decode without page identity,
+    /// drained by page decode where the route is known.
+    pending_derived_bool_receipts: Vec<IrDerivedBoolReceipt>,
     diags: Vec<Diagnostic>,
 }
 
@@ -1189,6 +1203,9 @@ impl<'a> Cx<'a> {
             callback_reads: Vec::new(),
             callback_value_lists: Vec::new(),
             callback_sources: Vec::new(),
+            derived_bodies: HashMap::new(),
+            derived_bool_receipts: Vec::new(),
+            pending_derived_bool_receipts: Vec::new(),
             diags: Vec::new(),
         }
     }
@@ -4711,6 +4728,47 @@ pub struct IrPage {
     pub span: Span,
 }
 
+/// One sealed derived-bool filter column as emitted in a page
+/// collection descriptor: the pinned expansion plus the owning
+/// derive declaration source the Cloudflare page gate verifies
+/// against the loaded artifact census.
+#[derive(Debug, Clone)]
+pub struct IrDerivedBoolColumn {
+    /// Selector name as authored in `filter=`.
+    pub field: String,
+    /// Pinned expansion id (exactly the admitted `unassigned`/`overdue`).
+    pub expansion: String,
+    /// Declaring source path from the checked census.
+    pub path: String,
+    /// Declaring source SHA-256 from the checked census.
+    pub sha256: String,
+    /// Owning module name.
+    pub module: String,
+    /// Owning derive declaration span (byte offsets).
+    pub node_start: u32,
+    /// Owning derive declaration span end (exclusive).
+    pub node_end: u32,
+}
+
+/// Compiler-emitted receipt binding one page collection occurrence
+/// to its sealed derived-bool columns. The Cloudflare page gate
+/// matches the request occurrence and predicate source tuple
+/// against this receipt and the artifact census before any State
+/// admission; a forged occurrence or marker has no receipt entry.
+#[derive(Debug, Clone)]
+pub struct IrDerivedBoolReceipt {
+    /// Collection node source file (occurrence prefix `f` part).
+    pub file: u32,
+    /// Collection node start byte (occurrence prefix `s` part).
+    pub start: u32,
+    /// Owning page normalized route.
+    pub page_path: String,
+    /// Canonical collection model.
+    pub model: String,
+    /// Sealed derived-bool columns of this collection, in order.
+    pub columns: Vec<IrDerivedBoolColumn>,
+}
+
 #[derive(Debug, Clone)]
 pub struct IrRecordRoute {
     pub model: String,
@@ -5665,6 +5723,7 @@ impl<'a> Cx<'a> {
             value_constraints: self.program.types.value_constraints.clone(),
             scenario_disclosures: self.program.scenario_disclosures().clone(),
             committed_sources,
+            derived_bool_receipts: std::mem::take(&mut self.derived_bool_receipts),
             resolved_cases: self.program.types.resolved_cases.clone(),
             standard_completion_sources,
             catalog_version: self.program.catalog_version.clone(),
@@ -6314,6 +6373,9 @@ impl<'a> Cx<'a> {
             }
             SymbolKind::DeriveField { model, .. } => {
                 let (expr, label) = self.decode_derive(symbol);
+                if let Some(body) = expr.clone() {
+                    self.derived_bodies.insert(symbol.id, body);
+                }
                 IrItemKind::DeriveField {
                     model: *model,
                     ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
@@ -13952,6 +14014,10 @@ impl<'a> Cx<'a> {
         module_name: &str,
         page: &crate::analysis::effects::PageData,
     ) -> IrPage {
+        // Pending receipts belong to this page only: discard any
+        // leftovers from a previously failed page decode so they can
+        // never attach to the wrong route at drain time.
+        self.pending_derived_bool_receipts.clear();
         let span = Span::new(page.node.file, page.node.start, page.node.end);
         let source_lang = self.checked_message_source_lang(module, span);
         let scope = Scope::module(module);
@@ -14033,6 +14099,13 @@ impl<'a> Cx<'a> {
         }
         let fn_name = self.page_fn_name(module_name, &path);
         let descriptor_name = format!("{fn_name}Descriptor");
+        // Sealed derived-bool receipts collected without page
+        // identity are completed here with this page's normalized
+        // route before the render tree leaves this function.
+        for mut receipt in std::mem::take(&mut self.pending_derived_bool_receipts) {
+            receipt.page_path = path.clone();
+            self.derived_bool_receipts.push(receipt);
+        }
         IrPage {
             owner: module_name.to_string(),
             path,
@@ -19709,6 +19782,322 @@ impl<'a> Cx<'a> {
         Some(Some((filter, defaults)))
     }
 
+    /// Derived-bool filter selector: an owned bool DeriveField of this
+    /// model whose canonical identity is one of the two sealed CanDesk
+    /// triage derives. Anything else keeps the refusal in the caller.
+    fn filter_derived_bool_selector(&self, model: SymbolId, name: &str) -> Option<SymbolId> {
+        if name != "unassigned" && name != "overdue" {
+            return None;
+        }
+        let model_symbol = self.program.symbols.get(model.0 as usize)?;
+        let expected = format!("desk.Ticket.{name}");
+        self.program.symbols.iter().find(|symbol| {
+            symbol.name == name
+                && symbol.module == model_symbol.module
+                && symbol.canonical == expected
+                && matches!(&symbol.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model)
+        }).map(|symbol| symbol.id)
+    }
+
+    /// Pin the exact authored derive body behind a derived-bool filter and
+    /// return its sealed expansion id. `unassigned` is exactly
+    /// `row.assignee==null`; `overdue` is exactly
+    /// `row.state!=resolved and row.due!=null and row.due<now` in any
+    /// and-nesting. An altered body keeps the refusal.
+    /// Decode this exact derive body on demand (REVIEW 148): pages
+    /// decode before `build_items` fills `derived_bodies`, so a page
+    /// filter cannot rely on the stash. Decodes from the checked
+    /// derive fact only, never from name or spelling; the decoded
+    /// body is pinned by the caller exactly as a stashed one.
+    fn derived_bool_body(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> Option<TypedExpr> {
+        if let Some(body) = self.derived_bodies.get(&symbol.id).cloned() {
+            return Some(body);
+        }
+        let (expr, _) = self.decode_derive(symbol);
+        let body = expr?;
+        self.derived_bodies.insert(symbol.id, body.clone());
+        Some(body)
+    }
+
+    fn filter_derived_bool_expansion(&mut self, symbol: &crate::analysis::resolve::Symbol, model: SymbolId) -> Option<&'static str> {
+        if !matches!(&symbol.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model) {
+            return None;
+        }
+        if self.program.symbols.get(model.0 as usize).is_none_or(|item| item.module != symbol.module) {
+            return None;
+        }
+        let body = self.derived_bool_body(symbol)?;
+        if body.ty != ResolvedType::Scalar(Scalar::Bool) {
+            return None;
+        }
+        let body = &body;
+        if symbol.name == "unassigned" && symbol.canonical == "desk.Ticket.unassigned"
+            && Self::derived_bool_is_null_member(body, "row", "assignee")
+            && self.filter_derived_bool_backing_field(
+                model,
+                "assignee",
+                &ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::User))),
+            ) {
+            return Some("unassigned");
+        }
+        // `overdue` is exactly `row.state!=resolved and
+        // row.due!=null and row.due<now` over the owned stored
+        // `Ticket.state` enum (with a `resolved` case) and the owned
+        // stored nullable `Ticket.due` datetime, compared against
+        // the checked datetime `now`. Every member type must equal
+        // the exact backing-field type (enum owner included), so a
+        // same-spelled field of another model or type cannot ride.
+        if symbol.name == "overdue" && symbol.canonical == "desk.Ticket.overdue"
+            && self.filter_derived_bool_overdue(body, model) {
+            return Some("overdue");
+        }
+        None
+    }
+
+    /// Exact typed pins for the `overdue` expansion. Returns true
+    /// only when the model owns a stored `state` enum field with a
+    /// `resolved` case and a stored nullable-datetime `due` field,
+    /// and the three conjuncts compare exactly those typed members
+    /// (same `row`) against the enum case, null, and checked `now`.
+    fn filter_derived_bool_overdue(&self, body: &TypedExpr, model: SymbolId) -> bool {
+        if body.ty != ResolvedType::Scalar(Scalar::Bool) {
+            return false;
+        }
+        let Some(model_symbol) = self.program.symbols.get(model.0 as usize) else {
+            return false;
+        };
+        let SymbolKind::Model { fields, .. } = &model_symbol.kind else {
+            return false;
+        };
+        let mut state_ty: Option<&ResolvedType> = None;
+        let mut due_ty: Option<&ResolvedType> = None;
+        for id in fields {
+            let Some(field) = self.program.symbols.get(id.0 as usize) else {
+                continue;
+            };
+            if field.module != model_symbol.module {
+                continue;
+            }
+            if !matches!(&field.kind, SymbolKind::Field { owner, .. } if *owner == model) {
+                continue;
+            }
+            let Some(ty) = self.program.types.symbol_types.get(&field.id) else {
+                continue;
+            };
+            if field.name == "state" {
+                if !matches!(ty, ResolvedType::Enum { cases, owner }
+                    if cases.iter().any(|case| case == "resolved") && *owner == Some(field.id)) {
+                    return false;
+                }
+                state_ty = Some(ty);
+            } else if field.name == "due" {
+                if !matches!(ty, ResolvedType::Nullable(inner)
+                    if inner.as_ref() == &ResolvedType::Scalar(Scalar::Datetime)) {
+                    return false;
+                }
+                due_ty = Some(ty);
+            }
+        }
+        let (Some(state_ty), Some(due_ty)) = (state_ty, due_ty) else {
+            return false;
+        };
+        // `collect_and_conjuncts` flattens left-to-right, so the
+        // vector order is the authored evaluation order. Require
+        // exactly `state!=resolved`, then `due!=null`, then
+        // `due<now`: the null guard must precede the comparison
+        // whose narrowed datetime type it authorizes. A reordered
+        // body (where short-circuit null handling could differ)
+        // keeps the refusal.
+        let mut conjuncts = Vec::new();
+        Self::collect_and_conjuncts(body, &mut conjuncts);
+        if conjuncts.len() != 3 {
+            return false;
+        }
+        let order = |index: usize| {
+            let conjunct = conjuncts[index];
+            let IrExpr::Binary { op, left, right } = &conjunct.expr else {
+                return false;
+            };
+            match (index, op) {
+                (0, IrBinOp::Ne)
+                    if Self::derived_bool_member(left, "row", "state")
+                        && left.ty == *state_ty
+                        && matches!(&right.expr, IrExpr::Text(case) if case == "resolved")
+                        && right.ty == left.ty =>
+                {
+                    true
+                }
+                (1, IrBinOp::Ne)
+                    if Self::derived_bool_member(left, "row", "due")
+                        && left.ty == *due_ty
+                        && matches!(&right.expr, IrExpr::Null) =>
+                {
+                    true
+                }
+                // The preceding null guard lets the checker narrow
+                // `due` to non-null here, so both the declared
+                // nullable type and the narrowed datetime type pin
+                // the same owned backing field.
+                (2, IrBinOp::Lt)
+                    if Self::derived_bool_member(left, "row", "due")
+                        && (left.ty == *due_ty
+                            || left.ty == ResolvedType::Scalar(Scalar::Datetime))
+                        && matches!(&right.expr, IrExpr::Member { base, field }
+                            if field == "now" && matches!(&base.expr, IrExpr::Name(ctx) if ctx == "c"))
+                        && right.ty == ResolvedType::Scalar(Scalar::Datetime) =>
+                {
+                    true
+                }
+                _ => false,
+            }
+        };
+        order(0) && order(1) && order(2)
+    }
+
+    fn derived_bool_member(expr: &TypedExpr, base: &str, field: &str) -> bool {
+        matches!(&expr.expr, IrExpr::Member { base: row, field: name }
+            if name == field && matches!(&row.expr, IrExpr::Name(owner) if owner == base))
+    }
+
+    /// The model must own a stored field with this exact name and
+    /// type: the derived member alone cannot authorize the backing
+    /// grant check the runtime performs before either branch.
+    fn filter_derived_bool_backing_field(
+        &self,
+        model: SymbolId,
+        name: &str,
+        ty: &ResolvedType,
+    ) -> bool {
+        let Some(model_symbol) = self.program.symbols.get(model.0 as usize) else {
+            return false;
+        };
+        let SymbolKind::Model { fields, .. } = &model_symbol.kind else {
+            return false;
+        };
+        fields.iter().any(|id| {
+            self.program.symbols.get(id.0 as usize).is_some_and(|field| {
+                field.name == name
+                    && matches!(&field.kind, SymbolKind::Field { owner, .. } if *owner == model)
+                    && self.program.types.symbol_types.get(&field.id) == Some(ty)
+            })
+        })
+    }
+
+    /// Same-row binding holds by shape: the admitted bodies are a
+    /// single binary comparison (or three for overdue) whose every
+    /// operand is a direct `row.`/`c.` member or literal. No let,
+    /// comprehension, or call node fits the match, so no nested scope
+    /// can rebind `row` between conjuncts.
+    fn derived_bool_is_null_member(expr: &TypedExpr, base: &str, field: &str) -> bool {
+        if expr.ty != ResolvedType::Scalar(Scalar::Bool) {
+            return false;
+        }
+        let IrExpr::Binary { op: IrBinOp::Eq, left, right } = &expr.expr else {
+            return false;
+        };
+        if !matches!(&right.expr, IrExpr::Null) {
+            return false;
+        }
+        Self::derived_bool_member(left, base, field)
+            && matches!(&left.ty, ResolvedType::Nullable(inner)
+                if inner.as_ref() == &ResolvedType::Scalar(Scalar::User))
+    }
+
+    /// The derived-bool filter names an owned declaration of this model:
+    /// same name, same module, DeriveField owned by the model and listed
+    /// in its fields. Anything else keeps the refusal in the caller.
+    fn filter_derived_bool_declared(
+        &self,
+        symbol: &crate::analysis::resolve::Symbol,
+        model: SymbolId,
+    ) -> bool {
+        if !matches!(&symbol.kind, SymbolKind::DeriveField { model: owner, .. } if *owner == model) {
+            return false;
+        }
+        let Some(model_symbol) = self.program.symbols.get(model.0 as usize) else {
+            return false;
+        };
+        if symbol.module != model_symbol.module {
+            return false;
+        }
+        matches!(&model_symbol.kind, SymbolKind::Model { fields, .. } if fields.contains(&symbol.id))
+    }
+
+    /// Append the sealed expansion marker to the just-pushed filter
+    /// column: the pinned expansion id plus the owning derive
+    /// declaration source for the runtime gate.
+    fn push_filter_derived_expansion(
+        &mut self,
+        columns: &mut Vec<TypedExpr>,
+        symbol: &crate::analysis::resolve::Symbol,
+        expansion: &str,
+        path_span: Span,
+    ) {
+        let Some(column) = columns.last_mut() else {
+            return;
+        };
+        let IrExpr::Object(entries) = &mut column.expr else {
+            return;
+        };
+        let (path, sha256, module) = self
+            .db
+            .get(symbol.span.file)
+            .map(|file| {
+                let module = self
+                    .program
+                    .modules
+                    .iter()
+                    .find(|module| module.id == symbol.module)
+                    .map(|module| module.name.clone())
+                    .unwrap_or_default();
+                (file.path.clone(), file.sha256.clone(), module)
+            })
+            .unwrap_or_default();
+        entries.push((
+            "expansion".to_string(),
+            TypedExpr::new(
+                IrExpr::Text(expansion.to_string()),
+                ResolvedType::Scalar(Scalar::Text),
+                path_span,
+            ),
+        ));
+        entries.push((
+            "source".to_string(),
+            TypedExpr::new(
+                IrExpr::Object(vec![
+                    ("path".to_string(), Self::filter_text_expr(path, path_span)),
+                    ("sha256".to_string(), Self::filter_text_expr(sha256, path_span)),
+                    ("module".to_string(), Self::filter_text_expr(module, path_span)),
+                    (
+                        "node".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Object(vec![
+                                ("start".to_string(), TypedExpr::new(IrExpr::Int(symbol.span.start as i128), ResolvedType::Scalar(Scalar::Int), path_span)),
+                                ("end".to_string(), TypedExpr::new(IrExpr::Int(symbol.span.end as i128), ResolvedType::Scalar(Scalar::Int), path_span)),
+                            ]),
+                            ResolvedType::Unknown,
+                            path_span,
+                        ),
+                    ),
+                ]),
+                ResolvedType::Unknown,
+                path_span,
+            ),
+        ));
+    }
+
+    fn collect_and_conjuncts<'e>(expr: &'e TypedExpr, out: &mut Vec<&'e TypedExpr>) {
+        if let IrExpr::Binary { op: IrBinOp::And, left, right } = &expr.expr {
+            Self::collect_and_conjuncts(left, out);
+            Self::collect_and_conjuncts(right, out);
+        } else {
+            out.push(expr);
+        }
+    }
+
     fn resolve_filter_selector(
         &mut self,
         model: SymbolId,
@@ -19733,6 +20122,7 @@ impl<'a> Cx<'a> {
         let source_name = money_currency.unwrap_or(name).to_string();
         let field_id = if let Some(parent) = implicit_parent { parent }
             else if let Some(id) = self.fields.get(&(model, source_name.to_string())).copied() { id }
+            else if let Some(id) = self.filter_derived_bool_selector(model, &source_name) { id }
             else { self.filter_decode_fail(word, path.span); return None; };
         Some((name.clone(), source_name, field_id, implicit_parent, money_currency.is_some()))
     }
@@ -19940,15 +20330,57 @@ impl<'a> Cx<'a> {
                 self.resolve_filter_selector(model, path, word)?;
             let (symbol, ty) =
                 self.filter_selector_type(field_id, implicit_parent, money, path.span, word)?;
-            let (type_text, cases) = self.filter_type_cases(&ty, path.span, word)?;
-            if self.filter_selector_rejected(
-                &symbol, &source_name, model, field_id, implicit_parent, &name, &ty, &cases,
-                selected,
-            ) {
+            // Sealed derived-bool filters bypass the stored-field type
+            // table: the expansion id is pinned to the exact authored
+            // derive body above, never to a spelling alone.
+            let derived_expansion = if matches!(&symbol.kind, SymbolKind::DeriveField { .. }) {
+                match self.filter_derived_bool_expansion(&symbol, model) {
+                    Some(expansion) => Some(expansion),
+                    // Any non-admitted derived selector keeps the
+                    // exact stored-profile refusal: only the sealed
+                    // expansion lowers, never a spelling alone.
+                    None => {
+                        self.filter_decode_fail(word, path.span);
+                        return None;
+                    }
+                }
+            } else {
+                None
+            };
+            if derived_expansion.is_some() && (implicit_parent.is_some() || money) {
+                self.filter_decode_fail(word, path.span);
+                return None;
+            }
+            let (type_text, cases) = match derived_expansion {
+                Some(_) => ("derived-bool".to_string(), vec!["true".to_string(), "false".to_string()]),
+                None => self.filter_type_cases(&ty, path.span, word)?,
+            };
+            // Derived-bool filters take a distinct gate before the
+            // stored-field predicate below: same-model/module/name
+            // declaration plus duplicate-name insertion, never the
+            // `SymbolKind::Field` ownership rule.
+            let rejected = if derived_expansion.is_some() {
+                let declared = symbol.id == field_id
+                    && symbol.name == source_name
+                    && self.filter_derived_bool_declared(&symbol, model);
+                !declared
+                    || selected
+                        .insert(name.clone(), (ty.clone(), cases.clone()))
+                        .is_some()
+            } else {
+                self.filter_selector_rejected(
+                    &symbol, &source_name, model, field_id, implicit_parent, &name, &ty, &cases,
+                    selected,
+                )
+            };
+            if rejected {
                 self.filter_decode_fail(word, path.span);
                 return None;
             }
             self.push_filter_column(columns, &symbol, &name, type_text, &cases, path.span);
+            if let Some(expansion) = derived_expansion {
+                self.push_filter_derived_expansion(columns, &symbol, expansion, path.span);
+            }
         }
         Some(())
     }
@@ -20452,8 +20884,110 @@ impl<'a> Cx<'a> {
         let mut selected = HashMap::new();
         let mut columns = Vec::new();
         self.decode_filter_columns(model, filter, word, &mut selected, &mut columns)?;
+        // REVIEW 187: extract the receipt columns before `columns`
+        // is moved, but only record the receipt after the full
+        // props/defaults profile admits — a rejected profile must
+        // leave no receipt for a collection that did not lower.
+        let receipt_columns = Self::derived_bool_receipt_columns(&columns);
         let props = self.decode_filter_props(scope, word, columns, filter, &selected, defaults)?;
+        self.push_derived_bool_receipt(node, model, receipt_columns);
         Some(props)
+    }
+
+    /// Extract the sealed derived-bool columns from decoded filter
+    /// columns for the page-gate receipt. Only columns carrying the
+    /// compiler-emitted expansion+source marker are recorded; every
+    /// other column shape is skipped, never inferred.
+    fn derived_bool_receipt_columns(columns: &[TypedExpr]) -> Vec<IrDerivedBoolColumn> {
+        columns
+            .iter()
+            .filter_map(|column| {
+                let IrExpr::Object(entries) = &column.expr else {
+                    return None;
+                };
+                let text = |entries: &[(String, TypedExpr)], key: &str| {
+                    entries.iter().find(|(name, _)| name == key).and_then(
+                        |(_, value)| {
+                            if let IrExpr::Text(text) = &value.expr {
+                                Some(text.clone())
+                            } else {
+                                None
+                            }
+                        },
+                    )
+                };
+                if text(entries, "type").as_deref() != Some("derived-bool") {
+                    return None;
+                }
+                let (field, expansion) = (text(entries, "field")?, text(entries, "expansion")?);
+                let source = entries
+                    .iter()
+                    .find(|(name, _)| name == "source")
+                    .map(|(_, value)| &value.expr);
+                let IrExpr::Object(source_entries) = source? else {
+                    return None;
+                };
+                let (path, sha256, module) = (
+                    text(source_entries, "path")?,
+                    text(source_entries, "sha256")?,
+                    text(source_entries, "module")?,
+                );
+                let node = source_entries
+                    .iter()
+                    .find(|(name, _)| name == "node")
+                    .map(|(_, value)| &value.expr);
+                let IrExpr::Object(range) = node? else {
+                    return None;
+                };
+                let at = |key: &str| {
+                    range.iter().find(|(name, _)| name == key).and_then(
+                        |(_, value)| {
+                            if let IrExpr::Int(number) = &value.expr {
+                                u32::try_from(*number).ok()
+                            } else {
+                                None
+                            }
+                        },
+                    )
+                };
+                let (node_start, node_end) = (at("start")?, at("end")?);
+                Some(IrDerivedBoolColumn {
+                    field,
+                    expansion,
+                    path,
+                    sha256,
+                    module,
+                    node_start,
+                    node_end,
+                })
+            })
+            .collect()
+    }
+
+    /// Record a pending page-gate receipt for a collection whose
+    /// decoded columns include sealed derived-bool selectors. Call
+    /// only after the full filter props/defaults profile admits
+    /// (REVIEW 187); the owning page route is attached at page
+    /// decode. Collections without sealed columns record nothing.
+    fn push_derived_bool_receipt(
+        &mut self,
+        node: &SyntaxNode,
+        model: SymbolId,
+        receipt_columns: Vec<IrDerivedBoolColumn>,
+    ) {
+        if receipt_columns.is_empty() {
+            return;
+        }
+        let Some(model_symbol) = self.program.symbols.get(model.0 as usize) else {
+            return;
+        };
+        self.pending_derived_bool_receipts.push(IrDerivedBoolReceipt {
+            file: node.span.file.0,
+            start: node.span.start,
+            page_path: String::new(),
+            model: model_symbol.canonical.clone(),
+            columns: receipt_columns,
+        });
     }
 
     /// Decode a standalone saved-preference control. It reuses the owned

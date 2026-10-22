@@ -3660,6 +3660,116 @@ fn standalone_filter_binding_is_valid(ir: &IrProgram, node: &IrUi) -> bool {
 
 /// Validate the finite collection carrier against current lowered declarations;
 /// raw or edited UI metadata cannot acquire an enum filter by shape alone.
+/// Recompute the sealed derived-bool marker from the resolved
+/// DeriveField item: the exact (field, expansion) pair for the two
+/// sealed CanDesk derives, the owning module name, and the exact
+/// declaration span. Any forged, swapped, or edited marker fails.
+/// Path/sha256 must be non-empty here; the runtime gate binds them
+/// to the artifact sources, which this layer cannot see.
+fn derived_bool_source_sealed(
+    ir: &IrProgram,
+    item: &IrItem,
+    field_name: &str,
+    expansion: &str,
+    parts: &[(String, TypedExpr)],
+) -> bool {
+    let expected = match (item.canonical.as_str(), field_name, expansion) {
+        ("desk.Ticket.unassigned", "unassigned", "unassigned") => true,
+        ("desk.Ticket.overdue", "overdue", "overdue") => true,
+        _ => false,
+    };
+    if !expected {
+        return false;
+    }
+    // REVIEW 147: every IrItem is built with `span: symbol.span`
+    // (ir.rs:6079), so the marker node compares directly against
+    // `item.span`; no separate symbol table exists on IrProgram.
+    let Some((_, source)) = parts.iter().find(|(key, _)| key == "source") else {
+        return false;
+    };
+    let IrExpr::Object(entries) = &source.expr else {
+        return false;
+    };
+    if entries.len() != 4
+        || entries
+            .iter()
+            .map(|(key, _)| key.as_str())
+            .collect::<std::collections::HashSet<_>>()
+            != ["path", "sha256", "module", "node"]
+                .iter()
+                .copied()
+                .collect::<std::collections::HashSet<_>>()
+    {
+        return false;
+    }
+    fn text<'a>(entries: &'a [(String, TypedExpr)], key: &str) -> Option<&'a str> {
+        entries
+            .iter()
+            .find(|(name, _)| name == key)
+            .and_then(|(_, value)| {
+                if let IrExpr::Text(text) = &value.expr {
+                    Some(text.as_str())
+                } else {
+                    None
+                }
+            })
+    }
+    let (Some(path), Some(sha), Some(module)) = (
+        text(entries, "path"),
+        text(entries, "sha256"),
+        text(entries, "module"),
+    ) else {
+        return false;
+    };
+    // REVIEW 145: bind the marker to the checked source census, not
+    // to nonempty text. The (path, sha256) must equal the census
+    // entry for the declaration's own source file.
+    let census = ir
+        .committed_sources
+        .sources
+        .iter()
+        .find(|(id, _, _)| *id == item.span.file)
+        .map(|(_, path, sha)| (path.as_str(), sha.as_str()));
+    let Some((census_path, census_sha)) = census else {
+        return false;
+    };
+    if path != census_path || sha != census_sha || module.is_empty() {
+        return false;
+    }
+    let Some(module_name) = ir
+        .modules
+        .iter()
+        .find(|module| module.id == item.module)
+        .map(|module| module.name.as_str())
+    else {
+        return false;
+    };
+    if module != module_name {
+        return false;
+    }
+    let Some((_, node)) = entries.iter().find(|(name, _)| name == "node") else {
+        return false;
+    };
+    let IrExpr::Object(range) = &node.expr else {
+        return false;
+    };
+    if range.len() != 2 {
+        return false;
+    }
+    let at = |key: &str| {
+        range.iter().find(|(name, _)| name == key).and_then(
+            |(_, value)| {
+                if let IrExpr::Int(number) = &value.expr {
+                    usize::try_from(*number).ok()
+                } else {
+                    None
+                }
+            },
+        )
+    };
+    matches!((at("start"), at("end")), (Some(start), Some(end)) if start == item.span.start as usize && end == item.span.end as usize)
+}
+
 fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
     if node
         .props
@@ -3687,6 +3797,15 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             .find(|item| {
                 item.name == name
                     && matches!(item.kind, IrItemKind::Field { owner, .. } if owner == model.id)
+            })
+    };
+    let derived_field = |name: &str| {
+        fields
+            .iter()
+            .filter_map(|id| ir.items.get(id.0 as usize))
+            .find(|item| {
+                item.name == name
+                    && matches!(item.kind, IrItemKind::DeriveField { model: owner, .. } if owner == model.id)
             })
     };
     if node.factory == "gallery" {
@@ -3755,14 +3874,18 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             let IrExpr::Object(parts) = &column.expr else {
                 return false;
             };
-            if parts.len() != 4
-                || parts
+            let keys = parts
+                .iter()
+                .map(|(key, _)| key.as_str())
+                .collect::<std::collections::HashSet<_>>();
+            // Sealed derived-bool columns carry exactly two extra
+            // entries (expansion id + derive declaration source);
+            // every other column keeps the exact four-key shape.
+            let derived_shape = keys.len() == 6
+                && ["field", "label", "type", "valueLabels", "expansion", "source"]
                     .iter()
-                    .map(|(key, _)| key)
-                    .collect::<std::collections::HashSet<_>>()
-                    .len()
-                    != 4
-            {
+                    .all(|key| keys.contains(key));
+            if keys.len() != parts.len() || (!derived_shape && parts.len() != 4) {
                 return false;
             }
             let text = |key: &str| {
@@ -3789,6 +3912,16 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 let Some(item) = field(base) else { return false; };
                 if !matches!(&item.kind, IrItemKind::Field { ty: IrType::Known(ResolvedType::Scalar(Scalar::Money)), .. }) { return false; }
                 (item, ResolvedType::Scalar(Scalar::Currency))
+            } else if derived_shape {
+                // Sealed derived-bool selectors resolve to an owned bool
+                // DeriveField whose body the IR layer pinned; their type
+                // and expansion are validated below, never inferred here.
+                let Some(item) = derived_field(name) else { return false; };
+                let IrItemKind::DeriveField { ty: IrType::Known(ty), .. } = &item.kind else { return false; };
+                if *ty != ResolvedType::Scalar(Scalar::Bool) {
+                    return false;
+                }
+                (item, ty.clone())
             } else {
                 let Some(item) = field(name) else { return false; };
                 let IrItemKind::Field { ty: IrType::Known(ty), .. } = &item.kind else { return false; };
@@ -3812,6 +3945,18 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                     Some(cases)
                 }
                 ResolvedType::Scalar(Scalar::Bool) if text("type") == Some("bool") => None,
+                // Sealed derived-bool descriptors carry the pinned
+                // expansion id plus the owning derive declaration
+                // source; both are rechecked here so a forged or
+                // edited descriptor cannot ride the bool path.
+                ResolvedType::Scalar(Scalar::Bool)
+                    if text("type") == Some("derived-bool")
+                        && text("expansion").is_some_and(|expansion| {
+                            derived_bool_source_sealed(ir, item, name, expansion, parts)
+                        }) =>
+                {
+                    None
+                }
                 ResolvedType::Record { symbol, .. }
                     if text("type")
                         == ir
