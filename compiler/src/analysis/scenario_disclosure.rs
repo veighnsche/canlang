@@ -23663,6 +23663,70 @@ impl<'a> Closure<'a> {
                 }
             }
 
+            /// A mutation path has no Member AST. Admit only the original required
+            /// model input's one declared parent hop and record that exact read.
+            /// Copies, nullable inputs, shadowed parents and other dotted paths
+            /// retain their refusal.
+            fn set_parent_receiver(
+                &self,
+                effect: &Effect,
+                module: ModuleId,
+                receiver: &SyntaxNode,
+                model: SymbolId,
+                env: &Env,
+                calls: &[NodeKey],
+            ) -> Option<ValuePath> {
+                if !calls.is_empty() || self.loop_node.is_some() {
+                    return None;
+                }
+                let names = receiver.children.iter()
+                    .filter(|child| child.kind == SyntaxKind::Name).collect::<Vec<_>>();
+                let [root, parent] = names.as_slice() else { return None; };
+                if self.word(parent)? != "parent" { return None; }
+                let Binding::Symbol(parameter) = self.query_binding(NodeKey::of(root))? else {
+                    return None;
+                };
+                let declaration = self.resolve.symbols.get(parameter.0 as usize)?;
+                let SymbolKind::Param { owner, .. } = declaration.kind else { return None; };
+                let scenario = self.effects.scenarios.get(&owner)?;
+                let input = scenario.params.iter().find(|input| input.param == *parameter)?;
+                let ResolvedType::Record { symbol: child, stored: true } =
+                    self.types.symbol_types.get(parameter)? else { return None; };
+                let child_decl = self.resolve.symbols.get(child.0 as usize)?;
+                let SymbolKind::Model { owner: ModelOwner::ChildOf(actual), fields, .. } =
+                    &child_decl.kind else { return None; };
+                let value = env.get(&Local::Symbol(*parameter))?;
+                if scenario.module != module || input.default.is_some()
+                    || declaration.name != self.word(root)?
+                    || scenario.node.file != effect.node.file
+                    || scenario.node.start > effect.node.start || scenario.node.end < effect.node.end
+                    || *actual != model || value.record != Some(*child)
+                    || value.reference_origin != Some(ReferenceOrigin::Parameter(*parameter))
+                    || fields.iter().any(|id| self.resolve.symbols.get(id.0 as usize)
+                        .is_none_or(|field| field.name == "parent"))
+                    || self.effects.models.get(child)?.owner != ModelOwner::ChildOf(model)
+                { return None; }
+                let key = NodeKey::of(receiver);
+                let ty = ResolvedType::Record { symbol: model, stored: true };
+                if self.types.node_types.get(&key) != Some(&ty) { return None; }
+                let mut result = value.clone();
+                result.reads.push(DisclosureDependency {
+                    query_id: None,
+                    id: self.opaque("read-data", key, &self.call_stamp(calls).ok()?).ok()?,
+                    source: self.source(module, key).ok()?, node: key, calls: Vec::new(),
+                    role: DependencyRole::Data, model: *child, field: *child,
+                    model_name: child_decl.canonical.clone(), field_name: "parent".into(),
+                    type_id: self.reference_operand_type_id(&ty)?, ty,
+                });
+                result.observed.push((key, Vec::new()));
+                result.record = Some(model);
+                result.reference = None;
+                result.reference_origin = Some(ReferenceOrigin::Parent {
+                    parameter: *parameter, model, depth: 1,
+                });
+                Some(result)
+            }
+
             /// A set's target and receiver: the checked stored model, its
             /// fields, the receiver key and the receiver's evaluated paths.
             fn set_target_receiver(
@@ -23693,6 +23757,9 @@ impl<'a> Closure<'a> {
                     .iter()
                     .find(|child| child.kind == SyntaxKind::Path)
                     .ok_or_else(|| self.fail(effect.node, "missing direct set receiver"))?;
+                if let Some(parent) = self.set_parent_receiver(effect, module, receiver, model, env, calls) {
+                    return Ok((model, fields.to_vec(), NodeKey::of(receiver), vec![parent]));
+                }
                 if receiver
                     .children
                     .iter()

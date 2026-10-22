@@ -11309,6 +11309,23 @@ impl<'a> Cx<'a> {
         if node.kind == SyntaxKind::Path {
             let text = path_text(self.db, node);
             let segments: Vec<&str> = text.split('.').collect();
+            if let [name, "parent"] = segments.as_slice()
+                && let Some(parameter) = self.program.effects.scenarios.values()
+                    .find(|scenario| scenario.module == scope.module && scenario.node.file == node.span.file
+                        && scenario.node.start <= node.span.start && scenario.node.end >= node.span.end)
+                    .and_then(|scenario| scenario.params.iter().find(|input|
+                        self.program.symbols.get(input.param.0 as usize).is_some_and(|symbol| symbol.name == *name)))
+                && let Some(ty @ ResolvedType::Record { stored: true, .. }) =
+                    self.program.types.symbol_types.get(&parameter.param)
+                && let Some(head) = node.children.iter().find(|part| part.kind == SyntaxKind::Name)
+            {
+                // Retain the root's checked row type and its own source span.
+                // Native receipts re-prove the declared containment and parameter.
+                return TypedExpr::new(IrExpr::Member {
+                    base: Box::new(TypedExpr::new(IrExpr::Name((*name).into()), ty.clone(), Span::new(node.span.file, node.span.start, head.span.end))),
+                    field: "parent".into(),
+                }, self.node_type(node), node.span);
+            }
             if segments.len() > 1 {
                 let span = node.span;
                 let mut expr = TypedExpr::new(

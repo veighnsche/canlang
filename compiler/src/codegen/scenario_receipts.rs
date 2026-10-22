@@ -2396,8 +2396,15 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 _ => None,
             };
             let is_transition = dependency.node.kind == SyntaxKind::Transition as u8;
+            let parent_set = dependency.node.kind == SyntaxKind::Path as u8
+                && dependency.calls.is_empty() && dependency.query_id.is_none()
+                && dependency.role == DependencyRole::Data
+                && dependency.field_name == "parent" && dependency.field == dependency.model
+                && sites.members.get(&checked_site(dependency.node, &[])?)
+                    .is_some_and(|expressions| matches!(expressions.as_slice(), [expression]
+                        if db.is_some_and(|db| checked_set_parent_receiver(ir, item, expression, db).is_some())));
             if (result_identity.is_none()
-                && !is_transition
+                && !is_transition && !parent_set
                 && dependency.node.kind != SyntaxKind::Member as u8)
                 || dependency.id.is_empty()
                 || intrinsic_ids.contains_key(&dependency.id)
@@ -13511,6 +13518,45 @@ fn valid_choice(
     }
 }
 
+/// The authored mutation Path and the immutable IR must name the same original
+/// required input's one parent hop. Parent identity is observed by the receipt;
+/// the runtime's existing containment navigation supplies the live bound row.
+fn checked_set_parent_receiver(
+    ir: &IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<()> {
+    let path = checked_effect_node(ir, owner, crate::analysis::NodeKey {
+        file: value.span.file, start: value.span.start, end: value.span.end,
+        kind: SyntaxKind::Path as u8,
+    }, db)?;
+    let text = &db.get(value.span.file)?.text;
+    let names = path.children.iter().filter(|part| part.kind == SyntaxKind::Name).collect::<Vec<_>>();
+    let [root, parent] = names.as_slice() else { return None; };
+    let IrExpr::Member { base, field } = &value.expr else { return None; };
+    let IrExpr::Name(name) = &base.expr else { return None; };
+    if root.token()?.text(text) != name || parent.token()?.text(text) != "parent"
+        || field != "parent" || base.span != Span::new(path.span.file, path.span.start, root.span.end)
+    { return None; }
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let (child, parent) = checked_parent_reference(ir, owner, value, db)?;
+    let IrItemKind::Scenario { params, .. } = &owner.kind else { return None; };
+    let mut parameters = params.iter().filter_map(|id| ir.items.get(id.0 as usize))
+        .filter(|parameter| parameter.name == *name);
+    let parameter = parameters.next()?;
+    let IrItemKind::Param { owner: parameter_owner, index, default: None,
+        ty: IrType::Known(ty), .. } = &parameter.kind else { return None; };
+    let original = source.parameters.get(*index)?;
+    if parameters.next().is_some() || *parameter_owner != owner.id
+        || original.parameter != parameter.id || original.default.is_some()
+        || original.ty != *ty || base.ty != *ty
+        || *ty != (ResolvedType::Record { symbol: child.id, stored: true })
+        || child.owner != Some(crate::analysis::resolve::ModelOwner::ChildOf(parent.id))
+    { return None; }
+    Some(())
+}
+
 /// Every admitted mutation/external site needs one source-checked proof;
 /// neither an unused proof nor an unproved executable effect is harmless.
 fn match_effect_proofs(
@@ -13951,7 +13997,8 @@ fn match_effect_proofs(
                 },
             ) => {
                 if proof.node.kind != SyntaxKind::Set as u8
-                    || !matches!(record.expr, IrExpr::Name(_))
+                    || !(matches!(record.expr, IrExpr::Name(_))
+                        || checked_set_parent_receiver(ir, owner, record, db?).is_some())
                     || record.ty
                         != (ResolvedType::Record {
                             symbol: *model,
@@ -14998,8 +15045,11 @@ fn checked_created_statements(
                 {
                     return None;
                 }
-                let binding = direct_source_path_name(receiver, text)?;
-                if binding == result_original.binding {
+                let parent_receiver = checked_set_parent_receiver(ir, owner, record, db).is_some();
+                let binding = if parent_receiver { "" } else { direct_source_path_name(receiver, text)? };
+                if parent_receiver {
+                    // The complete original required-input parent path was joined above.
+                } else if binding == result_original.binding {
                     created_record_name_matches(
                         record,
                         &ResolvedType::Record {

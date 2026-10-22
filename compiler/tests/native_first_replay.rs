@@ -418,3 +418,56 @@ fn genuine_cli_replay_keeps_source_order() {
     );
     let _ = db;
 }
+
+#[test]
+fn replay_create_parent_set_keeps_original_receiver_and_refuses_row_swaps() {
+    let source = r#"app ParentReplay
+Given
+ Order {state:text}
+ Line in Order {sku:text}
+ Receipt in Line {source:text unique,accepted:int}
+ policy Order read=members
+ policy Line read=members
+ policy Receipt read=members
+When
+ crud Order by=members fields=state
+ crud Line by=members fields=sku
+ crud Receipt by=members fields=source,accepted
+ scenario receive(line:Line,other:Line,source:text,accepted:int) -> Receipt by=members
+  do
+   let previous=first(Receipt as receipt where receipt.source==source order=receipt.id)
+   if previous!=null
+    require previous.parent==line and previous.accepted==accepted
+    return previous
+   create Receipt {parent=line,source,accepted} as receipt
+   set line.parent {state="part"}
+   return receipt
+Then
+"#;
+    let (db, program, ir, catalog) = fixture_source("parent-replay.can", source);
+    let owner = ir.items.iter().find(|item| item.canonical == "ParentReplay.receive").unwrap();
+    let recipe = serialize_complete_query_receipt(&program, &ir, owner, &db, Some(&catalog), "parent.mjs");
+    assert!(recipe.is_some(), "parent SET requires a complete source/executable receipt");
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let emitted = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(emitted.contains("observeScenarioReceiptDependency"));
+    assert!(emitted.contains("await set(c,"));
+    let owner_id = owner.id;
+    let mut changed = ir.clone();
+    let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner_id.0 as usize].kind else { panic!() };
+    let record = effects.iter_mut().find_map(|statement| match statement {
+        IrStmt::Set { record, .. } => Some(record), _ => None,
+    }).unwrap();
+    let IrExpr::Member { base, .. } = &mut record.expr else { panic!() };
+    base.expr = IrExpr::Name("other".into());
+    assert!(serialize_complete_query_receipt(&program, &changed, &changed.items[owner_id.0 as usize],
+        &db, Some(&catalog), "parent.mjs").is_none(), "same-typed parent row swap must refuse");
+    // Parent mutation is a reusable prerequisite, not permission to lower an
+    // unobserved post-write sibling domain through the same first receipt.
+    let all_source = source.replace("   return receipt\nThen", "   if all(line.parent.Line as item,item.sku==\"one\")\n    set line.parent {state=\"done\"}\n   return receipt\nThen");
+    let (all_db, all_program, _, all_catalog) = fixture_source("parent-all-refusal.can", &all_source);
+    let (_, refused) = prepared_artifact(&all_program, &all_db, &all_catalog);
+    assert!(refused.iter().any(|diagnostic| diagnostic.code == "E6008"),
+        "post-write ALL needs an independent receipt/runtime profile");
+}
