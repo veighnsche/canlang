@@ -4706,6 +4706,8 @@ pub struct Emitter<'a> {
     membership_bound: Vec<Span>,
     boolean_sources: HashMap<Span, serde_json::Value>,
     source_requires: HashMap<Span, serde_json::Value>,
+    source_require_identity: Option<serde_json::Value>,
+    source_require_calls: Vec<serde_json::Value>,
     boolean_derives: HashSet<String>,
     boolean_rules: HashSet<String>,
     owner_handlers: HashSet<SymbolId>,
@@ -4948,6 +4950,8 @@ impl<'a> Emitter<'a> {
             membership_bound: Vec::new(),
             boolean_sources: HashMap::new(),
             source_requires: HashMap::new(),
+            source_require_identity: None,
+            source_require_calls: Vec::new(),
             boolean_derives: HashSet::new(),
             boolean_rules: HashSet::new(),
             owner_handlers: HashSet::new(),
@@ -9756,6 +9760,33 @@ fn conjunct_dependency_matches<'d>(
         ))
     }
 
+    /// Each source-Require invocation keeps its original helper call chain.
+    /// Sharing an emitted helper function would lose which of two calls owns
+    /// the same physical active_member node in that guard.
+    fn lower_source_require_derive(&mut self,canonical:&str,parts:&[String],span:Span,await_result:bool)->Option<String> {
+        // Dedicated owner interpreters retain their existing checked helper
+        // variants and domain markers. This is the generic observer route.
+        if !self.generic_boolean_body {return None;}
+        let identity=self.source_require_identity.as_ref()?;
+        let calls=identity["sites"].as_array()?.first()?["calls"].as_array()?;
+        let mut matching=calls.iter().filter(|call|call["target"]["kind"]=="derive"
+            && call["target"]["name"]==canonical && call["node"]["start"].as_u64()==Some(span.start as u64)
+            && call["node"]["end"].as_u64()==Some(span.end as u64)
+            && call["chain"].as_array()==Some(&self.source_require_calls));
+        let call=matching.next()?.clone();
+        if matching.next().is_some() || self.source_require_calls.len()>=32 {return None;}
+        let item=self.ir.items.get(*self.by_canonical.get(canonical)?)?.clone();
+        let IrItemKind::DeriveFn{params,expr:Some(body),..}=item.kind else{return None;};
+        if params.len()!=parts.len() || call["slots"].as_array()?.iter().enumerate().any(|(index,slot)|slot.as_u64()!=Some(index as u64))
+            || !call["defaults"].as_array()?.is_empty() {return None;}
+        self.enter_scope();
+        let names=params.iter().map(|id|self.bind(&self.ir.items[id.0 as usize].name.clone())).collect::<Vec<_>>();
+        self.source_require_calls.push(serde_json::json!({"source":call["source"],"node":call["node"],"derive":canonical}));
+        let expression=self.lower_expr(&body);
+        self.source_require_calls.pop();self.exit_scope();
+        Some(format!("{}(async({})=>({expression}))({})",if await_result{"await "}else{""},names.join(","),parts.join(",")))
+    }
+
     /// The same physical membership node can occur in two helper invocations.
     /// Reuse the selected query's original owner census and actual derive chain.
     fn helper_membership_source(
@@ -9763,6 +9794,16 @@ fn conjunct_dependency_matches<'d>(
         at: Span,
         physical: &serde_json::Value,
     ) -> Result<Option<serde_json::Value>, ()> {
+        if let Some(identity)=&self.source_require_identity {
+            let calls=identity["sites"].as_array().and_then(|sites|sites.first()).and_then(|site|site["calls"].as_array()).ok_or(())?;
+            let mut matching=calls.iter().enumerate().filter(|(_,call)|call["target"]["kind"]=="builtin"
+                && call["target"]["id"]=="active_member" && call["source"]==physical["source"] && call["node"]==physical["node"]
+                && call["chain"].as_array()==Some(&self.source_require_calls));
+            let (index,_)=matching.next().ok_or(())?;
+            if matching.next().is_some() {return Err(());}
+            let mut marker=physical.clone();marker["sourceCall"]=serde_json::json!({"siteIndex":0,"callIndex":index});
+            return Ok(Some(marker));
+        }
         let Some(capture) = &self.query_capture else {
             return Ok(None);
         };
@@ -10055,6 +10096,7 @@ fn conjunct_dependency_matches<'d>(
                 self.lower_builtin_rendered(id, *awaited, parts, domain_type, span, await_result, async_scoped)
             }
             IrCallTarget::DeriveFn(canonical) => {
+                if let Some(specialized)=self.lower_source_require_derive(canonical,parts,span,await_result) {return specialized;}
                 if let Some(specialized) =
                     self.lower_derive_field_rendered(canonical, parts, span, await_result)
                 {
@@ -12626,7 +12668,11 @@ fn null_equality(
                         std::mem::replace(&mut self.source_guard_body, true);
                     let previous_receipt = self.receipt_capture.take();
                     let previous_query = self.query_capture.take();
+                    let previous_require=self.source_require_identity.replace(identity.clone());
+                    let previous_calls=std::mem::take(&mut self.source_require_calls);
                     let expression = self.lower_expr(cond);
+                    self.source_require_identity=previous_require;
+                    self.source_require_calls=previous_calls;
                     self.boolean_body = previous_boolean;
                     self.generic_boolean_body = previous_generic;
                     self.source_guard_body = previous_source_guard;

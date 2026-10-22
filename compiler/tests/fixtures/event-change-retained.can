@@ -1,0 +1,71 @@
+app EventChangeProbe uses=[events]
+package rent_catalog
+ Given
+  export Location {name:text,currency:currency}
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package customer
+ use rent_catalog {Location}
+ Given
+  export Customer {active:bool=true,locations:Location[]}
+ When
+ Then
+package rent_reservations
+ use rent_catalog {Location}
+ use std {OperationOutcome}
+ Given
+  export Resource {active:bool=true,location:Location,party_limit:int}
+  export contract RoomRequest {source:text,revision:int=1,resource:text,customer:text,account:user,from:datetime,until:datetime,quantity:int,price:money?,terms:text?}
+  export capability RoomsV1 version=1
+   hold(value:RoomRequest) -> OperationOutcome
+   stage(value:RoomRequest,previous_source:text,previous_revision:int) -> OperationOutcome
+ When
+ Then
+package events
+ use rent_catalog {Location}
+ use employee {can_work}
+ use customer {Customer}
+ use rent_reservations {Resource}
+ use rent_reservations {RoomsV1 as Rooms} from=deployment.rooms
+ use std {OperationOutcome,DeliveryResult}
+ Given
+  role organizer
+  Program {name:text}
+  Event in Program {location:Location,timezone:timezone,from:datetime,until:datetime,capacity:int min=1,price:money,sales_until:datetime,venue:Change?,pending_change:Change?,revision:int=1,cancelled:bool=false}
+  Registration in Event {checked_in:datetime?,state:enum(held,pending,confirmed,expired,cancelled,review)=held,expires:datetime}
+  Change in Event {source:text unique,base_revision:int,location:Event.location,timezone:Event.timezone,from:Event.from,until:Event.until,capacity:Event.capacity,sales_until:datetime,reason:text,author:user server=actor,resource:Resource?,customer:Customer?,account:user,previous:Change?,state:enum(holding,confirming,adopted,releasing,released,failed,review)=holding,venue_state:OperationOutcome.state=pending,venue_revision:int=0,hold_delivery:text?,hold_status:DeliveryResult.status?}
+  event ApplyChange {change:Change}
+  policy Program read=organizer
+  policy Event read=organizer where=can_work(actor,row.location)
+  policy Registration read=organizer where=can_work(actor,row.parent.location)
+  policy Change read=organizer where=can_work(actor,row.parent.location)
+ When
+  scenario change_schedule(event:Event,location:Event.location,timezone:Event.timezone,from:Event.from,until:Event.until,capacity:Event.capacity,sales_until:Event.sales_until,reason:text,resource:Change.resource=null,customer:Change.customer=null) -> Change by=organizer label="Change schedule or reserve venue"@{nl="Planning wijzigen of locatie reserveren"}
+   require can_work(actor,event.location) and can_work(actor,location) and not event.cancelled and event.pending_change==null and from>now and from<until and sales_until<=from and trim(reason)!="" and not any(event.Registration as registration,registration.checked_in!=null)
+   require location.currency==event.price.currency and capacity>=count(event.Registration as registration where registration.state==confirmed or (registration.state in [held,pending] and now<registration.expires))
+   require resource==null or (resource.active and resource.location==location and resource.party_limit>=capacity and customer!=null and customer.active and location in customer.locations)
+   do
+    let retained=first(event.Change as prior where prior==event.venue and prior.resource==resource and resource!=null order=prior.id)
+    create Change {parent=event,source=operation.id,base_revision=event.revision,location,timezone,from,until,capacity,sales_until,reason,resource,customer,account=retained?.account ?? actor,previous=event.venue} as change
+    set event {pending_change=change}
+    if resource==null
+     emit ApplyChange {change}
+    else
+     require customer!=null
+     if event.venue!=null and event.venue.resource==resource
+      require event.venue.venue_state==confirmed and event.venue.customer==customer
+      send Rooms.stage {value={source=change.source,revision=1,resource=resource.id,customer=customer.id,account=change.account,from,until,quantity=1,price=null,terms=null},previous_source=event.venue.source,previous_revision=event.venue.venue_revision} as delivery
+      set change {hold_delivery=delivery.id,hold_status=pending}
+     else
+      send Rooms.hold {value={source=change.source,revision=1,resource=resource.id,customer=customer.id,account=actor,from,until,quantity=1,price=null,terms=null}} as delivery
+      set change {hold_delivery=delivery.id,hold_status=pending}
+    return change
+ Then

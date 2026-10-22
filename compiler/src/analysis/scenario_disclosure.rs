@@ -14319,6 +14319,28 @@ impl<'a> Closure<'a> {
         }
     }
 
+    /// Only the original literal-null default of a nullable stored Model
+    /// formal may cross this observer. Values admission still resolves the
+    /// input and checks any supplied live reference before source execution.
+    fn source_require_null_model_input(
+        &self, scenario: &super::effects::ScenarioData,
+        parameter: &super::effects::ParamData, index: usize,
+    ) -> bool {
+        let Some(symbol)=self.resolve.symbols.get(parameter.param.0 as usize) else{return false;};
+        let SymbolKind::Param{owner,index:declared,type_node}=&symbol.kind else{return false;};
+        let Some(ResolvedType::Nullable(inner))=self.types.symbol_types.get(&parameter.param) else{return false;};
+        let ResolvedType::Record{symbol:target,stored:true}=inner.as_ref() else{return false;};
+        let Some(default)=parameter.default else{return false;};
+        let Some(literal)=self.nodes.get(&default) else{return false;};
+        *owner==scenario.scenario && *declared==index && symbol.module==scenario.module && *type_node==parameter.type_node
+            && self.effects.models.contains_key(target)
+            && matches!(self.resolve.symbols.get(target.0 as usize).map(|item|&item.kind),Some(SymbolKind::Model{..}))
+            && !self.types.value_constraints.contains_key(&parameter.param)
+            && default.file==scenario.node.file && literal.kind==SyntaxKind::Literal && self.word(literal)==Some("null")
+            && self.types.node_types.get(&default)==Some(&ResolvedType::Null)
+
+    }
+
     fn source_require_params_ok(&self, scenario: &super::effects::ScenarioData) -> bool {
         !scenario.params.iter().enumerate().any(|(index, param)| {
             (param.default.is_some()
@@ -14327,6 +14349,8 @@ impl<'a> Closure<'a> {
                         && !self.source_require_owned_enum_formal(param)))
                 && !self.source_require_optional_primitive_input(param)
                 && !self.source_require_unread_nullable_file_input(scenario, param, index)
+                && !self.source_require_null_model_input(scenario, param, index)
+
         }) && scenario
             .params
             .iter()
@@ -15121,10 +15145,13 @@ impl<'a> Closure<'a> {
                 self.checked_membership_signature(call.node, call.module)?;
                 Some(true)
             }
-            // The original header may compare an admitted answer array
-            // with its stored checklist. This admits no collection query:
-            // both operands must be already typed primitive text arrays.
+            // A leading COUNT may use an independently checked contained
+            // Model collection. The existing primitive Text-array count
+            // remains separate and carries no collection-query authority.
             CheckedDecisionCallTarget::Builtin { id, .. } if id == "count" && !body => {
+                if self.source_require_contained_collection(scenario,call,"count")
+                    && self.types.node_types.get(&call.node)==Some(&ResolvedType::Scalar(Scalar::Int))
+                { *helper_query=true; return Some(true); }
                 if call.slots.as_slice() != [Some(0)] || call.arguments.len() != 1
                     || !matches!(&call.arguments[0].1, ResolvedType::Array { element, .. }
                         if element.as_ref() == &ResolvedType::Scalar(Scalar::Text))

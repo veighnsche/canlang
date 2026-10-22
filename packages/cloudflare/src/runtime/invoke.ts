@@ -12067,7 +12067,15 @@ async function runScenarioExecution(
     // This exact context and parameter graph belong to the genuine admitted
     // mutation. Generated closures cannot select a different row or scalar.
     const actualCall = call as AdmittedCall;
-    const admittedParameters = Object.freeze({ ...localPolicyObject(argument) });
+    const originalParameters=localPolicyObject(argument);
+    // Native source parameters evaluate their literal null default at entry.
+    // Authenticate that already-resolved value without evaluating a default
+    // expression again or inventing a reference for an absent model slot.
+    const nullModelDefaults=Object.fromEntries(scenarioDef.descriptor.inputs.flatMap(field=>
+      field.kind==='ref' && field.nullable===true && !Object.hasOwn(scenarioDef.inputArrays,field.name) &&
+      field.default?.kind==='literal' && field.default.value===null && field.computedDefault!==true &&
+      originalParameters[field.name]===undefined ? [[field.name,null]] : []));
+    const admittedParameters = Object.freeze({ ...originalParameters,...nullModelDefaults });
     const consumed = new Set<string>();
     bindNativeScenarioRequire(ctx, async (fn, supplied) => {
       try {
@@ -12157,7 +12165,7 @@ async function runScenarioExecution(
               parsed.base.kind === 'nominal' && !ownedEnum && !loaded.models.some(model => model.name === parameter.typeId.replace(/\?$/,'')) ||
               !Object.hasOwn(admittedParameters, parameter.name) ||
               localPolicyMember(suppliedValues, parameter.name) !== admittedParameters[parameter.name]) {
-            throw new AssemblyCorrespondenceError('Scenario Require parameter differs from its genuine admitted native slot.');
+            throw new AssemblyCorrespondenceError(`Scenario Require parameter ${parameter.name} differs from its genuine admitted native slot.`);
           }
         }
         const parameter = anchor.name;

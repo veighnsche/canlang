@@ -3479,8 +3479,10 @@ fn serialize_require_params(
         else {
             return None;
         };
-        let exact_null_file = matches!(ty,
-            ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
+        let exact_null_default = matches!(ty,
+            ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::File)
+                || matches!(inner.as_ref(),ResolvedType::Record{symbol,stored:true}
+                    if ir.items.get(symbol.0 as usize).is_some_and(|model|matches!(model.kind,IrItemKind::Model{..}))))
             && matches!((default, default_node, checked.default),
                 (Some(IrDefault::Literal(value)), Some(node), Some(original_node))
                     if *node == original_node && value.ty == ResolvedType::Null
@@ -3499,7 +3501,8 @@ fn serialize_require_params(
             || *declared_owner != owner.id
             || *declared_index != index
             || *ty != checked.ty
-            || !(default.is_none() && checked.default.is_none() || exact_null_file || exact_empty_text_array)
+            || !(default.is_none() && checked.default.is_none() || exact_null_default || exact_empty_text_array)
+
         {
             return None;
         }

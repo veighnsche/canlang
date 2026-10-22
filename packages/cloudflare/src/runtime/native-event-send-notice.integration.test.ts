@@ -1,6 +1,7 @@
 /** A private due Work source carries its original typed event row into a guarded SEND. */
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -9,7 +10,7 @@ import { it } from 'node:test';
 import { promisify } from 'node:util';
 import type { CompileArtifact, FileRetirementAuthority } from '@canlang/contracts';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
-import { resolveIdentity } from '@canlang/identity';
+import { resolveIdentity,sha256HexText } from '@canlang/identity';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { asId, asModel, asVersion, makeBatch, makeRow } from '@canlang/state/testing/invocation/fixtures';
@@ -18,6 +19,7 @@ import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
 import { installNativeFileInventory } from './file-inventory.js';
 import { invokeDueScheduleCanonical, loadCanonicalDescriptors } from './invoke.js';
 import { assembleModules } from './modules.js';
+import { buildInvoker } from '../worker/assembly.js';
 import { loadOpaqueFileStaging } from './opaque-file-staging.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
@@ -356,6 +358,48 @@ it('refuses changed Event formatter traversal, revision guard, or ordinary busin
             assert.equal(report.code,10);assert.ok(JSON.parse(report.stdout??'{}').diagnostics.some((d:{code:string})=>d.code==='E6008'));
             return true;
           });
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
+
+
+it('observes original pre-change guards with omitted, null, and live nullable Model defaults',
+  {timeout:120000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-event-change-guards-'));
+    try {
+      const original=await readFile(join(root,'compiler/tests/fixtures/event-change-retained.can'),'utf8');
+      const guards=original.replace('  scenario change_schedule(','  export scenario check_change(').replace(') -> Change by=organizer',') -> int by=organizer');
+      const body=guards.indexOf('   do\n',guards.indexOf('scenario check_change'));
+      const sourcePath=join(directory,'guards.can');await writeFile(sourcePath,guards.slice(0,body)+'   do\n    return 1\n Then\n');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,sourcePath],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath},{workDir:join(directory,'assembly'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['omitted','null','live','inactive','capacity','prefix-false'] as const){
+        const now=Date.parse('2099-01-01T12:00:00Z'),clock=createFrozenClock(now),identities=createMemoryIdentityStore({clock});
+        const team=await identities.createTeam({timezone:'UTC'});
+        const actor=await identities.createUser({email:'event-guards@example.test',password_hash:'unused',email_verified:true});
+        await identities.createMembership({team_id:team.team_id,user_id:actor.user_id,is_owner:false,roles:[{role:'events.organizer',granted_at:new Date(now).toISOString(),granted_by:actor.user_id}]});
+        const token='event-guards-'+randomBytes(8).toString('hex');
+        await identities.createSession({user_id:actor.user_id,token_sha256:await sha256HexText(token),last_team_id:team.team_id,expires_at:new Date(now+3600000).toISOString()});
+        const identity=await resolveIdentity(identities,{session_token:token},{clock});
+        const {store}=createTestMemoryStorage();
+        const site=asId('site'),event=asId('event'),program=asId('program'),resource=asId('resource'),customer=asId('customer');
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:asModel('rent_catalog.Location'),row:{...makeRow({id:site,data:{name:'Site',currency:'EUR'}}),parent:null}},
+          {kind:'insert',model:asModel('employee.Employee'),row:{...makeRow({id:asId('employee'),data:{user:{id:actor.user_id},active:mode!=='prefix-false',operator_wide:false,home:{id:site},locations:[]}}),parent:null}},
+          {kind:'insert',model:asModel('events.Program'),row:{...makeRow({id:program,data:{name:'Program'}}),parent:null}},
+          {kind:'insert',model:asModel('events.Event'),row:{...makeRow({id:event,data:{location:{id:site},timezone:'UTC',from:'2099-01-02T09:00:00.000Z',until:'2099-01-02T10:00:00.000Z',capacity:'10',price:{minor:'0',currency:'EUR'},sales_until:'2099-01-02T08:00:00.000Z',venue:null,pending_change:null,revision:'1',cancelled:false}}),parent:{model:asModel('events.Program'),id:program}}},
+          {kind:'insert',model:asModel('rent_reservations.Resource'),row:{...makeRow({id:resource,data:{...(mode==='prefix-false'?{}:{active:mode!=='inactive'}),location:{id:site},party_limit:'10'}}),parent:null}},
+          {kind:'insert',model:asModel('customer.Customer'),row:{...makeRow({id:customer,data:{active:true,locations:[{id:site}]}}),parent:null}},
+          ...[0,1].map(index=>({kind:'insert' as const,model:asModel('events.Registration'),row:{...makeRow({id:asId('ticket-'+index),data:{checked_in:null,state:'confirmed',expires:'2099-01-03T12:00:00.000Z'}}),parent:{model:asModel('events.Event'),id:event}}})),
+        ]}));
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const inputs={event:{id:event,version:'1'},location:{id:site,version:'1'},timezone:'UTC',from:'2099-01-03T09:00:00.000Z',until:'2099-01-03T10:00:00.000Z',capacity:mode==='capacity'?'1':'10',sales_until:'2099-01-03T08:00:00.000Z',reason:'Move event',
+          ...(mode==='omitted'?{}:mode==='null'?{resource:null,customer:null}:{resource:{id:resource,version:'1'},customer:{id:customer,version:'1'}})};
+        const time=now.toString(16).padStart(12,'0'),random=randomBytes(10).toString('hex'),id=`${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}`;
+        const result=await invoker.invokeMutation({operation:'events.check_change',operation_id:id,inputs},identity);
+        if(['omitted','null','live'].includes(mode)){assert.ok('result' in result,mode+': '+JSON.stringify(result));assert.equal(result.result.status,'committed');assert.equal(result.result.result,'1');}
+        else {assert.ok('error' in result,mode+': '+JSON.stringify(result));assert.equal(result.error.code,'rule_failed',mode+': '+JSON.stringify(result));}
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
