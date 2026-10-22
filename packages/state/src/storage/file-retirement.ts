@@ -170,6 +170,7 @@ interface BoundFrameworkModel {
 export type FileFrameworkBinding = ReadonlyMap<string, BoundFrameworkModel>;
 const EMPTY_FRAMEWORK: FileFrameworkBinding = new Map();
 const owningFrameworkBindings = new WeakSet<object>([EMPTY_FRAMEWORK]);
+const owningFrameworkModels = new WeakSet<object>();
 // This association carries only the actual constructor-captured validators for
 // same-load migration validation. Permanent issuance remains the persisted
 // assignment/census/revision/retirement transaction; this map never proves it.
@@ -296,8 +297,10 @@ function bindOneFrameworkProducer(bound: Map<string, BoundFrameworkModel>, produ
   for (const declaration of declarations) {
     checkFrameworkDeclaration(declaration);
     if (bound.has(declaration.model)) return refuse('duplicate bound framework model');
-    bound.set(declaration.model, Object.freeze({ declaration, family, validateRow: (validator.value as (...args: never[]) => void).bind(producer) as BoundFrameworkModel['validateRow'],
-      ...(resolver === undefined ? {} : { resolveOpaqueField: (resolver.value as (...args: never[]) => unknown).bind(producer) as NonNullable<BoundFrameworkModel['resolveOpaqueField']> }) }));
+    const entry = Object.freeze({ declaration, family, validateRow: (validator.value as (...args: never[]) => void).bind(producer) as BoundFrameworkModel['validateRow'],
+      ...(resolver === undefined ? {} : { resolveOpaqueField: (resolver.value as (...args: never[]) => unknown).bind(producer) as NonNullable<BoundFrameworkModel['resolveOpaqueField']> }) });
+    owningFrameworkModels.add(entry);
+    bound.set(declaration.model, entry);
   }
 }
 /** One framework field: opaque header/role or closed control shape. */
@@ -404,7 +407,8 @@ const preparedFileProfiles = new WeakMap<object, WeakMap<object, {
   readonly profiles: ReadonlyMap<string, ModelProfile>;
 }>>();
 function profiles(input: FileReferenceInventory, framework: FileFrameworkBinding = EMPTY_FRAMEWORK): ReadonlyMap<string, ModelProfile> {
-  const reusable = detachedFileData.has(input) && owningFrameworkBindings.has(framework);
+  const reusable = detachedFileData.has(input) && owningFrameworkBindings.has(framework) &&
+    [...framework.values()].every(entry => owningFrameworkModels.has(entry));
   const prepared = reusable ? preparedFileProfiles.get(input)?.get(framework) : undefined;
   if (prepared !== undefined && framework.size === prepared.entries.length &&
       prepared.entries.every(([name, entry]) => framework.get(name) === entry)) return prepared.profiles;
