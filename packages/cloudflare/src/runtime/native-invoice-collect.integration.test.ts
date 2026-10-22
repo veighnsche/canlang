@@ -712,7 +712,7 @@ it('evaluates commercial history Require over complete ordered owner evidence an
       assert.ok(!artifact.callables?.some(callable=>callable.id==='invoice.first_paid_invoice'),
         'ordinary helper entry is omitted rather than replaced by a throwing function');
       const asm=await assembleModules({artifact,sourcePath:path},{workDir:directory,
-        stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
       for(const mode of ['complete','null-incomplete','wrong-first','foreign-parent','null-complete','timestamp-missing','worker-inactive','domain-race'] as const){
         const identities=createMemoryIdentityStore({clock:createFrozenClock(now)});
         const team=await identities.createTeam({timezone:'UTC'});
