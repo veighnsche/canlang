@@ -3026,7 +3026,9 @@ fn emit_program_with_sources(
     if emitter.native_receipts.values().any(|receipt|
         receipt.plan.event_decision.is_some() || receipt.plan.success_renewal_decision.is_some())
     {
-        let private_handlers = emitter.owner_handlers.iter().copied().filter(|id|
+        // Standard completion handlers are added to the emitter's dispatch
+        // set later; they are outside this original Declared/Every census.
+        let private_handlers = decisions.owner_handlers.into_iter().flatten().copied().filter(|id|
             emitter.native_receipts.get(id).is_none_or(|receipt|
                 receipt.plan.event_decision.is_none() && receipt.plan.success_renewal_decision.is_none()))
             .collect();
