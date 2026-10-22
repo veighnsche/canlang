@@ -855,8 +855,17 @@ fn prepare_owner_guards(
         let (span, guard) = super::event_send_decisions::prepare_observe_venue_send_guard(context, owner)
             .ok_or_else(|| gap("exact event venue SEND owner unavailable", Some(owner.span)))?;
         if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
+            || guards.insert(span,guard.clone()).is_some() {
+            return Err(gap("event venue SEND dispatch census mismatch",Some(owner.span)));
+        }
+        return Ok(Some(vec![guard.descriptor]));
+    }
+    if owner.canonical == "success.renewal_due" {
+        let (span, guard) = super::success_send_decisions::prepare_renewal_due_send_guard(context, owner)
+            .ok_or_else(|| gap("exact success renewal SEND owner unavailable", Some(owner.span)))?;
+        if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
             || guards.insert(span, guard.clone()).is_some() {
-            return Err(gap("event venue SEND dispatch census mismatch", Some(owner.span)));
+            return Err(gap("success renewal SEND dispatch census mismatch", Some(owner.span)));
         }
         return Ok(Some(vec![guard.descriptor]));
     }

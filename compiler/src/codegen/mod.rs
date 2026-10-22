@@ -59,6 +59,7 @@ pub mod scenario_queries;
 mod scenario_receipts;
 mod event_decisions;
 mod event_send_decisions;
+mod success_send_decisions;
 mod term_decisions;
 mod leave_decisions;
 mod refer_decisions;

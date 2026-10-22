@@ -295,7 +295,7 @@ function assertSendSlots(guard: Record<string, unknown>, profile: FrameworkOpaqu
     }
     node = { start: data(node, 'start') as number, end: data(node, 'end') as number };
   }
-  if (callable.id === 'events.observe_venue') {
+  if (callable.id === 'events.observe_venue' || callable.id === 'success.renewal_due') {
     node = { start: data(node, 'start') as number, end: data(node, 'end') as number };
   }
   declarations.push({ id: `${rule}:send-inputs`, source: { kind: 'send-guard', rule,

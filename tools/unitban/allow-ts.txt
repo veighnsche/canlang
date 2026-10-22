@@ -24,6 +24,7 @@ packages/cloudflare/src/runtime/native-rule-owner-search.integration.test.ts
 packages/cloudflare/src/runtime/native-scenario-receipts-d1.integration.test.ts
 packages/cloudflare/src/runtime/native-send-nullable-narrowing.integration.test.ts
 packages/cloudflare/src/runtime/native-staff-can-work.integration.test.ts
+packages/cloudflare/src/runtime/native-success-renewal.integration.test.ts
 packages/cloudflare/src/runtime/native-viewer-first.integration.test.ts
 packages/cloudflare/src/runtime/promptlab-activation-collision.integration.test.ts
 packages/cloudflare/src/runtime/promptlab-native-acceptance.integration.test.ts

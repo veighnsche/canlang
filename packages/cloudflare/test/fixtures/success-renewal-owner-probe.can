@@ -1,0 +1,48 @@
+## Minimal renewal guard probe: exact success.renewal_due shape with local
+## package canonicals. Sibling CanSuccess bookkeeping is out of scope.
+app SuccessProbe uses=[success]
+
+package customer
+ Given
+  export Customer { name:text }
+  policy Customer read=members
+ When
+ Then
+
+package rent_catalog
+ Given
+  export Location { name:text, timezone:timezone }
+  policy Location read=members
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export role worker
+  export Employee { user:user unique, home:Location, locations:Location[], operator_wide:bool=false, active:bool=true }
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+
+package success
+ use customer {Customer}
+ use rent_catalog {Location}
+ use employee {can_work}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  role account_manager
+  Account in Customer { location:Location, manager:user, email:email, renewal:date?, active:bool=true }
+  Notice in Account { revision:int, account_revision:int, recipient:email, subject:text, body:text, delivery:delivery(Mail.send)? }
+  policy Account read=members
+  policy Notice read=members
+  event RenewalDue { account:Account, revision:int }
+ When
+  scenario renewal_due on=RenewalDue
+   require event.account.version==event.revision and event.account.active and event.account.renewal!=null
+   do
+    if account_manager(event.account.manager) and can_work(event.account.manager,event.account.location) and local_instant(event.account.renewal,"00:00",event.account.location.timezone,fold=earlier)<=now
+     send Mail.send {to=event.account.email,subject=format("Account renewal due"@{nl="Klantverlenging nodig"},locale=null),body=format("Review the recorded renewal date; renewal remains a separate agreement action."@{nl="Controleer de vastgelegde verlengingsdatum; verlenging blijft een afzonderlijke overeenkomstactie."},locale=null)} when=event.account.version==event.revision and event.account.active and account_manager(event.account.manager) and can_work(event.account.manager,event.account.location) as notice
+     create Notice {parent=event.account,revision=event.revision,account_revision=event.revision,recipient=event.account.email,subject="Account renewal due",body="Review the recorded renewal date; renewal remains a separate agreement action.",delivery=notice} as outcome
+ Then
