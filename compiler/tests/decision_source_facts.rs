@@ -1715,3 +1715,30 @@ fn original_chat_transcript_decision_serializes_only_the_sealed_text_message_arr
         );
     }
 }
+
+
+#[test]
+fn imported_contained_require_follows_only_original_required_stored_reference() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let helpers = "package sites\n Given\n  export Location {active:bool=true}\n  export Hours in Location {open:bool=true}\n  export derive open(location:Location):bool=location.active and any(location.Hours as hours,hours.open)\n When\n Then\n";
+    let app = "app LinkedSite\nuse sites {Location,open}\nGiven\n Calendar {location:Location,other:Location}\n derive available(calendar:Calendar):bool=open(calendar.location)\nWhen\n scenario run(calendar:Calendar) -> bool by=members\n  require available(calendar)\n  do return true\nThen\n";
+    let compile = |app: &str| {
+        let mut db=SourceDb::new();
+        let files=[db.add("linked-site.can".into(),app.into()),db.add("sites.can".into(),helpers.into())];
+        let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path=root.join("packages/cloudflare/dist/native-catalog.json");
+        let(catalog,diagnostics)=load_catalog(&CatalogRequest{flag:Some(&path),env:None,cwd:root,primary:Span::new(files[0],0,0)});
+        assert!(diagnostics.is_empty(),"{diagnostics:?}");
+        let(program,diagnostics)=check_program(&db,&files,catalog.as_ref());
+        assert!(diagnostics.is_empty(),"{diagnostics:?}");
+        let mut result=DiagnosticResult::new("linked-site","1.0",1);result.add_sources(&db);
+        let(_,diagnostics)=emit(&program,&EmitSources{db:&db,result:&result,catalog:catalog.as_ref(),options:EmitOptions{allow_incomplete_test_only:false,native_scenario_receipts:true}});
+        diagnostics
+    };
+    assert!(compile(app).is_empty(),"original singular stored reference must retain its source query domain");
+    // A same-type derived result has no checked stored-field receiver path.
+    let unowned=app.replace(" derive available", " derive arbitrary(calendar:Calendar):Location=calendar.other\n derive available")
+        .replace("open(calendar.location)","open(arbitrary(calendar))");
+    assert!(compile(&unowned).iter().any(|diagnostic|diagnostic.code=="E6008"));
+}

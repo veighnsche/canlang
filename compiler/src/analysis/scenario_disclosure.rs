@@ -15341,6 +15341,7 @@ impl<'a> Closure<'a> {
         } else if domain_node.kind == SyntaxKind::Member {
             if !self.source_require_any_member(query, &array, call).unwrap_or(false)
                 && self.source_require_helper_contained_any(scenario, call, query, fact.model).is_none()
+                && !self.source_require_contained_collection(scenario, call, "any")
             {
                 *supported = false;
                 return Some(false);
@@ -15468,9 +15469,19 @@ impl<'a> Closure<'a> {
             }
             _ => {
                 let (base, field) = self.count_member(key)?;
-                if field != "parent" { return None; }
-                let child = self.source_require_query_receiver(scenario, call, base, frames, depth + 1)?;
-                (self.effects.models.get(&child)?.owner == ModelOwner::ChildOf(*expected)).then_some(*expected)
+                let owner = self.source_require_query_receiver(scenario, call, base, frames, depth + 1)?;
+                if field == "parent" {
+                    return (self.effects.models.get(&owner)?.owner == ModelOwner::ChildOf(*expected)).then_some(*expected);
+                }
+                // A required singular stored field preserves the original
+                // admitted receiver through this exact helper substitution.
+                // A same-type helper result, derived field, nullable reference
+                // or arbitrary model expression grants no contained domain.
+                let declared = self.effects.models.get(&owner)?.fields.iter().find(|candidate|
+                    self.resolve.symbols.get(candidate.field.0 as usize).is_some_and(|symbol|
+                        symbol.name == field && matches!(symbol.kind,SymbolKind::Field{owner:actual,..} if actual==owner)))?;
+                (self.types.symbol_types.get(&declared.field) == self.types.node_types.get(&key))
+                    .then_some(*expected)
             }
         }
     }
