@@ -3824,6 +3824,18 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                     None
                 }
                 ResolvedType::Scalar(Scalar::User) if text("type") == Some("user") => None,
+                // E6008 Desk triage profile: the nullable stored `user?`
+                // selector lowers with the same opaque `user` descriptor
+                // as a non-nullable `user` (DESIGN 977); the host
+                // preparer already maps selections to `{id}` identities
+                // and clears to no restriction. Nullable `member` keeps
+                // the refusal below.
+                ResolvedType::Nullable(inner)
+                    if inner.as_ref() == &ResolvedType::Scalar(Scalar::User)
+                        && text("type") == Some("user") =>
+                {
+                    None
+                }
                 ResolvedType::Scalar(Scalar::Member) if text("type") == Some("member") => None,
                 // C2 text-equality rule (DESIGN 975 scalar + operator
                 // table): a plain `text` column carries no value labels,
@@ -3844,11 +3856,14 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             // option inventory. A date column carries none either: civil
             // dates are not finite-choice, so the date control offers no
             // option inventory.
+            // E6008 Desk triage profile: the nullable stored `user?`
+            // selector carries no value labels, exactly like a
+            // non-nullable `user` reference.
             let is_reference = matches!(
                 ty,
-                ResolvedType::Record { .. }
-                    | ResolvedType::Scalar(Scalar::User | Scalar::Member)
-            );
+                ResolvedType::Record { .. } | ResolvedType::Scalar(Scalar::User | Scalar::Member)
+            ) || matches!(&ty, ResolvedType::Nullable(inner)
+                if inner.as_ref() == &ResolvedType::Scalar(Scalar::User));
             let is_text = matches!(ty, ResolvedType::Scalar(Scalar::Text));
             let is_date = matches!(ty, ResolvedType::Scalar(Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency));
             if selected.insert(name, ty.clone()).is_some() {
