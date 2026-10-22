@@ -1601,9 +1601,34 @@ function checkRentNoticeDecisionPlan(value: unknown, transport: unknown): RentNo
   return deepFreeze(raw) as unknown as RentNoticeDecisionPlan;
 }
 
+function checkSourceLoops(value:unknown,source:unknown):NonNullable<ScenarioResultDisclosurePlan['sourceLoops']> {
+  const span=(value:unknown):{readonly start:number;readonly end:number}=>{const node=object(value,['start','end']);
+    if(!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||
+        (node['start'] as number)<0||(node['end'] as number)<=(node['start'] as number))return invalid('Source loop needs exact nonempty original spans.');
+    return node as unknown as {readonly start:number;readonly end:number};};
+  const raw=object(dataCopy(value),['source','owner','loops']); origin(raw['source']);
+  if(stableStringify(raw['source'])!==stableStringify(source))return invalid('Source loop origin differs from its owner.');
+  text(raw['owner']); const loops=list(raw['loops']); const ids=new Set<string>(); let total=0;
+  if(loops.length===0)return invalid('Source loop inventory must be complete and nonempty.');
+  for(const entry of loops){
+    const loop=object(entry,['id','node','domain','maximum','parameter','parentModel','model','filtered']);
+    const id=text(loop['id']),node=span(loop['node']),domain=span(loop['domain']);
+    if(domain.start<node.start||domain.end>node.end)return invalid('Source loop domain left its original statement.');
+    for(const key of ['parameter','parentModel','model'])text(loop[key]);
+    if(typeof loop['filtered']!=='boolean')return invalid('Source loop original filter marker is required.');
+    const maximum=loop['maximum'];
+    if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||!Number.isSafeInteger(maximum)||
+        (maximum as number)<1||(maximum as number)>200)return invalid('Source loop identity or finite bound is invalid.');
+    ids.add(id);total+=maximum as number;
+  }
+  if(total>200)return invalid('Source loop complete domain inventory exceeds its finite budget.');
+  return deepFreeze(raw) as unknown as NonNullable<ScenarioResultDisclosurePlan['sourceLoops']>;
+}
+
 /** Loader checker; callers cannot turn this data into a bound generated def. */
 export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResultDisclosurePlan {
   const plan = object(dataCopy(value), ['version', 'source', 'returns',
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value,'sourceLoops')?['sourceLoops']:[]),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'queries') ? ['queries'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'eventDecision') ? ['eventDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'termDecision') ? ['termDecision'] : []),
@@ -1623,6 +1648,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'eventNoticeAudit') ? ['eventNoticeAudit'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
+  if(Object.hasOwn(plan,'sourceLoops'))checkSourceLoops(plan['sourceLoops'],plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
   if (Object.hasOwn(plan, 'termDecision')) checkTermDecisionPlan(plan['termDecision'], plan['source']);
   if (Object.hasOwn(plan, 'leaveRequestDecision')) checkLeaveRequestDecisionPlan(plan['leaveRequestDecision'], plan['source']);

@@ -28,6 +28,8 @@ pub(super) struct ReceiptSource {
 
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct ReceiptDisclosurePlan {
+    #[serde(rename="sourceLoops",skip_serializing_if="Option::is_none")]
+    pub source_loops: Option<serde_json::Value>,
     pub version: u8,
     pub source: ReceiptSource,
     /// Complete checked event owner-decision profile, when this plan is an event receipt.
@@ -2133,7 +2135,10 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     };
     let effective_plan = first_plan.or(guard_plan.as_ref());
     let event_notice = if item.canonical == "events.attendee_notice" {Some(super::event_notice_audit::checked(source_context?,item,entry_module)?)} else {None};
-    let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref(), event_notice.as_ref()) {
+    let updated_model_owner = source_context.is_some_and(|context| checked.source_facts.as_deref()
+        .and_then(|facts| facts.creates.as_deref()).is_some_and(|creates| creates.len() == 1
+            && source_owned_updated_model_create(context, item, &creates[0]).is_some()));
+    let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref(), event_notice.as_ref(), updated_model_owner) {
         Some(sites) => sites,
         None => {
             return None;
@@ -2192,7 +2197,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         None
     };
     let mut recipe = NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan {
+        plan: ReceiptDisclosurePlan { source_loops: None,
             version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
             invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source,
             queries: effective_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
@@ -2206,6 +2211,23 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         returns: Vec::new(),
         current_revision,
     };
+    if updated_model_owner {
+        let mut loops = Vec::new();
+        for effect in &checked.effects {
+            let DisclosureEffectKind::ForMember {domain,maximum,parameter,model,..} = &effect.kind else {continue;};
+            let parameter = ir.items.get(parameter.0 as usize)?;
+            let IrItemKind::Param {ty:IrType::Known(ResolvedType::Record {symbol:parent,..}),..} = &parameter.kind else {return None;};
+            let parent = ir.items.get(parent.0 as usize)?;
+            let model = ir.items.get(model.0 as usize)?;
+            let id = sha256_hex(format!("source-loop/v1:{}:{}:{}:{}:{}:{}:{}:{}",checked.source.path,
+                checked.source.sha256,item.canonical,effect.node.start,effect.node.end,domain.start,domain.end,maximum).as_bytes());
+            loops.push(serde_json::json!({"id":id,"node":{"start":effect.node.start,"end":effect.node.end},
+                "domain":{"start":domain.start,"end":domain.end},"maximum":maximum,"parameter":parameter.name,
+                "parentModel":parent.canonical,"model":model.canonical,"filtered":domain.kind==SyntaxKind::Query as u8}));
+        }
+        if loops.is_empty() {return None;}
+        recipe.plan.source_loops = Some(serde_json::json!({"source":recipe.plan.source,"owner":item.canonical,"loops":loops}));
+    }
     recipe.plan.purchase_receive_all = purchase_all;
     if item.canonical == "events.attendee_notice" {
         recipe.plan.event_notice_audit = event_notice;
@@ -4594,7 +4616,7 @@ fn checked_guard_any_query_plan(
             projection: None,
         });
     }
-    Some(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
         queries: fragments,
@@ -4646,7 +4668,7 @@ pub(super) fn checked_native_any_direct_query_plan(
     if kinds.len() != 4 {
         return None;
     }
-    Some(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![fragment],
@@ -5082,7 +5104,7 @@ pub(super) fn checked_native_helper_any_query_plan(
             .into(),
         })
         .collect::<Vec<_>>();
-    Some(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
         queries: vec![ReceiptQuery {
@@ -6907,7 +6929,7 @@ fn checked_native_first_query_source_plan(
     // queries keep no parent. Re-proves the disclosure receiver here, so a
     // mismatched parent keeps the source-plan refusal.
     let parent = first_query_receipt_parent(ir, owner, query, scan, db, first, entry_module)?;
-    let expected = ReceiptDisclosurePlan {
+    let expected = ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&checked.source, entry_module)?,
         queries: vec![ReceiptQuery {
@@ -8127,7 +8149,7 @@ fn checked_native_ancestor_count_query_plan(
     {
         return None;
     }
-    Some(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
@@ -8341,7 +8363,7 @@ fn native_count_plan(
     parent_id: crate::analysis::SymbolId,
     influences: Vec<ReceiptInfluence>,
 ) -> Option<ReceiptDisclosurePlan> {
-    Some(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
@@ -8468,7 +8490,7 @@ pub(super) fn checked_native_assign_count_query_plan(
         Some(ReceiptReturn {id: returned.id.clone(), source: transport_source(&returned.source, entry)?,
             influences: influences.clone(), dependencies: Vec::new(), intrinsics: Vec::new(), projection: None})
     }).collect::<Option<Vec<_>>>()?;
-    Some(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(), source: transport_source(&query.source, entry)?,
@@ -12513,6 +12535,9 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
     let IrExpr::Name(binding) = &receiver.expr else {
         return None;
     };
+    let constructor_scalar = source.creates.as_deref().is_some_and(|creates|
+        creates.iter().any(|create| create.inputs.iter().any(|input|
+            node_span(input.value_node) == leaf.span && input.ty == leaf.ty)));
     let run_guard = field == "run" && scalar_name == "unfinished";
     let (reference_name, expected) = if run_guard {
         ("run", Scalar::Bool)
@@ -12525,6 +12550,10 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
             _ => return None,
         };
         ("profile", expected)
+    } else if constructor_scalar {
+        let ResolvedType::Scalar(expected) = leaf.ty else { return None; };
+        if matches!(expected, Scalar::File) { return None; }
+        (field.as_str(), expected)
     } else {
         return None;
     };
@@ -12608,9 +12637,9 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
     if !matches!(branch_item.kind, IrItemKind::Model { .. })
         || !matches!(profile_item.kind, IrItemKind::Model { .. })
         || branch.module != owner.module
-        || profile.module != owner.module
+        || !constructor_scalar && profile.module != owner.module
         || branch.source != source.source
-        || profile.source != source.source
+        || !constructor_scalar && profile.source != source.source
     {
         return None;
     }
@@ -12638,9 +12667,9 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
         || reference_field.reuse.is_some()
         || scalar_field.reuse.is_some()
         || reference_field.source != source.source
-        || scalar_field.source != source.source
-        || ir.items.get(reference_field.id.0 as usize)?.module != owner.module
-        || ir.items.get(scalar_field.id.0 as usize)?.module != owner.module
+        || scalar_field.source != profile.source
+        || ir.items.get(reference_field.id.0 as usize)?.module != branch.module
+        || ir.items.get(scalar_field.id.0 as usize)?.module != profile.module
         || !branch.field_order.contains(&reference_field.id)
         || !profile.field_order.contains(&scalar_field.id)
     {
@@ -12775,13 +12804,14 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
         let block = blocks.next()?;
         if blocks.next().is_some()
             || !block.children.iter().any(|node| {
-                matches!(node.kind, SyntaxKind::Let | SyntaxKind::Create) && contains(node)
+                (node.kind == SyntaxKind::Create || !constructor_scalar && node.kind == SyntaxKind::Let) && contains(node)
             })
         {
             return None;
         }
         DependencyRole::Data
     };
+    if constructor_scalar && role != DependencyRole::Data { return None; }
     if run_guard {
         if role != DependencyRole::Control
             || branch.parent.is_none()
@@ -14632,6 +14662,9 @@ fn match_effect_proofs(
                     ..
                 },
             ) => {
+                let sealed_owner = source_context.is_some_and(|context| checked.source_facts.as_deref()
+                    .and_then(|facts| facts.creates.as_deref()).is_some_and(|creates| creates.len() == 1
+                        && source_owned_updated_model_create(context, owner, &creates[0]).is_some()));
                 let parameter_item = ir.items.get(parameter.0 as usize)?;
                 let IrItemKind::Param {
                     owner: parameter_owner,
@@ -14711,10 +14744,10 @@ fn match_effect_proofs(
                     return None;
                 };
                 if name != &model_item.canonical
-                    || query.source.is_some()
+                    || query.source.is_some() && !(sealed_owner && finite_member_filter(query))
                     || query.collection_call.is_some()
                     || query.contract_collection_call.is_some()
-                    || query.where_pred.is_some()
+                    || query.where_pred.is_some() && !(sealed_owner && finite_member_filter(query))
                     || query.where_async
                     || !query.order.is_empty()
                     || query.value_order.is_some()
@@ -14744,7 +14777,12 @@ fn match_effect_proofs(
                     })
                     .map(|param| param.name.clone())
                     .collect();
-                for (statement, node) in body.iter().zip(checked_body) {
+                for (original_statement, node) in body.iter().zip(checked_body) {
+                    let statement = match original_statement {
+                        IrStmt::If {then_branch,else_branch,span,..} if sealed_owner
+                            && *span == node_span(*node) && else_branch.is_empty() && then_branch.len() == 1 => &then_branch[0],
+                        statement => statement,
+                    };
                     let IrStmt::Set {
                         record,
                         changes,
@@ -14754,8 +14792,8 @@ fn match_effect_proofs(
                     else {
                         return None;
                     };
-                    if *span != node_span(*node)
-                        || node.kind != SyntaxKind::Set as u8
+                    if (!sealed_owner || !matches!(original_statement, IrStmt::If {..}))
+                        && (*span != node_span(*node) || node.kind != SyntaxKind::Set as u8)
                         || record.ty != expected_record
                         || !matches!(&record.expr, IrExpr::Name(name) if name == item)
                         || !closed_loop_changes(changes, item, &expected_record, &constants)
@@ -15231,6 +15269,26 @@ fn conditional_parameter_create_link(
     Some(())
 }
 
+/// A finite contained update prefix may precede its own created Model result.
+/// Fresh source correspondence seals control flow and every operand; individual
+/// loop, assignment, constructor schema and return checks remain mandatory.
+fn source_owned_updated_model_create(context: &super::scenario_decisions::FreshSourceContext<'_>,
+    owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
+    let ir = context.ir();
+    super::scenario_decisions::same_scenario_semantics(context.original(), ir, context.fresh(), owner)?;
+    let IrItemKind::Scenario { result: Some(ResolvedType::Record {symbol: model,stored:true}),
+        trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,.. } = &owner.kind else { return None; };
+    let [IrStmt::For {..}, IrStmt::Let {..}, IrStmt::Set {..},
+        IrStmt::Create {span,binding:Some(binding),when:None,..},
+        IrStmt::Return {value:Some(value),..}] = effects.as_slice() else { return None; };
+    if *model != original.model || *span != node_span(original.node) || binding != &original.binding
+        || value.ty != (ResolvedType::Record {symbol:*model,stored:true})
+        || !matches!(&value.expr, IrExpr::Name(name) if name == binding) { return None; }
+    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
+    let [created] = facts.creates.as_deref()? else { return None; };
+    (std::ptr::eq(created, original)).then_some(())
+}
+
 /// A source-owned report constructor may follow one nullable-field child
 /// CALL and precede its original completion effects. The fresh whole-owner
 /// join seals surrounding operands; each effect, schema and File input still
@@ -15317,7 +15375,8 @@ fn scenario_create_nesting(
         }
         ordered_created_model_effects(ir, owner, first.node, first.model, &first.binding, db)?;
     } else if checked_created_model_result(ir, owner) == Some(*model) {
-        if ordered_created_model_effects(ir, owner, proof.node, *model, binding, db).is_none() {
+        if ordered_created_model_effects(ir, owner, proof.node, *model, binding, db).is_none()
+            && source_context.and_then(|context| source_owned_updated_model_create(context, owner, original)).is_none() {
             return None;
         }
     } else if terminal_create_then_literal_return(owner, proof.node) {
@@ -15335,6 +15394,32 @@ fn scenario_create_nesting(
     Some(())
 }
 
+/// Immutable contract inputs may be ordered by one original scalar member;
+/// element aliases carry Values data only, never a stored Model view.
+fn constructor_values_order_domain<'a>(ir: &IrProgram, query: &'a super::ir::IrQuery) -> Option<&'a TypedExpr> {
+    let source = query.source.as_ref()?;
+    let [alias_clause, order_clause] = source.clauses.as_slice() else { return None; };
+    let super::ir::IrQueryDomain::Value {base,alias} = &query.domain else { return None; };
+    let ResolvedType::Array {element,ordered:true,nonempty:false} = &base.ty else { return None; };
+    let ResolvedType::Record {symbol,..} = element.as_ref() else { return None; };
+    let IrItemKind::Contract {fields,..} = &ir.items.get(symbol.0 as usize)?.kind else { return None; };
+    let order = query.value_order.as_ref()?;
+    let IrExpr::Member {base: receiver,field} = &order.key.expr else { return None; };
+    if !matches!(&receiver.expr,IrExpr::Name(name) if name == alias) || receiver.ty != **element
+        || !matches!(order.key.ty,ResolvedType::Scalar(scalar) if scalar != Scalar::File)
+        || !fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|item|
+            item.name == *field && matches!(&item.kind,IrItemKind::Field{ty:IrType::Known(ty),..} if *ty == order.key.ty))
+        || !matches!(&alias_clause.kind,crate::analysis::types::CheckedQueryClauseKind::As{name} if name == alias)
+        || order_clause.kind != crate::analysis::types::CheckedQueryClauseKind::Order
+        || order_clause.expressions.len()!=1 || node_span(order_clause.expressions[0])!=order.key.span
+        || source.result != base.ty || source.domain_type != base.ty || source.projection.is_some()
+        || node_span(source.domain) != base.span || query.parent.is_some() || query.where_pred.is_some()
+        || query.where_async || !query.order.is_empty() || query.limit.is_some() || query.archived.is_some()
+        || query.select.is_some() || query.select_param.is_some() || query.collection_call.is_some()
+        || query.contract_collection_call.is_some() || order.descending { return None; }
+    Some(base)
+}
+
 fn scenario_create_entry_matches(
     ir: &IrProgram,
     owner: &IrItem,
@@ -15345,6 +15430,7 @@ fn scenario_create_entry_matches(
     authored: &crate::syntax::SyntaxNode,
     text: &str,
     db: &SourceDb,
+    sealed_source_create: bool,
 ) -> Option<()> {
     let key = authored
         .children
@@ -15373,6 +15459,7 @@ fn scenario_create_entry_matches(
     {
         return None;
     }
+    if sealed_source_create { return Some(()); }
     super::scenario_create_sources::checked_create_operand(
         ir,
         original,
@@ -15397,7 +15484,8 @@ fn scenario_create_entries(
     if !purchase_all && checked_created_statements(ir, owner, checked, original, db).is_none()
         && source_context.and_then(|context| conditional_parameter_create_link(context, owner, original)
             .or_else(|| source_owned_after_call_create(context, owner, original))
-            .or_else(|| source_owned_created_return_tail(context, owner, original))).is_none() {
+            .or_else(|| source_owned_created_return_tail(context, owner, original))
+            .or_else(|| source_owned_updated_model_create(context, owner, original))).is_none() {
         return None;
     }
     let authored = checked_effect_node(ir, owner, proof.node, db)?;
@@ -15430,7 +15518,9 @@ fn scenario_create_entries(
         return None;
     }
     for (((name, value), source), authored) in entries.iter().zip(inputs).zip(authored_entries) {
-        scenario_create_entry_matches(ir, owner, original, name, value, source, authored, text, db)?;
+        let sealed_source_create = source_context.is_some_and(|context|
+            source_owned_updated_model_create(context, owner, original).is_some());
+        scenario_create_entry_matches(ir, owner, original, name, value, source, authored, text, db, sealed_source_create)?;
     }
     Some(())
 }
@@ -18095,6 +18185,7 @@ impl<'a> Sites<'a> {
         db: Option<&SourceDb>,
         purchase_all: Option<&serde_json::Value>,
         event_notice: Option<&serde_json::Value>,
+        updated_model_owner: bool,
     ) -> Option<Self> {
         let IrItemKind::Scenario {
             params,
@@ -18222,7 +18313,7 @@ impl<'a> Sites<'a> {
                         // collection: visit only its root parameter. Other
                         // queries keep the strict collection-query walk below.
                         if let Some(parent) =
-                            contained_member_scan_parent(ir, owner, domain, *span)
+                            contained_member_scan_parent(ir, owner, domain, *span, updated_model_owner)
                         {
                             push!(Visit::Expression(parent));
                         } else {
@@ -18390,6 +18481,9 @@ impl<'a> Sites<'a> {
                 },
                 Visit::Expression(expression) if event_notice.is_some() && effects.iter().take(2).any(|stmt| matches!(stmt,IrStmt::Let{value,..} if std::ptr::eq(value,expression))) => {},
                 Visit::Expression(expression) => match &expression.expr {
+                    IrExpr::Query(query) if updated_model_owner && constructor_values_order_domain(ir, query).is_some() => {
+                        push!(Visit::Expression(constructor_values_order_domain(ir, query)?));
+                    }
                     IrExpr::Query(query) => {
                         let facts = super::scenario_calls::checked_source(ir, owner, db?)?;
                         if let Some(fact) = facts.inline_selections.as_deref().and_then(|facts| {
@@ -18763,11 +18857,26 @@ fn member_scan_query_is_plain(query: &super::ir::IrQuery) -> bool {
         && query.select_param.is_none()
 }
 
+fn finite_member_filter(query: &super::ir::IrQuery) -> bool {
+    let Some(source) = &query.source else { return false; };
+    let [alias, filter] = source.clauses.as_slice() else { return false; };
+    let Some(predicate) = &query.where_pred else { return false; };
+    matches!(alias.kind, crate::analysis::types::CheckedQueryClauseKind::As {..})
+        && filter.kind == crate::analysis::types::CheckedQueryClauseKind::Where
+        && filter.expressions.len() == 1 && node_span(filter.expressions[0]) == predicate.span
+        && predicate.ty == ResolvedType::Scalar(Scalar::Bool)
+        && source.result == source.domain_type && source.projection.is_none()
+        && query.collection_call.is_none() && query.contract_collection_call.is_none()
+        && !query.where_async && query.order.is_empty() && query.value_order.is_none()
+        && query.limit.is_none() && query.archived.is_none() && query.select.is_none() && query.select_param.is_none()
+}
+
 fn contained_member_scan_parent<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
     domain: &'a TypedExpr,
     span: Span,
+    updated_model_owner: bool,
 ) -> Option<&'a TypedExpr> {
     let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
         return None;
@@ -18796,7 +18905,7 @@ fn contained_member_scan_parent<'a>(
     let IrExpr::Query(query) = &domain.expr else {
         return None;
     };
-    if !member_scan_query_is_plain(query) {
+    if !member_scan_query_is_plain(query) && !(updated_model_owner && finite_member_filter(query)) {
         return None;
     }
     let super::ir::IrQueryDomain::Model(name) = &query.domain else {

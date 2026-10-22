@@ -238,3 +238,16 @@ export async function nativeScenarioEventNoticeFormat(context:unknown,descriptor
   if(evaluate===undefined || typeof body!=='function') throw new StateError('validation','Event notice formatter needs its actual owner source frame.');
   return evaluate(descriptor,field,body);
 }
+
+/** The literal owning loop receives only its original admitted current domain. */
+type SourceLoopRead = (id:string,parent:unknown,predicate:Function|null)=>Promise<readonly unknown[]>;
+const sourceLoops = new WeakMap<object,SourceLoopRead>();
+export function bindNativeScenarioSourceLoop(context:object,read:SourceLoopRead):void {
+  if(sourceLoops.has(context))throw new StateError('validation','Source loop cannot be rebound.');
+  sourceLoops.set(context,read);
+}
+export async function nativeScenarioSourceLoop(context:unknown,id:string,parent:unknown,predicate:Function|null=null):Promise<readonly unknown[]> {
+  const read=typeof context==='object'&&context!==null?sourceLoops.get(context):undefined;
+  if(read===undefined)throw new StateError('validation','Source loop needs its original admitted owner session.');
+  return read(id,parent,predicate);
+}

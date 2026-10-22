@@ -157,7 +157,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
+import { bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
@@ -10177,6 +10177,7 @@ async function runScenarioExecution(
   let sendIndex = 0;
   let scheduleIndex = 0;
   const resolvedDefaults: Record<string, unknown> = Object.create(null);
+  const observedNativeDefaults = new Map<string, unknown>();
   let callIndex = 0;
   let createIndex = 0;
   const nextCreateId = child === undefined
@@ -12140,6 +12141,59 @@ async function runScenarioExecution(
       } catch(error) {recordEngineFailure(error);throw error;}
     });
   }
+  const sourceLoopPlan = scenarioDef?.descriptor.result?.disclosure?.sourceLoops;
+  if (sourceLoopPlan !== undefined) {
+    if (!receiptAware || receiptStore === undefined || ownerSession === undefined || scenarioDef === undefined ||
+        callable?.inputStyle !== 'parameters' || due !== undefined || cohort !== undefined || sourceLoopPlan.owner !== scenarioDef.name ||
+        sourceLoopPlan.source.module !== callable.module || !opts.artifact.sources.some(source =>
+          source.path === sourceLoopPlan.source.path && source.sha256 === sourceLoopPlan.source.sha256)) {
+      throw new AssemblyCorrespondenceError('Source loop needs its exact admitted checked owner.');
+    }
+    const actualCall = call as AdmittedCall, parameters = localPolicyObject(argument), consumed = new Set<string>();
+    bindNativeScenarioSourceLoop(ctx, async (id,parent,predicate) => {
+      try {
+        const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+        if (assertCall === undefined) return refuseRecordBinding('Source loop lacks its defining State execution.');
+        assertCall(actualCall,receiptStore);
+        if (nativeScenarioExecutions.get(actualCall) === undefined) return refuseRecordBinding('Source loop has no live owner execution.');
+        const loops = sourceLoopPlan.loops.filter(loop => loop.id === id), loop = loops[0];
+        if (loops.length !== 1 || loop === undefined || consumed.has(id) || parent !== parameters[loop.parameter] ||
+            loop.filtered !== (typeof predicate === 'function')) return refuseRecordBinding('Source loop receiver/filter differs from its original occurrence.');
+        const ref = actualCall.recordRefs.find(ref => ref.param === loop.parameter);
+        const binding = isUnknownRecord(parent) ? recordBindings.get(parent) : undefined;
+        const declaredParent = (loaded.containment as LoadedArtifactDescriptors['containment']).get(loop.model as ModelName)?.parent;
+        if (ref === undefined || ref.model !== loop.parentModel || binding === undefined || binding.model !== ref.model ||
+            binding.id !== ref.id || binding.version !== ref.row.version || declaredParent !== loop.parentModel) {
+          return refuseRecordBinding('Source loop lacks its admitted containment/version correspondence.');
+        }
+        if (predicate !== null) {
+          const module = await importVerifiedAssemblyModule(opts.asm,callable.module,opts.artifact);
+          const getter = privateSourceMember(module,'canScenarioSourceLoopSource');
+          if (typeof getter !== 'function') return refuseRecordBinding('Source loop lacks its original predicate issuer.');
+          const issued = localPolicyObject(getter(predicate),['source','context']);
+          if (issued.context !== ctx || stableStringify(captureDispatchPreclaimData(issued.source)) !==
+              stableStringify({source:sourceLoopPlan.source,owner:sourceLoopPlan.owner,loop})) {
+            return refuseRecordBinding('Source loop predicate differs from its checked original source.');
+          }
+        }
+        consumed.add(id);
+        const rows = await ownerSession.views.final.query({model:loop.model as ModelName,
+          parent:{model:ref.model as ModelName,id:ref.id as RecordId},authority:'owner',archived:'exclude',
+          order:[{field:'id',direction:'asc'}],limit:ownerBounds.maxRows});
+        if (rows.length >= ownerBounds.maxRows) return refuseRecordBinding('Source loop cannot establish its complete owning domain within the scan bound.');
+        const selected: Record<string,unknown>[] = [];
+        for (const row of rows) {
+          ownerRows.set(stagedKey(loop.model,row.id),row);
+          const view = recordView(loop.model,row);
+          const matches = predicate === null ? true : await predicate(view);
+          if (typeof matches !== 'boolean') return refuseRecordBinding('Original source loop predicate must return bool.');
+          if (matches) selected.push(view);
+        }
+        if (selected.length > loop.maximum) return refuseRecordBinding('Source loop selected domain exceeds its authored bound.');
+        return Object.freeze(selected);
+      } catch (error) {recordEngineFailure(error);throw error;}
+    });
+  }
   if (receiptAware && receiptStore !== undefined && ownerSession !== undefined && callable?.inputStyle === 'parameters' &&
       due === undefined && cohort === undefined && scenarioDef !== undefined) {
     // This exact context and parameter graph belong to the genuine admitted
@@ -12154,6 +12208,8 @@ async function runScenarioExecution(
       field.default?.kind==='literal' && field.default.value===null && field.computedDefault!==true &&
       originalParameters[field.name]===undefined ? [[field.name,null]] : []));
     const admittedParameters = Object.freeze({ ...originalParameters,...nullModelDefaults });
+    const admittedParameter = (name:string):unknown => observedNativeDefaults.has(name)
+      ? observedNativeDefaults.get(name) : admittedParameters[name];
     const consumed = new Set<string>();
     bindNativeScenarioRequire(ctx, async (fn, supplied) => {
       try {
@@ -12229,7 +12285,7 @@ async function runScenarioExecution(
           // canonical input descriptors retain their scalar wire encoding.
           const admittedTextArray = parameter.typeId === 'text[]' && parsed.array &&
             !parsed.nullable && field.kind === 'string' && field.valueType === 'text[]' &&
-            Object.hasOwn(scenarioDef.inputArrays, field.name) && Array.isArray(admittedParameters[parameter.name]);
+            Object.hasOwn(scenarioDef.inputArrays, field.name) && Array.isArray(admittedParameter(parameter.name));
           const ownedEnum = field.kind === 'enum' && parsed.base.kind === 'nominal' && !parsed.array &&
             field.valueType !== undefined && parseTypeId(field.valueType).nullable === parsed.nullable &&
             loaded.models.some(model => Object.entries(model.fields).some(([name, declaration]) =>
@@ -12242,9 +12298,9 @@ async function runScenarioExecution(
           if (field.name !== parameter.name || declaredType !== parameter.typeId || parsed.array && !admittedTextArray && !admittedValue ||
               (parsed.nullable && !unusedNullFile && !nullableModel && !ownedEnum && !admittedValue) ||
               parsed.base.kind === 'nominal' && !ownedEnum && !admittedValue && !loaded.models.some(model => model.name === parameter.typeId.replace(/\?$/,'')) ||
-              !Object.hasOwn(admittedParameters, parameter.name) ||
-              localPolicyMember(suppliedValues, parameter.name) !== admittedParameters[parameter.name]) {
-            throw new AssemblyCorrespondenceError(`Scenario Require parameter ${parameter.name} differs from its genuine admitted native slot.`);
+              (!Object.hasOwn(admittedParameters, parameter.name) && !observedNativeDefaults.has(parameter.name)) ||
+              localPolicyMember(suppliedValues, parameter.name) !== admittedParameter(parameter.name)) {
+            throw new AssemblyCorrespondenceError('Scenario Require parameter differs from its genuine admitted native slot.');
           }
         }
         const parameter = anchor.name;
@@ -12265,7 +12321,7 @@ async function runScenarioExecution(
                 predicate: async (context: HandlerContext, row: Record<string, unknown>,
                   project?: (model: string, id: string, expectedVersion: unknown) => Promise<Record<string, unknown>>) => {
                   const args: Record<string, unknown> = { ...Object.fromEntries(parameters.filter(input => !input.unread)
-                    .map(input => [input.name, admittedParameters[input.name]])), [parameter]: row };
+                    .map(input => [input.name, admittedParameter(input.name)])), [parameter]: row };
                   // Every further admitted model slot is re-projected through
                   // this same evaluation in parameter order: foreign admitted
                   // views stay out, current grants and the live revision apply.
@@ -13448,6 +13504,7 @@ async function runScenarioExecution(
       }
       if (!receiptAware) resolvedDefaults[field.name] = wire;
       else observeReceiptDefault!(call as AdmittedCall, receiptStore!, { name: field.name, wire });
+      observedNativeDefaults.set(field.name, value);
       observedDefaults.add(field.name);
     } catch (error) {
       const failure = error instanceof StateError ? error : new StateError('validation', message(error));

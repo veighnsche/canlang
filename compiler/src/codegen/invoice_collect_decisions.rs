@@ -802,7 +802,7 @@ pub(super) fn collect_collect_receipt(
     })
     .collect::<Option<HashMap<_, _>>>()?;
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan {
+        plan: ReceiptDisclosurePlan { source_loops: None,
             version: 1,
             source: source.clone(),
             event_decision: None,

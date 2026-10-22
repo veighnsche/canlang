@@ -2919,6 +2919,10 @@ fn emit_program_with_sources(
         body.push(entry_span, Some("canScenarioQueryPredicateSource".into()),
             "const $can$query$predicates=new WeakMap();function $can$query$issue(marker,context,predicate){$can$query$predicates.set(predicate,{marker,context});return predicate;}export function canScenarioQueryPredicateSource(predicate){const issued=$can$query$predicates.get(predicate);return issued===undefined?null:{marker:JSON.parse(issued.marker),context:issued.context};}");
     }
+    if native_receipts && emitter.native_receipts.values().any(|receipt|receipt.plan.source_loops.is_some()) {
+        body.push(entry_span,Some("canScenarioSourceLoopSource".into()),
+            "const $can$loop$sources=new WeakMap();function $can$loop$issue(source,context,predicate){$can$loop$sources.set(predicate,{source,context});return predicate;}export function canScenarioSourceLoopSource(predicate){const issued=$can$loop$sources.get(predicate);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
+    }
     if native_receipts && !emitter.source_requires.is_empty() {
         body.push(entry_span,Some("canScenarioRequireSource".into()),
             "const $can$require$sources=new WeakMap();function $can$require$issue(source,predicate){$can$require$sources.set(predicate,source);return predicate;}export function canScenarioRequireSource(predicate){const source=$can$require$sources.get(predicate);return source===undefined?null:JSON.parse(source);}");
@@ -5519,6 +5523,22 @@ impl<'a> Emitter<'a> {
             }
         }
         checked_string_value_type(ty).map(str::to_string)
+    }
+
+    /// Model metadata may retain a source-declared local delivery even when
+    /// its nullable slot is absent. This grants no send/result/input profile.
+    fn local_model_delivery_descriptor(&self, op: SymbolId) -> Option<JsDeliveryDescriptor> {
+        let operation = self.ir.items.get(op.0 as usize)?;
+        let IrItemKind::CapabilityOp {result:IrType::Known(ResolvedType::Record {symbol,..}),..} = &operation.kind else { return None; };
+        let mut capabilities = self.ir.items.iter().filter(|item| matches!(&item.kind,IrItemKind::Capability {ops,..} if ops.contains(&op)));
+        let capability = capabilities.next()?;
+        let IrItemKind::Capability {version:Some(version),..} = capability.kind else { return None; };
+        if capabilities.next().is_some() || operation.canonical != format!("{}.{}",capability.canonical,operation.name) { return None; }
+        let version = u32::try_from(version).ok().filter(|version| *version != 0)?;
+        let result = self.ir.items.get(symbol.0 as usize)?;
+        if !matches!(result.kind, IrItemKind::Contract { .. }) { return None; }
+        let schema = self.value_types.as_ref()?.contracts.iter().find(|schema| schema.name == result.canonical)?.clone();
+        Some(JsDeliveryDescriptor {capability:capability.canonical.clone(), operation:operation.name.clone(), version, result:schema})
     }
 
     fn judgment_delivery_descriptor(&self, op: SymbolId) -> Option<JsJudgmentDeliveryDescriptor> {
@@ -12914,7 +12934,23 @@ fn null_equality(
                 body,
                 span,
             } => {
-                let domain_text = self.lower_expr(domain);
+                let source_loop = self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.source_loops.as_ref())
+                    .and_then(|source|source["loops"].as_array().and_then(|loops|loops.iter().find(|loop_|
+                        loop_["node"]["start"]==span.start && loop_["node"]["end"]==span.end).map(|loop_|(source.clone(),loop_.clone()))));
+                let domain_text = if let Some((source,loop_)) = source_loop {
+                    let parent = self.reference(loop_["parameter"].as_str().expect("checked loop parameter"));
+                    let predicate = if loop_["filtered"].as_bool()==Some(true) {
+                        let IrExpr::Query(query) = &domain.expr else { unreachable!("checked original loop query"); };
+                        let original = query.where_pred.as_ref().expect("checked original filter");
+                        self.enter_scope(); let row = self.bind(&query.where_param);
+                        let capture = self.receipt_capture.take();
+                        let expression = self.lower_expr(original);
+                        self.receipt_capture = capture; self.exit_scope();
+                        format!("$can$loop$issue({},c,async({row})=>({expression}))",descriptor_json(&descriptor_json(&serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_}))))
+                    } else { "null".into() };
+                    self.stdlib.insert("nativeScenarioSourceLoop".into());
+                    format!("await nativeScenarioSourceLoop(c,{},{parent},{predicate})",descriptor_json(&loop_["id"]))
+                } else { self.lower_expr(domain) };
                 // Model queries arrive already awaited (`await
                 // records(...)`); await any other domain exactly once
                 // (`await` on a plain array is harmless).
@@ -19833,10 +19869,12 @@ impl<'a> Emitter<'a> {
                     .map(|row| row.canonical.clone())
                     .unwrap_or_else(|| "message".to_string()),
             },
-            // Only a checked static Judgment joins the local delivery profile.
+            // Preserve the original local model slot's declared wire schema;
+            // only separate owning producers may issue a non-null receipt.
             ResolvedType::Delivery { op } => self
                 .judgment_delivery_descriptor(*op)
                 .map(JsModelFieldType::JudgmentDelivery)
+                .or_else(|| self.local_model_delivery_descriptor(*op).map(JsModelFieldType::Delivery))
                 .unwrap_or_else(|| JsModelFieldType::Other {
                     type_id: self
                         .ir
