@@ -14184,7 +14184,7 @@ impl<'a> Closure<'a> {
     fn source_require_plain_value(&self, ty: &ResolvedType, depth: usize) -> bool {
         if depth >= 16 { return false; }
         match ty {
-            ResolvedType::Scalar(scalar) => *scalar != Scalar::File,
+            ResolvedType::Scalar(scalar) => !matches!(scalar, Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes),
             ResolvedType::Nullable(inner) => self.source_require_plain_value(inner, depth + 1),
             ResolvedType::Array { element, ordered: true, .. } => self.source_require_plain_value(element, depth + 1),
             ResolvedType::Object(fields) => fields.len() <= 200 && fields.iter().all(|(_, ty)| self.source_require_plain_value(ty, depth + 1)),
