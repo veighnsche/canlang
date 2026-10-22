@@ -18,7 +18,7 @@ import { assembleModules } from './modules.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const fixture = (name: string) => join(root, 'packages/cloudflare/test/fixtures', name);
-const compiler = join(root, 'compiler/target/debug/can');
+const compiler = process.env['CAN_COMPILER_BIN'] ?? join(root, 'compiler/target/debug/can');
 const catalog = join(root, 'packages/cloudflare/dist/native-catalog.json');
 const model = (app: string, name: string) => asModel(`${app}.${name}`);
 function operationId(now: number): string {
