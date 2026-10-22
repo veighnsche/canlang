@@ -26459,9 +26459,13 @@ impl<'a> Closure<'a> {
                 }
                 let original_domain = domain;
                 if let Some(query) = self.types.checked_queries.get(&domain) {
-                    if !updated_owner { return Err(self.fail(domain,"filtered domain needs its original finite update/create owner")); }
-                    self.bounded_loop_filter(query).ok_or_else(|| self.fail(domain,"loop needs original item-only filter"))?;
-                    domain = query.domain;
+                    let alias_only = query.projection.is_none() && matches!(query.clauses.as_slice(),[clause]
+                        if matches!(&clause.kind,CheckedQueryClauseKind::As {name} if Some(name)==effect.item.as_ref()));
+                    if !alias_only {
+                        if !updated_owner { return Err(self.fail(domain,"filtered domain needs its original finite update/create owner")); }
+                        self.bounded_loop_filter(query).ok_or_else(|| self.fail(domain,"loop needs original item-only filter"))?;
+                        domain = query.domain;
+                    }
                 }
                 let node = self
                     .nodes
