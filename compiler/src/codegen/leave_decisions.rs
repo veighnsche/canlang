@@ -650,7 +650,7 @@ pub(super) fn collect_leave_receipt(
         .as_bytes(),
     );
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan {
+        plan: ReceiptDisclosurePlan { source_loops: None,
             version: 1,
             source: source.clone(),
             event_decision: None,
@@ -981,7 +981,7 @@ pub(super) fn collect_leave_decide_receipt(
     let source=transport_source(&DisclosureSource{path:file.path.clone(),sha256:file.sha256.clone(),module:"leave".into()},entry_module)?;
     let id=sha256_hex(format!("leave-decide-void/v1:{}:{}:{}",source.sha256,scenario.node.start,scenario.node.end).as_bytes());
     Some(NativeScenarioReceipt{
-        plan:ReceiptDisclosurePlan{version:1,source:source.clone(),event_decision:None,
+        plan:ReceiptDisclosurePlan{source_loops:None,version:1,source:source.clone(),event_decision:None,
             term_decision:None,leave_request_decision:None,leave_decide_decision:Some(decision),refer_reject_decision:None,member_retry_decision:None,invoice_overdue_decision:None,rent_movement_refund_decision:None,
             invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,queries:Vec::new(),returns:vec![ReceiptReturn{id:id.clone(),source,
                 influences:Vec::new(),dependencies:Vec::new(),intrinsics:Vec::new(),projection:None}]},

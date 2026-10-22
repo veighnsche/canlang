@@ -2919,6 +2919,10 @@ fn emit_program_with_sources(
         body.push(entry_span, Some("canScenarioQueryPredicateSource".into()),
             "const $can$query$predicates=new WeakMap();function $can$query$issue(marker,context,predicate){$can$query$predicates.set(predicate,{marker,context});return predicate;}export function canScenarioQueryPredicateSource(predicate){const issued=$can$query$predicates.get(predicate);return issued===undefined?null:{marker:JSON.parse(issued.marker),context:issued.context};}");
     }
+    if native_receipts && emitter.native_receipts.values().any(|receipt|receipt.plan.source_loops.is_some()) {
+        body.push(entry_span,Some("canScenarioSourceLoopSource".into()),
+            "const $can$loop$sources=new WeakMap();function $can$loop$issue(source,context,predicate){$can$loop$sources.set(predicate,{source,context});return predicate;}export function canScenarioSourceLoopSource(predicate){const issued=$can$loop$sources.get(predicate);return issued===undefined?null:{source:JSON.parse(issued.source),context:issued.context};}");
+    }
     if native_receipts && !emitter.source_requires.is_empty() {
         body.push(entry_span,Some("canScenarioRequireSource".into()),
             "const $can$require$sources=new WeakMap();function $can$require$issue(source,predicate){$can$require$sources.set(predicate,source);return predicate;}export function canScenarioRequireSource(predicate){const source=$can$require$sources.get(predicate);return source===undefined?null:JSON.parse(source);}");
@@ -5501,6 +5505,22 @@ impl<'a> Emitter<'a> {
         checked_string_value_type(ty).map(str::to_string)
     }
 
+    /// Model metadata may retain a source-declared local delivery even when
+    /// its nullable slot is absent. This grants no send/result/input profile.
+    fn local_model_delivery_descriptor(&self, op: SymbolId) -> Option<JsDeliveryDescriptor> {
+        let operation = self.ir.items.get(op.0 as usize)?;
+        let IrItemKind::CapabilityOp {result:IrType::Known(ResolvedType::Record {symbol,..}),..} = &operation.kind else { return None; };
+        let mut capabilities = self.ir.items.iter().filter(|item| matches!(&item.kind,IrItemKind::Capability {ops,..} if ops.contains(&op)));
+        let capability = capabilities.next()?;
+        let IrItemKind::Capability {version:Some(version),..} = capability.kind else { return None; };
+        if capabilities.next().is_some() || operation.canonical != format!("{}.{}",capability.canonical,operation.name) { return None; }
+        let version = u32::try_from(version).ok().filter(|version| *version != 0)?;
+        let result = self.ir.items.get(symbol.0 as usize)?;
+        if !matches!(result.kind, IrItemKind::Contract { .. }) { return None; }
+        let schema = self.value_types.as_ref()?.contracts.iter().find(|schema| schema.name == result.canonical)?.clone();
+        Some(JsDeliveryDescriptor {capability:capability.canonical.clone(), operation:operation.name.clone(), version, result:schema})
+    }
+
     fn judgment_delivery_descriptor(&self, op: SymbolId) -> Option<JsJudgmentDeliveryDescriptor> {
         let operation = self.ir.items.get(op.0 as usize)?;
         let IrItemKind::JudgmentGenerated(IrJudgmentGenerated::CapabilityOp {
@@ -6075,7 +6095,7 @@ impl<'a> Emitter<'a> {
         args: &[TypedExpr],
         slots: Option<&[Option<usize>]>,
     ) -> bool {
-        if !matches!(target, IrCallTarget::Builtin { id, .. } if id == "any" || id == "all") {
+        if !matches!(target, IrCallTarget::Builtin { id, .. } if matches!(id.as_str(), "any" | "all" | "group")) {
             return false;
         }
         let predicate = match slots {
@@ -6086,9 +6106,59 @@ impl<'a> Emitter<'a> {
                 .and_then(|index| args.get(index)),
             None => args.get(1),
         };
+        let group = matches!(target, IrCallTarget::Builtin { id, .. } if id == "group");
         matches!(predicate, Some(TypedExpr { expr: IrExpr::Lambda { body, .. }, .. })
-            if expr_uses_async(body) || self.boolean_body || self.boolean_helper
-                || self.leave_decide_async_predicate(body.span))
+            if expr_uses_async(body) || self.implicit_expr_uses_async(body)
+                || !group && (self.boolean_body || self.boolean_helper
+                    || self.leave_decide_async_predicate(body.span)))
+    }
+
+    /// Installed reference readers and scoped collections can suspend a
+    /// checked synchronous expression. Follow only work evaluated here;
+    /// constructing a callback does not evaluate its body. In particular a
+    /// pure Values grouping key must remain synchronous.
+    fn implicit_expr_uses_async(&self, expression: &TypedExpr) -> bool {
+        if !self.boolean_body && !self.boolean_helper { return false; }
+        let mut pending = vec![expression];
+        while let Some(value) = pending.pop() {
+            match &value.expr {
+                IrExpr::Member { base, .. } => {
+                    if self.boolean_body && self.is_model_reference(&base.ty) {
+                        return true;
+                    }
+                    pending.push(base);
+                }
+                IrExpr::Call { target, args } => {
+                    if self.async_scoped_predicate(target, args, None) { return true; }
+                    pending.extend(args);
+                }
+                IrExpr::BoundCall { target, args, slots } => {
+                    if self.async_scoped_predicate(target, args, Some(slots)) { return true; }
+                    pending.extend(args);
+                }
+                IrExpr::Unary { operand, .. } => pending.push(operand),
+                IrExpr::Binary { left, right, .. } => pending.extend([left.as_ref(), right.as_ref()]),
+                IrExpr::Array(values) => pending.extend(values),
+                IrExpr::Object(values) => pending.extend(values.iter().map(|(_, value)| value)),
+                IrExpr::Query(query) => {
+                    if let super::ir::IrQueryDomain::Value { base, .. } = &query.domain { pending.push(base); }
+                    pending.extend(query.value_order.iter().map(|order| order.key.as_ref()));
+                    pending.extend(query.parent.iter().map(|value| value.as_ref()));
+                    pending.extend(query.where_pred.iter().map(|value| value.as_ref()));
+                    pending.extend(query.limit.iter().map(|value| value.as_ref()));
+                    pending.extend(query.archived.iter().map(|value| value.as_ref()));
+                    pending.extend(query.select.iter().map(|value| value.as_ref()));
+                }
+                IrExpr::Message(message) => pending.extend(message.params.iter().map(|param| &param.value)),
+                IrExpr::MessageCall { args, params, .. } => {
+                    pending.extend(args);
+                    pending.extend(params.iter().filter_map(|param| param.default.as_ref()));
+                }
+                IrExpr::Format { args, .. } => pending.extend(args),
+                _ => {},
+            }
+        }
+        false
     }
 
     fn leave_decide_async_predicate(&self, span: Span) -> bool {
@@ -8698,7 +8768,7 @@ impl<'a> Emitter<'a> {
                     self.hook_closure_depth -= 1;
                 }
                 self.exit_scope();
-                if expr_uses_async(body) || self.boolean_body
+                if expr_uses_async(body) || self.implicit_expr_uses_async(body)
                     || self.leave_decide_async_predicate(body.span) {
                     format!("async({param})=>{body_text}")
                 } else {
@@ -9924,6 +9994,16 @@ fn conjunct_dependency_matches<'d>(
         await_result: bool,
         async_scoped: bool,
     ) -> String {
+        if async_scoped && id == "group" && parts.len() == 2 {
+            self.stdlib.insert("ValueError".to_string());
+            self.stdlib.insert("equalValue".to_string());
+            // Match Values.group's once-only source order, equality and frozen
+            // result shape, awaiting only the actual original key callback.
+            return format!(
+                "{}(async($domain,$keyFn)=>{{if(!Array.isArray($domain))throw new ValueError(\"invalid-construction\",\"group domain must be an array\");if(typeof $keyFn!==\"function\")throw new ValueError(\"invalid-construction\",\"group key function must be a function\");const $groups=[];for(const $item of $domain){{const $key=await $keyFn($item);let $found;for(const $candidate of $groups){{if(equalValue(\"\",$candidate.key,$key)){{$found=$candidate;break;}}}}if($found===undefined)$groups.push({{key:$key,items:[$item]}});else $found.items.push($item);}}return Object.freeze($groups.map($entry=>Object.freeze({{key:$entry.key,items:Object.freeze([...$entry.items])}})));}})({},{})",
+                if await_result { "await " } else { "" }, parts[0], parts[1]
+            );
+        }
         if async_scoped && matches!(id.as_str(), "any" | "all") && parts.len() == 2 {
             self.stdlib.insert("ValueError".to_string());
             let stop = if id == "any" { "true" } else { "false" };
@@ -10293,7 +10373,7 @@ fn conjunct_dependency_matches<'d>(
             }
         }
         let value = values.pop().expect("flat binary result");
-        if expr_uses_async(expr) {
+        if expr_uses_async(expr) || self.implicit_expr_uses_async(expr) {
             format!("await (async()=>{{{body}return {value};}})()")
         } else {
             format!("(()=>{{{body}return {value};}})()")
@@ -11436,7 +11516,7 @@ fn null_equality(
         }
         self.exit_scope();
         if self.native_source_predicates {
-            let prefix = if query.where_async || self.boolean_body {
+            let prefix = if query.where_async || self.boolean_body || self.implicit_expr_uses_async(pred) {
                 "async"
             } else {
                 ""
@@ -11453,7 +11533,7 @@ fn null_equality(
             } else {
                 opts.push(format!("where:{predicate}"));
             }
-        } else if query.where_async || self.boolean_body {
+        } else if query.where_async || self.boolean_body || self.implicit_expr_uses_async(pred) {
             opts.push(format!("where:async({row})=>{body}"));
         } else {
             opts.push(format!("where:({row})=>{body}"));
@@ -11479,7 +11559,7 @@ fn null_equality(
             let alias = self.bind(alias);
             let body = self.lower_expr(pred);
             self.exit_scope();
-            out = if query.where_async || self.boolean_body {
+            out = if query.where_async || self.boolean_body || self.implicit_expr_uses_async(pred) {
                 format!(
                     "(await (async($items)=>{{const $result=[];for(const {alias} of $items){{if(await ({body}))$result.push({alias});}}return $result;}})({out}))"
                 )
@@ -11492,7 +11572,7 @@ fn null_equality(
             let alias = self.bind(alias);
             let key = self.lower_expr(&order.key);
             self.exit_scope();
-            let asynchronous = expr_uses_async(&order.key) || self.boolean_body;
+            let asynchronous = expr_uses_async(&order.key) || self.boolean_body || self.implicit_expr_uses_async(&order.key);
             let (awaited, asynchronous_fn) = if asynchronous {
                 ("await ", "async")
             } else {
@@ -11767,7 +11847,7 @@ fn null_equality(
         } else {
             body
         };
-        if expr_uses_async(projection) || self.boolean_body {
+        if expr_uses_async(projection) || self.boolean_body || self.implicit_expr_uses_async(projection) {
             return format!(
                 "(await (async($items)=>{{const $result=[];for(const {param} of $items){{$result.push(await ({body}));}}return $result;}})({fetched}))"
             );
@@ -12781,7 +12861,23 @@ fn null_equality(
                 body,
                 span,
             } => {
-                let domain_text = self.lower_expr(domain);
+                let source_loop = self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.source_loops.as_ref())
+                    .and_then(|source|source["loops"].as_array().and_then(|loops|loops.iter().find(|loop_|
+                        loop_["node"]["start"]==span.start && loop_["node"]["end"]==span.end).map(|loop_|(source.clone(),loop_.clone()))));
+                let domain_text = if let Some((source,loop_)) = source_loop {
+                    let parent = self.reference(loop_["parameter"].as_str().expect("checked loop parameter"));
+                    let predicate = if loop_["filtered"].as_bool()==Some(true) {
+                        let IrExpr::Query(query) = &domain.expr else { unreachable!("checked original loop query"); };
+                        let original = query.where_pred.as_ref().expect("checked original filter");
+                        self.enter_scope(); let row = self.bind(&query.where_param);
+                        let capture = self.receipt_capture.take();
+                        let expression = self.lower_expr(original);
+                        self.receipt_capture = capture; self.exit_scope();
+                        format!("$can$loop$issue({},c,async({row})=>({expression}))",descriptor_json(&descriptor_json(&serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_}))))
+                    } else { "null".into() };
+                    self.stdlib.insert("nativeScenarioSourceLoop".into());
+                    format!("await nativeScenarioSourceLoop(c,{},{parent},{predicate})",descriptor_json(&loop_["id"]))
+                } else { self.lower_expr(domain) };
                 // Model queries arrive already awaited (`await
                 // records(...)`); await any other domain exactly once
                 // (`await` on a plain array is harmless).
@@ -19700,10 +19796,12 @@ impl<'a> Emitter<'a> {
                     .map(|row| row.canonical.clone())
                     .unwrap_or_else(|| "message".to_string()),
             },
-            // Only a checked static Judgment joins the local delivery profile.
+            // Preserve the original local model slot's declared wire schema;
+            // only separate owning producers may issue a non-null receipt.
             ResolvedType::Delivery { op } => self
                 .judgment_delivery_descriptor(*op)
                 .map(JsModelFieldType::JudgmentDelivery)
+                .or_else(|| self.local_model_delivery_descriptor(*op).map(JsModelFieldType::Delivery))
                 .unwrap_or_else(|| JsModelFieldType::Other {
                     type_id: self
                         .ir
@@ -20065,7 +20163,7 @@ impl<'a> Emitter<'a> {
             )
         }) {
             format!("async(c,row,$readCurrent)=>{body_text}")
-        } else if expr_uses_async(body) || self.boolean_body {
+        } else if expr_uses_async(body) || self.boolean_body || self.implicit_expr_uses_async(body) {
             format!("async(c,row)=>{body_text}")
         } else {
             format!("(c,row)=>{body_text}")

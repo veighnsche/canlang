@@ -954,6 +954,30 @@ pub(super) fn checked_created_schema(
     let prefix = ir_model_rule_prefix(ir, model);
     check_schema_rules(&matcher, ir, model, declaration, invariants, locks, uniques, retain, prefix)
         .or_else(|| checked_fresh_model_rules(source_context?, ir, model, db))?;
+    // A local declared delivery can be retained as an untouched null slot.
+    // Its complete operation/version/result schema must still agree with the
+    // independent original lowering; this issues no non-null receipt value.
+    if stored_fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).any(|field| matches!(&field.kind,
+        IrItemKind::Field {ty:IrType::Known(ResolvedType::Nullable(inner)),..}
+            if matches!(inner.as_ref(),ResolvedType::Delivery {..}))) {
+        let context = source_context?;
+        for id in &stored_fields {
+            let field = ir.items.get(id.0 as usize)?;
+            if let IrItemKind::Field {ty:IrType::Known(ResolvedType::Nullable(inner)),default,..} = &field.kind
+                && let ResolvedType::Delivery {op} = inner.as_ref() {
+                super::scenario_decisions::same_capability_operation(context,*op)?;
+                if original.inputs.iter().any(|input| input.field == Some(field.id))
+                    || !(default.is_none() || matches!(default,Some(IrDefault::Literal(value)) if value.ty == ResolvedType::Null && matches!(value.expr,IrExpr::Null))) {
+                    return None;
+                }
+            }
+        }
+        let expected = Emitter::source_models(context.fresh(),db)?;
+        let mut generated = expected.iter().filter(|descriptor| descriptor.name == model.canonical);
+        let mut supplied = models.iter().filter(|descriptor| descriptor.name == model.canonical);
+        if serde_json::to_value(generated.next()?).ok()? != serde_json::to_value(supplied.next()?).ok()?
+            || generated.next().is_some() || supplied.next().is_some() { return None; }
+    }
     check_emitted_descriptor(ir, db, models, model)
 }
 

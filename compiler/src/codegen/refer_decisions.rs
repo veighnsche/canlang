@@ -629,7 +629,7 @@ pub(super) fn collect_reject_receipt(
         .as_bytes(),
     );
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan {
+        plan: ReceiptDisclosurePlan { source_loops: None,
             version: 1,
             source: source.clone(),
             event_decision: None,

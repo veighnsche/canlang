@@ -198,6 +198,13 @@ export interface ScenarioResultDisclosurePlan {
   readonly successRenewalDecision?: unknown;
   readonly purchaseReceiveAll?: unknown;
   readonly eventNoticeAudit?: unknown;
+  /** Original contained domains; this metadata grants no generic query or effect authority. */
+  readonly sourceLoops?: {
+    readonly source: ScenarioReceiptSourceOrigin; readonly owner:string;
+    readonly loops:readonly {readonly id:string;readonly node:{readonly start:number;readonly end:number};
+      readonly domain:{readonly start:number;readonly end:number};readonly maximum:number;readonly parameter:string;
+      readonly parentModel:string;readonly model:string;readonly filtered:boolean}[];
+  };
   readonly queries?: readonly ScenarioReceiptQueryPlan[];
   readonly returns: ReadonlyArray<{
     readonly id: string;

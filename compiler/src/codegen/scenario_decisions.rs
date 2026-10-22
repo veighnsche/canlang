@@ -1165,6 +1165,29 @@ pub(super) fn same_scenario_semantics(
     join.statements(ae, be, 0)
 }
 
+/// A nullable local delivery retains its original declared operation only;
+/// this seal grants no send or result observation producer.
+pub(super) fn same_capability_operation(context: &FreshSourceContext<'_>, op: crate::analysis::SymbolId) -> Option<()> {
+    let actual = context.ir(); let expected = context.fresh();
+    let a = actual.items.get(op.0 as usize)?; let b = expected.items.get(op.0 as usize)?;
+    let (IrItemKind::CapabilityOp {params: ap,result: ar},IrItemKind::CapabilityOp {params:bp,result:br}) = (&a.kind,&b.kind) else { return None; };
+    let identity = |a:&IrItem,b:&IrItem| a.id==b.id && a.canonical==b.canonical && a.name==b.name && a.module==b.module && a.span==b.span;
+    if !identity(a,b) || ap!=bp || !known_type_equal(ar,br) { return None; }
+    let mut caps = actual.items.iter().filter(|item|matches!(&item.kind,IrItemKind::Capability{ops,..} if ops.contains(&op)));
+    let cap = caps.next()?; if caps.next().is_some() { return None; }
+    let original = expected.items.get(cap.id.0 as usize)?;
+    let (IrItemKind::Capability {ops:ao,events:ae,version:av},IrItemKind::Capability {ops:bo,events:be,version:bv}) = (&cap.kind,&original.kind) else { return None; };
+    if !identity(cap,original) || ao!=bo || ae!=be || av!=bv { return None; }
+    let mut join = SemanticJoin {program:context.original(),actual,expected,nodes:0,stack:HashSet::new()};
+    join_semantic_params(&mut join,actual,expected,op,ap)?;
+    for id in ap {
+        let (IrItemKind::Param {default_copy_source:a,array_bounds:ab,..},IrItemKind::Param {default_copy_source:b,array_bounds:bb,..}) =
+            (&actual.items.get(id.0 as usize)?.kind,&expected.items.get(id.0 as usize)?.kind) else { return None; };
+        if a!=b || ab.as_ref().map(|b|(b.min,b.max))!=bb.as_ref().map(|b|(b.min,b.max)) { return None; }
+    }
+    Some(())
+}
+
 // Compare typed semantic structure against the original lowering, never text/debug output.
 struct SemanticJoin<'a> {
     program: &'a CheckedProgram,

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { it } from 'node:test';
 import { promisify } from 'node:util';
 import type { CompileArtifact, FileRetirementAuthority } from '@canlang/contracts';
+import { decodeValue } from '@canlang/values';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
@@ -782,6 +783,123 @@ it('records inspections and conditional repairs over the original hidden helper 
       }
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+it('revises proposals through original filtered owner loops, interval guards and exact snapshots', { timeout: 900000 }, async () => {
+  const path = join(root, 'packages/cloudflare/test/fixtures/propose-revise-owner-probe.can');
+  const directory = await mkdtemp(join(tmpdir(), 'can-propose-revise-'));
+  try {
+    const original = await readFile(join(root, 'draft/apps/CanPropose/CanPropose.can'), 'utf8');
+    const start = original.indexOf('  export scenario revise('), end = original.indexOf('   examples ', start);
+    assert.ok(start >= 0 && end > start && (await readFile(path, 'utf8')).includes(original.slice(start,end).trimEnd()),
+      'exercise the complete authored revision child');
+    const {stdout} = await promisify(execFile)(compiler,
+      ['compile','--format=json','--native-scenario-receipts','--catalog',catalog,path],
+      {cwd:root,timeout:120000,maxBuffer:32*1024*1024});
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    assert.ok(artifact.operations?.find(operation => operation.name === 'propose.revise')?.result?.disclosure);
+    const document = artifact.models?.find(model => model.name === 'propose.Revision')?.fields.find(field => field.name === 'document');
+    assert.equal(document?.field.kind,'delivery');
+    if (document?.field.kind === 'delivery') {
+      assert.equal(document.field.capability,'propose.DocumentsV1');
+      assert.equal(document.field.operation,'quote');
+      assert.equal(document.field.version,1);
+      assert.equal(document.field.result.name,'propose.QuotePdf');
+    }
+    const asm = await assembleModules({artifact,sourcePath:path},{workDir:directory,
+      stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+    for (const mode of ['overlap','inactive','valid','hidden','defaults','empty','many-unmatched','predicate-race','membership-race'] as const) {
+      const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({clock});
+      const team = await identities.createTeam({timezone:'UTC'});
+      const user = await identities.createUser({email:`${mode}@propose.test`,password_hash:'unused',email_verified:true});
+      await identities.createMembership({team_id:team.team_id,user_id:user.user_id,is_owner:false,
+        roles:[{role:'propose.salesperson',granted_at:new Date(now).toISOString(),granted_by:user.user_id}]});
+      const token = `revise-${mode}`;
+      await identities.createSession({user_id:user.user_id,token_sha256:await sha256HexText(token),last_team_id:team.team_id,
+        expires_at:new Date(now+3600000).toISOString()});
+      const identity = await resolveIdentity(identities,{session_token:token},{clock});
+      const scope = {app:'CanPropose',owner:team.team_id,ownerPackage:'propose'};
+      const authority: FileRetirementAuthority = {app:scope.app,stateOwner:scope.app,stateStoreId:'propose-state',fileStoreId:'propose-files',
+        receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+      const {store,probe} = createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+      const customer = asId('customer-1'), contact = asId('contact-1'), location = asId('location-1'), proposal = asId('proposal-1');
+      const row = (id:ReturnType<typeof asId>,data:Record<string,unknown>,parent:{model:ReturnType<typeof asModel>;id:ReturnType<typeof asId>}|null=null) => ({...makeRow({id,data}),parent});
+      const from = '2027-01-01T09:00:00.000Z', midpoint = '2027-01-01T10:00:00.000Z', until = '2027-01-01T11:00:00.000Z';
+      const oldData = (number:string,state:string,hold_state:string) => ({product:null,attribution:null,exclusive_program:null,attributed_at:null,attribution_window:null,
+        number,issuer_snapshot:'Issuer',title_snapshot:'Offer',location_snapshot:'Main',customer_snapshot:'Buyer',alternative_to:null,recipient_email:'buyer@example.test',account:null,
+        expires:'2027-02-01T00:00:00.000Z',terms:'Old terms',refund_before:from,resource:'desk',from,until,intervals:[],seats:'1',quantity:'1',held_until:null,
+        total:{minor:'0',currency:'EUR'},state,decided_by:null,decided_at:null,handoff:'none',delivery:null,booking:null,invoice:null,hold_state,
+        booking_version:'0',hold_version:'0',hold_delivery:null,hold_release:null,notice:null,document_state:'none',document:null,pdf:null});
+      await store.commit(makeBatch(await store.readRevision(),{writes:[
+        {kind:'insert',model:asModel('customer.Customer'),row:row(customer,{name:'Buyer'})},
+        {kind:'insert',model:asModel('customer.Contact'),row:row(contact,{email:'buyer@example.test'},{model:asModel('customer.Customer'),id:customer})},
+        {kind:'insert',model:asModel('rent_catalog.Location'),row:row(location,{name:'Main',timezone:'UTC',active:true})},
+        {kind:'insert',model:asModel('employee.Employee'),row:row(asId('employee-1'),{user:{id:user.user_id},home:{id:location},locations:[],operator_wide:false,active:mode!=='inactive',hidden:mode==='hidden'})},
+        {kind:'insert',model:asModel('propose.Proposal'),row:row(proposal,{location:{id:location},recipient:{id:contact},issuer:'Issuer',title:'Offer',currency:'EUR',valid_days:'14',current:'3'},{model:asModel('customer.Customer'),id:customer})},
+        ...(mode==='empty'?[]:(['draft','sent','accepted'] as const)).map((state,index)=>({kind:'insert' as const,model:asModel('propose.Revision'),row:row(asId(`old-${index}`),oldData(String(index+1),state,index===0?'none':'held'),{model:asModel('propose.Proposal'),id:proposal})})),
+        ...(mode==='many-unmatched'?Array.from({length:101},(_,index)=>({kind:'insert' as const,model:asModel('propose.Revision'),
+          row:row(asId(`unmatched-${index}`),oldData(String(index+10),'accepted','held'),{model:asModel('propose.Proposal'),id:proposal})})):[]),
+      ]}));
+      const businessRows = async () => Promise.all(['propose.Proposal','propose.Revision'].map(model => store.query({model:asModel(model),authority:'owner'})));
+      const baseline = JSON.stringify(await businessRows());
+      let raced = false;
+      if (mode === 'predicate-race'||mode==='membership-race') {
+        const commit = store.commit.bind(store);
+        store.commit = async batch => {
+          if (!raced && batch.writes.some(write => write.model === 'propose.Revision')) {
+            raced = true;
+            if(mode==='predicate-race') {
+              const observed=await store.load(asModel('propose.Revision'),asId('old-2'));assert.ok(observed);
+              await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('propose.Revision'),
+                id:observed.id,expectedVersion:observed.version,row:{...observed,version:asVersion(observed.version+1),
+                  updated:now,data:{...observed.data,state:'draft'}}}]}));
+            } else {
+              await commit(makeBatch(await store.readRevision(),{writes:Array.from({length:99},(_,index)=>({kind:'insert' as const,
+                model:asModel('propose.Revision'),row:row(asId(`concurrent-${index}`),oldData(String(index+10),'draft','none'),
+                  {model:asModel('propose.Proposal'),id:proposal})}))}));
+            }
+          }
+          return commit(batch);
+        };
+      }
+      const module = await import(asm.moduleUrls[artifact.modules[0]!.path]!);
+      const helper = module[`$can$s$${Buffer.from('propose.quote_intervals_valid').toString('hex')}`];
+      const nativeTime = (wire:string) => decodeValue('datetime',wire);
+      assert.equal(await helper({},nativeTime(from),nativeTime(until),
+        [{from:nativeTime(midpoint),until:nativeTime(until)},{from:nativeTime(from),until:nativeTime(mode==='overlap'?until:midpoint)}]),mode!=='overlap',`${mode}: actual interval helper`);
+      const invoker = buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+      const intervals = [{from:midpoint,until},{from,until:mode==='overlap'?until:midpoint}];
+      const outcome = await invoker.invokeMutation({operation:'propose.revise',operation_id:uuidv7(now,1),inputs:{
+        proposal:{id:proposal,version:'1'},terms:'New terms',resource:null,from,until,seats:'2',
+        ...(mode==='defaults'?{}:{quantity:'3',refund_before:from,intervals,product:'NEW'})}},identity);
+      const success = ['valid','hidden','defaults','empty','many-unmatched','predicate-race'].includes(mode);
+      assert.equal('result' in outcome && outcome.result.status==='committed',success,`${mode}: ${JSON.stringify(outcome)}`);
+      if (mode==='predicate-race'||mode==='membership-race') assert.equal(raced,true);
+      const revisions = await store.query({model:asModel('propose.Revision'),authority:'owner'});
+      assert.equal(revisions.length,(mode==='empty'?0:mode==='many-unmatched'?104:mode==='membership-race'?102:3)+(success?1:0),mode);
+      const changed = await store.load(asModel('propose.Proposal'),proposal); assert.ok(changed);
+      assert.equal(changed.data['current'],success?'4':'3',mode);
+      for (let index=0;index<(mode==='empty'?0:3);index++) {
+        const prior = revisions.find(row=>row.id===`old-${index}`)!;
+        assert.equal(prior.data['state'],success&&(index<2||mode==='predicate-race')?'withdrawn':['draft','sent','accepted'][index],mode);
+        assert.equal(prior.data['hold_state'],success&&(index===1||mode==='predicate-race'&&index===2)?'releasing':index===0?'none':'held',mode);
+      }
+      if(mode==='many-unmatched')assert.ok(revisions.filter(row=>row.id.startsWith('unmatched-')).every(row=>row.version===1&&row.data['state']==='accepted'));
+      if(mode==='membership-race')assert.ok(revisions.filter(row=>row.id.startsWith('concurrent-')).every(row=>row.version===1&&row.data['state']==='draft'));
+      if (success) {
+        const created = revisions.find(row=>row.id.includes('#create:')); assert.ok(created);
+        assert.equal(created.data['number'],'4'); assert.equal(created.data['location_snapshot'],'Main');
+        assert.equal(created.data['customer_snapshot'],'Buyer'); assert.equal(created.data['recipient_email'],'buyer@example.test');
+        assert.equal(created.data['document'],null); assert.equal(created.data['pdf'],null);
+        assert.equal(created.data['quantity'],mode==='defaults'?'1':'3'); assert.equal(created.data['refund_before'],from);
+        assert.deepEqual(created.data['intervals'],mode==='defaults'?[]:[{from,until:midpoint},{from:midpoint,until}]);
+        assert.equal(created.data['expires'],new Date(now+14*86400000).toISOString());
+      } else if (mode!=='membership-race') {
+        assert.equal(JSON.stringify(await businessRows()),baseline,'guard failure is atomic');
+      }
+    }
+  } finally {await rm(directory,{recursive:true,force:true});}
 });
 
 it('executes original interval Values guards with nominal arrays, structural group results and declared defaults', {timeout:300000}, async()=>{

@@ -3127,6 +3127,7 @@ pub(crate) fn checked_query_rule_fields(
                 | ResolvedType::Record { stored: true, .. } | ResolvedType::Null => true,
                 ResolvedType::Nullable(inner) => Self::leaf(inner),
                 ResolvedType::Array { element, .. } => Self::leaf(element),
+                ResolvedType::Object(fields) => fields.len()<=200 && fields.iter().all(|(_,ty)|Self::leaf(ty)),
                 _ => false,
             }
         }
@@ -3379,12 +3380,11 @@ pub(crate) fn checked_query_rule_fields(
                 || query.value_order.is_some()
                 || query.limit.is_some()
                 || query.archived.is_some()
-                || query.select.is_some()
-                || query.select_param.is_some()
+                || query.select.is_some() != query.select_param.is_some()
                 || query.contract_collection_call.is_some()
                 || source.domain_type != base.ty
                 || source.result != value.ty
-                || base.ty != value.ty
+                || query.select.is_none() && base.ty != value.ty
         }
         fn visit_value_domain_query(
             &mut self,
@@ -3410,8 +3410,17 @@ pub(crate) fn checked_query_rule_fields(
             }
             if self.checked.types.checked_queries.get(&source.node) != Some(source)
                 || Self::value_domain_mismatch(query, value, base)
-                || !matches!(source.clauses.as_slice(), [clause]
-                    if matches!(&clause.kind, crate::analysis::types::CheckedQueryClauseKind::As { name } if name == alias))
+                || !matches!(source.clauses.first().map(|clause|&clause.kind),
+                    Some(crate::analysis::types::CheckedQueryClauseKind::As {name}) if name == alias)
+                || match (&query.select,&query.select_param,source.clauses.as_slice()) {
+                    (None,None,[_]) => false,
+                    (Some(body),Some(param),[_,selection]) => param != alias
+                        || selection.kind != crate::analysis::types::CheckedQueryClauseKind::Select
+                        || selection.expressions.len()!=1
+                        || !contains_span(crate::source::Span::new(selection.node.file,selection.node.start,selection.node.end),body.span)
+                        || self.checked.types.node_types.get(&selection.expressions[0]) != Some(&body.ty),
+                    _ => true,
+                }
             {
                 return None;
             }
@@ -3423,7 +3432,13 @@ pub(crate) fn checked_query_rule_fields(
                     return None;
                 }
             }
-            self.expr(base, depth + 1)
+            self.expr(base, depth + 1)?;
+            if let (Some(body),Some(param)) = (&query.select,&query.select_param) {
+                self.bindings.push((param.clone(),element.as_ref().clone()));
+                self.expr(body,depth+1)?;
+                self.bindings.pop()?;
+            }
+            Some(())
         }
         fn join_model_candidate(
             &mut self,
@@ -3629,7 +3644,7 @@ pub(crate) fn checked_query_rule_fields(
             let IrCallTarget::Builtin { id, awaited: false } = target else {
                 return Some(false);
             };
-            if !matches!(id.as_str(), "any" | "all" | "sum" | "count" | "money" | "trim" | "starts_with" | "local_instant" | "add_days" | "date" | "overlaps") {
+            if !matches!(id.as_str(), "any" | "all" | "group" | "min" | "max" | "sum" | "count" | "money" | "trim" | "starts_with" | "local_instant" | "add_days" | "date" | "overlaps") {
                 return None;
             }
             let formal = self.call_arguments(value, id, args)?;
@@ -3638,7 +3653,7 @@ pub(crate) fn checked_query_rule_fields(
             {
                 return self.bare_model_count(formal[0], depth + 1).map(|_| true);
             }
-            if id == "any" || id == "all" {
+            if id == "any" || id == "all" || id == "group" {
                 self.visit_any_all_call(&formal, args, value, depth)?;
             } else {
                 for arg in formal {

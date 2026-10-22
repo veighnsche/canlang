@@ -2949,6 +2949,35 @@ impl<'a> Closure<'a> {
         Some((parameter, branch, reference_field, profile, field.id))
     }
 
+    /// A scalar constructor input may consume its exact original required
+    /// stored-reference field. It retains both row reads; it grants neither a
+    /// reusable reference nor an eager navigation through unrelated fields.
+    fn checked_constructor_reference_scalar(&self, key: NodeKey, module: ModuleId)
+        -> Option<(SymbolId, SymbolId, SymbolId, SymbolId, SymbolId)> {
+        let (reference, name) = self.count_member(key)?;
+        let (root, _) = self.count_member(reference)?;
+        let Binding::Symbol(parameter) = self.query_binding(root)? else { return None; };
+        let (source, reference_field, target) = self.checked_required_model_reference(reference, module)?;
+        let scenario = self.effects.scenarios.values().find(|scenario|
+            scenario.module == module && !scenario.read && scenario.on.is_none()
+            && scenario.node.file == key.file && scenario.node.start <= key.start
+            && key.end <= scenario.node.end)?;
+        let parameter_data = scenario.params.iter().find(|p| p.param == *parameter)?;
+        if parameter_data.default.is_some() || self.types.value_constraints.contains_key(parameter)
+            || self.types.symbol_types.get(parameter) != Some(&ResolvedType::Record {symbol: source, stored: true})
+            || !scenario.effects.iter().any(|effect| effect.verb == EffectVerb::Create
+                && effect.args.iter().any(|argument| argument.value == Some(key))) {
+            return None;
+        }
+        let SymbolKind::Model { fields, .. } = &self.resolve.symbols.get(target.0 as usize)?.kind else { return None; };
+        let field = fields.iter().filter_map(|id| self.resolve.symbols.get(id.0 as usize))
+            .find(|field| field.name == name && matches!(field.kind, SymbolKind::Field {owner, ..} if owner == target))?;
+        let ty = self.types.symbol_types.get(&field.id)?;
+        if !primitive_type(ty) || self.types.node_types.get(&key) != Some(ty)
+            || self.types.field_reuse_sources.contains_key(&field.id) { return None; }
+        Some((*parameter, source, reference_field, target, field.id))
+    }
+
     /// Validate a profile scalar field declaration: owned by the profile
     /// with the expected scalar spelling, type and no reuse.
     #[allow(clippy::too_many_arguments)]
@@ -6446,6 +6475,16 @@ impl<'a> Closure<'a> {
                 .filter(|part| part.kind == SyntaxKind::Path)
                 .flat_map(|part| super::path_segments(part, text))
                 .eq(cases.iter().map(String::as_str)),
+            (SyntaxKind::DeliveryType, ResolvedType::Delivery { op }) => {
+                let Some(path) = node.children.iter().find(|part| part.kind == SyntaxKind::Path) else { return false; };
+                let segments = super::path_segments(path, text);
+                let [binding, operation] = segments.as_slice() else { return false; };
+                let Some(ScopedName::Imported {target, bound:true}) = self.resolve.module_scopes.get(module.0 as usize)
+                    .and_then(|scope| scope.prod.get(*binding)) else { return false; };
+                let Some(SymbolKind::Capability {ops,..}) = self.resolve.symbols.get(target.0 as usize).map(|symbol| &symbol.kind) else { return false; };
+                ops.contains(op) && self.resolve.symbols.get(op.0 as usize).is_some_and(|symbol|
+                    symbol.name == *operation && matches!(symbol.kind, SymbolKind::CapabilityOp {..}))
+            }
             (SyntaxKind::DeliveryType, ResolvedType::StdDelivery { capability, op }) => {
                 let Some(path) = node
                     .children
@@ -16033,6 +16072,26 @@ impl<'a> Closure<'a> {
         }
     }
 
+    fn constructor_value_order_query(&mut self, key: NodeKey, module: ModuleId, env: &Env,
+        calls: &[NodeKey]) -> Option<Vec<ValuePath>> {
+        let query = self.types.checked_queries.get(&key)?.clone();
+        let [alias, order] = query.clauses.as_slice() else { return None; };
+        let [ordered] = order.expressions.as_slice() else { return None; };
+        if !calls.is_empty() || !self.source_require_value_query(&query)
+            || !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
+            || order.kind != CheckedQueryClauseKind::Order || query.projection.is_some()
+            || query.result != query.domain_type || !self.effects.scenarios.values().any(|scenario|
+                scenario.module == module && scenario.effects.iter().any(|effect| effect.verb == EffectVerb::Create
+                    && effect.args.iter().any(|argument| argument.value == Some(key)))) { return None; }
+        let (receiver, name) = self.count_member(*ordered)?;
+        if !matches!(self.query_binding(receiver), Some(Binding::QueryAlias {node}) if *node == alias.node) { return None; }
+        let ResolvedType::Array {element,..} = &query.domain_type else { return None; };
+        let ResolvedType::Record {symbol: contract,..} = element.as_ref() else { return None; };
+        let field_type = self.types.node_types.get(ordered)?;
+        if !primitive_type(field_type) || self.contract_member(*contract, name, field_type).is_none() { return None; }
+        self.expr(query.domain, module, env, calls).ok()
+    }
+
     fn expr_inner(
         &mut self,
         key: NodeKey,
@@ -16086,7 +16145,9 @@ impl<'a> Closure<'a> {
             SyntaxKind::Query if self.inline_selection_at(key, module).is_some() => {
                 self.inline_selection_value(key, module, env, calls)
             }
-            SyntaxKind::Query => Err(self.influence(
+            SyntaxKind::Query => if let Some(value) = self.constructor_value_order_query(key, module, env, calls) {
+                Ok(value)
+            } else { Err(self.influence(
                 key,
                 module,
                 &[
@@ -16096,7 +16157,7 @@ impl<'a> Closure<'a> {
                     InfluenceKind::QueryOrder,
                 ],
                 "query closure is not supported",
-            )),
+            )) },
             _ => Err(self.fail(key, "unsupported expression closure")),
         }
     }
@@ -16584,6 +16645,7 @@ impl<'a> Closure<'a> {
             && self
                 .checked_profile_scalar(key, module)
                 .or_else(|| self.checked_run_unfinished(key, module))
+                .or_else(|| self.checked_constructor_reference_scalar(key, module))
                 .is_none()
         {
             return Err(self.fail(
@@ -17578,6 +17640,18 @@ impl<'a> Closure<'a> {
             field.id,
             value,
         );
+        if let Some((_, source, reference, target, scalar)) = self.checked_constructor_reference_scalar(key, module) {
+            if !calls.is_empty() || self.loop_node.is_some() || model != target || field.id != scalar
+                || !matches!(value.model_result, Some(DisclosureModelResult::Reference {
+                    model, node, source_model, field }) if model == target && node == base_key
+                    && source_model == source && field == reference)
+                || !value.reads.iter().any(|read| read.node == base_key && read.model == source
+                    && read.field == reference && read.ty == ResolvedType::Record {symbol: target, stored: true}
+                    && read.calls.is_empty() && read.query_id.is_none()) {
+                return Err(self.fail(key, "constructor scalar needs its original stored reference receiver"));
+            }
+            value.reference_origin = None;
+        }
         self.expr_member_profile_scalar_leaf(
             key,
             module,
@@ -20965,6 +21039,20 @@ impl<'a> Closure<'a> {
                         || effect.then_effects.is_empty()
                             && effect.else_effects.is_empty() && effect.match_arms.is_empty())
             }
+            /// Updating an owning bounded child domain may precede its one
+            /// new revision. Individual loop/SET/CREATE proofs still execute
+            /// in source order; this is only the created-result shape join.
+            fn check_updated_model_return(&self, effects: &[Effect], model: SymbolId, created: &Effect) -> bool {
+                let [looped, numbered, updated, actual, returned] = effects else { return false; };
+                looped.verb == EffectVerb::For && looped.limit.is_some()
+                    && numbered.verb == EffectVerb::Let && updated.verb == EffectVerb::Set
+                    && actual.node == created.node && actual.verb == EffectVerb::Create
+                    && matches!(actual.target, Some(EffectTarget::Model(target)) if target == model)
+                    && returned.verb == EffectVerb::Return
+                    && returned.value.is_some_and(|key| matches!(self.query_binding(key), Some(Binding::CreateAs {node}) if *node == created.node))
+                    && effects[1..].iter().all(|effect| effect.then_effects.is_empty() && effect.else_effects.is_empty() && effect.match_arms.is_empty())
+            }
+
             /// Check the straight-line created profile: create, set, required guards,
             /// then the current-field return.
             /// (This was the fallback block when no model-return shape admitted.)
@@ -25852,6 +25940,49 @@ impl<'a> Closure<'a> {
                 })
             }
 
+            /// A finite original filter reads only the actual checked query
+            /// alias's scalar fields. It opens no additional row navigation.
+            fn bounded_loop_filter(&self, query: &super::types::CheckedQuery) -> Option<NodeKey> {
+                let [alias, filter] = query.clauses.as_slice() else { return None; };
+                let [predicate] = filter.expressions.as_slice() else { return None; };
+                if !matches!(alias.kind, CheckedQueryClauseKind::As { .. }) || !alias.expressions.is_empty()
+                    || filter.kind != CheckedQueryClauseKind::Where || query.projection.is_some()
+                    || query.result != query.domain_type || self.types.node_types.get(predicate) != Some(&ResolvedType::Scalar(Scalar::Bool)) { return None; }
+                let ResolvedType::Array {element,ordered:true,nonempty:false} = &query.domain_type else { return None; };
+                let ResolvedType::Record {symbol:model,stored:true} = element.as_ref() else { return None; };
+                self.bounded_item_condition(*predicate,*model,alias.node,true)?;
+                Some(*predicate)
+            }
+
+            fn bounded_item_condition(&self, predicate: NodeKey, model: SymbolId,
+                owner: NodeKey, query_alias: bool) -> Option<()> {
+                let item = |key| match self.query_binding(key) {
+                    Some(Binding::QueryAlias {node}) if query_alias => *node == owner,
+                    Some(Binding::ForItem {node}) if !query_alias => *node == owner,
+                    _ => false,
+                };
+                if self.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool)) { return None; }
+                let mut pending = vec![predicate]; let mut count = 0;
+                while let Some(key) = pending.pop() {
+                    count += 1; if count > 1024 { return None; }
+                    let node = self.nodes.get(&key)?;
+                    if expression(node.kind) && !matches!(node.kind,SyntaxKind::Literal|SyntaxKind::NameRef
+                        |SyntaxKind::Group|SyntaxKind::Member|SyntaxKind::Unary|SyntaxKind::Binary|SyntaxKind::Array) { return None; }
+                    if node.kind == SyntaxKind::NameRef && !item(key) && !self.types.resolved_cases.contains(&key) { return None; }
+                    if node.kind == SyntaxKind::Member {
+                        let (base,name) = self.count_member(key)?;
+                        if !item(base) { return None; }
+                        let field = self.effects.models.get(&model)?.fields.iter().find(|field|
+                            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|symbol|symbol.name == name))?;
+                        let ty = self.types.symbol_types.get(&field.field)?;
+                        if self.types.node_types.get(&key) != Some(ty)
+                            || !(primitive_type(ty) || matches!(ty,ResolvedType::Enum {..})) { return None; }
+                    }
+                    pending.extend(node.children.iter().map(NodeKey::of));
+                }
+                Some(())
+            }
+
             /// One bounded, straight-line loop over the actual admitted reference
             /// array. This is source closure, not an array/query authority claim.
             fn bounded_input_loop(
@@ -25861,18 +25992,32 @@ impl<'a> Closure<'a> {
                 flow: Flow,
                 calls: &[NodeKey],
             ) -> Result<Vec<Flow>, DisclosureDecline> {
+                let updated_owner = self.effects.scenarios.values().any(|scenario|
+                    scenario.module == module && scenario.effects.first().is_some_and(|first|first.node == effect.node)
+                    && scenario.effects.get(3).is_some_and(|created|
+                        matches!(created.target,Some(EffectTarget::Model(model))
+                            if self.check_updated_model_return(&scenario.effects,model,created))));
+                let mut assignments = Vec::new();
+                for child in &effect.then_effects {
+                    if child.verb == EffectVerb::Set { assignments.push((child, None)); }
+                    else if updated_owner && child.verb == EffectVerb::If && child.else_effects.is_empty() && child.match_arms.is_empty()
+                        && child.then_effects.len() == 1 && child.then_effects[0].verb == EffectVerb::Set
+                        && child.then_effects[0].args.iter().all(|argument| {
+                            let key = argument.value.unwrap_or(argument.key_node);
+                            self.nodes.get(&key).is_some_and(|node| matches!(node.kind, SyntaxKind::NameRef | SyntaxKind::Literal)
+                                && !matches!(self.query_binding(key), Some(Binding::ForItem { .. } | Binding::QueryAlias { .. })))
+                        })
+                    { assignments.push((&child.then_effects[0], Some(child.cond.ok_or_else(|| self.fail(child.node,"missing item condition"))?))); }
+                    else { return Err(self.fail(child.node,"unsupported bounded loop body")); }
+                }
                 if !calls.is_empty()
                     || self.loop_node.is_some_and(|node| node != effect.node)
                     || !effect.else_effects.is_empty()
                     || !effect.match_arms.is_empty()
                     || effect.then_effects.is_empty()
                     || effect.then_effects.len() > 200
-                    || effect.then_effects.iter().any(|child| {
-                        child.verb != EffectVerb::Set
-                            || !child.then_effects.is_empty()
-                            || !child.else_effects.is_empty()
-                            || !child.match_arms.is_empty()
-                    })
+                    || assignments.iter().any(|(child,_)| !child.then_effects.is_empty()
+                        || !child.else_effects.is_empty() || !child.match_arms.is_empty())
                 {
                     return Err(self.fail(effect.node, "unsupported bounded loop body"));
                 }
@@ -25896,6 +26041,12 @@ impl<'a> Closure<'a> {
                         return Err(self.fail(domain, "unsupported grouped loop domain"));
                     }
                     domain = NodeKey::of(children[0]);
+                }
+                let original_domain = domain;
+                if let Some(query) = self.types.checked_queries.get(&domain) {
+                    if !updated_owner { return Err(self.fail(domain,"filtered domain needs its original finite update/create owner")); }
+                    self.bounded_loop_filter(query).ok_or_else(|| self.fail(domain,"loop needs original item-only filter"))?;
+                    domain = query.domain;
                 }
                 let node = self
                     .nodes
@@ -25992,7 +26143,7 @@ impl<'a> Closure<'a> {
                 {
                     return Err(self.fail(limit, "loop needs typed literal limit"));
                 }
-                if usize::from(maximum).saturating_mul(effect.then_effects.len()) > 200 {
+                if usize::from(maximum).saturating_mul(assignments.len()) > 200 {
                     return Err(self.fail(effect.node, "loop Set execution bound"));
                 }
                 let item = effect
@@ -26009,7 +26160,15 @@ impl<'a> Closure<'a> {
                     },
                 );
                 let mut body = ValuePath::default();
-                for child in &effect.then_effects {
+                for (child, condition) in assignments {
+                    if let Some(condition) = condition {
+                        self.bounded_item_condition(condition,model,effect.node,false)
+                            .ok_or_else(||self.fail(condition,"condition must test its exact loop item fields"))?;
+                        let values = self.expr(condition, module, &env, calls)?;
+                        let [value] = values.as_slice() else { return Err(self.fail(condition,"item condition alternatives unsupported")); };
+                        if !value.decisions.is_empty() || !value.intrinsics.is_empty() || value.record.is_some() { return Err(self.fail(condition,"item condition is not a scalar field test")); }
+                        body.join(value);
+                    }
                     let node = self
                         .nodes
                         .get(&child.node)
@@ -26110,7 +26269,7 @@ impl<'a> Closure<'a> {
                 // a supplied array parameter; the root parameter owns the domain.
                 let kind = if member_root.is_some() {
                     DisclosureEffectKind::ForMember {
-                        domain,
+                        domain: original_domain,
                         limit,
                         maximum,
                         item,
@@ -26454,7 +26613,10 @@ impl<'a> Closure<'a> {
         calls: &[NodeKey],
         next: &mut Vec<Flow>,
     ) -> Result<(), DisclosureDecline> {
-        next.extend(self.bounded_input_loop(effect, module, flow, calls)?);
+        let previous = self.loop_node;
+        let paths = self.bounded_input_loop(effect, module, flow, calls);
+        self.loop_node = previous;
+        next.extend(paths?);
         Ok(())
     }
 
@@ -26510,7 +26672,9 @@ impl<'a> Closure<'a> {
                     let direct_model_return = self.result_model.is_some_and(|model| self.check_direct_model_return(effects, model, created, created_pair));
                     let created_child_return = self.result_model.is_some_and(|model| self.check_created_child_return(effects, model, created));
                     let created_send_return = self.result_model.is_some_and(|model| self.check_created_send_return(effects, model, created, created_pair));
-                    if !direct_model_return && !created_child_return && !created_send_return {
+                    let updated_model_return = self.result_model.is_some_and(|model|
+                        self.check_updated_model_return(effects, model, created));
+                    if !direct_model_return && !created_child_return && !created_send_return && !updated_model_return {
                         self.check_straight_line_created_return(effects, module, created)?;
                     }
                 }

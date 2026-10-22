@@ -2024,7 +2024,7 @@ fn plan_direct_query(
     }
     let dependencies = assemble_direct_dependencies(program, ir, q, model, entry_module)?;
     let influences = assemble_direct_influences(q)?;
-    Some(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: origin(&source.source, entry_module),
         queries: vec![ReceiptQuery {
@@ -2475,7 +2475,7 @@ fn checked_inline_selection_query_plan(
     check_inline_fields(fact, query)?;
     let query = assemble_inline_query(entry, source, query, model, parent, fact)?;
     let returns = assemble_inline_returns(checked, fact, source, entry)?;
-    Some(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: origin(&source.source, entry),
         queries: vec![query],
@@ -3068,7 +3068,7 @@ fn checked_transcript_query_plan(
         check_transcript_return_coverage(returned, first, later)?;
         returns.push(build_transcript_return(returned, entry)?);
     }
-    Some(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: origin(&source.source, entry),
         queries,
@@ -3554,7 +3554,7 @@ fn checked_first_query_plan(
     let influences = check_first_influences(q)?;
     let checked_returns = check_first_returns(ir, owner, q, &expected_influences)?;
     let parent = first_query_parent(ir, owner, q, query, db, entry)?;
-    Some(ReceiptDisclosurePlan {
+    Some(ReceiptDisclosurePlan { source_loops: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: origin(&q.source, entry),
         queries: vec![ReceiptQuery {
