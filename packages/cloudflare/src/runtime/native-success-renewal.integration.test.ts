@@ -32,8 +32,9 @@ const compiler = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/deb
 const catalog = process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json');
 
 const WHEN = 'event.account.version==event.revision and event.account.active and account_manager(event.account.manager) and can_work(event.account.manager,event.account.location)';
+const FOLLOWUP_WHEN = 'event.followup.version==event.revision and event.followup.parent.version==event.account_revision and not event.followup.done and event.followup.parent.active and account_manager(event.followup.assignee) and can_work(event.followup.assignee,event.followup.parent.location)';
 
-it('refuses altered renewal guard conjuncts and retargeted helper calls', { timeout: 120000 }, async () => {
+it('refuses altered Success guard, helper and Notice source payloads', { timeout: 120000 }, async () => {
   const directory = await mkdtemp(join(root, 'packages/cloudflare/test/fixtures/.renewal-refusal-'));
   try {
     const original = await readFile(source, 'utf8');
@@ -41,6 +42,11 @@ it('refuses altered renewal guard conjuncts and retargeted helper calls', { time
     const helper = original.match(/^  export derive can_work\(.*$/m)?.[0];
     assert.ok(helper);
     const variants = [
+      { name: 'followup-missing-account-fence', source: original.replace(FOLLOWUP_WHEN,
+        FOLLOWUP_WHEN.replace('event.followup.parent.version==event.account_revision and ', '')) },
+      { name: 'followup-wrong-notice-link', source: original.replace('followup=event.followup,revision=', 'followup=null,revision=') },
+      { name: 'followup-wrong-notice-revision', source: original.replace('account_revision=event.account_revision,recipient=', 'account_revision=event.revision,recipient=') },
+      { name: 'followup-altered-helper', source: original.replace('e.user==person and e.active and active_member', 'e.user==person and active_member') },
       { name: 'dropped-conjunct',
         source: original.replace(WHEN,
           'event.account.version==event.revision and event.account.active and account_manager(event.account.manager)') },
@@ -63,7 +69,8 @@ it('refuses altered renewal guard conjuncts and retargeted helper calls', { time
       assert.equal(result.status, 10, `${variant.name}: ${result.stderr || result.stdout}`);
       const report = JSON.parse(result.stdout) as { sources: { sha256: string }[];
         diagnostics: { code: string; message: string; primary: { file: number; start: number; end: number } }[] };
-      const mutatedWhen = variant.source.match(/when=(.*?) as notice/)?.[1];
+      const mutatedWhen = [...variant.source.matchAll(/when=(.*?) as notice/g)].map(match => match[1]).find(value =>
+        variant.name.startsWith('followup-') ? value?.startsWith('event.followup.') : value?.startsWith('event.account.'));
       assert.ok(mutatedWhen, `${variant.name}: mutated SEND guard is present`);
       const guardStart = variant.source.indexOf(`when=${mutatedWhen}`) + 'when='.length;
       assert.ok(report.diagnostics.some(({ code, primary }) =>
@@ -74,7 +81,7 @@ it('refuses altered renewal guard conjuncts and retargeted helper calls', { time
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
-it('delivers renewal only from the current Account row and skips stale or unauthorized rows', { timeout: 180000 }, async () => {
+it('delivers Success notices only from current owner rows and skips stale or unauthorized rows', { timeout: 180000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'can-success-renewal-'));
   try {
     const { stdout } = await promisify(execFile)(compiler,
@@ -87,10 +94,13 @@ it('delivers renewal only from the current Account row and skips stale or unauth
     assert.ok((artifact.modules[0]?.js ?? '').includes('sendWhen:'),
       'the original guarded Mail SEND is emitted');
 
+    for (const followup of [false, true]) {
+    const handler = followup ? 'success.remind' : 'success.renewal_due';
     for (const mode of ['current-eligible', 'stale-version-location-archived',
       'role-missing', 'account-deactivated', 'employee-inactive', 'future-renewal',
       'role-revoked-during-source', 'role-revoked-at-dispatch',
-      'employee-deactivated-at-dispatch'] as const) {
+      'employee-deactivated-at-dispatch', 'stale-account-version', 'stale-version-account-archived', 'followup-done-at-source', 'stale-account-at-source', 'stale-followup-at-source'] as const) {
+      if (!followup && (mode === 'stale-account-version' || mode === 'stale-version-account-archived' || mode === 'followup-done-at-source' || mode === 'stale-account-at-source' || mode === 'stale-followup-at-source')) continue;
       const now = Date.now(), clock = createFrozenClock(now);
       const identities = createMemoryIdentityStore({ clock });
       const team = await identities.createTeam({ timezone: 'UTC' });
@@ -115,7 +125,7 @@ it('delivers renewal only from the current Account row and skips stale or unauth
         now: () => now, verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
 
       const customerId = asId('customer-1'), locationId = asId('location-1');
-      const employeeId = asId('employee-1'), accountId = asId('account-1');
+      const employeeId = asId('employee-1'), accountId = asId('account-1'), followupId = asId('followup-1');
       const renewal = new Date(now + (mode === 'future-renewal' ? 86400000 : -86400000))
         .toISOString().slice(0, 10);
       await store.commit(makeBatch(await store.readRevision(), { writes: [
@@ -129,15 +139,34 @@ it('delivers renewal only from the current Account row and skips stale or unauth
             active: mode !== 'employee-inactive' } }), parent: null } },
         { kind: 'insert' as const, model: asModel('success.Account'),
           row: { ...makeRow({ id: accountId, data: { location: { id: locationId },
-            manager: { id: manager.user_id }, email: 'manager@example.test', renewal,
+            manager: { id: followup ? outsider.user_id : manager.user_id },
+            email: followup ? 'account@example.test' : 'manager@example.test', renewal,
             active: mode !== 'account-deactivated' } }),
             parent: { model: asModel('customer.Customer'), id: customerId } } },
       ] }));
 
-      const due = { key: accountId, scope, occurrenceId: 'renewal-1',
-        event: 'success.RenewalDue', at: now - 1 };
-      const payload = { account: { id: accountId, version: '1' }, revision: '1' };
-      const stageContext = { actor: `schedule:${due.event}`, now, operation: 'success.renewal_due',
+      if (followup) await store.commit(makeBatch(await store.readRevision(), { writes: [{
+        kind: 'insert', model: asModel('success.FollowUp'),
+        row: { ...makeRow({ id: followupId, data: { title: 'Review current account',
+          due: new Date(mode === 'future-renewal' ? now + 86400000 : now - 1000).toISOString(),
+          assignee: { id: manager.user_id }, email: 'manager@example.test', done: mode === 'followup-done-at-source' } }),
+          parent: { model: asModel('success.Account'), id: accountId } },
+      }] }));
+      // Distinct source revisions catch accidentally reusing the FollowUp
+      // revision for its Account fence or Notice.account_revision.
+      if (followup) for (const [model, id, updates] of [
+        [asModel('success.Account'), accountId, 2], [asModel('success.FollowUp'), followupId, 1],
+      ] as const) for (let index = 0; index < updates; index++) {
+        const current = await store.load(model, id); assert.ok(current);
+        await store.commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model,
+          id, expectedVersion: current.version, row: { ...current, version: asVersion(current.version + 1), updated: now } }] }));
+      }
+      const due = { key: followup ? followupId : accountId, scope, occurrenceId: 'renewal-1',
+        event: followup ? 'success.FollowUpDue' : 'success.RenewalDue', at: now - 1 };
+      const payload = followup ? { followup: { id: followupId, version: mode === 'stale-followup-at-source' ? '1' : '2' },
+          revision: mode === 'stale-followup-at-source' ? '1' : '2', account_revision: mode === 'stale-account-at-source' ? '2' : '3' } :
+        { account: { id: accountId, version: '1' }, revision: '1' };
+      const stageContext = { actor: `schedule:${due.event}`, now, operation: handler,
         load: (model: Parameters<typeof store.load>[0], id: Parameters<typeof store.load>[1]) => store.load(model, id),
         query: (spec: Parameters<typeof store.query>[0]) => store.query(spec) };
       const loaded = await loadCanonicalDescriptors(asm, artifact);
@@ -180,9 +209,10 @@ it('delivers renewal only from the current Account row and skips stale or unauth
         };
       }
       const stageDenied = mode === 'role-missing' || mode === 'account-deactivated' ||
-        mode === 'employee-inactive' || mode === 'future-renewal';
+        mode === 'employee-inactive' || mode === 'future-renewal' || mode === 'followup-done-at-source' ||
+        mode === 'stale-account-at-source' || mode === 'stale-followup-at-source';
       const invoke = () => invokeDueScheduleCanonical({ asm, artifact, app: scope.app,
-        handler: 'success.renewal_due', due, store, identities, now: () => now });
+        handler, due, store, identities, now: () => now });
       if (mode === 'role-revoked-during-source') {
         await assert.rejects(invoke, (error: unknown) => {
           assert.ok(error instanceof Error && error.cause instanceof Error);
@@ -198,25 +228,36 @@ it('delivers renewal only from the current Account row and skips stale or unauth
       }
       const result = await invoke();
       const expected = stageDenied ? 0 : 1;
-      assert.equal(result.status, mode === 'account-deactivated' ? 'failed' : 'completed',
+      assert.equal(result.status, mode === 'account-deactivated' || mode === 'followup-done-at-source' || mode === 'stale-account-at-source' || mode === 'stale-followup-at-source' ? 'failed' : 'completed',
         `${mode}: ${JSON.stringify(result)}`);
       const intents = probe.outboxAll();
       assert.equal(intents.length, expected, `${mode}: Mail intents`);
       const notices = await store.query({ model: asModel('success.Notice'), authority: 'owner' });
       assert.equal(notices.length, expected, `${mode}: Notice writes`);
       if (stageDenied) continue;
-      if (mode === 'stale-version-location-archived') {
-        const account = await store.load(asModel('success.Account'), accountId);
+      assert.deepEqual(notices[0]!.parent, { model: asModel('success.Account'), id: accountId });
+      assert.equal(notices[0]!.data['revision'], followup ? '2' : '1');
+      assert.equal(notices[0]!.data['account_revision'], followup ? '3' : '1');
+      assert.deepEqual(notices[0]!.data['followup'], followup ? { id: followupId } : null);
+      if (mode === 'stale-account-version') {
+        const account = await store.load(asModel('success.Account'), accountId); assert.ok(account);
+        await store.commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: asModel('success.Account'),
+          id: account.id, expectedVersion: account.version, row: { ...account, version: asVersion(account.version + 1), updated: now } }] }));
+      }
+      if (mode === 'stale-version-location-archived' || mode === 'stale-version-account-archived') {
+        const staleModel = asModel(followup ? 'success.FollowUp' : 'success.Account');
+        const account = await store.load(staleModel, followup ? followupId : accountId);
         assert.ok(account);
         await store.commit(makeBatch(await store.readRevision(), { writes: [{
-          kind: 'update', model: asModel('success.Account'), id: account.id,
+          kind: 'update', model: staleModel, id: account.id,
           expectedVersion: account.version,
           row: { ...account, version: asVersion(account.version + 1), updated: now,
             data: { ...account.data } } }] }));
-        const location = await store.load(asModel('rent_catalog.Location'), locationId);
+        const ancestorModel = asModel(mode === 'stale-version-account-archived' ? 'success.Account' : 'rent_catalog.Location');
+        const location = await store.load(ancestorModel, mode === 'stale-version-account-archived' ? accountId : locationId);
         assert.ok(location);
         await store.commit(makeBatch(await store.readRevision(), { writes: [{
-          kind: 'update', model: asModel('rent_catalog.Location'), id: location.id,
+          kind: 'update', model: ancestorModel, id: location.id,
           expectedVersion: location.version,
           row: { ...location, version: asVersion(location.version + 1), archivedAt: now, updated: now } }] }));
       }
@@ -236,9 +277,9 @@ it('delivers renewal only from the current Account row and skips stale or unauth
         const intent = intents[0]!;
         const request = intent.arguments['arguments'] as Record<string, unknown> | undefined;
         assert.equal(request?.['to'], 'manager@example.test');
-        assert.equal(request?.['subject'], 'Account renewal due');
+        assert.equal(request?.['subject'], followup ? 'Account follow-up' : 'Account renewal due');
         assert.equal(request?.['body'],
-          'Review the recorded renewal date; renewal remains a separate agreement action.');
+          followup ? 'Review current account' : 'Review the recorded renewal date; renewal remains a separate agreement action.');
         const fenceFor = await bindNativeEmailDispatchGuards({ asm, artifact, store,
           identities, scope, revalidateAuthority: async () => true });
         let providerCalls = 0;
@@ -271,6 +312,7 @@ it('delivers renewal only from the current Account row and skips stale or unauth
           assert.equal(providerCalls, 0, `${mode}: no stale provider call`);
         }
       }
+    }
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

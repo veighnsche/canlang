@@ -174,8 +174,8 @@ fn collect_membership_sites(
             }
             continue;
         }
-        if item.canonical == "success.renewal_due" {
-            if let Some(source) = super::success_send_decisions::collect_success_renewal_membership_sites(context, item) {
+        if matches!(item.canonical.as_str(), "success.renewal_due" | "success.remind") {
+            if let Some(source) = super::success_send_decisions::collect_success_notice_membership_sites(context, item) {
                 sites.insert(item.canonical.clone(), serde_json::Value::Array(source));
             }
             continue;

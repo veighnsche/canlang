@@ -4122,6 +4122,10 @@ async function prepareNativeSendGuardReferences(input: {
       return [];
     }
     if (input.successRenewalOnly) {
+      if (model === 'success.FollowUp') {
+        if (row.parent?.model !== 'success.Account') throw new StateError('validation', 'FollowUp lacks its declared Account parent.');
+        return [row.parent];
+      }
       if (model === 'success.Account') {
         if (row.parent?.model !== 'customer.Customer') {
           throw new StateError('validation', 'Renewal Account lacks its declared Customer parent.');
@@ -4576,14 +4580,16 @@ async function prepareMaintainDispatchDecision(input: {
   };
   return Object.freeze({ root: views.root, readRecords: views.readRecords, role, revalidate });
 }
-/** Renewal guard views over the current Account row. The predicate reads
- * only Account fields plus the bounded current Employee domain that backs
- * can_work; every other model stays refused. */
-async function prepareSuccessRenewalViews(input: {
+function isSuccessNoticeOwner(owner: unknown): owner is 'success.renewal_due' | 'success.remind' {
+  return owner === 'success.renewal_due' || owner === 'success.remind';
+}
+/** Closed Account/FollowUp views plus the complete Employee owner domain. */
+async function prepareSuccessNoticeViews(input: {
   readonly loaded: LoadedCanonicalDescriptors;
   readonly artifact: CompileArtifact;
   readonly snapshots: NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
   readonly root: StoredRow;
+  readonly rootModel: 'success.Account' | 'success.FollowUp';
   readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
   readonly query: (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
   readonly observer?: import('@canlang/state/invocation').ScenarioReceiptRequireObserver;
@@ -4603,7 +4609,7 @@ async function prepareSuccessRenewalViews(input: {
     return tracked;
   };
   const navigation = await prepareNativeSendGuardReferences({ loaded, artifact: input.artifact, snapshots,
-    roots: [{ type: 'success.Account', wire: input.root }], read: input.read,
+    roots: [{ type: input.rootModel, wire: input.root }], read: input.read,
     healthy, failure: input.failure, successRenewalOnly: true,
     ...(input.observer === undefined ? {} : { observeField: input.observer.field }) });
   const reference = (model: string, id: string): unknown => {
@@ -4611,7 +4617,7 @@ async function prepareSuccessRenewalViews(input: {
         (model === 'customer.Customer' || model === 'rent_catalog.Location')) return makeRecordRef(model, id);
     return navigation.reference(model, id);
   };
-  const root = track('success.Account', input.root, snapshots.view('success.Account', input.root, healthy, reference));
+  const root = track(input.rootModel, input.root, snapshots.view(input.rootModel, input.root, healthy, reference));
   const readRecords = async (c: HandlerContext, model: string, selection: CanonicalReadQuery): Promise<ReadonlyArray<Record<string, unknown>>> => {
     healthy();
     if (model !== 'employee.Employee' ||
@@ -4645,11 +4651,13 @@ async function prepareSuccessRenewalViews(input: {
  * current owner row at the Work revision, then the exact authored when=
  * re-evaluates over current data with the live manager role and bounded
  * Employee domain. The staging-only renewal-date comparison never runs here. */
-async function prepareSuccessRenewalDispatchDecision(input: {
+async function prepareSuccessNoticeDispatchDecision(input: {
   readonly loaded: LoadedCanonicalDescriptors;
   readonly artifact: CompileArtifact;
   readonly snapshots: NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
   readonly frozen: unknown;
+  readonly owner: 'success.renewal_due' | 'success.remind';
+  readonly accountRevision?: bigint;
   readonly store: StoragePort;
   readonly revision: Revision;
   readonly teamId: string;
@@ -4659,7 +4667,9 @@ async function prepareSuccessRenewalDispatchDecision(input: {
 }) {
   const { loaded, store, revision, snapshots } = input;
   const StateError = loaded.producers.errors;
-  const frozen = snapshots.snapshot('success.Account', input.frozen);
+  const followup = input.owner === 'success.remind';
+  const rootModel = followup ? 'success.FollowUp' : 'success.Account';
+  const frozen = snapshots.snapshot(rootModel, input.frozen);
   const checkRevision = async () => {
     if (await store.readRevision() !== revision) {
       throw new StateError('conflict', 'Renewal dispatch owner domain moved beyond its Work claim.');
@@ -4671,36 +4681,43 @@ async function prepareSuccessRenewalDispatchDecision(input: {
     await checkRevision();
     return row;
   };
-  const current = await readCurrent('success.Account' as ModelName, frozen.id);
-  if (current === null || current.archivedAt !== null || current.parent?.model !== 'customer.Customer' ||
+  const current = await readCurrent(rootModel as ModelName, frozen.id);
+  if (current === null || current.archivedAt !== null || current.parent?.model !== (followup ? 'success.Account' : 'customer.Customer') ||
       current.created !== frozen.created || current.createdBy !== frozen.createdBy ||
       stableStringify(current.parent) !== stableStringify(frozen.parent)) {
     throw new StateError('not_found', 'Renewal dispatch lost its original staged Account.');
   }
-  // A post-stage Account update makes the staged reminder stale: the exact
-  // authored version conjunct is already false, so the send skips without
-  // loading Location/Employee or evaluating role/can_work. Identity
-  // corruption above stays loud; ordinary staleness stays a quiet skip with
-  // only the observed stale row pinned for revalidation.
-  if (current.version !== frozen.version) {
+  // Preserve the authored version conjunction order: a stale FollowUp
+  // skips before touching its Account; a stale Account skips before any
+  // Location/Employee traversal or subject-role evaluation.
+  const staleDecision = (account?: StoredRow) => {
     const observed = current;
     const stale = (): never => {
       throw new StateError('validation', 'Stale renewal Account never evaluates its guard.');
     };
     return Object.freeze({
-      root: snapshots.snapshot('success.Account', input.frozen),
+      root: snapshots.snapshot(rootModel, input.frozen),
       readRecords: async (): Promise<ReadonlyArray<Record<string, unknown>>> => stale(),
       role: async (): Promise<boolean> => stale(),
       revalidate: async () => {
-        const root = await readCurrent('success.Account' as ModelName, observed.id);
+        const root = await readCurrent(rootModel as ModelName, observed.id);
         if (stableStringify(root) !== stableStringify(observed)) {
           throw new StateError('conflict', 'Stale renewal Account changed during its guard.');
+        }
+        if (account !== undefined && stableStringify(await readCurrent('success.Account' as ModelName, account.id)) !== stableStringify(account)) {
+          throw new StateError('conflict', 'Stale follow-up Account changed during its guard.');
         }
         await checkRevision();
       },
       eligible: false as const,
     });
+  };
+  if (current.version !== frozen.version) return staleDecision();
+  const account = followup ? await readCurrent('success.Account' as ModelName, current.parent.id) : current;
+  if (account === null || account.archivedAt !== null || account.parent?.model !== 'customer.Customer') {
+    throw new StateError('not_found', 'FollowUp dispatch lost its original Account parent.');
   }
+  if (followup && BigInt(account.version) !== input.accountRevision) return staleDecision(account);
   const eligible = true as const;
   const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
     input.healthy();
@@ -4731,12 +4748,12 @@ async function prepareSuccessRenewalDispatchDecision(input: {
     domains.push({ model, rows: found });
     input.healthy(); return found;
   };
-  const views = await prepareSuccessRenewalViews({ loaded, artifact: input.artifact,
-    snapshots, root: current, read, query, healthy: input.healthy, failure: input.failure });
+  const views = await prepareSuccessNoticeViews({ loaded, artifact: input.artifact,
+    snapshots, root: current, rootModel, read, query, healthy: input.healthy, failure: input.failure });
   let roleFact: { readonly subject: string; readonly value: boolean } | null = null;
   const role = async (name: string, subject: { readonly kind: string; readonly id: string }): Promise<boolean> => {
     input.healthy();
-    const expected = decodeCanonicalValue(loaded.valueSchema, 'user', current.data['manager']);
+    const expected = decodeCanonicalValue(loaded.valueSchema, 'user', current.data[followup ? 'assignee' : 'manager']);
     if (roleFact !== null || name !== 'success.account_manager' ||
         !isUnknownRecord(expected) || expected['kind'] !== 'user' || expected['id'] !== subject.id ||
         subject.kind !== 'user') {
@@ -4749,7 +4766,7 @@ async function prepareSuccessRenewalDispatchDecision(input: {
     return value;
   };
   const revalidate = async () => {
-    const root = await readCurrent('success.Account' as ModelName, current.id);
+    const root = await readCurrent(rootModel as ModelName, current.id);
     if (stableStringify(root) !== stableStringify(current)) {
       throw new StateError('conflict', 'Renewal dispatch Account changed during its guard.');
     }
@@ -5295,15 +5312,16 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
             own(declaredModel, 'type') !== modelField.model || own(declaredRevision, 'type') !== 'int' ||
             modelInput?.kind !== 'ref' || modelInput.model !== modelField.model || !modelInput.required ||
             revisionInput?.kind !== 'integer' || !revisionInput.required ||
-            inputs.length !== 2 || inputs[0]?.name !== 'eventTerm' || inputs[0]?.type !== modelField.model ||
-            inputs[1]?.name !== 'eventRevision' || inputs[1]?.type !== 'int') {
+            inputs.length !== (def.name === 'success.remind' ? 3 : 2) || inputs[0]?.name !== 'eventTerm' || inputs[0]?.type !== modelField.model ||
+            inputs[1]?.name !== 'eventRevision' || inputs[1]?.type !== 'int' ||
+            def.name === 'success.remind' && (inputs[2]?.name !== 'eventAccountRevision' || inputs[2]?.type !== 'int')) {
           throw new AssemblyCorrespondenceError('Event SEND guard lacks its original declared event, handler and typed field proof.');
         }
-        const checkedDecision = def.name === 'success.renewal_due'
+        const checkedDecision = isSuccessNoticeOwner(def.name)
           ? (plan as typeof plan & { readonly successRenewalDecision?: unknown }).successRenewalDecision
           : (plan as typeof plan & { readonly eventDecision?: unknown }).eventDecision;
         if (Object.hasOwn(source, 'ownerDecision') ?
-            !['maintain.remind', 'success.renewal_due'].includes(def.name) || checkedDecision === undefined ||
+            !['maintain.remind', 'success.renewal_due', 'success.remind'].includes(def.name) || checkedDecision === undefined ||
               stableStringify(source.ownerDecision) !== stableStringify(checkedDecision) :
             checkedDecision !== undefined) {
           throw new AssemblyCorrespondenceError('Event SEND owner decision differs from its independently checked receipt.');
@@ -5358,7 +5376,7 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         throw new AssemblyCorrespondenceError('SEND guard lacks its complete required original typed lexical census.');
       }
       const guardNode = def.name === 'invoice.issue' || def.name === 'events.observe_venue' ||
-        def.name === 'success.renewal_due' ? {
+        isSuccessNoticeOwner(def.name) ? {
         start: (emitted.node as { start: number }).start,
         end: (emitted.node as { end: number }).end,
       } : emitted.node;
@@ -6339,7 +6357,7 @@ async function loadCanonicalDescriptorsInternal(
     const ownerSites = sites.filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
     if (!ownerSites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'))) continue;
     const def = generatedScenarioDef({ def: canonical.registry.get(owner) });
-    if (def === undefined && (owner === 'maintain.remind' || owner === 'success.renewal_due') && artifact.callables.some(callable =>
+    if (def === undefined && (owner === 'maintain.remind' || isSuccessNoticeOwner(owner)) && artifact.callables.some(callable =>
       callable.id === owner && callable.kind === 'handler')) continue;
     if (def === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked scenario.');
     const report = artifact.operations?.find(operation => operation.name === owner && operation.kind === 'read');
@@ -11138,7 +11156,7 @@ async function runScenarioExecution(
       ?.successRenewalDecision;
     const execute = loaded.producers.invoke.executeScenarioReceiptSuccessRenewalDecision;
     const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
-    if (checked === undefined || checked.owner !== 'success.renewal_due' || receiptStore === undefined ||
+    if (checked === undefined || !isSuccessNoticeOwner(checked.owner) || receiptStore === undefined ||
         sendSnapshots === undefined || execute === undefined || assertCall === undefined ||
         stableStringify(descriptor) !== stableStringify(checked) ||
         eventDecisionReadRecords !== null || !nativeScenarioExecutions.has(actualCall)) {
@@ -11150,19 +11168,22 @@ async function runScenarioExecution(
         original: descriptor as typeof checked, checked, decision,
         evaluate: async frame => {
           if (lexical !== undefined) {
-            const frozen = sendSnapshots!.snapshot('success.Account', localPolicyMember(lexical, 'eventTerm'));
+            const frozen = sendSnapshots!.snapshot(checked.owner === 'success.remind' ? 'success.FollowUp' : 'success.Account', localPolicyMember(lexical, 'eventTerm'));
             const { data: frozenData, ...frozenHeader } = frozen;
             const { data: currentData, ...currentHeader } = frame.root;
             if (stableStringify(frozenHeader) !== stableStringify(currentHeader) ||
                 Object.entries(frozenData).some(([field, value]) => !Object.hasOwn(currentData, field) ||
                   stableStringify(value) !== stableStringify(currentData[field])) ||
                 decodeCanonicalValue(loaded.valueSchema, 'int', localPolicyMember(lexical, 'eventRevision')) !==
-                  decodeCanonicalValue(loaded.valueSchema, 'int', localPolicyMember(actualCall.inputs, 'revision'))) {
+                  decodeCanonicalValue(loaded.valueSchema, 'int', localPolicyMember(actualCall.inputs, 'revision')) ||
+                checked.owner === 'success.remind' && decodeCanonicalValue(loaded.valueSchema, 'int', localPolicyMember(lexical, 'eventAccountRevision')) !==
+                  decodeCanonicalValue(loaded.valueSchema, 'int', localPolicyMember(actualCall.inputs, 'account_revision'))) {
               return refuseRecordBinding('Renewal WHEN differs from its frozen admitted Account and revision.');
             }
           }
-          const views = await prepareSuccessRenewalViews({ loaded, artifact: opts.artifact,
-            snapshots: sendSnapshots!, root: frame.root, read: frame.read, query: frame.query,
+          const views = await prepareSuccessNoticeViews({ loaded, artifact: opts.artifact,
+            snapshots: sendSnapshots!, root: frame.root,
+            rootModel: checked.owner === 'success.remind' ? 'success.FollowUp' : 'success.Account', read: frame.read, query: frame.query,
             observer: frame.observer, healthy, failure: recordEngineFailure });
           eventDecisionReadRecords = (model, query) => views.readRecords(context, model, query);
           let closeRole: (() => void) | undefined;
@@ -11171,7 +11192,8 @@ async function runScenarioExecution(
             const eventRevision = decodeCanonicalValue(loaded.valueSchema, 'int',
               localPolicyMember(actualCall.inputs, 'revision'));
             const verdict: unknown = await Reflect.apply(predicate, undefined,
-              [context, Object.freeze({ eventTerm: views.root, eventRevision })]);
+              [context, Object.freeze({ eventTerm: views.root, eventRevision, ...(checked.owner === 'success.remind' ? {
+                eventAccountRevision: decodeCanonicalValue(loaded.valueSchema, 'int', localPolicyMember(actualCall.inputs, 'account_revision')) } : {}) })]);
             await views.revalidate(); healthy();
             if (typeof verdict !== 'boolean') return refuseRecordBinding('Renewal decision must return Bool.');
             return verdict;
@@ -11232,7 +11254,7 @@ async function runScenarioExecution(
         };
         const ownerDecision = selected.guard.eventSource?.ownerDecision;
         const eventDecision = ownerDecision?.owner === 'maintain.remind' ? ownerDecision : undefined;
-        const renewalDecision = ownerDecision?.owner === 'success.renewal_due' ? ownerDecision : undefined;
+        const renewalDecision = ownerDecision !== undefined && isSuccessNoticeOwner(ownerDecision.owner) ? ownerDecision : undefined;
         const invoiceOverdueGuard = selected.guard.owner === 'invoice.overdue' &&
           (scenarioDef?.descriptor.result?.disclosure as
             { readonly invoiceOverdueDecision?: { readonly sendRule: { readonly rule: string } } } | undefined)
@@ -11259,7 +11281,7 @@ async function runScenarioExecution(
             type: input.type, wire: localPolicyMember(frame.inputs, input.name) })),
           read: (model, id) => ownerSession!.read(model, id), healthy: assertGuard, failure: recordEngineFailure,
           parentOnly: selected.guard.eventSource !== undefined && selected.guard.owner !== 'success.renewal_due',
-          ...(selected.guard.owner === 'success.renewal_due' ? { successRenewalOnly: true as const } : {}),
+          ...(isSuccessNoticeOwner(selected.guard.owner) ? { successRenewalOnly: true as const } : {}),
           ...(observeVenueSelf === undefined ? {} : { selfReference: observeVenueSelf }),
         });
         const inputs: Record<string, unknown> = Object.create(null);
@@ -13046,12 +13068,12 @@ async function runScenarioExecution(
       } catch (error) { recordEngineFailure(error); throw error; }
     });
   }
-  if (internalHandlerDue && receiptStore !== undefined && scenarioDef?.name === 'success.renewal_due') {
+  if (internalHandlerDue && receiptStore !== undefined && scenarioDef !== undefined && isSuccessNoticeOwner(scenarioDef.name)) {
     const checked = (scenarioDef.descriptor.result?.disclosure as
       { readonly successRenewalDecision?: import('@canlang/state/invocation').SuccessRenewalDecisionPlan } | undefined)
       ?.successRenewalDecision;
     const selected = [...(nativeSourceSendGuards.get(scenarioDef)?.values() ?? [])].filter(guard =>
-      guard.guard.eventSource?.ownerDecision?.owner === 'success.renewal_due');
+      isSuccessNoticeOwner(guard.guard.eventSource?.ownerDecision?.owner));
     if (checked === undefined || selected.length !== 1 ||
         stableStringify(selected[0]!.guard.eventSource?.ownerDecision) !== stableStringify(checked)) {
       return refuseRecordBinding('Renewal IF lacks its exact original SEND owner decision.');
@@ -16284,7 +16306,7 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
     bindNativeOwnerMembership(privateDef, { source: sites[0]!.source,
       app, sites });
   }
-  if (privateDef.name === 'success.renewal_due') {
+  if (isSuccessNoticeOwner(privateDef.name)) {
     const sites = (privateLoaded.membershipSources.get(privateDef.name) ?? []).filter(site =>
       site.stage === 'body-condition');
     const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', 'Success renewal membership')?.value : undefined;
@@ -21478,16 +21500,17 @@ export async function bindNativeEmailDispatchGuards(input: {
           !sendSnapshots?.has('events.Change'))) {
       throw new Error('Observe venue dispatch requires its exact installed Change guard and snapshot.');
     }
-    const successRenewalGuard = selected.guard.owner === 'success.renewal_due';
+    const successRenewalGuard = isSuccessNoticeOwner(selected.guard.owner);
     if (successRenewalGuard &&
         (selected.guard.target !== 'std.EmailV1.send' || selected.guard.binding !== 'success.Mail' ||
-          selected.guard.eventSource?.ownerDecision?.owner !== 'success.renewal_due' ||
-          selected.guard.inputs.length !== 2 ||
+          !isSuccessNoticeOwner(selected.guard.eventSource?.ownerDecision?.owner) ||
+          selected.guard.inputs.length !== (selected.guard.owner === 'success.remind' ? 3 : 2) ||
           selected.guard.inputs[0]?.name !== 'eventTerm' ||
-          selected.guard.inputs[0]?.type !== 'success.Account' ||
+          selected.guard.inputs[0]?.type !== (selected.guard.owner === 'success.remind' ? 'success.FollowUp' : 'success.Account') ||
           selected.guard.inputs[1]?.name !== 'eventRevision' ||
           selected.guard.inputs[1]?.type !== 'int' ||
-          !sendSnapshots?.has('success.Account'))) {
+          !sendSnapshots?.has(selected.guard.owner === 'success.remind' ? 'success.FollowUp' : 'success.Account') ||
+          selected.guard.owner === 'success.remind' && (selected.guard.inputs[2]?.name !== 'eventAccountRevision' || selected.guard.inputs[2]?.type !== 'int'))) {
       throw new Error('Renewal dispatch requires its exact installed Account guard and snapshot.');
     }
     let staged: { input: DispatchClaimGuardInput; retained: RetainedOutboxIntent; lexical: Readonly<Record<string, unknown>>;
@@ -21511,7 +21534,7 @@ export async function bindNativeEmailDispatchGuards(input: {
       };
       const reject = (): never => refuse(new Error('Native guarded SEND historical guard context is read only; live model/query effects require their owning join.'));
       let maintainFrame: Awaited<ReturnType<typeof prepareMaintainDispatchDecision>> | undefined;
-      let successRenewal: Awaited<ReturnType<typeof prepareSuccessRenewalDispatchDecision>> | undefined;
+      let successRenewal: Awaited<ReturnType<typeof prepareSuccessNoticeDispatchDecision>> | undefined;
       const physical = new Proxy(Object.create(null) as StoragePort, {
         get: reject, set: reject, defineProperty: reject, deleteProperty: reject, ownKeys: reject });
       const canonical: CanonicalEffectsScope = Object.freeze({ operation: selected.guard.owner,
@@ -21549,7 +21572,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         read: (model, id) => store.cohortLoad({ model, id, expectedRevision: actual.input.revision }),
         healthy, failure: poison,
         parentOnly: selected.guard.eventSource !== undefined && selected.guard.owner !== 'success.renewal_due',
-        ...(selected.guard.owner === 'success.renewal_due' ? { successRenewalOnly: true as const } : {}),
+        ...(isSuccessNoticeOwner(selected.guard.owner) ? { successRenewalOnly: true as const } : {}),
         ...(observeVenueSelf === undefined ? {} : { selfReference: observeVenueSelf }),
       });
       let leaveRequest: StoredRow | null = null;
@@ -21633,8 +21656,11 @@ export async function bindNativeEmailDispatchGuards(input: {
         healthy();
       }
       if (successRenewalGuard) {
-        successRenewal = await prepareSuccessRenewalDispatchDecision({ loaded, artifact,
+        successRenewal = await prepareSuccessNoticeDispatchDecision({ loaded, artifact,
           snapshots: sendSnapshots!, frozen: localPolicyMember(actual.lexical, 'eventTerm'),
+          owner: selected.guard.owner as 'success.renewal_due' | 'success.remind',
+          ...(selected.guard.owner === 'success.remind' ? { accountRevision: decodeCanonicalValue(loaded.valueSchema, 'int',
+            localPolicyMember(actual.lexical, 'eventAccountRevision')) as bigint } : {}),
           store, revision: actual.input.revision, teamId: scope.owner, identities,
           healthy, failure: poison });
         healthy();
