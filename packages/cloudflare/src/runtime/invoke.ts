@@ -4095,6 +4095,9 @@ async function prepareNativeSendGuardReferences(input: {
   readonly selfReference?: { readonly model: string; readonly id: string };
   /** Maintain's sealed owner decision traverses only Inspection→Plan→Asset→Location. */
   readonly maintainOnly?: boolean;
+  /** Renewal's sealed dispatch traverses only Account→Customer and the
+   * declared Account.location link. Agreement/membership refs stay unloaded. */
+  readonly successRenewalOnly?: boolean;
 }) {
   const { loaded, artifact, snapshots, healthy } = input;
   const StateError = loaded.producers.errors;
@@ -4111,6 +4114,19 @@ async function prepareNativeSendGuardReferences(input: {
           throw new StateError('validation', 'Maintain Asset lacks its declared Location link.');
         }
         return [location];
+      }
+      return [];
+    }
+    if (input.successRenewalOnly) {
+      if (model === 'success.Account') {
+        if (row.parent?.model !== 'customer.Customer') {
+          throw new StateError('validation', 'Renewal Account lacks its declared Customer parent.');
+        }
+        const location = nativeRecordField(loaded, model, 'location', row.data['location']);
+        if (!isRecordRef(location) || location.model !== 'rent_catalog.Location') {
+          throw new StateError('validation', 'Renewal Account lacks its declared Location link.');
+        }
+        return [row.parent, location];
       }
       return [];
     }
@@ -4555,6 +4571,187 @@ async function prepareMaintainDispatchDecision(input: {
     await checkRevision();
   };
   return Object.freeze({ root: views.root, readRecords: views.readRecords, role, revalidate });
+}
+/** Renewal guard views over the current Account row. The predicate reads
+ * only Account fields plus the bounded current Employee domain that backs
+ * can_work; every other model stays refused. */
+async function prepareSuccessRenewalViews(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly artifact: CompileArtifact;
+  readonly snapshots: NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
+  readonly root: StoredRow;
+  readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
+  readonly query: (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+  readonly healthy: () => void;
+  readonly failure: (error: unknown) => void;
+}) {
+  const { loaded, snapshots, healthy } = input;
+  const StateError = loaded.producers.errors;
+  const navigation = await prepareNativeSendGuardReferences({ loaded, artifact: input.artifact, snapshots,
+    roots: [{ type: 'success.Account', wire: input.root }], read: input.read,
+    healthy, failure: input.failure, successRenewalOnly: true });
+  const reference = (model: string, id: string): unknown => {
+    if (!navigation.hasPrepared(model, id) &&
+        (model === 'customer.Customer' || model === 'rent_catalog.Location')) return makeRecordRef(model, id);
+    return navigation.reference(model, id);
+  };
+  const root = snapshots.view('success.Account', input.root, healthy, reference);
+  const readRecords = async (c: HandlerContext, model: string, selection: CanonicalReadQuery): Promise<ReadonlyArray<Record<string, unknown>>> => {
+    healthy();
+    if (model !== 'employee.Employee' ||
+        !isUnknownRecord(selection) || Reflect.ownKeys(selection).some(key =>
+          typeof key !== 'string' || !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+        selection.order !== undefined || selection.limit !== undefined ||
+        selection.archived !== undefined && selection.archived !== 'exclude' ||
+        selection.authority !== undefined && selection.authority !== 'viewer' ||
+        selection.where !== undefined && typeof selection.where !== 'function') {
+      throw new StateError('validation', 'Renewal event query differs from its checked Employee domain.');
+    }
+    if (selection.parent !== undefined) {
+      throw new StateError('validation', 'Renewal event Employee domain has no parent.');
+    }
+    const rows = await input.query(model as ModelName, undefined);
+    healthy();
+    const matched: Record<string, unknown>[] = [];
+    for (const row of rows) {
+      const view = snapshots.view(model, row, healthy, reference);
+      const verdict: unknown = selection.where === undefined ? true : await selection.where(view, c);
+      healthy();
+      if (typeof verdict !== 'boolean') throw new StateError('validation', 'Renewal event query predicate must return Bool.');
+      if (verdict) matched.push(view);
+    }
+    return Object.freeze(matched);
+  };
+  return Object.freeze({ root, readRecords, revalidate: navigation.revalidate });
+}
+/** Live renewal dispatch: the frozen staged Account row is compared with the
+ * current owner row at the Work revision, then the exact authored when=
+ * re-evaluates over current data with the live manager role and bounded
+ * Employee domain. The staging-only renewal-date comparison never runs here. */
+async function prepareSuccessRenewalDispatchDecision(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly artifact: CompileArtifact;
+  readonly snapshots: NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
+  readonly frozen: unknown;
+  readonly store: StoragePort;
+  readonly revision: Revision;
+  readonly teamId: string;
+  readonly identities: IdentityStore;
+  readonly healthy: () => void;
+  readonly failure: (error: unknown) => void;
+}) {
+  const { loaded, store, revision, snapshots } = input;
+  const StateError = loaded.producers.errors;
+  const frozen = snapshots.snapshot('success.Account', input.frozen);
+  const checkRevision = async () => {
+    if (await store.readRevision() !== revision) {
+      throw new StateError('conflict', 'Renewal dispatch owner domain moved beyond its Work claim.');
+    }
+  };
+  const readCurrent = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+    await checkRevision();
+    const row = await store.cohortLoad({ model, id, expectedRevision: revision });
+    await checkRevision();
+    return row;
+  };
+  const current = await readCurrent('success.Account' as ModelName, frozen.id);
+  if (current === null || current.archivedAt !== null || current.parent?.model !== 'customer.Customer' ||
+      current.created !== frozen.created || current.createdBy !== frozen.createdBy ||
+      stableStringify(current.parent) !== stableStringify(frozen.parent)) {
+    throw new StateError('not_found', 'Renewal dispatch lost its original staged Account.');
+  }
+  // A post-stage Account update makes the staged reminder stale: the exact
+  // authored version conjunct is already false, so the send skips without
+  // loading Location/Employee or evaluating role/can_work. Identity
+  // corruption above stays loud; ordinary staleness stays a quiet skip with
+  // only the observed stale row pinned for revalidation.
+  if (current.version !== frozen.version) {
+    const observed = current;
+    const stale = (): never => {
+      throw new StateError('validation', 'Stale renewal Account never evaluates its guard.');
+    };
+    return Object.freeze({
+      root: snapshots.snapshot('success.Account', input.frozen),
+      readRecords: async (): Promise<ReadonlyArray<Record<string, unknown>>> => stale(),
+      role: async (): Promise<boolean> => stale(),
+      revalidate: async () => {
+        const root = await readCurrent('success.Account' as ModelName, observed.id);
+        if (stableStringify(root) !== stableStringify(observed)) {
+          throw new StateError('conflict', 'Stale renewal Account changed during its guard.');
+        }
+        await checkRevision();
+      },
+      eligible: false as const,
+    });
+  }
+  const eligible = true as const;
+  const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+    input.healthy();
+    const row = await readCurrent(model, id);
+    input.healthy();
+    return row;
+  };
+  const domains: Array<{ readonly model: ModelName; readonly rows: readonly StoredRow[] }> = [];
+  const queryCurrent = async (model: ModelName): Promise<readonly StoredRow[]> => {
+    await checkRevision();
+    const found = await store.query({ model, order: [{ field: 'id', direction: 'asc' }],
+      archived: 'exclude', authority: 'owner', limit: SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows + 1 });
+    await checkRevision();
+    if (found.length > SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows || found.some((row, index) =>
+        row.archivedAt !== null || index > 0 && found[index - 1]!.id >= row.id || row.parent !== null)) {
+      throw new StateError('validation', 'Renewal dispatch query lacks its complete ordered owner domain.');
+    }
+    return Object.freeze(found);
+  };
+  let queryIndex = 0;
+  const query = async (model: ModelName) => {
+    input.healthy();
+    if (queryIndex !== 0 || model !== 'employee.Employee') {
+      throw new StateError('validation', 'Renewal dispatch query differs from its checked Employee domain.');
+    }
+    queryIndex++;
+    const found = await queryCurrent(model);
+    domains.push({ model, rows: found });
+    input.healthy(); return found;
+  };
+  const views = await prepareSuccessRenewalViews({ loaded, artifact: input.artifact,
+    snapshots, root: current, read, query, healthy: input.healthy, failure: input.failure });
+  let roleFact: { readonly subject: string; readonly value: boolean } | null = null;
+  const role = async (name: string, subject: { readonly kind: string; readonly id: string }): Promise<boolean> => {
+    input.healthy();
+    const expected = decodeCanonicalValue(loaded.valueSchema, 'user', current.data['manager']);
+    if (roleFact !== null || name !== 'success.account_manager' ||
+        !isUnknownRecord(expected) || expected['kind'] !== 'user' || expected['id'] !== subject.id ||
+        subject.kind !== 'user') {
+      throw new StateError('validation', 'Renewal dispatch role differs from current Account manager.');
+    }
+    const value = await stateSubjectRole({ actorUserId: null, teamId: input.teamId,
+      memberships: input.identities }, name, subject.id);
+    await checkRevision(); input.healthy();
+    roleFact = { subject: subject.id, value };
+    return value;
+  };
+  const revalidate = async () => {
+    const root = await readCurrent('success.Account' as ModelName, current.id);
+    if (stableStringify(root) !== stableStringify(current)) {
+      throw new StateError('conflict', 'Renewal dispatch Account changed during its guard.');
+    }
+    // Every Account/Customer/Location row the guard traverses is pinned by
+    // the navigation fingerprint below; untraversed refs stay unloaded.
+    await views.revalidate();
+    for (const domain of domains) {
+      const live = await queryCurrent(domain.model);
+      if (stableStringify(live) !== stableStringify(domain.rows)) {
+        throw new StateError('conflict', 'Renewal dispatch owner collection changed during its guard.');
+      }
+    }
+    if (roleFact !== null && await stateSubjectRole({ actorUserId: null, teamId: input.teamId,
+      memberships: input.identities }, 'success.account_manager', roleFact.subject) !== roleFact.value) {
+      throw new StateError('conflict', 'Renewal dispatch manager grant changed during its guard.');
+    }
+    await checkRevision();
+  };
+  return Object.freeze({ root: views.root, readRecords: views.readRecords, role, revalidate, eligible });
 }
 const NATIVE_CALL_SCALARS = new Set(['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'user']);
 /** Only the same-load owning scalar or bounded-text alias inventory selects a codec.
@@ -5139,7 +5336,8 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
           Object.hasOwn(inputDeclaration.canonical[index]!, key) || Object.hasOwn(inputDeclaration.artifact[index]!, key)))) {
         throw new AssemblyCorrespondenceError('SEND guard lacks its complete required original typed lexical census.');
       }
-      const guardNode = def.name === 'invoice.issue' || def.name === 'events.observe_venue' ? {
+      const guardNode = def.name === 'invoice.issue' || def.name === 'events.observe_venue' ||
+        def.name === 'success.renewal_due' ? {
         start: (emitted.node as { start: number }).start,
         end: (emitted.node as { end: number }).end,
       } : emitted.node;
@@ -10987,7 +11185,8 @@ async function runScenarioExecution(
           roots: selected.guard.inputs.filter(input => sendSnapshots.has(input.type)).map(input => ({
             type: input.type, wire: localPolicyMember(frame.inputs, input.name) })),
           read: (model, id) => ownerSession!.read(model, id), healthy: assertGuard, failure: recordEngineFailure,
-          parentOnly: selected.guard.eventSource !== undefined,
+          parentOnly: selected.guard.eventSource !== undefined && selected.guard.owner !== 'success.renewal_due',
+          ...(selected.guard.owner === 'success.renewal_due' ? { successRenewalOnly: true as const } : {}),
           ...(observeVenueSelf === undefined ? {} : { selfReference: observeVenueSelf }),
         });
         const inputs: Record<string, unknown> = Object.create(null);
@@ -21175,6 +21374,18 @@ export async function bindNativeEmailDispatchGuards(input: {
           !sendSnapshots?.has('events.Change'))) {
       throw new Error('Observe venue dispatch requires its exact installed Change guard and snapshot.');
     }
+    const successRenewalGuard = selected.guard.owner === 'success.renewal_due';
+    if (successRenewalGuard &&
+        (selected.guard.target !== 'std.EmailV1.send' || selected.guard.binding !== 'success.Mail' ||
+          selected.guard.eventSource === undefined ||
+          selected.guard.inputs.length !== 2 ||
+          selected.guard.inputs[0]?.name !== 'eventTerm' ||
+          selected.guard.inputs[0]?.type !== 'success.Account' ||
+          selected.guard.inputs[1]?.name !== 'eventRevision' ||
+          selected.guard.inputs[1]?.type !== 'int' ||
+          !sendSnapshots?.has('success.Account'))) {
+      throw new Error('Renewal dispatch requires its exact installed Account guard and snapshot.');
+    }
     let staged: { input: DispatchClaimGuardInput; retained: RetainedOutboxIntent; lexical: Readonly<Record<string, unknown>>;
       opaque: NonNullable<Awaited<ReturnType<typeof nativeOpaqueFileStaging>>>; row: StoredRow;
       identity: ResolvedIdentity; currentIdentity: () => Promise<ResolvedIdentity> } | undefined;
@@ -21196,12 +21407,14 @@ export async function bindNativeEmailDispatchGuards(input: {
       };
       const reject = (): never => refuse(new Error('Native guarded SEND historical guard context is read only; live model/query effects require their owning join.'));
       let maintainFrame: Awaited<ReturnType<typeof prepareMaintainDispatchDecision>> | undefined;
+      let successRenewal: Awaited<ReturnType<typeof prepareSuccessRenewalDispatchDecision>> | undefined;
       const physical = new Proxy(Object.create(null) as StoragePort, {
         get: reject, set: reject, defineProperty: reject, deleteProperty: reject, ownKeys: reject });
       const canonical: CanonicalEffectsScope = Object.freeze({ operation: selected.guard.owner,
         operationId: originalIntent.operationId, stageWrite: reject, createRecord: reject, setRecord: reject,
         deleteRecord: reject, readModel: reject,
-        readRecords: (model: string, query: CanonicalReadQuery) => maintainFrame === undefined
+        readRecords: (model: string, query: CanonicalReadQuery) => successRenewal !== undefined
+          ? successRenewal.readRecords(c, model, query) : maintainFrame === undefined
           ? reject() : maintainFrame.readRecords(c, model, query), observeDelivery: reject,
         builtinRoles: Object.freeze([]) });
       const identity = actual.identity;
@@ -21224,13 +21437,14 @@ export async function bindNativeEmailDispatchGuards(input: {
       // original predicate reads only its three scalar fields.
       const referenceNavigation = eventDecision !== undefined || leaveDecision !== undefined ||
         invoiceOverdueDecision !== undefined || invoiceCollectDecision !== undefined ||
-        invoiceIssueDecision !== undefined || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
+        invoiceIssueDecision !== undefined || successRenewalGuard || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
         loaded, artifact, snapshots: sendSnapshots,
         roots: selected.guard.inputs.filter(slot => sendSnapshots.has(slot.type)).map(slot => ({
           type: slot.type, wire: localPolicyMember(actual.lexical, slot.name) })),
         read: (model, id) => store.cohortLoad({ model, id, expectedRevision: actual.input.revision }),
         healthy, failure: poison,
-        parentOnly: selected.guard.eventSource !== undefined,
+        parentOnly: selected.guard.eventSource !== undefined && selected.guard.owner !== 'success.renewal_due',
+        ...(selected.guard.owner === 'success.renewal_due' ? { successRenewalOnly: true as const } : {}),
         ...(observeVenueSelf === undefined ? {} : { selfReference: observeVenueSelf }),
       });
       let leaveRequest: StoredRow | null = null;
@@ -21313,6 +21527,13 @@ export async function bindNativeEmailDispatchGuards(input: {
           intentId: originalIntent.intentId });
         healthy();
       }
+      if (successRenewalGuard) {
+        successRenewal = await prepareSuccessRenewalDispatchDecision({ loaded, artifact,
+          snapshots: sendSnapshots!, frozen: localPolicyMember(actual.lexical, 'eventTerm'),
+          store, revision: actual.input.revision, teamId: scope.owner, identities,
+          healthy, failure: poison });
+        healthy();
+      }
       if (eventDecision !== undefined) {
         if (sendSnapshots === undefined || selected.guard.owner !== 'maintain.remind' ||
             eventDecision.owner !== 'maintain.remind') return reject();
@@ -21324,6 +21545,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         const wire = localPolicyMember(actual.lexical, slot.name);
         Object.defineProperty(inputs, slot.name, { enumerable: true,
           value: maintainFrame !== undefined && slot.name === 'eventTerm' ? maintainFrame.root :
+            successRenewal !== undefined && slot.name === 'eventTerm' ? successRenewal.root :
             invoiceCollect !== undefined && slot.name === 'invoice' ? Object.freeze({
               state: invoiceCollect.invoice?.data['state'], balance: invoiceCollect.balance }) :
             invoiceCollect !== undefined && slot.name === 'attempt' ? Object.freeze({
@@ -21360,6 +21582,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         await verifyCheckedAssembly(asm, artifact);
         await referenceNavigation?.revalidate();
         await maintainFrame?.revalidate();
+        await successRenewal?.revalidate();
         if (recheckLeave !== undefined && !await recheckLeave()) return false;
         if (recheckMember !== undefined && !await recheckMember()) return false;
         if (invoiceCollect !== undefined && !await invoiceCollect.revalidate()) return false;
@@ -21373,7 +21596,11 @@ export async function bindNativeEmailDispatchGuards(input: {
         frame = openNativeDispatchMembershipFrame(c, def, predicate, execution, identity.team,
           poison);
         if (maintainFrame !== undefined) closeEventRole = bindNativeEventDecisionRole(c, maintainFrame.role);
+        else if (successRenewal !== undefined && successRenewal.eligible) {
+          closeEventRole = bindNativeEventDecisionRole(c, successRenewal.role);
+        }
         frame.assertCompleted(); healthy();
+        if (successRenewalGuard && (successRenewal === undefined || !successRenewal.eligible)) return false;
         if (leaveDecision !== undefined && !leaveCurrent) return false;
         if (memberRetryDecision !== undefined && !memberCurrent) return false;
         if (invoiceCollect !== undefined && !invoiceCollect.eligible) return false;
@@ -21387,6 +21614,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         frame.assertCompleted(); healthy();
         await referenceNavigation?.revalidate(); healthy();
         await maintainFrame?.revalidate(); healthy();
+        await successRenewal?.revalidate(); healthy();
         if (typeof answer !== 'boolean') return refuse(new Error('Original native SEND predicate must return Bool.'));
         return answer;
       } catch (error) { return refuse(error); }

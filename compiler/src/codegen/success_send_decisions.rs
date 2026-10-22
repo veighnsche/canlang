@@ -10,7 +10,7 @@
 //! and refuses any `now` root inside it.
 use serde_json::{Value, json};
 
-use crate::analysis::effects::{EffectVerb, HandlerSource};
+use crate::analysis::effects::{EffectTarget, EffectVerb, HandlerSource};
 use crate::analysis::resolve::{Binding, ContextVar, ModelOwner, SymbolId, SymbolKind};
 use crate::analysis::types::SelectedCallTarget;
 use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar};
@@ -29,6 +29,7 @@ const WHEN: &str = "event.account.version==event.revision and event.account.acti
 const SUBJECT: &str =
     "format(\"Account renewal due\"@{nl=\"Klantverlenging nodig\"},locale=null)";
 const BODY: &str = "format(\"Review the recorded renewal date; renewal remains a separate agreement action.\"@{nl=\"Controleer de vastgelegde verlengingsdatum; verlenging blijft een afzonderlijke overeenkomstactie.\"},locale=null)";
+
 
 fn same_item(context: &FreshSourceContext<'_>, id: SymbolId) -> Option<()> {
     let original = context.ir().items.get(id.0 as usize)?;
@@ -94,6 +95,131 @@ fn first_member(
         .min_by_key(|node| node.start)
 }
 
+fn plain(node: NodeKey) -> Value {
+    json!({"start":node.start,"end":node.end})
+}
+
+/// Membership sites for the owner frame: the single `active_member` call
+/// inside the exact `can_work` body, cited once from the staging IF and once
+/// from the dispatch `when=`. A modified helper or duplicated call site
+/// cannot inherit this owner binding.
+pub(super) fn collect_success_renewal_membership_sites(
+    context: &FreshSourceContext<'_>,
+    owner: &IrItem,
+) -> Option<Vec<Value>> {
+    if owner.canonical != "success.renewal_due" {
+        return None;
+    }
+    prepare_renewal_due_send_guard(context, owner)?;
+    let program = context.original();
+    let db = context.db();
+    let scenario = program.effects.scenarios.get(&owner.id)?;
+    let [top] = scenario.effects.as_slice() else {
+        return None;
+    };
+    let (can_work, work_expr) = t::derive(
+        program,
+        db,
+        "employee.can_work",
+        "any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))",
+        &[("person", "user"), ("location", "rent_catalog.Location")],
+        "bool",
+    )?;
+    let mut members = program
+        .types
+        .selected_calls
+        .iter()
+        .filter(|(node, selected)| {
+            node.file == work_expr.file
+                && node.start >= work_expr.start
+                && node.end <= work_expr.end
+                && matches!(&selected.target,
+                    SelectedCallTarget::Builtin { id, overload }
+                    if id == "active_member" && *overload == 0)
+        });
+    let (member, selected) = members.next()?;
+    if members.next().is_some()
+        || t::text(db, *member)? != "active_member(person,team)"
+        || selected.arguments.len() != 2
+        || selected.slots != [Some(0), Some(1)]
+        || t::text(db, selected.arguments[0])? != "person"
+        || t::text(db, selected.arguments[1])? != "team"
+        || program.types.node_types.get(member)? != &ResolvedType::Scalar(Scalar::Bool)
+        || program.types.node_types.get(&selected.arguments[0])?
+            != &ResolvedType::Scalar(Scalar::User)
+    {
+        return None;
+    }
+    let team_ty = program.types.node_types.get(&selected.arguments[1])?;
+    if !matches!(team_ty, ResolvedType::Team) {
+        return None;
+    }
+    let checked = context.program().types.selected_calls.get(member)?;
+    if !matches!(&checked.target,
+        SelectedCallTarget::Builtin { id, overload }
+        if id == "active_member" && *overload == 0)
+        || checked.arguments != selected.arguments
+        || checked.slots != selected.slots
+    {
+        return None;
+    }
+    let member_source = t::source(program, db, *member, "employee")?;
+    let mut sites = Vec::new();
+    for (guard, statement, stage, position) in [
+        (top.cond?, top.node, "body-condition", json!([{"kind":"body","index":0}])),
+        (
+            send_when(program, scenario)?,
+            send_node(program, scenario)?,
+            "send-dispatch",
+            json!([{"kind":"body","index":0},{"kind":"then","index":0}]),
+        ),
+    ] {
+        let outer = unique_call_in(program, guard, can_work)?;
+        let owner_source = t::source(program, db, guard, "success")?;
+        let call = json!({
+            "source":member_source,"node":plain(*member),
+            "target":{"kind":"builtin","id":"active_member","overload":0},
+            "arguments":[
+                {"node":plain(selected.arguments[0]),"type":"user"},
+                {"node":plain(selected.arguments[1]),"type":"Team"}],
+            "slots":[0,1],"defaults":[],
+            "chain":[
+                {"source":owner_source,"node":plain(outer),"derive":"employee.can_work"}]
+        });
+        sites.push(
+            json!({"version":1,"source":owner_source,"owner":"success.renewal_due",
+            "node":plain(guard),"statement":plain(statement),
+            "stage":stage,"position":position,"calls":[call]}),
+        );
+    }
+    Some(sites)
+}
+
+fn send_when(program: &CheckedProgram, scenario: &crate::analysis::effects::Scenario) -> Option<NodeKey> {
+    let [send, _] = scenario_effect_send(scenario)?.then_effects.as_slice() else {
+        return None;
+    };
+    let _ = program;
+    send.when
+}
+
+fn send_node(program: &CheckedProgram, scenario: &crate::analysis::effects::Scenario) -> Option<NodeKey> {
+    let [send, _] = scenario_effect_send(scenario)?.then_effects.as_slice() else {
+        return None;
+    };
+    let _ = program;
+    Some(send.node)
+}
+
+fn scenario_effect_send(
+    scenario: &crate::analysis::effects::Scenario,
+) -> Option<&crate::analysis::effects::Effect> {
+    let [top] = scenario.effects.as_slice() else {
+        return None;
+    };
+    (top.verb == EffectVerb::If).then_some(top)
+}
+
 /// The single call of `target` inside `within`: same spelling with a
 /// retargeted callee or a duplicated call cannot inherit the guard.
 fn unique_call_in(
@@ -141,7 +267,7 @@ pub(super) fn prepare_renewal_due_send_guard(
         context,
         scenario.node,
         &[can_work],
-        &[account, event, notice, employee, location],
+        &[account, notice, employee, location],
     )?;
     for id in [
         account, notice, customer, event, role, can_work, employee, location,
@@ -245,9 +371,12 @@ pub(super) fn prepare_renewal_due_send_guard(
             ],
         )
         || program.types.node_types.get(&send.when?) != Some(&ResolvedType::Scalar(Scalar::Bool))
-        || create.verb != EffectVerb::Create
+    {
+        return None;
+    }
+    if create.verb != EffectVerb::Create
         || !t::no_children(create)
-        || create.target_node.and_then(|node| t::text(db, node)) != Some("Notice")
+        || !matches!(create.target, Some(EffectTarget::Model(id)) if id == notice)
         || create.binding.as_deref() != Some("outcome")
         || !t::args_match(
             db,
