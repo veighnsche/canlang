@@ -363,18 +363,23 @@ it('refuses changed Event formatter traversal, revision guard, or ordinary busin
   });
 
 
-it('observes original pre-change guards with omitted, null, and live nullable Model defaults',
+it('observes original pre-change guards and atomically creates and emits with a formal named event',
   {timeout:120000},async()=>{
     const directory=await mkdtemp(join(tmpdir(),'can-event-change-guards-'));
     try {
       const original=await readFile(join(root,'compiler/tests/fixtures/event-change-retained.can'),'utf8');
       const guards=original.replace('  scenario change_schedule(','  export scenario check_change(').replace(') -> Change by=organizer',') -> int by=organizer');
       const body=guards.indexOf('   do\n',guards.indexOf('scenario check_change'));
-      const sourcePath=join(directory,'guards.can');await writeFile(sourcePath,guards.slice(0,body)+'   do\n    return 1\n Then\n');
+      for(const profile of ['guards','created'] as const){
+      const create=original.split('\n').find(line=>line.startsWith('    create Change '))!.replace('account=retained?.account ?? actor','account=actor');
+      const sourceText=profile==='guards'?guards.slice(0,body)+'   do\n    return 1\n Then\n':
+        original.slice(0,original.indexOf('   do\n',original.indexOf('scenario change_schedule'))).replace('  scenario change_schedule(','  export scenario check_change(')+
+        '   do\n'+create+'\n    set event {pending_change=change}\n    if resource==null\n     emit ApplyChange {change}\n    else\n     require false\n    return change\n  scenario consume on=ApplyChange\n   do require true\n Then\n';
+      const sourcePath=join(directory,profile+'.can');await writeFile(sourcePath,sourceText);
       const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,sourcePath],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
       const artifact=JSON.parse(stdout) as CompileArtifact;
-      const asm=await assembleModules({artifact,sourcePath},{workDir:join(directory,'assembly'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-      for(const mode of ['omitted','null','live','inactive','capacity','prefix-false'] as const){
+      const asm=await assembleModules({artifact,sourcePath},{workDir:join(directory,'assembly-'+profile),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of [...(['omitted','null','live','inactive','capacity','prefix-false'] as const),...(profile==='created'?['capacity-race'] as const:[])]){
         const now=Date.parse('2099-01-01T12:00:00Z'),clock=createFrozenClock(now),identities=createMemoryIdentityStore({clock});
         const team=await identities.createTeam({timezone:'UTC'});
         const actor=await identities.createUser({email:'event-guards@example.test',password_hash:'unused',email_verified:true});
@@ -393,13 +398,40 @@ it('observes original pre-change guards with omitted, null, and live nullable Mo
           {kind:'insert',model:asModel('customer.Customer'),row:{...makeRow({id:customer,data:{active:true,locations:[{id:site}]}}),parent:null}},
           ...[0,1].map(index=>({kind:'insert' as const,model:asModel('events.Registration'),row:{...makeRow({id:asId('ticket-'+index),data:{checked_in:null,state:'confirmed',expires:'2099-01-03T12:00:00.000Z'}}),parent:{model:asModel('events.Event'),id:event}}})),
         ]}));
+        let raced=false;
+        if(mode==='capacity-race'){
+          const commit=store.commit.bind(store);
+          store.commit=async batch=>{
+            if(!raced && batch.writes.some(write=>write.kind==='insert'&&write.model==='events.Change')){
+              raced=true;
+              await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('events.Registration'),row:{...makeRow({id:asId('racing-ticket'),data:{checked_in:null,state:'confirmed',expires:'2099-01-03T12:00:00.000Z'}}),parent:{model:asModel('events.Event'),id:event}}}]}));
+            }
+            return commit(batch);
+          };
+        }
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
-        const inputs={event:{id:event,version:'1'},location:{id:site,version:'1'},timezone:'UTC',from:'2099-01-03T09:00:00.000Z',until:'2099-01-03T10:00:00.000Z',capacity:mode==='capacity'?'1':'10',sales_until:'2099-01-03T08:00:00.000Z',reason:'Move event',
-          ...(mode==='omitted'?{}:mode==='null'?{resource:null,customer:null}:{resource:{id:resource,version:'1'},customer:{id:customer,version:'1'}})};
+        const inputs={event:{id:event,version:'1'},location:{id:site,version:'1'},timezone:'UTC',from:'2099-01-03T09:00:00.000Z',until:'2099-01-03T10:00:00.000Z',capacity:mode==='capacity'?'1':mode==='capacity-race'?'2':'10',sales_until:'2099-01-03T08:00:00.000Z',reason:'Move event',
+          ...(mode==='omitted'?{}:(mode==='null'||mode==='capacity-race')?{resource:null,customer:null}:{resource:{id:resource,version:'1'},customer:{id:customer,version:'1'}})};
         const time=now.toString(16).padStart(12,'0'),random=randomBytes(10).toString('hex'),id=`${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}`;
         const result=await invoker.invokeMutation({operation:'events.check_change',operation_id:id,inputs},identity);
-        if(['omitted','null','live'].includes(mode)){assert.ok('result' in result,mode+': '+JSON.stringify(result));assert.equal(result.result.status,'committed');assert.equal(result.result.result,'1');}
-        else {assert.ok('error' in result,mode+': '+JSON.stringify(result));assert.equal(result.error.code,'rule_failed',mode+': '+JSON.stringify(result));}
+        const success=mode==='omitted'||mode==='null'||profile==='guards'&&mode==='live';
+        if(success){assert.ok('result' in result,profile+'/'+mode+': '+JSON.stringify(result));assert.equal(result.result.status,'committed');if(profile==='guards')assert.equal(result.result.result,'1');}
+        else {assert.ok('error' in result,profile+'/'+mode+': '+JSON.stringify(result));assert.equal(result.error.code,'rule_failed',profile+'/'+mode+': '+JSON.stringify(result));}
+        if(mode==='capacity-race')assert.equal(raced,true,'race occurs at original commit');
+        if(profile==='created'){
+          const changes=await store.query({model:asModel('events.Change'),authority:'owner'});
+          assert.equal(changes.length,success?1:0,mode+': created row is atomic');
+          const current=await store.load(asModel('events.Event'),event);assert.ok(current);
+          const routes=await store.query({model:asModel('work.handler_occurrence'),authority:'owner'});
+          assert.equal(routes.filter(row=>row.data['handler']==='events.consume').length,success?1:0,mode+': exact event route shares commit');
+          if(success){assert.deepEqual(current.data['pending_change'],{id:changes[0]!.id});assert.deepEqual(changes[0]!.data['account'],{id:actor.user_id});
+            const replay=await invoker.invokeMutation({operation:'events.check_change',operation_id:id,inputs},identity);
+            assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+            assert.equal((await store.query({model:asModel('events.Change'),authority:'owner'})).length,1);
+            assert.equal((await store.query({model:asModel('work.handler_occurrence'),authority:'owner'})).filter(row=>row.data['handler']==='events.consume').length,1,'replay emits no second route');
+          }else assert.equal(current.data['pending_change'],null,mode+': failed prefix or late Require publishes no link');
+        }
+      }
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });

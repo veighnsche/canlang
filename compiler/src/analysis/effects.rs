@@ -3760,7 +3760,13 @@ impl<'a> Cx<'a> {
         target: &SyntaxNode,
     ) -> Option<EffectTarget> {
         let segments = path_segments(target, text);
-        if segments.first() == Some(&"event") {
+        // An ordinary declared Model parameter may itself be named `event`.
+        // Only the contextual event binding owns the hook event.after target.
+        let declared_event_parameter = self.tables.expr_scope.get(&NodeKey::of(target))
+            .and_then(|scope| self.tables.resolve_name(*scope, "event", self.catalog))
+            .is_some_and(|binding| matches!(binding, Binding::Symbol(id)
+                if matches!(self.tables.symbols[id.0 as usize].kind, SymbolKind::Param { .. })));
+        if segments.first() == Some(&"event") && !declared_event_parameter {
             if segments == ["event", "after"]
                 && let Some((model, _)) = self.current_hook
             {

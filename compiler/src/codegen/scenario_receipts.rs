@@ -14829,6 +14829,19 @@ fn source_owned_after_call_create(context: &super::scenario_decisions::FreshSour
     entries.iter().any(|(_, value)| checked_narrowed_call_reference(ir, owner, value, context.db()).is_some()).then_some(())
 }
 
+/// A complete source-owned single-creation result may retain its finite
+/// conditional SEND/SET/EMIT tail. Re-lowering the entire original owner seals
+/// every ordered condition and operand; this grants no query or row authority.
+fn source_owned_created_return_tail(context: &super::scenario_decisions::FreshSourceContext<'_>,
+    owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
+    let ir = context.ir();
+    super::scenario_decisions::same_scenario_semantics(context.original(), ir, context.fresh(), owner)?;
+    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
+    let [created] = facts.creates.as_deref()? else { return None; };
+    if !std::ptr::eq(created, original) || checked_created_model_result(ir, owner) != Some(original.model) { return None; }
+    ordered_created_model_effects(ir, owner, original.node, original.model, &original.binding, context.db())
+}
+
 fn scenario_create_nesting(
     ir: &IrProgram,
     owner: &IrItem,
@@ -14955,7 +14968,8 @@ fn scenario_create_entries(
 ) -> Option<()> {
     if !purchase_all && checked_created_statements(ir, owner, checked, original, db).is_none()
         && source_context.and_then(|context| conditional_parameter_create_link(context, owner, original)
-            .or_else(|| source_owned_after_call_create(context, owner, original))).is_none() {
+            .or_else(|| source_owned_after_call_create(context, owner, original))
+            .or_else(|| source_owned_created_return_tail(context, owner, original))).is_none() {
         return None;
     }
     let authored = checked_effect_node(ir, owner, proof.node, db)?;
@@ -16840,30 +16854,36 @@ fn model_result_prefix(statement: &IrStmt) -> bool {
     }
 }
 
+/// A finite original created-row tail may branch and emit its original event.
+/// This checks effect order only; source correspondence, event fields, created
+/// reference identity and every native effect remain independently checked.
 fn created_effects_ordered_tail(
     effects: &[IrStmt],
     file: crate::source::SourceId,
-    mut previous: u32,
+    previous: u32,
     until: u32,
 ) -> bool {
-    for effect in effects {
-        let at = match effect {
-            IrStmt::Let { span, .. }
-            | IrStmt::Require { span, .. }
-            | IrStmt::Set {
-                when: None, span, ..
-            }
-            | IrStmt::Send {
-                binding: Some(_),
-                span,
-                ..
-            } => *span,
-            _ => return false,
-        };
-        if at.file != file || at.start < previous || at.end > until {
-            return false;
+    let mut pending = vec![(effects, previous, until)];
+    let mut visits = 0usize;
+    while let Some((effects, mut previous, until)) = pending.pop() {
+        for effect in effects {
+            visits += 1;
+            if visits > 16384 { return false; }
+            let at = match effect {
+                IrStmt::Let { span, .. } | IrStmt::Require { span, .. }
+                | IrStmt::Set { when: None, span, .. }
+                | IrStmt::Send { binding: Some(_), span, .. }
+                | IrStmt::Emit { span, .. } => *span,
+                IrStmt::If { then_branch, else_branch, span, .. } => {
+                    pending.push((then_branch.as_slice(), span.start, span.end));
+                    pending.push((else_branch.as_slice(), span.start, span.end));
+                    *span
+                }
+                _ => return false,
+            };
+            if at.file != file || at.start < previous || at.end > until { return false; }
+            previous = at.end;
         }
-        previous = at.end;
     }
     true
 }

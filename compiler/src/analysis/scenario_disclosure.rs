@@ -7304,9 +7304,8 @@ impl<'a> Closure<'a> {
         call: &CheckedDecisionCall,
         pending: &mut Vec<(SymbolId, bool)>,
     ) -> Option<()> {
-        if call.chain.is_empty() {
-            return Some(());
-        }
+        // A direct checked contained collection also owns its model census.
+        // Schema inventory is evidence only and issues no executable query.
         let CheckedDecisionCallTarget::Builtin { ref id, overload } = call.target else {
             return Some(());
         };
@@ -11038,6 +11037,15 @@ impl<'a> Closure<'a> {
                 let Some(model) = model_step else {
                     continue;
                 };
+                // A leading source-Require observer owns this exact COUNT
+                // execution and domain. Do not demand a second, unrelated
+                // assign/count recipe for the same original occurrence.
+                if self.checked_source_requires(scenario).is_some_and(|sites|
+                    sites.iter().any(|site| site.stage == CheckedDecisionStage::LeadingRequire
+                        && site.statement == statement.node && site.calls.iter().any(|source|
+                            source.node == call && matches!(&source.target,CheckedDecisionCallTarget::Builtin{id,..} if id == "count")
+                                && self.source_require_contained_collection(scenario,source,"count"))))
+                { continue; }
                 queries.push(self.checked_assign_count_query_source(
                     scenario, statement.node, call, supplied, model,
                 ).or_else(|| self.checked_count_query_source(
@@ -20748,7 +20756,7 @@ impl<'a> Closure<'a> {
                 pending.extend(&effect.else_effects);
             } else if !matches!(
                 effect.verb,
-                EffectVerb::Let | EffectVerb::Require | EffectVerb::Send | EffectVerb::Set
+                EffectVerb::Let | EffectVerb::Require | EffectVerb::Send | EffectVerb::Set | EffectVerb::Emit
             ) || !effect.then_effects.is_empty()
                 || !effect.else_effects.is_empty()
             {

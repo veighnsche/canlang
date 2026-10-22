@@ -413,7 +413,7 @@ fn check_field_modifiers(
     db: &SourceDb,
 ) -> Option<()> {
     let (trim, unique, machine, minimum, maximum) = collect_field_flags(data)?;
-    if original_field
+    if original_field.modifier_sources.len() > 1 || original_field
         .modifier_sources
         .iter()
         .any(|(_, _, _, _, given)| !given.is_empty())
