@@ -427,3 +427,73 @@ console.log('Byte-exact guarded Email: actual native-catalog CLI/verified Rule/i
     );
     eprint!("{}", String::from_utf8_lossy(&run.stdout));
 }
+
+const VENUE_FIXTURE: &str =
+    include_str!("../../packages/cloudflare/test/fixtures/event-observe-owner-probe.can");
+
+fn compile_venue_source(source: &str) -> (bool, String) {
+    let scratch = tempfile::tempdir().unwrap();
+    let path = scratch.path().join("venue-observe.can");
+    std::fs::write(&path, source).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--native-scenario-receipts", "--format=json", "--catalog"])
+        .arg(root().join("packages/cloudflare/dist/native-catalog.json"))
+        .arg(&path)
+        .current_dir(root())
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    (
+        output.status.success(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+    )
+}
+
+/// Extra guarded SEND copies sharing the exact guard shape, each with its
+/// own delivery binding and suite. Byte-exact block surgery: the anchor
+/// block must occur exactly once.
+fn venue_with_extra_sends(extra: usize) -> String {
+    let mut src = VENUE_FIXTURE.to_string();
+    let anchor = "        send Rooms.confirm {source=change.source,resource=resource.id} when=change.parent.pending_change==change and not change.parent.cancelled and change.state==confirming as delivery\n        set change {confirm_delivery=delivery.id,confirm_status=pending}";
+    assert_eq!(src.matches(anchor).count(), 1);
+    let mut blocks = vec![anchor.to_string()];
+    for n in 2..=(extra + 1) {
+        blocks.push(
+            anchor
+                .replacen("delivery.id", &format!("delivery{n}.id"), 1)
+                .replacen(" as delivery\n", &format!(" as delivery{n}\n"), 1),
+        );
+    }
+    src.replacen(anchor, &blocks.join("\n"), 1)
+}
+
+/// (Lane B, observe_venue census.) The verbatim single-SEND fixture
+/// prepares the exact owner guard: no send-dispatch E6008. Doubling or
+/// tripling the guarded SEND (same guard shape, distinct delivery
+/// bindings) must stay refused with one guard veto per SEND site — the
+/// caller census (`sends.len() != 1`) plus the collected single-IR-send
+/// inventory behind it. The IR inventory deliberately collects all
+/// guarded SENDs first and requires exactly one: the earlier
+/// reset-to-None walk returned from its frame on the second SEND while
+/// the outer loop continued, so a third guarded SEND re-armed the slot
+/// and falsely proved uniqueness with the wrong span.
+#[test]
+fn venue_single_send_prepares_exact_guard_and_extra_sends_stay_refused() {
+    let (ok, out) = compile_venue_source(VENUE_FIXTURE);
+    assert!(ok, "verbatim venue fixture must compile: {out}");
+    assert!(
+        !out.contains("send dispatch guard"),
+        "verbatim fixture prepares its guard: {out}"
+    );
+    for extra in [1usize, 2] {
+        let altered = venue_with_extra_sends(extra);
+        let (ok, out) = compile_venue_source(&altered);
+        let guard_vetoes = out.matches("send dispatch guard").count();
+        assert!(
+            !ok && guard_vetoes == extra + 1,
+            "expected {} guard vetoes for {} sends, got: {out}",
+            extra + 1,
+            extra + 1
+        );
+    }
+}

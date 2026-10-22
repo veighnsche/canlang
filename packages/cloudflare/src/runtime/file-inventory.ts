@@ -229,6 +229,19 @@ function declareSendGuards(artifact: CompileArtifact, captures: readonly ModuleC
   const originalCapture = captures.find(captured => captured.module === callable.module);
   const guarded = originalCapture?.sendGuards[callable.id];
   if (guarded === undefined) return;
+  if (callable.id === 'events.observe_venue') {
+    const invocation = originalCapture?.invocations[callable.id] as
+      { readonly result?: { readonly disclosure?: { readonly observeVenueDecision?: {
+        readonly owner: string; readonly sendRule: { readonly rule: string; readonly node: unknown } } } } } | undefined;
+    const decision = invocation?.result?.disclosure?.observeVenueDecision;
+    const entries = Array.isArray(guarded) ? guarded as Array<Record<string, unknown>> : [];
+    const slots = entries.filter(entry => entry['owner'] === callable.id);
+    if (decision?.owner !== callable.id || slots.length !== 1 ||
+        decision.sendRule.rule !== slots[0]!['rule'] ||
+        !equal(decision.sendRule.node, slots[0]!['node'])) {
+      throw new Error('Observe venue SEND interval differs from its checked source decision.');
+    }
+  }
   if (!Array.isArray(guarded) || originalCapture === undefined) throw new Error('Original SEND guard inventory must be complete.');
   const originalPackages = data(originalCapture.definition, 'packages');
   const owningPackage = Object.keys(originalPackages as object).filter(name => callable.id.startsWith(`${name}.`))
@@ -280,6 +293,9 @@ function assertSendSlots(guard: Record<string, unknown>, profile: FrameworkOpaqu
         !equal(decision.sendRule.node, node)) {
       throw new Error('Invoice issue SEND interval differs from its checked source decision.');
     }
+    node = { start: data(node, 'start') as number, end: data(node, 'end') as number };
+  }
+  if (callable.id === 'events.observe_venue') {
     node = { start: data(node, 'start') as number, end: data(node, 'end') as number };
   }
   declarations.push({ id: `${rule}:send-inputs`, source: { kind: 'send-guard', rule,

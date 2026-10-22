@@ -11354,7 +11354,8 @@ fn null_equality(
                     .and_then(|receipt|receipt.plan.refer_reject_decision.as_ref()
                         .or(receipt.plan.member_retry_decision.as_ref())
                         .or(receipt.plan.invoice_collect_decision.as_ref())
-                        .or(receipt.plan.invoice_issue_decision.as_ref()))
+                        .or(receipt.plan.invoice_issue_decision.as_ref())
+                        .or(receipt.plan.observe_venue_decision.as_ref()))
                     .filter(|_|self.owner_handler_body);
                 // Source Require lowering temporarily suspends receipt_capture,
                 // and imported pure helpers are emitted outside the handler.
@@ -20471,6 +20472,32 @@ impl<'a> Emitter<'a> {
             && item.canonical == "member_terms.term"
         {
             self.emit_term_decision_body(out,item,guards,effects,&decision);
+            return;
+        }
+        if self.receipt_capture.as_ref()
+            .and_then(|receipt| receipt.plan.observe_venue_decision.as_ref())
+            .is_some_and(|decision| decision["owner"] == "events.observe_venue")
+            && item.canonical == "events.observe_venue"
+        {
+            // The venue scan tag needs the owner-handler lifetime, but the
+            // hook body keeps its ordinary shape: no nativeScenario wrapper
+            // exists for this decision yet. The tag alone grants nothing;
+            // the staged read is authorized only through the State-issued
+            // scan lease (prepareObserveVenueScanQuery) and the Cloudflare
+            // narrow reader that requires its exact site tag.
+            let previous_owner = self.owner_handler_body;
+            self.owner_handler_body = true;
+            for guard in guards {
+                for (line, span) in self.lower_stmt(guard, 0) {
+                    out.push(span, Some(item.canonical.clone()), &line);
+                }
+            }
+            for effect in effects {
+                for (line, span) in self.lower_stmt(effect, 0) {
+                    out.push(span, Some(item.canonical.clone()), &line);
+                }
+            }
+            self.owner_handler_body = previous_owner;
             return;
         }
         for guard in guards {

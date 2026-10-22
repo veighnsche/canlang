@@ -190,6 +190,192 @@ export interface EventDecisionPlan {
     readonly source: ScenarioResultDisclosurePlan['source']; readonly callSite: EventDecisionSite['node'];
     readonly role: 'maintain.technician'; readonly deriveChain: EventDecisionQuerySite['deriveChain'] }[];
 }
+/** The venue observer stages one guarded Rooms confirmation for the single
+ * Change row selected by the provider source. */
+export interface ObserveVenueQuerySite {
+  readonly id: string;
+  readonly stage: 'venueScan';
+  readonly model: 'events.Change';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly queryNode: EventDecisionSite['node'];
+  readonly callSite: EventDecisionSite['node'];
+  readonly aliasSite: EventDecisionSite['node'];
+  readonly predicateSite: EventDecisionSite['node'];
+  readonly selectionSite: EventDecisionSite['node'];
+  readonly domainKind: 'tenant-root';
+  readonly ownerPath: readonly string[];
+  readonly order: readonly unknown[];
+  readonly deriveChain: readonly unknown[];
+}
+export interface ObserveVenueDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'events.observe_venue';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly sites: { readonly for: EventDecisionSite & { readonly model: 'events.Change' };
+    readonly send: EventDecisionSite };
+  readonly querySites: readonly ObserveVenueQuerySite[];
+  readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly node: EventDecisionSite['node']; readonly statement: EventDecisionSite['statement'] };
+}
+function checkObserveVenueDecisionPlan(value: unknown, transport: unknown): ObserveVenueDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'sites', 'querySites', 'sendRule']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as ScenarioResultDisclosurePlan['source'];
+  const carrier = transport as ScenarioResultDisclosurePlan['source'];
+  if (raw['version'] !== 1 || raw['owner'] !== 'events.observe_venue' || source.module !== 'events' ||
+      source.path !== carrier.path || source.sha256 !== carrier.sha256) {
+    return invalid('observe decision needs its original venue source.');
+  }
+  const span = (value: unknown): void => {
+    const item = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(item['start']) || !Number.isSafeInteger(item['end']) ||
+        (item['start'] as number) < 0 || (item['end'] as number) <= (item['start'] as number) ||
+        !Number.isSafeInteger(item['kind']) || (item['kind'] as number) < 0) {
+      return invalid('observe decision needs nonempty original source intervals.');
+    }
+  };
+  const sites = object(raw['sites'], ['for', 'send']);
+  const ids = new Set<string>();
+  const site = (value: unknown, extra: readonly string[] = []): EventDecisionSite => {
+    const item = object(value, ['id', 'source', 'node', 'statement', ...extra]);
+    const id = text(item['id']); origin(item['source']); span(item['node']); span(item['statement']);
+    const node = item['node'] as EventDecisionSite['node'];
+    const statement = item['statement'] as EventDecisionSite['statement'];
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify(item['source']) !== stableStringify(source) ||
+        node.start < statement.start || node.end > statement.end) {
+      return invalid('observe decision site differs from its checked source.');
+    }
+    ids.add(id); return item as unknown as EventDecisionSite;
+  };
+  const scanned = site(sites['for'], ['model']);
+  if ((sites['for'] as { readonly model: unknown }).model !== 'events.Change') {
+    return invalid('observe decision scan needs its original Change target.');
+  }
+  const send = site(sites['send']);
+  if (send.statement.start < scanned.statement.start || send.statement.end > scanned.statement.end) {
+    return invalid('observe SEND must stage inside its original venue scan.');
+  }
+  const scanSites = list(raw['querySites']);
+  if (scanSites.length !== 1) {
+    return invalid('observe decision needs its single checked Change scan.');
+  }
+  const scan = object(scanSites[0], ['id', 'stage', 'model', 'source', 'queryNode', 'callSite',
+    'aliasSite', 'predicateSite', 'selectionSite', 'domainKind', 'ownerPath', 'order', 'deriveChain']);
+  const scanId = text(scan['id']);
+  origin(scan['source']);
+  span(scan['queryNode']); span(scan['callSite']); span(scan['aliasSite']);
+  span(scan['predicateSite']); span(scan['selectionSite']);
+  const scanQuery = scan['queryNode'] as EventDecisionSite['node'];
+  const scanCall = scan['callSite'] as EventDecisionSite['node'];
+  const scanAlias = scan['aliasSite'] as EventDecisionSite['node'];
+  const scanPredicate = scan['predicateSite'] as EventDecisionSite['node'];
+  const scanSelection = scan['selectionSite'] as EventDecisionSite['node'];
+  if (!/^[a-f0-9]{64}$/.test(scanId) || ids.has(scanId) ||
+      scan['stage'] !== 'venueScan' || scan['model'] !== 'events.Change' ||
+      stableStringify(scan['source']) !== stableStringify(source) ||
+      scan['domainKind'] !== 'tenant-root' ||
+      list(scan['ownerPath']).length !== 0 ||
+      list(scan['order']).length !== 0 ||
+      list(scan['deriveChain']).length !== 0 ||
+      scanQuery.start < scanned.node.start || scanQuery.end > scanned.node.end ||
+      scanPredicate.start < scanned.node.start || scanPredicate.end > scanned.node.end ||
+      scanCall.start !== scanned.statement.start || scanCall.end !== scanned.statement.end ||
+      scanAlias.start !== scanned.statement.start || scanAlias.end !== scanned.statement.end ||
+      scanSelection.start !== scanned.statement.start || scanSelection.end !== scanned.statement.end) {
+    return invalid('observe scan differs from its exact Change source site.');
+  }
+  ids.add(scanId);
+  const rule = object(raw['sendRule'], ['rule', 'source', 'node', 'statement']);
+  text(rule['rule']); origin(rule['source']); span(rule['node']); span(rule['statement']);
+  if (stableStringify(rule['source']) !== stableStringify(source) ||
+      stableStringify(rule['node']) !== stableStringify(send.node) ||
+      stableStringify(rule['statement']) !== stableStringify(send.statement)) {
+    return invalid('observe SEND lacks its original guarded source occurrence.');
+  }
+  return deepFreeze(raw) as unknown as ObserveVenueDecisionPlan;
+}
+/** The venue scan lease issues one owner-domain Change query for the exact
+ * checked source scan. The lease honors exactly one tagged query at the
+ * original serial stage; any untagged, second, or cross-model read stays
+ * refused by the general receipt-aware bar. Cloudflare must release the
+ * lease when the due handler body settles. */
+export async function prepareObserveVenueScanQuery(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: ObserveVenueDecisionPlan; readonly checked: ObserveVenueDecisionPlan;
+  readonly source: string;
+}): Promise<{
+  readonly siteId: string;
+  readonly query: () => Promise<readonly StoredRow[]>;
+  readonly release: () => void;
+}> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  const profile = state.bound.observeVenueDecision;
+  if (profile === undefined || owner === undefined || owner.session === null || owner.stage !== 0 ||
+      owner.busy || owner.activeOwnerDecision !== null || state.pending !== 0 || state.returnId !== null ||
+      owner.executingCall !== call || owner.callGuards.length >= MAX_ITEMS ||
+      typeof input.source !== 'string' || input.source === '') {
+    return invalid('Observe venue scan needs its unique active initial owner stage.');
+  }
+  const original = checkObserveVenueDecisionPlan(dataCopy(input.original), state.bound.plan.source);
+  const checked = checkObserveVenueDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
+  if (stableStringify(original) !== stableStringify(checked) ||
+      stableStringify(original) !== stableStringify(profile)) {
+    return invalid('Observe venue scan differs from its independently checked source.');
+  }
+  const admittedInputs = call.inputs as unknown;
+  const admittedValue = typeof admittedInputs === 'object' && admittedInputs !== null
+    ? (admittedInputs as Record<string, unknown>).value : undefined;
+  const admittedSource = typeof admittedValue === 'object' && admittedValue !== null
+    ? (admittedValue as Record<string, unknown>).source : undefined;
+  if (typeof admittedSource !== 'string' || admittedSource === '' || admittedSource !== input.source) {
+    return invalid('Observe venue scan source differs from its admitted provider event.');
+  }
+  if (!Number.isSafeInteger(owner.maxRows) || owner.maxRows <= 0 || owner.maxRows > MAX_ITEMS) {
+    return invalid('Observe venue scan needs its bounded owner query limit.');
+  }
+  const site = checked.querySites[0];
+  if (site === undefined) return invalid('Observe venue scan lacks its checked source site.');
+  const sourceText = input.source;
+  const lease: OwnerDecisionLease = { call, owner: profile.owner, staged: 0, queryIndex: 0,
+    stagedIds: [], stages: Object.freeze([]), queries: Object.freeze([
+      { id: site.id, stage: 0, model: 'events.Change' as ModelName }]) };
+  const healthy = () => {
+    capture(call, store); ownerHealthy(owner);
+    if (owner.executingCall !== call || owner.activeOwnerDecision !== lease || owner.busy ||
+        state.pending !== 0 || state.returnId !== null) {
+      return invalid('Observe venue scan crossed its original serial owner stage.');
+    }
+  };
+  let domain: readonly StoredRow[] | undefined;
+  let released = false;
+  const query = async (): Promise<readonly StoredRow[]> => {
+    if (released || owner.activeOwnerDecision !== null) {
+      return invalid('Observe venue scan lease is closed or another owner decision is active.');
+    }
+    owner.activeOwnerDecision = lease;
+    try {
+      healthy();
+      claimOwnerDecisionQuery(owner, lease, site.id, 'events.Change' as ModelName, undefined);
+      if (domain === undefined) {
+        const scanned = await ownerOperation(owner, () => owner.session!.views.final.query({
+          model: 'events.Change' as ModelName, authority: 'owner', archived: 'exclude',
+          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
+        if (scanned.length >= owner.maxRows ||
+            scanned.some(row => row.archivedAt !== null || row.parent?.model !== 'events.Event')) {
+          return invalid('Observe venue scan exceeds or differs from its complete owner domain.');
+        }
+        domain = Object.freeze(scanned.filter(row => row.data['source'] === sourceText));
+      }
+      healthy(); return domain;
+    } finally {
+      if (owner.activeOwnerDecision === lease) owner.activeOwnerDecision = null;
+    }
+  };
+  return Object.freeze({ siteId: site.id, query, release: () => {
+    released = true;
+    if (owner.activeOwnerDecision === lease) owner.activeOwnerDecision = null;
+  } });
+}
 /** The original overdue event is a private Invoice decision over its complete
  * balance child domains, followed by one guarded outbound Mail SEND. */
 export interface InvoiceOverdueDecisionPlan {
@@ -1368,7 +1554,8 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentMovementRefundDecision') ? ['rentMovementRefundDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceCollectDecision') ? ['invoiceCollectDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceIssueDecision') ? ['invoiceIssueDecision'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentNoticeDecision') ? ['rentNoticeDecision'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentNoticeDecision') ? ['rentNoticeDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'observeVenueDecision') ? ['observeVenueDecision'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
@@ -1382,6 +1569,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'invoiceCollectDecision')) checkInvoiceCollectDecisionPlan(plan['invoiceCollectDecision'], plan['source']);
   if (Object.hasOwn(plan, 'invoiceIssueDecision')) checkInvoiceIssueDecisionPlan(plan['invoiceIssueDecision'], plan['source']);
   if (Object.hasOwn(plan, 'rentNoticeDecision')) checkRentNoticeDecisionPlan(plan['rentNoticeDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'observeVenueDecision')) checkObserveVenueDecisionPlan(plan['observeVenueDecision'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -1478,6 +1666,7 @@ interface BoundPlan {
   readonly rentMovementRefundDecision?: RentMovementRefundDecisionPlan;
   readonly invoiceCollectDecision?: InvoiceCollectDecisionPlan;
   readonly invoiceIssueDecision?: InvoiceIssueDecisionPlan;
+  readonly observeVenueDecision?: ObserveVenueDecisionPlan;
   readonly rentNoticeDecision?: RentNoticeDecisionPlan;
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
   readonly resultModel: ModelName | undefined;
@@ -2237,6 +2426,9 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   const rawRentNoticeDecision = plan.rentNoticeDecision;
   const rentNoticeDecision = rawRentNoticeDecision === undefined ? undefined :
     checkRentNoticeDecisionPlan(rawRentNoticeDecision, plan.source);
+  const rawObserveVenueDecision = (plan as ScenarioResultDisclosurePlan & { readonly observeVenueDecision?: unknown }).observeVenueDecision;
+  const observeVenueDecision = rawObserveVenueDecision === undefined ? undefined :
+    checkObserveVenueDecisionPlan(rawObserveVenueDecision, plan.source);
   if (eventDecision !== undefined) {
     const inspection = models.find(model => model.name === 'maintain.Inspection');
     const planModel = models.find(model => model.name === 'maintain.Plan');
@@ -2476,6 +2668,30 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
       return invalid('Rent Notice lacks its exact private event, Booking ancestry and Notice model.');
     }
   }
+  if (observeVenueDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    const model = (name: string) => models.find(item => item.name === name);
+    const field = (name: string, member: string, kind: string) =>
+      model(name)?.fields.filter(item => item.name === member && item.field.kind === kind &&
+        item.array === undefined && item.nullable !== true).length === 1;
+    const nullableRef = (name: string, member: string) =>
+      model(name)?.fields.filter(item => item.name === member && item.field.kind === 'ref' &&
+        item.array === undefined && item.nullable === true).length === 1;
+    if (def.kind !== 'scenario' || def.name !== observeVenueDecision.owner || declared !== 'void' ||
+        inputs.length !== 1 || inputs[0]?.name !== 'value' || !inputs[0].required ||
+        model('events.Change')?.parent !== 'events.Event' ||
+        model('events.Event')?.parent !== 'events.Program' ||
+        !field('events.Change', 'source', 'string') ||
+        !field('events.Change', 'state', 'enum') ||
+        !nullableRef('events.Change', 'resource') ||
+        !nullableRef('events.Event', 'pending_change') ||
+        !field('events.Event', 'cancelled', 'boolean') ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('Observe venue lacks its exact venue source and Change ancestry.');
+    }
+  }
   const resultModel = modelResultType(declared);
   if (resultModel !== undefined && (def.kind !== 'scenario' ||
       models.filter(model => model.name === resultModel).length !== 1 ||
@@ -2604,6 +2820,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     ...(rentMovementRefundDecision === undefined ? {} : { rentMovementRefundDecision }),
     ...(invoiceCollectDecision === undefined ? {} : { invoiceCollectDecision }),
     ...(invoiceIssueDecision === undefined ? {} : { invoiceIssueDecision }),
+    ...(observeVenueDecision === undefined ? {} : { observeVenueDecision }),
     ...(rentNoticeDecision === undefined ? {} : { rentNoticeDecision }),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
@@ -4257,6 +4474,29 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
       data: dataCopy(invoice.row.data), sourcePresence: invoice.sourcePresence });
     modelLexicalSnapshotOccurrences(invoice.profile, snapshot);
     values.invoice = snapshot;
+    return deepFreeze(Object.fromEntries(guard.inputs.map(input => [input.name, values[input.name]])));
+  }
+  const observeVenue = state.bound.observeVenueDecision;
+  if (observeVenue !== undefined) {
+    const change = models.find(item => item.name === 'change');
+    const admittedScanInputs = call.inputs as unknown;
+    const admittedScanValue = typeof admittedScanInputs === 'object' && admittedScanInputs !== null
+      ? (admittedScanInputs as Record<string, unknown>).value : undefined;
+    const admittedScanSource = typeof admittedScanValue === 'object' && admittedScanValue !== null
+      ? (admittedScanValue as Record<string, unknown>).source : undefined;
+    if (guard.rule !== observeVenue.sendRule.rule || guard.inputs.length !== 1 ||
+        guard.inputs[0]?.name !== 'change' || models.length !== 1 ||
+        change?.profile.model !== 'events.Change' ||
+        change.row.archivedAt !== null || change.row.parent?.model !== 'events.Event' ||
+        change.row.data['state'] !== 'confirming' ||
+        typeof admittedScanSource !== 'string' || admittedScanSource === '' ||
+        change.row.data['source'] !== admittedScanSource) {
+      return invalid('Observe venue SEND needs its exact confirming Change at the original owner stage.');
+    }
+    const snapshot = deepFreeze({ ...change.row, parent: change.row.parent ?? null,
+      data: dataCopy(change.row.data), sourcePresence: change.sourcePresence });
+    modelLexicalSnapshotOccurrences(change.profile, snapshot);
+    values.change = snapshot;
     return deepFreeze(Object.fromEntries(guard.inputs.map(input => [input.name, values[input.name]])));
   }
   if (models.length === 0) return deepFreeze(values);

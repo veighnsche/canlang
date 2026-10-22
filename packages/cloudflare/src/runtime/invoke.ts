@@ -138,7 +138,7 @@ import { checkedNativeValueTypes, nativeValueReferenceEncoder, NativeValueRefere
 import type { AdmittedCall, ScenarioReceiptCallFrame, ScenarioReceiptCallSite,
   ScenarioReceiptSendGuard, ScenarioReceiptSendGuardFrame, ScenarioReceiptSendProducerInput,
   ScenarioReceiptDeliveryOriginFrame } from '@canlang/state/invocation';
-import { stableStringify } from '@canlang/state/invocation';
+import { prepareObserveVenueScanQuery, stableStringify } from '@canlang/state/invocation';
 import { hasRole as stateSubjectRole } from '@canlang/state/policy/roles';
 import { openReadScenarioQueryFrame, openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNativeSourceSendMembership, openNativeSourceSendMembershipFrame, bindNativeOwnerMembership, bindNativeReadMembership, bindNativeReadRoleContext,
@@ -3777,8 +3777,82 @@ function nativeInvoiceCollectPaymentGuard(def: GeneratedOperationDef, selected: 
     decision.sendRule.rule === selected.guard.rule && selected.guard.owner === 'invoice.collect' &&
     selected.guard.binding === 'invoice.Payments' && selected.guard.target === 'std.PaymentsV1.collect';
 }
+function nativeObserveVenueRoomsGuard(def: GeneratedOperationDef, selected: NativeSourceSendGuard): boolean {
+  const decision = (def.descriptor.result?.disclosure as
+    { readonly observeVenueDecision?: import('@canlang/state/invocation').ObserveVenueDecisionPlan } | undefined)?.observeVenueDecision;
+  return def.name === 'events.observe_venue' && decision?.owner === 'events.observe_venue' &&
+    decision.sendRule.rule === selected.guard.rule && selected.guard.owner === 'events.observe_venue' &&
+    selected.guard.binding === 'events.Rooms' && selected.guard.target === 'rent_reservations.RoomsV1.confirm';
+}
 
 /** Recreate the exact current balance domain before a collected payment leaves Work. */
+/** Recreate the exact current Change/Event pair before Rooms.confirm leaves Work. */
+export async function prepareObserveVenueDispatchDecision(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly store: StoragePort;
+  readonly revision: Revision;
+  readonly snapshots: NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
+  readonly lexical: Readonly<Record<string, unknown>>;
+  readonly intentId: string;
+}) {
+  const { loaded, store, revision, snapshots } = input;
+  const original = snapshots.snapshot('events.Change', localPolicyMember(input.lexical, 'change'));
+  if (original.archivedAt !== null || original.parent?.model !== 'events.Event' ||
+      original.data['state'] !== 'confirming') {
+    throw new loaded.producers.errors('validation', 'Observe venue confirm lost its original confirming Change.');
+  }
+  const decodeRef = (model: string, field: string, wire: unknown) => {
+    const decoded = nativeRecordField(loaded, model, field, wire);
+    return isRecordRef(decoded) ? decoded : null;
+  };
+  const originalResource = decodeRef('events.Change', 'resource', original.data['resource']);
+  if (originalResource === null || originalResource.model !== 'events.Resource') {
+    throw new loaded.producers.errors('validation', 'Observe venue confirm lost its original Resource reference.');
+  }
+  const read = async () => {
+    if (await store.readRevision() !== revision) {
+      throw new loaded.producers.errors('conflict', 'Observe venue confirm owner revision changed.');
+    }
+    const current = await store.cohortLoad({ model: 'events.Change' as ModelName,
+      id: original.id, expectedRevision: revision });
+    const event = current !== null && current.parent?.model === 'events.Event' ? await store.cohortLoad({
+      model: 'events.Event' as ModelName, id: current.parent.id as RecordId, expectedRevision: revision }) : null;
+    if (await store.readRevision() !== revision) {
+      throw new loaded.producers.errors('conflict', 'Observe venue confirm owner revision changed.');
+    }
+    const pending = event === null ? null : decodeRef('events.Event', 'pending_change', event.data['pending_change']);
+    const currentResource = current === null ? null :
+      decodeRef('events.Change', 'resource', current.data['resource']);
+    const resource = currentResource === null ? null : await store.cohortLoad({
+      model: 'events.Resource' as ModelName, id: currentResource.id as RecordId,
+      expectedRevision: revision });
+    if (await store.readRevision() !== revision) {
+      throw new loaded.producers.errors('conflict', 'Observe venue confirm owner revision changed.');
+    }
+    const eligible = current !== null && event !== null &&
+      current.archivedAt === null && event.archivedAt === null &&
+      current.version >= original.version && current.created === original.created &&
+      current.createdBy === original.createdBy &&
+      stableStringify(current.parent) === stableStringify(original.parent) &&
+      current.data['state'] === 'confirming' &&
+      current.data['source'] === original.data['source'] &&
+      current.data['base_revision'] === event.data['revision'] &&
+      current.data['base_revision'] === original.data['base_revision'] &&
+      current.data['venue_revision'] === original.data['venue_revision'] &&
+      currentResource !== null && currentResource.model === 'events.Resource' &&
+      currentResource.id === originalResource.id &&
+      resource !== null && resource.archivedAt === null && resource.id === originalResource.id &&
+      current.data['confirm_delivery'] === input.intentId &&
+      event.data['cancelled'] === false &&
+      pending !== null && pending.model === 'events.Change' && pending.id === current.id;
+    return Object.freeze({ current, resource, eligible });
+  };
+  const observed = await read();
+  const fingerprint = (value: Awaited<ReturnType<typeof read>>) =>
+    stableStringify({ current: value.current, resource: value.resource, eligible: value.eligible });
+  return Object.freeze({ ...observed,
+    revalidate: async () => fingerprint(await read()) === fingerprint(observed) });
+};
 async function prepareInvoiceCollectDispatchDecision(input: {
   readonly loaded: LoadedCanonicalDescriptors;
   readonly store: StoragePort;
@@ -4015,6 +4089,10 @@ async function prepareNativeSendGuardReferences(input: {
   readonly observeField?: (model: string, row: StoredRow, field: string) => void;
   /** Checked private event guards in this profile navigate containment only. */
   readonly parentOnly?: boolean;
+  /** The authenticated lexical root for events.observe_venue only: an
+   * identity-only RecordRef for the authored same(), never a loaded or
+   * revalidated ancestor. Event/Program/Resource targets stay strict. */
+  readonly selfReference?: { readonly model: string; readonly id: string };
   /** Maintain's sealed owner decision traverses only Inspection→Plan→Asset→Location. */
   readonly maintainOnly?: boolean;
 }) {
@@ -4091,6 +4169,10 @@ async function prepareNativeSendGuardReferences(input: {
       // reference cycles (whose identity set never grows) still fail
       // closed at this same finite hop bound.
       if (depth >= 32) throw new StateError('validation', 'SEND reference path exceeds its defining bound.');
+      if (input.selfReference !== undefined && model === input.selfReference.model &&
+          id === input.selfReference.id) {
+        return makeRecordRef(model, id);
+      }
       if (entry === undefined) throw new StateError('validation', 'SEND target is outside its prepared declaration.');
       observe(entry);
       const view = snapshots.view(model, entry.row!, healthy, (model, id) => reference(model, id, depth + 1));
@@ -4920,6 +5002,14 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
             stableStringify(issueDecision.sendRule.node) !== stableStringify(emitted.node))) {
         throw new AssemblyCorrespondenceError('Invoice issue SEND interval differs from its checked source decision.');
       }
+      const observeDecision = (plan as typeof plan & { readonly observeVenueDecision?: {
+        readonly owner: string; readonly sendRule: { readonly rule: string; readonly node: unknown };
+      } }).observeVenueDecision;
+      if (def.name === 'events.observe_venue' &&
+          (observeDecision?.owner !== def.name || observeDecision.sendRule.rule !== emitted.rule ||
+            stableStringify(observeDecision.sendRule.node) !== stableStringify(emitted.node))) {
+        throw new AssemblyCorrespondenceError('Observe venue SEND interval differs from its checked source decision.');
+      }
       const rule = artifact.callables.filter(value => value.kind === 'rule' && value.id === emitted.rule &&
         value.module === callable.module && stableStringify(value.member) === stableStringify(['sendWhen', emitted.rule]));
       if (rule.length !== 1 || own(module, rule[0]!.export) !== emitted.rule || rule[0]!.inputStyle !== undefined) {
@@ -5049,7 +5139,7 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
           Object.hasOwn(inputDeclaration.canonical[index]!, key) || Object.hasOwn(inputDeclaration.artifact[index]!, key)))) {
         throw new AssemblyCorrespondenceError('SEND guard lacks its complete required original typed lexical census.');
       }
-      const guardNode = def.name === 'invoice.issue' ? {
+      const guardNode = def.name === 'invoice.issue' || def.name === 'events.observe_venue' ? {
         start: (emitted.node as { start: number }).start,
         end: (emitted.node as { end: number }).end,
       } : emitted.node;
@@ -9891,6 +9981,11 @@ async function runScenarioExecution(
   let termDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let leaveDecisionReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let leaveDecideReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
+  let observeVenueReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
+  let releaseVenueScanQuery: (() => void) | null = null;
+  let venueScanConsumed = false;
+  let venueScanReturned = false;
+  let venueScanUnconsumed = false;
   let referRejectReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let memberRetryReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
   let rentMovementRefundReadRecords: ((model: string, query: CanonicalReadQuery) => Promise<ReadonlyArray<Record<string, unknown>>>) | null = null;
@@ -9916,6 +10011,7 @@ async function runScenarioExecution(
         if (rentMovementRefundReadRecords !== null) return rentMovementRefundReadRecords(model, query);
         if (invoiceCollectReadRecords !== null) return invoiceCollectReadRecords(model, query);
         if (invoiceIssueReadRecords !== null) return invoiceIssueReadRecords(model, query);
+        if (observeVenueReadRecords !== null) return observeVenueReadRecords(model, query);
         const rows = await scope.readModel(model, query);
         for (const row of rows) {
           if (!trustedOwnerReads) await viewerNavigation.captureQuerySource(model, row);
@@ -10679,7 +10775,8 @@ async function runScenarioExecution(
               !isResourceSendTarget(selected?.definition, bindingKey, source) &&
               !(selected !== undefined && (nativeLeaveDecideReserveGuard(def, selected) ||
                 nativeMemberRetryChargeGuard(def, selected) ||
-                nativeInvoiceCollectPaymentGuard(def, selected)))) ||
+                nativeInvoiceCollectPaymentGuard(def, selected) ||
+                nativeObserveVenueRoomsGuard(def, selected)))) ||
               ownerSession === undefined || selected === undefined ||
               selected.guard.binding !== bindingKey || selected.guard.target !== source || selected.guard.owner !== scope.operation ||
               selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !sendSnapshots?.has(input.type) &&
@@ -10877,6 +10974,12 @@ async function runScenarioExecution(
           (scenarioDef?.descriptor.result?.disclosure as
             { readonly invoiceIssueDecision?: { readonly sendRule: { readonly rule: string } } } | undefined)
             ?.invoiceIssueDecision?.sendRule.rule === selected.guard.rule;
+        const observeVenueSelf = selected.guard.owner === 'events.observe_venue' &&
+          selected.guard.inputs.length === 1 && selected.guard.inputs[0]?.name === 'change' &&
+          selected.guard.inputs[0]?.type === 'events.Change' && sendSnapshots !== undefined
+          ? { model: 'events.Change', id: sendSnapshots.snapshot('events.Change',
+            localPolicyMember(frame.inputs, 'change')).id }
+          : undefined;
         const referenceNavigation = eventDecision !== undefined || invoiceOverdueGuard ||
           invoiceCollectGuard || invoiceIssueGuard || sendSnapshots === undefined
           ? undefined : await prepareNativeSendGuardReferences({
@@ -10885,6 +10988,7 @@ async function runScenarioExecution(
             type: input.type, wire: localPolicyMember(frame.inputs, input.name) })),
           read: (model, id) => ownerSession!.read(model, id), healthy: assertGuard, failure: recordEngineFailure,
           parentOnly: selected.guard.eventSource !== undefined,
+          ...(observeVenueSelf === undefined ? {} : { selfReference: observeVenueSelf }),
         });
         const inputs: Record<string, unknown> = Object.create(null);
         let collectedInvoiceGuardInput = false;
@@ -12771,10 +12875,68 @@ async function runScenarioExecution(
     if (!receiptAware || receiptStore === undefined) return refuseRecordBinding('Membership requires its original active State receipt owner.');
     nativeMembershipFrame = openNativeOwnerMembershipFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
   }
+  if (internalHandlerDue && receiptStore !== undefined && scenarioDef?.name === 'events.observe_venue') {
+    const actualCall = call as AdmittedCall;
+    const checked = (scenarioDef.descriptor.result?.disclosure as
+      { readonly observeVenueDecision?: import('@canlang/state/invocation').ObserveVenueDecisionPlan } | undefined)
+      ?.observeVenueDecision;
+    const selected = [...(nativeSourceSendGuards.get(scenarioDef)?.values() ?? [])].filter(guard =>
+      guard.guard.owner === scenarioDef.name);
+    const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+    const eventValue = (localPolicyMember(argument, 'event') as { readonly value?: unknown } | undefined)
+      ?.value as { readonly source?: unknown } | undefined;
+    if (checked === undefined || checked.owner !== 'events.observe_venue' || sendSnapshots === undefined ||
+        !sendSnapshots.has('events.Change') || selected.length !== 1 ||
+        selected[0]!.guard.inputs.length !== 1 || selected[0]!.guard.inputs[0]?.name !== 'change' ||
+        selected[0]!.guard.inputs[0]?.type !== 'events.Change' || assertCall === undefined ||
+        typeof eventValue?.source !== 'string' || eventValue.source === '' ||
+        observeVenueReadRecords !== null || releaseVenueScanQuery !== null) {
+      return refuseRecordBinding('Observe venue needs its exact installed Change scan and guarded Rooms send.');
+    }
+    const scan = await prepareObserveVenueScanQuery(actualCall, receiptStore,
+      { original: checked, checked, source: eventValue.source });
+    const healthy = () => assertCall(actualCall, receiptStore);
+    releaseVenueScanQuery = scan.release;
+    observeVenueReadRecords = async (model, selection) => {
+      healthy();
+      if (model !== 'events.Change' || !isUnknownRecord(selection) ||
+          Reflect.ownKeys(selection).some(key => typeof key !== 'string' ||
+            !['where', 'ownerDecisionSource'].includes(key)) ||
+          typeof selection.where !== 'function') {
+        return refuseRecordBinding('Observe venue query differs from its checked Change source scan.');
+      }
+      const tag = selection.ownerDecisionSource;
+      const tagIds = isUnknownRecord(tag) && Reflect.ownKeys(tag).length === 1 ? tag['id'] : undefined;
+      if (typeof tagIds !== 'string' || tagIds !== scan.siteId) {
+        return refuseRecordBinding('Observe venue query lacks its exact checked scan site.');
+      }
+      const rows = await scan.query();
+      venueScanConsumed = true;
+      healthy();
+      const matched: Record<string, unknown>[] = [];
+      for (const row of rows) {
+        const key = stagedKey(model, row.id), known = ownerRows.get(key);
+        if (known !== undefined && stableStringify(known) !== stableStringify(row)) {
+          return refuseRecordBinding('Observe venue Change moved within its owner frame.');
+        }
+        ownerRows.set(key, row);
+        await ownerNavigation.prepare(model, row);
+        healthy();
+        const view = recordView(model, row);
+        const verdict: unknown = await Reflect.apply(selection.where as Function, undefined, [view, ctx]);
+        healthy();
+        if (typeof verdict !== 'boolean') return refuseRecordBinding('Observe venue query predicate must return Bool.');
+        if (verdict) matched.push(view);
+      }
+      if (matched.length > 1) return refuseRecordBinding('Observe venue scan exceeds its checked limit of one.');
+      return Object.freeze(matched);
+    };
+  }
   let outcome: Awaited<ReturnType<typeof invokeWith>>;
   try {
     outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx,
       observesDefaults ? [argument, observeDefault] : [argument], due !== undefined || cohort !== undefined);
+    venueScanReturned = true;
   } catch (error) {
     // Due refusal finalization: invokeWith re-throws handler errors
     // (preserveThrown) before any outcome exists, so the finalize block
@@ -12794,6 +12956,17 @@ async function runScenarioExecution(
       }
     }
     throw error;
+  } finally {
+    observeVenueReadRecords = null;
+    const releaseVenueScan = releaseVenueScanQuery;
+    releaseVenueScanQuery = null;
+    releaseVenueScan?.();
+    venueScanUnconsumed = releaseVenueScan !== null && !venueScanConsumed && venueScanReturned;
+    venueScanConsumed = false;
+    venueScanReturned = false;
+  }
+  if (venueScanUnconsumed) {
+    return refuseRecordBinding('Observe venue scan was never consumed by its handler body.');
   }
   // A caught unsupported join or engine refusal cannot convert prior owner
   // stages into a partial success. Preserve the first actual failure; State
@@ -20646,7 +20819,8 @@ export async function bindNativeEmailDispatchGuards(input: {
       const targetOwner = resourceSendOwner(selected.definition, selected.guard.binding, selected.guard.target);
       if ((!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.TextGenerationV1.generate'].includes(selected.guard.target) &&
           targetOwner === undefined && !nativeLeaveDecideReserveGuard(def, selected) &&
-          !nativeMemberRetryChargeGuard(def, selected) && !nativeInvoiceCollectPaymentGuard(def, selected)) ||
+          !nativeMemberRetryChargeGuard(def, selected) && !nativeInvoiceCollectPaymentGuard(def, selected) &&
+          !nativeObserveVenueRoomsGuard(def, selected)) ||
           (targetOwner ?? selected.ownerPackage) !== scope.ownerPackage ||
           selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !sendSnapshots?.has(slot.type) &&
             !(isResourceSendTarget(selected.definition, selected.guard.binding, selected.guard.target) && nativeResourceLexicalType(slot.type, loaded.valueSchema, new Set(), selected.guard.target.endsWith('.publish') && input.files !== undefined)))) continue;
@@ -20734,6 +20908,20 @@ export async function bindNativeEmailDispatchGuards(input: {
           !sendSnapshots?.has('invoice.Invoice'))) {
       throw new Error('Invoice issue dispatch requires its exact installed issued Invoice guard.');
     }
+    const observeVenueDecision = selected.guard.owner === 'events.observe_venue' ?
+      (def.descriptor.result?.disclosure as
+        { readonly observeVenueDecision?: import('@canlang/state/invocation').ObserveVenueDecisionPlan } | undefined)
+        ?.observeVenueDecision : undefined;
+    if (selected.guard.owner === 'events.observe_venue' &&
+        (!nativeObserveVenueRoomsGuard(def, selected) ||
+          observeVenueDecision?.owner !== 'events.observe_venue' ||
+          observeVenueDecision.sendRule.rule !== selected.guard.rule ||
+          selected.guard.inputs.length !== 1 ||
+          selected.guard.inputs[0]?.name !== 'change' ||
+          selected.guard.inputs[0]?.type !== 'events.Change' ||
+          !sendSnapshots?.has('events.Change'))) {
+      throw new Error('Observe venue dispatch requires its exact installed Change guard and snapshot.');
+    }
     let staged: { input: DispatchClaimGuardInput; retained: RetainedOutboxIntent; lexical: Readonly<Record<string, unknown>>;
       opaque: NonNullable<Awaited<ReturnType<typeof nativeOpaqueFileStaging>>>; row: StoredRow;
       identity: ResolvedIdentity; currentIdentity: () => Promise<ResolvedIdentity> } | undefined;
@@ -20770,6 +20958,12 @@ export async function bindNativeEmailDispatchGuards(input: {
         qualified: { actor: null, team: { teamId: identity.team.team_id, timezone: identity.team.timezone },
           now: actual.input.context.now, source: 'dispatch', operationId: originalIntent.operationId } });
       const inputs: Record<string, unknown> = Object.create(null);
+      const observeVenueSelf = selected.guard.owner === 'events.observe_venue' &&
+        selected.guard.inputs.length === 1 && selected.guard.inputs[0]?.name === 'change' &&
+        selected.guard.inputs[0]?.type === 'events.Change' && sendSnapshots !== undefined
+        ? { model: 'events.Change', id: sendSnapshots.snapshot('events.Change',
+          localPolicyMember(actual.lexical, 'change')).id }
+        : undefined;
       const eventDecision = selected.guard.eventSource?.ownerDecision;
       // The leave source guard captures Request after the approval SET; its
       // final delivery-id SET changes that same row before dispatch. The
@@ -20784,6 +20978,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         read: (model, id) => store.cohortLoad({ model, id, expectedRevision: actual.input.revision }),
         healthy, failure: poison,
         parentOnly: selected.guard.eventSource !== undefined,
+        ...(observeVenueSelf === undefined ? {} : { selfReference: observeVenueSelf }),
       });
       let leaveRequest: StoredRow | null = null;
       let leaveCurrent = false;
@@ -20793,6 +20988,7 @@ export async function bindNativeEmailDispatchGuards(input: {
       let recheckMember: (() => Promise<boolean>) | undefined;
       let invoiceCollect: Awaited<ReturnType<typeof prepareInvoiceCollectDispatchDecision>> | undefined;
       let invoiceIssue: Awaited<ReturnType<typeof prepareInvoiceIssueDispatchDecision>> | undefined;
+      let observeVenue: Awaited<ReturnType<typeof prepareObserveVenueDispatchDecision>> | undefined;
       if (leaveDecision !== undefined) {
         const frozen = sendSnapshots!.snapshot('leave.Request', localPolicyMember(actual.lexical, 'request'));
         const reserveRevision = decodeCanonicalValue(loaded.valueSchema, 'int',
@@ -20858,6 +21054,12 @@ export async function bindNativeEmailDispatchGuards(input: {
           revision: actual.input.revision, snapshots: sendSnapshots!, lexical: actual.lexical });
         healthy();
       }
+      if (observeVenueDecision !== undefined) {
+        observeVenue = await prepareObserveVenueDispatchDecision({ loaded, store,
+          revision: actual.input.revision, snapshots: sendSnapshots!, lexical: actual.lexical,
+          intentId: originalIntent.intentId });
+        healthy();
+      }
       if (eventDecision !== undefined) {
         if (sendSnapshots === undefined || selected.guard.owner !== 'maintain.remind' ||
             eventDecision.owner !== 'maintain.remind') return reject();
@@ -20877,6 +21079,12 @@ export async function bindNativeEmailDispatchGuards(input: {
               disabled: invoiceCollect.attempt?.data['disabled'] ?? false }) :
             invoiceIssue !== undefined && slot.name === 'invoice' ? Object.freeze({
               state: invoiceIssue.current?.data['state'] }) :
+            invoiceIssue !== undefined && slot.name === 'invoice' ? Object.freeze({
+              state: invoiceIssue.current?.data['state'] }) :
+            observeVenue !== undefined && slot.name === 'change' && observeVenue.eligible ?
+              sendSnapshots!.view('events.Change', { ...observeVenue.current!, sourcePresence: {
+                fields: Object.keys(observeVenue.current!.data),
+              } }, healthy, referenceNavigation?.reference) :
             leaveDecision !== undefined && slot.name === 'request' && leaveCurrent ?
               sendSnapshots!.view('leave.Request', { ...leaveRequest!, sourcePresence: {
                 fields: Object.keys(leaveRequest!.data),
@@ -20903,6 +21111,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         if (recheckMember !== undefined && !await recheckMember()) return false;
         if (invoiceCollect !== undefined && !await invoiceCollect.revalidate()) return false;
         if (invoiceIssue !== undefined && !await invoiceIssue.revalidate()) return false;
+        if (observeVenue !== undefined && !await observeVenue.revalidate()) return false;
         return current.actor === null && stableStringify(current.team) === stableStringify(identity.team);
       });
       let frame: NativeMembershipFrame | undefined;
@@ -20916,6 +21125,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         if (memberRetryDecision !== undefined && !memberCurrent) return false;
         if (invoiceCollect !== undefined && !invoiceCollect.eligible) return false;
         if (invoiceIssue !== undefined && !invoiceIssue.eligible) return false;
+        if (observeVenueDecision !== undefined && (observeVenue === undefined || !observeVenue.eligible)) return false;
         // This event has no authored dispatch-time comparison. Its complete
         // balance decision was sealed with the true source-stage Work guard;
         // the verified preclaim above retains that exact verdict and intent.
