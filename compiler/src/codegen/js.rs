@@ -8232,8 +8232,14 @@ impl<'a> Emitter<'a> {
                     )
                 })
                 .collect::<String>();
+            let absent = if matches!(&base.ty,ResolvedType::Nullable(inner)
+                if matches!(inner.as_ref(),ResolvedType::Record{stored:true,..})) {
+                // The checked optional FIRST scalar consumer has no getter
+                // or DATA observation on its genuine absent-row branch.
+                "if($receiptRow==null)return null;"
+            }else{""};
             return format!(
-                "(await (async($receiptRow)=>{{const $receiptValue={value};{observations}return $receiptValue;}})({receiver}))"
+                "(await (async($receiptRow)=>{{{absent}const $receiptValue={value};{observations}return $receiptValue;}})({receiver}))"
             );
         }
         match &expr.expr {

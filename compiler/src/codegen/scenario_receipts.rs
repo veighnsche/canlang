@@ -2535,8 +2535,13 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 };
                 (base.as_ref(), field, None)
             };
+            let optional_selected = result_identity.is_none() && !is_transition
+                && sites.members.get(&site).and_then(|expressions|expressions.first())
+                    .and_then(|expression|db.and_then(|db|checked_first_optional_actor_member(ir,item,expression,db)))
+                    .is_some_and(|field|field.id==dependency.field && field.owner==dependency.model
+                        && field.ty==dependency.ty && dependency.role==DependencyRole::Data);
             if field != &dependency.field_name
-                || !current_published
+                || !current_published && !optional_selected
                     && base.ty
                         != (ResolvedType::Record {
                             symbol: dependency.model,
@@ -2764,6 +2769,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             .iter()
                             .any(|query| query.first.is_some() && query.model == dependency.model)
                     })
+                    && !optional_selected
                     && checked_created_row_operand(ir, item, base, dependency.model, db?, recipe.plan.purchase_receive_all.is_some()).is_none()
                     && checked_first_query_row(ir, item, base, db?)?.id != dependency.model
                 {
@@ -8723,8 +8729,194 @@ pub(super) fn checked_first_query_order(
     }
 }
 
-/// Check the actual alias-bound field and original equality operand. Parameter
-/// identity comes from its owning declaration; actor remains its context value.
+/// One original optional required-user getter consumed by a CREATE coalesce
+/// with actor. Its source FIRST binding owns the genuine selected row; no
+/// nullable row is promoted or read on the absent branch.
+fn checked_first_optional_actor_member<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let IrExpr::Name(binding) = &base.expr else {
+        return None;
+    };
+    let ResolvedType::Nullable(inner) = &base.ty else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: model,
+        stored: true,
+    } = inner.as_ref()
+    else {
+        return None;
+    };
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let mut matching = facts.queries.as_deref()?.iter().filter(|query| {
+        query.model == *model
+            && query.first.as_ref().is_some_and(|first| {
+                first.reference_predicate.is_some()
+                    && effects.iter().any(|statement| {
+                        matches!(statement,IrStmt::Let{name,span,..}
+                if name==binding && *span==node_span(first.binding))
+                    })
+            })
+    });
+    let query = matching.next()?;
+    if matching.next().is_some() {
+        return None;
+    }
+    let first = query.first.as_ref()?;
+    let initializer = effects.iter().find_map(|statement| match statement {
+        IrStmt::Let { value, span, .. } if *span == node_span(first.binding) => Some(value),
+        _ => None,
+    })?;
+    let selected = checked_owner_first_query_ir(ir, owner, initializer, first.call, db);
+    selected?;
+    let schema = checked_first_query_schema(ir, owner, query, db)?;
+    let mut fields = schema
+        .fields
+        .iter()
+        .filter(|original| original.name == *field);
+    let original = fields.next()?;
+    if fields.next().is_some()
+        || original.ty != ResolvedType::Scalar(Scalar::User)
+        || value.ty != ResolvedType::Nullable(Box::new(original.ty.clone()))
+        || !facts
+            .expression_types
+            .as_deref()?
+            .iter()
+            .any(|(node, ty)| node_span(*node) == base.span && *ty == base.ty)
+    {
+        return None;
+    }
+
+    let receiver = reference_receiver_matches(ir, owner, value, base, field, db);
+    receiver?;
+    let mut consumers = Vec::new();
+    for create in facts.creates.as_deref()? {
+        let input = effects.iter().find_map(|statement| match statement {
+            IrStmt::Create { input, span, .. } if *span == node_span(create.node) => Some(input),
+            _ => None,
+        });
+        let Some(TypedExpr {
+            expr: IrExpr::Object(entries),
+            ..
+        }) = input
+        else {
+            continue;
+        };
+        for (name, expression) in entries {
+            let IrExpr::Binary {
+                op: IrBinOp::Coalesce,
+                left,
+                right,
+            } = &expression.expr
+            else {
+                continue;
+            };
+            if left.span != value.span {
+                continue;
+            }
+            if expression.ty != original.ty
+                || left.ty != value.ty
+                || !matches!(&left.expr,IrExpr::Member{base:receiver,field:name} if name==field
+                    && receiver.span==base.span && receiver.ty==base.ty
+                    && matches!(&receiver.expr,IrExpr::Name(name) if name==binding))
+                || right.ty != original.ty
+                || predicate_actor_user(right).is_none()
+                || !create.inputs.iter().any(|input| {
+                    input.name == *name
+                        && input.ty == original.ty
+                        && node_span(input.value_node) == expression.span
+                })
+            {
+                return None;
+            }
+
+            let input = create.inputs.iter().find(|input| input.name == *name)?;
+            let source = checked_effect_node(ir, owner, input.value_node, db)?;
+            let text = &db.get(input.value_node.file)?.text;
+            let parts = source
+                .children
+                .iter()
+                .filter(|node| matches!(node.kind, SyntaxKind::Member | SyntaxKind::NameRef))
+                .collect::<Vec<_>>();
+
+            let [source_member, actor] = parts.as_slice() else {
+                return None;
+            };
+            let receiver = source_member
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::NameRef)?;
+            let member_name = source_member
+                .children
+                .iter()
+                .rev()
+                .find(|node| node.kind == SyntaxKind::Name)?;
+            if source.kind != SyntaxKind::Binary
+                || source.span != expression.span
+                || source_member.kind != SyntaxKind::Member
+                || source_member.span != value.span
+                || actor.kind != SyntaxKind::NameRef
+                || actor.span != right.span
+                || text
+                    .get(actor.span.start as usize..actor.span.end as usize)
+                    .map(str::trim)
+                    != Some("actor")
+                || receiver.span != base.span
+                || text
+                    .get(receiver.span.start as usize..receiver.span.end as usize)
+                    .map(str::trim)
+                    != Some(binding)
+                || member_name.token()?.text(text) != field
+                || !source
+                    .children
+                    .iter()
+                    .any(|node| node.token().is_some_and(|token| token.text(text) == "??"))
+                || !source_member
+                    .children
+                    .iter()
+                    .any(|node| node.token().is_some_and(|token| token.text(text) == "?."))
+            {
+                return None;
+            }
+            consumers.push(expression);
+        }
+    }
+    if consumers.len() != 1 {
+        return None;
+    }
+    match_stored_contract_field(ir, original, db)?;
+    Some(original)
+}
+
+fn checked_first_optional_actor_expression(
+    ir: &IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<()> {
+    let IrExpr::Binary {
+        op: IrBinOp::Coalesce,
+        left,
+        right,
+    } = &value.expr
+    else {
+        return None;
+    };
+    let field = checked_first_optional_actor_member(ir, owner, left, db)?;
+    (value.ty == field.ty && right.ty == field.ty && predicate_actor_user(right).is_some())
+        .then_some(())
+}
+
 fn predicate_dependency_types(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
 ) -> Option<()> {
@@ -9184,6 +9376,240 @@ fn predicate_input_cover(
     )
 }
 
+fn checked_first_reference_predicate_ir(
+    ir: &IrProgram,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    scan: &super::ir::IrQuery,
+) -> Option<()> {
+    let first = query.first.as_ref()?;
+    let original = first.reference_predicate.as_ref()?;
+    let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+    let IrItemKind::Scenario { params, .. } = &owner.kind else {
+        return None;
+    };
+    let mut pending = vec![scan.where_pred.as_deref()?];
+    let mut clauses = Vec::new();
+    while let Some(node) = pending.pop() {
+        if let IrExpr::Binary {
+            op: IrBinOp::And,
+            left,
+            right,
+        } = &node.expr
+        {
+            pending.push(right);
+            pending.push(left);
+        } else {
+            clauses.push(node);
+        }
+        if pending.len() + clauses.len() > 8 {
+            return None;
+        }
+    }
+    let [identity, reference, presence] = clauses.as_slice() else {
+        return None;
+    };
+    let IrExpr::Binary {
+        op: IrBinOp::Eq,
+        left: row,
+        right: identity_operand,
+    } = &identity.expr
+    else {
+        return None;
+    };
+    let IrExpr::Binary {
+        op: IrBinOp::Eq,
+        left: reference_member,
+        right: reference_operand,
+    } = &reference.expr
+    else {
+        return None;
+    };
+    let IrExpr::Binary {
+        op: IrBinOp::Ne,
+        left: guard_operand,
+        right: null_operand,
+    } = &presence.expr
+    else {
+        return None;
+    };
+    let identity_parameter = ir.items.get(original.identity_parameter.0 as usize)?;
+    let reference_parameter = ir.items.get(original.reference_parameter.0 as usize)?;
+    let identity_field = ir.items.get(original.identity_field.0 as usize)?;
+    let reference_field = ir.items.get(original.reference_field.0 as usize)?;
+    let IrItemKind::Param {
+        owner: identity_owner,
+        index: identity_index,
+        ty: IrType::Known(identity_ty),
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        array_bounds: None,
+        ..
+    } = &identity_parameter.kind
+    else {
+        return None;
+    };
+    let IrItemKind::Param {
+        owner: reference_owner,
+        index: reference_index,
+        ty: IrType::Known(reference_ty),
+        default,
+        default_node,
+        default_copy_source: None,
+        array_bounds: None,
+        ..
+    } = &reference_parameter.kind
+    else {
+        return None;
+    };
+    let identity_fact = facts.parameters.get(*identity_index)?;
+    let reference_fact = facts.parameters.get(*reference_index)?;
+    let nullable_model = ResolvedType::Nullable(Box::new(ResolvedType::Record {
+        symbol: query.model,
+        stored: true,
+    }));
+    let ResolvedType::Record {
+        symbol: identity_model,
+        stored: true,
+    } = identity_ty
+    else {
+        return None;
+    };
+    let ResolvedType::Nullable(inner) = reference_ty else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: target,
+        stored: true,
+    } = inner.as_ref()
+    else {
+        return None;
+    };
+    let target_model = ir.items.get(target.0 as usize)?;
+    let IrItemKind::Field {
+        owner: identity_field_owner,
+        ty: IrType::Known(identity_field_ty),
+        ..
+    } = &identity_field.kind
+    else {
+        return None;
+    };
+    let IrItemKind::Field {
+        owner: reference_field_owner,
+        ty: IrType::Known(reference_field_ty),
+        ..
+    } = &reference_field.kind
+    else {
+        return None;
+    };
+    let default_ok = match (default, default_node, reference_fact.default) {
+        (None, None, None) => true,
+        (Some(IrDefault::Literal(value)), Some(node), Some(source)) => {
+            *node == source
+                && value.span == node_span(source)
+                && value.ty == ResolvedType::Null
+                && matches!(value.expr, IrExpr::Null)
+        }
+        _ => false,
+    };
+    let [dependency] = query.dependencies.as_slice() else {
+        return None;
+    };
+    let record = ResolvedType::Record {
+        symbol: query.model,
+        stored: true,
+    };
+    // Model queries normalize their alias to row unless a genuine outer
+    // row input is captured. Keep the original source alias in that case.
+    let expected_alias = if original.identity_parameter_name == "row"
+        || original.reference_parameter_name == "row"
+    {
+        original.alias_name.as_str()
+    } else {
+        "row"
+    };
+    if !default_ok
+        || !matches!(target_model.kind, IrItemKind::Model { .. })
+        || target_model.id != *target
+        || scan.where_param != expected_alias
+        || identity_parameter.name != original.identity_parameter_name
+        || reference_parameter.name != original.reference_parameter_name
+        || identity_field.name != original.identity_field_name
+        || reference_field.name != original.reference_field_name
+        || *identity_owner != owner.id
+        || *reference_owner != owner.id
+        || params.get(*identity_index) != Some(&identity_parameter.id)
+        || params.get(*reference_index) != Some(&reference_parameter.id)
+        || identity_fact.parameter != identity_parameter.id
+        || reference_fact.parameter != reference_parameter.id
+        || identity_fact.ty != *identity_ty
+        || reference_fact.ty != *reference_ty
+        || identity_fact.default.is_some()
+        || identity_fact.constraints.is_some()
+        || reference_fact.constraints.is_some()
+        || identity_parameter.module != owner.module
+        || reference_parameter.module != owner.module
+        || identity_parameter.canonical
+            != format!("{}.{}", owner.canonical, identity_parameter.name)
+        || reference_parameter.canonical
+            != format!("{}.{}", owner.canonical, reference_parameter.name)
+        || *identity_field_owner != *identity_model
+        || *identity_field_ty != nullable_model
+        || *reference_field_owner != query.model
+        || reference_field_ty != reference_ty
+        || clauses
+            .iter()
+            .any(|node| node.ty != ResolvedType::Scalar(Scalar::Bool))
+        || row.span != node_span(original.identity_row)
+        || row.ty != record
+        || !matches!(&row.expr,IrExpr::Name(name) if name==&scan.where_param)
+        || identity_operand.span != node_span(original.identity_operand)
+        || identity_operand.ty != nullable_model
+        || !matches!(&identity_operand.expr,IrExpr::Member{base,field} if field==&identity_field.name
+            && base.span==node_span(original.identity_receiver) && base.ty==*identity_ty
+            && matches!(&base.expr,IrExpr::Name(name) if name==&identity_parameter.name))
+        || reference_member.span != node_span(original.reference_member)
+        || reference_member.ty != *reference_ty
+        || !matches!(&reference_member.expr,IrExpr::Member{base,field} if field==&reference_field.name
+            && base.ty==record && matches!(&base.expr,IrExpr::Name(name) if name==&scan.where_param))
+        || reference_operand.span != node_span(original.reference_operand)
+        || reference_operand.ty != *reference_ty
+        || guard_operand.span != node_span(original.guard_operand)
+        || guard_operand.ty != *reference_ty
+        || !matches!(&reference_operand.expr,IrExpr::Name(name) if name==&reference_parameter.name)
+        || !matches!(&guard_operand.expr,IrExpr::Name(name) if name==&reference_parameter.name)
+        || null_operand.span != node_span(original.null_operand)
+        || null_operand.ty != ResolvedType::Null
+        || !matches!(null_operand.expr, IrExpr::Null)
+        || dependency.node != original.reference_member
+        || dependency.field != original.reference_field
+        || dependency.field_name != original.reference_field_name
+        || dependency.query_id.is_some()
+        || dependency.model != query.model
+        || dependency.model_name != query.model_name
+        || dependency.ty != *reference_ty
+        || dependency.type_id != reference_operand_type_id(ir, reference_ty)?
+        || dependency.role != DependencyRole::Control
+        || dependency.source != query.source
+        || !dependency.calls.is_empty()
+        || query.inputs
+            != vec![
+                (original.identity_operand, original.identity_parameter),
+                (original.reference_operand, original.reference_parameter),
+            ]
+        || first.operand != original.reference_operand
+        || !first.extra_operands.is_empty()
+        || first.operand_texts != vec![None]
+        || first.operand_receivers != vec![None]
+    {
+        return None;
+    }
+    Some(())
+}
+
+/// Check the actual alias-bound field and original equality operand. Parameter
+/// identity comes from its owning declaration; actor remains its context value.
 pub(super) fn checked_first_query_predicate(
     ir: &IrProgram,
     owner: &IrItem,
@@ -9191,6 +9617,7 @@ pub(super) fn checked_first_query_predicate(
     scan: &super::ir::IrQuery,
 ) -> Option<()> {
     let first = query.first.as_ref()?;
+    if first.reference_predicate.is_some(){return checked_first_reference_predicate_ir(ir,owner,query,scan);}
     predicate_dependency_types(query)?;
     // Order-only first (no where predicate): no conjuncts, no
     // dependencies, no transported inputs. Vacuous truth — the authored
@@ -14910,6 +15337,7 @@ fn scenario_create_nesting(
 
 fn scenario_create_entry_matches(
     ir: &IrProgram,
+    owner: &IrItem,
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
     name: &String,
     value: &TypedExpr,
@@ -14951,7 +15379,7 @@ fn scenario_create_entry_matches(
         value,
         source.value_node,
         db,
-    )
+    ).or_else(||checked_first_optional_actor_expression(ir,owner,value,db))
 }
 
 fn scenario_create_entries(
@@ -15002,7 +15430,7 @@ fn scenario_create_entries(
         return None;
     }
     for (((name, value), source), authored) in entries.iter().zip(inputs).zip(authored_entries) {
-        scenario_create_entry_matches(ir, original, name, value, source, authored, text, db)?;
+        scenario_create_entry_matches(ir, owner, original, name, value, source, authored, text, db)?;
     }
     Some(())
 }

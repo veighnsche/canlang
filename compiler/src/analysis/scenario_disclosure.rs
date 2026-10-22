@@ -171,12 +171,37 @@ pub struct DisclosureQueryOrder {
     pub node: NodeKey,
 }
 
+/// Original retained-row selection: candidate identity equals a nullable
+/// stored reference on a required input, then its nullable Model field equals
+/// one admitted nullable input, then that same input is non-null. The exact
+/// three predicates remain ordered and are not an idempotent replay profile.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisclosureFirstReferencePredicate {
+    pub alias_name: String,
+    pub identity_parameter_name: String,
+    pub identity_field_name: String,
+    pub reference_parameter_name: String,
+    pub reference_field_name: String,
+    pub identity_row: NodeKey,
+    pub identity_operand: NodeKey,
+    pub identity_receiver: NodeKey,
+    pub identity_parameter: SymbolId,
+    pub identity_field: SymbolId,
+    pub reference_member: NodeKey,
+    pub reference_field: SymbolId,
+    pub reference_operand: NodeKey,
+    pub reference_parameter: SymbolId,
+    pub guard_operand: NodeKey,
+    pub null_operand: NodeKey,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct DisclosureFirstQuery {
     pub call: NodeKey,
     pub overload: usize,
     pub binding: NodeKey,
     pub operand: NodeKey,
+    pub reference_predicate: Option<DisclosureFirstReferencePredicate>,
     /// Later `and`-conjunct operands in source order; empty for a single
     /// predicate. The first conjunct stays in `operand` so single-predicate
     /// readers keep working unchanged.
@@ -9275,7 +9300,15 @@ impl<'a> Closure<'a> {
         }
         let mut queries = Vec::new();
         let mut visits = 0usize;
+        // A retained-reference FIRST is composed with independently sealed
+        // whole leading observers. Their exact ANY occurrences execute in
+        // those original observers, rather than a duplicate query frame.
+        let reference_first=scenario.effects.iter().filter(|effect|effect.verb==EffectVerb::Let)
+            .any(|effect|self.checked_first_query_source(scenario,effect).is_some_and(|query|
+                query.first.as_ref().is_some_and(|first|first.reference_predicate.is_some())));
+        let observers=if reference_first{self.checked_source_requires(scenario)?}else{Vec::new()};
         for guard in &scenario.guards {
+            if observers.iter().any(|site|site.stage==CheckedDecisionStage::LeadingRequire && site.statement==guard.node){continue;}
             let mut pending = vec![*self.nodes.get(&guard.node)?];
             while let Some(node) = pending.pop() {
                 visits += 1;
@@ -12486,6 +12519,127 @@ impl<'a> Closure<'a> {
         }
     }
 
+    fn checked_first_reference_predicate(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        alias: NodeKey,
+        alias_name: &str,
+        model: SymbolId,
+        predicate: NodeKey,
+    ) -> Option<DisclosureFirstReferencePredicate> {
+        let mut pending = vec![predicate];
+        let mut clauses = Vec::new();
+        while let Some(node) = pending.pop() {
+            if let Some((left, right)) = self.query_binary(node, "and") {
+                pending.push(right);
+                pending.push(left);
+            } else {
+                clauses.push(node);
+            }
+            if clauses.len() + pending.len() > 8 {
+                return None;
+            }
+        }
+        let [identity, reference, presence] = clauses.as_slice() else {
+            return None;
+        };
+        let (row, identity_operand) = self.query_binary(*identity, "==")?;
+        let (member, reference_operand) = self.query_binary(*reference, "==")?;
+        let (guard_operand, null_operand) = self.query_binary(*presence, "!=")?;
+        let (identity_parameter, identity_field, identity_receiver) =
+            self.query_member_operand(scenario, identity_operand)?;
+        let reference_field = self.query_member(member, alias, model)?;
+        let Some(Binding::Symbol(reference_parameter)) = self.query_binding(reference_operand) else {
+            return None;
+        };
+        let (index, input) = scenario
+            .params
+            .iter()
+            .enumerate()
+            .find(|(_, input)| input.param == *reference_parameter)?;
+        let ty = self.types.symbol_types.get(reference_parameter)?;
+        let ResolvedType::Nullable(inner) = ty else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: target,
+            stored: true,
+        } = inner.as_ref()
+        else {
+            return None;
+        };
+        if !self.effects.models.contains_key(target)
+            || !(input.default.is_none() && self.nullable_model_input(scenario, input) == Some(*target)
+                || self.source_require_null_model_input(scenario, input, index))
+            || !self.query_row(row, alias, model)
+            || self.types.symbol_types.get(&identity_field)
+                != Some(&ResolvedType::Nullable(Box::new(ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                })))
+            || self
+                .types
+                .node_types
+                .get(&self.query_group(identity_operand)?)
+                != self.types.symbol_types.get(&identity_field)
+            || self.types.symbol_types.get(&reference_field) != Some(ty)
+            || self.types.node_types.get(&self.query_group(member)?) != Some(ty)
+            || self
+                .types
+                .node_types
+                .get(&self.query_group(reference_operand)?)
+                != Some(ty)
+            || self.types.node_types.get(&self.query_group(guard_operand)?) != Some(ty)
+            || !matches!(self.query_binding(guard_operand),Some(Binding::Symbol(parameter)) if parameter==reference_parameter)
+            || self.types.node_types.get(&self.query_group(null_operand)?) != Some(&ResolvedType::Null)
+            || self.nodes.get(&self.query_group(null_operand)?)?.kind != SyntaxKind::Literal
+            || self.word(self.nodes.get(&self.query_group(null_operand)?)?) != Some("null")
+            || clauses.iter().any(|node| {
+                self.types.node_types.get(node) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            })
+        {
+            return None;
+        }
+        Some(DisclosureFirstReferencePredicate {
+            alias_name: alias_name.to_owned(),
+            identity_parameter_name: self
+                .resolve
+                .symbols
+                .get(identity_parameter.0 as usize)?
+                .name
+                .clone(),
+            identity_field_name: self
+                .resolve
+                .symbols
+                .get(identity_field.0 as usize)?
+                .name
+                .clone(),
+            reference_parameter_name: self
+                .resolve
+                .symbols
+                .get(reference_parameter.0 as usize)?
+                .name
+                .clone(),
+            reference_field_name: self
+                .resolve
+                .symbols
+                .get(reference_field.0 as usize)?
+                .name
+                .clone(),
+            identity_row: self.query_group(row)?,
+            identity_operand: self.query_group(identity_operand)?,
+            identity_receiver,
+            identity_parameter,
+            identity_field,
+            reference_member: self.query_group(member)?,
+            reference_field,
+            reference_operand: self.query_group(reference_operand)?,
+            reference_parameter: *reference_parameter,
+            guard_operand: self.query_group(guard_operand)?,
+            null_operand: self.query_group(null_operand)?,
+        })
+    }
+
     fn checked_first_query_source(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -12611,6 +12765,9 @@ impl<'a> Closure<'a> {
             NodeKey,
             Option<(NodeKey, SymbolId)>,
         )> = Vec::new();
+        let reference_predicate=predicate.and_then(|predicate|{
+            let CheckedQueryClauseKind::As{name}=&alias.kind else{return None;};
+            self.checked_first_reference_predicate(scenario,alias.node,name,fact.model,predicate.expressions[0])});
         let mut operand_texts: Vec<Option<String>> = Vec::new();
         let mut operand_receivers: Vec<Option<NodeKey>> = Vec::new();
         let predicate_node: Option<NodeKey> = if let Some(predicate) = predicate {
@@ -12643,6 +12800,13 @@ impl<'a> Closure<'a> {
         // stored-row field compared against an actor/param/event operand.
         // Dependencies and transported inputs accumulate per conjunct.
         for conjunct in &conjuncts {
+            if let Some(reference)=&reference_predicate {
+                if *conjunct!=conjuncts[1]{continue;}
+                let ty=self.types.symbol_types.get(&reference.reference_field)?.clone();
+                members.push((reference.reference_member,reference.reference_field,ty,
+                    reference.reference_operand,Some((reference.reference_operand,reference.reference_parameter))));
+                operand_texts.push(None);operand_receivers.push(None);continue;
+            }
             let (member, operand) = self.query_binary(*conjunct, "==")?;
             let field = self.query_member(member, alias.node, fact.model)?;
             let field_ty = self.types.symbol_types.get(&field)?.clone();
@@ -12748,10 +12912,10 @@ impl<'a> Closure<'a> {
                 )
             })
             .collect::<Option<Vec<_>>>()?;
-        let inputs = members
-            .iter()
-            .filter_map(|(_, _, _, _, input)| *input)
-            .collect::<Vec<_>>();
+        let inputs = if let Some(reference)=&reference_predicate {
+            vec![(reference.identity_operand,reference.identity_parameter),
+                (reference.reference_operand,reference.reference_parameter)]
+        }else{members.iter().filter_map(|(_,_,_,_,input)|*input).collect::<Vec<_>>()};
         // An order-only first carries no predicate operand: the alias
         // anchors the required field, and no reader touches it while
         // dependencies and inputs stay empty (checked_first_query_predicate
@@ -12833,6 +12997,7 @@ impl<'a> Closure<'a> {
                 overload: fact.overload,
                 binding: binding.node,
                 operand,
+                reference_predicate,
                 extra_operands,
                 operand_texts,
                 operand_receivers,
@@ -18108,6 +18273,140 @@ impl<'a> Closure<'a> {
         Ok(paths)
     }
 
+    /// Optional scalar selection keeps the original coalesce decision. The
+    /// required field is observed only on the selected-row branch; absence
+    /// evaluates the original actor fallback without inventing a field read.
+    fn first_optional_actor_coalesce(
+        &mut self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Result<Option<Vec<ValuePath>>, DisclosureDecline> {
+        if !calls.is_empty() || self.loop_node.is_some() {
+            return Ok(None);
+        }
+        let Some((member, fallback)) = self.query_binary(key, "??") else {
+            return Ok(None);
+        };
+        let Some((base, field_name)) = self.count_member(member) else {
+            return Ok(None);
+        };
+        let Some(Binding::Let { node: binding }) = self.query_binding(base) else {
+            return Ok(None);
+        };
+        let Some(selected) = env.get(&Local::Let(*binding)) else {
+            return Ok(None);
+        };
+        let Some((call, original_binding)) = selected.first_query else {
+            return Ok(None);
+        };
+        let Some(model) = selected.record else {
+            return Ok(None);
+        };
+        if original_binding != *binding {
+            return Ok(None);
+        }
+        let query = self.effects.scenarios.values().find_map(|scenario| {
+            if scenario.module != module {
+                return None;
+            }
+            let effect = scenario
+                .effects
+                .iter()
+                .find(|effect| effect.node == *binding)?;
+            let query = self.checked_first_query_source(scenario, effect)?;
+            (query.first.as_ref()?.call == call && query.first.as_ref()?.reference_predicate.is_some())
+                .then_some(query)
+        });
+        let Some(query) = query else {
+            return Ok(None);
+        };
+        let Some(owner) = self.resolve.symbols.get(model.0 as usize) else {
+            return Ok(None);
+        };
+        let Some(field) = owner.fields_of().iter().copied().find(|field| {
+            self.resolve
+                .symbols
+                .get(field.0 as usize)
+                .is_some_and(|field| field.name == field_name)
+        }) else {
+            return Ok(None);
+        };
+        let ty = ResolvedType::Scalar(Scalar::User);
+        if !matches!(self.resolve.symbols[field.0 as usize].kind,SymbolKind::Field{owner,..} if owner==model)
+            || self.types.symbol_types.get(&field) != Some(&ty)
+            || self
+                .types
+                .node_types
+                .get(&self.query_group(member).unwrap_or(member))
+                != Some(&ResolvedType::Nullable(Box::new(ty.clone())))
+            || self
+                .types
+                .node_types
+                .get(&self.query_group(base).unwrap_or(base))
+                != Some(&ResolvedType::Nullable(Box::new(ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                })))
+            || self
+                .types
+                .node_types
+                .get(&self.query_group(fallback).unwrap_or(fallback))
+                != Some(&ty)
+            || !matches!(
+                self.query_binding(fallback),
+                Some(Binding::Context(ContextVar::Actor(_)))
+            )
+            || self.types.node_types.get(&key) != Some(&ty)
+            || query
+                .influences
+                .iter()
+                .any(|influence| !selected.influences.contains(influence))
+        {
+            return Ok(None);
+        }
+        let mut present = selected.clone();
+        present.record = None;
+        present.first_query = None;
+        present.reference = None;
+        present.reference_origin = None;
+        let mut absent = present.clone();
+        present.reads.push(DisclosureDependency {
+            query_id: None,
+            id: self.opaque("read-data", member, &self.call_stamp(calls)?)?,
+            source: self.source(module, member)?,
+            node: member,
+            calls: Vec::new(),
+            role: DependencyRole::Data,
+            model,
+            field,
+            model_name: owner.canonical.clone(),
+            field_name: field_name.to_owned(),
+            ty,
+            type_id: "user".into(),
+        });
+        present.observed.push((member, Vec::new()));
+        present.decisions.push(DisclosureDecision {
+            node: key,
+            calls: Vec::new(),
+            choice: DisclosureChoice::RhsSkipped,
+        });
+        absent.decisions.push(DisclosureDecision {
+            node: key,
+            calls: Vec::new(),
+            choice: DisclosureChoice::RhsEvaluated,
+        });
+        let fallback = self.expr(fallback, module, env, calls)?;
+        let mut values = vec![present];
+        for fallback in fallback {
+            let mut absent = absent.clone();
+            absent.join(&fallback);
+            values.push(absent);
+        }
+        self.bounded(key, values).map(Some)
+    }
+
     fn expr_binary(
         &mut self,
         key: NodeKey,
@@ -18117,6 +18416,7 @@ impl<'a> Closure<'a> {
         node: &SyntaxNode,
         children: Vec<&SyntaxNode>,
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if let Some(values)=self.first_optional_actor_coalesce(key,module,env,calls)?{return Ok(values);}
         if children.len() != 2 {
             return Err(self.fail(key, "invalid binary shape"));
         }

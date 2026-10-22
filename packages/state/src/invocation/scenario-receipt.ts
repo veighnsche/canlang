@@ -3803,7 +3803,7 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
       bound.resultModel === undefined && bound.type === 'void';
     if (query === undefined || !checkedFirstQueryParent(bound, def, query, policy, readPolicies) || query.limit !== null || query.archived !== 'exclude' ||
         query.dependencies.length === 0 && !containedOrderOnlyTarget ||
-        query.dependencies.some(dependency => dependency.role !== 'control' ||
+        !referenceFirstPredicate(bound, query, metadata as unknown as ScenarioReceiptQueryFirstMetadata) && query.dependencies.some(dependency => dependency.role !== 'control' ||
           (!['bool','int','decimal','text','money','date','datetime','duration','currency','user'].includes(dependency.type) &&
             !(dependency.type.length > 0 && bound.artifactModels.get(query.model)?.fields.some(field => field.name === dependency.field &&
               typeof field.field === 'object' && field.field !== null &&
@@ -3930,7 +3930,9 @@ const querySlots = new WeakMap<ScenarioReceiptQuerySlot, { execution: QueryExecu
  * The saved snapshot and selected result always retain the private plain row. */
 function queryPredicateRecord(execution: QueryExecution, index: number, store: StoragePort): ProjectedRecord {
   const candidate = execution.candidates[index]!, data: Record<string, unknown> = {};
-  const predicate = capture(execution.call, store).bound.anyQueries.get(execution.plan.id)?.kind === 'predicate';
+  const state = capture(execution.call, store);
+  const predicate = state.bound.anyQueries.get(execution.plan.id)?.kind === 'predicate' ||
+    referenceFirstPredicate(state.bound, execution.plan, queryProducers.get(execution.call.def as GeneratedOperationDef)?.first?.find(first => first.queryId === execution.plan.id));
   const read = (field: string, value: () => unknown): unknown => {
     try {
       const state = capture(execution.call, store), owner = execution.owner;
@@ -9370,7 +9372,8 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
         policy: producer.policy, context, memberships, store: producer.readPolicies === undefined ? adapter : store,
         ...(producer.readPolicies === undefined ? {} : { sourceReadPolicies: decisionPolicies ?? producer.readPolicies }), archived: plan.archived,
         ...(plan.order.length === 0 ? {} : { order: plan.order }), ...(plan.limit === null ? {} : { limit: plan.limit }) };
-      const requiredFields = any ? [] : [...new Set(plan.dependencies.filter(dep => dep.role === 'control' && dep.field !== 'parent').map(dep => dep.field))];
+      const deferredReferenceFirst = referenceFirstPredicate(state.bound, plan, firstMark);
+      const requiredFields = any || deferredReferenceFirst ? [] : [...new Set(plan.dependencies.filter(dep => dep.role === 'control' && dep.field !== 'parent').map(dep => dep.field))];
       const stageRows = new Map<string, StoredRow | null>();
       const stageHealthy = () => {
         capture(call, store); ownerHealthy(owner);
@@ -9393,7 +9396,7 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
         if (owner.executingCall !== call || owner.stage !== execution.stage) return invalid('query predicate crossed its original owner stage.');
         const sourceAuthority = !ownerDecision && (producer.readPolicies !== undefined || state.bound.resultModel !== undefined || plan.parent !== undefined || plan.dependencies.some(dep => dep.field === 'parent'))
           ? await observeModelQuerySourceAuthority(call, store, owner, state, plan.model, row,
-            (any || selection !== undefined || (plan.parent !== undefined || producer.readPolicies !== undefined) && state.bound.resultModel === undefined) ? [] : plan.dependencies.map(dependency => dependency.field),
+            (any || deferredReferenceFirst || selection !== undefined || (plan.parent !== undefined || producer.readPolicies !== undefined) && state.bound.resultModel === undefined) ? [] : plan.dependencies.map(dependency => dependency.field),
             0, predicateDomain, decisionPolicies) : undefined;
         sourceAuthorities.push(sourceAuthority);
         const slot = Object.freeze({});
@@ -9562,6 +9565,22 @@ export async function readScenarioReceiptQueryParentRow(call: AdmittedCall, stor
   } finally { if (acquired) state!.pending -= 1; }
 }
 
+/** The retained-reference FIRST class has one checked nullable Model
+ * control field. Legacy scalar/enum FIRST consumers keep their released eager
+ * checks. Reference predicates and later scalar getters authorize only fields
+ * actually reached, through the same existing query/DATA observers. */
+function referenceFirstPredicate(bound: BoundPlan, plan: ScenarioReceiptQueryPlan,
+  metadata: ScenarioReceiptQueryFirstMetadata | undefined): boolean {
+  const [dependency] = plan.dependencies;
+  if (metadata?.queryId !== plan.id || metadata.guardConsumed === true || metadata.presenceConsumed === true ||
+      metadata.targetConsumed === true || plan.dependencies.length !== 1 || dependency?.role !== 'control' ||
+      !dependency.type.endsWith('?')) return false;
+  const target = dependency.type.slice(0, -1) as ModelName;
+  const field = bound.artifactModels.get(plan.model)?.fields.find(field => field.name === dependency.field);
+  return bound.models.has(target) && field?.field.kind === 'ref' && field.field.model === target &&
+    field.nullable === true && field.array === undefined && field.valueType === dependency.type;
+}
+
 /** Consume first at its original owner stage. This supplies the genuine row for
  * native private binding; ordinary field/mutation gates still own authority.
  * Every matched index remains saved: first is never a query limit/truncation. */
@@ -9601,7 +9620,7 @@ export async function selectScenarioReceiptQueryFirstRow(call: AdmittedCall, sto
     return await ownerOperation(owner, async () => {
       // DESIGN442: the confined decision shape records its selected-row
       // authority as the same owner decision; unmarked rows keep viewer.
-      const decisionFields = row === null ? [] : [...new Set(state.bound.plan.returns
+      const decisionFields = row === null || referenceFirstPredicate(state.bound, query.plan, metadata) ? [] : [...new Set(state.bound.plan.returns
         .filter(returned => returnQueryIds(returned).includes(query.plan.id))
         .flatMap(returned => returned.dependencies
           .filter(dependency => dependency.model === query.plan.model).map(dependency => dependency.field)))];

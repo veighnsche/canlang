@@ -370,20 +370,21 @@ it('observes original pre-change guards and atomically creates and emits with a 
       const original=await readFile(join(root,'compiler/tests/fixtures/event-change-retained.can'),'utf8');
       const guards=original.replace('  scenario change_schedule(','  export scenario check_change(').replace(') -> Change by=organizer',') -> int by=organizer');
       const body=guards.indexOf('   do\n',guards.indexOf('scenario check_change'));
-      for(const profile of ['guards','created'] as const){
+      for(const profile of ['guards','created','retained'] as const){
       const create=original.split('\n').find(line=>line.startsWith('    create Change '))!.replace('account=retained?.account ?? actor','account=actor');
       const sourceText=profile==='guards'?guards.slice(0,body)+'   do\n    return 1\n Then\n':
         original.slice(0,original.indexOf('   do\n',original.indexOf('scenario change_schedule'))).replace('  scenario change_schedule(','  export scenario check_change(')+
-        '   do\n'+create+'\n    set event {pending_change=change}\n    if resource==null\n     emit ApplyChange {change}\n    else\n     require false\n    return change\n  scenario consume on=ApplyChange\n   do require true\n Then\n';
+        '   do\n'+(profile==='retained'?original.split('\n').find(line=>line.startsWith('    let retained='))!+'\n'+create.replace('account=actor','account=retained?.account ?? actor'):create)+'\n    set event {pending_change=change}\n'+(profile==='retained'?'    emit ApplyChange {change}':'    if resource==null\n     emit ApplyChange {change}\n    else\n     require false')+'\n    return change\n  scenario consume on=ApplyChange\n   do require true\n Then\n';
       const sourcePath=join(directory,profile+'.can');await writeFile(sourcePath,sourceText);
       const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,sourcePath],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
       const artifact=JSON.parse(stdout) as CompileArtifact;
       const asm=await assembleModules({artifact,sourcePath},{workDir:join(directory,'assembly-'+profile),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-      for(const mode of [...(['omitted','null','live','inactive','capacity','prefix-false'] as const),...(profile==='created'?['capacity-race'] as const:[])]){
+      for(const mode of [...(['omitted','null','live','inactive','capacity','prefix-false'] as const),...(profile!=='guards'?['capacity-race'] as const:[]),...(profile==='retained'?['retained','null-match','unmatched','missing-account','account-race','resource-race','domain-race','identity-race'] as const:[])]){
         const now=Date.parse('2099-01-01T12:00:00Z'),clock=createFrozenClock(now),identities=createMemoryIdentityStore({clock});
         const team=await identities.createTeam({timezone:'UTC'});
         const actor=await identities.createUser({email:'event-guards@example.test',password_hash:'unused',email_verified:true});
-        await identities.createMembership({team_id:team.team_id,user_id:actor.user_id,is_owner:false,roles:[{role:'events.organizer',granted_at:new Date(now).toISOString(),granted_by:actor.user_id}]});
+        const authMembership=await identities.createMembership({team_id:team.team_id,user_id:actor.user_id,is_owner:false,roles:[{role:'events.organizer',granted_at:new Date(now).toISOString(),granted_by:actor.user_id}]});
+        const retainedActor=await identities.createUser({email:'prior-account@example.test',password_hash:'unused',email_verified:true});
         const token='event-guards-'+randomBytes(8).toString('hex');
         await identities.createSession({user_id:actor.user_id,token_sha256:await sha256HexText(token),last_team_id:team.team_id,expires_at:new Date(now+3600000).toISOString()});
         const identity=await resolveIdentity(identities,{session_token:token},{clock});
@@ -393,41 +394,58 @@ it('observes original pre-change guards and atomically creates and emits with a 
           {kind:'insert',model:asModel('rent_catalog.Location'),row:{...makeRow({id:site,data:{name:'Site',currency:'EUR'}}),parent:null}},
           {kind:'insert',model:asModel('employee.Employee'),row:{...makeRow({id:asId('employee'),data:{user:{id:actor.user_id},active:mode!=='prefix-false',operator_wide:false,home:{id:site},locations:[]}}),parent:null}},
           {kind:'insert',model:asModel('events.Program'),row:{...makeRow({id:program,data:{name:'Program'}}),parent:null}},
-          {kind:'insert',model:asModel('events.Event'),row:{...makeRow({id:event,data:{location:{id:site},timezone:'UTC',from:'2099-01-02T09:00:00.000Z',until:'2099-01-02T10:00:00.000Z',capacity:'10',price:{minor:'0',currency:'EUR'},sales_until:'2099-01-02T08:00:00.000Z',venue:null,pending_change:null,revision:'1',cancelled:false}}),parent:{model:asModel('events.Program'),id:program}}},
+          {kind:'insert',model:asModel('events.Event'),row:{...makeRow({id:event,data:{location:{id:site},timezone:'UTC',from:'2099-01-02T09:00:00.000Z',until:'2099-01-02T10:00:00.000Z',capacity:'10',price:{minor:'0',currency:'EUR'},sales_until:'2099-01-02T08:00:00.000Z',venue:['retained','null-match','missing-account','account-race','resource-race','domain-race','identity-race'].includes(mode)?{id:'prior-change'}:null,pending_change:null,revision:'1',cancelled:false}}),parent:{model:asModel('events.Program'),id:program}}},
           {kind:'insert',model:asModel('rent_reservations.Resource'),row:{...makeRow({id:resource,data:{...(mode==='prefix-false'?{}:{active:mode!=='inactive'}),location:{id:site},party_limit:'10'}}),parent:null}},
           {kind:'insert',model:asModel('customer.Customer'),row:{...makeRow({id:customer,data:{active:true,locations:[{id:site}]}}),parent:null}},
+          ...(profile==='retained'?[{kind:'insert' as const,model:asModel('events.Change'),row:{...makeRow({id:asId('prior-change'),data:{source:'prior',base_revision:'1',location:{id:site},timezone:'UTC',from:'2099-01-02T09:00:00.000Z',until:'2099-01-02T10:00:00.000Z',capacity:'10',sales_until:'2099-01-02T08:00:00.000Z',reason:'Earlier',author:{id:actor.user_id},...(mode==='unmatched'?{}:{resource:mode==='null-match'?null:{id:resource}}),customer:{id:customer},...(mode==='missing-account'?{}:{account:{id:retainedActor.user_id}}),previous:null,state:'adopted',venue_state:'confirmed',venue_revision:'1',hold_delivery:null,hold_status:null}}),parent:{model:asModel('events.Event'),id:event}}}]:[]),
           ...[0,1].map(index=>({kind:'insert' as const,model:asModel('events.Registration'),row:{...makeRow({id:asId('ticket-'+index),data:{checked_in:null,state:'confirmed',expires:'2099-01-03T12:00:00.000Z'}}),parent:{model:asModel('events.Event'),id:event}}})),
         ]}));
-        let raced=false;
-        if(mode==='capacity-race'){
+        let raced=false,raceCount=0;
+        if(mode==='capacity-race'||mode==='account-race'||mode==='resource-race'||mode==='domain-race'){
           const commit=store.commit.bind(store);
           store.commit=async batch=>{
-            if(!raced && batch.writes.some(write=>write.kind==='insert'&&write.model==='events.Change')){
-              raced=true;
-              await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('events.Registration'),row:{...makeRow({id:asId('racing-ticket'),data:{checked_in:null,state:'confirmed',expires:'2099-01-03T12:00:00.000Z'}}),parent:{model:asModel('events.Event'),id:event}}}]}));
+            if((!raced||mode!=='capacity-race') && batch.writes.some(write=>write.kind==='insert'&&write.model==='events.Change')){
+              raced=true;raceCount++;
+              if(mode==='capacity-race')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('events.Registration'),row:{...makeRow({id:asId('racing-ticket'),data:{checked_in:null,state:'confirmed',expires:'2099-01-03T12:00:00.000Z'}}),parent:{model:asModel('events.Event'),id:event}}}]}));
+              else {
+                const prior=await store.load(asModel('events.Change'),asId('prior-change'));assert.ok(prior);
+                const data={...prior.data,...(mode==='account-race'?{account:{id:actor.user_id}}:mode==='resource-race'?{resource:null}:{})};
+                await commit(makeBatch(await store.readRevision(),{writes:mode==='domain-race'?
+                  [{kind:'insert',model:asModel('events.Change'),row:{...prior,id:asId('another-change-'+raceCount),data:{...prior.data,source:'another-'+raceCount}}}]:
+                  [{kind:'update',model:asModel('events.Change'),id:prior.id,expectedVersion:prior.version,row:{...prior,version:asVersion(prior.version+1),updated:now,data}}]}));
+              }
             }
             return commit(batch);
           };
         }
+        if(mode==='identity-race'){
+          const query=store.query.bind(store);
+          store.query=async spec=>{
+            const rows=await query(spec);
+            if(!raced&&spec.model==='events.Change'){raced=true;await identities.removeMembership(authMembership.membership_id);}
+            return rows;
+          };
+        }
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
         const inputs={event:{id:event,version:'1'},location:{id:site,version:'1'},timezone:'UTC',from:'2099-01-03T09:00:00.000Z',until:'2099-01-03T10:00:00.000Z',capacity:mode==='capacity'?'1':mode==='capacity-race'?'2':'10',sales_until:'2099-01-03T08:00:00.000Z',reason:'Move event',
-          ...(mode==='omitted'?{}:(mode==='null'||mode==='capacity-race')?{resource:null,customer:null}:{resource:{id:resource,version:'1'},customer:{id:customer,version:'1'}})};
+          ...(mode==='omitted'?{}:(mode==='null'||mode==='null-match'||mode==='capacity-race')?{resource:null,customer:null}:{resource:{id:resource,version:'1'},customer:{id:customer,version:'1'}})};
         const time=now.toString(16).padStart(12,'0'),random=randomBytes(10).toString('hex'),id=`${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}`;
         const result=await invoker.invokeMutation({operation:'events.check_change',operation_id:id,inputs},identity);
-        const success=mode==='omitted'||mode==='null'||profile==='guards'&&mode==='live';
+        const success=mode==='omitted'||mode==='null'||profile!=='created'&&mode==='live'||profile==='retained'&&(mode==='retained'||mode==='null-match'||mode==='unmatched');
         if(success){assert.ok('result' in result,profile+'/'+mode+': '+JSON.stringify(result));assert.equal(result.result.status,'committed');if(profile==='guards')assert.equal(result.result.result,'1');}
-        else {assert.ok('error' in result,profile+'/'+mode+': '+JSON.stringify(result));assert.equal(result.error.code,'rule_failed',profile+'/'+mode+': '+JSON.stringify(result));}
-        if(mode==='capacity-race')assert.equal(raced,true,'race occurs at original commit');
-        if(profile==='created'){
+        else {assert.ok('error' in result,profile+'/'+mode+': '+JSON.stringify(result));if(mode!=='missing-account'&&!['account-race','resource-race','domain-race','identity-race'].includes(mode))assert.equal(result.error.code,'rule_failed',profile+'/'+mode+': '+JSON.stringify(result));}
+        if(mode.endsWith('-race'))assert.equal(raced,true,'race occurs at original commit');
+        if(profile!=='guards'){
           const changes=await store.query({model:asModel('events.Change'),authority:'owner'});
-          assert.equal(changes.length,success?1:0,mode+': created row is atomic');
+          const newChanges=changes.filter(row=>row.data['source']===id);
+          assert.equal(newChanges.length,success?1:0,mode+': created row is atomic');
           const current=await store.load(asModel('events.Event'),event);assert.ok(current);
           const routes=await store.query({model:asModel('work.handler_occurrence'),authority:'owner'});
           assert.equal(routes.filter(row=>row.data['handler']==='events.consume').length,success?1:0,mode+': exact event route shares commit');
-          if(success){assert.deepEqual(current.data['pending_change'],{id:changes[0]!.id});assert.deepEqual(changes[0]!.data['account'],{id:actor.user_id});
+          if(success){assert.deepEqual(current.data['pending_change'],{id:newChanges[0]!.id});assert.deepEqual(newChanges[0]!.data['account'],{id:mode==='retained'?retainedActor.user_id:actor.user_id});
             const replay=await invoker.invokeMutation({operation:'events.check_change',operation_id:id,inputs},identity);
             assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
-            assert.equal((await store.query({model:asModel('events.Change'),authority:'owner'})).length,1);
+            assert.equal((await store.query({model:asModel('events.Change'),authority:'owner'})).length,profile==='retained'?2:1);
             assert.equal((await store.query({model:asModel('work.handler_occurrence'),authority:'owner'})).filter(row=>row.data['handler']==='events.consume').length,1,'replay emits no second route');
           }else assert.equal(current.data['pending_change'],null,mode+': failed prefix or late Require publishes no link');
         }

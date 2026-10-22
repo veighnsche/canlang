@@ -1294,3 +1294,125 @@ fn eager_unused_helper_operands_keep_authority_but_explicit_defaults_cut_it_off(
         );
     }
 }
+
+#[test]
+fn retained_reference_first_and_optional_account_keep_exact_source_ir_correspondence() {
+    let original = include_str!("fixtures/event-change-retained.can");
+    let prefix = &original[..original.find("    if resource==null").unwrap()];
+    let source = format!(
+        "{}    emit ApplyChange {{change}}\n    return change\n  scenario consume on=ApplyChange\n   do require true\n Then\n",
+        prefix.replace(
+            "  scenario change_schedule(",
+            "  export scenario change_schedule("
+        )
+    );
+    let (db, program, ir, catalog) = fixture_source("retained-first.can", &source);
+    let owner = item(&ir, "events.change_schedule").id;
+    let entry = "$can$m$6576656e7473.mjs";
+    assert!(
+        serialize_complete_query_receipt(
+            &program,
+            &ir,
+            &ir.items[owner.0 as usize],
+            &db,
+            Some(&catalog),
+            entry
+        )
+        .is_some()
+    );
+    let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for mode in [
+        "optional-field",
+        "fallback",
+        "identity-operand",
+        "predicate-order",
+        "control-field",
+        "input-default",
+    ] {
+        let mut changed = ir.clone();
+        if mode == "control-field" {
+            let field = item(&changed, "events.Change.resource").id;
+            let IrItemKind::Field { ty, .. } = &mut changed.items[field.0 as usize].kind else {
+                panic!("field")
+            };
+            *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+        } else if mode == "input-default" {
+            let parameter = item(&changed, "events.change_schedule.resource").id;
+            let IrItemKind::Param { default, .. } = &mut changed.items[parameter.0 as usize].kind
+            else {
+                panic!("param")
+            };
+            *default = None;
+        } else {
+            let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind
+            else {
+                panic!("scenario")
+            };
+            if mode == "optional-field" || mode == "fallback" {
+                let IrStmt::Create { input, .. } = &mut effects[1] else {
+                    panic!("create")
+                };
+                let IrExpr::Object(fields) = &mut input.expr else {
+                    panic!("object")
+                };
+                let (_, account) = fields
+                    .iter_mut()
+                    .find(|(name, _)| name == "account")
+                    .unwrap();
+                let IrExpr::Binary { left, right, .. } = &mut account.expr else {
+                    panic!("coalesce")
+                };
+                if mode == "fallback" {
+                    right.expr = IrExpr::Name("retained".into());
+                } else {
+                    let IrExpr::Member { field, .. } = &mut left.expr else {
+                        panic!("member")
+                    };
+                    *field = "author".into();
+                }
+            } else {
+                let IrStmt::Let { value, .. } = &mut effects[0] else {
+                    panic!("let")
+                };
+                let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut value.expr
+                else {
+                    panic!("call")
+                };
+                let IrExpr::Query(query) = &mut args[0].expr else {
+                    panic!("query")
+                };
+                let predicate = query.where_pred.as_mut().unwrap();
+                let IrExpr::Binary { left, right, .. } = &mut predicate.expr else {
+                    panic!("and")
+                };
+                if mode == "predicate-order" {
+                    std::mem::swap(left, right);
+                } else {
+                    let IrExpr::Binary { left: identity, .. } = &mut left.expr else {
+                        panic!("inner and")
+                    };
+                    let IrExpr::Binary { right: operand, .. } = &mut identity.expr else {
+                        panic!("identity")
+                    };
+                    let IrExpr::Member { field, .. } = &mut operand.expr else {
+                        panic!("venue")
+                    };
+                    *field = "pending_change".into();
+                }
+            }
+        }
+        assert!(
+            serialize_complete_query_receipt(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                Some(&catalog),
+                entry
+            )
+            .is_none(),
+            "{mode} retained substituted source semantics"
+        );
+    }
+}
