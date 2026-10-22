@@ -860,8 +860,8 @@ fn prepare_owner_guards(
         }
         return Ok(Some(vec![guard.descriptor]));
     }
-    if owner.canonical == "success.renewal_due" {
-        let (span, guard) = super::success_send_decisions::prepare_renewal_due_send_guard(context, owner)
+    if matches!(owner.canonical.as_str(), "success.renewal_due" | "success.remind") {
+        let (span, guard) = super::success_send_decisions::prepare_success_notice_send_guard(context, owner)
             .ok_or_else(|| gap("exact success renewal SEND owner unavailable", Some(owner.span)))?;
         if sends.len() != 1 || !matches!(sends[0], IrStmt::Send {span: actual,..} if *actual == span)
             || guards.insert(span, guard.clone()).is_some() {

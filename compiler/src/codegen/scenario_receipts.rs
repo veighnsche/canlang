@@ -2019,8 +2019,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             source_context?, item, entry_module, send_guards?,
         );
     }
-    if item.canonical == "success.renewal_due" {
-        return super::success_send_decisions::collect_renewal_receipt(
+    if matches!(item.canonical.as_str(), "success.renewal_due" | "success.remind") {
+        return super::success_send_decisions::collect_success_notice_receipt(
             source_context?, item, entry_module, send_guards?,
         );
     }

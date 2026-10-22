@@ -217,9 +217,10 @@ export interface ObserveVenueDecisionPlan {
   readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
     readonly node: EventDecisionSite['node']; readonly statement: EventDecisionSite['statement'] };
 }
+/** Closed renewal/follow-up owner profiles; the existing transport field stays stable. */
 export interface SuccessRenewalDecisionPlan {
   readonly version: 1;
-  readonly owner: 'success.renewal_due';
+  readonly owner: 'success.renewal_due' | 'success.remind';
   readonly source: ScenarioResultDisclosurePlan['source'];
   readonly sites: { readonly require: EventDecisionSite; readonly if: EventDecisionSite;
     readonly send: EventDecisionSite; readonly create: EventDecisionSite };
@@ -309,7 +310,7 @@ function checkSuccessRenewalDecisionPlan(value: unknown, transport: unknown): Su
   origin(raw['source']); origin(transport);
   const source = raw['source'] as ScenarioResultDisclosurePlan['source'];
   const carrier = transport as ScenarioResultDisclosurePlan['source'];
-  if (raw['version'] !== 1 || raw['owner'] !== 'success.renewal_due' || source.module !== 'success' ||
+  if (raw['version'] !== 1 || (raw['owner'] !== 'success.renewal_due' && raw['owner'] !== 'success.remind') || source.module !== 'success' ||
       source.path !== carrier.path || source.sha256 !== carrier.sha256) {
     return invalid('renewal decision needs its original success source.');
   }
@@ -2761,12 +2762,15 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   if (successRenewalDecision !== undefined) {
     const inputs = def.descriptor.inputs;
     const model = (name: string) => models.find(item => item.name === name);
+    const followup = successRenewalDecision.owner === 'success.remind';
     if (def.kind !== 'scenario' || def.name !== successRenewalDecision.owner || declared !== 'void' ||
-        inputs.length !== 2 || inputs[0]?.name !== 'account' || inputs[0].kind !== 'ref' ||
-        inputs[0].model !== 'success.Account' || !inputs[0].required ||
+        inputs.length !== (followup ? 3 : 2) || inputs[0]?.name !== (followup ? 'followup' : 'account') || inputs[0].kind !== 'ref' ||
+        inputs[0].model !== (followup ? 'success.FollowUp' : 'success.Account') || !inputs[0].required ||
         inputs[1]?.name !== 'revision' || inputs[1].kind !== 'integer' || !inputs[1].required ||
         model('success.Account')?.parent !== 'customer.Customer' ||
         model('success.Notice')?.parent !== 'success.Account' ||
+        followup && (model('success.FollowUp')?.parent !== 'success.Account' ||
+          inputs[2]?.name !== 'account_revision' || inputs[2].kind !== 'integer' || !inputs[2].required) ||
         !models.some(item => item.name === 'employee.Employee') ||
         !models.some(item => item.name === 'rent_catalog.Location') ||
         (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
@@ -3088,14 +3092,15 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
           ref?.kind !== 'ref' || ref.model !== modelName || !ref.required ||
           Object.hasOwn(def.inputArrays, modelNameField) ||
           revision?.kind !== 'integer' || !revision.required ||
-          guardInputs.length !== 2 || !inputs.has('eventTerm') || !inputs.has('eventRevision') ||
+          guardInputs.length !== (def.name === 'success.remind' ? 3 : 2) || !inputs.has('eventTerm') || !inputs.has('eventRevision') ||
+          def.name === 'success.remind' && !inputs.has('eventAccountRevision') ||
           guardInputs.some(value => {
             const input = value as { readonly name: string; readonly type: string };
-            return input.name === 'eventTerm' ? input.type !== modelName : input.name !== 'eventRevision' || input.type !== 'int';
+            return input.name === 'eventTerm' ? input.type !== modelName : !['eventRevision', ...(def.name === 'success.remind' ? ['eventAccountRevision'] : [])].includes(input.name) || input.type !== 'int';
           }) ||
           !models.has('eventTerm')) return invalid('event SEND requires its exact declared private field and typed lexical census.');
       if (Object.hasOwn(event, 'ownerDecision')) {
-        if (def.name === 'success.renewal_due') {
+        if (def.name === 'success.renewal_due' || def.name === 'success.remind') {
           const checked = checkSuccessRenewalDecisionPlan(event['ownerDecision'], bound.plan.source);
           if (bound.successRenewalDecision === undefined ||
               stableStringify(checked) !== stableStringify(bound.successRenewalDecision) ||
@@ -3198,6 +3203,7 @@ function declaredEventIntrinsic(def: GeneratedOperationDef): { readonly modelFie
   if (def.name === 'agreements.due') return { modelField: 'obligation', model: 'agreements.Obligation' as ModelName };
   if (def.name === 'appointments.remind') return { modelField: 'appointment', model: 'appointments.Appointment' as ModelName };
   if (def.name === 'maintain.remind') return { modelField: 'inspection', model: 'maintain.Inspection' as ModelName };
+  if (def.name === 'success.remind') return { modelField: 'followup', model: 'success.FollowUp' as ModelName };
   if (def.name === 'success.renewal_due') return { modelField: 'account', model: 'success.Account' as ModelName };
   if (def.name === 'invoice.overdue') return { modelField: 'invoice', model: 'invoice.Invoice' as ModelName };
   if (def.name === 'rent_reservations.correspondence' || def.name === 'rent_reservations.remind') {
@@ -3237,19 +3243,19 @@ function admittedWorkEventPayload(call: AdmittedCall, event: string): unknown {
   return undefined;
 }
 
-/** The renewal staging IF admits exactly one Notice insert under the
- * current Account when true: parent, revision linkage and recipient all
- * derive from the admitted renewal row, and no other business write may
- * appear. The queued Mail itself is fenced again at dispatch claim. */
-function successRenewalOwnWrite(call: AdmittedCall, owner: ReceiptOwnerSession, root: StoredRow, workRevision: bigint,
+/** Both sealed Success owners admit one Account Notice plus its exact Mail.
+ * Follow-up linkage, recipient/title and the two revision fields remain
+ * distinct from the renewal profile. Dispatch fences the queued Mail again. */
+function successNoticeOwnWrite(call: AdmittedCall, owner: ReceiptOwnerSession, root: StoredRow, account: StoredRow, workRevision: bigint, accountRevision: bigint,
   writes: readonly DomainWrite[], finalHealthy: () => void): boolean {
-  if (call.def.name !== 'success.renewal_due' || writes.length !== 1) return false;
+  const followup = call.def.name === 'success.remind';
+  if ((!followup && call.def.name !== 'success.renewal_due') || writes.length !== 1) return false;
   const [only] = writes;
   const queued = owner.framework?.queued.values().next().value;
   const model = owner.capture.bound.artifactModels.get('success.Notice' as ModelName);
   finalHealthy();
   if (only === undefined || only.kind !== 'insert' || only.model !== 'success.Notice' ||
-      only.row.parent?.model !== 'success.Account' || only.row.parent.id !== root.id ||
+      only.row.parent?.model !== 'success.Account' || only.row.parent.id !== account.id ||
       only.row.version !== 1 || only.row.archivedAt !== null || model === undefined ||
       queued === undefined || queued.operation !== call.def.name ||
       queued.operationId !== call.context.operationId || queued.target !== 'std.EmailV1.send' ||
@@ -3257,9 +3263,10 @@ function successRenewalOwnWrite(call: AdmittedCall, owner: ReceiptOwnerSession, 
     return false;
   }
   const expected: Record<string, unknown> = {
-    revision: encodeValue('int', workRevision), account_revision: encodeValue('int', workRevision),
-    recipient: root.data['email'], subject: 'Account renewal due',
-    body: 'Review the recorded renewal date; renewal remains a separate agreement action.',
+    revision: encodeValue('int', workRevision), account_revision: encodeValue('int', accountRevision),
+    ...(followup ? { followup: encodeValue('success.FollowUp?', makeRecordRef('success.FollowUp', root.id)) } : {}),
+    recipient: root.data['email'], subject: followup ? 'Account follow-up' : 'Account renewal due',
+    body: followup ? root.data['title'] : 'Review the recorded renewal date; renewal remains a separate agreement action.',
     delivery: encodeValue('delivery(std.EmailV1.send)?', makeDeliveryRef(queued.intentId, queued.target)),
   };
   for (const field of model.fields) {
@@ -3275,7 +3282,8 @@ function successRenewalOwnWrite(call: AdmittedCall, owner: ReceiptOwnerSession, 
   // format(..., locale=null) may select the default text or its authored
   // Dutch translation. Keep the two fields in the same source locale.
   const originalMessage = args['subject'] === expected['subject'] && args['body'] === expected['body'];
-  const translatedMessage = args['subject'] === 'Klantverlenging nodig' &&
+  const translatedMessage = followup ? args['subject'] === 'Klantopvolging' && args['body'] === root.data['title'] :
+    args['subject'] === 'Klantverlenging nodig' &&
     args['body'] === 'Controleer de vastgelegde verlengingsdatum; verlenging blijft een afzonderlijke overeenkomstactie.';
   finalHealthy();
   return stableStringify(only.row.data) === stableStringify(expected) &&
@@ -4419,7 +4427,7 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
         call.context.trustedSource !== `event:${event.event}`) {
       return invalid('event SEND requires its actual admitted due Work source and private owner call.');
     }
-    const payload = object(eventPayload, [event.modelField.name, event.revisionField.name]);
+    const payload = object(eventPayload, [event.modelField.name, event.revisionField.name, ...(call.def.name === 'success.remind' ? ['account_revision'] : [])]);
     const sourceTerm = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly model: string; readonly id: string };
     const admittedTerm = decodeValue(event.modelField.model,
       admittedInputWire(call.inputs, event.modelField.name)) as { readonly model: string; readonly id: string };
@@ -4428,7 +4436,10 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
     const lexicalRevision = decodeValue('int', inputs['eventRevision']);
     if (sourceTerm.model !== event.modelField.model || admittedTerm.model !== event.modelField.model ||
         sourceTerm.id === '' || sourceTerm.id !== admittedTerm.id ||
-        sourceRevision !== admittedRevision || sourceRevision !== lexicalRevision) {
+        sourceRevision !== admittedRevision || sourceRevision !== lexicalRevision ||
+        call.def.name === 'success.remind' && (decodeValue('int', payload['account_revision']) !==
+          decodeValue('int', admittedInputWire(call.inputs, 'account_revision')) ||
+          decodeValue('int', payload['account_revision']) !== decodeValue('int', inputs['eventAccountRevision']))) {
       return invalid('event SEND lexical values differ from its retained Work payload and admitted handler inputs.');
     }
   }
@@ -4444,7 +4455,7 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
       }
       const row = checkedRow(dataCopy(actual));
       if (event !== undefined && input.name === 'eventTerm') {
-        const payload = object(eventPayload, [event.modelField.name, event.revisionField.name]);
+        const payload = object(eventPayload, [event.modelField.name, event.revisionField.name, ...(call.def.name === 'success.remind' ? ['account_revision'] : [])]);
         const ref = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly id: string };
         if (row.id !== ref.id || row.archivedAt !== null) return invalid('event SEND model differs from its current retained source row.');
         if (call.def.name === 'maintain.remind' || call.def.name === 'invoice.overdue' ||
@@ -6029,12 +6040,11 @@ export async function executeScenarioReceiptEventDecision(call: AdmittedCall, st
   finally { if (acquired) { state.pending--; owner!.busy = false; } }
 }
 
-/** The renewal staging IF is one source-stamped, pre-write owner decision
- * over the current Account row. It pins the exact admitted RenewalDue
- * event row and revision, fences the manager role and Employee reads behind
- * the same owner stage, and records a commit guard: a false IF stages
- * nothing, a true IF stages exactly one Notice insert plus its queued Mail.
- * Dispatch revalidates every conjunct again before any provider call. */
+/** Closed Success source decisions share their serial owner stage, complete
+ * Employee domain and subject-role fence. The follow-up pins its actual
+ * FollowUp Work row and the separately admitted Account revision; renewal
+ * pins Account directly. True IF/WHEN stages exactly one checked Mail/Notice,
+ * while a false IF commits neither. Dispatch rechecks the authored WHEN. */
 export async function executeScenarioReceiptSuccessRenewalDecision(call: AdmittedCall, store: StoragePort, input: {
   readonly original: SuccessRenewalDecisionPlan;
   readonly checked: SuccessRenewalDecisionPlan;
@@ -6051,6 +6061,10 @@ export async function executeScenarioReceiptSuccessRenewalDecision(call: Admitte
   let acquired = false;
   try {
     const profile = state.bound.successRenewalDecision;
+    const followup = profile?.owner === 'success.remind';
+    const rootModel = (followup ? 'success.FollowUp' : 'success.Account') as ModelName;
+    const rootField = followup ? 'followup' : 'account';
+    const eventName = followup ? 'success.FollowUpDue' : 'success.RenewalDue';
     if (profile === undefined || owner === undefined || owner.session === null || owner.stage !== 0 ||
         owner.busy || state.pending !== 0 || state.returnId !== null ||
         owner.executingCall !== call || owner.callGuards.length >= MAX_ITEMS ||
@@ -6068,24 +6082,28 @@ export async function executeScenarioReceiptSuccessRenewalDecision(call: Admitte
     if (owner.callGuards.some(guard => guard.name === occurrence) ||
         (decision === 'if' ? owner.activeSend !== null : owner.activeSend?.call !== call ||
           owner.activeSend.guard.rule !== profile.sendRule.rule ||
-          owner.activeSend.guard.eventSource?.event !== 'success.RenewalDue')) {
+          owner.activeSend.guard.eventSource?.event !== eventName)) {
       return invalid('renewal decision crossed its unique original IF or WHEN occurrence.');
     }
     const event = admittedEventIntrinsic(call, 'eventTerm');
     const due = dueWorkAdmissions.get(call);
     if (event === undefined || due?.eventPayload === undefined ||
-        event.event !== 'success.RenewalDue' || event.modelField.name !== 'account' ||
-        event.modelField.model !== 'success.Account' || event.revisionField.name !== 'revision') {
+        event.event !== eventName || event.modelField.name !== rootField ||
+        event.modelField.model !== rootModel || event.revisionField.name !== 'revision') {
       return invalid('renewal decision needs the actual admitted RenewalDue Work row.');
     }
-    const payload = object(due.eventPayload, ['account', 'revision']);
-    const workRef = decodeValue('success.Account', payload['account']) as { readonly id: string };
+    const payload = object(due.eventPayload, [rootField, 'revision', ...(followup ? ['account_revision'] : [])]);
+    const workRef = decodeValue(rootModel, payload[rootField]) as { readonly id: string };
     const workRevision = decodeValue('int', payload['revision']) as bigint;
-    const admittedRef = call.recordRefs.find(ref => ref.param === 'account' &&
-      ref.model === 'success.Account' && ref.id === workRef.id);
+    const admittedRef = call.recordRefs.find(ref => ref.param === rootField &&
+      ref.model === rootModel && ref.id === workRef.id);
     if (admittedRef === undefined || workRevision !== decodeValue('int', admittedInputWire(call.inputs, 'revision')) ||
-        (decodeValue('success.Account', admittedInputWire(call.inputs, 'account')) as { readonly id: string }).id !== workRef.id) {
+        (decodeValue(rootModel, admittedInputWire(call.inputs, rootField)) as { readonly id: string }).id !== workRef.id) {
       return invalid('renewal decision differs from its admitted Account and revision.');
+    }
+    const accountRevision = followup ? decodeValue('int', payload['account_revision']) as bigint : workRevision;
+    if (followup && accountRevision !== decodeValue('int', admittedInputWire(call.inputs, 'account_revision'))) {
+      return invalid('FollowUp Account revision differs from its admitted Work input.');
     }
     owner.busy = true; state.pending++; acquired = true;
     const healthy = () => {
@@ -6093,21 +6111,27 @@ export async function executeScenarioReceiptSuccessRenewalDecision(call: Admitte
       if (owner.stage !== 0 || owner.executingCall !== call || !owner.busy || state.pending !== 1 ||
           state.returnId !== null) return invalid('renewal decision crossed its source owner stage.');
     };
-    const root = await owner.session.views.final.get('success.Account' as ModelName, admittedRef.id); healthy();
-    if (root === null || root.archivedAt !== null || root.parent?.model !== 'customer.Customer' ||
-        BigInt(root.version) !== workRevision || root.data['active'] !== true || root.data['renewal'] == null ||
+    const root = await owner.session.views.final.get(rootModel, admittedRef.id); healthy();
+    if (root === null || root.archivedAt !== null || root.parent?.model !== (followup ? 'success.Account' : 'customer.Customer') ||
+        BigInt(root.version) !== workRevision || (followup ? root.data['done'] !== false : root.data['active'] !== true || root.data['renewal'] == null) ||
         stableStringify(root) !== stableStringify(admittedRef.row)) {
       throw new StateError('conflict', 'Renewal Account differs from its admitted source row.');
     }
-    const location = decodeValue('rent_catalog.Location', root.data['location']) as { readonly id: string };
-    const permitted = new Set(['success.Account', 'customer.Customer', 'rent_catalog.Location', 'employee.Employee']);
+    const account = followup ? await owner.session.views.final.get('success.Account' as ModelName, root.parent.id) : root; healthy();
+    if (account === null || account.archivedAt !== null || account.parent?.model !== 'customer.Customer' ||
+        account.data['active'] !== true || BigInt(account.version) !== accountRevision) {
+      throw new StateError('conflict', 'FollowUp Account differs from its admitted revision and lifetime.');
+    }
+    const location = decodeValue('rent_catalog.Location', account.data['location']) as { readonly id: string };
+    const permitted = new Set(['success.FollowUp', 'success.Account', 'customer.Customer', 'rent_catalog.Location', 'employee.Employee']);
     const key = (model: string, id: string) => `${model}\0${id}`;
-    const rows = new Map<string, StoredRow>([[key('success.Account', root.id), root]]);
+    const rows = new Map<string, StoredRow>([[key(rootModel, root.id), root], [key('success.Account', account.id), account]]);
     const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
       healthy();
       if (!permitted.has(model) ||
-          model === 'success.Account' && id !== root.id ||
-          model === 'customer.Customer' && id !== root.parent?.id ||
+          model === 'success.FollowUp' && (!followup || id !== root.id) ||
+          model === 'success.Account' && id !== account.id ||
+          model === 'customer.Customer' && id !== account.parent?.id ||
           model === 'rent_catalog.Location' && id !== location?.id ||
           model === 'employee.Employee' && !rows.has(key(model, id))) {
         return invalid('renewal decision read differs from its checked owner path.');
@@ -6116,8 +6140,9 @@ export async function executeScenarioReceiptSuccessRenewalDecision(call: Admitte
       if (cached !== undefined) return cached;
       const row = await owner.session!.views.final.get(model, id); healthy();
       if (row !== null && (row.archivedAt !== null ||
-          model === 'success.Account' && row.id !== root.id ||
-          model === 'customer.Customer' && row.id !== root.parent?.id ||
+          model === 'success.FollowUp' && (!followup || row.id !== root.id) ||
+          model === 'success.Account' && row.id !== account.id ||
+          model === 'customer.Customer' && row.id !== account.parent?.id ||
           model === 'rent_catalog.Location' && row.id !== location?.id)) {
         throw new StateError('forbidden', 'Renewal decision parent or target lifetime is unavailable.');
       }
@@ -6166,7 +6191,7 @@ export async function executeScenarioReceiptSuccessRenewalDecision(call: Admitte
     const context: ByContext = { actorUserId, teamId, membership, memberships };
     let answer: boolean | undefined;
     let roleContext: ByContext | null = null, roleUses = 0;
-    const expectedManager = decodeValue('user', root.data['manager']) as { readonly kind: string; readonly id: string };
+    const expectedManager = decodeValue('user', root.data[followup ? 'assignee' : 'manager']) as { readonly kind: string; readonly id: string };
     const role = async (name: string, subject: UserRef): Promise<boolean> => {
       healthy();
       if (roleContext === null || owner.activeEventDecision?.site !== site ||
@@ -6204,7 +6229,7 @@ export async function executeScenarioReceiptSuccessRenewalDecision(call: Admitte
           throw new StateError('conflict', 'Renewal Employee owner domain changed before commit.');
         }
       }
-      const retained = successRenewalOwnWrite(call, owner, root, workRevision, final.writes, finalHealthy);
+      const retained = successNoticeOwnWrite(call, owner, root, account, workRevision, accountRevision, final.writes, finalHealthy);
       if (authority.value) {
         if (!retained || owner.stage !== 1 || owner.framework?.ordinal !== 1 ||
             owner.framework.queued.size !== 1 || owner.framework.skipped.size !== 0) {

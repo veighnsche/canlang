@@ -1,4 +1,4 @@
-## Minimal renewal guard probe: exact success.renewal_due shape with local
+## Success reminder probes: exact renewal_due and remind shapes with local
 ## package canonicals. Sibling CanSuccess bookkeeping is out of scope.
 app SuccessProbe uses=[success]
 
@@ -34,10 +34,12 @@ package success
  Given
   role account_manager
   Account in Customer { location:Location, manager:user, email:email, renewal:date?, active:bool=true }
-  Notice in Account { revision:int, account_revision:int, recipient:email, subject:text, body:text, delivery:delivery(Mail.send)? }
+  FollowUp in Account {title:text,due:datetime,assignee:user,email:email,done:bool=false}
+  Notice in Account { followup:FollowUp?, revision:int, account_revision:int, recipient:email, subject:text, body:text, delivery:delivery(Mail.send)? }
   policy Account read=members
   policy Notice read=members
   event RenewalDue { account:Account, revision:int }
+  event FollowUpDue {followup:FollowUp,revision:int,account_revision:int}
  When
   scenario renewal_due on=RenewalDue
    require event.account.version==event.revision and event.account.active and event.account.renewal!=null
@@ -45,4 +47,11 @@ package success
     if account_manager(event.account.manager) and can_work(event.account.manager,event.account.location) and local_instant(event.account.renewal,"00:00",event.account.location.timezone,fold=earlier)<=now
      send Mail.send {to=event.account.email,subject=format("Account renewal due"@{nl="Klantverlenging nodig"},locale=null),body=format("Review the recorded renewal date; renewal remains a separate agreement action."@{nl="Controleer de vastgelegde verlengingsdatum; verlenging blijft een afzonderlijke overeenkomstactie."},locale=null)} when=event.account.version==event.revision and event.account.active and account_manager(event.account.manager) and can_work(event.account.manager,event.account.location) as notice
      create Notice {parent=event.account,revision=event.revision,account_revision=event.revision,recipient=event.account.email,subject="Account renewal due",body="Review the recorded renewal date; renewal remains a separate agreement action.",delivery=notice} as outcome
+  scenario remind on=FollowUpDue
+   require event.followup.version==event.revision and event.followup.parent.version==event.account_revision and not event.followup.done and event.followup.parent.active
+   do
+    if account_manager(event.followup.assignee) and can_work(event.followup.assignee,event.followup.parent.location) and event.followup.due<=now
+     send Mail.send {to=event.followup.email,subject=format("Account follow-up"@{nl="Klantopvolging"},locale=null),body=event.followup.title} when=event.followup.version==event.revision and event.followup.parent.version==event.account_revision and not event.followup.done and event.followup.parent.active and account_manager(event.followup.assignee) and can_work(event.followup.assignee,event.followup.parent.location) as notice
+     create Notice {parent=event.followup.parent,followup=event.followup,revision=event.revision,account_revision=event.account_revision,recipient=event.followup.email,subject="Account follow-up",body=event.followup.title,delivery=notice} as outcome
+
  Then

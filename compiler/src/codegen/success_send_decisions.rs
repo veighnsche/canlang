@@ -1,13 +1,7 @@
-//! Source-bound SEND guard for the CanSuccess renewal reminder.
-//!
-//! `success.renewal_due` is event-driven (`on=RenewalDue`): a top-level
-//! `require` stages only rows whose version/active/renewal match, then one
-//! `if` admits the current manager/location pair before a single guarded
-//! `Mail.send` plus its `Notice` audit row. The authored `when=` keeps four
-//! flat conjuncts live at dispatch (version, active, role, can_work); the
-//! outer `if` time comparison (`local_instant(...)<=now`) is intentionally
-//! NOT re-evaluated at dispatch, so this profile pins the exact `when=` text
-//! and refuses any `now` root inside it.
+//! Closed source profiles for Success renewal and follow-up notices.
+//! Each owns one Require, a source-only time IF, and one guarded Mail/Notice.
+//! Dispatch retains only its authored version, status, role and Employee
+//! conditions; no clock or arbitrary helper can enter these sealed profiles.
 use std::collections::HashMap;
 
 use serde_json::{Value, json};
@@ -35,6 +29,19 @@ const WHEN: &str = "event.account.version==event.revision and event.account.acti
 const SUBJECT: &str =
     "format(\"Account renewal due\"@{nl=\"Klantverlenging nodig\"},locale=null)";
 const BODY: &str = "format(\"Review the recorded renewal date; renewal remains a separate agreement action.\"@{nl=\"Controleer de vastgelegde verlengingsdatum; verlenging blijft een afzonderlijke overeenkomstactie.\"},locale=null)";
+
+
+const FOLLOWUP_REQUIRE: &str = "event.followup.version==event.revision and event.followup.parent.version==event.account_revision and not event.followup.done and event.followup.parent.active";
+const FOLLOWUP_IF: &str = "account_manager(event.followup.assignee) and can_work(event.followup.assignee,event.followup.parent.location) and event.followup.due<=now";
+const FOLLOWUP_WHEN: &str = "event.followup.version==event.revision and event.followup.parent.version==event.account_revision and not event.followup.done and event.followup.parent.active and account_manager(event.followup.assignee) and can_work(event.followup.assignee,event.followup.parent.location)";
+
+fn followup(owner: &IrItem) -> Option<bool> {
+    match owner.canonical.as_str() {
+        "success.renewal_due" => Some(false),
+        "success.remind" => Some(true),
+        _ => None,
+    }
+}
 
 
 fn same_item(context: &FreshSourceContext<'_>, id: SymbolId) -> Option<()> {
@@ -109,14 +116,12 @@ fn plain(node: NodeKey) -> Value {
 /// inside the exact `can_work` body, cited once from the staging IF and once
 /// from the dispatch `when=`. A modified helper or duplicated call site
 /// cannot inherit this owner binding.
-pub(super) fn collect_success_renewal_membership_sites(
+pub(super) fn collect_success_notice_membership_sites(
     context: &FreshSourceContext<'_>,
     owner: &IrItem,
 ) -> Option<Vec<Value>> {
-    if owner.canonical != "success.renewal_due" {
-        return None;
-    }
-    prepare_renewal_due_send_guard(context, owner)?;
+    followup(owner)?;
+    prepare_success_notice_send_guard(context, owner)?;
     let program = context.original();
     let db = context.db();
     let scenario = program.effects.scenarios.get(&owner.id)?;
@@ -196,7 +201,7 @@ pub(super) fn collect_success_renewal_membership_sites(
                 {"source":owner_source,"node":plain(outer),"derive":"employee.can_work"}]
         });
         sites.push(
-            json!({"version":1,"source":owner_source,"owner":"success.renewal_due",
+            json!({"version":1,"source":owner_source,"owner":owner.canonical,
             "node":plain(guard),"statement":plain(statement),
             "stage":stage,"position":position,"calls":[call]}),
         );
@@ -228,13 +233,15 @@ fn unique_call_in(
     calls.next().is_none().then_some(call)
 }
 
-pub(super) fn prepare_renewal_due_send_guard(
+pub(super) fn prepare_success_notice_send_guard(
     context: &FreshSourceContext<'_>,
     owner: &IrItem,
 ) -> Option<(Span, PreparedSendGuard)> {
-    if owner.canonical != "success.renewal_due" {
-        return None;
-    }
+    let followup = followup(owner)?;
+    let root_model = if followup { "success.FollowUp" } else { "success.Account" };
+    let root_field = if followup { "followup" } else { "account" };
+    let root_path = if followup { "event.followup" } else { "event.account" };
+    let event_name = if followup { "success.FollowUpDue" } else { "success.RenewalDue" };
     t::original_ir_match(context, owner)?;
     let program = context.original();
     let db = context.db();
@@ -242,7 +249,8 @@ pub(super) fn prepare_renewal_due_send_guard(
     let account = t::symbol(program, "success.Account")?;
     let notice = t::symbol(program, "success.Notice")?;
     let customer = t::symbol(program, "customer.Customer")?;
-    let event = t::symbol(program, "success.RenewalDue")?;
+    let event = t::symbol(program, event_name)?;
+    let root = t::symbol(program, root_model)?;
     let role = t::symbol(program, "success.account_manager")?;
     let can_work = t::symbol(program, "employee.can_work")?;
     let employee = t::symbol(program, "employee.Employee")?;
@@ -251,10 +259,10 @@ pub(super) fn prepare_renewal_due_send_guard(
         context,
         scenario.node,
         &[can_work],
-        &[account, notice, employee, location],
+        &[account, root, notice, employee, location],
     )?;
     for id in [
-        account, notice, customer, event, role, can_work, employee, location,
+        account, root, notice, customer, event, role, can_work, employee, location,
     ] {
         same_item(context, id)?;
     }
@@ -271,6 +279,7 @@ pub(super) fn prepare_renewal_due_send_guard(
         || scenario.effects.len() != 1
         || program.effects.models.get(&account)?.owner != ModelOwner::ChildOf(customer)
         || program.effects.models.get(&notice)?.owner != ModelOwner::ChildOf(account)
+        || followup && program.effects.models.get(&root)?.owner != ModelOwner::ChildOf(account)
         || !matches!(
             program.symbols.get(role.0 as usize)?.kind,
             SymbolKind::Role
@@ -281,15 +290,17 @@ pub(super) fn prepare_renewal_due_send_guard(
     let SymbolKind::Event { fields } = &program.symbols.get(event.0 as usize)?.kind else {
         return None;
     };
-    if fields.len() != 2
-        || program.symbols.get(fields[0].0 as usize)?.name != "account"
+    if fields.len() != (if followup { 3 } else { 2 })
+        || program.symbols.get(fields[0].0 as usize)?.name != root_field
         || program.symbols.get(fields[1].0 as usize)?.name != "revision"
         || !program
             .types
             .symbol_types
             .get(&fields[0])
-            .is_some_and(|ty| t::record_is(program, ty, "success.Account"))
+            .is_some_and(|ty| t::record_is(program, ty, root_model))
         || program.types.symbol_types.get(&fields[1]) != Some(&ResolvedType::Scalar(Scalar::Int))
+        || followup && (program.symbols.get(fields[2].0 as usize)?.name != "account_revision"
+            || program.types.symbol_types.get(&fields[2]) != Some(&ResolvedType::Scalar(Scalar::Int)))
     {
         return None;
     }
@@ -329,9 +340,9 @@ pub(super) fn prepare_renewal_due_send_guard(
     };
     if header.verb != EffectVerb::Require
         || !t::no_children(header)
-        || header.cond.and_then(|node| t::text(db, node)) != Some(REQUIRE)
+        || header.cond.and_then(|node| t::text(db, node)) != Some(if followup { FOLLOWUP_REQUIRE } else { REQUIRE })
         || top.verb != EffectVerb::If
-        || top.cond.and_then(|node| t::text(db, node)) != Some(IF_TEXT)
+        || top.cond.and_then(|node| t::text(db, node)) != Some(if followup { FOLLOWUP_IF } else { IF_TEXT })
         || !top.else_effects.is_empty()
         || program.types.node_types.get(&header.cond?) != Some(&ResolvedType::Scalar(Scalar::Bool))
     {
@@ -344,43 +355,35 @@ pub(super) fn prepare_renewal_due_send_guard(
         || !t::no_children(send)
         || send.target_node.and_then(|node| t::text(db, node)) != Some("Mail.send")
         || send.binding.as_deref() != Some("notice")
-        || send.when.and_then(|node| t::text(db, node)) != Some(WHEN)
+        || send.when.and_then(|node| t::text(db, node)) != Some(if followup { FOLLOWUP_WHEN } else { WHEN })
         || !t::args_match(
             db,
             send,
             &[
-                ("to", Some("event.account.email")),
-                ("subject", Some(SUBJECT)),
-                ("body", Some(BODY)),
+                ("to", Some(if followup { "event.followup.email" } else { "event.account.email" })),
+                ("subject", Some(if followup { "format(\"Account follow-up\"@{nl=\"Klantopvolging\"},locale=null)" } else { SUBJECT })),
+                ("body", Some(if followup { "event.followup.title" } else { BODY })),
             ],
         )
         || program.types.node_types.get(&send.when?) != Some(&ResolvedType::Scalar(Scalar::Bool))
     {
         return None;
     }
-    if create.verb != EffectVerb::Create
-        || !t::no_children(create)
+    let notice_args = if followup {
+        vec![("parent", Some("event.followup.parent")), ("followup", Some("event.followup")),
+            ("revision", Some("event.revision")), ("account_revision", Some("event.account_revision")),
+            ("recipient", Some("event.followup.email")), ("subject", Some("\"Account follow-up\"")),
+            ("body", Some("event.followup.title")), ("delivery", Some("notice"))]
+    } else {
+        vec![("parent", Some("event.account")), ("revision", Some("event.revision")),
+            ("account_revision", Some("event.revision")), ("recipient", Some("event.account.email")),
+            ("subject", Some("\"Account renewal due\"")),
+            ("body", Some("\"Review the recorded renewal date; renewal remains a separate agreement action.\"")),
+            ("delivery", Some("notice"))]
+    };
+    if create.verb != EffectVerb::Create || !t::no_children(create)
         || !matches!(create.target, Some(EffectTarget::Model(id)) if id == notice)
-        || create.binding.as_deref() != Some("outcome")
-        || !t::args_match(
-            db,
-            create,
-            &[
-                ("parent", Some("event.account")),
-                ("revision", Some("event.revision")),
-                ("account_revision", Some("event.revision")),
-                ("recipient", Some("event.account.email")),
-                ("subject", Some("\"Account renewal due\"")),
-                (
-                    "body",
-                    Some(
-                        "\"Review the recorded renewal date; renewal remains a separate agreement action.\"",
-                    ),
-                ),
-                ("delivery", Some("notice")),
-            ],
-        )
-    {
+        || create.binding.as_deref() != Some("outcome") || !t::args_match(db, create, &notice_args) {
         return None;
     }
     let IrItemKind::Scenario {
@@ -399,7 +402,7 @@ pub(super) fn prepare_renewal_due_send_guard(
     else {
         return None;
     };
-    if ir_event != "success.RenewalDue" || !by.is_empty() || !params.is_empty() {
+    if ir_event != event_name || !by.is_empty() || !params.is_empty() {
         return None;
     }
     let [
@@ -492,12 +495,12 @@ pub(super) fn prepare_renewal_due_send_guard(
     // Staging (require) names the row first; the guard predicate reuses it.
     // Declaration sites live in the staged header, occurrences in `when=`.
     let header_cond = header.cond?;
-    let header_account = first_member(program, db, header_cond, "event.account")?;
+    let header_account = first_member(program, db, header_cond, root_path)?;
     let header_revision = first_member(program, db, header_cond, "event.revision")?;
-    let when_account = first_member(program, db, predicate, "event.account")?;
+    let when_account = first_member(program, db, predicate, root_path)?;
     let when_revision = first_member(program, db, predicate, "event.revision")?;
     let row_ty = ResolvedType::Record {
-        symbol: account,
+        symbol: root,
         stored: true,
     };
     let event_value = |field: &str, ty: ResolvedType, at: NodeKey| {
@@ -514,11 +517,11 @@ pub(super) fn prepare_renewal_due_send_guard(
             t::span(at),
         )
     };
-    let inputs = vec![
+    let mut inputs = vec![
         PreparedSendInput {
             name: "eventTerm".into(),
-            type_id: "success.Account".into(),
-            value: event_value("account", row_ty, header_account),
+            type_id: root_model.into(),
+            value: event_value(root_field, row_ty, header_account),
             declaration: header_account,
             symbol: None,
             owner: owner.id,
@@ -540,10 +543,16 @@ pub(super) fn prepare_renewal_due_send_guard(
             narrowing: None,
         },
     ];
+    if followup {
+        let declaration = first_member(program, db, header_cond, "event.account_revision")?;
+        inputs.push(PreparedSendInput { name:"eventAccountRevision".into(), type_id:"int".into(),
+            value:event_value("account_revision", ResolvedType::Scalar(Scalar::Int), declaration),
+            declaration, symbol:None, owner:owner.id, ordinal:2, narrowing:None });
+    }
     let source = t::source(program, db, predicate, "success")?;
     let rule = format!(
-        "success.renewal_due.sendWhen.{}.{}.{}",
-        source["sha256"].as_str()?,
+        "{}.sendWhen.{}.{}.{}",
+        owner.canonical, source["sha256"].as_str()?,
         predicate.start,
         predicate.end
     );
@@ -553,20 +562,19 @@ pub(super) fn prepare_renewal_due_send_guard(
     let if_site = t::site(program, db, "success", top.cond?, top.node, "success-renewal-if")?;
     let send_site = t::site(program, db, "success", send.when?, send.node, "success-renewal-send")?;
     let create_site = t::site(program, db, "success", create.node, create.node, "success-renewal-create")?;
-    let decision = json!({"version":1,"owner":"success.renewal_due","source":source.clone(),
+    let decision = json!({"version":1,"owner":owner.canonical,"source":source.clone(),
         "sites":{"require":require_site,"if":if_site,"send":send_site,"create":create_site},
         "sendRule":{"rule":rule.clone(),"source":source.clone(),
             "node":node_plain.clone(),"statement":statement_plain.clone()}});
-    let descriptor = json!({"rule":rule,"owner":"success.renewal_due","source":source,
+    let descriptor = json!({"rule":rule,"owner":owner.canonical,"source":source,
         "node":node_plain,"statement":statement_plain,
         "target":"std.EmailV1.send","binding":"success.Mail","sourceBinding":"notice",
-        "inputs":[{"name":"eventTerm","type":"success.Account"},
-            {"name":"eventRevision","type":"int"}],
-        "eventSource":{"event":"success.RenewalDue","handler":"success.renewal_due",
-            "modelField":{"name":"account","model":"success.Account",
+        "inputs":inputs.iter().map(|input| json!({"name":input.name,"type":input.type_id})).collect::<Vec<_>>(),
+        "eventSource":{"event":event_name,"handler":owner.canonical,
+            "modelField":{"name":root_field,"model":root_model,
                 "declaration":plain(header_account),
                 "occurrence":plain(when_account),
-                "fields":["active","email","location","manager","renewal"]},
+                "fields":if followup { vec!["assignee","done","due","email","title"] } else { vec!["active","email","location","manager","renewal"] }},
             "revisionField":{"name":"revision","type":"int",
                 "declaration":plain(header_revision),
                 "occurrence":plain(when_revision)},
@@ -582,7 +590,7 @@ pub(super) fn prepare_renewal_due_send_guard(
             event_source: Some(super::send_guards::PreparedSendEventSource {
                 model_slot: "eventTerm",
                 revision_slot: "eventRevision",
-                model_field: "account".into(),
+                model_field: root_field.into(),
                 revision_field: "revision".into(),
                 lexical_alias: None,
             }),
@@ -595,16 +603,14 @@ pub(super) fn prepare_renewal_due_send_guard(
 /// here for sendRule correspondence before it joins the State plan. Full
 /// site/source validation happens in State's checkSuccessRenewalDecisionPlan
 /// and the Cloudflare occurrence gate.
-pub(super) fn collect_renewal_receipt(
+pub(super) fn collect_success_notice_receipt(
     context: &FreshSourceContext<'_>,
     item: &IrItem,
     entry_module: &str,
     send_guards: &HashMap<Span, PreparedSendGuard>,
 ) -> Option<NativeScenarioReceipt> {
-    if item.canonical != "success.renewal_due" {
-        return None;
-    }
-    let (span, guard) = prepare_renewal_due_send_guard(context, item)?;
+    followup(item)?;
+    let (span, guard) = prepare_success_notice_send_guard(context, item)?;
     if send_guards.get(&span).is_none_or(|registered| registered.rule != guard.rule) {
         return None;
     }
@@ -630,7 +636,7 @@ pub(super) fn collect_renewal_receipt(
         return None;
     }
     let decision = guard.descriptor.pointer("/eventSource/ownerDecision")?.clone();
-    if decision["owner"] != "success.renewal_due" || decision["source"] != logical ||
+    if decision["owner"] != item.canonical || decision["source"] != logical ||
         decision["sendRule"]["rule"] != guard.descriptor["rule"] ||
         decision["sendRule"]["source"] != guard.descriptor["source"] ||
         decision["sendRule"]["node"] != guard.descriptor["node"] ||

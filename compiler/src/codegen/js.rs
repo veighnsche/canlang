@@ -12603,7 +12603,7 @@ fn null_equality(
                     }
                 } else if let Some(decision) = renewal_decision {
                     let site = &decision["sites"]["if"];
-                    if decision["owner"] != "success.renewal_due"
+                    if !matches!(decision["owner"].as_str(), Some("success.renewal_due" | "success.remind"))
                         || site["statement"]["start"].as_u64() != Some(u64::from(span.start))
                         || site["statement"]["end"].as_u64() != Some(u64::from(span.end))
                         || site["node"]["start"].as_u64() != Some(u64::from(cond.span.start))
@@ -12614,12 +12614,13 @@ fn null_equality(
                         "false".into()
                     } else {
                         self.enter_scope();
-                        let account = self.bind("account");
+                        let root_field = if decision["owner"] == "success.remind" { "followup" } else { "account" };
+                        let account = self.bind(root_field);
                         let event = self.bind("event");
                         let expression = self.lower_expr(cond);
                         self.exit_scope();
                         self.stdlib.insert("nativeScenarioEventDecision".into());
-                        format!("await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision}})=>{{const {account}=eventTerm;const {event}={{account:eventTerm,revision:eventRevision}};return {expression};}})",
+                        format!("await nativeScenarioEventDecision(c,{},async(c,{{eventTerm,eventRevision,eventAccountRevision}})=>{{const {account}=eventTerm;const {event}={{{root_field}:eventTerm,revision:eventRevision,account_revision:eventAccountRevision}};return {expression};}})",
                             descriptor_json(&decision))
                     }
                 } else {
@@ -19754,8 +19755,11 @@ impl<'a> Emitter<'a> {
                     .collect::<Vec<_>>()
                     .join("");
                 let event_binding = guard.event_source.as_ref().map_or_else(String::new, |source| {
+                    let extra = if guard.descriptor["owner"] == "success.remind" {
+                        ",account_revision:$can$send$inputs[\"eventAccountRevision\"]"
+                    } else { "" };
                     let event = format!(
-                        "const {}={{{}:$can$send$inputs[{}],{}:$can$send$inputs[{}]}};",
+                        "const {}={{{}:$can$send$inputs[{}],{}:$can$send$inputs[{}]{extra}}};",
                         self.bind("event"),
                         object_key(&source.model_field), js_string(source.model_slot),
                         object_key(&source.revision_field), js_string(source.revision_slot),
