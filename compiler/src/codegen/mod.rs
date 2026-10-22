@@ -45,6 +45,7 @@ pub mod ir;
 pub mod js;
 mod authority_query_sites;
 mod mailbox_events;
+mod payments_events;
 mod membership;
 pub mod model_policies;
 pub mod model_policy_profile;
@@ -174,6 +175,7 @@ pub fn emit(
     }
     let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
     let needs_source_context = sources.options.native_scenario_receipts
+        || !program.payments_changed_handlers().is_empty()
         || program.types.selected_calls.values().any(|call| {
             matches!(
                 &call.target, crate::analysis::types::SelectedCallTarget::Builtin { id, .. }
@@ -252,6 +254,7 @@ pub fn emit(
     // consumers above keep the strict error-filtered context.
     let membership = query_context.and_then(membership::prepare_with_context);
     let mailbox_events = mailbox_events::prepare(program, &ir, sources.db, sources.catalog);
+    let payments_changed_events = query_context.and_then(payments_events::prepare);
     // Boolean/read inventory seals per checked occurrence inside its bridge,
     // so unrelated IR refusals elsewhere do not orphan it; the requires-only
     // fallback below preserves prior behavior when occurrence seals refuse.
@@ -325,6 +328,7 @@ pub fn emit(
             transcript_queries: Some(&transcript_queries),
             membership: membership.as_ref(),
             mailbox_events: mailbox_events.as_ref(),
+            payments_changed_events: payments_changed_events.as_ref(),
             read_predicates: read_predicates.as_ref(),
             send_guards: send_guards.as_ref().and_then(|guards| guards.as_ref().ok()),
             send_guard_gap: send_guards

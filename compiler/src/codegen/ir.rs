@@ -858,6 +858,21 @@ pub fn build(
             return (ir, mailbox_diagnostics);
         }
     }
+    if !program.payments_changed_handlers().is_empty() {
+        // Original PaymentsV1.changed claims are private and survive edits
+        // to public tables. Refuse before general lowering can index a
+        // withdrawn/corrupt handler owner.
+        let payments = Cx::new(program, db, catalog);
+        let payments_diagnostics = program.payments_changed_handlers().iter().filter(|handler|
+            payments.payments_changed_source(handler.id).is_none()).map(|handler|
+            Diagnostic::error("E6008", "PaymentsV1.changed source: original bound trigger and complete payload correspondence unavailable".into(), handler.span)
+        ).collect::<Vec<_>>();
+        if !payments_diagnostics.is_empty() {
+            let mut ir = empty_program(&program.catalog_version);
+            ir.committed_sources.payments_changed_event_handlers = program.payments_changed_handlers().to_vec();
+            return (ir, payments_diagnostics);
+        }
+    }
     if !program.standard_completion_handlers.is_empty() {
         let mut candidate = Cx::new(program, db, catalog);
         candidate.native_standard_completion = true;
@@ -1808,6 +1823,12 @@ pub enum IrEventSource {
         binding: String,
         from: String,
     },
+    /// Checked bound PaymentsV1.changed source. This is not ingress authority.
+    PaymentsChanged {
+        source: String,
+        binding: String,
+        from: String,
+    },
     Committed {
         model: SymbolId,
         change: IrCommittedChange,
@@ -1872,6 +1893,7 @@ pub struct CheckedCommittedSources {
     // facts or operation IDs are withdrawn after checked lowering.
     native_model_result_indices: std::collections::HashSet<usize>,
     mailbox_event_handlers: Vec<crate::analysis::CheckedMailboxHandler>,
+    payments_changed_event_handlers: Vec<crate::analysis::CheckedPaymentsChangedHandler>,
 }
 
 /// Selected schema roots are source evidence, not native event authority.
@@ -2356,6 +2378,20 @@ impl StandardValueCensus {
                             span: item.span,
                         });
                     }
+                    if let Some(IrEventSource::PaymentsChanged {
+                        source, binding, ..
+                    }) = event_source
+                    {
+                        census.roots.push(("PaymentState".into(), item.span));
+                        census.selections.push(StandardValueSelection {
+                            item: Some(item.id),
+                            module: item.module,
+                            position: format!("{}:payments-changed", item.canonical),
+                            identity: source.clone(),
+                            binding: Some(binding.clone()),
+                            span: item.span,
+                        });
+                    }
                     if let Some(ty) = result {
                         census.declared(item, ty, "result")?;
                     }
@@ -2814,6 +2850,16 @@ impl CheckedCommittedSources {
     }
     pub(crate) fn mailbox_event_handlers(&self) -> &[crate::analysis::CheckedMailboxHandler] {
         &self.mailbox_event_handlers
+    }
+    pub(crate) fn requires_payments_changed_event(&self, index: usize) -> bool {
+        self.payments_changed_event_handlers
+            .iter()
+            .any(|handler| handler.id.0 as usize == index)
+    }
+    pub(crate) fn payments_changed_event_handlers(
+        &self,
+    ) -> &[crate::analysis::CheckedPaymentsChangedHandler] {
+        &self.payments_changed_event_handlers
     }
     pub(crate) fn requires_native_model_result(&self, index: usize) -> bool {
         self.native_model_result_indices.contains(&index)
@@ -5212,6 +5258,291 @@ impl<'a> Cx<'a> {
         })
     }
 
+    fn payments_changed_handler(
+        &self,
+        id: SymbolId,
+    ) -> Option<&crate::analysis::CheckedPaymentsChangedHandler> {
+        let mut originals = self
+            .program
+            .payments_changed_handlers()
+            .iter()
+            .filter(|handler| handler.id == id);
+        let original = originals.next()?;
+        if originals.next().is_some() {
+            return None;
+        }
+        Some(original)
+    }
+
+    fn payments_changed_declared(
+        &self,
+        id: SymbolId,
+    ) -> Option<(
+        &crate::analysis::resolve::Symbol,
+        &crate::analysis::effects::ScenarioData,
+        crate::analysis::NodeKey,
+        &crate::analysis::types::CheckedStdCapabilityEvent,
+        &crate::analysis::resolve::Module,
+    )> {
+        let symbol = self.program.symbols.get(id.0 as usize)?;
+        let SymbolKind::Scenario { trusted: true, .. } = &symbol.kind else {
+            return None;
+        };
+        let data = self.program.effects.scenarios.get(&id)?;
+        let on = data.on_node?;
+        let fact = self.program.types.std_capability_event_handlers.get(&on)?;
+        let module = self.program.modules.get(symbol.module.0 as usize)?;
+        Some((symbol, data, on, fact, module))
+    }
+
+    fn payments_changed_syntax<'s>(
+        &'s self,
+        node: &crate::analysis::NodeKey,
+        on: crate::analysis::NodeKey,
+        module_file: crate::source::SourceId,
+        payload: &'s crate::analysis::types::ResolvedType,
+    ) -> Option<(
+        &'s SyntaxNode,
+        &'s crate::source::Source,
+        &'s SyntaxNode,
+        &'s str,
+        &'s str,
+    )> {
+        let owner = self.node(node)?;
+        let source = self.db.get(module_file)?;
+        let header = self.node(&on)?;
+        let path = crate::analysis::path_segments(header, &source.text);
+        let [alias, event] = path.as_slice() else {
+            return None;
+        };
+        // Payments `changed` carries the whole `PaymentState` directly (the
+        // draft consumes `event` as `PaymentState`); the single private
+        // input below names that same nominal value.
+        if crate::analysis::types::checked_standard_nominal_name(payload) != Some("PaymentState") {
+            return None;
+        }
+        Some((owner, source, header, *alias, *event))
+    }
+
+    fn payments_changed_symbol_identity_matches(
+        symbol: &crate::analysis::resolve::Symbol,
+        original: &crate::analysis::CheckedPaymentsChangedHandler,
+        id: SymbolId,
+    ) -> bool {
+        symbol.id != original.id
+            || symbol.module != original.module
+            || symbol.name != original.name
+            || symbol.span != original.span
+            || symbol.canonical != original.canonical
+            || symbol.id != id
+    }
+
+    fn payments_changed_declared_identity_matches(
+        data: &crate::analysis::effects::ScenarioData,
+        on: crate::analysis::NodeKey,
+        module: &crate::analysis::resolve::Module,
+        original: &crate::analysis::CheckedPaymentsChangedHandler,
+    ) -> bool {
+        data.node != original.node
+            || on != original.on
+            || module.id != original.module
+            || module.name != original.module_name
+            || module.file != original.file
+            || module.span != original.module_span
+    }
+
+    fn payments_changed_scenario_shape_matches(
+        symbol: &crate::analysis::resolve::Symbol,
+        data: &crate::analysis::effects::ScenarioData,
+        id: SymbolId,
+        module_name: &str,
+    ) -> bool {
+        let params = match &symbol.kind {
+            SymbolKind::Scenario { params, .. } => params,
+            _ => return true,
+        };
+        symbol.module != data.module
+            || data.scenario != id
+            || symbol.canonical != format!("{}.{}", module_name, symbol.name)
+            || !params.is_empty()
+            || !data.params.is_empty()
+            || data.by.is_some()
+            || data.read
+            || data.scope_authority
+            || data.cohort.is_some()
+    }
+
+    fn payments_changed_syntax_identity_matches(
+        owner: &SyntaxNode,
+        header: &SyntaxNode,
+        on: crate::analysis::NodeKey,
+        data: &crate::analysis::effects::ScenarioData,
+        module_file: crate::source::SourceId,
+        symbol: &crate::analysis::resolve::Symbol,
+        text: &str,
+        event: &str,
+    ) -> bool {
+        owner.kind != SyntaxKind::Scenario
+            || header.kind != SyntaxKind::Path
+            || on.file != module_file
+            || data.node.file != module_file
+            || !owner.children.iter().any(|node| {
+                node.kind == SyntaxKind::Name
+                    && node.span == symbol.span
+                    && node
+                        .token()
+                        .is_some_and(|token| token.text(text) == symbol.name)
+            })
+            || crate::analysis::attribute_value(owner, "on", text).map(NodeKey::of) != Some(on)
+            || event != "changed"
+    }
+
+    fn payments_changed_fact_envelope_matches(
+        fact: &crate::analysis::types::CheckedStdCapabilityEvent,
+        original_event: &crate::analysis::types::CheckedStdCapabilityEvent,
+        module_name: &str,
+        alias: &str,
+        event: &str,
+        data_on: &Option<crate::analysis::effects::HandlerSource>,
+    ) -> bool {
+        fact.capability != original_event.capability
+            || fact.event != original_event.event
+            || fact.source != original_event.source
+            || fact.payload != original_event.payload
+            || fact.capability != "std.PaymentsV1"
+            || fact.event != "changed"
+            || fact.source != format!("{}.{}.changed", module_name, alias)
+            || crate::analysis::types::checked_standard_nominal_name(&fact.payload)
+                != Some("PaymentState")
+            || !matches!(data_on, Some(crate::analysis::effects::HandlerSource::StdCapabilityEvent {capability,event,source})
+                if capability == &fact.capability && event == &fact.event && source == &fact.source)
+    }
+
+    fn payments_changed_route<'s>(
+        &'s self,
+        module: &'s crate::analysis::resolve::Module,
+        alias: &str,
+        source: &'s crate::source::Source,
+    ) -> Option<(
+        &'s crate::analysis::resolve::Import,
+        &'s crate::analysis::resolve::ImportMember,
+        &'s String,
+        &'s SyntaxNode,
+        &'s str,
+    )> {
+        let mut routes = module.imports.iter().flat_map(|import| {
+            import
+                .members
+                .iter()
+                .filter(move |member| member.alias == alias)
+                .map(move |member| (import, member))
+        });
+        let (import, member) = routes.next()?;
+        let from = import.from.as_ref()?;
+        let import_node = self.node(&NodeKey {
+            file: import.span.file,
+            start: import.span.start,
+            end: import.span.end,
+            kind: SyntaxKind::Import as u8,
+        })?;
+        let from_node = crate::analysis::attribute_value(import_node, "from", &source.text)?;
+        let member_node = self.node(&NodeKey {
+            file: member.span.file,
+            start: member.span.start,
+            end: member.span.end,
+            kind: SyntaxKind::ImportMember as u8,
+        })?;
+        let names: Vec<_> = kids(member_node)
+            .iter()
+            .filter_map(|node| crate::analysis::name_text(node, &source.text))
+            .collect();
+        let original_alias = match names.as_slice() {
+            ["PaymentsV1"] => "PaymentsV1",
+            ["PaymentsV1", "as", alias] => *alias,
+            _ => return None,
+        };
+        if routes.next().is_some() {
+            return None;
+        }
+        Some((import, member, from, from_node, original_alias))
+    }
+
+    fn payments_changed_route_valid(
+        import: &crate::analysis::resolve::Import,
+        member: &crate::analysis::resolve::ImportMember,
+        original_alias: &str,
+        alias: &str,
+        from: &str,
+        from_node: &SyntaxNode,
+        source: &crate::source::Source,
+        fact: &crate::analysis::types::CheckedStdCapabilityEvent,
+    ) -> Option<()> {
+        if import.provider != "std"
+            || member.name != "PaymentsV1"
+            || original_alias != alias
+            || from.is_empty()
+            || source
+                .text
+                .get(import.provider_span.start as usize..import.provider_span.end as usize)
+                != Some("std")
+            || from_node.kind != SyntaxKind::Path
+            || crate::analysis::path_segments(from_node, &source.text)
+                .first()
+                .copied()
+                != Some("deployment")
+            || source
+                .text
+                .get(from_node.span.start as usize..from_node.span.end as usize)?
+                .trim()
+                != from
+            || std_capability(&member.name)?.name != fact.capability
+        {
+            return None;
+        }
+        Some(())
+    }
+
+    fn payments_changed_source(&self, id: SymbolId) -> Option<IrEventSource> {
+        let original = self.payments_changed_handler(id)?;
+        let (symbol, data, on, fact, module) = self.payments_changed_declared(id)?;
+        let (owner, source, header, alias, event) =
+            self.payments_changed_syntax(&data.node, on, module.file, &fact.payload)?;
+        if Self::payments_changed_symbol_identity_matches(symbol, original, id)
+            || Self::payments_changed_declared_identity_matches(data, on, module, original)
+            || Self::payments_changed_scenario_shape_matches(symbol, data, id, &module.name)
+            || Self::payments_changed_syntax_identity_matches(
+                owner, header, on, data, module.file, symbol, &source.text, event,
+            )
+            || Self::payments_changed_fact_envelope_matches(
+                fact,
+                &original.event,
+                &module.name,
+                alias,
+                event,
+                &data.on,
+            )
+        {
+            return None;
+        }
+        let (import, member, from, from_node, original_alias) =
+            self.payments_changed_route(module, alias, source)?;
+        Self::payments_changed_route_valid(
+            import,
+            member,
+            original_alias,
+            alias,
+            from,
+            from_node,
+            source,
+            fact,
+        )?;
+        Some(IrEventSource::PaymentsChanged {
+            source: fact.source.clone(),
+            binding: format!("{}.{}", module.name, alias),
+            from: from.clone(),
+        })
+    }
+
     fn completion_handler_census_valid(&self) -> bool {
         let count = self.program.standard_completion_handlers.len();
         count == self.program.types.std_delivery_completion_handlers.len()
@@ -5659,6 +5990,7 @@ impl<'a> Cx<'a> {
             empty_value_inventory: None,
             native_model_result_indices: std::collections::HashSet::new(),
             mailbox_event_handlers: self.program.mailbox_handlers().to_vec(),
+            payments_changed_event_handlers: self.program.payments_changed_handlers().to_vec(),
             standard_value_inventory: None,
             sources: self
                 .program
@@ -11692,6 +12024,14 @@ impl<'a> Cx<'a> {
                 .name_types
                 .insert("event".into(), fact.payload.clone());
         }
+        if self.payments_changed_source(symbol.id).is_some()
+            && let Some(on) = data.on_node
+            && let Some(fact) = self.program.types.std_capability_event_handlers.get(&on)
+        {
+            scope
+                .name_types
+                .insert("event".into(), fact.payload.clone());
+        }
         if let Some(crate::analysis::effects::HandlerSource::Queue { name }) = &data.on {
             if let Some(payload) = self
                 .program
@@ -11916,6 +12256,13 @@ impl<'a> Cx<'a> {
                 ..
             }) if capability == "std.MailboxV1" && event == "received" => {
                 self.mailbox_received_source(symbol.id)
+            }
+            Some(crate::analysis::effects::HandlerSource::StdCapabilityEvent {
+                capability,
+                event,
+                ..
+            }) if capability == "std.PaymentsV1" && event == "changed" => {
+                self.payments_changed_source(symbol.id)
             }
             // Provider capability events carry the same checked field
             // payload as declared events (both lower to `Event` items);

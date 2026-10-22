@@ -123,6 +123,7 @@ pub struct CheckedProgram {
     pub(crate) committed_handlers: Vec<CheckedCommittedHandler>,
     pub(crate) standard_completion_handlers: Vec<CheckedStandardCompletionHandler>,
     mailbox_handlers: Vec<CheckedMailboxHandler>,
+    payments_changed_handlers: Vec<CheckedPaymentsChangedHandler>,
     cohort: cohort::CheckedCohort,
     // Original check input, independent of editable public analysis tables.
     original_given: Option<types::GivenContractTables>,
@@ -173,6 +174,24 @@ pub(crate) struct CheckedMailboxHandler {
     pub span: crate::source::Span,
 }
 
+/// Original checked PaymentsV1.changed source requirement retained
+/// independently of the editable effects, types and module tables. It
+/// supplies no ingress authority.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedPaymentsChangedHandler {
+    pub id: SymbolId,
+    pub module: ModuleId,
+    pub module_name: String,
+    pub file: SourceId,
+    pub module_span: crate::source::Span,
+    pub name: String,
+    pub canonical: String,
+    pub node: NodeKey,
+    pub on: NodeKey,
+    pub event: types::CheckedStdCapabilityEvent,
+    pub span: crate::source::Span,
+}
+
 impl CheckedProgram {
     pub(crate) fn original_given(&self) -> Option<&types::GivenContractTables> {
         self.original_given.as_ref()
@@ -180,6 +199,10 @@ impl CheckedProgram {
 
     pub(crate) fn mailbox_handlers(&self) -> &[CheckedMailboxHandler] {
         &self.mailbox_handlers
+    }
+
+    pub(crate) fn payments_changed_handlers(&self) -> &[CheckedPaymentsChangedHandler] {
+        &self.payments_changed_handlers
     }
 
     /// Files selected for checking, in the caller's original order.
@@ -264,6 +287,7 @@ pub(crate) fn check_program_with_given(
                         committed_handlers: Vec::new(),
                         standard_completion_handlers: Vec::new(),
                         mailbox_handlers: Vec::new(),
+                        payments_changed_handlers: Vec::new(),
                         cohort: cohort::CheckedCohort::new(db, files, catalog),
                         original_given: given.cloned(),
                     },
@@ -422,6 +446,52 @@ pub(crate) fn check_program_with_given(
             })
             .collect()
     };
+    let payments_changed_handlers = if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        Vec::new()
+    } else {
+        resolve_tables
+            .symbols
+            .iter()
+            .filter_map(|symbol| {
+                let data = effects.scenarios.get(&symbol.id)?;
+                let on = data.on_node?;
+                let event = types.std_capability_event_handlers.get(&on)?;
+                let Some(effects::HandlerSource::StdCapabilityEvent {
+                    capability,
+                    event: name,
+                    source,
+                }) = &data.on
+                else {
+                    return None;
+                };
+                if capability != "std.PaymentsV1"
+                    || name != "changed"
+                    || event.capability != *capability
+                    || event.event != *name
+                    || event.source != *source
+                {
+                    return None;
+                }
+                let module = resolve_tables.modules.get(symbol.module.0 as usize)?;
+                Some(CheckedPaymentsChangedHandler {
+                    id: symbol.id,
+                    module: symbol.module,
+                    module_name: module.name.clone(),
+                    file: module.file,
+                    module_span: module.span,
+                    name: symbol.name.clone(),
+                    canonical: symbol.canonical.clone(),
+                    node: data.node,
+                    on,
+                    event: event.clone(),
+                    span: symbol.span,
+                })
+            })
+            .collect()
+    };
     let program = CheckedProgram {
         modules: resolve_tables.modules.clone(),
         symbols: resolve_tables.symbols.clone(),
@@ -433,6 +503,7 @@ pub(crate) fn check_program_with_given(
         committed_handlers,
         standard_completion_handlers,
         mailbox_handlers,
+        payments_changed_handlers,
         cohort: cohort::CheckedCohort::new(db, files, catalog),
         original_given: given.cloned(),
     };
