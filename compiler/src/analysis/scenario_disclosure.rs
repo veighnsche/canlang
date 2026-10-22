@@ -14600,6 +14600,27 @@ impl<'a> Closure<'a> {
             && query.clauses.iter().filter(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. })).count() == 1
     }
 
+    /// A bounded original dates expression carries only immutable civil
+    /// dates. It creates no stored-model query or additional read authority.
+    fn source_require_dates_call(&self, node: NodeKey) -> bool {
+        let Some(call)=self.types.selected_calls.get(&node) else{return false;};
+        if !matches!(&call.target,SelectedCallTarget::Builtin{id,..} if id=="dates")
+            || call.slots.as_slice()!=[Some(0),Some(1),Some(2)] || call.arguments.len()!=3 {return false;}
+        let maximum=call.arguments[2];
+        self.nodes.get(&maximum).is_some_and(|node|node.kind==SyntaxKind::Literal
+            && self.word(node).and_then(|word|word.parse::<usize>().ok()).is_some_and(|value|(1..=1000).contains(&value)))
+            && self.types.node_types.get(&maximum)==Some(&ResolvedType::Scalar(Scalar::Int))
+            && call.arguments[..2].iter().all(|node|self.types.node_types.get(node)==Some(&ResolvedType::Scalar(Scalar::Date)))
+            && self.types.node_types.get(&node)==Some(&ResolvedType::Array{element:Box::new(ResolvedType::Scalar(Scalar::Date)),ordered:true,nonempty:false})
+    }
+
+    fn source_require_dates_query(&self, query:&super::types::CheckedQuery) -> bool {
+        self.source_require_dates_call(query.domain)
+            && query.result==query.domain_type && query.projection.is_none()
+            && self.types.node_types.get(&query.domain)==Some(&query.domain_type)
+            && matches!(query.clauses.as_slice(),[clause] if matches!(&clause.kind,CheckedQueryClauseKind::As{name} if !name.is_empty()) && clause.expressions.is_empty())
+    }
+
     fn source_require_input(&self, ty: &ResolvedType) -> bool {
         if self.source_require_plain_value(ty, 0) { return true; }
         match ty {
@@ -15553,6 +15574,23 @@ impl<'a> Closure<'a> {
             *supported = false;
             return Some(false);
         }
+        // These original calendar operations are checked pure Values calls.
+        // All model-backed arguments still pass the source observer's field
+        // readers; only the dates allocation has an additional finite bound.
+        if let CheckedDecisionCallTarget::Builtin{id,..}=&call.target {
+            if matches!(id.as_str(),"dates"|"local_date"|"local_instant"|"add_days"|"weekday"|"overlaps")
+                && self.catalog.and_then(|catalog|catalog.effects(id))==Some(super::catalog::Effects::Pure)
+                && (id!="dates" || self.source_require_dates_call(call.node))
+                && call.arguments.iter().all(|(_,ty)|self.source_require_plain_value(ty,0)
+                    || matches!(ty,ResolvedType::Enum{cases,..} if !cases.is_empty()))
+                && self.types.node_types.get(&call.node).is_some_and(|ty|self.source_require_plain_value(ty,0))
+            {return Some(true);}
+            if matches!(id.as_str(),"any"|"all") && call.slots.as_slice()==[Some(0),Some(1)]
+                && call.arguments.len()==2 && call.arguments[1].1==ResolvedType::Scalar(Scalar::Bool)
+                && self.types.node_types.get(&call.node)==Some(&ResolvedType::Scalar(Scalar::Bool))
+                && self.types.checked_queries.get(&call.arguments[0].0).is_some_and(|query|self.source_require_dates_query(query))
+            {return Some(true);}
+        }
         // Pure checked Values collections run over the admitted input, never
         // through State's stored-model collection reader.
         if let CheckedDecisionCallTarget::Builtin { id, .. } = &call.target {
@@ -15714,7 +15752,7 @@ impl<'a> Closure<'a> {
             return Some(false);
         }
         if node.kind == SyntaxKind::Query
-            && self.types.checked_queries.get(&key).is_some_and(|query| self.source_require_value_query(query))
+            && self.types.checked_queries.get(&key).is_some_and(|query| self.source_require_value_query(query) || self.source_require_dates_query(query))
         { return Some(true); }
         if node.kind == SyntaxKind::Query
             && self.types.checked_queries.get(&key).is_some_and(|query|

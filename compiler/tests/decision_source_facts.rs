@@ -1742,3 +1742,25 @@ fn imported_contained_require_follows_only_original_required_stored_reference() 
         .replace("open(calendar.location)","open(arbitrary(calendar))");
     assert!(compile(&unowned).iter().any(|diagnostic|diagnostic.code=="E6008"));
 }
+
+#[test]
+fn original_booking_guard_requires_a_finite_literal_civil_date_domain() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let original=include_str!("fixtures/book-available-source.can");
+    for bound in ["1000","0","1001","(500+500)"] {
+        let source=original.replace(",1000)",&format!(",{bound})"));
+        let mut db=SourceDb::new();let file=db.add("book-available.can".into(),source);
+        let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path=root.join("packages/cloudflare/dist/native-catalog.json");
+        let(catalog,diagnostics)=load_catalog(&CatalogRequest{flag:Some(&path),env:None,cwd:root,primary:Span::new(file,0,0)});
+        assert!(diagnostics.is_empty(),"{diagnostics:?}");
+        let(program,diagnostics)=check_program(&db,&[file],catalog.as_ref());
+        if bound=="0" {assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E3001"));continue;}
+        assert!(diagnostics.is_empty(),"{bound}: {diagnostics:?}");
+        let mut result=DiagnosticResult::new("booking","1.0",1);result.add_sources(&db);
+        let(_,diagnostics)=emit(&program,&EmitSources{db:&db,result:&result,catalog:catalog.as_ref(),options:EmitOptions{allow_incomplete_test_only:false,native_scenario_receipts:true}});
+        if bound=="1000" {assert!(diagnostics.is_empty(),"{diagnostics:?}");}
+        else {assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{bound} admitted an unproved date allocation");}
+    }
+}

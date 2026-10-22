@@ -1045,3 +1045,51 @@ it('refuses changed term replay, capture selection, and scheduled-event source b
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
+
+it('evaluates original booking availability over civil dates and both owning calendars',
+  { timeout: 180000 }, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-book-availability-'));
+    try {
+      const source = join(root, 'compiler/tests/fixtures/book-available-source.can');
+      const { stdout } = await promisify(execFile)(compiler,
+        ['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact = JSON.parse(stdout) as CompileArtifact;
+      const asm = await assembleModules({artifact,sourcePath:source},{workDir:directory,
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for (const mode of ['open','inactive','holiday','dated-closed','dated-open','calendar-closed','blocked','other-location','holiday-at-commit']) {
+        const {now,identities,identity}=await member(`booking-${mode}`),store=createMemoryStorage();
+        const row=(id:string,data:Record<string,unknown>,parent:string|null=null)=>
+          ({...makeRow({id:asId(id),data}),parent:parent===null?null:{model:asModel(parent.startsWith('location-')?'rent_catalog.Location':'appointments.Calendar'),id:asId(parent)}});
+        const writes:Array<{kind:'insert';model:ModelName;row:StoredRow}>=[
+          {kind:'insert',model:asModel('rent_catalog.Location'),row:row('location-1',{active:mode!=='inactive',timezone:'UTC'})},
+          {kind:'insert',model:asModel('rent_catalog.Location'),row:row('location-2',{active:true,timezone:'UTC'})},
+          {kind:'insert',model:asModel('appointments.Calendar'),row:row('calendar-1',{location:{id:'location-1'},active:true,timezone:'UTC'})},
+          {kind:'insert',model:asModel('rent_catalog.WeeklyHours'),row:row('location-hours',{weekday:'4',opens:'09:00',closes:'18:00',close_after:'0',fold:'earlier'},mode==='other-location'?'location-2':'location-1')},
+          {kind:'insert',model:asModel('appointments.WeeklyHours'),row:row('calendar-hours',{weekday:'4',opens:'09:00',closes:'18:00',fold:'earlier'},'calendar-1')},
+          {kind:'insert',model:asModel('appointments.Window'),row:row('available-window',{from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T18:00:00.000Z',available:true},'calendar-1')},
+        ];
+        const holiday={kind:'insert' as const,model:asModel('rent_catalog.ClosedDate'),row:row('holiday',{day:'2099-01-01',reason:'Closed'},'location-1')};
+        if(mode==='holiday')writes.push(holiday);
+        if(mode==='dated-closed'||mode==='dated-open')writes.push({kind:'insert',model:asModel('rent_catalog.DateHours'),row:row('dated-hours',{day:'2099-01-01',opens:'09:00',closes:'18:00',close_after:'0',closed:mode==='dated-closed',fold:'earlier'},'location-1')});
+        if(mode==='calendar-closed')writes.push({kind:'insert',model:asModel('appointments.ClosedDay'),row:row('calendar-closure',{day:'2099-01-01',reason:'Closed'},'calendar-1')});
+        if(mode==='blocked')writes.push({kind:'insert',model:asModel('appointments.Window'),row:row('blocked-window',{from:'2099-01-01T09:15:00.000Z',until:'2099-01-01T09:45:00.000Z',available:false},'calendar-1')});
+        await store.commit(makeBatch(await store.readRevision(),{writes}));
+        let inserted=false;
+        if(mode==='holiday-at-commit'){
+          const commit=store.commit.bind(store);
+          store.commit=async batch=>{
+            if(!inserted){inserted=true;await commit(makeBatch(await store.readRevision(),{writes:[holiday]}));}
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const outcome=await invoker.invokeMutation({operation:'appointments.check',operation_id:operationId(now),inputs:{
+          calendar:{id:'calendar-1',version:'1'},from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T09:30:00.000Z'}},identity);
+        const success=mode==='open'||mode==='dated-open';
+        assert.equal('result' in outcome?outcome.result.status:outcome.error.code,success?'committed':'rule_failed',`${mode}: ${JSON.stringify(outcome)}`);
+        if(mode==='holiday-at-commit')assert.equal(inserted,true);
+        assert.equal((await store.load(asModel('appointments.Calendar'),asId('calendar-1')))?.version,1);
+      }
+    } finally {await rm(directory,{recursive:true,force:true});}
+  });
