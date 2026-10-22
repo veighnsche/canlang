@@ -1,0 +1,12 @@
+app ScopedContracts
+Given
+ contract Interval {until:datetime}
+ contract RequestValue {intervals:Interval[]}
+ Request {value:RequestValue}
+ policy Request read=members
+ derive selected():Request[] = Request as request where any(request.value.intervals as interval,interval.until>now)
+ derive renamed():Request[] = Request as candidate where any(candidate.value.intervals as slot,slot.until>now)
+ derive explicit_row():Request[] = Request as row where any(row.value.intervals as interval,interval.until>now)
+ derive shadowed():Request[] = Request as request where any(request.value.intervals as request,request.until>now)
+When
+Then

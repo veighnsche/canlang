@@ -8709,6 +8709,7 @@ impl<'a> Cx<'a> {
 
     fn contract_call_domain_matches(
         &self,
+        scope: &Scope,
         fact: &crate::analysis::types::CheckedContractCollectionCall,
         source: &crate::analysis::types::CheckedQuery,
         base: &TypedExpr,
@@ -8720,7 +8721,8 @@ impl<'a> Cx<'a> {
         match fact.call {
             Some(call) => Some(
                 domain_node.kind == SyntaxKind::NameRef
-                    && matches!(&base.expr, IrExpr::Name(actual) if Some(actual) == domain_name.as_ref())
+                    && matches!(&base.expr, IrExpr::Name(actual) if domain_name.as_ref()
+                        .is_some_and(|name| actual == scope.row_rewrite.get(name).unwrap_or(name)))
                     && self
                         .program
                         .types
@@ -8772,7 +8774,7 @@ impl<'a> Cx<'a> {
                     matches!(self.program.symbols.get(field.0 as usize).map(|symbol| &symbol.kind),
                         Some(SymbolKind::Field {owner: field_owner, ..}) if field_owner == owner)
                         && self.program.types.symbol_types.get(field) == Some(&source.domain_type)
-                        && self.contract_collection_member_matches(domain_node, base),
+                        && self.contract_collection_member_matches(scope, domain_node, base),
                 )
             }
         }
@@ -8875,6 +8877,7 @@ impl<'a> Cx<'a> {
 
     fn join_contract_collection_call(
         &self,
+        scope: &Scope,
         node: &SyntaxNode,
         id: &str,
         overload: usize,
@@ -8902,7 +8905,7 @@ impl<'a> Cx<'a> {
             return false;
         };
         let Some(domain_matches) =
-            self.contract_call_domain_matches(fact, source, base, domain_node)
+            self.contract_call_domain_matches(scope, fact, source, base, domain_node)
         else {
             return false;
         };
@@ -8934,7 +8937,13 @@ impl<'a> Cx<'a> {
 
     /// Match the actual member value against its checked source chain. Nested
     /// member spans may cover the whole chain, so use node types and structure.
-    fn contract_collection_member_matches(&self, node: &SyntaxNode, value: &TypedExpr) -> bool {
+    /// Stored query aliases use the same lexical rewrite as decode_name_ref.
+    fn contract_collection_member_matches(
+        &self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        value: &TypedExpr,
+    ) -> bool {
         let mut pending = vec![(node, value)];
         let mut visits = 0;
         while let Some((node, value)) = pending.pop() {
@@ -8959,7 +8968,8 @@ impl<'a> Cx<'a> {
                     let name = kids(node)
                         .into_iter()
                         .find_map(|child| name_text(self.db, child));
-                    if !matches!(&value.expr, IrExpr::Name(actual) if Some(actual) == name.as_ref())
+                    if !matches!(&value.expr, IrExpr::Name(actual) if name.as_ref()
+                        .is_some_and(|name| actual == scope.row_rewrite.get(name).unwrap_or(name)))
                     {
                         return false;
                     }
@@ -9471,7 +9481,7 @@ impl<'a> Cx<'a> {
                     .collect();
                 if !self.join_collection_call(node, &id, overload, &selected, &mut args)
                     || !self
-                        .join_contract_collection_call(node, &id, overload, &selected, &mut args)
+                        .join_contract_collection_call(scope, node, &id, overload, &selected, &mut args)
                 {
                     return IrExpr::Unsupported {
                         what: "collection call source facts".into(),

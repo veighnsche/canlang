@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {writeFileSync} from 'node:fs';
+import {readFileSync, writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
@@ -63,7 +63,35 @@ assert.equal(await call('shadow',8n,[1n]),false);
 assert.equal(await call('nested',[1n,2n],[-1n,1n]),true);
 assert.equal(await call('nested',[1n,0n],[1n]),false);
 for(const name of ['reserved','named','constant']) assert.equal(await call(name,[1n]),true,name);
-// A synchronous Values predicate cannot receive an awaited generated body.
-const refused=compile('async-predicate',`app Invalid\nGiven\n derive truth(value:int):bool = value>0\n derive test(values:int[]):bool = all(values as item,truth(item))\nWhen\nThen\n`,10);
-assert(refused.diagnostics.some(d=>d.code==='E6008'),JSON.stringify(refused));
-assert.equal(refused.operations,undefined);
+// Awaited generated predicates use the compiler's await-safe loop rather
+// than passing promises into Values' synchronous predicate implementation.
+const awaited=compile('async-predicate',`app Awaited\nGiven\n derive truth(value:int):bool = value>0\n derive test(values:int[]):bool = all(values as item,truth(item))\nWhen\nThen\n`);
+const awaitedPath=resolve(scratch,'async-predicate.mjs');
+writeFileSync(awaitedPath,awaited.modules[0].js);
+const awaitedRegistry=(await import(pathToFileURL(awaitedPath))).canApp();
+assert.equal(await awaitedRegistry['Awaited.test']({},[1n,2n]),true);
+assert.equal(await awaitedRegistry['Awaited.test']({},[1n,0n]),false);
+
+// The nested contract domain retains the outer stored-query alias after
+// normalization; its own predicate alias may shadow that outer spelling.
+const scoped = compile('scoped-contract-alias', readFileSync(resolve(root,
+  'compiler/tests/fixtures/scoped-contract-alias.can'), 'utf8'));
+const runtime = import.meta.resolve('@canlang/cloudflare/runtime/stdlib');
+const scopedText = scoped.modules[0].js.replaceAll('"@canlang/stdlib"', JSON.stringify(runtime));
+const scopedRegistry = (await import('data:text/javascript;base64,'+
+  Buffer.from(scopedText).toString('base64'))).canApp();
+const expired = {value:{intervals:[{until:after}]}},
+  future = {value:{intervals:[{until:datetime('2030-01-02T00:00:00Z')}]}},
+  empty = {value:{intervals:[]}},
+  mixed = {value:{intervals:[{until:after},{until:datetime('2030-01-03T00:00:00Z')}]}};
+let reads = 0;
+const scopedContext = {now:after, canonical:{readRecords:async(model, selection)=>{
+  assert.equal(model, 'ScopedContracts.Request'); reads++;
+  const matched=[];
+  for (const row of [expired,future,empty,mixed]) if (await selection.where(row)) matched.push(row);
+  return matched;
+}}};
+for (const name of ['selected','renamed','explicit_row','shadowed']) {
+  assert.deepEqual(await scopedRegistry['ScopedContracts.'+name](scopedContext),[future,mixed],name);
+}
+assert.equal(reads,4);
