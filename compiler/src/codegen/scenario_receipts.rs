@@ -10863,7 +10863,7 @@ fn parameter_row_declaration(
     let type_path = paths.next()?;
     if text
         .get(base_span.start as usize..base_span.end as usize)
-        .map(|value| if model_return { value.trim() } else { value })
+        .map(str::trim)
         != Some(name)
         || declaration.kind != SyntaxKind::Parameter
         || parameter_name.span != parameter.span
@@ -14648,6 +14648,76 @@ fn scenario_create_identity<'f, 's, 'p>(
     Some((original, input, *span, binding, model))
 }
 
+/// One terminal enum-input branch may create a row and immediately link it
+/// to the original admitted input. The complete original owner is compared
+/// against a fresh lowering; the independent effect/schema checks still
+/// validate every SET, CANCEL and CREATE. This supplies no query authority.
+fn conditional_parameter_create_link(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    owner: &IrItem,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+) -> Option<()> {
+    let ir = context.ir();
+    super::scenario_decisions::same_scenario_semantics(context.original(), ir, context.fresh(), owner)?;
+    let IrItemKind::Scenario { params, guards, effects, result: None, trusted: false,
+        read: false, hook: None, event_source: None, cohort: None, .. } = &owner.kind
+        else { return None; };
+    let [IrStmt::Require { .. }] = guards.as_slice() else { return None; };
+    let [IrStmt::Set { record: first, .. }, IrStmt::Cancel { key, .. },
+        IrStmt::If { cond, then_branch, else_branch, .. }] = effects.as_slice()
+        else { return None; };
+    let [IrStmt::Create { binding: Some(created), span, .. },
+        IrStmt::Set { record: linked, changes, when: None, .. }] = then_branch.as_slice()
+        else { return None; };
+    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
+    // Both references come from this same immutable checked-source table:
+    // fresh lowering above proves semantics, never allocation identity.
+    let [created_fact] = facts.creates.as_deref()? else { return None; };
+    if !else_branch.is_empty() || *span != node_span(original.node) || !std::ptr::eq(created_fact, original)
+        || *created != original.binding || facts.source_requires.as_deref()?.len() != 1 {
+        return None;
+    }
+    let IrExpr::Name(root_name) = &first.expr else { return None; };
+    let IrExpr::Name(linked_name) = &linked.expr else { return None; };
+    let IrExpr::Member { base: cancelled, field } = &key.expr else { return None; };
+    if root_name != linked_name || first.ty != linked.ty || field != "id"
+        || !matches!(&cancelled.expr, IrExpr::Name(name) if name == root_name)
+        || cancelled.ty != first.ty { return None; }
+    let root = params.iter().filter_map(|id| ir.items.get(id.0 as usize))
+        .find(|item| item.name == *root_name)?;
+    if !matches!(&root.kind, IrItemKind::Param { owner: id, ty: IrType::Known(ty), default: None, .. }
+        if *id == owner.id && *ty == first.ty && matches!(ty, ResolvedType::Record { stored: true, .. })) {
+        return None;
+    }
+    let IrExpr::Binary { op: IrBinOp::In, left, right } = &cond.expr else { return None; };
+    let IrExpr::Name(input) = &left.expr else { return None; };
+    let ResolvedType::Enum { cases, .. } = &left.ty else { return None; };
+    let IrExpr::Array(values) = &right.expr else { return None; };
+    let parameter = params.iter().filter_map(|id| ir.items.get(id.0 as usize))
+        .find(|item| item.name == *input)?;
+    if values.is_empty() || values.len() > cases.len()
+        || !matches!(&parameter.kind, IrItemKind::Param { owner: id, ty: IrType::Known(ty), default: None, .. }
+            if *id == owner.id && *ty == left.ty)
+        || values.iter().any(|value| value.ty != left.ty ||
+            !matches!(&value.expr, IrExpr::Text(name) | IrExpr::Name(name) if cases.contains(name))) {
+        return None;
+    }
+    let IrExpr::Object(entries) = &changes.expr else { return None; };
+    let [(field, value)] = entries.as_slice() else { return None; };
+    if !matches!(&value.expr, IrExpr::Name(name) if name == created)
+        || value.ty != (ResolvedType::Record { symbol: original.model, stored: true }) {
+        return None;
+    }
+    let ResolvedType::Record { symbol: target, stored: true } = linked.ty else { return None; };
+    let IrItemKind::Model { fields, .. } = &ir.items.get(target.0 as usize)?.kind else { return None; };
+    if !fields.iter().any(|id| ir.items.get(id.0 as usize).is_some_and(|item|
+        item.name == *field && matches!(&item.kind, IrItemKind::Field { ty: IrType::Known(ty), .. }
+            if *ty == ResolvedType::Nullable(Box::new(value.ty.clone()))))) {
+        return None;
+    }
+    Some(())
+}
+
 fn scenario_create_nesting(
     ir: &IrProgram,
     owner: &IrItem,
@@ -14669,7 +14739,8 @@ fn scenario_create_nesting(
         // rule — including void scenarios (no free pass): every other nesting
         // keeps its loud refusal (no receipt).
         if event_notice_branch_create_tail(ir, owner, checked, original, proof.node, binding, db)
-            .is_none()
+            .is_none() && source_context.and_then(|context|
+                conditional_parameter_create_link(context, owner, original)).is_none()
         {
             conditional_branch_create_tail(ir, owner, checked, proof.node, binding)?;
         }
@@ -14759,8 +14830,10 @@ fn scenario_create_entries(
     span: Span,
     proof: &crate::analysis::scenario_disclosure::DisclosureEffect,
     db: &SourceDb,
+    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<()> {
-    if checked_created_statements(ir, owner, checked, original, db).is_none() {
+    if checked_created_statements(ir, owner, checked, original, db).is_none()
+        && source_context.and_then(|context| conditional_parameter_create_link(context, owner, original)).is_none() {
         return None;
     }
     let authored = checked_effect_node(ir, owner, proof.node, db)?;
@@ -14814,7 +14887,7 @@ fn checked_scenario_create(
     scenario_create_nesting(
         ir, owner, models, checked, facts, proof, original, binding, model, db, source_context,
     )?;
-    scenario_create_entries(ir, owner, checked, original, input, span, proof, db)
+    scenario_create_entries(ir, owner, checked, original, input, span, proof, db, source_context)
 }
 
 /// Model results consume their checked pair's result origin. Void owners

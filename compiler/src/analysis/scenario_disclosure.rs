@@ -14088,6 +14088,10 @@ impl<'a> Closure<'a> {
     fn source_require_input(&self, ty: &ResolvedType) -> bool {
         match ty {
             ResolvedType::Scalar(_) => true,
+            // Values admits these non-File primitive arrays before the
+            // original observer runs; they carry no model/query authority.
+            ResolvedType::Array { element, ordered: true, nonempty: false }
+                if element.as_ref() == &ResolvedType::Scalar(Scalar::Text) => true,
             ResolvedType::Record {
                 symbol,
                 stored: true,
@@ -14201,7 +14205,8 @@ impl<'a> Closure<'a> {
         !scenario.params.iter().enumerate().any(|(index, param)| {
             (param.default.is_some()
                 || self.types.symbol_types.get(&param.param)
-                    .is_none_or(|ty| !self.source_require_input(ty)))
+                    .is_none_or(|ty| !self.source_require_input(ty)
+                        && !self.source_require_owned_enum_formal(param)))
                 && !self.source_require_unused_null_file_input(scenario, param, index)
         }) && scenario
             .params
@@ -14866,6 +14871,17 @@ impl<'a> Closure<'a> {
             }
             CheckedDecisionCallTarget::Builtin { id, .. } if id == "active_member" => {
                 self.checked_membership_signature(call.node, call.module)?;
+                Some(true)
+            }
+            // The original header may compare an admitted answer array
+            // with its stored checklist. This admits no collection query:
+            // both operands must be already typed primitive text arrays.
+            CheckedDecisionCallTarget::Builtin { id, .. } if id == "count" && !body => {
+                if call.slots.as_slice() != [Some(0)] || call.arguments.len() != 1
+                    || !matches!(&call.arguments[0].1, ResolvedType::Array { element, .. }
+                        if element.as_ref() == &ResolvedType::Scalar(Scalar::Text))
+                    || self.types.node_types.get(&call.node) != Some(&ResolvedType::Scalar(Scalar::Int))
+                { *supported = false; return Some(false); }
                 Some(true)
             }
             CheckedDecisionCallTarget::Builtin { id, .. }
@@ -23631,10 +23647,46 @@ impl<'a> Closure<'a> {
                         if self.original_call_model_parameter(key, effect.node, module) == Some((parameter, model)))
                         || matches!(value.model_result,
                             Some(DisclosureModelResult::Create { model: actual, node })
-                            if actual == model && self.preceding_call_create(effect, module, key, model, node))
+                            if actual == model && (self.preceding_call_create(effect, module, key, model, node)
+                                || self.preceding_set_create(effect, module, key, model, node)))
                         || matches!(value.model_result,
                             Some(DisclosureModelResult::Call { model: actual, node, .. })
                             if actual == model && self.preceding_set_call(effect, module, key, node)))
+            }
+
+            /// A conditional constructor may populate a reference only in
+            /// its own original arm, immediately after that constructor.
+            /// Branch dominance comes from the current flow's CreateAs value;
+            /// this syntax join also excludes copies and intervening effects.
+            fn preceding_set_create(&self, effect: &Effect, module: ModuleId,
+                key: NodeKey, model: SymbolId, created: NodeKey) -> bool {
+                let Some(node) = self.nodes.get(&key) else { return false; };
+                if !matches!(node.kind, SyntaxKind::Name | SyntaxKind::NameRef)
+                    || !matches!(self.query_binding(key), Some(Binding::CreateAs { node }) if *node == created)
+                { return false; }
+                let mut pending = self.effects.scenarios.values().filter(|scenario|
+                    scenario.module == module && scenario.node.file == effect.node.file
+                        && scenario.node.start <= effect.node.start && effect.node.end <= scenario.node.end)
+                    .map(|scenario| scenario.effects.as_slice()).collect::<Vec<_>>();
+                if pending.len() != 1 { return false; }
+                let mut visited = 0;
+                while let Some(statements) = pending.pop() {
+                    visited += 1;
+                    if visited > 200 { return false; }
+                    if let Some(position) = statements.iter().position(|statement| statement.node == effect.node) {
+                        let Some(previous) = position.checked_sub(1).and_then(|index| statements.get(index)) else { return false; };
+                        let Some(original) = self.checked_create_source(previous, module) else { return false; };
+                        return previous.verb == EffectVerb::Create && previous.node == created
+                            && original.model == model && self.word(node) == Some(original.binding.as_str());
+                    }
+                    for statement in statements {
+                        if statement.verb == EffectVerb::If {
+                            pending.push(statement.then_effects.as_slice());
+                            pending.push(statement.else_effects.as_slice());
+                        }
+                    }
+                }
+                false
             }
 
             fn set_reference_type(&self, ty: &ResolvedType, calls: &[NodeKey]) -> Option<SymbolId> {
@@ -23858,7 +23910,19 @@ impl<'a> Closure<'a> {
                     && self.effects.models.get(&model).is_some_and(|owner| {
                         owner.fields.iter().any(|declaration| declaration.field == field_id)
                     });
-                if source_reference_array {
+                let key = arg.value.unwrap_or(arg.key_node);
+                let admitted_answers = matches!(ty, ResolvedType::Array { element, ordered: true, nonempty: false }
+                    if element.as_ref() == &ResolvedType::Scalar(Scalar::Text))
+                    && calls.is_empty() && self.loop_node.is_none()
+                    && self.query_binding(key).is_some_and(|binding| match binding {
+                        Binding::Symbol(parameter) => self.effects.scenarios.values().any(|scenario|
+                            scenario.module == module && scenario.params.iter().any(|param|
+                                param.param == *parameter && param.default.is_none()
+                                    && self.types.symbol_types.get(parameter) == Some(ty))
+                                && self.checked_source_requires(scenario).is_some_and(|sites| !sites.is_empty())),
+                        _ => false,
+                    });
+                if source_reference_array || admitted_answers {
                     return Ok(());
                 }
                 if matches!(base, ResolvedType::Array { .. }) {

@@ -1,0 +1,64 @@
+app CanMaintain uses=[maintain]
+
+package rent_catalog
+ Given
+  export Location { name:text, timezone:timezone, active:bool=true }
+  policy Location read=members
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee { user:user unique, home:Location, locations:Location[], operator_wide:bool=false, active:bool=true, hidden:bool=false }
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+
+package maintain
+ use rent_catalog {Location}
+ use employee {Employee,can_work}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  message label_Inspection_answers = "Answers"@{nl="Antwoorden"}
+  role technician
+  export Asset { name:text, location:Location, inspection_epoch:int=0, retired:bool=false }
+  Plan in Asset { name:text, assignee:user, revision:int=1, asset_epoch:int=0, active:bool=true, hidden:bool=false }
+  export Inspection in Plan { cancelled:bool=false, reminder_email:email, reminded_at:datetime?, due:date, asset_epoch:int=0, template_version:int, inspector:user, result:enum(pending,passed,failed,blocked)=pending, checklist:text[]!, answers:text[], evidence:text?, inspected_at:datetime?, repair:Repair?, hidden:bool=false }
+  Repair in Asset { title:text, description:text, reporter:user?, state:enum(open,assigned,in_progress,awaiting_verification,fixed)=open }
+  policy Repair read=members
+  Cancellation in Asset { plan:Plan?, through:int, cutoff:date, reason:enum(plan_revised,asset_retired), hidden:bool=false }
+  derive plan_eligible(plan:Plan):bool = plan.active and not plan.parent.retired and plan.asset_epoch==plan.parent.inspection_epoch and technician(plan.assignee) and can_work(plan.assignee,plan.parent.location)
+  derive matches_cancellation(change:Cancellation,inspection:Inspection):bool = change.parent==inspection.parent.parent and inspection.due>change.cutoff and ((change.reason==plan_revised and change.plan==inspection.parent and inspection.template_version<=change.through) or (change.reason==asset_retired and inspection.asset_epoch<=change.through))
+  derive inspection_superseded(inspection:Inspection):bool = any(inspection.parent.parent.Cancellation as change,matches_cancellation(change,inspection))
+  derive inspection_pending(inspection:Inspection):bool = inspection.result==pending and not inspection.cancelled and not inspection_superseded(inspection)
+  event Reminder { inspection:Inspection, revision:int }
+  policy Asset read=members
+  policy Plan read=members and not row.hidden
+  policy Inspection read=members and not row.hidden
+  policy Cancellation read=members and not row.hidden
+ When
+  export scenario inspect(inspection:Inspection,answers:text[] label=label_Inspection_answers,result:Inspection.result,evidence:text) by=technician label="Record inspection"@{nl="Inspectie registreren"}
+   require can_work(actor,inspection.parent.parent.location) and inspection.inspector==actor and inspection_pending(inspection) and result in [passed,failed,blocked] and count(answers)==count(inspection.checklist) and trim(evidence)!=""
+   do
+    set inspection {answers,result,evidence,inspected_at=now}
+    cancel inspection.id
+    if result in [failed,blocked]
+     create Repair {parent=inspection.parent.parent,title=inspection.parent.name,description=evidence,reporter=actor} as repair
+     set inspection {repair}
+  export scenario inspect_prefix(enabled:bool,inspection:Inspection,answers:text[] label=label_Inspection_answers,result:Inspection.result,evidence:text) by=technician label="Record inspection"@{nl="Inspectie registreren"}
+   require enabled and can_work(actor,inspection.parent.parent.location) and inspection.inspector==actor and inspection_pending(inspection) and result in [passed,failed,blocked] and count(answers)==count(inspection.checklist) and trim(evidence)!=""
+   do
+    set inspection {answers,result,evidence,inspected_at=now}
+    cancel inspection.id
+    if result in [failed,blocked]
+     create Repair {parent=inspection.parent.parent,title=inspection.parent.name,description=evidence,reporter=actor} as repair
+     set inspection {repair}
+  scenario remind on=Reminder
+   do
+    let inspection=event.inspection
+    if inspection_pending(inspection) and inspection.template_version==event.revision and inspection.parent.revision==event.revision and inspection.inspector==inspection.parent.assignee and local_instant(inspection.due,"09:00",inspection.parent.parent.location.timezone,fold=earlier)<=now and plan_eligible(inspection.parent) and inspection.asset_epoch==inspection.parent.asset_epoch
+     send Mail.send {to=inspection.reminder_email,subject=format("Inspection due"@{nl="Inspectie gepland"},locale=null),body=inspection.parent.name} when=inspection_pending(inspection) and inspection.template_version==event.revision and inspection.parent.revision==event.revision and inspection.inspector==inspection.parent.assignee and local_instant(inspection.due,"09:00",inspection.parent.parent.location.timezone,fold=earlier)<=now and plan_eligible(inspection.parent) and inspection.asset_epoch==inspection.parent.asset_epoch as notice
+     set inspection {reminded_at=now}
+ Then

@@ -18,6 +18,7 @@ import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-referenc
 import { WORK_DISPATCH_STAGE_COMMANDS, WORK_SYSTEM_COMMANDS,
   createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
 import { classifyFailure } from '@canlang/work/receipt';
+import { newDispatchRow } from '@canlang/work/kernel/tables';
 import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
 import { buildInvoker } from '../worker/assembly.js';
 import { createBoundMailDispatcher } from './bound-dispatch.js';
@@ -494,3 +495,153 @@ it('queues only a current inspection reminder from hidden owner rows and fences 
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
+
+it('records inspections and conditional repairs over the original hidden helper domains', { timeout: 180000 }, async () => {
+  const path = join(root, 'packages/cloudflare/test/fixtures/maintain-inspect-owner-probe.can');
+  const directory = await mkdtemp(join(tmpdir(), 'can-maintain-inspect-'));
+  try {
+    const original = await readFile(join(root, 'draft/apps/CanMaintain/CanMaintain.can'), 'utf8');
+    const start = original.indexOf('  export scenario inspect('), end = original.indexOf('   examples ', start);
+    assert.ok(start >= 0 && end > start);
+    assert.ok((await readFile(path, 'utf8')).includes(original.slice(start, end).trimEnd()),
+      'retain the exact authored inspection header and executable body');
+    const { stdout } = await promisify(execFile)(compiler,
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, path],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    assert.ok(artifact.operations?.find(item => item.name === 'maintain.inspect')?.result?.disclosure,
+      'actual inspection requires its complete native receipt');
+    const asm = await assembleModules({ artifact, sourcePath: path }, { workDir: directory,
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    for (const mode of ['passed', 'failed', 'blocked', 'superseded-hidden', 'employee-inactive', 'wrong-count', 'blank-evidence', 'role-revoked-during-source', 'revision-race', 'false-before-parent', 'true-needs-parent'] as const) {
+      const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
+      const team = await identities.createTeam({ timezone: 'UTC' });
+      const user = await identities.createUser({ email: `${mode}@maintain.test`, password_hash: 'unused', email_verified: true });
+      const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false,
+        roles: [{ role: 'maintain.technician', granted_at: new Date(now).toISOString(), granted_by: user.user_id }] });
+      const token = `inspection-${mode}`;
+      await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+        last_team_id: team.team_id, expires_at: new Date(now + 3600000).toISOString() });
+      const identity = await resolveIdentity(identities, { session_token: token }, { clock });
+      const scope = { app: 'CanMaintain', owner: team.team_id, ownerPackage: 'maintain' };
+      const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app,
+        stateStoreId: 'inspect-state', fileStoreId: 'inspect-files',
+        receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+      const { store } = createTestMemoryStorage(authority, [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+      await installNativeFileInventory({ artifact, asm, store, authority, scope, now: () => now,
+        verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+      const location = asId('location-1'), asset = asId('asset-1'), plan = asId('plan-1'), inspection = asId('inspection-1');
+      const row = (id: ReturnType<typeof asId>, data: Record<string, unknown>, parent: { model: ReturnType<typeof asModel>; id: ReturnType<typeof asId> } | null = null) =>
+        ({ ...makeRow({ id, data }), parent, ...(id === plan && ['false-before-parent', 'true-needs-parent'].includes(mode) ? { archivedAt: now } : {}) });
+      await store.commit(makeBatch(await store.readRevision(), { writes: [
+        { kind: 'insert', model: asModel('rent_catalog.Location'), row: row(location, { name: 'Main site', timezone: 'UTC', active: true }) },
+        { kind: 'insert', model: asModel('employee.Employee'), row: row(asId('employee-1'), { user: { id: user.user_id }, home: { id: location },
+          locations: [], operator_wide: false, active: mode !== 'employee-inactive', hidden: true }) },
+        { kind: 'insert', model: asModel('maintain.Asset'), row: row(asset, { name: 'Cooling unit', location: { id: location }, inspection_epoch: '0', retired: false }) },
+        { kind: 'insert', model: asModel('maintain.Plan'), row: row(plan, { name: 'Cooling checklist', assignee: { id: user.user_id }, revision: '1', asset_epoch: '0', active: true, hidden: false }, { model: asModel('maintain.Asset'), id: asset }) },
+        { kind: 'insert', model: asModel('maintain.Inspection'), row: row(inspection, { cancelled: false, reminder_email: 'inspector@example.test', reminded_at: null,
+          due: '2026-10-22', asset_epoch: '0', template_version: '1', inspector: { id: user.user_id }, result: 'pending', checklist: ['Cooling works'],
+          answers: [], evidence: null, inspected_at: null, repair: null, hidden: false }, { model: asModel('maintain.Plan'), id: plan }) },
+        ...(mode !== 'superseded-hidden' ? [] : [{ kind: 'insert' as const, model: asModel('maintain.Cancellation'), row: row(asId('cancellation-1'),
+          { plan: { id: plan }, through: '1', cutoff: '2026-10-21', reason: 'plan_revised', hidden: true }, { model: asModel('maintain.Asset'), id: asset }) }]),
+      ] }));
+      // Seed a real owning Work occurrence so CANCEL must join the same
+      // transaction as the inspection update and optional Repair linkage.
+      const due = { key: inspection, scope, occurrenceId: 'inspection-reminder-1',
+        event: 'maintain.Reminder', at: now + 60000 };
+      const payload = { inspection: { id: inspection, version: '1' }, revision: '1' };
+      const stageContext = { actor: 'inspection-test', now, operation: 'maintain.inspect',
+        load: (model: Parameters<typeof store.load>[0], id: Parameters<typeof store.load>[1]) => store.load(model, id),
+        query: (spec: Parameters<typeof store.query>[0]) => store.query(spec) };
+      const loaded = await loadCanonicalDescriptors(asm, artifact);
+      assert.ok(loaded.valueTypes);
+      const opaque = await loadOpaqueFileStaging({ store, inventoryOwner: scope.ownerPackage,
+        artifact, canonicalModels: loaded.models, valueTypes: loaded.valueTypes,
+        operations: new Map(), scope, verify: async () => {} });
+      assert.ok(opaque);
+      const declaration = opaque.event(due.event);
+      const scheduleWrites: NonNullable<Awaited<ReturnType<typeof workSchedulePutCommand.stage>>['writes']>[number][] = [];
+      const scheduleOps: NonNullable<Awaited<ReturnType<typeof workSchedulePutCommand.stage>>['schedules']>[number][] = [];
+      // Two concurrently created lineage heads must both be cancelled.
+      for (const occurrenceId of mode === 'failed' ? [due.occurrenceId, 'inspection-reminder-twin'] : [due.occurrenceId]) {
+        const staged = await workSchedulePutCommand.stage({ ...due, occurrenceId, payload }, stageContext);
+        const scheduledRow = staged.writes?.find(write => write.kind === 'insert' && write.model === 'work.schedule');
+        assert.ok(scheduledRow?.kind === 'insert');
+        const filePayloadOrigin = await opaque.prepare({ expectedRevision: await store.readRevision(),
+          model: asModel('work.schedule'), row: scheduledRow.row, field: 'payload', scope,
+          origin: { kind: 'event-input', occurrenceId, sourceOccurrence: occurrenceId, declaration,
+            lineage: { kind: 'schedule', key: due.key, replaces: scheduledRow.row.data['replaces'] as null }, target: { kind: 'schedule' } },
+          projection: { kind: 'inputs', path: [], declarationId: declaration.inputsDeclarationId }, value: payload, identity });
+        const scheduled = await workSchedulePutCommand.stage({ ...due, occurrenceId, payload, filePayloadOrigin }, stageContext);
+        scheduleWrites.push(...(scheduled.writes ?? []).map(write => mode === 'blocked' && write.kind === 'insert' && write.model === 'work.schedule'
+          ? { ...write, row: { ...write.row, data: { ...write.row.data, state: 'admitted' } } } : write));
+        scheduleOps.push(...scheduled.schedules ?? []);
+      }
+      if (mode === 'blocked') scheduleWrites.push({ kind: 'insert', model: asModel('work.dispatch'), row: newDispatchRow({
+        intentId: 'inspection-mail-1', operationId: 'inspection-mail-operation', source: 'std.EmailV1.send', occurrenceIndex: 0,
+        originOccurrence: due.occurrenceId }, { nowMs: now, actor: 'inspection-test' }) });
+      await store.commit(makeBatch(await store.readRevision(), { writes: scheduleWrites, schedules: scheduleOps }));
+      const scheduleKey = [scope.app, scope.ownerPackage, scope.owner, inspection].map(encodeURIComponent).join('/');
+      assert.ok(await store.scheduleGet(scheduleKey));
+      let revoked = false;
+      if (mode === 'role-revoked-during-source') {
+        const find = identities.findMembership.bind(identities);
+        identities.findMembership = async (teamId, userId) => {
+          const observed = await find(teamId, userId);
+          if (!revoked && observed !== null && teamId === team.team_id && userId === user.user_id) {
+            revoked = true;
+            await identities.setMembershipRoles(membership.membership_id, []);
+          }
+          return observed;
+        };
+      }
+      let raced = false;
+      if (mode === 'revision-race') {
+        const commit = store.commit.bind(store);
+        store.commit = async batch => {
+          if (!raced && batch.writes.some(write => write.model === 'maintain.Inspection')) {
+            raced = true;
+            const employee = await store.load(asModel('employee.Employee'), asId('employee-1'));
+            assert.ok(employee);
+            await commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: asModel('employee.Employee'),
+              id: employee.id, expectedVersion: employee.version, row: { ...employee, version: asVersion(employee.version + 1),
+                updated: now, data: { ...employee.data, active: false } } }] }));
+          }
+          return commit(batch);
+        };
+      }
+      const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+      const outcome = await invoker.invokeMutation({ operation: mode === 'false-before-parent' || mode === 'true-needs-parent' ? 'maintain.inspect_prefix' : 'maintain.inspect', operation_id: uuidv7(now, 1), inputs: {
+        ...(['false-before-parent', 'true-needs-parent'].includes(mode) ? { enabled: mode === 'true-needs-parent' } : {}),
+        inspection: { id: inspection, version: '1' }, answers: mode === 'wrong-count' ? [] : ['Measured cooling'],
+        result: mode === 'passed' ? 'passed' : mode === 'blocked' ? 'blocked' : 'failed', evidence: mode === 'blank-evidence' ? ' ' : 'Measured warm air' } }, identity);
+      if (mode === 'false-before-parent') assert.ok('error' in outcome && outcome.error.code === 'rule_failed', JSON.stringify(outcome));
+      if (mode === 'true-needs-parent') assert.ok('error' in outcome, JSON.stringify(outcome));
+      if (mode === 'role-revoked-during-source') assert.equal(revoked, true);
+      if (mode === 'revision-race') assert.equal(raced, true);
+      const success = ['passed', 'failed', 'blocked'].includes(mode);
+      assert.equal('result' in outcome && outcome.result.status === 'committed', success, `${mode}: ${JSON.stringify(outcome)}`);
+      assert.equal((await store.scheduleGet(scheduleKey)) === null, success, `${mode}: atomic schedule cancellation`);
+      const schedules = await store.query({ model: asModel('work.schedule'), authority: 'owner' });
+      assert.equal(schedules.length, mode === 'failed' ? 2 : 1);
+      assert.ok(schedules.every(row => row.data['state'] === (success ? 'cancelled' : 'pending')), mode);
+      const supersessions = await store.query({ model: asModel('work.supersession'), authority: 'owner' });
+      assert.equal(supersessions.length, mode === 'blocked' ? 1 : 0, mode);
+      if (supersessions[0]) assert.equal(supersessions[0].data['outboxId'], 'inspection-mail-1');
+      const current = await store.load(asModel('maintain.Inspection'), inspection); assert.ok(current);
+      assert.equal(current.data['result'], success ? mode : 'pending', mode);
+      assert.deepEqual(current.data['answers'], success ? ['Measured cooling'] : [], mode);
+      assert.equal(current.data['evidence'], success ? 'Measured warm air' : null, mode);
+      assert.equal(current.data['inspected_at'], success ? new Date(now).toISOString() : null, mode);
+      const repairs = await store.query({ model: asModel('maintain.Repair'), authority: 'owner' });
+      assert.equal(repairs.length, success && mode !== 'passed' ? 1 : 0, mode);
+      if (repairs[0] !== undefined) {
+        assert.equal(repairs[0].parent?.id, asset, mode);
+        assert.equal(repairs[0].data['title'], 'Cooling checklist', mode);
+        assert.equal(repairs[0].data['description'], 'Measured warm air', mode);
+        assert.equal((repairs[0].data['reporter'] as { id: string }).id, user.user_id, mode);
+        assert.equal((current.data['repair'] as { id: string }).id, repairs[0].id, mode);
+      }
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});

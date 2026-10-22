@@ -4,6 +4,7 @@
 import type { DomainWrite, InvocationContext, ModelName, RecordId, RecordVersion, Revision } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import { deepFreeze } from '../internal/own-data.js';
+import { stableStringify } from '../invocation/replay.js';
 import type { SystemCommandContext } from '../ports/system.js';
 import type { MutationWritesResult, OwnerMutationReadView } from './pipeline.js';
 
@@ -27,7 +28,7 @@ export interface OwnerMutationSourceStageView {
   readonly consumeWork: (amount?: number) => void;
 }
 const FRAMEWORK_MODELS = new Set(['work.handler_occurrence', 'work.occurrence', 'work.fanout_intent',
-  'work.fanout_checkpoint', 'work.fanout_child', 'work.schedule']);
+  'work.fanout_checkpoint', 'work.fanout_child', 'work.schedule', 'work.supersession']);
 const stageIdentity = Symbol('owner-mutation-source-stage');
 interface StageLedger {
   phase: 'active' | 'checking' | 'closed';
@@ -166,6 +167,32 @@ async function checkSourceInsert(
   await input.checkRevision(); input.healthy();
 }
 
+/** The source finalizer admits one existing Work lifecycle transition, never
+ * generic updates. The installed cancellation producer retains exact source
+ * effect ownership; State independently checks its physical live preimage. */
+async function checkSourceCancellation(input: SourceStageInput, candidate: unknown,
+  seen: Set<string>, ledger: StageLedger): Promise<void> {
+  const write = object(candidate, ['kind', 'model', 'id', 'expectedVersion', 'row']);
+  if (write['kind'] !== 'update' || write['model'] !== 'work.schedule' ||
+      input.businessModels.has('work.schedule')) return fail(ledger, 'only noncolliding Work schedule cancellations are supported.');
+  const id = identity(write['id'], 6000), key = `work.schedule\0${id}`;
+  if (seen.has(key)) return fail(ledger, 'duplicate source write identity.');
+  seen.add(key);
+  await input.checkRevision(); input.healthy();
+  const before = await input.frameworkLoad('work.schedule' as ModelName, id as RecordId);
+  await input.checkRevision(); input.healthy();
+  if (before === null || before.id !== id || before.archivedAt !== null ||
+      write['expectedVersion'] !== before.version || !Number.isSafeInteger(before.version + 1) ||
+      !['pending', 'admitted'].includes(String(before.data['state']))) {
+    return fail(ledger, 'source cancellation requires its original live pending or admitted version.');
+  }
+  const expected = { ...before, version: before.version + 1, updated: input.context.now,
+    updatedBy: input.actor, data: { ...before.data, state: 'cancelled' } };
+  if (stableStringify(write['row']) !== stableStringify(expected)) {
+    return fail(ledger, 'source cancellation changed immutable row identity, attribution or data.');
+  }
+}
+
 function identity(value: unknown, maxLength = 200): string {
   return typeof value === 'string' && value.length > 0 && value.length <= maxLength ? value : fail(undefined, 'bounded nonempty identity required.');
 }
@@ -242,7 +269,9 @@ export async function stageOwnerMutationSources(input: {
     const seen = new Set<string>();
     for (const candidate of writes) {
       input.consumeWork(); input.healthy();
-      await checkSourceInsert(input, candidate, seen, ledger);
+      if (typeof candidate === 'object' && candidate !== null && candidate.kind === 'update') {
+        await checkSourceCancellation(input, candidate, seen, ledger);
+      } else await checkSourceInsert(input, candidate, seen, ledger);
     }
     if (ledger.poisoned) return fail(ledger, 'source stage is poisoned.');
     return deepFreeze(writes);

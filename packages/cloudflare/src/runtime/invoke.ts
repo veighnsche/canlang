@@ -7687,6 +7687,19 @@ async function createContainmentNavigation(input: {
       sourcePresence.set(projected, new Set(visible.presence.fields));
       return projected;
     }
+    // Original source-Require parents borrow the same active State owner
+    // observation as its collections. A direct store read would miss the
+    // observer's real row association and its current provisional snapshot.
+    if (input.authority === 'owner' && input.sourceObservation !== undefined) {
+      const source = await loadProducerModule(STATE_QUERY_SPECIFIER, 'borrowed owner source parent');
+      const read = requireProducerFn(source, 'readOwnerDecisionRecordsAtSourceObservation', 'borrowed owner source parent') as
+        typeof import('@canlang/state/query').readOwnerDecisionRecordsAtSourceObservation;
+      const result = await read({ observation: input.sourceObservation, store, model: model as ModelName, id: id as RecordId });
+      if (result.length !== 1) throw new StateError('not_found', 'Parent record not found.');
+      const selected = result[0]!;
+      sourcePresence.set(selected.record, new Set(selected.sourcePresence));
+      return selected.record;
+    }
     const row = basis ?? (input.coherentContext === undefined ? await store.load(model as ModelName, id as RecordId) :
       await store.cohortLoad({ model: model as ModelName, id: id as RecordId, expectedRevision: input.revision }));
     if (row === null || row.id !== id || row.archivedAt !== null) throw new StateError('not_found', 'Parent record not found.');
@@ -9638,10 +9651,12 @@ async function runScenarioExecution(
   const termScheduleSourceWrites: DomainWrite[] = [];
   const rentNoticeSourceWrites: DomainWrite[] = [];
   const invoiceIssueSourceWrites: DomainWrite[] = [];
+  const cancellationSourceWrites: DomainWrite[] = [];
+  const cancellationSourceStages = new WeakSet<object>();
   const emissionSourceStage: OwnerMutationSourceStager = async token => {
     const existing = stageSources === undefined ? [] : await stageSources(token);
     if (emittedEvents.length === 0) return [...existing, ...termScheduleSourceWrites,
-      ...rentNoticeSourceWrites, ...invoiceIssueSourceWrites];
+      ...rentNoticeSourceWrites, ...invoiceIssueSourceWrites, ...cancellationSourceWrites];
     const writes = await stageDeclaredEventSources(token, emittedEvents,
       { maxSources: 200, maxHandlers: 200, maxMembers: 1_000, chunkSize: 100 });
     const eventById = new Map(emittedEvents.map(event => [event.occurrenceId, event]));
@@ -9762,7 +9777,7 @@ async function runScenarioExecution(
     }
     due?.observeFramework?.({ writes: stamped });
     return [...existing, ...stamped, ...termScheduleSourceWrites, ...rentNoticeSourceWrites,
-      ...invoiceIssueSourceWrites];
+      ...invoiceIssueSourceWrites, ...cancellationSourceWrites];
   };
   const ownerBounds = receiptAware && (scenarioDef?.name === 'leave.request' || scenarioDef?.name === 'leave.decide' ||
     scenarioDef?.name === 'refer.reject_source' || scenarioDef?.name === 'member_terms.retry_collection' ||
@@ -10159,7 +10174,8 @@ async function runScenarioExecution(
       effects.writes[0].model === 'work.schedule' &&
       (effects.outbox?.length ?? 0) === 0 && (effects.history?.length ?? 0) === 0 &&
       (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
-    if (ownerSession !== undefined && !isDueAdmission && !privateFramework && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
+    const sourceCancellation = receiptAware && cancellationSourceStages.delete(effects);
+    if (ownerSession !== undefined && !isDueAdmission && !privateFramework && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework && !sourceCancellation && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
         (effects.uniqueReleases?.length ?? 0) !== 0)) {
       refuseRecordBinding('Saved scenario deferred domain effects require their defining owner-session join.');
@@ -10167,6 +10183,7 @@ async function runScenarioExecution(
     if (termSchedule) termScheduleSourceWrites.push(...effects.writes!);
     if (rentNoticeFramework) rentNoticeSourceWrites.push(...effects.writes ?? []);
     if (invoiceIssueFramework) invoiceIssueSourceWrites.push(...effects.writes!);
+    if (sourceCancellation) cancellationSourceWrites.push(...effects.writes ?? []);
     if (effects !== due?.effects) due?.observeFramework?.(effects);
     for (const write of effects.writes ?? []) {
       stagedWrites.push(write);
@@ -10973,6 +10990,25 @@ async function runScenarioExecution(
         const stage = requireProducerFn(command, 'stage', 'work keyed schedule producer') as
           typeof import('@canlang/work/kernel/schedule-staging').workScheduleCancelCommand.stage;
         const effects = await stage({ key, scope: selected.scope }, selected.context);
+        // Only this installed Work cancellation stage can join an original
+        // receipt owner's source suffix. The opaque stage identity cannot be
+        // supplied through generic deferred effects or an authored row write.
+        if (receiptAware && child === undefined) {
+          const tables = await loadProducerModule('@canlang/work/kernel/tables', 'source cancellation rows');
+          const schedule = requireProducerString(tables, 'WORK_SCHEDULE_MODEL', 'source cancellation rows');
+          const supersession = requireProducerString(tables, 'WORK_SUPERSESSION_MODEL', 'source cancellation rows');
+          const scheduleKey = [selected.scope.app, selected.scope.ownerPackage, selected.scope.owner, key]
+            .map(encodeURIComponent).join('/');
+          if (loaded.models.some(model => model.name === schedule || model.name === supersession) ||
+              (effects.writes ?? []).some(write => !(write.kind === 'update' && write.model === schedule ||
+                write.kind === 'insert' && write.model === supersession)) ||
+              (effects.schedules ?? []).some(op => op.op !== 'cancel' || op.key !== scheduleKey) ||
+              (effects.outbox?.length ?? 0) !== 0 || (effects.history?.length ?? 0) !== 0 ||
+              (effects.uniqueClaims?.length ?? 0) !== 0 || (effects.uniqueReleases?.length ?? 0) !== 0) {
+            return refuseRecordBinding('Source cancellation differs from its installed scoped Work stage.');
+          }
+          cancellationSourceStages.add(effects);
+        }
         rentNoticeHooks?.cancel(key);
         if (scenarioDef?.name === 'invoice.collect') {
           if (invoiceCollectCancel === null) {
@@ -11969,9 +12005,18 @@ async function runScenarioExecution(
           // a supplied File still needs its separate File provenance path.
           const unusedNullFile = parameter.typeId === 'file?' && parsed.nullable &&
             !parsed.array && localPolicyMember(suppliedValues, parameter.name) === null;
-          if (field.name !== parameter.name || type !== parameter.typeId || parsed.array ||
+          // Source facts retain stored enum identity and ordered text arrays;
+          // canonical input descriptors retain their scalar wire encoding.
+          const admittedTextArray = parameter.typeId === 'text[]' && parsed.array &&
+            !parsed.nullable && field.kind === 'string' && field.valueType === 'text[]' &&
+            Object.hasOwn(scenarioDef.inputArrays, field.name) && Array.isArray(admittedParameters[parameter.name]);
+          const ownedEnum = field.kind === 'enum' && parsed.base.kind === 'nominal' && !parsed.array && !parsed.nullable &&
+            loaded.models.some(model => Object.entries(model.fields).some(([name, declaration]) =>
+              `${model.name}.${name}` === parameter.typeId && declaration.valueType === field.valueType));
+          const declaredType = admittedTextArray || ownedEnum ? parameter.typeId : type;
+          if (field.name !== parameter.name || declaredType !== parameter.typeId || parsed.array && !admittedTextArray ||
               (parsed.nullable && !unusedNullFile) ||
-              parsed.base.kind === 'nominal' && !loaded.models.some(model => model.name === parameter.typeId) ||
+              parsed.base.kind === 'nominal' && !ownedEnum && !loaded.models.some(model => model.name === parameter.typeId) ||
               !Object.hasOwn(admittedParameters, parameter.name) ||
               localPolicyMember(suppliedValues, parameter.name) !== admittedParameters[parameter.name]) {
             throw new AssemblyCorrespondenceError('Scenario Require parameter differs from its genuine admitted native slot.');
