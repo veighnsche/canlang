@@ -12325,8 +12325,18 @@ async function runScenarioExecution(
           const parsed = parseTypeId(parameter.typeId);
           if (parameter.unread) {
             if (field.name !== parameter.name || parameter.typeId !== 'file?' ||
-                field.kind !== 'file' || field.valueType !== 'file?' || Object.hasOwn(scenarioDef.inputArrays, field.name)) {
+                field.kind !== 'file' || field.valueType !== 'file?' || field.required !== false ||
+                field.default !== undefined && (field.default.kind !== 'literal' || field.default.value !== null) ||
+                Object.hasOwn(scenarioDef.inputArrays, field.name)) {
               throw new AssemblyCorrespondenceError('Unread Require parameter differs from its original nullable File declaration.');
+            }
+            // Omitting this slot from the observer does not authenticate a
+            // supplied File. Non-null inputs still need the separately bound
+            // owning File producer; their actual uses retain its checks.
+            const value = admittedParameter(parameter.name);
+            if (value !== undefined && value !== null &&
+                (opts.files === undefined || nativeScenarioFiles.get(scenarioDef)?.files !== opts.files)) {
+              throw new StateError('validation', 'Unread File input requires its installed owning File producer.');
             }
             continue;
           }
