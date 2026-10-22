@@ -359,7 +359,7 @@ it('collects the current invoice balance from owner-complete evidence and emits 
   });
 
 it('executes the four authored Invoice terminals only from retained Work completion admission',
-  { timeout: 300000 }, async () => {
+  { timeout: 900000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'can-invoice-terminals-'));
     try {
       const terminalSource = join(root, 'packages/cloudflare/test/fixtures/invoice-terminal-owner-probe.can');

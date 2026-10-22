@@ -1,0 +1,11 @@
+app CallbackProbe uses=[callbacks]
+package callbacks
+ Given
+  Sample {values:int[]}
+  invariant Sample: nested(row.values) and plain(row.values)>0
+  export derive key(value:int):int = value
+  export derive grouped(items:int[]):int = count(group(items as item,key(item)))
+  export derive plain(items:int[]):int = count(group(items as item,item))
+  export derive nested(items:int[]):bool = all(items as left,all(items as right,left==right))
+ When
+ Then

@@ -6079,7 +6079,7 @@ impl<'a> Emitter<'a> {
         args: &[TypedExpr],
         slots: Option<&[Option<usize>]>,
     ) -> bool {
-        if !matches!(target, IrCallTarget::Builtin { id, .. } if id == "any" || id == "all") {
+        if !matches!(target, IrCallTarget::Builtin { id, .. } if matches!(id.as_str(), "any" | "all" | "group")) {
             return false;
         }
         let predicate = match slots {
@@ -6090,9 +6090,59 @@ impl<'a> Emitter<'a> {
                 .and_then(|index| args.get(index)),
             None => args.get(1),
         };
+        let group = matches!(target, IrCallTarget::Builtin { id, .. } if id == "group");
         matches!(predicate, Some(TypedExpr { expr: IrExpr::Lambda { body, .. }, .. })
-            if expr_uses_async(body) || self.boolean_body || self.retained_owner_body || self.boolean_helper
-                || self.leave_decide_async_predicate(body.span))
+            if expr_uses_async(body) || self.implicit_expr_uses_async(body)
+                || !group && (self.boolean_body || self.boolean_helper
+                    || self.leave_decide_async_predicate(body.span)))
+    }
+
+    /// Installed reference readers and scoped collections can suspend a
+    /// checked synchronous expression. Follow only work evaluated here;
+    /// constructing a callback does not evaluate its body. In particular a
+    /// pure Values grouping key must remain synchronous.
+    fn implicit_expr_uses_async(&self, expression: &TypedExpr) -> bool {
+        if !self.retained_owner_body && !self.boolean_body && !self.boolean_helper { return false; }
+        let mut pending = vec![expression];
+        while let Some(value) = pending.pop() {
+            match &value.expr {
+                IrExpr::Member { base, field } => {
+                    if (self.boolean_body || self.retained_owner_body && field != "id") && self.is_model_reference(&base.ty) {
+                        return true;
+                    }
+                    pending.push(base);
+                }
+                IrExpr::Call { target, args } => {
+                    if self.async_scoped_predicate(target, args, None) { return true; }
+                    pending.extend(args);
+                }
+                IrExpr::BoundCall { target, args, slots } => {
+                    if self.async_scoped_predicate(target, args, Some(slots)) { return true; }
+                    pending.extend(args);
+                }
+                IrExpr::Unary { operand, .. } => pending.push(operand),
+                IrExpr::Binary { left, right, .. } => pending.extend([left.as_ref(), right.as_ref()]),
+                IrExpr::Array(values) => pending.extend(values),
+                IrExpr::Object(values) => pending.extend(values.iter().map(|(_, value)| value)),
+                IrExpr::Query(query) => {
+                    if let super::ir::IrQueryDomain::Value { base, .. } = &query.domain { pending.push(base); }
+                    pending.extend(query.value_order.iter().map(|order| order.key.as_ref()));
+                    pending.extend(query.parent.iter().map(|value| value.as_ref()));
+                    pending.extend(query.where_pred.iter().map(|value| value.as_ref()));
+                    pending.extend(query.limit.iter().map(|value| value.as_ref()));
+                    pending.extend(query.archived.iter().map(|value| value.as_ref()));
+                    pending.extend(query.select.iter().map(|value| value.as_ref()));
+                }
+                IrExpr::Message(message) => pending.extend(message.params.iter().map(|param| &param.value)),
+                IrExpr::MessageCall { args, params, .. } => {
+                    pending.extend(args);
+                    pending.extend(params.iter().filter_map(|param| param.default.as_ref()));
+                }
+                IrExpr::Format { args, .. } => pending.extend(args),
+                _ => {},
+            }
+        }
+        false
     }
 
     fn leave_decide_async_predicate(&self, span: Span) -> bool {
@@ -8703,7 +8753,7 @@ impl<'a> Emitter<'a> {
                     self.hook_closure_depth -= 1;
                 }
                 self.exit_scope();
-                if expr_uses_async(body) || self.boolean_body || self.retained_owner_body
+                if expr_uses_async(body) || self.implicit_expr_uses_async(body)
                     || self.leave_decide_async_predicate(body.span) {
                     format!("async({param})=>{body_text}")
                 } else {
@@ -9966,6 +10016,16 @@ fn conjunct_dependency_matches<'d>(
         await_result: bool,
         async_scoped: bool,
     ) -> String {
+        if async_scoped && id == "group" && parts.len() == 2 {
+            self.stdlib.insert("ValueError".to_string());
+            self.stdlib.insert("equalValue".to_string());
+            // Match Values.group's once-only source order, equality and frozen
+            // result shape, awaiting only the actual original key callback.
+            return format!(
+                "{}(async($domain,$keyFn)=>{{if(!Array.isArray($domain))throw new ValueError(\"invalid-construction\",\"group domain must be an array\");if(typeof $keyFn!==\"function\")throw new ValueError(\"invalid-construction\",\"group key function must be a function\");const $groups=[];for(const $item of $domain){{const $key=await $keyFn($item);let $found;for(const $candidate of $groups){{if(equalValue(\"\",$candidate.key,$key)){{$found=$candidate;break;}}}}if($found===undefined)$groups.push({{key:$key,items:[$item]}});else $found.items.push($item);}}return Object.freeze($groups.map($entry=>Object.freeze({{key:$entry.key,items:Object.freeze([...$entry.items])}})));}})({},{})",
+                if await_result { "await " } else { "" }, parts[0], parts[1]
+            );
+        }
         if async_scoped && matches!(id.as_str(), "any" | "all") && parts.len() == 2 {
             self.stdlib.insert("ValueError".to_string());
             let stop = if id == "any" { "true" } else { "false" };
@@ -10336,7 +10396,7 @@ fn conjunct_dependency_matches<'d>(
             }
         }
         let value = values.pop().expect("flat binary result");
-        if expr_uses_async(expr) {
+        if expr_uses_async(expr) || self.implicit_expr_uses_async(expr) {
             format!("await (async()=>{{{body}return {value};}})()")
         } else {
             format!("(()=>{{{body}return {value};}})()")
@@ -11479,7 +11539,7 @@ fn null_equality(
         }
         self.exit_scope();
         if self.native_source_predicates {
-            let prefix = if query.where_async || self.boolean_body || self.retained_owner_body {
+            let prefix = if query.where_async || self.boolean_body || self.implicit_expr_uses_async(pred) {
                 "async"
             } else {
                 ""
@@ -11496,7 +11556,7 @@ fn null_equality(
             } else {
                 opts.push(format!("where:{predicate}"));
             }
-        } else if query.where_async || self.boolean_body || self.retained_owner_body {
+        } else if query.where_async || self.boolean_body || self.implicit_expr_uses_async(pred) {
             opts.push(format!("where:async({row})=>{body}"));
         } else {
             opts.push(format!("where:({row})=>{body}"));
@@ -11522,7 +11582,7 @@ fn null_equality(
             let alias = self.bind(alias);
             let body = self.lower_expr(pred);
             self.exit_scope();
-            out = if query.where_async || self.boolean_body || self.retained_owner_body {
+            out = if query.where_async || self.boolean_body || self.implicit_expr_uses_async(pred) {
                 format!(
                     "(await (async($items)=>{{const $result=[];for(const {alias} of $items){{if(await ({body}))$result.push({alias});}}return $result;}})({out}))"
                 )
@@ -11535,7 +11595,7 @@ fn null_equality(
             let alias = self.bind(alias);
             let key = self.lower_expr(&order.key);
             self.exit_scope();
-            let asynchronous = expr_uses_async(&order.key) || self.boolean_body || self.retained_owner_body;
+            let asynchronous = expr_uses_async(&order.key) || self.boolean_body || self.implicit_expr_uses_async(&order.key);
             let (awaited, asynchronous_fn) = if asynchronous {
                 ("await ", "async")
             } else {
@@ -11810,7 +11870,7 @@ fn null_equality(
         } else {
             body
         };
-        if expr_uses_async(projection) || self.boolean_body || self.retained_owner_body {
+        if expr_uses_async(projection) || self.boolean_body || self.implicit_expr_uses_async(projection) {
             return format!(
                 "(await (async($items)=>{{const $result=[];for(const {param} of $items){{$result.push(await ({body}));}}return $result;}})({fetched}))"
             );
@@ -20116,7 +20176,7 @@ impl<'a> Emitter<'a> {
             )
         }) {
             format!("async(c,row,$readCurrent)=>{body_text}")
-        } else if expr_uses_async(body) || self.boolean_body || self.retained_owner_body {
+        } else if expr_uses_async(body) || self.boolean_body || self.implicit_expr_uses_async(body) {
             format!("async(c,row)=>{body_text}")
         } else {
             format!("(c,row)=>{body_text}")

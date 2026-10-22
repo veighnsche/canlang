@@ -103,3 +103,29 @@ it('releases original page and false derived values after current read authority
     assert.deepEqual(await hashes(), before, 'original source and compiler inputs remain frozen');
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+
+it('executes compiled grouping keys and nested boolean callbacks in source order', { timeout: 120000 }, async () => {
+  const compiler = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
+  const sourcePath = join(root, 'compiler/tests/fixtures/callback-probe.can');
+  const dir = await mkdtemp(join(tmpdir(), 'can-callback-values-'));
+  try {
+    const { stdout } = await promisify(execFile)(compiler,
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
+        join(root, 'packages/cloudflare/dist/native-catalog.json'), sourcePath],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout);
+    const asm = await assembleModules({ artifact, sourcePath }, { workDir: dir,
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
+    const entry = artifact.modules[0].path;
+    const namespace = object(await importVerifiedAssemblyModule(asm, entry, artifact));
+    const functions = object(namespace.canApp());
+    for (const name of ['callbacks.grouped', 'callbacks.plain']) {
+      assert.equal(await functions[name]({}, [1n, 1n, 2n]), 2n, name);
+      assert.equal(await functions[name]({}, []), 0n, name);
+    }
+    assert.equal(await functions['callbacks.nested']({}, [1n, 2n]), false);
+    assert.equal(await functions['callbacks.nested']({}, [1n, 1n]), true);
+    assert.equal(await functions['callbacks.nested']({}, []), true);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
