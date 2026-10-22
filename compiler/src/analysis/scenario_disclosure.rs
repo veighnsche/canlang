@@ -11037,20 +11037,19 @@ impl<'a> Closure<'a> {
                 let Some(model) = model_step else {
                     continue;
                 };
-                // A leading source-Require observer owns this exact COUNT
-                // execution and domain. Do not demand a second, unrelated
-                // assign/count recipe for the same original occurrence.
-                if self.checked_source_requires(scenario).is_some_and(|sites|
-                    sites.iter().any(|site| site.stage == CheckedDecisionStage::LeadingRequire
-                        && site.statement == statement.node && site.calls.iter().any(|source|
-                            source.node == call && matches!(&source.target,CheckedDecisionCallTarget::Builtin{id,..} if id == "count")
+                // Preserve an already-supported native count consumer first.
+                // A source observer may own only the otherwise unsupported
+                // exact leading contained occurrence.
+                if let Some(query)=self.checked_assign_count_query_source(
+                    scenario,statement.node,call,supplied,model,
+                ).or_else(||self.checked_count_query_source(scenario,statement.node,call,supplied,model)) {
+                    queries.push(query);
+                }else if !self.checked_source_requires(scenario).is_some_and(|sites|
+                    sites.iter().any(|site|site.stage==CheckedDecisionStage::LeadingRequire
+                        && site.statement==statement.node && site.calls.iter().any(|source|
+                            source.node==call && matches!(&source.target,CheckedDecisionCallTarget::Builtin{id,..} if id=="count")
                                 && self.source_require_contained_collection(scenario,source,"count"))))
-                { continue; }
-                queries.push(self.checked_assign_count_query_source(
-                    scenario, statement.node, call, supplied, model,
-                ).or_else(|| self.checked_count_query_source(
-                    scenario, statement.node, call, supplied, model,
-                ))?);
+                {return None;}
                 if queries.len() > 200 {
                     return None;
                 }
@@ -15094,6 +15093,19 @@ impl<'a> Closure<'a> {
             && self.source_require_contained_query(scenario,call,query)
     }
 
+    /// Existing checked native count consumers keep their execution frame.
+    /// The generic contained observer is only a fallback; stealing a released
+    /// count guard would orphan its later count/FIRST decision consumer.
+    fn source_require_has_native_count(&self, scenario:&super::effects::ScenarioData,
+        call:&CheckedDecisionCall) -> bool {
+        let Some((supplied,_))=call.slots.first().copied().flatten().and_then(|slot|call.arguments.get(slot)) else{return false;};
+        let Some(Some(model))=self.count_domain_model(*supplied) else{return false;};
+        scenario.guards.iter().any(|guard|guard.cond.is_some_and(|node|
+            node.file==call.node.file && node.start<=call.node.start && call.node.end<=node.end)
+            && (self.checked_assign_count_query_source(scenario,guard.node,call.node,*supplied,model).is_some()
+                || self.checked_count_query_source(scenario,guard.node,call.node,*supplied,model).is_some()))
+    }
+
     fn source_require_call(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -15157,6 +15169,7 @@ impl<'a> Closure<'a> {
             // Model collection. The existing primitive Text-array count
             // remains separate and carries no collection-query authority.
             CheckedDecisionCallTarget::Builtin { id, .. } if id == "count" && !body => {
+                if self.source_require_has_native_count(scenario,call){*supported=false;return Some(false);}
                 if self.source_require_contained_collection(scenario,call,"count")
                     && self.types.node_types.get(&call.node)==Some(&ResolvedType::Scalar(Scalar::Int))
                 { *helper_query=true; return Some(true); }
