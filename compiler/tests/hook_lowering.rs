@@ -168,6 +168,45 @@ fn hook_datetime_max_and_coalesce_lower() {
     assert!(js.contains("c.now"), "owner clock read:\n{js}");
 }
 
+/// (Outcome 12, derived-field class.) The recorded CanSuccess shape
+/// (`Account` carries `derive progress/completed/total`): a model with
+/// computed derive fields still admits its create/update hooks to the
+/// native runner. Derives are computed, never cloned into the hook
+/// candidate, so they cannot veto the stored trigger row; a hook body
+/// that reads a derive still refuses in field profiling.
+#[test]
+fn hook_model_with_derived_fields_binds_native() {
+    let src = "app T\nGiven\n M { due:datetime, done:bool=false }\n derive M.over:bool = row.done==false\n event Tick { s:text }\nWhen\n scenario created on=M.create\n  do\n   if event.after.due>now\n    schedule event.after.id at=event.after.due event=Tick {s=\"tick\"}\n scenario changed on=M.update\n  do\n   cancel event.after.id\n   if event.after.due>now\n    schedule event.after.id at=event.after.due event=Tick {s=\"tick\"}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "derived-field hooks lower: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
+    );
+    assert!(js.contains("c.now"), "owner clock read:\n{js}");
+}
+
+/// (Outcome 12, derived-field negative.) A hook body that reads a
+/// computed model derive (`event.after.over`) must NOT be promoted to
+/// the native runner: derives are computed, never cloned into the hook
+/// candidate snapshot, so the read cannot observe owner data through
+/// the ambient context. Field profiling binds stored `Field`
+/// declarations only, so the derive read keeps the hook on the
+/// pre-existing legacy path (which lowers it without a diagnostic,
+/// exactly as before this fix).
+#[test]
+fn hook_model_derive_read_stays_legacy() {
+    let src = "app T\nGiven\n M { due:datetime, done:bool=false }\n derive M.over:bool = row.done==false\n event Tick { s:text }\nWhen\n scenario created on=M.create\n  do\n   if event.after.over\n    schedule event.after.id at=event.after.due event=Tick {s=\"tick\"}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    let _ = diags;
+    assert!(
+        !js.contains("($candidate,$hookCtx,c)"),
+        "derive-reading hook must not bind the native runner:\n{js}"
+    );
+}
+
 /// (Outcome 12, emit class.) The recorded change-notification shape
 /// (CanEmployee `changed`): same-model field comparisons gate an emit
 /// carrying the snapshot plus carried references on the native runner.

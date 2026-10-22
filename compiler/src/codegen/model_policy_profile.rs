@@ -149,6 +149,16 @@ impl HookProfile<'_> {
             item.id == model && item.module == self.module
                 && matches!(&item.kind, IrItemKind::Model { fields, .. } if fields.iter().all(|id| {
                     self.program.items.get(id.0 as usize).is_some_and(|field| {
+                        // Derived fields are computed, never cloned into the
+                        // hook candidate snapshot, so they cannot veto the
+                        // stored trigger row. A hook body that reads a derive
+                        // still refuses in `field`, which only binds stored
+                        // `Field` declarations.
+                        if let IrItemKind::DeriveField { model: owner, .. } = &field.kind {
+                            return field.id == *id
+                                && *owner == model
+                                && field.module == self.module;
+                        }
                         field.id == *id && field.module == self.module
                             && matches!(&field.kind, IrItemKind::Field { owner, ty: IrType::Known(ty), .. } if *owner == model && self.supported_field_type(ty))
                     })
