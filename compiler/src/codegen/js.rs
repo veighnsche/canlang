@@ -6091,7 +6091,7 @@ impl<'a> Emitter<'a> {
             None => args.get(1),
         };
         matches!(predicate, Some(TypedExpr { expr: IrExpr::Lambda { body, .. }, .. })
-            if expr_uses_async(body) || self.boolean_body || self.boolean_helper
+            if expr_uses_async(body) || self.boolean_body || self.retained_owner_body || self.boolean_helper
                 || self.leave_decide_async_predicate(body.span))
     }
 
@@ -8363,7 +8363,8 @@ impl<'a> Emitter<'a> {
                     && matches!(field.as_str(), "actor" | "now" | "team" | "operation");
                 let base_text = if ambient {
                     "c".to_string()
-                } else if self.boolean_body && self.is_model_reference(&base.ty)
+                } else if (self.boolean_body || self.retained_owner_body && field != "id")
+                    && self.is_model_reference(&base.ty)
                 {
                     self.lower_boolean_record(base)
                 } else {
@@ -8702,7 +8703,7 @@ impl<'a> Emitter<'a> {
                     self.hook_closure_depth -= 1;
                 }
                 self.exit_scope();
-                if expr_uses_async(body) || self.boolean_body
+                if expr_uses_async(body) || self.boolean_body || self.retained_owner_body
                     || self.leave_decide_async_predicate(body.span) {
                     format!("async({param})=>{body_text}")
                 } else {
@@ -11478,7 +11479,7 @@ fn null_equality(
         }
         self.exit_scope();
         if self.native_source_predicates {
-            let prefix = if query.where_async || self.boolean_body {
+            let prefix = if query.where_async || self.boolean_body || self.retained_owner_body {
                 "async"
             } else {
                 ""
@@ -11495,7 +11496,7 @@ fn null_equality(
             } else {
                 opts.push(format!("where:{predicate}"));
             }
-        } else if query.where_async || self.boolean_body {
+        } else if query.where_async || self.boolean_body || self.retained_owner_body {
             opts.push(format!("where:async({row})=>{body}"));
         } else {
             opts.push(format!("where:({row})=>{body}"));
@@ -11521,7 +11522,7 @@ fn null_equality(
             let alias = self.bind(alias);
             let body = self.lower_expr(pred);
             self.exit_scope();
-            out = if query.where_async || self.boolean_body {
+            out = if query.where_async || self.boolean_body || self.retained_owner_body {
                 format!(
                     "(await (async($items)=>{{const $result=[];for(const {alias} of $items){{if(await ({body}))$result.push({alias});}}return $result;}})({out}))"
                 )
@@ -11534,7 +11535,7 @@ fn null_equality(
             let alias = self.bind(alias);
             let key = self.lower_expr(&order.key);
             self.exit_scope();
-            let asynchronous = expr_uses_async(&order.key) || self.boolean_body;
+            let asynchronous = expr_uses_async(&order.key) || self.boolean_body || self.retained_owner_body;
             let (awaited, asynchronous_fn) = if asynchronous {
                 ("await ", "async")
             } else {
@@ -11809,7 +11810,7 @@ fn null_equality(
         } else {
             body
         };
-        if expr_uses_async(projection) || self.boolean_body {
+        if expr_uses_async(projection) || self.boolean_body || self.retained_owner_body {
             return format!(
                 "(await (async($items)=>{{const $result=[];for(const {param} of $items){{$result.push(await ({body}));}}return $result;}})({fetched}))"
             );
@@ -12170,7 +12171,11 @@ fn null_equality(
                     return self.lower_hook_set(record, changes, *span, &pad);
                 }
                 self.stdlib.insert("set".to_string());
-                let record_text = self.lower_expr(record);
+                let record_text = if self.retained_owner_body {
+                    self.lower_boolean_record(record)
+                } else {
+                    self.lower_expr(record)
+                };
                 let changes_text = self.lower_expr(changes);
                 let when_text = when
                     .as_ref()
@@ -20111,7 +20116,7 @@ impl<'a> Emitter<'a> {
             )
         }) {
             format!("async(c,row,$readCurrent)=>{body_text}")
-        } else if expr_uses_async(body) || self.boolean_body {
+        } else if expr_uses_async(body) || self.boolean_body || self.retained_owner_body {
             format!("async(c,row)=>{body_text}")
         } else {
             format!("(c,row)=>{body_text}")

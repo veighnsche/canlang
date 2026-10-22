@@ -9861,6 +9861,7 @@ async function runScenarioExecution(
       ...(seamTriggerPoint(call) === undefined ? {} : { trigger: seamTriggerPoint(call)! }),
     });
   const ownerSession: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> | undefined = child?.session ?? rootOwnerSession;
+  let retainedNavigationActive = true;
   let ownerPolicyFrame: { close(): void } | undefined;
   let scenarioReceiptFrame: ScenarioReceiptFrame | undefined;
   let nativeMembershipFrame: NativeMembershipFrame | undefined;
@@ -11307,6 +11308,56 @@ async function runScenarioExecution(
         },
       });
     } catch (error) { recordEngineFailure(error); throw error; }
+  }
+  if (trustedOwnerReads && !receiptAware && ownerSession !== undefined) {
+    // The retained handler already owns this State session. Reach a stored
+    // reference lazily, using only views/field values issued in this execution;
+    // a copied Values reference never creates owner read or write authority.
+    bindNativeSourceReferenceReader(ctx, async (reference, field) => {
+      const live = () => {
+        if (!retainedNavigationActive || field !== undefined) {
+          return refuseRecordBinding('Retained reference needs its live original owner execution.');
+        }
+      };
+      try {
+        live();
+        if (typeof reference !== 'object' || reference === null) {
+          return refuseRecordBinding('Retained reference needs its actual owner-issued value.');
+        }
+        // Keep the exact issued projection/query snapshot. Resolving it again
+        // could expand served fields or replace an earlier query observation.
+        if (recordBindings.has(reference as Record<string, unknown>) || ownerNavigation.resolveRecord(reference) !== undefined) {
+          return reference;
+        }
+        const origin = storedReferences.get(reference);
+        if (origin !== undefined) {
+          const source = recordBindings.get(origin.sourceView as Record<string, unknown>);
+          const declared = opts.artifact.models?.find(model => model.name === origin.sourceModel)?.fields
+            .find(field => field.name === origin.field);
+          if (source?.model !== origin.sourceModel || source.id !== origin.sourceId ||
+              declared?.field.kind !== 'ref' || declared.field.model !== origin.model || declared.array !== undefined ||
+              !isRecordRef(reference) || reference.model !== origin.model || reference.id !== origin.id) {
+            return refuseRecordBinding('Retained reference differs from its original singular stored field.');
+          }
+          const current = await readOwnerRow(source.model as ModelName, source.id as RecordId);
+          live();
+          if (current === null || current.archivedAt !== null ||
+              stableStringify(current.data[origin.field]) !== stableStringify(origin.wire)) {
+            return refuseRecordBinding('Retained reference lost its actual current source field.');
+          }
+        }
+        if (origin === undefined) return refuseRecordBinding('Retained reference was not issued by this owner execution.');
+        const row = await readOwnerRow(origin.model as ModelName, origin.id as RecordId);
+        live();
+        if (row === null || row.archivedAt !== null) throw new StateError('not_found', 'Retained reference is no longer present.');
+        if (origin?.version !== undefined && origin.version !== BigInt(row.version)) {
+          throw new StateError('conflict', 'Retained reference expected version changed.');
+        }
+        await ownerNavigation.prepare(origin.model, row);
+        live();
+        return recordView(origin.model, row);
+      } catch (error) { recordEngineFailure(error); throw error; }
+    });
   }
   if (receiptAware && receiptStore !== undefined) {
     // This is the unchanged call pointer supplied by actual State.invoke.
@@ -13614,7 +13665,7 @@ async function runScenarioExecution(
     guards: seamGuards,
     readings: servedReadings,
   } };
-  } finally { nativeScenarioExecutions.delete(call as AdmittedCall); nativeMembershipFrame?.close(); scenarioReceiptFrame?.close(); ownerPolicyFrame?.close(); }
+  } finally { retainedNavigationActive = false; nativeScenarioExecutions.delete(call as AdmittedCall); nativeMembershipFrame?.close(); scenarioReceiptFrame?.close(); ownerPolicyFrame?.close(); }
 }
 
 async function runScenarioSeam(

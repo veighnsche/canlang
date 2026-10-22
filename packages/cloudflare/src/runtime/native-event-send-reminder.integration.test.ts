@@ -530,10 +530,11 @@ it('records inspections and conditional repairs over the original hidden helper 
       'actual inspection requires its complete native receipt');
     const asm = await assembleModules({ artifact, sourcePath: path }, { workDir: directory,
       stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
-    for (const mode of ['passed', 'failed', 'blocked', 'superseded-hidden', 'employee-inactive', 'wrong-count', 'blank-evidence', 'role-revoked-during-source', 'revision-race', 'false-before-parent', 'true-needs-parent', 'parent-passed', 'parent-failed', 'parent-null', 'parent-superseded', 'parent-hidden', 'parent-wrong-user', 'parent-stale-link', 'parent-photo', 'parent-foreign-photo', 'parent-lost-photo'] as const) {
+    for (const mode of ['passed', 'failed', 'blocked', 'superseded-hidden', 'employee-inactive', 'wrong-count', 'blank-evidence', 'role-revoked-during-source', 'revision-race', 'false-before-parent', 'true-needs-parent', 'parent-passed', 'parent-failed', 'parent-null', 'parent-superseded', 'parent-hidden', 'parent-wrong-user', 'parent-stale-link', 'parent-photo', 'parent-foreign-photo', 'parent-lost-photo', 'parent-repair-fixed', 'parent-repair-foreign-location', 'parent-repair-not-done', 'parent-repair-race'] as const) {
       const parent = mode.startsWith('parent-');
       const noInspection = mode === 'parent-null';
-      const wantedResult = mode === 'passed' || mode === 'parent-passed' || mode === 'parent-photo' ? 'passed' : mode === 'blocked' ? 'blocked' : 'failed';
+      const linkedRepair = mode === 'parent-photo' || mode.startsWith('parent-repair-');
+      const wantedResult = mode === 'passed' || mode === 'parent-passed' || linkedRepair ? 'passed' : mode === 'blocked' ? 'blocked' : 'failed';
       const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
       const team = await identities.createTeam({ timezone: 'UTC' });
       const user = await identities.createUser({ email: `${mode}@maintain.test`, password_hash: 'unused', email_verified: true });
@@ -564,7 +565,10 @@ it('records inspections and conditional repairs over the original hidden helper 
           answers: [], evidence: null, inspected_at: null, repair: null, hidden: mode === 'parent-hidden' }, { model: asModel('maintain.Plan'), id: plan }) },
         ...(!['superseded-hidden', 'parent-superseded'].includes(mode) ? [] : [{ kind: 'insert' as const, model: asModel('maintain.Cancellation'), row: row(asId('cancellation-1'),
           { plan: { id: plan }, through: '1', cutoff: '2026-10-21', reason: 'plan_revised', hidden: true }, { model: asModel('maintain.Asset'), id: asset }) }]),
-        { kind: 'insert', model: asModel('field.Job'), row: row(asId('job-1'), { source: 'job-source', schedule_source: null, schedule_revision: '1', release_delivery: null, released: false, contact: 'customer@example.test', repair: null, employee: { id: 'employee-1' },
+        ...(linkedRepair ? [{ kind: 'insert' as const, model: asModel('maintain.Repair'),
+          row: row(asId('original-repair'), { title: 'Original repair', description: 'Prior report', reporter: { id: user.user_id },
+            completion: null, visit_review: false, state: mode === 'parent-repair-fixed' ? 'fixed' : 'in_progress' }, { model: asModel('maintain.Asset'), id: asset }) }] : []),
+        { kind: 'insert', model: asModel('field.Job'), row: row(asId('job-1'), { source: 'job-source', schedule_source: null, schedule_revision: '1', release_delivery: null, released: false, contact: 'customer@example.test', repair: linkedRepair ? { id: 'original-repair' } : null, employee: { id: 'employee-1' },
           location: { id: location }, inspection: noInspection ? null : { id: inspection }, state: 'in_progress' }) },
       ] }));
       // Seed a real owning Work occurrence so CANCEL must join the same
@@ -708,7 +712,7 @@ it('records inspections and conditional repairs over the original hidden helper 
       if (mode === 'true-needs-parent') assert.ok('error' in outcome, JSON.stringify(outcome));
       if (mode === 'role-revoked-during-source') assert.equal(revoked, true);
       if (mode === 'revision-race' || mode === 'parent-stale-link') assert.equal(raced, true);
-      const success = ['passed', 'failed', 'blocked', 'parent-passed', 'parent-failed', 'parent-null', 'parent-photo'].includes(mode);
+      const success = ['passed', 'failed', 'blocked', 'parent-passed', 'parent-failed', 'parent-null', 'parent-photo'].includes(mode) || linkedRepair;
       const inspected = success && !noInspection;
       assert.equal('result' in outcome && outcome.result.status === 'committed', success, `${mode}: ${JSON.stringify(outcome)}`);
       assert.equal((await store.scheduleGet(scheduleKey)) === null, inspected, `${mode}: atomic schedule cancellation`);
@@ -734,8 +738,8 @@ it('records inspections and conditional repairs over the original hidden helper 
       assert.equal(current.data['evidence'], inspected ? 'Measured warm air' : null, mode);
       assert.equal(current.data['inspected_at'], inspected ? new Date(now).toISOString() : null, mode);
       const repairs = await store.query({ model: asModel('maintain.Repair'), authority: 'owner' });
-      assert.equal(repairs.length, inspected && wantedResult !== 'passed' ? 1 : 0, mode);
-      if (repairs[0] !== undefined) {
+      assert.equal(repairs.length, (linkedRepair ? 1 : 0) + (inspected && wantedResult !== 'passed' ? 1 : 0), mode);
+      if (repairs[0] !== undefined && !linkedRepair) {
         assert.equal(repairs[0].parent?.id, asset, mode);
         assert.equal(repairs[0].data['title'], 'Cooling checklist', mode);
         assert.equal(repairs[0].data['description'], 'Measured warm air', mode);
@@ -773,12 +777,50 @@ it('records inspections and conditional repairs over the original hidden helper 
         const result = source.data['result'] as { context: { kind: string; operation: string; actor: { userId: string } } };
         assert.equal(result.context.kind, 'user'); assert.equal(result.context.operation, 'field.complete');
         assert.equal(result.context.actor.userId, user.user_id);
+        let consumerRaced = false, repairCommits = 0;
+        const consumerCommit = store.commit.bind(store);
+        const blockJob = async () => {
+          const currentJob = await store.load(asModel('field.Job'), asId('job-1')); assert.ok(currentJob);
+          await consumerCommit(makeBatch(await store.readRevision(), { writes: [{ kind: 'update', model: asModel('field.Job'),
+            id: currentJob.id, expectedVersion: currentJob.version,
+            row: { ...currentJob, version: asVersion(currentJob.version + 1), updated: now + 1,
+              data: { ...currentJob.data, state: 'blocked' } } }] }));
+        };
+        if (mode === 'parent-repair-not-done') await blockJob();
+        if (mode === 'parent-repair-foreign-location') {
+          const currentAsset = await store.load(asModel('maintain.Asset'), asset); assert.ok(currentAsset);
+          const elsewhere = asId('elsewhere');
+          await consumerCommit(makeBatch(await store.readRevision(), { writes: [
+            { kind: 'insert', model: asModel('rent_catalog.Location'), row: row(elsewhere, { name: 'Other site', timezone: 'UTC', active: true }) },
+            { kind: 'update', model: asModel('maintain.Asset'), id: currentAsset.id, expectedVersion: currentAsset.version,
+              row: { ...currentAsset, version: asVersion(currentAsset.version + 1), updated: now + 1,
+                data: { ...currentAsset.data, location: { id: elsewhere } } } },
+          ] }));
+        }
+        store.commit = async batch => {
+          const changesRepair = batch.writes.some(write => write.model === asModel('maintain.Repair'));
+          if (mode === 'parent-repair-race' && !consumerRaced && changesRepair) {
+            consumerRaced = true; await blockJob();
+          }
+          const committed = await consumerCommit(batch);
+          if (changesRepair) repairCommits++;
+          return committed;
+        };
         const deliver = () => invokeRetainedHandlerOccurrenceCanonical({ asm, artifact, app: scope.app,
           selector, store, identities, files, now: () => now + 1 });
         const handled = await deliver();
-        assert.equal((handled as { status: string }).status, 'completed', `${mode}: ${JSON.stringify(handled)}`);
+        const refusedRepair = ['parent-repair-not-done', 'parent-repair-foreign-location', 'parent-repair-race'].includes(mode);
+        assert.equal((handled as { status: string }).status, refusedRepair ? 'failed' : 'completed', `${mode}: ${JSON.stringify(handled)}`);
+        if (mode === 'parent-repair-race') assert.equal(consumerRaced, true);
         assert.equal((await deliver() as { status: string }).status, 'replayed');
         assert.deepEqual(await store.readReceipt(receiptIdentity), originalReceipt, 'delivery preserves original parent receipt');
+        if (linkedRepair) {
+          const repair = await store.load(asModel('maintain.Repair'), asId('original-repair')); assert.ok(repair);
+          assert.equal(repair.data['state'], mode === 'parent-repair-fixed' ? 'fixed' : refusedRepair ? 'in_progress' : 'awaiting_verification', mode);
+          assert.equal(repair.data['completion'], refusedRepair || mode === 'parent-repair-fixed' ? null : 'Measured warm air', mode);
+          assert.equal(repair.data['visit_review'], !refusedRepair, mode);
+          assert.equal(repairCommits, refusedRepair ? 0 : 1, 'failed or stale source cannot mutate the Repair');
+        }
       }
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
