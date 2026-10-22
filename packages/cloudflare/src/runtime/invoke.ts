@@ -17327,7 +17327,8 @@ export function mapReceiptJoinOutcome(outcome: unknown): SelectedReceiptServed {
  * missing dep inside a present observer.js names the nested path
  * (observer.js appears only as the importer) and reads as
  * broken-B, never absent. Unknown shapes (workerd misses) read as
- * broken: fail-closed loud, never a masking fallback.
+ * broken: fail-closed loud, never a masking fallback. Bun retains the relative
+ * missing specifier, so its exact receipt loader referrer must also match.
  */
 export function isObserverModuleAbsent(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
@@ -17335,7 +17336,10 @@ export function isObserverModuleAbsent(error: unknown): boolean {
   if (record["code"] !== "ERR_MODULE_NOT_FOUND") return false;
   const message = record["message"];
   if (typeof message !== "string") return false;
-  return /^Cannot find module '[^']*receipt\/observer\.js'/.test(message);
+  if (/^Cannot find module '[^']*receipt\/observer\.js'/.test(message)) return true;
+  const referrer = record["referrer"];
+  return typeof referrer === "string" && /(?:^|\/)receipt\/observer-loader\.js$/.test(referrer) &&
+    message === `Cannot find module './observer.js' imported from ${referrer}`;
 }
 
 async function resolveReceiptObserver(

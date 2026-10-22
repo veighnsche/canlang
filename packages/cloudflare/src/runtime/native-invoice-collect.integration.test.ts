@@ -109,7 +109,7 @@ it('collects the current invoice balance from owner-complete evidence and emits 
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
       const artifact = JSON.parse(stdout) as CompileArtifact;
       const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
-        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+        stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
         uiUrl: import.meta.resolve('@canlang/ui') });
 
       for (const mode of [
@@ -360,7 +360,7 @@ it('executes the four authored Invoice terminals only from retained Work complet
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
       const artifact = JSON.parse(stdout) as CompileArtifact;
       const asm = await assembleModules({ artifact, sourcePath: terminalSource }, { workDir: directory,
-        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+        stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
         uiUrl: import.meta.resolve('@canlang/ui') });
       const selectedCase=process.env['CAN_INVOICE_TERMINAL_CASE'];
       let executed=0;
