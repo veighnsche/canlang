@@ -963,7 +963,9 @@ function readOriginRecords(header: Record<string, unknown>): OriginRecords {
   const slot = originRecord(header.slot, ['model', 'id', 'created', 'createdBy', 'field', 'role']);
   const scope = originRecord(header.scope, ['app', 'ownerPackage', 'owner']);
   const skipped = (header.origin as { kind?: unknown } | null)?.kind === 'delivery-skipped';
-  const origin = originRecord(header.origin, skipped ?
+  const retained = (header.origin as { kind?: unknown } | null)?.kind === 'retained-delivery-result';
+  const origin = originRecord(header.origin, retained ?
+    ['kind', 'deliveryId', 'intent', 'request', 'caller', 'declaration', 'resultDeclarationId', 'completion', 'originalCommit', 'dispatch'] : skipped ?
     ['kind', 'deliveryId', 'send', 'request', 'caller', 'association', 'guard', 'declaration', 'resultDeclarationId'] :
     ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
   return { inventory, slot, scope, skipped, origin, ...readOriginParties(origin, skipped) };
@@ -988,7 +990,7 @@ function readOriginParties(origin: Record<string, unknown>, skipped: boolean): {
   const request = originRecord(origin.request, ['binding', 'from']);
   const caller = originRecord(origin.caller, ['source', 'callable', 'canonical', 'artifact', 'resultDeclarationId']);
   const source = originRecord(caller.source, ['path', 'sha256', 'module']);
-  const association = originRecord(origin.association, ['model', 'recordId', 'field']);
+  const association = origin.kind === 'retained-delivery-result' ? {} : originRecord(origin.association, ['model', 'recordId', 'field']);
   const declarationKind = (origin.declaration as { kind?: unknown } | null)?.kind;
   const declaration = originRecord(origin.declaration, declarationKind === 'generation' ? ['kind', 'canonical', 'artifact', 'request'] :
     declarationKind === 'judgment' ? ['kind', 'canonical', 'artifact', 'specification', 'order', 'valueTypes'] : ['kind', 'canonical', 'artifact']);
@@ -1025,7 +1027,7 @@ function checkOriginDelivery(
   skipped: boolean,
   intent: Record<string, unknown>,
 ): boolean {
-  return ['delivery-result', 'delivery-skipped'].includes(String(origin.kind)) && origin.deliveryId === deliveryId &&
+  return ['delivery-result', 'delivery-skipped', 'retained-delivery-result'].includes(String(origin.kind)) && origin.deliveryId === deliveryId &&
     (skipped || intent.intentId === deliveryId) && originString(intent.operation) && originString(intent.operationId) &&
     originString(intent.target) && typeof intent.occurrenceIndex === 'number' &&
     Number.isSafeInteger(intent.occurrenceIndex) && intent.occurrenceIndex >= 0;
@@ -1120,6 +1122,25 @@ function receiptOrigin(data: object, row: Pick<StoredRow, 'id' | 'created' | 'cr
   const header = originRecord(snapshotReceiptOrigin(property.value), ['version', 'inventory', 'declarationSetId', 'slot', 'scope', 'origin', 'files']);
   const records = readOriginRecords(header);
   checkOriginBinding(header, records, row, deliveryId, context);
+  if (records.origin.kind === 'retained-delivery-result') {
+    const completion = originRecord(records.origin.completion, ['kind', 'source', 'event', 'providerSource', 'binding', 'from',
+      'sourceInputsDeclarationId', 'inputsDeclarationId', 'resultDeclarationId', 'delivery']);
+    const stamp = originRecord(records.origin.originalCommit, ['revision', 'createdAt']);
+    const dispatch = originRecord(records.origin.dispatch, ['kind', 'operationId', 'source', 'occurrenceIndex', 'originOccurrence', 'created', 'actor']);
+    if (completion.kind !== 'standard-completion' || completion.providerSource !== records.intent.target ||
+        completion.binding !== records.request.binding || completion.from !== records.request.from ||
+        completion.resultDeclarationId !== records.origin.resultDeclarationId ||
+        !sameJudgmentWire(completion.delivery, records.declaration) || dispatch.kind !== 'capability' ||
+        dispatch.source !== records.intent.target || dispatch.operationId !== records.intent.operationId ||
+        dispatch.occurrenceIndex !== records.intent.occurrenceIndex || !originString(dispatch.actor) ||
+        dispatch.originOccurrence !== null && !originString(dispatch.originOccurrence) ||
+        !Number.isSafeInteger(stamp.revision) || (stamp.revision as number) < 1 ||
+        !Number.isSafeInteger(stamp.createdAt) || (stamp.createdAt as number) < 0 ||
+        !Number.isSafeInteger(dispatch.created) || (dispatch.created as number) < 0 ||
+        (dispatch.created as number) > (stamp.createdAt as number) || (stamp.createdAt as number) > row.created) {
+      throw new ReceiptTableError('work.receipt retained delivery lost its original completion/dispatch correspondence.');
+    }
+  }
   // HEAD guards the files array (binding error) before the skipped-origin
   // check: malformed-both inputs report the binding disagreement, not the
   // skipped-envelope error.

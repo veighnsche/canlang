@@ -164,7 +164,7 @@ import { bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeS
   bindNativeScenarioRentMovementRefundDecision, bindNativeScenarioInvoiceCollectDecision,
   bindNativeScenarioInvoiceIssueDecision,
   bindNativeScenarioRentNoticeDecision } from './native-scenario-require.js';
-import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
+import { createSystemRegistry, enrollSystemCommandCommitCheck, assertSystemCommandStore, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
 import { assertOwnerMutationHookContext } from '@canlang/state/mutation';
@@ -5148,9 +5148,11 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
     const originalOperation = own(own(definition, 'operations'), def.name);
     const rawGuards = own(originalOperation, 'sendGuards');
     const entries = rawGuards === undefined ? [] : nativeCallArray(rawGuards, 200);
-    const generationResults = artifact.models?.some(model => model.fields.some(field =>
-      field.field.kind === 'delivery' && tables.dispatchGenerationTargetProfile(
-        `${field.field.capability}.${field.field.operation}`)?.role === 'original')) === true;
+    const typedResults = artifact.models?.some(model => model.fields.some(field =>
+      field.field.kind === 'delivery' && (tables.dispatchGenerationTargetProfile(
+        `${field.field.capability}.${field.field.operation}`)?.role === 'original' ||
+        field.field.capability === 'std.PaymentsV1' &&
+          ['collect', 'refund', 'cancel', 'reconcile'].includes(field.field.operation)))) === true;
     const packages = own(definition, 'packages');
     const owners = Object.keys(isUnknownRecord(packages) ? packages : {}).filter(name => def.name.startsWith(`${name}.`))
       .sort((left, right) => right.length - left.length);
@@ -5184,7 +5186,7 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
           (row: StoredRow, intent: OutboxIntent) => active.prepareQueuePayloadOrigin(input, row, intent) } : {}),
       });
     };
-    if (entries.length === 0 && !generationResults) {
+    if (entries.length === 0 && !typedResults) {
       bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, bindings: Object.freeze(bindings),
         stage, read: work.readCanonicalSendStaging }));
       continue;
@@ -9495,11 +9497,15 @@ async function runScenarioExecution(
   // after their owning source/identity admission. Request query options can
   // never select owner authority or turn an ordinary scenario into a handler.
   const removalSource = nativeIdentityRemovalCalls.get(call.context);
+  const completionSource = nativeStandardCompletionCalls.get(call.context);
   const trustedOwnerReads = callable?.kind === 'handler' && (due !== undefined || cohort !== undefined) &&
     call.context.kind === 'trusted' && call.context.actor === null &&
     (call.context.source === 'schedule' && typeof call.context.trustedSource === 'string' &&
       (call.context.trustedSource.startsWith('schedule:') ||
         call.context.trustedSource.startsWith('event:') && nativeDeclaredEventCalls.has(call.context) ||
+        completionSource !== undefined && call.context.trustedSource === `completion:${completionSource.event}` &&
+          loaded.standardCompletions?.get(completionSource.event) === completionSource &&
+          completionSource.routes.some(route => route.handler === opts.operation) ||
         call.context.trustedSource.startsWith('committed:') && loaded.committedChanges.get(call.context.trustedSource.slice(10))?.routes
           .some(route => route.handler === opts.operation) === true) ||
       call.context.source === 'ingress' && due?.queueValue === true &&
@@ -10323,9 +10329,9 @@ async function runScenarioExecution(
             declaredSource: `${declaration.field.capability}.${declaration.field.operation}`,
             declaredResult: declaration.field.result,
             ...(declaredContext === undefined ? {} : { declaredContext }),
-            // State binds this to the exact physical store used at admission.
+            // Preserve the exact physical-port wrapper admitted by State.
             // The provisional overlay cannot mint an owner observation scope.
-            store: opts.store, fence: openFence(call.checkpoint.revision, call.checkpoint.owner),
+            store: receiptStore ?? opts.store, fence: openFence(call.checkpoint.revision, call.checkpoint.owner),
             nowMs: call.context.now, observeSelected: await resolveReceiptObserver(opts.observer) as
               import('@canlang/state/receipt/join').SelectedReceiptObserver,
           }));
@@ -11574,8 +11580,10 @@ async function runScenarioExecution(
         const tables = await import('@canlang/state/receipt/tables');
         const generation = (await import('@canlang/work/kernel/tables')).dispatchGenerationTargetProfile(send.target);
         currentSend();
-        if (!['std.EmailV1.send', 'std.EmailV1.send_user'].includes(send.target) && generation?.role !== 'original') {
-          return refuseRecordBinding('Receipt origin requires its original Email or original Generation result context.');
+        if (!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.PaymentsV1.collect',
+          'std.PaymentsV1.refund', 'std.PaymentsV1.cancel', 'std.PaymentsV1.reconcile'].includes(send.target) &&
+            generation?.role !== 'original') {
+          return refuseRecordBinding('Receipt origin requires its original supported capability result context.');
         }
         if (generation?.role === 'original' && declaration.kind !== 'generation') {
           return refuseRecordBinding('Generation receipt requires the original installed runtime request instance.');
@@ -14555,7 +14563,9 @@ async function loadCheckedStandardCompletions(asm: AssembledModules, artifact: C
 
 interface InstalledNativeCompletionSource {
   readonly identities: IdentityStore;
+  readonly store: StoragePort;
   readonly bounds: import('@canlang/work').StandardCompletionSourceBounds;
+  readonly pending: import('@canlang/state').SystemCommandDef;
   readonly command: import('@canlang/state').SystemCommandDef;
   readonly registry: import('@canlang/state').SystemRegistry;
   readonly verify: (now: number) => Promise<void>;
@@ -14581,6 +14591,7 @@ export async function createNativeStandardCompletionSourceCommand(input: {
   readonly artifact: CompileArtifact;
   readonly scope: import('@canlang/contracts').WorkScope;
   readonly identities: IdentityStore;
+  readonly store: StoragePort;
   readonly bounds: import('@canlang/work').StandardCompletionSourceBounds;
 }): Promise<import('@canlang/state').SystemCommandDef> {
   const { asm, artifact, identities } = input;
@@ -14643,6 +14654,7 @@ export async function createNativeStandardCompletionSourceCommand(input: {
   };
   const wrapped = Object.freeze({ name: command.name,
     async read(args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) {
+      assertSystemCommandStore(ctx, input.store);
       systemCommandStageRevision(ctx);
       await verify(ctx.now);
       const receipt = await command.read(args, ctx);
@@ -14661,6 +14673,7 @@ export async function createNativeStandardCompletionSourceCommand(input: {
     },
     async stage(args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) {
       // Enrolling first rejects copied/closed contexts before any source reads.
+      assertSystemCommandStore(ctx, input.store);
       enrollSystemCommandCommitCheck(ctx, async () => { await verify(ctx.now); return true; });
       await verify(ctx.now);
       const staged = await command.stage(args, ctx);
@@ -14670,7 +14683,124 @@ export async function createNativeStandardCompletionSourceCommand(input: {
         if (source === undefined) throw new AssemblyCorrespondenceError('Completion issuer returned an uninstalled event.');
         checkedCompletionPayload(source, outcome.payload);
       }
+      if (outcome.status === 'staged') {
+        const revision = systemCommandStageRevision(ctx);
+        if (await input.store.readRevision() !== revision) throw new AssemblyCorrespondenceError('Completion physical owner moved beyond its issued stage.');
+        const opaque = await nativeOpaqueFileStaging(loaded, input, scope, () => verify(ctx.now));
+        if (opaque !== null) {
+          const source = installed.find(source => source.event === outcome.event)!;
+          const declaration = opaque.completion(source.event, source.source, source.binding, source.from);
+          const writes = [...staged.writes ?? []];
+          const tables = await import('@canlang/work/kernel/tables');
+          const handlerTables = await import('@canlang/work/kernel/handler-occurrence');
+          const sourceWrites = writes.filter(write => write.kind === 'insert' && write.model === tables.WORK_OCCURRENCE_MODEL);
+          if (sourceWrites.length !== 1 || sourceWrites[0]?.kind !== 'insert') throw new AssemblyCorrespondenceError('Completion requires its exact freshly staged Work source.');
+          const sourceWrite = sourceWrites[0], row = sourceWrite.row;
+          const receipt = tables.readOccurrenceRow(row);
+          const result = localPolicyObject(receipt.result), original = localPolicyObject(result.origin);
+          const intent = localPolicyObject(original.intent) as unknown as OutboxIntent;
+          const terminal = localPolicyObject(result.terminal);
+          const routes: FrameworkOpaqueSourceRoute[] = nativeCallArray(result.handlers, bounds.maxHandlers).map(raw => {
+            const route = localPolicyObject(raw), handler = opaque.callable(String(route.handler));
+            if (route.kind === 'ordinary') return { kind: 'ordinary', handler, occurrenceId: route.occurrenceId as OccurrenceId };
+            if (route.kind !== 'fanout') throw new AssemblyCorrespondenceError('Completion has an unknown staged route.');
+            return { ...route, handler } as unknown as FrameworkOpaqueSourceRoute;
+          });
+          const origin: import('@canlang/contracts').FrameworkOpaqueStandardCompletionOrigin = {
+            kind: 'standard-completion', occurrenceId: row.id as unknown as OccurrenceId, declaration,
+            originalIntent: { intentId: intent.intentId, operation: intent.operation, operationId: intent.operationId,
+              target: intent.target, occurrenceIndex: intent.occurrenceIndex },
+            originalCommit: original.originalCommit as import('@canlang/contracts').OriginalOutboxCommit,
+            dispatch: { ...localPolicyObject(original.dispatch), kind: 'capability' } as import('@canlang/contracts').FrameworkOpaqueCompletionDispatch,
+            terminal: { revision: terminal.revision as Revision,
+              status: terminal.status as import('@canlang/contracts').TerminalReceiptStatus,
+              error: terminal.error as import('@canlang/contracts').ReceiptError | null },
+            revision: result.revision as Revision, bounds, routes,
+          };
+          const identity = await resolvePrivateSourceOwner(identities, scope, ctx.now);
+          const filePayloadOrigin = await opaque.prepare({ expectedRevision: revision,
+            model: tables.WORK_OCCURRENCE_MODEL, row, field: 'result', scope, origin,
+            projection: { kind: 'inputs', path: ['payload'], declarationId: declaration.inputsDeclarationId },
+            value: result.payload, additional: [
+              { projection: { kind: 'inputs', path: ['origin', 'intent', 'arguments', 'arguments'], declarationId: declaration.sourceInputsDeclarationId }, value: intent.arguments['arguments'] },
+              { projection: { kind: 'result', path: ['terminal', 'result'], declarationId: declaration.resultDeclarationId,
+                presence: terminal.status === 'succeeded' ? 'value' : 'no-result' }, value: terminal.result },
+            ], identity });
+          const sourceRow = { ...row, data: { ...row.data, filePayloadOrigin } };
+          tables.readOccurrenceRow(sourceRow);
+          for (let index = 0; index < writes.length; index++) {
+            const write = writes[index]!;
+            if (write === sourceWrite) { writes[index] = { ...sourceWrite, row: sourceRow }; continue; }
+            if (write.kind !== 'insert' || write.model !== handlerTables.WORK_HANDLER_OCCURRENCE_MODEL) continue;
+            const route = handlerTables.readHandlerOccurrenceRow(write.row);
+            if (!routes.some(original => original.kind === 'ordinary' && original.handler.callable.id === route.handler && original.occurrenceId === write.row.id)) {
+              throw new AssemblyCorrespondenceError('Completion handler insert differs from its original full route inventory.');
+            }
+            const header = await opaque.prepare({ expectedRevision: revision, model: write.model,
+              row: write.row, field: 'payload', scope,
+              origin: { kind: 'event-input', occurrenceId: write.row.id as unknown as OccurrenceId,
+                sourceOccurrence: row.id as unknown as OccurrenceId, declaration,
+                lineage: { kind: 'source', sourceOccurrence: row.id as unknown as OccurrenceId },
+                target: { kind: 'handler', handler: opaque.callable(route.handler) } },
+              projection: { kind: 'inputs', path: [], declarationId: declaration.inputsDeclarationId },
+              value: route.payload, identity });
+            const bound = { ...write.row, data: { ...write.row.data, filePayloadOrigin: header } };
+            handlerTables.readHandlerOccurrenceRow(bound);
+            writes[index] = { ...write, row: bound };
+          }
+          if (await input.store.readRevision() !== revision) throw new AssemblyCorrespondenceError('Completion File origin crossed its original owner fence.');
+          return { ...staged, writes };
+        }
+      }
       return staged;
+    } });
+  const pending = Object.freeze({ name: 'work.standard-completion.initialize-receipt',
+    async stage(args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) {
+      assertSystemCommandStore(ctx, input.store);
+      enrollSystemCommandCommitCheck(ctx, async () => { await verify(ctx.now); return true; });
+      await verify(ctx.now);
+      const revision = systemCommandStageRevision(ctx);
+      if (await input.store.readRevision() !== revision) throw new AssemblyCorrespondenceError('Pending receipt requires its issued physical owner fence.');
+      const staged = await command.initializeReceipt(args, ctx);
+      const outcome = localPolicyObject(staged.result);
+      const source = installed.find(source => source.event === outcome.event);
+      if (source === undefined) throw new AssemblyCorrespondenceError('Pending receipt lacks its original installed source.');
+      const opaque = await nativeOpaqueFileStaging(loaded, input, scope, () => verify(ctx.now));
+      if (opaque === null) throw new AssemblyCorrespondenceError('Pending receipt requires its installed original declaration inventory.');
+      const completion = opaque.completion(source.event, source.source, source.binding, source.from);
+      if (completion.delivery.kind !== 'capability') throw new AssemblyCorrespondenceError('Pending receipt requires the original capability result context.');
+      const original = localPolicyObject(outcome.origin), intent = localPolicyObject(original.intent) as unknown as OutboxIntent;
+      const caller = opaque.callable(intent.operation), request = localPolicyObject(intent.arguments);
+      const origin: Extract<FrameworkFilePayloadOrigin['origin'], {kind:'retained-delivery-result'}> = {
+        kind: 'retained-delivery-result', deliveryId: intent.intentId,
+        intent: { intentId: intent.intentId, operation: intent.operation, operationId: intent.operationId,
+          target: intent.target, occurrenceIndex: intent.occurrenceIndex },
+        request: { binding: request.binding as string, from: request.from as string }, caller,
+        declaration: completion.delivery, resultDeclarationId: completion.resultDeclarationId, completion,
+        originalCommit: original.originalCommit as import('@canlang/contracts').OriginalOutboxCommit,
+        dispatch: { ...localPolicyObject(original.dispatch), kind:'capability' } as import('@canlang/contracts').FrameworkOpaqueCompletionDispatch & {kind:'capability'},
+      };
+      const tables = await import('@canlang/state/receipt/tables');
+      if (outcome.status === 'replayed') {
+        const row = await ctx.load(tables.RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
+        const retained = row === null ? undefined : tables.readReceiptRow(row).filePayloadOrigin;
+        if (retained?.origin.kind !== 'retained-delivery-result' || stableStringify(retained.origin) !== stableStringify(origin)) {
+          throw new AssemblyCorrespondenceError('Pending receipt replay differs from its original source/dispatch/caller.');
+        }
+        await opaque.revalidateSource({model:tables.RECEIPT_MODEL as ModelName,row:row!,field:'result',binding:retained},revision);
+        return { result:{status:'replayed',deliveryId:intent.intentId} };
+      }
+      const write = staged.writes?.[0];
+      if (outcome.status !== 'initialized' || staged.writes?.length !== 1 || write?.kind !== 'insert' ||
+          write.model !== tables.RECEIPT_MODEL || write.row.id !== intent.intentId) {
+        throw new AssemblyCorrespondenceError('Pending receipt requires the exact initial Work receipt insert.');
+      }
+      const filePayloadOrigin = await opaque.prepareControl({ expectedRevision:revision,
+        model:write.model,row:write.row,field:'result',scope,origin });
+      const row = {...write.row,data:{...write.row.data,filePayloadOrigin}};
+      tables.readReceiptRow(row);
+      if (await input.store.readRevision() !== revision) throw new AssemblyCorrespondenceError('Pending receipt lost its original source fence.');
+      return {writes:[{...write,row}],result:{status:'initialized',deliveryId:intent.intentId}};
     } });
   let byArtifact = installedNativeCompletionSources.get(asm);
   if (byArtifact === undefined) {
@@ -14680,14 +14810,23 @@ export async function createNativeStandardCompletionSourceCommand(input: {
   if (byScope === undefined) { byScope = new Map(); byArtifact.set(artifact, byScope); }
   const key = stableStringify(scope), previous = byScope.get(key);
   if (previous !== undefined) {
-    if (previous.identities !== identities || stableStringify(previous.bounds) !== stableStringify(bounds)) {
+    if (previous.identities !== identities || previous.store !== input.store || stableStringify(previous.bounds) !== stableStringify(bounds)) {
       throw new AssemblyCorrespondenceError('Completion cannot replace its original native host installation.');
     }
     return previous.command;
   }
-  byScope.set(key, Object.freeze({ identities, bounds, command: wrapped,
+  byScope.set(key, Object.freeze({ identities, store: input.store, bounds, pending, command: wrapped,
     registry: createSystemRegistry([wrapped]), verify }));
   return wrapped;
+}
+
+/** Initial pending receipt only. Provider evidence and result progression are
+ * separate owner adapters; this issuer accepts no status or result payload. */
+export async function createNativeStandardCompletionPendingReceiptCommand(
+  input: Parameters<typeof createNativeStandardCompletionSourceCommand>[0],
+): Promise<import('@canlang/state').SystemCommandDef> {
+  await createNativeStandardCompletionSourceCommand(input);
+  return installedNativeCompletionSource(input.asm,input.artifact,input.scope,input.identities).pending;
 }
 
 function committedSourceData(value: unknown): unknown {
@@ -15080,6 +15219,7 @@ const nativeIdentityRemovalSources = new WeakMap<AssembledModules,
   WeakMap<CompileArtifact, WeakMap<StoragePort, Map<string, NativeIdentityRemovalSource>>>>();
 const nativeIdentityRemovalCalls = new WeakMap<object, NativeIdentityRemovalSource>();
 const nativeDeclaredEventCalls = new WeakSet<object>();
+const nativeStandardCompletionCalls = new WeakMap<object, CheckedStandardCompletion>();
 function nativeIdentityRemovalSource(asm: AssembledModules, artifact: CompileArtifact,
   store: StoragePort, identities: IdentityStore, occurrence: string, scope: import('@canlang/contracts').WorkScope) {
   const source = nativeIdentityRemovalSources.get(asm)?.get(artifact)?.get(store)?.get(occurrence);
@@ -15665,6 +15805,7 @@ async function readCheckedRetainedSource(
     throw new AssemblyCorrespondenceError('Native void completion consumption is not joined.');
   }
   const installed = installedNativeCompletionSource(opts.asm, opts.artifact, scope, opts.identities);
+  if (installed.store !== store) throw new AssemblyCorrespondenceError('Completion must consume its originally installed physical owner store.');
   await installed.verify(now);
   const tables = await loadProducerModule('@canlang/work/kernel/tables', 'completion source locator');
   const occurrenceModel = requireProducerString(tables, 'WORK_OCCURRENCE_MODEL', 'completion source locator') as ModelName;
@@ -16749,6 +16890,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
           // This existing seam slot supplies origin effects/identity, not a
           // Work due gate: the derived retained handler occurrence is origin.
           if (declared) nativeDeclaredEventCalls.add(call.context);
+          if (completion && checkedCompletion !== undefined) nativeStandardCompletionCalls.set(call.context, checkedCompletion);
           if (originalRemoval !== undefined) nativeIdentityRemovalCalls.set(call.context, originalRemoval);
           try {
             business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
@@ -16756,6 +16898,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
               guardedStore, committedSourceStage.stageSources);
           } finally {
             nativeDeclaredEventCalls.delete(call.context);
+            nativeStandardCompletionCalls.delete(call.context);
             if (originalRemoval !== undefined) nativeIdentityRemovalCalls.delete(call.context);
           }
         } catch (error) {

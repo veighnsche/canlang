@@ -321,8 +321,8 @@ function originalDeliveryInstance(bound: BoundOpaqueDeclarations, selected: Fram
   validateOpaqueFileOrigin(bound, captured);
   const original = captured.origin;
   let context: FrameworkOpaqueDeliveryContext, source: ScenarioReceiptSourceOrigin, ids: readonly string[];
-  if (original.kind === 'delivery-result' || original.kind === 'delivery-skipped') {
-    context = original.declaration; source = original.caller.source; ids = [original.resultDeclarationId];
+  if (original.kind === 'delivery-result' || original.kind === 'delivery-skipped' || original.kind === 'retained-delivery-result') {
+    context = original.declaration; source = original.kind === 'retained-delivery-result' ? original.completion.source : original.caller.source; ids = [original.resultDeclarationId];
   } else {
     const event = original.kind === 'standard-completion' ? original.declaration
       : original.kind === 'event-input' ? original.declaration
@@ -821,6 +821,22 @@ function origin(bound: BoundOpaqueDeclarations, value: FrameworkOpaquePayloadOri
     const result = declaration(bound, value.resultDeclarationId).declaration;
     if (!['provider-result', 'void'].includes(result.profile.kind) || result.source.kind !== 'delivery') return refuse('original skipped provider result source required.');
     assertOpaqueDeliveryProfileMatch(result.source.context, value.declaration); same(result.source.source, value.caller.source);
+  } else if (value.kind === 'retained-delivery-result') {
+    record(value, ['kind', 'deliveryId', 'intent', 'request', 'caller', 'declaration', 'resultDeclarationId', 'completion', 'originalCommit', 'dispatch']);
+    callable(bound, value.caller); deliveryContext(bound, value.declaration); eventDeclaration(bound, value.completion);
+    if (value.declaration.kind !== 'capability') return refuse('retained delivery requires its original capability context.');
+    same(value.completion.delivery, value.declaration); same(value.completion.resultDeclarationId, value.resultDeclarationId);
+    record(value.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+    for (const part of ['intentId', 'operation', 'operationId', 'target'] as const) string(value.intent[part]);
+    integer(value.intent.occurrenceIndex); same(value.deliveryId, value.intent.intentId);
+    same(value.caller.callable.id, value.intent.operation); same(value.intent.target, value.completion.providerSource);
+    record(value.request, ['binding', 'from']); same(value.request.binding, value.completion.binding); same(value.request.from, value.completion.from);
+    record(value.originalCommit, ['revision', 'createdAt']); integer(value.originalCommit.revision); integer(value.originalCommit.createdAt);
+    record(value.dispatch, ['kind', 'operationId', 'source', 'occurrenceIndex', 'originOccurrence', 'created', 'actor']);
+    same(value.dispatch.kind, 'capability'); same(value.dispatch.operationId, value.intent.operationId);
+    same(value.dispatch.source, value.intent.target); same(value.dispatch.occurrenceIndex, value.intent.occurrenceIndex);
+    if (value.dispatch.originOccurrence !== null) string(value.dispatch.originOccurrence);
+    string(value.dispatch.actor); if (integer(value.dispatch.created) > value.originalCommit.createdAt) return refuse('original dispatch chronology required.');
   } else if (value.kind === 'delivery-result') {
     record(value, ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
     callable(bound, value.caller); deliveryContext(bound, value.declaration);

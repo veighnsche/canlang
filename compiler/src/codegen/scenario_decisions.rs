@@ -2414,7 +2414,11 @@ impl<'a> FreshSourceContext<'a> {
         {
             return Err(SourcePreparationGap::Analysis);
         }
-        let (fresh, diagnostics) = super::ir::build(&original, db, catalog);
+        let (fresh, diagnostics) = if ir.standard_completion_sources.is_private_terminal_candidate() {
+            super::ir::build_standard_terminal_candidates(&original, db, catalog)
+        } else {
+            super::ir::build(&original, db, catalog)
+        };
         let has_ir_diagnostics = !diagnostics.is_empty();
         if diagnostics.iter().any(|d| {
             d.severity == crate::diagnostic::Severity::Error

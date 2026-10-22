@@ -67,6 +67,7 @@ export interface SystemCommandContext {
 
 /** Actual registry-issued staging capability, separate from caller context. */
 interface SystemStageLedger {
+  readonly store: StoragePort;
   readonly revision: Revision;
   readonly readOnly: boolean;
   readonly readOutbox: StoragePort['outboxGet'];
@@ -210,6 +211,11 @@ function actualStage(ctx: SystemCommandContext): SystemStageLedger {
 export function systemCommandStageRevision(ctx: SystemCommandContext): Revision {
   return actualStage(ctx).revision;
 }
+/** Assert the actual physical owner port without exposing it through the stage. */
+export function assertSystemCommandStore(ctx: SystemCommandContext, store: StoragePort): void {
+  const ledger = actualStage(ctx);
+  if (ledger.store !== store) return stageFailure(ledger, 'System command requires its originally installed physical store.');
+}
 /** Original retained carrier through this issued stage's tracked reader.
  * No new context member, store handle, source grant or reconstructed stamp.
  */
@@ -312,7 +318,7 @@ function checkOutboxAck(value: unknown): ReadonlyArray<string> {
 
 /** Both execution modes issue exactly the same private, tracked reader context. */
 function issueSystemContext(ctx: SystemRunContext, store: StoragePort, revision: Revision, readOnly: boolean) {
-  const ledger: SystemStageLedger = { revision, readOnly, checks: [], phase: 'stage', pendingReads: 0, poisoned: false,
+  const ledger: SystemStageLedger = { store, revision, readOnly, checks: [], phase: 'stage', pendingReads: 0, poisoned: false,
     readOutbox: (intentId) => read(() => store.outboxGet(intentId)) };
   const read = <T>(work: () => Promise<T>): Promise<T> => {
     const pending = (async () => {

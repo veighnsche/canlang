@@ -1,7 +1,7 @@
 /** Worker-safe installation of the original compiler/State opaque declaration inventory. */
 import type { ArtifactModel, ArtifactOperation, CanonicalModelDescriptor, CanonicalOperationDescriptor, CompileArtifact,
   FileReferenceInventory, FileReferenceStoragePort, FileRetirementAuthority, FrameworkOpaqueDeclaration,
-  FrameworkOpaqueDeclarationSet, FrameworkOpaqueValueDefault, Revision, WireValue, WorkScope } from '@canlang/contracts';
+  FrameworkOpaqueDeclarationSet, FrameworkOpaqueValueDefault, ArtifactDeliveryDescriptor, Revision, WireValue, WorkScope } from '@canlang/contracts';
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { stableStringify } from '@canlang/state/invocation';
@@ -154,6 +154,7 @@ interface ModuleCapture {
   definition: unknown;
   invocations: Readonly<Record<string, WireValue>>;
   events: Readonly<Record<string, WireValue>>;
+  capabilities: Readonly<Record<string, WireValue>>;
   sendGuards: Readonly<Record<string, WireValue>>;
 }
 
@@ -170,13 +171,14 @@ function captureModuleInvocations(artifact: CompileArtifact, modulePath: string,
       value: declarationWire(data(declaration, 'sendGuards')), enumerable: true });
   }
   const events = declarationWire(data(original, 'events')) as Readonly<Record<string, WireValue>>;
-  captures.push({ module: modulePath, definition: original, invocations: Object.freeze(invocations), events, sendGuards: Object.freeze(sendGuards) });
+  captures.push({ module: modulePath, definition: original, invocations: Object.freeze(invocations), events, capabilities: declarationWire(data(original, 'capabilities')) as Readonly<Record<string, WireValue>>, sendGuards: Object.freeze(sendGuards) });
 }
 
 function verifyCapturedDeclarations(originalContracts: Readonly<Record<string, WireValue>>,
   definition: unknown, captures: readonly ModuleCapture[]): void {
   if (!equal(originalContracts, declarationWire(data(definition, 'contracts')))) throw new Error('File retirement original contracts changed after capture.');
   for (const captured of captures) {
+    if (!equal(captured.capabilities, declarationWire(data(captured.definition, 'capabilities')))) throw new Error('Original capability declarations changed after capture.');
     if (!equal(captured.events, declarationWire(data(captured.definition, 'events')))) {
       throw new Error('File retirement original event declarations changed after capture.');
     }
@@ -353,8 +355,8 @@ function assertModuleEvent(artifact: CompileArtifact,
   loaded: Awaited<ReturnType<typeof loadCanonicalDescriptors>>, captured: ModuleCapture,
   event: string, events: Set<string>, declarations: FrameworkOpaqueDeclaration[]): void {
   const original = data(captured.events, event);
-  // Owning lifecycle schemas are distinct from original declared events.
-  // The Compiler's positive own inputFields carrier identifies the latter.
+  // The Compiler supplies exact owning input fields for declared events and
+  // checked standard completion envelopes. This schema profile grants no source admission.
   if (!Object.hasOwn(original as object, 'inputFields')) return;
   if (events.has(event)) throw new Error('File retirement requires one exact original event module.');
   events.add(event);
@@ -380,6 +382,37 @@ function assertModuleEvent(artifact: CompileArtifact,
   declarations.push({ id: `${event}:event-inputs`,
     source: { kind: 'event', source: { ...sources[0]!, module: captured.module }, event },
     profile: { kind: 'inputs', canonical: canonical.inputs, artifact: operation.inputs.fields } });
+}
+
+
+/** Standard carriers retain their catalog request/result declarations even when
+ * the author's delivery locator is text rather than a stored delivery field. */
+function declareStandardCompletions(artifact: CompileArtifact, captures: readonly ModuleCapture[],
+  loaded: Awaited<ReturnType<typeof loadCanonicalDescriptors>>, declarations: FrameworkOpaqueDeclaration[]): void {
+  for (const completion of loaded.standardCompletions?.values() ?? []) {
+    const callable = artifact.callables.find(value => value.id === completion.routes[0]?.handler);
+    const captured = captures.find(value => value.module === callable?.module);
+    const event = declarations.find(value => value.id === `${completion.event}:event-inputs`);
+    if (captured === undefined || event?.source.kind !== 'event') throw new Error('Completion lacks its original event/source declaration.');
+    const split = completion.source.lastIndexOf('.');
+    const operation = data(data(data(captured.capabilities, completion.source.slice(0, split)), 'operations'), completion.source.slice(split + 1));
+    const fields = data(operation, 'inputFields');
+    const delivery = data(operation, 'delivery') as ArtifactDeliveryDescriptor;
+    if (!Array.isArray(fields) || delivery.capability !== completion.source.slice(0, split) ||
+        delivery.operation !== completion.source.slice(split + 1) || delivery.result.name !== completion.resultType) {
+      throw new Error('Completion lacks its original bound catalog request/result descriptor.');
+    }
+    const descriptor: ArtifactOperation = { name: completion.source, kind: 'scenario', description: '',
+      inputs: { fields: fields as ArtifactOperation['inputs']['fields'] } };
+    const request = loaded.producers.registry.loadArtifactDescriptors({ ...artifact, operations: [descriptor] }, {by:()=> 'owner'});
+    const canonical = data(request.registry.get(completion.source), 'descriptor') as CanonicalOperationDescriptor;
+    const source: FrameworkOpaqueDeclaration['source'] = { kind: 'delivery', source: event.source.source,
+      context: { kind: 'capability', canonical: delivery, artifact: delivery } };
+    declarations.push({ id: `${completion.event}:provider-inputs`, source,
+      profile: { kind: 'inputs', canonical: canonical.inputs, artifact: descriptor.inputs.fields } },
+    { id: `${completion.event}:provider-result`, source,
+      profile: { kind: 'provider-result', canonical: delivery.result, artifact: delivery.result } });
+  }
 }
 
 /** Installs once, or verifies the persisted original closure on reopen. */
@@ -451,6 +484,7 @@ export async function installNativeFileInventory(input: NativeFileInventoryInput
     declareCallable(artifact, captures, loaded, callable, declarations, artifact.models, legacyVoidResultIds);
   }
   declareModuleEvents(artifact, captures, loaded, declarations);
+  declareStandardCompletions(artifact, captures, loaded, declarations);
   const baseInventory = immutable({ ...inventoryIdentity,
     canonicalModels: loaded.models, artifactModels: artifact.models, valueTypes,
     frameworkModels: [...STATE_FILE_REFERENCE_PRODUCER.models, ...WORK_FILE_REFERENCE_PRODUCER.models] });

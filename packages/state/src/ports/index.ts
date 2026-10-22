@@ -37,6 +37,7 @@ export {
 export {
   createSystemRegistry,
   systemCommandStageRevision,
+  assertSystemCommandStore,
   readSystemCommandRetainedOutbox,
   enrollSystemCommandCommitCheck,
   defineSystemCommand,

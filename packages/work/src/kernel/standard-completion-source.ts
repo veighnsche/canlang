@@ -3,9 +3,9 @@
  * actual State stage can read an original retained delivery and consume it. */
 import type { DomainWrite, ModelName, OccurrenceId, RecordId, ReceiptResultContext, StoredRow, WorkScope } from '@canlang/contracts';
 import { readSystemCommandRetainedOutbox, systemCommandStageRevision,
-  type SystemCommandContext, type SystemCommandDef } from '@canlang/state';
+  type SystemCommandContext, type SystemCommandDef, type SystemStaging } from '@canlang/state';
 import type { FanoutCohortSpec } from '@canlang/state/fanout/cohort';
-import { RECEIPT_MODEL, readReceiptRow, isStoredReceiptPayload } from '@canlang/state/receipt/tables';
+import { RECEIPT_MODEL, readReceiptRow, newReceiptRow, isStoredReceiptPayload } from '@canlang/state/receipt/tables';
 import { encodeValue, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue,
   type NormalizedSchema, type SchemaDescriptor } from '@canlang/values';
 import { deriveOutboxIdAsync } from '../intent/staging.js';
@@ -239,6 +239,7 @@ const readGenerationContext = (config: InstalledCompletionConfig, data: Dispatch
 };
 export function createStandardCompletionSourceCommand(options: StandardCompletionSourceOptions): Omit<SystemCommandDef, 'read'> & {
   readonly read: (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) => Promise<OccurrenceRowData>;
+  readonly initializeReceipt: (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) => Promise<SystemStaging>;
 } {
   const config = installed(options);
   const originalSource = async (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) => {
@@ -344,6 +345,22 @@ const checkConsumedCohortRoute = async (config: InstalledCompletionConfig, ctx: 
     return freeze(receipt);
   };
   return Object.freeze({ name: 'work.standard-completion.stage',
+    initializeReceipt: async (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext) => {
+      const original = await originalSource(args, ctx);
+      const { deliveryId, declaration, revision, origin } = original;
+      if (original.resultContext !== undefined) return refuse('unassociated receipt requires the original capability carrier.');
+      const existing = await ctx.load(RECEIPT_MODEL as ModelName, deliveryId as RecordId);
+      const initialization = { deliveryId, event: declaration.event, revision, origin };
+      if (existing !== null) {
+        const receipt = readReceiptRow(existing);
+        if (existing.archivedAt !== null || receipt.receipt.deliveryId !== deliveryId) return refuse('original retained receipt is unavailable.');
+        return { result: { status: 'replayed', ...initialization } };
+      }
+      const row = newReceiptRow({ deliveryId, revision: revision + 1, status: 'pending', result: null,
+        error: null, contentRef: null, resultExpiresAtMs: null }, { nowMs: ctx.now, actor: ctx.actor });
+      return { writes: [{kind:'insert' as const, model: RECEIPT_MODEL as ModelName, row}],
+        result: { status: 'initialized', ...initialization } };
+    },
     read: async (args: Readonly<Record<string, unknown>>, ctx: SystemCommandContext): Promise<OccurrenceRowData> => {
       const original = await originalSource(args, ctx);
       const consumed = await ctx.load(WORK_OCCURRENCE_MODEL, original.sourceOccurrence as RecordId);

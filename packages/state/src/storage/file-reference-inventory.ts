@@ -161,7 +161,7 @@ function originalReceiptContext(row: StoredRow): ReceiptResultContext | undefine
   const binding = row.data.filePayloadOrigin as FrameworkFilePayloadOrigin | undefined;
   if (binding === undefined) return undefined;
   try {
-    if (binding.origin.kind !== 'delivery-result' && binding.origin.kind !== 'delivery-skipped') return invalid('receipt requires its original delivery recipe.');
+    if (binding.origin.kind !== 'delivery-result' && binding.origin.kind !== 'delivery-skipped' && binding.origin.kind !== 'retained-delivery-result') return invalid('receipt requires its original delivery recipe.');
     const origin = binding.origin, declaration = origin.declaration;
     if (declaration.kind === 'judgment') {
       const specification = { ...declaration.specification,
@@ -212,7 +212,7 @@ function resolveOpaqueField(model: ModelName, value: StoredRow, field: string, c
   return { binding, values: [{ path: [], kind: 'result', declarationId: provider.id, presence }] };
 }
 
-type ReceiptOrigin = Extract<FrameworkOpaquePayloadOrigin, { kind: 'delivery-result' } | { kind: 'delivery-skipped' }>;
+type ReceiptOrigin = Extract<FrameworkOpaquePayloadOrigin, { kind: 'delivery-result' } | { kind: 'delivery-skipped' } | { kind: 'retained-delivery-result' }>;
 type NarrowedReceiptBinding = NonNullable<ReturnType<typeof readReceiptRow>['filePayloadOrigin']> & { origin: ReceiptOrigin };
 type OpaqueDeclarationSet = NonNullable<InstalledFileReferenceInventory['inventory']['opaqueDeclarationSets']>[number];
 type OpaqueDeclaration = OpaqueDeclarationSet['declarations'][number];
@@ -225,7 +225,7 @@ function checkReceiptBinding(
 ): { stored: ReturnType<typeof readReceiptRow>; binding: NarrowedReceiptBinding } {
   validateRow(model, row);
   const stored = readReceiptRow(row, originalReceiptContext(row)), binding = stored.filePayloadOrigin;
-  if (binding === undefined || !sameData(binding, copied.binding) || (binding.origin.kind !== 'delivery-result' && binding.origin.kind !== 'delivery-skipped')) {
+  if (binding === undefined || !sameData(binding, copied.binding) || (binding.origin.kind !== 'delivery-result' && binding.origin.kind !== 'delivery-skipped' && binding.origin.kind !== 'retained-delivery-result')) {
     return invalid('exact persisted original receipt binding required.');
   }
   // The kind check above proves the delivery-result/skipped origin.
@@ -267,7 +267,7 @@ function checkReceiptSlotCorrespondence(
 ): void {
   if (binding.scope.ownerPackage !== binding.inventory.owner || binding.slot.id !== row.id || binding.slot.created !== row.created ||
       binding.slot.createdBy !== row.createdBy || binding.slot.model !== model || binding.slot.field !== field ||
-      binding.slot.role !== 'retained-result' || origin.deliveryId !== row.id || (origin.kind === 'delivery-result' && origin.intent.intentId !== row.id) ||
+      binding.slot.role !== 'retained-result' || origin.deliveryId !== row.id || (origin.kind !== 'delivery-skipped' && origin.intent.intentId !== row.id) ||
       send.operation !== origin.caller.callable.id || send.operation !== origin.caller.canonical.name ||
       send.operation !== origin.caller.artifact.name ||
       send.target !== `${origin.declaration.canonical.capability}.${origin.declaration.canonical.operation}`) {
@@ -292,7 +292,7 @@ function checkReceiptProvider(declarations: OpaqueDeclarationSet, origin: Receip
   const providerProfiles = declarations.declarations.filter(profile => profile.id === origin.resultDeclarationId);
   if (providerProfiles.length !== 1) return invalid('one original provider result declaration required.');
   const provider = providerProfiles[0]!;
-  if (provider.source.kind !== 'delivery' || !sameData(provider.source.source, origin.caller.source)) {
+  if (provider.source.kind !== 'delivery' || !sameData(provider.source.source, origin.kind === 'retained-delivery-result' ? origin.completion.source : origin.caller.source)) {
     return invalid('original provider context differs from the result declaration.');
   }
   assertOpaqueDeliveryProfileMatch(provider.source.context, origin.declaration);
@@ -316,6 +316,7 @@ function checkReceiptCaller(declarations: OpaqueDeclarationSet, origin: ReceiptO
 
 /** Original association delivery against canonical and artifact models. */
 function checkReceiptAssociation(declarations: OpaqueDeclarationSet, origin: ReceiptOrigin): void {
+  if (origin.kind === 'retained-delivery-result') return;
   const canonicalModels = declarations.canonicalModels.filter(candidate => candidate.name === origin.association.model);
   const artifactModels = declarations.artifactModels.filter(candidate => candidate.name === origin.association.model);
   if (canonicalModels.length !== 1 || artifactModels.length !== 1) return invalid('one original association model required.');

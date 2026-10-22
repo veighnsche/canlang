@@ -841,6 +841,25 @@ pub fn build(
     db: &SourceDb,
     catalog: Option<&Catalog>,
 ) -> (IrProgram, Vec<Diagnostic>) {
+    build_with_terminal_mode(program, db, catalog, false)
+}
+
+/// Only the full source producer driver requests this mode. The private IR
+/// marker requires an independently prepared terminal source at JS emission.
+pub(super) fn build_standard_terminal_candidates(
+    program: &CheckedProgram,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> (IrProgram, Vec<Diagnostic>) {
+    build_with_terminal_mode(program, db, catalog, true)
+}
+
+fn build_with_terminal_mode(
+    program: &CheckedProgram,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    terminal_candidate: bool,
+) -> (IrProgram, Vec<Diagnostic>) {
     if let Err(diagnostic) = program.validate_cohort(db, catalog) {
         return (empty_program(&program.catalog_version), vec![diagnostic]);
     }
@@ -876,6 +895,7 @@ pub fn build(
     if !program.standard_completion_handlers.is_empty() {
         let mut candidate = Cx::new(program, db, catalog);
         candidate.native_standard_completion = true;
+        candidate.private_standard_terminal_candidate = terminal_candidate;
         let has_hooks = program.effects.scenarios.values().any(|scenario| {
             matches!(
                 scenario.on,
@@ -893,9 +913,9 @@ pub fn build(
             )
                 .is_some_and(|policies| !policies.hook_bindings.is_empty());
         if hooks_supported
-            && ir
+            && (terminal_candidate || ir
                 .standard_completion_sources
-                .valid_public_standard_completions(&ir, db)
+                .valid_public_standard_completions(&ir, db))
         {
             return (ir, diagnostics);
         }
@@ -943,7 +963,9 @@ pub(crate) fn rebuild_policy_source(
             Some(crate::analysis::effects::HandlerSource::Hook { .. })
         )
     });
-    fresh.native_standard_completion = actual.standard_completion_sources.public_admission.is_some();
+    fresh.native_standard_completion = actual.standard_completion_sources.public_admission.is_some()
+        || actual.standard_completion_sources.is_private_terminal_candidate();
+    fresh.private_standard_terminal_candidate = actual.standard_completion_sources.is_private_terminal_candidate();
     fresh.build_program()
 }
 
@@ -1126,6 +1148,7 @@ struct Cx<'a> {
     /// complete existing owner-policy plan qualifies native callback binding.
     native_hook_context: bool,
     native_standard_completion: bool,
+    private_standard_terminal_candidate: bool,
     callback_entries: Vec<CheckedCallbackGrant>,
     callback_reads: Vec<String>,
     callback_value_lists: Vec<String>,
@@ -1214,6 +1237,7 @@ impl<'a> Cx<'a> {
             page_preference_fields: Vec::new(),
             native_hook_context: false,
             native_standard_completion: false,
+            private_standard_terminal_candidate: false,
             callback_entries: Vec::new(),
             callback_reads: Vec::new(),
             callback_value_lists: Vec::new(),
@@ -3323,6 +3347,7 @@ pub struct CheckedStandardCompletionSources {
     pub(crate) sources: Vec<(crate::source::SourceId, String, String)>,
     pub(crate) handlers: Vec<CheckedStandardCompletionHandler>,
     public_admission: Option<PublicStandardCompletionAdmission>,
+    private_terminal_candidate: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -4278,6 +4303,10 @@ impl PublicCompletionBody {
 }
 
 impl CheckedStandardCompletionSources {
+    pub(super) fn is_private_terminal_candidate(&self) -> bool {
+        self.private_terminal_candidate
+    }
+
     pub(crate) fn has_public_standard_completion_fact(&self) -> bool {
         self.public_admission.is_some()
     }
@@ -5942,6 +5971,7 @@ impl<'a> Cx<'a> {
         let mut fresh = Cx::new(&original, self.db, self.catalog);
         fresh.native_hook_context = self.native_hook_context;
         fresh.native_standard_completion = self.native_standard_completion;
+        fresh.private_standard_terminal_candidate = self.private_standard_terminal_candidate;
         fresh.check_standard_completion_census();
         let mut projection = empty_program(&original.catalog_version);
         projection.modules = fresh.build_modules();
@@ -6031,6 +6061,7 @@ impl<'a> Cx<'a> {
         };
         let standard_completion_sources = CheckedStandardCompletionSources {
             public_admission: None,
+            private_terminal_candidate: self.private_standard_terminal_candidate,
             sources: committed_sources.sources.clone(),
             handlers: self
                 .program
@@ -6159,6 +6190,7 @@ impl<'a> Cx<'a> {
 
     fn admit_public_standard_completion(&self, program: &mut IrProgram) {
         if self.native_standard_completion
+            && !self.private_standard_terminal_candidate
             && self.diags.is_empty()
             && self
                 .catalog

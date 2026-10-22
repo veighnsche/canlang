@@ -1564,6 +1564,8 @@ pub(super) struct EmitDecisionSources<'a> {
     pub mailbox_events: Option<&'a super::mailbox_events::PreparedMailboxEvents<'a>>,
     pub payments_changed_events:
         Option<&'a super::payments_events::PreparedPaymentsChangedEvents<'a>>,
+    pub standard_terminal_events:
+        Option<&'a super::standard_terminal_events::PreparedStandardTerminalEvents<'a>>,
     pub read_predicates: Option<&'a super::read_predicates::PreparedReadPredicates>,
     pub send_guards: Option<&'a super::send_guards::PreparedSendGuards>,
     pub send_guard_gap: Option<&'a super::send_guards::SendGuardGap>,
@@ -2475,6 +2477,22 @@ fn emit_program_with_sources(
             );
         }
     }
+    if ir.standard_completion_sources.is_private_terminal_candidate() {
+        let ready = !ir.standard_completion_sources.handlers.is_empty()
+            && ir.standard_completion_sources.handlers.iter().all(|original| {
+                let index = original.id.0 as usize;
+                ir.items.get(index).is_some_and(|handler| decisions.standard_terminal_events
+                    .is_some_and(|prepared| prepared.matches(ir, index, handler)))
+            });
+        emitter.private_terminal_ready = ready;
+        if !ready {
+            let span = ir.standard_completion_sources.handlers.first().map(|handler|handler.span)
+                .or_else(||ir.items.first().map(|item|item.span))
+                .unwrap_or(Span::new(crate::source::SourceId(0),0,0));
+            emitter.unsupported("standard terminal source",
+                "candidate needs its complete original source and independently prepared handler closure",span);
+        }
+    }
     for original in ir.committed_sources.payments_changed_event_handlers() {
         let index = original.id.0 as usize;
         if ir.items.get(index).is_none_or(|handler| {
@@ -2524,6 +2542,14 @@ fn emit_program_with_sources(
     emitter.native_source_predicates = native_receipts;
     emitter.authority_queries = decisions.authority_queries;
     emitter.owner_handlers = decisions.owner_handlers.cloned().unwrap_or_default();
+    if emitter.private_terminal_ready {
+        for (index, item) in ir.items.iter().enumerate() {
+            if decisions.standard_terminal_events.is_some_and(|prepared|prepared.matches(ir,index,item)) {
+                emitter.owner_handlers.insert(item.id);
+            }
+        }
+    }
+
     emitter.unique_conditions = decisions.unique_conditions.unwrap_or_default().to_vec();
     emitter.model_rule_origins = decisions.model_rule_origins.map(|origins| origins.to_vec());
     emitter.query_selections = decisions.query_selections;
@@ -2994,9 +3020,10 @@ fn emit_program_with_sources(
         }
     }
     emitter.emit_app_definition(&mut body, entry_id);
-    emitter.emit_derive_fns(&mut body, false);
+    emitter.emit_derive_fns(&mut body, false, false);
     emitter.emit_can_app(&mut body, entry_id, &operations, local_policies.as_ref());
-    emitter.emit_derive_fns(&mut body, true);
+    emitter.emit_derive_fns(&mut body, true, false);
+    emitter.emit_derive_fns(&mut body, true, true);
     // Hook-variant definitions come after the hooks registry that selects
     // them (see `emit_hook_variants`): hook bodies lower inside
     // `emit_can_app`, so only now is the selected set complete.
@@ -4680,7 +4707,10 @@ pub struct Emitter<'a> {
     boolean_rules: HashSet<String>,
     owner_handlers: HashSet<SymbolId>,
     owner_handler_body: bool,
+    private_terminal_ready: bool,
     owner_handler_derives: HashSet<String>,
+    terminal_owner_derives: HashSet<String>,
+    terminal_owner_body: bool,
     boolean_body: bool,
     source_guard_body: bool,
     source_guard_derive_depth: usize,
@@ -4916,7 +4946,10 @@ impl<'a> Emitter<'a> {
             boolean_rules: HashSet::new(),
             owner_handlers: HashSet::new(),
             owner_handler_body: false,
+            private_terminal_ready: false,
             owner_handler_derives: HashSet::new(),
+            terminal_owner_derives: HashSet::new(),
+            terminal_owner_body: false,
             boolean_body: false,
             source_guard_body: false,
             source_guard_derive_depth: 0,
@@ -10056,11 +10089,14 @@ fn conjunct_dependency_matches<'d>(
                     HookDerive::AsIs => {}
                 }
                 if self.owner_handler_body {
-                    self.owner_handler_derives.insert(canonical.clone());
+                    if self.terminal_owner_body { self.terminal_owner_derives.insert(canonical.clone()); }
+                    else { self.owner_handler_derives.insert(canonical.clone()); }
                 }
                 let name = match self.by_canonical.get(canonical) {
                     Some(index) => binding_ident(
-                        if self.owner_handler_body {
+                        if self.terminal_owner_body {
+                            "t"
+                        } else if self.owner_handler_body {
                             "o"
                         } else if (self.boolean_body || self.authority_body)
                             && !(self.authority_body && self.authority_queries
@@ -11548,7 +11584,7 @@ fn null_equality(
                 // Their exact checked invoice collection sites still carry the
                 // same source marker when called under that owner's lease.
                 let owner_site_id = owner_decision.into_iter().chain(
-                    self.native_receipts.values().flat_map(|receipt| [
+                    self.native_receipts.values().filter(|_| !self.terminal_owner_body).flat_map(|receipt| [
                         receipt.plan.invoice_collect_decision.as_ref(),
                         receipt.plan.invoice_issue_decision.as_ref(),
                     ].into_iter().flatten())).find_map(|decision| {
@@ -15923,10 +15959,13 @@ impl<'a> Emitter<'a> {
             else {
                 continue;
             };
+            let terminal_fields = if matches!(source, IrEventSource::StandardCompleted { .. }) {
+                format!(",inputFields:{}{}", descriptor_json(&invocation.inputs[..input_count]),
+                    self.declaration_source(item.span).map(|path|format!(",source:{}",js_string(&path))).unwrap_or_default())
+            } else { String::new() };
             records.push(format!(
-                "{}:{{inputs:{{{}}}}}",
-                js_string(identity),
-                inputs.join(",")
+                "{}:{{inputs:{{{}}}{terminal_fields}}}",
+                js_string(identity), inputs.join(",")
             ));
             published.insert(identity.to_string());
         }
@@ -16241,8 +16280,17 @@ impl<'a> Emitter<'a> {
                                 .collect::<Vec<_>>()
                                 .join(",");
                             let result = self.std_capability_field_schema(op.result, *span);
+                            let terminal = self.standard_completions.as_ref().is_some_and(|sources|
+                                sources.iter().any(|source|source.source == format!("{}.{}",capability.name,op.name)));
+                            let terminal_fields = if terminal {
+                                match (op.inputs.iter().map(|(name,ty)|self.standard_completion_input(name,ty)).collect::<Option<Vec<_>>>(),
+                                    delivery_descriptor(capability.name,op)) {
+                                    (Some(fields),Some(delivery)) => format!(",inputFields:{},delivery:{}",descriptor_json(&fields),delivery.to_json()),
+                                    _ => String::new(),
+                                }
+                            } else { String::new() };
                             format!(
-                                "{}:{{inputs:{{{inputs}}},result:{result}}}",
+                                "{}:{{inputs:{{{inputs}}},result:{result}{terminal_fields}}}",
                                 object_key(op.name)
                             )
                         })
@@ -17806,6 +17854,7 @@ impl<'a> Emitter<'a> {
         let public_source_valid = !facts.has_public_standard_completion_fact()
             || db.is_some_and(|db| facts.valid_public_standard_completions(self.ir, db));
         let valid = public_source_valid
+            && (!self.ir.standard_completion_sources.is_private_terminal_candidate() || self.private_terminal_ready)
             && db.is_some_and(|db| {
                 !facts.sources.is_empty()
                     && facts.sources.iter().all(|(id, path, hash)| {
@@ -20262,12 +20311,13 @@ impl<'a> Emitter<'a> {
     /// order (no `row`: derives are pure functions, DESIGN §2). Always
     /// `async`: call sites uniformly `await`. Exported exactly when the
     /// source derive is exported.
-    fn emit_derive_fns(&mut self, out: &mut JsWriter, owner_mode: bool) {
+    fn emit_derive_fns(&mut self, out: &mut JsWriter, owner_mode: bool, terminal_mode: bool) {
         let ir = self.ir;
         let mut emitted = HashSet::new();
         loop {
         let items: Vec<_> = ir.items.iter().filter(|item| matches!(item.kind, IrItemKind::DeriveFn { .. })
-            && (!owner_mode || self.owner_handler_derives.contains(&item.canonical))
+            && (!owner_mode || if terminal_mode { self.terminal_owner_derives.contains(&item.canonical) }
+                else { self.owner_handler_derives.contains(&item.canonical) })
             && !emitted.contains(&item.id)).cloned().collect();
         if items.is_empty() { break; }
         for item in &items {
@@ -20282,9 +20332,10 @@ impl<'a> Emitter<'a> {
             };
             for boolean_body in modes {
                 self.owner_handler_body = owner_mode;
+                self.terminal_owner_body = terminal_mode;
                 self.boolean_body = boolean_body;
                 self.boolean_helper = self.boolean_derives.contains(&item.canonical);
-                let name = binding_ident(if owner_mode { "o" } else if boolean_body { "b" } else { "s" }, &item.canonical);
+                let name = binding_ident(if terminal_mode { "t" } else if owner_mode { "o" } else if boolean_body { "b" } else { "s" }, &item.canonical);
                 self.enter_scope();
                 let mut signature = vec!["c".to_string()];
                 for id in params {
@@ -20355,6 +20406,7 @@ impl<'a> Emitter<'a> {
                 self.boolean_body = false;
                 self.boolean_helper = false;
                 self.owner_handler_body = false;
+                self.terminal_owner_body = false;
             }
         }
         if !owner_mode { break; }
@@ -21107,6 +21159,13 @@ impl<'a> Emitter<'a> {
                         continue;
                     }
                     let handler = object_key(&item.canonical);
+                    if self.ir.standard_completion_sources.is_private_terminal_candidate()
+                        && !self.private_terminal_ready
+                        && matches!(&item.kind, IrItemKind::Scenario {event_source:Some(IrEventSource::StandardCompleted {..}),..}) {
+                        out.push(item.span, Some(item.canonical.clone()),
+                            &format!("async {handler}(){{throw new Error(\"unprepared standard terminal source\");}},"));
+                        continue;
+                    }
                     self.enter_scope();
                     let observes_defaults = !*trusted
                         && !*read
@@ -21182,6 +21241,8 @@ impl<'a> Emitter<'a> {
                     // viewer lifetime or private child State frame.
                     self.query_capture = self.admitted_query_source(item.id);
                     self.owner_handler_body = self.receipt_capture.is_none() && self.owner_handlers.contains(&item.id);
+                    self.terminal_owner_body = self.private_terminal_ready && matches!(&item.kind,
+                        IrItemKind::Scenario {event_source:Some(IrEventSource::StandardCompleted {..}),..});
                     self.receipt_call_sites = self
                         .native_call_sites
                         .get(&item.id)
@@ -21225,6 +21286,7 @@ impl<'a> Emitter<'a> {
                         );
                     }
                     self.owner_handler_body = false;
+                    self.terminal_owner_body = false;
                     self.viewer_read_body = false;
                     self.receipt_capture = None;
                     self.current_revision_binding = None;

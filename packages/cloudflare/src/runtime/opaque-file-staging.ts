@@ -8,7 +8,7 @@ import type {
 } from '@canlang/contracts';
 
 type CallableDeclarationSource = Extract<FrameworkOpaqueDeclaration['source'], { kind: 'callable' }>;
-import { bindOpaqueFileDeclarations, prepareFrameworkFilePayloadOrigin, resolveOpaqueFileProjection, validateOpaqueFileOrigin } from '@canlang/state/storage';
+import { STATE_FILE_REFERENCE_PRODUCER, bindOpaqueFileDeclarations, prepareFrameworkFilePayloadOrigin, resolveOpaqueFileProjection, validateOpaqueFileOrigin } from '@canlang/state/storage';
 import { observeRetainedCanonicalFile, type CanonicalFileBinding } from './file-staging.js';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work';
 import { stableStringify } from '@canlang/state/invocation';
@@ -154,6 +154,22 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     if (matches.length !== 1) refuse('event has no exact original input declaration');
     return Object.freeze({ kind: 'declared-event', source: matches[0]!.source.source,
       event: name, inputsDeclarationId: matches[0]!.id });
+  };
+  const completion = (name: string, providerSource: string, binding: string, from: string):
+    Extract<FrameworkOpaqueEventDeclaration, { kind: 'standard-completion' }> => {
+    const declared = event(name);
+    const inputs = set.declarations.find(value => value.id === `${name}:provider-inputs`);
+    const result = set.declarations.find(value => value.id === `${name}:provider-result`);
+    if (inputs?.source.kind !== 'delivery' || inputs.source.context.kind !== 'capability' ||
+        inputs.profile.kind !== 'inputs' || result?.source.kind !== 'delivery' ||
+        result.profile.kind !== 'provider-result' || !equal(inputs.source, result.source) ||
+        !equal(inputs.source.source, declared.source) ||
+        providerSource !== `${inputs.source.context.canonical.capability}.${inputs.source.context.canonical.operation}`) {
+      refuse('completion lacks its exact installed provider request/result declaration');
+    }
+    return captureData({ kind: 'standard-completion', source: declared.source, event: name,
+      providerSource, binding, from, inputsDeclarationId: declared.inputsDeclarationId,
+      sourceInputsDeclarationId: inputs.id, resultDeclarationId: result.id, delivery: inputs.source.context });
   };
   const checkedCallable = (id: string): {
     actual: CompileArtifact['callables'][number];
@@ -305,8 +321,11 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
   const collectSourceFiles = async (source: RetainedOpaqueFileSource, row: StoredRow,
     header: RetainedOpaqueFileSource['binding']): Promise<readonly RetainedFinalizedFile[]> => {
     validateOpaqueFileOrigin(bound, header);
-    const resolve = WORK_FILE_REFERENCE_PRODUCER.resolveOpaqueField;
-    if (typeof resolve !== 'function') refuse('owning Work opaque resolver is absent');
+    const producers = [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER].filter(producer =>
+      producer.models.some(model => model.model === source.model));
+    if (producers.length !== 1) refuse('retained source requires one exact owning framework producer');
+    const resolve = producers[0]!.resolveOpaqueField;
+    if (typeof resolve !== 'function') refuse('owning framework opaque resolver is absent');
     const resolved = resolve(source.model, row, source.field, { installed, binding: header });
     if (!equal(resolved.binding, header)) refuse('owning projection changed the original source binding');
     const payload = own(row.data, source.field);
@@ -448,5 +467,5 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     return origin;
   };
   await current();
-  return Object.freeze({ installed, set, bound, event, callable, sendGuard, delivery, occurrences, prepare, prepareControl, revalidateSource, refresh });
+  return Object.freeze({ installed, set, bound, event, completion, callable, sendGuard, delivery, occurrences, prepare, prepareControl, revalidateSource, refresh });
 }

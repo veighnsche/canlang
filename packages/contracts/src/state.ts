@@ -1265,6 +1265,19 @@ export type FrameworkOpaquePayloadOrigin =
       readonly caller: FrameworkOpaqueCallable;
       readonly association: { readonly model: ModelName; readonly recordId: RecordId; readonly field: string };
       readonly declaration: FrameworkOpaqueDeliveryContext; readonly resultDeclarationId: string }
+  /** A retained SEND without an authored delivery-typed association. The native
+   * pending issuer proves the original publication/dispatch and installed
+   * completion declarations. This header grants no provider progress authority. */
+  | { readonly kind: 'retained-delivery-result'; readonly deliveryId: string;
+      readonly intent: Readonly<Pick<OutboxIntent,
+        'intentId' | 'operation' | 'operationId' | 'target' | 'occurrenceIndex'>>;
+      readonly request: { readonly binding: string; readonly from: string };
+      readonly caller: FrameworkOpaqueCallable;
+      readonly declaration: Extract<FrameworkOpaqueDeliveryContext, {kind:'capability'}>;
+      readonly resultDeclarationId: string;
+      readonly completion: Extract<FrameworkOpaqueEventDeclaration, {kind:'standard-completion'}>;
+      readonly originalCommit: OriginalOutboxCommit;
+      readonly dispatch: Extract<FrameworkOpaqueCompletionDispatch, {kind:'capability'}> }
   | FrameworkOpaqueEventInputOrigin
   | { readonly kind: 'handler-result'; readonly occurrenceId: OccurrenceId;
       readonly operationId: OperationId; readonly handler: FrameworkOpaqueCallable;

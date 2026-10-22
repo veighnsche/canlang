@@ -46,6 +46,7 @@ pub mod js;
 mod authority_query_sites;
 mod mailbox_events;
 mod payments_events;
+mod standard_terminal_events;
 mod membership;
 pub mod model_policies;
 pub mod model_policy_profile;
@@ -174,9 +175,14 @@ pub fn emit(
     if let Err(diagnostic) = program.validate_cohort(sources.db, sources.catalog) {
         return (empty_artifact(sources.db), vec![diagnostic]);
     }
-    let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
+    let (ir, mut diags) = if standard_terminal_events::requested(program) {
+        ir::build_standard_terminal_candidates(program, sources.db, sources.catalog)
+    } else {
+        ir::build(program, sources.db, sources.catalog)
+    };
     let needs_source_context = sources.options.native_scenario_receipts
         || !program.payments_changed_handlers().is_empty()
+        || ir.standard_completion_sources.is_private_terminal_candidate()
         || program.types.selected_calls.values().any(|call| {
             matches!(
                 &call.target, crate::analysis::types::SelectedCallTarget::Builtin { id, .. }
@@ -256,6 +262,7 @@ pub fn emit(
     let membership = query_context.and_then(membership::prepare_with_context);
     let mailbox_events = mailbox_events::prepare(program, &ir, sources.db, sources.catalog);
     let payments_changed_events = query_context.and_then(payments_events::prepare);
+    let standard_terminal_events = query_context.and_then(standard_terminal_events::prepare);
     // Boolean/read inventory seals per checked occurrence inside its bridge,
     // so unrelated IR refusals elsewhere do not orphan it; the requires-only
     // fallback below preserves prior behavior when occurrence seals refuse.
@@ -330,6 +337,7 @@ pub fn emit(
             membership: membership.as_ref(),
             mailbox_events: mailbox_events.as_ref(),
             payments_changed_events: payments_changed_events.as_ref(),
+            standard_terminal_events: standard_terminal_events.as_ref(),
             read_predicates: read_predicates.as_ref(),
             send_guards: send_guards.as_ref().and_then(|guards| guards.as_ref().ok()),
             send_guard_gap: send_guards

@@ -19,11 +19,14 @@ import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-referenc
 import { WORK_DISPATCH_STAGE_COMMANDS, WORK_SYSTEM_COMMANDS,
   createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
 import { classifyFailure } from '@canlang/work/receipt';
+import { createSystemRegistry, systemCommandStageRevision } from '@canlang/state';
+import { readReceiptRow, readAssociationRow, withReceiptRowData, withAssociationRowData } from '@canlang/state/receipt/tables';
+import { applyReceiptProgress, applyRetainedRelatedProgress } from '@canlang/work/observation/association';
 import { assembleDispatchCommands, buildInvoker } from '../worker/assembly.js';
 import { installNativeFileInventory } from './file-inventory.js';
 import { bindNativeEmailDispatchGuards, createWorkerDispatchJoinPort,
   driveDispatchIntentWithPreclaim, loadDispatchSystemProducers,
-  withDispatchJoinPort } from './invoke.js';
+  withDispatchJoinPort, driveDispatchIntent, createNativeStandardCompletionSourceCommand, createNativeStandardCompletionPendingReceiptCommand, invokeRetainedHandlerOccurrenceCanonical } from './invoke.js';
 import { assembleModules } from './modules.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
@@ -338,5 +341,293 @@ it('collects the current invoice balance from owner-complete evidence and emits 
         }
         if (mode.endsWith('-at-commit')) assert.equal(injected, true, `${mode}: race hook reached`);
       }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+it('executes the four authored Invoice terminals only from retained Work completion admission',
+  { timeout: 300000 }, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-invoice-terminals-'));
+    try {
+      const terminalSource = join(root, 'packages/cloudflare/test/fixtures/invoice-terminal-owner-probe.can');
+      const probe = await readFile(terminalSource, 'utf8');
+      const original = await readFile(join(root, 'draft/apps/CanInvoice/CanInvoice.can'), 'utf8');
+      const start = original.indexOf('  scenario collected on=');
+      const end = original.indexOf('   ## Correlated transport acceptance', start);
+      assert.ok(start >= 0 && end > start && probe.includes(original.slice(start, end)),
+        'all four actual authored terminal bodies are retained unchanged');
+      const { stdout } = await promisify(execFile)(compiler,
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, terminalSource],
+        { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+      const artifact = JSON.parse(stdout) as CompileArtifact;
+      const asm = await assembleModules({ artifact, sourcePath: terminalSource }, { workDir: directory,
+        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+        uiUrl: import.meta.resolve('@canlang/ui') });
+      const selectedCase=process.env['CAN_INVOICE_TERMINAL_CASE'];
+      let executed=0;
+      for (const [op, status, mismatch] of [
+        ['collect', 'succeeded', null], ['refund', 'succeeded', null],
+        ['cancel', 'succeeded', null], ['reconcile', 'succeeded', null],
+        ['collect', 'failed', null], ['refund', 'failed', null],
+        ['collect', 'skipped', null], ['refund', 'skipped', null],
+        ['cancel', 'failed', null], ['reconcile', 'skipped', null],
+        ['collect', 'succeeded', 'reference'], ['refund', 'succeeded', 'amount'],
+        ['cancel', 'succeeded', 'reference'], ['reconcile', 'succeeded', 'amount'],
+      ] as const) {
+        const mode = `${op}-${status}-${mismatch ?? 'valid'}`;
+        if(selectedCase!==undefined && selectedCase!==mode) continue;
+        executed++;
+        const realSkip = op === 'collect' && status === 'skipped';
+        const identities = createMemoryIdentityStore({ clock: createFrozenClock(now) });
+        const team = await identities.createTeam({ timezone: 'UTC' });
+        const actor = await identities.createUser({ email: `${mode}@invoice-terminal.test`,
+          password_hash: 'unused', email_verified: true });
+        await identities.createMembership({ team_id: team.team_id, user_id: actor.user_id,
+          is_owner: true, roles: [] });
+        const token = `terminal-${mode}`;
+        await identities.createSession({ user_id: actor.user_id, token_sha256: await sha256HexText(token),
+          last_team_id: team.team_id, expires_at: new Date(now + 3600000).toISOString() });
+        const identity = await resolveIdentity(identities, { session_token: token },
+          { clock: createFrozenClock(now) });
+        const scope = { app: 'CanInvoice', owner: team.team_id, ownerPackage: 'invoice' };
+        const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app,
+          stateStoreId: 'terminal-state', fileStoreId: 'terminal-files',
+          receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
+        const { store, probe: storageProbe } = createTestMemoryStorage(authority,
+          [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({ artifact, asm, store, authority, scope,
+          now: () => now, verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
+        const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+        const customer = { ...makeRow({ id: asId('customer'), data: { kind: 'company', hidden: true } }), parent: null };
+        const invoice = { ...makeRow({ id: asId('invoice'), data: { location: { id: 'location' },
+          source: 'invoice-source', currency: 'EUR', state: realSkip ? 'issued' : 'void_pending', total: money('1500'),
+          next_collection: null, ledger_revision: '7', hidden: true } }),
+          parent: { model: model('customer.Customer'), id: customer.id } };
+        let attempt: StoredRow = { ...makeRow({ id: asId('attempt'), data: { reference: 'provider-reference',
+          amount: money('1500'), kind: op === 'refund' ? 'refund' : 'collection', status: 'pending',
+          failure: null, disabled: false, delivery: null, checkout: 'https://pay.test/',
+          outcome_at: null, hidden: true } }), parent: { model: model('invoice.Invoice'), id: invoice.id } };
+        const request = { ...makeRow({ id: asId('request'), data: { kind: op,
+          cancellation: null, reconciliation: null } }),
+          parent: { model: model('invoice.Attempt'), id: attempt.id } };
+        await store.commit(makeBatch(await store.readRevision(), { writes: [
+          { kind: 'insert', model: model('customer.Customer'), row: customer },
+          { kind: 'insert', model: model('invoice.Invoice'), row: invoice },
+          ...(!realSkip ? [{ kind: 'insert' as const, model: model('invoice.Attempt'), row: attempt }] : [{
+            kind:'insert' as const,model:model('customer.CompanyRole'),row:{...makeRow({id:asId('billing'),
+              data:{account:{id:actor.user_id},role:'billing',active:true,hidden:true}}),
+              parent:{model:model('customer.Customer'),id:customer.id}} }]),
+          ...(['cancel', 'reconcile'].includes(op) ? [{ kind: 'insert' as const,
+            model: model('invoice.PaymentRequest'), row: request }] : []),
+        ] }));
+        const sent = await invoker.invokeMutation({ operation: realSkip ? 'invoice.collect' : `invoice.request_${op}`,
+          operation_id: operationId(), inputs: realSkip ? {invoice:{id:invoice.id,version:String(invoice.version)}} : { ...(['cancel', 'reconcile'].includes(op) ? { retained: { id: request.id, version: String(request.version) } } : {}),
+            reference: 'provider-reference',
+            ...(['collect', 'refund'].includes(op) ? { amount: money('1500') } : {}) } }, identity);
+        assert.ok('result' in sent && sent.result.status === 'committed', `${mode}: ${JSON.stringify(sent)}`);
+        const intent = storageProbe.outboxAll()[0]!;
+        assert.ok(intent && intent.target === `std.PaymentsV1.${op}`, mode);
+        if (realSkip) {
+          const originals=await store.query({model:model('invoice.Attempt'),authority:'owner',
+            parent:{model:model('invoice.Invoice'),id:invoice.id}});
+          assert.equal(originals.length,1,`${mode}: original collect produced the Attempt`);
+          attempt=originals[0]!;
+          assert.equal(attempt.data['delivery'],intent.intentId);
+          const currentInvoice=await store.load(model('invoice.Invoice'),invoice.id);assert.ok(currentInvoice);
+          await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice.Invoice'),
+            id:currentInvoice.id,expectedVersion:currentInvoice.version,row:{...currentInvoice,
+              version:asVersion(currentInvoice.version+1),data:{...currentInvoice.data,state:'void_pending'}}}]}));
+        }
+        const current = await store.load(model('invoice.Attempt'), attempt.id); assert.ok(current);
+        await store.commit(makeBatch(await store.readRevision(), {writes:[{kind:'update',model:model('invoice.Attempt'),
+          id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),
+            data:{...current.data,delivery:intent.intentId}}}]}));
+        const producers = await loadDispatchSystemProducers();
+        const claim = createWorkDispatchClaimCommand((id, target) => id === intent.intentId && target === intent.target);
+        const commands = assembleDispatchCommands({ l3Commands: producers.l3Commands,
+          workCommands: WORK_SYSTEM_COMMANDS.map(command => command.name === claim.name ? claim : command),
+          stageCommands: WORK_DISPATCH_STAGE_COMMANDS });
+        const joined = withDispatchJoinPort(store, await createWorkerDispatchJoinPort(store));
+        let providerCalls=0;
+        const dispatchInput = { store: joined, intent,
+          actor: 'dispatch:invoice-terminal', operation: 'test.invoice-terminal.dispatch', nowMs: () => now + 1,
+          nextClaimId: () => `claim-${mode}`, maxClaimAgeMs: 60000,
+          claimOperationId: uuidv7(now + 1, 1), recordOperationId: uuidv7(now + 1, 2),
+          evaluateGuard: () => true, readStateSnapshot: () => null,
+          callProvider: async () => {providerCalls++;return { kind: 'delivered' as const, result: null };},classifyFailure,
+        };
+        const dispatched=realSkip ? await driveDispatchIntentWithPreclaim({...dispatchInput,
+          fence:(await bindNativeEmailDispatchGuards({asm,artifact,store,identities,scope,
+            revalidateAuthority:async()=>true}))(intent)},(guard,allocator)=>{
+          const nativeClaim=createWorkDispatchClaimCommand((id,target)=>id===intent.intentId && target===intent.target,guard,allocator);
+          return producers.createSystemRegistry(commands.map(command=>command.name===claim.name?nativeClaim:command));
+        }) : await driveDispatchIntent({...dispatchInput,registry:producers.createSystemRegistry(commands)});
+        assert.equal(dispatched.status,realSkip?'not-claimed':'recorded',`${mode}: ${JSON.stringify(dispatched)}`);
+        assert.equal(providerCalls,realSkip?0:1,`${mode}: provider is excluded by current native guard`);
+        if(realSkip){
+          assert.equal((await store.outboxGet(intent.intentId))?.status,'dispatched',`${mode}: guard skip acknowledges original retained intent`);
+          const dispatch=await store.load(model('work.dispatch'),asId(intent.intentId));assert.ok(dispatch);
+          assert.equal(dispatch.data['guardVerdict'],false,`${mode}: original dispatch pins false`);
+          assert.equal(dispatch.data['attempts'],0,`${mode}: skipped dispatch spends no provider attempt`);
+        }
+        const completionInput = { asm, artifact, scope, identities, store,
+          bounds: { maxSources: 4, maxHandlers: 4, maxMembers: 10, chunkSize: 10 } };
+        if (op === 'collect' || op === 'refund') {
+          assert.equal(await store.load(model('work.receipt'),asId(intent.intentId)),null,
+            `${mode}: authored text delivery has no synthetic typed association`);
+          const pending = await createNativeStandardCompletionPendingReceiptCommand(completionInput);
+          const pendingRegistry = createSystemRegistry([pending]);
+          const initialize = (deliveryId = intent.intentId) => pendingRegistry.run(pending.name,{deliveryId},
+            {actor:'dispatch:payments',now:now+2,operation:pending.name,operationId:operationId()},{store});
+          await assert.rejects(()=>initialize('absent-delivery'),`${mode}: no fabricated delivery`);
+          if (op === 'collect' && status === 'succeeded' && mismatch === null) {
+            await assert.rejects(()=>pendingRegistry.run(pending.name,{deliveryId:intent.intentId,status:'succeeded',result:{}},
+              {actor:'dispatch:payments',now:now+2,operation:pending.name,operationId:operationId()},{store}),
+              `${mode}: initializer cannot accept result/progress authority`);
+          }
+
+          if (op === 'collect' && status === 'succeeded' && mismatch === null) {
+            const dispatch = await store.load(model('work.dispatch'),asId(intent.intentId)); assert.ok(dispatch);
+            for (const corruption of [{source:'std.PaymentsV1.refund'}, {operationId:operationId()}]) {
+              const before = await store.load(model('work.dispatch'),dispatch.id); assert.ok(before);
+              await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('work.dispatch'),
+                id:before.id,expectedVersion:before.version,row:{...before,version:asVersion(before.version+1),
+                  data:{...before.data,...corruption}}}]}));
+              await assert.rejects(()=>initialize(),`${mode}: original dispatch source/operation is required`);
+              const changed = await store.load(model('work.dispatch'),dispatch.id); assert.ok(changed);
+              await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('work.dispatch'),
+                id:changed.id,expectedVersion:changed.version,row:{...changed,version:asVersion(changed.version+1),data:dispatch.data}}]}));
+            }
+            // Even a wrapper around the same readers cannot replace the actual
+            // physical store enrolled by the native host factory.
+            await assert.rejects(()=>pendingRegistry.run(pending.name,{deliveryId:intent.intentId},
+              {actor:'dispatch:payments',now:now+2,operation:pending.name,operationId:operationId()},
+              {store:{...store}}),`${mode}: foreign system store`);
+          }
+          assert.equal(((await initialize()).result as {status:string}).status,'initialized',mode);
+          assert.equal(((await initialize()).result as {status:string}).status,'replayed',mode);
+          const pendingRow = await store.load(model('work.receipt'),asId(intent.intentId)); assert.ok(pendingRow);
+          const header = readReceiptRow(pendingRow).filePayloadOrigin!;
+          assert.equal(header.origin.kind,'retained-delivery-result');
+          if (op === 'collect' && status === 'succeeded' && mismatch === null) {
+            for (const mutate of [
+              (copy: typeof header) => { if(copy.origin.kind==='retained-delivery-result') Object.assign(copy.origin.request,{binding:'invoice.Forged'}); },
+              (copy: typeof header) => { if(copy.origin.kind==='retained-delivery-result') Object.assign(copy.origin.caller.callable,{id:'invoice.request_refund'}); },
+              (copy: typeof header) => { if(copy.origin.kind==='retained-delivery-result') Object.assign(copy.origin,{resultDeclarationId:'invoice.Payments.refund.completed:provider-result'}); },
+            ]) {
+              const forged=structuredClone(header);mutate(forged);
+              const forgedRevision=await store.readRevision();
+              await assert.rejects(()=>store.commit(makeBatch(forgedRevision,{writes:[{kind:'update',
+                model:model('work.receipt'),id:pendingRow.id,expectedVersion:pendingRow.version,
+                row:{...pendingRow,version:asVersion(pendingRow.version+1),data:{...pendingRow.data,filePayloadOrigin:forged}}}]})),
+                error=>error instanceof StorageConstraintError && error.kind==='reference',
+                `${mode}: persisted caller/binding/result declaration cannot be substituted`);
+            }
+          }
+
+        }
+        const nominal = { reference: mismatch === 'reference' ? 'wrong-reference' : 'provider-reference',
+          revision: '1', provider_reference: null, amount: money(mismatch === 'amount' ? '1400' : '1500'),
+          status: 'succeeded', checkout_url: null, failure: null };
+        // Test provider progress uses the real owning reducer and State row writers.
+        // The host has no installed Payments adapter; it grants no source authority.
+        const progress = { name: 'test.payments.progress', stage: async (_: Readonly<Record<string, unknown>>,
+          ctx: import('@canlang/state').SystemCommandContext) => {
+          const row = await ctx.load(model('work.receipt'), asId(intent.intentId)); assert.ok(row, mode);
+          const prior = readReceiptRow(row).receipt;
+          const associations = await ctx.query({ model: model('work.receipt_association'),
+            where: { op: 'eq', field: 'deliveryId', value: intent.intentId }, authority: 'owner' });
+          const associationRow = associations[0];
+          const revision = systemCommandStageRevision(ctx) + 1;
+          const progress = { delivery_id: intent.intentId, relation: intent.target,
+            source: intent.target, revision, status, result: status === 'succeeded' ? nominal : null,
+            error: status === 'failed' ? { code: 'provider', message: 'Provider unavailable' } : null };
+          const declaration = readReceiptRow(row).filePayloadOrigin!.origin;
+          assert.ok(declaration.kind === 'retained-delivery-result' || declaration.kind === 'delivery-result');
+          const context = { source:intent.target,declaredResult:declaration.declaration.canonical.result };
+          const reduced = associationRow === undefined
+            ? applyRetainedRelatedProgress(intent.target,prior,progress,context)
+            : applyReceiptProgress(readAssociationRow(associationRow),prior,progress,context);
+          assert.equal(associations.length, op === 'collect' || op === 'refund' ? 0 : 1,
+            `${mode}: actual authored locator shape`);
+          assert.ok(reduced.applied, `${mode}: ${JSON.stringify(reduced)}`);
+          const meta = { nowMs: ctx.now, actor: ctx.actor };
+          return { writes: [
+            { kind: 'update' as const, model: model('work.receipt'), id: row.id, expectedVersion: row.version,
+              row: withReceiptRowData(row, { ...reduced.receipt, contentRef: null, resultExpiresAtMs: null }, meta) },
+            ...(associationRow === undefined ? [] : [{ kind: 'update' as const,
+              model: model('work.receipt_association'), id: associationRow.id,
+              expectedVersion: associationRow.version, row: withAssociationRowData(associationRow, {
+                recordModel: associationRow.data['recordModel'] as string,
+                recordId: readAssociationRow(associationRow).locator.recordId,
+                field: readAssociationRow(associationRow).locator.field,
+                deliveryId: intent.intentId, source: intent.target, revision }, meta) }]),
+          ] };
+        } };
+        await createSystemRegistry([progress]).run(progress.name, {}, { actor: 'provider:payments',
+          now: now + 2, operation: progress.name, operationId: uuidv7(now + 2, 3) }, { store });
+        const completion = await createNativeStandardCompletionSourceCommand(completionInput);
+        const registry = createSystemRegistry([completion]);
+        const issue = () => registry.run(completion.name, { deliveryId: intent.intentId }, {
+          actor: 'completion:payments', now: now + 3, operation: completion.name,
+          operationId: operationId() }, { store });
+        const admitted = await issue();
+        const issued = admitted.result as { status: string; sourceOccurrence: string; event: string };
+        assert.equal(issued.status, 'staged', mode);
+        assert.equal(((await issue()).result as { status: string }).status, 'replayed', mode);
+        const handler = ({ collect: 'collected', refund: 'refunded', cancel: 'checkout_cancelled',
+          reconcile: 'reconciled' } as const)[op];
+        const selector = { scope, event: issued.event, sourceOccurrence: issued.sourceOccurrence,
+          handler: `invoice.${handler}` };
+        const invoke = (current = selector) => invokeRetainedHandlerOccurrenceCanonical({ asm, artifact,
+          app: scope.app, selector: current, store, identities, now: () => now + 4 });
+        await assert.rejects(() => invoke({ ...selector, handler: `invoice.${handler === 'collected' ? 'refunded' : 'collected'}` }),
+          `${mode}: cannot retarget original route`);
+        const committed: Array<Parameters<typeof store.commit>[0]> = [];
+        const originalCommit = store.commit.bind(store);
+        Object.defineProperty(store,'commit',{value:async(batch:Parameters<typeof store.commit>[0])=>{
+          const result=await originalCommit(batch);committed.push(batch);return result;
+        }});
+        const beforeTerminal=await store.load(model('invoice.Invoice'),invoice.id);assert.ok(beforeTerminal);
+        const expectedLedger=String(BigInt(String(beforeTerminal.data['ledger_revision']))+1n);
+        const handled = await invoke().catch(error => { throw new Error(`${mode}: ${error instanceof Error && error.cause instanceof Error ? error.cause.message : String(error)}`,{cause:error}); }) as { status: string };
+        assert.equal(handled.status, mismatch ? 'failed' : 'completed', `${mode}: ${JSON.stringify(handled)}`);
+        assert.equal((await invoke() as { status: string }).status, 'replayed', `${mode}: idempotent handler`);
+        const currentInvoice = await store.load(model('invoice.Invoice'), invoice.id); assert.ok(currentInvoice);
+        const currentAttempt = await store.load(model('invoice.Attempt'), attempt.id); assert.ok(currentAttempt);
+        const changed = (op === 'collect' && status !== 'succeeded') || (op === 'refund' && status === 'failed');
+        assert.equal(currentInvoice.data['ledger_revision'], changed ? expectedLedger : String(beforeTerminal.data['ledger_revision']), mode);
+        if (changed) {
+          assert.equal(committed.filter(batch=>batch.writes.some(write=>write.model==='invoice.Invoice')).length,1,
+            `${mode}: parent changes commit once`);
+          const atomic=committed.find(batch=>batch.writes.some(write=>write.model==='invoice.Invoice'))!;
+          for(const name of ['invoice.Invoice','invoice.Attempt','work.occurrence']) assert.ok(
+            atomic.writes.some(write=>write.model===name),`${mode}: ${name} shares the final owner transaction`);
+        }
+
+        assert.equal(currentAttempt.data['status'], changed ? status === 'skipped' ? 'failed' : 'unknown' : 'pending', mode);
+        if (changed) assert.equal(currentAttempt.data['outcome_at'], new Date(now + 4).toISOString(), mode);
+        if (op === 'collect' && status === 'skipped') {
+          assert.equal(currentInvoice.data['state'], 'void', mode);
+          assert.equal(currentAttempt.data['disabled'], true, mode);
+          assert.equal(currentAttempt.data['checkout'], null, mode);
+          assert.equal(currentAttempt.data['failure'], 'cancelled', mode);
+        }
+        const events = await store.query({ model: model('work.occurrence'), authority: 'owner' });
+        const receipts = events.filter(row => (row.data['result'] as { event?: string })?.event === 'invoice.ProviderReceipt');
+        assert.equal(receipts.length, status === 'succeeded' && !mismatch ? 1 : 0, mode);
+        if (receipts.length) assert.deepEqual((receipts[0]!.data['result'] as { payload: unknown }).payload,
+          { value: nominal }, `${mode}: complete raw nominal result`);
+        const settlements = events.filter(row => row.created===now+4 && (row.data['result'] as { event?: string })?.event === 'invoice.InvoiceSettlement');
+        assert.equal(settlements.length, changed ? 1 : 0, mode);
+        if (settlements.length) {
+          const value = (settlements[0]!.data['result'] as { payload: { value: Record<string, unknown> } }).payload.value;
+          assert.equal(value['revision'], expectedLedger, mode);
+          assert.equal(value['collection_pending'], op === 'collect' && status !== 'skipped', mode);
+          assert.equal(value['refund_pending'], op === 'refund', mode);
+          assert.deepEqual(value['collected'], money('0'), mode);
+          assert.deepEqual(value['refunded'], money('0'), mode);
+        }
+      }
+      assert.ok(executed>0,`unknown terminal case: ${selectedCase}`);
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
