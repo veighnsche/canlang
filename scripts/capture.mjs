@@ -8,6 +8,7 @@
 // Usage:
 //   bun scripts/capture.mjs [--list-only] [--out FILE] [--baseline FILE] <file...>
 //   CAN_COMPILER_BIN=compiler/target/release/can bun scripts/capture.mjs --out FILE <file...>
+//   CAN_NATIVE_CATALOG=path/to/catalog.json bun scripts/capture.mjs <file...>
 // Each <file> is a basename (CanRent, CanRent.can), a repo-relative path,
 // or a package/app key (rent_catalog). Dependencies come from `uses=[...]`
 // and `use NAME` declarations, closed transitively over provider files.
@@ -21,7 +22,7 @@ const ROOT = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf
 const COMPILER = process.env.CAN_COMPILER_BIN
   ? resolve(ROOT, process.env.CAN_COMPILER_BIN)
   : join(ROOT, "compiler/target/debug/can");
-const CATALOG = "packages/values/dist/catalog.json";
+const CATALOG = process.env.CAN_NATIVE_CATALOG ?? "packages/cloudflare/dist/native-catalog.json";
 
 const args = process.argv.slice(2);
 const listOnly = args.includes("--list-only");
@@ -146,12 +147,12 @@ for (const [k, v] of [...perFile].sort((a, b) => b[1] - a[1])) console.log(`${v}
 
 if (baseFile) {
   const base = JSON.parse(readFileSync(baseFile, "utf8"));
-  const baseOps = new Set((base.sources ?? []).map((s) => s.path));
-  const curOps = new Set(relOperands);
+  const baseOps = new Map((base.sources ?? []).map((s) => [s.path, s.sha256]));
+  const curOps = new Map((artifact.sources ?? []).map((s) => [s.path, s.sha256]));
   const sameComposition =
-    baseOps.size === curOps.size && [...baseOps].every((p) => curOps.has(p) || curOps.has(p.replace(/^\//, "")));
+    baseOps.size === curOps.size && [...baseOps].every(([path, sha256]) => curOps.get(path) === sha256);
   if (!sameComposition) console.log("note: different composition than baseline; per-file deltas are directional only");
-  const basePaths = new Map((base.sources ?? []).map((s) => [s.id, String(s.path ?? "?").split("/").pop()]));
+  const basePaths = new Map((base.sources ?? []).map((s, index) => [index, String(s.path ?? "?").split("/").pop()]));
   const basePer = new Map();
   for (const d of base.diagnostics ?? []) {
     const short = basePaths.get(d.primary?.file) ?? "??";
