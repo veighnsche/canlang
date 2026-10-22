@@ -3026,7 +3026,8 @@ fn emit_program_with_sources(
         for item in &ir.items {
             if !emitter.native_receipts.contains_key(&item.id)
                 && emitter.source_requires.values().any(|source| source["owner"] == item.canonical)
-                && !emitter.diags.iter().any(|diagnostic| diagnostic.primary == item.span)
+                && !emitter.diags.iter().any(|diagnostic| diagnostic.primary == item.span
+                    && diagnostic.severity == crate::diagnostic::Severity::Error)
             {
                 emitter.unsupported("scenario source requirement",
                     "original checked owner receipt is unavailable for its source guard", item.span);
