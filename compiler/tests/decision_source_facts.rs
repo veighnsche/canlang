@@ -1764,3 +1764,20 @@ fn original_booking_guard_requires_a_finite_literal_civil_date_domain() {
         else {assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{bound} admitted an unproved date allocation");}
     }
 }
+
+#[test]
+fn source_require_cannot_outlive_its_defining_owner_receipt() {
+    use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+    use canlang_compiler::diagnostic::DiagnosticResult;
+    let mut db=SourceDb::new();
+    let file=db.add("missing-owner.can".into(),include_str!("fixtures/native-require-missing-owner-frame.can").into());
+    let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let path=root.join("packages/cloudflare/dist/native-catalog.json");
+    let(catalog,diagnostics)=load_catalog(&CatalogRequest{flag:Some(&path),env:None,cwd:root,primary:Span::new(file,0,0)});
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let(program,diagnostics)=check_program(&db,&[file],catalog.as_ref());
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let mut result=DiagnosticResult::new("owner-frame","1.0",1);result.add_sources(&db);
+    let(_,diagnostics)=emit(&program,&EmitSources{db:&db,result:&result,catalog:catalog.as_ref(),options:EmitOptions{allow_incomplete_test_only:false,native_scenario_receipts:true}});
+    assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008" && diagnostic.message.contains("checked owner receipt is unavailable")),"{diagnostics:?}");
+}

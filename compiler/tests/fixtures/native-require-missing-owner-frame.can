@@ -1,0 +1,14 @@
+app GuardOwnerFrame
+Given
+ Root {capacity:int=1,checked:bool=false}
+ Child in Root {active:bool=true}
+ derive Root.remaining:int=row.capacity-count(row.Child as child where child.active)
+ derive allowed(root:Root):bool=any(root.Child as child,child.active)
+ policy Root read=members
+ policy Child read=members
+When
+ scenario run(root:Root) -> bool by=members
+  require root.remaining>0
+  require allowed(root)
+  do return true
+Then
