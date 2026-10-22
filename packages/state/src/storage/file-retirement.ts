@@ -46,8 +46,13 @@ function object(value: unknown): Record<string, unknown> {
 function keys(value: unknown, expected: readonly string[]): void {
   if (stableStringify(Object.keys(object(value)).sort()) !== stableStringify([...expected].sort())) return refuse('closed metadata required');
 }
+const detachedFileData = new WeakSet<object>();
 export function fileGuardCopy<T>(value: T): T {
-  try { return deepFreeze(copyScenarioFileData(value) as T); }
+  try {
+    const detached = deepFreeze(copyScenarioFileData(value) as T);
+    if (typeof detached === 'object' && detached !== null) detachedFileData.add(detached);
+    return detached;
+  }
   catch { return refuse('bounded own canonical data required'); }
 }
 export function fileGuardEqual(left: unknown, right: unknown): boolean { return stableStringify(left) === stableStringify(right); }
@@ -164,6 +169,7 @@ interface BoundFrameworkModel {
 }
 export type FileFrameworkBinding = ReadonlyMap<string, BoundFrameworkModel>;
 const EMPTY_FRAMEWORK: FileFrameworkBinding = new Map();
+const owningFrameworkBindings = new WeakSet<object>([EMPTY_FRAMEWORK]);
 // This association carries only the actual constructor-captured validators for
 // same-load migration validation. Permanent issuance remains the persisted
 // assignment/census/revision/retirement transaction; this map never proves it.
@@ -271,6 +277,7 @@ export function bindFileFrameworkProducers(producers: readonly FrameworkFileRefe
   for (const producer of producers) {
     bindOneFrameworkProducer(bound, producer);
   }
+  owningFrameworkBindings.add(bound);
   return bound;
 }
 
@@ -289,8 +296,8 @@ function bindOneFrameworkProducer(bound: Map<string, BoundFrameworkModel>, produ
   for (const declaration of declarations) {
     checkFrameworkDeclaration(declaration);
     if (bound.has(declaration.model)) return refuse('duplicate bound framework model');
-    bound.set(declaration.model, { declaration, family, validateRow: (validator.value as (...args: never[]) => void).bind(producer) as BoundFrameworkModel['validateRow'],
-      ...(resolver === undefined ? {} : { resolveOpaqueField: (resolver.value as (...args: never[]) => unknown).bind(producer) as NonNullable<BoundFrameworkModel['resolveOpaqueField']> }) });
+    bound.set(declaration.model, Object.freeze({ declaration, family, validateRow: (validator.value as (...args: never[]) => void).bind(producer) as BoundFrameworkModel['validateRow'],
+      ...(resolver === undefined ? {} : { resolveOpaqueField: (resolver.value as (...args: never[]) => unknown).bind(producer) as NonNullable<BoundFrameworkModel['resolveOpaqueField']> }) }));
   }
 }
 /** One framework field: opaque header/role or closed control shape. */
@@ -388,7 +395,19 @@ function bindFrameworkProfile(
   result.set(declaration.model, { kind: 'framework', bound, inventory, opaque });
 }
 
+// Only this module's detached, recursively frozen own data can retain a
+// successful binding. Persisted/reopened or caller-owned data is checked afresh.
+// Framework maps remain mutable Maps, so also compare their complete entry
+// identities; each actual bound producer entry itself is frozen at creation.
+const preparedFileProfiles = new WeakMap<object, WeakMap<object, {
+  readonly entries: readonly (readonly [string, BoundFrameworkModel])[];
+  readonly profiles: ReadonlyMap<string, ModelProfile>;
+}>>();
 function profiles(input: FileReferenceInventory, framework: FileFrameworkBinding = EMPTY_FRAMEWORK): ReadonlyMap<string, ModelProfile> {
+  const reusable = detachedFileData.has(input) && owningFrameworkBindings.has(framework);
+  const prepared = reusable ? preparedFileProfiles.get(input)?.get(framework) : undefined;
+  if (prepared !== undefined && framework.size === prepared.entries.length &&
+      prepared.entries.every(([name, entry]) => framework.get(name) === entry)) return prepared.profiles;
   const inventory = fileGuardCopy(input);
   keys(inventory, ['owner', 'snapshotId', 'digest', 'canonicalModels', 'artifactModels', 'valueTypes', 'frameworkModels',
     ...(Object.hasOwn(inventory, 'opaqueDeclarationSets') ? ['opaqueDeclarationSets'] : [])]);
@@ -426,6 +445,11 @@ function profiles(input: FileReferenceInventory, framework: FileFrameworkBinding
   } catch (error) {
     if (error instanceof StorageConstraintError) throw error;
     return refuse('invalid complete declaration correspondence');
+  }
+  if (reusable) {
+    const bindings = preparedFileProfiles.get(input) ?? new WeakMap();
+    bindings.set(framework, { entries: [...framework], profiles: result });
+    preparedFileProfiles.set(input, bindings);
   }
   return result;
 }
