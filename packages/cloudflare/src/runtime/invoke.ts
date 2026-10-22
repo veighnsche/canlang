@@ -15764,10 +15764,11 @@ async function readCheckedCommittedSource(loaded: LoadedCanonicalDescriptors, st
   return { receipt, result, payload, handlers, bounds };
 }
 
-/** Source attribution remains the original admission. Native CRUD hooks do
- * not acquire trusted identity; later Work delivery has its own admission. */
+/** Source attribution remains the original admission. User producers do not
+ * acquire trusted identity; later Work delivery has its own admission. */
 async function checkedDeclaredEventProducer(opts: Pick<CanonicalDueScheduleOpts, 'asm' | 'artifact'>,
-  loaded: LoadedCanonicalDescriptors, context: Record<string, unknown>): Promise<boolean> {
+  loaded: LoadedCanonicalDescriptors, context: Record<string, unknown>,
+  store: StoragePort, row: StoredRow, result: Record<string, unknown>): Promise<boolean> {
   if (context.kind === 'trusted') {
     return context.actor === null && opts.artifact.callables.some(value =>
       value.kind === 'handler' && value.id === context.operation);
@@ -15777,11 +15778,41 @@ async function checkedDeclaredEventProducer(opts: Pick<CanonicalDueScheduleOpts,
       || context.trustedSource !== undefined || typeof context.operation !== 'string') return false;
   const definition = generatedScenarioDef({ def: loaded.registry.get(context.operation) });
   const control = localOwnerPolicyControls.get(loaded);
-  if (definition === undefined || definition.name !== context.operation
-      || !['create', 'update'].includes(definition.descriptor.kind)
-      || !control?.hookOperations.has(context.operation)) return false;
-  await control.verifyAssembly(opts.asm, opts.artifact);
-  return true;
+  if (definition === undefined || definition.name !== context.operation) return false;
+  if (['create', 'update'].includes(definition.descriptor.kind) && control?.hookOperations.has(context.operation)) {
+    await control.verifyAssembly(opts.asm, opts.artifact);
+    return true;
+  }
+  const plan = definition.descriptor.result?.disclosure;
+  if (definition.kind !== 'scenario' || definition.descriptor.kind !== 'scenario' || plan === undefined ||
+      opts.artifact.callables.filter(value => value.kind === 'operation' && value.id === definition.name &&
+        value.module === plan.source.module).length !== 1 || typeof context.operationId !== 'string') return false;
+  await verifyCheckedAssembly(opts.asm, opts.artifact);
+  // The physical opaque header binds this exact Work row to its original
+  // event, payload and attribution. A saved business receipt alone does not:
+  // its recordVersions intentionally excludes framework source rows.
+  const binding = row.data['filePayloadOrigin'] as FrameworkFilePayloadOrigin | undefined;
+  if (binding?.version !== 1 || binding.slot.model !== 'work.occurrence' || binding.slot.id !== row.id ||
+      binding.slot.field !== 'result' || binding.slot.created !== row.created || binding.slot.createdBy !== row.createdBy ||
+      binding.origin.kind !== 'source-routing' || binding.origin.occurrenceId !== row.id ||
+      binding.origin.revision !== result.revision || binding.origin.recipe.kind !== 'declared-event') return false;
+  const recipe = binding.origin.recipe;
+  if (recipe.declaration.event !== result.event ||
+      stableStringify(recipe.declaration.source) !== stableStringify(plan.source) ||
+      stableStringify(recipe.context) !== stableStringify(context) ||
+      stableStringify(recipe.payload) !== stableStringify(result.payload) ||
+      stableStringify(recipe.bounds) !== stableStringify(result.bounds) ||
+      stableStringify(binding.scope) !== stableStringify(result.scope)) return false;
+  const identity: Receipt['identity'] = { app: context.app as string,
+    owner: privateSourceMember(context.team, 'teamId') as string ?? 'app', principal: context.actor.userId,
+    operation: definition.name as Receipt['identity']['operation'],
+    operationId: context.operationId as Receipt['identity']['operationId'] };
+  const saved = await store.readReceipt(identity);
+  return saved !== null && saved.outcome.status === 'committed' &&
+    stableStringify(saved.identity) === stableStringify(identity) && saved.createdAt === row.created &&
+    saved.committedRevision === Number(result.revision) + 1 &&
+    saved.outcome.scenario?.kind === 'scenario-result/v1' &&
+    stableStringify(saved.outcome.scenario.plan) === stableStringify(plan);
 }
 
 /** A declared-event receipt head carries its completed occurrence identity. */
@@ -15808,11 +15839,12 @@ async function assertDeclaredEventSourceCorrespondence(
   handlers: ReadonlyArray<unknown>, bounds: Record<string, unknown>,
   occurrenceId: string, event: string, scope: { readonly app: unknown; readonly owner: unknown },
   rowCreated: unknown,
+  store: StoragePort, row: StoredRow,
 ): Promise<void> {
   if (Object.keys(result).length !== 8 || !isDeclaredEventReceiptHeadValid(receipt, occurrenceId) ||
       receipt.code !== null || receipt.message !== null || result.kind !== 'declared-event-source' ||
       result.event !== event || stableStringify(result.scope) !== stableStringify(scope) || context.app !== scope.app ||
-      typeof context.operationId !== 'string' || !await checkedDeclaredEventProducer(opts, loaded, context) ||
+      typeof context.operationId !== 'string' || !await checkedDeclaredEventProducer(opts, loaded, context, store, row, result) ||
       (privateSourceMember(context.team, 'teamId') ?? context.app) !== scope.owner ||
       context.now !== rowCreated || !Number.isSafeInteger(result.revision) || Number(result.revision) < 0 ||
       handlers.length !== routes.length || handlers.some((entry, index) => privateSourceMember(entry, 'handler') !== routes[index]!.handler ||
@@ -15837,7 +15869,7 @@ async function readCheckedDeclaredEventSource(opts: Pick<CanonicalDueScheduleOpt
   const payload = localPolicyObject(result.payload), context = localPolicyObject(result.context);
   const handlers = nativeCallArray(result.handlers, 200), bounds = localPolicyObject(result.bounds);
   await assertDeclaredEventSourceCorrespondence(opts, loaded, receipt, result, context, routes, handlers,
-    bounds, occurrenceId, event, scope, row.created);
+    bounds, occurrenceId, event, scope, row.created, store, row);
   for (const route of routes) checkedSourceEvent(route.definition, event, payload, loaded.valueSchema);
   return { receipt, result, payload, handlers, bounds };
 }
