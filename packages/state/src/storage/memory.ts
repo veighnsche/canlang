@@ -51,7 +51,7 @@ import { captureCohortRequest, checkCohortIdentityRows, captureCohortRow, captur
   captureHistoryRequest, checkHistoryCount, copyBoundedHistory,
   captureBoundedOutboxRequest, captureBoundedOutbox } from './sqlite-codecs.js';
 import { compareReferenceIds, isReferenceIdentity } from '../policy/grants.js';
-import { bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, emptyFileGuard, fileGuardCopy, guardFileCommit,
+import { bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, emptyFileGuard, fileGuardCopy, fileGuardCommitCopy, guardFileCommit,
   guardFileFlip, guardFilePublish, planFileInstall, planFileRetirement,
   type FileGuardState, type FileGuardRow } from './file-retirement.js';
 
@@ -630,7 +630,7 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
     },
 
     async commit(batch: CommitBatch): Promise<CommitResult> {
-      if (binding !== undefined || state.fileGuard.authority !== null) batch = fileGuardCopy(batch);
+      if (binding !== undefined || state.fileGuard.authority !== null) batch = fileGuardCommitCopy(batch);
       const expected = batch.expectedRevision as number;
       if (!Number.isInteger(expected) || expected < 0) {
         throw new Error(`Invalid expectedRevision: ${JSON.stringify(batch.expectedRevision)}`);

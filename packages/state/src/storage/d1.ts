@@ -94,7 +94,7 @@ import type {
 } from '@canlang/contracts';
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
-import { FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy, guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement } from './file-retirement.js';
+import { FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy, fileGuardCopyCensus, fileGuardCommitCopy, guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement } from './file-retirement.js';
 import { deepFreeze } from '../internal/own-data.js';
 import type { FileGuardState, FileGuardRow, FileFrameworkBinding } from './file-retirement.js';
 import type { FrameworkFileReferenceProducer, FileRetirementAuthority, FileReferenceStoragePort, FileReferencePublishMigrationChunk, FileReferenceFlipInstalledSnapshot, InstallFileReferenceInventory, InstalledFileReferenceInventory, RetireFinalizedFile, FinalizedFileRetirement, FinalizedFileRef } from '@canlang/contracts';
@@ -278,7 +278,7 @@ async function readFileGuard(db: D1Database, binding: FileRetirementAuthority | 
   const assignment = results[1]!.results[0] as { authority: string; opaque_lifetimes: string } | undefined;
   const state: FileGuardState = {
     authority: assignment === undefined ? null : checkedFileAuthority(JSON.parse(assignment.authority)),
-    opaqueLifetimes: assignment === undefined ? [] : fileGuardCopy(JSON.parse(assignment.opaque_lifetimes)),
+    opaqueLifetimes: assignment === undefined ? [] : fileGuardCopyCensus(JSON.parse(assignment.opaque_lifetimes)),
     inventories: results[2]!.results.map(raw => fileGuardCopy(JSON.parse((raw as { installed: string }).installed) as InstalledFileReferenceInventory)),
     migrations: results[3]!.results.map(raw => { const row = raw as { migration_id: string; inventory: string }; return { migrationId: row.migration_id, inventory: fileGuardCopy(JSON.parse(row.inventory)) }; }),
     publications: results[4]!.results.map(raw => { const row = raw as { model: string; id: string; migration_id: string }; return { model: row.model, id: row.id, migrationId: row.migration_id }; }),
@@ -300,8 +300,8 @@ function requireFileRevision(expected: Revision, actual: Revision): void {
   if (!Number.isSafeInteger(expected) || expected < 0) throw new Error(`Invalid expectedRevision: ${JSON.stringify(expected)}`);
   if (expected !== actual) throw new FenceConflictError(expected, actual);
 }
-function captureFileInput<T>(input: T): { value?: T; error?: unknown } {
-  try { return { value: fileGuardCopy(input) }; } catch (error) { return { error }; }
+function captureFileInput<T>(input: T, copy: (value:T)=>T = fileGuardCopy): { value?: T; error?: unknown } {
+  try { return { value: copy(input) }; } catch (error) { return { error }; }
 }
 function guardedFileInput<T>(input: T, captured: { value?: T; error?: unknown }, guarded: boolean): T {
   if (!guarded) return input;
@@ -821,7 +821,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
     },
 
     async commit(batch: CommitBatch): Promise<CommitResult> {
-      const captured = captureFileInput(batch);
+      const captured = captureFileInput(batch, fileGuardCommitCopy);
       const guard = await readFileGuard(db, binding, framework);
       batch = guardedFileInput(batch, captured, guard.state.authority !== null || binding !== undefined);
       let nextGuard = guard.state;
@@ -1300,7 +1300,12 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
   // Reads and bookkeeping recheck the assignment and complete persisted framework inventory.
   const checkedStorage = Object.fromEntries(Object.entries(storage).map(([name, method]) => typeof method !== 'function' ? [name, method] : [name,
     async (...args: unknown[]) => {
-      const captured = fileGuardCopy(args);
+      // Commit's complete collection envelope has its own bounded capture;
+      // wrapping it in the generic argument-array copier would reintroduce
+      // the single-payload node ceiling before the actual commit can validate.
+      const captured = name === 'commit' && args.length === 1
+        ? Object.freeze([fileGuardCommitCopy(args[0] as CommitBatch)])
+        : fileGuardCopy(args);
       await readFileGuard(db, binding, framework);
       return (method as (...values: unknown[]) => Promise<unknown>)(...captured);
     },
