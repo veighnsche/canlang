@@ -30,7 +30,7 @@ it('keeps hidden first rows out of a viewer read and rechecks membership', { tim
       { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
     const artifact = JSON.parse(stdout) as CompileArtifact;
     const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
-      stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
     const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
     const team = await identities.createTeam({ timezone: 'UTC' });
     const user = await identities.createUser({ email: 'viewer-first@example.test', password_hash: 'unused', email_verified: true });
@@ -93,7 +93,7 @@ Then
     const emitted = JSON.parse(stdout) as CompileArtifact;
     assert.ok(emitted.operations?.find(operation => operation.name === 'ParentReplay.receive')?.result?.disclosure);
     const assembly = await assembleModules({ artifact: emitted, sourcePath }, { workDir: join(scratch, 'assembly'),
-      stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href, uiUrl: import.meta.resolve('@canlang/ui') });
     const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
     const team = await identities.createTeam({ timezone: 'UTC' });
     const user = await identities.createUser({ email: 'parent-receipt@example.test', password_hash: 'unused', email_verified: true });
