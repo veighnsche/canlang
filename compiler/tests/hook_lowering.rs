@@ -1922,6 +1922,91 @@ fn hook_global_scan_stays_refused() {
     );
 }
 
+/// (Outcome 12, narrowing class; Lane C.) The recorded CanSuccess
+/// `account_created`/`account_changed` shape: a nullable snapshot field
+/// read narrowed by `!=null` feeds a pure temporal builtin alongside a
+/// chained stored-reference leaf. The narrowed read observes the same
+/// declared storage, so the hook binds the native owner context (with
+/// `now` on the owner clock) instead of reporting the owner-policy-plan
+/// gap for every `now`, query, derive, and staged site.
+#[test]
+fn hook_narrowed_nullable_snapshot_read_binds_hook_context() {
+    let src = "app T\nGiven\n L { tz:timezone }\n A { active:bool, renewal:date?, loc:L }\n event RenewalDue { account:A, revision:int }\n policy A read=members\n policy L read=members\nWhen\n crud A by=members fields=active,renewal\n scenario account_created on=A.create\n  do\n   if event.after.active and event.after.renewal!=null\n    let due=local_instant(event.after.renewal,\"00:00\",event.after.loc.tz,fold=earlier)\n    if due>now\n     schedule event.after.id at=due event=RenewalDue {account=event.after,revision=event.after.version}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "narrowed hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
+    );
+    assert!(js.contains("c.now"), "owner clock read:\n{js}");
+    assert!(
+        js.contains("local_instant("),
+        "narrowed date reaches the temporal builtin:\n{js}"
+    );
+    assert!(
+        js.contains("transitive.loadReference"),
+        "chained reference leaf loads through the genuine linkage:\n{js}"
+    );
+    assert!(
+        js.contains("$hookCtx.schedule"),
+        "timer stages through the hook context:\n{js}"
+    );
+}
+
+/// (Outcome 12, staged-data class; Lane C.) The recorded CanRent
+/// `snapshot_Window_create`/`snapshot_Window_update` shape: a second
+/// create carries a nullable contract value from a checked derive plus
+/// the first create's staged sequence. Nullable contract fields write as
+/// plain constructed data like their non-nullable siblings, so the hook
+/// binds the native runner and pairs each staged id with its supplied
+/// data instead of reporting the query/derive/staged gaps.
+#[test]
+fn hook_nullable_contract_create_input_stages_supplied_data() {
+    let src = "app T\nGiven\n R { name:text }\n C in R { note:text }\n contract WinEv { note:text }\n ResourcePolicy in R { sequence:int, value:text }\n WindowEvidence in R { sequence:int, key:text, value:WinEv? }\n derive evidence(resource:R):text = resource.name\n derive report(child:C):WinEv = WinEv {note=child.note}\nWhen\n crud R by=members fields=name\n crud C by=members fields=note\n scenario snap on=C.create\n  do\n   let resource=event.after.parent\n   create ResourcePolicy {parent=resource,sequence=count(resource.ResourcePolicy)+1,value=evidence(resource)} as snap1\n   create WindowEvidence {parent=event.after.parent,sequence=snap1.sequence,key=event.after.id,value=report(event.after)} as ev1\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "staged hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
+    );
+    assert!(
+        js.contains("$hookCtx.stage"),
+        "snapshot stages through the hook context:\n{js}"
+    );
+    assert!(
+        js.contains("count("),
+        "contained count lowers over the query engine:\n{js}"
+    );
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder for the admitted shape:\n{js}"
+    );
+}
+
+/// (Outcome 12, negative; Lane C.) Nullable unwrapping in the hook input
+/// gate never admits stored model references: a hook create carrying a
+/// stored linkage (nullable or not) stays on the legacy runner with no
+/// native coverage, exactly like its non-nullable sibling.
+#[test]
+fn hook_nullable_stored_reference_input_stays_legacy() {
+    for field in ["buddy:R", "buddy:R?"] {
+        let src = format!("app T\nGiven\n R {{ name:text }}\n C in R {{ note:text }}\n Audit in R {{ note:text,{field} }}\nWhen\n crud R by=members fields=name\n crud C by=members fields=note\n scenario snap on=C.create\n  do\n   create Audit {{parent=event.after.parent,note=\"x\",buddy=event.after.parent}} as a2\nThen\n");
+        let (js, diags, path) = hook_js(&src);
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            diags.iter().all(|d| d.code != "E6008"),
+            "legacy linkage lowers without a gap: {}",
+            codes(&diags).join("\n")
+        );
+        assert!(
+            !js.contains("($candidate,$hookCtx,c)"),
+            "stored references acquire no native coverage ({field}):\n{js}"
+        );
+    }
+}
+
 /// (Outcome 12, negative.) Cross-package mutation from a hook still
 /// refuses at checking: hooks never acquire a foreign owner.
 #[test]
