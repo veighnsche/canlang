@@ -192,18 +192,29 @@ fn hook_model_with_derived_fields_binds_native() {
 /// the native runner: derives are computed, never cloned into the hook
 /// candidate snapshot, so the read cannot observe owner data through
 /// the ambient context. Field profiling binds stored `Field`
-/// declarations only, so the derive read keeps the hook on the
-/// pre-existing legacy path (which lowers it without a diagnostic,
-/// exactly as before this fix).
+/// declarations only, so the derive read keeps the hook legacy, and the
+/// trigger-snapshot member guard fails it closed with an `E6008` at the
+/// exact read span instead of emitting a silent `undefined` read.
+/// The neighboring positive test is the stored-field control: reads of
+/// stored fields (`event.after.due`) on a derive-carrying model still
+/// bind the native runner.
 #[test]
 fn hook_model_derive_read_stays_legacy() {
     let src = "app T\nGiven\n M { due:datetime, done:bool=false }\n derive M.over:bool = row.done==false\n event Tick { s:text }\nWhen\n scenario created on=M.create\n  do\n   if event.after.over\n    schedule event.after.id at=event.after.due event=Tick {s=\"tick\"}\nThen\n";
+    let at = src.find("event.after.over").expect("derive read site");
     let (js, diags, path) = hook_js(src);
     let _ = std::fs::remove_file(&path);
-    let _ = diags;
     assert!(
         !js.contains("($candidate,$hookCtx,c)"),
         "derive-reading hook must not bind the native runner:\n{js}"
+    );
+    assert!(
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message.contains("hook derived field")
+            && (d.primary.start as usize) <= at
+            && d.primary.end == (at + "event.after.over".len()) as u32),
+        "derive read fails closed at its source span: {:?}",
+        diags.iter().map(|d| format!("{}@{}-{}:{}", d.code, d.primary.start, d.primary.end, d.message)).collect::<Vec<_>>()
     );
 }
 

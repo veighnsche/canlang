@@ -6544,7 +6544,8 @@ impl<'a> Emitter<'a> {
     /// or undeclared parent fields, which have no hook lowering. Depth-1
     /// snapshot reads, linkage identities, ordinary names and top-level
     /// declared parent fields (via the transitive parent load) lower as
-    /// before.
+    /// before; computed derive reads off the trigger snapshot fail closed
+    /// (see `hook_derived_field_gap`).
     fn hook_member_gap(
         &mut self,
         base: &TypedExpr,
@@ -6585,7 +6586,8 @@ impl<'a> Emitter<'a> {
                     ))
                 }
             }
-            HookBase::Root | HookBase::Snapshot | HookBase::Plain => None,
+            HookBase::Root | HookBase::Snapshot => self.hook_derived_field_gap(field, span),
+            HookBase::Plain => None,
             HookBase::Parent => self.hook_parent_gap(base, field, span, expr_ty),
             HookBase::Staged => {
                 if field == "id" {
@@ -6668,6 +6670,35 @@ impl<'a> Emitter<'a> {
                 span,
             )),
         }
+    }
+
+    /// Fail closed on computed derive reads off the trigger snapshot.
+    /// `event.after`/`event.before` (and their snapshot aliases) carry
+    /// only stored candidate data, so a checked model derive would read
+    /// `undefined`. Keyed to the exact DeriveField owner+module+field
+    /// identity: ordinary stored fields, `id`/`version` and metadata never
+    /// match a DeriveField declaration and lower as before. Spelling alone
+    /// never suffices: the derive must be owned by the trigger model and
+    /// declared in the trigger model's module.
+    fn hook_derived_field_gap(&mut self, field: &str, span: Span) -> Option<String> {
+        let trigger = self.hook.as_ref()?.trigger;
+        let model_item = self.ir.items.get(trigger.0 as usize)?;
+        if model_item.id != trigger {
+            return None;
+        }
+        let owned = self.ir.items.iter().any(|item| {
+            item.name == field
+                && item.module == model_item.module
+                && matches!(&item.kind, IrItemKind::DeriveField { model, .. } if *model == trigger)
+        });
+        if !owned {
+            return None;
+        }
+        Some(self.hook_gap(
+            "hook derived field",
+            "computed derives are not in the hook candidate snapshot; derive reads have no hook lowering",
+            span,
+        ))
     }
 
     /// Whether a call argument carries a hook parent linkage: the trigger's
