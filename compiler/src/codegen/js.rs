@@ -19948,7 +19948,7 @@ impl<'a> Emitter<'a> {
                 item.span,
                 Some(item.canonical.clone()),
                 if hook_native {
-                    "const event={before:$hookCtx.before,after:$hookCtx.after};"
+                    "const $hookRow=(row)=>{if(row==null)return null;const {data,...meta}=row;return {...data,...meta};};const event={before:$hookRow($hookCtx.before),after:$hookRow($hookCtx.after)};"
                 } else {
                     "const event={after:{...$candidate,id:$hookCtx.triggerId,version:($hookCtx.before?$hookCtx.before.version+1:1),parent:($hookCtx.before?$hookCtx.before.parent:null)},before:($hookCtx.before?{...$hookCtx.before.data,id:$hookCtx.before.id,version:$hookCtx.before.version,parent:$hookCtx.before.parent}:null)};"
                 },
