@@ -3015,6 +3015,22 @@ fn emit_program_with_sources(
             }
         }
     }
+    // The event-decision bridge evaluates these original helpers over its
+    // tracked record views using ordinary calls. A handler census alone must
+    // not suppress those definitions: unlike retained handlers, this receipt
+    // does not select a private helper variant.
+    if emitter.native_receipts.values().any(|receipt|
+        receipt.plan.event_decision.is_some() || receipt.plan.success_renewal_decision.is_some())
+    {
+        let private_handlers = emitter.owner_handlers.iter().copied().filter(|id|
+            emitter.native_receipts.get(id).is_none_or(|receipt|
+                receipt.plan.event_decision.is_none() && receipt.plan.success_renewal_decision.is_none()))
+            .collect();
+        let ordinary_safe = decisions.source_context.and_then(|context|
+            decisions.read_predicates?.private_only_derives(context, &private_handlers))
+            .unwrap_or_default();
+        emitter.private_derives.retain(|name| ordinary_safe.contains(name));
+    }
     emitter.emit_identity_consts(&mut body, entry_id);
     for module in &ir.modules {
         for page in &module.pages {
