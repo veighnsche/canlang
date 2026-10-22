@@ -15284,6 +15284,7 @@ impl<'a> Closure<'a> {
             matches!(child.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(owner), .. } if owner == *parent) &&
             self.effects.models.get(&fact.model).is_some_and(|model| model.owner == ModelOwner::ChildOf(*parent)) &&
             self.source_require_helper_contained_any(scenario, call, query, fact.model).is_none()
+                && !self.source_require_contained_collection(scenario, call, "any")
     }
 
     fn source_require_any_call(
