@@ -225,3 +225,16 @@ export async function withLeaveDecideAllowance(context: unknown, descriptor: unk
   }
   return evaluate(descriptor, row, body);
 }
+
+// One original localized formatter, evaluated in its owning source observation.
+type EventNoticeFormatEvaluate=(descriptor:unknown,field:unknown,body:Function)=>Promise<unknown>;
+const eventNoticeFormats=new WeakMap<object,EventNoticeFormatEvaluate>();
+export function bindNativeScenarioEventNoticeFormat(context:object,evaluate:EventNoticeFormatEvaluate):void {
+  if(eventNoticeFormats.has(context)) throw new StateError('validation','Event notice formatter cannot be rebound.');
+  eventNoticeFormats.set(context,evaluate);
+}
+export async function nativeScenarioEventNoticeFormat(context:unknown,descriptor:unknown,field:unknown,body:Function):Promise<unknown> {
+  const evaluate=typeof context==='object' && context!==null?eventNoticeFormats.get(context):undefined;
+  if(evaluate===undefined || typeof body!=='function') throw new StateError('validation','Event notice formatter needs its actual owner source frame.');
+  return evaluate(descriptor,field,body);
+}

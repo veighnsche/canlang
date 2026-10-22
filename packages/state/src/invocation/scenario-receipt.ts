@@ -13,7 +13,7 @@
  */
 import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, FrameworkFilePayloadOrigin, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, FinalizedFileObservation, FinalizedFileReceiver, RetainedFinalizedFile, ScenarioReceiptFileAssignment, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
-import { addMoney, addDuration, add_days, app_url, canonicalLocale, int64, sum, compareDate, date_year, decodeValue, encodeValue, format, formatMessage, local_date, local_instant, makeDatetime, makeMessageDescriptor, money, multiplyMoney, parseTypeId, printTypeId, subtractMoney, sumMoney, validateValue, makeDeliveryRef, makeRecordRef, isUserRef, type DateValue, type DatetimeValue, type MoneyValue, type UserRef, type NormalizedSchema } from '@canlang/values';
+import { addMoney, addDuration, add_days, app_url, canonicalLocale, int64, sum, compareDate, date_year, decodeValue, encodeValue, format, formatMessage, local_date, local_instant, makeDatetime, makeMessageDescriptor, money, multiplyMoney, parseTypeId, printTypeId, subtractMoney, sumMoney, validateValue, makeDeliveryRef, makeRecordRef, isDeliveryRef, isUserRef, type DateValue, type DatetimeValue, type MoneyValue, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { isAuthoredRequireFailure } from '../effects/guards.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
@@ -1619,7 +1619,8 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'observeVenueDecision') ? ['observeVenueDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'successRenewalDecision') ? ['successRenewalDecision'] : []),
 
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'purchaseReceiveAll') ? ['purchaseReceiveAll'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'purchaseReceiveAll') ? ['purchaseReceiveAll'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'eventNoticeAudit') ? ['eventNoticeAudit'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
@@ -1636,6 +1637,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'observeVenueDecision')) checkObserveVenueDecisionPlan(plan['observeVenueDecision'], plan['source']);
   if (Object.hasOwn(plan, 'successRenewalDecision')) checkSuccessRenewalDecisionPlan(plan['successRenewalDecision'], plan['source']);
   if (Object.hasOwn(plan, 'purchaseReceiveAll')) checkPurchaseAllPlan(plan['purchaseReceiveAll'], plan['source']);
+  if (Object.hasOwn(plan, 'eventNoticeAudit')) checkEventNoticeAuditPlan(plan['eventNoticeAudit'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -1684,7 +1686,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
       if (kind === 'operation-id') {
         if (dependency['type'] !== 'text') return invalid('operation identity requires text wire.');
       } else if (kind === 'admitted-input') {
-        if (!/^[A-Za-z_][A-Za-z0-9_]*(\/[A-Za-z_][A-Za-z0-9_]*)*$/.test(text(dependency['parameter'])) || !primitiveInputType(dependency['type'])) {
+        if (!/^[A-Za-z_][A-Za-z0-9_]*(\/[A-Za-z_][A-Za-z0-9_]*)*$/.test(text(dependency['parameter'])) || !primitiveInputType(dependency['type']) && !(plan['eventNoticeAudit']!==undefined && dependency['parameter']==='eventKind' && dependency['type']==='enum(confirmation,change,cancellation)')) {
           return invalid('admitted input requires a declared singular parameter path and supported primitive type.');
         }
       } else if (kind === 'admitted-reference-version') {
@@ -2966,6 +2968,7 @@ export interface ScenarioReceiptSendGuard {
     readonly revisionField: { readonly name: string; readonly type: 'int';
       readonly declaration: { readonly start: number; readonly end: number };
       readonly occurrence: { readonly start: number; readonly end: number } | null };
+    readonly scalarFields?: readonly {readonly name:'kind';readonly slot:'eventKind';readonly type:'events.Notice.kind';readonly declaration:{readonly start:number;readonly end:number};readonly occurrence:{readonly start:number;readonly end:number}}[];
     readonly predicate: { readonly start: number; readonly end: number };
     /** Compiler-sealed IF/WHEN owner domains, exact against this bound plan. */
     readonly ownerDecision?: EventDecisionPlan | SuccessRenewalDecisionPlan;
@@ -3066,7 +3069,8 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
       const rawEvent = guard['eventSource'];
       const event = object(rawEvent, ['event', 'handler', 'modelField', 'revisionField', 'predicate',
         ...(typeof rawEvent === 'object' && rawEvent !== null && Object.hasOwn(rawEvent, 'recipientPath') ? ['recipientPath'] : []),
-        ...(typeof rawEvent === 'object' && rawEvent !== null && Object.hasOwn(rawEvent, 'ownerDecision') ? ['ownerDecision'] : [])]);
+        ...(typeof rawEvent === 'object' && rawEvent !== null && Object.hasOwn(rawEvent, 'ownerDecision') ? ['ownerDecision'] : []),
+        ...(typeof rawEvent === 'object' && rawEvent !== null && Object.hasOwn(rawEvent, 'scalarFields') ? ['scalarFields'] : [])]);
       const modelField = object(event['modelField'], ['name', 'model', 'declaration', 'occurrence', 'fields']);
       const revisionField = object(event['revisionField'], ['name', 'type', 'declaration', 'occurrence']);
       const interval = (value: unknown) => {
@@ -3078,6 +3082,16 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
       const revisionName = text(revisionField['name']);
       const fields = list(modelField['fields']).map(text);
       const declaredFields = bound.artifactModels.get(modelName as ModelName)?.fields;
+      const eventAudit=def.name==='events.attendee_notice' && bound.plan.eventNoticeAudit!==undefined;
+      if (eventAudit) {
+        const profile=checkEventNoticeAuditPlan(bound.plan.eventNoticeAudit,bound.plan.source);
+        const scalar=list(event['scalarFields']);
+        const field=scalar.length===1?object(scalar[0],['name','slot','type','declaration','occurrence']):undefined;
+        if (profile.owner!==def.name || event['event']!==profile.event || modelNameField!=='registration' || modelName!=='events.Registration' ||
+            revisionName!=='revision' || stableStringify(fields)!==stableStringify(['state']) || field===undefined || field['name']!=='kind' ||
+            field['slot']!=='eventKind' || field['type']!=='events.Notice.kind' || !interval(field['declaration']) || !interval(field['occurrence']) ||
+            def.descriptor.inputs.length!==4 || stableStringify(def.descriptor.inputs.filter(i=>i.name==='kind' && i.kind==='enum').map(i=>i.kind==='enum'?i.enumValues:[])[0])!==stableStringify(['confirmation','change','cancellation'])) return invalid('Event SEND needs its exact source-owned scalar event field.');
+      } else if (Object.hasOwn(event,'scalarFields')) return invalid('Scalar event SEND fields need their owning audit profile.');
       const ref = def.descriptor.inputs.find(input => input.name === modelNameField);
       const revision = def.descriptor.inputs.find(input => input.name === revisionName);
       if (event['handler'] !== def.name || typeof event['event'] !== 'string' || event['event'] === '' ||
@@ -3095,13 +3109,13 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
           ref?.kind !== 'ref' || ref.model !== modelName || !ref.required ||
           Object.hasOwn(def.inputArrays, modelNameField) ||
           revision?.kind !== 'integer' || !revision.required ||
-          guardInputs.length !== (def.name === 'success.remind' ? 3 : 2) || !inputs.has('eventTerm') || !inputs.has('eventRevision') ||
+          guardInputs.length !== (def.name === 'success.remind' || eventAudit ? 3 : 2) || !inputs.has('eventTerm') || !inputs.has('eventRevision') ||
           def.name === 'success.remind' && !inputs.has('eventAccountRevision') ||
           guardInputs.some(value => {
             const input = value as { readonly name: string; readonly type: string };
-            return input.name === 'eventTerm' ? input.type !== modelName : !['eventRevision', ...(def.name === 'success.remind' ? ['eventAccountRevision'] : [])].includes(input.name) || input.type !== 'int';
+            return input.name==='eventKind' && eventAudit ? input.type!=='enum(confirmation,change,cancellation)' : input.name === 'eventTerm' ? input.type !== modelName : !['eventRevision', ...(def.name === 'success.remind' ? ['eventAccountRevision'] : [])].includes(input.name) || input.type !== 'int';
           }) ||
-          !models.has('eventTerm')) return invalid('event SEND requires its exact declared private field and typed lexical census.');
+          !models.has('eventTerm') || eventAudit && !inputs.has('eventKind')) return invalid('event SEND requires its exact declared private field and typed lexical census.');
       if (Object.hasOwn(event, 'ownerDecision')) {
         if (def.name === 'success.renewal_due' || def.name === 'success.remind') {
           const checked = checkSuccessRenewalDecisionPlan(event['ownerDecision'], bound.plan.source);
@@ -3202,6 +3216,7 @@ function primitiveInputType(type: unknown): type is CanTypeId {
  * in their receipt intrinsics. At admission the handler still has the exact
  * declared event input names; no arbitrary handler gets this alias. */
 function declaredEventIntrinsic(def: GeneratedOperationDef): { readonly modelField: string; readonly model: ModelName } | undefined {
+  if (def.name === 'events.attendee_notice') return { modelField: 'registration', model: 'events.Registration' as ModelName };
   if (def.name === 'agreements.notice') return { modelField: 'term', model: 'agreements.Term' as ModelName };
   if (def.name === 'agreements.due') return { modelField: 'obligation', model: 'agreements.Obligation' as ModelName };
   if (def.name === 'appointments.remind') return { modelField: 'appointment', model: 'appointments.Appointment' as ModelName };
@@ -3216,7 +3231,7 @@ function declaredEventIntrinsic(def: GeneratedOperationDef): { readonly modelFie
 }
 
 function admittedEventIntrinsic(call: AdmittedCall, parameter: string): ScenarioReceiptSendGuard['eventSource'] | undefined {
-  if (parameter !== 'eventTerm' && parameter !== 'eventRevision') return undefined;
+  if (parameter !== 'eventTerm' && parameter !== 'eventRevision' && !(call.def.name==='events.attendee_notice' && (parameter==='eventKind' || parameter==='eventBody'))) return undefined;
   const def = call.def as GeneratedOperationDef, expected = declaredEventIntrinsic(def);
   const sources = frameworkProducers.get(def)?.sendGuards?.flatMap(guard => guard.eventSource === undefined ? [] : [guard.eventSource]) ?? [];
   const source = sources.length > 0 && sources.every(item => item.event === sources[0]!.event &&
@@ -3246,6 +3261,10 @@ function admittedWorkEventPayload(call: AdmittedCall, event: string): unknown {
   return undefined;
 }
 
+function eventPayloadFields(call:AdmittedCall,event:NonNullable<ScenarioReceiptSendGuard['eventSource']>):string[] {
+  return [event.modelField.name,event.revisionField.name,...(call.def.name==='events.attendee_notice'?['kind','body']:
+    call.def.name==='success.remind'?['account_revision']:[])];
+}
 /** Both sealed Success owners admit one Account Notice plus its exact Mail.
  * Follow-up linkage, recipient/title and the two revision fields remain
  * distinct from the renewal profile. Dispatch fences the queued Mail again. */
@@ -3389,6 +3408,9 @@ function admittedInputWire(inputs: ClosedInputs, parameter: string): unknown {
 
 function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
   if (dependency.kind !== 'admitted-input') return false;
+  if (def.name==='events.attendee_notice' && (dependency.parameter==='eventKind' || dependency.parameter==='eventBody')) {
+    return primitiveInput(def, {...dependency,parameter:dependency.parameter==='eventKind'?'kind':'body'});
+  }
   if (dependency.parameter === 'eventRevision') {
     if (declaredEventIntrinsic(def) === undefined || dependency.type !== 'int') return false;
     return primitiveInput(def, { ...dependency, parameter: 'revision' });
@@ -3406,6 +3428,8 @@ function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptI
   // A collapsed legacy string tag proves neither text nor nullability.
   // Artifact intake derives unambiguous builtin associations, while canonical
   // producers must supply the exact owning checked type for this new claim.
+  if (def.name==='events.attendee_notice' && input.name==='kind') return input.kind==='enum' &&
+    stableStringify(input.enumValues)===stableStringify(['confirmation','change','cancellation']) && dependency.type==='enum(confirmation,change,cancellation)' && input.valueType===dependency.type;
   const base = types[input.kind], type = input.valueType;
   return base !== undefined && primitiveInputType(type) && type === dependency.type &&
     (type === base || input.kind === 'string' && (type === 'date' || type === 'currency'));
@@ -4430,13 +4454,14 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
         call.context.trustedSource !== `event:${event.event}`) {
       return invalid('event SEND requires its actual admitted due Work source and private owner call.');
     }
-    const payload = object(eventPayload, [event.modelField.name, event.revisionField.name, ...(call.def.name === 'success.remind' ? ['account_revision'] : [])]);
+    const payload = object(eventPayload, eventPayloadFields(call,event));
     const sourceTerm = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly model: string; readonly id: string };
     const admittedTerm = decodeValue(event.modelField.model,
       admittedInputWire(call.inputs, event.modelField.name)) as { readonly model: string; readonly id: string };
     const sourceRevision = decodeValue('int', payload[event.revisionField.name]);
     const admittedRevision = decodeValue('int', admittedInputWire(call.inputs, event.revisionField.name));
     const lexicalRevision = decodeValue('int', inputs['eventRevision']);
+    if (call.def.name==='events.attendee_notice' && (payload['kind']!==admittedInputWire(call.inputs,'kind') || payload['body']!==admittedInputWire(call.inputs,'body') || payload['kind']!==inputs['eventKind'])) return invalid('Event SEND scalar input differs from its genuine retained payload.');
     if (sourceTerm.model !== event.modelField.model || admittedTerm.model !== event.modelField.model ||
         sourceTerm.id === '' || sourceTerm.id !== admittedTerm.id ||
         sourceRevision !== admittedRevision || sourceRevision !== lexicalRevision ||
@@ -4458,7 +4483,7 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
       }
       const row = checkedRow(dataCopy(actual));
       if (event !== undefined && input.name === 'eventTerm') {
-        const payload = object(eventPayload, [event.modelField.name, event.revisionField.name, ...(call.def.name === 'success.remind' ? ['account_revision'] : [])]);
+        const payload = object(eventPayload, eventPayloadFields(call,event));
         const ref = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly id: string };
         if (row.id !== ref.id || row.archivedAt !== null) return invalid('event SEND model differs from its current retained source row.');
         if (call.def.name === 'maintain.remind' || call.def.name === 'invoice.overdue' ||
@@ -4853,7 +4878,10 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
         const id = `skp_${await hashInputs({ operationId: call.context.operationId, source,
           occurrenceIndex, rule: sourceGuard!.rule })}`;
         ownerHealthy(owner);
-        const guard = producer.sendGuards!.find(guard => guard.rule === sourceGuard!.rule)!;
+        const selected = producer.sendGuards!.find(guard => guard.rule === sourceGuard!.rule)!;
+        // Source-stage event proof is not part of the persisted opaque SEND
+        // declaration. Retain exactly the independently checked wire census.
+        const {eventSource:_eventSource,...guard}=selected;
         ledger.skipped.set(id, deepFreeze({ deliveryId: id, operationId: call.context.operationId,
           operation: call.context.operation, target: source, arguments: request.arguments, occurrenceIndex, request, guard }));
         return makeDeliveryRef(id, source);
@@ -5793,6 +5821,48 @@ export async function executeScenarioReceiptPurchaseAll(call: AdmittedCall, stor
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
 }
 
+export interface EventNoticeAuditPlan {
+  readonly version: 1; readonly owner: 'events.attendee_notice';
+  readonly source: ScenarioResultDisclosurePlan['source']; readonly event: 'events.AttendeeNotice';
+  readonly fields: readonly { readonly name: string; readonly type: string }[];
+  readonly model: 'events.Notice'; readonly stage: 0;
+  readonly create: { readonly start: number; readonly end: number };
+  readonly auditFields: readonly ['subject', 'body'];
+  readonly formats: readonly { readonly field: 'subject' | 'body'; readonly node: { readonly start: number; readonly end: number };
+    readonly source: string; readonly sourceLang: string; readonly variants: Readonly<Record<string, string | null>>;
+    readonly parameters: readonly { readonly name: string; readonly type: string; readonly presentation: string }[] }[];
+}
+function checkEventNoticeAuditPlan(value: unknown, source: unknown): EventNoticeAuditPlan {
+  const plan=object(value,['version','owner','source','event','fields','model','stage','create','auditFields','formats']);
+  origin(plan['source']);
+  const interval=(value:unknown) => {const node=object(value,['start','end']);
+    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
+        (node['start'] as number)<0 || (node['end'] as number)<=(node['start'] as number)) invalid('Event audit requires original source intervals.');};
+  interval(plan['create']);
+  if (plan['version']!==1 || plan['owner']!=='events.attendee_notice' || plan['event']!=='events.AttendeeNotice' ||
+      plan['model']!=='events.Notice' || plan['stage']!==0 || stableStringify(plan['source'])!==stableStringify(source) ||
+      stableStringify(plan['fields'])!==stableStringify([{name:'registration',type:'events.Registration'},
+        {name:'kind',type:'events.Notice.kind'},{name:'revision',type:'int'},{name:'body',type:'text'}]) ||
+      stableStringify(plan['auditFields'])!==stableStringify(['subject','body'])) return invalid('Event audit needs its exact declared event and Notice sink.');
+  const formats=list(plan['formats']);
+  if (formats.length!==2) return invalid('Event audit needs both original ordered formatters.');
+  for (const [index,value] of formats.entries()) {
+    const format=object(value,['field','node','source','sourceLang','variants','parameters']); interval(format['node']);
+    if (format['field']!==['subject','body'][index] || typeof format['source']!=='string' ||
+        canonicalLocale(text(format['sourceLang']))!==format['sourceLang']) return invalid('Event audit formatter differs from its source message.');
+    const variants=format['variants'];
+    if (typeof variants!=='object' || variants===null || Array.isArray(variants) ||
+        Object.entries(variants).some(([locale,value])=>canonicalLocale(locale)!==locale || value!==null && typeof value!=='string')) return invalid('Event audit needs canonical message variants.');
+    const parameters=list(format['parameters']).map(value=>object(value,['name','type','presentation']));
+    const expected=index===0 ? [['kind','events.Notice.kind','enum']] :
+      [['name','text','text'],['location','text','text'],['from','datetime','datetime'],['until','datetime','datetime'],
+       ['zone','timezone','text'],['reason','text','text'],['ticket','text','text'],['revision','int','int'],['url','url','text']];
+    if (stableStringify(parameters.map(p=>[p['name'],p['type'],p['presentation']]))!==stableStringify(expected)) return invalid('Event audit needs the original ordered typed formatter inputs.');
+  }
+  return value as EventNoticeAuditPlan;
+}
+const eventNoticeCaptures=new WeakMap<Capture,{ readonly values: Array<{readonly text:string;readonly locale:string}>; consumed:boolean }>();
+
 /** One original pre-write Require, evaluated once on the genuine admitted row.
  * Its source queries borrow this owner stage; complete owner domains and
  * current Identity survive to the fence. */
@@ -5959,6 +6029,209 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
     return authority.value;
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
   finally { if (acquired) { state.pending--; owner!.busy = false; } }
+}
+
+/** Executes each original Event formatter once, at its authored LET, under
+ * the same owner-source observation used by guarded source evaluation. The
+ * pure formatter verification consumes captured inputs, never source reads. */
+export async function executeScenarioReceiptEventNoticeFormat(call:AdmittedCall,store:StoragePort,input:{
+  readonly original:EventNoticeAuditPlan; readonly checked:EventNoticeAuditPlan;
+  readonly field:'subject'|'body'; readonly appDefault:string;
+  readonly capture:(observer:ScenarioReceiptRequireObserver)=>InstalledSourceQueryPredicate;
+  readonly result:()=>unknown;
+}):Promise<{readonly text:string;readonly locale:string}> {
+  const state=capture(call,store),owner=ownerSessions.get(call); let acquired=false;
+  try {
+    const plan=checkEventNoticeAuditPlan(input.checked,state.bound.plan.source);
+    const ordinal=input.field==='subject'?0:1;
+    const frozen=eventNoticeCaptures.get(state)??{values:[],consumed:false};
+    const formatPlan=plan.formats[ordinal]!;
+    const source=plan.source;
+    const event=admittedEventIntrinsic(call,'eventTerm');
+    const reference=call.recordRefs.find(ref=>ref.param==='registration' && ref.model==='events.Registration');
+    const payload=event===undefined?undefined:object(admittedWorkEventPayload(call,event.event),eventPayloadFields(call,event));
+    if(payload===undefined || ['kind','revision','body'].some(field=>stableStringify(payload[field])!==stableStringify(admittedInputWire(call.inputs,field))) ||
+        (decodeValue('events.Registration',payload['registration']) as {readonly id:string}).id!==reference?.id) return invalid('Event formatter payload differs from its actual retained Work inputs.');
+    if ((input.field!=='subject' && input.field!=='body') || owner===undefined || owner.session===null || owner.stage!==0 || owner.busy || state.pending!==0 ||
+        state.returnId!==null || owner.executingCall!==call || owner.callGuards.length>=MAX_ITEMS ||
+        call.def.name!==plan.owner || event?.event!==plan.event || reference===undefined ||
+        stableStringify(input.original)!==stableStringify(plan) || stableStringify(state.bound.plan.eventNoticeAudit)!==stableStringify(plan) ||
+        frozen.consumed || frozen.values.length!==ordinal || owner.framework?.ordinal!==0) return invalid('Event formatter needs its exact original ordered retained owner frame.');
+    const occurrence = `event-format:${call.def.name}:${input.field}`;
+    if (owner.callGuards.some(guard => guard.name === occurrence)) return invalid('source Event formatter must execute once.');
+    owner.busy = true; state.pending++; acquired = true;
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner);
+      if (owner.stage !== 0 || owner.executingCall !== call || !owner.busy || state.pending !== 1 || state.returnId !== null) {
+        return invalid('source Event formatter crossed its original owner stage.');
+      }
+    };
+    const rows = new Map<string, StoredRow>();
+    const rowKey = (model: string, id: string) => `${model}\0${id}`;
+    const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+      healthy();
+      // This observer cannot cross stage zero or write. Reuse raw snapshot
+      // rows, never projected grants; Identity and the revision fence stay live.
+      const key = rowKey(model, id), cached = rows.get(key);
+      if (cached !== undefined) return cached;
+      const row = await owner.session!.views.final.get(model, id); healthy();
+      if (row !== null) rows.set(key, row);
+      return row;
+    };
+    const policyDomains = ownerPolicyDomains(owner, healthy);
+    const query = async (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>): Promise<readonly StoredRow[]> => {
+      const domain = await policyDomains.capture(model, parent);
+      for (const row of domain) rows.set(rowKey(model, row.id), row);
+      return domain;
+    };
+    const root = await read(reference.model, reference.id);
+    if (root === null || stableStringify(root) !== stableStringify(reference.row)) {
+      throw new StateError('conflict', 'Event formatter model differs from its admitted row.');
+    }
+    const domains: Array<{ model: ModelName; ids: readonly string[]; id?: RecordId;
+      parent?: Readonly<{ model: ModelName; id: RecordId }> }> = [];
+    const observe = <T>(action: () => T): T => {
+      try { healthy(); return action(); }
+      catch (error) { state.poisoned = true; owner.capture.poisoned = true; throw error; }
+    };
+    const observer: ScenarioReceiptRequireObserver = Object.freeze({
+      field: (model: string, projected: StoredRow | ProjectedRecord, field: string) => observe(() => {
+        const row = rows.get(rowKey(model, projected.id));
+        if (row === undefined || row.version !== projected.version || !state.bound.artifactModels.has(model as ModelName)) {
+          return invalid('source field needs its actual original owner row.');
+        }
+        // Metadata identity is already tied to this issued row, without a data grant.
+        if (!state.bound.artifactModels.get(model as ModelName)!.fields.some(entry => entry.name === field) && field !== 'parent') return;
+        // The row/field identity is checked here. Its owner value belongs to
+        // this original stage; this operation's later writes cannot revoke
+        // the decision, while the storage revision fence catches other writers.
+      }),
+      query: (model: string, records: readonly ProjectedRecord[], id?: string,
+        parent?: Readonly<{ model: string; id: string }>) => observe(() => {
+        if (domains.length >= MAX_ITEMS || !state.bound.artifactModels.has(model as ModelName) ||
+            records.some(record => rows.get(rowKey(model, record.id))?.version !== record.version)) {
+          return invalid('source query needs its complete genuine owning domain.');
+        }
+        domains.push({ model: model as ModelName, ids: Object.freeze(records.map(record => record.id)),
+          ...(id === undefined ? {} : { id: id as RecordId }),
+          ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) });
+      }),
+    });
+    const predicate = input.capture(observer);
+    if (typeof predicate !== 'function') return invalid('source Event formatter needs its installed original predicate.');
+    const memberships = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
+      teamId = call.context.team?.teamId ?? null;
+    const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
+    healthy();
+    const context: ByContext = { actorUserId, teamId, membership, memberships };
+    const ownerRecord = (row: StoredRow) => projectSourceRowFields(row,
+      [{ fields: Object.keys(row.data) }], []);
+    let answer: boolean | undefined;
+    const authority = await observeRowGrantAuthority(context, async observed => {
+      // The first pass records all actual source subjects. Snapshot validation
+      // may call this collector again; the original authored guard runs once.
+      if (answer !== undefined) return answer;
+      answer = await evaluateInstalledReadPredicate(predicate, ownerRecord(root), {
+        context: observed, row: root, revision: call.revision, fence: undefined,
+        sourcePresence: Object.freeze(Object.keys(root.data)),
+      }, store, { read, assertHealthy: healthy, query, policyQuery: policyDomains.capture });
+      healthy(); return answer;
+    });
+    await authority.revalidate(); healthy();
+    owner.callGuards.push(Object.freeze({ name: occurrence, evaluate: async () => {
+      const final = owner.finalized;
+      if (final === null) return invalid('source Event formatter needs actual finalized owner effects.');
+      const finalHealthy = () => {
+        if (owner.finalized !== final || owner.capture.poisoned) return invalid('source Event formatter final capture changed.');
+      };
+      // The original decision is retained across this operation's own
+      // writes. Recheck its complete pre-write domains at the fenced revision.
+      // Source guards execute at their original pre-write stage. Own later
+      // effects do not replace that domain; current Identity still rechecks it.
+      // Consumed fields separately retain their final-overlay authority below.
+      const originalDomains = policyDomains.retained(finalHealthy);
+      const originalRead = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+        finalHealthy();
+        const key = rowKey(model, id);
+        if (!rows.has(key)) throw new StateError('forbidden', 'Event formatter requested an unobserved original row.');
+        return rows.get(key)!;
+      };
+      const current = await observeRowGrantAuthority(context, async _observed => {
+        for (const domain of domains) {
+          const candidates = domain.id === undefined ? await originalDomains(domain.model, domain.parent) :
+            [await originalRead(domain.model, domain.id)].filter((row): row is StoredRow => row !== null);
+          const ids = candidates.map(row => row.id);
+          if (stableStringify(ids) !== stableStringify(domain.ids)) throw new StateError('forbidden', 'Event formatter owner query domain changed.');
+        }
+        return true;
+      });
+      await current.revalidate(); await authority.revalidate(); finalHealthy();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Event formatter moved beyond its original revision.');
+      return true;
+    } }));
+    if (authority.value!==true) return invalid('Event formatter capture must finish its original source expression.');
+    const result=object(dataCopy(input.result(),true),['descriptor','locale','formatted']);
+    const descriptor=object(result['descriptor'],['source','sourceLocale','variants','params']);
+    const supplied=object(descriptor['params'],formatPlan.parameters.map(p=>p.name));
+    if (result['locale']!==null || descriptor['source']!==formatPlan.source || descriptor['sourceLocale']!==formatPlan.sourceLang ||
+        stableStringify(descriptor['variants'])!==stableStringify(formatPlan.variants)) return invalid('Event formatter differs from its original message and selected locale.');
+    const params:Record<string,NonNullable<Parameters<typeof makeMessageDescriptor>[2]>[string]>={};
+    for (const parameter of formatPlan.parameters) {
+      const pair=object(supplied[parameter.name],['type','value']);
+      if (pair['type']!==parameter.type) return invalid('Event formatter parameter differs from its original declared type.');
+      params[parameter.name]={type:parameter.presentation as typeof params[string]['type'],value:pair['value'] as typeof params[string]['value']};
+    }
+    const expected=format(makeMessageDescriptor(formatPlan.source,formatPlan.variants,params),{
+      locale:null,appDefault:input.appDefault,sourceLang:formatPlan.sourceLang,timeZone:call.context.team?.timezone??'UTC'});
+    const formatted=object(result['formatted'],['text','locale']);
+    if (stableStringify(formatted)!==stableStringify(expected)) return invalid('Event formatter differs from its captured pure presentation result.');
+    frozen.values.push(Object.freeze({text:expected.text,locale:expected.locale}));
+    eventNoticeCaptures.set(state,frozen);
+    return Object.freeze({text:expected.text,locale:expected.locale});
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+  finally { if (acquired) { state.pending--; owner!.busy = false; } }
+}
+
+
+/** Only the exact source Notice CREATE can materialize captured audit text. */
+export function materializeScenarioReceiptEventNoticeAudit(call:AdmittedCall,store:StoragePort,input:{
+  readonly checked:EventNoticeAuditPlan;readonly fields:Readonly<Record<string,unknown>>;
+}):Readonly<Record<string,unknown>> {
+  const state=capture(call,store),owner=ownerSessions.get(call),frozen=eventNoticeCaptures.get(state);
+  const plan=checkEventNoticeAuditPlan(input.checked,state.bound.plan.source);
+  if (owner===undefined || owner.stage!==0 || owner.busy || owner.executingCall!==call || state.pending!==0 ||
+      state.returnId!==null || call.def.name!==plan.owner || frozen===undefined || frozen.consumed || frozen.values.length!==2 ||
+      owner.framework?.ordinal!==1 || owner.framework.queued.size+owner.framework.skipped.size!==1 ||
+      stableStringify(plan)!==stableStringify(state.bound.plan.eventNoticeAudit)) return invalid('Event Notice needs both actual original formats and its genuine SEND outcome.');
+  const fields=object(input.fields,['kind','revision','subject','body','delivery']);
+  if (stableStringify(fields['subject'])!==stableStringify(frozen.values[0]) ||
+      stableStringify(fields['body'])!==stableStringify(frozen.values[1])) return invalid('Event Notice audit differs from its actual frozen SEND presentation.');
+  const queued=owner.framework.queued.values().next().value;
+  const skipped=owner.framework.skipped.values().next().value;
+  const send=queued??skipped;
+  const delivery=queued?.intentId??skipped?.deliveryId;
+  const reference=call.recordRefs.find(ref=>ref.param==='registration' && ref.model==='events.Registration');
+  const expected={kind:admittedInputWire(call.inputs,'kind'),revision:admittedInputWire(call.inputs,'revision'),
+    subject:frozen.values[0]!.text,body:frozen.values[1]!.text,
+    delivery:delivery===undefined?null:encodeValue('delivery(std.EmailV1.send)?',makeDeliveryRef(delivery,'std.EmailV1.send'))};
+  const request=queued===undefined?skipped?.request:queued.arguments as unknown as BoundCapabilityRequest;
+  if (reference===undefined || send===undefined || delivery===undefined || send.operation!==call.def.name ||
+      send.operationId!==call.context.operationId || send.target!=='std.EmailV1.send' || send.occurrenceIndex!==0 ||
+      request===undefined || request.arguments['to']!==reference.row.data['email'] || request.arguments['subject']!==expected.subject || request.arguments['body']!==expected.body ||
+      fields['kind']!==expected.kind || typeof fields['revision']!=='bigint' || encodeValue('int',fields['revision'])!==expected.revision ||
+      !isDeliveryRef(fields['delivery']) || stableStringify(encodeValue('delivery(std.EmailV1.send)?',fields['delivery']))!==stableStringify(expected.delivery)) return invalid('Event Notice differs from its genuine event and original Mail outcome.');
+  owner.callGuards.push(Object.freeze({name:'event-notice-audit',evaluate:async()=>{
+    const final=owner.finalized;
+    const write=final?.writes[0];
+    if (final===null || owner.capture.poisoned || owner.stage!==1 || final.writes.length!==1 ||
+        write?.kind!=='insert' || write.model!=='events.Notice' || write.row.parent?.model!=='events.Registration' ||
+        write.row.parent.id!==reference.id || write.row.version!==1 || write.row.archivedAt!==null ||
+        stableStringify(write.row.data)!==stableStringify(expected)) return invalid('Event Notice lost its exact final audit insertion.');
+    if(await store.readRevision()!==call.revision) throw new StateError('conflict','Event Notice source revision changed before commit.');
+    return true;
+  }}));
+  frozen.consumed=true;
+  return Object.freeze({...fields,subject:expected.subject,body:expected.body});
 }
 
 /** The private Maintain event's original IF and WHEN borrow the admitted
@@ -9573,7 +9846,7 @@ async function observeEventOwnerReferenceAuthority(call: AdmittedCall, store: St
   if (source === undefined || owner.call !== call || owner.session === null ||
       owner.callGuards.length >= MAX_ITEMS) return invalid('event parent requires its actual due owner source.');
   const payload = object(admittedWorkEventPayload(call, source.event),
-    [source.modelField.name, source.revisionField.name]);
+    eventPayloadFields(call,source));
   const workRef = decodeValue(source.modelField.model, payload[source.modelField.name]) as { readonly id: string };
   const admittedRef = call.recordRefs.find(ref => ref.param === source.modelField.name &&
     ref.model === source.modelField.model && ref.id === workRef.id);
@@ -9667,7 +9940,7 @@ async function observeEventRecipientTargetAuthority(call: AdmittedCall, store: S
   }
   const due = dueWorkAdmissions.get(call)!;
   const event = admittedEventIntrinsic(call, 'eventTerm')!;
-  const payload = object(due.eventPayload, [event.modelField.name, event.revisionField.name]);
+  const payload = object(due.eventPayload, eventPayloadFields(call,event));
   const ref = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly id: string };
   const sourceProfile = state.bound.referenceDependencies.get(sourceDependencyId)?.profile;
   const contactRef = sourceProfile === undefined ? undefined : storedReferenceWire(sourceProfile, source) as { readonly id: string };
@@ -10304,12 +10577,12 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
       observation = { dependencyId: dependency.id, kind: dependency.kind, wire: call.context.operationId };
     } else if (dependency.kind === 'admitted-input') {
       const event = admittedEventIntrinsic(call, dependency.parameter);
-      const parameter = event === undefined ? dependency.parameter : event.revisionField.name;
+      const parameter = event === undefined ? dependency.parameter : dependency.parameter==='eventKind'?'kind':dependency.parameter==='eventBody'?'body':event.revisionField.name;
       const wire = dataCopy(admittedInputWire(call.inputs, parameter)); scalarWire(dependency.type, wire);
       if (event !== undefined) {
         const payload = object(admittedWorkEventPayload(call, event.event),
-          [event.modelField.name, event.revisionField.name]);
-        if (decodeValue('int', payload[event.revisionField.name]) !== decodeValue('int', wire)) {
+          eventPayloadFields(call,event));
+        if (stableStringify(payload[parameter]) !== stableStringify(wire)) {
           return invalid('event revision intrinsic differs from retained Work input.');
         }
       }
@@ -10325,7 +10598,7 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
       const reference = call.recordRefs.find(ref => ref.param === parameter);
       const sourceRef = event === undefined ? undefined : decodeValue(event.modelField.model,
         object(admittedWorkEventPayload(call, event.event),
-          [event.modelField.name, event.revisionField.name])[event.modelField.name]) as
+          eventPayloadFields(call,event))[event.modelField.name]) as
         { readonly model: string; readonly id: string };
       if (member === undefined || !('value' in member) || reference === undefined || member.value !== reference ||
           reference.model !== dependency.model || reference.id !== reference.row.id ||
@@ -10520,6 +10793,7 @@ export function selectScenarioReceiptReturn(call: AdmittedCall, store: StoragePo
   const state = capture(call, store);
   try {
     if (state.pending !== 0 || ownerSessions.get(call)?.busy === true) { state.poisoned = true; return invalid('return selection cannot precede pending owner reads/observations.'); }
+    if (state.bound.plan.eventNoticeAudit!==undefined && eventNoticeCaptures.get(state)?.consumed!==true) return invalid('Event Notice must consume its complete original audit capture.');
     if (state.bound.plan.purchaseReceiveAll !== undefined && state.modelResult?.existing === false && !purchaseAllRuns.has(state)) {
       return invalid('Purchase return omitted its checked post-write ALL decision.');
     }

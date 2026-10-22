@@ -69,6 +69,8 @@ pub(super) struct ReceiptDisclosurePlan {
     pub success_renewal_decision: Option<serde_json::Value>,
     #[serde(rename = "purchaseReceiveAll", skip_serializing_if = "Option::is_none")]
     pub purchase_receive_all: Option<serde_json::Value>,
+    #[serde(rename = "eventNoticeAudit", skip_serializing_if = "Option::is_none")]
+    pub event_notice_audit: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub queries: Vec<ReceiptQuery>,
     pub returns: Vec<ReceiptReturn>,
@@ -2130,7 +2132,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         None
     };
     let effective_plan = first_plan.or(guard_plan.as_ref());
-    let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref()) {
+    let event_notice = if item.canonical == "events.attendee_notice" {Some(super::event_notice_audit::checked(source_context?,item,entry_module)?)} else {None};
+    let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref(), event_notice.as_ref()) {
         Some(sites) => sites,
         None => {
             return None;
@@ -2191,7 +2194,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source,
+            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source,
             queries: effective_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
             returns: Vec::new(),
         },
@@ -2204,6 +2207,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         current_revision,
     };
     recipe.plan.purchase_receive_all = purchase_all;
+    if item.canonical == "events.attendee_notice" {
+        recipe.plan.event_notice_audit = event_notice;
+    }
     let mut source_origins = HashMap::new();
     source_origins.insert(
         (checked.node.file, checked.source.module.clone()),
@@ -3140,11 +3146,14 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     parameter_name,
                 } => {
                     let nested = checked_contract_parameter_path(ir, item, expression, db);
+                    let event_scalar = item.canonical == "events.attendee_notice"
+                        && [("eventKind","kind"),("eventBody","body")].iter().any(|(slot,field)|
+                            parameter_name == slot && db.is_some_and(|db| checked_notice_event_field(ir,item,expression,field,db) == Some(*parameter)));
                     let event_revision = parameter_name == "eventRevision"
                         && checked_notice_event_field(ir, item, expression, "revision", db?)
                             == Some(*parameter);
                     if !matches!(expression.expr, IrExpr::Name(_)) && nested.is_none()
-                        && !event_revision {
+                        && !event_revision && !event_scalar {
                         return None;
                     }
                     if let Some((root, path)) = &nested {
@@ -3154,26 +3163,15 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     } else if !direct_field_name(parameter_name) {
                         return None;
                     }
-                    let ResolvedType::Scalar(scalar) = &intrinsic.ty else {
-                        return None;
-                    };
-                    if !matches!(
-                        scalar,
-                        Scalar::Text
-                            | Scalar::Bool
-                            | Scalar::Int
-                            | Scalar::Date
-                            | Scalar::Datetime
-                            | Scalar::Decimal
-                            | Scalar::Money
-                            | Scalar::Duration
-                            | Scalar::Currency
-                            | Scalar::User
-                    ) || intrinsic.type_id != scalar.as_str()
-                    {
-                        return None;
-                    }
-                    if !event_revision {
+                    if let ResolvedType::Scalar(scalar) = &intrinsic.ty {
+                        if !matches!(scalar,Scalar::Text|Scalar::Bool|Scalar::Int|Scalar::Date|Scalar::Datetime|Scalar::Decimal|Scalar::Money|Scalar::Duration|Scalar::Currency|Scalar::User)
+                            || intrinsic.type_id != scalar.as_str() { return None; }
+                    } else if event_scalar && parameter_name == "eventKind" {
+                        let ResolvedType::Enum {owner:Some(kind),cases} = &intrinsic.ty else {return None;};
+                        if ir.items.get(kind.0 as usize)?.canonical != "events.Notice.kind" || intrinsic.type_id != "enum(confirmation,change,cancellation)"
+                            || cases != &["confirmation","change","cancellation"] || expression.ty != intrinsic.ty {return None;}
+                    } else {return None;}
+                    if !event_revision && !event_scalar {
                         let parameter_item = ir.items.get(parameter.0 as usize)?;
                         let IrItemKind::Param {
                             owner: parameter_owner,
@@ -4592,7 +4590,7 @@ fn checked_guard_any_query_plan(
     }
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&facts.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
         queries: fragments,
         returns,
     })
@@ -4644,7 +4642,7 @@ pub(super) fn checked_native_any_direct_query_plan(
     }
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&query.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![fragment],
         returns: checked
             .returns
@@ -5080,7 +5078,7 @@ pub(super) fn checked_native_helper_any_query_plan(
         .collect::<Vec<_>>();
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&facts.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry)?,
@@ -6905,7 +6903,7 @@ fn checked_native_first_query_source_plan(
     let parent = first_query_receipt_parent(ir, owner, query, scan, db, first, entry_module)?;
     let expected = ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&checked.source, entry_module)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&checked.source, entry_module)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry_module)?,
@@ -8125,7 +8123,7 @@ fn checked_native_ancestor_count_query_plan(
     }
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&query.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry)?,
@@ -8339,7 +8337,7 @@ fn native_count_plan(
 ) -> Option<ReceiptDisclosurePlan> {
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&query.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry)?,
@@ -8465,7 +8463,7 @@ pub(super) fn checked_native_assign_count_query_plan(
             influences: influences.clone(), dependencies: Vec::new(), intrinsics: Vec::new(), projection: None})
     }).collect::<Option<Vec<_>>>()?;
     Some(ReceiptDisclosurePlan {
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&query.source, entry)?,
+        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(), source: transport_source(&query.source, entry)?,
             model: query.model_name.clone(),
@@ -11471,6 +11469,7 @@ fn checked_delivery_event_row_name(owner: &IrItem) -> Option<&'static str> {
         "agreements.notice" => Some("term"),
         "agreements.due" => Some("obligation"),
         "appointments.remind" => Some("appointment"),
+        "events.attendee_notice" => Some("registration"),
         _ => None,
     }
 }
@@ -11495,9 +11494,11 @@ fn checked_notice_event_field(
         "agreements.notice" => ("agreements.Notice", "term"),
         "agreements.due" => ("agreements.ObligationDue", "obligation"),
         "appointments.remind" => ("appointments.Reminder", "appointment"),
+        "events.attendee_notice" => ("events.AttendeeNotice", "registration"),
         _ => return None,
     };
     if source != expected_event || !matches!(field_name, "revision") && field_name != row_name
+            && !(owner.canonical == "events.attendee_notice" && matches!(field_name,"kind"|"body"))
         || !params.is_empty() || field != field_name
         || !matches!(&base.expr, IrExpr::Name(name) if name == "event")
         || db.get(value.span.file)?.text.get(value.span.start as usize..value.span.end as usize)?
@@ -11506,7 +11507,7 @@ fn checked_notice_event_field(
     let mut events = ir.items.iter().filter(|item| item.canonical == *source);
     let event = events.next()?;
     let IrItemKind::Event { fields } = &event.kind else { return None; };
-    if events.next().is_some() || event.module != owner.module || fields.len() != 2 {
+    if events.next().is_some() || event.module != owner.module || fields.len() != if owner.canonical == "events.attendee_notice" {4} else {2} {
         return None;
     }
     let mut matched = fields.iter().filter_map(|id| ir.items.get(id.0 as usize))
@@ -14783,6 +14784,8 @@ fn scenario_create_nesting(
         ir, owner, models, original, db, source_context,
     )?;
     if source_context.is_some_and(|context|
+        super::event_notice_audit::checked(context, owner, "checked-create").is_some()) { return Some(()); }
+    if source_context.is_some_and(|context|
         super::purchase_all::checked(context, owner, "checked-create").is_some())
     {
         // The exact original replay/create/posting/parent/ALL sequence has a
@@ -14944,7 +14947,8 @@ fn checked_scenario_create(
         ir, owner, models, checked, facts, proof, original, binding, model, db, source_context,
     )?;
     let purchase_all = source_context.is_some_and(|context|
-        super::purchase_all::checked(context, owner, "checked-create").is_some());
+        super::purchase_all::checked(context, owner, "checked-create").is_some()
+        || super::event_notice_audit::checked(context,owner,"checked-create").is_some());
     scenario_create_entries(ir, owner, checked, original, input, span, proof, db, source_context, purchase_all)
 }
 
@@ -17579,6 +17583,7 @@ impl<'a> Sites<'a> {
         send_guards: Option<&HashMap<Span, PreparedSendGuard>>,
         db: Option<&SourceDb>,
         purchase_all: Option<&serde_json::Value>,
+        event_notice: Option<&serde_json::Value>,
     ) -> Option<Self> {
         let IrItemKind::Scenario {
             params,
@@ -17872,6 +17877,7 @@ impl<'a> Sites<'a> {
                     }
                     _ => return None,
                 },
+                Visit::Expression(expression) if event_notice.is_some() && effects.iter().take(2).any(|stmt| matches!(stmt,IrStmt::Let{value,..} if std::ptr::eq(value,expression))) => {},
                 Visit::Expression(expression) => match &expression.expr {
                     IrExpr::Query(query) => {
                         let facts = super::scenario_calls::checked_source(ir, owner, db?)?;

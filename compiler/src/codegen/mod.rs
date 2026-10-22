@@ -61,6 +61,7 @@ mod scenario_feasibility;
 pub mod scenario_queries;
 mod scenario_receipts;
 mod event_decisions;
+mod event_notice_audit;
 mod event_send_decisions;
 mod success_send_decisions;
 mod term_decisions;

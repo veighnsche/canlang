@@ -866,7 +866,7 @@ pub(super) fn collect_maintain_receipt(
             event_decision: Some(decision),
             term_decision: None,
             leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,queries: Vec::new(),
+            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,queries: Vec::new(),
             returns: vec![returned],
         },
         dependencies: HashMap::new(),

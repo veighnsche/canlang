@@ -8620,7 +8620,12 @@ impl<'a> Emitter<'a> {
                 self.stdlib.insert("ValueError".to_string());
                 self.ui.insert("normalizeTag".to_string());
                 self.localized_format = true;
+                let audit=self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.event_notice_audit.as_ref()).and_then(|plan|
+                    plan["formats"].as_array()?.iter().find(|site| site["node"]["start"].as_u64()==Some(span.start as u64) && site["node"]["end"].as_u64()==Some(span.end as u64)).map(|site|(plan.clone(),site["field"].as_str().unwrap().to_string())));
+                let was_boolean=self.boolean_body;
+                if audit.is_some() {self.boolean_body=true;}
                 let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
+                self.boolean_body=was_boolean;
                 let capture = binding_ident("a", &self.binding_seq.to_string());
                 self.binding_seq += 1;
                 let schemas = schemas
@@ -8643,6 +8648,12 @@ impl<'a> Emitter<'a> {
                     })
                     .collect::<Vec<_>>()
                     .join(",");
+                if let Some((plan,field))=audit {
+                    self.stdlib.insert("nativeScenarioEventNoticeFormat".into());
+                    let event=self.reference("event");
+                    return format!("(await nativeScenarioEventNoticeFormat(c,{},{},async(c,{{event:{event}}})=>(({capture})=>({{descriptor:{capture}[{descriptor_index}],locale:{capture}[{locale_index}],formatted:{}(c,{capture}[{descriptor_index}],{capture}[{locale_index}],[{schemas}])}}))([{}])))",
+                        descriptor_json(&plan),js_string(&field),binding_ident("h","localized_format"),values.join(","));
+                }
                 format!(
                     "(({capture})=>{}(c,{capture}[{descriptor_index}],{capture}[{locale_index}],[{schemas}]))([{}])",
                     binding_ident("h", "localized_format"),
@@ -11991,6 +12002,13 @@ fn null_equality(
                             }) && !positions.is_empty() && positions.iter().all(|(path, _)|
                                 path.as_slice() == ["subject"] || path.as_slice() == ["body"])
                         })
+                }
+                IrStmt::Create {model,input,span,..} if model == "events.Notice" => {
+                    self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.event_notice_audit.as_ref())
+                        .is_some_and(|audit| audit["model"] == model.as_str()
+                            && audit["create"]["start"] == span.start && audit["create"]["end"] == span.end
+                            && {let positions=self.formatted_positions(input); !positions.is_empty()
+                                && positions.iter().all(|(path,_)|path.as_slice()==["subject"] || path.as_slice()==["body"])})
                 }
                 _ => false,
             };
@@ -16080,6 +16098,10 @@ impl<'a> Emitter<'a> {
                 continue;
             };
             let type_id = match ty {
+                // A stored field's enum is not an independent Values enum
+                // declaration. Its exact cases are the event wire type; the
+                // source field still retains its nominal owning declaration.
+                IrType::Known(ResolvedType::Enum{owner:Some(owner),cases}) if matches!(self.ir.items[owner.0 as usize].kind,IrItemKind::Field{..}) => format!("enum({})",cases.join(",")),
                 IrType::Known(ty) => self.canonical_type_id(ty, field.span),
                 IrType::Unknown => "unknown".to_string(),
             };
@@ -19817,6 +19839,8 @@ impl<'a> Emitter<'a> {
                 let event_binding = guard.event_source.as_ref().map_or_else(String::new, |source| {
                     let extra = if guard.descriptor["owner"] == "success.remind" {
                         ",account_revision:$can$send$inputs[\"eventAccountRevision\"]"
+                    } else if guard.descriptor["owner"] == "events.attendee_notice" {
+                        ",kind:$can$send$inputs[\"eventKind\"]"
                     } else { "" };
                     let event = format!(
                         "const {}={{{}:$can$send$inputs[{}],{}:$can$send$inputs[{}]{extra}}};",

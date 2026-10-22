@@ -163,7 +163,7 @@ import { bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeS
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
   bindNativeScenarioRentMovementRefundDecision, bindNativeScenarioInvoiceCollectDecision,
   bindNativeScenarioInvoiceIssueDecision,
-  bindNativeScenarioRentNoticeDecision } from './native-scenario-require.js';
+  bindNativeScenarioRentNoticeDecision, bindNativeScenarioEventNoticeFormat } from './native-scenario-require.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, assertSystemCommandStore, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -1477,6 +1477,8 @@ interface StateInvokeProducer {
   readonly readScenarioReceiptAssociation?: typeof import('@canlang/state/invocation').readScenarioReceiptAssociation;
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
+  readonly executeScenarioReceiptEventNoticeFormat?: typeof import('@canlang/state/invocation').executeScenarioReceiptEventNoticeFormat;
+  readonly materializeScenarioReceiptEventNoticeAudit?: typeof import('@canlang/state/invocation').materializeScenarioReceiptEventNoticeAudit;
   readonly executeScenarioReceiptRequire?: typeof import('@canlang/state/invocation').executeScenarioReceiptRequire;
   readonly executeScenarioReceiptEventDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptEventDecision;
   readonly executeScenarioReceiptSuccessRenewalDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptSuccessRenewalDecision;
@@ -1781,6 +1783,12 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['beginScenarioReceiptMutation'] !== 'function' ? {} : {
       beginScenarioReceiptMutation: scenarioMod['beginScenarioReceiptMutation'] as NonNullable<StateInvokeProducer['beginScenarioReceiptMutation']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptEventNoticeFormat'] !== 'function' ? {} : {
+      executeScenarioReceiptEventNoticeFormat: scenarioMod['executeScenarioReceiptEventNoticeFormat'] as NonNullable<StateInvokeProducer['executeScenarioReceiptEventNoticeFormat']>,
+    }),
+    ...(typeof scenarioMod['materializeScenarioReceiptEventNoticeAudit'] !== 'function' ? {} : {
+      materializeScenarioReceiptEventNoticeAudit: scenarioMod['materializeScenarioReceiptEventNoticeAudit'] as NonNullable<StateInvokeProducer['materializeScenarioReceiptEventNoticeAudit']>,
     }),
     ...(typeof scenarioMod['executeScenarioReceiptRequire'] !== 'function' ? {} : {
       executeScenarioReceiptRequire: scenarioMod['executeScenarioReceiptRequire'] as NonNullable<StateInvokeProducer['executeScenarioReceiptRequire']>,
@@ -3990,6 +3998,12 @@ function nativeEmailLexicalType(type: string): boolean {
   return /^(text|bool|int|decimal|money|date|datetime|duration|user|email|timezone)(\[\])?\?$/.test(type) ||
     /^(text|bool|int|decimal|money|date|datetime|duration|user|email|timezone)(\[\])?$/.test(type);
 }
+function nativeEventNoticeScalar(guard:ScenarioReceiptSendGuard,input:{readonly name:string;readonly type:string}):boolean {
+  const fields=guard.eventSource?.scalarFields;
+  return guard.owner==='events.attendee_notice' && guard.eventSource?.event==='events.AttendeeNotice' &&
+    fields?.length===1 && fields[0]?.name==='kind' && fields[0].slot==='eventKind' && fields[0].type==='events.Notice.kind' &&
+    input.name==='eventKind' && input.type==='enum(confirmation,change,cancellation)';
+}
 /** Resource guards may capture ordinary checked Values, never opaque grants or model authority. */
 function nativeResourceLexicalType(type: string, schema: NormalizedSchema | undefined, visiting = new Set<string>(), allowFile = false, allowModelRefs?: ReadonlySet<string>): boolean {
   if (visiting.size >= 32 || visiting.has(type)) return false;
@@ -5263,7 +5277,8 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
       if (eventGuard) {
         const source = localPolicyObject(emitted.eventSource, ['event', 'handler', 'modelField', 'revisionField', 'predicate',
           ...(isUnknownRecord(emitted.eventSource) && Object.hasOwn(emitted.eventSource, 'recipientPath') ? ['recipientPath'] : []),
-          ...(isUnknownRecord(emitted.eventSource) && Object.hasOwn(emitted.eventSource, 'ownerDecision') ? ['ownerDecision'] : [])]);
+          ...(isUnknownRecord(emitted.eventSource) && Object.hasOwn(emitted.eventSource, 'ownerDecision') ? ['ownerDecision'] : []),
+          ...(isUnknownRecord(emitted.eventSource) && Object.hasOwn(emitted.eventSource, 'scalarFields') ? ['scalarFields'] : [])]);
         const modelField = localPolicyObject(source.modelField, ['name', 'model', 'declaration', 'occurrence', 'fields']);
         const revisionField = localPolicyObject(source.revisionField, ['name', 'type', 'declaration', 'occurrence']);
         const originalEvent = own(originalOperation, 'event');
@@ -5294,6 +5309,19 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
           return Object.keys(span).length === 2 && Number.isSafeInteger(span.start) &&
             Number.isSafeInteger(span.end) && (span.start as number) >= 0 && (span.end as number) > (span.start as number);
         };
+        const eventAudit=def.name==='events.attendee_notice' && (plan as typeof plan & {readonly eventNoticeAudit?:unknown}).eventNoticeAudit!==undefined;
+        if (eventAudit) {
+          const scalars=nativeCallArray(source.scalarFields,1);
+          const scalar=localPolicyObject(scalars[0],['name','slot','type','declaration','occurrence']);
+          if (scalars.length!==1 || scalar.name!=='kind' || scalar.slot!=='eventKind' || scalar.type!=='events.Notice.kind' ||
+              !interval(scalar.declaration) || !interval(scalar.occurrence) || own(own(declaredInputs,'kind'),'type')!=='enum(confirmation,change,cancellation)' ||
+              own(own(declaredInputs,'body'),'type')!=='text' || Object.keys(localPolicyObject(declaredInputs)).length!==4 ||
+              modelField.name!=='registration' || modelField.model!=='events.Registration' || revisionField.name!=='revision' ||
+              source.event!=='events.AttendeeNotice' || stableStringify(fields)!==stableStringify(['state']) ||
+              stableStringify(def.descriptor.inputs.filter(i=>i.name==='kind' && i.kind==='enum').map(i=>i.kind==='enum'?i.enumValues:[])[0])!==stableStringify(['confirmation','change','cancellation'])) {
+            throw new AssemblyCorrespondenceError('Event SEND needs its exact source-owned scalar event field.');
+          }
+        } else if (Object.hasOwn(source,'scalarFields')) throw new AssemblyCorrespondenceError('Scalar event SEND fields lack their owning audit source.');
         if (callable.kind !== 'handler' || typeof source.event !== 'string' || source.event !== originalEvent ||
             source.handler !== def.name || typeof modelField.name !== 'string' || typeof modelField.model !== 'string' ||
             typeof revisionField.name !== 'string' || revisionField.type !== 'int' ||
@@ -5314,9 +5342,10 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
             own(declaredModel, 'type') !== modelField.model || own(declaredRevision, 'type') !== 'int' ||
             modelInput?.kind !== 'ref' || modelInput.model !== modelField.model || !modelInput.required ||
             revisionInput?.kind !== 'integer' || !revisionInput.required ||
-            inputs.length !== (def.name === 'success.remind' ? 3 : 2) || inputs[0]?.name !== 'eventTerm' || inputs[0]?.type !== modelField.model ||
+            inputs.length !== (def.name === 'success.remind' || eventAudit ? 3 : 2) || inputs[0]?.name !== 'eventTerm' || inputs[0]?.type !== modelField.model ||
             inputs[1]?.name !== 'eventRevision' || inputs[1]?.type !== 'int' ||
-            def.name === 'success.remind' && (inputs[2]?.name !== 'eventAccountRevision' || inputs[2]?.type !== 'int')) {
+            def.name === 'success.remind' && (inputs[2]?.name !== 'eventAccountRevision' || inputs[2]?.type !== 'int') ||
+            eventAudit && (inputs[2]?.name!=='eventKind' || inputs[2]?.type!=='enum(confirmation,change,cancellation)')) {
           throw new AssemblyCorrespondenceError('Event SEND guard lacks its original declared event, handler and typed field proof.');
         }
         const checkedDecision = isSuccessNoticeOwner(def.name)
@@ -7244,6 +7273,8 @@ function createSourceReadPolicyAdapter(input: {
   readonly observeGrant?: (model: string, row: StoredRow, fields: readonly string[], allowed: boolean, rule: string) => void;
   /** Only this exact installed source consumer tracks its executed reads.
    * Policy sub-evaluations retain their independent current-read lifetimes. */
+  readonly formatting?: HandlerFormattingScope;
+  readonly deploymentBase?: string;
   readonly observer?: { readonly predicate: Function;
     readonly reads: import('@canlang/state/invocation').ScenarioReceiptRequireObserver };
   readonly ownerDecisionQuery?: (model: string, query: CanonicalReadQuery,
@@ -7459,7 +7490,8 @@ function createSourceReadPolicyAdapter(input: {
             declaration?.kind === 'delivery' ? declaration.result : undefined);
         } catch (error) { failure ??= error; throw error; }
       };
-      const ctx = createContext({ caller: { userId: context.actorUserId ?? 'anonymous', roles },
+      const ctx = createContext({ ...(input.formatting===undefined?{}:{formatting:input.formatting}),
+      ...(input.deploymentBase===undefined?{}:{deploymentBase:input.deploymentBase}), caller: { userId: context.actorUserId ?? 'anonymous', roles },
       memberships: roles, store: readonlyStore, clock: input.now,
       ...(input.preferences === undefined ? {} : { preferences: input.preferences }),
       canonical: { operation: `${sourceModel}.read`, builtinRoles: Object.freeze(builtinRoles),
@@ -10442,6 +10474,12 @@ async function runScenarioExecution(
           fields = { ...fields, subject: rentNoticeHooks.present('subject', fields.subject),
             body: rentNoticeHooks.present('body', fields.body) };
         }
+        if (model==='events.Notice' && scenarioDef?.name==='events.attendee_notice') {
+          const checked=(scenarioDef.descriptor.result?.disclosure as {readonly eventNoticeAudit?:import('@canlang/state/invocation').EventNoticeAuditPlan}|undefined)?.eventNoticeAudit;
+          const materialize=loaded.producers.invoke.materializeScenarioReceiptEventNoticeAudit;
+          if(checked===undefined || materialize===undefined || receiptStore===undefined) return refuseRecordBinding('Event Notice needs its actual frozen presentation capture.');
+          fields={...materialize(call as AdmittedCall,receiptStore,{checked,fields})};
+        }
         const id = nextCreateId(model);
         const row = await scope.stageWrite({ op: "create", model, id, data: fields,
           ...(parent === undefined ? {} : { parent }) });
@@ -11072,7 +11110,7 @@ async function runScenarioExecution(
                 nativeObserveVenueRoomsGuard(def, selected)))) ||
               ownerSession === undefined || selected === undefined ||
               selected.guard.binding !== bindingKey || selected.guard.target !== source || selected.guard.owner !== scope.operation ||
-              selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !sendSnapshots?.has(input.type) &&
+              selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !nativeEventNoticeScalar(selected.guard,input) && !sendSnapshots?.has(input.type) &&
                 !(isResourceSendTarget(selected.definition, bindingKey, source) && nativeResourceLexicalType(input.type, loaded.valueSchema, new Set(), source.endsWith('.publish') && opts.files !== undefined)))) {
             return refuseRecordBinding('Guarded SEND requires its original installed predicate and typed lexical declaration join.');
           }
@@ -11962,6 +12000,42 @@ async function runScenarioExecution(
     : callable?.inputStyle === "parameters"
     ? scenarioParameters(call, loaded, recordView, receiptAware ? undefined : resolvedDefaults, scenarioReceiptFrame)
     : { operation_id: call.context.operationId, inputs: call.inputs };
+  if (receiptAware && receiptStore!==undefined && ownerSession!==undefined && scenarioDef?.name==='events.attendee_notice') {
+    const actualCall=call as AdmittedCall;
+    const checked=(scenarioDef.descriptor.result?.disclosure as {readonly eventNoticeAudit?:import('@canlang/state/invocation').EventNoticeAuditPlan}|undefined)?.eventNoticeAudit;
+    const execute=loaded.producers.invoke.executeScenarioReceiptEventNoticeFormat;
+    if (checked===undefined || execute===undefined || opts.formatting===undefined || opts.deploymentBase===undefined || due===undefined) {
+      return refuseRecordBinding('Event notice needs its exact retained event and selected app presentation.');
+    }
+    const event=localPolicyObject(localPolicyMember(localPolicyObject(argument),'event'));
+    bindNativeScenarioEventNoticeFormat(ctx,async(descriptor,field,body)=>{
+      try {
+        if (stableStringify(descriptor)!==stableStringify(checked) || field!=='subject' && field!=='body' ||
+            nativeScenarioExecutions.get(actualCall)===undefined) return refuseRecordBinding('Event formatter differs from its original source occurrence.');
+        let captured:unknown;
+        let adapter:ReturnType<typeof createSourceReadPolicyAdapter>;
+        return await execute(actualCall,receiptStore,{original:descriptor as typeof checked,checked,field,appDefault:opts.formatting!.appDefault,
+          capture:reads=>{
+            const predicate:import('@canlang/state/receipt').InstalledSourceQueryPredicate=async(_record,observation)=>{
+              if(observation===undefined) return refuseRecordBinding('Event formatter lacks its live owner source observation.');
+              return adapter.evaluate('events.Registration',[{owner:checked.owner,predicate:async(context:HandlerContext,row:Record<string,unknown>)=>{
+                const renderEvent=Object.freeze({registration:row,kind:localPolicyMember(event,'kind'),revision:localPolicyMember(event,'revision'),body:localPolicyMember(event,'body')});
+                captured=await Reflect.apply(body,undefined,[context,Object.freeze({event:renderEvent})]);
+                return true;
+              }}],observation,predicate);
+            };
+            bindNativeReadRoleContext(predicate,checked.owner);
+            // The installed source association authenticates transport module against logical source.
+            const logical=[...(nativeSourceSendGuards.get(scenarioDef)?.values()??[])][0]?.logicalGuard.source;
+            if(logical===undefined) return refuseRecordBinding('Event formatter lacks its original source association.');
+            bindInstalledSourceQueryPredicate(predicate,{source:logical,rule:checked.owner});
+            adapter=createSourceReadPolicyAdapter({loaded,opts:{...opts,store:receiptStore},now:()=>actualCall.context.now,
+              formatting:opts.formatting!,deploymentBase:opts.deploymentBase!,observer:{predicate,reads}});
+            return predicate;
+          },result:()=>captured});
+      } catch(error) {recordEngineFailure(error);throw error;}
+    });
+  }
   if (receiptAware && receiptStore !== undefined && ownerSession !== undefined && callable?.inputStyle === 'parameters' &&
       due === undefined && cohort === undefined && scenarioDef !== undefined) {
     // This exact context and parameter graph belong to the genuine admitted
@@ -16696,7 +16770,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
   const privateDef = descriptors.registry.get(selector.handler) as GeneratedOperationDef | undefined;
   if (privateDef === undefined) throw new Error('Retained ordinary handler descriptor was not checked.');
   let rentNoticeAppDefault: string | undefined;
-  if (selector.handler === 'rent_reservations.correspondence') {
+  if ((selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice')) {
     const callable = opts.artifact.callables.find(entry => entry.id === selector.handler && entry.kind === 'handler');
     if (callable === undefined) throw new AssemblyCorrespondenceError('Rent notice handler lost its checked callable.');
     const module = await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
@@ -16709,7 +16783,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     rentNoticeAppDefault = declaredDefault;
   }
   const privateLoaded = { ...loaded, registry: descriptors.registry };
-  if (selector.handler === 'rent_reservations.correspondence') {
+  if ((selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice')) {
     await bindScenarioFrameworkProducers(opts.asm, opts.artifact, privateLoaded, selector.handler);
   }
   const handlerModule = await loadProducerModule('@canlang/work/kernel/handler-occurrence', 'retained private handler');
@@ -16843,7 +16917,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     identity, inputs: admittedInputs, source: sourceKind, memberships: opts.identities, now: () => now,
     ...(rentNoticeAppDefault === undefined ? {} : { formatting: { appDefault: rentNoticeAppDefault } }) };
   const committedSourceStage = await canonicalCommittedSourceStage(privateLoaded);
-  const retainedRentNoticeReceipt = declared && selector.handler === 'rent_reservations.correspondence' &&
+  const retainedRentNoticeReceipt = declared && (selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice') &&
     rentNoticeAppDefault !== undefined;
   let retainedRentNoticeOutcome: { readonly status: 'completed' | 'failed';
     readonly occurrenceId: string; readonly result: unknown } | undefined;
@@ -16868,7 +16942,7 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         }
         await resolvePrivateSourceOwner(opts.identities, selector.scope, call.context.now);
         await verifyCommitted();
-        if (declared && selector.handler === 'rent_reservations.correspondence') {
+        if (declared && (selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice')) {
           const note = loaded.producers.invoke.noteRetainedEventAdmission;
           if (note === undefined || call.checkpoint === undefined) {
             throw new AssemblyCorrespondenceError('Rent notice lacks its retained State event admission.');
@@ -21606,7 +21680,7 @@ export async function bindNativeEmailDispatchGuards(input: {
           !nativeMemberRetryChargeGuard(def, selected) && !nativeInvoiceCollectPaymentGuard(def, selected) &&
           !nativeObserveVenueRoomsGuard(def, selected)) ||
           (targetOwner ?? selected.ownerPackage) !== scope.ownerPackage ||
-          selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !sendSnapshots?.has(slot.type) &&
+          selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !nativeEventNoticeScalar(selected.guard,slot) && !sendSnapshots?.has(slot.type) &&
             !(isResourceSendTarget(selected.definition, selected.guard.binding, selected.guard.target) && nativeResourceLexicalType(slot.type, loaded.valueSchema, new Set(), selected.guard.target.endsWith('.publish') && input.files !== undefined)))) continue;
       const sites = (loaded.membershipSources.get(def.name) ?? []).filter(site => site.stage === 'send-dispatch' &&
         stableStringify(site.node) === stableStringify(selected.guard.node));

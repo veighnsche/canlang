@@ -11886,6 +11886,33 @@ impl<'a> Closure<'a> {
         let HandlerSource::Event(event) = scenario.on.as_ref()? else { return None; };
         let scenario_symbol = self.resolve.symbols.get(scenario.scenario.0 as usize)?;
         let event_symbol = self.resolve.symbols.get(event.0 as usize)?;
+        if scenario_symbol.canonical == "events.attendee_notice" {
+            let fields = event_symbol.fields_of();
+            let [subject, body, send, create] = scenario.effects.as_slice() else { return None; };
+            let [guard] = scenario.guards.as_slice() else { return None; };
+            if event_symbol.canonical != "events.AttendeeNotice" || fields.len() != 4
+                || scenario.read || scenario.by.is_some() || scenario.result.is_some()
+                || scenario.cohort.is_some() || !scenario.params.is_empty()
+                || guard.verb != EffectVerb::Require || subject.verb != EffectVerb::Let
+                || body.verb != EffectVerb::Let || send.verb != EffectVerb::Send
+                || send.when.is_none() || create.verb != EffectVerb::Create
+                || !matches!(create.target,Some(EffectTarget::Model(model)) if
+                    self.resolve.symbols.get(model.0 as usize).is_some_and(|model| model.canonical == "events.Notice"))
+            { return None; }
+            let [row, kind, revision, body] = fields else { return None; };
+            if self.resolve.symbols.get(row.0 as usize)?.name != "registration"
+                || self.resolve.symbols.get(kind.0 as usize)?.name != "kind"
+                || self.resolve.symbols.get(revision.0 as usize)?.name != "revision"
+                || self.resolve.symbols.get(body.0 as usize)?.name != "body"
+                || !matches!(self.types.symbol_types.get(row), Some(ResolvedType::Record {symbol,stored:true}) if
+                    self.resolve.symbols.get(symbol.0 as usize).is_some_and(|model| model.canonical == "events.Registration"))
+                || !matches!(self.types.symbol_types.get(kind),Some(ResolvedType::Enum {cases,..}) if cases == &["confirmation","change","cancellation"])
+                || self.types.symbol_types.get(revision) != Some(&ResolvedType::Scalar(Scalar::Int))
+                || self.types.symbol_types.get(body) != Some(&ResolvedType::Scalar(Scalar::Text))
+                || !fields.iter().all(|field| matches!(self.resolve.symbols.get(field.0 as usize).map(|symbol|&symbol.kind),Some(SymbolKind::Field {owner,..}) if *owner == *event))
+            { return None; }
+            return Some((*event,*row,*revision));
+        }
         if scenario_symbol.canonical == "maintain.remind" {
             let [binding, branch] = scenario.effects.as_slice() else { return None; };
             let [send, set] = branch.then_effects.as_slice() else { return None; };
@@ -11991,6 +12018,11 @@ impl<'a> Closure<'a> {
             row
         } else if name == "revision" {
             revision
+        } else if self.resolve.symbols.get(owner.scenario.0 as usize)?.canonical == "events.attendee_notice"
+            && matches!(name, "kind" | "body") {
+            let HandlerSource::Event(event) = owner.on.as_ref()? else { return None; };
+            *self.resolve.symbols.get(event.0 as usize)?.fields_of().iter().find(|field|
+                self.resolve.symbols.get(field.0 as usize).is_some_and(|field| field.name == name))?
         } else {
             return None;
         };
@@ -16066,7 +16098,7 @@ impl<'a> Closure<'a> {
         {
             let name = self.resolve.symbols.get(field.0 as usize)
                 .ok_or_else(|| self.fail(key, "missing declared event field"))?.name.as_str();
-            if name == "term" || name == "obligation" || name == "appointment" || name == "inspection" {
+            if name == "term" || name == "obligation" || name == "appointment" || name == "inspection" || name == "registration" {
                 let ResolvedType::Record { symbol: model, stored: true } = ty else {
                     return Err(self.fail(key, "notice event Term type mismatch"));
                 };
@@ -16081,6 +16113,14 @@ impl<'a> Closure<'a> {
                     }),
                     ..ValuePath::default()
                 }]));
+            }
+            if matches!(name, "kind" | "body") {
+                let mut value = self.intrinsic(key,module,calls,DisclosureIntrinsicKind::AdmittedInput {
+                    parameter: field, parameter_name: if name == "kind" {"eventKind"} else {"eventBody"}.into(),
+                },Scalar::Text)?;
+                value.intrinsics[0].ty = ty.clone();
+                value.intrinsics[0].type_id = if name == "kind" {"enum(confirmation,change,cancellation)".into()} else {"text".into()};
+                return Ok(Some(vec![value]));
             }
             if name == "revision" && *ty == ResolvedType::Scalar(Scalar::Int) {
                 let input = ValuePath {
@@ -19125,6 +19165,16 @@ impl<'a> Closure<'a> {
         if let Some(paths) = self.call_origin_source_blocks(key, module, env, calls, &selected)? {
             return Ok(paths);
         }
+        // Outbound Notice presentation is independently owned by its exact
+        // audit sink profile. This publishes no ordinary formatted-field grant.
+        if calls.is_empty() && self.loop_node.is_none()
+            && matches!(&selected.target,SelectedCallTarget::Builtin {id,..} if id=="format")
+            && self.effects.scenarios.values().any(|scenario|
+                scenario.module==module && self.resolve.symbols.get(scenario.scenario.0 as usize)
+                    .is_some_and(|symbol|symbol.canonical=="events.attendee_notice")
+                && self.hook_delivery_event(scenario).is_some()
+                && scenario.effects.iter().take(2).any(|effect|effect.value==Some(key)))
+        { return Ok(vec![ValuePath::default()]); }
         // Nongrant closure for the exact post-write purchase ALL occurrence.
         // Its source/IR profile and complete staged domains are mandatory in
         // native receipt collection and execution; generic ALL remains refused.

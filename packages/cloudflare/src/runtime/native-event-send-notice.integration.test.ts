@@ -1,7 +1,7 @@
 /** A private due Work source carries its original typed event row into a guarded SEND. */
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,7 +34,7 @@ it('runs the original notice Rule with the due event Term and its owner parent',
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
       const artifact = JSON.parse(stdout) as CompileArtifact;
       const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
-        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+        stdlibUrl: new URL('./stdlib.js',import.meta.url).href,
         uiUrl: import.meta.resolve('@canlang/ui') });
       assert.ok((artifact.modules[0]?.js ?? '').includes('sendWhen:'), 'the original handler Rule is emitted');
 
@@ -199,7 +199,7 @@ it('reopens an exact legacy full-void File profile and rejects a changed origina
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
       const artifact = JSON.parse(stdout) as CompileArtifact;
       const asm = await assembleModules({ artifact, sourcePath: legacySource }, { workDir: directory,
-        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+        stdlibUrl: new URL('./stdlib.js',import.meta.url).href,
         uiUrl: import.meta.resolve('@canlang/ui') });
       const handler = 'agreements.due';
       const callable = artifact.callables.find(entry => entry.id === handler);
@@ -258,4 +258,104 @@ it('reopens an exact legacy full-void File profile and rejects a changed origina
         }
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+
+it('executes Event audit formatting once in source order and retains genuine sent or skipped delivery',
+  { timeout: 120000 }, async () => {
+    const eventSource=join(root,'compiler/tests/fixtures/event-attendee-notice.can');
+    const directory=await mkdtemp(join(tmpdir(),'can-attendee-notice-'));
+    try {
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,eventSource],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath:eventSource},{workDir:directory,
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['confirmed','held','cancelled','stale','stale-missing-location','missing-location','location-race'] as const) {
+        const now=Date.parse('2099-01-01T12:00:00Z'),clock=createFrozenClock(now);
+        const identities=createMemoryIdentityStore({clock});
+        const team=await identities.createTeam({timezone:'UTC'});
+        const scope={app:'EventNoticeProbe',owner:team.team_id,ownerPackage:'events'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'event-state',fileStoreId:'event-files',
+          receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store,probe}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        const backing={load:store.load.bind(store),cohortLoad:store.cohortLoad.bind(store),commit:store.commit.bind(store),readRevision:store.readRevision.bind(store)};
+        let locationReads=0,failedNoticeCommits=0,raceAtCommit:(()=>Promise<void>)|undefined;
+        Object.assign(store,{
+          load:async(model:Parameters<typeof store.load>[0],id:Parameters<typeof store.load>[1])=>{if(model==='rent_catalog.Location')locationReads++;return backing.load(model,id);},
+          cohortLoad:async(request:Parameters<typeof store.cohortLoad>[0])=>{if(request.model==='rent_catalog.Location')locationReads++;return backing.cohortLoad(request);},
+          commit:async(batch:Parameters<typeof store.commit>[0])=>{const race=raceAtCommit;raceAtCommit=undefined;if(race!==undefined)await race();try{return await backing.commit(batch);}catch(error){if(batch.writes?.some(write=>write.model==='events.Notice'))failedNoticeCommits++;throw error;}}});
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+        const eventId=asId('event-1'),registrationId=asId('registration-1'),locationId=asId('location-1');
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          ...((mode==='missing-location' || mode==='stale-missing-location')?[]:[{kind:'insert' as const,model:asModel('rent_catalog.Location'),row:{...makeRow({id:locationId,data:{name:'Harbor'}}),parent:null}}]),
+          {kind:'insert',model:asModel('events.Event'),row:{...makeRow({id:eventId,data:{name:'Workshop',location:{id:locationId},
+            from:'2099-01-02T09:00:00.000Z',until:'2099-01-02T10:00:00.000Z',timezone:'UTC',revision:'1',cancelled:mode==='cancelled'}}),parent:null}},
+          {kind:'insert',model:asModel('events.Registration'),row:{...makeRow({id:registrationId,data:{email:'guest@example.test',ticket:'TICKET-1',state:mode==='held'?'held':'confirmed'}}),parent:{model:asModel('events.Event'),id:eventId}}},
+        ]}));
+        const due={key:'event-notice',scope,occurrenceId:'event-notice-1',event:'events.AttendeeNotice',at:now-1};
+        const payload={registration:{id:registrationId,version:'1'},kind:'confirmation',revision:mode.startsWith('stale')?'2':'1',body:'Use east entrance'};
+        const stageContext={actor:`schedule:${due.event}`,now,operation:'events.attendee_notice',
+          load:(model:Parameters<typeof store.load>[0],id:Parameters<typeof store.load>[1])=>store.load(model,id),query:(spec:Parameters<typeof store.query>[0])=>store.query(spec)};
+        const loaded=await loadCanonicalDescriptors(asm,artifact); assert.ok(loaded.valueTypes);
+        const opaque=await loadOpaqueFileStaging({store,inventoryOwner:scope.ownerPackage,artifact,canonicalModels:loaded.models,valueTypes:loaded.valueTypes,operations:new Map(),scope,verify:async()=>{}}); assert.ok(opaque);
+        const declaration=opaque.event(due.event),identity=await resolveIdentity(identities,{team_id:team.team_id},{clock});
+        const initial=await workSchedulePutCommand.stage({...due,payload},stageContext);
+        const write=initial.writes?.find(w=>w.kind==='insert' && w.model==='work.schedule'); assert.ok(write && write.kind==='insert');
+        const filePayloadOrigin=await opaque.prepare({expectedRevision:await store.readRevision(),model:asModel('work.schedule'),row:write.row,field:'payload',scope,
+          origin:{kind:'event-input',occurrenceId:due.occurrenceId,sourceOccurrence:due.occurrenceId,declaration,lineage:{kind:'schedule',key:due.key,replaces:null},target:{kind:'schedule'}},
+          projection:{kind:'inputs',path:[],declarationId:declaration.inputsDeclarationId},value:payload,identity});
+        const scheduled=await workSchedulePutCommand.stage({...due,payload,filePayloadOrigin},stageContext);
+        await store.commit(makeBatch(await store.readRevision(),{writes:scheduled.writes??[],schedules:scheduled.schedules??[]}));
+        locationReads=0;
+        if(mode==='location-race') {
+          raceAtCommit=async()=>{const current=await backing.load(asModel('rent_catalog.Location'),locationId);assert.ok(current);
+            await backing.commit(makeBatch(await backing.readRevision(),{writes:[{kind:'update',model:asModel('rent_catalog.Location'),id:locationId,expectedVersion:current.version,
+              row:{...current,version:asVersion(current.version+1),data:{...current.data,name:'Changed'}}}]}));};
+          const raced=await invokeDueScheduleCanonical({asm,artifact,app:scope.app,handler:'events.attendee_notice',due,store,identities,now:()=>now,deploymentBase:'https://example.test'});
+          assert.equal(raced.status,'completed',JSON.stringify(raced));
+          assert.equal(failedNoticeCommits,1,'the stale original Notice batch aborted before a fresh retry');
+          const notices=await store.query({model:asModel('events.Notice'),authority:'owner'});
+          assert.equal(notices.length,1);assert.match(String(notices[0]!.data['body']),/Workshop at Changed/);
+          assert.equal(probe.outboxAll().length,1,'only the fresh retry publishes Mail');continue;
+        }
+        if(mode==='missing-location') {
+          await assert.rejects(invokeDueScheduleCanonical({asm,artifact,app:scope.app,handler:'events.attendee_notice',due,store,identities,now:()=>now,deploymentBase:'https://example.test'}));
+          assert.equal(probe.outboxAll().length,0); assert.equal((await store.query({model:asModel('events.Notice'),authority:'owner'})).length,0); continue;
+        }
+        const result=await invokeDueScheduleCanonical({asm,artifact,app:scope.app,handler:'events.attendee_notice',due,store,identities,now:()=>now,deploymentBase:'https://example.test'});
+        assert.equal(result.status,mode.startsWith('stale')?'failed':'completed',mode+': '+JSON.stringify(result));
+        if(mode.startsWith('stale'))assert.equal(locationReads,0,'false leading revision guard never reads Location');
+        const notices=await store.query({model:asModel('events.Notice'),authority:'owner'});
+        assert.equal(notices.length,mode.startsWith('stale')?0:1,mode);
+        assert.equal(probe.outboxAll().length,mode==='confirmed'?1:0,mode);
+        if(notices[0]) {assert.equal(notices[0].data['subject'],'Event ticket confirmed'); assert.match(String(notices[0].data['body']),/Workshop at Harbor/); assert.match(String(notices[0].data['body']),/https:\/\/example.test\/events/); assert.ok(notices[0].data['delivery'],'the real sent or skipped delivery remains stored');}
+        const before=await store.readRevision();
+        await invokeDueScheduleCanonical({asm,artifact,app:scope.app,handler:'events.attendee_notice',due,store,identities,now:()=>now,deploymentBase:'https://example.test'});
+        assert.equal(await store.readRevision(),before,'terminal replay does not repeat Notice or SEND');
+      }
+    } finally {await rm(directory,{recursive:true,force:true});}
+  });
+
+it('refuses changed Event formatter traversal, revision guard, or ordinary business text sinks',
+  {timeout:120000},async()=>{
+    const sourcePath=join(root,'compiler/tests/fixtures/event-attendee-notice.can');
+    const original=await readFile(sourcePath,'utf8');
+    const directory=await mkdtemp(join(tmpdir(),'can-event-audit-mutants-'));
+    try {
+      for(const [name,before,after] of [
+        ['header','require event.registration.parent.revision==event.revision','require event.registration.parent.revision>=event.revision'],
+        ['traversal','notice_details(event.registration.parent.name,event.registration.parent.location.name,','notice_details(event.registration.parent.location.name,event.registration.parent.name,'],
+        ['sink','subject,body,delivery} as notice','subject=event.body,body,delivery} as notice'],
+      ] as const) {
+        assert.equal(original.split(before).length,2,name+' has a unique owning source occurrence');
+        const path=join(directory,name+'.can');await writeFile(path,original.replace(before,after));
+        await assert.rejects(promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,path],
+          {cwd:root,timeout:60000,maxBuffer:32*1024*1024}),error=>{
+            const report=error as {code?:number;stdout?:string};
+            assert.equal(report.code,10);assert.ok(JSON.parse(report.stdout??'{}').diagnostics.some((d:{code:string})=>d.code==='E6008'));
+            return true;
+          });
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
   });

@@ -670,7 +670,7 @@ pub(super) fn collect_success_notice_receipt(
             invoice_issue_decision: None,
             observe_venue_decision: None,
             success_renewal_decision: Some(decision),
-            purchase_receive_all: None,
+            purchase_receive_all: None, event_notice_audit: None,
             queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),

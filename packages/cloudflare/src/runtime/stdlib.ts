@@ -87,7 +87,7 @@ export { nativeScenarioRequire, nativeScenarioEventDecision, nativeScenarioTermD
   nativeScenarioReferRejectDecision, nativeScenarioMemberRetryDecision,
   nativeScenarioInvoiceOverdueDecision, nativeScenarioRentMovementRefundDecision,
   nativeScenarioInvoiceCollectDecision, nativeScenarioInvoiceIssueDecision,
-  nativeScenarioRentNoticeDecision,
+  nativeScenarioRentNoticeDecision, nativeScenarioEventNoticeFormat,
   withLeaveDecideAllowance } from './native-scenario-require.js';
 export { delivery } from '@canlang/state/effects/delivery';
 

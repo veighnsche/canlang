@@ -2664,6 +2664,12 @@ pub(crate) fn checked_stored_lock_target(
     ty: &ResolvedType,
 ) -> bool {
     let base = ty.nullable_inner().unwrap_or(ty);
+    if matches!(base, ResolvedType::StdDelivery { .. }) {
+        // Lock only the canonical persisted opaque delivery wire. This path
+        // neither observes its status nor creates a delivery association.
+        // The caller seals the owning field/capability against fresh source.
+        return policy_field_with_flags(program, model, name, ty, false, true) == Some(field);
+    }
     if matches!(base, ResolvedType::Scalar(Scalar::File)) {
         return policy_field_with_flags(program, model, name, ty, false, true) == Some(field);
     }

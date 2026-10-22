@@ -1,0 +1,33 @@
+app EventNoticeProbe uses=[rent_catalog,events]
+package rent_catalog
+ Given
+  export Location {name:text}
+ When
+ Then
+package events
+ use rent_catalog {Location}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  Event {name:text,location:Location,from:datetime,until:datetime,timezone:timezone,revision:int=1,cancelled:bool=false}
+  Registration in Event {email:email,ticket:text,state:enum(held,confirmed,cancelled)=confirmed}
+  Notice in Registration {kind:enum(confirmation,change,cancellation),revision:int,subject:text,body:text,delivery:delivery(Mail.send)?}
+  event AttendeeNotice {registration:Registration,kind:Notice.kind,revision:int,body:text}
+  event Kickoff {registration:Registration}
+  message notice_title(kind:Notice.kind) = "{kind,select,confirmation{Event ticket confirmed}change{Event schedule or venue changed}cancellation{Event admission cancelled}other{Event ticket update}}"@{nl="{kind,select,confirmation{Toegangsbewijs evenement bevestigd}change{Planning of locatie evenement gewijzigd}cancellation{Toegang tot evenement geannuleerd}other{Wijziging toegangsbewijs evenement}}"}
+  message notice_details(name:text,location:text,from:datetime,until:datetime,zone:timezone,reason:text,ticket:text,revision:int,url:url) = "{name} at {location}. Start: {from}; end: {until}. Event timezone: {zone}. Revision {revision}. {reason} Ticket: {ticket}. {url}"@{nl="{name} bij {location}. Begin: {from}; einde: {until}. Tijdzone evenement: {zone}. Revisie {revision}. {reason} Toegangsbewijs: {ticket}. {url}"}
+  policy Event read=members
+  policy Registration read=members
+  policy Notice read=members
+  lock Notice fields=kind,revision,subject,body,delivery
+ When
+  scenario source_bridge on=Kickoff
+   do
+    emit AttendeeNotice {registration=event.registration,kind=confirmation,revision=event.registration.parent.revision,body="Ticket"}
+  scenario attendee_notice on=AttendeeNotice
+   require event.registration.parent.revision==event.revision
+   do
+    let subject=format(notice_title(event.kind),locale=null)
+    let body=format(notice_details(event.registration.parent.name,event.registration.parent.location.name,event.registration.parent.from,event.registration.parent.until,event.registration.parent.timezone,event.body,event.registration.ticket,event.revision,app_url("/events")),locale=null)
+    send Mail.send {to=event.registration.email,subject,body} when=event.registration.parent.revision==event.revision and (event.kind!=confirmation or (event.registration.state==confirmed and not event.registration.parent.cancelled)) as delivery
+    create Notice {parent=event.registration,kind=event.kind,revision=event.revision,subject,body,delivery} as notice
+ Then
