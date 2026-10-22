@@ -217,6 +217,15 @@ export interface ObserveVenueDecisionPlan {
   readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
     readonly node: EventDecisionSite['node']; readonly statement: EventDecisionSite['statement'] };
 }
+export interface SuccessRenewalDecisionPlan {
+  readonly version: 1;
+  readonly owner: 'success.renewal_due';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly sites: { readonly require: EventDecisionSite; readonly if: EventDecisionSite;
+    readonly send: EventDecisionSite; readonly create: EventDecisionSite };
+  readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
+    readonly node: EventDecisionSite['node']; readonly statement: EventDecisionSite['statement'] };
+}
 function checkObserveVenueDecisionPlan(value: unknown, transport: unknown): ObserveVenueDecisionPlan {
   const raw = object(value, ['version', 'owner', 'source', 'sites', 'querySites', 'sendRule']);
   origin(raw['source']); origin(transport);
@@ -294,6 +303,57 @@ function checkObserveVenueDecisionPlan(value: unknown, transport: unknown): Obse
     return invalid('observe SEND lacks its original guarded source occurrence.');
   }
   return deepFreeze(raw) as unknown as ObserveVenueDecisionPlan;
+}
+function checkSuccessRenewalDecisionPlan(value: unknown, transport: unknown): SuccessRenewalDecisionPlan {
+  const raw = object(value, ['version', 'owner', 'source', 'sites', 'sendRule']);
+  origin(raw['source']); origin(transport);
+  const source = raw['source'] as ScenarioResultDisclosurePlan['source'];
+  const carrier = transport as ScenarioResultDisclosurePlan['source'];
+  if (raw['version'] !== 1 || raw['owner'] !== 'success.renewal_due' || source.module !== 'success' ||
+      source.path !== carrier.path || source.sha256 !== carrier.sha256) {
+    return invalid('renewal decision needs its original success source.');
+  }
+  const span = (value: unknown): void => {
+    const item = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(item['start']) || !Number.isSafeInteger(item['end']) ||
+        (item['start'] as number) < 0 || (item['end'] as number) <= (item['start'] as number) ||
+        !Number.isSafeInteger(item['kind']) || (item['kind'] as number) < 0) {
+      return invalid('renewal decision needs nonempty original source intervals.');
+    }
+  };
+  const sites = object(raw['sites'], ['require', 'if', 'send', 'create']);
+  const ids = new Set<string>();
+  const site = (value: unknown): EventDecisionSite => {
+    const item = object(value, ['id', 'source', 'node', 'statement']);
+    const id = text(item['id']); origin(item['source']); span(item['node']); span(item['statement']);
+    const node = item['node'] as EventDecisionSite['node'];
+    const statement = item['statement'] as EventDecisionSite['statement'];
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify(item['source']) !== stableStringify(source) ||
+        node.start < statement.start || node.end > statement.end) {
+      return invalid('renewal decision site differs from its checked source.');
+    }
+    ids.add(id); return item as unknown as EventDecisionSite;
+  };
+  const required = site(sites['require']);
+  const admitted = site(sites['if']);
+  const send = site(sites['send']);
+  const create = site(sites['create']);
+  if (admitted.statement.start < required.statement.end ||
+      send.statement.start < admitted.statement.start || send.statement.end > admitted.statement.end ||
+      create.statement.start < admitted.statement.start || create.statement.end > admitted.statement.end) {
+    return invalid('renewal SEND and Notice must stage inside their exact renewal IF after its Require.');
+  }
+  const rule = object(raw['sendRule'], ['rule', 'source', 'node', 'statement']);
+  text(rule['rule']); origin(rule['source']);
+  const ruleNode = object(rule['node'], ['start', 'end']);
+  const ruleStatement = object(rule['statement'], ['start', 'end']);
+  if (stableStringify(rule['source']) !== stableStringify(source) ||
+      ruleNode['start'] !== send.node.start || ruleNode['end'] !== send.node.end ||
+      ruleStatement['start'] !== send.statement.start || ruleStatement['end'] !== send.statement.end) {
+    return invalid('renewal SEND lacks its original guarded source occurrence.');
+  }
+  return deepFreeze(raw) as unknown as SuccessRenewalDecisionPlan;
 }
 /** The venue scan lease issues one owner-domain Change query for the exact
  * checked source scan. The lease honors exactly one tagged query at the
@@ -1555,7 +1615,8 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceCollectDecision') ? ['invoiceCollectDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceIssueDecision') ? ['invoiceIssueDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentNoticeDecision') ? ['rentNoticeDecision'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'observeVenueDecision') ? ['observeVenueDecision'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'observeVenueDecision') ? ['observeVenueDecision'] : []),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'successRenewalDecision') ? ['successRenewalDecision'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
@@ -1570,6 +1631,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'invoiceIssueDecision')) checkInvoiceIssueDecisionPlan(plan['invoiceIssueDecision'], plan['source']);
   if (Object.hasOwn(plan, 'rentNoticeDecision')) checkRentNoticeDecisionPlan(plan['rentNoticeDecision'], plan['source']);
   if (Object.hasOwn(plan, 'observeVenueDecision')) checkObserveVenueDecisionPlan(plan['observeVenueDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'successRenewalDecision')) checkSuccessRenewalDecisionPlan(plan['successRenewalDecision'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -1667,6 +1729,7 @@ interface BoundPlan {
   readonly invoiceCollectDecision?: InvoiceCollectDecisionPlan;
   readonly invoiceIssueDecision?: InvoiceIssueDecisionPlan;
   readonly observeVenueDecision?: ObserveVenueDecisionPlan;
+  readonly successRenewalDecision?: SuccessRenewalDecisionPlan;
   readonly rentNoticeDecision?: RentNoticeDecisionPlan;
   readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
   readonly resultModel: ModelName | undefined;
@@ -2429,6 +2492,9 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   const rawObserveVenueDecision = (plan as ScenarioResultDisclosurePlan & { readonly observeVenueDecision?: unknown }).observeVenueDecision;
   const observeVenueDecision = rawObserveVenueDecision === undefined ? undefined :
     checkObserveVenueDecisionPlan(rawObserveVenueDecision, plan.source);
+  const rawSuccessRenewalDecision = (plan as ScenarioResultDisclosurePlan & { readonly successRenewalDecision?: unknown }).successRenewalDecision;
+  const successRenewalDecision = rawSuccessRenewalDecision === undefined ? undefined :
+    checkSuccessRenewalDecisionPlan(rawSuccessRenewalDecision, plan.source);
   if (eventDecision !== undefined) {
     const inspection = models.find(model => model.name === 'maintain.Inspection');
     const planModel = models.find(model => model.name === 'maintain.Plan');
@@ -2692,6 +2758,23 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
       return invalid('Observe venue lacks its exact venue source and Change ancestry.');
     }
   }
+  if (successRenewalDecision !== undefined) {
+    const inputs = def.descriptor.inputs;
+    const model = (name: string) => models.find(item => item.name === name);
+    if (def.kind !== 'scenario' || def.name !== successRenewalDecision.owner || declared !== 'void' ||
+        inputs.length !== 2 || inputs[0]?.name !== 'account' || inputs[0].kind !== 'ref' ||
+        inputs[0].model !== 'success.Account' || !inputs[0].required ||
+        inputs[1]?.name !== 'revision' || inputs[1].kind !== 'integer' || !inputs[1].required ||
+        model('success.Account')?.parent !== 'customer.Customer' ||
+        model('success.Notice')?.parent !== 'success.Account' ||
+        !models.some(item => item.name === 'employee.Employee') ||
+        !models.some(item => item.name === 'rent_catalog.Location') ||
+        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
+        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
+        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
+      return invalid('Success renewal lacks its exact Account notice and employee ancestry.');
+    }
+  }
   const resultModel = modelResultType(declared);
   if (resultModel !== undefined && (def.kind !== 'scenario' ||
       models.filter(model => model.name === resultModel).length !== 1 ||
@@ -2821,6 +2904,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     ...(invoiceCollectDecision === undefined ? {} : { invoiceCollectDecision }),
     ...(invoiceIssueDecision === undefined ? {} : { invoiceIssueDecision }),
     ...(observeVenueDecision === undefined ? {} : { observeVenueDecision }),
+    ...(successRenewalDecision === undefined ? {} : { successRenewalDecision }),
     ...(rentNoticeDecision === undefined ? {} : { rentNoticeDecision }),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
@@ -2877,7 +2961,7 @@ export interface ScenarioReceiptSendGuard {
       readonly occurrence: { readonly start: number; readonly end: number } | null };
     readonly predicate: { readonly start: number; readonly end: number };
     /** Compiler-sealed IF/WHEN owner domains, exact against this bound plan. */
-    readonly ownerDecision?: EventDecisionPlan;
+    readonly ownerDecision?: EventDecisionPlan | SuccessRenewalDecisionPlan;
     /** Compiler-checked SEND recipient expression, confined to the private
      * reminder handler's exact Appointment.contact -> Contact.email path. */
     readonly recipientPath?: {
@@ -3011,13 +3095,22 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
           }) ||
           !models.has('eventTerm')) return invalid('event SEND requires its exact declared private field and typed lexical census.');
       if (Object.hasOwn(event, 'ownerDecision')) {
-        const checked = checkEventDecisionPlan(event['ownerDecision'], bound.plan.source);
-        if (bound.eventDecision === undefined || def.name !== 'maintain.remind' ||
-            stableStringify(checked) !== stableStringify(bound.eventDecision) ||
-            checked.whenSite.node.start !== node['start'] || checked.whenSite.node.end !== node['end']) {
-          return invalid('event SEND owner decision differs from its checked original IF/WHEN receipt.');
+        if (def.name === 'success.renewal_due') {
+          const checked = checkSuccessRenewalDecisionPlan(event['ownerDecision'], bound.plan.source);
+          if (bound.successRenewalDecision === undefined ||
+              stableStringify(checked) !== stableStringify(bound.successRenewalDecision) ||
+              checked.sites.send.node.start !== node['start'] || checked.sites.send.node.end !== node['end']) {
+            return invalid('renewal SEND owner decision differs from its checked original receipt.');
+          }
+        } else {
+          const checked = checkEventDecisionPlan(event['ownerDecision'], bound.plan.source);
+          if (bound.eventDecision === undefined || def.name !== 'maintain.remind' ||
+              stableStringify(checked) !== stableStringify(bound.eventDecision) ||
+              checked.whenSite.node.start !== node['start'] || checked.whenSite.node.end !== node['end']) {
+            return invalid('event SEND owner decision differs from its checked original IF/WHEN receipt.');
+          }
         }
-      } else if (bound.eventDecision !== undefined) {
+      } else if (bound.eventDecision !== undefined || bound.successRenewalDecision !== undefined) {
         return invalid('event SEND omitted its checked original owner decision.');
       }
       if (bound.invoiceOverdueDecision !== undefined) {
@@ -3105,6 +3198,7 @@ function declaredEventIntrinsic(def: GeneratedOperationDef): { readonly modelFie
   if (def.name === 'agreements.due') return { modelField: 'obligation', model: 'agreements.Obligation' as ModelName };
   if (def.name === 'appointments.remind') return { modelField: 'appointment', model: 'appointments.Appointment' as ModelName };
   if (def.name === 'maintain.remind') return { modelField: 'inspection', model: 'maintain.Inspection' as ModelName };
+  if (def.name === 'success.renewal_due') return { modelField: 'account', model: 'success.Account' as ModelName };
   if (def.name === 'invoice.overdue') return { modelField: 'invoice', model: 'invoice.Invoice' as ModelName };
   if (def.name === 'rent_reservations.correspondence' || def.name === 'rent_reservations.remind') {
     return { modelField: 'booking', model: 'rent_reservations.Booking' as ModelName };
@@ -3141,6 +3235,53 @@ function admittedWorkEventPayload(call: AdmittedCall, event: string): unknown {
   const retained = retainedEventAdmissions.get(call);
   if (retained?.event === event) return retained.eventPayload;
   return undefined;
+}
+
+/** The renewal staging IF admits exactly one Notice insert under the
+ * current Account when true: parent, revision linkage and recipient all
+ * derive from the admitted renewal row, and no other business write may
+ * appear. The queued Mail itself is fenced again at dispatch claim. */
+function successRenewalOwnWrite(call: AdmittedCall, owner: ReceiptOwnerSession, root: StoredRow, workRevision: bigint,
+  writes: readonly DomainWrite[], finalHealthy: () => void): boolean {
+  if (call.def.name !== 'success.renewal_due' || writes.length !== 1) return false;
+  const [only] = writes;
+  const queued = owner.framework?.queued.values().next().value;
+  const model = owner.capture.bound.artifactModels.get('success.Notice' as ModelName);
+  finalHealthy();
+  if (only === undefined || only.kind !== 'insert' || only.model !== 'success.Notice' ||
+      only.row.parent?.model !== 'success.Account' || only.row.parent.id !== root.id ||
+      only.row.version !== 1 || only.row.archivedAt !== null || model === undefined ||
+      queued === undefined || queued.operation !== call.def.name ||
+      queued.operationId !== call.context.operationId || queued.target !== 'std.EmailV1.send' ||
+      queued.occurrenceIndex !== 0 || queued.dispatchGuard !== owner.capture.bound.successRenewalDecision?.sendRule.rule) {
+    return false;
+  }
+  const expected: Record<string, unknown> = {
+    revision: encodeValue('int', workRevision), account_revision: encodeValue('int', workRevision),
+    recipient: root.data['email'], subject: 'Account renewal due',
+    body: 'Review the recorded renewal date; renewal remains a separate agreement action.',
+    delivery: encodeValue('delivery(std.EmailV1.send)?', makeDeliveryRef(queued.intentId, queued.target)),
+  };
+  for (const field of model.fields) {
+    if (Object.hasOwn(expected, field.name) || field.default?.kind === 'derived') continue;
+    if (field.default?.kind === 'literal') expected[field.name] = field.default.value;
+    else if (field.nullable === true) expected[field.name] = null;
+    else return false;
+  }
+  const request = object(queued.arguments, ['binding', 'from', 'arguments']);
+  const value = request['arguments'];
+  const args = object(value, ['to', 'subject', 'body',
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'attachments') ? ['attachments'] : [])]);
+  // format(..., locale=null) may select the default text or its authored
+  // Dutch translation. Keep the two fields in the same source locale.
+  const originalMessage = args['subject'] === expected['subject'] && args['body'] === expected['body'];
+  const translatedMessage = args['subject'] === 'Klantverlenging nodig' &&
+    args['body'] === 'Controleer de vastgelegde verlengingsdatum; verlenging blijft een afzonderlijke overeenkomstactie.';
+  finalHealthy();
+  return stableStringify(only.row.data) === stableStringify(expected) &&
+    request['binding'] === 'success.Mail' && args['to'] === root.data['email'] &&
+    (originalMessage || translatedMessage) &&
+    (!Object.hasOwn(args, 'attachments') || list(args['attachments']).length === 0);
 }
 
 /** Maintain's checked reminder sends before its sole business SET. The
@@ -5881,6 +6022,200 @@ export async function executeScenarioReceiptEventDecision(call: AdmittedCall, st
       }
       await authority.revalidate(); finalHealthy();
       if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Event decision moved beyond its admitted revision.');
+      return true;
+    } }));
+    return authority.value;
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+  finally { if (acquired) { state.pending--; owner!.busy = false; } }
+}
+
+/** The renewal staging IF is one source-stamped, pre-write owner decision
+ * over the current Account row. It pins the exact admitted RenewalDue
+ * event row and revision, fences the manager role and Employee reads behind
+ * the same owner stage, and records a commit guard: a false IF stages
+ * nothing, a true IF stages exactly one Notice insert plus its queued Mail.
+ * Dispatch revalidates every conjunct again before any provider call. */
+export async function executeScenarioReceiptSuccessRenewalDecision(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: SuccessRenewalDecisionPlan;
+  readonly checked: SuccessRenewalDecisionPlan;
+  readonly decision: 'if' | 'when';
+  readonly evaluate: (frame: {
+    readonly root: StoredRow;
+    readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
+    readonly query: (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+    readonly observer: ScenarioReceiptRequireObserver;
+    readonly role: (role: string, subject: UserRef) => Promise<boolean>;
+  }) => Promise<boolean>;
+}): Promise<boolean> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  let acquired = false;
+  try {
+    const profile = state.bound.successRenewalDecision;
+    if (profile === undefined || owner === undefined || owner.session === null || owner.stage !== 0 ||
+        owner.busy || state.pending !== 0 || state.returnId !== null ||
+        owner.executingCall !== call || owner.callGuards.length >= MAX_ITEMS ||
+        typeof input.evaluate !== 'function' || !['if', 'when'].includes(input.decision)) {
+      return invalid('renewal decision needs its exact active initial private owner stage.');
+    }
+    const original = checkSuccessRenewalDecisionPlan(dataCopy(input.original), state.bound.plan.source);
+    const checked = checkSuccessRenewalDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
+    if (stableStringify(original) !== stableStringify(checked) ||
+        stableStringify(original) !== stableStringify(profile)) {
+      return invalid('renewal decision differs from its independently checked source.');
+    }
+    const decision = input.decision, site = decision === 'if' ? profile.sites.if : profile.sites.send;
+    const occurrence = `success-renewal:${site.id}`;
+    if (owner.callGuards.some(guard => guard.name === occurrence) ||
+        (decision === 'if' ? owner.activeSend !== null : owner.activeSend?.call !== call ||
+          owner.activeSend.guard.rule !== profile.sendRule.rule ||
+          owner.activeSend.guard.eventSource?.event !== 'success.RenewalDue')) {
+      return invalid('renewal decision crossed its unique original IF or WHEN occurrence.');
+    }
+    const event = admittedEventIntrinsic(call, 'eventTerm');
+    const due = dueWorkAdmissions.get(call);
+    if (event === undefined || due?.eventPayload === undefined ||
+        event.event !== 'success.RenewalDue' || event.modelField.name !== 'account' ||
+        event.modelField.model !== 'success.Account' || event.revisionField.name !== 'revision') {
+      return invalid('renewal decision needs the actual admitted RenewalDue Work row.');
+    }
+    const payload = object(due.eventPayload, ['account', 'revision']);
+    const workRef = decodeValue('success.Account', payload['account']) as { readonly id: string };
+    const workRevision = decodeValue('int', payload['revision']) as bigint;
+    const admittedRef = call.recordRefs.find(ref => ref.param === 'account' &&
+      ref.model === 'success.Account' && ref.id === workRef.id);
+    if (admittedRef === undefined || workRevision !== decodeValue('int', admittedInputWire(call.inputs, 'revision')) ||
+        (decodeValue('success.Account', admittedInputWire(call.inputs, 'account')) as { readonly id: string }).id !== workRef.id) {
+      return invalid('renewal decision differs from its admitted Account and revision.');
+    }
+    owner.busy = true; state.pending++; acquired = true;
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner);
+      if (owner.stage !== 0 || owner.executingCall !== call || !owner.busy || state.pending !== 1 ||
+          state.returnId !== null) return invalid('renewal decision crossed its source owner stage.');
+    };
+    const root = await owner.session.views.final.get('success.Account' as ModelName, admittedRef.id); healthy();
+    if (root === null || root.archivedAt !== null || root.parent?.model !== 'customer.Customer' ||
+        BigInt(root.version) !== workRevision || root.data['active'] !== true || root.data['renewal'] == null ||
+        stableStringify(root) !== stableStringify(admittedRef.row)) {
+      throw new StateError('conflict', 'Renewal Account differs from its admitted source row.');
+    }
+    const location = decodeValue('rent_catalog.Location', root.data['location']) as { readonly id: string };
+    const permitted = new Set(['success.Account', 'customer.Customer', 'rent_catalog.Location', 'employee.Employee']);
+    const key = (model: string, id: string) => `${model}\0${id}`;
+    const rows = new Map<string, StoredRow>([[key('success.Account', root.id), root]]);
+    const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+      healthy();
+      if (!permitted.has(model) ||
+          model === 'success.Account' && id !== root.id ||
+          model === 'customer.Customer' && id !== root.parent?.id ||
+          model === 'rent_catalog.Location' && id !== location?.id ||
+          model === 'employee.Employee' && !rows.has(key(model, id))) {
+        return invalid('renewal decision read differs from its checked owner path.');
+      }
+      const cached = rows.get(key(model, id));
+      if (cached !== undefined) return cached;
+      const row = await owner.session!.views.final.get(model, id); healthy();
+      if (row !== null && (row.archivedAt !== null ||
+          model === 'success.Account' && row.id !== root.id ||
+          model === 'customer.Customer' && row.id !== root.parent?.id ||
+          model === 'rent_catalog.Location' && row.id !== location?.id)) {
+        throw new StateError('forbidden', 'Renewal decision parent or target lifetime is unavailable.');
+      }
+      if (row !== null) rows.set(key(model, id), row);
+      return row;
+    };
+    const policyDomains = ownerPolicyDomains(owner, healthy);
+    let queried = false, observedDomain: readonly string[] | null = null;
+    const query = async (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => {
+      healthy();
+      if (queried || model !== 'employee.Employee' || parent !== undefined) {
+        return invalid('renewal decision permits only its single complete Employee domain.');
+      }
+      queried = true;
+      const domain = await policyDomains.capture(model);
+      healthy();
+      for (const row of domain) rows.set(key(model, row.id), row);
+      return domain;
+    };
+    const observer: ScenarioReceiptRequireObserver = Object.freeze({
+      field: (model: string, projected: StoredRow | ProjectedRecord, field: string) => {
+        healthy();
+        const row = rows.get(key(model, projected.id));
+        if (row === undefined || row.version !== projected.version ||
+            !state.bound.artifactModels.has(model as ModelName) ||
+            !['parent', 'id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt'].includes(field) &&
+              !state.bound.artifactModels.get(model as ModelName)!.fields.some(entry => entry.name === field)) {
+          return invalid('renewal decision field lacks its actual declared owner row.');
+        }
+      },
+      query: (model: string, records: readonly ProjectedRecord[], id?: string,
+        parent?: Readonly<{ model: string; id: string }>) => {
+        healthy();
+        if (!queried || observedDomain !== null || model !== 'employee.Employee' ||
+            id !== undefined || parent !== undefined || records.some(row =>
+              rows.get(key(model, row.id))?.version !== row.version)) {
+          return invalid('renewal decision query lacks its complete Employee domain.');
+        }
+        observedDomain = Object.freeze(records.map(row => row.id));
+      },
+    });
+    const memberships = scenarioReceiptMemberships(call, store);
+    const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
+    const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
+    healthy();
+    const context: ByContext = { actorUserId, teamId, membership, memberships };
+    let answer: boolean | undefined;
+    let roleContext: ByContext | null = null, roleUses = 0;
+    const expectedManager = decodeValue('user', root.data['manager']) as { readonly kind: string; readonly id: string };
+    const role = async (name: string, subject: UserRef): Promise<boolean> => {
+      healthy();
+      if (roleContext === null || owner.activeEventDecision?.site !== site ||
+          name !== 'success.account_manager' || !isUserRef(subject) ||
+          !isUserRef(expectedManager) || subject.id !== expectedManager.id || ++roleUses !== 1) {
+        return invalid('renewal decision role differs from the actual Account manager.');
+      }
+      const result = await hasRole(roleContext, name, subject.id);
+      healthy(); return result;
+    };
+    const authority = await observeRowGrantAuthority(context, async observed => {
+      if (answer !== undefined) return answer;
+      if (observed.actorUserId !== context.actorUserId || observed.teamId !== context.teamId) {
+        return invalid('renewal decision Identity differs from its admitted source.');
+      }
+      const active = Object.freeze({ call, decision, site });
+      owner.activeEventDecision = active; roleContext = observed;
+      try { answer = await input.evaluate(Object.freeze({ root, read, query, observer, role })); }
+      finally { roleContext = null; owner.activeEventDecision = null; }
+      if (typeof answer !== 'boolean') return invalid('renewal decision original source must return Bool.');
+      healthy(); return answer;
+    });
+    await authority.revalidate(); healthy();
+    if (queried !== (observedDomain !== null)) return invalid('renewal Employee observation was omitted.');
+    owner.callGuards.push(Object.freeze({ name: occurrence, evaluate: async () => {
+      const final = owner.finalized;
+      if (final === null || owner.capture.poisoned) return invalid('renewal decision needs actual finalized owner effects.');
+      const finalHealthy = () => {
+        if (owner.finalized !== final || owner.capture.poisoned) return invalid('renewal decision final owner changed.');
+      };
+      await authority.revalidate(); finalHealthy();
+      if (observedDomain !== null) {
+        const retainedDomain = await policyDomains.retained(finalHealthy)('employee.Employee' as ModelName);
+        if (stableStringify(retainedDomain.map(row => row.id)) !== stableStringify(observedDomain)) {
+          throw new StateError('conflict', 'Renewal Employee owner domain changed before commit.');
+        }
+      }
+      const retained = successRenewalOwnWrite(call, owner, root, workRevision, final.writes, finalHealthy);
+      if (authority.value) {
+        if (!retained || owner.stage !== 1 || owner.framework?.ordinal !== 1 ||
+            owner.framework.queued.size !== 1 || owner.framework.skipped.size !== 0) {
+          throw new StateError('forbidden', 'Renewal decision lost its exact Notice and queued Mail.');
+        }
+      } else if (decision === 'if' && (owner.stage !== 0 || final.writes.length !== 0 ||
+          owner.framework?.queued.size !== 0 || owner.framework.skipped.size !== 0)) {
+        throw new StateError('forbidden', 'False renewal IF cannot stage a SEND or SET.');
+      }
+      await authority.revalidate(); finalHealthy();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Renewal decision moved beyond its admitted revision.');
       return true;
     } }));
     return authority.value;

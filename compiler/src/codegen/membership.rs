@@ -174,6 +174,12 @@ fn collect_membership_sites(
             }
             continue;
         }
+        if item.canonical == "success.renewal_due" {
+            if let Some(source) = super::success_send_decisions::collect_success_renewal_membership_sites(context, item) {
+                sites.insert(item.canonical.clone(), serde_json::Value::Array(source));
+            }
+            continue;
+        }
         if item.canonical == "member_terms.term" {
             if let Some(source) = super::term_decisions::collect_term_membership_sites(context,item) {
                 sites.insert(item.canonical.clone(),serde_json::Value::Array(source));

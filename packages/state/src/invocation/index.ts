@@ -28,6 +28,7 @@ export {
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   executeScenarioReceiptRequire, type ScenarioReceiptRequireSource, type ScenarioReceiptRequireObserver,
   executeScenarioReceiptEventDecision, type EventDecisionPlan,
+  executeScenarioReceiptSuccessRenewalDecision, type SuccessRenewalDecisionPlan,
   executeScenarioReceiptTermDecision, type TermDecisionPlan,
   executeScenarioReceiptLeaveRequestDecision, type LeaveRequestDecisionPlan,
   executeScenarioReceiptLeaveDecideDecision, type LeaveDecideDecisionPlan,

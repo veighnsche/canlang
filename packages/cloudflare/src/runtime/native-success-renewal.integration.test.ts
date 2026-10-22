@@ -1,17 +1,16 @@
 /** Scheduled renewal uses current Account rows before guarded delivery. */
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { it } from 'node:test';
 import { promisify } from 'node:util';
 import { execFile } from 'node:child_process';
 import type { CompileArtifact, FileRetirementAuthority } from '@canlang/contracts';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
-import { resolveIdentity, sha256HexText } from '@canlang/identity';
+import { resolveIdentity } from '@canlang/identity';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { asId, asModel, asVersion, makeBatch, makeRow, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
@@ -20,7 +19,6 @@ import { WORK_DISPATCH_STAGE_COMMANDS, WORK_SYSTEM_COMMANDS,
   createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
 import { classifyFailure } from '@canlang/work/receipt';
 import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
-import { buildInvoker } from '../worker/assembly.js';
 import { createBoundMailDispatcher } from './bound-dispatch.js';
 import { installNativeFileInventory } from './file-inventory.js';
 import { bindNativeEmailDispatchGuards, invokeDueScheduleCanonical,
@@ -40,6 +38,8 @@ it('refuses altered renewal guard conjuncts and retargeted helper calls', { time
   try {
     const original = await readFile(source, 'utf8');
     assert.equal(original.split(WHEN).length - 1, 1, 'original WHEN occurs exactly once');
+    const helper = original.match(/^  export derive can_work\(.*$/m)?.[0];
+    assert.ok(helper);
     const variants = [
       { name: 'dropped-conjunct',
         source: original.replace(WHEN,
@@ -47,6 +47,11 @@ it('refuses altered renewal guard conjuncts and retargeted helper calls', { time
       { name: 'reordered-conjuncts',
         source: original.replace(WHEN,
           'event.account.active and event.account.version==event.revision and account_manager(event.account.manager) and can_work(event.account.manager,event.account.location)') },
+      { name: 'retargeted-helper', source: original
+        .replace(helper, `${helper}\n${helper.replace('can_work(', 'can_work_shadow(')}`)
+        .replace('use employee {can_work}', 'use employee {can_work_shadow as can_work}') },
+      { name: 'unrelated-mail', source: original.replace('subject=format("Account renewal due"',
+        'subject=format("Unrelated message"') },
     ];
     for (const variant of variants) {
       assert.notEqual(variant.source, original, variant.name);
@@ -77,13 +82,14 @@ it('delivers renewal only from the current Account row and skips stale or unauth
       { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
     const artifact = JSON.parse(stdout) as CompileArtifact;
     const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
-      stdlibUrl: pathToFileURL(join(root, 'packages/cloudflare/dist/runtime/stdlib.js')).href,
+      stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
       uiUrl: import.meta.resolve('@canlang/ui') });
     assert.ok((artifact.modules[0]?.js ?? '').includes('sendWhen:'),
       'the original guarded Mail SEND is emitted');
 
     for (const mode of ['current-eligible', 'stale-version-location-archived',
-      'role-missing', 'account-deactivated', 'role-revoked-at-dispatch',
+      'role-missing', 'account-deactivated', 'employee-inactive', 'future-renewal',
+      'role-revoked-during-source', 'role-revoked-at-dispatch',
       'employee-deactivated-at-dispatch'] as const) {
       const now = Date.now(), clock = createFrozenClock(now);
       const identities = createMemoryIdentityStore({ clock });
@@ -110,7 +116,8 @@ it('delivers renewal only from the current Account row and skips stale or unauth
 
       const customerId = asId('customer-1'), locationId = asId('location-1');
       const employeeId = asId('employee-1'), accountId = asId('account-1');
-      const yesterday = new Date(now - 86400000).toISOString().slice(0, 10);
+      const renewal = new Date(now + (mode === 'future-renewal' ? 86400000 : -86400000))
+        .toISOString().slice(0, 10);
       await store.commit(makeBatch(await store.readRevision(), { writes: [
         { kind: 'insert' as const, model: asModel('customer.Customer'),
           row: { ...makeRow({ id: customerId, data: { name: 'Customer' } }), parent: null } },
@@ -118,10 +125,11 @@ it('delivers renewal only from the current Account row and skips stale or unauth
           row: { ...makeRow({ id: locationId, data: { name: 'Main site', timezone: 'UTC' } }), parent: null } },
         { kind: 'insert' as const, model: asModel('employee.Employee'),
           row: { ...makeRow({ id: employeeId, data: { user: { id: manager.user_id },
-            home: { id: locationId }, locations: [], operator_wide: false, active: true } }), parent: null } },
+            home: { id: locationId }, locations: [], operator_wide: false,
+            active: mode !== 'employee-inactive' } }), parent: null } },
         { kind: 'insert' as const, model: asModel('success.Account'),
           row: { ...makeRow({ id: accountId, data: { location: { id: locationId },
-            manager: { id: manager.user_id }, email: 'manager@example.test', renewal: yesterday,
+            manager: { id: manager.user_id }, email: 'manager@example.test', renewal,
             active: mode !== 'account-deactivated' } }),
             parent: { model: asModel('customer.Customer'), id: customerId } } },
       ] }));
@@ -157,11 +165,41 @@ it('delivers renewal only from the current Account row and skips stale or unauth
         writes: scheduled.writes ?? [], schedules: scheduled.schedules ?? [],
       }));
 
-      const stageDenied = mode === 'role-missing' || mode === 'account-deactivated';
-      const result = await invokeDueScheduleCanonical({ asm, artifact, app: scope.app,
+      let revokedDuringSource = false;
+      if (mode === 'role-revoked-during-source') {
+        const findMembership = identities.findMembership.bind(identities);
+        identities.findMembership = async (teamId, userId) => {
+          const current = await findMembership(teamId, userId);
+          if (!revokedDuringSource && teamId === team.team_id && userId === manager.user_id && current !== null) {
+            const observed = structuredClone(current);
+            revokedDuringSource = true;
+            await identities.setMembershipRoles(membership.membership_id, []);
+            return observed;
+          }
+          return current;
+        };
+      }
+      const stageDenied = mode === 'role-missing' || mode === 'account-deactivated' ||
+        mode === 'employee-inactive' || mode === 'future-renewal';
+      const invoke = () => invokeDueScheduleCanonical({ asm, artifact, app: scope.app,
         handler: 'success.renewal_due', due, store, identities, now: () => now });
+      if (mode === 'role-revoked-during-source') {
+        await assert.rejects(invoke, (error: unknown) => {
+          assert.ok(error instanceof Error && error.cause instanceof Error);
+          assert.equal((error.cause as Error & { code?: string }).code, 'forbidden');
+          assert.match(error.cause.message, /Row grant authority changed/);
+          return true;
+        });
+        assert.ok(revokedDuringSource, 'manager lookup raced revocation');
+        assert.equal(probe.outboxAll().length, 0, `${mode}: no Mail committed`);
+        assert.equal((await store.query({ model: asModel('success.Notice'), authority: 'owner' })).length,
+          0, `${mode}: no Notice committed`);
+        continue;
+      }
+      const result = await invoke();
       const expected = stageDenied ? 0 : 1;
-      assert.equal(result.status, 'completed', `${mode}: ${JSON.stringify(result)}`);
+      assert.equal(result.status, mode === 'account-deactivated' ? 'failed' : 'completed',
+        `${mode}: ${JSON.stringify(result)}`);
       const intents = probe.outboxAll();
       assert.equal(intents.length, expected, `${mode}: Mail intents`);
       const notices = await store.query({ model: asModel('success.Notice'), authority: 'owner' });
@@ -180,7 +218,7 @@ it('delivers renewal only from the current Account row and skips stale or unauth
         await store.commit(makeBatch(await store.readRevision(), { writes: [{
           kind: 'update', model: asModel('rent_catalog.Location'), id: location.id,
           expectedVersion: location.version,
-          row: { ...location, archivedAt: now, updated: now } }] }));
+          row: { ...location, version: asVersion(location.version + 1), archivedAt: now, updated: now } }] }));
       }
       if (mode === 'role-revoked-at-dispatch') {
         await identities.setMembershipRoles(membership.membership_id, []);
@@ -209,7 +247,7 @@ it('delivers renewal only from the current Account row and skips stale or unauth
           recipientActive: async () => true, resolveRecipient: async () => null,
           callProvider: async () => {
             providerCalls++;
-            return { kind: 'delivered', result: null };
+            return { kind: 'delivered', result: { reference: 'mail-accepted' } };
           },
           reconcile: async () => null,
         };
@@ -224,7 +262,8 @@ it('delivers renewal only from the current Account row and skips stale or unauth
           evaluateGuard: () => { throw new Error('native guard was bypassed'); },
           readStateSnapshot: () => null, fence: fenceFor(intent) });
         if (mode === 'current-eligible') {
-          assert.equal(dispatched.status, 'claimed', `${mode}: ${JSON.stringify(dispatched)}`);
+          assert.equal(dispatched.status, 'recorded', `${mode}: ${JSON.stringify(dispatched)}`);
+          if (dispatched.status === 'recorded') assert.equal(dispatched.state, 'delivered', mode);
           assert.equal(providerCalls, 1, `${mode}: one provider call`);
         } else {
           assert.equal(dispatched.status, 'not-claimed', `${mode}: ${JSON.stringify(dispatched)}`);

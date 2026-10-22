@@ -8,17 +8,23 @@
 //! outer `if` time comparison (`local_instant(...)<=now`) is intentionally
 //! NOT re-evaluated at dispatch, so this profile pins the exact `when=` text
 //! and refuses any `now` root inside it.
+use std::collections::HashMap;
+
 use serde_json::{Value, json};
 
 use crate::analysis::effects::{EffectTarget, EffectVerb, HandlerSource};
+use crate::analysis::scenario_disclosure::DisclosureSource;
 use crate::analysis::resolve::{Binding, ContextVar, ModelOwner, SymbolId, SymbolKind};
 use crate::analysis::types::SelectedCallTarget;
 use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar};
-use crate::source::{SourceDb, Span};
+use crate::source::{SourceDb, Span, sha256_hex};
 use crate::syntax::SyntaxKind;
 
 use super::ir::{IrExpr, IrItem, IrItemKind, IrStmt, TypedExpr};
 use super::scenario_decisions::FreshSourceContext;
+use super::scenario_receipts::{
+    NativeReturn, NativeScenarioReceipt, ReceiptDisclosurePlan, ReceiptReturn, transport_source,
+};
 use super::send_guards::{PreparedSendGuard, PreparedSendInput};
 use super::term_decisions as t;
 
@@ -139,11 +145,11 @@ pub(super) fn collect_success_renewal_membership_sites(
         });
     let (member, selected) = members.next()?;
     if members.next().is_some()
-        || t::text(db, *member)? != "active_member(person,team)"
+        || t::text(db, *member) != Some("active_member(person,team)")
         || selected.arguments.len() != 2
         || selected.slots != [Some(0), Some(1)]
-        || t::text(db, selected.arguments[0])? != "person"
-        || t::text(db, selected.arguments[1])? != "team"
+        || t::text(db, selected.arguments[0]) != Some("person")
+        || t::text(db, selected.arguments[1]) != Some("team")
         || program.types.node_types.get(member)? != &ResolvedType::Scalar(Scalar::Bool)
         || program.types.node_types.get(&selected.arguments[0])?
             != &ResolvedType::Scalar(Scalar::User)
@@ -164,12 +170,15 @@ pub(super) fn collect_success_renewal_membership_sites(
         return None;
     }
     let member_source = t::source(program, db, *member, "employee")?;
+    let [send, _] = top.then_effects.as_slice() else {
+        return None;
+    };
     let mut sites = Vec::new();
     for (guard, statement, stage, position) in [
         (top.cond?, top.node, "body-condition", json!([{"kind":"body","index":0}])),
         (
-            send_when(program, scenario)?,
-            send_node(program, scenario)?,
+            send.when?,
+            send.node,
             "send-dispatch",
             json!([{"kind":"body","index":0},{"kind":"then","index":0}]),
         ),
@@ -193,31 +202,6 @@ pub(super) fn collect_success_renewal_membership_sites(
         );
     }
     Some(sites)
-}
-
-fn send_when(program: &CheckedProgram, scenario: &crate::analysis::effects::Scenario) -> Option<NodeKey> {
-    let [send, _] = scenario_effect_send(scenario)?.then_effects.as_slice() else {
-        return None;
-    };
-    let _ = program;
-    send.when
-}
-
-fn send_node(program: &CheckedProgram, scenario: &crate::analysis::effects::Scenario) -> Option<NodeKey> {
-    let [send, _] = scenario_effect_send(scenario)?.then_effects.as_slice() else {
-        return None;
-    };
-    let _ = program;
-    Some(send.node)
-}
-
-fn scenario_effect_send(
-    scenario: &crate::analysis::effects::Scenario,
-) -> Option<&crate::analysis::effects::Effect> {
-    let [top] = scenario.effects.as_slice() else {
-        return None;
-    };
-    (top.verb == EffectVerb::If).then_some(top)
 }
 
 /// The single call of `target` inside `within`: same spelling with a
@@ -563,20 +547,31 @@ pub(super) fn prepare_renewal_due_send_guard(
         predicate.start,
         predicate.end
     );
+    let node_plain = plain(predicate);
+    let statement_plain = plain(send.node);
+    let require_site = t::site(program, db, "success", header.cond?, header.node, "success-renewal-require")?;
+    let if_site = t::site(program, db, "success", top.cond?, top.node, "success-renewal-if")?;
+    let send_site = t::site(program, db, "success", send.when?, send.node, "success-renewal-send")?;
+    let create_site = t::site(program, db, "success", create.node, create.node, "success-renewal-create")?;
+    let decision = json!({"version":1,"owner":"success.renewal_due","source":source.clone(),
+        "sites":{"require":require_site,"if":if_site,"send":send_site,"create":create_site},
+        "sendRule":{"rule":rule.clone(),"source":source.clone(),
+            "node":node_plain.clone(),"statement":statement_plain.clone()}});
     let descriptor = json!({"rule":rule,"owner":"success.renewal_due","source":source,
-        "node":t::interval(predicate),"statement":t::interval(send.node),
+        "node":node_plain,"statement":statement_plain,
         "target":"std.EmailV1.send","binding":"success.Mail","sourceBinding":"notice",
         "inputs":[{"name":"eventTerm","type":"success.Account"},
             {"name":"eventRevision","type":"int"}],
         "eventSource":{"event":"success.RenewalDue","handler":"success.renewal_due",
             "modelField":{"name":"account","model":"success.Account",
-                "declaration":t::interval(header_account),
-                "occurrence":t::interval(when_account),
+                "declaration":plain(header_account),
+                "occurrence":plain(when_account),
                 "fields":["active","email","location","manager","renewal"]},
             "revisionField":{"name":"revision","type":"int",
-                "declaration":t::interval(header_revision),
-                "occurrence":t::interval(when_revision)},
-            "predicate":t::interval(predicate)}});
+                "declaration":plain(header_revision),
+                "occurrence":plain(when_revision)},
+            "predicate":plain(predicate),
+            "ownerDecision":decision}});
     Some((
         t::span(send.node),
         PreparedSendGuard {
@@ -593,4 +588,104 @@ pub(super) fn prepare_renewal_due_send_guard(
             }),
         },
     ))
+}
+
+/// Native receipt for the exact renewal SEND owner. The guard profile above
+/// must match first (fail-closed); the embedded ownerDecision is verified
+/// here for sendRule correspondence before it joins the State plan. Full
+/// site/source validation happens in State's checkSuccessRenewalDecisionPlan
+/// and the Cloudflare occurrence gate.
+pub(super) fn collect_renewal_receipt(
+    context: &FreshSourceContext<'_>,
+    item: &IrItem,
+    entry_module: &str,
+    send_guards: &HashMap<Span, PreparedSendGuard>,
+) -> Option<NativeScenarioReceipt> {
+    if item.canonical != "success.renewal_due" {
+        return None;
+    }
+    let (span, guard) = prepare_renewal_due_send_guard(context, item)?;
+    if send_guards.get(&span).is_none_or(|registered| registered.rule != guard.rule) {
+        return None;
+    }
+    let program = context.original();
+    let db = context.db();
+    let scenario = program.effects.scenarios.get(&item.id)?;
+    let file = db.get(scenario.node.file)?;
+    // Logical source stays `success` for decision, sites and guard; only the
+    // outer plan/return source is transported to the physical entry module.
+    let logical = t::source(program, db, scenario.node, "success")?;
+    let source = transport_source(
+        &DisclosureSource {
+            path: file.path.clone(),
+            sha256: file.sha256.clone(),
+            module: "success".into(),
+        },
+        entry_module,
+    )?;
+    if source.path != file.path
+        || source.sha256 != file.sha256
+        || guard.descriptor["source"] != logical
+    {
+        return None;
+    }
+    let decision = guard.descriptor.pointer("/eventSource/ownerDecision")?.clone();
+    if decision["owner"] != "success.renewal_due" || decision["source"] != logical ||
+        decision["sendRule"]["rule"] != guard.descriptor["rule"] ||
+        decision["sendRule"]["source"] != guard.descriptor["source"] ||
+        decision["sendRule"]["node"] != guard.descriptor["node"] ||
+        decision["sendRule"]["statement"] != guard.descriptor["statement"] ||
+        decision.pointer("/sites/require").is_none() || decision.pointer("/sites/if").is_none() ||
+        decision.pointer("/sites/send").is_none() || decision.pointer("/sites/create").is_none()
+    {
+        return None;
+    }
+    let id = sha256_hex(
+        format!(
+            "success-renewal-void/v1:{}:{}:{}",
+            source.sha256, scenario.node.start, scenario.node.end
+        )
+        .as_bytes(),
+    );
+    Some(NativeScenarioReceipt {
+        plan: ReceiptDisclosurePlan {
+            version: 1,
+            source: source.clone(),
+            event_decision: None,
+            term_decision: None,
+            leave_request_decision: None,
+            leave_decide_decision: None,
+            refer_reject_decision: None,
+            member_retry_decision: None,
+            invoice_overdue_decision: None,
+            rent_movement_refund_decision: None,
+            invoice_collect_decision: None,
+            rent_notice_decision: None,
+            invoice_issue_decision: None,
+            observe_venue_decision: None,
+            success_renewal_decision: Some(decision),
+            queries: Vec::new(),
+            returns: vec![ReceiptReturn {
+                id: id.clone(),
+                source,
+                influences: Vec::new(),
+                dependencies: Vec::new(),
+                intrinsics: Vec::new(),
+                projection: None,
+            }],
+        },
+        dependencies: Default::default(),
+        intrinsics: Default::default(),
+        decisions: Default::default(),
+        decision_keys: Default::default(),
+        calls: Default::default(),
+        returns: vec![NativeReturn {
+            id,
+            span: item.span,
+            decisions: Vec::new(),
+            implicit: true,
+            reference_result: None,
+        }],
+        current_revision: None,
+    })
 }

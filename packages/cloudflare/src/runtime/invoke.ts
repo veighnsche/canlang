@@ -1479,6 +1479,7 @@ interface StateInvokeProducer {
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
   readonly executeScenarioReceiptRequire?: typeof import('@canlang/state/invocation').executeScenarioReceiptRequire;
   readonly executeScenarioReceiptEventDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptEventDecision;
+  readonly executeScenarioReceiptSuccessRenewalDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptSuccessRenewalDecision;
   readonly executeScenarioReceiptTermDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptTermDecision;
   readonly executeScenarioReceiptLeaveRequestDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptLeaveRequestDecision;
   readonly executeScenarioReceiptLeaveDecideDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptLeaveDecideDecision;
@@ -1786,6 +1787,9 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['executeScenarioReceiptEventDecision'] !== 'function' ? {} : {
       executeScenarioReceiptEventDecision: scenarioMod['executeScenarioReceiptEventDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptEventDecision']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptSuccessRenewalDecision'] !== 'function' ? {} : {
+      executeScenarioReceiptSuccessRenewalDecision: scenarioMod['executeScenarioReceiptSuccessRenewalDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptSuccessRenewalDecision']>,
     }),
     ...(typeof scenarioMod['executeScenarioReceiptTermDecision'] !== 'function' ? {} : {
       executeScenarioReceiptTermDecision: scenarioMod['executeScenarioReceiptTermDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptTermDecision']>,
@@ -4582,20 +4586,32 @@ async function prepareSuccessRenewalViews(input: {
   readonly root: StoredRow;
   readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
   readonly query: (model: ModelName, parent?: Readonly<{ model: ModelName; id: RecordId }>) => Promise<readonly StoredRow[]>;
+  readonly observer?: import('@canlang/state/invocation').ScenarioReceiptRequireObserver;
   readonly healthy: () => void;
   readonly failure: (error: unknown) => void;
 }) {
   const { loaded, snapshots, healthy } = input;
   const StateError = loaded.producers.errors;
+  const track = (model: string, row: StoredRow, value: Readonly<Record<string, unknown>>) => {
+    if (input.observer === undefined) return value;
+    const tracked = new Proxy(value, { get: (target, field, receiver) => {
+      const result = Reflect.get(target, field, receiver);
+      if (typeof field === 'string') input.observer!.field(model, row, field);
+      return result;
+    } });
+    bindNativeRecord(tracked, model, row.id, row.version);
+    return tracked;
+  };
   const navigation = await prepareNativeSendGuardReferences({ loaded, artifact: input.artifact, snapshots,
     roots: [{ type: 'success.Account', wire: input.root }], read: input.read,
-    healthy, failure: input.failure, successRenewalOnly: true });
+    healthy, failure: input.failure, successRenewalOnly: true,
+    ...(input.observer === undefined ? {} : { observeField: input.observer.field }) });
   const reference = (model: string, id: string): unknown => {
     if (!navigation.hasPrepared(model, id) &&
         (model === 'customer.Customer' || model === 'rent_catalog.Location')) return makeRecordRef(model, id);
     return navigation.reference(model, id);
   };
-  const root = snapshots.view('success.Account', input.root, healthy, reference);
+  const root = track('success.Account', input.root, snapshots.view('success.Account', input.root, healthy, reference));
   const readRecords = async (c: HandlerContext, model: string, selection: CanonicalReadQuery): Promise<ReadonlyArray<Record<string, unknown>>> => {
     healthy();
     if (model !== 'employee.Employee' ||
@@ -4612,9 +4628,10 @@ async function prepareSuccessRenewalViews(input: {
     }
     const rows = await input.query(model as ModelName, undefined);
     healthy();
+    input.observer?.query(model, rows.map(row => ({ ...row, parent: row.parent ?? null })));
     const matched: Record<string, unknown>[] = [];
     for (const row of rows) {
-      const view = snapshots.view(model, row, healthy, reference);
+      const view = track(model, row, snapshots.view(model, row, healthy, reference));
       const verdict: unknown = selection.where === undefined ? true : await selection.where(view, c);
       healthy();
       if (typeof verdict !== 'boolean') throw new StateError('validation', 'Renewal event query predicate must return Bool.');
@@ -4738,7 +4755,9 @@ async function prepareSuccessRenewalDispatchDecision(input: {
     }
     // Every Account/Customer/Location row the guard traverses is pinned by
     // the navigation fingerprint below; untraversed refs stay unloaded.
-    await views.revalidate();
+    // Work runs the final claim checks after the predicate context closes.
+    // Reuse the revision-pinned reader, rather than its evaluation-only lease.
+    await views.revalidate(readCurrent);
     for (const domain of domains) {
       const live = await queryCurrent(domain.model);
       if (stableStringify(live) !== stableStringify(domain.rows)) {
@@ -5280,9 +5299,11 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
             inputs[1]?.name !== 'eventRevision' || inputs[1]?.type !== 'int') {
           throw new AssemblyCorrespondenceError('Event SEND guard lacks its original declared event, handler and typed field proof.');
         }
-        const checkedDecision = (plan as typeof plan & { readonly eventDecision?: unknown }).eventDecision;
+        const checkedDecision = def.name === 'success.renewal_due'
+          ? (plan as typeof plan & { readonly successRenewalDecision?: unknown }).successRenewalDecision
+          : (plan as typeof plan & { readonly eventDecision?: unknown }).eventDecision;
         if (Object.hasOwn(source, 'ownerDecision') ?
-            def.name !== 'maintain.remind' || checkedDecision === undefined ||
+            !['maintain.remind', 'success.renewal_due'].includes(def.name) || checkedDecision === undefined ||
               stableStringify(source.ownerDecision) !== stableStringify(checkedDecision) :
             checkedDecision !== undefined) {
           throw new AssemblyCorrespondenceError('Event SEND owner decision differs from its independently checked receipt.');
@@ -6318,7 +6339,7 @@ async function loadCanonicalDescriptorsInternal(
     const ownerSites = sites.filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
     if (!ownerSites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'))) continue;
     const def = generatedScenarioDef({ def: canonical.registry.get(owner) });
-    if (def === undefined && owner === 'maintain.remind' && artifact.callables.some(callable =>
+    if (def === undefined && (owner === 'maintain.remind' || owner === 'success.renewal_due') && artifact.callables.some(callable =>
       callable.id === owner && callable.kind === 'handler')) continue;
     if (def === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked scenario.');
     const report = artifact.operations?.find(operation => operation.name === owner && operation.kind === 'read');
@@ -11109,6 +11130,56 @@ async function runScenarioExecution(
     qualified: call.context,
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
+  async function evaluateSuccessRenewalDecision(context: HandlerContext, descriptor: unknown,
+    decision: 'if' | 'when', predicate: Function, lexical?: Readonly<Record<string, unknown>>): Promise<boolean> {
+    const actualCall = call as AdmittedCall;
+    const checked = (scenarioDef?.descriptor.result?.disclosure as
+      { readonly successRenewalDecision?: import('@canlang/state/invocation').SuccessRenewalDecisionPlan } | undefined)
+      ?.successRenewalDecision;
+    const execute = loaded.producers.invoke.executeScenarioReceiptSuccessRenewalDecision;
+    const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+    if (checked === undefined || checked.owner !== 'success.renewal_due' || receiptStore === undefined ||
+        sendSnapshots === undefined || execute === undefined || assertCall === undefined ||
+        stableStringify(descriptor) !== stableStringify(checked) ||
+        eventDecisionReadRecords !== null || !nativeScenarioExecutions.has(actualCall)) {
+      return refuseRecordBinding('Renewal decision lacks its actual checked source owner.');
+    }
+    const healthy = () => assertCall(actualCall, receiptStore);
+    try {
+      return await execute(actualCall, receiptStore, {
+        original: descriptor as typeof checked, checked, decision,
+        evaluate: async frame => {
+          if (lexical !== undefined) {
+            const frozen = sendSnapshots!.snapshot('success.Account', localPolicyMember(lexical, 'eventTerm'));
+            const { data: frozenData, ...frozenHeader } = frozen;
+            const { data: currentData, ...currentHeader } = frame.root;
+            if (stableStringify(frozenHeader) !== stableStringify(currentHeader) ||
+                Object.entries(frozenData).some(([field, value]) => !Object.hasOwn(currentData, field) ||
+                  stableStringify(value) !== stableStringify(currentData[field])) ||
+                decodeCanonicalValue(loaded.valueSchema, 'int', localPolicyMember(lexical, 'eventRevision')) !==
+                  decodeCanonicalValue(loaded.valueSchema, 'int', localPolicyMember(actualCall.inputs, 'revision'))) {
+              return refuseRecordBinding('Renewal WHEN differs from its frozen admitted Account and revision.');
+            }
+          }
+          const views = await prepareSuccessRenewalViews({ loaded, artifact: opts.artifact,
+            snapshots: sendSnapshots!, root: frame.root, read: frame.read, query: frame.query,
+            observer: frame.observer, healthy, failure: recordEngineFailure });
+          eventDecisionReadRecords = (model, query) => views.readRecords(context, model, query);
+          let closeRole: (() => void) | undefined;
+          try {
+            closeRole = bindNativeEventDecisionRole(context, frame.role);
+            const eventRevision = decodeCanonicalValue(loaded.valueSchema, 'int',
+              localPolicyMember(actualCall.inputs, 'revision'));
+            const verdict: unknown = await Reflect.apply(predicate, undefined,
+              [context, Object.freeze({ eventTerm: views.root, eventRevision })]);
+            await views.revalidate(); healthy();
+            if (typeof verdict !== 'boolean') return refuseRecordBinding('Renewal decision must return Bool.');
+            return verdict;
+          } finally { closeRole?.(); eventDecisionReadRecords = null; }
+        },
+      });
+    } catch (error) { recordEngineFailure(error); throw error; }
+  }
   if (receiptAware && receiptStore !== undefined) {
     // This is the unchanged call pointer supplied by actual State.invoke.
     // State verifies the lifetime and selected store before opening the frame.
@@ -11159,7 +11230,9 @@ async function runScenarioExecution(
           currentSend();
           if (!guardOpen) return refuseRecordBinding('Source SEND native context is closed.');
         };
-        const eventDecision = selected.guard.eventSource?.ownerDecision;
+        const ownerDecision = selected.guard.eventSource?.ownerDecision;
+        const eventDecision = ownerDecision?.owner === 'maintain.remind' ? ownerDecision : undefined;
+        const renewalDecision = ownerDecision?.owner === 'success.renewal_due' ? ownerDecision : undefined;
         const invoiceOverdueGuard = selected.guard.owner === 'invoice.overdue' &&
           (scenarioDef?.descriptor.result?.disclosure as
             { readonly invoiceOverdueDecision?: { readonly sendRule: { readonly rule: string } } } | undefined)
@@ -11178,7 +11251,7 @@ async function runScenarioExecution(
           ? { model: 'events.Change', id: sendSnapshots.snapshot('events.Change',
             localPolicyMember(frame.inputs, 'change')).id }
           : undefined;
-        const referenceNavigation = eventDecision !== undefined || invoiceOverdueGuard ||
+        const referenceNavigation = eventDecision !== undefined || renewalDecision !== undefined || invoiceOverdueGuard ||
           invoiceCollectGuard || invoiceIssueGuard || sendSnapshots === undefined
           ? undefined : await prepareNativeSendGuardReferences({
           loaded, artifact: opts.artifact, snapshots: sendSnapshots,
@@ -11278,7 +11351,9 @@ async function runScenarioExecution(
           selected.guard.rule, recordEngineFailure);
         try {
           membership.assertCompleted(); currentSend();
-          const accepted: unknown = eventDecision === undefined ? await selected.evaluate(fresh, Object.freeze(inputs)) :
+          const accepted: unknown = renewalDecision !== undefined
+            ? await evaluateSuccessRenewalDecision(fresh, renewalDecision, 'when', selected.evaluate, frame.inputs)
+            : eventDecision === undefined ? await selected.evaluate(fresh, Object.freeze(inputs)) :
             await (async () => {
               const execute = loaded.producers.invoke.executeScenarioReceiptEventDecision;
               if (execute === undefined || sendSnapshots === undefined ||
@@ -12970,6 +13045,19 @@ async function runScenarioExecution(
           } });
       } catch (error) { recordEngineFailure(error); throw error; }
     });
+  }
+  if (internalHandlerDue && receiptStore !== undefined && scenarioDef?.name === 'success.renewal_due') {
+    const checked = (scenarioDef.descriptor.result?.disclosure as
+      { readonly successRenewalDecision?: import('@canlang/state/invocation').SuccessRenewalDecisionPlan } | undefined)
+      ?.successRenewalDecision;
+    const selected = [...(nativeSourceSendGuards.get(scenarioDef)?.values() ?? [])].filter(guard =>
+      guard.guard.eventSource?.ownerDecision?.owner === 'success.renewal_due');
+    if (checked === undefined || selected.length !== 1 ||
+        stableStringify(selected[0]!.guard.eventSource?.ownerDecision) !== stableStringify(checked)) {
+      return refuseRecordBinding('Renewal IF lacks its exact original SEND owner decision.');
+    }
+    bindNativeScenarioEventDecision(ctx, (descriptor, predicate) =>
+      evaluateSuccessRenewalDecision(ctx, descriptor, 'if', predicate));
   }
   if (internalHandlerDue && receiptStore !== undefined && scenarioDef?.name === 'maintain.remind') {
     const actualCall = call as AdmittedCall;
@@ -16192,6 +16280,22 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
         typeof app !== 'string' || app === '' || !isUnknownRecord(operations) ||
         readMetadataMember(operations, privateDef.name, 'Maintain event membership') === undefined) {
       throw new AssemblyCorrespondenceError('Maintain event IF lacks its exact original nested membership source.');
+    }
+    bindNativeOwnerMembership(privateDef, { source: sites[0]!.source,
+      app, sites });
+  }
+  if (privateDef.name === 'success.renewal_due') {
+    const sites = (privateLoaded.membershipSources.get(privateDef.name) ?? []).filter(site =>
+      site.stage === 'body-condition');
+    const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', 'Success renewal membership')?.value : undefined;
+    const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', 'Success renewal membership')?.value : undefined;
+    const operation = isUnknownRecord(operations) ? readMetadataMember(operations, privateDef.name, 'Success renewal membership')?.value : undefined;
+    const sendGuards = isUnknownRecord(operation) ? readMetadataMember(operation, 'sendGuards', 'Success renewal membership')?.value : undefined;
+    if (sites.length !== 1 || !sites[0]!.calls.some(call =>
+        call.target.kind === 'builtin' && call.target.id === 'active_member') ||
+        typeof app !== 'string' || app === '' || !isUnknownRecord(operations) ||
+        operation === undefined || !Array.isArray(sendGuards) || sendGuards.length !== 1) {
+      throw new AssemblyCorrespondenceError('Success renewal IF lacks its exact original nested membership source.');
     }
     bindNativeOwnerMembership(privateDef, { source: sites[0]!.source,
       app, sites });
@@ -21377,7 +21481,7 @@ export async function bindNativeEmailDispatchGuards(input: {
     const successRenewalGuard = selected.guard.owner === 'success.renewal_due';
     if (successRenewalGuard &&
         (selected.guard.target !== 'std.EmailV1.send' || selected.guard.binding !== 'success.Mail' ||
-          selected.guard.eventSource === undefined ||
+          selected.guard.eventSource?.ownerDecision?.owner !== 'success.renewal_due' ||
           selected.guard.inputs.length !== 2 ||
           selected.guard.inputs[0]?.name !== 'eventTerm' ||
           selected.guard.inputs[0]?.type !== 'success.Account' ||
@@ -21430,7 +21534,8 @@ export async function bindNativeEmailDispatchGuards(input: {
         ? { model: 'events.Change', id: sendSnapshots.snapshot('events.Change',
           localPolicyMember(actual.lexical, 'change')).id }
         : undefined;
-      const eventDecision = selected.guard.eventSource?.ownerDecision;
+      const ownerDecision = selected.guard.eventSource?.ownerDecision;
+      const eventDecision = ownerDecision?.owner === 'maintain.remind' ? ownerDecision : undefined;
       // The leave source guard captures Request after the approval SET; its
       // final delivery-id SET changes that same row before dispatch. The
       // current Request is separately reloaded and checked below, and the
