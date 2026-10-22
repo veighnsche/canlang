@@ -86,7 +86,7 @@ it('sends and records original confirmation, cancellation, and reminder from gen
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
       const artifact = JSON.parse(stdout) as CompileArtifact;
       const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
-        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+        stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
         uiUrl: import.meta.resolve('@canlang/ui') });
 
       for (const mode of ['cancellation', 'expired', 'no-show', 'held', 'hidden-parents',
