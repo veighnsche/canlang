@@ -1,4 +1,4 @@
-app CanMaintain uses=[maintain]
+app CanMaintain uses=[maintain,field]
 
 package rent_catalog
  Given
@@ -17,6 +17,7 @@ package employee
  Then
 
 package maintain
+ use field {ReportSubmitted}
  use rent_catalog {Location}
  use employee {Employee,can_work}
  use std {EmailV1 as Mail} from=deployment.mail
@@ -26,7 +27,7 @@ package maintain
   export Asset { name:text, location:Location, inspection_epoch:int=0, retired:bool=false }
   Plan in Asset { name:text, assignee:user, revision:int=1, asset_epoch:int=0, active:bool=true, hidden:bool=false }
   export Inspection in Plan { cancelled:bool=false, reminder_email:email, reminded_at:datetime?, due:date, asset_epoch:int=0, template_version:int, inspector:user, result:enum(pending,passed,failed,blocked)=pending, checklist:text[]!, answers:text[], evidence:text?, inspected_at:datetime?, repair:Repair?, hidden:bool=false }
-  Repair in Asset { title:text, description:text, reporter:user?, state:enum(open,assigned,in_progress,awaiting_verification,fixed)=open }
+  export Repair in Asset { title:text, description:text, reporter:user?, completion:text?, visit_review:bool=false, state:enum(open,assigned,in_progress,awaiting_verification,fixed)=open }
   policy Repair read=members
   Cancellation in Asset { plan:Plan?, through:int, cutoff:date, reason:enum(plan_revised,asset_retired), hidden:bool=false }
   derive plan_eligible(plan:Plan):bool = plan.active and not plan.parent.retired and plan.asset_epoch==plan.parent.inspection_epoch and technician(plan.assignee) and can_work(plan.assignee,plan.parent.location)
@@ -55,10 +56,61 @@ package maintain
     if result in [failed,blocked]
      create Repair {parent=inspection.parent.parent,title=inspection.parent.name,description=evidence,reporter=actor} as repair
      set inspection {repair}
+  scenario visit_report on=ReportSubmitted
+   do
+    let job=event.report.parent
+    if job.repair!=null
+     require job.location==job.repair.parent.location and job.state==done
+     if job.repair.state in [assigned,in_progress,awaiting_verification]
+      set job.repair {state=awaiting_verification,completion=event.report.notes,visit_review=true}
+     else
+      set job.repair {visit_review=true}
   scenario remind on=Reminder
    do
     let inspection=event.inspection
     if inspection_pending(inspection) and inspection.template_version==event.revision and inspection.parent.revision==event.revision and inspection.inspector==inspection.parent.assignee and local_instant(inspection.due,"09:00",inspection.parent.parent.location.timezone,fold=earlier)<=now and plan_eligible(inspection.parent) and inspection.asset_epoch==inspection.parent.asset_epoch
      send Mail.send {to=inspection.reminder_email,subject=format("Inspection due"@{nl="Inspectie gepland"},locale=null),body=inspection.parent.name} when=inspection_pending(inspection) and inspection.template_version==event.revision and inspection.parent.revision==event.revision and inspection.inspector==inspection.parent.assignee and local_instant(inspection.due,"09:00",inspection.parent.parent.location.timezone,fold=earlier)<=now and plan_eligible(inspection.parent) and inspection.asset_epoch==inspection.parent.asset_epoch as notice
      set inspection {reminded_at=now}
+ Then
+
+package field
+ use std {EmailV1 as Mail} from=deployment.mail
+ use shift {ScheduleV1 as StaffSchedule} from=deployment.staff_schedule
+ use employee {Employee,can_work}
+ use maintain {Repair,Inspection,inspect as record_inspection}
+ use rent_catalog {Location}
+ Given
+  role technician
+  message label_Report_photo = "Photo"@{nl="Foto"}
+  Job {source:text unique,schedule_source:text?,schedule_revision:int=1,release_delivery:text?,released:bool=false,contact:email,repair:Repair?,employee:Employee,location:Location,inspection:Inspection?,state:enum(in_progress,blocked,done)=in_progress}
+  Replacement in Job {state:enum(pending,unknown,done)=pending}
+  export Report in Job { correction:Report? label="Corrects report"@{nl="Corrigeert verslag"}, author:user server=actor label="Author"@{nl="Auteur"}, notes:text trim min=1, photo:file? label=label_Report_photo, completed:datetime server=now label="Completed at"@{nl="Afgerond op"} } label="Visit report"@{nl="Bezoekrapport"}
+  export event ReportSubmitted {report:Report}
+  lock Report fields=correction,author,notes,photo,completed
+  policy Report read=technician
+  policy Job read=technician
+  policy Replacement read=technician
+ When
+  scenario complete(job:Job,notes:text,photo:file? label=label_Report_photo,answers:Inspection.answers=[],result:Inspection.result?) by=technician
+   require job.employee.user==actor and job.employee.active and can_work(actor,job.location) and job.state in [in_progress,blocked] and not any(job.Replacement as candidate,candidate.state in [pending,unknown]) and trim(notes)!=""
+   do
+    if job.inspection!=null
+     require result!=null
+     call record_inspection {inspection=job.inspection,answers,result,evidence=notes}
+    else
+     require count(answers)==0 and result==null
+    create Report {parent=job,notes,photo} as report
+    set job {state=done}
+    emit ReportSubmitted {report}
+    send StaffSchedule.release {source=job.schedule_source??job.source,revision=job.schedule_revision} as release
+    set job {release_delivery=release.id,released=false}
+    send Mail.send {to=job.contact,subject=format("Visit completed"@{nl="Bezoek afgerond"},locale=null),body=notes} when=job.state==done as notice
+ Then
+
+package shift
+ use std {OperationOutcome}
+ Given
+  export capability ScheduleV1 version=1
+   release(source:text,revision:int) -> OperationOutcome
+ When
  Then

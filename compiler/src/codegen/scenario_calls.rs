@@ -1118,6 +1118,27 @@ fn checked_rich_call_operands(
     Some(())
 }
 
+/// Seal one original typed decision operand without rechecking a program.
+pub(super) fn checked_original_expression(ir: &IrProgram, owner: &IrItem,
+    value: &TypedExpr, db: &SourceDb) -> Option<()> {
+    let source = checked_source(ir, owner, db)?;
+    let text = &db.get(source.node.file)?.text;
+    let (tree, diagnostics) = crate::syntax::parse_source(source.node.file, text);
+    if diagnostics.iter().any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error) { return None; }
+    let mut pending = vec![&tree];
+    let mut steps = 0;
+    while let Some(node) = pending.pop() {
+        steps += 1;
+        if steps > 200000 { return None; }
+        if node.span == value.span && rich_operand_children(node).len() != 0 &&
+            matches!(node.kind, SyntaxKind::Binary | SyntaxKind::Member | SyntaxKind::NameRef) {
+            return checked_rich_operand(value, node, source.expression_types.as_deref()?, text, 0);
+        }
+        pending.extend(node.children.iter());
+    }
+    None
+}
+
 fn operand_token<'t>(
     original: &SyntaxNode,
     kind: SyntaxKind,
@@ -1816,6 +1837,9 @@ fn explicit_reference_input(
         // The declaration consumes the exact original checked parent chain,
         // required or nullable alike. Its literal null default stays metadata
         // and is never visited.
+        if let Some(original) = super::scenario_receipts::checked_narrowed_call_reference(ir, owner, value, db) {
+            return (!nullable && original.ty == ResolvedType::Nullable(Box::new(value.ty.clone()))).then_some(None);
+        }
         let (_, parent) = super::scenario_receipts::checked_parent_reference(ir, owner, value, db)?;
         return (parent.id == model).then_some(None);
     }
@@ -2430,6 +2454,12 @@ fn drive_owner_statement<'e>(
         // only unproven top-level creates need M2/supplied accounting.
         IrStmt::Create { span, .. }
             if is_child && is_proven_child_create(checked, span) => {}
+        IrStmt::Create { span, .. } if !is_child && native_receipts.is_some_and(|receipts|
+            receipts.get(&owner.id).is_some_and(|receipt| operations.iter().any(|operation|
+                operation.name == owner.canonical && operation.disclosure.as_ref() == serde_json::to_value(&receipt.plan).ok().as_ref())))
+                && is_proven_child_create(checked, span)
+                && checked.effects.iter().any(|effect| matches!(effect.kind, DisclosureEffectKind::Call { .. })
+                    && effect.node.file == span.file && effect.node.end <= span.start) => {}
         IrStmt::Create { span, .. } if depth == 0 => {
             intermediate.insert(*span);
         }

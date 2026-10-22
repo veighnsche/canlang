@@ -3504,6 +3504,60 @@ impl<'a> Closure<'a> {
         .then_some(symbol)
     }
 
+    /// A nullable direct stored field may feed one original required-model
+    /// CALL only in its checked non-null IF arm. This does not grant a copied
+    /// reference, a second navigation hop, or a reference-valued return.
+    fn nullable_field_call_branch(&self, key: NodeKey, module: ModuleId)
+        -> Option<(NodeKey, NodeKey, SymbolId, SymbolId, SymbolId, SymbolId)>
+    {
+        let mut owners = self.effects.scenarios.values().filter(|owner| owner.module == module
+            && owner.on.is_none() && !owner.read && owner.node.file == key.file
+            && owner.node.start <= key.start && key.end <= owner.node.end);
+        let owner = owners.next()?;
+        if owners.next().is_some() { return None; }
+        for branch in &owner.effects {
+            if branch.verb != EffectVerb::If { continue; }
+            let condition = branch.cond?;
+            let Some(node) = self.nodes.get(&condition) else { continue; };
+            let children = node.children.iter().filter(|node| expression(node.kind)).collect::<Vec<_>>();
+            let [reference, null] = children.as_slice() else { continue; };
+            if node.kind != SyntaxKind::Binary || self.word(null) != Some("null")
+                || !node.children.iter().any(|node| node.kind == SyntaxKind::Punct && self.word(node) == Some("!="))
+            { continue; }
+            let reference = NodeKey::of(reference);
+            let Some((base, name)) = self.count_member(reference) else { continue; };
+            let Some(Binding::Symbol(parameter)) = self.query_binding(base) else { continue; };
+            let Some(root) = owner.params.iter().find(|param| param.param == *parameter && param.default.is_none()) else { continue; };
+            let Some(ResolvedType::Record { symbol: source, stored: true }) = self.types.symbol_types.get(&root.param) else { continue; };
+            let Some(SymbolKind::Model { fields, .. }) = self.resolve.symbols.get(source.0 as usize).map(|symbol| &symbol.kind) else { continue; };
+            let Some(field) = fields.iter().filter_map(|field| self.resolve.symbols.get(field.0 as usize)).find(|field| field.name == name) else { continue; };
+            let Some(ResolvedType::Nullable(inner)) = self.types.symbol_types.get(&field.id) else { continue; };
+            let ResolvedType::Record { symbol: target, stored: true } = inner.as_ref() else { continue; };
+            if self.types.node_types.get(&reference) != self.types.symbol_types.get(&field.id)
+                || self.call_parameter_field(reference, *parameter) != Some(*target)
+            { continue; }
+            let [guard, call] = branch.then_effects.as_slice() else { continue; };
+            let Some(EffectTarget::Operation(operation)) = call.target else { continue; };
+            if guard.verb != EffectVerb::Require || call.verb != EffectVerb::Call
+                || !self.complete_children.contains(&operation) { continue; }
+            let child = self.effects.scenarios.get(&operation)?;
+            let Some(argument) = call.args.iter().find(|argument| {
+                let value = argument.value.unwrap_or(argument.key_node);
+                self.count_member(value).is_some_and(|(receiver, field_name)| field_name == name
+                    && matches!(self.query_binding(receiver), Some(Binding::Symbol(actual)) if actual == parameter))
+                    && self.types.node_types.get(&value) == Some(inner.as_ref())
+                    && child.params.iter().any(|formal| formal.default.is_none()
+                        && self.resolve.symbols.get(formal.param.0 as usize).is_some_and(|symbol| symbol.name == argument.key)
+                        && self.types.symbol_types.get(&formal.param) == Some(inner.as_ref()))
+            }) else { continue; };
+            let operand = argument.value.unwrap_or(argument.key_node);
+            if key == condition || key == reference || key == operand {
+                return Some((condition, operand, *parameter, *source, field.id, *target));
+            }
+        }
+        None
+    }
+
     fn field_type_id(
         &self,
         key: NodeKey,
@@ -14176,11 +14230,11 @@ impl<'a> Closure<'a> {
             )
     }
 
-    /// An unrelated optional File input may be present on the operation, but
-    /// the source-Require observer may carry it only as its literal null
-    /// default. Check every Require expression for an original binding to
-    /// that parameter; an omitted or copied decision input is never inferred.
-    fn source_require_unused_null_file_input(
+    /// An unrelated original nullable File input remains with its File
+    /// assignment path. Check every Require expression for a binding to that
+    /// parameter so the observer can omit it entirely, without reading or
+    /// copying either a supplied File or its implicit/literal null default.
+    fn source_require_unread_nullable_file_input(
         &self,
         scenario: &super::effects::ScenarioData,
         parameter: &super::effects::ParamData,
@@ -14210,13 +14264,13 @@ impl<'a> Closure<'a> {
             || !self.direct_builtin_parameter_type(NodeKey::of(named_type), Scalar::File) {
             return false;
         }
-        let Some(default) = parameter.default else { return false; };
-        let Some(literal) = self.nodes.get(&default) else { return false; };
-        if default.file != scenario.node.file || literal.kind != SyntaxKind::Literal
-            || self.word(literal) != Some("null")
-            || self.types.node_types.get(&default) != Some(&ResolvedType::Null)
-        {
-            return false;
+        if let Some(default) = parameter.default {
+            let Some(literal) = self.nodes.get(&default) else { return false; };
+            if default.file != scenario.node.file || literal.kind != SyntaxKind::Literal
+                || self.word(literal) != Some("null")
+                || self.types.node_types.get(&default) != Some(&ResolvedType::Null) {
+                return false;
+            }
         }
         let Some(sites) = self.checked_decision_sites(scenario) else { return false; };
         let mut pending = sites.into_iter()
@@ -14235,13 +14289,44 @@ impl<'a> Closure<'a> {
         true
     }
 
+    /// These defaults/nullable enums carry admitted primitive values, never
+    /// a nullable model or a query capability. Preserve the declared source
+    /// field identity and accept only the checked literal empty-array default.
+    fn source_require_optional_primitive_input(&self, parameter: &super::effects::ParamData) -> bool {
+        let Some(ty) = self.types.symbol_types.get(&parameter.param) else { return false; };
+        if self.types.value_constraints.contains_key(&parameter.param) { return false; }
+        match ty {
+            ResolvedType::Array { element, ordered: true, nonempty: false }
+                if element.as_ref() == &ResolvedType::Scalar(Scalar::Text) => {
+                let Some(default) = parameter.default else { return false; };
+                self.nodes.get(&default).is_some_and(|node| node.kind == SyntaxKind::Array
+                    && !node.children.iter().any(|child| expression(child.kind)))
+                    && self.types.node_types.get(&default) == Some(ty)
+            }
+            ResolvedType::Nullable(inner) if matches!(inner.as_ref(), ResolvedType::Enum { cases, .. } if !cases.is_empty())
+                && parameter.default.is_none() => {
+                let Some(field) = self.types.field_reuse_sources.get(&parameter.param) else { return false; };
+                let Some(node) = self.nodes.get(&parameter.type_node) else { return false; };
+                let Some(named) = node.children.iter().find(|node| node.kind == SyntaxKind::NamedType) else { return false; };
+                let Some(path) = named.children.iter().find(|node| node.kind == SyntaxKind::Path) else { return false; };
+                node.kind == SyntaxKind::NullableType
+                    && matches!(self.resolve.node_typeref.get(&NodeKey::of(path)),
+                        Some(TypeRef::FieldChain { fields, .. }) if fields.as_slice() == [*field])
+                    && self.types.symbol_types.get(field) == Some(inner.as_ref())
+                    && matches!(self.resolve.symbols.get(field.0 as usize).map(|symbol| &symbol.kind), Some(SymbolKind::Field { .. }))
+            }
+            _ => false,
+        }
+    }
+
     fn source_require_params_ok(&self, scenario: &super::effects::ScenarioData) -> bool {
         !scenario.params.iter().enumerate().any(|(index, param)| {
             (param.default.is_some()
                 || self.types.symbol_types.get(&param.param)
                     .is_none_or(|ty| !self.source_require_input(ty)
                         && !self.source_require_owned_enum_formal(param)))
-                && !self.source_require_unused_null_file_input(scenario, param, index)
+                && !self.source_require_optional_primitive_input(param)
+                && !self.source_require_unread_nullable_file_input(scenario, param, index)
         }) && scenario
             .params
             .iter()
@@ -17325,6 +17410,8 @@ impl<'a> Closure<'a> {
         });
         value.observed.push((key, calls.to_vec()));
         value.record = required_reference
+            .or_else(|| self.nullable_field_call_branch(key, module)
+                .filter(|(_, operand, _, _, _, _)| *operand == key).map(|(_, _, _, _, _, target)| target))
             .or_else(|| profile_reference.map(|(_, _, _, profile)| profile))
             .or_else(|| {
                 self.checked_reference_identity_operand(key, module)
@@ -17441,7 +17528,14 @@ impl<'a> Closure<'a> {
             field_ty,
             value,
         )?;
-        let type_id = if let Some(type_id) = self.expr_member_profile_reference_type(
+        let type_id = if calls.is_empty() && self.loop_node.is_none()
+            && let Some((_, operand, parameter, source, original_field, target)) = self.nullable_field_call_branch(key, module)
+            && operand == key && source == model && original_field == field.id && ty == &(ResolvedType::Record { symbol: target, stored: true })
+            && value.reference_origin == Some(ReferenceOrigin::Parameter(parameter))
+        {
+            value.reference_origin = Some(ReferenceOrigin::Field { parameter, model, field: field.id });
+            self.reference_operand_type_id(field_ty).ok_or_else(|| self.fail(key, "narrowed CALL field lacks its model type"))?
+        } else if let Some(type_id) = self.expr_member_profile_reference_type(
             key,
             calls,
             env,
@@ -17932,10 +18026,12 @@ impl<'a> Closure<'a> {
         // sides are sealed scenario inputs and the result keeps no lineage.
         let admitted_parent_comparison =
             self.binary_parent_comparison(module, env, calls, op, &children);
+        let narrowed_call_presence = calls.is_empty() && self.nullable_field_call_branch(key, module).is_some();
         if !first_null_check
             && !input_null_check
             && !notice_snapshot_null_check
             && !admitted_parent_comparison
+            && !narrowed_call_presence
             && matches!(op, "??" | "==" | "!=")
             && children.iter().any(|operand| {
                 matches!(self.types.node_types.get(&NodeKey::of(operand)),
@@ -20535,6 +20631,24 @@ impl<'a> Closure<'a> {
         calls: &[NodeKey],
         selected: &super::types::SelectedCall,
     ) -> Result<Option<Vec<ValuePath>>, DisclosureDecline> {
+        // Counting an original admitted primitive text array is a pure
+        // Values operation. It never opens a stored collection query.
+        if calls.is_empty() && self.loop_node.is_none()
+            && matches!(&selected.target, SelectedCallTarget::Builtin { id, .. } if id == "count")
+            && selected.slots.as_slice() == [Some(0)] && selected.arguments.len() == 1
+            && let Some(Binding::Symbol(parameter)) = self.query_binding(selected.arguments[0])
+            && matches!(self.resolve.symbols.get(parameter.0 as usize).map(|symbol| &symbol.kind), Some(SymbolKind::Param { .. }))
+            && matches!(self.types.symbol_types.get(parameter), Some(ResolvedType::Array { element, ordered: true, nonempty: false })
+                if element.as_ref() == &ResolvedType::Scalar(Scalar::Text))
+            && self.types.node_types.get(&selected.arguments[0]) == self.types.symbol_types.get(parameter)
+            && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            return self.expr(selected.arguments[0], module, env, calls).map(|values| Some(values.into_iter().map(|mut value| {
+                value.schema = None; value.reference = None; value.reference_origin = None;
+                value.contract_value = None; value.first_query = None;
+                value
+            }).collect()));
+        }
         if let Some(paths) = self.call_transcript_count(key, module, env, calls, &selected)? {
             return Ok(Some(paths));
         }
@@ -24889,6 +25003,33 @@ impl<'a> Closure<'a> {
                 Some(())
             }
 
+            /// An EMIT may carry its original owning CREATE binding. The
+            /// checked lexical value supplies dominance; exact CreateAs/source
+            /// facts pin identity. No caller-supplied or copied row qualifies.
+            fn external_effect_created_reference(&self, effect: &Effect, event: SymbolId,
+                module: ModuleId, argument: &super::effects::EffectArg,
+                key: NodeKey, value: &ValuePath) -> Option<()> {
+                if effect.verb != EffectVerb::Emit || self.loop_node.is_some() { return None; }
+                let Some(DisclosureModelResult::Create { model, node }) = value.model_result else { return None; };
+                if value.record != Some(model) || value.delivery.is_some() || value.members.is_some()
+                    || value.first_query.is_some() || value.query_child.is_some()
+                    || !matches!(self.query_binding(key), Some(Binding::CreateAs { node: original }) if *original == node)
+                { return None; }
+                let owner = self.effects.scenarios.values().find(|owner| owner.module == module
+                    && owner.node.file == key.file && owner.node.start <= node.start
+                    && node.end <= key.start && key.end <= owner.node.end)?;
+                let sources = self.checked_create_sources(owner)?;
+                let source = sources.iter().find(|source| source.node == node && source.model == model)?;
+                if self.word(self.nodes.get(&key)?) != Some(source.binding.as_str()) { return None; }
+                let declaration = self.resolve.symbols.get(event.0 as usize)?;
+                let SymbolKind::Event { fields } = &declaration.kind else { return None; };
+                if declaration.module != module { return None; }
+                let field = fields.iter().find(|field| self.resolve.symbols.get(field.0 as usize)
+                    .is_some_and(|field| field.name == argument.key))?;
+                (self.types.symbol_types.get(field) == Some(&ResolvedType::Record { symbol: model, stored: true })
+                    && self.types.node_types.get(&key) == self.types.symbol_types.get(field)).then_some(())
+            }
+
             /// One external effect argument: pure values joined onto the paths.
             fn external_effect_argument(
                 &mut self,
@@ -24908,8 +25049,8 @@ impl<'a> Closure<'a> {
                 if values.iter().any(|value| {
                     value.delivery.is_some() || value.members.is_some()
                         || value.record.is_some() && event.is_none_or(|event| {
-                            self.external_effect_parent_reference(event, module, argument, key, value)
-                                .is_none()
+                            self.external_effect_parent_reference(event, module, argument, key, value).is_none()
+                                && self.external_effect_created_reference(effect, event, module, argument, key, value).is_none()
                         })
                 }) {
                     return Err(self.fail(key, "opaque external effect input"));
@@ -25119,6 +25260,10 @@ impl<'a> Closure<'a> {
                                     || matches!(value.model_result,
                                         Some(DisclosureModelResult::Create { model: actual, node })
                                         if actual == model && self.preceding_call_create(effect, module, key, model, node))
+                                    || matches!(value.reference_origin,
+                                        Some(ReferenceOrigin::Field { parameter, model: source, field })
+                                        if self.nullable_field_call_branch(key, module).is_some_and(|(_, operand, original, owner, member, target)|
+                                            operand == key && original == parameter && owner == source && member == field && target == model))
                                     // One `param.parent` hop into the required slot:
                                     // the base stays the caller's original required
                                     // model parameter and the hop is the checked

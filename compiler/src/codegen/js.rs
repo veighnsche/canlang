@@ -12606,6 +12606,7 @@ fn null_equality(
                         .expect("sealed Require parameters");
                     let names = parameters
                         .iter()
+                        .filter(|parameter| parameter["unread"].as_bool() != Some(true))
                         .map(|parameter| {
                             parameter["name"]
                                 .as_str()

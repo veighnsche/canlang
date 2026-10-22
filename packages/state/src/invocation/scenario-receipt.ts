@@ -5686,7 +5686,7 @@ export interface ScenarioReceiptRequireSource {
   readonly owner: string;
   readonly node: { readonly start: number; readonly end: number };
   readonly statement: { readonly start: number; readonly end: number };
-  readonly parameters: readonly { readonly name: string; readonly typeId: CanTypeId }[];
+  readonly parameters: readonly { readonly name: string; readonly typeId: CanTypeId; readonly unread?: true }[];
   readonly sites: readonly ScenarioReceiptMembershipSite[];
 }
 /** Private literal host tracking; these callbacks issue no row authority. */

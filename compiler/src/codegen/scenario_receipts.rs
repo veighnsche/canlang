@@ -12717,6 +12717,41 @@ fn reference_receiver_matches(
     Some(())
 }
 
+/// The checked non-null occurrence belongs to one original direct-field CALL
+/// in its source IF arm. Keep the nullable field as the observed dependency;
+/// only the actual taken CALL consumes the non-null row reference.
+pub(super) fn checked_narrowed_call_reference<'a>(ir: &'a IrProgram, owner: &IrItem,
+    value: &TypedExpr, db: &SourceDb) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    let IrExpr::Member { base, field } = &value.expr else { return None; };
+    let IrExpr::Name(root) = &base.expr else { return None; };
+    let ResolvedType::Record { stored: true, .. } = value.ty else { return None; };
+    let models = super::js::Emitter::source_models(ir, db)?;
+    let parent = checked_parameter_row_id(ir, owner, base, &models, db)?;
+    let mut fields = parent.fields.iter().filter(|original| original.name == *field);
+    let original = fields.next()?;
+    if fields.next().is_some() || original.ty != ResolvedType::Nullable(Box::new(value.ty.clone())) { return None; }
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else { return None; };
+    for (position, statement) in effects.iter().enumerate() {
+        let IrStmt::If { cond, then_branch, .. } = statement else { continue; };
+        let IrExpr::Binary { op: IrBinOp::Ne, left, right } = &cond.expr else { continue; };
+        if !matches!(right.expr, IrExpr::Null) || left.ty != original.ty ||
+            !matches!(&left.expr, IrExpr::Member { base, field: member } if member == field && matches!(&base.expr, IrExpr::Name(name) if name == root)) { continue; }
+        let [IrStmt::Require { .. }, IrStmt::Call { inputs, span, .. }] = then_branch.as_slice() else { continue; };
+        let IrExpr::Object(entries) = &inputs.expr else { continue; };
+        if !entries.iter().any(|(_, input)| input.span == value.span && input.ty == value.ty && matches!(&input.expr, IrExpr::Member { base: receiver, field: member } if member == field && receiver.ty == base.ty && matches!(&receiver.expr, IrExpr::Name(name) if name == root))) { continue; }
+        if !source.calls.iter().any(|call| node_span(call.node) == *span && call.inputs.iter().any(|input|
+            node_span(input.node) == value.span && input.ty == value.ty)) ||
+            !source.decision_sites.as_deref()?.iter().any(|site| site.stage == crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition &&
+                site.position.as_slice() == [crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(position)] && node_span(site.node) == cond.span)
+        { continue; }
+        super::scenario_calls::checked_original_expression(ir, owner, cond, db)?;
+        match_stored_contract_field(ir, original, db)?;
+        return Some(original);
+    }
+    None
+}
+
 fn reference_member_field<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
@@ -12741,11 +12776,13 @@ fn reference_member_field<'a>(
         return None;
     };
     let type_id = reference_operand_type_id(ir, &original.ty)?;
+    let narrowed = original.ty != value.ty && checked_narrowed_call_reference(ir, owner, value, db).map(|field| field.id) == Some(original.id);
+    let declared_value = TypedExpr { ty: original.ty.clone(), ..value.clone() };
     if fields.next().is_some()
         || original.owner != parent.id
-        || original.ty != value.ty
+        || original.ty != value.ty && !narrowed
         || modifiers.machine
-        || !reference_read_matches(ir, owner, value, parent.id, original.id, &type_id)
+        || !reference_read_matches(ir, owner, if narrowed { &declared_value } else { value }, parent.id, original.id, &type_id)
     {
         return None;
     }
@@ -14767,6 +14804,31 @@ fn conditional_parameter_create_link(
     Some(())
 }
 
+/// A source-owned report constructor may follow one nullable-field child
+/// CALL and precede its original completion effects. The fresh whole-owner
+/// join seals surrounding operands; each effect, schema and File input still
+/// needs its independent native proof below.
+fn source_owned_after_call_create(context: &super::scenario_decisions::FreshSourceContext<'_>,
+    owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
+    let ir = context.ir();
+    super::scenario_decisions::same_scenario_semantics(context.original(), ir, context.fresh(), owner)?;
+    let IrItemKind::Scenario { result: None, trusted: false, read: false, hook: None,
+        event_source: None, cohort: None, effects, .. } = &owner.kind else { return None; };
+    let [IrStmt::If { then_branch, else_branch, .. },
+        IrStmt::Create { span, binding: Some(binding), when: None, .. },
+        IrStmt::Set { .. }, IrStmt::Emit { .. },
+        IrStmt::Send { when: None, binding: Some(_), .. }, IrStmt::Set { .. },
+        IrStmt::Send { when: Some(_), binding: Some(_), .. }] = effects.as_slice() else { return None; };
+    let [IrStmt::Require { .. }, IrStmt::Call { inputs, .. }] = then_branch.as_slice() else { return None; };
+    if !matches!(else_branch.as_slice(), [IrStmt::Require { .. }]) ||
+        *span != node_span(original.node) || binding != &original.binding { return None; }
+    let facts = super::scenario_calls::checked_source(ir, owner, context.db())?;
+    let [created] = facts.creates.as_deref()? else { return None; };
+    if !std::ptr::eq(created, original) || facts.source_requires.as_deref()?.len() != 1 { return None; }
+    let IrExpr::Object(entries) = &inputs.expr else { return None; };
+    entries.iter().any(|(_, value)| checked_narrowed_call_reference(ir, owner, value, context.db()).is_some()).then_some(())
+}
+
 fn scenario_create_nesting(
     ir: &IrProgram,
     owner: &IrItem,
@@ -14892,7 +14954,8 @@ fn scenario_create_entries(
     purchase_all: bool,
 ) -> Option<()> {
     if !purchase_all && checked_created_statements(ir, owner, checked, original, db).is_none()
-        && source_context.and_then(|context| conditional_parameter_create_link(context, owner, original)).is_none() {
+        && source_context.and_then(|context| conditional_parameter_create_link(context, owner, original)
+            .or_else(|| source_owned_after_call_create(context, owner, original))).is_none() {
         return None;
     }
     let authored = checked_effect_node(ir, owner, proof.node, db)?;

@@ -3650,10 +3650,12 @@ interface NativeScenarioExecution {
   readonly artifact: CompileArtifact;
   readonly store: StoragePort;
   readonly nextCreateId: (model: string) => string;
+  readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>;
   readonly navigationOwner: ScenarioNavigationOwner;
   readonly fileAssignments: Map<string, { model: string; recordId: string; field: string }>;
   readonly prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => Record<string, unknown>;
   readonly execute: (frame: ScenarioReceiptCallFrame) => Promise<unknown>;
+  readonly cancel: (frame: ScenarioReceiptCallFrame, key: string, ownerPackage: string) => Promise<void>;
   readonly evaluateSendGuard: (frame: ScenarioReceiptSendGuardFrame) => Promise<boolean>;
   readonly prepareSourceGuardOrigin: (input: ScenarioReceiptSendProducerInput, row: StoredRow,
     intent: OutboxIntent) => Promise<FrameworkFilePayloadOrigin>;
@@ -4808,7 +4810,9 @@ const NATIVE_CALL_SCALARS = new Set(['text', 'bool', 'int', 'decimal', 'money', 
  * Contracts, enums, models, nullable values and containers remain separate profiles. */
 function nativeScenarioScalarInput(loaded: LoadedCanonicalDescriptors,
   field: CanonicalOperationDescriptor['inputs'][number]): boolean {
-  if (field.kind === 'ref' || field.kind === 'delivery' || field.kind === 'enum' || field.valueType === undefined) return false;
+  if (field.kind === 'enum') return field.valueType === `enum(${field.enumValues?.join(',')})` && (field.enumValues?.length ?? 0) > 0;
+  if (field.kind === 'string' && field.valueType === 'text[]') return true;
+  if (field.kind === 'ref' || field.kind === 'delivery' || field.valueType === undefined) return false;
   if (field.kind !== 'nominal') return NATIVE_CALL_SCALARS.has(field.valueType);
   const parsed = parseTypeId(field.valueType);
   if (parsed.base.kind !== 'nominal' || parsed.array || parsed.nullable || parsed.requiredArray) return false;
@@ -4857,7 +4861,8 @@ function isNativeScenarioFieldInadmissible(
   // Metadata may describe a literal default, but both native preparation
   // paths below still require the explicit authored member before State.
   const literal = scalar && field.default?.kind === 'literal';
-  return (field.required !== true && !literal && !file &&
+  const textArray = scalar && field.kind === 'string' && field.valueType === 'text[]' && def.inputArrays[field.name]?.required === false;
+  return (field.required !== true && !literal && !file && !textArray &&
       !(query && field.kind === 'ref' && Object.hasOwn(def.inputArrays, field.name))) ||
     (field.default !== undefined && !literal && !file) ||
     ('computedDefault' in field && field.computedDefault === true) ||
@@ -4875,10 +4880,10 @@ function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: Gen
   const scenario = def.kind === 'scenario' && result !== undefined &&
     (['void', ...NATIVE_CALL_SCALARS].includes(result.type) || model) &&
     Object.keys(def.inputArrays).every(name => def.descriptor.inputs.some(field => field.name === name &&
-      nativeScenarioStoredFileInput(def, field, storedFiles))) && Object.keys(def.inputNullableRefs ?? {}).length === 0;
+      (nativeScenarioStoredFileInput(def, field, storedFiles) || field.kind === 'string' && field.valueType === 'text[]' && def.inputArrays[field.name]?.required === false))) && Object.keys(def.inputNullableRefs ?? {}).length === 0;
   if (plan === undefined || (!scenario && !query) || loaded.unsupportedHookOperations.has(def.name) ||
       Object.keys(def.inputArrays).some(name => !def.descriptor.inputs.some(field => field.name === name &&
-        (query && field.kind === 'ref' || scenario && nativeScenarioStoredFileInput(def, field, storedFiles)))) ||
+        (query && field.kind === 'ref' || scenario && (nativeScenarioStoredFileInput(def, field, storedFiles) || field.kind === 'string' && field.valueType === 'text[]' && def.inputArrays[field.name]?.required === false)))) ||
       Object.keys(def.inputNullableRefs ?? {}).some(name => !query || !def.descriptor.inputs.some(field => field.name === name && field.kind === 'ref')) ||
       def.descriptor.inputs.some(field => {
         const scalar = nativeScenarioScalarInput(loaded, field);
@@ -5819,7 +5824,9 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     // alongside file and model-result profiles instead of binding grant-free.
     // Stored references on owners outside the policy table defer the same
     // way: no grant-free bind could supply their viewer policy.
-    if (context === undefined && ((nativeScenarioNominalFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
+    if (context === undefined && ([...(nativeSourceSendGuards.get(def)?.values() ?? [])].some(source =>
+        source.guard.inputs.some(input => loaded.models.some(model => model.name === input.type))) ||
+      (nativeScenarioNominalFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
         returned.dependencies.some(dependency => dependency.type === 'file[]')) ||
         loaded.models.some(model => model.name === def.descriptor.result?.type) ||
         plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dependency => dependency.field === 'parent')) ||
@@ -11041,6 +11048,11 @@ async function runScenarioExecution(
     },
     cancelDeferred: async (key, ownerPackage) => {
       try {
+        if (child !== undefined) {
+          const parent = nativeScenarioExecutions.get(child.parent);
+          if (parent === undefined) return refuseRecordBinding('Child cancellation lost its live parent owner.');
+          return await parent.cancel(child, key, ownerPackage);
+        }
         const selected = await scheduleScope(ownerPackage);
         const producer = await loadProducerModule('@canlang/work/kernel/schedule-staging', 'work keyed schedule producer');
         const command = producer['workScheduleCancelCommand'];
@@ -11328,7 +11340,7 @@ async function runScenarioExecution(
       return opaque;
     };
     const active: NativeScenarioExecution = Object.freeze({ loaded, asm: opts.asm, artifact: opts.artifact, store: receiptStore, nextCreateId,
-      navigationOwner: navigationOwner!, fileAssignments,
+      navigationOwner: navigationOwner!, fileAssignments, session: ownerSession!,
       captureAnyPredicate: (queryId: string) => {
         if (scenarioReceiptFrame === undefined || nativeScenarioExecutions.get(actualCall) !== active) {
           return refuseRecordBinding('Predicate ANY requires its original active native receipt frame.');
@@ -11636,6 +11648,19 @@ async function runScenarioExecution(
         return prepareNativeScenarioInputs(loaded, def, inputs, scenarioReceiptFrame.prepareReference,
           nativeScenarioStoredFileNames(actualCall.def as GeneratedOperationDef, def));
       },
+      cancel: async (frame: ScenarioReceiptCallFrame, key: string, ownerPackage: string) => {
+        const childExecution = nativeScenarioExecutions.get(frame.call);
+        if (frame.parent !== actualCall || childExecution?.session !== frame.session ||
+            childExecution.navigationOwner !== navigationOwner || childExecution.loaded !== loaded ||
+            childExecution.asm !== opts.asm || childExecution.artifact !== opts.artifact || childExecution.store !== receiptStore ||
+            nativeScenarioExecutions.get(actualCall) !== active ||
+            generatedScenarioDef(frame.call)?.name.slice(0, generatedScenarioDef(frame.call)!.name.lastIndexOf('.')) !== ownerPackage) {
+          return refuseRecordBinding('Child cancellation requires its exact live owner and lexical package.');
+        }
+        assertCall!(frame.call, receiptStore);
+        await ctx.cancelDeferred!(key, ownerPackage);
+        assertCall!(frame.call, receiptStore);
+      },
       execute: async (frame: ScenarioReceiptCallFrame): Promise<unknown> => {
         if (frame.parent !== actualCall || nativeScenarioExecutions.get(actualCall) !== active) {
           return refuseRecordBinding('Child execution requires its exact live parent.');
@@ -11823,11 +11848,12 @@ async function runScenarioExecution(
         const dependencies = scenarioDef!.descriptor.result!.disclosure!.returns.flatMap(entry => entry.dependencies);
         const source = dependencies.find(dep => dep.id === sourceDependencyId), leaf = dependencies.find(dep => dep.id === scalarLeafDependencyId);
         if (origin === undefined || source === undefined || leaf === undefined || origin.sourceModel !== source.model ||
-            origin.field !== source.field || origin.model !== leaf.model || source.type !== leaf.model) {
+            origin.field !== source.field || origin.model !== leaf.model || ![leaf.model, `${leaf.model}?`].includes(source.type)) {
           return refuseRecordBinding('Stored reference promotion requires its exact original native field binding.');
         }
         const declaration = opts.artifact.models?.find(model => model.name === origin.sourceModel)?.fields.find(field => field.name === origin.field);
         const target = loaded.models.find(model => model.name === leaf.model), scalar = target?.fields[leaf.field];
+        const nullableSource = source.type === `${leaf.model}?` && declaration?.nullable === true;
         const targetId = leaf.role === 'data' && leaf.field === 'id' && leaf.type === 'text' &&
           target !== undefined && !Object.hasOwn(target.fields, 'id');
         const type = parseTypeId(leaf.type);
@@ -11841,8 +11867,8 @@ async function runScenarioExecution(
           loaded.models.some(model => model.name === leafModel) &&
           loaded.refs.get(leaf.model)?.some(ref => ref.field === leaf.field && ref.model === leafModel) === true;
         if (sourceDependencyId === scalarLeafDependencyId ||
-            declaration?.field.kind !== 'ref' || declaration.field.model !== leaf.model || !declaration.required ||
-            declaration.array !== undefined || declaration.nullable === true ||
+            declaration?.field.kind !== 'ref' || declaration.field.model !== leaf.model || (!declaration.required && !nullableSource) ||
+            declaration.array !== undefined || declaration.nullable === true && !nullableSource ||
             !targetId && !targetReference && scalar?.valueType !== leaf.type || type.array || type.nullable || type.requiredArray ||
             type.base.kind === 'nominal' && !targetReference) {
           return refuseRecordBinding('Stored reference promotion differs from its required singular source and declared target leaf.');
@@ -12075,13 +12101,13 @@ async function runScenarioExecution(
         }
         const declared = scenarioDef.descriptor.inputs;
         const parameters = nativeCallArray(original.parameters, 200).map(value => {
-          const parameter = localPolicyObject(value, ['name', 'typeId']);
-          if (Object.keys(parameter).length !== 2 || typeof parameter.name !== 'string' || typeof parameter.typeId !== 'string') {
+          const parameter = localPolicyObject(value, ['name', 'typeId', 'unread']);
+          if ((Object.keys(parameter).length !== 2 && Object.keys(parameter).length !== 3 || Object.hasOwn(parameter, 'unread') && parameter.unread !== true) || typeof parameter.name !== 'string' || typeof parameter.typeId !== 'string') {
             throw new AssemblyCorrespondenceError('Scenario Require lacks its original typed parameters.');
           }
-          return { name: parameter.name, typeId: parameter.typeId };
+          return { name: parameter.name, typeId: parameter.typeId, unread: parameter.unread === true };
         });
-        const suppliedValues = localPolicyObject(supplied, parameters.map(parameter => parameter.name));
+        const suppliedValues = localPolicyObject(supplied, parameters.filter(parameter => !parameter.unread).map(parameter => parameter.name));
         const modelParameters = parameters.flatMap(parameter => {
           const type=parseTypeId(parameter.typeId), name=parameter.typeId.replace(/\?$/,'');
           return !type.array && loaded.models.some(model=>model.name===name)
@@ -12090,8 +12116,8 @@ async function runScenarioExecution(
         const anchor=modelParameters.find(parameter=>!parameter.nullable);
         // The first required model parameter anchors the observed row; further
         // model parameters flow as admitted rows (the observer tracks reads
-        // per model). A require with no model parameter has no row to bind.
-        if (parameters.length !== declared.length || Object.keys(suppliedValues).length !== parameters.length ||
+        // per model). Unread File slots remain in the declaration census.
+        if (parameters.length !== declared.length || Object.keys(suppliedValues).length !== parameters.filter(parameter => !parameter.unread).length ||
             new Set(parameters.map(parameter => parameter.name)).size !== parameters.length || anchor === undefined) {
           throw new AssemblyCorrespondenceError('Scenario Require needs its complete parameters and one original admitted model.');
         }
@@ -12101,6 +12127,13 @@ async function runScenarioExecution(
           const type = field.kind === 'ref' ? `${field.model}${Object.hasOwn(scenarioDef.inputArrays, field.name) ? '[]' : ''}${field.nullable ? '?' : ''}` :
             field.valueType ?? (field.kind === 'enum' && field.enumValues !== undefined ? `enum(${field.enumValues.join(',')})` : field.kind);
           const parsed = parseTypeId(parameter.typeId);
+          if (parameter.unread) {
+            if (field.name !== parameter.name || parameter.typeId !== 'file?' ||
+                field.kind !== 'file' || field.valueType !== 'file?' || Object.hasOwn(scenarioDef.inputArrays, field.name)) {
+              throw new AssemblyCorrespondenceError('Unread Require parameter differs from its original nullable File declaration.');
+            }
+            continue;
+          }
           // A checked guard may carry an unrelated literal-null `file?`
           // operation input. It is never read by this owner-stage observer;
           // a supplied File still needs its separate File provenance path.
@@ -12111,14 +12144,16 @@ async function runScenarioExecution(
           const admittedTextArray = parameter.typeId === 'text[]' && parsed.array &&
             !parsed.nullable && field.kind === 'string' && field.valueType === 'text[]' &&
             Object.hasOwn(scenarioDef.inputArrays, field.name) && Array.isArray(admittedParameters[parameter.name]);
-          const ownedEnum = field.kind === 'enum' && parsed.base.kind === 'nominal' && !parsed.array && !parsed.nullable &&
+          const ownedEnum = field.kind === 'enum' && parsed.base.kind === 'nominal' && !parsed.array &&
+            field.valueType !== undefined && parseTypeId(field.valueType).nullable === parsed.nullable &&
             loaded.models.some(model => Object.entries(model.fields).some(([name, declaration]) =>
-              `${model.name}.${name}` === parameter.typeId && declaration.valueType === field.valueType));
+              `${model.name}.${name}` === (parsed.base.kind === 'nominal' ? parsed.base.path : '') &&
+              `${declaration.valueType}${parsed.nullable ? '?' : ''}` === field.valueType));
           const declaredType = admittedTextArray || ownedEnum ? parameter.typeId : type;
           const nullableModel=parsed.nullable && !parsed.array && field.kind==='ref'
             && modelParameters.some(model=>model.name===parameter.name && model.model===field.model);
           if (field.name !== parameter.name || declaredType !== parameter.typeId || parsed.array && !admittedTextArray ||
-              (parsed.nullable && !unusedNullFile && !nullableModel) ||
+              (parsed.nullable && !unusedNullFile && !nullableModel && !ownedEnum) ||
               parsed.base.kind === 'nominal' && !ownedEnum && !loaded.models.some(model => model.name === parameter.typeId.replace(/\?$/,'')) ||
               !Object.hasOwn(admittedParameters, parameter.name) ||
               localPolicyMember(suppliedValues, parameter.name) !== admittedParameters[parameter.name]) {
@@ -12142,7 +12177,8 @@ async function runScenarioExecution(
               return adapter.evaluate(anchor.model, [{ owner: original.owner,
                 predicate: async (context: HandlerContext, row: Record<string, unknown>,
                   project?: (model: string, id: string, expectedVersion: unknown) => Promise<Record<string, unknown>>) => {
-                  const args: Record<string, unknown> = { ...admittedParameters, [parameter]: row };
+                  const args: Record<string, unknown> = { ...Object.fromEntries(parameters.filter(input => !input.unread)
+                    .map(input => [input.name, admittedParameters[input.name]])), [parameter]: row };
                   // Every further admitted model slot is re-projected through
                   // this same evaluation in parameter order: foreign admitted
                   // views stay out, current grants and the live revision apply.

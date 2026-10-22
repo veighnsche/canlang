@@ -3459,6 +3459,7 @@ fn serialize_require_params(
     owner: &IrItem,
     params: &[crate::analysis::resolve::SymbolId],
     facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    sources: &FreshSourceContext<'_>,
 ) -> Option<Vec<serde_json::Value>> {
     if params.len() != facts.parameters.len() {
         return None;
@@ -3486,17 +3487,32 @@ fn serialize_require_params(
                         && matches!(value.expr, IrExpr::Null)
                         && value.span == Span::new(node.file, node.start, node.end))
             && default_copy_source.is_none() && checked.constraints.is_none();
+        let exact_empty_text_array = matches!(ty, ResolvedType::Array { element, ordered: true, nonempty: false }
+            if element.as_ref() == &ResolvedType::Scalar(Scalar::Text))
+            && matches!((default, default_node, checked.default),
+                (Some(IrDefault::Literal(value)), Some(node), Some(original_node))
+                    if *node == original_node && value.ty == *ty
+                        && matches!(&value.expr, IrExpr::Array(elements) if elements.is_empty())
+                        && value.span == Span::new(node.file, node.start, node.end))
+            && default_copy_source.is_none() && checked.constraints.is_none();
         if *id != checked.parameter
             || *declared_owner != owner.id
             || *declared_index != index
             || *ty != checked.ty
-            || !(default.is_none() && checked.default.is_none() || exact_null_file)
+            || !(default.is_none() && checked.default.is_none() || exact_null_file || exact_empty_text_array)
         {
             return None;
         }
-        parameters.push(
-            serde_json::json!({"name":item.name,"typeId":serial_type(ty,original,ir,0)?}),
-        );
+        let unread_file = matches!(ty, ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
+            && checked.constraints.is_none() && default_copy_source.is_none()
+            && sources.resolved().node_binding.iter().all(|(key, binding)|
+                !matches!(binding, crate::analysis::resolve::Binding::Symbol(parameter) if *parameter == *id)
+                    || !facts.decision_sites.as_deref().unwrap_or(&[]).iter().any(|site|
+                        matches!(site.stage, Stage::LeadingRequire | Stage::BodyRequire)
+                            && key.file == site.node.file && site.node.start <= key.start && key.end <= site.node.end));
+        let mut parameter = serde_json::json!({"name":item.name,"typeId":serial_type(ty,original,ir,0)?});
+        if unread_file { parameter["unread"] = serde_json::json!(true); }
+        parameters.push(parameter);
     }
     Some(parameters)
 }
@@ -3614,7 +3630,7 @@ pub(super) fn serialize_scenario_requires(
                 expected_guards,
                 expected_effects,
             )?;
-            let parameters = serialize_require_params(ir, original, owner, params, facts)?;
+            let parameters = serialize_require_params(ir, original, owner, params, facts, sources)?;
             serialize_require_observer(
                 sources,
                 original,

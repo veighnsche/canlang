@@ -417,6 +417,21 @@ function declareStandardCompletions(artifact: CompileArtifact, captures: readonl
 
 /** Installs once, or verifies the persisted original closure on reopen. */
 export async function installNativeFileInventory(input: NativeFileInventoryInput) {
+  // Composed source closures share a State store. Install every domain owner
+  // once, while each package keeps its own opaque operation/event lifetimes.
+  const owners = new Set([input.scope.ownerPackage,
+    ...(input.artifact.models ?? []).map(model => model.name.split('.')[0]!).filter(Boolean)]);
+  let selected: Awaited<ReturnType<typeof installNativeFileInventoryForOwner>> | undefined;
+  for (const ownerPackage of owners) {
+    const installed = await installNativeFileInventoryForOwner({ ...input, scope: { ...input.scope, ownerPackage } });
+    if (ownerPackage === input.scope.ownerPackage) selected = installed;
+  }
+  if (selected === undefined) throw new Error('Original File inventory owner is absent.');
+  await selected.verifyCurrent();
+  return selected;
+}
+
+async function installNativeFileInventoryForOwner(input: NativeFileInventoryInput) {
   const { artifact, asm, store, now, verifyOwner } = input;
   const scope = immutable(input.scope), authority = immutable(input.authority);
   const artifactJson = JSON.stringify(artifact);
@@ -486,7 +501,10 @@ export async function installNativeFileInventory(input: NativeFileInventoryInput
   declareModuleEvents(artifact, captures, loaded, declarations);
   declareStandardCompletions(artifact, captures, loaded, declarations);
   const baseInventory = immutable({ ...inventoryIdentity,
-    canonicalModels: loaded.models, artifactModels: artifact.models, valueTypes,
+    // Register each domain model under its canonical owning package. The
+    // declaration set below retains the complete imported schema closure.
+    canonicalModels: loaded.models.filter(model => model.name.split('.')[0] === scope.ownerPackage),
+    artifactModels: artifact.models.filter(model => model.name.split('.')[0] === scope.ownerPackage), valueTypes,
     frameworkModels: [...STATE_FILE_REFERENCE_PRODUCER.models, ...WORK_FILE_REFERENCE_PRODUCER.models] });
   const expectedRevision = await store.readRevision();
   await verifyCurrent();

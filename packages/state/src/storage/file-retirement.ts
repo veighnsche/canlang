@@ -346,7 +346,9 @@ function checkFrameworkDeclaration(declaration: FrameworkFileReferenceModel): vo
 interface DomainProfile { readonly kind: 'domain'; readonly fields: ReadonlyMap<string, FileReferenceProfile>; readonly required: ReadonlySet<string> }
 interface FrameworkProfile { readonly kind: 'framework'; readonly bound: BoundFrameworkModel;
   readonly inventory: FileReferenceInventory; readonly opaque: ReadonlyMap<string, BoundOpaqueDeclarations>;
-  readonly installed?: InstalledFileReferenceInventory }
+  readonly installed?: InstalledFileReferenceInventory;
+  /** Shared framework tables retain each package's independently installed closure. */
+  readonly owners?: ReadonlyMap<string, FrameworkProfile> }
 type ModelProfile = DomainProfile | FrameworkProfile;
 /** One domain model: unique correspondence with bound field profiles. */
 function bindDomainProfile(
@@ -402,9 +404,20 @@ function profiles(input: FileReferenceInventory, framework: FileFrameworkBinding
       profiles({ ...set.inventory, canonicalModels: set.canonicalModels, artifactModels: set.artifactModels,
         valueTypes: set.valueTypes, frameworkModels: [] });
     });
-    const valueSchema = normalizeValueTypes(inventory.valueTypes, inventory.canonicalModels.map(model => model.name)).valueSchema;
+    const original = (inventory.opaqueDeclarationSets ?? []).find(set => fileGuardEqual(set.inventory,
+      { owner: inventory.owner, snapshotId: inventory.snapshotId, digest: inventory.digest }));
+    // An installed package owns only its domain rows, but field validation
+    // still needs the exact checked imported models from its original closure.
+    if (original !== undefined && !fileGuardEqual(inventory.valueTypes, original.valueTypes)) return refuse('owned value types differ from original schema closure');
+    const schema = original === undefined ? inventory : { ...inventory,
+      canonicalModels: original.canonicalModels, artifactModels: original.artifactModels };
+    const schemaArtifacts = original === undefined ? artifacts :
+      new Map(schema.artifactModels.map(model => [model.name as ModelName, model]));
+    const valueSchema = normalizeValueTypes(inventory.valueTypes, schema.canonicalModels.map(model => model.name)).valueSchema;
     for (const model of inventory.canonicalModels) {
-      bindDomainProfile(inventory, artifacts, valueSchema, result, model);
+      if (original !== undefined && (!fileGuardEqual(schema.canonicalModels.find(item => item.name === model.name), model) ||
+          !fileGuardEqual(schemaArtifacts.get(model.name), artifacts.get(model.name)))) return refuse('owned model differs from original schema closure');
+      bindDomainProfile(schema, schemaArtifacts, valueSchema, result, model);
     }
     const declared = new Set(inventory.frameworkModels.map(model => model.model as string));
     for (const declaration of inventory.frameworkModels) {
@@ -434,8 +447,16 @@ function modelProfiles(inventories: readonly InstalledFileReferenceInventory[], 
     if (owners.has(installed.inventory.owner)) return refuse('duplicate installed owner');
     owners.add(installed.inventory.owner);
     for (const [name, profile] of profiles(installed.inventory, framework)) {
-      if (result.has(name)) return refuse('colliding installed model declarations');
-      result.set(name, profile.kind === 'framework' ? { ...profile, installed } : profile);
+      const previous = result.get(name);
+      const current = profile.kind === 'framework' ? { ...profile, installed } : profile;
+      if (previous !== undefined) {
+        if (previous.kind !== 'framework' || current.kind !== 'framework' || previous.bound !== current.bound ||
+            !fileGuardEqual(previous.bound.declaration, current.bound.declaration)) return refuse('colliding installed model declarations');
+        const shared = new Map(previous.owners ?? [[previous.inventory.owner, previous]]);
+        if (shared.has(installed.inventory.owner)) return refuse('duplicate framework inventory owner');
+        shared.set(installed.inventory.owner, current);
+        result.set(name, { ...previous, owners: shared });
+      } else result.set(name, current);
     }
   }
   return result;
@@ -473,6 +494,12 @@ function opaqueOccurrences(state: FileGuardState, model: string, row: StoredRow,
       !fileGuardEqual(binding.scope, { app: state.authority.app, ownerPackage: binding.inventory.owner,
         owner: state.authority.receiver.owner })) return refuse('original opaque slot lifetime and permanent scope disagree');
   identity(binding.inventory);
+  if (profile.owners !== undefined) {
+    const owning = profile.owners.get(binding.inventory.owner);
+    if (owning === undefined) return refuse('opaque framework package has no installed inventory');
+    profile = owning;
+  }
+  if (original?.kind === 'framework' && original.owners !== undefined) original = original.owners.get(binding.inventory.owner);
   const historical = profile.opaque.get(binding.declarationSetId);
   if (historical === undefined || !fileGuardEqual(binding.inventory, historical.declarationSet.inventory)) return refuse('complete original historical declarations required');
   try { validateOpaqueFileOrigin(historical, binding); }
