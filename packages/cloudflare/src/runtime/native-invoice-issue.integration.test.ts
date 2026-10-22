@@ -99,7 +99,7 @@ it('issues only from complete current owner evidence and commits its original fo
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
       const singleArtifact = JSON.parse(stdout) as CompileArtifact;
       const singleAsm = await assembleModules({ artifact: singleArtifact, sourcePath: source }, { workDir: directory,
-        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+        stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
         uiUrl: import.meta.resolve('@canlang/ui') });
       const employeeStart = probe.indexOf('package employee\n');
       const customerStart = probe.indexOf('package customer\n', employeeStart);
@@ -116,7 +116,7 @@ it('issues only from complete current owner evidence and commits its original fo
       assert.equal(splitArtifact.sources.length, 2, 'helper and issue have distinct source files');
       const splitAsm = await assembleModules({ artifact: splitArtifact, sourcePath: splitMain },
         { workDir: directory,
-          stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+          stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
           uiUrl: import.meta.resolve('@canlang/ui') });
 
       for (const mode of [
