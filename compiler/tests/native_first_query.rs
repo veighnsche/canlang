@@ -1604,3 +1604,144 @@ fn original_event_provider_tail_keeps_guarded_reference_types_and_refuses_substi
         );
     }
 }
+
+#[test]
+fn optional_customer_helper_domains_keep_original_source_and_ir_owners() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source = include_str!("fixtures/source-require-optional-customer.can");
+    let (db, program, original, catalog) =
+        fixture_source("source-require-optional-customer.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for owner in ["events.check_register", "rent_reservations.link_legacy"] {
+        let operation = artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|value| value["name"] == owner)
+            .unwrap();
+        assert!(
+            operation["result"]["disclosure"].is_object(),
+            "{owner}: {operation}"
+        );
+        let owner = item(&original, owner);
+        assert!(matches!(
+            original.scenario_disclosures[&owner.id],
+            ScenarioDisclosure::Complete(_)
+        ));
+        assert!(
+            serialize_decision_sources(&program, &original, owner, &db, Some(&catalog)).is_some()
+        );
+    }
+    let register = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|value| value["name"] == "events.check_register")
+        .unwrap();
+    for (name, expected) in [("email", "email?"), ("account", "user?")] {
+        let field = register["inputs"]["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|value| value["name"] == name)
+            .unwrap();
+        assert_eq!(field["valueType"], expected);
+    }
+    fn replace_call(value: &mut ir::TypedExpr, mode: &str) -> bool {
+        match &mut value.expr {
+            IrExpr::Call {
+                target: IrCallTarget::DeriveFn(target),
+                args,
+            }
+            | IrExpr::BoundCall {
+                target: IrCallTarget::DeriveFn(target),
+                args,
+                ..
+            } if target == "customer.owns" => {
+                if mode == "call-target" {
+                    *target = "customer.has_role".into();
+                } else {
+                    args[1].expr = IrExpr::Name("same_typed_other_customer".into());
+                }
+                true
+            }
+            IrExpr::Binary { left, right, .. } => {
+                replace_call(left, mode) || replace_call(right, mode)
+            }
+            IrExpr::Unary { operand, .. } => replace_call(operand, mode),
+            _ => false,
+        }
+    }
+    for mode in [
+        "call-target",
+        "same-model-binding",
+        "helper-body",
+        "helper-parameter",
+        "count-predicate",
+    ] {
+        let mut changed = original.clone();
+        let owner = item(&changed, "events.check_register").id;
+        match mode {
+            "call-target" | "same-model-binding" => {
+                let IrItemKind::Scenario { guards, .. } = &mut changed.items[owner.0 as usize].kind
+                else {
+                    panic!("scenario");
+                };
+                let IrStmt::Require { cond, .. } = &mut guards[4] else {
+                    panic!("require");
+                };
+                assert!(replace_call(cond, mode));
+            }
+            "helper-body" => {
+                let id = item(&changed, "customer.owns").id;
+                let IrItemKind::DeriveFn {
+                    expr: Some(body), ..
+                } = &mut changed.items[id.0 as usize].kind
+                else {
+                    panic!("helper");
+                };
+                body.expr = IrExpr::Bool(true);
+            }
+            "helper-parameter" => {
+                let id = item(&changed, "customer.owns").id;
+                let IrItemKind::DeriveFn { params, .. } = &mut changed.items[id.0 as usize].kind
+                else {
+                    panic!("helper");
+                };
+                params.swap(0, 1);
+            }
+            "count-predicate" => {
+                let id = item(&changed, "events.Event.available").id;
+                let IrItemKind::DeriveField {
+                    expr: Some(body), ..
+                } = &mut changed.items[id.0 as usize].kind
+                else {
+                    panic!("derived field");
+                };
+                let IrExpr::Binary { right, .. } = &mut body.expr else {
+                    panic!("subtraction");
+                };
+                let IrExpr::Call { args, .. } = &mut right.expr else {
+                    panic!("count");
+                };
+                let IrExpr::Query(query) = &mut args[0].expr else {
+                    panic!("query");
+                };
+                query.where_pred.as_mut().unwrap().expr = IrExpr::Bool(true);
+            }
+            _ => unreachable!(),
+        }
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                Some(&catalog)
+            )
+            .is_none(),
+            "{mode} retained its decision correspondence"
+        );
+    }
+}

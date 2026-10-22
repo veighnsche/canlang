@@ -18769,23 +18769,23 @@ impl<'a> Emitter<'a> {
                             // checked primitive type, even when its
                             // legacy MCP tag was unambiguous.
                             self.native_receipts.get(&item.id)?;
-                            let IrType::Known(ResolvedType::Scalar(scalar)) = ty else {
+                            let IrType::Known(resolved) = ty else {
                                 return None;
                             };
-                            matches!(
-                                scalar,
-                                Scalar::Text
-                                    | Scalar::Bool
-                                    | Scalar::Int
-                                    | Scalar::Date
-                                    | Scalar::Datetime
-                                    | Scalar::Decimal
-                                    | Scalar::Money
-                                    | Scalar::Duration
-                                    | Scalar::Currency
-                                    | Scalar::User
-                            )
-                            .then(|| scalar.as_str().to_string())
+                            let scalar = match resolved {
+                                ResolvedType::Nullable(inner) => inner.as_ref(),
+                                value => value,
+                            };
+                            if matches!(scalar, ResolvedType::Scalar(
+                                Scalar::Text | Scalar::Bool | Scalar::Int | Scalar::Date
+                                    | Scalar::Datetime | Scalar::Decimal | Scalar::Money
+                                    | Scalar::Duration | Scalar::Currency | Scalar::User
+                                    | Scalar::Email | Scalar::Timezone | Scalar::Url))
+                            {
+                                checked_value_profile(resolved).map(str::to_owned)
+                            } else {
+                                None
+                            }
                         }),
                     },
                     required: default.is_none() && !nullable && !is_array,

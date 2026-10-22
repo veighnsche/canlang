@@ -14937,11 +14937,124 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
+    /// A stored integer minus a filtered census of its own children keeps
+    /// the initial owner stage. The predicate may read only that child’s
+    /// original stored scalar fields and `now`; it acquires no foreign rows.
+    fn source_require_remaining_count_field(&self, id: SymbolId, model: SymbolId) -> Option<()> {
+        let body = self.source_require_aggregate_decl(id, model)?;
+        let (base, aggregate) = self.query_binary(body, "-")?;
+        let integer = ResolvedType::Scalar(Scalar::Int);
+        let (row, name) = self.count_member(base)?;
+        let field = self
+            .effects
+            .models
+            .get(&model)?
+            .fields
+            .iter()
+            .find(|field| {
+                self.resolve
+                    .symbols
+                    .get(field.field.0 as usize)
+                    .is_some_and(|symbol| symbol.name == name)
+            })?;
+        let selected = self.types.selected_calls.get(&aggregate)?;
+        if !matches!(self.resolve.symbols.get(field.field.0 as usize)?.kind,
+                SymbolKind::Field { owner, .. } if owner == model)
+            || self.types.symbol_types.get(&id) != Some(&integer)
+            || self.types.symbol_types.get(&field.field) != Some(&integer)
+            || self.types.node_types.get(&base) != Some(&integer)
+            || self.types.node_types.get(&aggregate) != Some(&integer)
+            || !matches!(self.query_binding(row), Some(Binding::Context(ContextVar::RowModel(actual))) if *actual == model)
+            || !matches!(&selected.target, SelectedCallTarget::Builtin { id, overload: 0 } if id == "count")
+            || selected.arguments.len() != 1
+            || selected.slots.as_slice() != [Some(0)]
+        {
+            return None;
+        }
+        let query = self
+            .types
+            .checked_queries
+            .get(&self.query_group(selected.arguments[0])?)?;
+        let [alias, filter] = query.clauses.as_slice() else {
+            return None;
+        };
+        let [predicate] = filter.expressions.as_slice() else {
+            return None;
+        };
+        let (owner, child_name) = self.count_member(query.domain)?;
+        let ResolvedType::Array {
+            element,
+            ordered: true,
+            nonempty: false,
+        } = &query.domain_type
+        else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: child,
+            stored: true,
+        } = element.as_ref()
+        else {
+            return None;
+        };
+        let declaration = self.resolve.symbols.get(child.0 as usize)?;
+        if !matches!(self.query_binding(owner), Some(Binding::Context(ContextVar::RowModel(actual))) if *actual == model)
+            || declaration.name != child_name
+            || !matches!(declaration.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(parent), .. } if parent == model)
+            || self.effects.models.get(child)?.owner != ModelOwner::ChildOf(model)
+            || !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
+            || !alias.expressions.is_empty()
+            || filter.kind != CheckedQueryClauseKind::Where
+            || query.projection.is_some()
+            || self.types.node_types.get(predicate) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        {
+            return None;
+        }
+        let mut pending = vec![*predicate];
+        let mut steps = 0;
+        while let Some(key) = pending.pop() {
+            steps += 1;
+            if steps > 1024 {
+                return None;
+            }
+            let node = self.nodes.get(&key)?;
+            self.source_require_expression_shape(key)?;
+            if matches!(node.kind, SyntaxKind::Call | SyntaxKind::Query) {
+                return None;
+            }
+            if node.kind == SyntaxKind::Member {
+                let field = self.query_member(key, alias.node, *child)?;
+                let ty = self.types.symbol_types.get(&field)?;
+                if !matches!(self.resolve.symbols.get(field.0 as usize)?.kind, SymbolKind::Field { owner, .. } if owner == *child)
+                    || !(primitive_type(ty)
+                        || matches!(ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+                    || self.types.node_types.get(&key) != Some(ty)
+                {
+                    return None;
+                }
+            }
+            if node.kind == SyntaxKind::NameRef {
+                match self.query_binding(key) {
+                    Some(Binding::QueryAlias { node }) if *node == alias.node => {}
+                    Some(Binding::Context(ContextVar::Now)) => {}
+                    // An unbound checked enum case has its original literal type.
+                    _ if self.types.resolved_cases.contains(&key) => {}
+                    _ => return None,
+                }
+            }
+            pending.extend(node.children.iter().map(NodeKey::of));
+        }
+        Some(())
+    }
+
     fn source_require_aggregate_field(
         &self,
         id: SymbolId,
         model: SymbolId,
     ) -> Option<()> {
+        if self.source_require_remaining_count_field(id, model).is_some() {
+            return Some(());
+        }
         let body = self.source_require_aggregate_decl(id, model)?;
         let aggregate = if self.source_require_aggregate_call(id, body).is_some() { body }
         else {
@@ -15191,6 +15304,7 @@ impl<'a> Closure<'a> {
         let (mut formal, parent, mut hops) =
             self.source_require_helper_parent_path(receiver, frame.derive, 0)?;
         let child = self.resolve.symbols.get(model.0 as usize)?;
+        let defining_module = self.resolve.symbols.get(frame.derive.0 as usize)?.module;
         let imported_assign_contact = child.name == "Contact"
             && name == "Contact"
             && self.resolve.modules.get(scenario.module.0 as usize).is_some_and(|module| module.name == "member_terms")
@@ -15201,7 +15315,7 @@ impl<'a> Closure<'a> {
             && self.resolve.symbols.get(parent.0 as usize).is_some_and(|symbol|
                 symbol.name == "Customer" && symbol.module == child.module);
         if child.name != name
-            || (child.module != call.module && !imported_assign_contact)
+            || (child.module != call.module && child.module != defining_module && !imported_assign_contact)
             || !matches!(child.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(owner), .. } if owner == parent)
             || self.effects.models.get(&model)?.owner != ModelOwner::ChildOf(parent)
         {
@@ -15225,9 +15339,24 @@ impl<'a> Closure<'a> {
                 return None;
             }
             if index == 0 {
-                let ordinary = scenario.params.iter().find_map(|parameter| {
+                let ordinary = scenario.params.iter().enumerate().find_map(|(index, parameter)| {
                     self.checked_call_parent_path(argument, parameter.param, 0)
-                        .map(|(actual, path_hops)| (actual, path_hops))
+                        .or_else(|| {
+                            // This exact occurrence is flow-narrowed by the original
+                            // source guard; a same-typed sibling value is not its input.
+                            let argument = self.query_group(argument)?;
+                            let ResolvedType::Record { symbol: actual, stored: true } =
+                                self.types.node_types.get(&argument)? else {
+                                    return None;
+                                };
+                            (matches!(self.query_binding(argument), Some(Binding::Symbol(input)) if *input == parameter.param)
+                                && self.types.symbol_types.get(&parameter.param) == Some(&ResolvedType::Nullable(Box::new(
+                                    ResolvedType::Record { symbol: *actual, stored: true },
+                                )))
+                                && (parameter.default.is_none()
+                                    || self.source_require_null_model_input(scenario, parameter, index)))
+                                .then_some((*actual, 0))
+                        })
                 });
                 let ResolvedType::Record { symbol: expected, stored: true } =
                     self.types.symbol_types.get(&formal)? else {
@@ -15709,6 +15838,20 @@ impl<'a> Closure<'a> {
                 && matches!(self.types.symbol_types.get(parameter),Some(ResolvedType::Nullable(inner))
                     if matches!(inner.as_ref(),ResolvedType::Record {stored:true,..})))
         { *helper_query = true; }
+        // A required input’s original nullable stored reference must keep
+        // its authored null test and lazy navigation in this same observer.
+        // Matching a target Model type does not prove an input field path.
+        if node.kind == SyntaxKind::Member
+            && let Some((base, name)) = self.count_member(key)
+            && let Some(ResolvedType::Record { symbol: model, stored: true }) = self.types.node_types.get(&base)
+            && scenario.params.iter().any(|parameter|
+                self.checked_call_parent_path(base, parameter.param, 0) == Some((*model, 0)))
+            && self.effects.models.get(model).is_some_and(|owner| owner.fields.iter().any(|field|
+                self.resolve.symbols.get(field.field.0 as usize).is_some_and(|declaration|
+                    declaration.name == name && matches!(declaration.kind, SymbolKind::Field { owner, .. } if owner == *model))
+                && matches!(self.types.symbol_types.get(&field.field), Some(ResolvedType::Nullable(inner))
+                    if matches!(inner.as_ref(), ResolvedType::Record { stored: true, .. }))))
+        { *helper_query = true; }
         if body {
             match self.query_binding(key) {
                 Some(Binding::Let { .. } | Binding::CreateAs { .. } | Binding::SendAs { .. }
@@ -15722,19 +15865,19 @@ impl<'a> Closure<'a> {
                 }
                 _ => {}
             }
-            if node.kind == SyntaxKind::Member
-                && let Some((base, name)) = self.count_member(key)
-                && let Some(ResolvedType::Record { symbol: model, stored: true }) = self.types.node_types.get(&base)
-                && let Some(field) = self.resolve.symbols.iter().find(|field| field.name == name
-                    && matches!(field.kind, SymbolKind::DeriveField { model: owner, .. } if owner == *model))
+        }
+        if node.kind == SyntaxKind::Member
+            && let Some((base, name)) = self.count_member(key)
+            && let Some(ResolvedType::Record { symbol: model, stored: true }) = self.types.node_types.get(&base)
+            && let Some(field) = self.resolve.symbols.iter().find(|field| field.name == name
+                && matches!(field.kind, SymbolKind::DeriveField { model: owner, .. } if owner == *model))
+        {
+            if self.source_require_aggregate_field(field.id, *model).is_none()
+                && self.admitted_derived_read(field.id, *model, &mut Vec::new()).is_none()
             {
-                if self.source_require_aggregate_field(field.id, *model).is_none()
-                    && self.admitted_derived_read(field.id, *model, &mut Vec::new()).is_none()
-                {
-                    *supported = false; return Some(false);
-                }
-                *helper_query = true;
+                *supported = false; return Some(false);
             }
+            *helper_query = true;
         }
         Some(true)
     }

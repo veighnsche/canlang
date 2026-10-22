@@ -1,0 +1,75 @@
+app OptionalCustomerProbe uses=[events,rent_reservations]
+package rent_catalog
+ Given
+  export Location {name:text,currency:currency}
+  policy Location read=members
+ When
+ Then
+package customer
+ use rent_catalog {Location}
+ Given
+  export Customer {name:text,kind:enum(individual,company),active:bool=true,locations:Location[]}
+  export Contact in Customer {account:user?,verified:bool=false,hidden:bool=false}
+  export CompanyRole in Customer {account:user,role:enum(administrator,booker,billing),locations:Location[]=[],active:bool=true,hidden:bool=false}
+  export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+  export derive has_location_role(person:user,org:Customer,role:CompanyRole.role,location:Location):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active and location in grant.locations)
+  export derive owns(person:user,org:Customer):bool = org.kind==individual and any(org.Contact as contact,contact.account==person and contact.verified)
+  policy Customer read=members
+  policy Contact read=members and not row.hidden
+  policy CompanyRole read=members and not row.hidden
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package events
+ use rent_catalog {Location}
+ use customer {Customer,owns,has_location_role}
+ use employee {can_work}
+ Given
+  role organizer
+  Program {name:text}
+  Venue {venue_state:enum(pending,confirmed)}
+  Event in Program {location:Location,published:bool=true,cancelled:bool=false,sales_until:datetime,capacity:int=10,venue:Venue?,price:money,checked:bool=false}
+  Registration in Event {state:enum(held,pending,confirmed)=held,expires:datetime}
+  derive Event.available:int = row.capacity-count(row.Registration as registration where registration.state==confirmed or (registration.state in [held,pending] and now<registration.expires))
+  policy Program read=members
+  policy Event read=members
+  policy Venue read=members
+  policy Registration read=members
+ When
+  export scenario check_register(event:Event,name:text,email:email?=null,customer:Customer?=null,account:user?=null) -> Registration by=authenticated or organizer label="Register for event"@{nl="Registreren voor evenement"}
+   require event.published and not event.cancelled and now<event.sales_until and event.available>0 and trim(name)!=""
+   require event.venue==null or event.venue.venue_state==confirmed
+   require account==null or account==actor or (organizer and can_work(actor,event.location))
+   require (account!=null and account!=actor and email!=null) or ((account==null or account==actor) and actor.email_verified and (email==null or email==actor.email))
+   require event.price.minor==0 or (customer!=null and customer.active and event.location in customer.locations and (owns(account ?? actor,customer) or has_location_role(account ?? actor,customer,booker,event.location) or has_location_role(account ?? actor,customer,administrator,event.location)))
+   do
+    create Registration {parent=event,state=confirmed,expires=now+15m} as registration
+    return registration
+ Then
+package rent_reservations
+ use rent_catalog {Location}
+ use customer {Customer,owns,has_location_role}
+ use employee {can_work}
+ Given
+  role reservation_manager
+  role finance
+  contract LegacyFacts {customer_source:text?,customer_external_id:text?,resource_source:text?,resource_external_id:text?}
+  Resource {location:Location,active:bool=true}
+  LegacyBooking {location:Location,facts:LegacyFacts,customer:Customer?,resource:Resource?,account:user?,mapping_reason:text?}
+  policy Resource read=members
+  policy LegacyBooking read=members
+ When
+  export scenario link_legacy(entry:LegacyBooking,customer:Customer? label="Current customer"@{nl="Huidige klant"},resource:Resource? label="Current resource"@{nl="Huidige voorziening"},account:user? label="Current account"@{nl="Huidig account"},reason:text label="Review reason"@{nl="Reden voor beoordeling"}) by=reservation_manager or finance label="Map historical booking"@{nl="Historische reservering koppelen"}
+   require can_work(actor,entry.location) and trim(reason)!=""
+   require customer==null or (finance and trim(entry.facts.customer_source??"")!="" and trim(entry.facts.customer_external_id??"")!="" and entry.location in customer.locations)
+   require resource==null or (reservation_manager and trim(entry.facts.resource_source??"")!="" and trim(entry.facts.resource_external_id??"")!="" and resource.location==entry.location)
+   require account==null or (customer!=null and (owns(account,customer) or has_location_role(account,customer,booker,entry.location)))
+   do set entry {customer,resource,account,mapping_reason=trim(reason)}
+ Then

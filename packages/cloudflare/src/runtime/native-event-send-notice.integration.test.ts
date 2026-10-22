@@ -465,3 +465,95 @@ it('observes original pre-change guards and atomically creates, sends, and route
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('executes original optional Customer helper guards with complete owner domains and commit fences',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-optional-customer-'));
+    try{
+      const sourcePath=join(root,'compiler/tests/fixtures/source-require-optional-customer.can');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,sourcePath],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath},{workDir:join(directory,'assembly'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const operation of ['events.check_register','rent_reservations.link_legacy']){
+        for(const mode of ['omitted','null','owner','booker','administrator','delegated','wrong-account','wrong-location','inactive','unverified','hidden-contact','hidden-role','hidden-negative','free-hidden','venue-confirmed','venue-pending','venue-missing','prefix-false','capacity','domain-race','read-race','role-domain-race','role-read-race','identity-race','customer-inactive','customer-away','worker-inactive','without-finance','without-reservation-manager']){
+          if(operation==='events.check_register'&&mode.startsWith('without-'))continue;
+          if(operation.endsWith('link_legacy')&&['omitted','administrator','free-hidden','venue-confirmed','venue-pending','venue-missing','prefix-false','capacity'].includes(mode))continue;
+          const now=Date.parse('2099-01-01T12:00:00Z'),clock=createFrozenClock(now),identities=createMemoryIdentityStore({clock});
+          const team=await identities.createTeam({timezone:'UTC'});
+          const actor=await identities.createUser({email:'helper-actor@example.test',password_hash:'unused',email_verified:true});
+          const other=await identities.createUser({email:'helper-other@example.test',password_hash:'unused',email_verified:true});
+          const membership=await identities.createMembership({team_id:team.team_id,user_id:actor.user_id,is_owner:false,roles:['events.organizer','rent_reservations.finance','rent_reservations.reservation_manager'].filter(role=>mode!=='without-finance'||role!=='rent_reservations.finance').filter(role=>mode!=='without-reservation-manager'||role!=='rent_reservations.reservation_manager').map(role=>({role,granted_at:new Date(now).toISOString(),granted_by:actor.user_id}))});
+          const token='optional-customer-'+randomBytes(8).toString('hex');
+          await identities.createSession({user_id:actor.user_id,token_sha256:await sha256HexText(token),last_team_id:team.team_id,expires_at:new Date(now+3600000).toISOString()});
+          const identity=await resolveIdentity(identities,{session_token:token},{clock});
+          const {store}=createTestMemoryStorage();
+          const site=asId('site'),customer=asId('customer'),event=asId('event'),entry=asId('entry');
+          const company=['booker','administrator','wrong-location','inactive','hidden-role','hidden-negative','role-domain-race','role-read-race'].includes(mode);
+          const account=['delegated','wrong-account','worker-inactive'].includes(mode)?other.user_id:actor.user_id;
+          const matchingAccount=mode==='wrong-account'?actor.user_id:account;
+          const row=(model:string,id:string,data:Record<string,unknown>,parent:{model:ReturnType<typeof asModel>;id:ReturnType<typeof asId>}|null=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+          await store.commit(makeBatch(await store.readRevision(),{writes:[
+            row('rent_catalog.Location',site,{name:'Site',currency:'EUR'}),
+            row('rent_catalog.Location','away',{name:'Away',currency:'EUR'}),
+            row('employee.Employee','employee',{user:{id:actor.user_id},active:mode!=='worker-inactive',operator_wide:false,home:{id:site},locations:[]}),
+            row('customer.Customer',customer,{name:'Customer',kind:company?'company':'individual',active:mode!=='customer-inactive',locations:mode==='customer-away'?[]:[{id:site}]}),
+            row('customer.Contact','contact',{account:{id:matchingAccount},verified:mode!=='unverified',hidden:['hidden-contact','free-hidden'].includes(mode)}, {model:asModel('customer.Customer'),id:customer}),
+            row('customer.CompanyRole','grant',{account:{id:company?matchingAccount:mode==='wrong-account'?actor.user_id:other.user_id},role:mode==='administrator'?'administrator':'booker',locations:[{id:mode==='wrong-location'?'away':site}],active:!['inactive','hidden-negative'].includes(mode),hidden:['hidden-role','hidden-negative','free-hidden'].includes(mode)}, {model:asModel('customer.Customer'),id:customer}),
+            row('events.Venue','venue',mode==='venue-missing'?{}:{venue_state:mode==='venue-pending'?'pending':'confirmed'}),
+            row('events.Program','program',{name:'Program'}),
+            row('events.Event',event,{location:{id:site},published:mode!=='prefix-false',cancelled:false,sales_until:'2099-01-02T08:00:00.000Z',capacity:mode==='capacity'?'1':'10',venue:mode==='prefix-false'?{id:'unavailable-venue'}:mode.startsWith('venue-')?{id:'venue'}:null,price:{minor:['omitted','null','free-hidden'].includes(mode)?'0':'10',currency:'EUR'},checked:false},{model:asModel('events.Program'),id:asId('program')}),
+            ...(mode==='capacity'?[row('events.Registration','existing-ticket',{state:'confirmed',expires:'2099-01-02T12:00:00.000Z'},{model:asModel('events.Event'),id:event})]:[]),
+            row('rent_reservations.Resource','resource',{location:{id:site},active:true}),
+            row('rent_reservations.LegacyBooking',entry,{location:{id:site},facts:{customer_source:'old',customer_external_id:'c',resource_source:'old',resource_external_id:'r'},customer:null,resource:null,account:null,mapping_reason:null}),
+          ]}));
+          let helperQueries=0,registrationQueries=0,raced=false,raceCount=0;
+          const query=store.query.bind(store);
+          store.query=async spec=>{
+            const rows=await query(spec);
+            if(spec.model==='events.Registration')registrationQueries++;
+            if(spec.model==='customer.Contact'||spec.model==='customer.CompanyRole'){
+              helperQueries++;
+              if(mode==='identity-race'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}
+            }
+            return rows;
+          };
+          if(['domain-race','read-race','role-domain-race','role-read-race'].includes(mode)){
+            const commit=store.commit.bind(store);
+            store.commit=async batch=>{
+              if(batch.writes.some(write=>(write.kind==='insert'&&write.model==='events.Registration')||(write.kind==='update'&&write.model==='rent_reservations.LegacyBooking'))&&(mode.endsWith('domain-race')||!raced)){
+                raced=true;raceCount++;
+                if(mode.endsWith('domain-race'))await commit(makeBatch(await store.readRevision(),{writes:[row(mode.startsWith('role-')?'customer.CompanyRole':'customer.Contact','racing-'+raceCount,mode.startsWith('role-')?{account:{id:other.user_id},role:'booker',locations:[{id:site}],active:false,hidden:true}:{account:{id:other.user_id},verified:false,hidden:false},{model:asModel('customer.Customer'),id:customer})]}));
+                else{
+                  const model=asModel(mode.startsWith('role-')?'customer.CompanyRole':'customer.Contact');
+                  const contact=await store.load(model,asId(mode.startsWith('role-')?'grant':'contact'));assert.ok(contact);
+                  await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model,id:contact.id,expectedVersion:contact.version,row:{...contact,version:asVersion(contact.version+1),updated:now,data:{...contact.data,...(mode.startsWith('role-')?{active:false}:{verified:false})}}}]}));
+                }
+              }
+              return commit(batch);
+            };
+          }
+          const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+          const nullable=['omitted','null'].includes(mode);
+          const optional=mode==='omitted'?{}:{customer:nullable?null:{id:customer,version:'1'},account:nullable?null:{id:account}};
+          const inputs=operation==='events.check_register'?{event:{id:event,version:'1'},name:'Attendee',...optional,...(account!==actor.user_id?{email:'guest@example.test'}:{})}:{entry:{id:entry,version:'1'},customer:nullable?null:{id:customer,version:'1'},resource:nullable?null:{id:'resource',version:'1'},account:nullable?null:{id:account},reason:'Reviewed'};
+          const time=now.toString(16).padStart(12,'0'),random=randomBytes(10).toString('hex'),operationId=`${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}`;
+          const result=await invoker.invokeMutation({operation,operation_id:operationId,inputs},identity);
+          const success=['omitted','null','owner','booker','administrator','delegated','hidden-contact','hidden-role','free-hidden','venue-confirmed'].includes(mode)||(operation==='rent_reservations.link_legacy'&&mode==='customer-inactive');
+          assert.equal('result' in result,success,operation+'/'+mode+': '+JSON.stringify(result));
+          const stored=await store.load(asModel(operation==='events.check_register'?'events.Event':'rent_reservations.LegacyBooking'),operation==='events.check_register'?event:entry);assert.ok(stored);
+          assert.equal(stored.version,operation==='events.check_register'?1:success?2:1,operation+'/'+mode+': business write remains atomic');
+          if(operation==='events.check_register')assert.equal((await query({model:asModel('events.Registration'),authority:'owner'})).length,mode==='capacity'?1:success?1:0,mode+': registration create remains atomic');
+          else if(success){assert.equal(stored.data['mapping_reason'],'Reviewed');assert.deepEqual(stored.data['account'],nullable?null:{id:account});assert.deepEqual(stored.data['customer'],nullable?null:{id:customer});assert.deepEqual(stored.data['resource'],nullable?null:{id:'resource'});}
+          if(['omitted','null','capacity','free-hidden','venue-pending','venue-missing','prefix-false','customer-away','worker-inactive','without-finance','without-reservation-manager'].includes(mode)||(operation==='events.check_register'&&mode==='customer-inactive'))assert.equal(helperQueries,0,mode+': skipped helper domains remain unread');
+          if(mode==='prefix-false')assert.equal(registrationQueries,0,'false original prefix avoids derived census and unavailable Venue');
+          if(mode.endsWith('-race'))assert.equal(raced,true,mode+': race reached the checked domain');
+          if(success){
+            const replay=await invoker.invokeMutation({operation,operation_id:operationId,inputs},identity);
+            assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+            assert.equal((await store.load(asModel(operation==='events.check_register'?'events.Event':'rent_reservations.LegacyBooking'),stored.id))?.version,operation==='events.check_register'?1:2,'replay repeats no business write');
+            if(operation==='events.check_register')assert.equal((await query({model:asModel('events.Registration'),authority:'owner'})).length,1,'replay creates no second registration');
+          }
+        }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
