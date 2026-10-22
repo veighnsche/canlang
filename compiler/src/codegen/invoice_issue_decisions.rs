@@ -1024,7 +1024,7 @@ pub(super) fn collect_issue_receipt(
             rent_notice_decision: None,
             invoice_issue_decision: Some(decision),
             observe_venue_decision: None,
-            success_renewal_decision: None,
+            success_renewal_decision: None, purchase_receive_all: None,
             queries: Vec::new(),
             returns: vec![ReceiptReturn {
                 id: id.clone(),

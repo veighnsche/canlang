@@ -196,6 +196,7 @@ export interface ScenarioResultDisclosurePlan {
   readonly rentNoticeDecision?: unknown;
   readonly observeVenueDecision?: unknown;
   readonly successRenewalDecision?: unknown;
+  readonly purchaseReceiveAll?: unknown;
   readonly queries?: readonly ScenarioReceiptQueryPlan[];
   readonly returns: ReadonlyArray<{
     readonly id: string;

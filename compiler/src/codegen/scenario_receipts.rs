@@ -67,6 +67,8 @@ pub(super) struct ReceiptDisclosurePlan {
     /// Exact source-bound renewal reminder SEND owner with its staged rule.
     #[serde(rename = "successRenewalDecision", skip_serializing_if = "Option::is_none")]
     pub success_renewal_decision: Option<serde_json::Value>,
+    #[serde(rename = "purchaseReceiveAll", skip_serializing_if = "Option::is_none")]
+    pub purchase_receive_all: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub queries: Vec<ReceiptQuery>,
     pub returns: Vec<ReceiptReturn>,
@@ -654,10 +656,10 @@ pub(super) fn checked_created_model_result(
                     return None;
                 }
                 let queries = facts.queries.as_deref()?;
-                if queries.len() != 1 {
-                    return None;
-                }
-                let query = &queries[0];
+                let query = if queries.len() == 1 { &queries[0] } else {
+                    checked_purchase_helper_query_influences(facts)?;
+                    queries.iter().find(|query| query.first.is_some())?
+                };
                 let first = query.first.as_ref()?;
                 if query.model != *model || query.count.is_some() || query.dependencies.len() != 1 {
                     return None;
@@ -2106,6 +2108,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     if has_original_images_source(ir, item.id) {
         checked_images_source(ir, item, db?)?;
     }
+    let purchase_all = if matches!(item.canonical.as_str(), "purchase.receive" | "CanPurchase.receive") {
+        Some(super::purchase_all::checked(source_context?, item, entry_module)?)
+    } else { None };
     let first_plan = checked_native_first_query_plan(
         ir,
         item,
@@ -2125,7 +2130,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         None
     };
     let effective_plan = first_plan.or(guard_plan.as_ref());
-    let sites = match Sites::collect(ir, item, send_guards, db) {
+    let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref()) {
         Some(sites) => sites,
         None => {
             return None;
@@ -2186,7 +2191,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source,
+            invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source,
             queries: effective_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
             returns: Vec::new(),
         },
@@ -2198,6 +2203,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         returns: Vec::new(),
         current_revision,
     };
+    recipe.plan.purchase_receive_all = purchase_all;
     let mut source_origins = HashMap::new();
     source_origins.insert(
         (checked.node.file, checked.source.module.clone()),
@@ -2752,7 +2758,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             .iter()
                             .any(|query| query.first.is_some() && query.model == dependency.model)
                     })
-                    && checked_created_row_operand(ir, item, base, dependency.model, db?).is_none()
+                    && checked_created_row_operand(ir, item, base, dependency.model, db?, recipe.plan.purchase_receive_all.is_some()).is_none()
                     && checked_first_query_row(ir, item, base, db?)?.id != dependency.model
                 {
                     return None;
@@ -4586,7 +4592,7 @@ fn checked_guard_any_query_plan(
     }
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&facts.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&facts.source, entry)?,
         queries: fragments,
         returns,
     })
@@ -4638,7 +4644,7 @@ pub(super) fn checked_native_any_direct_query_plan(
     }
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&query.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&query.source, entry)?,
         queries: vec![fragment],
         returns: checked
             .returns
@@ -4759,11 +4765,46 @@ fn checked_helper_query_influences(
     checked_query_influence_census(query)
 }
 
-/// The mixed cohort keeps the two helper occurrences distinct from the first
-/// lookup. This is a source census, not a union of return influences.
+/// Closed purchase replay composition: one first lookup and one original
+/// leading helper ANY. Every helper still owns its checked source/IR query.
+pub(super) fn checked_purchase_helper_query_influences(
+    facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
+    let queries = facts.queries.as_deref()?;
+    let [created] = facts.creates.as_deref()? else { return None; };
+    if facts.source.module != "purchase" || queries.len() != 2 || created.binding != "receipt" { return None; }
+    let mut first = queries.iter().filter(|query| query.first.is_some());
+    let replay = first.next()?;
+    if first.next().is_some() || replay.model_name != "purchase.Receipt" || created.model != replay.model
+        || replay.count.is_some() || replay.projection.is_some() || replay.cardinality_guard.is_some()
+    { return None; }
+    let mut census = Vec::new();
+    for query in queries {
+        if query == replay { census.extend(checked_query_influence_census(query)?); }
+        else {
+            census.extend(checked_helper_query_influences(facts, query, true)?);
+            let outer = query.dependencies.first()?.calls[0];
+            let mut owners = facts.decision_sites.as_deref()?.iter().filter(|site|
+                site.owner == facts.scenario && site.source == facts.source
+                && site.stage == crate::analysis::scenario_disclosure::CheckedDecisionStage::LeadingRequire
+                && site.calls.iter().any(|call| call.source == query.source
+                    && call.chain.len() == 1 && call.chain[0].node == outer
+                    && call.arguments.first().is_some_and(|argument| argument.0 == query.node)
+                    && call.arguments.get(1).is_some_and(|argument| Some(argument.0) == query.predicate)));
+            owners.next()?;
+            if owners.next().is_some() { return None; }
+        }
+    }
+    if census.iter().map(|value| &value.id).collect::<HashSet<_>>().len() != census.len() { return None; }
+    Some(census)
+}
+
+/// The mixed cohort keeps helper occurrences distinct from the first lookup.
+/// This is a source census, not a union of return influences.
 pub(super) fn checked_mixed_helper_query_influences(
     facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
 ) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
+    if let Some(census) = checked_purchase_helper_query_influences(facts) { return Some(census); }
     use crate::analysis::scenario_disclosure::{CheckedDecisionCallTarget, CheckedDecisionStage};
     let queries = facts.queries.as_deref()?;
     if queries.len() != 3 || facts.creates.as_deref()?.len() != 2 {
@@ -5039,7 +5080,7 @@ pub(super) fn checked_native_helper_any_query_plan(
         .collect::<Vec<_>>();
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&facts.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&facts.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry)?,
@@ -6798,7 +6839,8 @@ fn checked_native_first_query_source_plan(
     let standalone_first = facts
         .queries
         .as_ref()
-        .is_some_and(|queries| queries.len() == 1 && queries[0].first.is_some());
+        .is_some_and(|queries| queries.len() == 1 && queries[0].first.is_some())
+        || checked_purchase_helper_query_influences(facts).is_some();
     let void_tail = !standalone_first && checked_void_effect_tail(owner, checked);
     if !first_query_returns_valid(
         query,
@@ -6863,7 +6905,7 @@ fn checked_native_first_query_source_plan(
     let parent = first_query_receipt_parent(ir, owner, query, scan, db, first, entry_module)?;
     let expected = ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&checked.source, entry_module)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&checked.source, entry_module)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry_module)?,
@@ -8083,7 +8125,7 @@ fn checked_native_ancestor_count_query_plan(
     }
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&query.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry)?,
@@ -8297,7 +8339,7 @@ fn native_count_plan(
 ) -> Option<ReceiptDisclosurePlan> {
     Some(ReceiptDisclosurePlan {
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
-        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&query.source, entry)?,
+        invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(),
             source: transport_source(&query.source, entry)?,
@@ -8423,7 +8465,7 @@ pub(super) fn checked_native_assign_count_query_plan(
             influences: influences.clone(), dependencies: Vec::new(), intrinsics: Vec::new(), projection: None})
     }).collect::<Option<Vec<_>>>()?;
     Some(ReceiptDisclosurePlan {
-        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None,source: transport_source(&query.source, entry)?,
+        version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(), source: transport_source(&query.source, entry)?,
             model: query.model_name.clone(),
@@ -10673,6 +10715,7 @@ fn checked_created_row_operand(
     value: &TypedExpr,
     model: crate::analysis::SymbolId,
     db: &SourceDb,
+    sealed_purchase: bool,
 ) -> Option<()> {
     let IrExpr::Name(binding) = &value.expr else { return None; };
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
@@ -10694,6 +10737,11 @@ fn checked_created_row_operand(
         let span = match statement {
             IrStmt::Require { span, .. } | IrStmt::Set { span, .. } | IrStmt::Return { span, .. } => *span,
             IrStmt::Send { binding: send, span, .. } if send.as_ref() != Some(binding) => *span,
+            IrStmt::If { then_branch, .. } if sealed_purchase => {
+                let Some(IrStmt::Send { span, .. }) = then_branch.first() else { return None; };
+                if span.file != value.span.file || span.start > value.span.start || value.span.end > span.end { return None; }
+                *span
+            }
             _ => return None,
         };
         if span.file == value.span.file && span.start <= value.span.start && value.span.end <= span.end {
@@ -14734,6 +14782,13 @@ fn scenario_create_nesting(
     super::scenario_create_sources::checked_created_schema(
         ir, owner, models, original, db, source_context,
     )?;
+    if source_context.is_some_and(|context|
+        super::purchase_all::checked(context, owner, "checked-create").is_some())
+    {
+        // The exact original replay/create/posting/parent/ALL sequence has a
+        // complete independent fresh-source seal, including its create stage.
+        return Some(());
+    }
     if !is_top_level_create(owner, proof.node) {
         // Arm-nested creates admit only through the captured conditional
         // rule — including void scenarios (no free pass): every other nesting
@@ -14831,8 +14886,9 @@ fn scenario_create_entries(
     proof: &crate::analysis::scenario_disclosure::DisclosureEffect,
     db: &SourceDb,
     source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    purchase_all: bool,
 ) -> Option<()> {
-    if checked_created_statements(ir, owner, checked, original, db).is_none()
+    if !purchase_all && checked_created_statements(ir, owner, checked, original, db).is_none()
         && source_context.and_then(|context| conditional_parameter_create_link(context, owner, original)).is_none() {
         return None;
     }
@@ -14887,7 +14943,9 @@ fn checked_scenario_create(
     scenario_create_nesting(
         ir, owner, models, checked, facts, proof, original, binding, model, db, source_context,
     )?;
-    scenario_create_entries(ir, owner, checked, original, input, span, proof, db, source_context)
+    let purchase_all = source_context.is_some_and(|context|
+        super::purchase_all::checked(context, owner, "checked-create").is_some());
+    scenario_create_entries(ir, owner, checked, original, input, span, proof, db, source_context, purchase_all)
 }
 
 /// Model results consume their checked pair's result origin. Void owners
@@ -17520,6 +17578,7 @@ impl<'a> Sites<'a> {
         owner: &'a IrItem,
         send_guards: Option<&HashMap<Span, PreparedSendGuard>>,
         db: Option<&SourceDb>,
+        purchase_all: Option<&serde_json::Value>,
     ) -> Option<Self> {
         let IrItemKind::Scenario {
             params,
@@ -17895,6 +17954,9 @@ impl<'a> Sites<'a> {
                     }
                     IrExpr::Unary { operand, .. } => push!(Visit::Expression(operand)),
                     IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                        if matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "all")
+                            && purchase_all.is_some_and(|plan| super::purchase_all::at(plan, expression.span))
+                        { continue; }
                         if matches!(target,IrCallTarget::Builtin {id,awaited:false} if id=="any")
                             && checked_any_first_query_ir(ir, owner, expression, db?).is_some()
                         {

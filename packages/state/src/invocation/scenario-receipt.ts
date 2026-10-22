@@ -13,7 +13,7 @@
  */
 import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes, CanTypeId, ClosedInputs, DeliveryRef, DomainWrite, FrameworkFilePayloadOrigin, InvocationRef, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, FinalizedFileObservation, FinalizedFileReceiver, RetainedFinalizedFile, ScenarioReceiptFileAssignment, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioReceiptQueryObservation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
-import { addMoney, addDuration, add_days, app_url, canonicalLocale, compareDate, date_year, decodeValue, encodeValue, format, formatMessage, local_date, local_instant, makeDatetime, makeMessageDescriptor, money, multiplyMoney, parseTypeId, printTypeId, subtractMoney, sumMoney, validateValue, makeDeliveryRef, makeRecordRef, isUserRef, type DateValue, type DatetimeValue, type MoneyValue, type UserRef, type NormalizedSchema } from '@canlang/values';
+import { addMoney, addDuration, add_days, app_url, canonicalLocale, int64, sum, compareDate, date_year, decodeValue, encodeValue, format, formatMessage, local_date, local_instant, makeDatetime, makeMessageDescriptor, money, multiplyMoney, parseTypeId, printTypeId, subtractMoney, sumMoney, validateValue, makeDeliveryRef, makeRecordRef, isUserRef, type DateValue, type DatetimeValue, type MoneyValue, type UserRef, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { isAuthoredRequireFailure } from '../effects/guards.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
@@ -1617,7 +1617,9 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceIssueDecision') ? ['invoiceIssueDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentNoticeDecision') ? ['rentNoticeDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'observeVenueDecision') ? ['observeVenueDecision'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'successRenewalDecision') ? ['successRenewalDecision'] : [])]);
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'successRenewalDecision') ? ['successRenewalDecision'] : []),
+
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'purchaseReceiveAll') ? ['purchaseReceiveAll'] : [])]);
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
@@ -1633,6 +1635,7 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'rentNoticeDecision')) checkRentNoticeDecisionPlan(plan['rentNoticeDecision'], plan['source']);
   if (Object.hasOwn(plan, 'observeVenueDecision')) checkObserveVenueDecisionPlan(plan['observeVenueDecision'], plan['source']);
   if (Object.hasOwn(plan, 'successRenewalDecision')) checkSuccessRenewalDecisionPlan(plan['successRenewalDecision'], plan['source']);
+  if (Object.hasOwn(plan, 'purchaseReceiveAll')) checkPurchaseAllPlan(plan['purchaseReceiveAll'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
   if (returns.length === 0) return invalid('at least one checked return path required.');
@@ -5663,6 +5666,131 @@ export interface ScenarioReceiptRequireObserver {
   readonly field: (model: string, row: StoredRow | ProjectedRecord, field: string) => void;
   readonly query: (model: string, records: readonly ProjectedRecord[], id?: string,
     parent?: Readonly<{ model: string; id: string }>) => void;
+}
+
+interface PurchaseAllPlan {
+  readonly version: 1; readonly owner: 'purchase.receive' | 'CanPurchase.receive';
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly node: { readonly start: number; readonly end: number };
+  readonly statement: { readonly start: number; readonly end: number };
+  readonly stage: 3; readonly parameter: 'line'; readonly order: string;
+  readonly line: string; readonly receipt: string; readonly amendment: string;
+}
+function checkPurchaseAllPlan(value: unknown, source: unknown): PurchaseAllPlan {
+  const input = object(value, ['version', 'owner', 'source', 'node', 'statement', 'stage', 'parameter', 'order', 'line', 'receipt', 'amendment']);
+  const node = object(input['node'], ['start', 'end']), statement = object(input['statement'], ['start', 'end']);
+  const namespace = input['owner'] === 'purchase.receive' ? 'purchase' : input['owner'] === 'CanPurchase.receive' ? 'CanPurchase' : undefined;
+  if (input['version'] !== 1 || namespace === undefined || input['stage'] !== 3 || input['parameter'] !== 'line' ||
+      input['order'] !== `${namespace}.Order` || input['line'] !== `${namespace}.Line` || input['receipt'] !== `${namespace}.Receipt` ||
+      input['amendment'] !== `${namespace}.Amendment` || stableStringify(input['source']) !== stableStringify(source) ||
+      !Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
+      !Number.isSafeInteger(statement['start']) || !Number.isSafeInteger(statement['end']) ||
+      (node['start'] as number) < (statement['start'] as number) || (node['end'] as number) > (statement['end'] as number) ||
+      (node['start'] as number) >= (node['end'] as number)) return invalid('Purchase ALL requires its exact checked post-write source profile.');
+  origin(input['source']);
+  return deepFreeze(input) as unknown as PurchaseAllPlan;
+}
+const purchaseAllRuns = new WeakSet<Capture>();
+
+/** Distinct post-write frame. No pre-write Require stage gate is shared. */
+export async function executeScenarioReceiptPurchaseAll(call: AdmittedCall, store: StoragePort, original: unknown): Promise<boolean> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  try {
+    const profile = checkPurchaseAllPlan(state.bound.plan.purchaseReceiveAll, state.bound.plan.source);
+    if (stableStringify(profile) !== stableStringify(original) || call.def.name !== profile.owner ||
+        owner === undefined || owner.session === null || owner.busy || owner.stage !== profile.stage ||
+        owner.executingCall !== call || state.returnId !== null || state.pending !== 0 || purchaseAllRuns.has(state)) {
+      return invalid('Purchase ALL needs its unique exact post-write owner stage.');
+    }
+    const ref = call.recordRefs.find(reference => reference.param === 'line' && reference.model === profile.line);
+    if (ref === undefined) return invalid('Purchase ALL requires its admitted original Line.');
+    const accepted = decodeValue('int', admittedInputWire(call.inputs, 'accepted')) as bigint;
+    const posted = accepted > 0n;
+    if (owner.framework === null || owner.framework.ordinal !== (posted ? 1 : 0) ||
+        owner.framework.queued.size !== (posted ? 1 : 0) || owner.framework.skipped.size !== 0) {
+      return invalid('Purchase ALL requires its original conditional SEND prefix.');
+    }
+    return await ownerOperation(owner, async () => {
+      const stage = owner.stage;
+      const healthy = () => {
+        capture(call, store); ownerHealthy(owner);
+        if (owner.stage !== stage || owner.executingCall !== call || !owner.busy || state.pending !== 0 || state.returnId !== null) {
+          return invalid('Purchase ALL crossed its original post-write stage.');
+        }
+      };
+      const line = await owner.session!.views.final.get(profile.line as ModelName, ref.id); healthy();
+      if (line === null || stableStringify(line) !== stableStringify(ref.row) || line.parent?.model !== profile.order) {
+        return invalid('Purchase ALL lost its unchanged admitted Line and declared Order.');
+      }
+      const order = await owner.session!.views.final.get(profile.order as ModelName, line.parent.id); healthy();
+      if (order === null || order.data['state'] !== 'part_received') return invalid('Purchase ALL requires the preceding partial Order SET.');
+      const domains = ownerPolicyDomains(owner, healthy);
+      const captured: Array<{ model: ModelName; parent: {model: ModelName; id: RecordId}; rows: readonly StoredRow[] }> = [];
+      const domain = async (model: string, parent: {model: ModelName; id: RecordId}, fields: readonly string[]) => {
+        const rows = await domains.capture(model as ModelName, parent); healthy();
+        if (rows.length >= owner.maxRows || captured.length >= MAX_ITEMS) return invalid('Purchase ALL exceeds its complete domain bound.');
+        captured.push({model: model as ModelName, parent, rows});
+        // Authorize every owner candidate, including siblings a viewer query
+        // would hide. Omission can never make the universal predicate true.
+        for (const row of rows) {
+          if (row.archivedAt !== null || row.parent?.model !== parent.model || row.parent.id !== parent.id) return invalid('Purchase ALL child lineage differs.');
+          await observeModelQuerySourceAuthority(call, store, owner, state, model as ModelName, row, fields); healthy();
+        }
+        return rows;
+      };
+      const lines = await domain(profile.line, {model: profile.order as ModelName, id: order.id}, []);
+      if (!lines.some(row => row.id === line.id)) return invalid('Purchase ALL omitted its receiving Line.');
+      // Prefix validation is independent of whether ALL reaches this Line.
+      // Capture its complete Receipt membership without forcing derived fields.
+      const receivingReceipts = await domain(profile.receipt, {model: profile.line as ModelName, id: line.id}, []);
+      const receipt = receivingReceipts.find(row => row.data['source'] === admittedInputWire(call.inputs, 'source'));
+      let answer = true;
+      for (const sibling of lines) {
+        const parent = {model: profile.line as ModelName, id: sibling.id};
+        const aggregate = (rows: readonly StoredRow[], field: string) => sum(rows.map(row =>
+          decodeValue('int', row.data[field]) as bigint), 'int');
+        const receipts = await domain(profile.receipt, parent, ['accepted']);
+        const actual = aggregate(receipts, 'accepted');
+        await observeModelQuerySourceAuthority(call, store, owner, state, profile.line as ModelName, sibling, ['quantity']); healthy();
+        const quantity = decodeValue('int', sibling.data['quantity']) as bigint;
+        const amendments = await domain(profile.amendment, parent, ['quantity']);
+        const ordered = int64(quantity + aggregate(amendments, 'quantity'));
+        // Match Values.all: later predicate fields and arithmetic are not read
+        // after a false result. Complete sibling visibility is already sealed.
+        if (actual !== ordered) { answer = false; break; }
+      }
+      if (receipt === undefined || receipt.data['accepted'] !== admittedInputWire(call.inputs, 'accepted') ||
+          receipt.data['rejected'] !== admittedInputWire(call.inputs, 'rejected') ||
+          receipt.data['received'] !== admittedInputWire(call.inputs, 'received_on') ||
+          receipt.data['evidence'] !== admittedInputWire(call.inputs, 'evidence') ||
+          (await store.cohortLoad({model: profile.receipt as ModelName, id: receipt.id, expectedRevision: call.revision})) !== null) {
+        return invalid('Purchase ALL must include its original newly staged Receipt.');
+      }
+      healthy();
+      const queued = owner.framework!.queued.values().next().value;
+      if (posted ? receipt.data['delivery'] !== queued?.intentId || receipt.data['attempts'] !== '1' : receipt.data['posting'] !== 'confirmed') {
+        return invalid('Purchase ALL Receipt differs from its original posting branch.');
+      }
+      purchaseAllRuns.add(state);
+      owner.callGuards.push(Object.freeze({name: `purchase-all:${profile.node.start}`, evaluate: async () => {
+        const final = owner.finalized;
+        if (final === null || owner.capture.poisoned || owner.stage !== stage + (answer ? 1 : 0)) return invalid('Purchase ALL final source stages differ.');
+        const finalHealthy = () => { if (owner.finalized !== final || owner.capture.poisoned) return invalid('Purchase ALL final frame changed.'); };
+        const retained = domains.retained(finalHealthy);
+        for (const snapshot of captured) {
+          const rows = await retained(snapshot.model, snapshot.parent);
+          if (stableStringify(rows) !== stableStringify(snapshot.rows)) return invalid('Purchase ALL retained domain changed.');
+        }
+        const orderWrite = final.writes.find(write => write.model === profile.order && (write.kind === 'insert' ? write.row.id : write.id) === order.id);
+        const receiptWrite = final.writes.find(write => write.model === profile.receipt && write.kind === 'insert' && write.row.id === receipt!.id);
+        if (orderWrite?.kind !== 'update' || orderWrite.row.data['state'] !== (answer ? 'received' : 'part_received') ||
+            receiptWrite?.kind !== 'insert' || stableStringify(receiptWrite.row) !== stableStringify(receipt)) return invalid('Purchase ALL final writes differ from its original decision.');
+        if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Purchase ALL owner domains moved before commit.');
+        return true;
+      } }));
+      return answer;
+    });
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
 }
 
 /** One original pre-write Require, evaluated once on the genuine admitted row.
@@ -10392,6 +10520,9 @@ export function selectScenarioReceiptReturn(call: AdmittedCall, store: StoragePo
   const state = capture(call, store);
   try {
     if (state.pending !== 0 || ownerSessions.get(call)?.busy === true) { state.poisoned = true; return invalid('return selection cannot precede pending owner reads/observations.'); }
+    if (state.bound.plan.purchaseReceiveAll !== undefined && state.modelResult?.existing === false && !purchaseAllRuns.has(state)) {
+      return invalid('Purchase return omitted its checked post-write ALL decision.');
+    }
     const returned = state.bound.plan.returns.find(entry => entry.id === returnId);
     if (state.returnId !== null || returned === undefined) return invalid('one actual checked return path required.');
     if (state.bound.termDecision !== undefined && state.termDecision === undefined) {

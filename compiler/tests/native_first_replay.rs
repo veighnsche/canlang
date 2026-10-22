@@ -471,3 +471,25 @@ Then
     assert!(refused.iter().any(|diagnostic| diagnostic.code == "E6008"),
         "post-write ALL needs an independent receipt/runtime profile");
 }
+
+#[test]
+fn purchase_post_write_all_seals_aggregate_bodies_and_emits_its_distinct_frame() {
+    let source = include_str!("fixtures/purchase-receive-all.can");
+    let (db, program, _, catalog) = fixture_source("purchase-receive-all.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let owner = artifact["operations"].as_array().unwrap().iter().find(|op| op["name"] == "purchase.receive").unwrap();
+    assert_eq!(owner["result"]["disclosure"]["purchaseReceiveAll"]["stage"], 3);
+    assert!(artifact["modules"].as_array().unwrap().iter().any(|module| module["js"].as_str().unwrap().contains("await evaluateScenarioReceiptPurchaseAll(c,")));
+    let unrelated = format!("{source}\npackage unrelated\n Given\n  Row {{label:text}}\n  policy Row read=members\n When\n  scenario unsupported() -> Row? by=members\n   do\n    return first(Row as row order=row.id)\n Then\n");
+    let (unrelated_db, unrelated_program, _, unrelated_catalog) = fixture_source("purchase-unrelated.can", &unrelated);
+    let (partial, unrelated_diagnostics) = prepared_artifact(&unrelated_program, &unrelated_db, &unrelated_catalog);
+    assert!(unrelated_diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"));
+    let retained = partial["operations"].as_array().unwrap().iter().find(|op| op["name"] == "purchase.receive").unwrap();
+    assert_eq!(retained["result"]["disclosure"]["purchaseReceiveAll"]["stage"], 3,
+        "an unrelated lowering refusal cannot orphan the exact Receipt rules");
+    let changed = source.replace("row.quantity+sum(row.Amendment as amendment select amendment.quantity)", "row.quantity");
+    let (db, program, _, catalog) = fixture_source("purchase-all-altered.can", &changed);
+    let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"));
+}

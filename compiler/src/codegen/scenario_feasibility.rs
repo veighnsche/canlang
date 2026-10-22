@@ -311,6 +311,14 @@ fn return_possible(
     steps: &mut usize,
 ) -> Option<bool> {
     for (condition, span, site, branches) in requirements {
+        // Observer-owned requirements do not contribute static AND choices.
+        // Their exact compulsory source predicate is independently executed by
+        // the initial-stage runtime observer. Treat its value as unknown here;
+        // never infer impossible paths from absent static decisions.
+        if original.source_facts.as_deref().and_then(|facts| facts.source_requires.as_deref())
+            .is_some_and(|sites| sites.iter().any(|observed|
+                observed.node == site.node && observed.statement == site.statement))
+        { continue; }
         // A conditional requirement constrains only a return whose actual
         // original branch choices prove that this requirement was reached.
         if (returned.node == original.node

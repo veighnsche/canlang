@@ -667,6 +667,52 @@ fn check_schema_rules(
     Some(())
 }
 
+/// Authenticate complex owning rules against independent source lowering.
+/// The normal runtime invariant/lock/unique/retention evaluators still run.
+fn checked_fresh_model_rules(context: &super::scenario_decisions::FreshSourceContext<'_>,
+    ir: &IrProgram, model: &IrItem, db: &SourceDb) -> Option<()> {
+    if !std::ptr::eq(context.ir(), ir) || !std::ptr::eq(context.db(), db)
+        || format!("{model:?}") != format!("{:?}",context.fresh().items.get(model.id.0 as usize)?)
+    { return None; }
+    let declaration = context.original().effects.models.get(&model.id)?;
+    let mut scopes = vec![span(declaration.node)];
+    scopes.extend(declaration.invariants.iter().map(|rule| span(rule.node)));
+    scopes.extend(declaration.locks.iter().map(|rule| span(rule.node)));
+    scopes.extend(declaration.uniques.iter().map(|rule| span(rule.node)));
+    scopes.extend(declaration.retains.iter().map(|rule| span(rule.node)));
+    if context.ir_diagnostics().iter().any(|diagnostic|
+        diagnostic.severity == crate::diagnostic::Severity::Error && scopes.iter().any(|scope| {
+            let overlaps = |candidate: crate::source::Span| scope.file == candidate.file
+                && scope.start <= candidate.end && candidate.start <= scope.end;
+            overlaps(diagnostic.primary) || diagnostic.related.iter().any(|related| overlaps(related.span))
+        })) { return None; }
+    let prefix = ir_model_rule_prefix(ir, model);
+    let owned = |rule: &&IrRuleFn| rule.origin.as_ref().is_some_and(|origin| origin.model == model.id)
+        || rule.id.starts_with(&format!("{prefix}.unique."));
+    let actual: Vec<_> = ir.invariants.iter().filter(owned).collect();
+    let expected: Vec<_> = context.fresh().invariants.iter().filter(owned).collect();
+    if format!("{actual:?}") != format!("{expected:?}") { return None; }
+    for (actual, expected) in actual.iter().zip(expected) {
+        context.same_expression(&actual.pred, &expected.pred)?;
+    }
+    let actual: Vec<_> = ir.locks.iter().filter(|rule| rule.origin.model == model.id).collect();
+    let expected: Vec<_> = context.fresh().locks.iter().filter(|rule| rule.origin.model == model.id).collect();
+    if format!("{actual:?}") != format!("{expected:?}") { return None; }
+    for (actual, expected) in actual.iter().zip(expected) {
+        match (&actual.when, &expected.when) {
+            (Some(actual), Some(expected)) => context.same_expression(actual, expected)?,
+            (None, None) => {}, _ => return None,
+        }
+    }
+    let actual: Vec<_> = ir.retention.iter().filter(|rule| rule.name == prefix).collect();
+    let expected: Vec<_> = context.fresh().retention.iter().filter(|rule| rule.name == prefix).collect();
+    if format!("{actual:?}") != format!("{expected:?}") { return None; }
+    for (actual, expected) in actual.iter().zip(expected) {
+        context.same_expression(&actual.body, &expected.body)?;
+    }
+    Some(())
+}
+
 fn check_emitted_descriptor(
     ir: &IrProgram,
     db: &SourceDb,
@@ -906,7 +952,8 @@ pub(super) fn checked_created_schema(
         checked_contributed_field(ir, model, original_field, db)?;
     }
     let prefix = ir_model_rule_prefix(ir, model);
-    check_schema_rules(&matcher, ir, model, declaration, invariants, locks, uniques, retain, prefix)?;
+    check_schema_rules(&matcher, ir, model, declaration, invariants, locks, uniques, retain, prefix)
+        .or_else(|| checked_fresh_model_rules(source_context?, ir, model, db))?;
     check_emitted_descriptor(ir, db, models, model)
 }
 
@@ -3950,6 +3997,15 @@ impl<'a> SourceExpressions<'a> {
                 .iter()
                 .find(|schema| schema.model && schema.id == symbol)?;
             super::scenario_receipts::match_stored_contract_schema(self.ir, schema, self.db)?;
+            if field == "parent" {
+                let parent = schema.parent?;
+                if root.ty != (ResolvedType::Record { symbol: parent, stored: true }) { return None; }
+                let parent_schema = facts.stored_contracts.as_deref()?.iter()
+                    .find(|candidate| candidate.model && candidate.id == parent)?;
+                super::scenario_receipts::match_stored_contract_schema(self.ir, parent_schema, self.db)?;
+                root = base;
+                continue;
+            }
             let field = schema
                 .fields
                 .iter()
@@ -4326,6 +4382,25 @@ impl<'a> SourceExpressions<'a> {
                 {
                     return None;
                 }
+            }
+            [] if site.stage == CheckedDecisionStage::LeadingRequire
+                && super::scenario_receipts::checked_purchase_helper_query_influences(facts).is_some() => {
+                let (root, edges) = self.walk_required_path(facts, &args[location_slot])?;
+                let IrExpr::Name(name) = &root.expr else { return None; };
+                let IrItemKind::Scenario { params, .. } = &owner.kind else { return None; };
+                let mut parameters = params.iter().filter_map(|id| self.ir.items.get(id.0 as usize))
+                    .filter(|parameter| parameter.name == *name);
+                let parameter = parameters.next()?;
+                let IrItemKind::Param { owner: declared, index, ty: IrType::Known(ty),
+                    default: None, default_node: None, array_bounds: None, .. } = &parameter.kind else { return None; };
+                let original = facts.parameters.get(*index)?;
+                if edges == 0 || parameters.next().is_some() || *declared != owner.id
+                    || params.get(*index) != Some(&parameter.id) || original.parameter != parameter.id
+                    || original.ty != *ty || root.ty != *ty || original.default.is_some()
+                    || parameter.module != owner.module || parameter.canonical != format!("{}.{}",owner.canonical,name)
+                    || self.db.get(root.span.file)?.text.get(root.span.start as usize..root.span.end as usize) != Some(name.as_str())
+                    || original.constraints.is_some() || !matches!(ty, ResolvedType::Record {stored: true, ..})
+                { return None; }
             }
             [] if site.stage == CheckedDecisionStage::BodyRequire => {
                 self.query_required_argument(

@@ -1,0 +1,63 @@
+app PurchaseAll uses=[purchase]
+package stock
+ use std {OperationOutcome}
+ Given
+  export contract StockReceipt {source:text,order:text,sku:text,unit:text,location:text,quantity:int,revision:int,reversal:text?}
+  export capability StockV1 version=1
+   post(value:StockReceipt) -> OperationOutcome
+ When
+ Then
+package purchase
+ use stock {StockV1 as Stock,StockReceipt} from=deployment.stock
+ Given
+  Location {name:text}
+  Employee {user:user,active:bool=true,home:Location}
+  derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and e.home==location)
+  Request {state:enum(approved,draft)=approved}
+  Order in Request {reference:text,location:Location,state:enum(ordered,part_received,received,cancelled,closed)=ordered}
+  Line in Order {sku:text,unit:text,quantity:int min=0}
+  Receipt in Line {source:text unique,accepted:int min=0,rejected:int=0 min=0,received:date,evidence:text,posting:enum(pending,confirmed,failed,unknown)=pending,delivery:text?,revision:int=1,attempts:int=0 min=0 max=3}
+  Amendment in Line {quantity:int}
+  Return in Receipt {source:text unique,quantity:int min=1}
+  derive Receipt.returned:int = sum(row.Return as returned select returned.quantity)
+  derive Line.accepted:int = sum(row.Receipt as receipt select receipt.accepted)
+  derive Line.ordered:int = row.quantity+sum(row.Amendment as amendment select amendment.quantity)
+  policy Location read=members
+  policy Employee read=members
+  policy Request read=members
+  policy Order read=members
+  policy Line read=members where=row.sku!="hidden"
+  policy Receipt read=members where=row.evidence!="hidden"
+  policy Amendment read=members
+  policy Return read=members
+  invariant Receipt: row.accepted+row.rejected>0 and trim(row.evidence)!="" and row.returned<=row.accepted
+  invariant Receipt: not any(Receipt as other,other!=row and other.source==row.source) and not any(Return as returned,returned.source==row.source)
+  lock Receipt fields=source,accepted,rejected,received,evidence,revision
+ When
+  crud Location by=members fields=name
+  crud Employee by=members fields=user,active,home
+  crud Request by=members fields=state
+  crud Order by=members fields=reference,location,state
+  crud Line by=members fields=sku,unit,quantity
+  crud Receipt by=members fields=source,accepted,rejected,received,evidence
+  crud Amendment by=members fields=quantity
+  crud Return by=members fields=source,quantity
+  scenario receive(line:Line,source:text,accepted:int,rejected:int,received_on:date,evidence:text) -> Receipt by=members
+   require can_work(actor,line.parent.location) and trim(source)!="" and accepted>=0 and rejected>=0 and accepted+rejected>0 and trim(evidence)!=""
+   do
+    let previous=first(Receipt as receipt where receipt.source==source order=receipt.id)
+    if previous!=null
+     require previous.parent==line and previous.accepted==accepted and previous.rejected==rejected and previous.received==received_on and previous.evidence==evidence
+     return previous
+    require line.parent.parent.state==approved and line.parent.state in [ordered,part_received] and accepted<=line.ordered-line.accepted
+    create Receipt {parent=line,source,accepted,rejected,received=received_on,evidence} as receipt
+    if accepted>0
+     send Stock.post {value={source,order=line.parent.reference,sku=line.sku,unit=line.unit,location=line.parent.location.id,quantity=accepted,revision=receipt.revision,reversal=null}} as delivery
+     set receipt {delivery=delivery.id,attempts=1}
+    else
+     set receipt {posting=confirmed}
+    set line.parent {state=part_received}
+    if all(line.parent.Line as item,item.accepted==item.ordered)
+     set line.parent {state=received}
+    return receipt
+ Then

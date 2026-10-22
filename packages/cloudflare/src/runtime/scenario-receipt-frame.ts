@@ -4,7 +4,8 @@
 import type { CanTypeId, CanValue, FinalizedFileObservation, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioResultDisclosurePlan, ProjectedRecord, StoragePort, StoredRow } from '@canlang/contracts';
 import type { AdmittedCall, ScenarioReceiptAnyPredicate, ScenarioReceiptSendGuard } from '@canlang/state/invocation';
 import { executeScenarioReceiptAny as executeStateAny } from '@canlang/state';
-import { observeScenarioReceiptDependency as observeStateDependency,
+import { executeScenarioReceiptPurchaseAll as executeStatePurchaseAll,
+  observeScenarioReceiptDependency as observeStateDependency,
   observeScenarioReceiptIntrinsic as observeStateIntrinsic,
   selectScenarioReceiptReturn as selectStateReturn,
   executeScenarioReceiptQuery as executeStateQuery,
@@ -738,6 +739,16 @@ export function countQuery(c: HandlerContext, value: unknown): Promise<bigint> {
 export function executeScenarioReceiptQuery(c: HandlerContext, queryId: string,
   predicate: (record: Readonly<Record<string, unknown>>) => boolean | Promise<boolean>): Promise<readonly Readonly<Record<string, unknown>>[]> {
   return executeNativeScenarioQuery(c, queryId, predicate, 'query');
+}
+
+/** Only the active native frame can invoke the checked post-write decision. */
+export async function evaluateScenarioReceiptPurchaseAll(c: HandlerContext, original: unknown): Promise<boolean> {
+  const frame = checked(c);
+  if (frame.pending !== 0) return fail(frame, new StateError('validation', 'Purchase ALL requires sequential owner execution.'));
+  frame.pending++;
+  try { return await executeStatePurchaseAll(frame.call, frame.store, original); }
+  catch (error) { return fail(frame, error); }
+  finally { frame.pending--; }
 }
 
 /** Original stored-bool ANY uses State's whole-domain-first lazy receiver.

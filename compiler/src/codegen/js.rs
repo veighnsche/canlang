@@ -9504,6 +9504,15 @@ fn conjunct_dependency_matches<'d>(
         ))
     }
 
+    fn lower_purchase_all(&mut self, target: &IrCallTarget, span: Span) -> Option<String> {
+        if !matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "all") { return None; }
+        let profile = self.receipt_capture.as_ref()?.plan.purchase_receive_all.as_ref()?;
+        if !super::purchase_all::at(profile, span) { return None; }
+        let profile = descriptor_json(profile);
+        self.stdlib.insert("evaluateScenarioReceiptPurchaseAll".into());
+        Some(format!("(await evaluateScenarioReceiptPurchaseAll(c,{profile}))"))
+    }
+
     /// Lower a call: catalog builtins import from `@canlang/stdlib`
     /// (availability-checked at link time); capability operations import
     /// from their owning package module as `await op(c, ...)`.
@@ -9514,6 +9523,7 @@ fn conjunct_dependency_matches<'d>(
         span: Span,
         result: &ResolvedType,
     ) -> String {
+        if let Some(value) = self.lower_purchase_all(target, span) { return value; }
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
         }
@@ -9558,6 +9568,7 @@ fn conjunct_dependency_matches<'d>(
         span: Span,
         result: &ResolvedType,
     ) -> String {
+        if let Some(value) = self.lower_purchase_all(target, span) { return value; }
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
         }

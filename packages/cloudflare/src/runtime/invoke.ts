@@ -5652,6 +5652,20 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     if (readPolicies !== undefined) for (const query of plan.queries) {
       for (const [model, policy] of sourceReads!.policies(query.model)) if (!readPolicies.has(model)) readPolicies.set(model, policy);
     }
+    if (plan.purchaseReceiveAll !== undefined) {
+      const profile = localPolicyObject(plan.purchaseReceiveAll,
+        ['version','owner','source','node','statement','stage','parameter','order','line','receipt','amendment']);
+      const namespace = def.name === 'purchase.receive' ? 'purchase' : def.name === 'CanPurchase.receive' ? 'CanPurchase' : undefined;
+      if (namespace === undefined || profile.owner !== def.name || profile.stage !== 3 ||
+          profile.line !== `${namespace}.Line` || profile.receipt !== `${namespace}.Receipt` ||
+          profile.amendment !== `${namespace}.Amendment` || profile.order !== `${namespace}.Order` ||
+          stableStringify(profile.source) !== stableStringify(plan.source) || readPolicies === undefined) {
+        throw new AssemblyCorrespondenceError('Purchase ALL requires its exact installed owner and complete aggregate source policies.');
+      }
+      for (const model of [profile.line, profile.receipt, profile.amendment]) {
+        for (const [name, policy] of sourceReads!.policies(model as string)) if (!readPolicies.has(name)) readPolicies.set(name, policy);
+      }
+    }
     const predicates = new Map(any.filter((metadata): metadata is NativePredicateAnyMetadata =>
       'kind' in metadata && metadata.kind === 'predicate').map(metadata => [metadata.queryId, metadata]));
     const getter = predicates.size === 0 ? undefined : privateSourceMember(module, 'canScenarioQueryPredicateSource');

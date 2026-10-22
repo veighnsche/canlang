@@ -2496,6 +2496,10 @@ impl<'a> FreshSourceContext<'a> {
     pub(super) fn trees(&self) -> &[(crate::source::SourceId, SyntaxNode)] {
         &self.trees
     }
+    pub(super) fn same_expression(&self, actual: &TypedExpr, expected: &TypedExpr) -> Option<()> {
+        SemanticJoin { program: self.program, actual: self.ir, expected: &self.fresh,
+            nodes: 0, stack: HashSet::new() }.expression(actual, expected, 0)
+    }
     pub(super) fn resolved(&self) -> &crate::analysis::resolve::ResolveTables {
         &self.resolved
     }

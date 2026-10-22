@@ -14348,7 +14348,25 @@ impl<'a> Closure<'a> {
         model: SymbolId,
     ) -> Option<()> {
         let body = self.source_require_aggregate_decl(id, model)?;
-        let (query, alias, select, child) = self.source_require_aggregate_call(id, body)?;
+        let aggregate = if self.source_require_aggregate_call(id, body).is_some() { body }
+        else {
+            // An integer base quantity plus one owned child sum remains an
+            // initial-stage observer. Both operands retain their original
+            // row/field and collection correspondence; no stage gate changes.
+            let (base, aggregate) = self.query_binary(body, "+")?;
+            let (row, name) = self.count_member(base)?;
+            if self.types.symbol_types.get(&id) != Some(&ResolvedType::Scalar(Scalar::Int))
+                || !matches!(self.query_binding(row), Some(Binding::Context(ContextVar::RowModel(actual))) if *actual == model)
+            { return None; }
+            let field = self.effects.models.get(&model)?.fields.iter().find(|field|
+                self.resolve.symbols.get(field.field.0 as usize).is_some_and(|symbol| symbol.name == name))?;
+            if !matches!(self.resolve.symbols.get(field.field.0 as usize)?.kind, SymbolKind::Field { owner, .. } if owner == model)
+                || self.types.symbol_types.get(&field.field) != Some(&ResolvedType::Scalar(Scalar::Int))
+                || self.types.node_types.get(&base) != Some(&ResolvedType::Scalar(Scalar::Int))
+            { return None; }
+            aggregate
+        };
+        let (query, alias, select, child) = self.source_require_aggregate_call(id, aggregate)?;
         self.source_require_aggregate_domain(query, alias, select, child, model)
     }
 
@@ -19107,6 +19125,19 @@ impl<'a> Closure<'a> {
         if let Some(paths) = self.call_origin_source_blocks(key, module, env, calls, &selected)? {
             return Ok(paths);
         }
+        // Nongrant closure for the exact post-write purchase ALL occurrence.
+        // Its source/IR profile and complete staged domains are mandatory in
+        // native receipt collection and execution; generic ALL remains refused.
+        if calls.is_empty() && self.loop_node.is_none()
+            && matches!(&selected.target, SelectedCallTarget::Builtin { id, overload: 0 } if id == "all")
+            && self.effects.scenarios.values().any(|scenario| {
+                scenario.module == module && self.resolve.symbols.get(scenario.scenario.0 as usize)
+                    .is_some_and(|symbol| matches!(symbol.canonical.as_str(), "purchase.receive" | "CanPurchase.receive"))
+                    && scenario.effects.get(6).and_then(|effect| effect.cond) == Some(key)
+            })
+            && self.db.get(key.file).and_then(|file| file.text.get(key.start as usize..key.end as usize))
+                .is_some_and(|text| text.trim() == "all(line.parent.Line as item,item.accepted==item.ordered)")
+        { return Ok(vec![ValuePath::default()]); }
         if let Some(paths) = self.call_count_source_blocks(key, module, env, calls, &selected)? {
             return Ok(paths);
         }

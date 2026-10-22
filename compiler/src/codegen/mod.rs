@@ -51,6 +51,7 @@ pub mod model_policies;
 pub mod model_policy_profile;
 pub mod model_unique_conditions;
 mod read_predicates;
+mod purchase_all;
 pub mod runtime_bindings;
 pub mod scenario_calls;
 mod scenario_create_sources;
