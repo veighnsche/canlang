@@ -836,10 +836,7 @@ impl Consumer<'_> {
         if let IrQueryDomain::Value { base, .. } = &query.domain {
             self.expression(base, chain, stack, calls, matched, depth + 1)?;
         }
-        if let Some(order) = &query.value_order {
-            self.expression(&order.key, chain, stack, calls, matched, depth + 1)?;
-        }
-        for expression in [
+        let mut expressions = [
             &query.parent,
             &query.where_pred,
             &query.limit,
@@ -848,7 +845,13 @@ impl Consumer<'_> {
         ]
         .into_iter()
         .flatten()
-        {
+        .map(Box::as_ref).collect::<Vec<_>>();
+        expressions.extend(query.value_order.iter().map(|order| order.key.as_ref()));
+        // The original call census follows authored clause order. An order
+        // key may itself call a helper after a WHERE helper; visiting the
+        // key first would reject their genuine, independently sealed IR.
+        expressions.sort_by_key(|expression| (expression.span.file, expression.span.start, expression.span.end));
+        for expression in expressions {
             if let IrExpr::Lambda { body, .. } = &expression.expr {
                 self.expression(body, chain, stack, calls, matched, depth + 1)?;
             } else {

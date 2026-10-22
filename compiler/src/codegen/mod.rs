@@ -315,6 +315,8 @@ pub fn emit(
         scenario_decisions::owner_handler_queries(query_context?, owner).map(|()| owner.id)
     }).collect::<std::collections::HashSet<_>>();
     let authority_queries = query_context.and_then(authority_query_sites::prepare_with_context);
+    let private_derives = query_context.and_then(|context|
+        read_predicates.as_ref()?.private_only_derives(context, &owner_handlers));
     let js_out = js::emit_program_with_feasible_query_sources(
         &ir,
         sources.options.native_scenario_receipts,
@@ -329,6 +331,7 @@ pub fn emit(
             source_context: query_context,
             authority_queries: authority_queries.as_ref(),
             owner_handlers: Some(&owner_handlers),
+            private_derives: private_derives.as_ref(),
             local_policies: local_policies.as_ref(),
             unique_conditions: unique_conditions.as_deref(),
             model_rule_origins: model_rule_origins.as_deref(),

@@ -37,18 +37,25 @@ package invoice
  use std {PaymentsV1 as Payments} from=deployment.payments
  Given
   role finance
-  export Invoice in Customer {location:Location,source:text,currency:currency,state:enum(draft,issued,void_pending,void)=draft,total:money,next_collection:datetime?,ledger_revision:int=0,hidden:bool=false}
-  Attempt in Invoice {reference:text unique,amount:money,kind:enum(collection,refund),status:PaymentState.status=pending,failure:PaymentState.failure,disabled:bool=false,delivery:text?,hidden:bool=false}
+  export Invoice in Customer {location:Location,source:text,currency:currency,state:enum(draft,issued,void_pending,void)=draft,total:money,next_collection:datetime?,ledger_revision:int=0,first_paid_at:datetime?,hidden:bool=false}
+  Attempt in Invoice {reference:text unique,amount:money,kind:enum(collection,refund),status:PaymentState.status=pending,failure:PaymentState.failure,disabled:bool=false,delivery:text?,received:datetime?,hidden:bool=false}
   Credit in Invoice {amount:money,hidden:bool=false}
-  ExternalPayment in Invoice {amount:money,hidden:bool=false}
+  ExternalPayment in Invoice {amount:money,received:datetime,hidden:bool=false}
   ExternalRefund in Invoice {amount:money,hidden:bool=false}
+  CommercialHistory in Customer {complete:bool=false,first_invoice:Invoice?,evidence:text,hidden:bool=false}
+  CommercialSale in Customer {source:text}
+  event SaleCheck {sale:CommercialSale}
   contract Settlement {source:text,invoice:text,revision:int,amount:money,collected:money,refunded:money,collection_pending:bool,refund_pending:bool,state:Invoice.state,recorded_at:datetime}
   export event InvoiceSettlement {value:Settlement}
+  derive first_receipt(invoice:Invoice):datetime? = min((invoice.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded and attempt.received!=null select attempt.received)+(invoice.ExternalPayment as payment select payment.received))
+  derive first_paid_invoice(customer:Customer):Invoice? = first(customer.Invoice as invoice where invoice.received.minor>0 and first_receipt(invoice)!=null order=first_receipt(invoice))
   derive settlement(invoice:Invoice):Settlement = Settlement {source=invoice.source,invoice=invoice.id,revision=invoice.ledger_revision,amount=invoice.total,collected=invoice.received,refunded=invoice.refunded,collection_pending=any(invoice.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown]),refund_pending=any(invoice.Attempt as attempt,attempt.kind==refund and attempt.status in [pending,unknown]),state=invoice.state,recorded_at=now}
   derive Invoice.credits:money = sum(row.Credit as credit select credit.amount,row.currency)
   derive Invoice.received:money = sum(row.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalPayment as payment select payment.amount,row.currency)
   derive Invoice.refunded:money = sum(row.Attempt as attempt where attempt.kind==refund and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalRefund as refund select refund.amount,row.currency)
   derive Invoice.balance:money = max([money(0,row.currency),row.total-row.credits-row.received])
+  policy CommercialHistory read=members and not row.hidden
+  policy CommercialSale read=members
   policy Invoice read=members and not row.hidden
   policy Attempt read=members and not row.hidden
   policy Credit read=members and not row.hidden
@@ -66,4 +73,20 @@ package invoice
     set attempt {delivery=delivery.id}
     set invoice {ledger_revision=invoice.ledger_revision+1}
     emit InvoiceSettlement {value=settlement(invoice)}
+  scenario observe_commercial_payment on=InvoiceSettlement
+   do
+    for invoice in Invoice as invoice where invoice.id==event.value.invoice limit=1
+     if invoice.received.minor>0
+      let history=first(invoice.parent.CommercialHistory as history order=history.id)
+      if history==null
+       create CommercialHistory {parent=invoice.parent,complete=false,first_invoice=first_paid_invoice(invoice.parent),evidence="Unreviewed customer payment history"} as history
+      else
+       if history.first_invoice==null
+        set history {first_invoice=first_paid_invoice(invoice.parent)}
+      if invoice.first_paid_at==null
+       let received=first_receipt(invoice)
+       if received!=null
+        set invoice {first_paid_at=received}
+     for sale in invoice.parent.CommercialSale as sale limit=500
+      emit SaleCheck {sale}
  Then

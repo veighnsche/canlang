@@ -1553,6 +1553,7 @@ pub(super) struct EmitDecisionSources<'a> {
     pub source_context: Option<&'a super::scenario_decisions::FreshSourceContext<'a>>,
     pub authority_queries: Option<&'a super::authority_query_sites::PreparedAuthorityQuerySites>,
     pub owner_handlers: Option<&'a HashSet<SymbolId>>,
+    pub private_derives: Option<&'a HashSet<String>>,
     pub local_policies: Option<&'a LocalPolicies>,
     pub unique_conditions: Option<&'a [super::model_unique_conditions::CheckedUniqueCondition]>,
     pub model_rule_origins: Option<&'a [serde_json::Value]>,
@@ -2542,6 +2543,7 @@ fn emit_program_with_sources(
     emitter.native_source_predicates = native_receipts;
     emitter.authority_queries = decisions.authority_queries;
     emitter.owner_handlers = decisions.owner_handlers.cloned().unwrap_or_default();
+    emitter.private_derives = decisions.private_derives.cloned().unwrap_or_default();
     if emitter.private_terminal_ready {
         for (index, item) in ir.items.iter().enumerate() {
             if decisions.standard_terminal_events.is_some_and(|prepared|prepared.matches(ir,index,item)) {
@@ -3020,10 +3022,11 @@ fn emit_program_with_sources(
         }
     }
     emitter.emit_app_definition(&mut body, entry_id);
-    emitter.emit_derive_fns(&mut body, false, false);
+    emitter.emit_derive_fns(&mut body, false, false, false);
     emitter.emit_can_app(&mut body, entry_id, &operations, local_policies.as_ref());
-    emitter.emit_derive_fns(&mut body, true, false);
-    emitter.emit_derive_fns(&mut body, true, true);
+    emitter.emit_derive_fns(&mut body, true, false, false);
+    emitter.emit_derive_fns(&mut body, true, true, false);
+    emitter.emit_derive_fns(&mut body, false, false, true);
     // Hook-variant definitions come after the hooks registry that selects
     // them (see `emit_hook_variants`): hook bodies lower inside
     // `emit_can_app`, so only now is the selected set complete.
@@ -4706,12 +4709,15 @@ pub struct Emitter<'a> {
     boolean_derives: HashSet<String>,
     boolean_rules: HashSet<String>,
     owner_handlers: HashSet<SymbolId>,
+    private_derives: HashSet<String>,
     owner_handler_body: bool,
     private_terminal_ready: bool,
     owner_handler_derives: HashSet<String>,
-    terminal_owner_derives: HashSet<String>,
-    terminal_owner_body: bool,
+    retained_owner_derives: HashSet<String>,
+    retained_owner_body: bool,
     boolean_body: bool,
+    generic_boolean_body: bool,
+    generic_boolean_derives: HashSet<String>,
     source_guard_body: bool,
     source_guard_derive_depth: usize,
     boolean_helper: bool,
@@ -4945,12 +4951,15 @@ impl<'a> Emitter<'a> {
             boolean_derives: HashSet::new(),
             boolean_rules: HashSet::new(),
             owner_handlers: HashSet::new(),
+            private_derives: HashSet::new(),
             owner_handler_body: false,
             private_terminal_ready: false,
             owner_handler_derives: HashSet::new(),
-            terminal_owner_derives: HashSet::new(),
-            terminal_owner_body: false,
+            retained_owner_derives: HashSet::new(),
+            retained_owner_body: false,
             boolean_body: false,
+            generic_boolean_body: false,
+            generic_boolean_derives: HashSet::new(),
             source_guard_body: false,
             source_guard_derive_depth: 0,
             boolean_helper: false,
@@ -10099,13 +10108,16 @@ fn conjunct_dependency_matches<'d>(
                     }
                     HookDerive::AsIs => {}
                 }
+                if self.generic_boolean_body { self.generic_boolean_derives.insert(canonical.clone()); }
                 if self.owner_handler_body {
-                    if self.terminal_owner_body { self.terminal_owner_derives.insert(canonical.clone()); }
+                    if self.retained_owner_body { self.retained_owner_derives.insert(canonical.clone()); }
                     else { self.owner_handler_derives.insert(canonical.clone()); }
                 }
                 let name = match self.by_canonical.get(canonical) {
                     Some(index) => binding_ident(
-                        if self.terminal_owner_body {
+                        if self.generic_boolean_body {
+                            "v"
+                        } else if self.retained_owner_body {
                             "t"
                         } else if self.owner_handler_body {
                             "o"
@@ -11595,7 +11607,7 @@ fn null_equality(
                 // Their exact checked invoice collection sites still carry the
                 // same source marker when called under that owner's lease.
                 let owner_site_id = owner_decision.into_iter().chain(
-                    self.native_receipts.values().filter(|_| !self.terminal_owner_body).flat_map(|receipt| [
+                    self.native_receipts.values().filter(|_| !self.retained_owner_body && !self.generic_boolean_body).flat_map(|receipt| [
                         receipt.plan.invoice_collect_decision.as_ref(),
                         receipt.plan.invoice_issue_decision.as_ref(),
                     ].into_iter().flatten())).find_map(|decision| {
@@ -12607,12 +12619,15 @@ fn null_equality(
                         .collect::<Vec<_>>()
                         .join(",");
                     let previous_boolean = std::mem::replace(&mut self.boolean_body, true);
+                    let previous_generic = std::mem::replace(&mut self.generic_boolean_body,
+                        !matches!(identity["owner"].as_str(), Some("invoice.collect" | "invoice.issue")));
                     let previous_source_guard =
                         std::mem::replace(&mut self.source_guard_body, true);
                     let previous_receipt = self.receipt_capture.take();
                     let previous_query = self.query_capture.take();
                     let expression = self.lower_expr(cond);
                     self.boolean_body = previous_boolean;
+                    self.generic_boolean_body = previous_generic;
                     self.source_guard_body = previous_source_guard;
                     self.receipt_capture = previous_receipt;
                     self.query_capture = previous_query;
@@ -20335,12 +20350,13 @@ impl<'a> Emitter<'a> {
     /// order (no `row`: derives are pure functions, DESIGN §2). Always
     /// `async`: call sites uniformly `await`. Exported exactly when the
     /// source derive is exported.
-    fn emit_derive_fns(&mut self, out: &mut JsWriter, owner_mode: bool, terminal_mode: bool) {
+    fn emit_derive_fns(&mut self, out: &mut JsWriter, owner_mode: bool, retained_mode: bool, generic_boolean_mode: bool) {
         let ir = self.ir;
         let mut emitted = HashSet::new();
         loop {
         let items: Vec<_> = ir.items.iter().filter(|item| matches!(item.kind, IrItemKind::DeriveFn { .. })
-            && (!owner_mode || if terminal_mode { self.terminal_owner_derives.contains(&item.canonical) }
+            && (!generic_boolean_mode || self.generic_boolean_derives.contains(&item.canonical))
+            && (!owner_mode || if retained_mode { self.retained_owner_derives.contains(&item.canonical) }
                 else { self.owner_handler_derives.contains(&item.canonical) })
             && !emitted.contains(&item.id)).cloned().collect();
         if items.is_empty() { break; }
@@ -20349,17 +20365,21 @@ impl<'a> Emitter<'a> {
             let IrItemKind::DeriveFn { params, expr, .. } = &item.kind else {
                 continue;
             };
-            let modes = if !owner_mode && self.boolean_derives.contains(&item.canonical) {
+            let modes = if generic_boolean_mode { vec![true] } else if !owner_mode && self.private_derives.contains(&item.canonical) {
+                if self.boolean_derives.contains(&item.canonical) { vec![true] } else { Vec::new() }
+            } else if !owner_mode && self.boolean_derives.contains(&item.canonical) {
                 vec![false, true]
             } else {
                 vec![false]
             };
             for boolean_body in modes {
                 self.owner_handler_body = owner_mode;
-                self.terminal_owner_body = terminal_mode;
+                self.retained_owner_body = retained_mode;
                 self.boolean_body = boolean_body;
+                self.generic_boolean_body = generic_boolean_mode;
+                self.source_guard_body = generic_boolean_mode;
                 self.boolean_helper = self.boolean_derives.contains(&item.canonical);
-                let name = binding_ident(if terminal_mode { "t" } else if owner_mode { "o" } else if boolean_body { "b" } else { "s" }, &item.canonical);
+                let name = binding_ident(if generic_boolean_mode { "v" } else if retained_mode { "t" } else if owner_mode { "o" } else if boolean_body { "b" } else { "s" }, &item.canonical);
                 self.enter_scope();
                 let mut signature = vec!["c".to_string()];
                 for id in params {
@@ -20428,12 +20448,14 @@ impl<'a> Emitter<'a> {
                 }
                 self.exit_scope();
                 self.boolean_body = false;
+                self.generic_boolean_body = false;
+                self.source_guard_body = false;
                 self.boolean_helper = false;
                 self.owner_handler_body = false;
-                self.terminal_owner_body = false;
+                self.retained_owner_body = false;
             }
         }
-        if !owner_mode { break; }
+        if !owner_mode && !generic_boolean_mode { break; }
         }
     }
 
@@ -21265,8 +21287,11 @@ impl<'a> Emitter<'a> {
                     // viewer lifetime or private child State frame.
                     self.query_capture = self.admitted_query_source(item.id);
                     self.owner_handler_body = self.receipt_capture.is_none() && self.owner_handlers.contains(&item.id);
-                    self.terminal_owner_body = self.private_terminal_ready && matches!(&item.kind,
-                        IrItemKind::Scenario {event_source:Some(IrEventSource::StandardCompleted {..}),..});
+                    // Generic retained handlers use the host's complete owner
+                    // session, independently of closed public receipt profiles.
+                    // Their shared derives must not borrow another owner's
+                    // invoice collection/issue query markers.
+                    self.retained_owner_body = self.owner_handler_body;
                     self.receipt_call_sites = self
                         .native_call_sites
                         .get(&item.id)
@@ -21310,7 +21335,7 @@ impl<'a> Emitter<'a> {
                         );
                     }
                     self.owner_handler_body = false;
-                    self.terminal_owner_body = false;
+                    self.retained_owner_body = false;
                     self.viewer_read_body = false;
                     self.receipt_capture = None;
                     self.current_revision_binding = None;
@@ -21332,6 +21357,7 @@ impl<'a> Emitter<'a> {
                     out, item, model, op, by, *has_when, delete_mode,
                 ),
                 IrItemKind::DeriveFn { .. } => {
+                    if self.private_derives.contains(&item.canonical) { continue; }
                     let name = binding_ident("s", &item.canonical);
                     self.callables.push(JsCallable {
                         id: item.canonical.clone(),

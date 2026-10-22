@@ -12082,12 +12082,17 @@ async function runScenarioExecution(
           return { name: parameter.name, typeId: parameter.typeId };
         });
         const suppliedValues = localPolicyObject(supplied, parameters.map(parameter => parameter.name));
-        const modelParameters = parameters.filter(parameter => loaded.models.some(model => model.name === parameter.typeId));
-        // The first model parameter anchors the observed row; any further
+        const modelParameters = parameters.flatMap(parameter => {
+          const type=parseTypeId(parameter.typeId), name=parameter.typeId.replace(/\?$/,'');
+          return !type.array && loaded.models.some(model=>model.name===name)
+            ? [{...parameter,model:name,nullable:type.nullable}] : [];
+        });
+        const anchor=modelParameters.find(parameter=>!parameter.nullable);
+        // The first required model parameter anchors the observed row; further
         // model parameters flow as admitted rows (the observer tracks reads
         // per model). A require with no model parameter has no row to bind.
         if (parameters.length !== declared.length || Object.keys(suppliedValues).length !== parameters.length ||
-            new Set(parameters.map(parameter => parameter.name)).size !== parameters.length || modelParameters.length === 0) {
+            new Set(parameters.map(parameter => parameter.name)).size !== parameters.length || anchor === undefined) {
           throw new AssemblyCorrespondenceError('Scenario Require needs its complete parameters and one original admitted model.');
         }
         for (const [index, parameter] of parameters.entries()) {
@@ -12110,16 +12115,18 @@ async function runScenarioExecution(
             loaded.models.some(model => Object.entries(model.fields).some(([name, declaration]) =>
               `${model.name}.${name}` === parameter.typeId && declaration.valueType === field.valueType));
           const declaredType = admittedTextArray || ownedEnum ? parameter.typeId : type;
+          const nullableModel=parsed.nullable && !parsed.array && field.kind==='ref'
+            && modelParameters.some(model=>model.name===parameter.name && model.model===field.model);
           if (field.name !== parameter.name || declaredType !== parameter.typeId || parsed.array && !admittedTextArray ||
-              (parsed.nullable && !unusedNullFile) ||
-              parsed.base.kind === 'nominal' && !ownedEnum && !loaded.models.some(model => model.name === parameter.typeId) ||
+              (parsed.nullable && !unusedNullFile && !nullableModel) ||
+              parsed.base.kind === 'nominal' && !ownedEnum && !loaded.models.some(model => model.name === parameter.typeId.replace(/\?$/,'')) ||
               !Object.hasOwn(admittedParameters, parameter.name) ||
               localPolicyMember(suppliedValues, parameter.name) !== admittedParameters[parameter.name]) {
             throw new AssemblyCorrespondenceError('Scenario Require parameter differs from its genuine admitted native slot.');
           }
         }
-        const parameter = modelParameters[0]!.name;
-        if (!actualCall.recordRefs.some(reference => reference.param === parameter && reference.model === modelParameters[0]!.typeId)) {
+        const parameter = anchor.name;
+        if (!actualCall.recordRefs.some(reference => reference.param === parameter && reference.model === anchor.model)) {
           throw new AssemblyCorrespondenceError('Scenario Require lacks its exact admitted model reference.');
         }
         const occurrence = stableStringify([original.source, original.node]);
@@ -12132,7 +12139,7 @@ async function runScenarioExecution(
           capture: reads => {
             const predicate: import('@canlang/state/receipt').InstalledSourceQueryPredicate = async (_record, observation) => {
               if (observation === undefined) throw new AssemblyCorrespondenceError('Scenario Require lacks its genuine owner-stage observation.');
-              return adapter.evaluate(modelParameters[0]!.typeId, [{ owner: original.owner,
+              return adapter.evaluate(anchor.model, [{ owner: original.owner,
                 predicate: async (context: HandlerContext, row: Record<string, unknown>,
                   project?: (model: string, id: string, expectedVersion: unknown) => Promise<Record<string, unknown>>) => {
                   const args: Record<string, unknown> = { ...admittedParameters, [parameter]: row };
@@ -12145,10 +12152,14 @@ async function runScenarioExecution(
                   for (const modelParameter of modelParameters) {
                     if (modelParameter.name === parameter) continue;
                     const ref = actualCall.recordRefs.find(entry => entry.param === modelParameter.name);
-                    if (ref === undefined || ref.model !== modelParameter.typeId) {
+                    if (modelParameter.nullable && admittedParameters[modelParameter.name] === null) {
+                      if(ref!==undefined) throw new AssemblyCorrespondenceError('Null Require model slot cannot carry an admitted row.');
+                      args[modelParameter.name]=null; continue;
+                    }
+                    if (ref === undefined || ref.model !== modelParameter.model) {
                       throw new AssemblyCorrespondenceError('Scenario Require lacks its exact admitted model reference.');
                     }
-                    args[modelParameter.name] = await project!(modelParameter.typeId, ref.id, ref.row.version);
+                    args[modelParameter.name] = await project!(modelParameter.model, ref.id, ref.row.version);
                   }
                   return Reflect.apply(fn, undefined, [context, Object.freeze(args)]);
                 } }], observation, predicate);

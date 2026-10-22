@@ -758,7 +758,10 @@ fn full_driver_seals_original_invoice_terminal_census_body_and_catalog() {
     };
     let (artifact, diagnostics) = run(&original,&db);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    assert_eq!(artifact.callables.iter().filter(|callable| callable.kind=="handler").count(),4);
+    let handlers = artifact.callables.iter().filter(|callable| callable.kind=="handler")
+        .map(|callable|callable.id.as_str()).collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(handlers, std::collections::BTreeSet::from(["invoice.collected", "invoice.refunded",
+        "invoice.checkout_cancelled", "invoice.reconciled", "invoice.observe_commercial_payment"]));
     // The older independent IR API retains its bounded body contract. Its
     // refusal cannot be promoted by standalone JS, even with source receipts.
     let (legacy, diagnostics) = ir::build(&original,&db,catalog.as_ref());

@@ -24,6 +24,52 @@ pub(super) struct PreparedReadPredicates {
 }
 
 impl PreparedReadPredicates {
+    /// An internal helper needs no ordinary entry when every checked source
+    /// call selects an authenticated Require or private handler variant.
+    /// A call in a default, view, hook, exported helper or ordinary write is
+    /// outside these exact roots and therefore keeps the ordinary lowering.
+    pub(super) fn private_only_derives(
+        &self,
+        context: &super::scenario_decisions::FreshSourceContext<'_>,
+        owner_handlers: &HashSet<crate::analysis::resolve::SymbolId>,
+    ) -> Option<HashSet<String>> {
+        use crate::analysis::types::SelectedCallTarget;
+        use super::ir::IrItemKind;
+        checked_context(context)?;
+        if self.closure != format!("{:?}", context.ir()) { return None; }
+        let program = context.original();
+        let private_roots = owner_handlers.iter().map(|id| {
+            let owner = context.ir().items.get(id.0 as usize)?;
+            super::scenario_decisions::owner_handler_queries(context, owner)?;
+            let scenario = program.effects.scenarios.get(id)?;
+            Some(scenario.guards.iter().chain(&scenario.effects)
+                .map(|effect| effect.node).collect::<Vec<_>>())
+        }).collect::<Option<Vec<_>>>()?.into_iter().flatten().collect::<Vec<_>>();
+        let mut result = HashSet::new();
+        for item in &context.ir().items {
+            if item.exported || !matches!(&item.kind, IrItemKind::DeriveFn { expr: Some(_), .. }) {
+                continue;
+            }
+            let calls = program.types.selected_calls.iter().filter_map(|(node, call)| {
+                matches!(call.target, SelectedCallTarget::DeriveFn(id) if id == item.id).then_some(*node)
+            }).collect::<Vec<_>>();
+            // Unused unsupported source is still checked. In particular an
+            // empty census cannot turn an unsupported derive into dead code.
+            if calls.is_empty() { continue; }
+            let boolean = self.boolean_derives.contains(&item.canonical);
+            if calls.iter().all(|node| {
+                let at = Span::new(node.file, node.start, node.end);
+                private_roots.iter().any(|root| root.file == node.file
+                    && root.start <= node.start && node.end <= root.end)
+                    || boolean && self.source_requires.keys()
+                        .any(|root| contains(*root, at))
+            }) {
+                result.insert(item.canonical.clone());
+            }
+        }
+        Some(result)
+    }
+
     pub fn source_requires(&self, ir: &IrProgram) -> Option<&HashMap<Span, serde_json::Value>> {
         (self.closure == format!("{ir:?}")).then_some(&self.source_requires)
     }

@@ -76,6 +76,20 @@ it('refuses altered collection authority, financial queries, guarded SEND, and s
         assert.ok(report.diagnostics.some(diagnostic => diagnostic.code === 'E6008'),
           `${name}: changed original owner must lose native receipt`);
       }
+      for (const [name, text] of [
+        ['ordinary-helper-write', original.replace('  scenario collect(',
+          '  scenario ordinary(invoice:Invoice) by=finance\n   do create CommercialHistory {parent=invoice.parent,complete=false,first_invoice=first_paid_invoice(invoice.parent),evidence="Ordinary write"} as history\n  scenario collect(')],
+        ['exported-helper', original.replace('  derive first_paid_invoice(', '  export derive first_paid_invoice(')],
+        ['ordinary-transitive-helper', original.replace('  derive first_paid_invoice(',
+          '  derive ordinary(customer:Customer):Invoice? = first_paid_invoice(customer)\n  derive first_paid_invoice(')],
+      ]) {
+        const path=join(directory, `${name}.can`); await writeFile(path,text!);
+        const result=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,path],
+          {cwd:root,encoding:'utf8',timeout:60000,maxBuffer:32*1024*1024});
+        assert.equal(result.status,10,`${name}: ${result.stderr || result.stdout}`);
+        assert.ok((JSON.parse(result.stdout) as {diagnostics:{code:string;message:string}[]}).diagnostics
+          .some(d=>d.code==='E6008' && d.message.includes('first query')),name);
+      }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
@@ -169,13 +183,13 @@ it('collects the current invoice balance from owner-complete evidence and emits 
           kind: 'collection', status: priorStatus,
           failure: mode === 'permanent-failed' ? 'permanent' :
             mode === 'transient-failed' ? 'transient' : null,
-          disabled: false, delivery: 'prior-delivery', hidden: true } }),
+          disabled: false, delivery: 'prior-delivery', received: new Date(now - 2000).toISOString(), hidden: true } }),
           parent: { model: model('invoice.Invoice'), id: invoice.id } };
         const credit = { ...makeRow({ id: asId('credit'), data: {
           amount: money(mode === 'zero-balance' ? '10000' : '2000'), hidden: true } }),
           parent: { model: model('invoice.Invoice'), id: invoice.id } };
         const payment = { ...makeRow({ id: asId('external-payment'), data: {
-          amount: money('1000'), hidden: true } }),
+          amount: money('1000'), received: new Date(now - 1000).toISOString(), hidden: true } }),
           parent: { model: model('invoice.Invoice'), id: invoice.id } };
         const writes: Array<{ kind: 'insert'; model: ModelName; row: StoredRow }> = [
           { kind: 'insert', model: model('rent_catalog.Location'), row: location },
@@ -355,6 +369,14 @@ it('executes the four authored Invoice terminals only from retained Work complet
       const end = original.indexOf('   ## Correlated transport acceptance', start);
       assert.ok(start >= 0 && end > start && probe.includes(original.slice(start, end)),
         'all four actual authored terminal bodies are retained unchanged');
+      const observeStart=original.indexOf('  scenario observe_commercial_payment on=');
+      const observeEnd=original.indexOf('  scenario observe_commercial_sale on=',observeStart);
+      assert.ok(probe.includes(original.slice(observeStart,observeEnd).trimEnd()),
+        'the actual commercial payment observation write is retained');
+      for(const prefix of ['  derive first_receipt(', '  derive first_paid_invoice(']) {
+        const line=original.split('\n').find(value=>value.startsWith(prefix));
+        assert.ok(line && probe.includes(line),`${prefix} is retained`);
+      }
       const { stdout } = await promisify(execFile)(compiler,
         ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, terminalSource],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
@@ -377,6 +399,7 @@ it('executes the four authored Invoice terminals only from retained Work complet
         if(selectedCase!==undefined && selectedCase!==mode) continue;
         executed++;
         const realSkip = op === 'collect' && status === 'skipped';
+        const commercial = op === 'collect' && status === 'failed';
         const identities = createMemoryIdentityStore({ clock: createFrozenClock(now) });
         const team = await identities.createTeam({ timezone: 'UTC' });
         const actor = await identities.createUser({ email: `${mode}@invoice-terminal.test`,
@@ -419,6 +442,25 @@ it('executes the four authored Invoice terminals only from retained Work complet
           ...(['cancel', 'reconcile'].includes(op) ? [{ kind: 'insert' as const,
             model: model('invoice.PaymentRequest'), row: request }] : []),
         ] }));
+        if (commercial) {
+          const paid=(id:string,owner:StoredRow,at:number):Array<{kind:'insert';model:ModelName;row:StoredRow}>=>[
+            {kind:'insert',model:model('invoice.Invoice'),row:owner},
+            {kind:'insert',model:model('invoice.ExternalPayment'),row:{...makeRow({id:asId(`${id}-payment`),
+              data:{amount:money('1000'),received:new Date(at).toISOString(),hidden:true}}),
+              parent:{model:model('invoice.Invoice'),id:owner.id}}}];
+          const other={...customer,id:asId('other-customer')};
+          const earlier=(id:string,parent=customer.id)=>({...invoice,id:asId(id),
+            parent:{model:model('customer.Customer'),id:parent}});
+          await store.commit(makeBatch(await store.readRevision(),{writes:[
+            {kind:'insert',model:model('invoice.ExternalPayment'),row:{...makeRow({id:asId('observed-payment'),
+              data:{amount:money('1000'),received:new Date(now-1000).toISOString(),hidden:true}}),
+              parent:{model:model('invoice.Invoice'),id:invoice.id}}},
+            ...paid('b-first',earlier('b-first'),now-3000),
+            ...paid('a-first',earlier('a-first'),now-3000),
+            {kind:'insert',model:model('customer.Customer'),row:other},
+            ...paid('0-foreign',earlier('0-foreign',other.id),now-5000),
+          ]}));
+        }
         const sent = await invoker.invokeMutation({ operation: realSkip ? 'invoice.collect' : `invoice.request_${op}`,
           operation_id: operationId(), inputs: realSkip ? {invoice:{id:invoice.id,version:String(invoice.version)}} : { ...(['cancel', 'reconcile'].includes(op) ? { retained: { id: request.id, version: String(request.version) } } : {}),
             reference: 'provider-reference',
@@ -624,10 +666,119 @@ it('executes the four authored Invoice terminals only from retained Work complet
           assert.equal(value['revision'], expectedLedger, mode);
           assert.equal(value['collection_pending'], op === 'collect' && status !== 'skipped', mode);
           assert.equal(value['refund_pending'], op === 'refund', mode);
-          assert.deepEqual(value['collected'], money('0'), mode);
+          assert.deepEqual(value['collected'], money(commercial ? '1000' : '0'), mode);
           assert.deepEqual(value['refunded'], money('0'), mode);
+        }
+        if (commercial) {
+          const source=settlements[0]!;
+          const invoke=()=>invokeRetainedHandlerOccurrenceCanonical({asm,artifact,app:scope.app,
+            selector:{scope,event:'invoice.InvoiceSettlement',sourceOccurrence:source.id,
+              handler:'invoice.observe_commercial_payment'},store,identities,now:()=>now+5});
+          assert.equal((await invoke() as {status:string}).status,'completed');
+          const histories=await store.query({model:model('invoice.CommercialHistory'),authority:'owner'});
+          assert.equal(histories.length,1);
+          assert.deepEqual(histories[0]!.data['first_invoice'],{id:'a-first'},'complete hidden domain and stable tie breaker');
+          assert.equal(histories[0]!.parent?.id,customer.id,'foreign Customer ledger excluded');
+          assert.equal((await store.load(model('invoice.Invoice'),invoice.id))!.data['first_paid_at'],
+            new Date(now-1000).toISOString());
+          assert.equal((await invoke() as {status:string}).status,'replayed');
         }
       }
       assert.ok(executed>0,`unknown terminal case: ${selectedCase}`);
     } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+it('evaluates commercial history Require over complete ordered owner evidence and nullable admitted inputs',
+  {timeout:300000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-invoice-commercial-require-'));
+    try {
+      const authored=await readFile(join(root,'draft/apps/CanInvoice/CanInvoice.can'),'utf8');
+      const start=authored.indexOf('  scenario review_commercial_history(');
+      const end=authored.indexOf('   do\n',start);
+      const guards=authored.slice(start,end).replace('scenario review_commercial_history(','scenario verify(');
+      // Exercise the actual original requirements independently of the local
+      // CommercialHistory first-selection feature that remains unreleased.
+      let text=await readFile(source,'utf8');
+      text=text.replace('package customer\n','package customer\n use rent_catalog {Location}\n')
+        .replace('export Customer {kind:','export Customer {locations:Location[],kind:');
+      const insertion=text.lastIndexOf(' Then\n');
+      text=text.slice(0,insertion)+guards+
+        '   do create CommercialHistory {parent=customer,complete,first_invoice,evidence} as history\n'+text.slice(insertion);
+      const path=join(directory,'commercial.can'); await writeFile(path,text);
+      const {stdout}=await promisify(execFile)(compiler,
+        ['compile','--format=json','--native-scenario-receipts','--catalog',catalog,path],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      assert.ok(!artifact.callables?.some(callable=>callable.id==='invoice.first_paid_invoice'),
+        'ordinary helper entry is omitted rather than replaced by a throwing function');
+      const asm=await assembleModules({artifact,sourcePath:path},{workDir:directory,
+        stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['complete','null-incomplete','wrong-first','foreign-parent','null-complete','timestamp-missing','worker-inactive','domain-race'] as const){
+        const identities=createMemoryIdentityStore({clock:createFrozenClock(now)});
+        const team=await identities.createTeam({timezone:'UTC'});
+        const actor=await identities.createUser({email:`${mode}@commercial-require.test`,password_hash:'unused',email_verified:true});
+        await identities.createMembership({team_id:team.team_id,user_id:actor.user_id,is_owner:false,
+          roles:[{role:'invoice.finance',granted_at:new Date(now).toISOString(),granted_by:actor.user_id}]});
+        const token=`commercial-${mode}`;
+        await identities.createSession({user_id:actor.user_id,token_sha256:await sha256HexText(token),
+          last_team_id:team.team_id,expires_at:new Date(now+3600000).toISOString()});
+        const identity=await resolveIdentity(identities,{session_token:token},{clock:createFrozenClock(now)});
+        const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'commercial-state',
+          fileStoreId:'commercial-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,
+          verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+        const location={...makeRow({id:asId('location'),data:{active:true}}),parent:null};
+        const customer={...makeRow({id:asId('customer'),data:{kind:'company',locations:[{id:location.id}],hidden:false}}),parent:null};
+        const invoice=(id:string)=>({...makeRow({id:asId(id),data:{location:{id:location.id},source:id,currency:'EUR',
+          state:'issued',total:money('1000'),next_collection:null,ledger_revision:'1',first_paid_at:null,hidden:true}}),
+          parent:{model:model('customer.Customer'),id:customer.id}});
+        const first=invoice('a-first'), second=invoice('b-second');
+        const foreign={...customer,id:asId('foreign-customer')};
+        if(mode==='foreign-parent')second.parent={model:model('customer.Customer'),id:foreign.id};
+        const payment=(id:string,owner:StoredRow)=>({...makeRow({id:asId(id),data:{amount:money('1000'),
+          received:new Date(now-1000).toISOString(),hidden:true}}),parent:{model:model('invoice.Invoice'),id:owner.id}});
+        const employee={...makeRow({id:asId('employee'),data:{user:{id:actor.user_id},home:{id:location.id},
+          locations:[],operator_wide:false,active:mode!=='worker-inactive',hidden:true}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:model('rent_catalog.Location'),row:location},
+          {kind:'insert',model:model('customer.Customer'),row:customer},
+          ...(mode==='foreign-parent'?[{kind:'insert' as const,model:model('customer.Customer'),row:foreign}]:[]),
+          {kind:'insert',model:model('employee.Employee'),row:employee},
+          {kind:'insert',model:model('invoice.Invoice'),row:first},
+          {kind:'insert',model:model('invoice.Invoice'),row:second},
+          {kind:'insert',model:model('invoice.ExternalPayment'),row:payment('second-payment',second)},
+          ...(mode==='timestamp-missing'?[{kind:'insert' as const,model:model('invoice.Attempt'),row:{...makeRow({id:asId('missing-time'),
+            data:{reference:'missing',amount:money('1000'),kind:'collection',status:'succeeded',failure:null,disabled:false,
+              delivery:null,received:null,hidden:true}}),parent:{model:model('invoice.Invoice'),id:first.id}}}]:[
+            {kind:'insert' as const,model:model('invoice.ExternalPayment'),row:payment('first-payment',first)}]),
+        ]}));
+        let raced=false;
+        if(mode==='domain-race'){
+          const commit=store.commit.bind(store);
+          Object.defineProperty(store,'commit',{value:async(batch:Parameters<typeof store.commit>[0])=>{
+            if(!raced && batch.writes.some(write=>write.model==='invoice.CommercialHistory')){
+              raced=true;
+              const concurrent=payment('concurrent-payment',second);
+              await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice.ExternalPayment'),
+                row:{...concurrent,data:{...concurrent.data,
+                  received:new Date(now-5000).toISOString()}}}]}));
+            }
+            return commit(batch);
+          }});
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const selected=mode==='null-incomplete'||mode==='null-complete'?null:mode==='wrong-first'||mode==='foreign-parent'?second:first;
+        const result=await invoker.invokeMutation({operation:'invoice.verify',operation_id:operationId(),inputs:{
+          customer:{id:customer.id,version:String(customer.version)},complete:mode!=='null-incomplete',
+          first_invoice:selected===null?null:{id:selected.id,version:String(selected.version)},evidence:'Reviewed ledger'}},identity);
+        const successful=mode==='complete'||mode==='null-incomplete';
+        assert.equal('result' in result && result.result.status==='committed',successful,`${mode}: ${JSON.stringify(result)}`);
+        const histories=await store.query({model:model('invoice.CommercialHistory'),authority:'owner'});
+        assert.equal(histories.length,successful?1:0,`${mode}: atomic original decision`);
+        if(successful) assert.deepEqual(histories[0]!.data['first_invoice'],selected===null?null:{id:selected.id});
+        if(mode==='domain-race')assert.ok(raced,'final owner fence observed concurrent query-domain mutation');
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
   });
