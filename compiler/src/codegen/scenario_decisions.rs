@@ -3834,7 +3834,7 @@ fn serialize_call(
 }
 fn serial_value_shape(ty: &ResolvedType, program: &CheckedProgram, ir: &IrProgram,
     depth: usize) -> Option<SerialDecisionValueShape> {
-    if depth >= 16 { return None; }
+    if depth >= 16 || matches!(ty, ResolvedType::Scalar(Scalar::File | Scalar::Secret | Scalar::Member | Scalar::Json | Scalar::Bytes)) { return None; }
     if let Some(type_id) = serial_type(ty,program,ir,0) {
         return Some(SerialDecisionValueShape::Type {type_id});
     }
