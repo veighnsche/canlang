@@ -6,6 +6,11 @@ import { StateError } from '../errors.js';
 import { deepFreeze } from '../internal/own-data.js';
 import { stableStringify } from './replay.js';
 
+/** Private expression-only Values type; it declares no public value or row capability. */
+export type ScenarioReceiptMembershipValueShape =
+  | { readonly kind: 'type'; readonly type: string }
+  | { readonly kind: 'array'; readonly element: ScenarioReceiptMembershipValueShape; readonly ordered: boolean; readonly nonempty: boolean }
+  | { readonly kind: 'object'; readonly fields: readonly {readonly name:string; readonly shape:ScenarioReceiptMembershipValueShape}[] };
 export interface ScenarioReceiptMembershipNode { readonly start: number; readonly end: number }
 export interface ScenarioReceiptMembershipSite {
   readonly version: 1;
@@ -23,7 +28,8 @@ export interface ScenarioReceiptMembershipSite {
     readonly node: ScenarioReceiptMembershipNode;
     readonly target: { readonly kind: 'builtin'; readonly id: string; readonly overload: number } |
       { readonly kind: 'derive'; readonly name: string };
-    readonly arguments: readonly { readonly node: ScenarioReceiptMembershipNode; readonly type: string }[];
+    readonly arguments: readonly { readonly node: ScenarioReceiptMembershipNode; readonly type?: string;
+      readonly valueShape?: ScenarioReceiptMembershipValueShape }[];
     readonly slots: readonly (number | null)[];
     readonly defaults: readonly { readonly parameter: string; readonly source: ScenarioReceiptSourceOrigin;
       readonly node: ScenarioReceiptMembershipNode; readonly type: string }[];
@@ -155,10 +161,36 @@ function checkMembershipCallTarget(call: Record<string, unknown>): { kind: unkno
   return { kind, target };
 }
 
+/** Full original structural expression shape; public type IDs stay unchanged. */
+function valueShape(value: unknown, depth = 0): void {
+  if (depth >= 16 || typeof value !== 'object' || value === null) fail('bounded Values expression shape required.');
+  const kind = (value as Record<string, unknown>).kind;
+  if (kind === 'type') {
+    const leaf = object(value,['kind','type']); type(leaf.type,true);
+    const parsed = parseTypeId(leaf.type as string);
+    if (['file','secret','action','delivery','invocation','member','json','union'].includes(parsed.base.kind)) fail('structural expression cannot carry opaque authority.');
+  } else if (kind === 'array') {
+    const array = object(value,['kind','element','ordered','nonempty']);
+    if (array.ordered !== true || typeof array.nonempty !== 'boolean') fail('exact ordered Values array required.');
+    valueShape(array.element,depth+1);
+  } else if (kind === 'object') {
+    const record = object(value,['kind','fields']), names = new Set<string>();
+    const fields = list(record.fields); if (fields.length === 0) fail('nonempty structural fields required.');
+    for (const value of fields) {
+      const field = object(value,['name','shape']), name = text(field.name);
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || names.has(name)) fail('unique original ordered field names required.');
+      names.add(name); valueShape(field.shape,depth+1);
+    }
+  } else fail('closed structural Values expression type required.');
+}
 /** Authored arguments with their actual canonical types. */
 function checkMembershipCallArgs(call: Record<string, unknown>): unknown[] {
   const args = list(call.arguments);
-  for (const value of args) { const argument = object(value, ['node', 'type']); node(argument.node); type(argument.type, true); }
+  for (const value of args) {
+    const structural = typeof value === 'object' && value !== null && Object.hasOwn(value,'valueShape');
+    const argument = object(value, structural ? ['node','valueShape'] : ['node','type']); node(argument.node);
+    if (structural) valueShape(argument.valueShape); else type(argument.type,true);
+  }
   return args;
 }
 

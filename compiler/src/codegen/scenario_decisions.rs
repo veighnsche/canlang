@@ -2285,9 +2285,20 @@ pub enum SerialDecisionTarget {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SerialDecisionArgument {
     pub node: SerialDecisionNode,
-    #[serde(rename = "type")]
-    pub type_id: String,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub type_id: Option<String>,
+    #[serde(rename = "valueShape", skip_serializing_if = "Option::is_none")]
+    pub value_shape: Option<SerialDecisionValueShape>,
 }
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum SerialDecisionValueShape {
+    Type { #[serde(rename="type")] type_id: String },
+    Array { element: Box<SerialDecisionValueShape>, ordered: bool, nonempty: bool },
+    Object { fields: Vec<SerialDecisionValueField> },
+}
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SerialDecisionValueField { pub name: String, pub shape: SerialDecisionValueShape }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SerialDecisionDefault {
     pub parameter: String,
@@ -3453,6 +3464,20 @@ fn join_require_statements<'o>(
     Some(cond)
 }
 
+fn plain_source_value(ir: &IrProgram, ty: &ResolvedType, depth: usize) -> bool {
+    if depth >= 16 { return false; }
+    match ty {
+        ResolvedType::Scalar(scalar) => *scalar != Scalar::File,
+        ResolvedType::Nullable(inner) | ResolvedType::Array {element:inner,ordered:true,..} => plain_source_value(ir,inner,depth+1),
+        ResolvedType::Object(fields) => fields.len() <= 200 && fields.iter().all(|(_,ty)|plain_source_value(ir,ty,depth+1)),
+        ResolvedType::Record {symbol,..} => matches!(ir.items.get(symbol.0 as usize).map(|item|&item.kind),
+            Some(IrItemKind::Contract {fields,..}) if !fields.is_empty() && fields.len()<=200
+                && fields.iter().all(|id|matches!(ir.items.get(id.0 as usize).map(|item|&item.kind),
+                    Some(IrItemKind::Field {ty:IrType::Known(ty),..}) if plain_source_value(ir,ty,depth+1)))),
+        _ => false,
+    }
+}
+
 fn serialize_require_params(
     ir: &IrProgram,
     original: &CheckedProgram,
@@ -3497,12 +3522,25 @@ fn serialize_require_params(
                         && matches!(&value.expr, IrExpr::Array(elements) if elements.is_empty())
                         && value.span == Span::new(node.file, node.start, node.end))
             && default_copy_source.is_none() && checked.constraints.is_none();
+        let source_value_default = plain_source_value(ir,ty,0) && checked.constraints.is_none()
+            && checked.default.is_some() && *default_node == checked.default
+            && same_scenario_semantics(original,ir,sources.fresh(),owner).is_some()
+            && match default {
+                Some(IrDefault::Literal(value)) => matches!(&value.expr,
+                    IrExpr::Int(_) | IrExpr::Decimal(_) | IrExpr::Text(_) | IrExpr::Bool(_) | IrExpr::Null
+                    | IrExpr::Date(_) | IrExpr::Datetime(_) | IrExpr::DurationMs(_))
+                    || matches!(&value.expr,IrExpr::Array(values) if values.is_empty()),
+                Some(IrDefault::Computed {expr,..}) => default_copy_source.is_some_and(|source|
+                    params[..index].contains(&source) && ir.items.get(source.0 as usize).is_some_and(|parameter|
+                        matches!(&parameter.kind,IrItemKind::Param {ty:IrType::Known(prior),default:None,..}
+                            if prior == ty && matches!(&expr.expr,IrExpr::Name(name) if name == &parameter.name)))),
+                _ => false,
+            };
         if *id != checked.parameter
             || *declared_owner != owner.id
             || *declared_index != index
             || *ty != checked.ty
-            || !(default.is_none() && checked.default.is_none() || exact_null_default || exact_empty_text_array)
-
+            || !(default.is_none() && checked.default.is_none() || exact_null_default || exact_empty_text_array || source_value_default)
         {
             return None;
         }
@@ -3768,10 +3806,12 @@ fn serialize_call(
     let target = serialize_call_target(program, ir, call)?;
     let mut arguments = Vec::new();
     for (node, ty) in &call.arguments {
-        arguments.push(SerialDecisionArgument {
-            node: serial_node(*node),
-            type_id: serial_type(ty, program, ir, 0)?,
-        });
+        let type_id = serial_type(ty, program, ir, 0);
+        let value_shape = if type_id.is_none() {
+            if !plain_source_value(ir,ty,0) { return None; }
+            Some(serial_value_shape(ty,program,ir,0)?)
+        } else { None };
+        arguments.push(SerialDecisionArgument { node: serial_node(*node), type_id, value_shape });
     }
     let defaults = serialize_call_defaults(program, ir, db, call)?;
     let mut chain = Vec::new();
@@ -3790,6 +3830,21 @@ fn serialize_call(
         slots: call.slots.clone(),
         defaults,
         chain,
+    })
+}
+fn serial_value_shape(ty: &ResolvedType, program: &CheckedProgram, ir: &IrProgram,
+    depth: usize) -> Option<SerialDecisionValueShape> {
+    if depth >= 16 { return None; }
+    if let Some(type_id) = serial_type(ty,program,ir,0) {
+        return Some(SerialDecisionValueShape::Type {type_id});
+    }
+    Some(match ty {
+        ResolvedType::Array {element,ordered,nonempty} => SerialDecisionValueShape::Array {
+            element:Box::new(serial_value_shape(element,program,ir,depth+1)?), ordered:*ordered, nonempty:*nonempty },
+        ResolvedType::Object(fields) if !fields.is_empty() && fields.len()<=200 => SerialDecisionValueShape::Object {
+            fields:fields.iter().map(|(name,ty)| Some(SerialDecisionValueField {name:name.clone(),
+                shape:serial_value_shape(ty,program,ir,depth+1)?})).collect::<Option<_>>()? },
+        _ => return None,
     })
 }
 fn serial_source(

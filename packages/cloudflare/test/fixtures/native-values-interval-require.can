@@ -1,0 +1,14 @@
+app CanIntervals uses=[propose]
+package propose
+ Given
+  export contract QuoteInterval { from:datetime, until:datetime } label="Quoted access interval"@{nl="Geoffreerd toegangstijdvak"}
+  export derive quote_intervals_valid(from:datetime,until:datetime,intervals:QuoteInterval[]):bool = from<until and (count(intervals)==0 or (all(intervals as interval,from<=interval.from and interval.from<interval.until and interval.until<=until) and count(group(intervals as interval,interval.from))==count(intervals) and all(intervals as left,all(intervals as right,left.from==right.from or left.until<=right.from or right.until<=left.from)) and min(intervals as interval select interval.from)==from and max(intervals as interval select interval.until)==until))
+  Seed {number:int=0}
+  policy Seed read=members
+ When
+  scenario validate(seed:Seed,from:datetime,until:datetime,quantity:int=1,refund_before:datetime=from,intervals:QuoteInterval[]=[],note:text?=null) -> int by=members
+   require quote_intervals_valid(from,until,intervals) and quantity>0 and refund_before<=from and (note==null or trim(note)!="")
+   do
+    set seed {number=quantity}
+    return quantity
+ Then
