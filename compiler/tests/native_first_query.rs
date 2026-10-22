@@ -1416,3 +1416,78 @@ fn retained_reference_first_and_optional_account_keep_exact_source_ir_correspond
         );
     }
 }
+
+#[test]
+fn contained_first_update_and_source_loop_keep_imported_parent_and_nullable_slot_correspondence() {
+    let source=r#"app FirstSources uses=[invoices]
+package customers
+ Given
+  export Customer {active:bool=true}
+ When
+ Then
+package invoices
+ use customers {Customer}
+ Given
+  Invoice in Customer {title:text}
+  History in Customer {invoice:Invoice?,complete:bool=false}
+  Sale in Customer {source:text}
+  event SaleCheck {sale:Sale}
+  role finance
+ When
+  scenario generate(customer:Customer,invoice:Invoice?,complete:bool) by=finance
+   do
+    let history=first(customer.History as history order=history.id)
+    if history==null
+     create History {parent=customer,invoice,complete} as history
+    else
+     set history {invoice,complete}
+    for sale in customer.Sale as sale limit=500
+     emit SaleCheck {sale}
+  scenario observe_sale on=SaleCheck
+   do let selected=event.sale
+ Then
+"#;
+    let (db,program,ir,catalog)=fixture_source("contained-loop.can",source);
+    let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let operation=artifact["operations"].as_array().unwrap().iter().find(|operation|operation["name"]=="invoices.generate").unwrap();
+    let plan=&operation["result"]["disclosure"];
+    assert_eq!(plan["sourceEmissions"]["owner"],"invoices.generate");
+    let loops=plan["sourceEmissions"]["loops"].as_array().unwrap();
+    assert_eq!(loops.len(),1);
+    assert_eq!(loops[0]["maximum"],500);
+    assert_eq!(loops[0]["parentModel"],"customers.Customer");
+    assert_eq!(loops[0]["model"],"invoices.Sale");
+    assert_eq!(loops[0]["event"],"invoices.SaleCheck");
+    assert_eq!(loops[0]["handler"],"invoices.observe_sale");
+    assert!(artifact["modules"].as_array().unwrap().iter().any(|module|module["js"].as_str().unwrap().contains("await nativeScenarioSourceLoop(c,")));
+    // The original/fresh join retains every executable loop operand;
+    // editing its IR cannot borrow the original source's finite budget.
+    assert!(serialize_complete_query_receipt(&program,&ir,item(&ir,"invoices.generate"),&db,Some(&catalog),"FirstSources").is_some());
+    let mut changed=ir.clone();
+    let owner_id=item(&ir,"invoices.generate").id;
+    let IrItemKind::Scenario {effects,..}=&mut changed.items[owner_id.0 as usize].kind else {panic!("scenario");};
+    let IrStmt::For {limit:Some(limit),..}=effects.last_mut().unwrap() else {panic!("loop");};
+    limit.expr=IrExpr::Int(501);
+    assert!(serialize_complete_query_receipt(&program,&changed,item(&changed,"invoices.generate"),&db,Some(&catalog),"FirstSources").is_none());
+    let renamed=source.replace("customer:Customer","client:Customer")
+        .replace("customer.","client.").replace("parent=customer","parent=client")
+        .replace("history","selected_history").replace("sale","entry").replace("limit=500","limit=271");
+    let (renamed_db,renamed_program,_,renamed_catalog)=fixture_source("renamed-loop.can",&renamed);
+    let (_,renamed_diagnostics)=prepared_artifact(&renamed_program,&renamed_db,&renamed_catalog);
+    assert!(renamed_diagnostics.is_empty(),"{renamed_diagnostics:?}");
+    for (name,changed) in [
+        ("copied-nullable-set",source.replace("     set history {invoice,complete}","     let copied=invoice\n     set history {invoice=copied,complete}")),
+        ("computed-nullable-set",source.replace("set history {invoice,complete}","set history {invoice=invoice ?? invoice,complete}")),
+        ("write-loop-not-source",source.replace("emit SaleCheck {sale}","set sale {source=\"changed\"}")),
+        ("global-loop",source.replace("customer.Sale as sale","Sale as sale")),
+        ("filtered-loop",source.replace("customer.Sale as sale limit","customer.Sale as sale where sale.source!=\"\" limit")),
+        ("loop-over-budget",source.replace("limit=500","limit=501")),
+        ("additional-handler",source.replace("  scenario observe_sale on=SaleCheck", "  scenario extra_sale on=SaleCheck\n   do let selected=event.sale\n  scenario observe_sale on=SaleCheck")),
+        ("cohort-handler",source.replace("on=SaleCheck\n   do", "on=SaleCheck each=Sale as selected\n   do")),
+    ] {
+        let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
+        let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+        assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+    }
+}

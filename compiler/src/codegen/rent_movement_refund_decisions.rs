@@ -640,7 +640,7 @@ pub(super) fn collect_refund_receipt(
         .as_bytes(),
     );
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { source_loops: None,
+        plan: ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
             version: 1,
             source: source.clone(),
             event_decision: None,

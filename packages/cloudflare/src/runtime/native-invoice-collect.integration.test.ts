@@ -7,6 +7,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { it } from 'node:test';
+import { Miniflare } from 'miniflare';
+import type { D1Database } from '@cloudflare/workers-types';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { promisify } from 'node:util';
 import type { CompileArtifact, FileRetirementAuthority, ModelName, StoredRow } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
@@ -689,21 +692,19 @@ it('executes the four authored Invoice terminals only from retained Work complet
   });
 
 it('evaluates commercial history Require over complete ordered owner evidence and nullable admitted inputs',
-  {timeout:300000},async()=>{
+  {timeout:900000},async()=>{
     const directory=await mkdtemp(join(tmpdir(),'can-invoice-commercial-require-'));
+    const databases:Miniflare[]=[];
     try {
       const authored=await readFile(join(root,'draft/apps/CanInvoice/CanInvoice.can'),'utf8');
       const start=authored.indexOf('  scenario review_commercial_history(');
-      const end=authored.indexOf('   do\n',start);
+      const end=authored.indexOf('\n   examples ',start);
       const guards=authored.slice(start,end).replace('scenario review_commercial_history(','scenario verify(');
-      // Exercise the actual original requirements independently of the local
-      // CommercialHistory first-selection feature that remains unreleased.
       let text=await readFile(source,'utf8');
       text=text.replace('package customer\n','package customer\n use rent_catalog {Location}\n')
         .replace('export Customer {kind:','export Customer {locations:Location[],kind:');
       const insertion=text.lastIndexOf(' Then\n');
-      text=text.slice(0,insertion)+guards+
-        '   do create CommercialHistory {parent=customer,complete,first_invoice,evidence} as history\n'+text.slice(insertion);
+      text=text.slice(0,insertion)+guards+'\n  scenario observe_sale on=SaleCheck\n   do let selected=event.sale\n'+text.slice(insertion);
       const path=join(directory,'commercial.can'); await writeFile(path,text);
       const {stdout}=await promisify(execFile)(compiler,
         ['compile','--format=json','--native-scenario-receipts','--catalog',catalog,path],
@@ -713,7 +714,8 @@ it('evaluates commercial history Require over complete ordered owner evidence an
         'ordinary helper entry is omitted rather than replaced by a throwing function');
       const asm=await assembleModules({artifact,sourcePath:path},{workDir:directory,
         stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-      for(const mode of ['complete','null-incomplete','wrong-first','foreign-parent','null-complete','timestamp-missing','worker-inactive','domain-race'] as const){
+      for(const mode of ['complete','null-incomplete','complete-update','null-update','large-loop','loop-overflow','loop-race','wrong-first','foreign-parent','null-complete','timestamp-missing','worker-inactive','domain-race'] as const){
+        if(process.env['CAN_INVOICE_HISTORY_CASE']!==undefined && process.env['CAN_INVOICE_HISTORY_CASE']!==mode)continue;
         const identities=createMemoryIdentityStore({clock:createFrozenClock(now)});
         const team=await identities.createTeam({timezone:'UTC'});
         const actor=await identities.createUser({email:`${mode}@commercial-require.test`,password_hash:'unused',email_verified:true});
@@ -726,7 +728,17 @@ it('evaluates commercial history Require over complete ordered owner evidence an
         const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'};
         const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'commercial-state',
           fileStoreId:'commercial-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
-        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        const producers=[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER];
+        let database:D1Database|undefined;
+        if(process.env['CAN_INVOICE_HISTORY_STORAGE']==='d1'){
+          const worker=new Miniflare({compatibilityDate:'2026-07-15',modules:true,
+            script:'export default { fetch() { return new Response("ok"); } }',
+            d1Databases:{DB:'invoice-history'},d1Persist:join(directory,`d1-${mode}`)});
+          databases.push(worker);
+          database=await worker.getD1Database('DB') as unknown as D1Database;
+          await ensureSchema(database);
+        }
+        const store=database===undefined?createTestMemoryStorage(authority,producers).store:createD1Storage(database,authority,producers);
         await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,
           verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
         const location={...makeRow({id:asId('location'),data:{active:true}}),parent:null};
@@ -741,11 +753,19 @@ it('evaluates commercial history Require over complete ordered owner evidence an
           received:new Date(now-1000).toISOString(),hidden:true}}),parent:{model:model('invoice.Invoice'),id:owner.id}});
         const employee={...makeRow({id:asId('employee'),data:{user:{id:actor.user_id},home:{id:location.id},
           locations:[],operator_wide:false,active:mode!=='worker-inactive',hidden:true}}),parent:null};
+        const update=mode==='complete-update'||mode==='null-update';
+        const saleCount=mode==='large-loop'||mode==='loop-race'?201:mode==='loop-overflow'?501:0;
+        const sales=Array.from({length:saleCount},(_,index)=>({...makeRow({id:asId(`sale-${String(index).padStart(4,'0')}`),data:{source:`commercial-sale-${index}`}}),
+          parent:{model:model('customer.Customer'),id:customer.id}}));
+        const history=(id:string)=>({...makeRow({id:asId(id),data:{complete:false,first_invoice:null,evidence:'Before',hidden:true}}),
+          parent:{model:model('customer.Customer'),id:customer.id}});
         await store.commit(makeBatch(await store.readRevision(),{writes:[
           {kind:'insert',model:model('rent_catalog.Location'),row:location},
           {kind:'insert',model:model('customer.Customer'),row:customer},
           ...(mode==='foreign-parent'?[{kind:'insert' as const,model:model('customer.Customer'),row:foreign}]:[]),
           {kind:'insert',model:model('employee.Employee'),row:employee},
+          ...sales.map(row=>({kind:'insert' as const,model:model('invoice.CommercialSale'),row})),
+          ...(update?['a-history','b-history'].map(id=>({kind:'insert' as const,model:model('invoice.CommercialHistory'),row:history(id)})):[]),
           {kind:'insert',model:model('invoice.Invoice'),row:first},
           {kind:'insert',model:model('invoice.Invoice'),row:second},
           {kind:'insert',model:model('invoice.ExternalPayment'),row:payment('second-payment',second)},
@@ -754,12 +774,47 @@ it('evaluates commercial history Require over complete ordered owner evidence an
               delivery:null,received:null,hidden:true}}),parent:{model:model('invoice.Invoice'),id:first.id}}}]:[
             {kind:'insert' as const,model:model('invoice.ExternalPayment'),row:payment('first-payment',first)}]),
         ]}));
+        if(mode==='large-loop'||mode==='complete'){
+          const commit=store.commit.bind(store);
+          let checkedBatch=false;
+          Object.defineProperty(store,'commit',{value:async(batch:Parameters<typeof store.commit>[0])=>{
+            if(!checkedBatch && batch.writes.some(write=>write.model==='invoice.CommercialHistory')){
+              checkedBatch=true;
+              const revision=await store.readRevision();
+              const sparse=[...batch.writes]; delete sparse[0];
+              await assert.rejects(()=>commit({...batch,writes:sparse}),/reference/);
+              let getterRan=false;
+              const accessor=[...batch.writes];
+              Object.defineProperty(accessor,'0',{enumerable:true,get(){getterRan=true;throw new Error('untrusted accessor');}});
+              await assert.rejects(()=>commit({...batch,writes:accessor}),/reference/);
+              assert.equal(getterRan,false,'complete commit detaches descriptors before reading values');
+              const hiddenIndex=new Proxy([...batch.writes],{ownKeys(target){
+                return Reflect.ownKeys(target).map(key=>key==='0'?'ignored-index':key);
+              }});
+              await assert.rejects(()=>commit({...batch,writes:hiddenIndex}),/reference/);
+              let lengthReads=0;
+              const changingCensus=new Proxy([...batch.writes],{getOwnPropertyDescriptor(target,key){
+                if(key==='length')lengthReads++;
+                return Reflect.getOwnPropertyDescriptor(target,key);
+              }});
+              await assert.rejects(()=>commit({...batch,writes:changingCensus,receipt:undefined} as unknown as Parameters<typeof store.commit>[0]),/reference/);
+              assert.equal(lengthReads,1,'complete outer collection descriptors are captured once');
+              assert.equal(await store.readRevision(),revision,'malformed complete batches are atomic');
+            }
+            return commit(batch);
+          }});
+        }
         let raced=false;
-        if(mode==='domain-race'){
+        if(mode==='domain-race'||mode==='loop-race'){
           const commit=store.commit.bind(store);
           Object.defineProperty(store,'commit',{value:async(batch:Parameters<typeof store.commit>[0])=>{
             if(!raced && batch.writes.some(write=>write.model==='invoice.CommercialHistory')){
               raced=true;
+              if(mode==='loop-race'){
+                const concurrent={...sales[0]!,id:asId('concurrent-sale')};
+                await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice.CommercialSale'),row:concurrent}]}));
+                return commit(batch);
+              }
               const concurrent=payment('concurrent-payment',second);
               await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice.ExternalPayment'),
                 row:{...concurrent,data:{...concurrent.data,
@@ -769,16 +824,34 @@ it('evaluates commercial history Require over complete ordered owner evidence an
           }});
         }
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
-        const selected=mode==='null-incomplete'||mode==='null-complete'?null:mode==='wrong-first'||mode==='foreign-parent'?second:first;
+        const selected=mode==='null-incomplete'||mode==='null-complete'||mode==='null-update'?null:mode==='wrong-first'||mode==='foreign-parent'?second:first;
         const result=await invoker.invokeMutation({operation:'invoice.verify',operation_id:operationId(),inputs:{
-          customer:{id:customer.id,version:String(customer.version)},complete:mode!=='null-incomplete',
+          customer:{id:customer.id,version:String(customer.version)},complete:mode!=='null-incomplete'&&mode!=='null-update',
           first_invoice:selected===null?null:{id:selected.id,version:String(selected.version)},evidence:'Reviewed ledger'}},identity);
-        const successful=mode==='complete'||mode==='null-incomplete';
+        const successful=mode==='complete'||mode==='null-incomplete'||update||mode==='large-loop'||mode==='loop-race';
         assert.equal('result' in result && result.result.status==='committed',successful,`${mode}: ${JSON.stringify(result)}`);
         const histories=await store.query({model:model('invoice.CommercialHistory'),authority:'owner'});
-        assert.equal(histories.length,successful?1:0,`${mode}: atomic original decision`);
-        if(successful) assert.deepEqual(histories[0]!.data['first_invoice'],selected===null?null:{id:selected.id});
+        assert.equal(histories.length,update?2:successful?1:0,`${mode}: atomic original decision`);
+        if(successful){
+          const chosen=update?histories.find(row=>row.id===asId('a-history'))!:histories[0]!;
+          assert.deepEqual(chosen.data['first_invoice'],selected===null?null:{id:selected.id});
+          assert.equal(chosen.data['evidence'],'Reviewed ledger');
+          if(update)assert.equal(histories.find(row=>row.id===asId('b-history'))!.data['evidence'],'Before','id-FIRST selects exactly its original earliest row');
+        }
+        const occurrences=await store.query({model:model('work.occurrence'),authority:'owner'});
+        const saleSources=occurrences.filter(row=>(row.data['result'] as {event?:string}|undefined)?.event==='invoice.SaleCheck');
+        const expectedSources=successful?saleCount+(mode==='loop-race'?1:0):0;
+        assert.equal(saleSources.length,expectedSources,`${mode}: complete authored loop source inventory`);
+        const handlers=await store.query({model:model('work.handler_occurrence'),authority:'owner'});
+        assert.equal(handlers.filter(row=>row.data['handler']==='invoice.observe_sale').length,expectedSources,`${mode}: complete ordinary route inventory`);
+        if(database!==undefined){
+          const reopened=createD1Storage(database,authority,producers);
+          assert.equal(await reopened.readRevision(),await store.readRevision(),'durable lifetime inventory reload retains the exact complete fence');
+          assert.deepEqual(await reopened.query({model:model('work.occurrence'),authority:'owner'}),occurrences,
+            'durable reload preserves every source and complete File lifetime inventory');
+        }
+        if(mode==='loop-race')assert.ok(raced,'native whole-domain selection revalidated before final commit');
         if(mode==='domain-race')assert.ok(raced,'final owner fence observed concurrent query-domain mutation');
       }
-    }finally{await rm(directory,{recursive:true,force:true});}
+    }finally{await Promise.all(databases.map(database=>database.dispose()));await rm(directory,{recursive:true,force:true});}
   });

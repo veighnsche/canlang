@@ -77,13 +77,13 @@ export function retainOwnerMutationBusinessWrites(result: MutationWritesResult, 
 }
 
 /** Own JSON only, detached before any callback output can become a write. */
-function dataCopy<T>(value: T): T {
+function dataCopy<T>(value: T, maximum=20_000, charge?: (nodes:number)=>void): T {
   let nodes = 0; const seen = new Set<object>();
-  const budget: DataCopyBudget = { nodes, seen };
-  try { return dataCopyValue(value, 0, budget) as T; }
+  const budget: DataCopyBudget = { nodes, seen, maximum };
+  try { const copied=dataCopyValue(value,0,budget) as T;charge?.(budget.nodes);return copied; }
   catch (error) { if (error instanceof StateError) throw error; return fail(undefined, 'own JSON data required.'); }
 }
-interface DataCopyBudget { nodes: number; readonly seen: Set<object>; }
+interface DataCopyBudget { nodes: number; readonly seen: Set<object>; readonly maximum:number; }
 
 function dataCopyEntry(
   part: object,
@@ -111,16 +111,16 @@ function checkDataCopyShape(
     return fail(undefined, 'own JSON prototype required.');
   }
   const keys = Reflect.ownKeys(part);
-  if (keys.length > 20_000 - budget.nodes) return fail(undefined, 'finite JSON budget exceeded.');
+  if (keys.length > budget.maximum - budget.nodes) return fail(undefined, 'finite JSON budget exceeded.');
   if (!array) return { keys, count: 0 };
   const length = Object.getOwnPropertyDescriptor(part, 'length');
   if (length === undefined || !('value' in length) || !Number.isSafeInteger(length.value) || length.value < 0 ||
-      length.value > 20_000 || keys.length !== length.value + 1) return fail(undefined, 'finite dense array required.');
+      length.value > budget.maximum || keys.length !== length.value + 1) return fail(undefined, 'finite dense array required.');
   return { keys, count: length.value };
 }
 
 function dataCopyValue(part: unknown, depth: number, budget: DataCopyBudget): unknown {
-  if (++budget.nodes > 20_000 || depth > 32) return fail(undefined, 'finite JSON budget exceeded.');
+  if (++budget.nodes > budget.maximum || depth > 32) return fail(undefined, 'finite JSON budget exceeded.');
   if (part === null || typeof part === 'string' || typeof part === 'boolean') return part;
   if (typeof part === 'number' && Number.isFinite(part)) return part;
   if (typeof part !== 'object' || part === null || budget.seen.has(part)) return fail(undefined, 'own JSON data required.');
@@ -204,6 +204,8 @@ export async function stageOwnerMutationSources(input: {
   readonly context: InvocationContext;
   readonly revision: Revision;
   readonly maxRows: number;
+  readonly maxSourceNodes?:number;
+  readonly maxSourceRows?:number;
   readonly changes: readonly OwnerMutationFinalChange[];
   readonly entry: OwnerMutationReadView;
   readonly final: OwnerMutationReadView;
@@ -264,8 +266,12 @@ export async function stageOwnerMutationSources(input: {
     const output = await input.stager(token);
     if (ledger.pending !== 0) return fail(ledger, 'source callback left an unawaited reader.');
     active(ledger); input.healthy(); ledger.phase = 'checking';
-    const writes = dataCopy(output);
-    if (!Array.isArray(writes) || writes.length > input.maxRows) return fail(ledger, 'bounded source write array required.');
+    const maximum=input.maxSourceNodes??20_000;
+    if(!Number.isSafeInteger(maximum)||maximum<1||maximum>200_000)return fail(ledger,'invalid finite source JSON budget.');
+    const writes = dataCopy(output,maximum,input.maxSourceNodes===undefined?undefined:input.consumeWork);
+    const maxSourceRows=input.maxSourceRows??input.maxRows;
+    if(!Number.isSafeInteger(maxSourceRows)||maxSourceRows<1||input.maxSourceRows!==undefined&&maxSourceRows>1_000)return fail(ledger,'invalid finite source row budget.');
+    if (!Array.isArray(writes) || writes.length > maxSourceRows) return fail(ledger, 'bounded source write array required.');
     const seen = new Set<string>();
     for (const candidate of writes) {
       input.consumeWork(); input.healthy();

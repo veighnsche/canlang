@@ -30,6 +30,8 @@ pub(super) struct ReceiptSource {
 pub(super) struct ReceiptDisclosurePlan {
     #[serde(rename="sourceLoops",skip_serializing_if="Option::is_none")]
     pub source_loops: Option<serde_json::Value>,
+    #[serde(rename="sourceEmissions",skip_serializing_if="Option::is_none")]
+    pub source_emissions: Option<serde_json::Value>,
     pub version: u8,
     pub source: ReceiptSource,
     /// Complete checked event owner-decision profile, when this plan is an event receipt.
@@ -76,6 +78,37 @@ pub(super) struct ReceiptDisclosurePlan {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub queries: Vec<ReceiptQuery>,
     pub returns: Vec<ReceiptReturn>,
+}
+
+/// Budget only complete, source-checked contained loops whose sole effect
+/// is emitting their exactly typed item. This data grants no scan by itself.
+pub(super) fn checked_source_emissions(ir:&IrProgram,owner:&IrItem,
+    checked:&crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,entry:&str)
+    ->Option<serde_json::Value> {
+    let mut loops=Vec::new(); let mut emitted=HashSet::new(); let mut total=0u16;
+    for proof in &checked.effects {
+        let DisclosureEffectKind::ForMember {domain,maximum,parameter,model,body,..}=&proof.kind else {continue;};
+        let [body_node]=body.as_slice() else {continue;};
+        let Some(emit)=checked.effects.iter().find(|candidate|candidate.node==*body_node) else {continue;};
+        let DisclosureEffectKind::Emit {event}=emit.kind else {continue;};
+        total=total.checked_add(*maximum)?;
+        if total>500 {return None;}
+        emitted.insert(*body_node);
+        let parameter=ir.items.get(parameter.0 as usize)?;
+        let IrItemKind::Param {ty:IrType::Known(ResolvedType::Record {symbol:parent,stored:true}),default:None,..}=&parameter.kind else {return None;};
+        let event_name=&ir.items.get(event.0 as usize)?.canonical;
+        let handlers=ir.items.iter().filter(|item|matches!(&item.kind,IrItemKind::Scenario {
+            event_source:Some(super::ir::IrEventSource::Declared(name)),..} if name==event_name)).collect::<Vec<_>>();
+        if handlers.len()>1 || handlers.iter().any(|item|!matches!(&item.kind,IrItemKind::Scenario {cohort:None,hook:None,..})) {return None;}
+        let handler=handlers.first().map(|item|item.canonical.as_str());
+        let id=sha256_hex(format!("{}:{}:{}:{}",checked.source.sha256,owner.canonical,proof.node.start,proof.node.end).as_bytes());
+        loops.push(serde_json::json!({"id":id,"node":{"start":proof.node.start,"end":proof.node.end},
+            "domain":{"start":domain.start,"end":domain.end},"maximum":maximum,
+            "parameter":parameter.name,"parentModel":ir.items.get(parent.0 as usize)?.canonical,
+            "model":ir.items.get(model.0 as usize)?.canonical,"event":event_name,"handler":handler}));
+    }
+    if loops.is_empty() || checked.effects.iter().any(|proof|matches!(proof.kind,DisclosureEffectKind::Emit {..}) && !emitted.contains(&proof.node)) {return None;}
+    Some(serde_json::json!({"source":transport_source(&checked.source,entry)?,"owner":owner.canonical,"loops":loops}))
 }
 
 /// Apply an already authenticated borrowed subset; preserve surviving rows
@@ -2196,8 +2229,18 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     } else {
         None
     };
+    let has_emitting_loop=checked.effects.iter().any(|proof|match &proof.kind {
+        DisclosureEffectKind::ForMember {body,..}=>body.iter().any(|node|checked.effects.iter().any(|effect|
+            effect.node==*node && matches!(effect.kind,DisclosureEffectKind::Emit {..}))),
+        _=>false,
+    });
+    if has_emitting_loop && checked_source_emissions(ir,item,checked,entry_module).is_none(){return None;}
+    if checked_source_emissions(ir,item,checked,entry_module).is_some() {
+        let context=source_context?;
+        super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),item)?;
+    }
     let mut recipe = NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { source_loops: None,
+        plan: ReceiptDisclosurePlan { source_loops: None, source_emissions: checked_source_emissions(ir,item,checked,entry_module),
             version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
             invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source,
             queries: effective_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
@@ -4616,7 +4659,7 @@ fn checked_guard_any_query_plan(
             projection: None,
         });
     }
-    Some(ReceiptDisclosurePlan { source_loops: None,
+    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
         queries: fragments,
@@ -4668,7 +4711,7 @@ pub(super) fn checked_native_any_direct_query_plan(
     if kinds.len() != 4 {
         return None;
     }
-    Some(ReceiptDisclosurePlan { source_loops: None,
+    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![fragment],
@@ -5104,7 +5147,7 @@ pub(super) fn checked_native_helper_any_query_plan(
             .into(),
         })
         .collect::<Vec<_>>();
-    Some(ReceiptDisclosurePlan { source_loops: None,
+    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
         queries: vec![ReceiptQuery {
@@ -6929,7 +6972,7 @@ fn checked_native_first_query_source_plan(
     // queries keep no parent. Re-proves the disclosure receiver here, so a
     // mismatched parent keeps the source-plan refusal.
     let parent = first_query_receipt_parent(ir, owner, query, scan, db, first, entry_module)?;
-    let expected = ReceiptDisclosurePlan { source_loops: None,
+    let expected = ReceiptDisclosurePlan { source_loops: None, source_emissions: checked_source_emissions(ir,owner,checked,entry_module),
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&checked.source, entry_module)?,
         queries: vec![ReceiptQuery {
@@ -7413,8 +7456,8 @@ fn count_query_models_valid(
 ) -> bool {
     child.parent == Some(*parent_id)
         && child.owner == Some(crate::analysis::resolve::ModelOwner::ChildOf(*parent_id))
-        && parent.source == query.source
-        && parent.module == owner.module
+        && (parent.source == query.source || imported_source_corresponds(ir,owner,parent,query))
+        && (parent.module == owner.module || imported_schema_source(ir,owner,parent))
         && !parent.field_order.iter().any(|id| {
             ir.items
                 .get(id.0 as usize)
@@ -8149,7 +8192,7 @@ fn checked_native_ancestor_count_query_plan(
     {
         return None;
     }
-    Some(ReceiptDisclosurePlan { source_loops: None,
+    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
@@ -8363,7 +8406,7 @@ fn native_count_plan(
     parent_id: crate::analysis::SymbolId,
     influences: Vec<ReceiptInfluence>,
 ) -> Option<ReceiptDisclosurePlan> {
-    Some(ReceiptDisclosurePlan { source_loops: None,
+    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
@@ -8490,7 +8533,7 @@ pub(super) fn checked_native_assign_count_query_plan(
         Some(ReceiptReturn {id: returned.id.clone(), source: transport_source(&returned.source, entry)?,
             influences: influences.clone(), dependencies: Vec::new(), intrinsics: Vec::new(), projection: None})
     }).collect::<Option<Vec<_>>>()?;
-    Some(ReceiptDisclosurePlan { source_loops: None,
+    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(), source: transport_source(&query.source, entry)?,
@@ -14711,7 +14754,7 @@ fn match_effect_proofs(
                     || !direct_field_name(item)
                     || item != checked_item
                     || *maximum == 0
-                    || *maximum > 200
+                    || *maximum > if body.iter().all(|statement|matches!(statement,IrStmt::Emit {..})) {500} else {200}
                     || parameter_item.id != *parameter
                     || *parameter_owner != owner.id
                     || params.get(*index) != Some(parameter)
@@ -14744,7 +14787,10 @@ fn match_effect_proofs(
                     return None;
                 };
                 if name != &model_item.canonical
-                    || query.source.is_some() && !(sealed_owner && finite_member_filter(query))
+                    || !(member_scan_query_is_plain(query)
+                        && query.source.as_deref().is_none_or(|source|matches!(source.clauses.as_slice(),[clause]
+                            if matches!(&clause.kind,crate::analysis::types::CheckedQueryClauseKind::As {name} if name==item)))
+                        || sealed_owner && finite_member_filter(query))
                     || query.collection_call.is_some()
                     || query.contract_collection_call.is_some()
                     || query.where_pred.is_some() && !(sealed_owner && finite_member_filter(query))
@@ -14783,6 +14829,13 @@ fn match_effect_proofs(
                             && *span == node_span(*node) && else_branch.is_empty() && then_branch.len() == 1 => &then_branch[0],
                         statement => statement,
                     };
+                    if let IrStmt::Emit {payload,span,..}=statement {
+                        let IrExpr::Object(fields)=&payload.expr else {return None;};
+                        if *span!=node_span(*node) || node.kind!=SyntaxKind::Emit as u8 || fields.is_empty()
+                            || fields.iter().any(|(_,value)|value.ty!=expected_record
+                                || !matches!(&value.expr,IrExpr::Name(name) if name==item)) {return None;}
+                        continue;
+                    }
                     let IrStmt::Set {
                         record,
                         changes,
@@ -15199,6 +15252,28 @@ fn scenario_create_identity<'f, 's, 'p>(
     Some((original, input, *span, binding, model))
 }
 
+/// The complete original target-only FIRST branch has an independently
+/// sealed source/fresh closure. Its contained-loop suffix cannot transport
+/// the selected row; each effect still passes the ordinary schema/site gate.
+fn checked_first_target_branch_create(
+    context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,
+    checked:&crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    original:&crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+)->Option<()> {
+    let ir=context.ir();
+    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    let [query]=checked.source_facts.as_deref()?.queries.as_deref()? else {return None;};
+    if !query.first.as_ref()?.target_consumed {return None;}
+    let IrItemKind::Scenario {effects,result:None,read:false,trusted:false,event_source:None,hook:None,cohort:None,..}=&owner.kind else {return None;};
+    let [IrStmt::Let {span:binding,..},IrStmt::If {then_branch,else_branch,..},suffix @ ..]=effects.as_slice() else {return None;};
+    let [IrStmt::Create {span,..}]=then_branch.as_slice() else {return None;};
+    if *binding!=node_span(query.first.as_ref()?.binding) || *span!=node_span(original.node)
+        || !matches!(else_branch.as_slice(),[IrStmt::Set {when:None,..}])
+        || suffix.iter().any(|statement|!matches!(statement,IrStmt::For {body,..}
+            if matches!(body.as_slice(),[IrStmt::Emit {..}]))) {return None;}
+    Some(())
+}
+
 /// One terminal enum-input branch may create a row and immediately link it
 /// to the original admitted input. The complete original owner is compared
 /// against a fresh lowering; the independent effect/schema checks still
@@ -15359,6 +15434,8 @@ fn scenario_create_nesting(
         if event_notice_branch_create_tail(ir, owner, checked, original, proof.node, binding, db)
             .is_none() && source_context.and_then(|context|
                 conditional_parameter_create_link(context, owner, original)).is_none()
+                && source_context.and_then(|context|
+                    checked_first_target_branch_create(context,owner,checked,original)).is_none()
         {
             conditional_branch_create_tail(ir, owner, checked, proof.node, binding)?;
         }
@@ -15485,7 +15562,8 @@ fn scenario_create_entries(
         && source_context.and_then(|context| conditional_parameter_create_link(context, owner, original)
             .or_else(|| source_owned_after_call_create(context, owner, original))
             .or_else(|| source_owned_created_return_tail(context, owner, original))
-            .or_else(|| source_owned_updated_model_create(context, owner, original))).is_none() {
+            .or_else(|| source_owned_updated_model_create(context, owner, original))
+            .or_else(|| checked_first_target_branch_create(context,owner,checked,original))).is_none() {
         return None;
     }
     let authored = checked_effect_node(ir, owner, proof.node, db)?;
@@ -18844,7 +18922,10 @@ fn checked_receipt_literal(expression: &TypedExpr) -> Option<()> {
 /// A whole-collection contained scan carries no filter, order, limit or
 /// projection; anything else keeps the strict collection-query walk.
 fn member_scan_query_is_plain(query: &super::ir::IrQuery) -> bool {
-    query.source.is_none()
+    query.source.as_deref().is_none_or(|source| source.projection.is_none()
+            && source.domain_type==source.result
+            && matches!(source.clauses.as_slice(),[clause]
+                if matches!(&clause.kind,crate::analysis::types::CheckedQueryClauseKind::As {..}) && clause.expressions.is_empty()))
         && query.collection_call.is_none()
         && query.contract_collection_call.is_none()
         && query.where_pred.is_none()

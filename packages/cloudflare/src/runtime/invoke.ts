@@ -9719,6 +9719,9 @@ async function runScenarioExecution(
   if (useOwnerSession && receiptStore === undefined) {
     throw new StateError('validation', 'Committed scenario sources require the actual admitted owner store.');
   }
+  const sourceEmissionPlan=scenarioDef?.descriptor.result?.disclosure?.sourceEmissions;
+  const sourceEmissionMaximum=sourceEmissionPlan?.loops.reduce((sum,loop)=>sum+loop.maximum,0);
+  const sourceFrameworkMaximum=sourceEmissionPlan?.loops.reduce((sum,loop)=>sum+loop.maximum*(loop.handler===null?1:2),0);
   const emittedEvents: import('@canlang/work').DeclaredEventSourceInput[] = [];
   let invoiceCollectEmit: ((event: string, payload: Readonly<Record<string, unknown>>,
     occurrenceId: string) => void) | null = null;
@@ -9743,8 +9746,17 @@ async function runScenarioExecution(
     const existing = stageSources === undefined ? [] : await stageSources(token);
     if (emittedEvents.length === 0) return [...existing, ...termScheduleSourceWrites,
       ...rentNoticeSourceWrites, ...invoiceIssueSourceWrites, ...cancellationSourceWrites];
+    if(sourceEmissionPlan!==undefined){
+      const limits=new Map<string,number>();
+      for(const loop of sourceEmissionPlan.loops)limits.set(loop.event,(limits.get(loop.event)??0)+loop.maximum);
+      const counts=new Map<string,number>();
+      for(const event of emittedEvents){const count=(counts.get(event.event)??0)+1;counts.set(event.event,count);
+        if(count>(limits.get(event.event)??0))return refuseRecordBinding('Source event exceeds its original loop/event budget.');}
+    }
     const writes = await stageDeclaredEventSources(token, emittedEvents,
-      { maxSources: 200, maxHandlers: 200, maxMembers: 1_000, chunkSize: 100 });
+      { maxSources: sourceEmissionMaximum??200,
+        maxHandlers:sourceEmissionPlan===undefined?200:Math.max(1,emittedEvents.reduce((sum,event)=>sum+event.routes.handlers.length,0)),
+        maxMembers: 1_000, chunkSize: 100 });
     const eventById = new Map(emittedEvents.map(event => [event.occurrenceId, event]));
     const opaqueByPackage = new Map<string, Awaited<ReturnType<typeof nativeOpaqueFileStaging>>>();
     const tables = await loadProducerModule('@canlang/work/kernel/tables', 'declared source occurrence row');
@@ -9865,7 +9877,8 @@ async function runScenarioExecution(
     return [...existing, ...stamped, ...termScheduleSourceWrites, ...rentNoticeSourceWrites,
       ...invoiceIssueSourceWrites, ...cancellationSourceWrites];
   };
-  const ownerBounds = receiptAware && (scenarioDef?.name === 'leave.request' || scenarioDef?.name === 'leave.decide' ||
+  const ownerBounds = sourceEmissionMaximum!==undefined
+    ? Object.freeze({maxRows:sourceEmissionMaximum+1,maxWork:200_000,maxSourceNodes:200_000,maxSourceRows:sourceFrameworkMaximum!}) : receiptAware && (scenarioDef?.name === 'leave.request' || scenarioDef?.name === 'leave.decide' ||
     scenarioDef?.name === 'refer.reject_source' || scenarioDef?.name === 'member_terms.retry_collection' ||
     scenarioDef?.name === 'invoice.overdue' || scenarioDef?.name === 'rent_reservations.refund_movement_credit' ||
     scenarioDef?.name === 'invoice.collect' || scenarioDef?.name === 'invoice.issue' ||
@@ -10939,7 +10952,7 @@ async function runScenarioExecution(
             child !== undefined || rootOwnerSession === undefined) {
           throw new StateError('validation', 'Domain events require their private owning source finalizer.');
         }
-        if (emittedEvents.length >= 200 || typeof event !== 'string') throw new StateError('limit', 'Domain event bound exceeded.');
+        if (emittedEvents.length >= (sourceEmissionMaximum??200) || typeof event !== 'string') throw new StateError('limit', 'Domain event bound exceeded.');
         const ownerPackage = event.slice(0, event.lastIndexOf('.'));
         const selected = await scheduleScope(ownerPackage);
         const inputs = selected.member(selected.member(selected.member(selected.definition, 'events'), event), 'inputs');
@@ -10977,6 +10990,13 @@ async function runScenarioExecution(
           return { handler: route.handler, ...(route.cohort ? { cohort: emittedPrivateCohort(route.definition,
             route.handler, event, selected.scope.owner, captured, inputs).cohort } : {}) };
         });
+        if(sourceEmissionPlan!==undefined){
+          const loops=sourceEmissionPlan.loops.filter(loop=>loop.event===event),handler=loops[0]?.handler;
+          if(loops.length===0||loops.some(loop=>loop.handler!==handler)||
+              sourceRoutes.length!==(handler===null?0:1)||sourceRoutes.some(route=>route.handler!==handler||route.cohort!==undefined)){
+            return refuseRecordBinding('Source loop event differs from its complete original ordinary handler census.');
+          }
+        }
         const ordinal = scheduleIndex++;
         const occurrenceId = occurrenceIds[ordinal] ??= crypto.randomUUID();
         if (scenarioDef?.name === 'invoice.collect') {
@@ -12105,6 +12125,34 @@ async function runScenarioExecution(
     : callable?.inputStyle === "parameters"
     ? scenarioParameters(call, loaded, recordView, receiptAware ? undefined : resolvedDefaults, scenarioReceiptFrame)
     : { operation_id: call.context.operationId, inputs: call.inputs };
+  if(sourceEmissionPlan!==undefined){
+    if(!receiptAware||receiptStore===undefined||ownerSession===undefined||scenarioDef===undefined||
+        callable?.inputStyle!=='parameters'||due!==undefined||cohort!==undefined||sourceEmissionPlan.owner!==scenarioDef.name||
+        !opts.artifact.sources.some(source=>source.path===sourceEmissionPlan.source.path&&source.sha256===sourceEmissionPlan.source.sha256)){
+      throw new AssemblyCorrespondenceError('Source loop needs its exact admitted checked owner.');
+    }
+    const actualCall=call as AdmittedCall, parameters=localPolicyObject(argument),consumed=new Set<string>();
+    bindNativeScenarioSourceLoop(ctx,async(id,parent,predicate)=>{
+      try {
+        const assertCall=loaded.producers.invoke.assertScenarioReceiptCallExecution;
+        if(assertCall===undefined)return refuseRecordBinding('Source loop lacks its defining State execution.');
+        assertCall(actualCall,receiptStore);
+        if(nativeScenarioExecutions.get(actualCall)===undefined)return refuseRecordBinding('Source loop has no live owner execution.');
+        const loops=sourceEmissionPlan.loops.filter(loop=>loop.id===id),loop=loops[0];
+        if(loops.length!==1||loop===undefined||consumed.has(id)||parent!==parameters[loop.parameter]||predicate!==null)return refuseRecordBinding('Source loop receiver or original occurrence differs.');
+        const ref=actualCall.recordRefs.find(ref=>ref.param===loop.parameter),binding=recordBindings.get(parent as Record<string,unknown>);
+        const declaredParent=(loaded.containment as LoadedArtifactDescriptors['containment']).get(loop.model as ModelName)?.parent;
+        if(ref===undefined||ref.model!==loop.parentModel||binding===undefined||binding.model!==ref.model||binding.id!==ref.id||
+            binding.version!==ref.row.version||declaredParent!==loop.parentModel)return refuseRecordBinding('Source loop lacks its admitted containment/version correspondence.');
+        consumed.add(id);
+        const rows=await ownerSession.views.final.query({model:loop.model as ModelName,
+          parent:{model:ref.model as ModelName,id:ref.id as RecordId},authority:'owner',archived:'exclude',
+          order:[{field:'id',direction:'asc'}],limit:ownerBounds.maxRows});
+        if(rows.length>loop.maximum)return refuseRecordBinding('Source loop complete domain exceeds its authored bound.');
+        return rows.map(row=>{ownerRows.set(stagedKey(loop.model,row.id),row);return recordView(loop.model,row);});
+      }catch(error){recordEngineFailure(error);throw error;}
+    });
+  }
   if (receiptAware && receiptStore!==undefined && ownerSession!==undefined && scenarioDef?.name==='events.attendee_notice') {
     const actualCall=call as AdmittedCall;
     const checked=(scenarioDef.descriptor.result?.disclosure as {readonly eventNoticeAudit?:import('@canlang/state/invocation').EventNoticeAuditPlan}|undefined)?.eventNoticeAudit;

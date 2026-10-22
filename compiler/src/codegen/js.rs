@@ -12934,7 +12934,7 @@ fn null_equality(
                 body,
                 span,
             } => {
-                let source_loop = self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.source_loops.as_ref())
+                let source_loop = self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.source_loops.as_ref().or(receipt.plan.source_emissions.as_ref()))
                     .and_then(|source|source["loops"].as_array().and_then(|loops|loops.iter().find(|loop_|
                         loop_["node"]["start"]==span.start && loop_["node"]["end"]==span.end).map(|loop_|(source.clone(),loop_.clone()))));
                 let domain_text = if let Some((source,loop_)) = source_loop {

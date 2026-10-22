@@ -162,7 +162,7 @@ export type OwnerMutationCandidateAdmission = (
 export type OwnerMutationQuery = QuerySpec & { readonly limit: number; readonly authority: 'owner' };
 
 export interface OwnerMutationInput extends Omit<MutationWritesInput, 'writes'> {
-  readonly bounds: { readonly maxWork: number; readonly maxRows: number };
+  readonly bounds: { readonly maxWork: number; readonly maxRows: number; readonly maxSourceNodes?:number; readonly maxSourceRows?:number };
   readonly policies?: CheckedOwnerModelPolicies;
   /** Installed source-neutral consumer of this actual final-net owner stage. */
   readonly stageSources?: OwnerMutationSourceStager;
@@ -2609,7 +2609,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     });
     const business = Object.freeze([...outWrites]);
     const sources = await stageOwnerMutationSources({ stager: owner.stageSources, context, revision,
-      maxRows: owner.bounds.maxRows, changes: finalChanges, entry: policyViews.entry, final: policyViews.final,
+      maxRows: owner.bounds.maxRows, ...(owner.bounds.maxSourceNodes===undefined?{}:{maxSourceNodes:owner.bounds.maxSourceNodes,maxSourceRows:owner.bounds.maxSourceRows}), changes: finalChanges, entry: policyViews.entry, final: policyViews.final,
       actor, frameworkLoad: (model, id) => store.load(model, id), businessModels: new Set(table.keys()),
       healthy, poison: () => { poisoned = true; }, checkRevision, consumeWork });
     outWrites.push(...sources);

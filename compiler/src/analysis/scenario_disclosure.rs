@@ -24533,7 +24533,13 @@ impl<'a> Closure<'a> {
             /// A SET consumes exactly one declared carrier family; scalar fields never
             /// inherit row, delivery or object authority from their expression.
             fn set_value_matches(&self, effect: &Effect, module: ModuleId, key: NodeKey,
-                base: &ResolvedType, calls: &[NodeKey], value: &ValuePath) -> bool {
+                declared: &ResolvedType, calls: &[NodeKey], value: &ValuePath) -> bool {
+                let base = if let ResolvedType::Nullable(inner) = declared { inner.as_ref() } else { declared };
+                if matches!(declared,ResolvedType::Nullable(inner)
+                    if matches!(inner.as_ref(),ResolvedType::Record {stored:true,..}))
+                    && calls.is_empty() && self.loop_node.is_none()
+                    && self.set_nullable_reference_input(effect,module,key,declared,value)
+                { return true; }
                 if let Some(model) = self.set_reference_type(base, calls) {
                     self.set_reference_value(effect, module, key, model, value)
                 } else if matches!(base, ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. }) {
@@ -24541,6 +24547,50 @@ impl<'a> Closure<'a> {
                 } else {
                     value.delivery.is_none() && value.record.is_none() && value.members.is_none()
                 }
+            }
+
+            /// A nullable model SET transports the original admitted slot,
+            /// including null. It neither issues a required row/version nor
+            /// promotes a copy, field traversal or constructor to that slot.
+            fn set_nullable_reference_input(&self, effect: &Effect, module: ModuleId,
+                key: NodeKey, declared: &ResolvedType, value: &ValuePath) -> bool {
+                let Some(node) = self.nodes.get(&key) else { return false; };
+                if !matches!(node.kind,SyntaxKind::Name | SyntaxKind::NameRef)
+                    || value.delivery.is_some() || value.members.is_some()
+                    || !value.reads.is_empty() || !value.intrinsics.is_empty()
+                    || !value.decisions.is_empty() || !value.influences.is_empty()
+                    || !value.observed.is_empty() || value.first_query.is_some()
+                    || value.current_revision.is_some() || value.model_result.is_some()
+                    || value.reference.is_some() || value.input.is_some() || value.schema.is_some()
+                    || value.query_child.is_some() || value.transcript_messages.is_some()
+                    || value.transcript_count || value.contract_value.is_some()
+                { return false; }
+                let Some(Binding::Symbol(parameter)) = self.query_binding(key) else { return false; };
+                let Some(SymbolKind::Param {owner,..}) = self.resolve.symbols.get(parameter.0 as usize).map(|symbol|&symbol.kind)
+                    else { return false; };
+                let Some(scenario) = self.effects.scenarios.get(owner) else { return false; };
+                let Some(input) = scenario.params.iter().find(|input|input.param==*parameter) else { return false; };
+                let ResolvedType::Nullable(inner) = declared else { return false; };
+                let ResolvedType::Record {symbol:model,stored:true} = inner.as_ref() else { return false; };
+                let Some(named) = self.model_param_declared(input,true) else { return false; };
+                let Some(path) = named.children.iter().find(|node|node.kind==SyntaxKind::Path) else {return false;};
+                let Some(model_decl) = self.resolve.symbols.get(model.0 as usize) else {return false;};
+                let Some(source)=self.db.get(path.span.file) else {return false;};
+                if !matches!(model_decl.kind,SymbolKind::Model {..})
+                    || !matches!(self.resolve.node_typeref.get(&NodeKey::of(path)),Some(TypeRef::Symbol(actual)) if actual==model)
+                    || super::path_segments(path,&source.text) != [model_decl.name.as_str()]
+                    || self.types.value_constraints.contains_key(parameter)
+                    || self.types.field_reuse_sources.contains_key(parameter)
+                    || (input.default.is_some() && !self.model_param_default_ok(input,true))
+                {return false;}
+                scenario.module == module && !scenario.read && scenario.on.is_none()
+                    && effect.node.file == scenario.node.file
+                    && scenario.node.start <= effect.node.start && effect.node.end <= scenario.node.end
+                    && key.file == effect.node.file && effect.node.start <= key.start && key.end <= effect.node.end
+                    && self.types.symbol_types.get(parameter) == Some(declared)
+                    && self.types.node_types.get(&key) == Some(declared)
+                    && value.record.is_none_or(|actual|actual==*model)
+                    && value.reference_origin.is_none_or(|origin|origin==ReferenceOrigin::NullableParameter(*parameter))
             }
 
             /// A mutation path has no Member AST. Admit only the original required
@@ -24843,7 +24893,7 @@ impl<'a> Closure<'a> {
                         &mut file_inputs,
                     )?;
                     if values.iter().any(|value| !self.set_value_matches(effect, module,
-                        arg.value.unwrap_or(arg.key_node), base, calls, value)) {
+                        arg.value.unwrap_or(arg.key_node), &ty, calls, value)) {
                         return Err(self.fail(arg.key_node, "set carrier or scalar provenance mismatch"));
                     }
                     paths = self.product(effect.node, &paths, &values)?;
@@ -25535,6 +25585,21 @@ impl<'a> Closure<'a> {
                     && self.types.node_types.get(&key) == self.types.symbol_types.get(field)).then_some(())
             }
 
+            /// A bounded contained loop may emit its exact item identity to an
+            /// exactly typed event field; this carries no arbitrary row value.
+            fn external_effect_loop_reference(&self,event:SymbolId,argument:&super::effects::EffectArg,
+                key:NodeKey,value:&ValuePath)->bool {
+                let Some(loop_node)=self.loop_node else {return false;};
+                let Some(model)=value.record else {return false;};
+                let Some(SymbolKind::Event {fields})=self.resolve.symbols.get(event.0 as usize).map(|symbol|&symbol.kind)
+                    else {return false;};
+                matches!(self.query_binding(key),Some(Binding::ForItem {node}) if *node==loop_node)
+                    && value.reads.is_empty() && value.intrinsics.is_empty() && value.decisions.is_empty()
+                    && value.first_query.is_none() && value.model_result.is_none() && value.reference_origin.is_none()
+                    && fields.iter().any(|field|self.resolve.symbols.get(field.0 as usize).is_some_and(|symbol|symbol.name==argument.key)
+                        && self.types.symbol_types.get(field)==Some(&ResolvedType::Record {symbol:model,stored:true}))
+            }
+
             /// One external effect argument: pure values joined onto the paths.
             fn external_effect_argument(
                 &mut self,
@@ -25556,6 +25621,7 @@ impl<'a> Closure<'a> {
                         || value.record.is_some() && event.is_none_or(|event| {
                             self.external_effect_parent_reference(event, module, argument, key, value).is_none()
                                 && self.external_effect_created_reference(effect, event, module, argument, key, value).is_none()
+                                && !self.external_effect_loop_reference(event,argument,key,value)
                         })
                 }) {
                     return Err(self.fail(key, "opaque external effect input"));
@@ -26340,6 +26406,7 @@ impl<'a> Closure<'a> {
                 flow: Flow,
                 calls: &[NodeKey],
             ) -> Result<Vec<Flow>, DisclosureDecline> {
+                let emits = effect.then_effects.iter().all(|child|child.verb == EffectVerb::Emit);
                 let updated_owner = self.effects.scenarios.values().any(|scenario|
                     scenario.module == module && scenario.effects.first().is_some_and(|first|first.node == effect.node)
                     && scenario.effects.get(3).is_some_and(|created|
@@ -26347,7 +26414,7 @@ impl<'a> Closure<'a> {
                             if self.check_updated_model_return(&scenario.effects,model,created))));
                 let mut assignments = Vec::new();
                 for child in &effect.then_effects {
-                    if child.verb == EffectVerb::Set { assignments.push((child, None)); }
+                    if child.verb == EffectVerb::Set || emits && child.verb == EffectVerb::Emit { assignments.push((child, None)); }
                     else if updated_owner && child.verb == EffectVerb::If && child.else_effects.is_empty() && child.match_arms.is_empty()
                         && child.then_effects.len() == 1 && child.then_effects[0].verb == EffectVerb::Set
                         && child.then_effects[0].args.iter().all(|argument| {
@@ -26404,11 +26471,19 @@ impl<'a> Closure<'a> {
                 // original required model parameter through its checked containment
                 // edge. Query filters stay declined: only the whole contained
                 // collection in source order is disclosed here.
-                let member_root = if node.kind == SyntaxKind::Member {
+                let member_domain = if node.kind==SyntaxKind::Query {
+                    let checked=self.types.checked_queries.get(&domain)
+                        .ok_or_else(||self.fail(domain,"loop query correspondence"))?;
+                    if checked.projection.is_some() || !matches!(checked.clauses.as_slice(),[clause]
+                        if matches!(&clause.kind,super::types::CheckedQueryClauseKind::As {name} if Some(name)==effect.item.as_ref()))
+                    {return Err(self.fail(domain,"loop requires alias-only contained query"));}
+                    Some(checked.domain)
+                } else if node.kind==SyntaxKind::Member {Some(domain)} else {None};
+                let member_root = if let Some(member_domain)=member_domain {
                     if effect.cond.is_some() {
                         return Err(self.fail(domain, "loop needs unfiltered member domain"));
                     }
-                    Some(self.original_loop_member_root(domain, effect.node, module)?)
+                    Some(self.original_loop_member_root(member_domain, effect.node, module)?)
                 } else {
                     None
                 };
@@ -26483,7 +26558,7 @@ impl<'a> Closure<'a> {
                     .get(limit.file)
                     .and_then(|file| file.text.get(limit.start as usize..limit.end as usize))
                     .and_then(|text| text.trim().parse::<u16>().ok());
-                let Some(maximum) = maximum.filter(|maximum| (1..=200).contains(maximum)) else {
+                let Some(maximum) = maximum.filter(|maximum| (1..=if emits && member_root.is_some() {500} else {200}).contains(maximum)) else {
                     return Err(self.fail(limit, "loop limit exceeds observation bound"));
                 };
                 if limit_node.kind != SyntaxKind::Literal
@@ -26491,7 +26566,7 @@ impl<'a> Closure<'a> {
                 {
                     return Err(self.fail(limit, "loop needs typed literal limit"));
                 }
-                if usize::from(maximum).saturating_mul(assignments.len()) > 200 {
+                if usize::from(maximum).saturating_mul(assignments.len()) > if emits {500} else {200} {
                     return Err(self.fail(effect.node, "loop Set execution bound"));
                 }
                 let item = effect
@@ -26516,6 +26591,18 @@ impl<'a> Closure<'a> {
                         let [value] = values.as_slice() else { return Err(self.fail(condition,"item condition alternatives unsupported")); };
                         if !value.decisions.is_empty() || !value.intrinsics.is_empty() || value.record.is_some() { return Err(self.fail(condition,"item condition is not a scalar field test")); }
                         body.join(value);
+                    }
+                    if child.verb == EffectVerb::Emit {
+                        if !emits || member_root.is_none() || child.args.is_empty()
+                            || child.args.iter().any(|argument| {
+                                let key=argument.value.unwrap_or(argument.key_node);
+                                !matches!(self.query_binding(key),Some(Binding::ForItem {node}) if *node==effect.node)
+                                    || self.types.node_types.get(&key) != Some(&ResolvedType::Record {symbol:model,stored:true})
+                            }) {return Err(self.fail(child.node,"loop emit requires its exact contained item"));}
+                        let values=self.external_effect(child,module,&env,calls)?;
+                        if values.len()!=1 {return Err(self.fail(child.node,"loop emit alternatives"));}
+                        body.join(&values[0]);
+                        continue;
                     }
                     let node = self
                         .nodes

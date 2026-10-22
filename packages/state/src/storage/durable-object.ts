@@ -103,7 +103,7 @@ import type {
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
 import {
-  FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy,
+  FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy, fileGuardCopyCensus, fileGuardCommitCopy,
   guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement,
   type FileGuardState, type FileGuardRow,
 } from './file-retirement.js';
@@ -253,7 +253,7 @@ function readFileGuard(storage: DurableObjectStorage): FileGuardState {
   ).toArray()[0];
   const state: FileGuardState = {
     authority: authority === undefined ? null : checkedFileAuthority(JSON.parse(authority.authority)),
-    opaqueLifetimes: authority === undefined ? [] : fileGuardCopy(JSON.parse(authority.opaque_lifetimes)),
+    opaqueLifetimes: authority === undefined ? [] : fileGuardCopyCensus(JSON.parse(authority.opaque_lifetimes)),
     inventories: storage.sql.exec<{ installed: string }>(
       'SELECT installed FROM file_reference_inventories ORDER BY owner',
     ).toArray().map(row => fileGuardCopy(JSON.parse(row.installed))),
@@ -864,12 +864,12 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
       checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
     }
   };
-  const capture = <T>(input: T): T => {
+  const capture = <T>(input: T, copy: (value:T)=>T = fileGuardCopy): T => {
     const state = readFileGuard(storage);
     checkFileBinding(state, binding);
     checkFileFrameworkBinding(state, framework);
     checkFileGuardSnapshots(state, storage.sql.exec<SnapshotRow>(`SELECT ${SNAPSHOT_COLUMNS} FROM snapshots ORDER BY owner`).toArray().map(toInstalledSnapshot));
-    return binding !== undefined || state.authority !== null ? fileGuardCopy(input) : input;
+    return binding !== undefined || state.authority !== null ? copy(input) : input;
   };
   const port: StoragePort = {
     cohortIdOrder: 'utf8-binary',
@@ -984,7 +984,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
 
     async commit(batch: CommitBatch): Promise<CommitResult> {
       assertBinding();
-      batch = capture(batch);
+      batch = capture(batch, fileGuardCommitCopy);
       const expected = batch.expectedRevision as number;
       if (!Number.isInteger(expected) || expected < 0) {
         throw new Error(`Invalid expectedRevision: ${JSON.stringify(batch.expectedRevision)}`);

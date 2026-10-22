@@ -1,6 +1,6 @@
 /** Backend-neutral validation only. Durable issuance belongs to the adapter's
  * original transaction, never this module or a copied fact. */
-import type { FileReferenceInventory, FileRetirementAuthority, FinalizedFileIdentity,
+import type { CommitBatch, FileReferenceInventory, FileRetirementAuthority, FinalizedFileIdentity,
   FinalizedFileRetirement, InstallFileReferenceInventory, InstalledFileReferenceInventory,
   InstalledSnapshot, ModelName, RetireFinalizedFile, RetainedFinalizedFile, Revision, StoredRow, CanonicalFieldDef, FrameworkFileReferenceProducer, FrameworkFileReferenceModel, FrameworkFilePayloadOrigin, FrameworkOpaqueFieldResolution, FileReferenceStoragePort, StoragePort } from '@canlang/contracts';
 import { assertSafeBlobKey } from '@canlang/files/ports';
@@ -55,6 +55,63 @@ export function fileGuardCopy<T>(value: T): T {
   }
   catch { return refuse('bounded own canonical data required'); }
 }
+/** Detach a complete bounded census without treating its entries as one
+ * payload value. Each entry retains the original finite own-data boundary. */
+function fileGuardCensusEntries(input: unknown): readonly unknown[] {
+  if (!Array.isArray(input) || Object.getPrototypeOf(input) !== Array.prototype) return refuse('dense bounded census required');
+  const length = Object.getOwnPropertyDescriptor(input, 'length');
+  const keys = new Set(Reflect.ownKeys(input));
+  if (length === undefined || !('value' in length) || !Number.isSafeInteger(length.value) ||
+      length.value < 0 || length.value > FILE_GUARD_MAX_ROWS || keys.size !== length.value + 1 || !keys.has('length')) {
+    return refuse('dense bounded census required');
+  }
+  const entries: unknown[] = [];
+  for (let index = 0; index < length.value; index++) {
+    if (!keys.has(String(index))) return refuse('exact dense census keys required');
+    const entry = Object.getOwnPropertyDescriptor(input, String(index));
+    if (entry === undefined || !('value' in entry) || !entry.enumerable) return refuse('own enumerable census entries required');
+    entries.push(entry.value);
+  }
+  return Object.freeze(entries);
+}
+export function fileGuardCopyCensus<T>(input: unknown): readonly T[] {
+  try { return deepFreeze(fileGuardCensusEntries(input).map(entry => fileGuardCopy(entry) as T)); }
+  catch (error) { if (error instanceof StorageConstraintError) throw error; return refuse('bounded own census required'); }
+}
+
+/** A commit is a bounded collection of complete values, rather than one
+ * opaque payload. Keep every field and ordering while bounding the aggregate. */
+export function fileGuardCommitCopy(input: CommitBatch): CommitBatch {
+  try {
+  const required = ['expectedRevision', 'writes', 'history', 'receipt', 'outbox', 'schedules', 'uniqueClaims', 'uniqueReleases'];
+  const collections = new Set(['writes', 'history', 'outbox', 'schedules', 'uniqueClaims', 'uniqueReleases', 'outboxAck']);
+  if (typeof input !== 'object' || input === null || Array.isArray(input) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(input))) return refuse('own commit required');
+  const names = Reflect.ownKeys(input);
+  if (required.some(name => !names.includes(name)) ||
+      names.some(name => typeof name !== 'string' || !required.includes(name) && name !== 'outboxAck')) return refuse('complete closed commit required');
+  const descriptors = names.map(name => {
+    const entry = Object.getOwnPropertyDescriptor(input, name)!;
+    if (!('value' in entry) || !entry.enumerable) return refuse('own enumerable commit fields required');
+    return {name, value: entry.value as unknown};
+  });
+  let entries = 0;
+  const captured = descriptors.map(entry => {
+    if (!collections.has(entry.name as string)) return { ...entry, collection: false };
+    const value = fileGuardCensusEntries(entry.value);
+    entries += value.length;
+    if (entries > FILE_GUARD_MAX_ROWS) return refuse('complete commit census exceeds bound');
+    return { name: entry.name, value, collection: true };
+  });
+  const copied: Record<string, unknown> = {};
+  for (const entry of captured) {
+    const value = entry.collection ? (entry.value as readonly unknown[]).map(value => fileGuardCopy(value)) : fileGuardCopy(entry.value);
+    Object.defineProperty(copied, entry.name, {value, enumerable: true, writable: true, configurable: true});
+  }
+  return deepFreeze(copied) as unknown as CommitBatch;
+  } catch (error) { if (error instanceof StorageConstraintError) throw error; return refuse('bounded own commit required'); }
+}
+
 export function fileGuardEqual(left: unknown, right: unknown): boolean { return stableStringify(left) === stableStringify(right); }
 export function checkedFileAuthority(input: FileRetirementAuthority): FileRetirementAuthority {
   const value = fileGuardCopy(input);
@@ -771,7 +828,7 @@ function retainOpaqueLifetimes(state: FileGuardState, rows: readonly FileGuardRo
       }
     }
   }
-  return changed ? { ...state, opaqueLifetimes: fileGuardCopy([...lifetimes.values()]) } : state;
+  return changed ? { ...state, opaqueLifetimes: fileGuardCopyCensus<FileGuardOpaqueLifetime>([...lifetimes.values()]) } : state;
 }
 /** One surviving row: opaque lifetime bindings stay attached and unrenewed. */
 function checkBarrierEntry(

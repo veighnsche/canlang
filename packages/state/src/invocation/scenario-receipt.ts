@@ -55,11 +55,11 @@ const MAX_ITEMS = 200;
 const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario: ${message}`); };
 
 /** Own JSON data only: no accessors, prototypes, aliasing, cycles or unbounded trees. */
-function dataCopy<T>(value: T, decodedValues = false): T {
+function dataCopy<T>(value: T, decodedValues = false, maximum=20_000): T {
   let nodes = 0;
   const seen = new Set<object>();
   const copy = (part: unknown, depth: number): unknown => {
-    if (++nodes > 20_000 || depth > 32) return invalid('data exceeds its finite budget.');
+    if (++nodes > maximum || depth > 32) return invalid('data exceeds its finite budget.');
     if (part === null || typeof part === 'string' || typeof part === 'boolean') return part;
     if (decodedValues && typeof part === 'bigint') return part;
     if (typeof part === 'number' && Number.isFinite(part)) return part;
@@ -1625,10 +1625,37 @@ function checkSourceLoops(value:unknown,source:unknown):NonNullable<ScenarioResu
   return deepFreeze(raw) as unknown as NonNullable<ScenarioResultDisclosurePlan['sourceLoops']>;
 }
 
+/** A finite source loop inventory is a budget and correspondence fence,
+ * never an independent owner scan or event producer. */
+function checkSourceEmissions(value:unknown,source:unknown):NonNullable<ScenarioResultDisclosurePlan['sourceEmissions']> {
+  const span=(value:unknown):{readonly start:number;readonly end:number}=>{const node=object(value,['start','end']);
+    if(!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||
+        (node['start'] as number)<0||(node['end'] as number)<=(node['start'] as number))return invalid('Source loop needs exact nonempty original spans.');
+    return node as unknown as {readonly start:number;readonly end:number};};
+  const raw=object(dataCopy(value),['source','owner','loops']); origin(raw['source']);
+  if(stableStringify(raw['source'])!==stableStringify(source))return invalid('Source loop origin differs from its owner.');
+  text(raw['owner']); const loops=list(raw['loops']); const ids=new Set<string>(); let total=0;
+  if(loops.length===0)return invalid('Source loop inventory must be complete and nonempty.');
+  for(const entry of loops){
+    const loop=object(entry,['id','node','domain','maximum','parameter','parentModel','model','event','handler']);
+    const id=text(loop['id']),node=span(loop['node']),domain=span(loop['domain']);
+    if(domain.start<node.start||domain.end>node.end)return invalid('Source loop domain left its original statement.');
+    for(const key of ['parameter','parentModel','model','event'])text(loop[key]);
+    if(loop['handler']!==null)text(loop['handler']);
+    const maximum=loop['maximum'];
+    if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||!Number.isSafeInteger(maximum)||
+        (maximum as number)<1||(maximum as number)>500)return invalid('Source loop identity or finite bound is invalid.');
+    ids.add(id);total+=maximum as number;
+  }
+  if(total>500)return invalid('Source loop complete emission inventory exceeds its finite budget.');
+  return deepFreeze(raw) as unknown as NonNullable<ScenarioResultDisclosurePlan['sourceEmissions']>;
+}
+
 /** Loader checker; callers cannot turn this data into a bound generated def. */
 export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResultDisclosurePlan {
   const plan = object(dataCopy(value), ['version', 'source', 'returns',
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value,'sourceLoops')?['sourceLoops']:[]),
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value,'sourceEmissions')?['sourceEmissions']:[]),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'queries') ? ['queries'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'eventDecision') ? ['eventDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'termDecision') ? ['termDecision'] : []),
@@ -1649,6 +1676,8 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (plan['version'] !== 1) return invalid('unsupported dependency plan version.');
   origin(plan['source']);
   if(Object.hasOwn(plan,'sourceLoops'))checkSourceLoops(plan['sourceLoops'],plan['source']);
+  if(Object.hasOwn(plan,'sourceEmissions'))checkSourceEmissions(plan['sourceEmissions'],plan['source']);
+  if(Object.hasOwn(plan,'sourceLoops') && Object.hasOwn(plan,'sourceEmissions'))return invalid('Independent source loop execution modes cannot be combined.');
   if (Object.hasOwn(plan, 'eventDecision')) checkEventDecisionPlan(plan['eventDecision'], plan['source']);
   if (Object.hasOwn(plan, 'termDecision')) checkTermDecisionPlan(plan['termDecision'], plan['source']);
   if (Object.hasOwn(plan, 'leaveRequestDecision')) checkLeaveRequestDecisionPlan(plan['leaveRequestDecision'], plan['source']);
@@ -5172,7 +5201,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
         Reflect.ownKeys(input).some(key => typeof key !== 'string' || !['table', 'bounds', 'policies', 'encodeField', 'stageSources', 'secretFields'].includes(key) ||
           !('value' in Object.getOwnPropertyDescriptor(input, key)!))) return invalid('owner session accepts only its defining mutation options.');
     if (typeof input.bounds !== 'object' || input.bounds === null || Array.isArray(input.bounds)) return invalid('owner session requires finite bounds.');
-    const bounds = object(dataCopy(input.bounds), ['maxWork', 'maxRows']);
+    const bounds = object(dataCopy(input.bounds), ['maxWork', 'maxRows',
+      ...(Object.hasOwn(input.bounds,'maxSourceNodes')?['maxSourceNodes','maxSourceRows']:[])]);
     // The extra row is a sentinel: admitted bounded owner domains contain at
     // most 4,000 rows, so a full query can prove it did not truncate.
     const extendedOwner = state.bound.leaveRequestDecision !== undefined ||
@@ -5182,10 +5212,16 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
       state.bound.invoiceCollectDecision !== undefined ||
       state.bound.invoiceIssueDecision !== undefined ||
       state.bound.rentNoticeDecision !== undefined;
-    const maxRows = !extendedOwner ? MAX_ITEMS : 4_001;
+    const sourceLoops=state.bound.plan.sourceEmissions===undefined?undefined:
+      checkSourceEmissions(state.bound.plan.sourceEmissions,state.bound.plan.source);
+    const loopRows=sourceLoops?.loops.reduce((sum,loop)=>sum+loop.maximum,0);
+    const sourceRows=sourceLoops?.loops.reduce((sum,loop)=>sum+loop.maximum*(loop.handler===null?1:2),0);
+    const maxRows = loopRows===undefined ? !extendedOwner ? MAX_ITEMS : 4_001 : loopRows+1;
     if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
         (bounds['maxRows'] as number) > maxRows ||
-        extendedOwner && (bounds['maxWork'] !== 200_000 || bounds['maxRows'] !== 4_001)) {
+        extendedOwner && (bounds['maxWork'] !== 200_000 || bounds['maxRows'] !== 4_001) ||
+        loopRows!==undefined && (bounds['maxWork']!==200_000 || bounds['maxRows']!==loopRows+1 || bounds['maxSourceNodes']!==200_000 || bounds['maxSourceRows']!==sourceRows) ||
+        loopRows===undefined && Object.hasOwn(bounds,'maxSourceNodes')) {
       return invalid('owner row bound exceeds its exact saved disclosure budget.');
     }
     const producer = frameworkProducers.get(call.def as GeneratedOperationDef);
@@ -5323,7 +5359,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
           const commitEffects = owner.framework === null && businessWrites === result.writes ? finalized :
             deepFreeze(dataCopy({ ...finalized,
               writes: [...result.writes, ...(owner.framework === null ? [] : frameworkNetWrites(owner.framework))],
-              ...(owner.framework === null ? {} : { outbox: [...owner.framework.queued.values()] }) }));
+              ...(owner.framework === null ? {} : { outbox: [...owner.framework.queued.values()] }) },false,
+              state.bound.plan.sourceEmissions===undefined?20_000:200_000));
           owner.commitEffects = commitEffects;
           return commitEffects;
         } catch (error) { state.poisoned = true; throw error; }
@@ -5394,7 +5431,8 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
       // The private result is a frozen one-field canonical wire; retaining
       // this exact object closes the copy boundary without mutable aliases.
       snapshot[key] = member.value;
-    } else snapshot[key] = dataCopy(member.value);
+    } else snapshot[key] = dataCopy(member.value,false,key==='writes' &&
+      boundPlans.get(call.def as GeneratedOperationDef)?.plan.sourceEmissions!==undefined?200_000:20_000);
   }
   const fileAssignments = matchScenarioFileAssignments(call, snapshot as unknown as ExecutionEffects);
   const owner = ownerSessions.get(call);
@@ -5458,7 +5496,7 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
   const state = captures.get(call);
   if (state !== undefined && state.rowIdGuards.length !== 0) {
     if (state.rowIdWrites !== undefined) return invalid('row id effects were already captured.');
-    state.rowIdWrites = deepFreeze(dataCopy(snapshot['writes'])) as readonly DomainWrite[];
+    state.rowIdWrites = deepFreeze(dataCopy(snapshot['writes'],false,state.bound.plan.sourceEmissions===undefined?20_000:200_000)) as readonly DomainWrite[];
   }
   const guards = [...(owner?.callGuards ?? []), ...(captures.get(call)?.rowIdGuards ?? [])];
   if (guards.length !== 0) retainedCallGuards.set(call, Object.freeze(guards));
@@ -11772,6 +11810,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   const dueAdmission = dueWorkAdmissions.get(call); dueWorkAdmissions.delete(call);
   const retainedEventAdmission = retainedEventAdmissions.get(call); retainedEventAdmissions.delete(call);
   if (owner !== undefined) {
+    const sourceBudget=owner.capture.bound.plan.sourceEmissions===undefined?20_000:200_000;
     if (!owner.closed || owner.finalized === null || owner.commitEffects === null || owner.capture.poisoned || owner.capture.pending !== 0) {
       return invalid('owner session must finalize successfully inside its actual execution.');
     }
@@ -11791,7 +11830,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     const committedWork = committed.filter(isFrameworkWork);
     const returnedDomain = returned.filter(write => !isFrameworkWork(write));
     const committedDomain = committed.filter(write => !isFrameworkWork(write));
-    if (stableStringify(dataCopy(returnedDomain)) !== stableStringify(dataCopy(committedDomain))) {
+    if (stableStringify(dataCopy(returnedDomain,false,sourceBudget)) !== stableStringify(dataCopy(committedDomain,false,sourceBudget))) {
       return invalid('executor writes differ from the actual finalized owner effects.');
     }
     if (returnedWork.length !== 0 || committedWork.length !== 0) {
@@ -11808,7 +11847,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
         if (owner.options.stageSources === undefined ||
             owner.finalized.writes.some(isFrameworkWork) && state?.termDecision === undefined &&
               state?.rentNoticeDecision === undefined ||
-            stableStringify(dataCopy(ownerWork)) !== stableStringify(dataCopy(committedWork))) {
+            stableStringify(dataCopy(ownerWork,false,sourceBudget)) !== stableStringify(dataCopy(committedWork,false,sourceBudget))) {
           return invalid('executor source Work writes differ from the actual finalized owner sources.');
         }
         if (retainedNotice) verifyRetainedNoticeTerminal(call, retainedEventAdmission!,
@@ -11817,7 +11856,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
         const dueNotice = state?.bound.rentNoticeDecision?.owner === 'rent_reservations.remind' &&
           state.rentNoticeDecision !== undefined;
         const ownerWork = dueNotice ? returnedWork.slice(0, committedWork.length) : returnedWork;
-        if (stableStringify(dataCopy(ownerWork)) !== stableStringify(dataCopy(committedWork)) &&
+        if (stableStringify(dataCopy(ownerWork,false,sourceBudget)) !== stableStringify(dataCopy(committedWork,false,sourceBudget)) &&
             committedWork.length !== 0) {
           return invalid('executor Work writes differ from the actual finalized owner effects.');
         }
