@@ -257,10 +257,11 @@ function assertSendGuard(entry: unknown, artifact: CompileArtifact,
       rules.length !== 1 || rules[0]!.inputStyle !== undefined || profile.kind !== 'inputs') {
     throw new Error('Original SEND guard lacks its complete owning Compiler declaration.');
   }
-  assertSendSlots(guard, profile, rule, callable, source, declarations);
+  assertSendSlots(guard, profile, rule, artifact, callable, source, declarations);
 }
 
 function assertSendSlots(guard: Record<string, unknown>, profile: FrameworkOpaqueDeclaration['profile'], rule: string,
+  artifact: CompileArtifact,
   callable: CompileArtifact['callables'][number],
   source: CallableSource,
   declarations: FrameworkOpaqueDeclaration[]): void {
@@ -270,8 +271,19 @@ function assertSendSlots(guard: Record<string, unknown>, profile: FrameworkOpaqu
       profile.artifact[index]?.valueType !== input.type || profile.canonical[index]?.required !== true ||
       profile.artifact[index]?.required !== true || ['default', 'computedDefault'].some(key =>
       Object.hasOwn(profile.canonical[index]!, key) || Object.hasOwn(profile.artifact[index]!, key)))) throw new Error('Original SEND slots must retain their complete required typed declaration.');
+  let node = data(guard, 'node') as { start: number; end: number };
+  if (callable.id === 'invoice.issue') {
+    const operations = artifact.operations?.filter(operation => operation.name === callable.id && operation.kind === 'scenario');
+    const decision = operations?.[0]?.result?.disclosure?.invoiceIssueDecision as
+      { readonly owner: string; readonly sendRule: { readonly rule: string; readonly node: unknown } } | undefined;
+    if (operations?.length !== 1 || decision?.owner !== callable.id || decision.sendRule.rule !== rule ||
+        !equal(decision.sendRule.node, node)) {
+      throw new Error('Invoice issue SEND interval differs from its checked source decision.');
+    }
+    node = { start: data(node, 'start') as number, end: data(node, 'end') as number };
+  }
   declarations.push({ id: `${rule}:send-inputs`, source: { kind: 'send-guard', rule,
-    source: source.source, owner: callable.id, node: data(guard, 'node') as { start: number; end: number },
+    source: source.source, owner: callable.id, node,
     binding: data(guard, 'binding') as string, target: data(guard, 'target') as string, inputs }, profile });
 }
 

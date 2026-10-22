@@ -174,6 +174,23 @@ export async function nativeScenarioInvoiceCollectDecision(context: unknown, des
   return evaluate(descriptor, body);
 }
 
+const invoiceIssueReaders = new WeakMap<object, LeaveEvaluate>();
+
+/** One admitted Invoice owner executes the exact checked issue body. */
+export function bindNativeScenarioInvoiceIssueDecision(context: object, evaluate: LeaveEvaluate): void {
+  if (invoiceIssueReaders.has(context)) throw new StateError('validation', 'Invoice issue decision cannot be rebound.');
+  invoiceIssueReaders.set(context, evaluate);
+}
+
+export async function nativeScenarioInvoiceIssueDecision(context: unknown, descriptor: unknown,
+  body: Function): Promise<void> {
+  const evaluate = typeof context === 'object' && context !== null ? invoiceIssueReaders.get(context) : undefined;
+  if (evaluate === undefined || typeof body !== 'function') {
+    throw new StateError('validation', 'Invoice issue needs its actual admitted owner mutation.');
+  }
+  return evaluate(descriptor, body);
+}
+
 const rentNoticeReaders = new WeakMap<object, LeaveEvaluate>();
 
 /** The exact CanRent notice handler runs inside its retained event owner. */

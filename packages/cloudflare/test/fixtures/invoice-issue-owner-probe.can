@@ -1,0 +1,74 @@
+## Original CanInvoice.issue with its financial and authority helpers.
+app CanInvoice uses=[invoice]
+
+package rent_catalog
+ Given
+  export Location {active:bool=true,timezone:timezone}
+ When
+ Then
+
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+
+package customer
+ Given
+  export Customer {kind:enum(individual,company),hidden:bool=false}
+  export Contact in Customer {account:user?,verified:bool=false,hidden:bool=false}
+  export CompanyRole in Customer {account:user,role:enum(administrator,booker,billing),active:bool=true,hidden:bool=false}
+  export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+  export derive owns(person:user,org:Customer):bool = org.kind==individual and any(org.Contact as contact,contact.account==person and contact.verified)
+  policy Customer read=members and not row.hidden
+  policy Contact read=members and not row.hidden
+  policy CompanyRole read=members and not row.hidden
+ When
+ Then
+
+package invoice
+ use customer {Customer,Contact,CompanyRole,has_role,owns}
+ use rent_catalog {Location}
+ use employee {can_work}
+ use std {PaymentState}
+ use std {EmailV1 as Mail} from=deployment.mail
+ Given
+  role finance
+  message notice_invoice_issued = "Invoice issued"@{nl="Factuur uitgegeven"}
+  message label_InvoiceDocument_number = "Invoice number"@{nl="Factuurnummer"}
+  export Invoice in Customer {location:Location,source:text,currency:currency,state:enum(draft,issued,void_pending,void)=draft,total:money,next_collection:datetime?,ledger_revision:int=0,recipient_email:email,description:text,number:text?,issued_at:datetime?,due:date,attempt_limit:int=3,retry_delay:duration=2d,retry_until:datetime?,hidden:bool=false}
+  Defaults {issuer:text,attempt_limit:int=3,retry_delay:duration=2d,retry_window:duration=14d,hidden:bool=false}
+  Line in Invoice {price:money,quantity:decimal=1,tax:money,discount:money,hidden:bool=false}
+  Attempt in Invoice {reference:text unique,amount:money,kind:enum(collection,refund),status:PaymentState.status=pending,failure:PaymentState.failure,disabled:bool=false,delivery:text?,hidden:bool=false}
+  Credit in Invoice {amount:money,hidden:bool=false}
+  ExternalPayment in Invoice {amount:money,hidden:bool=false}
+  ExternalRefund in Invoice {amount:money,hidden:bool=false}
+  contract Settlement {source:text,invoice:text,revision:int,amount:money,collected:money,refunded:money,collection_pending:bool,refund_pending:bool,state:Invoice.state,recorded_at:datetime}
+  export event InvoiceSettlement {value:Settlement}
+  event Overdue {invoice:Invoice,revision:int}
+  derive settlement(invoice:Invoice):Settlement = Settlement {source=invoice.source,invoice=invoice.id,revision=invoice.ledger_revision,amount=invoice.total,collected=invoice.received,refunded=invoice.refunded,collection_pending=any(invoice.Attempt as attempt,attempt.kind==collection and attempt.status in [pending,unknown]),refund_pending=any(invoice.Attempt as attempt,attempt.kind==refund and attempt.status in [pending,unknown]),state=invoice.state,recorded_at=now}
+  derive Invoice.credits:money = sum(row.Credit as credit select credit.amount,row.currency)
+  derive Invoice.received:money = sum(row.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalPayment as payment select payment.amount,row.currency)
+  derive Invoice.refunded:money = sum(row.Attempt as attempt where attempt.kind==refund and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalRefund as refund select refund.amount,row.currency)
+  derive Invoice.balance:money = max([money(0,row.currency),row.total-row.credits-row.received])
+  policy Invoice read=members and not row.hidden
+  policy Attempt read=members and not row.hidden
+  policy Credit read=members and not row.hidden
+  policy ExternalPayment read=members and not row.hidden
+  policy ExternalRefund read=members and not row.hidden
+ When
+  scenario issue(invoice:Invoice,number:text label=label_InvoiceDocument_number) by=finance label="Issue invoice"@{nl="Factuur uitgeven"}
+   require can_work(actor,invoice.location) and invoice.state==draft and count(invoice.Line)>0 and trim(number)!=""
+   require not any(Invoice as other,other.number==number)
+   do
+    let defaults=first(Defaults as setting order=setting.id)
+    require defaults!=null and defaults.retry_delay>0m and defaults.retry_window>0m
+    let total=sum(invoice.Line as line select line.price*line.quantity+line.tax-line.discount,invoice.currency)
+    set invoice {state=issued,total,number,issued_at=now,attempt_limit=defaults.attempt_limit,retry_delay=defaults.retry_delay,retry_until=now+defaults.retry_window,ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
+    send Mail.send {to=invoice.recipient_email,subject=format(notice_invoice_issued,locale=null),body=format("{description} {url}",{description=invoice.description,url=app_url(format("/finance/invoice/{invoice}",{invoice=invoice.id}))})} when=invoice.state==issued as notice
+    schedule invoice.id at=local_instant(add_days(invoice.due,1),"00:00",invoice.location.timezone,fold=earlier) event=Overdue {invoice,revision=invoice.version+1}
+ Then

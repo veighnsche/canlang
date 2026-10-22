@@ -575,6 +575,69 @@ fn source_effect_shape(context: &FreshSourceContext<'_>, owner: &IrItem) -> Opti
     Some(())
 }
 
+/// The imported employee helper's membership call is reached only through the
+/// first authored Require. Pin that invocation to the exact Issue source and
+/// freshly rebuilt IR before the native owner frame can observe it.
+pub(super) fn collect_issue_membership_sites(
+    context: &FreshSourceContext<'_>,
+    owner: &IrItem,
+) -> Option<Vec<Value>> {
+    source_effect_shape(context, owner)?;
+    let program = context.original();
+    let db = context.db();
+    let scenario = program.effects.scenarios.get(&owner.id)?;
+    let header = scenario.guards.first()?;
+    let cond = header.cond?;
+    let can_work = t::symbol(program, "employee.can_work")?;
+    let outer = t::selected_derive(program, cond, can_work)?;
+    if t::text(db, outer) != Some("can_work(actor,invoice.location)") {
+        return None;
+    }
+    let work_expr = program.effects.derives.get(&can_work)?.expr?;
+    if t::text(db, work_expr) != Some(WORK) {
+        return None;
+    }
+    let member = selected_builtin(
+        context,
+        work_expr,
+        "active_member",
+        "active_member(person,team)",
+    )?;
+    let selected = program.types.selected_calls.get(&member)?;
+    if !matches!(&selected.target, SelectedCallTarget::Builtin { id, overload }
+            if id == "active_member" && *overload == 0)
+        || selected.arguments.len() != 2
+        || selected.slots != [Some(0), Some(1)]
+        || t::text(db, selected.arguments[0]) != Some("person")
+        || t::text(db, selected.arguments[1]) != Some("team")
+        || program.types.node_types.get(&member) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        || program.types.node_types.get(&selected.arguments[0])
+            != Some(&ResolvedType::Scalar(Scalar::User))
+        || program.types.node_types.get(&selected.arguments[1]) != Some(&ResolvedType::Team)
+    {
+        return None;
+    }
+    let plain = |node: NodeKey| json!({"start":node.start,"end":node.end});
+    let owner_source = t::source(program, db, cond, "invoice")?;
+    let call = json!({
+        "source":t::source(program, db, member, "employee")?,
+        "node":plain(member),
+        "target":{"kind":"builtin","id":"active_member","overload":0},
+        "arguments":[
+            {"node":plain(selected.arguments[0]),"type":"user"},
+            {"node":plain(selected.arguments[1]),"type":"Team"}
+        ],
+        "slots":[0,1],"defaults":[],
+        "chain":[{"source":owner_source,"node":plain(outer),"derive":"employee.can_work"}]
+    });
+    Some(vec![json!({
+        "version":1,"source":owner_source,"owner":owner.canonical,
+        "node":plain(cond),"statement":plain(header.node),
+        "stage":"leading-require","position":[{"kind":"guard","index":0}],
+        "calls":[call]
+    })])
+}
+
 pub(super) fn prepare_issue_send_guard(
     context: &FreshSourceContext<'_>,
     owner: &IrItem,

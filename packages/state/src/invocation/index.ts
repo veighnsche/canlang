@@ -36,6 +36,7 @@ export {
   executeScenarioReceiptInvoiceOverdueDecision, type InvoiceOverdueDecisionPlan,
   executeScenarioReceiptRentMovementRefundDecision, type RentMovementRefundDecisionPlan,
   executeScenarioReceiptInvoiceCollectDecision, type InvoiceCollectDecisionPlan,
+  executeScenarioReceiptInvoiceIssueDecision, type InvoiceIssueDecisionPlan,
   executeScenarioReceiptRentNoticeDecision, type RentNoticeDecisionPlan,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,

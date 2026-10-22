@@ -134,6 +134,16 @@ export function bindNativeInvoiceCollectRole(c: HandlerContext,
   eventRoles.set(c, evaluate);
   return () => { eventRoles.delete(c); };
 }
+/** Bind issue's finance role inside its serial Invoice owner decision. */
+export function bindNativeInvoiceIssueRole(c: HandlerContext,
+  evaluate: (role: string, subject: UserRef) => Promise<boolean>): () => void {
+  const frame = checked(c);
+  if (frame.call === undefined || eventRoles.has(c)) {
+    return refuse('invoice issue finance role requires its unique live mutation owner.');
+  }
+  eventRoles.set(c, evaluate);
+  return () => { eventRoles.delete(c); };
+}
 export function hasNativeOwnerMembership(def: GeneratedOperationDef): boolean { return owners.has(def); }
 export function hasNativeAuthorityReportMembership(def: GeneratedOperationDef): boolean { return authorityReports.has(def); }
 const refuse = (message: string): never => { throw new StateError('validation', `Native membership: ${message}`); };
@@ -187,11 +197,14 @@ function checkMarkerSelection(marker: Record<string, unknown>): void {
 
 function checkMarkerSourceNode(marker: Record<string, unknown>): { source: Record<string, unknown>; node: Record<string, unknown> } {
   const source = ownObject(marker.source, ['path', 'sha256', 'module']);
-  const node = ownObject(marker.node, ['start', 'end']);
+  const hasKind = typeof marker.node === 'object' && marker.node !== null &&
+    Object.hasOwn(marker.node, 'kind');
+  const node = ownObject(marker.node, ['start', 'end', ...(hasKind ? ['kind'] : [])]);
   if (typeof source.path !== 'string' || source.path.length === 0 || source.path.length > 4096 ||
       typeof source.module !== 'string' || source.module.length === 0 || source.module.length > 4096 ||
       typeof source.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(source.sha256) ||
       !Number.isSafeInteger(node.start) || !Number.isSafeInteger(node.end) ||
+      (hasKind && (!Number.isSafeInteger(node.kind) || (node.kind as number) < 0)) ||
       (node.start as number) < 0 || (node.end as number) <= (node.start as number)) {
     return refuse('exact emitted physical source/node required.');
   }

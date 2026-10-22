@@ -5,6 +5,7 @@ packages/cloudflare/src/runtime/native-event-send-due.integration.test.ts
 packages/cloudflare/src/runtime/native-event-send-notice.integration.test.ts
 packages/cloudflare/src/runtime/native-event-send-reminder.integration.test.ts
 packages/cloudflare/src/runtime/native-invoice-collect.integration.test.ts
+packages/cloudflare/src/runtime/native-invoice-issue.integration.test.ts
 packages/cloudflare/src/runtime/native-invoice-overdue.integration.test.ts
 packages/cloudflare/src/runtime/native-leave-decide.integration.test.ts
 packages/cloudflare/src/runtime/native-leave-request.integration.test.ts
