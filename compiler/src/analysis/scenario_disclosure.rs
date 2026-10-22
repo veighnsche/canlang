@@ -7316,8 +7316,16 @@ impl<'a> Closure<'a> {
         let Some((domain, domain_type, query)) = self.stored_contract_decision_domain(call)? else {
             return Some(());
         };
+        if self.source_require_value_query(query) {
+            if let ResolvedType::Array {element, ..} = &query.domain_type
+                && let ResolvedType::Record {symbol, ..} = element.as_ref() {
+                pending.push((*symbol, false));
+            }
+            return Some(());
+        }
         let stored = matches!(&query.domain_type, ResolvedType::Array { element, .. }
-            if matches!(element.as_ref(), ResolvedType::Record { stored: true, .. }));
+            if matches!(element.as_ref(), ResolvedType::Record { symbol, stored: true }
+                if matches!(self.resolve.symbols.get(symbol.0 as usize).map(|s| &s.kind), Some(SymbolKind::Model {..}))));
         let collection = self.types.checked_collection_calls.get(&call.node);
         if !stored && collection.is_none() {
             return Some(());
@@ -14171,7 +14179,54 @@ impl<'a> Closure<'a> {
                 | SyntaxKind::Binary | SyntaxKind::Query)).then_some(())
     }
 
+    /// Original immutable Values inputs carry no row, File, delivery or
+    /// opaque-provider authority. Resolve every contract leaf in this check.
+    fn source_require_plain_value(&self, ty: &ResolvedType, depth: usize) -> bool {
+        if depth >= 16 { return false; }
+        match ty {
+            ResolvedType::Scalar(scalar) => *scalar != Scalar::File,
+            ResolvedType::Nullable(inner) => self.source_require_plain_value(inner, depth + 1),
+            ResolvedType::Array { element, ordered: true, .. } => self.source_require_plain_value(element, depth + 1),
+            ResolvedType::Object(fields) => fields.len() <= 200 && fields.iter().all(|(_, ty)| self.source_require_plain_value(ty, depth + 1)),
+            ResolvedType::Record { symbol, .. } => match self.resolve.symbols.get(symbol.0 as usize).map(|symbol| &symbol.kind) {
+                Some(SymbolKind::Contract { fields, .. }) => !fields.is_empty() && fields.len() <= 200
+                    && fields.iter().all(|field| self.types.symbol_types.get(field).is_some_and(|ty| self.source_require_plain_value(ty, depth + 1))),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    fn source_require_value_parameter(&self, scenario: &super::effects::ScenarioData,
+        parameter: &super::effects::ParamData) -> bool {
+        let Some(ty) = self.types.symbol_types.get(&parameter.param) else { return false; };
+        if !self.source_require_plain_value(ty, 0) || self.types.value_constraints.contains_key(&parameter.param) { return false; }
+        let Some(default) = parameter.default else { return true; };
+        let Some(node) = self.nodes.get(&default) else { return false; };
+        match node.kind {
+            SyntaxKind::Literal => self.types.node_types.get(&default) == Some(ty)
+                || matches!(ty, ResolvedType::Nullable(_)) && self.types.node_types.get(&default) == Some(&ResolvedType::Null),
+            SyntaxKind::Array => matches!(ty, ResolvedType::Array { .. })
+                && !node.children.iter().any(|child| expression(child.kind))
+                && self.types.node_types.get(&default) == Some(ty),
+            SyntaxKind::NameRef => self.explicit_param_reference_default(parameter, scenario, default),
+            _ => false,
+        }
+    }
+
+    fn source_require_value_query(&self, query: &super::types::CheckedQuery) -> bool {
+        matches!(&query.domain_type, ResolvedType::Array { element, ordered: true, .. }
+            if self.source_require_plain_value(element, 0))
+            && self.types.node_types.get(&query.domain) == Some(&query.domain_type)
+            && matches!(self.query_binding(query.domain), Some(Binding::Symbol(parameter))
+                if matches!(self.resolve.symbols.get(parameter.0 as usize).map(|symbol| &symbol.kind), Some(SymbolKind::Param { .. })))
+            && query.clauses.iter().all(|clause| matches!(clause.kind,
+                CheckedQueryClauseKind::As { .. } | CheckedQueryClauseKind::Where | CheckedQueryClauseKind::Select | CheckedQueryClauseKind::Order))
+            && query.clauses.iter().filter(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. })).count() == 1
+    }
+
     fn source_require_input(&self, ty: &ResolvedType) -> bool {
+        if self.source_require_plain_value(ty, 0) { return true; }
         match ty {
             ResolvedType::Nullable(inner) if matches!(inner.as_ref(), ResolvedType::Record { stored: true, .. }) =>
                 self.source_require_input(inner),
@@ -14326,6 +14381,7 @@ impl<'a> Closure<'a> {
                     .is_none_or(|ty| !self.source_require_input(ty)
                         && !self.source_require_owned_enum_formal(param)))
                 && !self.source_require_optional_primitive_input(param)
+                && !self.source_require_value_parameter(scenario, param)
                 && !self.source_require_unread_nullable_file_input(scenario, param, index)
         }) && scenario
             .params
@@ -15074,6 +15130,16 @@ impl<'a> Closure<'a> {
             *supported = false;
             return Some(false);
         }
+        // Pure checked Values collections run over the admitted input, never
+        // through State's stored-model collection reader.
+        if let CheckedDecisionCallTarget::Builtin { id, .. } = &call.target {
+            if matches!(id.as_str(), "all" | "count" | "group" | "min" | "max")
+                && call.arguments.iter().all(|(_, ty)| self.source_require_plain_value(ty, 0))
+                && self.types.node_types.get(&call.node).is_some_and(|ty| self.source_require_plain_value(ty, 0))
+                && call.arguments.iter().all(|(node, _)| self.types.checked_queries.get(node)
+                    .is_none_or(|query| self.source_require_value_query(query)))
+            { return Some(true); }
+        }
         match &call.target {
             CheckedDecisionCallTarget::DeriveFn(id) => {
                 self.source_require_derive_call(id, supported)
@@ -15220,6 +15286,9 @@ impl<'a> Closure<'a> {
             *supported = false;
             return Some(false);
         }
+        if node.kind == SyntaxKind::Query
+            && self.types.checked_queries.get(&key).is_some_and(|query| self.source_require_value_query(query))
+        { return Some(true); }
         if node.kind == SyntaxKind::Query
             && self.types.checked_queries.get(&key).is_some_and(|query|
                 site.calls.iter().any(|call| self.source_require_contained_query(scenario, call, query)))

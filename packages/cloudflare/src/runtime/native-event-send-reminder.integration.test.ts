@@ -783,3 +783,36 @@ it('records inspections and conditional repairs over the original hidden helper 
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+it('executes original interval Values guards with nominal arrays, structural group results and declared defaults', {timeout:300000}, async()=>{
+  const path=join(root,'packages/cloudflare/test/fixtures/native-values-interval-require.can');
+  const directory=await mkdtemp(join(tmpdir(),'can-interval-values-'));
+  try {
+    const authored=await readFile(join(root,'draft/apps/CanPropose/CanPropose.can'),'utf8');
+    const fixture=await readFile(path,'utf8');
+    for(const line of fixture.split('\n').filter(line=>line.startsWith('  export contract QuoteInterval ')||line.startsWith('  export derive quote_intervals_valid(')))assert.ok(authored.includes(line));
+    const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,path],
+      {cwd:root,timeout:120000,maxBuffer:32*1024*1024});
+    const artifact=JSON.parse(stdout) as CompileArtifact;
+    const asm=await assembleModules({artifact,sourcePath:path},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+    for(const mode of ['valid','defaults','duplicate','overlap','bad-refund','blank-note'] as const){
+      const now=Date.now(),clock=createFrozenClock(now),identities=createMemoryIdentityStore({clock});
+      const team=await identities.createTeam({timezone:'UTC'});
+      const user=await identities.createUser({email:`${mode}@interval.test`,password_hash:'unused',email_verified:true});
+      await identities.createMembership({team_id:team.team_id,user_id:user.user_id,is_owner:false,roles:[]});
+      const token=`interval-${mode}`;await identities.createSession({user_id:user.user_id,token_sha256:await sha256HexText(token),last_team_id:team.team_id,expires_at:new Date(now+3600000).toISOString()});
+      const identity=await resolveIdentity(identities,{session_token:token},{clock});
+      const {store}=createTestMemoryStorage();
+      await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('propose.Seed'),row:makeRow({id:asId('seed-1'),data:{number:'0'}})}]}));
+      const from='2027-01-01T09:00:00.000Z',midpoint='2027-01-01T10:00:00.000Z',until='2027-01-01T11:00:00.000Z';
+      const intervals=mode==='duplicate'?[{from,until},{from,until}]:[{from:midpoint,until},{from,until:mode==='overlap'?until:midpoint}];
+      const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+      const result=await invoker.invokeMutation({operation:'propose.validate',operation_id:uuidv7(now,1),inputs:{seed:{id:'seed-1',version:'1'},from,until,
+        ...(mode==='defaults'?{}:{quantity:'3',refund_before:mode==='bad-refund'?until:from,intervals,note:mode==='blank-note'?' ':null})}},identity);
+      const success=mode==='valid'||mode==='defaults';
+      assert.equal('result' in result&&result.result.status==='committed',success,`${mode}: ${JSON.stringify(result)}`);
+      const row=await store.load(asModel('propose.Seed'),asId('seed-1'));assert.ok(row);
+      assert.equal(row.data['number'],success?mode==='defaults'?'1':'3':'0',`${mode}: original guard controls the real atomic write`);
+    }
+  }finally{await rm(directory,{recursive:true,force:true});}
+});

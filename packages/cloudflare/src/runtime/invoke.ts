@@ -4806,13 +4806,39 @@ async function prepareSuccessNoticeDispatchDecision(input: {
   return Object.freeze({ root: views.root, readRecords: views.readRecords, role, revalidate, eligible });
 }
 const NATIVE_CALL_SCALARS = new Set(['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'user']);
-/** Only the same-load owning scalar or bounded-text alias inventory selects a codec.
- * Contracts, enums, models, nullable values and containers remain separate profiles. */
+/** Values-only containers retain their full original nominal schema. No
+ * model, File, delivery, secret or opaque leaf can issue authority here. */
+function nativeScenarioPlainValueType(loaded: LoadedCanonicalDescriptors, typeId: string,
+  depth = 0, active: ReadonlySet<string> = new Set()): boolean {
+  if (depth >= 16) return false;
+  const type = parseTypeId(typeId), base = type.base;
+  if (type.requiredArray) return false;
+  if (base.kind === 'scalar' || base.kind === 'stringlike' || base.kind === 'user') return true;
+  if (base.kind !== 'nominal' || active.has(base.path)) return false;
+  const schema = loaded.valueSchema;
+  if (schema === undefined) return false;
+  const next = new Set(active); next.add(base.path);
+  if (schema.aliases !== undefined && Object.hasOwn(schema.aliases, base.path)) {
+    return nativeScenarioPlainValueType(loaded, printTypeId(schema.aliases[base.path]!.type), depth + 1, next);
+  }
+  if (!Object.hasOwn(schema.contracts, base.path)) return false;
+  const fields = Object.values(schema.contracts[base.path]!.fields);
+  return fields.length > 0 && fields.length <= 200 && fields.every(field =>
+    nativeScenarioPlainValueType(loaded, printTypeId(field.type), depth + 1, next));
+}
+function nativeScenarioPlainValueInput(loaded: LoadedCanonicalDescriptors,
+  field: CanonicalOperationDescriptor['inputs'][number]): boolean {
+  return field.kind !== 'ref' && field.kind !== 'delivery' && field.valueType !== undefined &&
+    nativeScenarioPlainValueType(loaded, field.valueType);
+}
+/** Complete same-load Values declarations select their owning codecs;
+ * protected references and File inputs keep separate admission paths. */
 function nativeScenarioScalarInput(loaded: LoadedCanonicalDescriptors,
   field: CanonicalOperationDescriptor['inputs'][number]): boolean {
   if (field.kind === 'enum') return field.valueType === `enum(${field.enumValues?.join(',')})` && (field.enumValues?.length ?? 0) > 0;
   if (field.kind === 'string' && field.valueType === 'text[]') return true;
   if (field.kind === 'ref' || field.kind === 'delivery' || field.valueType === undefined) return false;
+  if (nativeScenarioPlainValueInput(loaded, field)) return true;
   if (field.kind !== 'nominal') return NATIVE_CALL_SCALARS.has(field.valueType);
   const parsed = parseTypeId(field.valueType);
   if (parsed.base.kind !== 'nominal' || parsed.array || parsed.nullable || parsed.requiredArray) return false;
@@ -4861,11 +4887,12 @@ function isNativeScenarioFieldInadmissible(
   // Metadata may describe a literal default, but both native preparation
   // paths below still require the explicit authored member before State.
   const literal = scalar && field.default?.kind === 'literal';
-  const textArray = scalar && field.kind === 'string' && field.valueType === 'text[]' && def.inputArrays[field.name]?.required === false;
-  return (field.required !== true && !literal && !file && !textArray &&
+  const valueArray = scalar && nativeScenarioPlainValueInput(loaded, field as CanonicalOperationDescriptor['inputs'][number]) && def.inputArrays[field.name]?.required === false;
+  const explicitComputedValue = scalar && field.computedDefault === true;
+  return (field.required !== true && !literal && !file && !valueArray && !explicitComputedValue &&
       !(query && field.kind === 'ref' && Object.hasOwn(def.inputArrays, field.name))) ||
     (field.default !== undefined && !literal && !file) ||
-    ('computedDefault' in field && field.computedDefault === true) ||
+    ('computedDefault' in field && field.computedDefault === true && !explicitComputedValue) ||
     (field.kind === 'ref' ? !protectedRef && (!query || !loaded.models.some(model => model.name === field.model)) : !scalar && !file);
 }
 
@@ -4880,10 +4907,10 @@ function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: Gen
   const scenario = def.kind === 'scenario' && result !== undefined &&
     (['void', ...NATIVE_CALL_SCALARS].includes(result.type) || model) &&
     Object.keys(def.inputArrays).every(name => def.descriptor.inputs.some(field => field.name === name &&
-      (nativeScenarioStoredFileInput(def, field, storedFiles) || field.kind === 'string' && field.valueType === 'text[]' && def.inputArrays[field.name]?.required === false))) && Object.keys(def.inputNullableRefs ?? {}).length === 0;
+      (nativeScenarioStoredFileInput(def, field, storedFiles) || nativeScenarioPlainValueInput(loaded, field) && def.inputArrays[field.name]?.required === false))) && Object.keys(def.inputNullableRefs ?? {}).length === 0;
   if (plan === undefined || (!scenario && !query) || loaded.unsupportedHookOperations.has(def.name) ||
       Object.keys(def.inputArrays).some(name => !def.descriptor.inputs.some(field => field.name === name &&
-        (query && field.kind === 'ref' || scenario && (nativeScenarioStoredFileInput(def, field, storedFiles) || field.kind === 'string' && field.valueType === 'text[]' && def.inputArrays[field.name]?.required === false)))) ||
+        (query && field.kind === 'ref' || scenario && (nativeScenarioStoredFileInput(def, field, storedFiles) || nativeScenarioPlainValueInput(loaded, field) && def.inputArrays[field.name]?.required === false)))) ||
       Object.keys(def.inputNullableRefs ?? {}).some(name => !query || !def.descriptor.inputs.some(field => field.name === name && field.kind === 'ref')) ||
       def.descriptor.inputs.some(field => {
         const scalar = nativeScenarioScalarInput(loaded, field);
@@ -12149,12 +12176,13 @@ async function runScenarioExecution(
             loaded.models.some(model => Object.entries(model.fields).some(([name, declaration]) =>
               `${model.name}.${name}` === (parsed.base.kind === 'nominal' ? parsed.base.path : '') &&
               `${declaration.valueType}${parsed.nullable ? '?' : ''}` === field.valueType));
+          const admittedValue = nativeScenarioPlainValueInput(loaded, field);
           const declaredType = admittedTextArray || ownedEnum ? parameter.typeId : type;
           const nullableModel=parsed.nullable && !parsed.array && field.kind==='ref'
             && modelParameters.some(model=>model.name===parameter.name && model.model===field.model);
-          if (field.name !== parameter.name || declaredType !== parameter.typeId || parsed.array && !admittedTextArray ||
-              (parsed.nullable && !unusedNullFile && !nullableModel && !ownedEnum) ||
-              parsed.base.kind === 'nominal' && !ownedEnum && !loaded.models.some(model => model.name === parameter.typeId.replace(/\?$/,'')) ||
+          if (field.name !== parameter.name || declaredType !== parameter.typeId || parsed.array && !admittedTextArray && !admittedValue ||
+              (parsed.nullable && !unusedNullFile && !nullableModel && !ownedEnum && !admittedValue) ||
+              parsed.base.kind === 'nominal' && !ownedEnum && !admittedValue && !loaded.models.some(model => model.name === parameter.typeId.replace(/\?$/,'')) ||
               !Object.hasOwn(admittedParameters, parameter.name) ||
               localPolicyMember(suppliedValues, parameter.name) !== admittedParameters[parameter.name]) {
             throw new AssemblyCorrespondenceError('Scenario Require parameter differs from its genuine admitted native slot.');
