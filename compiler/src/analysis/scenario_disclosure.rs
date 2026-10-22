@@ -3612,6 +3612,170 @@ impl<'a> Closure<'a> {
         None
     }
 
+    /// One original nullable stored field is non-null only in the right
+    /// operand and then arm of its checked IF. Keep its nullable read; the
+    /// narrowed occurrence supplies navigation, never a reference result.
+    /// A genuine optional Model formal at its original flow-checked non-null
+    /// occurrence. The stored model and original null default stay sealed;
+    /// lexical copies and nullable occurrences cannot use this carrier.
+    fn narrowed_model_input(&self, key: NodeKey, module: ModuleId) -> Option<(SymbolId, SymbolId)> {
+        let key = self.query_group(key)?;
+        let Some(Binding::Symbol(parameter)) = self.query_binding(key) else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = self.types.node_types.get(&key)?
+        else {
+            return None;
+        };
+        if self.types.symbol_types.get(parameter)
+            != Some(&ResolvedType::Nullable(Box::new(ResolvedType::Record {
+                symbol: *model,
+                stored: true,
+            })))
+        {
+            return None;
+        }
+        let owner = self.effects.scenarios.values().find(|owner| {
+            owner.module == module
+                && owner.on.is_none()
+                && !owner.read
+                && owner.node.file == key.file
+                && owner.node.start <= key.start
+                && key.end <= owner.node.end
+                && owner.params.iter().enumerate().any(|(index, input)| {
+                    input.param == *parameter
+                        && (input.default.is_none()
+                            && self.nullable_model_input(owner, input) == Some(*model)
+                            || self.source_require_null_model_input(owner, input, index))
+                })
+        })?;
+        owner
+            .params
+            .iter()
+            .any(|input| input.param == *parameter)
+            .then_some((*parameter, *model))
+    }
+
+    fn nullable_field_if_branch(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+    ) -> Option<(NodeKey, NodeKey, SymbolId, SymbolId, SymbolId, SymbolId)> {
+        let mut owners = self.effects.scenarios.values().filter(|owner| {
+            owner.module == module
+                && owner.on.is_none()
+                && !owner.read
+                && owner.node.file == key.file
+                && owner.node.start <= key.start
+                && key.end <= owner.node.end
+        });
+        let owner = owners.next()?;
+        if owners.next().is_some() {
+            return None;
+        }
+        let within =
+            |outer: NodeKey| outer.file == key.file && outer.start <= key.start && key.end <= outer.end;
+        let mut pending = owner.effects.iter().collect::<Vec<_>>();
+        let mut steps = 0;
+        while let Some(branch) = pending.pop() {
+            steps += 1;
+            if steps > 16384 {
+                return None;
+            }
+            pending.extend(branch.then_effects.iter());
+            pending.extend(branch.else_effects.iter());
+            for arm in &branch.match_arms {
+                pending.extend(arm.effects.iter());
+            }
+            if branch.verb != EffectVerb::If {
+                continue;
+            }
+            let Some(condition) = branch.cond else {
+                continue;
+            };
+            let (presence, right) = match self.query_binary(condition, "and") {
+                Some((left, right)) => (left, Some(right)),
+                None => (condition, None),
+            };
+            let Some((reference, null)) = self.query_binary(presence, "!=") else {
+                continue;
+            };
+            if self.types.node_types.get(&null) != Some(&ResolvedType::Null)
+                || self.word(self.nodes.get(&null)?) != Some("null")
+            {
+                continue;
+            }
+            let Some((root, name)) = self.count_member(reference) else {
+                continue;
+            };
+            let Some(Binding::Symbol(parameter)) = self.query_binding(root) else {
+                continue;
+            };
+            if !owner
+                .params
+                .iter()
+                .any(|formal| formal.param == *parameter && formal.default.is_none())
+            {
+                continue;
+            }
+            let Some(ResolvedType::Record {
+                symbol: source,
+                stored: true,
+            }) = self.types.symbol_types.get(parameter)
+            else {
+                continue;
+            };
+            let Some(field) = self
+                .resolve
+                .symbols
+                .get(source.0 as usize)?
+                .fields_of()
+                .iter()
+                .filter_map(|id| self.resolve.symbols.get(id.0 as usize))
+                .find(|field| field.name == name)
+            else {
+                continue;
+            };
+            let Some(ResolvedType::Nullable(inner)) = self.types.symbol_types.get(&field.id) else {
+                continue;
+            };
+            let ResolvedType::Record {
+                symbol: target,
+                stored: true,
+            } = inner.as_ref()
+            else {
+                continue;
+            };
+            if self.call_parameter_field(reference, *parameter) != Some(*target)
+                || self.types.node_types.get(&reference) != self.types.symbol_types.get(&field.id)
+            {
+                continue;
+            }
+            if key == presence {
+                return Some((presence, reference, *parameter, *source, field.id, *target));
+            }
+            let dominated = right.is_some_and(within)
+                || branch.then_effects.iter().any(|effect| within(effect.node));
+            if !dominated {
+                continue;
+            }
+            let Some((receiver, actual)) = self.count_member(key) else {
+                continue;
+            };
+            if actual == name
+                && matches!(self.query_binding(receiver), Some(Binding::Symbol(actual)) if actual == parameter)
+                && self.types.node_types.get(&key) == Some(inner.as_ref())
+                && self.call_parameter_field(key, *parameter) == Some(*target)
+            {
+                return Some((presence, key, *parameter, *source, field.id, *target));
+            }
+        }
+        None
+    }
+
     fn field_type_id(
         &self,
         key: NodeKey,
@@ -17008,6 +17172,7 @@ impl<'a> Closure<'a> {
             });
         let (parameter, member) = match value.reference_origin {
             Some(ReferenceOrigin::Parameter(parameter)) => (parameter, false),
+            Some(ReferenceOrigin::NullableParameter(parameter)) if self.narrowed_model_input(base_key,module)==Some((parameter,model)) => (parameter,false),
             Some(ReferenceOrigin::ParameterMember { parameter, node })
                 if Some(node) == self.query_group(base_key)
                     && self
@@ -17075,7 +17240,8 @@ impl<'a> Closure<'a> {
             || self.loop_node.is_some()
             || !member
                 && self.checked_call_parent_path(base_key, parameter, 0) != Some((model, 0))
-            || !member && owner.module != module
+                && self.narrowed_model_input(base_key,module)!=Some((parameter,model))
+            || !member && owner.module != module && self.narrowed_model_input(base_key,module)!=Some((parameter,model))
             || scenario.module != module
             || scenario.read
             || scenario.on.is_some()
@@ -17754,7 +17920,7 @@ impl<'a> Closure<'a> {
         });
         value.observed.push((key, calls.to_vec()));
         value.record = required_reference
-            .or_else(|| self.nullable_field_call_branch(key, module)
+            .or_else(|| self.nullable_field_call_branch(key, module).or_else(||self.nullable_field_if_branch(key,module))
                 .filter(|(_, operand, _, _, _, _)| *operand == key).map(|(_, _, _, _, _, target)| target))
             .or_else(|| profile_reference.map(|(_, _, _, profile)| profile))
             .or_else(|| {
@@ -17884,8 +18050,20 @@ impl<'a> Closure<'a> {
             field_ty,
             value,
         )?;
-        let type_id = if calls.is_empty() && self.loop_node.is_none()
-            && let Some((_, operand, parameter, source, original_field, target)) = self.nullable_field_call_branch(key, module)
+        let guarded_parent = calls.is_empty() && self.loop_node.is_none()
+            && self.nullable_field_if_branch(base_key,module).is_some_and(|(_, operand, parameter, source, link, target)|
+                operand==base_key && target==model
+                && value.reference_origin==Some(ReferenceOrigin::Field{parameter,model:source,field:link})
+                && value.reads.iter().any(|read|read.node==base_key && read.model==source && read.field==link
+                    && read.ty==ResolvedType::Nullable(Box::new(ResolvedType::Record{symbol:target,stored:true}))));
+        let type_id = if guarded_parent {
+            value.reference_origin=None;
+            if matches!(field_ty,ResolvedType::Record{stored:true,..})
+                || matches!(field_ty,ResolvedType::Nullable(inner) if matches!(inner.as_ref(),ResolvedType::Record{stored:true,..})) {
+                self.reference_operand_type_id(field_ty).ok_or_else(||self.fail(key,"guarded reference field schema mismatch"))?
+            }else{self.field_type_id(key,field.id,field_ty)?}
+        }else if calls.is_empty() && self.loop_node.is_none()
+            && let Some((_, operand, parameter, source, original_field, target)) = self.nullable_field_call_branch(key, module).or_else(||self.nullable_field_if_branch(key,module))
             && operand == key && source == model && original_field == field.id && ty == &(ResolvedType::Record { symbol: target, stored: true })
             && value.reference_origin == Some(ReferenceOrigin::Parameter(parameter))
         {
@@ -18640,7 +18818,7 @@ impl<'a> Closure<'a> {
         // stored field. Field reads off the possibly-null binding keep the
         // AbsentReference refusal below, as do require-or/if-branch shapes
         // (their own slices, still refused at the terminal tail rule).
-        let first_null_check = current_null_check || matches!(op, "==" | "!=") && calls.is_empty()
+        let first_null_check = current_null_check || calls.is_empty() && self.nullable_field_if_branch(key,module).is_some_and(|(presence,..)|presence==key) || matches!(op, "==" | "!=") && calls.is_empty()
             && [(children[0], children[1]), (children[1], children[0])].iter().any(|(value, null)| {
                 let key = NodeKey::of(value);
                 self.types.node_types.get(&NodeKey::of(null)) == Some(&ResolvedType::Null)
@@ -18725,12 +18903,30 @@ impl<'a> Closure<'a> {
         matches!(op, "==" | "!=") && calls.is_empty() && self.loop_node.is_none() && {
             let operand = |node: &SyntaxNode| -> Option<(SymbolId, bool)> {
                 let key = self.query_group(NodeKey::of(node))?;
+                if let Some((parameter,model))=self.narrowed_model_input(key,module) {
+                    return env.contains_key(&Local::Symbol(parameter)).then_some((model,false));
+                }
                 if let Some((parameter, model, _)) =
                     self.checked_contract_input_reference(key, module)
                 {
                     return env
                         .contains_key(&Local::Symbol(parameter))
                         .then_some((model, false));
+                }
+                if let Some((base, name))=self.count_member(key)
+                    && let Some((_, operand, _, _, _, parent))=self.nullable_field_if_branch(base,module)
+                    && operand==base
+                    && let Some(field)=self.resolve.symbols.get(parent.0 as usize)?.fields_of().iter()
+                        .filter_map(|field|self.resolve.symbols.get(field.0 as usize)).find(|field|field.name==name)
+                    && let Some(ty)=self.types.symbol_types.get(&field.id)
+                    && self.types.node_types.get(&key)==Some(ty)
+                {
+                    let model=match ty {
+                        ResolvedType::Record{symbol,stored:true}=>Some(*symbol),
+                        ResolvedType::Nullable(inner)=>match inner.as_ref(){ResolvedType::Record{symbol,stored:true}=>Some(*symbol),_=>None},
+                        _=>None,
+                    };
+                    if let Some(model)=model{return Some((model,true));}
                 }
                 env.keys().find_map(|local| {
                     let Local::Symbol(parameter) = local else {
@@ -21774,6 +21970,16 @@ impl<'a> Closure<'a> {
             /// Whether one guard read stays controlled: reference operands,
             /// revisions, stored inputs, unfinished runs, or active profiles.
             /// (This was the controls-join filter.)
+            fn guarded_if_read(&self, module: ModuleId, dependency: &DisclosureDependency) -> bool {
+                dependency.calls.is_empty() && dependency.query_id.is_none()
+                                && self.count_member(dependency.node).is_some_and(|(base,name)|
+                                    self.nullable_field_if_branch(base,module).is_some_and(|(_,operand,_,_,_,target)|
+                                        operand==base && target==dependency.model
+                                            && self.resolve.symbols.get(dependency.field.0 as usize).is_some_and(|field|field.name==name
+                                                && matches!(field.kind,SymbolKind::Field{owner,..} if owner==target)
+                                                && self.types.symbol_types.get(&field.id)==Some(&dependency.ty))))
+            }
+
             fn require_controlled_read(
                 &self,
                 module: ModuleId,
@@ -21781,6 +21987,7 @@ impl<'a> Closure<'a> {
             ) -> bool {
                 self.reference_operand_type_id(&dependency.ty).is_some()
                     || self.current_revision_control(dependency, module)
+                    || self.guarded_if_read(module,dependency)
                     || self
                         .contract_input_stored_read(dependency, module)
                     || self.run_unfinished_control(dependency, module)
@@ -21812,6 +22019,7 @@ impl<'a> Closure<'a> {
                         .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
                     || self.reference_operand_type_id(&dependency.ty).is_some()
                     || self.current_revision_control(dependency,module)
+                    || self.guarded_if_read(module,dependency)
                     || self.contract_input_stored_read(dependency,module)
                     || self.run_unfinished_control(dependency,module)
                     || dependency.field_name == "active" && self.checked_profile_scalar(dependency.node,module).is_some_and(|(_,_,_,profile,field)| {

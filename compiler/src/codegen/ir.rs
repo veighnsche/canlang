@@ -8400,6 +8400,13 @@ impl<'a> Cx<'a> {
                         inferred
                     } else if outermost && !matches!(ty, ResolvedType::Unknown) {
                         ty.clone()
+                    } else if let Some(checked) = self.program.types.node_types.get(&NodeKey {
+                        file: field_span.file, start: field_span.start, end: field_span.end,
+                        kind: SyntaxKind::Member as u8,
+                    }).filter(|checked| !matches!(checked, ResolvedType::Unknown)) {
+                        // A flattened chain still owns every original checked
+                        // getter type, including a flow-narrowed reference.
+                        checked.clone()
                     } else if !matches!(inferred, ResolvedType::Unknown) {
                         inferred
                     } else if outermost {

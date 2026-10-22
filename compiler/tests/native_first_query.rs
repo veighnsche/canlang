@@ -1491,3 +1491,116 @@ package invoices
         assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
     }
 }
+
+
+#[test]
+fn original_event_provider_tail_keeps_guarded_reference_types_and_refuses_substitutions() {
+    let source = include_str!("fixtures/event-change-retained.can");
+    let (db, program, ir, catalog) = fixture_source("event-change-original.can", source);
+    let owner = item(&ir, "events.change_schedule").id;
+    let entry = "$can$m$6576656e7473.mjs";
+    let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(
+        serialize_complete_query_receipt(
+            &program,
+            &ir,
+            &ir.items[owner.0 as usize],
+            &db,
+            Some(&catalog),
+            entry
+        )
+        .is_some()
+    );
+    for mode in [
+        "guard",
+        "intermediate-type",
+        "late-require",
+        "previous-source",
+        "created-handle",
+        "guard-read-fact",
+    ] {
+        let mut changed = ir.clone();
+        if mode == "guard-read-fact" {
+            let ScenarioDisclosure::Complete(proof) =
+                changed.scenario_disclosures.get_mut(&owner).unwrap()
+            else {
+                panic!("complete")
+            };
+            assert!(proof.returns.iter().any(|returned| {
+                returned
+                    .dependencies
+                    .iter()
+                    .any(|read| read.field_name == "venue_state")
+            }));
+            for returned in &mut proof.returns {
+                returned
+                    .dependencies
+                    .retain(|read| read.field_name != "venue_state");
+            }
+        } else {
+            let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind
+            else {
+                panic!("scenario")
+            };
+            if mode == "created-handle" {
+                effects.swap(1, 3);
+            } else {
+                let IrStmt::If { else_branch, .. } = &mut effects[3] else {
+                    panic!("outer if")
+                };
+                let IrStmt::If {
+                    cond, then_branch, ..
+                } = &mut else_branch[1]
+                else {
+                    panic!("inner if")
+                };
+                if mode == "guard" {
+                    cond.expr = IrExpr::Bool(true);
+                } else if mode == "late-require" {
+                    then_branch.remove(0);
+                } else if mode == "intermediate-type" {
+                    let IrStmt::Require { cond, .. } = &mut then_branch[0] else {
+                        panic!("require")
+                    };
+                    let IrExpr::Binary { left, .. } = &mut cond.expr else {
+                        panic!("and")
+                    };
+                    let IrExpr::Binary { left, .. } = &mut left.expr else {
+                        panic!("equality")
+                    };
+                    let IrExpr::Member { base, .. } = &mut left.expr else {
+                        panic!("venue state")
+                    };
+                    assert!(matches!(base.ty, ResolvedType::Record { stored: true, .. }));
+                    base.ty = ResolvedType::Nullable(Box::new(base.ty.clone()));
+                } else {
+                    let IrStmt::Send { args, .. } = &mut then_branch[1] else {
+                        panic!("send")
+                    };
+                    let IrExpr::Object(entries) = &mut args.expr else {
+                        panic!("arguments")
+                    };
+                    entries
+                        .iter_mut()
+                        .find(|(name, _)| name == "previous_source")
+                        .unwrap()
+                        .1
+                        .expr = IrExpr::Text("forged".into());
+                }
+            }
+        }
+        assert!(
+            serialize_complete_query_receipt(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                Some(&catalog),
+                entry
+            )
+            .is_none(),
+            "{mode} survived source correspondence"
+        );
+    }
+}

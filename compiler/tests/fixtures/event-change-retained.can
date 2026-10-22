@@ -15,7 +15,9 @@ package employee
 package customer
  use rent_catalog {Location}
  Given
+  role customer_reader
   export Customer {active:bool=true,locations:Location[]}
+  policy Customer read=customer_reader
  When
  Then
 package rent_reservations
@@ -23,6 +25,7 @@ package rent_reservations
  use std {OperationOutcome}
  Given
   export Resource {active:bool=true,location:Location,party_limit:int}
+  policy Resource read=public fields=active,location,party_limit
   export contract RoomRequest {source:text,revision:int=1,resource:text,customer:text,account:user,from:datetime,until:datetime,quantity:int,price:money?,terms:text?}
   export capability RoomsV1 version=1
    hold(value:RoomRequest) -> OperationOutcome

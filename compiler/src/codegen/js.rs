@@ -8238,16 +8238,30 @@ impl<'a> Emitter<'a> {
                 let Some(source_id) = &scalar.source_dependency_id else {
                     return self.throw_expr("Original stored scalar source is missing");
                 };
-                self.stdlib
-                    .insert("readScenarioReceiptStoredReference".into());
-                // Recursive lowering has already read the original reference
-                // once and awaited its source marker. Promote that same value
-                // before the one scalar getter and awaited marker below.
-                format!(
-                    "(await readScenarioReceiptStoredReference(c,{receiver},{},{}))",
-                    js_string(source_id),
-                    js_string(&scalar.id)
-                )
+                let nullable_source = self.receipt_capture.as_ref().is_some_and(|recipe| {
+                    recipe.plan.returns.iter().flat_map(|returned| &returned.dependencies)
+                        .any(|read| read.id == *source_id && read.type_id == format!("{}?", scalar.model))
+                });
+                if nullable_source {
+                    let IrExpr::Member { base: source_view, .. } = &base.expr else {
+                        return self.throw_expr("Original nullable reference source is missing");
+                    };
+                    self.stdlib.insert("readScenarioReceiptNullableStoredReference".into());
+                    let source_view = self.lower_expr(source_view);
+                    format!(
+                        "(await readScenarioReceiptNullableStoredReference(c,{source_view},{receiver},{},{}))",
+                        js_string(source_id), js_string(&scalar.id)
+                    )
+                } else {
+                    self.stdlib.insert("readScenarioReceiptStoredReference".into());
+                    // Recursive lowering has already read the original reference
+                    // once and awaited its source marker. Promote that same value
+                    // before the one scalar getter and awaited marker below.
+                    format!(
+                        "(await readScenarioReceiptStoredReference(c,{receiver},{},{}))",
+                        js_string(source_id), js_string(&scalar.id)
+                    )
+                }
             } else {
                 receiver
             };

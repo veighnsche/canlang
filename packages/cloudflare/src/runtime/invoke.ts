@@ -12035,9 +12035,15 @@ async function runScenarioExecution(
           return refuseRecordBinding('Nullable promotion requires its exact owning nullable reference and scalar declarations.');
         }
         const declaredSource = parseTypeId(declaration.valueType), actualSource = parseTypeId(source.type), scalarType = parseTypeId(leaf.type);
+        const leafModel=scalarType.base.kind==='nominal'?scalarType.base.path:undefined;
+        const referenceLeaf=leafModel!==undefined && scalarDeclaration.field.kind==='ref'
+          && scalarDeclaration.field.model===leafModel && scalarDeclaration.valueType===leaf.type
+          && canonicalScalar.valueType===leaf.type && scalarDeclaration.nullable===scalarType.nullable
+          && canonicalScalar.nullable===scalarType.nullable && loaded.models.some(model=>model.name===leafModel)
+          && loaded.refs.get(leaf.model)?.some(reference=>reference.field===leaf.field && reference.model===leafModel)===true;
         if (!declaredSource.nullable || declaredSource.array || declaredSource.requiredArray || declaredSource.base.kind !== 'nominal' ||
             declaredSource.base.path !== leaf.model || actualSource.base.kind !== 'nominal' || actualSource.base.path !== leaf.model ||
-            actualSource.array || actualSource.requiredArray || scalarType.array || scalarType.requiredArray || scalarType.base.kind === 'nominal') {
+            actualSource.array || actualSource.requiredArray || scalarType.array || scalarType.requiredArray || scalarType.base.kind === 'nominal' && !referenceLeaf) {
           return refuseRecordBinding('Nullable promotion requires its genuine singular model source and scalar leaf types.');
         }
         // This checks owning type/source correspondence only. State38 accepts
