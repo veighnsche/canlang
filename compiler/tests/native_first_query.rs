@@ -3060,8 +3060,17 @@ package checks
   let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
   assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"&&diagnostic.message.contains("source guard")),"{name}: {diagnostics:?}");
  }
- let pure=source.replace("derive allowed(root:Root):bool=any(root.intervals as interval,interval.from<now) and any(root.Child as child,child.allowed)","derive allowed(root:Root):bool=root.active");
- let (db,program,_,catalog)=fixture_source("ordinary-helper-guard.can",&pure);
- let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
- assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let (db,mut changed,_,catalog)=fixture_source("erased-original-helper-query.can",source);
+ let helper=changed.symbols.iter().find(|symbol|symbol.canonical=="checks.allowed").unwrap().id;
+ let root=changed.symbols.iter().find(|symbol|symbol.canonical=="checks.Root").unwrap().id;
+ let literal=changed.effects.models[&root].fields.iter().find_map(|field|field.default).unwrap();
+ changed.effects.derives.get_mut(&helper).unwrap().expr=Some(literal);
+ let (_,diagnostics)=prepared_artifact(&changed,&db,&catalog);
+ assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"&&diagnostic.message.contains("source guard")),"erased original helper: {diagnostics:?}");
+ for (name,body) in [("scalar","root.active"),("values-any","any(root.intervals as interval,interval.from<now)")] {
+  let pure=source.replace("any(root.intervals as interval,interval.from<now) and any(root.Child as child,child.allowed)",body);
+  let (db,program,_,catalog)=fixture_source(&format!("ordinary-helper-{name}.can"),&pure);
+  let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+  assert!(diagnostics.is_empty(),"{name}: {diagnostics:?}");
+ }
 }

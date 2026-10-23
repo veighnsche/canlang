@@ -1750,7 +1750,16 @@ fn source_only_schedules(ir:&IrProgram,owner:&IrItem,context:&super::scenario_de
 
 // Independently inspect original public guards when optional observer
 // preparation is unavailable. A missing inventory cannot erase a model scan.
-fn source_require_missing_original_guard(ir:&IrProgram,owner:&IrItem,sources:&HashMap<Span,serde_json::Value>)->bool {
+fn source_require_missing_original_guard(ir:&IrProgram,owner:&IrItem,sources:&HashMap<Span,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>)->bool {
+    if source_require_missing_guard_tree(ir,owner,sources){return true;}
+    let Some(context)=context else{return false;};
+    let original=context.fresh().items.get(owner.id.0 as usize).filter(|original|
+        original.id==owner.id&&original.canonical==owner.canonical&&original.module==owner.module&&original.span==owner.span);
+    let Some(original)=original else{return matches!(owner.kind,IrItemKind::Scenario{read:false,trusted:false,hook:None,event_source:None,cohort:None,..});};
+    source_require_missing_guard_tree(context.fresh(),original,sources)
+}
+
+fn source_require_missing_guard_tree(ir:&IrProgram,owner:&IrItem,sources:&HashMap<Span,serde_json::Value>)->bool {
     let IrItemKind::Scenario{guards,effects,read:false,trusted:false,hook:None,event_source:None,cohort:None,..}=&owner.kind else{return false;};
     fn domain(ir:&IrProgram,value:&TypedExpr,seen:&mut HashSet<SymbolId>,depth:usize)->bool {
         if depth>=64{return true;}
@@ -3363,9 +3372,9 @@ fn emit_program_with_sources(
                 // Public parameter-style source guards bind a decision-only
                 // State frame from this verified inventory. Private handlers
                 // still need their independently admitted retained frame.
-                && !source_require_only_body_supported(ir, item,&emitter.source_requires,&emitter.source_data_sends,&emitter.source_let_data,&emitter.source_cancels,&emitter.source_schedules,&emitter.source_data_emits,&emitter.source_body_loops,decisions.source_context)
-                && (emitter.source_requires.values().any(|source| source["owner"] == item.canonical)
-                    || source_require_missing_original_guard(ir,item,&emitter.source_requires))
+                && (source_require_missing_original_guard(ir,item,&emitter.source_requires,decisions.source_context)
+                    || !source_require_only_body_supported(ir, item,&emitter.source_requires,&emitter.source_data_sends,&emitter.source_let_data,&emitter.source_cancels,&emitter.source_schedules,&emitter.source_data_emits,&emitter.source_body_loops,decisions.source_context)
+                        && emitter.source_requires.values().any(|source| source["owner"] == item.canonical))
                 && !emitter.diags.iter().any(|diagnostic| diagnostic.primary == item.span
                     && diagnostic.severity == crate::diagnostic::Severity::Error)
             {
