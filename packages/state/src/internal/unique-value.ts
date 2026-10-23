@@ -56,12 +56,29 @@ export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>,
   }
   const ref = compositeFieldValue(row.data, group.fields[0], key, def.model),
     role = compositeFieldValue(row.data, group.fields[1], key, def.model);
+  if (group.kind === 'int-text') return intTextUniqueValue(ref, role, group, row, def);
   if (group.kind === 'leave-year-bucket') return leaveYearBucketUniqueValue(ref, role, row, def);
   if (group.kind === 'refer-settlement-payment-reference') {
     return referSettlementUniqueValue(ref, role, row, def);
   }
   if (group.kind === 'user-enum') return userEnumUniqueValue(ref, role, group, row, def);
   return refEnumUniqueValue(ref, role, group, row, def);
+}
+
+/** Exact ordered scalar slots, after the table owns both nonnullable codecs. */
+function intTextUniqueValue(integerWire: unknown, textWire: unknown,
+  group: Extract<UniqueGroupProfile, { kind: 'int-text' }>,
+  row: Pick<StoredRow, 'data' | 'parent'>, def: InterimModelDef): string {
+  let integer: bigint, text: string;
+  try {
+    integer = decodeValue('int', integerWire) as bigint;
+    text = decodeValue('text', textWire) as string;
+  } catch { return throwInvalidCompositeUnique(group.fields.join(','), def.model); }
+  if (typeof integer !== 'bigint' || typeof text !== 'string') {
+    return throwInvalidCompositeUnique(group.fields.join(','), def.model);
+  }
+  const parent = def.containment?.parent === undefined ? null : uniqueParentScope(row, def);
+  return JSON.stringify(['int-text', parent, integer.toString(), text]);
 }
 
 function leaveYearBucketUniqueValue(yearWire: unknown, bucketWire: unknown,

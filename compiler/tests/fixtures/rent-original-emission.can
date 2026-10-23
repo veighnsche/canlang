@@ -25,6 +25,9 @@ package rent_reservations
   contract ReportBooking {from:datetime,until:datetime,intervals:BookingInterval[],quantity:int,status:Booking.status,checked_in:datetime?,checked_out:datetime?,arrival_buffer:duration,departure_buffer:duration}
   BookingEvidence in Resource {sequence:int,key:text,value:ReportBooking?}
   policy Booking read=reception or billing
+  unique BookingEvidence fields=sequence,key
+  lock BookingEvidence fields=sequence,key,value
+  invariant BookingEvidence: any(row.parent.ResourcePolicy as capture,capture.sequence==row.sequence)
   policy BookingEvidence read=reception or billing
   event ReservationChanged {booking:Booking,revision:int}
   Resource {location:Location,active:bool=true,capacity:int,pooled:bool=false,timezone:timezone,readable:bool=true}

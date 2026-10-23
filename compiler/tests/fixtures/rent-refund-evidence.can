@@ -1,0 +1,118 @@
+app ConstructorCount uses=[rent_reservations]
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+  policy Location read=public
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]= []}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package customer
+ Given
+  export Customer {name:text}
+  policy Customer read=members
+ When
+ Then
+package invoice
+ use std {OperationOutcome}
+ Given
+  export capability BillingV1 version=1
+   refund(source:text,amount:money,reason:text) -> OperationOutcome
+ When
+ Then
+package member_terms
+ use std {OperationOutcome}
+ Given
+  export capability MembershipV1 version=1
+   release(source:text,customer:text,restore_consumed:bool=false) -> OperationOutcome
+ When
+ Then
+package rent_reservations
+ use customer {Customer}
+ use invoice {BillingV1 as Billing} from=deployment.billing
+ use member_terms {MembershipV1 as Membership} from=deployment.membership
+ use rent_catalog {Location}
+ use employee {can_work}
+ Given
+  role reservation_manager
+  role reception
+  role billing
+  contract BookingInterval {from:datetime,until:datetime}
+  Booking in Resource {from:datetime,until:datetime,intervals:BookingInterval[],quantity:int=1,status:enum(held,pending,confirmed,occupied,completed,cancelled,expired,review,no_show)=occupied,checked_in:datetime?,checked_out:datetime?,arrival_buffer:duration=0m,departure_buffer:duration=0m,source:text,reserved_until:datetime,overdue:bool=false,cancellation_reason:text?,customer:Customer,payment:enum(pending,paid)=paid,refund_before:datetime,refund_delivery:text?,allowance:enum(not_required,pending,reserved,consumed)=not_required,release_delivery:text?,allowance_source:text?,monetary_due:money?,total:money,refund_state:enum(pending,unknown,succeeded)=pending,refund_requested:money?}
+  contract ReportBooking {from:datetime,until:datetime,intervals:BookingInterval[],quantity:int,status:Booking.status,checked_in:datetime?,checked_out:datetime?,arrival_buffer:duration,departure_buffer:duration}
+  BookingEvidence in Resource {sequence:int,key:text,value:ReportBooking?}
+  policy Booking read=reception or billing
+  unique BookingEvidence fields=sequence,key
+  lock BookingEvidence fields=sequence,key,value
+  invariant BookingEvidence: any(row.parent.ResourcePolicy as capture,capture.sequence==row.sequence)
+  policy BookingEvidence read=reception or billing
+  event ReservationChanged {booking:Booking,revision:int}
+  Resource {location:Location,active:bool=true,capacity:int,pooled:bool=false,timezone:timezone,readable:bool=true}
+  Downtime in Resource {source:text unique,from:datetime,until:datetime?,reason:text,active:bool=true,verified_by:user?,verification:text?}
+  contract ResourceEvidence {active:bool,capacity:int,pooled:bool,timezone:timezone}
+  ResourcePolicy in Resource {effective:datetime server=now,sequence:int,baseline:bool=false,value:ResourceEvidence}
+  unique ResourcePolicy fields=sequence
+  lock ResourcePolicy fields=effective,sequence,baseline,value
+  policy Resource read=public where=row.readable
+  policy Downtime read=reservation_manager and can_work(actor,row.parent.location)
+  policy ResourcePolicy read=reservation_manager and can_work(actor,row.parent.location)
+  derive resource_evidence(resource:Resource):ResourceEvidence = ResourceEvidence {active=resource.active,capacity=resource.capacity,pooled=resource.pooled,timezone=resource.timezone}
+  derive report_booking(booking:Booking):ReportBooking = ReportBooking {from=booking.from,until=booking.until,intervals=booking.intervals,quantity=booking.quantity,status=booking.status,checked_in=booking.checked_in,checked_out=booking.checked_out,arrival_buffer=booking.arrival_buffer,departure_buffer=booking.departure_buffer}
+ When
+  scenario block(resource:Resource,from:datetime,until:datetime?,reason:text) by=reservation_manager
+   require can_work(actor,resource.location) and trim(reason)!="" and (until==null or from<until)
+   do
+    create Downtime {parent=resource,source=operation.id,from,until,reason} as downtime
+    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+  scenario restore(downtime:Downtime,evidence:text) by=reservation_manager label="Restore availability"@{nl="Beschikbaarheid herstellen"}
+   require can_work(actor,downtime.parent.location) and downtime.active and trim(evidence)!=""
+   do
+    set downtime {active=false,verified_by=actor,verification=evidence}
+    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+  export scenario no_show(booking:Booking,reason:text) by=reception label="Record no-show"@{nl="Niet verschijnen vastleggen"}
+   require can_work(actor,booking.parent.location) and booking.status==confirmed and booking.checked_in==null and booking.until<=now and trim(reason)!=""
+   do
+    set booking {status=Booking.status.no_show,cancellation_reason=reason}
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
+    emit ReservationChanged {booking,revision=booking.version+1}
+  export scenario depart(booking:Booking) by=reception label="Record departure"@{nl="Vertrek vastleggen"}
+   require can_work(actor,booking.parent.location) and booking.checked_in!=null and booking.checked_out==null
+   do
+    cancel format("{source}:occupancy",{source=booking.source})
+    set booking {status=completed,overdue=false,checked_out=now,reserved_until=max([booking.reserved_until,now+booking.departure_buffer])}
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
+    emit ReservationChanged {booking,revision=booking.version+1}
+  scenario alter_evidence(evidence:BookingEvidence,key:text) by=reservation_manager
+   require true
+   do set evidence {key}
+  scenario write_evidence(resource:Resource,sequence:int,key:text) by=reservation_manager
+   require can_work(actor,resource.location)
+   do create BookingEvidence {parent=resource,sequence,key} as evidence
+  scenario seed_occupancy(booking:Booking) by=reception
+   require booking.source!=""
+   do schedule format("{source}:occupancy",{source=booking.source}) at=now event=ReservationChanged {booking,revision=1}
+  scenario refund_review(booking:Booking,reason:text) by=billing label="Refund booking exception"@{nl="Reserveringsuitzondering terugbetalen"}
+   require can_work(actor,booking.parent.location) and booking.payment==paid and booking.status in [review,expired,cancelled] and booking.refund_delivery==null and trim(reason)!=""
+   do
+    let restore=booking.status==expired or now<booking.refund_before
+    set booking {status=cancelled,cancellation_reason=reason}
+    create ResourcePolicy {parent=booking.parent,sequence=count(booking.parent.ResourcePolicy)+1,value=resource_evidence(booking.parent)} as policy_snapshot_1
+    create BookingEvidence {parent=booking.parent,sequence=policy_snapshot_1.sequence,key=booking.id,value=report_booking(booking)} as booking_evidence_1
+    if booking.allowance!=not_required and booking.release_delivery==null
+     send Membership.release {source=booking.allowance_source ?? booking.source,customer=booking.customer.id,restore_consumed=restore} as release
+     set booking {release_delivery=release.id}
+    send Billing.refund {source=booking.source,amount=booking.monetary_due ?? booking.total,reason} as refund
+    set booking {refund_delivery=refund.id,refund_state=pending,refund_requested=booking.monetary_due ?? booking.total}
+    emit ReservationChanged {booking,revision=booking.version+1}
+  scenario observed on=ReservationChanged
+   require event.revision==event.booking.version
+   do set event.booking {overdue=false}
+ Then
