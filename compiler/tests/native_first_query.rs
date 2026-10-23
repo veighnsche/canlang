@@ -2855,3 +2855,10 @@ fn original_shift_request_retains_created_and_parent_source_ownership() {
   let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {diagnostics:?}");
  }
 }
+
+#[test]
+fn original_maintenance_block_keeps_nullable_parent_scalar_codec_and_data_authority() {
+    let (db, program, _, catalog) = fixture_source("maintain-parent-nullable-source.can", include_str!("fixtures/maintain-parent-nullable-source.can"));
+    let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+}

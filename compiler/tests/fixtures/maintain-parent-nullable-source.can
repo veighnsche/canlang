@@ -1,0 +1,45 @@
+app ParentNullable uses=[maintain]
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+  policy Location read=public
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package rent_reservations
+ use std {OperationOutcome}
+ Given
+  Booking {status:enum(held,pending,confirmed,occupied,completed,cancelled,expired,review,no_show)=held}
+  export contract AffectedBooking { reference:text,revision:int,from:datetime,until:datetime,quantity:int,status:Booking.status,conflict:text? } label="Affected reservation"@{nl="Getroffen reservering"}
+  export contract AffectedBookings { source:text,resource:text,revision:int,checked_at:datetime,items:AffectedBooking[] } label="Affected reservations snapshot"@{nl="Momentopname getroffen reserveringen"}
+  export capability RoomsV1 version=1
+   downtime(source:text,resource:text,from:datetime,until:datetime?) -> OperationOutcome
+ When
+ Then
+package maintain
+ use rent_catalog {Location}
+ use employee {can_work}
+ use rent_reservations {AffectedBookings,RoomsV1 as Rooms} from=deployment.rooms
+ Given
+  role maintenance_manager
+  role technician
+  Asset {location:Location,resource:text?,retired:bool=false,resource_readable:bool=true}
+  Repair in Asset {state:enum(open,assigned,in_progress,awaiting_verification,fixed)=open,block_resource:text?,block_source:text?,block_from:datetime?,block_until:datetime?,block_action:enum(downtime,restore)=downtime,block_revision:int=0,block_state:enum(none,pending,confirmed,failed,unknown,released)=none,delivery:text?,affected:AffectedBookings?,affected_state:enum(none,pending,fresh,failed,unknown)=none,affected_delivery:text?}
+  policy Asset read=authenticated where=not row.retired fields=location
+  policy Asset read=maintenance_manager or technician where=can_work(actor,row.location) fields=location,resource_readable
+  policy Asset read=maintenance_manager or technician where=can_work(actor,row.location) and row.resource_readable fields=resource
+  policy Repair read=maintenance_manager or technician where=can_work(actor,row.parent.location)
+ When
+  scenario block(repair:Repair,from:datetime label="Start"@{nl="Begin"},until:datetime? label="End"@{nl="Einde"}) by=maintenance_manager label="Record blocker"@{nl="Blokkade registreren"}
+   require can_work(actor,repair.parent.location) and repair.parent.resource!=null and repair.state!=fixed and repair.block_state in [none,released] and (until==null or from<until)
+   do
+    send Rooms.downtime {source=operation.id,resource=repair.parent.resource,from,until} as delivery
+    set repair {block_resource=repair.parent.resource,block_source=operation.id,block_from=from,block_until=until,block_action=downtime,block_revision=0,block_state=pending,delivery=delivery.id,affected=null,affected_state=none,affected_delivery=null}
+ Then

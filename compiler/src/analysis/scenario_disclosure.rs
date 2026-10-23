@@ -18554,8 +18554,7 @@ impl<'a> Closure<'a> {
         if !(parent_origin.is_some()
             && calls.is_empty()
             && self.loop_node.is_none()
-            && ((primitive_type(field_ty) || *field_ty == ResolvedType::Scalar(Scalar::Timezone))
-                || matches!(field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())))
+            && parent_scalar_field(field_ty))
         {
             return Ok(None);
         }
@@ -18782,8 +18781,7 @@ impl<'a> Closure<'a> {
                     || depth == 2
                         && ((calls.is_empty()
                             && self.loop_node.is_none()
-                            && ((primitive_type(field_ty) || *field_ty == ResolvedType::Scalar(Scalar::Timezone))
-                                || matches!(field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())))
+                            && parent_scalar_field(field_ty))
                             || self
                                 .checked_helper_reference_argument(key, module)
                                 .is_some()
@@ -18796,8 +18794,7 @@ impl<'a> Closure<'a> {
             _ => None,
         };
         if parent_origin.is_some()
-            && (!((primitive_type(field_ty) || *field_ty == ResolvedType::Scalar(Scalar::Timezone))
-                || matches!(field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+            && (!(parent_scalar_field(field_ty)
                 || self.reference_operand_type_id(field_ty).is_some())
                 || !self
                     .nodes
@@ -29114,6 +29111,14 @@ fn ordinary_file_array(ty: &ResolvedType) -> bool {
 /// native dispatch (row 10) must seal record email inputs such as a mail
 /// recipient. Other unlisted scalars keep failing closed; each needs its own
 /// probe before admission.
+// Nullable stored scalar leaves keep their declared codec and field DATA read.
+// This does not make nullable Model references or opaque values scalar leaves.
+fn parent_scalar_field(ty: &ResolvedType) -> bool {
+    let base = match ty { ResolvedType::Nullable(inner) => inner.as_ref(), ty => ty };
+    primitive_type(base) || *base == ResolvedType::Scalar(Scalar::Timezone)
+        || matches!(base, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+}
+
 fn primitive_type(ty: &ResolvedType) -> bool {
     matches!(
         ty,
