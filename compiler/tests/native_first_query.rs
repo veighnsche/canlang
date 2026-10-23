@@ -1830,7 +1830,7 @@ fn commercial_money_sums_preserve_nullable_history_guard_and_original_first() {
 fn original_book_and_reschedule_keep_required_reference_and_body_correspondence() {
     let source=include_str!("fixtures/book-original-source.can");
     let (db,program,original,catalog)=fixture_source("book-original-source.can",source);
-    for name in ["appointments.book","appointments.reschedule"] {
+    for name in ["appointments.book","appointments.reschedule","appointments.cancel","appointments.discard_reschedule","appointments.retry_cleanup"] {
         let owner=item(&original,name);
         assert!(matches!(&original.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{name}");
     }
@@ -1853,9 +1853,12 @@ fn original_book_and_reschedule_keep_required_reference_and_body_correspondence(
     assert_eq!(input["model"],"appointments.Appointment");
     assert_eq!(input["field"],"host");
     assert_ne!(input["sourceDependencyId"],input["leafDependencyId"]);
-    for mode in ["create-path","provider-default","effect-order","previous-predicate"] {
+    for mode in ["create-path","provider-default","effect-order","previous-predicate","loop-filter","loop-target","loop-bound","loop-condition"] {
         let mut changed=original.clone();
-        let name=if mode=="previous-predicate" {"appointments.reschedule"}else{"appointments.book"};
+        let name=if mode=="previous-predicate" {"appointments.reschedule"}
+            else if mode=="loop-condition" {"appointments.retry_cleanup"}
+            else if mode.starts_with("loop-") {"appointments.discard_reschedule"}
+            else{"appointments.book"};
         let owner=item(&changed,name).id;
         if mode=="provider-default" {
             let id=item(&changed,"shift.CommitmentRequest.before").id;
@@ -1863,7 +1866,26 @@ fn original_book_and_reschedule_keep_required_reference_and_body_correspondence(
             value.expr=IrExpr::DurationMs(1);
         }else{
             let IrItemKind::Scenario {effects,..}=&mut changed.items[owner.0 as usize].kind else {panic!("scenario");};
-            if mode=="effect-order" {effects.swap(2,3);}
+            if mode.starts_with("loop-") {
+                let IrStmt::For{domain,limit:Some(limit),body,..}=&mut effects[0] else{panic!("loop");};
+                match mode {
+                    "loop-bound"=>limit.expr=IrExpr::Int(99),
+                    "loop-filter"=>{
+                        let IrExpr::Query(query)=&mut domain.expr else{panic!("query");};
+                        query.where_pred.as_mut().unwrap().expr=IrExpr::Bool(true);
+                    },
+                    "loop-target"=>{
+                        let IrStmt::Set{record,..}=&mut body[0] else{panic!("set");};
+                        record.expr=IrExpr::Name("foreign".into());
+                    },
+                    _=>{
+                        let IrStmt::If{cond,..}=&mut body[0] else{panic!("condition");};
+                        let IrExpr::Unary{operand,..}=&mut cond.expr else{panic!("not");};
+                        let IrExpr::Member{field,..}=&mut operand.expr else{panic!("member");};
+                        *field="room_released".into();
+                    },
+                }
+            }else if mode=="effect-order" {effects.swap(2,3);}
             else if mode=="create-path" {
                 let IrStmt::Create {input,..}=&mut effects[0] else {panic!("create");};
                 let IrExpr::Object(entries)=&mut input.expr else {panic!("object");};

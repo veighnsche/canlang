@@ -27267,10 +27267,20 @@ impl<'a> Closure<'a> {
                     && scenario.effects.get(3).is_some_and(|created|
                         matches!(created.target,Some(EffectTarget::Model(model))
                             if self.check_updated_model_return(&scenario.effects,model,created))));
+                // A void mutation may update its admitted parent, cancel its
+                // Work key, and mutate a finite contained sibling collection.
+                // Native emission independently seals this whole original owner.
+                let void_owner = self.effects.scenarios.values().any(|scenario|
+                    scenario.module == module && !scenario.read && scenario.on.is_none()
+                    && scenario.result.is_none() && scenario.cohort.is_none()
+                    && scenario.effects.iter().any(|candidate|candidate.node == effect.node)
+                    && scenario.effects.iter().all(|candidate|matches!(candidate.verb,
+                        EffectVerb::Set | EffectVerb::Cancel | EffectVerb::For)));
+                let sealed_loop_owner = updated_owner || void_owner;
                 let mut assignments = Vec::new();
                 for child in &effect.then_effects {
                     if child.verb == EffectVerb::Set || emits && child.verb == EffectVerb::Emit { assignments.push((child, None)); }
-                    else if updated_owner && child.verb == EffectVerb::If && child.else_effects.is_empty() && child.match_arms.is_empty()
+                    else if sealed_loop_owner && child.verb == EffectVerb::If && child.else_effects.is_empty() && child.match_arms.is_empty()
                         && child.then_effects.len() == 1 && child.then_effects[0].verb == EffectVerb::Set
                         && child.then_effects[0].args.iter().all(|argument| {
                             let key = argument.value.unwrap_or(argument.key_node);
@@ -27317,7 +27327,7 @@ impl<'a> Closure<'a> {
                     let alias_only = query.projection.is_none() && matches!(query.clauses.as_slice(),[clause]
                         if matches!(&clause.kind,CheckedQueryClauseKind::As {name} if Some(name)==effect.item.as_ref()));
                     if !alias_only {
-                        if !updated_owner { return Err(self.fail(domain,"filtered domain needs its original finite update/create owner")); }
+                        if !sealed_loop_owner { return Err(self.fail(domain,"filtered domain needs its original finite mutation owner")); }
                         self.bounded_loop_filter(query).ok_or_else(|| self.fail(domain,"loop needs original item-only filter"))?;
                         domain = query.domain;
                     }

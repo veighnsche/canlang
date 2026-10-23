@@ -2174,7 +2174,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     let event_notice = if item.canonical == "events.attendee_notice" {Some(super::event_notice_audit::checked(source_context?,item,entry_module)?)} else {None};
     let updated_model_owner = source_context.is_some_and(|context| checked.source_facts.as_deref()
         .and_then(|facts| facts.creates.as_deref()).is_some_and(|creates| creates.len() == 1
-            && source_owned_updated_model_create(context, item, &creates[0]).is_some()));
+            && source_owned_updated_model_create(context, item, &creates[0]).is_some())
+        || source_owned_void_member_loops(context,item).is_some());
     let copy_loop=source_context.and_then(|context|source_owned_copy_loop(context,item));
     let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref(), event_notice.as_ref(), updated_model_owner,copy_loop.as_ref()) {
         Some(sites) => sites,
@@ -15101,7 +15102,8 @@ fn match_effect_proofs(
             ) => {
                 let sealed_owner = source_context.is_some_and(|context| checked.source_facts.as_deref()
                     .and_then(|facts| facts.creates.as_deref()).is_some_and(|creates| creates.len() == 1
-                        && source_owned_updated_model_create(context, owner, &creates[0]).is_some()));
+                        && source_owned_updated_model_create(context, owner, &creates[0]).is_some())
+                    || source_owned_void_member_loops(context,owner).is_some());
                 let parameter_item = ir.items.get(parameter.0 as usize)?;
                 let IrItemKind::Param {
                     owner: parameter_owner,
@@ -15819,6 +15821,35 @@ fn source_owned_after_call_create(context: &super::scenario_decisions::FreshSour
     if !std::ptr::eq(created, original) || facts.source_requires.as_deref()?.len() != 1 { return None; }
     let IrExpr::Object(entries) = &inputs.expr else { return None; };
     entries.iter().any(|(_, value)| checked_narrowed_call_reference(ir, owner, value, context.db()).is_some()).then_some(())
+}
+
+/// Original void parent mutations may retain the same bounded sibling-loop
+/// port as an updated-model result. This source seal grants no collection or
+/// field authority; each loop, effect and schema keeps its independent join.
+fn source_owned_void_member_loops(context: &super::scenario_decisions::FreshSourceContext<'_>, owner: &IrItem) -> Option<()> {
+    let ir=context.ir();
+    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    let IrItemKind::Scenario{result:None,trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,..}=&owner.kind else{return None;};
+    let mut loops=0;
+    for effect in effects {
+        match effect {
+            IrStmt::Set{when:None,..}|IrStmt::Cancel{..}=>{},
+            IrStmt::For{body,span,..}=>{
+                let ScenarioDisclosure::Complete(checked)=ir.scenario_disclosures.get(&owner.id)? else{return None;};
+                if !checked.effects.iter().any(|effect|node_span(effect.node)==*span
+                    && matches!(effect.kind,DisclosureEffectKind::ForMember{..})) {return None;}
+                loops+=1;
+                if body.is_empty() || !body.iter().all(|statement|match statement {
+                    IrStmt::Set{when:None,..}=>true,
+                    IrStmt::If{then_branch,else_branch,..}=>else_branch.is_empty()
+                        && matches!(then_branch.as_slice(),[IrStmt::Set{when:None,..}]),
+                    _=>false,
+                }) {return None;}
+            },
+            _=>return None,
+        }
+    }
+    (loops>0).then_some(())
 }
 
 /// A private constructor input is a once-only original DATA occurrence, never

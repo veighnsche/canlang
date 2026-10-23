@@ -117,4 +117,34 @@ package appointments
     if visit.room_snapshot!=null
      send Rooms.stage {value={source=attempt.source,resource=visit.room_snapshot,customer=visit.customer.id,account=visit.reservation_account,from,until=attempt.until,quantity=1,revision=1},previous_source=previous.source,previous_revision=previous.room_revision} as room_hold
      set attempt {room_delivery=room_hold.id}
+  export scenario cancel(appointment:Appointment,reason:text) by=authenticated or host_manager
+   require appointment.state in [pending,confirmed,unavailable] and trim(reason)!=""
+   require (appointment.contact.account==actor and appointment.contact.verified and (appointment.state==unavailable or now<appointment.from-appointment.parent.parent.cutoff)) or (host_manager and can_work(actor,appointment.parent.parent.location))
+   do
+    set appointment {state=cancelled,reason,reason_code=null}
+    cancel appointment.id
+    for attempt in appointment.Attempt as item where item.state in [pending,active] limit=100
+     set attempt {state=cancelled}
+  scenario discard_reschedule(visit:Appointment) by=authenticated or host_manager label="Discard reschedule"@{nl="Verplaatsing afbreken"}
+   require visit.state in [confirmed,unavailable]
+   require (visit.contact.account==actor and visit.contact.verified) or (host_manager and can_work(actor,visit.parent.parent.location))
+   do
+    for attempt in visit.Attempt as item where item.kind==movement and item.state==pending limit=100
+     set attempt {state=cancelled}
+  scenario retry_cleanup(appointment:Appointment) by=authenticated or host_manager label="Retry reservation cleanup"@{nl="Vrijgave opnieuw proberen"}
+   require (appointment.contact.account==actor and appointment.contact.verified) or (host_manager and can_work(actor,appointment.parent.parent.location))
+   do
+    for attempt in appointment.Attempt as item where item.state in [failed,cancelled,retired] limit=100
+     if not attempt.host_released
+      set attempt {host_release=null}
+     if not attempt.room_released
+      set attempt {room_release=null}
+  # Record an attendance outcome without altering a paid workspace reservation. @{nl="Leg aanwezigheid vast zonder een betaalde werkplekreservering te wijzigen."}
+  export scenario attendance(appointment:Appointment,attend:bool label=label_Appointment_state_attended,reason:text) by=host_manager label="Record attendance"@{nl="Aanwezigheid vastleggen"}
+   require can_work(actor,appointment.parent.parent.location) and appointment.state==confirmed and now>=appointment.from and trim(reason)!=""
+   do
+    if attend
+     set appointment {state=attended,reason,reason_code=null}
+    else
+     set appointment {state=no_show,reason,reason_code=null}
  Then

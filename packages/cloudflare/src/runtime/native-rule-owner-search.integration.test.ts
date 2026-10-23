@@ -1698,3 +1698,85 @@ it('intakes the original Purchase File against an exact hidden unique-key owner 
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('executes original cancellation and candidate cleanup over exact admitted sibling domains',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-book-cancel-'));
+    try{
+      const source=join(root,'compiler/tests/fixtures/book-original-source.can');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['cancel','discard','retry','empty','wrong-actor','unverified','stale-input','domain-race','contact-race','identity-race']){
+        const {now,identities,identity,user:actor,membership}=await member('book-cancel-'+mode);
+        const {store,probe}=createTestMemoryStorage();
+        const row=(model:string,id:string,data:Record<string,unknown>,parent:{model:ModelName;id:ReturnType<typeof asId>}|null=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+        const calendar={model:asModel('appointments.Calendar'),id:asId('calendar')},type={model:asModel('appointments.Type'),id:asId('type')},visit={model:asModel('appointments.Appointment'),id:asId('visit')};
+        const slot={customer:{id:'customer'},contact:{id:'contact'},from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T09:30:00.000Z',duration:'1800000',source:'original',active_source:'original',host:{id:actor.user_id},reservation_account:{id:actor.user_id},room_snapshot:'room-1',state:'confirmed',host_ok:true,room_ok:true,host_delivery:'original-host',room_delivery:'original-room',reason:null,reason_code:null};
+        const attempt=(id:string,state:string,kind='movement',parent=visit)=>row('appointments.Attempt',id,{source:id,kind,from:slot.from,until:slot.until,previous_source:'original',previous_host_revision:'1',previous_room_revision:'1',requested_by:{id:actor.user_id},state,host_ok:true,room_ok:true,host_unknown:false,room_unknown:false,host_revision:'3',room_revision:'5',host_delivery:'original-host',room_delivery:'original-room',room_confirmation:null,host_release:'host-release',room_release:'room-release',host_released:id==='retired',room_released:false},parent);
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          row('rent_catalog.Location','site',{active:true,timezone:'UTC'}),
+          row('employee.Employee','host',{user:{id:actor.user_id},active:true,operator_wide:false,home:{id:'site'},locations:[]}),
+          row('customer.Customer','customer',{active:true,locations:[{id:'site'}],name:'Customer'}),
+          row('customer.Contact','contact',{account:{id:mode==='wrong-actor'?'other-user':actor.user_id},verified:mode!=='unverified',email:'customer@example.test',name:'Contact'},{model:asModel('customer.Customer'),id:asId('customer')}),
+          row('appointments.Calendar','calendar',{location:{id:'site'},host:{id:'host'},timezone:'UTC',duration:'1800000',hours:'9-18',instructions:'Reception',cutoff:'3600000',active:true}),
+          row('appointments.Type','type',{name:'Tour',duration:'1800000',room:'room-1'},calendar),
+          row('appointments.Appointment','visit',slot,type),row('appointments.Appointment','other',{...slot,source:'other',active_source:'other'},type),
+          ...(mode==='empty'?[]:[attempt('active','active','initial'),attempt('candidate','pending'),attempt('pending-initial','pending','initial'),attempt('failed','failed'),attempt('retired','retired')]),
+          attempt('foreign','pending','movement',{model:asModel('appointments.Appointment'),id:asId('other')})
+        ]}));
+        let raced=false;
+        if(mode==='identity-race'){
+          const query=store.query.bind(store);
+          store.query=async spec=>{const rows=await query(spec);if(spec.model==='appointments.Attempt'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return rows;};
+        }
+        if(mode==='domain-race'||mode==='contact-race'){
+          const commit=store.commit.bind(store);
+          store.commit=async batch=>{
+            if(batch.writes.some(write=>write.model==='appointments.Attempt')){
+              raced=true;
+              if(mode==='domain-race'){
+                const id='late-'+String(await store.readRevision());
+                await commit(makeBatch(await store.readRevision(),{writes:[attempt(id,'pending')]}));
+              }else{
+                const current=await store.load(asModel('customer.Contact'),asId('contact'));assert.ok(current);
+                await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('customer.Contact'),id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,verified:false}}}]}));
+              }
+            }
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const operation=mode==='retry'?'appointments.retry_cleanup':mode==='cancel'?'appointments.cancel':'appointments.discard_reschedule';
+        const operation_id=operationId(now),reference={id:'visit',version:mode==='stale-input'?'0':'1'};
+        const inputs=mode==='cancel'?{appointment:reference,reason:'Changed plans'}:mode==='retry'?{appointment:reference}:{visit:reference};
+        const result=await invoker.invokeMutation({operation,operation_id,inputs},identity);
+        const success=['cancel','discard','retry','empty'].includes(mode);
+        assert.equal('result' in result,success,mode+': '+JSON.stringify(result));
+        if(['domain-race','contact-race','identity-race'].includes(mode))assert.equal(raced,true,mode);
+        const current=await store.load(asModel('appointments.Appointment'),asId('visit'));assert.ok(current);
+        assert.equal(current.data['state'],mode==='cancel'?'cancelled':'confirmed');
+        assert.equal(current.data['from'],slot.from);assert.equal(current.data['active_source'],'original');
+        assert.equal(current.version,mode==='cancel'?2:1);
+        const siblings=await store.query({model:asModel('appointments.Attempt'),authority:'owner'});
+        const byId=new Map(siblings.map(row=>[row.id,row]));
+        assert.equal(byId.get(asId('foreign'))?.data['state'],'pending');
+        if(mode!=='empty'){
+          assert.equal(byId.get(asId('active'))?.data['state'],mode==='cancel'?'cancelled':'active');
+          assert.equal(byId.get(asId('candidate'))?.data['state'],success&&mode!=='retry'?'cancelled':'pending');
+          assert.equal(byId.get(asId('pending-initial'))?.data['state'],mode==='cancel'?'cancelled':'pending');
+          assert.equal(byId.get(asId('failed'))?.data['state'],'failed');
+          assert.equal(byId.get(asId('retired'))?.data['state'],'retired');
+          if(mode==='retry'){
+            assert.equal(byId.get(asId('failed'))?.data['host_release'],null);
+            assert.equal(byId.get(asId('failed'))?.data['room_release'],null);
+            assert.equal(byId.get(asId('retired'))?.data['host_release'],'host-release');
+            assert.equal(byId.get(asId('retired'))?.data['room_release'],null);
+            assert.equal(byId.get(asId('candidate'))?.data['host_release'],'host-release');
+          }
+        }
+        assert.equal(probe.outboxAll().length,0);
+        if(success){const replay=await invoker.invokeMutation({operation,operation_id,inputs},identity);assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');}
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
