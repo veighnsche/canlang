@@ -2187,7 +2187,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     };
     if !sites.enum_values.is_empty() {
         let context=source_context?;
-        super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),item)?;
+        context.same_scenario(ir, item)?;
         for (id,cases) in &sites.enum_values {
             let actual=ir.items.get(id.0 as usize)?;
             let original=context.fresh().items.get(id.0 as usize)?;
