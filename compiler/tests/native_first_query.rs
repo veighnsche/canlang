@@ -2204,9 +2204,15 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
         body.expr=IrExpr::Bool(true);
         assert!(serialize_decision_sources(&program,&changed,&changed.items[receipt.id.0 as usize],&db,Some(&catalog)).is_none(),"{name}");
     }
-    for mode in ["projection","order","parent","helper-formal","nominal-kind"] {
+    for mode in ["projection","order","parent","helper-formal","nominal-kind","order-field-type","order-field-owner","order-field-module"] {
         let mut changed=ir.clone();
-        if mode=="nominal-kind"{
+        if mode.starts_with("order-field-"){
+            let id=item(&changed,"invoice.Line.position").id;
+            if mode=="order-field-module"{changed.items[id.0 as usize].module=item(&changed,"customer.Customer").module;}
+            else{let foreign=item(&changed,"invoice.Credit").id;
+                let IrItemKind::Field{ty,owner,..}=&mut changed.items[id.0 as usize].kind else{panic!("field");};
+                if mode=="order-field-type"{*ty=IrType::Known(ResolvedType::Scalar(Scalar::Text));}else{*owner=foreign;}}
+        }else if mode=="nominal-kind"{
             let id=item(&changed,"invoice.DocumentLine").id;
             let IrItemKind::Contract{fields,..}=&changed.items[id.0 as usize].kind else{panic!("contract");};
             changed.items[id.0 as usize].kind=IrItemKind::Event{fields:fields.clone()};

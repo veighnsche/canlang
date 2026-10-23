@@ -1848,6 +1848,39 @@ impl SemanticJoin<'_> {
         }
         Some(())
     }
+    /// Flat Model order terms have no typed Member expression to join.
+    /// Their defining field still determines comparison semantics, so seal
+    /// its original owner, declaration and type before consuming the term.
+    fn query_order_field(&mut self,query:&IrQuery,name:&str,depth:usize)->Option<()> {
+        let IrQueryDomain::Model(model)=&query.domain else{return Some(());};
+        self.budget(depth)?;
+        let expected=self.expected.items.iter().find(|item|item.canonical==*model)?;
+        let actual=self.actual.items.get(expected.id.0 as usize)?;
+        let (IrItemKind::Model{fields:a,owner:ao,..},IrItemKind::Model{fields:b,owner:bo,..})=(&actual.kind,&expected.kind)else{return None;};
+        if actual.id!=expected.id||actual.canonical!=expected.canonical||actual.name!=expected.name
+            ||actual.module!=expected.module||actual.span!=expected.span||a!=b||ao!=bo{return None;}
+        let (am,bm)=(self.actual.modules.get(actual.module.0 as usize)?,self.expected.modules.get(expected.module.0 as usize)?);
+        if am.id!=actual.module||am.id!=bm.id||am.name!=bm.name||am.kind!=bm.kind||am.file!=bm.file||am.span!=bm.span
+            ||expected.span.file!=bm.file{return None;}
+        // Originally synthetic metadata (for example id) has no mutable
+        // field declaration. Equal complete field inventories preserve that.
+        let Some(field)=b.iter().filter_map(|id|self.expected.items.get(id.0 as usize)).find(|field|field.name==name)else{return Some(());};
+        let current=self.actual.items.get(field.id.0 as usize)?;
+        if current.id!=field.id||current.canonical!=field.canonical||current.name!=field.name
+            ||current.module!=field.module||current.module!=actual.module||current.span!=field.span{return None;}
+        match (&current.kind,&field.kind) {
+            (IrItemKind::Field{owner:a,ty:at,..},IrItemKind::Field{owner:b,ty:bt,..})
+                if *a==actual.id&&a==b&&known_type_equal(at,bt)=>{},
+            (IrItemKind::DeriveField{model:a,ty:at,expr:Some(ae),..},
+             IrItemKind::DeriveField{model:b,ty:bt,expr:Some(be),..})
+                if *a==actual.id&&a==b&&known_type_equal(at,bt)=>{
+                    if self.stack.len()>=16||!self.stack.insert(field.id){return None;}
+                    self.expression(ae,be,depth+1)?;self.stack.remove(&field.id);
+                },
+            _=>return None,
+        }
+        Some(())
+    }
     fn query(
         &mut self,
         a: &IrQuery,
@@ -1871,6 +1904,7 @@ impl SemanticJoin<'_> {
             if x.field != y.field || x.descending != y.descending {
                 return None;
             }
+            self.query_order_field(b,&y.field,d+1)?;
         }
         self.query_ordering_ok(a, b, d)?;
         self.query_optional_parts(a, b, d)?;

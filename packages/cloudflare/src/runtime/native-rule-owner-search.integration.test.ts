@@ -2341,9 +2341,9 @@ it('projects the original Invoice document child arrays through ordinary field D
           issuer:'Original issuer',recipient:'Original recipient',address:'1 Road',tax_reference:null,terms:'Net 14',due:'2026-12-01',number:'INV-1',issued_at:new Date(now).toISOString(),hidden:false},
           {model:model('customer','Customer'),id:customer.id});
         const child={model:model('invoice','Invoice'),id:invoice.id};
-        const first=row('line-a',{description:'First',position:'1',quantity:'2',unit:'seat',service_from:null,service_until:null,service_location:null,service_reference:null,
+        const first=row('line-a',{description:'First',position:'10',quantity:'2',unit:'seat',service_from:null,service_until:null,service_location:null,service_reference:null,
           price:{minor:'1000',currency:'EUR'},tax:{minor:'100',currency:'EUR'},discount:{minor:'100',currency:'EUR'},tax_readable:mode!=='withheld-field',hidden:mode==='hidden-row'},child);
-        const second=row('line-b',{...first.data,description:'Second',position:'0',hidden:false},child);
+        const second=row('line-b',{...first.data,description:'Second',position:'2',hidden:false},child);
         await store.commit(makeBatch(await store.readRevision(),{writes:[
           {kind:'insert',model:model('rent_catalog','Location'),row:location},{kind:'insert',model:model('customer','Customer'),row:customer},
           {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:mode!=='worker-inactive',hidden:true})},
