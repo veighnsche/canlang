@@ -73,7 +73,7 @@ export interface PollRegionOptions {
   readonly context: PollContext;
   /** True once the principal is logged out (polling must terminate, never resume). */
   readonly isLoggedOut: () => boolean;
-  /** Deliver an admitted success body, or a current-context 403 with an empty body to withdraw stale controls. */
+  /** Deliver an admitted success body, or a current-context 403 to withdraw private content. */
   readonly onResponse: (body: string, status: number) => boolean | void;
   /** Optional stop notification (hidden/context/logout/owner/gone). */
   readonly onStop?: (reason: PollStopReason) => void;
@@ -213,6 +213,7 @@ export class PollRegion {
   }
 
   private noteFailure(prefix: string, error: unknown): void {
+    if (this.stopIfUnpaintable()) return;
     this.inflight = null;
     this.failures += 1;
     const messageText = error instanceof Error ? error.message : String(error);
@@ -286,9 +287,17 @@ export class PollRegion {
     if (this.stopIfUnpaintable()) {
       return;
     }
-    if (response.status < 200 || response.status >= 300) { this.stop("response-refused"); return; }
+    if (response.status < 200 || response.status >= 300) {
+      this.options.onError?.(`Poll response failed: HTTP ${response.status}`);
+      this.stop("response-refused");
+      return;
+    }
+    if (this.options.onResponse(body, response.status) === false) {
+      this.options.onError?.('Poll response refused: the response is not a current page partial.');
+      this.stop("response-refused");
+      return;
+    }
     this.failures = 0;
-    if (this.options.onResponse(body, response.status) === false) this.stop("response-refused");
   }
 
   private nextDelayMs(): number {

@@ -573,16 +573,41 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
   morphRestoreControl(current, next, tag, keepInput, keepForm, value, checked, selected);
 }
 
-/** Accept one same-context main partial; a settled form may adopt fresh request authority. */
-function withdrawPollRegion(document: DocumentLike, region: ElementLike): void {
-  // The admitted denial withdraws old actions; its body supplies no markup or
-  // authority. Removing forms also detaches pending submission callbacks.
+/** Mark a failed reread without replacing still-authorized content or drafts. */
+function markReadFailure(document: DocumentLike, region: ElementLike): void {
+  if (region.hasAttribute('data-can-read-denied')) return;
+  region.setAttribute('data-can-stale', 'true');
+  const id = region.getAttribute('id') ?? '';
   const root = region as unknown as DomNode;
-  closeManagedDialogsIn(root);
-  for (const control of root.querySelectorAll?.('form, input, button, select, textarea, [data-can-once], [hx-post], [hx-put], [hx-patch], [hx-delete]') ?? []) {
-    control.parentNode?.removeChild(control);
-  }
+  if ([...root.querySelectorAll?.('[data-stale-region]') ?? []].some(node =>
+    node.getAttribute?.('data-stale-region') === id)) return;
+  const marker = document.createElement?.('div') as (DomNode & { textContent: string | null }) | undefined;
+  if (marker === undefined) return;
+  marker.setAttribute?.('role', 'alert');
+  marker.setAttribute?.('class', 'badge badge-warning');
+  marker.setAttribute?.('data-stale-region', id);
+  marker.textContent = 'This page could not be refreshed. The displayed information may be out of date.';
+  root.insertBefore(marker, root.childNodes[0] ?? null);
+}
+
+/** An admitted denial must discard private values as well as their controls. */
+function withdrawPollRegion(document: DocumentLike, region: ElementLike): void {
+  // Set the barrier before cleanup: other pending reads from this context
+  // cannot restore a projection after its current admission was denied.
+  region.setAttribute('data-can-read-denied', 'true');
   region.removeAttribute('data-can-poll');
+  region.removeAttribute('data-can-stale');
+  const root = region as unknown as DomNode;
+  // A saved mount cleanup can fail; every private subtree must still detach.
+  releaseClientResources(Array.from(root.childNodes, child => () => {
+    try { releaseMountsIn(child); }
+    finally { root.removeChild(child); }
+  }));
+  const notice = document.createElement?.('p') as (DomNode & { textContent: string | null }) | undefined;
+  if (notice === undefined) return;
+  notice.setAttribute?.('role', 'alert');
+  notice.textContent = 'This page is no longer available.';
+  root.insertBefore(notice, null);
 }
 
 function checkPollBody(document: DocumentLike, region: ElementLike, body: string): DomNode | null {
@@ -599,14 +624,26 @@ function checkPollBody(document: DocumentLike, region: ElementLike, body: string
 
 /** Accept one same-context main partial; a settled form may adopt fresh request authority. */
 export function applyPollResponse(document: DocumentLike, region: ElementLike, body: string, status: number, settledForm?: ElementLike): boolean {
+  if (region.hasAttribute('data-can-read-denied')) return false;
   if (status === 403) {
     withdrawPollRegion(document, region);
     return false;
   }
-  if (status < 200 || status >= 300 || /<!doctype|<\/?(?:html|head|body)(?:\s|>)/i.test(body)) return false;
+  if (status < 200 || status >= 300 || /<!doctype|<\/?(?:html|head|body)(?:\s|>)/i.test(body)) {
+    markReadFailure(document, region);
+    return false;
+  }
   const incoming = checkPollBody(document, region, body);
-  if (incoming === null) return false;
-  morphNode(region as unknown as DomNode, incoming, document, false, settledForm);
+  if (incoming === null) { markReadFailure(document, region); return false; }
+  const root = region as unknown as DomNode;
+  // This client-owned sibling is not part of the server's child sequence.
+  // Remove it only after admitting a fresh partial, before positional morphing
+  // can mistake the shifted old content for replacement nodes and lose drafts.
+  const regionId = region.getAttribute('id') ?? '';
+  for (const child of Array.from(root.childNodes)) {
+    if (child.getAttribute?.('data-stale-region') === regionId) root.removeChild(child);
+  }
+  morphNode(root, incoming, document, false, settledForm);
   return true;
 }
 
@@ -641,6 +678,7 @@ function bindPollRegion(
       if (status === 403 || applied !== false) client.rescan();
       return applied;
     },
+    onError: () => markReadFailure(internals.document, region),
   });
   poller.start();
   return () => {
@@ -1687,6 +1725,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
     const context = client.contextKey();
     const current = () => !stopped && refresh === controller && !controller.signal.aborted &&
       region.isConnected && document.getElementById('can-main') === region && client.contextKey() === context &&
+      !region.hasAttribute('data-can-read-denied') &&
       document.body?.getAttribute('data-can-logged-out') !== 'true' && region.getAttribute('data-can-logged-out') !== 'true';
     // Existing poll reads must not paint a state captured before this commit.
     client.rescan(true);
@@ -1702,7 +1741,9 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
         client.rescan(true);
         if (applyPollResponse(document, region, body, response.status, form)) client.rescan();
         else if (response.status === 403) client.rescan(true);
-      } catch { /* A failed read cannot change the confirmed mutation or discard its draft. */ }
+      } catch {
+        if (current()) markReadFailure(document, region);
+      }
       finally { if (refresh === controller) refresh = null; }
     })();
   };

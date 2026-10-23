@@ -204,8 +204,8 @@ export async function pollTrigger(props: PollProps): Promise<string> {
 
 /**
  * Failed/stale read marker left on a region after a correctable reread
- * failure. The dispatcher inserts it (with its composed message) to mark the
- * stale region; role="alert" announces it to assistive tech.
+ * failure. The dispatcher or default browser reread recipient inserts this
+ * marker shape; role="alert" announces it to assistive tech.
  */
 export async function staleMarker(props: StaleMarkerProps): Promise<string> {
   assertRegionId(props.regionId);
