@@ -3176,6 +3176,22 @@ async function joinOwningUnconditionalUniques(
           models.filter(model => model.name === refModel).length === 1;
         const userIdentity = ref?.field.kind === 'user' && declaredRefType === 'user' &&
           firstType === 'user' && association.length === 0;
+        // An original ordered, required int/text pair is a finite Values key.
+        // Its owning module, artifact codecs and canonical field declarations
+        // must all agree; this changes no field/read or mutation authority.
+        const scalarFirstType = ref?.valueType ?? (ref?.field.kind === 'integer' ? 'int' : undefined);
+        const scalarPair = !conditional && fields.length === 2 && fields[0] !== fields[1] &&
+          fields.every(field => !field.includes(',') && !field.includes('.')) &&
+          owner !== '' && name.startsWith(`${owner}.`) &&
+          isUnknownRecord(packages) && readMetadataMember(packages, owner, where) !== undefined &&
+          sourceRef.length === 1 && sourceEnum.length === 1 && association.length === 0 &&
+          validField(ref, canonicalRef, scalarFirstType) && validField(role, canonicalEnum, roleValueType) &&
+          ref?.field.kind === 'integer' && role?.field.kind === 'string' &&
+          ref.serverOnly !== true && role.serverOnly !== true &&
+          scalarFirstType === 'int' && roleValueType === 'text' &&
+          declaredRefType === 'int' && declaredRoleType === 'text' &&
+          !groups.some(group => stableStringify(group) === stableStringify(fields));
+        if (scalarPair) { groups.push(Object.freeze([...fields])); continue; }
         // The original Leave allowance key is a nonnullable year plus its
         // literal-defaulted text bucket. The checked source, canonical model
         // and actual module unique declaration must all agree on this exact

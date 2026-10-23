@@ -3237,3 +3237,56 @@ it('sends the complete original Quote derived Contract with stored intervals and
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('executes the original refund review with counted evidence and conditional declared release atomically', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-rent-refund-evidence-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/rent-refund-evidence.can'),original=await readFile(join(root,'draft/apps/CanRent/CanRent.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  scenario refund_review('),end=original.indexOf('  # Mark a capacity conflict',start);assert.ok(text.includes(original.slice(start,end)));
+  const{stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','release','no-restore','fallback-total','withheld-data','role-during-send','source-at-commit']){
+   const{now,identities,identity,user,team,membership}=await member('rent-refund-'+mode,['rent_reservations.billing','rent_reservations.reservation_manager']);
+   const scope={app:'ConstructorCount',owner:team.team_id,ownerPackage:'rent_reservations'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'rent-state',fileStoreId:'rent-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const{store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+   await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const resource={model:asModel('rent_reservations.Resource'),id:asId('resource')},row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert'as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+   const release=mode==='release'||mode==='no-restore',amount={minor:mode==='fallback-total'?'300':'200',currency:'EUR'};
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    row('rent_catalog.Location','site',{active:true}),row('employee.Employee','worker',{user:{id:user.user_id},active:true,operator_wide:false,home:{id:'site'},locations:[]}),row('customer.Customer','customer',{name:'Test customer'}),
+    row('rent_reservations.Resource','resource',{location:{id:'site'},active:true,capacity:'7',pooled:false,timezone:'UTC',readable:mode!=='withheld-data'}),
+    row('rent_reservations.Booking','booking',{from:new Date(now-7200000).toISOString(),until:new Date(now-3600000).toISOString(),intervals:[],quantity:'1',status:'review',checked_in:null,checked_out:null,arrival_buffer:'0',departure_buffer:'0',source:'original',reserved_until:new Date(now-3600000).toISOString(),overdue:false,cancellation_reason:null,customer:{id:'customer'},payment:'paid',refund_before:new Date(now+(mode==='no-restore'?-1000:1000)).toISOString(),refund_delivery:null,allowance:release?'reserved':'not_required',release_delivery:null,allowance_source:'original-allowance',monetary_due:mode==='fallback-total'?null:{minor:'200',currency:'EUR'},total:{minor:'300',currency:'EUR'},refund_state:'pending',refund_requested:null},resource)
+   ]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(model,id)=>{if(mode==='role-during-send'&&model==='work.dispatch'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return load(model,id);};
+   store.commit=async batch=>{if(mode==='source-at-commit'&&!raced&&batch.writes.some(write=>write.model==='work.dispatch')){raced=true;const current=await load(asModel('rent_reservations.Booking'),asId('booking'));assert.ok(current);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('rent_reservations.Booking'),id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,source:'changed-original'}}}]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'rent_reservations.refund_review',operation_id:operationId(now),inputs:{booking:{id:'booking',version:'1'},reason:'Approved exception'}};
+   const outcome=await invoker.invokeMutation(request,identity),success=!['withheld-data','role-during-send','source-at-commit'].includes(mode);assert.equal('result'in outcome&&outcome.result.status==='committed',success,mode+': '+JSON.stringify(outcome));
+   const policies=await store.query({model:asModel('rent_reservations.ResourcePolicy'),authority:'owner'}),evidence=await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'}),events=await store.query({model:asModel('work.occurrence'),authority:'owner'}),pending=await store.outboxPending();
+   for(const rows of[policies,evidence,events])assert.equal(rows.length,success?1:0,mode);assert.equal(pending.length,success?(release?2:1):0,mode);
+   const booking=await load(asModel('rent_reservations.Booking'),asId('booking'));assert.ok(booking);assert.equal(booking.data.status,success?'cancelled':'review',mode);
+   if(mode==='role-during-send'||mode==='source-at-commit')assert.equal(raced,true,mode);
+   if(success){assert.deepEqual(booking.data.refund_requested,amount);const refund=pending.find(item=>item.target==='invoice.BillingV1.refund');assert.ok(refund);assert.equal(booking.data.refund_delivery,refund.intentId);
+    assert.deepEqual(refund.arguments,{binding:'rent_reservations.Billing',from:'deployment.billing',arguments:{source:'original',amount,reason:'Approved exception'}});
+    if(release){const released=pending.find(item=>item.target==='member_terms.MembershipV1.release');assert.ok(released);assert.equal(booking.data.release_delivery,released.intentId);assert.deepEqual(released.arguments,{binding:'rent_reservations.Membership',from:'deployment.membership',arguments:{source:'original-allowance',customer:'customer',restore_consumed:mode!=='no-restore'}});}
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),events);
+    if(mode==='allowed'){
+     const write=(resourceId:string,sequence:string,key:string)=>invoker.invokeMutation({operation:'rent_reservations.write_evidence',operation_id:operationId(now),inputs:{resource:{id:resourceId,version:'1'},sequence,key}},identity);
+     const before=await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'});
+     const duplicate=await write('resource','1','booking');assert.ok('error'in duplicate,'same parent + ordered int/text tuple must reject');assert.deepEqual(await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'}),before);
+     const different=await write('resource','1','booking,"second"');assert.ok('result'in different&&different.result.status==='committed',JSON.stringify(different));
+     const noPolicy=await write('resource','99','unmatched-policy');assert.ok('error'in noPolicy,'original relation invariant must reject even a unique tuple');
+     const rows=await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'}),second=rows.find(row=>row.data.key==='booking,"second"');assert.ok(second);
+     const locked=await invoker.invokeMutation({operation:'rent_reservations.alter_evidence',operation_id:operationId(now),inputs:{evidence:{id:second.id,version:String(second.version)},key:'different'}},identity);assert.ok('error'in locked,'original evidence key lock remains enforced');assert.deepEqual(await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'}),rows);
+     await store.commit(makeBatch(await store.readRevision(),{writes:[row('rent_reservations.Resource','other-resource',{location:{id:'site'},active:true,capacity:'7',pooled:false,timezone:'UTC',readable:true}),row('rent_reservations.ResourcePolicy','other-policy',{effective:new Date(now).toISOString(),sequence:'1',baseline:false,value:{active:true,capacity:'7',pooled:false,timezone:'UTC'}},{model:resource.model,id:asId('other-resource')})]}));
+     const other=await write('other-resource','1','booking');assert.ok('result'in other&&other.result.status==='committed','identical tuple under another actual parent must remain independent: '+JSON.stringify(other));
+     const malformed=await write('resource','01','malformed-int');assert.ok('error'in malformed,'owning integer codec rejects noncanonical tuple wire');
+     for(const fieldName of ['sequence','key']){
+      const altered=structuredClone(artifact),field=altered.models?.find(model=>model.name==='rent_reservations.BookingEvidence')?.fields.find(field=>field.name===fieldName);assert.ok(field);(field as {nullable:boolean}).nullable=true;
+      await assert.rejects(installNativeFileInventory({artifact:altered,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{}}),/artifact differs from assembled source/,'mutable nullable schema cannot borrow the original required tuple producer');
+     }
+    }
+   }
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
