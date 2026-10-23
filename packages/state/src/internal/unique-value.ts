@@ -43,6 +43,28 @@ export function canonicalUniqueFieldValue(value: unknown, key: string, model: st
     `Unique field ${JSON.stringify(key)} on model ${JSON.stringify(model)} must be a scalar value.`);
 }
 
+/** A declared singular reference claims entity identity, independent of version. */
+function canonicalReferenceFieldValue(value: unknown, key: string, model: string, target: string): string | null {
+  if (value === null || value === undefined) return null;
+  const invalid = (): never => { throw new StateError('validation',
+    `Unique field ${JSON.stringify(key)} on model ${JSON.stringify(model)} must be a canonical ${target} reference.`); };
+  if (typeof value !== 'object' || Array.isArray(value) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return invalid();
+  const keys = Reflect.ownKeys(value), wire: Record<string, unknown> = {};
+  if (!keys.includes('id') || keys.some(key => key !== 'id' && key !== 'version')) return invalid();
+  for (const name of keys) {
+    const slot = Object.getOwnPropertyDescriptor(value, name);
+    if (typeof name !== 'string' || slot === undefined || !slot.enumerable || !('value' in slot)) return invalid();
+    wire[name] = slot.value;
+  }
+  try {
+    const decoded = decodeValue(target, wire);
+    if (!isRecordRef(decoded) || decoded.model !== target || Object.hasOwn(wire, 'version') &&
+        (decoded.version === undefined || decoded.version < 1n || decoded.version.toString() !== wire.version)) return invalid();
+    return JSON.stringify(['ref', target, decoded.id]);
+  } catch { return invalid(); }
+}
+
 /** Conditions are table-checked local data predicates, never metadata paths. */
 export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>, key: string,
   def: InterimModelDef): string | null {
@@ -51,7 +73,15 @@ export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>,
   const group = getUniqueGroupProfile(def, key);
   if (group === undefined) {
     if (key.includes(',')) throw new StateError('validation', 'Composite unique lacks its checked table profile.');
-    const value = canonicalUniqueFieldValue(row.data[key], key, def.model, def.fields[key]);
+    const field = def.fields[key], reference = def.refs.find(reference => reference.field === key);
+    // Both the owning reference declaration and its exact singular Values
+    // codec are required. A nominal Contract or structural {id} field cannot
+    // borrow this identity key, and an array never becomes a singular claim.
+    const typedReference = reference !== undefined && field !== undefined && field.array === undefined &&
+      field.valueType === `${reference.model}${field.nullable === true ? '?' : ''}`;
+    const value = typedReference
+      ? canonicalReferenceFieldValue(row.data[key], key, def.model, reference.model)
+      : canonicalUniqueFieldValue(row.data[key], key, def.model, field);
     return canonicalUniqueScopeValue(row, value, def);
   }
   const ref = compositeFieldValue(row.data, group.fields[0], key, def.model),

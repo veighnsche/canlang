@@ -7550,6 +7550,14 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
     return changed ? Object.freeze(Object.fromEntries(entries)) : value;
   };
   for (const field of def?.descriptor.inputs ?? []) {
+    // Canonical nullable singular inputs without an authored default omit to
+    // null. This creates no admitted reference or version for the empty slot;
+    // explicit/computed defaults retain their original evaluation path.
+    if (field.kind === 'ref' && field.nullable === true && field.required === false &&
+        field.default === undefined && field.computedDefault !== true &&
+        !Object.hasOwn(def!.inputArrays, field.name) && !Object.hasOwn(parameters, field.name)) {
+      parameters[field.name] = null;
+    }
     if (field.kind === 'ref' && Object.hasOwn(def!.inputArrays, field.name)) {
       const wire = parameters[field.name];
       // State owns nullable/length/version admission. Hydrate precisely its

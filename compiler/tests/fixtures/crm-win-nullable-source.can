@@ -1,0 +1,114 @@
+app CanCRM uses=[crm]
+package rent_catalog
+ Given
+  export Location {active:bool=true,currency:currency="EUR"}
+  policy Location read=members
+ When
+ Then
+package customer
+ Given
+  export Customer {active:bool=true}
+  export Contact in Customer {name:text="Contact"}
+  policy Customer read=members
+  policy Contact read=members
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]= []}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package rent_reservations
+ use rent_catalog {Location}
+ use customer {Customer}
+ Given
+  Resource {location:Location}
+  export Booking in Resource {customer:Customer,status:enum(pending,confirmed,occupied,completed)=confirmed,readable:bool=true}
+  policy Resource read=members
+  policy Booking read=members where=row.readable
+ When
+ Then
+package member_terms
+ use rent_catalog {Location}
+ use customer {Customer}
+ Given
+  export Membership in Customer {active:bool=true}
+  export Term in Membership {locations:Location[],paid:bool=true,readable:bool=true}
+  policy Membership read=members
+  policy Term read=members where=row.readable
+ When
+ Then
+package appointments
+ use rent_catalog {Location}
+ use customer {Customer,Contact}
+ Given
+  Calendar {location:Location}
+  Type in Calendar {active:bool=true}
+  export Appointment in Type {customer:Customer,contact:Contact}
+  policy Calendar read=members
+  policy Type read=members
+  policy Appointment read=members
+ When
+ Then
+package propose
+ use customer {Customer,Contact}
+ use rent_catalog {Location}
+ Given
+  Proposal in Customer {recipient:Contact,location:Location}
+  export Revision in Proposal {active:bool=true}
+  policy Proposal read=members
+  policy Revision read=members
+ When
+ Then
+package crm
+ use customer {Customer,Contact}
+ use rent_catalog {Location}
+ use employee {can_work}
+ use rent_reservations {Booking}
+ use member_terms {Term}
+ use appointments {Appointment}
+ use propose {Revision}
+ Given
+  role salesperson
+  message label_Deal_stage = "Sales stage"@{nl="Verkoopfase"}
+  message label_Deal_outcome_reference = "Confirmed outcome reference"@{nl="Referentie bevestigde uitkomst"}
+  Deal { customer:Customer, contact:Contact, title:text trim min=1, location:Location, owner:user=actor label="Responsible person"@{nl="Verantwoordelijke"}, value:money label="Value"@{nl="Waarde"}, stage:enum(lead,qualified,proposal,won,lost)=lead label={text=label_Deal_stage,values={lead="Lead"@{nl="Lead"},qualified="Qualified"@{nl="Gekwalificeerd"},proposal="Proposal"@{nl="Offertefase"},won="Won"@{nl="Gewonnen"},lost="Lost"@{nl="Verloren"}}}, seats:int=1 min=1 label="Seats"@{nl="Plaatsen"}, desired_start:date? label="Desired start date"@{nl="Gewenste startdatum"}, duration:text? label="Desired duration"@{nl="Gewenste duur"}, workspace:text? label="Workspace needs"@{nl="Werkplekbehoefte"}, source:text? label="Source reference"@{nl="Bronreferentie"}, next_action:datetime? label="Next action time"@{nl="Tijd volgende actie"}, notes:text?, lost_reason:text? label="Loss reason"@{nl="Reden verloren kans"}, outcome_reference:text? label=label_Deal_outcome_reference }
+  Activity in Deal { kind:enum(call,email,note,tour,quote,sale) label={text="Kind"@{nl="Soort"},values={call="Call"@{nl="Telefoongesprek"},email="Email"@{nl="E-mail"},note="Note"@{nl="Notitie"},tour="Tour"@{nl="Rondleiding"},quote="Quote"@{nl="Offerte"},sale="Confirmed sale"@{nl="Bevestigde verkoop"}}}, body:text trim min=1, link:url? label="Reviewed source link"@{nl="Beoordeelde bronlink"}, appointment:Appointment? label="Tour appointment"@{nl="Rondleidingafspraak"}, revision:Revision? label="Quote revision"@{nl="Offerteversie"}, author:user server=actor label="Author"@{nl="Auteur"}, occurred:datetime server=now }
+  Sale { deal:Deal, booking:Booking? unique, term:Term? unique, recorded_by:user server=actor label="Recorded by"@{nl="Vastgelegd door"}, recorded_at:datetime server=now label="Recorded at"@{nl="Vastgelegd op"} }
+  policy Sale read=salesperson and can_work(actor,row.deal.location)
+  invariant Sale: (row.booking!=null and row.term==null) or (row.booking==null and row.term!=null)
+  lock Sale fields=deal,booking,term,recorded_by,recorded_at
+  policy Deal read=salesperson and can_work(actor,row.location)
+  policy Activity read=salesperson and can_work(actor,row.parent.location)
+  invariant Deal: row.contact.parent==row.customer and row.value.minor>=0 and row.value.currency==row.location.currency
+  invariant Activity: (row.appointment==null or (row.kind==tour and row.revision==null and row.appointment.customer==row.parent.customer and row.appointment.contact==row.parent.contact and row.appointment.parent.parent.location==row.parent.location)) and (row.revision==null or (row.kind==quote and row.appointment==null and row.revision.parent.parent==row.parent.customer and row.revision.parent.recipient==row.parent.contact and row.revision.parent.location==row.parent.location))
+  lock Activity fields=kind,body,link,appointment,revision,author,occurred
+ When
+  scenario win(deal:Deal,booking:Booking?,term:Term?) by=salesperson label="Record won opportunity"@{nl="Gewonnen kans vastleggen"}
+   require can_work(actor,deal.location) and deal.stage in [lead,qualified,proposal]
+   require (booking!=null and term==null) or (booking==null and term!=null)
+   do
+    if booking!=null
+     require booking.customer==deal.customer and booking.parent.location==deal.location and booking.status in [confirmed,occupied,completed]
+     require not any(Sale as sale,sale.booking==booking)
+     create Sale {deal,booking} as evidence
+     create Activity {parent=deal,kind=sale,body=booking.id} as activity
+     set deal {stage=won,outcome_reference=booking.id,next_action=null}
+    else
+     require term!=null and term.parent.parent==deal.customer and deal.location in term.locations and term.paid
+     require not any(Sale as sale,sale.term==term)
+     create Sale {deal,term} as evidence
+     create Activity {parent=deal,kind=sale,body=term.id} as activity
+     set deal {stage=won,outcome_reference=term.id,next_action=null}
+  scenario claim_sale(deal:Deal,booking:Booking?,term:Term?) by=salesperson
+   require can_work(actor,deal.location) and ((booking!=null and term==null) or (booking==null and term!=null))
+   do
+    if booking!=null
+     create Sale {deal,booking} as evidence
+    else
+     require term!=null
+     create Sale {deal,term} as evidence
+ Then

@@ -3018,3 +3018,22 @@ fn original_shift_descendant_control_keeps_its_exact_selected_loop_and_public_ro
   assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
  }
 }
+
+#[test]
+fn original_crm_win_admits_only_source_narrowed_nullable_reference_slots() {
+ let source=include_str!("fixtures/crm-win-nullable-source.can");
+ let(db,program,ir,catalog)=fixture_source("crm-win-nullable-source.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let operation=artifact["operations"].as_array().unwrap().iter().find(|operation|operation["name"]=="crm.win").unwrap();
+ for name in ["booking","term"]{let input=operation["inputs"]["fields"].as_array().unwrap().iter().find(|input|input["name"]==name).unwrap();assert_eq!(input["nullable"],true);assert_eq!(input["required"],false);assert!(input.get("default").is_none());assert_eq!(input["field"]["requireVersion"],true);}
+ let owner=item(&ir,"crm.win");assert!(matches!(&ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)));
+ for mode in ["branch-condition","key-input","key-field","nullable-declaration"]{
+  let mut changed=ir.clone();
+  if mode=="nullable-declaration"{let parameter=item(&changed,"crm.win.booking").id;let IrItemKind::Param{ty,..}=&mut changed.items[parameter.0 as usize].kind else{panic!("param")};*ty=IrType::Known(ResolvedType::Scalar(Scalar::Text));}
+  else{let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("owner")};let IrStmt::If{cond,then_branch,..}=&mut effects[0]else{panic!("branch")};if mode=="branch-condition"{cond.expr=IrExpr::Bool(true);}else{let IrStmt::Create{input,..}=&mut then_branch[2]else{panic!("create")};let IrExpr::Object(fields)=&mut input.expr else{panic!("fields")};let key=fields.iter_mut().find(|(name,_)|name=="booking").unwrap();if mode=="key-input"{key.1.expr=IrExpr::Name("term".into());}else{key.0="term".into();}}}
+  let emitted=js::emit_program_with_native_source_receipts(&changed,true,&db);assert!(emitted.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {:?}",emitted.diagnostics);
+ }
+ for (name,changed) in [("positive-any",source.replace("require not any(Sale as sale,sale.booking==booking)","require any(Sale as sale,sale.booking==booking)")),("different-key",source.replace("create Sale {deal,booking} as evidence","create Sale {deal,term} as evidence")),("non-unique",source.replace("booking:Booking? unique","booking:Booking?"))]{
+  let(db,program,_,catalog)=fixture_source(name,&changed);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+ }
+}

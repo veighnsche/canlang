@@ -3639,3 +3639,48 @@ it('recovers the original Shift commitment through its exact descendant Swap loo
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('records the complete original CRM win from one genuine nullable booking or term input', {timeout:240000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-crm-win-nullable-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/crm-win-nullable-source.can'),original=await readFile(join(root,'draft/apps/CanCRM/CanCRM.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  scenario win('),end=original.indexOf('   examples ',start);assert.ok(text.includes(original.slice(start,end)),'the full original XOR, source evidence, duplicate veto and both effect tails remain authored');
+  const{stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['booking','term','omitted-term','omitted-booking','both-null','both-omitted','both-present','foreign-model','no-version','stale-version','unpaid','hidden-booking','hidden-duplicate','duplicate-race','identity-race','source-race']){
+   const{now,identities,identity,user,team,membership}=await member('crm-win-'+mode,['crm.salesperson']);
+   const scope={app:'CanCRM',owner:team.team_id,ownerPackage:'crm'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'crm-state',fileStoreId:'crm-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const{store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+   await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert'as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+   const deal={customer:{id:'customer'},contact:{id:'contact'},title:'Original deal',location:{id:'site'},owner:{id:user.user_id},value:{minor:'300',currency:'EUR'},stage:'proposal',seats:'1',desired_start:null,duration:null,workspace:null,source:null,next_action:new Date(now+60000).toISOString(),notes:null,lost_reason:null,outcome_reference:null};
+   const prior={deal:{id:'foreign-deal'},booking:{id:'booking'},term:null,recorded_by:{id:user.user_id},recorded_at:new Date(now).toISOString()};
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    row('rent_catalog.Location','site',{active:true,currency:'EUR'}),row('rent_catalog.Location','other-site',{active:true,currency:'EUR'}),row('customer.Customer','customer',{active:true}),row('customer.Contact','contact',{name:'Contact'},{model:asModel('customer.Customer'),id:asId('customer')}),
+    row('employee.Employee','worker',{user:{id:user.user_id},active:true,operator_wide:false,home:{id:'site'},locations:[]}),
+    row('rent_reservations.Resource','resource',{location:{id:'site'}}),row('rent_reservations.Booking','booking',{customer:{id:'customer'},status:'confirmed',readable:mode!=='hidden-booking'},{model:asModel('rent_reservations.Resource'),id:asId('resource')}),
+    row('member_terms.Membership','membership',{active:true},{model:asModel('customer.Customer'),id:asId('customer')}),row('member_terms.Term','term',{locations:[{id:'site'}],paid:mode!=='unpaid',readable:true},{model:asModel('member_terms.Membership'),id:asId('membership')}),
+    row('crm.Deal','deal',deal),row('crm.Deal','foreign-deal',{...deal,location:{id:'other-site'}}),...(mode==='hidden-duplicate'?[row('crm.Sale','prior',prior)]:[])
+   ]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store),query=store.query.bind(store);let raced=false;
+   store.query=async spec=>{const rows=await query(spec);if(mode==='identity-race'&&spec.model==='crm.Sale'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return rows;};
+   store.commit=async batch=>{if(!raced&&['duplicate-race','source-race'].includes(mode)&&batch.writes.some(write=>write.kind==='insert'&&write.model==='crm.Sale')){raced=true;if(mode==='duplicate-race')await commit(makeBatch(await store.readRevision(),{writes:[row('crm.Sale','concurrent',prior)]}));else{const old=await load(asModel('rent_reservations.Booking'),asId('booking'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('rent_reservations.Booking'),id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,status:'pending'}}}]}));}}return commit(batch);};
+   const termBranch=['term','omitted-booking','unpaid'].includes(mode),inputs:Record<string,unknown>={deal:{id:'deal',version:'1'},booking:termBranch?null:{id:'booking',version:mode==='stale-version'?'2':'1'},term:termBranch?{id:'term',version:'1'}:null};
+   if(mode==='omitted-booking')delete inputs.booking;if(mode==='omitted-term')delete inputs.term;if(mode==='both-null')inputs.booking=null;if(mode==='both-omitted'){delete inputs.booking;delete inputs.term;}if(mode==='foreign-model')inputs.booking={id:'term',version:'1'};if(mode==='both-present')inputs.term={id:'term',version:'1'};if(mode==='no-version')inputs.booking={id:'booking'};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'crm.win',operation_id:operationId(now),inputs};
+   const result=await invoker.invokeMutation(request,identity),success=['booking','term','omitted-term','omitted-booking'].includes(mode);assert.equal('result'in result&&result.result.status==='committed',success,mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const sales=await query({model:asModel('crm.Sale'),authority:'owner'}),activities=await query({model:asModel('crm.Activity'),authority:'owner'}),updated=await load(asModel('crm.Deal'),asId('deal'));assert.ok(updated);assert.equal(updated.data.stage,success?'won':'proposal',mode);assert.equal(activities.length,success?1:0,mode);assert.equal(sales.length,success?1:['hidden-duplicate','duplicate-race'].includes(mode)?1:0,mode);
+   if(success){assert.deepEqual(sales[0]!.data.deal,{id:'deal'});assert.deepEqual(sales[0]!.data[termBranch?'term':'booking'],{id:termBranch?'term':'booking'});assert.equal(sales[0]!.data[termBranch?'booking':'term'],null);assert.equal(activities[0]!.data.kind,'sale');assert.equal(activities[0]!.data.body,termBranch?'term':'booking');assert.equal(updated.data.outcome_reference,termBranch?'term':'booking');assert.equal(updated.data.next_action,null);assert.deepEqual(activities[0]!.data.author,{id:user.user_id});assert.deepEqual(sales[0]!.data.recorded_by,{id:user.user_id});
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed',mode);assert.deepEqual(await query({model:asModel('crm.Sale'),authority:'owner'}),sales);assert.deepEqual(await query({model:asModel('crm.Activity'),authority:'owner'}),activities);
+    if(mode==='booking'){
+     const claim=(booking:unknown,term:unknown)=>invoker.invokeMutation({operation:'crm.claim_sale',operation_id:operationId(now),inputs:{deal:{id:'deal',version:'2'},booking,term}},identity);
+     const duplicate=await claim({id:'booking',version:'1'},null);assert.ok('error'in duplicate,'owning unique constraint refuses without a duplicate source guard');assert.deepEqual(await query({model:asModel('crm.Sale'),authority:'owner'}),sales);
+     const independent=await claim(null,{id:'term',version:'1'});assert.ok('result'in independent&&independent.result.status==='committed',JSON.stringify(independent));
+     const after=await query({model:asModel('crm.Sale'),authority:'owner'});assert.equal(after.length,2,'distinct nonnull keys can coexist with repeated null slots');
+     const second=await claim(null,{id:'term',version:'1'});assert.ok('error'in second,'the Term key also retains uniqueness');assert.deepEqual(await query({model:asModel('crm.Sale'),authority:'owner'}),after);
+    }
+
+   }
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

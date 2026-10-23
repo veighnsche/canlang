@@ -1969,11 +1969,9 @@ impl<'a> Closure<'a> {
         result
     }
 
-    /// The canonical input-default producer owns this admitted, frozen value.
-    /// This exception applies only to a checked Actor parameter default; body
-    /// context reads still pass through ordinary closure inspection and decline.
-    /// Presence here is the original admitted input slot, not a stored field
-    /// or a fabricated observation. Runtime input/hash/ref admission owns it.
+    /// The original nullable Model slot may be empty, with an implicit null
+    /// or an authored literal-null default. Only original checked non-null
+    /// occurrences gain navigation; runtime still admits each supplied ref.
     fn nullable_model_input(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -1998,18 +1996,17 @@ impl<'a> Closure<'a> {
         else {
             return None;
         };
-        let default = parameter.default?;
-        let node = self.nodes.get(&default)?;
+        let valid_default=parameter.default.is_none_or(|default|self.nodes.get(&default).is_some_and(|node|
+            default.file==scenario.node.file && node.kind==SyntaxKind::Literal
+                &&self.word(node)==Some("null")
+                &&self.types.node_types.get(&default)==Some(&ResolvedType::Null)));
         if owner != scenario.scenario
             || symbol.module != scenario.module
             || scenario.params.get(index)?.param != parameter.param
             || type_node != parameter.type_node
             || scenario.read
             || scenario.on.is_some()
-            || default.file != scenario.node.file
-            || node.kind != SyntaxKind::Literal
-            || self.word(node) != Some("null")
-            || self.types.node_types.get(&default) != Some(&ResolvedType::Null)
+            || !valid_default
             || !matches!(
                 self.resolve.symbols.get(model.0 as usize)?.kind,
                 SymbolKind::Model { .. }
@@ -14809,9 +14806,9 @@ impl<'a> Closure<'a> {
         }
     }
 
-    /// Only the original literal-null default of a nullable stored Model
-    /// formal may cross this observer. Values admission still resolves the
-    /// input and checks any supplied live reference before source execution.
+    /// A nullable Model formal with implicit null or a literal-null default
+    /// may cross this observer. Admission still checks any supplied reference;
+    /// null contributes neither a row nor a version witness.
     fn source_require_null_model_input(
         &self, scenario: &super::effects::ScenarioData,
         parameter: &super::effects::ParamData, index: usize,
@@ -14820,6 +14817,10 @@ impl<'a> Closure<'a> {
         let SymbolKind::Param{owner,index:declared,type_node}=&symbol.kind else{return false;};
         let Some(ResolvedType::Nullable(inner))=self.types.symbol_types.get(&parameter.param) else{return false;};
         let ResolvedType::Record{symbol:target,stored:true}=inner.as_ref() else{return false;};
+        if parameter.default.is_none(){
+            return *declared==index && !self.types.value_constraints.contains_key(&parameter.param)
+                && self.nullable_model_input(scenario,parameter)==Some(*target);
+        }
         let Some(default)=parameter.default else{return false;};
         let Some(literal)=self.nodes.get(&default) else{return false;};
         *owner==scenario.scenario && *declared==index && symbol.module==scenario.module && *type_node==parameter.type_node
@@ -15680,8 +15681,9 @@ impl<'a> Closure<'a> {
     }
 
     /// The authored pre-CREATE duplicate check may inspect one declared
-    /// unique Text key. This is the same owner-wide key that the ensuing
-    /// CREATE must claim, not a general global collection capability.
+    /// unique Text or original admitted Model identity key. The following
+    /// CREATE in that same lexical arm must claim this exact key; no sibling
+    /// arm or general global collection receives authority.
     fn source_require_unique_any(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -15697,16 +15699,25 @@ impl<'a> Closure<'a> {
         {
             return None;
         }
-        let guard = scenario
-            .guards
-            .iter()
-            .chain(scenario.effects.iter())
-            .find(|effect| {
-                if effect.verb != EffectVerb::Require {
-                    return false;
+        fn guard_tail<'b>(closure:&Closure<'_>,body:&'b [Effect],call:NodeKey,depth:usize)
+            ->Option<(&'b Effect,&'b [Effect])> {
+            if depth>=64{return None;}
+            for (index,effect) in body.iter().enumerate(){
+                if effect.verb==EffectVerb::Require && effect.cond.is_some_and(|condition|
+                    closure.source_require_negative_conjunct(condition,call,0)) {
+                    return Some((effect,&body[index+1..]));
                 }
-                effect.cond.is_some_and(|condition|self.source_require_negative_conjunct(condition,call.node,0))
-            })?;
+                if effect.verb==EffectVerb::If&&effect.match_arms.is_empty(){
+                    if let Some(found)=guard_tail(closure,&effect.then_effects,call,depth+1){return Some(found);}
+                    if let Some(found)=guard_tail(closure,&effect.else_effects,call,depth+1){return Some(found);}
+                }
+            }
+            None
+        }
+        let (guard,tail)=scenario.guards.iter().find(|effect|effect.verb==EffectVerb::Require
+            && effect.cond.is_some_and(|condition|self.source_require_negative_conjunct(condition,call.node,0)))
+            .map(|guard|(guard,scenario.effects.as_slice()))
+            .or_else(||guard_tail(self,&scenario.effects,call.node,0))?;
         let (left, right) = self.query_binary(predicate, "==")?;
         let field = self.query_member(left, alias.node, model)?;
         let declaration = self
@@ -15716,8 +15727,14 @@ impl<'a> Closure<'a> {
             .fields
             .iter()
             .find(|item| item.field == field)?;
-        if self.types.symbol_types.get(&field) != Some(&ResolvedType::Scalar(Scalar::Text))
-            || declaration.default.is_some()
+        let field_ty=self.types.symbol_types.get(&field)?;
+        let expected=match field_ty {
+            ResolvedType::Scalar(Scalar::Text)=>field_ty,
+            ResolvedType::Record{stored:true,..}=>field_ty,
+            ResolvedType::Nullable(inner) if matches!(inner.as_ref(),ResolvedType::Record{stored:true,..})=>inner.as_ref(),
+            _=>return None,
+        };
+        if declaration.default.is_some()
             || declaration.server.is_some()
             || !declaration
                 .modifiers
@@ -15729,7 +15746,8 @@ impl<'a> Closure<'a> {
         let input = |key: NodeKey| -> Option<(SymbolId, bool)> {
             let key = self.query_group(key)?;
             let (key, trimmed) = if let Some(call) = self.types.selected_calls.get(&key) {
-                if !matches!(&call.target,SelectedCallTarget::Builtin{id,overload:0} if id=="trim")
+                if *expected!=ResolvedType::Scalar(Scalar::Text)
+                    || !matches!(&call.target,SelectedCallTarget::Builtin{id,overload:0} if id=="trim")
                     || call.arguments.len() != 1
                     || call.slots.as_slice() != [Some(0)]
                 {
@@ -15742,19 +15760,18 @@ impl<'a> Closure<'a> {
             let Binding::Symbol(parameter) = self.query_binding(key)? else {
                 return None;
             };
-            (scenario
-                .params
-                .iter()
-                .any(|input| input.param == *parameter && input.default.is_none())
-                && self.types.symbol_types.get(parameter)
-                    == Some(&ResolvedType::Scalar(Scalar::Text)))
-            .then_some((*parameter, trimmed))
+            let parameter_data=scenario.params.iter().find(|input|input.param==*parameter)?;
+            let admitted=if let ResolvedType::Record{symbol:target,stored:true}=expected {
+                self.types.node_types.get(&key)==Some(expected) &&
+                    (parameter_data.default.is_none()&&self.types.symbol_types.get(parameter)==Some(expected)
+                        ||self.narrowed_model_input(key,scenario.module)==Some((*parameter,*target)))
+            }else{
+                parameter_data.default.is_none()&&self.types.symbol_types.get(parameter)==Some(expected)
+            };
+            admitted.then_some((*parameter,trimmed))
         };
         let value = input(right)?;
-        scenario
-            .effects
-            .iter()
-            .any(|effect| {
+        tail.iter().any(|effect| {
                 effect.node.file == guard.node.file
                     && effect.node.start >= guard.node.end
                     && effect.verb == EffectVerb::Create
