@@ -583,6 +583,8 @@ export interface UniqueRelease {
   readonly model: ModelName;
   readonly keyName: string;
   readonly keyValue: string;
+  /** Migration releases require this exact retained owner; ordinary releases omit it. */
+  readonly recordId?: RecordId;
 }
 
 /** Compiler-owned normalized text-to-bool field validation binding. */
@@ -848,6 +850,8 @@ export interface StoragePort {
   readInstalledSnapshot(owner: string): Promise<InstalledSnapshot | null>;
   /** S7: resumable migration progress, or null when the migration never staged. */
   readMigrationProgress(migrationId: string): Promise<MigrationProgress | null>;
+  /** Exact retained migration row, without materializing an unbounded staged page. */
+  readStagedRow(migrationId: string, model: ModelName, recordId: RecordId): Promise<StagedRow | null>;
   /**
    * S7: staged target rows for one migration in (model, record id) order,
    * bounded by `limit` after `cursor`. `limit` follows the schedulesDue rule
@@ -1588,8 +1592,11 @@ export interface WorkInventoryItem {
   readonly state: WorkItemState;
 }
 
-/** S7: resumable migration phase (maps to L7 UpgradeState; see migration/index). */
-export type MigrationPhase = 'staging' | 'staged' | 'publishing' | 'active' | 'failed';
+/** Resumable migration phase (maps to L7 UpgradeState; see migration/index).
+ * `publishing` is legacy interrupted state without a proven claim-release
+ * barrier; the engine refuses it for explicit reconciliation. New publication
+ * enters `publishing-rows` only after the durable release scan completes. */
+export type MigrationPhase = 'staging' | 'staged' | 'releasing-claims' | 'retaining-claims' | 'publishing-rows' | 'publishing' | 'active' | 'failed';
 
 /** S7: ordered scan position in (model, record id) space, or null at the start. */
 export interface StagedRowCursor {
@@ -1600,7 +1607,8 @@ export interface StagedRowCursor {
 /**
  * S7: resumable progress, stored under the fence and advanced atomically
  * with the chunk it describes. `stagedCursor` bounds staging scans;
- * `publishCursor` bounds publishing (both null at their phase start).
+ * `publishCursor` bounds the current release, publish or retained-claim scan.
+ * Each durable phase transition resets it; failure/retry preserves it.
  */
 export interface MigrationProgress {
   readonly migrationId: string;

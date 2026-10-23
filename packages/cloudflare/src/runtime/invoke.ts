@@ -2050,6 +2050,7 @@ export function withCanonicalCommitGuard(store: StoragePort, operation: string):
     historyFor: (model, recordId) => store.historyFor(model, recordId),
     readInstalledSnapshot: (owner) => store.readInstalledSnapshot(owner),
     readMigrationProgress: (migrationId) => store.readMigrationProgress(migrationId),
+    readStagedRow: (migrationId, model, recordId) => store.readStagedRow(migrationId, model, recordId),
     readStagedRows: (migrationId, cursor, limit) => store.readStagedRows(migrationId, cursor, limit),
     stageMigrationRows: (input) => store.stageMigrationRows(input),
     publishMigrationChunk: (input) => store.publishMigrationChunk(input),
@@ -6932,6 +6933,7 @@ export function withStagedOverlay(store: StoragePort, staged: StagedRowView): St
     historyFor: (model, recordId) => store.historyFor(model, recordId),
     readInstalledSnapshot: (owner) => store.readInstalledSnapshot(owner),
     readMigrationProgress: (migrationId) => store.readMigrationProgress(migrationId),
+    readStagedRow: (migrationId, model, recordId) => store.readStagedRow(migrationId, model, recordId),
     readStagedRows: (migrationId, cursor, limit) => store.readStagedRows(migrationId, cursor, limit),
     stageMigrationRows: (input) => store.stageMigrationRows(input),
     publishMigrationChunk: (input) => store.publishMigrationChunk(input),
@@ -8721,7 +8723,7 @@ async function loadLocalOwnerPolicyControl(input: {
               cohortIdentityPage: refuse, cohortLoad: refuse, cohortRowPage: refuse, cohortAnchorFact: refuse,
               readRevision: refuse, load: refuse, query: refuse, commit: refuse,
               readReceipt: refuse, outboxGet: refuse, outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
-              readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRows: refuse, stageMigrationRows: refuse,
+              readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRow: refuse, readStagedRows: refuse, stageMigrationRows: refuse,
               publishMigrationChunk: refuse, flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse,
               recordMigrationFailure: refuse, discardStagedRows: refuse, readMigrationFailure: refuse });
             const fields = (data: unknown): Record<string, unknown> => Object.fromEntries(Object.keys(localPolicyObject(data)).map(name => {
@@ -9099,7 +9101,7 @@ async function loadLocalOwnerPolicyControl(input: {
             cohortIdentityPage: refuse, cohortLoad: refuse, cohortRowPage: refuse, cohortAnchorFact: refuse,
             readRevision: refuse, load: refuse, query: refuse, commit: refuse,
             readReceipt: refuse, outboxGet: refuse, outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
-            readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRows: refuse, stageMigrationRows: refuse,
+            readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRow: refuse, readStagedRows: refuse, stageMigrationRows: refuse,
             publishMigrationChunk: refuse, flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse,
             recordMigrationFailure: refuse, discardStagedRows: refuse, readMigrationFailure: refuse });
           try {
@@ -19163,7 +19165,7 @@ async function runReadScenarioSeam(
     readRevision: () => opts.store.readRevision(),
     load: refuse, query: refuse, commit: refuse, readReceipt: refuse,
     outboxPending: refuse, outboxGet: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
-    readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRows: refuse,
+    readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRow: refuse, readStagedRows: refuse,
     stageMigrationRows: refuse, publishMigrationChunk: refuse, flipInstalledSnapshot: refuse,
     readMigrationOutcomes: refuse, recordMigrationFailure: refuse, discardStagedRows: refuse,
     readMigrationFailure: refuse,
@@ -21339,6 +21341,7 @@ export function withDispatchJoinPort(store: StoragePort, port: DispatchJoinPort)
     historyFor: (model, recordId) => store.historyFor(model, recordId),
     readInstalledSnapshot: (owner) => store.readInstalledSnapshot(owner),
     readMigrationProgress: (migrationId) => store.readMigrationProgress(migrationId),
+    readStagedRow: (migrationId, model, recordId) => store.readStagedRow(migrationId, model, recordId),
     readStagedRows: (migrationId, cursor, limit) => store.readStagedRows(migrationId, cursor, limit),
     stageMigrationRows: (input) => store.stageMigrationRows(input),
     publishMigrationChunk: (input) => store.publishMigrationChunk(input),

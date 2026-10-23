@@ -229,7 +229,7 @@ async function checkStagedHead(
       'Migration is failed; an operator decision is required before retry.',
     );
   }
-  if (progress.phase === 'publishing' || progress.phase === 'active') {
+  if (progress.phase === 'releasing-claims' || progress.phase === 'retaining-claims' || progress.phase === 'publishing-rows' || progress.phase === 'publishing' || progress.phase === 'active') {
     throw new StateError(
       'validation',
       `Migration is already ${progress.phase}; staged validation is closed.`,

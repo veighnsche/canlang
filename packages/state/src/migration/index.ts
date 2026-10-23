@@ -5,12 +5,12 @@
  * `UpgradeState` type, the engine owns `MigrationPhase`):
  * - engine `staging`    -> L7 `staging`   (bounded chunks in flight)
  * - engine `staged`      -> L7 `staged`    (validated, awaiting activation)
- * - engine `publishing`  -> L7 `activating` (publish chunks + flip in flight)
+ * - engine `releasing-claims` / `retaining-claims` / `publishing-rows` -> L7 `activating` (publish chunks + flip in flight)
  * - engine `active`      -> L7 `active`    (flip committed)
  * - engine `failed`      -> L7 `staging-failed` when the failure happened
- *   before the flip, `activation-failed` when it happened during publish
- *   or flip. The engine never writes `failed` itself (see below), so L7
- *   derives which leg failed from the call that threw: staging/validate
+ *   during staging, `activation-failed` when it happened during claim release/publish
+ *   or flip. The orchestrators record unexpected failures (see below); L7
+ *   derives which leg failed from that record or the throwing call: staging/validate
  *   legs map to `staging-failed`, publish/flip legs to
  *   `activation-failed`.
  *
@@ -364,6 +364,9 @@ export async function resumeMigration(
       return resumeStagingPhase(store, plan, input);
     case 'staged':
       return resumeStagedPhase(store, plan, input);
+    case 'releasing-claims':
+    case 'retaining-claims':
+    case 'publishing-rows':
     case 'publishing':
       return resumePublishingPhase(store, plan, input, fileDeclarations);
     case 'active':

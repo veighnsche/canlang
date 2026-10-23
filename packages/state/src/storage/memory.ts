@@ -902,6 +902,11 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
       return found === null ? null : jsonCopy(found);
     },
 
+    async readStagedRow(migrationId: string, model: ModelName, recordId: RecordId): Promise<StagedRow | null> {
+      const found = state.staging.get(migrationId)?.get(recordKey(model as string, recordId as string));
+      return found === undefined ? null : jsonCopy(found);
+    },
+
     async readStagedRows(
       migrationId: string,
       cursor: StagedRowCursor | null,
@@ -973,6 +978,10 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
       // commit, so a model rename moves keys between models atomically.
       const claims = new Map(state.uniqueClaims);
       for (const release of input.uniqueReleases ?? []) {
+        if (release.recordId !== undefined && state.uniqueClaims.get(
+          claimKey(release.model as string, release.keyName, release.keyValue)) !== release.recordId) {
+          throw new StorageConstraintError('unique', 'unique_claims migration release owner differs or is missing');
+        }
         claims.delete(claimKey(release.model as string, release.keyName, release.keyValue));
       }
       for (const claim of input.uniqueClaims ?? []) {

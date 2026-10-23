@@ -84,7 +84,7 @@ function unavailableGlobalStore(): StoragePort {
     readRevision: refuse, load: refuse, query: refuse, commit: refuse,
     readReceipt: refuse, outboxPending: refuse, outboxGet: refuse, scheduleGet: refuse, schedulesDue: refuse,
     historyFor: refuse, readInstalledSnapshot: refuse, readMigrationProgress: refuse,
-    readStagedRows: refuse, stageMigrationRows: refuse, publishMigrationChunk: refuse,
+    readStagedRow: refuse, readStagedRows: refuse, stageMigrationRows: refuse, publishMigrationChunk: refuse,
     flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse, recordMigrationFailure: refuse, discardStagedRows: refuse,
     readMigrationFailure: refuse });
 }

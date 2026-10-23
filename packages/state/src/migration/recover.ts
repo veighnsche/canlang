@@ -226,6 +226,9 @@ export async function abortMigration(
         `Migration ${JSON.stringify(migrationId)} is already active; ` +
           `abort is refused past the flip (no destructive rollback).`,
       );
+    case 'releasing-claims':
+    case 'retaining-claims':
+    case 'publishing-rows':
     case 'publishing':
       throw new StateError(
         'validation',
@@ -272,6 +275,9 @@ export async function retryFailedMigration(
   if (
     failure.priorPhase !== 'staging' &&
     failure.priorPhase !== 'staged' &&
+    failure.priorPhase !== 'releasing-claims' &&
+    failure.priorPhase !== 'retaining-claims' &&
+    failure.priorPhase !== 'publishing-rows' &&
     failure.priorPhase !== 'publishing'
   ) {
     throw new StateError(

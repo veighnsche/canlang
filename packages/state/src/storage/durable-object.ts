@@ -688,8 +688,10 @@ function planPublishClaims(statements: PlannedStatement[], input: PublishMigrati
   // commit, so a model rename moves keys between models atomically.
   for (const release of input.uniqueReleases ?? []) {
     statements.push({
-      sql: 'DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?',
-      bindings: [release.model as string, release.keyName, release.keyValue],
+      sql: 'DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?' +
+        (release.recordId === undefined ? '' : ' AND record_id = ?'),
+      bindings: [release.model as string, release.keyName, release.keyValue,
+        ...(release.recordId === undefined ? [] : [release.recordId as string])],
     });
   }
   for (const claim of input.uniqueClaims ?? []) {
@@ -1155,6 +1157,13 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
       return row === null ? null : toMigrationProgress(row);
     },
 
+    async readStagedRow(migrationId: string, model: ModelName, recordId: RecordId): Promise<StagedRow | null> {
+      assertBinding();
+      const row = storage.sql.exec<StagingRow>(`SELECT ${STAGING_COLUMNS} FROM migration_staging WHERE migration_id = ? AND target_model = ? AND record_id = ?`,
+        migrationId, model as string, recordId as string).toArray()[0];
+      return row === undefined ? null : toStagedRow(row);
+    },
+
     async readStagedRows(
       migrationId: string,
       cursor: StagedRowCursor | null,
@@ -1204,6 +1213,15 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
       // dispose drops, upsert progress — atomically. Live rows are pre-read
       // for metadata carry-over, synchronously with zero awaits.
       checkMigrationExpected(storage, input.expectedRevision);
+      for (const release of input.uniqueReleases ?? []) {
+        if (release.recordId === undefined) continue;
+        const found = storage.sql.exec<{ record_id: string }>(
+          'SELECT record_id FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?',
+          release.model as string, release.keyName, release.keyValue).toArray()[0];
+        if (found?.record_id !== release.recordId) {
+          throw new StorageConstraintError('unique', 'unique_claims migration release owner differs or is missing');
+        }
+      }
       const next = (input.expectedRevision as number) + 1;
       const at = Date.now();
       const existing = new Map<string, RecordRow | null>();

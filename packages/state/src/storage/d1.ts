@@ -629,11 +629,13 @@ function publishClaimStatements(db: D1Database, statements: unknown[], input: Pu
   for (const release of input.uniqueReleases ?? []) {
     statements.push(
       db
-        .prepare('DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?')
+        .prepare('DELETE FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?' +
+          (release.recordId === undefined ? '' : ' AND record_id = ?'))
         .bind(
           release.model as string,
           release.keyName,
           release.keyValue,
+          ...(release.recordId === undefined ? [] : [release.recordId as string]),
         ),
     );
   }
@@ -982,6 +984,12 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
       return row === null ? null : toMigrationProgress(row);
     },
 
+    async readStagedRow(migrationId: string, model: ModelName, recordId: RecordId): Promise<StagedRow | null> {
+      const row = await db.prepare(`SELECT ${STAGING_COLUMNS} FROM migration_staging WHERE migration_id = ? AND target_model = ? AND record_id = ?`)
+        .bind(migrationId, model as string, recordId as string).first<StagingRow>();
+      return row === null ? null : toStagedRow(row);
+    },
+
     async readStagedRows(
       migrationId: string,
       cursor: StagedRowCursor | null,
@@ -1073,6 +1081,15 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
       // checkWriteVersions: a concurrent commit aborts our fence INSERT).
       await checkMigrationExpected(db, input.expectedRevision);
       if (guard.state.authority !== null) requireFileRevision(input.expectedRevision, guard.revision);
+      // The same revision fence protects these ownership reads and the batch.
+      for (const release of input.uniqueReleases ?? []) {
+        if (release.recordId === undefined) continue;
+        const found = await db.prepare('SELECT record_id FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?')
+          .bind(release.model as string, release.keyName, release.keyValue).first<{ record_id: string }>();
+        if (found?.record_id !== release.recordId) {
+          throw new StorageConstraintError('unique', 'unique_claims migration release owner differs or is missing');
+        }
+      }
       const next = (input.expectedRevision as number) + 1;
       const at = Date.now();
       const existing = new Map<string, RecordRow | null>();
