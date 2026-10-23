@@ -2186,7 +2186,18 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
     assert!(serialize_decision_sources(&program,&ir,receipt,&db,Some(&catalog)).is_some());
     let guarded=artifact["modules"].as_array().unwrap().iter().map(|module|
         module["js"].as_str().unwrap().matches("check(await nativeScenarioRequire(c,").count()).sum::<usize>();
-    assert_eq!(guarded,3,"both original receipt headers need the actual source observer, alongside document");
+    assert_eq!(guarded,8,"receipt and correlated allowance guards need their actual source observers");
+    for (name,index) in [("refund_allowance",1),("external_refund_allowance",2)] {
+        let mut changed=ir.clone();let owner=item(&changed,&format!("invoice.{name}")).id;
+        let IrItemKind::Scenario{guards,..}=&mut changed.items[owner.0 as usize].kind else{panic!("scenario");};
+        let IrStmt::Require{cond,..}=&mut guards[index] else{panic!("guard");};
+        let IrExpr::Binary{right,..}=&mut cond.expr else{panic!("comparison");};
+        let IrExpr::Binary{right,..}=&mut right.expr else{panic!("subtract");};
+        let args=match &mut right.expr{IrExpr::Call{args,..}|IrExpr::BoundCall{args,..}=>args,_=>panic!("SUM")};
+        let IrExpr::Query(query)=&mut args[0].expr else{panic!("query");};
+        query.parent.as_mut().unwrap().expr=IrExpr::Name("payment".into());
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.0 as usize],&db,Some(&catalog)).is_none(),"{name}");
+    }
     for name in ["settled","balance","received","collection_pending","refund_pending"] {
         let mut changed=ir.clone();let field=item(&changed,&format!("invoice.Invoice.{name}")).id;
         let IrItemKind::DeriveField{expr:Some(body),..}=&mut changed.items[field.0 as usize].kind else{panic!("derive");};
@@ -2222,6 +2233,8 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
     let (db,program,_,catalog)=fixture_source("renamed-model-formal.can",&source.replace(helper,&renamed));
     let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
     for(name,changed)in[
+        ("global-leading-sum",source.replace("sum(invoice.Attempt as old where", "sum(Attempt as old where")),
+        ("ordered-leading-sum",source.replace("old.status==succeeded select old.amount,invoice.currency)","old.status==succeeded order=old.reference select old.amount,invoice.currency)")),
         ("global-derived-any",source.replace("any(row.Attempt as attempt,attempt.kind==collection", "any(Attempt as attempt,attempt.kind==collection")),
         ("foreign-derived-predicate",source.replace("attempt.kind==collection and attempt.status in", "attempt.parent.state==issued and attempt.status in")),
         ("global-domain",source.replace("invoice.Line as line order", "Line as line order")),

@@ -69,10 +69,10 @@ package invoice
   role finance
   export Invoice in Customer {location:Location,source:text,currency:currency,state:enum(draft,issued,void_pending,void)=draft,total:money,issuer:text,recipient:text,address:text,tax_reference:text?,terms:text?,due:date,number:text?,issued_at:datetime?,hidden:bool=false}
   Line in Invoice {description:text,position:int=0,quantity:decimal=1,unit:text?,service_from:datetime?,service_until:datetime?,service_location:text?,service_reference:text?,price:money,tax:money,discount:money,tax_readable:bool=true,hidden:bool=false}
-  Attempt in Invoice {reference:text unique,amount:money,kind:enum(collection,refund),status:PaymentState.status=pending,received:datetime?,hidden:bool=false}
+  Attempt in Invoice {reference:text unique,amount:money,kind:enum(collection,refund),payment:text?,status:PaymentState.status=pending,received:datetime?,hidden:bool=false}
   Credit in Invoice {amount:money,reason:text,hidden:bool=false}
   ExternalPayment in Invoice {reference:text unique,amount:money,received:datetime,hidden:bool=false}
-  ExternalRefund in Invoice {reference:text unique,amount:money,received:datetime,hidden:bool=false}
+  ExternalRefund in Invoice {payment:ExternalPayment,reference:text unique,amount:money,received:datetime,hidden:bool=false}
   Document in Invoice {revision:int,kind:enum(invoice,receipt)=invoice,file:file}
   DocumentRequest in Invoice {revision:int,kind:Document.kind=invoice,status:enum(pending,succeeded,failed,unknown)=pending,error:text?,delivery:text unique}
   derive issued_snapshot(invoice:Invoice,number:text,issued_at:datetime):InvoiceDocument = InvoiceDocument {issuer=invoice.issuer,recipient=invoice.recipient,address=invoice.address,tax_reference=invoice.tax_reference,number,issued_at,due=invoice.due,currency=invoice.currency,lines=invoice.Line as line order=line.position select DocumentLine {title=line.description,quantity=line.quantity,price=line.price,tax=line.tax,discount=line.discount,unit=line.unit,from=line.service_from,until=line.service_until,location=line.service_location,reference=line.service_reference},credits=invoice.Credit as credit select DocumentCredit {amount=credit.amount,reason=credit.reason},payments=(invoice.Attempt as payment select DocumentPayment {reference=payment.reference,amount=payment.amount,kind=payment.kind,state=format("{status}",{status=payment.status}),received=payment.received})+(invoice.ExternalPayment as payment select DocumentPayment {reference=payment.reference,amount=payment.amount,kind=collection,state="succeeded",received=payment.received})+(invoice.ExternalRefund as evidence select DocumentPayment {reference=evidence.reference,amount=evidence.amount,kind=refund,state="succeeded",received=evidence.received}),terms=invoice.terms,total=invoice.total}
@@ -103,4 +103,14 @@ package invoice
    do
     send Documents.receipt {source=invoice.id,revision=invoice.version,snapshot=issued_snapshot(invoice,invoice.number,invoice.issued_at)} as delivery
     create DocumentRequest {parent=invoice,revision=invoice.version,kind=receipt,delivery=delivery.id} as request
+  scenario refund_allowance(invoice:Invoice,payment:Attempt label=label_Attempt,amount:money,reason:text) by=finance label="Refund payment"@{nl="Betaling terugbetalen"}
+   require can_work(actor,invoice.location) and payment.parent==invoice and payment.kind==collection and payment.status==succeeded and amount<=invoice.refund_due and amount.minor>0 and trim(reason)!=""
+   require amount<=payment.amount-sum(invoice.Attempt as old where old.kind==refund and old.payment==payment.reference and old.status==succeeded select old.amount,invoice.currency)
+   require not any(invoice.Attempt as attempt,attempt.status in [pending,unknown])
+   do set invoice {terms=reason}
+  scenario external_refund_allowance(invoice:Invoice,payment:ExternalPayment,amount:money,reference:text,received:datetime,evidence:text,reason:text) by=finance label="Record external refund"@{nl="Externe terugbetaling registreren"}
+   require can_work(actor,invoice.location) and payment.parent==invoice and invoice.state==issued and amount<=invoice.refund_due and amount.minor>0
+   require trim(reference)!="" and received<=now and trim(evidence)!="" and trim(reason)!=""
+   require amount<=payment.amount-sum(invoice.ExternalRefund as old where old.payment==payment select old.amount,invoice.currency)
+   do set invoice {terms=reason}
  Then
