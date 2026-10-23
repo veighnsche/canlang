@@ -151,6 +151,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "scenario-receipt-frame.js",
   "assembly-verification.js",
   "invoke.js",
+  "invocation-errors.js",
   "resource-dispatch.js",
   "file-inventory.js",
   "d1-file-inventory.js",
@@ -568,6 +569,12 @@ const TEST_ONLY_VENDOR_KEYS: ReadonlySet<string> = new Set([
   // vendor walk, resolved by the rewrite map above).
 ]);
 
+/** Wasm bootstrap and glue enter only through the explicit Values asset selection. */
+const OPT_IN_VALUES_VENDOR_KEYS: ReadonlySet<string> = new Set([
+  "vendor/values/bindings/bootstrap.js",
+  "vendor/values/bindings/generated/values_semantics.js",
+]);
+
 /** Native Node comparison is a production host leaf, never a Worker module. */
 const NODE_HOST_VENDOR_KEYS: ReadonlySet<string> = new Set([
   "vendor/identity/sessions/comparison-node.js",
@@ -900,6 +907,7 @@ function readVendorTree(tree: VendorTree): Record<string, string> {
       const vendorKey = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
       if (TEST_ONLY_VENDOR_KEYS.has(vendorKey)) continue;
       if (NODE_HOST_VENDOR_KEYS.has(vendorKey)) continue;
+      if (OPT_IN_VALUES_VENDOR_KEYS.has(vendorKey)) continue;
       const key = `${tree.prefix}/${relative(base, full).split(sep).join("/")}`;
       modules[key] = rewriteVendorImports(readFileSync(full, "utf8"), key);
     }

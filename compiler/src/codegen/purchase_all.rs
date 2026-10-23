@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 use crate::analysis::{ ResolvedType, Scalar, SymbolKind};
 use crate::source::Span;
 use super::ir::{IrExpr, IrItem, IrItemKind, IrStmt};
-use super::scenario_decisions::FreshSourceContext;
+use super::source_context::FreshSourceContext;
 use super::scenario_receipts::transport_source;
 use super::term_decisions as t;
 

@@ -1,5 +1,6 @@
 pub mod app;
 pub mod artifact;
+mod browser_test;
 pub mod capture;
 pub mod claim;
 pub mod cli;
@@ -17,7 +18,6 @@ pub mod owner;
 pub mod policy;
 pub mod presentation;
 pub mod preview;
-mod browser_test;
 pub mod refusals;
 pub mod runtime;
 pub mod sdk;

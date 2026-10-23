@@ -3,7 +3,7 @@
 use serde_json::{Value,json};
 use crate::analysis::{ResolvedType,Scalar};
 use super::ir::{IrItem,IrItemKind,IrStmt,IrExpr};
-use super::scenario_decisions::FreshSourceContext;
+use super::source_context::FreshSourceContext;
 use super::scenario_receipts::transport_source;
 use super::term_decisions as t;
 

@@ -16,7 +16,7 @@ use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar};
 use crate::source::{SourceDb, sha256_hex};
 
 use super::ir::{IrGuard, IrItem, IrItemKind, IrStmt};
-use super::scenario_decisions::FreshSourceContext;
+use super::source_context::FreshSourceContext;
 use super::scenario_receipts::{
     NativeReturn, NativeScenarioReceipt, NativeSite, ReceiptDisclosurePlan, ReceiptReturn,
     transport_source,

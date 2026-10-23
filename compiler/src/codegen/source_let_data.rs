@@ -4,7 +4,7 @@ use crate::analysis::{ResolvedType,SymbolId};
 use crate::source::Span;
 use std::collections::{BTreeMap,HashMap};
 
-pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
+pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,
     requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<HashMap<Span,serde_json::Value>>{
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
@@ -36,7 +36,7 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decis
             _=>{},
         }}false
     }
-    fn scalar_loan(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,roots:&BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,value:&TypedExpr,span:Span,stage:usize,name:&str)->Option<serde_json::Value>{
+    fn scalar_loan(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,roots:&BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,value:&TypedExpr,span:Span,stage:usize,name:&str)->Option<serde_json::Value>{
         fn receiver(ir:&IrProgram,value:&TypedExpr,roots:&BTreeMap<String,SymbolId>,depth:usize)->Option<(String,SymbolId,Vec<SymbolId>)>{
             if depth>=16{return None;}
             match &value.expr{
@@ -90,7 +90,7 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decis
     // Constructor field DATA is observed exactly where the original field
     // expression executes. Unknown branch/loop write counts never guess a
     // stage, and File/derived fields cannot enter the field loan.
-    fn constructors(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,body:&[IrStmt],roots:&mut BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,mut stage:usize,loans:&mut HashMap<Span,serde_json::Value>)->Option<usize>{
+    fn constructors(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,body:&[IrStmt],roots:&mut BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,mut stage:usize,loans:&mut HashMap<Span,serde_json::Value>)->Option<usize>{
         for statement in body{match statement{
             IrStmt::Create{input,binding,..}=>{
                 if let IrExpr::Object(fields)=&input.expr{for(name,value)in fields{

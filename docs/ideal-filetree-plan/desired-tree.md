@@ -1,3 +1,5 @@
-# Project structure
+# Current desired structure
 
-The [current responsibility guide](finished-product/target-tree.md) replaces the historical leaf-by-leaf file allocation. [Ownership](finished-product/ownership.md) explains boundaries, and [remaining work](../implementation/REMAINING-WORK.md) describes functional gaps. Private filenames are implementation choices.
+The complete selected leaf tree is [proposed-tree.md](proposed-tree.md), reconciled with the [source inventory](catalogue/inventory.md), [mixed-duty allocations](decomposition/index.md), [ownership](package-ownership.md) and [tasks](tasks.md).
+
+The older [responsibility guide](finished-product/target-tree.md) is a conceptual overview. It does not replace exact current paths or imply a live root apps/ directory. The initialized independent draft remains the actual authored corpus owner. No code is moved by this plan.

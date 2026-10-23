@@ -46,7 +46,7 @@ fn closure(ir: &IrProgram) -> String {
 }
 
 pub(super) fn prepare<'a>(
-    context: &'a super::scenario_decisions::FreshSourceContext<'_>,
+    context: &'a super::source_context::FreshSourceContext<'_>,
 ) -> Option<PreparedPaymentsChangedEvents<'a>> {
     let program = context.program();
     let ir = context.ir();

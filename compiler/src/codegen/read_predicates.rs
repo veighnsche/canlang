@@ -30,7 +30,7 @@ impl PreparedReadPredicates {
     /// outside these exact roots and therefore keeps the ordinary lowering.
     pub(super) fn private_only_derives(
         &self,
-        context: &super::scenario_decisions::FreshSourceContext<'_>,
+        context: &super::source_context::FreshSourceContext<'_>,
         owner_handlers: &HashSet<crate::analysis::resolve::SymbolId>,
     ) -> Option<HashSet<String>> {
         use crate::analysis::types::SelectedCallTarget;
@@ -158,7 +158,7 @@ fn same_source_inventories(actual: &IrProgram, fresh: &IrProgram, db: &SourceDb)
 }
 
 fn checked_context(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
 ) -> Option<()> {
     let program = context.program();
     let ir = context.ir();
@@ -198,7 +198,7 @@ fn checked_context(
 /// and the complete retained IR still keep their seals. Unrelated diagnostics
 /// remain and still prevent installing the whole artifact.
 pub(super) fn prepare_requires_with_context(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
 ) -> Option<PreparedReadPredicates> {
     checked_context(context)?;
     let (source_requires, boolean_derives) = source_require_inventory(context)?;
@@ -259,7 +259,7 @@ fn clause_topology_mismatch(
 }
 
 fn resolve_lambda_query(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     original: &CheckedProgram,
     page_node: &SyntaxNode,
     seal_steps: &mut usize,
@@ -325,7 +325,7 @@ fn resolve_lambda_query(
 }
 
 fn seal_ui_predicate(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     original: &CheckedProgram,
     page_node: &SyntaxNode,
     seal_steps: &mut usize,
@@ -353,7 +353,7 @@ fn seal_ui_predicate(
 }
 
 fn seal_page_predicates(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     seal_steps: &mut usize,
     source: &Source,
     module: &IrModule,
@@ -397,7 +397,7 @@ fn seal_page_predicates(
 }
 
 fn seal_module_predicates(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     seal_steps: &mut usize,
     module: &IrModule,
     predicates: &mut HashMap<Span, serde_json::Value>,
@@ -419,7 +419,7 @@ fn seal_module_predicates(
 }
 
 fn collect_boolean_predicates(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     predicates: &mut HashMap<Span, serde_json::Value>,
 ) -> Option<(
     HashMap<Span, serde_json::Value>,
@@ -468,7 +468,7 @@ fn reads_required_reference(value: &TypedExpr, depth: usize) -> bool {
 }
 
 fn collect_boolean_rules(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     ir: &IrProgram,
 ) -> Option<(HashSet<String>, HashSet<String>)> {
     let mut boolean_derives = HashSet::new();
@@ -487,7 +487,7 @@ fn collect_boolean_rules(
 }
 
 pub(super) fn prepare_with_context(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
 ) -> Option<PreparedReadPredicates> {
     checked_context(context)?;
     let ir = context.ir();
@@ -514,7 +514,7 @@ pub(super) fn prepare_with_context(
 }
 
 fn source_require_inventory(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
 ) -> Option<(HashMap<Span, serde_json::Value>, HashSet<String>)> {
     let mut boolean_derives = HashSet::new();
     let mut source_requires = HashMap::new();

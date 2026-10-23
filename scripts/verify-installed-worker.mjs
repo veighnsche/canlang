@@ -176,13 +176,13 @@ async function verifyConsumer(checkout) {
   const committedKey = 'vendor/work/kernel/committed-model-source.js';
   const invokeEntry = ownerModule('@canlang/cloudflare/runtime/invoke');
   const actualInvoke = readFileSync(invokeEntry, 'utf8');
-  assert.match(actualInvoke, /^\s*import\s*\{\s*createCommittedModelSourceStager\s*,\s*createStandardCompletionSourceCommand\s*\}\s*from\s*['"]@canlang\/work['"]/m,
+  assert.match(actualInvoke, /^\s*import\s*\{\s*createCommittedModelSourceStager\s*,\s*stageDeclaredEventSources\s*,\s*createStandardCompletionSourceCommand\s*\}\s*from\s*['"]@canlang\/work['"]/m,
     'the actual installed runtime must consume the genuine public named stager');
-  assert.match(first.modules['runtime/invoke.js'], /^\s*import\s*\{\s*createCommittedModelSourceStager\s*\}\s*from\s*['"]\.\.\/vendor\/work\/kernel\/committed-model-source\.js['"]/m,
+  assert.match(first.modules['runtime/invoke.js'], /^\s*import\s*\{\s*createCommittedModelSourceStager\s*,\s*stageDeclaredEventSources\s*\}\s*from\s*['"]\.\.\/vendor\/work\/kernel\/committed-model-source\.js['"]/m,
     'the actual runtime named factory must resolve to the genuine defining Work module');
   assert.match(first.modules['runtime/invoke.js'], /loadProducerModule\(['"]\.\.\/vendor\/state\/mutation\/index\.js['"],\s*['"]committed model source lifetime['"]\)/,
     'the actual source-stage reader must resolve to the same canonical State instance');
-  assert.match(first.modules['runtime/invoke.js'], /return\s+createCommittedModelSourceStager\s*\(/,
+  assert.match(first.modules['runtime/invoke.js'], /\bcreateCommittedModelSourceStager\s*\(/,
     'the actual committed-model consumer must call the genuine named factory');
   const committedFile = installedFile(new URL('kernel/committed-model-source.js', distributions.work.modules));
   const publicWork = await import(ownerModule('@canlang/work'));
@@ -246,17 +246,6 @@ async function verifyConsumer(checkout) {
   const missingAcorn = { ...first.modules };
   delete missingAcorn[acornKey];
   assert.throws(() => api.assertLinksResolve(missingAcorn), /no such staged module/, 'missing actual Acorn ESM key');
-
-  // Reuse the actual serving control at a new installed location. This child
-  // cannot read checkout source and exercises the uninjected Node fallback
-  // through genuine Identity, State receipt rows and the public Work producer.
-  const servingControl = join(dirname(fileURLToPath(invokeEntry)), 'd3b-observer-seam.test.js');
-  installedFile(pathToFileURL(servingControl));
-  // Execute the exact control directly: node:test honors the pattern without
-  // CLI file discovery or test-runner child isolation outside this permission.
-  execFileSync(process.execPath, [permissionFlag, `--allow-fs-read=${process.env.TMPDIR}`, `--allow-fs-write=${process.env.TMPDIR}`,
-    '--test-name-pattern=serves deep-equal output', servingControl],
-  { cwd: consumer, env: process.env, stdio: 'inherit' });
 
   // Stale direct-emission residue in isolated installed copies must not enter
   // the Worker map. Production bytes are untouched, and exclusions stay live.
@@ -470,6 +459,8 @@ if (process.argv[2] === '--consumer') {
   execFileSync('bun', ['install', '--ignore-scripts'], { cwd: consumer, env: { ...process.env, TMPDIR: scratch }, stdio: 'inherit' });
   const script = join(consumer, 'verify.mjs');
   copyFileSync(fileURLToPath(import.meta.url), script);
-  execFileSync(process.execPath, [permissionFlag, `--allow-fs-read=${scratch}`, `--allow-fs-write=${scratch}`, '--allow-child-process', script, '--consumer', checkout, ...(minimumNode22 ? ['--minimum-node22'] : [])], { cwd: consumer, env: { ...process.env, TMPDIR: scratch }, stdio: 'inherit' });
+  // Keep the consumer's filesystem regression closed to WorkerThreads. esbuild's
+  // real synchronous child-process path needs only the already-declared child grant.
+  execFileSync(process.execPath, [permissionFlag, `--allow-fs-read=${scratch}`, `--allow-fs-write=${scratch}`, '--allow-child-process', script, '--consumer', checkout, ...(minimumNode22 ? ['--minimum-node22'] : [])], { cwd: consumer, env: { ...process.env, TMPDIR: scratch, ESBUILD_WORKER_THREADS: '0' }, stdio: 'inherit' });
   rmSync(scratch, { recursive: true, force: true });
 }

@@ -22920,13 +22920,13 @@ fn valid_timezone(value: &str) -> Option<String> {
 }
 
 /// Currency admission: `isCurrencyShape` plus membership in the pinned
-/// ISO 4217 table (mirroring `isKnownCurrency`: only table members
+/// ISO 4217 table owned by Values (only table members
 /// are currency values).
 fn valid_currency(value: &str) -> Option<String> {
     if value.len() != 3 || !value.bytes().all(|b| b.is_ascii_uppercase()) {
         return Some("want 3 uppercase letters (ISO 4217)".to_string());
     }
-    if KNOWN_CURRENCIES.binary_search(&value).is_ok() {
+    if values_semantics::currency_facts::currency_table_scale(value).is_some() {
         return None;
     }
     if EXCLUDED_CURRENCIES.contains(&value) {
@@ -22935,24 +22935,7 @@ fn valid_currency(value: &str) -> Option<String> {
     Some("unknown ISO 4217 code".to_string())
 }
 
-/// Pinned ISO 4217 admission: the 165 codes with numeric minor units,
-/// mirrored from the language-version-pinned currency-data table (SIX list-one,
-/// Pblshd 2026-09-17). The 13 N.A.-scale codes are excluded (see below).
-const KNOWN_CURRENCIES: [&str; 165] = [
-    "AED", "AFN", "ALL", "AMD", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BHD",
-    "BIF", "BMD", "BND", "BOB", "BOV", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD", "CDF",
-    "CHE", "CHF", "CHW", "CLF", "CLP", "CNY", "COP", "COU", "CRC", "CUP", "CVE", "CZK", "DJF",
-    "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GHS", "GIP",
-    "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR",
-    "ISK", "JMD", "JOD", "JPY", "KES", "KGS", "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT",
-    "LAK", "LBP", "LKR", "LRD", "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP",
-    "MRU", "MUR", "MVR", "MWK", "MXN", "MXV", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR",
-    "NZD", "OMR", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB",
-    "RWF", "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN",
-    "SVC", "SYP", "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH",
-    "UGX", "USD", "USN", "UYI", "UYU", "UYW", "UZS", "VED", "VES", "VND", "VUV", "WST", "XAD",
-    "XAF", "XCD", "XCG", "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWG",
-];
+
 
 /// The 13 ISO 4217 codes with N.A. minor units (metals, bond-market
 /// units, supranationals, testing, no-currency): shaped but excluded.

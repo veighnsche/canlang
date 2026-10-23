@@ -3,7 +3,7 @@ const assert = require('assert/strict');
 const path = require('path');
 process.chdir(path.resolve(__dirname, '../..'));
 const resources = process.env.VSCODE_RESOURCES || '/Applications/Cursor.app/Contents/Resources/app';
-const base = resources + '/node_modules/';
+const base = resources + (fs.existsSync(resources + '/node_modules/vscode-textmate') ? '/node_modules/' : '/node_modules.asar/');
 const tm = require(base + 'vscode-textmate');
 const onig = require(base + 'vscode-oniguruma');
 (async () => {
@@ -42,6 +42,15 @@ const onig = require(base + 'vscode-oniguruma');
  has(' table Todo order={by=preferences.view,default=[due],cases={all=[-created]}}','default','variable.other.property.key.can');
  has(' do send remote.perform {text="Hi"} as result; return result','send','keyword.control.effect.can');
  has(' do send remote.perform {text="Hi"} as result; return result','return','keyword.control.effect.can');
+ for (const phase of ['source','current']) {
+  const guarded=` do send remote.perform {text="Hi"} when=row.active when_at=${phase} as result; return result`;
+  has(guarded,'when_at','variable.other.property.key.can');
+  has(guarded,phase,'constant.language.send-phase.can');
+  has(guarded,'return','keyword.control.effect.can');
+ }
+ has(' do return source','source','variable.other.readwrite.can');
+ has(' do return row.current','current','variable.other.property.can');
+ lacks(' do send remote.perform {text="when_at=source as delivery"} as result','source','send-phase');
  has(' rename before.Todo.label to Todo.title','rename','keyword.control.can');
  lacks(' do return 5minutes','5','constant.numeric');
  has('   members,true,1 -> true,"1 task"','true','constant.language.literal.can',20);

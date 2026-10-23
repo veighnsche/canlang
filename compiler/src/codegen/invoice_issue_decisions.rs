@@ -13,7 +13,7 @@ use crate::source::{Span, sha256_hex};
 use crate::syntax::SyntaxKind;
 
 use super::ir::{IrExpr, IrItem, IrItemKind, IrStmt, TypedExpr};
-use super::scenario_decisions::FreshSourceContext;
+use super::source_context::FreshSourceContext;
 use super::scenario_receipts::{
     NativeReturn, NativeScenarioReceipt, NativeSite, ReceiptDisclosurePlan, ReceiptReturn,
     transport_source,

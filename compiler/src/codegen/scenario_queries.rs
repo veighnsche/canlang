@@ -19,7 +19,8 @@ use crate::analysis::{CheckedProgram, NodeKey, ResolvedType};
 use crate::source::{SourceDb, Span};
 
 use super::ir::{IrExpr, IrItem, IrItemKind, IrProgram, IrQuery, IrQueryDomain, IrOwner, IrStmt, IrType, TypedExpr};
-use super::scenario_decisions::{same_scenario_semantics, serial_type};
+use super::scenario_decisions::serial_type;
+use super::source_correspondence::same_scenario_semantics;
 use super::scenario_receipts::{
     NativeIntrinsicKind, NativeReturn, NativeScenarioReceipt, ReceiptDependency,
     ReceiptDisclosurePlan, ReceiptInfluence, ReceiptIntrinsic, ReceiptQuery,
@@ -38,7 +39,7 @@ pub(super) struct PreparedQuerySources<'a> {
     fresh: std::borrow::Cow<'a, IrProgram>,
     diagnostics: Vec<crate::diagnostic::Diagnostic>,
     returns: Option<super::scenario_feasibility::PreparedRequireReturns<'a>>,
-    source_context: Option<&'a super::scenario_decisions::FreshSourceContext<'a>>,
+    source_context: Option<&'a super::source_context::FreshSourceContext<'a>>,
 }
 
 /// Backend gaps remain diagnostics on the complete artifact. They cannot stand
@@ -277,7 +278,7 @@ impl<'a> PreparedQuerySources<'a> {
     }
 
     pub(super) fn from_context(
-        context: &'a super::scenario_decisions::FreshSourceContext<'a>,
+        context: &'a super::source_context::FreshSourceContext<'a>,
     ) -> Self {
         let program = context.program();
         let ir = context.ir();
@@ -337,7 +338,7 @@ impl<'a> PreparedQuerySources<'a> {
         &self,
         owner: &IrItem,
         entry: &str,
-        source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+        source_context: Option<&super::source_context::FreshSourceContext<'_>>,
     ) -> Option<ReceiptDisclosurePlan> {
         let returned = if matches!(owner.kind, IrItemKind::Scenario { read: false, .. })
             && matches!(
@@ -1290,7 +1291,7 @@ pub(super) fn collect_complete_query_receipt(
     catalog: Option<&Catalog>,
     entry_module: &str,
 ) -> Option<NativeScenarioReceipt> {
-    let context=super::scenario_decisions::FreshSourceContext::prepare_queries(program,ir,db,catalog).ok()?;
+    let context=super::source_context::FreshSourceContext::prepare_queries(program,ir,db,catalog).ok()?;
     let prepared=PreparedQuerySources::from_context(&context);
     let plan = prepared.plan(owner, entry_module)?;
     collect_complete_query_receipt_prepared(program, ir, owner, &prepared, plan)
@@ -1619,7 +1620,7 @@ fn checked_query_plan(
     db: &SourceDb,
     catalog: Option<&Catalog>,
     entry_module: &str,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     PreparedQuerySources::standalone(program, ir, db, catalog)?
         .plan_with_context(owner, entry_module, source_context)
@@ -1680,7 +1681,7 @@ fn plan_single_query(
     query: &DisclosureQuery,
     db: &SourceDb,
     entry_module: &str,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     if query.first.is_some() {
         checked_first_query_plan(program, ir, owner, query, db, entry_module)
@@ -1712,7 +1713,7 @@ fn combine_query_plans(
     queries: &[DisclosureQuery],
     db: &SourceDb,
     entry_module: &str,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     if super::scenario_receipts::checked_native_query_influences(queries).is_none() {
         let facts=ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
@@ -2161,7 +2162,7 @@ fn checked_query_plan_full(
     catalog: Option<&Catalog>,
     entry_module: &str,
     prepared: &PreparedQuerySources<'_>,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     let (source, _original, queries) =
         load_full_inputs(program, ir, owner, db, catalog, entry_module)?;
@@ -2807,7 +2808,7 @@ fn assemble_transcript_subplans(
     db: &SourceDb,
     entry: &str,
     source: &CheckedScenarioSource,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<(ReceiptQuery, ReceiptQuery, ReceiptQuery, ReceiptQuery)> {
     let [any, ancestor, selected, count] = source.queries.as_deref()? else {
         return None;
@@ -2833,7 +2834,7 @@ fn enrich_transcript_queries(
     entry: &str,
     prepared: &PreparedQuerySources<'_>,
     source: &CheckedScenarioSource,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
     mut queries: Vec<ReceiptQuery>,
 ) -> Option<(Vec<ReceiptQuery>, Vec<DisclosureInfluence>)> {
     let influences = super::scenario_receipts::checked_scenario_query_influences(source)?;
@@ -3058,7 +3059,7 @@ fn checked_transcript_query_plan(
     db: &SourceDb,
     entry: &str,
     prepared: &PreparedQuerySources<'_>,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     let (source, first, later) = load_transcript_pair(prepared, program, ir, owner, db)?;
     let mut queries = Vec::new();
@@ -3158,7 +3159,7 @@ fn checked_count_query_plan(
     query: &DisclosureQuery,
     db: &SourceDb,
     entry: &str,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     let plan = super::scenario_receipts::checked_native_count_query_plan(
         ir,

@@ -101,7 +101,7 @@ impl PreparedSendGuards {
 /// publishing query grants or inventing a return. Preparation sealed the full
 /// fresh execution closure and each owner's complete original SEND inventory.
 pub(super) fn retained_handler_receipt(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     prepared: &PreparedSendGuards, owner: &IrItem, entry: &str,
 ) -> Option<super::scenario_receipts::NativeScenarioReceipt> {
     use super::scenario_receipts::{NativeScenarioReceipt, ReceiptDisclosurePlan, transport_source};
@@ -164,9 +164,9 @@ fn execution_closure(ir: &IrProgram) -> String {
 }
 
 pub(super) fn source_preparation_gap(
-    error: super::scenario_decisions::SourcePreparationGap,
+    error: super::source_context::SourcePreparationGap,
 ) -> SendGuardGap {
-    use super::scenario_decisions::SourcePreparationGap;
+    use super::source_context::SourcePreparationGap;
     match error {
         SourcePreparationGap::Cohort => gap("checked source cohort mismatch", None),
         SourcePreparationGap::Analysis => gap("original SEND source no longer checks", None),
@@ -981,7 +981,7 @@ fn prepare_send_guard(
 }
 
 fn prepare_owner_guards(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem,
     nodes: &HashMap<NodeKey, &SyntaxNode>,
     guards: &mut HashMap<Span, PreparedSendGuard>,
@@ -1104,7 +1104,7 @@ fn prepare_owner_guards(
 }
 
 pub(super) fn prepare_with_context(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
 ) -> Result<PreparedSendGuards, SendGuardGap> {
     let program = context.program();
     let ir = context.ir();

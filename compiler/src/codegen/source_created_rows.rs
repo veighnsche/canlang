@@ -3,7 +3,7 @@ use super::ir::*;
 use crate::analysis::{ResolvedType,SymbolId};
 use std::collections::HashMap;
 
-pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,source:&serde_json::Value)->Option<Vec<serde_json::Value>>{
+pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,source:&serde_json::Value)->Option<Vec<serde_json::Value>>{
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     if !effects.iter().any(|statement|matches!(statement,IrStmt::Create{binding:Some(_),when:None,..})){return Some(Vec::new());}
     context.same_scenario(ir, owner)?;

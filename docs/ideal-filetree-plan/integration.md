@@ -1,0 +1,18 @@
+# Import, artifact, test and install joins
+
+| Cutover | Required real joins; preserve current external identity |
+| --- | --- |
+| Compiler CLI private commands | `compiler/src/cli.rs` public entrypoints/Analyzer, `main.rs`, completion scripts, native `can` binary selectors, shared platform/dev locators and saved Given/Then/generation lease/import readers. No Cargo package/bin rename. |
+| Fresh source context / semantic comparison | `compiler/src/codegen/mod.rs`, every private `scenario_decisions` context/comparison import across collectors, whole-source/IR/callee/schema comparison, one immutable original context/cache. Optional observer transport is not a replacement for prepared execution proof. |
+| Native dev workers | Parent `owner.rs` Loop/Event/ticket/generation/claim state, complete CheckWorker/ServiceWorker implementations, preview fixed host, installed `can-dev` lookup, cleanup and stale-result behavior. One native authority, no extra service. |
+| State pure extractions | Original module shell, `invocation/index.ts` and actual imported subpaths/reexports, native staging/pinned source inventories where applicable, exact StateError/codec/read ordering and object identity. No public session-construction API. |
+| Query ordering | `query/engine.ts` and source-read caller keep original permission/predicate/field-major decode/order/continuation positions and exact singleton/null/currency errors. No new generic predicate engine. |
+| CF read-only error cohort | `invoke.ts` stable InvokeResult/find* exports; `assembly-verification` and source-map consumers; `PINNED_RUNTIME_FILES` and actual staged/imported installed payloads. Real invocation/row-policy/source guard maps remain in invoke. |
+| UI neutral field binding | `forms.ts` and `controls.ts` import the sole internal helper; compatibility reexports and existing DOM/attribute/date/boolean/pointer behavior remain. Build/staged browser asset discovery must include the new module. |
+| SEND phase grammar and ordinary CI | Exact syntax slots/prototype/highlighting + malformed/current/source cases. Normal existing integration test discovery must enumerate renamed/live/source-false/metadata/downgrade controls without undocumented environment opt-in. No new test framework/unit tests. |
+| Dev test policy | `dev-server/tests/session_lifecycle.rs` exercises actual Owner/capture/check/serve, stale inputs, supersession, failed rebuild retention, cancellation and process/listener cleanup. Preserve existing gateway HTTP subjects. Reconcile legacy source markers before `dev-server/build.rs` includes `../tools/unitban/build_impl.rs` and calls the existing crate-local guard; retain normal discovery and package inputs. |
+| Repository/draft/docs | `.gitmodules` and independent child identity retained. Current audit entry/tree/tasks supersede old proposals; moved links repaired without upgrading old behavioral evidence. Public guide/spec/reference consumers remain owned. |
+
+No new package dependencies or manifests are intrinsically required by private file splits. If an actual include/export/pinned inventory needs changing, reserve its literal file for the integration writer and hand off the exact import/selector tuple; never assume a source move automatically enters a packed Worker or native install. Existing normal package/release discovery is retained, not reimplemented.
+
+The current CI/release definitions and earlier installed results are source/prior evidence only; this audit did not run any product command or inspect a newly installed service. Future checks progress from decisive owner behavior and import/type/visibility, to the affected graph, then real installed Worker/CLI/LSP/dev/UI/native profiles when separately authorized.

@@ -1,5 +1,7 @@
 # Intended project structure
 
+Historical conceptual overview. The current complete path allocation is [proposed-tree.md](../proposed-tree.md); this overview does not establish current directories, implementation completion or evidence.
+
 This is a responsibility guide, not a required inventory of future filenames. Keep implementation cohesive and change private module boundaries when the code benefits.
 
 ```text

@@ -187,9 +187,7 @@ fn validate_selected_callables(artifact: &Value, plan: &bindings::Plan) -> Resul
                     .queue_handlers
                     .iter()
                     .any(|h| callable["id"] == h.as_str())
-                && !callable["id"]
-                    .as_str()
-                    .is_some_and(|id| hooks.contains(id))
+                && !callable["id"].as_str().is_some_and(|id| hooks.contains(id))
         {
             return Err(
                 "PROFILE_UNSUPPORTED: only checked selected queue handlers are admitted".into(),

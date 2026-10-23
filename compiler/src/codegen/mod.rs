@@ -194,7 +194,7 @@ pub fn emit(
             )
         });
     let source_preparation = needs_source_context.then(|| {
-        scenario_decisions::FreshSourceContext::prepare_queries(
+        source_context::FreshSourceContext::prepare_queries(
             program,
             &ir,
             sources.db,
@@ -450,3 +450,5 @@ fn emit_suites(ir: &IrProgram) -> (Vec<BddModule>, Vec<ReferencedBuiltin>, Vec<D
 }
 
 pub mod scenario_decisions;
+mod source_context;
+mod source_correspondence;

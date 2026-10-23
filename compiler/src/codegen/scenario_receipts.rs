@@ -174,7 +174,7 @@ pub(super) fn query_plan_nodes(
 /// Original source and the independently prepared guards/query plan consumed
 /// together by the native receipt matcher. This is private compiler input.
 pub(super) struct NativeReceiptSources<'a> {
-    pub source_context: Option<&'a super::scenario_decisions::FreshSourceContext<'a>>,
+    pub source_context: Option<&'a super::source_context::FreshSourceContext<'a>>,
     pub db: Option<&'a SourceDb>,
     pub send_guards: Option<&'a HashMap<Span, PreparedSendGuard>>,
     pub query_plan: Option<&'a ReceiptDisclosurePlan>,
@@ -5926,7 +5926,7 @@ fn first_query_expected_plan(
     queries: &[crate::analysis::scenario_disclosure::DisclosureQuery],
     entry_module: &str,
     db: &SourceDb,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     if queries.len()==2&&queries.iter().all(|query|query.count.is_some()) {
         let originals=constructor_count_queries(checked.source_facts.as_deref()?)?;
@@ -5982,7 +5982,7 @@ fn checked_native_first_query_plan<'a>(
     entry_module: &str,
     db: Option<&SourceDb>,
     returned_paths: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<Option<&'a ReceiptDisclosurePlan>> {
     let facts = checked.source_facts.as_deref()?;
     if facts
@@ -6477,7 +6477,7 @@ fn checked_native_transcript_plan<'a>(
     entry: &str,
     returned_paths: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
     db: &SourceDb,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<&'a ReceiptDisclosurePlan> {
     let facts = checked.source_facts.as_deref()?;
     let [first, later] = facts.transcripts.as_deref()? else {
@@ -8021,7 +8021,7 @@ fn checked_native_ancestor_count_query_plan(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
     db: &SourceDb,
     entry: &str,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     checked_ancestor_count_query_operands(ir, owner, query, db)?;
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
@@ -8175,7 +8175,7 @@ fn native_count_pair_proofs(
     checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
     effects: &[IrStmt],
     originals: &[crate::analysis::scenario_disclosure::CheckedScenarioCreate],
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<()> {
     checked_created_pair(ir, owner, db)?;
     let models = super::js::Emitter::source_models(ir, db)?;
@@ -8458,7 +8458,7 @@ pub(super) fn checked_native_assign_count_query_plan(
 /// Seal a void constructor COUNT to its original whole owner and one INT
 /// field. This is a consumption association, never a read-policy grant.
 fn constructor_count_source(
-    context: &super::scenario_decisions::FreshSourceContext<'_>, owner: &IrItem,
+    context: &super::source_context::FreshSourceContext<'_>, owner: &IrItem,
     query: &crate::analysis::scenario_disclosure::DisclosureQuery, transport: &ReceiptSource,
 ) -> Option<serde_json::Value> {
     let ir=context.ir();
@@ -8514,7 +8514,7 @@ fn constructor_count_source(
     Some(metadata)
 }
 
-pub(super) fn constructor_counts(context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,
+pub(super) fn constructor_counts(context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem,
     transport:&ReceiptSource)->Option<serde_json::Value> {
     if !matches!(&owner.kind,IrItemKind::Scenario{result:None,..}) {return None;}
     let facts=super::scenario_calls::checked_source(context.ir(),owner,context.db())?;
@@ -8529,7 +8529,7 @@ pub(super) fn checked_native_count_query_plan(
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
     db: &SourceDb,
     entry: &str,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<ReceiptDisclosurePlan> {
     if owner.canonical == "member_terms.assign" {
         let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else { return None; };
@@ -13263,7 +13263,7 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
 /// The fresh whole-owner disclosure seals the actual/formal path and both DATA
 /// obligations; matching wire values cannot substitute either source field.
 fn checked_helper_reference_scalar_pairs<'a>(
-    context: &'a super::scenario_decisions::FreshSourceContext<'_>,
+    context: &'a super::source_context::FreshSourceContext<'_>,
     owner: &IrItem,
     leaf: &TypedExpr,
 ) -> Option<Vec<(
@@ -13802,7 +13802,7 @@ fn reference_reused_bounds(
 /// parent. Both original schema owners and the exact parent metadata survive
 /// the source/fresh join; the ordinary parent getter retains its authority.
 fn checked_helper_parent_reference<'a>(
-    context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,
+    context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem,
     read:&crate::analysis::scenario_disclosure::DisclosureDependency,value:&TypedExpr,
     facts:&'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
 )->Option<(&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
@@ -13827,7 +13827,7 @@ fn checked_helper_parent_reference<'a>(
 /// and its identity-only consumer. The retained owning schema still proves
 /// the actual stored reference field and target; no copied receiver is added.
 fn checked_helper_identity_reference<'a>(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem,
     read: &crate::analysis::scenario_disclosure::DisclosureDependency,
     value: &TypedExpr,
@@ -14640,7 +14640,7 @@ fn match_effect_proofs(
     sites: &Sites<'_>,
     db: Option<&SourceDb>,
     send_guards: Option<&HashMap<Span, PreparedSendGuard>>,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<()> {
     if checked.effects.len() > 200 || checked.effects.len() != sites.effects.len() {
         return None;
@@ -15754,7 +15754,7 @@ fn scenario_create_identity<'f, 's, 'p>(
 /// sealed source/fresh closure. Its contained-loop suffix cannot transport
 /// the selected row; each effect still passes the ordinary schema/site gate.
 fn checked_first_target_branch_create(
-    context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,
+    context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem,
     checked:&crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
     original:&crate::analysis::scenario_disclosure::CheckedScenarioCreate,
 )->Option<()> {
@@ -15777,7 +15777,7 @@ fn checked_first_target_branch_create(
 /// against a fresh lowering; the independent effect/schema checks still
 /// validate every SET, CANCEL and CREATE. This supplies no query authority.
 fn conditional_parameter_create_link(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem,
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
 ) -> Option<()> {
@@ -15844,7 +15844,7 @@ fn conditional_parameter_create_link(
 
 /// A private original-source loop seal for contained sibling constructors.
 /// Every selected reference and ordinary CREATE keeps its own runtime authority.
-fn source_owned_sibling_loop(context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem)->Option<serde_json::Value>{
+fn source_owned_sibling_loop(context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem)->Option<serde_json::Value>{
     let checked=super::scenario_calls::checked_source(context.ir(),owner,context.db())?;
     let source=serde_json::json!({"path":checked.source.path,"sha256":checked.source.sha256});
     super::source_loops::collect_native(context.ir(),owner,context,&source,"")
@@ -15852,7 +15852,7 @@ fn source_owned_sibling_loop(context:&super::scenario_decisions::FreshSourceCont
 
 /// Exact source-owned same-model copy loop after a completed Model child.
 /// Ordinary schema/rule/lock staging remains mandatory for each CREATE.
-fn source_owned_copy_loop(context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem)->Option<serde_json::Value>{
+fn source_owned_copy_loop(context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem)->Option<serde_json::Value>{
     let ir=context.ir();
     context.same_scenario(ir, owner)?;
     let IrItemKind::Scenario{result:None,trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,..}=&owner.kind else{return None;};
@@ -15888,7 +15888,7 @@ fn source_owned_copy_loop(context:&super::scenario_decisions::FreshSourceContext
 /// A finite contained update prefix may precede its own created Model result.
 /// Fresh source correspondence seals control flow and every operand; individual
 /// loop, assignment, constructor schema and return checks remain mandatory.
-fn source_owned_updated_model_create(context: &super::scenario_decisions::FreshSourceContext<'_>,
+fn source_owned_updated_model_create(context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
     let ir = context.ir();
     context.same_scenario(ir, owner)?;
@@ -15909,7 +15909,7 @@ fn source_owned_updated_model_create(context: &super::scenario_decisions::FreshS
 /// CALL and precede its original completion effects. The fresh whole-owner
 /// join seals surrounding operands; each effect, schema and File input still
 /// needs its independent native proof below.
-fn source_owned_after_call_create(context: &super::scenario_decisions::FreshSourceContext<'_>,
+fn source_owned_after_call_create(context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
     let ir = context.ir();
     context.same_scenario(ir, owner)?;
@@ -15933,7 +15933,7 @@ fn source_owned_after_call_create(context: &super::scenario_decisions::FreshSour
 /// Original void parent mutations may retain the same bounded sibling-loop
 /// port as an updated-model result. This source seal grants no collection or
 /// field authority; each loop, effect and schema keeps its independent join.
-fn source_owned_void_member_loops(context: &super::scenario_decisions::FreshSourceContext<'_>, owner: &IrItem) -> Option<()> {
+fn source_owned_void_member_loops(context: &super::source_context::FreshSourceContext<'_>, owner: &IrItem) -> Option<()> {
     let ir=context.ir();
     context.same_scenario(ir, owner)?;
     let IrItemKind::Scenario{result:None,trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,..}=&owner.kind else{return None;};
@@ -15963,7 +15963,7 @@ fn source_owned_void_member_loops(context: &super::scenario_decisions::FreshSour
 /// a viewer field grant. Its scalar can only enter the first authored CREATE;
 /// State seals the observed required path against that actual staged field.
 pub(super) fn constructor_inputs(
-    context: &super::scenario_decisions::FreshSourceContext<'_>, owner: &IrItem, transport: &ReceiptSource,
+    context: &super::source_context::FreshSourceContext<'_>, owner: &IrItem, transport: &ReceiptSource,
 ) -> Option<serde_json::Value> {
     let ir=context.ir();
     let facts=super::scenario_calls::checked_source(ir,owner,context.db())?;
@@ -16017,7 +16017,7 @@ pub(super) fn constructor_inputs(
 /// A complete public void owner may construct its original rows before a
 /// finite SEND/SET tail. The fresh whole-owner join seals every original
 /// operand and branch; schemas, query authority and effects stay independent.
-fn source_owned_void_create(context: &super::scenario_decisions::FreshSourceContext<'_>,
+fn source_owned_void_create(context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
     let ir = context.ir();
     context.same_scenario(ir, owner)?;
@@ -16060,7 +16060,7 @@ fn source_owned_void_create(context: &super::scenario_decisions::FreshSourceCont
 /// A complete source-owned single-creation result may retain its finite
 /// conditional SEND/SET/EMIT tail. Re-lowering the entire original owner seals
 /// every ordered condition and operand; this grants no query or row authority.
-fn source_owned_created_return_tail(context: &super::scenario_decisions::FreshSourceContext<'_>,
+fn source_owned_created_return_tail(context: &super::source_context::FreshSourceContext<'_>,
     owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
     let ir = context.ir();
     context.same_scenario(ir, owner)?;
@@ -16081,7 +16081,7 @@ fn scenario_create_nesting(
     binding: &String,
     model: &crate::analysis::SymbolId,
     db: &SourceDb,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<()> {
     let checked_schema=super::scenario_create_sources::checked_created_schema(ir,owner,models,original,db,source_context);
     checked_schema?;
@@ -16225,7 +16225,7 @@ fn scenario_create_entries(
     span: Span,
     proof: &crate::analysis::scenario_disclosure::DisclosureEffect,
     db: &SourceDb,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
     purchase_all: bool,
 ) -> Option<()> {
     if !purchase_all && checked_created_statements(ir, owner, checked, original, db).is_none()
@@ -16286,7 +16286,7 @@ fn checked_scenario_create(
     proof: &crate::analysis::scenario_disclosure::DisclosureEffect,
     statement: &IrStmt,
     db: &SourceDb,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<()> {
     let facts = checked.source_facts.as_deref()?;
     let (original, input, span, binding, model) =
@@ -18664,12 +18664,12 @@ fn assignment_reference_inventory_matches(
 /// A declared provider slot uses the exact fresh model descriptor and operation.
 /// The SEND producer and original ordered assignment are checked separately.
 fn checked_declared_delivery_assignment(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     model: &IrItem, ty: &ResolvedType, field: &JsModelField, db: Option<&SourceDb>,
 ) -> Option<()> {
     let base = match ty { ResolvedType::Nullable(inner) => inner.as_ref(), ty => ty };
     let ResolvedType::Delivery { op } = base else { return None; };
-    super::scenario_decisions::same_capability_operation(context, *op)?;
+    super::source_correspondence::same_capability_operation(context, *op)?;
     if !matches!(field.field, JsModelFieldType::Delivery(_)) { return None; }
     let models = super::js::Emitter::source_models(context.fresh(), db?)?;
     let mut models = models.iter().filter(|item| item.name == model.canonical);

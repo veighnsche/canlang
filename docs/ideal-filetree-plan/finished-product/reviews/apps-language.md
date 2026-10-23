@@ -8,7 +8,7 @@ F01 authored language; F02 exact/input meaning; F03 canonical authority; F04 ide
 
 ## CanAffiliate
 
-**REQUIRED.** Contracted broker commission from owner-qualified sale evidence through connected-account allocation and bank delivery. [draft/CanAffiliate.can](../../../../draft/CanAffiliate.can) SHA-256 `faa275fa9870e055391e14099458bc30f8193be6ab95ce798897983a3ac6936c`; companion `c745f84f818e091ff6384f333812d57985f117b0d37620444cd547c9f732909c`.
+**REQUIRED.** Contracted broker commission from owner-qualified sale evidence through connected-account allocation and bank delivery. [draft/CanAffiliate.can](../../../../draft/apps/CanAffiliate/CanAffiliate.can) SHA-256 `faa275fa9870e055391e14099458bc30f8193be6ab95ce798897983a3ac6936c`; companion `c745f84f818e091ff6384f333812d57985f117b0d37620444cd547c9f732909c`.
 
 Workflows: settle, qualification, onboard, refresh_account, onboarded, account_result, account_changed, account_observed, result, settled, reconciled, settlement_observed, refresh_settlement, reconcile.
 
@@ -24,7 +24,7 @@ Open boundaries: cancellation_passed is declared but source policy is expressly 
 
 ## CanApprove
 
-**REQUIRED.** Review exact immutable file submissions with current distinct eligible reviewer and attributed decisions. [draft/CanApprove.can](../../../../draft/CanApprove.can) SHA-256 `515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981`; companion `392ac3b00560085ab323e7d8031f6d1e9cb28883642d4d8d6d7c8134ffa539a6`.
+**REQUIRED.** Review exact immutable file submissions with current distinct eligible reviewer and attributed decisions. [draft/CanApprove.can](../../../../draft/apps/CanApprove/CanApprove.can) SHA-256 `515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981`; companion `392ac3b00560085ab323e7d8031f6d1e9cb28883642d4d8d6d7c8134ffa539a6`.
 
 Workflows: reviewer_choices, submit, assign, decide, withdraw, remind, notify.
 
@@ -40,7 +40,7 @@ Open boundaries: Sequence and associated-delivery parser gaps cannot decline the
 
 ## CanBoard
 
-**REQUIRED.** Meeting papers, manually evidenced resolutions, immutable finalized record and separately assigned actions. [draft/CanBoard.can](../../../../draft/CanBoard.can) SHA-256 `8543ef7f369204a1bfcd4c3f4cef3076979d5505238699fea651339a7b0d4f25`; companion `b5fb69d67ff23935043df1cf7d1ed5490fe779e0c561a4a7de029d9316de286f`.
+**REQUIRED.** Meeting papers, manually evidenced resolutions, immutable finalized record and separately assigned actions. [draft/CanBoard.can](../../../../draft/apps/CanBoard/CanBoard.can) SHA-256 `8543ef7f369204a1bfcd4c3f4cef3076979d5505238699fea651339a7b0d4f25`; companion `b5fb69d67ff23935043df1cf7d1ed5490fe779e0c561a4a7de029d9316de286f`.
 
 Workflows: decide, finalize, finalized_record, complete, origin, work, work_detail.
 
@@ -56,7 +56,7 @@ Open boundaries: No inferred quorum, automatic decision or changed finalized doc
 
 ## CanBook
 
-**REQUIRED.** Customer/staff host appointments coordinated with employee schedule and separate room capacity. [draft/CanBook.can](../../../../draft/CanBook.can) SHA-256 `ad7f51eef69d5f48dc862142c38d4796ead0e3f383270b2288f0210c92d36029`; companion `b6d5adb039cc05414a3942122a4e458141878a5c539c543ef2a4781bff5da1c7`.
+**REQUIRED.** Customer/staff host appointments coordinated with employee schedule and separate room capacity. [draft/CanBook.can](../../../../draft/apps/CanBook/CanBook.can) SHA-256 `ad7f51eef69d5f48dc862142c38d4796ead0e3f383270b2288f0210c92d36029`; companion `b6d5adb039cc05414a3942122a4e458141878a5c539c543ef2a4781bff5da1c7`.
 
 Workflows: book, reschedule, cancel, discard_reschedule, retry_cleanup, attendance, host_result, host_staged, room_result, room_staged, room_confirmed, host_changed, venue_changed, attempt_created, attempt_updated, recover_attempt, ready, cleanup, host_released, room_released, remind.
 
@@ -72,7 +72,7 @@ Open boundaries: Remaining limit100 loops are one Appointment atomic child bound
 
 ## CanCRM
 
-**REQUIRED.** Scoped opportunity stages and attributed evidence using canonical customers, tours, offers and actual sale outcomes. [draft/CanCRM.can](../../../../draft/CanCRM.can) SHA-256 `a057251d367686c7b58be3892bcebe0c8765a04db04305272a396767cbd53a0a`; companion `3c389b619571fedcf23efac99c54aced41445f5820f40439f7f5b9260f483c74`.
+**REQUIRED.** Scoped opportunity stages and attributed evidence using canonical customers, tours, offers and actual sale outcomes. [draft/CanCRM.can](../../../../draft/apps/CanCRM/CanCRM.can) SHA-256 `a057251d367686c7b58be3892bcebe0c8765a04db04305272a396767cbd53a0a`; companion `3c389b619571fedcf23efac99c54aced41445f5820f40439f7f5b9260f483c74`.
 
 Workflows: promote_research, advance, record_link, record_tour, record_quote, win, lose, reopen, pipeline.
 
@@ -88,7 +88,7 @@ Open boundaries: No background actions first version; optional reviewed links ar
 
 ## CanCatch
 
-**REQUIRED.** Bounded minimized JavaScript error intake, durable dedup/grouping and scoped triage with honest capture-health gaps. [draft/CanCatch.can](../../../../draft/CanCatch.can) SHA-256 `2b1ba7bb44e5e0da8cc87580851b84f3e81c5f566b97762e545e00e0b78a1467`; companion `5c9768aa96335e65b3a62821d20c452a18a1ef82599625514cbc8577a68e0bd7`.
+**REQUIRED.** Bounded minimized JavaScript error intake, durable dedup/grouping and scoped triage with honest capture-health gaps. [draft/CanCatch.can](../../../../draft/apps/CanCatch/CanCatch.can) SHA-256 `2b1ba7bb44e5e0da8cc87580851b84f3e81c5f566b97762e545e00e0b78a1467`; companion `5c9768aa96335e65b3a62821d20c452a18a1ef82599625514cbc8577a68e0bd7`.
 
 Workflows: resolve, assign, link_task, accepted, process, intake_health, notify, notification_result.
 
@@ -104,7 +104,7 @@ Open boundaries: Health.accepted is cumulative while the authored progress prese
 
 ## CanChat
 
-**REQUIRED.** Private bounded AI conversations with full frozen transcript, durable generation/cancel/reconcile and truthful usage accounting. [draft/CanChat.can](../../../../draft/CanChat.can) SHA-256 `a507e133cd29022b873f50ae6b856a34bd8caf3abac28c691bde56ad103de2f1`; companion `493ec721f45f117d49a15a85d74872ba0ab98aab6c75dea7da5be04b768882ba`.
+**REQUIRED.** Private bounded AI conversations with full frozen transcript, durable generation/cancel/reconcile and truthful usage accounting. [draft/CanChat.can](../../../../draft/apps/CanChat/CanChat.can) SHA-256 `a507e133cd29022b873f50ae6b856a34bd8caf3abac28c691bde56ad103de2f1`; companion `493ec721f45f117d49a15a85d74872ba0ab98aab6c75dea7da5be04b768882ba`.
 
 Workflows: open, ask, regenerate, stop, reconcile, release_skipped, revoke, member_removed, reply_progressed.
 
@@ -120,7 +120,7 @@ Open boundaries: Count/token caps do not claim monetary pricing; disconnect does
 
 ## CanCheck
 
-**REQUIRED.** Configured secret heartbeat with revision-bound late/down/recovery alerts and scoped operational pause/resume. [draft/CanCheck.can](../../../../draft/CanCheck.can) SHA-256 `6551ecf90dbadecff18e888d6ffb23dc9e20bb32d5dff50eced0b387bb29a663`; companion `fe34c276d8e61d7c60928fb2399161c1b3a03e8a2bb9f06091bbc21cd42f0a90`.
+**REQUIRED.** Configured secret heartbeat with revision-bound late/down/recovery alerts and scoped operational pause/resume. [draft/CanCheck.can](../../../../draft/apps/CanCheck/CanCheck.can) SHA-256 `6551ecf90dbadecff18e888d6ffb23dc9e20bb32d5dff50eced0b387bb29a663`; companion `fe34c276d8e61d7c60928fb2399161c1b3a03e8a2bb9f06091bbc21cd42f0a90`.
 
 Workflows: pause, resume, ping, initial, configured, deadline, delivered.
 
@@ -136,7 +136,7 @@ Open boundaries: Heartbeat success says job ping reached owner, not business suc
 
 ## CanContract
 
-**REQUIRED.** Category-scoped executed agreements, inclusive date terms, amendments and independent obligations. [draft/CanContract.can](../../../../draft/CanContract.can) SHA-256 `a952eb4c5b3a3e18d6d5ea0e2db73e62066ece04adc3592accd9dc791f6a719c`; companion `9392f667bbdb7b49caafbe1c890b6c72640e77d5fbc6db4e4d30a21524612e6c`.
+**REQUIRED.** Category-scoped executed agreements, inclusive date terms, amendments and independent obligations. [draft/CanContract.can](../../../../draft/apps/CanContract/CanContract.can) SHA-256 `a952eb4c5b3a3e18d6d5ea0e2db73e62066ece04adc3592accd9dc791f6a719c`; companion `9392f667bbdb7b49caafbe1c890b6c72640e77d5fbc6db4e4d30a21524612e6c`.
 
 Workflows: execute, renew, terminate, complete, arm, rearm, expire, notice, due.
 
@@ -152,7 +152,7 @@ Open boundaries: DeliveryResult selector appears without explicit DeliveryResult
 
 ## CanCreative
 
-**REQUIRED.** Approved frozen Comfy workflow image jobs optionally linked to readable Chat evidence. [draft/CanCreative.can](../../../../draft/CanCreative.can) SHA-256 `a65f6aaf3c0ee3eeefe064a44eb7a72782d7edae02ed693a434e23c72c16bd52`; companion `15db83753f3391bdb58934b2c3df24faca89c6bef22968625535351916b828f0`.
+**REQUIRED.** Approved frozen Comfy workflow image jobs optionally linked to readable Chat evidence. [draft/CanCreative.can](../../../../draft/apps/CanCreative/CanCreative.can) SHA-256 `a65f6aaf3c0ee3eeefe064a44eb7a72782d7edae02ed693a434e23c72c16bd52`; companion `15db83753f3391bdb58934b2c3df24faca89c6bef22968625535351916b828f0`.
 
 Workflows: template_edited, inspect, validate, publish, generate, from_turn, stop, reconcile, release_skipped, conversation_revoked, member_removed, image_progressed.
 
@@ -168,7 +168,7 @@ Open boundaries: Fixture graph is syntactic desired witness, not executable prod
 
 ## CanCustomer
 
-**REQUIRED.** One canonical customer/contact/company-role/invitation/billing-profile owner with separate paid and physical access review. [draft/CanCustomer.can](../../../../draft/CanCustomer.can) SHA-256 `6ad2631ef725d61f389dfad873df27fa4c28a67fea02662ca313c0b2ccc7d9d1`; companion `b6d213c5e4933c8605b49dcfde4a74df06cb931a55156ca3f745e9b3dcd22f41`.
+**REQUIRED.** One canonical customer/contact/company-role/invitation/billing-profile owner with separate paid and physical access review. [draft/CanCustomer.can](../../../../draft/apps/CanCustomer/CanCustomer.can) SHA-256 `6ad2631ef725d61f389dfad873df27fa4c28a67fea02662ca313c0b2ccc7d9d1`; companion `b6d213c5e4933c8605b49dcfde4a74df06cb931a55156ca3f745e9b3dcd22f41`.
 
 Workflows: contact_email_changed, duplicate_customers, duplicate_contacts, approve_account, claim, invite, accept, remove, recover, alias, customer_created_access, customer_updated_access, customer_deleted_access, contact_created_access, contact_updated_access, contact_deleted_access, companyrole_created_access, companyrole_updated_access, companyrole_deleted_access, expire.
 
@@ -184,7 +184,7 @@ Open boundaries: Source event revisions belong individual observations, not univ
 
 ## CanDecide
 
-**REQUIRED.** Human-reviewed synthesis and one fixed JEV advisory evaluation before immutable manual decision, no proposal execution. [draft/CanDecide.can](../../../../draft/CanDecide.can) SHA-256 `15a7e021e3400e6cb48620efcb48fb7dacda978c0b39d06a77c7a74a8ad89b15`; companion `156474ec1657bc72c381cc62b3ecd17cd63deecc703c684ea7e18a1c86d456d8`.
+**REQUIRED.** Human-reviewed synthesis and one fixed JEV advisory evaluation before immutable manual decision, no proposal execution. [draft/CanDecide.can](../../../../draft/apps/CanDecide/CanDecide.can) SHA-256 `15a7e021e3400e6cb48620efcb48fb7dacda978c0b39d06a77c7a74a8ad89b15`; companion `156474ec1657bc72c381cc62b3ecd17cd63deecc703c684ea7e18a1c86d456d8`.
 
 Workflows: generate, review, evaluate, decide, stop.
 
@@ -200,7 +200,7 @@ Open boundaries: Fit/readiness advisory options do not establish calibrated corr
 
 ## CanDesk
 
-**REQUIRED.** Private verified customer/support conversations with independent outbound receipts, unmatched mail triage and scoped repair handoff. [draft/CanDesk.can](../../../../draft/CanDesk.can) SHA-256 `6a24957d8f85a11ab30bde21b030519f6ff40c1f8191e0ccf5a44a350e865cf0`; companion `70f617f258d24d1ed49c0c382564fd837f31040b5079a2e8b8e5f478f0356c78`.
+**REQUIRED.** Private verified customer/support conversations with independent outbound receipts, unmatched mail triage and scoped repair handoff. [draft/CanDesk.can](../../../../draft/apps/CanDesk/CanDesk.can) SHA-256 `6a24957d8f85a11ab30bde21b030519f6ff40c1f8191e0ccf5a44a350e865cf0`; companion `70f617f258d24d1ed49c0c382564fd837f31040b5079a2e8b8e5f478f0356c78`.
 
 Workflows: open_request, respond, reply, note, incoming, triage, escalate, handoff.
 
@@ -216,7 +216,7 @@ Open boundaries: No app retry creates another message after uncertain send; stab
 
 ## CanDiscover
 
-**REQUIRED.** Recurring bounded TED/Grants research with truthful source coverage, immutable evidence/conflicts, manual cited review and same-caller CRM promotion. [draft/CanDiscover.can](../../../../draft/CanDiscover.can) SHA-256 `99e2c4b84554bc7da82eca1f6b1d62443a752fac43772104de0ffed4a9ad54d6`; companion `b936dd7cb48d7e8b3dd5bcef3a786691ea4615f6ce5e2ccad87ba8c5ff220d37`.
+**REQUIRED.** Recurring bounded TED/Grants research with truthful source coverage, immutable evidence/conflicts, manual cited review and same-caller CRM promotion. [draft/CanDiscover.can](../../../../draft/apps/CanDiscover/CanDiscover.can) SHA-256 `99e2c4b84554bc7da82eca1f6b1d62443a752fac43772104de0ffed4a9ad54d6`; companion `b936dd7cb48d7e8b3dd5bcef3a786691ea4615f6ce5e2ccad87ba8c5ff220d37`.
 
 Workflows: start, configure, pause, take_over, resume, recurring, fetch_page, page_result, retry, stop, analyse, analyse_new, analysis_result, review, duplicate, accept_identity, promote.
 
@@ -232,7 +232,7 @@ Open boundaries: Grants.gov continuation/snapshot guarantee remains explicit qua
 
 ## CanDo
 
-**REQUIRED.** Independent tasks/templates plus current protected federated work, with explicitly configured error reporting. [draft/CanDo.can](../../../../draft/CanDo.can) SHA-256 `15761cc422c6d11827a6f13aa3cc3318a8bb393ef2110169f1a02ff046e4ec35`; companion `23742127a2aefcbd341502cfc0e4055fd97039d7d516462f18dedd5c5feb90bb`.
+**REQUIRED.** Independent tasks/templates plus current protected federated work, with explicitly configured error reporting. [draft/CanDo.can](../../../../draft/apps/CanDo/CanDo.can) SHA-256 `15761cc422c6d11827a6f13aa3cc3318a8bb393ef2110169f1a02ff046e4ec35`; companion `23742127a2aefcbd341502cfc0e4055fd97039d7d516462f18dedd5c5feb90bb`.
 
 Workflows: complete, reopen, generate, refresh, work_result, removed, report_error.
 
@@ -248,7 +248,7 @@ Open boundaries: WorkSourcesV1 and ErrorsV1 exports do not automatically provisi
 
 ## CanEnrich
 
-**REQUIRED.** Review known UK legal company-number facts linked to canonical Customer, not lead discovery or automatic merge. [draft/CanEnrich.can](../../../../draft/CanEnrich.can) SHA-256 `81c2917899e84754c49e398be97f32da8a72dd045ab8767ad0bcab213156fe9a`; companion `23643ada7d6054aaca9d2aa6d41c8ec36767582f46d399c60bd5b9ab6ffecbac`.
+**REQUIRED.** Review known UK legal company-number facts linked to canonical Customer, not lead discovery or automatic merge. [draft/CanEnrich.can](../../../../draft/apps/CanEnrich/CanEnrich.can) SHA-256 `81c2917899e84754c49e398be97f32da8a72dd045ab8767ad0bcab213156fe9a`; companion `23643ada7d6054aaca9d2aa6d41c8ec36767582f46d399c60bd5b9ab6ffecbac`.
 
 Workflows: start, looked_up, assess, fallback, accept, stop.
 

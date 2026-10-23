@@ -187,7 +187,7 @@ export {
   observeScenarioReceiptDependency, observeScenarioReceiptRowId, type ScenarioReceiptRowIdInput, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
   bindScenarioReceiptReferenceProducer, bindScenarioReceiptModelResult, type ScenarioReceiptReferenceProducer,
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
-  executeScenarioReceiptLeaveRequestDecision, type LeaveRequestDecisionPlan,
+  executeScenarioReceiptLeaveRequestDecision,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
   bindScenarioReceiptMembershipSource, type ScenarioReceiptMembershipSourceAssociation,
@@ -242,3 +242,7 @@ export {
 export { transition, type TransitionContext } from './effects/transition.js';
 
 export { projectReadScenarioQueryResult } from './invocation/scenario-receipt.js';
+
+export {
+  type LeaveRequestDecisionPlan,
+} from './invocation/scenario-plan.js';

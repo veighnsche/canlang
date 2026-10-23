@@ -34,7 +34,7 @@ use super::js::{Emitter, JsModel, js_field_default, literal_json};
 /// E6007/E6008 gaps) must not orphan exactly-bound derives, while an affected
 /// model/member stays refused with its exact codes. This mirrors the
 /// membership bridge and query-diagnostic seals.
-fn checked_fresh_derived_member(context: &super::scenario_decisions::FreshSourceContext<'_>,
+fn checked_fresh_derived_member(context: &super::source_context::FreshSourceContext<'_>,
     ir: &IrProgram, model: &IrItem, member: &IrItem, db: &SourceDb) -> Option<()> {
     if !std::ptr::eq(context.ir(), ir) || !std::ptr::eq(context.db(), db) {
         return None;
@@ -91,7 +91,7 @@ fn check_derived_member(
     owner: &IrItem,
     model: &IrItem,
     member: &IrItem,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
     db: &SourceDb,
 ) -> Option<()> {
     // Derived members are excluded from stored constructor inputs.
@@ -126,7 +126,7 @@ fn collect_stored_fields(
     owner: &IrItem,
     model: &IrItem,
     fields: &[SymbolId],
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
     db: &SourceDb,
 ) -> Option<Vec<SymbolId>> {
     let mut stored_fields = Vec::new();
@@ -671,7 +671,7 @@ fn check_schema_rules(
 
 /// Authenticate complex owning rules against independent source lowering.
 /// The normal runtime invariant/lock/unique/retention evaluators still run.
-fn checked_fresh_model_rules(context: &super::scenario_decisions::FreshSourceContext<'_>,
+fn checked_fresh_model_rules(context: &super::source_context::FreshSourceContext<'_>,
     ir: &IrProgram, model: &IrItem, db: &SourceDb) -> Option<()> {
     if !std::ptr::eq(context.ir(), ir) || !std::ptr::eq(context.db(), db)
         || format!("{model:?}") != format!("{:?}",context.fresh().items.get(model.id.0 as usize)?)
@@ -917,7 +917,7 @@ pub(super) fn checked_created_schema(
     models: &[JsModel],
     original: &CheckedScenarioCreate,
     db: &SourceDb,
-    source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
+    source_context: Option<&super::source_context::FreshSourceContext<'_>>,
 ) -> Option<()> {
     let (
         model,
@@ -979,7 +979,7 @@ pub(super) fn checked_created_schema(
             let field = ir.items.get(id.0 as usize)?;
             if let IrItemKind::Field {ty:IrType::Known(ResolvedType::Nullable(inner)),default,..} = &field.kind
                 && let ResolvedType::Delivery {op} = inner.as_ref() {
-                super::scenario_decisions::same_capability_operation(context,*op)?;
+                super::source_correspondence::same_capability_operation(context,*op)?;
                 if original.inputs.iter().any(|input| input.field == Some(field.id))
                     || !(default.is_none() || matches!(default,Some(IrDefault::Literal(value)) if value.ty == ResolvedType::Null && matches!(value.expr,IrExpr::Null))) {
                     return None;

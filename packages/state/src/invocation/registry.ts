@@ -6,7 +6,8 @@ import {
   compareDecimal, compareDate, compareInstant, compareMoney, isDecimal, isDateValue, isDatetime, isMoney, datetime,
   type NormalizedSchema,
 } from '@canlang/values';
-import { bindScenarioReceiptPlan, checkScenarioResultDisclosurePlan } from './scenario-receipt.js';
+import { bindScenarioReceiptPlan } from './scenario-receipt.js';
+import { checkScenarioResultDisclosurePlan } from './scenario-plan.js';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.

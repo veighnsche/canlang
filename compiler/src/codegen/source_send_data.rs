@@ -151,7 +151,7 @@ impl Reads {
         value
     }
 
-    fn read(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,
+    fn read(&mut self,ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,
         value:&TypedExpr,env:&Environment,depth:usize)->Option<()> {
         self.steps+=1;if depth>32||self.steps>4096{return None;}
         if send_value(ir,value,&env.values,0){return Some(());}
@@ -244,7 +244,7 @@ impl Reads {
     }
     // This census grants no aggregate value. The original generated Values
     // expression runs over independently projected complete child domains.
-    fn aggregate(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,id:&str,
+    fn aggregate(&mut self,ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,id:&str,
         args:&[TypedExpr],slots:Option<&Vec<Option<usize>>>,env:&Environment,depth:usize)->Option<()> {
         if args.len()!=2{return None;}
         let indexes=if let Some(slots)=slots{let [Some(a),Some(b)]=slots.as_slice()else{return None;};[*a,*b]}else{[0,1]};
@@ -293,7 +293,7 @@ impl Reads {
             "fields":field_descriptors(fields),"order":[]}));
         Some(())
     }
-    fn helper(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,name:&str,
+    fn helper(&mut self,ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,name:&str,
         args:&[TypedExpr],slots:Option<&Vec<Option<usize>>>,env:&Environment,depth:usize)->Option<()> {
         let helper=ir.items.iter().find(|item|item.canonical==name)?;
         let IrItemKind::DeriveFn{params,expr:Some(body),..}=&helper.kind else{return None;};
@@ -323,7 +323,7 @@ impl Reads {
         if used.len()!=args.len(){return None;}
         self.read(ir,context,body,&callee,depth+1)?;self.stack.remove(&helper.id);Some(())
     }
-    fn query(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,query:&super::ir::IrQuery,
+    fn query(&mut self,ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,query:&super::ir::IrQuery,
         value:&TypedExpr,env:&Environment,depth:usize)->Option<()> {
         let super::ir::IrQueryDomain::Model(name)=&query.domain else{return None;};
         let model=ir.items.iter().find(|item|item.canonical==*name)?;
@@ -368,14 +368,14 @@ impl Reads {
     }
 }
 
-pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
+pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,
     requires:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,module:&str,loops:Option<&serde_json::Value>)->Option<HashMap<Span,serde_json::Value>>{
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     context.same_scenario(ir, owner)?;
     let creates=super::source_created_rows::collect(ir,owner,context,&source)?;
     let (mut env,mut models)=Environment::admitted(ir,params)?;
-    fn walk(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
+    fn walk(ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
         models:&mut BTreeMap<String,SymbolId>,created_roots:&mut BTreeMap<String,serde_json::Value>,creates:&[serde_json::Value],loop_roots:&BTreeMap<String,String>,loops:Option<&serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
         for statement in body{match statement{
             IrStmt::Let{name,value,span}=>{let pure=send_value(ir,value,&env.values,0)||let_data.contains_key(span);env.values.remove(name);env.roots.remove(name);models.remove(name);created_roots.remove(name);if pure{env.values.insert(name.clone());}},
@@ -419,7 +419,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
     let mut output=HashMap::new();walk(ir,context,owner,effects,&mut env,&mut models,&mut BTreeMap::new(),&creates,&BTreeMap::new(),loops,let_data,&source,module,&mut output);Some(output)
 }
 
-pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
+pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,
     requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<HashMap<Span,serde_json::Value>>{
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
@@ -429,7 +429,7 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
     context.same_scenario(ir, owner)?;
     let creates=super::source_created_rows::collect(ir,owner,context,&source)?;
     let (mut env,models)=Environment::admitted(ir,params)?;
-    fn walk(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
+    fn walk(ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
         models:&BTreeMap<String,SymbolId>,created:&mut BTreeMap<String,serde_json::Value>,creates:&[serde_json::Value],source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
         for statement in body{match statement{
             IrStmt::Let{name,value,..}=>{let pure=send_value(ir,value,&env.values,0);env.values.remove(name);env.roots.remove(name);created.remove(name);if pure{env.values.insert(name.clone());}},

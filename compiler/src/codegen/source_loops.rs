@@ -84,7 +84,7 @@ fn predicate(ir:&IrProgram,value:&TypedExpr,roots:&HashMap<String,SymbolId>,valu
         _=>false,
     }
 }
-pub(super) fn model_corresponds(context:&super::scenario_decisions::FreshSourceContext<'_>,id:SymbolId)->Option<()> {
+pub(super) fn model_corresponds(context:&super::source_context::FreshSourceContext<'_>,id:SymbolId)->Option<()> {
     let (ir,fresh)=(context.ir(),context.fresh());
     let optional=|a:&Option<TypedExpr>,b:&Option<TypedExpr>|match(a,b){(None,None)=>Some(()),(Some(a),Some(b))=>context.same_expression(a,b),_=>None};
     let (a,b)=(ir.items.get(id.0 as usize)?,fresh.items.get(id.0 as usize)?);
@@ -115,7 +115,7 @@ pub(super) fn model_corresponds(context:&super::scenario_decisions::FreshSourceC
     }
     Some(())
 }
-fn body_counts(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,body:&[IrStmt],item:&str,model:SymbolId,parameter:&str,parent_model:SymbolId,values:&BTreeSet<String>)->Option<(usize,usize)>{
+fn body_counts(ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,body:&[IrStmt],item:&str,model:SymbolId,parameter:&str,parent_model:SymbolId,values:&BTreeSet<String>)->Option<(usize,usize)>{
     let mut writes=0;let mut sends=0;let mut deliveries=HashMap::new();
     for statement in body{match statement{
         IrStmt::If{cond,then_branch,else_branch,..}if else_branch.is_empty()
@@ -156,7 +156,7 @@ fn body_counts(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceCont
     }}
     (writes>0&&writes<=4&&sends<=2).then_some((writes,sends))
 }
-pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
+pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,
     requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<serde_json::Value>{
     let source=&requires.values().find(|source|source["owner"]==owner.canonical)?["source"];
     let plan=collect_from_source(ir,owner,context,source,module)?;
@@ -168,7 +168,7 @@ pub(super) fn collect(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decis
     (guards+repeated<=200).then_some(plan)
 }
 
-pub(super) fn collect_native(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,source:&serde_json::Value,module:&str)->Option<serde_json::Value> {
+pub(super) fn collect_native(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,source:&serde_json::Value,module:&str)->Option<serde_json::Value> {
     let IrItemKind::Scenario{result:None,effects,hook:None,read:false,trusted:false,event_source:None,cohort:None,..}=&owner.kind else{return None;};
     let IrStmt::For{body,span,..}=effects.last()? else{return None;};
     if !matches!(body.as_slice(),[IrStmt::Create{..}]){return None;}
@@ -176,14 +176,14 @@ pub(super) fn collect_native(ir:&IrProgram,owner:&IrItem,context:&super::scenari
     (loops.len()==1&&loops[0]["node"]["start"]==span.start&&loops[0]["node"]["end"]==span.end&&loops[0]["sends"]==0).then_some(plan)
 }
 
-fn collect_from_source(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,source:&serde_json::Value,module:&str)->Option<serde_json::Value>{
+fn collect_from_source(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,source:&serde_json::Value,module:&str)->Option<serde_json::Value>{
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     context.same_scenario(ir, owner)?;
     let roots:HashMap<_,_>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};Some((param.name.clone(),*symbol))}).collect();
     let values:BTreeSet<_>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};super::source_send_data::plain_value(ir,ty,0).then(||param.name.clone())}).collect();
-    fn walk(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],roots:&mut HashMap<String,SymbolId>,values:&mut BTreeSet<String>,source:&serde_json::Value,out:&mut Vec<serde_json::Value>)->Option<()>{
+    fn walk(ir:&IrProgram,context:&super::source_context::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],roots:&mut HashMap<String,SymbolId>,values:&mut BTreeSet<String>,source:&serde_json::Value,out:&mut Vec<serde_json::Value>)->Option<()>{
         for statement in body{match statement{
             IrStmt::Let{name,value,..}=>{let pure=super::source_send_data::send_value(ir,value,values,0);roots.remove(name);values.remove(name);if pure{values.insert(name.clone());}},
             IrStmt::For{item,domain,limit:Some(limit),body,span}=>{

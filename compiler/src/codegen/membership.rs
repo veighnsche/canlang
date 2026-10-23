@@ -148,7 +148,7 @@ fn collect_membership_calls(
 }
 
 fn membership_diagnostics_overlap(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     calls: &HashMap<Span, serde_json::Value>,
 ) -> bool {
     context.has_ir_diagnostics()
@@ -162,7 +162,7 @@ fn membership_diagnostics_overlap(
 }
 
 fn collect_membership_sites(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     ir: &IrProgram,
     program: &CheckedProgram,
 ) -> Option<BTreeMap<String, serde_json::Value>> {
@@ -237,7 +237,7 @@ fn collect_membership_sites(
 }
 
 fn collect_membership_predicates(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
     db: &SourceDb,
 ) -> Option<(
     HashMap<Span, serde_json::Value>,
@@ -288,7 +288,7 @@ fn collect_membership_predicates(
 }
 
 pub(super) fn prepare_with_context(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    context: &super::source_context::FreshSourceContext<'_>,
 ) -> Option<MembershipSources> {
     let program = context.program();
     let ir = context.ir();

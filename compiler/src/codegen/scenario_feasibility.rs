@@ -390,8 +390,8 @@ fn prepare_owner(
         hook.is_some(),
         cohort.is_some(),
     )?;
-    super::scenario_decisions::same_scenario_semantics(program, ir, fresh, owner)?;
-    super::scenario_decisions::same_scenario_semantics(
+    super::source_correspondence::same_scenario_semantics(program, ir, fresh, owner)?;
+    super::source_correspondence::same_scenario_semantics(
         program,
         ir,
         fresh,

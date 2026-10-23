@@ -1,4 +1,4 @@
-/** An overdue Mail is decided from the current private Invoice and its complete balance ledger. */
+/** Real Work tests keep the authored Mail evaluation phase and complete private balance ledger. */
 import assert from 'node:assert/strict';
 import { execFile, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -84,7 +84,8 @@ it('checks authored overdue variants and rejects malformed evaluation qualifiers
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
-it('sends overdue Mail only for a current positive owner balance from genuine Work',
+for (const variant of ['source', 'renamed', 'live', 'source-false'] as const) {
+it(`preserves the ${variant} overdue Mail decision from genuine Work`,
   { timeout: 180000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'can-invoice-overdue-'));
     try {
@@ -100,7 +101,7 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
         assert.ok(probe.includes(declaration.split(' label=')[0]!),
           `original ${name} balance dependency is retained`);
       }
-      const variant=process.env['CAN_OVERDUE_VARIANT']??'source',renamed=variant==='renamed',live=variant==='live',sourceFalse=variant==='source-false';
+      const renamed = variant === 'renamed', live = variant === 'live', sourceFalse = variant === 'source-false';
       const ownerPackage=renamed?'billing_reminders':'invoice',handler=renamed?'billing_reminders.nudge':'invoice.overdue';
       const model=(name:string)=>asModel(name.replace(/^invoice\./,ownerPackage+'.').replace(/\.Invoice$/,renamed?'.Receivable':'.Invoice'));
       let compileSource=source;
@@ -114,7 +115,7 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
         uiUrl: import.meta.resolve('@canlang/ui') });
       assert.ok((artifact.modules[0]?.js ?? '').includes('sendWhen:'), 'original balance Rule is emitted');
 
-      if(process.env['CAN_OVERDUE_METADATA_TAMPER']==='1'){
+      if (variant === 'source') {
         for(const tamper of ['missing-staged-rule','extra-staged-rule']as const){
           const changed=structuredClone(artifact);let found=false;
           for(const module of changed.modules){
@@ -132,7 +133,6 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
           const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
           await assert.rejects(bindNativeEmailDispatchGuards({asm:forged,artifact:changed,store,identities,scope,revalidateAuthority:async()=>true}),(error:unknown)=>error instanceof Error,tamper+' must refuse before an execution/provider exists');
         }
-        return;
       }
       for (const mode of [
         'current-hidden', 'revision-is-not-in-authored-guard', 'initial-credit',
@@ -141,7 +141,6 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
         'recipient-after-schedule', 'void-after-schedule', 'missing-work-due',
         'credit-at-commit','many-credits',
       ] as const) {
-        if(process.env['CAN_OVERDUE_CASE']!==undefined&&!process.env['CAN_OVERDUE_CASE']!.split(',').includes(mode))continue;
         const clock = createFrozenClock(now);
         const identities = createMemoryIdentityStore({ clock });
         const team = await identities.createTeam({ timezone: 'UTC' });
@@ -316,7 +315,7 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
               return producers.createSystemRegistry(commands.map(command =>
                 command.name === claim.name ? guarded : command));
             });
-            if(process.env['CAN_OVERDUE_PERSISTED_TAMPER']==='1'){
+            if (variant === 'source') {
               const load=store.load.bind(store);
               for(const tamper of ['mode','header']as const){
                 let altered=false;
@@ -345,3 +344,4 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
+}

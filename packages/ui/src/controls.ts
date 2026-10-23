@@ -66,7 +66,7 @@ import {
   formatDatetimeLocal,
   nativeBooleanPresence,
   pointerToFieldName,
-} from "./forms.js";
+} from "./internal/field-binding.js";
 import {
   canonicalDefaultTag,
   canonicalPreferredTags,

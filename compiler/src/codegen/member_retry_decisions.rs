@@ -11,7 +11,7 @@ use crate::analysis::{NodeKey, ResolvedType, Scalar};
 use crate::source::{Span, sha256_hex};
 
 use super::ir::{IrItem, IrItemKind, IrStmt};
-use super::scenario_decisions::FreshSourceContext;
+use super::source_context::FreshSourceContext;
 use super::scenario_receipts::{
     NativeReturn, NativeScenarioReceipt, NativeSite, ReceiptDisclosurePlan, ReceiptReturn,
     transport_source,

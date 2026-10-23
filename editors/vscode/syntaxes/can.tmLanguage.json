@@ -1669,6 +1669,20 @@
           "include": "#type"
         },
         {
+          "match": "\\b(when_at)\\s*(=)\\s*(source|current)\\b(?=\\s+as\\b)",
+          "captures": {
+            "1": {
+              "name": "variable.other.property.key.can"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.can"
+            },
+            "3": {
+              "name": "constant.language.send-phase.can"
+            }
+          }
+        },
+        {
           "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(\\s*=)(?!=)",
           "captures": {
             "1": {

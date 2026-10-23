@@ -17,7 +17,7 @@ use crate::source::{Span, sha256_hex};
 use crate::syntax::SyntaxKind;
 
 use super::ir::{IrExpr, IrItemKind, IrQuery, IrQueryDomain};
-use super::scenario_decisions::FreshSourceContext;
+use super::source_context::FreshSourceContext;
 
 #[derive(Clone)]
 pub(super) struct AuthorityQuerySite {

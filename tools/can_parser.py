@@ -1105,7 +1105,13 @@ class Parser:
         elif head.text in ('call', 'send'):
             target = c.expr(stop={'{'}, query=False, construct=False); arguments = c.object(); attrs = {}; name = None
             if head.text == 'send' and c.at('when'):
-                c.take(); c.take('='); attrs['when'] = c.expr(stop={'as'}, query=False)
+                c.take(); c.take('='); attrs['when'] = c.expr(stop={'as', 'when_at'}, query=False)
+            if head.text == 'send' and c.at('when_at'):
+                if 'when' not in attrs: c.fail("when_at requires a when guard", head)
+                c.take(); c.take('='); phase = c.name()
+                if phase.text not in ('source', 'current'):
+                    c.fail("when_at must be the literal source or current", phase)
+                attrs['when_at'] = phase.text
             if c.at('as'): c.take(); name = c.name().text
             if head.text == 'send' and name is None: c.fail("send requires a delivery binding")
             value = node(head.text, head, target=target, arguments=arguments, attributes=attrs, name=name)

@@ -1551,7 +1551,7 @@ pub fn emit_program_with_native_source_receipts(
 /// Complete query receipts. Source inventories alone cannot activate capture.
 #[derive(Default)]
 pub(super) struct EmitDecisionSources<'a> {
-    pub source_context: Option<&'a super::scenario_decisions::FreshSourceContext<'a>>,
+    pub source_context: Option<&'a super::source_context::FreshSourceContext<'a>>,
     pub authority_queries: Option<&'a super::authority_query_sites::PreparedAuthorityQuerySites>,
     pub owner_handlers: Option<&'a HashSet<SymbolId>>,
     pub private_derives: Option<&'a HashSet<String>>,
@@ -1625,7 +1625,7 @@ fn missing_source_checked_send_rule(
 // independently installed original owner joins; ordinary CRUD and scalar
 // evaluation retain their existing caller grants and mutation pipeline.
 fn source_event_payload(ir:&IrProgram,owner:&IrItem,event:&str,payload:&TypedExpr,
-        values:&BTreeSet<String>,records:&BTreeMap<String,ResolvedType>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>)->bool{
+        values:&BTreeSet<String>,records:&BTreeMap<String,ResolvedType>,context:Option<&super::source_context::FreshSourceContext<'_>>)->bool{
         if context.is_none_or(|context|context.same_event_schema(event).is_none()){return false;}
         let Some(declaration)=ir.items.iter().find(|item|item.canonical==event&&item.module==owner.module)else{return false;};
         let IrItemKind::Event{fields}=&declaration.kind else{return false;};
@@ -1658,7 +1658,7 @@ struct SourceWorkBindings {
 struct SourceWorkCollector<'a,'s> {
     ir:&'a IrProgram,
     owner:&'a IrItem,
-    context:&'a super::scenario_decisions::FreshSourceContext<'s>,
+    context:&'a super::source_context::FreshSourceContext<'s>,
     source:serde_json::Value,
     module:&'a str,
     kind:SourceWorkKind,
@@ -1742,7 +1742,7 @@ fn source_work_time(value:&TypedExpr)->Option<serde_json::Value>{
         Some(serde_json::json!({"offset":offset.to_string()}))
     }
 
-fn source_only_work(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
+fn source_only_work(ir:&IrProgram,owner:&IrItem,context:&super::source_context::FreshSourceContext<'_>,
     requires:&HashMap<Span,serde_json::Value>,module:&str,kind:SourceWorkKind)->Option<HashMap<Span,serde_json::Value>>{
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
@@ -1764,7 +1764,7 @@ fn source_only_work(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisio
 }
 // Independently inspect original public guards when optional observer
 // preparation is unavailable. A missing inventory cannot erase a model scan.
-fn source_require_missing_original_guard(ir:&IrProgram,owner:&IrItem,sources:&HashMap<Span,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>)->bool {
+fn source_require_missing_original_guard(ir:&IrProgram,owner:&IrItem,sources:&HashMap<Span,serde_json::Value>,context:Option<&super::source_context::FreshSourceContext<'_>>)->bool {
     if source_require_missing_guard_tree(ir,owner,sources){return true;}
     let Some(context)=context else{return false;};
     let original=context.fresh().items.get(owner.id.0 as usize).filter(|original|
@@ -1823,7 +1823,7 @@ fn source_require_missing_guard_tree(ir:&IrProgram,owner:&IrItem,sources:&HashMa
     }false
 }
 
-fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&HashMap<Span,serde_json::Value>,data_sends:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>) -> bool {
+fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&HashMap<Span,serde_json::Value>,data_sends:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::source_context::FreshSourceContext<'_>>) -> bool {
     fn expression(ir: &IrProgram, value: &TypedExpr, depth: usize) -> bool {
         if depth > 64 { return false; }
         let child = |value: &TypedExpr| expression(ir, value, depth + 1);
@@ -1884,7 +1884,7 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
         }
     }
     fn statements(ir: &IrProgram,owner:&IrItem, body: &[IrStmt], depth: usize,
-        values:&mut BTreeSet<String>,records:&mut BTreeMap<String,ResolvedType>,consumed:&HashSet<Span>,data_sends:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>) -> bool {
+        values:&mut BTreeSet<String>,records:&mut BTreeMap<String,ResolvedType>,consumed:&HashSet<Span>,data_sends:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::source_context::FreshSourceContext<'_>>) -> bool {
         if depth > 64 { return false; }
         body.iter().all(|statement| match statement {
             IrStmt::For{span,body,..}=>loops.get(&owner.canonical).and_then(|source|source["loops"].as_array()).is_some_and(|entries|

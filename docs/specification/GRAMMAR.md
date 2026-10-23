@@ -109,7 +109,7 @@ Header attributes have the following closed sets. Fixed syntax before the attrib
 | user scenario | `scenario NAME parameters` | `by=expr` **required**, `read=true`, `scope=authority`, one `-> type` result annotation, `label=caption` |
 | trusted scenario | `scenario NAME` | `on=source` **required**, optional `each=cohort [as NAME]`; no parameters, `by`, `read`, `scope` or result annotation |
 | execution/mapper guard | `require expr` | `message=expr`; a literal text or message value is required semantically; presentation require has no attributes |
-| send effect | `send ordinary values` | `when=ordinary`, followed by mandatory `as NAME` binding |
+| send effect | `send ordinary values` | `when=ordinary`, optionally followed by `when_at=source` or `when_at=current`; mandatory `as NAME` binding |
 | schedule effect | `schedule expr` | `at=expr` **required**, `event=path values` **required** |
 | scenario examples | `examples` | tables: named input bindings `NAME=expr`, `seed=expr`; sequences: only optional `seed=expr`; seed resolves to a fixture list |
 | CRUD examples | `examples (create or update or delete)` | named input bindings `NAME=expr`, `seed=expr`; seed must resolve to a fixture list |
@@ -393,7 +393,8 @@ transition      = "transition" path NAME "->" NAME ;
 delete          = "delete" mutation_target ;
 call            = "call" ordinary values ["as" NAME] ;
 emit            = "emit" path values ;
-send            = "send" ordinary values ["when" "=" ordinary] "as" NAME ;
+send            = "send" ordinary values ["when" "=" ordinary ["when_at" "=" send_phase]] "as" NAME ;
+send_phase      = "source" | "current" ;
 schedule        = "schedule" expr "at" "=" expr "event" "=" path values ;
 cancel          = "cancel" expr ;
 return          = "return" expr ;
@@ -411,6 +412,8 @@ binding. Frozen membership, bounded child transactions, verified source
 authority and replay follow DESIGN §6. Parsing does not establish support
 for a trigger/owner consumer; unavailable execution is an explicit
 unsupported diagnostic, never a client-callable fallback.
+
+The send qualifier `when_at` requires a preceding `when` guard and accepts only the unquoted literal `source` or `current`, not a dynamic expression. It precedes the mandatory `as NAME` binding. Omission and `current` evaluate the guard at dispatch; `source` preserves its source-transaction decision under DESIGN §6 without waiving current authority or lifecycle checks.
 
 The table's `on=source` slot uses `handler_source`. Each effect suite is nonempty. `else` occurs at the same indentation as its paired `if` immediately after that suite, ignoring blank/comments. No `else if` shortcut is introduced; write a nested `if` in the `else` suite. The mandatory `limit` slot parses an expression whose value must be a positive integer within the work budget. It is not a query clause. Loop query expressions end at `limit=`. Call/send targets parse ordinary expressions with unparenthesized typed construction disabled so their following argument object remains a distinct effect slot; later checking requires a valid operation/action reference. A delete path must resolve to a permitted mutable record target.
 

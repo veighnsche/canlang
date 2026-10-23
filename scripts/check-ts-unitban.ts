@@ -38,7 +38,13 @@ function listFiles(): string[] {
   )
     .split("\0")
     .filter(Boolean);
-  return [...tracked, ...untracked];
+  // A removed tracked source still appears in the index until it is staged.
+  // Scan the actual working tree, including new files, without opening retired paths.
+  const deleted = new Set(execFileSync(
+    "git", ["ls-files", "--deleted", "-z"],
+    { cwd: ROOT, encoding: "utf8" },
+  ).split("\0").filter(Boolean));
+  return [...tracked, ...untracked].filter((path) => !deleted.has(path));
 }
 
 function loadInfraAllowlist(): string[] {

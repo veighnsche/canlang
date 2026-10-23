@@ -1,7 +1,7 @@
 //! Source/IR correspondence for the existing bound Work terminal carriers.
 //! Candidate decoding alone supplies no handler or financial authority.
 use super::ir::{IrEventSource, IrItem, IrItemKind, IrProgram};
-use super::scenario_decisions::FreshSourceContext;
+use super::source_context::FreshSourceContext;
 use crate::analysis::CheckedProgram;
 use std::collections::HashSet;
 
