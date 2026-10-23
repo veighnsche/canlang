@@ -1,0 +1,40 @@
+app MemberRecheck uses=[member_terms]
+package rent_catalog
+ Given
+  export Location {name:text,currency:currency}
+  policy Location read=public
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package customer
+ use rent_catalog {Location}
+ Given
+  export Customer {locations:Location[],active:bool=true}
+  export CompanyRole in Customer {account:user,role:enum(administrator,booker,billing),locations:Location[],active:bool=true}
+  export derive has_location_role(person:user,org:Customer,role:CompanyRole.role,location:Location):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active and location in grant.locations)
+  policy Customer read=authenticated
+  policy CompanyRole read=authenticated where=row.account==actor
+ When
+ Then
+package member_terms
+ use rent_catalog {Location}
+ use employee {can_work}
+ use customer {Customer,has_location_role}
+ Given
+  role member_manager
+  event CompanyAccessStep { customer:Customer, location:Location?, after:text? }
+  event WatchAccessStep { customer:Customer, location:Location?, after:text? }
+ When
+  export scenario recheck_access(customer:Customer,location:Location) by=authenticated or member_manager label="Recheck membership access"@{nl="Controleer lidmaatschapstoegang opnieuw"}
+   require (location in customer.locations and has_location_role(actor,customer,administrator,location)) or (member_manager and can_work(actor,location))
+   do
+    emit CompanyAccessStep {customer,location,after=null}
+    emit WatchAccessStep {customer,location,after=null}
+ Then
