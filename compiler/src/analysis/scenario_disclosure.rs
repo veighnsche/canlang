@@ -15872,6 +15872,7 @@ impl<'a> Closure<'a> {
                     .source_require_unique_any(scenario, call, query, alias, *predicate, fact.model)
                     .is_none()
                 && !self.source_require_contained_collection(scenario, call, "any")
+                && self.source_require_model_array_collection(scenario,call,"any").is_none()
             {
                 *supported = false;
                 return Some(false);
@@ -15915,15 +15916,16 @@ impl<'a> Closure<'a> {
         Some(true)
     }
 
-    /// An `all` in a pre-write Require may iterate an exact original
-    /// indexed Model input or the admitted model's own stored reference array.
-    /// Its nested helper searches are observed at the same owner stage, once for each actual array member.
+    /// ALL may iterate an exact indexed Model input; ALL/ANY may follow an
+    /// admitted receiver to its original stored reference array. Nested helper
+    /// searches are observed at the same stage for each reached array member.
     /// A copied array or a query with filtering/projection would lose that
     /// source correspondence and remains outside this observer profile.
-    fn source_require_all_input_array(
+    fn source_require_model_array_collection(
         &self,
         scenario: &super::effects::ScenarioData,
         call: &CheckedDecisionCall,
+        builtin:&str,
     ) -> Option<()> {
         let fact = self.types.checked_collection_calls.get(&call.node)?;
         let [Some(domain_slot), Some(predicate_slot)] = call.slots.as_slice() else {
@@ -15943,7 +15945,7 @@ impl<'a> Closure<'a> {
         };
         if !call.chain.is_empty()
             || fact.node != call.node
-            || fact.builtin != "all"
+            || fact.builtin != builtin
             || fact.overload != 0
             || fact.query != *domain
             || fact.alias != alias.node
@@ -15964,7 +15966,7 @@ impl<'a> Closure<'a> {
         {
             return None;
         }
-        if let Some(Binding::Symbol(parameter))=self.query_binding(query.domain)
+        if builtin=="all"&&let Some(Binding::Symbol(parameter))=self.query_binding(query.domain)
             &&scenario.params.iter().any(|input|input.param==*parameter
                 &&self.types.symbol_types.get(parameter)==Some(domain_ty)
                 &&self.source_require_model_array_parameter(scenario,input)){
@@ -15975,11 +15977,9 @@ impl<'a> Closure<'a> {
             self.types.node_types.get(&receiver)? else {
             return None;
         };
-        let parameter=scenario.params.iter().find(|parameter|
-            matches!(self.types.symbol_types.get(&parameter.param),Some(ResolvedType::Record{stored:true,..}))
-                &&self.checked_call_parent_path(receiver,parameter.param,0)
-                    .is_some_and(|(model,_)|model==*owner_model))?.param;
-        if !self.checked_call_parent_path(receiver,parameter,0).is_some_and(|(model,_)|model==*owner_model){return None;}
+        // The same checked receiver proof already owns contained source
+        // domains: required original parameter, required stored link or parent.
+        if self.source_require_query_receiver(scenario,call,receiver,0,0)!=Some(*owner_model){return None;}
         let field = self.effects.models.get(owner_model)?.fields.iter().find(|field| {
             self.resolve.symbols.get(field.field.0 as usize)
                 .is_some_and(|decl| decl.name == name)
@@ -16188,7 +16188,7 @@ impl<'a> Closure<'a> {
                 self.source_require_any_call(scenario, body, call, id, overload, helper_query, supported)
             }
             CheckedDecisionCallTarget::Builtin { id, overload: 0 } if id == "all" => {
-                if self.source_require_all_input_array(scenario, call).is_none()
+                if self.source_require_model_array_collection(scenario, call,"all").is_none()
                     && !self.source_require_contained_collection(scenario, call, "all") {
                     *supported = false;
                     return Some(false);

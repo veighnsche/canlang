@@ -3261,3 +3261,24 @@ fn original_report_refresh_seals_model_array_control_and_data_projection() {
  }
 
 }
+
+#[test]
+fn original_member_pause_seals_required_link_stored_array_any() {
+ use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+ let source=include_str!("fixtures/member-pause-original.can");
+ let(db,program,ir,catalog)=fixture_source("member-pause-original.can",source);
+ let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let owner=item(&ir,"member_terms.pause").id;
+ fn collection(value:&mut ir::TypedExpr)->Option<&mut Vec<ir::TypedExpr>>{match &mut value.expr{
+  IrExpr::Call{target:IrCallTarget::Builtin{id,..},args}|IrExpr::BoundCall{target:IrCallTarget::Builtin{id,..},args,..}if id=="any"=>Some(args),
+  IrExpr::Binary{left,right,..}=>collection(left).or_else(||collection(right)),_=>None,
+ }}
+ assert!(serialize_decision_sources(&program,&ir,&ir.items[owner.0 as usize],&db,Some(&catalog)).is_some());
+ for mode in ["link","array-field","predicate"]{
+  let mut changed=ir.clone();let IrItemKind::Scenario{guards,..}=&mut changed.items[owner.0 as usize].kind else{panic!("owner");};
+  let IrStmt::Require{cond,..}=&mut guards[0]else{panic!("guard");};let args=collection(cond).unwrap();
+  if mode=="predicate"{args[1].expr=IrExpr::Bool(true);}
+  else{let IrExpr::Query(query)=&mut args[0].expr else{panic!("domain");};let ir::IrQueryDomain::Value{base,..}=&mut query.domain else{panic!("stored array");};let IrExpr::Member{base,field}=&mut base.expr else{panic!("stored field");};if mode=="array-field"{*field="other_locations".into();}else{let IrExpr::Member{field,..}=&mut base.expr else{panic!("original required link");};*field="other_plan".into();}}
+  assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.0 as usize],&db,Some(&catalog)).is_none(),"{mode} retained original array control");
+ }
+}

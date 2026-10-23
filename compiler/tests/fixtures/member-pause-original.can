@@ -1,0 +1,54 @@
+app CanMember uses=[member_terms]
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+  policy Location read=public where=row.active
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+package customer
+ Given
+  export Customer {name:text}
+  policy Customer read=public
+ When
+ Then
+package member_plans
+ use rent_catalog {Location}
+ Given
+  export Plan {name:text,price:money,locations:Location[]}
+  policy Plan read=public
+  invariant Plan: row.price.minor>0 and count(row.locations)>0
+ When
+ Then
+package member_terms
+ use customer {Customer}
+ use member_plans {Plan}
+ use employee {can_work}
+ use rent_catalog {Location}
+ Given
+  role member_manager
+  Membership in Customer {account:user,plan:Plan,paused:bool=false,revoked:bool=false,recurrence:bool=false,consent:text?,cancellation_at:datetime?,cancellation_reason:text?,next_cycle:int=1 min=1,access_revision:int=0,anchor:date,timezone:timezone,months:int=1 min=1}
+  event AccessChanged {membership:Membership,revision:int}
+  event AllocationAccessStep {membership:Membership,location:Location?,after:text?}
+  event WatchAccessStep {customer:Customer,location:Location?,after:text?}
+  policy Membership read=member_manager where=any(row.plan.locations as location,can_work(actor,location))
+  lock Membership fields=anchor,timezone,months
+ When
+  scenario pause(membership:Membership,reason:text) by=member_manager
+   require trim(reason)!="" and any(membership.plan.locations as location,can_work(actor,location))
+   do
+    set membership {paused=true}
+    emit AccessChanged {membership,revision=membership.access_revision+1}
+  scenario access_changed on=AccessChanged
+   do
+    set event.membership {access_revision=max([event.membership.access_revision+1,event.revision])}
+    emit AllocationAccessStep {membership=event.membership,location=null,after=null}
+    emit WatchAccessStep {customer=event.membership.parent,location=null,after=null}
+ Then
