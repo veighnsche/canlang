@@ -608,7 +608,7 @@ async function restoreOperationBindings(
   return { businessInputs, retainedBinding, seen: seenHolder.current };
 }
 
-async function mintOperationRetry(
+async function mintFormAttempt(
   deps: HttpDeps,
   record: Record<string, unknown>,
   operation: string,
@@ -661,7 +661,25 @@ async function settleOperationOutcome(
     ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
     : await deps.invoker.invokeMutation(envelope, identity);
   if (!('error' in outcome)) {
-    return new Response(JSON.stringify(outcome.result), {
+    let refresh: FormRetry | undefined;
+    if (request.headers.get('X-Can-Refresh') === 'true' && !retainedBinding && !retainedScenario &&
+        idError === null && derived?.kind === 'scenario') {
+      try {
+        // Continuation is optional transport metadata, never a replacement
+        // outcome or authority carried across credential/source changes.
+        await assertCredentialLive(deps.identity.store, {
+          kind: 'session', tokenHash: await sha256HexText(sessionToken),
+          now: new Date(deps.clock.nowMs()).toISOString(),
+        });
+        await assertSourceValidationCurrent(deps.catalog, operation);
+        refresh = await mintFormAttempt(deps, record, operation, operationId, derived, sessionToken, identity);
+        assertSourceValidationStable(deps.catalog, operation);
+      } catch {
+        // The mutation already succeeded; refusal to renew only stops repeats.
+        refresh = undefined;
+      }
+    }
+    return new Response(JSON.stringify(refresh === undefined ? outcome.result : { ...outcome.result, refresh }), {
       status: 200,
       headers: { 'content-type': 'application/json; charset=utf-8' },
     });
@@ -674,7 +692,7 @@ async function settleOperationOutcome(
       derived !== null && ['create', 'update', 'scenario'].includes(derived.kind)) {
     try {
       await assertSourceValidationCurrent(deps.catalog, operation);
-      retry = await mintOperationRetry(deps, record, operation, operationId, derived, sessionToken, identity);
+      retry = await mintFormAttempt(deps, record, operation, operationId, derived, sessionToken, identity);
       assertSourceValidationStable(deps.catalog, operation);
     } catch {
       // Renewal is optional recovery, never a replacement denial.

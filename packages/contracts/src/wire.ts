@@ -223,10 +223,15 @@ export interface MutationResult {
   readonly records?: readonly unknown[];
   readonly deliveries?: readonly DeliveryReceipt[];
   readonly result?: unknown;
+  /** HTTP-only next form occurrence for explicitly opted-in refresh submits.
+   * Paired with its renewed binding; every POST still requires current admission.
+   * Never returned for an unconfirmed mutation outcome. */
+  readonly refresh?: FormRetry;
 }
 
-/** A fresh form attempt issued only after a confirmed rejected receipt.
- * The enclosing error's operation_id identifies the submitted attempt. A
+/** A fresh form attempt after a confirmed rejection, or an opted-in refresh
+ * continuation after confirmed success. For rejection, the enclosing error's
+ * operation_id identifies the submitted attempt. A
  * protected form receives a replacement binding for the same selected refs;
  * unknown outcomes carry no replacement and retain their original identity.
  */

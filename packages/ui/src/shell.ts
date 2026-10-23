@@ -198,6 +198,7 @@ async function renderChildren(children: PageChildren): Promise<readonly string[]
 
 function checkPagePoll(descriptor: PageDescriptor, context: PresentationContext, contextKey: string): string {
   if (descriptor.poll === undefined) {
+    if (descriptor.refresh !== undefined) throw new Error('renderPage: refresh requires poll.');
     return '';
   }
   if (typeof descriptor.poll !== 'bigint' || descriptor.poll < 1000n || descriptor.poll > 3600000n || descriptor.poll % 1000n !== 0n) {
@@ -209,7 +210,11 @@ function checkPagePoll(descriptor: PageDescriptor, context: PresentationContext,
       /%(?:2f|5c|0[0-9a-f]|1[0-9a-f]|7f)/i.test(href.split('?')[0]!)) {
     throw new Error('renderPage: poll requires a same-app page path.');
   }
-  return ` data-can-poll data-can-poll-url="${escapeAttr(href)}" data-can-poll-interval="${descriptor.poll / 1000n}" data-can-poll-context="${escapeAttr(contextKey)}"`;
+  if (descriptor.refresh !== undefined && !/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/.test(descriptor.refresh)) {
+    throw new Error('renderPage: refresh requires a canonical operation.');
+  }
+  const refresh = descriptor.refresh === undefined ? '' : ` data-can-refresh="${escapeAttr(descriptor.refresh)}"`;
+  return `${refresh} data-can-poll data-can-poll-url="${escapeAttr(href)}" data-can-poll-interval="${descriptor.poll / 1000n}" data-can-poll-context="${escapeAttr(contextKey)}"`;
 }
 
 function renderNavGroups(shell: ShellData, context: PresentationContext, brand: string): string {

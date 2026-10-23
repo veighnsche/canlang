@@ -153,6 +153,8 @@ export interface SubmitGeneratedFormInput {
   readonly fragment: boolean;
   /** Source occurrences retain their own DOM and consume checked JSON errors. */
   readonly denialFormat?: "html" | "json";
+  /** Request a server-issued next form attempt for an explicitly armed refresh. */
+  readonly refresh?: boolean;
   /** Dispatcher-supplied S7 intents URL; required iff files carry bytes. */
   readonly intentsUrl?: string;
   readonly fetchImpl?: SubmitFetch;
@@ -459,7 +461,7 @@ function checkedIntent(value: unknown, field: string): CheckedIntent {
 }
 
 /** Validate the committed mutation result shape (status + operation identity). */
-function checkedMutationResult(body: string, operation: string): MutationResult {
+function checkedMutationResult(body: string, operation: string, expectedId: string, bound: boolean): MutationResult {
   const fail = (): GeneratedSubmitError =>
     new GeneratedSubmitError(
       "contract",
@@ -480,10 +482,16 @@ function checkedMutationResult(body: string, operation: string): MutationResult 
   if (
     (status !== "committed" && status !== "replayed") ||
     typeof operationId !== "string" ||
-    operationId === ""
+    operationId !== expectedId
   ) {
     throw fail();
   }
+  const next = parsed['refresh'];
+  if (next !== undefined && (!isRecord(next) || Object.keys(next).some(key => key !== 'operation_id' && key !== 'form_binding') ||
+      typeof next['operation_id'] !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(next['operation_id']) ||
+      next['operation_id'].toLowerCase() === expectedId.toLowerCase() ||
+      (bound ? typeof next['form_binding'] !== 'string' || next['form_binding'] === '' : next['form_binding'] !== undefined))) throw fail();
   // Pinned members validated; optional members pass through opaquely —
   // the dispatcher is their authority, not this client.
   return parsed as unknown as MutationResult;
@@ -708,7 +716,7 @@ export async function submitGeneratedForm(
   } catch (error) {
     throw projectionError(error);
   }
-  return submitMutationRequest(input.derived.operation, input.flat, action, inputs, fetchImpl, input.fragment, input.denialFormat);
+  return submitMutationRequest(input.derived.operation, input.flat, action, inputs, fetchImpl, input.fragment, input.denialFormat, input.refresh);
 }
 
 async function uploadSubmitFile(
@@ -810,7 +818,7 @@ export async function submitDeleteForm(input: {
 }
 
 async function submitMutationRequest(operation: string, flat: Record<string, string>, action: string,
-  inputs: ClosedInputs | undefined, fetchImpl: SubmitFetch, fragment: boolean, denialFormat: 'html' | 'json' | undefined,
+  inputs: ClosedInputs | undefined, fetchImpl: SubmitFetch, fragment: boolean, denialFormat: 'html' | 'json' | undefined, refresh = false,
 ): Promise<GeneratedSubmitResult> {
   const operationId = flat['operation_id']!;
   const csrf = flat[CSRF_FIELD]!;
@@ -825,6 +833,7 @@ async function submitMutationRequest(operation: string, flat: Record<string, str
   let response: SubmitFetchResponse;
   try {
     const headers: Record<string, string> = {
+      ...(refresh ? { 'X-Can-Refresh': 'true' } : {}),
       "content-type": inputs === undefined ? "application/x-www-form-urlencoded" : "application/json",
       [CSRF_HEADER]: csrf,
       accept: denialFormat === "json" ? "application/json" : SUBMIT_ACCEPT,
@@ -852,7 +861,7 @@ async function submitMutationRequest(operation: string, flat: Record<string, str
         false,
       );
     }
-    return { kind: "committed", result: checkedMutationResult(body, operation) };
+    return { kind: "committed", result: checkedMutationResult(body, operation, operationId, Object.hasOwn(flat, SOURCE_FORM_BINDING_FIELD)) };
   }
   if (contentType.includes("text/html")) {
     if (denialFormat === "json") {

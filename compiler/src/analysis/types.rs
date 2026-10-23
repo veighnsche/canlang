@@ -1175,7 +1175,7 @@ pub fn check_types(
     let mut typer = Typer::new(db, catalog, tables, diags);
     // Read flags first: phase-1 declared types (`action(...)` /
     // `invocation(...)` targets) already need the set.
-    typer.collect_read_scenarios(trees);
+    typer.collect_scenario_flags(trees);
     // Source languages first: message/descriptor variant checks
     // (`E3016` source-repeat) compare against the owning module tag.
     typer.collect_module_sources(trees);
@@ -7304,9 +7304,9 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Collect `read=true` scenarios before phase 1 (declared
-    /// types and callers may precede callees in source).
-    fn collect_read_scenarios(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+    /// Collect scenario publication and input metadata before phase 1;
+    /// declared types and pages may precede their targets in source.
+    fn collect_scenario_flags(&mut self, trees: &[(SourceId, SyntaxNode)]) {
         for (file, tree) in trees {
             let text = self.text(*file).to_string();
             for child in kids(tree) {
@@ -7327,11 +7327,28 @@ impl<'a> Typer<'a> {
                         let is_read = attribute_value(item, "read", &text).is_some_and(|attr| {
                             matches!(literal_leaf(attr, &text), Some((_, "true")))
                         });
-                        if is_read
-                            && let Some(id) =
-                                self.decl_symbol(module, &text, item, &["export", "scenario"])
+                        if let Some(id) =
+                            self.decl_symbol(module, &text, item, &["export", "scenario"])
                         {
-                            self.read_scenarios.insert(id);
+                            if is_read {
+                                self.read_scenarios.insert(id);
+                            }
+                            if attribute_value(item, "expose", &text).is_some() {
+                                self.unpublished_scenarios.insert(id);
+                            }
+                            if let SymbolKind::Scenario { params, .. } =
+                                &self.tables.symbols[id.0 as usize].kind
+                            {
+                                for (param, parameter) in params.iter().zip(
+                                    kids(item)
+                                        .into_iter()
+                                        .filter(|n| n.kind == SyntaxKind::Parameter),
+                                ) {
+                                    if let Some(default) = field_parts(parameter, &text).default {
+                                        self.refresh_defaults.insert(*param, default.clone());
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -9831,7 +9848,7 @@ impl<'a> Typer<'a> {
     }
 
     /// Check the `poll=`/`refresh=` page attributes: whole-second
-    /// durations in range, and refresh naming a user mutation.
+    /// durations in range and a same-page mutation with repeatable inputs.
     fn check_page_poll_refresh(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, text: &str) {
         let poll = attribute_value(node, "poll", text);
         if let Some(poll) = poll {
@@ -9862,20 +9879,165 @@ impl<'a> Typer<'a> {
                     tight_span(text, refresh),
                 ));
             }
-            if let Some(target) = self.tables.node_symbol.get(&NodeKey::of(refresh)).copied() {
-                let is_mutation = matches!(
-                    self.tables.symbols[target.0 as usize].kind,
-                    SymbolKind::Scenario { trusted: false, .. }
-                ) && !self.read_scenarios.contains(&target);
-                if !is_mutation {
+            let Some(target) = self.tables.node_symbol.get(&NodeKey::of(refresh)).copied() else {
+                if refresh.kind != SyntaxKind::Path {
                     self.diags.push(Diagnostic::error(
                         "E3009",
                         "page refresh must name a canonical user mutation".to_string(),
                         tight_span(text, refresh),
                     ));
                 }
+                return;
+            };
+            let valid_target = matches!(
+                self.tables.symbols[target.0 as usize].kind,
+                SymbolKind::Scenario { trusted: false, .. }
+            ) && !self.read_scenarios.contains(&target)
+                && !self.unpublished_scenarios.contains(&target)
+                && !self.tables.judgment_generated_symbols.contains(&target);
+            if !valid_target {
+                self.diags.push(Diagnostic::error(
+                    "E3009",
+                    "page refresh must name an enabled canonical user mutation without generated business inputs".to_string(),
+                    tight_span(text, refresh),
+                ));
+                return;
+            }
+            if let SymbolKind::Scenario { params, .. } =
+                &self.tables.symbols[target.0 as usize].kind
+            {
+                for param in params {
+                    let ty = self.decl_type(*param);
+                    if self.field_has_server(*param) || !self.refresh_input_type(&ty) {
+                        self.diags.push(Diagnostic::error(
+                            "E3009",
+                            format!("page refresh parameter '{}' must contain only repeatable non-secret values; records, file, secret and engine-resolved inputs are not allowed",
+                                self.tables.symbols[param.0 as usize].name),
+                            tight_span(text, refresh),
+                        ));
+                    }
+                    if let Some(default) = self.refresh_defaults.get(param)
+                        && !self.refresh_static_default(default, *param, &ty)
+                    {
+                        self.diags.push(Diagnostic::error(
+                            "E3009",
+                            format!("page refresh parameter '{}' needs a static default or an earlier parameter copy; contextual or generated defaults cannot be repeated",
+                                self.tables.symbols[param.0 as usize].name),
+                            tight_span(text, refresh),
+                        ));
+                    }
+                }
+            }
+            let mut pending = vec![node];
+            let mut presented = false;
+            while let Some(candidate) = pending.pop() {
+                if candidate.kind == SyntaxKind::Form {
+                    let domain = attribute_value(candidate, "action", text)
+                        .or_else(|| kids(candidate).into_iter().find(|n| is_expression(n.kind)));
+                    presented |= domain.is_some_and(|domain| {
+                        self.tables.node_symbol.get(&NodeKey::of(domain)) == Some(&target)
+                            || matches!(self.tables.node_binding.get(&NodeKey::of(domain)),
+                                Some(Binding::Symbol(id)) if *id == target)
+                    });
+                }
+                pending.extend(kids(candidate));
+            }
+            if !presented {
+                self.diags.push(Diagnostic::error(
+                    "E3009",
+                    "page refresh mutation must be presented by a form on the same page"
+                        .to_string(),
+                    tight_span(text, refresh),
+                ));
             }
         }
+    }
+
+    /// Follow checked input shapes rather than nominal spellings. Contracts may
+    /// carry ordinary values, but cannot hide records or non-repeatable inputs.
+    fn refresh_input_type(&self, ty: &ResolvedType) -> bool {
+        let mut pending = vec![ty.clone()];
+        let mut seen = HashSet::new();
+        let mut steps = 0usize;
+        while let Some(ty) = pending.pop() {
+            steps += 1;
+            if steps > 4096 {
+                return false;
+            }
+            match ty {
+                ResolvedType::Scalar(Scalar::File | Scalar::Secret) => return false,
+                ResolvedType::Scalar(_) | ResolvedType::Null | ResolvedType::Enum { .. } => {}
+                ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
+                    pending.push(*inner)
+                }
+                ResolvedType::Record { symbol, .. } => {
+                    let SymbolKind::Contract { fields } =
+                        &self.tables.symbols[symbol.0 as usize].kind
+                    else {
+                        return false;
+                    };
+                    if seen.insert(symbol) {
+                        for field in fields {
+                            let ty = self.decl_type(*field);
+                            if self.field_has_server(*field)
+                                || self.refresh_defaults.get(field).is_some_and(|default| {
+                                    !self.refresh_static_default(default, *field, &ty)
+                                })
+                            {
+                                return false;
+                            }
+                            pending.push(ty);
+                        }
+                    }
+                }
+                ResolvedType::Union(arms) => {
+                    pending.extend(arms.into_iter().map(|symbol| ResolvedType::Record { symbol, stored: false }));
+                }
+                ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
+                    pending.extend(fields.into_iter().map(|(_, ty)| ty))
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
+
+    /// Only defaults whose repeat stability is proven locally are admitted.
+    /// Calls and contextual names require fresh business input and fail closed.
+    fn refresh_static_default(
+        &self,
+        node: &SyntaxNode,
+        param: SymbolId,
+        expected: &ResolvedType,
+    ) -> bool {
+        let text = self.text(node.span.file);
+        let mut pending = vec![node];
+        while let Some(node) = pending.pop() {
+            match node.kind {
+                SyntaxKind::Literal => {}
+                SyntaxKind::NameRef => {
+                    let copy = matches!(self.tables.node_binding.get(&NodeKey::of(node)), Some(Binding::Symbol(seed))
+                        if matches!((&self.tables.symbols[param.0 as usize].kind, &self.tables.symbols[seed.0 as usize].kind),
+                            (SymbolKind::Param { owner, index, .. }, SymbolKind::Param { owner: seed_owner, index: seed_index, .. }) if owner == seed_owner && seed_index < index));
+                    let enum_case = !self.tables.node_binding.contains_key(&NodeKey::of(node))
+                        && matches!(expected, ResolvedType::Enum { cases, .. }
+                            if name_or_ref_word(node, text).is_some_and(|name| cases.iter().any(|case| case == name)));
+                    if !copy && !enum_case {
+                        return false;
+                    }
+                }
+                SyntaxKind::Group | SyntaxKind::Unary | SyntaxKind::Binary | SyntaxKind::Array
+                | SyntaxKind::Object | SyntaxKind::ObjectEntry => {
+                    pending.extend(
+                        kids(node)
+                            .into_iter()
+                            .filter(|child| is_expression(child.kind) || child.kind == SyntaxKind::ObjectEntry),
+                    );
+                }
+                _ => return false,
+            }
+        }
+        true
     }
 
     fn phase2_page(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
@@ -13291,6 +13453,9 @@ struct Typer<'a> {
     current_read: bool,
     /// Scenarios declared with `read=true` (collected pre-phase-2).
     read_scenarios: HashSet<SymbolId>,
+    /// Publication/default metadata needed by refresh even before the target body is checked.
+    unpublished_scenarios: HashSet<SymbolId>,
+    refresh_defaults: HashMap<SymbolId, SyntaxNode>,
     /// Context-declared queue names per module (send/on= targets).
     queue_names: HashSet<(ModuleId, String)>,
     judgment_messages: HashMap<SymbolId, SyntaxNode>,
@@ -13358,6 +13523,8 @@ impl<'a> Typer<'a> {
             hooks_seen: HashMap::new(),
             current_read: false,
             read_scenarios: HashSet::new(),
+            unpublished_scenarios: HashSet::new(),
+            refresh_defaults: HashMap::new(),
             queue_names: HashSet::new(),
             judgment_messages: HashMap::new(),
             strict_purity_roots: Vec::new(),
@@ -13931,6 +14098,10 @@ impl<'a> Typer<'a> {
             .copied();
         let Some(id) = found else { return };
         let shape = field_parts(field, text);
+        if let Some(default) = shape.default {
+            self.refresh_defaults.insert(id, default.clone());
+        }
+
         if shape
             .modifiers
             .iter()

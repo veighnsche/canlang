@@ -246,11 +246,9 @@ export function validationStatusSwaps(formRegionTarget: string): StatusSwap[] {
 /**
  * Refresh trigger value for an explicit-first reread cadence: `every {N}s`.
  *
- * DESIGN refresh contract (documented, enforced by the dispatcher/runtime):
- * an explicit user submit happens first; repeats stay on the same
- * page/principal/team; every repeat carries CSRF; one outstanding reread via
- * hx-sync="this:abort". The owning operation is identified by the form the
- * trigger is attached to, so this helper takes only the cadence.
+ * This formats an attribute only. Explicit form arming and serialized canonical
+ * POSTs belong to the browser refresh owner; aborting a request is never
+ * authority to start a replacement mutation.
  */
 export function refreshTrigger(intervalSeconds: number): string {
   assertIntervalSeconds(intervalSeconds, "intervalSeconds");

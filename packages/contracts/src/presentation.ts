@@ -290,6 +290,8 @@ export interface PageDescriptor {
   readonly style?: { readonly unitId: string; readonly useId: string };
   /** Optional authorized page reread cadence in integer milliseconds (1s–1h). */
   readonly poll?: bigint;
+  /** Checked canonical scenario repeated only after its explicit form succeeds. */
+  readonly refresh?: string;
   /** Canonical declaring package. */
   readonly owner: string;
   /** Normalized route pattern, e.g. "/expenses/review" or "/invoices/{Invoice.id}". */

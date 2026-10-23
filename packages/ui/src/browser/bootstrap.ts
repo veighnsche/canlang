@@ -128,10 +128,12 @@ export interface ClientInternals {
   readonly deliver?: BrowserClientOptions["deliverPollResponse"];
   readonly document: DocumentLike;
   readonly visibility: VisibilityLike;
-  readonly onGeneratedFormResult?: BrowserClientOptions["onGeneratedFormResult"];
+  readonly onGeneratedFormResult?: (form: ElementLike, result: GeneratedSubmitResult, automatic?: boolean) => void;
   readonly onGeneratedFormError?: BrowserClientOptions["onGeneratedFormError"];
   /** Invalidate a pending default page read before a newer mutation starts. */
   readonly onGeneratedFormStart?: () => void;
+  /** One active repeat owner per page, released on supersession/context loss. */
+  readonly claimRefresh?: (stop: () => void) => void;
 }
 
 /** Per-component binder: bind behavior under `root`, return an unbind. */
@@ -1030,7 +1032,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
       binding.setAttribute('value', retry.form_binding!);
     }
   };
-  const settleSubmitResult = (flat: Record<string, string>, result: GeneratedSubmitResult): void => {
+  const settleSubmitResult = (flat: Record<string, string>, result: GeneratedSubmitResult, automatic = false): void => {
     if (result.kind === 'denied' && result.retry !== undefined) {
       applySubmitRetry(flat, result.retry);
     }
@@ -1041,12 +1043,119 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
         ...(result.error.fields ?? []).map(field => field.message),
       ].join('\n'));
     }
-    internals.onGeneratedFormResult?.(form, result);
+    internals.onGeneratedFormResult?.(form, result, automatic);
+  };
+  const refreshRegion = internals.document.getElementById('can-main');
+  const refreshOperation = refreshRegion?.getAttribute('data-can-refresh');
+  const cadence = parseIntervalSeconds(refreshRegion?.getAttribute('data-can-poll-interval') ?? null);
+  let repeat: { flat: Record<string, string>; metadata: NonNullable<ReturnType<typeof parseSubmitMetadata>['metadata']>; action: string } | null = null;
+  let timer: unknown = null;
+  let failures = 0;
+  let repeatGeneration = 0;
+  let repeatRequest: AbortController | null = null;
+  const repeatAlive = () => alive() && refreshRegion !== null && refreshRegion?.isConnected === true &&
+    internals.document.getElementById('can-main') === refreshRegion &&
+    refreshRegion.getAttribute('data-can-refresh') === refreshOperation &&
+    !refreshRegion.hasAttribute('data-can-read-denied') && internals.visibility.visibilityState === 'visible' &&
+    internals.document.body?.getAttribute('data-can-logged-out') !== 'true' &&
+    refreshRegion.getAttribute('data-can-logged-out') !== 'true';
+  const clearRepeat = () => {
+    if (timer !== null) internals.windowRef.clearTimeout(timer);
+    timer = null; repeat = null; failures = 0; repeatGeneration += 1;
+    repeatRequest?.abort(); repeatRequest = null;
+  };
+  const refreshEligible = (metadata: ReturnType<typeof parseSubmitMetadata>['metadata'], flat: Record<string, string>): boolean =>
+    cadence !== null && refreshOperation != null && metadata?.mode === 'scenario' &&
+    metadata.derived?.operation === refreshOperation && flat.operation === refreshOperation &&
+    metadata.derived.inputs.every(input => !['ref', 'file', 'delivery'].includes(input.kind) &&
+      (input.default === undefined || input.default.kind === 'literal'));
+  const scheduleRepeat = () => {
+    if (repeat === null || cadence === null || !repeatAlive()) { clearRepeat(); return; }
+    // Completion-based cadence coalesces missed ticks: no queued invocations.
+    timer = internals.windowRef.setTimeout(() => { timer = null; void runRepeat(); },
+      Math.min(3600000, cadence * 1000 * 2 ** Math.min(failures, 8)));
+  };
+  const acceptRepeat = (entry: NonNullable<typeof repeat>, result: GeneratedSubmitResult): void => {
+    if (result.kind === 'denied' && result.error.retryable === true && ![401, 403].includes(result.status)) {
+      repeat = result.retry === undefined ? entry : { ...entry, flat: { ...entry.flat,
+        operation_id: result.retry.operation_id,
+        ...(result.retry.form_binding === undefined ? {} : { [SOURCE_FORM_BINDING_FIELD]: result.retry.form_binding }) } };
+      failures = Math.min(failures + 1, 8); return;
+    }
+    if (result.kind !== 'committed' || result.result.operation_id !== entry.flat.operation_id) {
+      clearRepeat(); return;
+    }
+    const deliveries = result.result.deliveries;
+    if (deliveries !== undefined && (!Array.isArray(deliveries) || deliveries.some(delivery =>
+        typeof delivery?.id !== 'string' || !['pending', 'unknown', 'succeeded', 'failed', 'skipped'].includes(delivery.status)))) {
+      clearRepeat(); return;
+    }
+    // Pending/unknown source work may only replay its exact occurrence.
+    // The canonical receipt reader decides whether terminal evidence exists.
+    if (deliveries?.some(delivery => delivery.status === 'pending' || delivery.status === 'unknown')) {
+      repeat = entry; failures = Math.min(failures + 1, 8); return;
+    }
+    const next = result.result.refresh;
+    if (next === undefined) { clearRepeat(); return; }
+    applySubmitRetry(entry.flat, next);
+    feedback(null, '');
+    repeat = { ...entry, flat: { ...entry.flat, operation_id: next.operation_id,
+      ...(next.form_binding === undefined ? {} : { [SOURCE_FORM_BINDING_FIELD]: next.form_binding }) } };
+    failures = deliveries?.some(delivery => delivery.status === 'failed') ? Math.min(failures + 1, 8) : 0;
+  };
+  const hideSourceHandles = () => {
+    for (const handle of refreshRegion?.querySelectorAll?.('[data-can-once], [data-can-source-action]') ?? []) {
+      handle.setAttribute('hidden', '');
+    }
+  };
+  const runRepeat = async (): Promise<void> => {
+    const entry = repeat;
+    if (entry === null || !repeatAlive()) { clearRepeat(); return; }
+    if (pending) { scheduleRepeat(); return; }
+    pending = true;
+    previousBusy = form.getAttribute('aria-busy');
+    form.setAttribute('aria-busy', 'true');
+    form.setAttribute('data-can-submit-state', 'pending');
+    const controller = new AbortController(); inflight = controller; repeatRequest = controller;
+    internals.onGeneratedFormStart?.(); hideSourceHandles();
+    try {
+      const csrf = form.querySelector?.(`input[name="${CSRF_FIELD}"]`) as (ElementLike & { value: string }) | null;
+      if (typeof csrf?.value !== 'string' || csrf.value === '' || form.getAttribute('action') !== entry.action) {
+        clearRepeat(); return;
+      }
+      const flat = { ...entry.flat, [CSRF_FIELD]: csrf.value };
+      const result = await submitGeneratedForm({ derived: entry.metadata.derived!, mode: entry.metadata.mode!, flat,
+        ...(entry.metadata.renderedInputs === undefined ? {} : { renderedInputs: entry.metadata.renderedInputs }),
+        action: entry.action, fragment: false, denialFormat: 'json', refresh: true,
+        fetchImpl: (url, init) => {
+          if (!repeatAlive() || repeat !== entry) throw new GeneratedSubmitError('transport', 'Refresh owner ended.', false);
+          return internals.fetchImpl(url, { ...init, signal: controller.signal });
+        } });
+      if (repeat !== entry || !repeatAlive()) return;
+      acceptRepeat(entry, result);
+      // The same canonical feedback/reread owner handles results. No result
+      // calls the repeat trigger; only the serial timer can issue its next POST.
+      settleSubmitResult(entry.flat, result, true);
+    } catch (error) {
+      if (repeat === entry && repeatAlive()) {
+        failures = Math.min(failures + 1, 8);
+        form.setAttribute('data-can-submit-state', 'error');
+        feedback('submit_failed', 'The refresh could not be confirmed. Retrying the same request.');
+        internals.onGeneratedFormError?.(form, error);
+      }
+    } finally {
+      inflight = null; repeatRequest = null; pending = false;
+      if (!stopped) releaseBusy();
+      scheduleRepeat();
+    }
   };
   const onSubmit = (event: EventLike): void => {
     event.preventDefault();
     event.stopPropagation?.();
     if (pending || !alive()) return;
+    clearRepeat();
+    internals.claimRefresh?.(clearRepeat);
+    const explicitGeneration = repeatGeneration;
     internals.onGeneratedFormStart?.();
     feedback(null, '');
     pending = true;
@@ -1057,6 +1166,8 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
       try {
         const { deletion, metadata } = parseSubmitMetadata();
         const flat = collectSubmitFlat(event);
+        const eligible = refreshEligible(metadata, flat);
+        if (eligible) hideSourceHandles();
         const controller = new AbortController();
         inflight = controller;
         // FormData must collect the activated successful control before it is
@@ -1084,9 +1195,13 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
           : await submitGeneratedForm({
               derived: metadata!.derived!, mode: metadata!.mode!, flat,
               ...(metadata!.renderedInputs === undefined ? {} : { renderedInputs: metadata!.renderedInputs }),
-              action: form.getAttribute('action') ?? '', fragment: false, denialFormat: 'json', fetchImpl,
+              action: form.getAttribute('action') ?? '', fragment: false, denialFormat: 'json', refresh: eligible, fetchImpl,
             });
         if (alive()) {
+          if (eligible && metadata !== null && repeatGeneration === explicitGeneration && repeatAlive()) {
+            acceptRepeat({ flat: { ...flat }, metadata: JSON.parse(JSON.stringify(metadata)) as typeof metadata,
+              action: form.getAttribute('action') ?? '' }, result);
+          }
           settleSubmitResult(flat, result);
         }
       } catch (error) {
@@ -1100,6 +1215,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
       } finally {
         inflight = null;
         pending = false;
+        scheduleRepeat();
         releaseClientResources([
           ...(alive() ? [() => restoreSubmitter?.()] : []),
           ...(!stopped ? [releaseBusy] : []),
@@ -1111,6 +1227,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
   form.addEventListener('submit', onSubmit);
   return () => {
     stopped = true;
+    clearRepeat();
     const request = inflight;
     inflight = null;
     // Release this owner's temporary state before a replacement binds the
@@ -1710,9 +1827,11 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
   if (live !== undefined) {
     return live;
   }
+  let repeatOwner: { context: string; stop: () => void } | null = null;
+  const clearRepeatOwner = () => { const owner = repeatOwner; repeatOwner = null; owner?.stop(); };
   let refresh: AbortController | null = null;
   const cancelRefresh = () => { refresh?.abort(); refresh = null; };
-  const refreshCommittedPage = (form: ElementLike, result: GeneratedSubmitResult): void => {
+  const refreshCommittedPage = (form: ElementLike, result: GeneratedSubmitResult, automatic = false): void => {
     if (result.kind !== 'committed') return;
     const region = document.getElementById('can-main');
     const location = options.window.location;
@@ -1723,6 +1842,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
     const controller = new AbortController();
     refresh = controller;
     const context = client.contextKey();
+    const preserveForm = automatic || (result.result.refresh !== undefined &&
+      region.getAttribute('data-can-refresh') === (form.querySelector?.('input[name="operation"]') as (ElementLike & { value: string }) | null)?.value);
     const current = () => !stopped && refresh === controller && !controller.signal.aborted &&
       region.isConnected && document.getElementById('can-main') === region && client.contextKey() === context &&
       !region.hasAttribute('data-can-read-denied') &&
@@ -1739,7 +1860,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
         const body = response.status === 403 ? '' : await response.text();
         if (!current()) return;
         client.rescan(true);
-        if (applyPollResponse(document, region, body, response.status, form)) client.rescan();
+        if (applyPollResponse(document, region, body, response.status, preserveForm ? undefined : form)) client.rescan();
         else if (response.status === 403) client.rescan(true);
       } catch {
         if (current()) markReadFailure(document, region);
@@ -1753,12 +1874,14 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
     windowRef: options.window,
     document,
     visibility: options.visibility ?? document,
-    onGeneratedFormResult: (form, result) => {
-      refreshCommittedPage(form, result);
+    onGeneratedFormResult: (form, result, automatic) => {
+      refreshCommittedPage(form, result, automatic);
+      if (result.kind !== 'committed') client.rescan();
       options.onGeneratedFormResult?.(form, result);
     },
-    onGeneratedFormStart: cancelRefresh,
-    ...(options.onGeneratedFormError === undefined ? {} : { onGeneratedFormError: options.onGeneratedFormError }),
+    onGeneratedFormStart: () => { cancelRefresh(); dropPollBindings(bound); },
+    claimRefresh: (stop) => { clearRepeatOwner(); repeatOwner = { context: client.contextKey(), stop }; },
+    onGeneratedFormError: (form, error) => { client.rescan(); options.onGeneratedFormError?.(form, error); },
     ...(options.deliverPollResponse === undefined
       ? {}
       : { deliver: options.deliverPollResponse }),
@@ -1789,6 +1912,9 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
       if (stopped) {
         return;
       }
+      if ((options.visibility ?? document).visibilityState !== 'visible' || repeatOwner?.context !== client.contextKey() ||
+          document.body?.getAttribute('data-can-logged-out') === 'true' ||
+          document.getElementById('can-main')?.getAttribute('data-can-logged-out') === 'true') clearRepeatOwner();
       if (restartPolling) {
         dropPollBindings(bound);
       }
@@ -1809,6 +1935,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
         return;
       }
       stopped = true;
+      clearRepeatOwner();
       cancelRefresh();
       if (LIVE_CLIENTS.get(document as object) === client) LIVE_CLIENTS.delete(document as object);
       const swapHook = releaseSwapHook;
@@ -1944,7 +2071,7 @@ export function startNativeBrowserClient(native: NativeWindow): BrowserClient {
     observer = native.MutationObserver === undefined ? null : new native.MutationObserver(() => client.rescan());
     if (native.document.body !== null) observer?.observe(native.document.body, {
       childList: true, subtree: true, attributes: true,
-      attributeFilter: ['data-can-context', 'data-can-poll', 'data-can-poll-context', 'data-can-logged-out'],
+      attributeFilter: ['data-can-context', 'data-can-poll', 'data-can-poll-context', 'data-can-refresh', 'data-can-logged-out'],
     });
     releaseListeners.push(() => native.removeEventListener('popstate', navigate));
     native.addEventListener('popstate', navigate);

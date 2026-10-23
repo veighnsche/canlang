@@ -4197,3 +4197,176 @@ fn a3_order_key_nullable_datetime_clean() {
     let diags = check(src, Some(&fixture()));
     assert!(diags.is_empty(), "{diags:?}");
 }
+
+/// The actual CLI rejects refresh declarations before a browser can retain
+/// arguments for a target with hidden authority or fresh business inputs.
+#[test]
+fn page_refresh_cli_checks_repeatable_same_page_mutations() {
+    let scratch = tempfile::tempdir().unwrap();
+    let catalog = scratch.path().join("catalog.json");
+    std::fs::write(&catalog, FIXTURE_JSON).unwrap();
+    let input = scratch.path().join("refresh.can");
+    let source = |given: &str, params: &str, attributes: &str, pages: &str| {
+        format!(
+            "app Refresh\nGiven\n{given}When\n scenario tick({params}) by=members {attributes}\n  do let done = 1\nThen\n{pages}"
+        )
+    };
+    let page = " page /jobs title=\"Jobs\" poll=5s refresh=tick\n  form tick\n";
+    let cases = [
+        (
+            "scalar arguments",
+            source("", "seed:text=\"x\", copy:text=seed", "", page),
+            None,
+        ),
+        (
+            "static arithmetic",
+            source("", "count:int=1+2", "", page),
+            None,
+        ),
+        (
+            "plain contract",
+            source(" contract Input { label:text }\n", "input:Input", "", page),
+            None,
+        ),
+        (
+            "static contract defaults",
+            source(" contract Input { label:text=\"ready\" }\n", "input:Input", "", page),
+            None,
+        ),
+        (
+            "contextual contract default",
+            source(" contract Input { at:datetime=now }\n", "input:Input", "", page),
+            Some("repeatable non-secret"),
+        ),
+        (
+            "server contract input",
+            source(" contract Input { at:datetime server=now }\n", "input:Input", "", page),
+            Some("repeatable non-secret"),
+        ),
+        (
+            "no poll",
+            source("", "", "", &page.replace(" poll=5s", "")),
+            Some("requires poll="),
+        ),
+        (
+            "form missing",
+            source("", "", "", &page.replace("  form tick\n", "")),
+            Some("same page"),
+        ),
+        (
+            "form on other page",
+            source(
+                "",
+                "",
+                "",
+                " page /jobs title=\"Jobs\" poll=5s refresh=tick\n page /other title=\"Other\"\n  form tick\n",
+            ),
+            Some("same page"),
+        ),
+        (
+            "unpublished",
+            source("", "", "expose=none", page),
+            Some("enabled canonical"),
+        ),
+        (
+            "read operation",
+            source("", "", "read=true", page),
+            Some("enabled canonical"),
+        ),
+        (
+            "record",
+            source(
+                " M { value:int }\n policy M read=members\n",
+                "record:M",
+                "",
+                page,
+            ),
+            Some("repeatable non-secret"),
+        ),
+        (
+            "file array",
+            source("", "files:file[]=[]", "", page),
+            Some("repeatable non-secret"),
+        ),
+        (
+            "secret",
+            source("", "token:secret", "", page),
+            Some("repeatable non-secret"),
+        ),
+        (
+            "nested secret",
+            source(
+                " contract Input { token:secret }\n",
+                "input:Input",
+                "",
+                page,
+            ),
+            Some("repeatable non-secret"),
+        ),
+        (
+            "nested record",
+            source(
+                " M { value:int }\n policy M read=members\n contract Input { record:M? }\n",
+                "input:Input",
+                "",
+                page,
+            ),
+            Some("repeatable non-secret"),
+        ),
+        (
+            "engine delivery",
+            source("", "receipt:delivery(tick)", "", page),
+            Some("repeatable non-secret"),
+        ),
+        (
+            "clock default",
+            source("", "at:datetime=now", "", page),
+            Some("static default"),
+        ),
+        (
+            "actor default",
+            source("", "who:user?=actor", "", page),
+            Some("static default"),
+        ),
+    ];
+    for (name, text, refusal) in cases {
+        std::fs::write(&input, &text).unwrap();
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["check", "--format=json", "--catalog"])
+            .arg(&catalog)
+            .arg(&input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        let response: serde_json::Value =
+            serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+                panic!(
+                    "{name}: {error}: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                )
+            });
+        let diagnostics = response["diagnostics"].as_array().unwrap();
+        assert!(
+            !diagnostics.iter().any(|diagnostic| diagnostic["code"]
+                .as_str()
+                .is_some_and(|code| code.starts_with("E1"))),
+            "{name}: source must parse: {response}"
+        );
+        if let Some(refusal) = refusal {
+            assert!(!output.status.success(), "{name}: must refuse: {response}");
+            assert!(
+                diagnostics.iter().any(
+                    |diagnostic| diagnostic["code"] == "E3009" || diagnostic["code"] == "E3001"
+                ) && diagnostics.iter().any(|diagnostic| diagnostic["message"]
+                    .as_str()
+                    .is_some_and(|message| message.contains(refusal))),
+                "{name}: missing refresh refusal '{refusal}': {response}"
+            );
+        } else {
+            assert!(
+                output.status.success() && diagnostics.is_empty(),
+                "{name}: {response}"
+            );
+        }
+    }
+}

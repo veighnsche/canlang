@@ -14,7 +14,21 @@ When
    as -> example_sample.title
    members -> "Updated sample"
    outsider -> error(forbidden)
+ scenario refresh_samples(title:text) by=members
+  do create Sample {title,note="Accepted refresh input"} as created
+  examples
+   as,title -> count(Sample)
+   members,"Accepted sample" -> 1
+   outsider,"Denied sample" -> error(forbidden)
 Then
+ page /refresh title="Explicit refresh actions" poll=1s refresh=refresh_samples
+  require members
+  text "Submit a title to start refreshing with those accepted inputs."
+  form refresh_samples display=inline
+   input title
+   primary "Start sample refresh" submit=true
+  button target="/" caption="Leave refresh page"
+  table Sample columns=title,note empty="No accepted refresh samples."
  page / title="Shared form actions"
   require members
   text "A canonical form or edit owns one direct primary submit. Secondary actions and independent operation controls are unsupported inside forms."

@@ -253,6 +253,7 @@ fn fixture_ir() -> IrProgram {
         resolved_cases: Default::default(),
         committed_sources: Default::default(),
         standard_completion_sources: Default::default(),
+        derived_bool_receipts: Vec::new(),
         referenced_builtins: Vec::new(),
         read_rules: Vec::new(),
         callback_read_rules: vec![],
@@ -2784,6 +2785,7 @@ fn construct_effects() {
                 IrExpr::Bool(true),
                 ResolvedType::Scalar(Scalar::Bool),
             )),
+            when_at_source: false,
             binding: Some("attempt".to_string()),
             span: sp(0, 1),
         },
@@ -5446,6 +5448,7 @@ fn t15a_model_field_tags() {
         resolved_cases: Default::default(),
         committed_sources: Default::default(),
         standard_completion_sources: Default::default(),
+        derived_bool_receipts: Vec::new(),
         referenced_builtins: Vec::new(),
         read_rules: Vec::new(),
         callback_read_rules: vec![],
@@ -6352,6 +6355,7 @@ fn t15b_std_delivery_model_tags() {
         resolved_cases: Default::default(),
         committed_sources: Default::default(),
         standard_completion_sources: Default::default(),
+        derived_bool_receipts: Vec::new(),
         referenced_builtins: Vec::new(),
         read_rules: Vec::new(),
         callback_read_rules: vec![],
@@ -7436,6 +7440,7 @@ fn t31_hook_stmt_backstops() {
         deployment_binding: None,
         args: typed(IrExpr::Object(Vec::new()), ResolvedType::Unknown),
         when: None,
+        when_at_source: false,
         binding: None,
         span: sp(0, 1),
     };
@@ -8806,7 +8811,7 @@ fn a2a_for_limit_checks_length_then_loops() {
 /// members: exact-BigInt millis plus the canonical refresh mutation.
 #[test]
 fn a2a_page_poll_refresh_lower_to_descriptor() {
-    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario tick() by=members\n   do let done = 1\n Then\n  page /jobs title=\"Jobs\" poll=5s refresh=tick\n";
+    let src = "package shop\n Given\n  M { x:int }\n  policy M read=members\n When\n  scenario tick() by=members\n   do let done = 1\n Then\n  page /jobs title=\"Jobs\" poll=5s refresh=tick\n   form tick\n";
     let (artifact, diags) = a2a_emit(src);
     assert!(
         diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),

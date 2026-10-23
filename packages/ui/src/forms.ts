@@ -577,11 +577,11 @@ function needsMultipart(fields: readonly FormFieldDef[] | undefined): boolean {
   return fields.some((field) => field.control === "file_input");
 }
 
-function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperationInputs, renderedInputs?: readonly string[], bindingIdentity?: string, draftIdentity?: string): string {
+function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperationInputs, renderedInputs?: readonly string[], bindingIdentity?: string, draftIdentity?: string, sourceAction = false): string {
   const encoding = multipart ? ` enctype="multipart/form-data"` : "";
   const projection = derived === undefined ? ""
     : ` data-can-generated-form="${escapeAttr(JSON.stringify({ derived, mode: derived.kind, renderedInputs, bindingIdentity, draftIdentity }))}"`;
-  return `<form action="${escapeAttr(action)}" method="post" class="can-form"${encoding}${projection}>`;
+  return `<form action="${escapeAttr(action)}" method="post" class="can-form"${encoding}${projection}${sourceAction ? " data-can-source-action" : ""}>`;
 }
 
 function splitErrors(
@@ -1142,7 +1142,7 @@ function completeActionRender(
   const submit = `<button type="submit" class="btn ${tone}"${tone === "btn-primary" ? " data-can-standard-submit" : ""}>${labelText}</button>`;
   const renderedForm = (
     formOpenTag(postTo, needsMultipart(props.fields), props.derived, renderedInputs,
-      props.sourceBindingIdentity, props.sourceBindingDraftIdentity) +
+      props.sourceBindingIdentity, props.sourceBindingDraftIdentity, props.derived !== undefined) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +

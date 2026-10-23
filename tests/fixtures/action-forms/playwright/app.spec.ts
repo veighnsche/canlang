@@ -292,3 +292,178 @@ test("failed current rereads mark retained values and denied rereads discard pri
     try { await context.close(); } finally { await session.close(); }
   }
 });
+
+test("source refresh repeats only accepted canonical inputs and drops stopped owners", async ({ browser }) => {
+  const session = await openDraftSession({ root, source, app: "ActionForms" });
+  const context = await browser.newContext({ locale: "en-US" });
+  const page = await context.newPage();
+  type RefreshPair = { operation_id: string; form_binding?: string };
+  type Exchange = RefreshPair & { title: string; header: string | undefined; next?: RefreshPair; committed: boolean; lost: boolean };
+  const posts: Exchange[] = [];
+  const errors: string[] = [];
+  type RefreshFault = "none" | "hold" | "lost-ack" | "hold-ack";
+  let fault: RefreshFault = "none";
+  // Arm faults before the browser cadence can pass the intended occurrence.
+  const plannedFaults = new Map<number, RefreshFault>([[2, "hold"], [3, "lost-ack"], [5, "hold"]]);
+  let releasePost: (() => void) | undefined;
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    const origin = await session.authenticate(context);
+    await page.route(`${origin}/api/operations/ActionForms.refresh_samples`, async route => {
+      const request = route.request();
+      if (request.method() !== "POST") { await route.continue(); return; }
+      const body = request.postDataJSON() as RefreshPair & { inputs: { title: string } };
+      const selected = plannedFaults.get(posts.length) ?? fault; fault = "none";
+      const exchange: Exchange = { operation_id: body.operation_id,
+        ...(body.form_binding === undefined ? {} : { form_binding: body.form_binding }),
+        title: body.inputs.title, header: request.headers()["x-can-refresh"], committed: false, lost: selected === "lost-ack" };
+      posts.push(exchange);
+      let gate: Promise<void> | undefined;
+      if (selected === "hold" || selected === "hold-ack") gate = new Promise<void>(resolve => { releasePost = resolve; });
+      if (selected === "hold") await gate;
+      // Every faulted request reaches the real server. Lost acknowledgements
+      // hide an actual committed response; no synthetic success can arm refresh.
+      const response = await route.fetch();
+      expect(response.status()).toBe(200);
+      const result = await response.json() as { refresh?: RefreshPair };
+      if (result.refresh !== undefined) exchange.next = result.refresh;
+      exchange.committed = true;
+      if (selected === "hold-ack") await gate;
+      if (selected === "lost-ack") { await route.abort("failed"); return; }
+      await route.fulfill({ response }).catch(() => {}); // A stopped owner may have aborted delivery.
+    });
+    const form = () => operationForm(page, "refresh_samples");
+    const submit = async (title: string) => {
+      await titleInput(form()).fill(title);
+      await form().getByRole("button", { name: "Start sample refresh", exact: true }).click();
+    };
+    const complete = async (index: number) => {
+      await expect.poll(() => posts[index]?.committed ?? false).toBe(true);
+      const exchange = posts[index]!;
+      expect(exchange.header).toBe("true");
+      expect(exchange.operation_id).toMatch(/^[0-9a-f-]{36}$/i);
+
+      expect(exchange.next?.operation_id).toMatch(/^[0-9a-f-]{36}$/i);
+      expect(exchange.next?.operation_id).not.toBe(exchange.operation_id);
+      if (exchange.form_binding === undefined) expect(exchange.next?.form_binding).toBeUndefined();
+      else {
+        expect(exchange.next?.form_binding).toBeTruthy();
+        expect(exchange.next?.form_binding).not.toBe(exchange.form_binding);
+      }
+      return exchange;
+    };
+    const paired = (previous: Exchange, next: Exchange) => {
+      expect(next.operation_id).toBe(previous.next?.operation_id);
+      expect(next.form_binding).toBe(previous.next?.form_binding);
+    };
+    const sampleCount = async (title: string) => {
+      const response = await context.request.get(`${origin}/refresh`);
+      expect(response.status()).toBe(200);
+      return page.evaluate(({ html, title }) => Array.from(new DOMParser().parseFromString(html, "text/html")
+        .querySelectorAll("td")).filter(cell => cell.textContent?.replace(/[\u2066-\u2069]/g, '').trim() === title).length,
+      { html: await response.text(), title });
+    };
+    const setVisibility = async (state: "hidden" | "visible") => page.evaluate(state => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
+      document.dispatchEvent(new Event("visibilitychange"));
+    }, state);
+    const assertDisarmed = async () => {
+      const before = posts.length;
+      await page.waitForTimeout(1300); // Cross one real source cadence, with no armed operation.
+      expect(posts).toHaveLength(before);
+    };
+
+    await page.goto(`${origin}/refresh`);
+    await expect(page.getByRole("heading", { name: "Explicit refresh actions", exact: true })).toBeVisible();
+    await assertDisarmed();
+    const emptyCount = await sampleCount("Accepted refresh snapshot");
+    expect(await sampleCount("Accepted refresh snapshot")).toBe(emptyCount);
+    expect(posts).toHaveLength(0); // GET, including the installed poll, has no mutation authority.
+
+    await submit("Accepted refresh snapshot");
+    const manual = await complete(0);
+    await expect(page.getByRole("cell", { name: /Accepted refresh snapshot/ }).first()).toBeVisible();
+    // A fresh unsaved draft must never change the accepted continuation input.
+    await titleInput(form()).fill("Unsubmitted refresh draft");
+    const repeated = await complete(1);
+    paired(manual, repeated);
+    expect(repeated.title).toBe("Accepted refresh snapshot");
+    expect(await titleInput(form()).inputValue()).toBe("Unsubmitted refresh draft");
+    expect(await sampleCount("Unsubmitted refresh draft")).toBe(0);
+
+    await expect.poll(() => posts.length).toBe(3);
+    const held = posts[2]!;
+    paired(repeated, held);
+    await page.waitForTimeout(2300); // Several ticks cannot create concurrent POSTs or a queue.
+    expect(posts).toHaveLength(3);
+    releasePost!(); releasePost = undefined;
+    await complete(2);
+    await page.waitForTimeout(250);
+    expect(posts).toHaveLength(3); // Completion does not flush a backlog of missed ticks.
+
+    const lost = await complete(3);
+    paired(held, lost);
+    expect(lost.lost).toBe(true);
+    const committedCount = await sampleCount("Accepted refresh snapshot");
+    const replay = await complete(4);
+    expect({ operation_id: replay.operation_id, form_binding: replay.form_binding, title: replay.title })
+      .toEqual({ operation_id: lost.operation_id, form_binding: lost.form_binding, title: lost.title });
+    // Hold the next attempt so the physical row count isolates genuine replay.
+    expect(await sampleCount("Accepted refresh snapshot")).toBe(committedCount);
+    await expect.poll(() => posts.length).toBe(6);
+    paired(replay, posts[5]!);
+    releasePost!(); releasePost = undefined;
+    await complete(5);
+    await setVisibility("hidden");
+    await setVisibility("visible");
+    await assertDisarmed();
+
+    // A successful response arriving after any owner terminal transition must
+    // not re-arm its saved arguments. Every case starts with a fresh explicit
+    // submit and holds a response that the real server already committed.
+    for (const stop of ["hidden", "context", "logout", "navigation", "removed-region"] as const) {
+      await page.goto(`${origin}/refresh`);
+      await assertDisarmed();
+      const before = posts.length;
+      fault = "hold-ack";
+      await submit(`Stopped refresh ${stop}`);
+      await complete(before);
+      let originalContext: string | null = null;
+      if (stop === "hidden") await setVisibility("hidden");
+      else if (stop === "context") originalContext = await page.locator("body").evaluate(body => {
+        const previous = body.getAttribute("data-can-context");
+        body.setAttribute("data-can-context", `${previous ?? ""}:changed`); return previous;
+      });
+      else if (stop === "logout") await page.locator("body").evaluate(body => body.setAttribute("data-can-logged-out", "true"));
+      else if (stop === "navigation") await page.goto(origin);
+      else await page.locator("#can-main").evaluate(main => main.remove());
+      // Let the document's actual lifecycle observer dispose the old binding.
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+      releasePost!(); releasePost = undefined;
+      await page.waitForTimeout(100);
+      if (stop === "hidden") await setVisibility("visible");
+      else if (stop === "context") await page.locator("body").evaluate((body, previous) => {
+        if (previous === null) body.removeAttribute("data-can-context"); else body.setAttribute("data-can-context", previous);
+      }, originalContext);
+      else if (stop === "logout") await page.locator("body").evaluate(body => body.removeAttribute("data-can-logged-out"));
+      await assertDisarmed();
+      expect(posts).toHaveLength(before + 1);
+      if (stop === "navigation") await expect(page.getByRole("heading", { name: "Shared form actions", exact: true })).toBeVisible();
+      if (stop === "removed-region") await expect(page.locator("#can-main")).toHaveCount(0);
+      expect(await sampleCount(`Stopped refresh ${stop}`)).toBe(1);
+    }
+    expect(errors).toEqual([]);
+    await session.assertCurrent();
+  } finally {
+    // Stop the installed owner before awaiting this test's real routed POSTs.
+    // Closing the request context first would orphan route.fetch callbacks.
+    try {
+      try {
+        if (!page.isClosed()) await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+      } finally { releasePost?.(); }
+      await page.unrouteAll({ behavior: "wait" });
+    } finally {
+      try { await context.close(); } finally { await session.close(); }
+    }
+  }
+});
