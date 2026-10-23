@@ -2479,3 +2479,32 @@ fn original_model_helper_identity_retains_required_stored_reference() {
  let copied_owner=item(&copied_ir,"worker.prepare");
  assert!(!matches!(copied_ir.scenario_disclosures[&copied_owner.id],ScenarioDisclosure::Complete(_)));
 }
+
+#[test]
+fn original_helper_parent_reference_keeps_containment_and_field_identity() {
+ let source=include_str!("fixtures/helper-parent-reference-identity.can");
+ let(db,program,ir,catalog)=fixture_source("helper-parent-reference-identity.can",source);
+ let owner=item(&ir,"worker.prepare");
+ assert!(matches!(ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
+ let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let operation=artifact["operations"].as_array().unwrap().iter().find(|operation|operation["name"]==owner.canonical).unwrap();
+ assert!(operation["result"]["disclosure"].is_object(),"{operation}");
+ for mode in ["helper-parent-receiver","schema-parent","location-target"] {
+  let mut changed=ir.clone();
+  if mode=="schema-parent" {
+   let id=item(&changed,"worker.Booking").id;
+   let IrItemKind::Model{owner,..}=&mut changed.items[id.0 as usize].kind else{panic!("model");};*owner=canlang_compiler::codegen::ir::IrOwner::App;
+  }else if mode=="location-target" {
+   let id=item(&changed,"worker.Resource.location").id;let other=item(&changed,"api.Customer").id;
+   let IrItemKind::Field{ty,..}=&mut changed.items[id.0 as usize].kind else{panic!("field");};*ty=IrType::Known(ResolvedType::Record{symbol:other,stored:true});
+  }else{
+   let id=item(&changed,"worker.benefit_request").id;
+   let IrItemKind::DeriveFn{expr:Some(body),..}=&mut changed.items[id.0 as usize].kind else{panic!("helper");};
+   let IrExpr::Object(fields)=&mut body.expr else{panic!("object");};
+   let IrExpr::Member{base:location,..}=&mut fields[1].1.expr else{panic!("id");};
+   let IrExpr::Member{base:parent,..}=&mut location.expr else{panic!("location");};
+   let IrExpr::Member{base,..}=&mut parent.expr else{panic!("parent");};base.expr=IrExpr::Name("other".into());
+  }
+  assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$48656c7065724964656e74697479.mjs").is_none(),"{mode}");
+ }
+}

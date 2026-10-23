@@ -2711,11 +2711,13 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 }
                 "text".to_string()
             } else if parent_read {
-                if transition.is_some() || !dependency.calls.is_empty() {
+                if transition.is_some() {
                     return None;
                 }
                 let expression = sites.members.get(&site)?.first()?;
-                let (child, parent) = if dependency.query_id.is_some() {
+                let (child,parent) = if !dependency.calls.is_empty() {
+                    checked_helper_parent_reference(source_context?,item,dependency,expression,checked.source_facts.as_deref()?)?
+                } else if dependency.query_id.is_some() {
                     let (child, parent, query_id) = checked_candidate_parent_association(
                         ir, item, dependency, expression, db?,
                     )?;
@@ -2840,6 +2842,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             return None;
                         }
                         match_stored_contract_field(ir, original, db?)?;
+                    } else if !dependency.calls.is_empty() && source_context.zip(checked.source_facts.as_deref()).is_some_and(|(context,facts)|
+                        checked_helper_identity_reference(context,item,dependency,sites.members[&site][0],facts).is_some()) {
+                        // Its original helper parent path is sealed together with the field below.
                     } else if !current_published {
                         let (_, parent) = checked_parent_reference(ir, item, base, db?)?;
                         if parent.id != dependency.model {
@@ -13921,6 +13926,31 @@ fn reference_reused_bounds(
     reference_reused_scope(ir, original, inventory, db)
 }
 
+/// The same original helper substitution may observe its stored ChildOf
+/// parent. Both original schema owners and the exact parent metadata survive
+/// the source/fresh join; the ordinary parent getter retains its authority.
+fn checked_helper_parent_reference<'a>(
+    context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,
+    read:&crate::analysis::scenario_disclosure::DisclosureDependency,value:&TypedExpr,
+    facts:&'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
+)->Option<(&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema)> {
+    let [_]=read.calls.as_slice() else{return None;};
+    super::scenario_decisions::same_scenario_semantics(context.original(),context.ir(),context.fresh(),owner)?;
+    if read.query_id.is_some() || read.role!=DependencyRole::Data || read.field!=read.model || read.field_name!="parent"
+        || value.span!=node_span(read.node) || value.ty!=read.ty
+        || !matches!(&value.expr,IrExpr::Member{base,field} if field=="parent" &&
+            base.ty==ResolvedType::Record{symbol:read.model,stored:true}) {return None;}
+    let schemas=facts.stored_contracts.as_deref()?;
+    let child=schemas.iter().find(|schema|schema.model&&schema.id==read.model)?;
+    let parent=schemas.iter().find(|schema|schema.model&&Some(schema.id)==child.parent)?;
+    if child.canonical!=read.model_name || parent.canonical!=read.type_id ||
+        read.ty!=(ResolvedType::Record{symbol:parent.id,stored:true}) {return None;}
+    match_stored_contract_schema(context.ir(),child,context.db())?;
+    match_stored_contract_schema(context.ir(),parent,context.db())?;
+    Some((child,parent))
+}
+
 /// Whole-owner source re-lowering seals the helper call, formal substitution
 /// and its identity-only consumer. The retained owning schema still proves
 /// the actual stored reference field and target; no copied receiver is added.
@@ -13936,7 +13966,7 @@ fn checked_helper_identity_reference<'a>(
     super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
     if read.query_id.is_some() || read.role!=DependencyRole::Data || value.span!=node_span(read.node)
         || value.ty!=read.ty || !matches!(&value.expr,IrExpr::Member{base,field}
-            if matches!(base.expr,IrExpr::Name(_)) && field==&read.field_name
+            if (matches!(base.expr,IrExpr::Name(_)) || matches!(&base.expr,IrExpr::Member{field,..} if field=="parent")) && field==&read.field_name
                 && base.ty==ResolvedType::Record{symbol:read.model,stored:true}) {return None;}
     let mut schemas=facts.stored_contracts.as_deref()?.iter().filter(|schema|schema.model&&schema.id==read.model);
     let schema=schemas.next()?;if schemas.next().is_some(){return None;}

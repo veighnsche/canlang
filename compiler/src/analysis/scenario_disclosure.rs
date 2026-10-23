@@ -18160,11 +18160,12 @@ impl<'a> Closure<'a> {
             symbol: *parent,
             stored: true,
         };
-        if !calls.is_empty()
+        let helper_parent=self.original_helper_model_path(key,module,calls)==Some((parameter,*parent,depth+1));
+        if !calls.is_empty() && !helper_parent
             || (event_row
                 && self.hook_delivery_field(base_key, module)
                     .is_none_or(|(_, field)| field != parameter))
-            || (!event_row && created.is_none()
+            || (!event_row && created.is_none() && !helper_parent
                 && self.checked_call_parent_path(key, parameter, 0)
                     != Some((*parent, depth + 1))
                 && self.checked_delivery_parent_path(key, module, parameter, 2)
@@ -18310,32 +18311,33 @@ impl<'a> Closure<'a> {
         Some((source.model, field.field, *target, source.node))
     }
 
-    /// A required stored reference selected inside one original Model helper
-    /// is consumed only by its authored identity selector. The helper formal
-    /// substitutes the actual required scenario input; copied arguments and
-    /// nullable/defaulted fields cannot manufacture that association.
-    fn helper_reference_identity(&self, key: NodeKey, module: ModuleId, calls: &[NodeKey])
-        -> Option<(SymbolId, SymbolId, SymbolId)> {
-        let [call]=calls else {return None;};
+    /// Resolve a helper's required Model formal to its original admitted
+    /// scenario input, retaining only the already-checked parent edges.
+    fn original_helper_model_path(&self,key:NodeKey,module:ModuleId,calls:&[NodeKey])
+        ->Option<(SymbolId,SymbolId,u8)> {
+        let [call]=calls else{return None;};
         let selected=self.types.selected_calls.get(call)?;
         let SelectedCallTarget::DeriveFn(derive)=selected.target else{return None;};
         let helper=self.effects.derives.get(&derive)?;
         let body=helper.expr?;
-        if helper.module!=module || key.file!=body.file || key.start<body.start || key.end>body.end {
-            return None;
-        }
-        let (base,_)=self.count_member(key)?;
-        let (formal,source,depth)=self.source_require_helper_parent_path(base,derive,0)?;
-        if depth!=0{return None;}
+        if helper.module!=module || key.file!=body.file || key.start<body.start || key.end>body.end{return None;}
+        let (formal,model,depth)=self.source_require_helper_parent_path(key,derive,0)?;
+        let ResolvedType::Record{symbol:root,stored:true}=self.types.symbol_types.get(&formal)? else{return None;};
         let index=helper.params.iter().position(|param|param.param==formal)?;
         let argument=*selected.arguments.get(selected.slots.get(index)?.as_ref().copied()?)?;
         let Some(Binding::Symbol(parameter))=self.query_binding(argument) else{return None;};
-        if !self.original_reference_parameter(argument,*parameter)
-            || self.checked_call_parent_path(argument,*parameter,0)!=Some((source,0))
-            || !self.nodes.keys().any(|consumer|self.count_member(*consumer)==Some((key,"id"))
-                && self.types.node_types.get(consumer)==Some(&ResolvedType::Scalar(Scalar::Text))) {
-            return None;
-        }
+        (self.original_reference_parameter(argument,*parameter)
+            && self.checked_call_parent_path(argument,*parameter,0)==Some((*root,0)))
+            .then_some((*parameter,model,depth))
+    }
+
+    /// Consume a required stored helper reference only at its authored `.id`.
+    fn helper_reference_identity(&self,key:NodeKey,module:ModuleId,calls:&[NodeKey])
+        ->Option<(SymbolId,SymbolId,SymbolId)> {
+        let (base,_)=self.count_member(key)?;
+        let (_,source,_)=self.original_helper_model_path(base,module,calls)?;
+        if !self.nodes.keys().any(|consumer|self.count_member(*consumer)==Some((key,"id"))
+            && self.types.node_types.get(consumer)==Some(&ResolvedType::Scalar(Scalar::Text))){return None;}
         let association=self.required_reference_field(key,self.nodes.get(&key)?,&source)?;
         let field=self.effects.models.get(&source)?.fields.iter().find(|field|field.field==association.1)?;
         (field.default.is_none()&&field.server.is_none()).then_some(association)
@@ -18354,7 +18356,9 @@ impl<'a> Closure<'a> {
         if self.loop_node.is_none()
             && let Some((source,field,target))=self.helper_reference_identity(key,module,calls)
             && source==model && field==field_id
-            && matches!(value.reference_origin,Some(ReferenceOrigin::Parameter(_))) {
+            && self.original_helper_model_path(base_key,module,calls).is_some_and(|(parameter,model,depth)|
+                model==source && (depth==0 && value.reference_origin==Some(ReferenceOrigin::Parameter(parameter))
+                    || depth>0 && value.reference_origin==Some(ReferenceOrigin::Parent{parameter,model,depth}))) {
             return Some(target);
         }
         // A required stored Model field is a reference to its actual row,
@@ -18926,15 +18930,9 @@ impl<'a> Closure<'a> {
             profile_scalar,
             value,
         )?;
-        let parent_origin = self.expr_member_parent_origin(
-            key,
-            module,
-            calls,
-            base_key,
-            model,
-            field_ty,
-            value,
-        )?;
+        let parent_origin = if required_reference.is_some() && !calls.is_empty() {None}else{
+            self.expr_member_parent_origin(key,module,calls,base_key,model,field_ty,value)?
+        };
         let guarded_parent = calls.is_empty() && self.loop_node.is_none()
             && self.nullable_field_if_branch(base_key,module).is_some_and(|(_, operand, parameter, source, link, target)|
                 operand==base_key && target==model

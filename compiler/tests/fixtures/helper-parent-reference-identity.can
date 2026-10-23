@@ -1,0 +1,33 @@
+app HelperIdentity uses=[worker]
+package api
+ Given
+  export Customer {active:bool=true}
+  export Location {active:bool=true}
+  policy Location read=members and row.active
+  export contract Entitlement {customer:text,location:text}
+  export capability MembershipV1 version=1
+   reserve(value:Entitlement) -> text
+  policy Customer read=members and row.active
+ When
+ Then
+package worker
+ use api {Customer,Location,Entitlement,MembershipV1 as Membership} from=deployment.membership
+ Given
+  Evidence {value:Entitlement}
+  policy Evidence read=members
+  Resource {location:Location,permitted:bool=true}
+  policy Resource read=members and row.permitted fields=location
+  Booking in Resource {customer:Customer,visible:bool=true,permitted:bool=true,parent_visible:bool=true,last:text?,checked:bool=false}
+  policy Booking read=members and row.permitted fields=customer
+  policy Booking read=members and row.parent_visible fields=parent
+  derive allowed(booking:Booking):bool=booking.visible
+  derive benefit_request(booking:Booking):Entitlement = Entitlement {customer=booking.customer.id,location=booking.parent.location.id}
+ When
+  scenario prepare(booking:Booking) by=members
+   require allowed(booking)
+   do
+    set booking {checked=true}
+    send Membership.reserve {value=benefit_request(booking)} as allocation
+    set booking {last=allocation.id}
+    create Evidence {value=benefit_request(booking)} as evidence
+ Then
