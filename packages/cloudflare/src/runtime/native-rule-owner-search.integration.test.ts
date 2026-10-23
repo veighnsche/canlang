@@ -1312,3 +1312,43 @@ it('executes original rescheduling with real provider intents and unchanged orig
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('retains exact nullable enum membership through real owner execution and final guards',
+  {timeout:120000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-nullable-enum-membership-'));
+    try{
+      const {artifact,asm}=await installed('native-nullable-enum-membership.can',directory);
+      assert.notEqual(artifact.operations?.find(operation=>operation.name==='EnumProbe.act')?.result?.disclosure,undefined);
+      // A computed nullable field is still a stored read, rather than a
+      // closed enum literal. It cannot inherit the new literal-array proof.
+      const computed=fixture('.native-nullable-enum-computed.can');
+      try{
+        await writeFile(computed,(await readFile(fixture('native-nullable-enum-membership.can'),'utf8'))
+          .replace('[failed,unknown]','[root.state]'));
+        const result=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,computed],{cwd:root,encoding:'utf8'});
+        assert.equal(result.status,0,result.stdout+result.stderr);
+        assert.equal((JSON.parse(result.stdout) as CompileArtifact).operations?.find(operation=>operation.name==='EnumProbe.act')?.result?.disclosure,undefined);
+      }finally{await rm(computed,{force:true});}
+      for(const mode of ['failed','unknown','ready','null','changed-at-commit']){
+        const {now,identities,identity}=await member(`nullable-enum-${mode}`);
+        const store=createMemoryStorage(),rootModel=model('EnumProbe','Root');
+        const row={...makeRow({id:asId('root-1'),data:{state:mode==='null'?null:mode==='changed-at-commit'?'failed':mode,checked:false}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row}]}));
+        if(mode==='changed-at-commit'){
+          const commit=store.commit.bind(store);let changed=false;
+          store.commit=async batch=>{
+            if(!changed){changed=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,
+              id:row.id,expectedVersion:asVersion(row.version),row:{...row,version:asVersion(row.version+1),data:{...row.data,state:'ready'}}}]}));}
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const outcome=await invoker.invokeMutation({operation:'EnumProbe.act',operation_id:operationId(now),
+          inputs:{root:{id:row.id,version:String(row.version)}}},identity);
+        const allowed=mode==='failed'||mode==='unknown';
+        assert.equal('result'in outcome?outcome.result.status:outcome.error.code,
+          allowed?'committed':mode==='changed-at-commit'?'conflict':'rule_failed',`${mode}: ${JSON.stringify(outcome)}`);
+        assert.equal((await store.load(rootModel,row.id))?.data.checked,allowed,mode);
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

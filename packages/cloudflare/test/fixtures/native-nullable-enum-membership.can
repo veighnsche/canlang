@@ -1,0 +1,11 @@
+app EnumProbe
+Given
+ Root {state:enum(ready,failed,unknown)?,checked:bool=false}
+ policy Root read=owner
+When
+ scenario act(root:Root) -> bool by=members
+  require root.state in [failed,unknown]
+  do
+   set root {checked=true}
+   return true
+Then

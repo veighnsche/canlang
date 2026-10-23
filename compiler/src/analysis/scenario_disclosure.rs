@@ -18855,9 +18855,15 @@ impl<'a> Closure<'a> {
             || checked_standard_nominal_name(element) == Some("TextMessage");
         let empty_files =
             children.is_empty() && matches!(element.as_ref(), ResolvedType::Scalar(Scalar::File));
-        // Closed enum sets carry no reads, like literals.
-        let closed_enum =
-            matches!(element.as_ref(), ResolvedType::Enum { cases, .. } if !cases.is_empty());
+        // Closed enum sets carry no reads, like literals. The checker retains
+        // the source field's nullable nominal type on claimed enum cases;
+        // only those exact resolved cases may use this nullable carrier.
+        let nullable_enum = matches!(element.as_ref(), ResolvedType::Nullable(inner)
+            if matches!(inner.as_ref(), ResolvedType::Enum { cases, .. } if !cases.is_empty()));
+        let enum_base = match element.as_ref() {
+            ResolvedType::Nullable(inner) => inner.as_ref(), ty => ty,
+        };
+        let closed_enum = matches!(enum_base, ResolvedType::Enum { cases, .. } if !cases.is_empty());
         if !primitive_type(element) && !composite && !empty_files && !closed_enum {
             return Err(self.fail(key, "unsupported array expression type"));
         }
@@ -18871,7 +18877,9 @@ impl<'a> Closure<'a> {
             if !primitive_type(element_ty)
                 && !matches!(element_ty, ResolvedType::Object(_))
                 && checked_standard_nominal_name(element_ty) != Some("TextMessage")
-                && !matches!(element_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+                && !(!nullable_enum && matches!(element_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+                && !(closed_enum && self.types.resolved_cases.contains(&NodeKey::of(child))
+                    && match element_ty { ResolvedType::Nullable(inner) => inner.as_ref(), ty => ty } == enum_base)
             {
                 return Err(self.fail(key, "unsupported array element type"));
             }
