@@ -884,6 +884,14 @@ fn stage_closure_fixtures(
     let ben = user_id("Ben")?;
     let cal = user_id("Cal")?;
     let staging_dir = std::env::temp_dir().join(format!("can-preview-stage-{}", random_id()?));
+    // Register before allocation: a failed/cancelled SDK wait may leave imports
+    // using this tree. The generation's confirmed release owns cleanup/retry.
+    (bridge.call)(
+        "resource.paths",
+        Some(bridge.generation),
+        json!({"temporary":staging_dir}),
+        &AtomicBool::new(false),
+    )?;
     state::create_private_directory(&staging_dir)?;
     let result = bridge.call(
         "testkit.stage",
@@ -899,7 +907,6 @@ fn stage_closure_fixtures(
             "databases":{"d1Id":database_id,"identityBinding":"DB",
                 "currentOwnerBinding":binding(0)?,"otherOwnerBinding":binding(1)?}}),
     );
-    let _ = std::fs::remove_dir_all(&staging_dir);
     if !result?["materialized"].is_array() {
         return Err("preview fixture staging returned no materialized receipt".into());
     }

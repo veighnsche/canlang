@@ -341,6 +341,121 @@ fn registered_sdk_tree_keeps_ownership_after_unsafe_release_until_real_cleanup()
         .unwrap();
 }
 #[test]
+fn fixture_staging_retains_inputs_until_sdk_join_and_native_cleanup_are_confirmed() {
+    use can_dev_server::sdk::{self, Resources};
+    let script = SCRIPT.replace(
+        "if(request.command==='prepare')setTimeout(respond,150);else respond();",
+        r#"
+ const fs=require('node:fs'),path=require('node:path');
+ const failed=()=>send({protocol,kind:'result',sessionId,operationId:request.operationId,generationId:request.generationId,ok:false,allocation:'release_failed',error:{code:'JOIN_UNCONFIRMED',message:'fixture operation still owns its inputs'}});
+ if(request.command==='testkit.stage'){
+  const workDir=request.payload.input.workDir;
+  fs.appendFileSync('stage-launches.log','stage\n');
+  fs.writeFileSync('stage-entered',workDir);
+  const pending=setInterval(()=>{
+   if(!fs.existsSync('allow-late-read'))return;
+   clearInterval(pending);
+   fs.writeFileSync('late-read.txt',fs.readFileSync(path.join(workDir,'input.txt')));
+   respond();
+  },5);
+ }else if(request.command==='cancel'){
+  failed();
+ }else if(request.command==='release' && !fs.existsSync('release-attempted')){
+  fs.writeFileSync('release-attempted','refused');failed();
+ }else respond();
+"#,
+    );
+    let (directory, config) = fixture(&script);
+    let bridge = Arc::new(Bridge::spawn(config).unwrap());
+    let resources = Arc::new(Resources::default());
+    let tree = tempfile::Builder::new()
+        .prefix("can-preview-stage-")
+        .tempdir()
+        .unwrap();
+    let path = fs::canonicalize(tree.path()).unwrap();
+    fs::write(path.join("input.txt"), "retained fixture input").unwrap();
+    sdk::call(
+        &bridge,
+        &resources,
+        "resource.paths",
+        Some("staging-candidate"),
+        json!({"temporary":path}),
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    let cancel = Arc::new(AtomicBool::new(false));
+    let pending_bridge = bridge.clone();
+    let pending_resources = resources.clone();
+    let pending_cancel = cancel.clone();
+    let stage_path = path.clone();
+    let staging = thread::spawn(move || {
+        sdk::call(
+            &pending_bridge,
+            &pending_resources,
+            "testkit.stage",
+            Some("staging-candidate"),
+            json!({"input":{"workDir":stage_path}}),
+            &pending_cancel,
+        )
+    });
+    let entered = directory.path().join("stage-entered");
+    let until = deadline();
+    while !entered.exists() && Instant::now() < until {
+        thread::sleep(Duration::from_millis(5));
+    }
+    let started = Instant::now();
+    cancel.store(true, Ordering::Release);
+    let result = staging.join().unwrap();
+    assert!(
+        entered.exists(),
+        "the actual host must enter fixture staging"
+    );
+    assert!(result.unwrap_err().starts_with("CLEANUP_REQUIRED:"));
+    assert!(started.elapsed() < Duration::from_secs(3));
+    assert!(path.join("input.txt").exists());
+    assert!(resources.owns("staging-candidate"));
+    assert!(!resources.retired("staging-candidate"));
+
+    assert!(sdk::release(&bridge, &resources, "staging-candidate").is_err());
+    assert!(path.exists(), "unconfirmed SDK release preserves staging");
+    assert!(resources.owns("staging-candidate"));
+    assert!(!resources.retired("staging-candidate"));
+    fs::write(directory.path().join("allow-late-read"), "release").unwrap();
+    let late_read = directory.path().join("late-read.txt");
+    let until = deadline();
+    while !late_read.exists() && Instant::now() < until {
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(
+        fs::read_to_string(&late_read).unwrap(),
+        "retained fixture input"
+    );
+    assert_eq!(
+        fs::read_to_string(directory.path().join("stage-launches.log")).unwrap(),
+        "stage\n"
+    );
+
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(sdk::release(&bridge, &resources, "staging-candidate").is_err());
+    assert!(
+        path.join("input.txt").exists(),
+        "failed native cleanup retains inputs"
+    );
+    assert!(resources.owns("staging-candidate"));
+    assert!(!resources.retired("staging-candidate"));
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+    sdk::release(&bridge, &resources, "staging-candidate").unwrap();
+    assert!(!path.exists());
+    assert!(!resources.owns("staging-candidate"));
+    assert!(resources.retired("staging-candidate"));
+    assert_eq!(
+        fs::read_to_string(directory.path().join("stage-launches.log")).unwrap(),
+        "stage\n"
+    );
+    bridge.shutdown(deadline()).unwrap();
+}
+
+#[test]
 fn malformed_and_oversized_peer_frames_fail_health_and_release_owned_process() {
     for suffix in [
         "process.stdout.write('not JSON\\n');",

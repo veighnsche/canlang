@@ -111,6 +111,18 @@ impl Session {
     fn status(&self) -> Value {
         self.request("status", Value::Null)
     }
+    fn staging_paths(&self) -> Vec<PathBuf> {
+        fs::read_dir(self._directory.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("can-preview-stage-")
+            })
+            .collect()
+    }
     fn wait_for_check_admission(&self) {
         let deadline = Instant::now() + Duration::from_secs(20);
         loop {
@@ -211,6 +223,17 @@ fn real_owner_retains_serving_preview_across_errors_reuses_exact_inputs_and_join
     let first = session.request("check", Value::Null);
     assert_eq!(first["state"], "valid", "{first}");
     assert_eq!(first["preview"], "ready", "{first}");
+    let staged = session.staging_paths();
+    assert!(
+        !staged.is_empty(),
+        "the real fixture producer retains its staging until generation release"
+    );
+    for path in &staged {
+        assert_eq!(
+            fs::metadata(path).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
+    }
     terminal::attached(
         &session.root,
         session._directory.path(),
@@ -247,7 +270,7 @@ fn real_owner_retains_serving_preview_across_errors_reuses_exact_inputs_and_join
 
     session.wait_for_check_admission();
     let identical = session.request("check", Value::Null);
-    assert_eq!(identical["state"], "valid");
+    assert_eq!(identical["state"], "valid", "{identical}");
     assert_eq!(
         session.status()["serving_build"],
         build,
@@ -483,6 +506,11 @@ fn real_owner_retains_serving_preview_across_errors_reuses_exact_inputs_and_join
         true
     );
     session.stop();
+    assert!(
+        session.staging_paths().is_empty(),
+        "confirmed generation/host release cleans every fixture staging tree"
+    );
+    assert!(staged.iter().all(|path| !path.exists()));
     assert!(
         TcpStream::connect(("127.0.0.1", active_url.port().unwrap())).is_err(),
         "preview listener closed after confirmed release"
