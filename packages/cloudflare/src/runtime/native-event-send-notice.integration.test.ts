@@ -9,11 +9,13 @@ import { fileURLToPath } from 'node:url';
 import { it } from 'node:test';
 import { promisify } from 'node:util';
 import type { CompileArtifact, FileRetirementAuthority } from '@canlang/contracts';
+import { bindScenarioReceiptFrameworkProducer, invoke as invokeState, observeScenarioReceiptIntrinsic, type ScenarioReceiptFrameworkProducer } from '@canlang/state/invocation';
+import { isGeneratedOperationDef } from '@canlang/state/invocation/registry';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { resolveIdentity,sha256HexText } from '@canlang/identity';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
-import { asId, asModel, asVersion, makeBatch, makeRow } from '@canlang/state/testing/invocation/fixtures';
+import { asId, asModel, asVersion, makeBatch, makeRow, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
 import { installNativeFileInventory } from './file-inventory.js';
@@ -634,4 +636,83 @@ it('executes the original register create, free notice and paid charge plus hold
         if(mode.endsWith('-race'))assert.equal(raced,true,mode+': race was exercised');
       }
     }finally{await rm(directory,{recursive:true,force:true});}
+  });
+
+
+it('resolves original event aliases only through the complete checked framework source',
+  { timeout: 120000 }, async () => {
+    const directory=await mkdtemp(join(tmpdir(),'can-event-alias-'));
+    try {
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      const handler='agreements.notice',callable=artifact.callables.find(entry=>entry.id===handler);assert.ok(callable);
+      const module=await import(asm.moduleUrls[callable.module]!);
+      const original=module.appDefinition.operations[handler];
+      const loaded=await loadCanonicalDescriptors(asm,artifact);
+      const fresh=(operation=original.invocation)=>{
+        const registry=loaded.producers.registry.loadArtifactDescriptors({...artifact,operations:[operation]},{by:()=> 'public'}).registry;
+        const def=registry.get(handler);assert.ok(def && isGeneratedOperationDef(def));return {registry,def};
+      };
+      const {def:originalDef}=fresh(),plan=originalDef.descriptor.result?.disclosure;assert.ok(plan);
+      const guards:NonNullable<ScenarioReceiptFrameworkProducer['sendGuards']>=original.sendGuards.map((guard:Record<string,unknown>)=>({
+        rule:guard['rule'],source:plan.source,owner:handler,node:guard['node'],binding:guard['binding'],target:guard['target'],
+        inputs:guard['inputs'],eventSource:guard['eventSource']}));
+      assert.equal(guards.length,1);
+      const producer:ScenarioReceiptFrameworkProducer={source:plan.source,app:'NoticeProbe',
+        bindings:[{binding:guards[0]!.binding,from:'Mail',targets:[{source:guards[0]!.target,correlation:'value'}]}],sendGuards:guards,
+        stage:async()=>{throw new Error('binding checks must never stage Work');},read:()=>null,evaluateGuard:async()=>false};
+      bindScenarioReceiptFrameworkProducer(originalDef,producer);
+      const clone=()=>[...structuredClone(producer.sendGuards!)];
+      for(const mode of ['missing-source','wrong-source','wrong-model','wrong-revision','conflicting-events','wrong-alias-model'] as const){
+        const operation=structuredClone(original.invocation);
+        if(mode==='wrong-alias-model'){
+          let changed=0;
+          for(const returned of operation.result.disclosure.returns)for(const dep of returned.intrinsics??[])if(dep.parameter==='eventTerm'){
+            dep.model='agreements.Agreement';changed++;
+          }
+          assert.ok(changed);
+        }
+        const {def}=fresh(operation),selected=clone(),guard=selected[0]!;
+        if(mode==='missing-source')Reflect.deleteProperty(guard,'eventSource');
+        if(mode==='wrong-source')Object.assign(guard,{source:{...plan.source,sha256:'0'.repeat(64)}});
+        if(mode==='wrong-model')Object.assign(guard.eventSource!.modelField,{model:'agreements.Agreement'});
+        if(mode==='wrong-revision')Object.assign(guard.eventSource!.revisionField,{name:'term'});
+        if(mode==='conflicting-events'){
+          const second=structuredClone(guard),node={start:guard.node.start+1,end:guard.node.end+1};
+          Object.assign(second,{rule:guard.rule+'-other',node});Object.assign(second.eventSource!,{event:'agreements.Other',predicate:node});selected.push(second);
+        }
+        assert.throws(()=>bindScenarioReceiptFrameworkProducer(def,{...producer,sendGuards:selected}),/Saved scenario:/,mode);
+      }
+      const now=Date.now(),clock=createFrozenClock(now),identities=createMemoryIdentityStore({clock});
+      const identity=await resolveIdentity(identities,{}, {clock});
+      const {store,probe}=createTestMemoryStorage();
+      await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:asModel('agreements.Term'),row:{
+        ...makeRow({id:asId('term-1'),data:{executed:true,snapshot:{title:'Signed'},terminated:false,expired:false,notice_suppressed:false}}),
+        parent:{model:asModel('agreements.Agreement'),id:asId('agreement-1')}}}]}));
+      const unresolved=fresh();let reached=false;
+      await assert.rejects(invokeState({registry:unresolved.registry,app:'NoticeProbe',source:'schedule',store,memberships:identities,clock,
+        identity,kind:'trusted',trustedSource:'schedule:agreements.Notice',
+        envelope:{operation:handler,operation_id:uuidv7(now),inputs:{term:{id:'term-1',version:'1'},revision:'1'}},
+        execute:async()=>{reached=true;throw new Error('unresolved alias reached execution');}}),/resolved checked framework producer/);
+      assert.equal(reached,false);assert.equal(probe.outboxAll().length,0);
+      // A resolved alias is still no Work admission: plain trusted context
+      // cannot supply an event intrinsic, and its rejection is replayed.
+      const resolved=fresh();bindScenarioReceiptFrameworkProducer(resolved.def,producer);
+      for(const [index,parameter] of ['eventRevision','eventTerm'].entries()){
+        const dependency=resolved.def.descriptor.result!.disclosure!.returns.flatMap(returned=>returned.intrinsics??[]).find(dep=>dep.kind!=='operation-id'&&dep.parameter===parameter);assert.ok(dependency && dependency.kind!=='operation-id');
+        const envelope={operation:handler,operation_id:uuidv7(now,index+1),inputs:{term:{id:'term-1',version:'1'},revision:'1'}};
+        let attempts=0;
+        const denied=()=>invokeState({registry:resolved.registry,app:'NoticeProbe',source:'schedule',store,memberships:identities,clock,
+          identity,kind:'trusted',trustedSource:'schedule:agreements.Notice',envelope,execute:async call=>{
+            attempts++;await observeScenarioReceiptIntrinsic(call,store,dependency.kind==='admitted-input'
+              ?{dependencyId:dependency.id,kind:'admitted-input',wire:'1'}
+              :{dependencyId:dependency.id,kind:'admitted-reference-version',wire:'1',reference:call.recordRefs[0]!});
+            throw new Error('forged Work admission reached intrinsic');}});
+        await assert.rejects(denied(),/original due Work source/);await assert.rejects(denied(),/original due Work source/);
+        assert.equal(attempts,1,parameter);assert.equal(probe.outboxAll().length,0);
+      }
+    } finally {await rm(directory,{recursive:true,force:true});}
   });

@@ -1847,6 +1847,10 @@ interface BoundPlan {
 }
 const boundPlans = new WeakMap<GeneratedOperationDef, BoundPlan>();
 const invokedPlans = new WeakSet<GeneratedOperationDef>();
+// Plan binding precedes framework installation. These private claims convey no
+// execution authority until the checked event producer resolves their aliases.
+const eventIntrinsicClaims = new WeakMap<GeneratedOperationDef, readonly ScenarioReceiptIntrinsicDependency[]>();
+const eventIntrinsicProfiles = new WeakMap<GeneratedOperationDef, NonNullable<ScenarioReceiptSendGuard['eventSource']>>();
 /** Invoke uses the private installed plan census for scope snapshots, including
  * execution-only frames whose public result has no disclosure metadata. */
 export function hasScenarioExecutionPlan(def: GeneratedOperationDef): boolean {
@@ -3314,7 +3318,15 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
       nominalDependencies.set(dep.id, Object.freeze({ dependency: dep, profile }));
     }
   }
+  const eventAliases: ScenarioReceiptIntrinsicDependency[] = [];
   for (const returned of plan.returns) for (const dep of returned.intrinsics ?? []) {
+    if (dep.kind === 'admitted-reference-version' && dep.parameter === 'eventTerm' ||
+        dep.kind === 'admitted-input' && dep.parameter === 'eventRevision') {
+      if (dep.type !== 'int' || dep.kind === 'admitted-reference-version' && !inventory.has(dep.model)) {
+        return invalid('event intrinsic claim differs from its original model/version type.');
+      }
+      eventAliases.push(dep); continue;
+    }
     if (dep.kind === 'admitted-reference-version' && (!inventory.has(dep.model) || !versionedReferenceInput(def, dep))) {
       return invalid('original version requires its declared required singular versioned reference input.');
     }
@@ -3375,6 +3387,7 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
     artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,
     valueTypes: defaults.valueTypes === undefined ? undefined : deepFreeze(dataCopy(defaults.valueTypes)) });
+  if (eventAliases.length !== 0) eventIntrinsicClaims.set(def, Object.freeze(eventAliases));
 }
 
 /** Dev's verified loader binds these literal installed exports, never request
@@ -3662,6 +3675,17 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
     }
     modelInputs.set(rule, models);
   }
+  const sources = metadata.sendGuards?.flatMap(guard => guard.eventSource === undefined ? [] : [guard.eventSource]) ?? [];
+  const event = sources.length > 0 && sources.every(source => source.event === sources[0]!.event &&
+    source.handler === sources[0]!.handler && source.modelField.name === sources[0]!.modelField.name &&
+    source.modelField.model === sources[0]!.modelField.model &&
+    source.revisionField.name === sources[0]!.revisionField.name) ? sources[0] : undefined;
+  const aliases = eventIntrinsicClaims.get(def);
+  if (aliases !== undefined && (event === undefined || aliases.some(dep =>
+      dep.kind === 'admitted-reference-version' ? !versionedReferenceInput(def, dep, event) : !primitiveInput(def, dep, event)))) {
+    return invalid('event intrinsic aliases differ from their complete checked framework source.');
+  }
+  if (event !== undefined) eventIntrinsicProfiles.set(def, deepFreeze(event));
   frameworkProducers.set(def, Object.freeze({ ...deepFreeze(metadata), stage: producer.stage, read: producer.read,
     ...(producer.evaluateGuard === undefined ? {} : { evaluateGuard: producer.evaluateGuard }),
     ...(producer.prepareReceiptOrigin === undefined ? {} : { prepareReceiptOrigin: producer.prepareReceiptOrigin }) }));
@@ -3672,32 +3696,9 @@ function primitiveInputType(type: unknown): type is CanTypeId {
   return typeof type === 'string' && /^(text|bool|int|date|datetime|decimal|money|duration|currency|user)$/.test(type);
 }
 
-/** The compiler's bounded private Work profiles use frozen Rule slot names
- * in their receipt intrinsics. At admission the handler still has the exact
- * declared event input names; no arbitrary handler gets this alias. */
-function declaredEventIntrinsic(def: GeneratedOperationDef): { readonly modelField: string; readonly model: ModelName } | undefined {
-  if (def.name === 'events.attendee_notice') return { modelField: 'registration', model: 'events.Registration' as ModelName };
-  if (def.name === 'agreements.notice') return { modelField: 'term', model: 'agreements.Term' as ModelName };
-  if (def.name === 'agreements.due') return { modelField: 'obligation', model: 'agreements.Obligation' as ModelName };
-  if (def.name === 'appointments.remind') return { modelField: 'appointment', model: 'appointments.Appointment' as ModelName };
-  if (def.name === 'maintain.remind') return { modelField: 'inspection', model: 'maintain.Inspection' as ModelName };
-  if (def.name === 'success.remind') return { modelField: 'followup', model: 'success.FollowUp' as ModelName };
-  if (def.name === 'success.renewal_due') return { modelField: 'account', model: 'success.Account' as ModelName };
-  if (def.name === 'invoice.overdue') return { modelField: 'invoice', model: 'invoice.Invoice' as ModelName };
-  if (def.name === 'rent_reservations.correspondence' || def.name === 'rent_reservations.remind') {
-    return { modelField: 'booking', model: 'rent_reservations.Booking' as ModelName };
-  }
-  return undefined;
-}
-
 function admittedEventIntrinsic(call: AdmittedCall, parameter: string): ScenarioReceiptSendGuard['eventSource'] | undefined {
   if (parameter !== 'eventTerm' && parameter !== 'eventRevision' && !(call.def.name==='events.attendee_notice' && (parameter==='eventKind' || parameter==='eventBody'))) return undefined;
-  const def = call.def as GeneratedOperationDef, expected = declaredEventIntrinsic(def);
-  const sources = frameworkProducers.get(def)?.sendGuards?.flatMap(guard => guard.eventSource === undefined ? [] : [guard.eventSource]) ?? [];
-  const source = sources.length > 0 && sources.every(item => item.event === sources[0]!.event &&
-    item.handler === sources[0]!.handler && item.modelField.name === sources[0]!.modelField.name &&
-    item.modelField.model === sources[0]!.modelField.model &&
-    item.revisionField.name === sources[0]!.revisionField.name) ? sources[0] : undefined;
+  const def = call.def as GeneratedOperationDef, source = eventIntrinsicProfiles.get(def);
   const due = dueWorkAdmissions.get(call);
   const retained = retainedEventAdmissions.get(call);
   const eventAdmission = source !== undefined && due !== undefined && due.event === source.event && due.eventPayload !== undefined &&
@@ -3706,9 +3707,7 @@ function admittedEventIntrinsic(call: AdmittedCall, parameter: string): Scenario
     source !== undefined && retained !== undefined && retained.event === source.event && retained.eventPayload !== undefined &&
     call.context.kind === 'trusted' && call.context.source === 'schedule' &&
     call.context.trustedSource === `event:${source.event}`;
-  if (expected === undefined || source === undefined || source.handler !== def.name ||
-      source.modelField.name !== expected.modelField || source.modelField.model !== expected.model ||
-      source.revisionField.name !== 'revision' || !eventAdmission) {
+  if (source === undefined || source.handler !== def.name || !eventAdmission) {
     return invalid('event intrinsic requires its original due Work source and checked private handler.');
   }
   return source;
@@ -3866,14 +3865,15 @@ function admittedInputWire(inputs: ClosedInputs, parameter: string): unknown {
   return value;
 }
 
-function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
+function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency,
+  event = eventIntrinsicProfiles.get(def)): boolean {
   if (dependency.kind !== 'admitted-input') return false;
   if (def.name==='events.attendee_notice' && (dependency.parameter==='eventKind' || dependency.parameter==='eventBody')) {
     return primitiveInput(def, {...dependency,parameter:dependency.parameter==='eventKind'?'kind':'body'});
   }
   if (dependency.parameter === 'eventRevision') {
-    if (declaredEventIntrinsic(def) === undefined || dependency.type !== 'int') return false;
-    return primitiveInput(def, { ...dependency, parameter: 'revision' });
+    if (event === undefined || dependency.type !== 'int') return false;
+    dependency = { ...dependency, parameter: event.revisionField.name };
   }
   if (dependency.parameter.includes('/')) {
     const leaf = contractInputLeaf(def, dependency.parameter);
@@ -3895,13 +3895,13 @@ function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptI
     (type === base || input.kind === 'string' && (type === 'date' || type === 'currency'));
 }
 
-function versionedReferenceInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
+function versionedReferenceInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency,
+  event = eventIntrinsicProfiles.get(def)): boolean {
   if (dependency.kind !== 'admitted-reference-version') return false;
   if (dependency.parameter === 'eventTerm') {
-    const event = declaredEventIntrinsic(def);
-    const input = def.descriptor.inputs.find(field => field.name === event?.modelField);
-    return event !== undefined && dependency.model === event.model && input?.kind === 'ref' &&
-      input.model === event.model && input.required && input.nullable !== true &&
+    const input = def.descriptor.inputs.find(field => field.name === event?.modelField.name);
+    return event !== undefined && dependency.model === event.modelField.model && input?.kind === 'ref' &&
+      input.model === event.modelField.model && input.required && input.nullable !== true &&
       input.default === undefined && input.computedDefault !== true &&
       def.inputArrays[input.name] === undefined;
   }
@@ -4899,6 +4899,9 @@ function capture(call: AdmittedCall, store: StoragePort): Capture {
     if (owner !== undefined && owner.executingCall !== call) return invalid('capture cannot cross a pending child call.');
     const bound = boundPlans.get(call.def as GeneratedOperationDef);
     if (bound === undefined) return invalid('no loader-verified source dependency plan.');
+    if (eventIntrinsicClaims.has(call.def as GeneratedOperationDef) && !eventIntrinsicProfiles.has(call.def as GeneratedOperationDef)) {
+      return invalid('event intrinsic claims require their resolved checked framework producer.');
+    }
     invokedPlans.add(call.def as GeneratedOperationDef);
     let value = captures.get(call);
     if (value === undefined) { value = { bound, returnId: null, poisoned: false, pending: 0, observations: [], rowIdGuards: [], intrinsics: [], queries: [], queryResult: undefined, files: [] }; captures.set(call, value); captureContexts.set(call.context, value); }
@@ -14011,6 +14014,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       receipt.identity.principal !== (actorUserId ?? 'public')) throw new StateError('forbidden', 'Saved scenario scope does not match the caller.');
   const def = input.registry.get(receipt.identity.operation); const currentBound = boundPlans.get(def as GeneratedOperationDef);
   if (def === undefined || def.name !== receipt.identity.operation || currentBound === undefined) return invalid('current checked scenario inventory required.');
+  if (eventIntrinsicClaims.has(def as GeneratedOperationDef) && !eventIntrinsicProfiles.has(def as GeneratedOperationDef)) return invalid('replay requires its resolved checked event intrinsic source.');
   const storedFiles = [{ def: def as GeneratedOperationDef, association }, ...(association.calls ?? []).flatMap(call =>
     call.scenario === undefined ? [] : [{ def: input.registry.get(call.target) as GeneratedOperationDef, association: call.scenario }])]
     .flatMap(saved => saved.association.observations.filter(entry =>
