@@ -1,6 +1,6 @@
 # Remaining implementation tasks
 
-Updated after the RT-C1 receipt workflow implementation on 23 October 2026. This is the execution checklist for the audit-derived backlog: **20 open named packets**. The initial analysis repair is complete; the current native-host compile has **51 E6008 emission diagnostics**, attributed below. Ten packets have implemented results below; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
+Updated after the GEN-REQUEST-C1 durable generation replay implementation on 23 October 2026. This is the execution checklist for the audit-derived backlog: **19 open named packets**. The initial analysis repair is complete; the current native-host compile has **51 E6008 emission diagnostics**, attributed below. Eleven packets have implemented results below; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
 
 The [reviews](reviews/index.md) retain the original source reasoning at audit baseline `8d48f969`. Current completion status is recorded here. The [broader product roadmap](../implementation/REMAINING-WORK.md) also contains older feature proposals and app-specific requirements; this checklist does not declare all of those satisfied or all external app semantics reviewed.
 
@@ -28,7 +28,7 @@ Source completeness covers the 24 explicit operands and two saved generated cont
 
 </details>
 
-**Next task: GEN-REQUEST-C1**, durable generation request replay. RT-C1's selected original `CanCustomer.approve_account` workflow is complete, including the renamed consumer and both approval branches. Its shared source-domain mechanism reduces the full corpus to 51 diagnostics. The remaining native emission support stays open below; other source workflows are not implied complete.
+**Next task: GEN-C1**, honest outcomes for incomplete composed generation requests. GEN-REQUEST-C1 durably binds control and lifecycle requests before launch and fences superseded writers. RT-C1's selected original `CanCustomer.approve_account` workflow remains complete; the full native-host corpus remains at 51 emission diagnostics. This TypeScript generation change does not alter that count.
 
 - [ ] **Finish the remaining native emission support.** Work through the attributed refusals below using complete original-source workflows and real permission/recovery consumers. RT-C1 covers one selected workflow; it does not complete this corpus requirement. A changed refusal reason is not a fixed scenario. Keep all 24 operands, both saved contributions and the owning host catalog in the measurement.
 
@@ -127,7 +127,7 @@ The counts below group diagnostic refusal reasons, not independently proven root
 
 These are the next correctness fixes. The two generation tasks share one controls/lifecycle owner; the two development tasks need coordinated owner/preview changes.
 
-- [ ] **GEN-REQUEST-C1 — Prevent duplicate external generation launches.** Durably bind request ID, input and attempt before launch. Concurrent or interrupted identical resends must recover that execution or report unknown; changed input must conflict. Preserve finite recovery, attempt fences, candidates and current code. Verify real concurrent requests and reopen/interruption through the existing generation lifecycle.
+- [x] **GEN-REQUEST-C1 — Prevent duplicate external generation launches.** Control and lifecycle admission now atomically persist an input-bound pending outcome before external execution. Existing short filesystem leases serialize claims and token-check publication; no runner holds a ledger lease. Identical pending/interrupted resends report unknown, terminal resends replay, and changed input conflicts. Reset recovers even claims created before attempt metadata; superseded owners cannot overwrite replacement outcomes or launch additional tries. Existing real-process acceptance integration covers concurrent public/direct requests, fresh-process reopening, killed-host interruption, terminal replay, reset during executable discovery and late superseded writers, with current files preserved. Held resume replay is exercised with the explicit local protocol override; production resume capability refusal remains intact and no installed provider support is claimed.
   - Owner: Cloudflare `generation/controls.ts` and `generation/lifecycle.ts`; CLI forwards outcomes. [Source review](reviews/host-invocation-delivery.md).
 - [ ] **GEN-C1 — Report incomplete requested generation outcomes honestly.** A composed `accept:true` request must report failure/unknown if required outputs remain incomplete. Preserve `accepted:false`, current code, original ledger replay, finite attempts and lease/journal promotion checks. Verify the public control and CLI result, including exit forwarding.
   - Owner: Cloudflare `generation/controls.ts`, with `cli/gen.ts`. Coordinate with GEN-REQUEST-C1; no replacement state machine. [Source review](reviews/saved-generation.md).
@@ -211,6 +211,7 @@ Run these against the relevant implementation/contract, using real retained stat
 | CHECK-C2 | Expected example values receive compatibility checks; checker/example suites pass 38 + 30 tests. |
 | EMIT-C1 | All seven emitted decimal helpers pin the owning family; three decimal integrations pass. |
 | LANG-VALUE-EXPECTATIONS | Stale compile-refusal assertions corrected while genuine unsupported cases remain; ten inventory integrations pass. |
+| GEN-REQUEST-C1 | Durable control/job claims, unknown interrupted replay and token-fenced reset recovery; real concurrent/reopened/killed-host integrations pass. |
 | RT-C1 | Shared original reference-array decisions and writes; original/renamed account workflow, owner precedence and seven targeted integrations pass. Native-host diagnostics: 56 → 51. |
 | RT-MAX-I | Authenticated source-copy loops reuse the ordered bounded guard bank; all 21 proposal cases pass, including maximum/overflow, permission races and replay. Ordinary limits remain unchanged. |
 | FILE-INTENT-C1 — native portion | Shared current-context admission and Values draft validation cover grants/retries, nested/union inputs, required records, versions, CSRF and membership. Three durable Files cases pass. Support limits remain listed above. |

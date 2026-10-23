@@ -22,10 +22,12 @@
  */
 
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
+import { acquire, release, LeaseError } from "./leases.js";
+import { persistFile } from "./journal.js";
 import {
   SESSION_BINDING_FILE,
   adapterFor,
@@ -354,6 +356,8 @@ interface LedgerRecord {
   input_hash: string;
   superseded: boolean;
   outcome: RequestOutcome | null;
+  claim?: string;
+  attempt_dir?: string;
 }
 
 function ledgerFile(stateDir: string, request_id: string): string {
@@ -385,7 +389,7 @@ export async function lookupRequest(
       `request ${JSON.stringify(request_id)} has an unreadable ledger record; recover explicitly`,
     );
   }
-  if (record.request_id !== request_id || typeof record.input_hash !== "string") {
+  if (record === null || typeof record !== "object" || record.request_id !== request_id || typeof record.input_hash !== "string" || typeof record.superseded !== "boolean") {
     throw new LifecycleError(
       EXIT_UNKNOWN,
       "ledger-unreadable",
@@ -394,43 +398,107 @@ export async function lookupRequest(
   }
   if (record.superseded) return { status: "superseded" };
   if (record.input_hash !== inputHash) return { status: "conflict" };
-  if (record.outcome === null) return { status: "absent" };
-  return { status: "same", outcome: record.outcome };
+  if (record.outcome === null) throw new LifecycleError(EXIT_UNKNOWN, "request-in-flight",
+    `request ${JSON.stringify(request_id)} has no terminal outcome; inspect its recorded attempt before explicit recovery`);
+  const outcome = record.outcome;
+  if (outcome === undefined || typeof outcome !== "object"
+      || !["candidate", "failed", "unknown", "cancelled"].includes(outcome.state)
+      || !Number.isSafeInteger(outcome.exit) || !Number.isSafeInteger(outcome.fence) || outcome.fence < 0
+      || typeof outcome.attempt !== "string" || typeof outcome.session !== "string"
+      || typeof outcome.detail !== "string" || !Array.isArray(outcome.next) || outcome.next.some(item => typeof item !== "string")
+      || typeof outcome.submission_complete !== "boolean" || outcome.qualified !== false
+      || !Number.isSafeInteger(outcome.tries) || outcome.tries < 0) {
+    throw new LifecycleError(EXIT_UNKNOWN, "ledger-unreadable", "Request has an unreadable recorded outcome; inspect it before explicit recovery.");
+  }
+  return { status: "same", outcome };
 }
 
-/** Store one request outcome under its input hash. */
-export async function storeRequest(
-  stateDir: string,
-  request_id: string,
-  inputHash: string,
-  outcome: RequestOutcome,
-): Promise<void> {
-  const record: LedgerRecord = { request_id, input_hash: inputHash, superseded: false, outcome };
-  const path = ledgerFile(stateDir, request_id);
-  await mkdir(join(stateDir, "requests"), { recursive: true });
-  await writeFile(path, `${JSON.stringify(record, null, 2)}\n`);
-}
-
-/**
- * Mark one request id superseded (reset/new acceptance fenced its
- * attempt). A resend then starts fresh work instead of recovering
- * or conflicting; late output from the fenced attempt still refuses.
- */
-export async function markSuperseded(stateDir: string, request_id: string): Promise<void> {
-  const path = ledgerFile(stateDir, request_id);
-  let record: LedgerRecord | null = null;
+/** Request metadata uses the existing cooperative leases for short updates.
+ * The durable pending outcome survives the process; no lease is held by a runner. */
+export async function withRequestLedger<T>(root: string, path: string, action: () => Promise<T>): Promise<T> {
+  let lease;
   try {
-    record = JSON.parse(await readFile(path, "utf8")) as LedgerRecord;
+    lease = await acquire(root, [relative(root, path).split(sep).join("/")], "write", "gen-request-ledger");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
+    if (error instanceof LeaseError && error.code === "conflict") {
+      throw new LifecycleError(EXIT_UNKNOWN, "request-in-flight", "Request ledger is being updated; inspect or resend this same request without starting new work.");
+    }
+    throw error;
   }
-  if (record === null || record.request_id !== request_id) {
-    record = { request_id, input_hash: "", superseded: true, outcome: null };
-  } else {
-    record.superseded = true;
-  }
-  await mkdir(join(stateDir, "requests"), { recursive: true });
-  await writeFile(path, `${JSON.stringify(record, null, 2)}\n`);
+  try { return await action(); } finally { await release(root, lease); }
+}
+
+export async function persistRequestRecord(path: string, record: unknown): Promise<void> {
+  await persistFile(path, Buffer.from(`${JSON.stringify(record, null, 2)}\n`));
+}
+
+/** Publish only the outcome of the still-current durable claim. */
+export async function storeRequest(
+  stateDir: string, request_id: string, inputHash: string, outcome: RequestOutcome,
+  claim?: string, coordinationRoot = stateDir,
+): Promise<void> {
+  const path = ledgerFile(stateDir, request_id);
+  await withRequestLedger(coordinationRoot, path, async () => {
+    let attempt_dir: string | undefined;
+    if (claim !== undefined) {
+      const current = JSON.parse(await readFile(path, "utf8")) as LedgerRecord;
+      attempt_dir = current.attempt_dir;
+      if (current.superseded || current.claim !== claim || current.input_hash !== inputHash) {
+        throw new LifecycleError(EXIT_CONFLICT, "request-superseded", "The request claim changed; its old execution cannot publish a new outcome.");
+      }
+    }
+    await persistRequestRecord(path, { request_id, input_hash: inputHash, superseded: false, outcome,
+      ...(claim === undefined ? {} : { claim }), ...(attempt_dir === undefined ? {} : { attempt_dir }) });
+  });
+}
+
+/** Explicit stopped/fenced recovery permits a new claim; an old owner retains
+ * its old token and cannot publish over that replacement. */
+export async function markSuperseded(stateDir: string, request_id: string, coordinationRoot = stateDir): Promise<void> {
+  const path = ledgerFile(stateDir, request_id);
+  await withRequestLedger(coordinationRoot, path, async () => {
+    let record: LedgerRecord;
+    try { record = JSON.parse(await readFile(path, "utf8")) as LedgerRecord; }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
+      record = { request_id, input_hash: "", superseded: true, outcome: null };
+    }
+    if (record.request_id !== request_id) throw new LifecycleError(EXIT_UNKNOWN, "ledger-unreadable", "Request ledger identity differs.");
+    await persistRequestRecord(path, { ...record, superseded: true });
+  });
+}
+
+async function claimJobRequest(options: Pick<ExecuteJobOptions, "stateDir" | "request_id" | "attemptDir" | "coordinationRoot">,
+  inputHash: string, kind: "run" | "resume"): Promise<{ claim: string; fence: number } | { outcome: RequestOutcome }> {
+  return withRequestLedger(options.coordinationRoot ?? options.stateDir, ledgerFile(options.stateDir, options.request_id), async () => {
+    const lookup = await lookupRequest(options.stateDir, options.request_id, inputHash);
+    if (lookup.status === "same") return { outcome: lookup.outcome };
+    if (lookup.status === "conflict") throw new LifecycleError(EXIT_CONFLICT, "request-conflict", "Request id carries changed input; use a new id for new work.");
+    const fence = await readFence(options.attemptDir), claim = randomUUID();
+    const outcome: RequestOutcome = {
+      state: "unknown", exit: EXIT_UNKNOWN, attempt: `${options.request_id}.g${String(fence)}.${kind}`,
+      session: `${options.request_id}.g${String(fence)}.s`, fence,
+      detail: "Request is durably bound to this attempt; it may be running or interrupted. Resending cannot launch it again.",
+      next: [`inspect the attempt at ${options.attemptDir}`, "wait for its outcome or explicitly recover a stopped, fenced attempt"],
+      submission_complete: false, qualified: false, tries: 0,
+    };
+    await persistRequestRecord(ledgerFile(options.stateDir, options.request_id), {
+      request_id: options.request_id, input_hash: inputHash, superseded: false, outcome, claim, attempt_dir: resolve(options.attemptDir),
+    });
+    return { claim, fence };
+  });
+}
+
+async function withJobClaim<T>(options: Pick<ExecuteJobOptions, "stateDir" | "request_id" | "coordinationRoot">,
+  claim: string, action: () => Promise<T>): Promise<T> {
+  const path = ledgerFile(options.stateDir, options.request_id);
+  return withRequestLedger(options.coordinationRoot ?? options.stateDir, path, async () => {
+    const current = JSON.parse(await readFile(path, "utf8")) as LedgerRecord;
+    if (current.superseded || current.claim !== claim) {
+      throw new LifecycleError(EXIT_CONFLICT, "request-superseded", "Old execution no longer owns this request or its attempt metadata.");
+    }
+    return action();
+  });
 }
 
 /** Persisted attempt fence: cancel/reset/resume move it forward. */
@@ -549,6 +617,10 @@ export interface ExecuteJobOptions {
   attemptDir: string;
   /** Host-owned ledger root for request idempotency. */
   stateDir: string;
+  /** Existing lease root for request metadata (defaults to stateDir). */
+  coordinationRoot?: string;
+  /** Additional owning-control check; never replaces the lifecycle permission gates. */
+  assertCurrent?: () => Promise<void>;
   /** JSON Schema text for the structured final message. */
   outputSchema?: string;
   /** Required handles (defaults to every allowed handle). */
@@ -864,6 +936,9 @@ export async function executeJob(options: ExecuteJobOptions): Promise<RequestOut
   // MCP transport or write enforcement refuses without side effects.
   const preflight = options.preflight ?? preflightRecipe;
   preflight(options.recipe);
+  await options.assertCurrent?.();
+  const reservation = await claimJobRequest(options, inputHash, "run");
+  if ("outcome" in reservation) return reservation.outcome;
   const adapter = adapterFor(options.recipe.runner);
   const resolveExecutable = options.resolveExecutable ?? probeExecutable;
   const executable = await resolveExecutable(adapter.probeBinaries()).catch((error: unknown) => {
@@ -884,11 +959,13 @@ export async function executeJob(options: ExecuteJobOptions): Promise<RequestOut
       qualified: false,
       tries: 0,
     };
-    await storeRequest(options.stateDir, options.request_id, inputHash, outcome);
+    await storeRequest(options.stateDir, options.request_id, inputHash, outcome, reservation.claim, options.coordinationRoot);
     return outcome;
   }
 
-  const fence = await readFence(options.attemptDir);
+  await options.assertCurrent?.();
+  const fence = reservation.fence;
+  if (await readFence(options.attemptDir) !== fence) throw new LifecycleError(EXIT_CONFLICT, "session-superseded", "Attempt was fenced after request admission.");
   const attempt = `${options.request_id}.g${String(fence)}.run`;
   const sessionId = `${options.request_id}.g${String(fence)}.s`;
   const candidateRoot = join(options.attemptDir, "candidates");
@@ -912,7 +989,7 @@ export async function executeJob(options: ExecuteJobOptions): Promise<RequestOut
     allowed: options.allowed.length,
     created_at: new Date(now()).toISOString(),
   };
-  await writeFile(sessionFile, `${JSON.stringify(binding, null, 2)}\n`);
+  await withJobClaim(options, reservation.claim, () => writeFile(sessionFile, `${JSON.stringify(binding, null, 2)}\n`));
   const record: AttemptRecord = {
     attempt,
     session: sessionId,
@@ -926,7 +1003,7 @@ export async function executeJob(options: ExecuteJobOptions): Promise<RequestOut
     resumed_from: null,
     state: "running",
   };
-  await writeAttempt(options.attemptDir, record);
+  await withJobClaim(options, reservation.claim, () => writeAttempt(options.attemptDir, record));
 
   const controller = new AbortController();
   const registryKey = options.registryKey ?? attempt;
@@ -959,17 +1036,24 @@ export async function executeJob(options: ExecuteJobOptions): Promise<RequestOut
                 ...launch,
                 stdin: `${launch.stdin}\n\n[bounded retry ${String(tryNo)}/${String(options.recipe.max_attempts)}: already submitted: ${submittedList(session)}; still required: ${remainingList(session)}]`,
               };
+        await options.assertCurrent?.();
+        await withJobClaim(options, reservation.claim, async () => {
+          if (await readFence(options.attemptDir) !== fence) throw new LifecycleError(EXIT_CONFLICT, "session-superseded", "Attempt changed before launch.");
+        });
         emit(tryNo === 1 ? "launched" : "retry", `attempt ${JSON.stringify(attempt)} try ${String(tryNo)}`);
         // The pid is recorded while the child runs so cancel controls
         // can signal the live process; the write is awaited below.
         let pidWrite: Promise<void> | null = null;
+        let pidFailure: unknown;
         const capture = await spawnBounded(attemptLaunch, timeoutMs, combined, (pid) => {
           record.pid = pid;
-          pidWrite = writeAttempt(options.attemptDir, record);
+          pidWrite = withJobClaim(options, reservation.claim, () => writeAttempt(options.attemptDir, record))
+            .catch(error => { pidFailure = error; controller.abort(); });
         });
         if (pidWrite !== null) await pidWrite;
+        if (pidFailure !== undefined) throw pidFailure;
         if (capture.runnerSession !== null) record.runner_session = capture.runnerSession;
-        await writeAttempt(options.attemptDir, record);
+        await withJobClaim(options, reservation.claim, () => writeAttempt(options.attemptDir, record));
         const parsed = adapter.parseResult({
           exitCode: capture.exitCode,
           signal: capture.signal,
@@ -1004,8 +1088,8 @@ export async function executeJob(options: ExecuteJobOptions): Promise<RequestOut
   }
   record.state = outcome.state;
   record.pid = null;
-  await writeAttempt(options.attemptDir, record);
-  await storeRequest(options.stateDir, options.request_id, inputHash, outcome);
+  await withJobClaim(options, reservation.claim, () => writeAttempt(options.attemptDir, record));
+  await storeRequest(options.stateDir, options.request_id, inputHash, outcome, reservation.claim, options.coordinationRoot);
   emit("completed", `attempt ${JSON.stringify(attempt)} ${outcome.state}: ${outcome.detail}`);
   return outcome;
 }
@@ -1135,6 +1219,7 @@ export async function resetAttempt(options: {
   attemptDir: string;
   session?: McpSession;
   stateDir?: string;
+  coordinationRoot?: string;
   now?: () => number;
 }): Promise<number> {
   const now = options.now ?? Date.now;
@@ -1148,13 +1233,26 @@ export async function resetAttempt(options: {
     }
   }
   if (options.stateDir !== undefined) {
-    try {
-      const record = await readAttempt(options.attemptDir);
-      await markSuperseded(options.stateDir, record.request_id);
-    } catch (error) {
-      if (!(error instanceof LifecycleError)) throw error;
-      // Attempts without a record still reset their fence and files.
+    let record: AttemptRecord | undefined;
+    try { record = await readAttempt(options.attemptDir); }
+    catch (error) {
+      if (!(error instanceof LifecycleError) || error.code !== "unknown-session") throw error;
+      // An unlaunched attempt may have only its fence and capture.
     }
+    const requestIds = new Set(record === undefined ? [] : [record.request_id]);
+    // A durable claim can precede attempt.json (for example while probing the
+    // executable). Recover those exact attempt owners through the same ledger.
+    let entries: string[];
+    try { entries = await readdir(join(options.stateDir, "requests")); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
+      entries = [];
+    }
+    for (const entry of entries.filter(name => name.endsWith(".json"))) {
+      const pending = JSON.parse(await readFile(join(options.stateDir, "requests", entry), "utf8")) as LedgerRecord;
+      if (pending?.attempt_dir === resolve(options.attemptDir) && typeof pending.request_id === "string") requestIds.add(pending.request_id);
+    }
+    for (const id of requestIds) await markSuperseded(options.stateDir, id, options.coordinationRoot);
   }
   return fence;
 }
@@ -1208,6 +1306,10 @@ export interface ResumeOptions {
   attemptDir: string;
   /** Host-owned ledger root for request idempotency. */
   stateDir: string;
+  /** Existing lease root for request metadata (defaults to stateDir). */
+  coordinationRoot?: string;
+  /** Additional owning-control check; never replaces the lifecycle permission gates. */
+  assertCurrent?: () => Promise<void>;
   /** Permitted output targets for the resumed run. */
   allowed: AllowedTarget[];
   /** JSON Schema text for the structured final message. */
@@ -1251,25 +1353,27 @@ async function runResumeTry(
   timeoutMs: number,
   signal: AbortSignal | undefined,
   record: AttemptRecord,
-  attemptDir: string,
   attempt: string,
   tryNo: number,
   emit: NonNullable<ResumeOptions["onEvent"]>,
+  persist: () => Promise<void>,
 ): Promise<TryOutcome> {
   emit(tryNo === 1 ? "launched" : "retry", `resume ${JSON.stringify(attempt)} try ${String(tryNo)}`);
   let pidWrite: Promise<void> | null = null;
+  let pidFailure: unknown;
   const capture = await spawnBounded(
     launch,
     timeoutMs,
     signal,
     (pid) => {
       record.pid = pid;
-      pidWrite = writeAttempt(attemptDir, record);
+      pidWrite = persist().catch(error => { pidFailure = error; });
     },
   );
   if (pidWrite !== null) await pidWrite;
+  if (pidFailure !== undefined) throw pidFailure;
   if (capture.runnerSession !== null) record.runner_session = capture.runnerSession;
-  await writeAttempt(attemptDir, record);
+  await persist();
   const parsed = adapter.parseResult({
     exitCode: capture.exitCode,
     signal: capture.signal,
@@ -1347,9 +1451,27 @@ export async function resumeSession(options: ResumeOptions): Promise<RequestOutc
   }
   const now = options.now ?? Date.now;
   const emit = options.onEvent ?? ((): void => {});
+  const inputHash = hashInput(options.input);
+  const lookup = await lookupRequest(options.stateDir, options.request_id, inputHash);
+  if (lookup.status === "same") {
+    emit("recovered", `request ${JSON.stringify(options.request_id)} recovers its recorded outcome; no relaunch`);
+    return lookup.outcome;
+  }
+  if (lookup.status === "conflict") {
+    throw new LifecycleError(
+      EXIT_CONFLICT,
+      "request-conflict",
+      `request ${JSON.stringify(options.request_id)} carries changed input; a new id is required for new work`,
+    );
+  }
   const recorded = await readAttempt(options.recordedAttemptDir);
   const recordedFence = await readFence(options.recordedAttemptDir);
   if (recordedFence !== recorded.fence) {
+    // An identical concurrent resume may have claimed and fenced the recording
+    // since the optimistic lookup. Recover it before refusing stale new work.
+    const replay = await lookupRequest(options.stateDir, options.request_id, inputHash);
+    if (replay.status === "same") return replay.outcome;
+    if (replay.status === "conflict") throw new LifecycleError(EXIT_CONFLICT, "request-conflict", "Request id carries changed input; use a new id for new work.");
     throw new LifecycleError(
       EXIT_CONFLICT,
       "session-superseded",
@@ -1370,28 +1492,20 @@ export async function resumeSession(options: ResumeOptions): Promise<RequestOutc
       "the current capture no longer matches the recording; resume refuses and explicit new work is required",
     );
   }
-  const inputHash = hashInput(options.input);
-  const lookup = await lookupRequest(options.stateDir, options.request_id, inputHash);
-  if (lookup.status === "same") {
-    emit("recovered", `request ${JSON.stringify(options.request_id)} recovers its recorded outcome; no relaunch`);
-    return lookup.outcome;
-  }
-  if (lookup.status === "conflict") {
-    throw new LifecycleError(
-      EXIT_CONFLICT,
-      "request-conflict",
-      `request ${JSON.stringify(options.request_id)} carries changed input; a new id is required for new work`,
-    );
-  }
   const preflight = options.preflight ?? preflightResume;
   preflight(recorded.recipe);
+  await options.assertCurrent?.();
+  const reservation = await claimJobRequest(options, inputHash, "resume");
+  if ("outcome" in reservation) return reservation.outcome;
   const adapter = adapterFor(recorded.recipe.runner);
   const resolveExecutable = options.resolveExecutable ?? probeExecutable;
   const executable = await resolveExecutable(adapter.probeBinaries());
+  await options.assertCurrent?.();
   // The resumed run links back to its recording; the recording is
   // fenced so its stale session can never resume twice.
   await advanceFence(options.recordedAttemptDir, `resumed by ${options.request_id}`, now);
-  const fence = await readFence(options.attemptDir);
+  const fence = reservation.fence;
+  if (await readFence(options.attemptDir) !== fence) throw new LifecycleError(EXIT_CONFLICT, "session-superseded", "Attempt was fenced after request admission.");
   const attempt = `${options.request_id}.g${String(fence)}.resume`;
   const sessionId = `${options.request_id}.g${String(fence)}.s`;
   const session = await createMcpSession({
@@ -1413,7 +1527,7 @@ export async function resumeSession(options: ResumeOptions): Promise<RequestOutc
     allowed: options.allowed.length,
     created_at: new Date(now()).toISOString(),
   };
-  await writeFile(sessionFile, `${JSON.stringify(binding, null, 2)}\n`);
+  await withJobClaim(options, reservation.claim, () => writeFile(sessionFile, `${JSON.stringify(binding, null, 2)}\n`));
   const record: AttemptRecord = {
     attempt,
     session: sessionId,
@@ -1427,7 +1541,7 @@ export async function resumeSession(options: ResumeOptions): Promise<RequestOutc
     resumed_from: recorded.attempt,
     state: "running",
   };
-  await writeAttempt(options.attemptDir, record);
+  await withJobClaim(options, reservation.claim, () => writeAttempt(options.attemptDir, record));
   const launch = await adapter.buildResumeLaunch(
     {
       recipe: recorded.recipe,
@@ -1450,8 +1564,13 @@ export async function resumeSession(options: ResumeOptions): Promise<RequestOutc
       const tries: TryOutcome[] = [];
       for (let tryNo = 1; tryNo <= recorded.recipe.max_attempts; tryNo += 1) {
         if (options.signal?.aborted ?? false) break;
+        await options.assertCurrent?.();
+        await withJobClaim(options, reservation.claim, async () => {
+          if (await readFence(options.attemptDir) !== fence) throw new LifecycleError(EXIT_CONFLICT, "session-superseded", "Attempt changed before resume launch.");
+        });
         const outcome = await runResumeTry(adapter, launch, recorded.recipe.timeout_seconds * 1000,
-          options.signal, record, options.attemptDir, attempt, tryNo, emit);
+          options.signal, record, attempt, tryNo, emit,
+          () => withJobClaim(options, reservation.claim, () => writeAttempt(options.attemptDir, record)));
         tries.push(outcome);
         if (outcome.capture.cancelled || (options.signal?.aborted ?? false)) break;
         if (outcome.parsed.kind === "ok") break;
@@ -1467,8 +1586,8 @@ export async function resumeSession(options: ResumeOptions): Promise<RequestOutc
   }
   record.state = outcome.state;
   record.pid = null;
-  await writeAttempt(options.attemptDir, record);
-  await storeRequest(options.stateDir, options.request_id, inputHash, outcome);
+  await withJobClaim(options, reservation.claim, () => writeAttempt(options.attemptDir, record));
+  await storeRequest(options.stateDir, options.request_id, inputHash, outcome, reservation.claim, options.coordinationRoot);
   emit("completed", `resume ${JSON.stringify(attempt)} ${outcome.state}: ${outcome.detail}`);
   return outcome;
 }

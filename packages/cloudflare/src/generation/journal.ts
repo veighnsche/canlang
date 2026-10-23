@@ -167,7 +167,7 @@ function sha256Hex(bytes: Uint8Array): string {
 let tmpCounter = 0;
 
 /** Write bytes atomically: temporary sibling, fsync, rename. */
-async function persistFile(path: string, bytes: Uint8Array): Promise<void> {
+export async function persistFile(path: string, bytes: Uint8Array): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   const tmp = join(
     dirname(path),

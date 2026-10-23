@@ -37,6 +37,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { AppAcceptanceError, runAppAcceptance, type AppAcceptanceGate } from "./acceptance.js";
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, rmdir, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
@@ -50,6 +51,8 @@ import {
 } from "./config.js";
 import {
   LifecycleError,
+  withRequestLedger,
+  persistRequestRecord,
   advanceFence,
   buildRetryJobs,
   cancelAttempt,
@@ -343,6 +346,7 @@ interface ControlRecord {
   code: number;
   state: string;
   envelope: string;
+  claim?: string;
 }
 
 type ControlLookup =
@@ -420,6 +424,7 @@ async function storeControl(
   code: number,
   state: string,
   envelope: string,
+  claim: string,
 ): Promise<void> {
   const record: ControlRecord = {
     request_id,
@@ -428,10 +433,16 @@ async function storeControl(
     operation,
     code,
     state,
-    envelope,
+    envelope, claim,
   };
-  await mkdir(join(root, CONTROLS_DIR), { recursive: true });
-  await writeFile(controlLedgerFile(root, request_id), `${JSON.stringify(record, null, 2)}\n`);
+  const path = controlLedgerFile(root, request_id);
+  await withRequestLedger(root, path, async () => {
+    const current = JSON.parse(await readFile(path, "utf8")) as ControlRecord;
+    if (current.superseded || current.claim !== claim || current.input_hash !== inputHash) {
+      throw new ControlError(EXIT_CONFLICT, "request-superseded", "The control claim changed; its old execution cannot publish a new outcome.");
+    }
+    await persistRequestRecord(path, record);
+  });
 }
 
 /**
@@ -441,28 +452,29 @@ async function storeControl(
  */
 async function markControlSuperseded(root: string, request_id: string): Promise<void> {
   const path = controlLedgerFile(root, request_id);
-  let record: ControlRecord | null = null;
-  try {
-    const parsed: unknown = JSON.parse(await readFile(path, "utf8")) as unknown;
-    if (isControlRecord(parsed) && parsed.request_id === request_id) record = parsed;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
-  }
-  if (record === null) {
-    record = {
-      request_id,
-      input_hash: "",
-      superseded: true,
-      operation: "unknown",
-      code: EXIT_OK,
-      state: "superseded",
-      envelope: "",
-    };
-  } else {
-    record.superseded = true;
-  }
-  await mkdir(join(root, CONTROLS_DIR), { recursive: true });
-  await writeFile(path, `${JSON.stringify(record, null, 2)}\n`);
+  await withRequestLedger(root, path, async () => {
+    let record: ControlRecord | null = null;
+    try {
+      const parsed: unknown = JSON.parse(await readFile(path, "utf8")) as unknown;
+      if (isControlRecord(parsed) && parsed.request_id === request_id) record = parsed;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
+    }
+    if (record === null) {
+      record = {
+        request_id,
+        input_hash: "",
+        superseded: true,
+        operation: "unknown",
+        code: EXIT_OK,
+        state: "superseded",
+        envelope: "",
+      };
+    } else {
+      record.superseded = true;
+    }
+    await persistRequestRecord(path, record);
+  });
 }
 
 /** List every control ledger record, in request-id order. */
@@ -504,13 +516,30 @@ function stateOf(envelope: string, fallback: string): string {
   return fallback;
 }
 
+// Per-dispatch authority is private and copied so callers can reuse their context.
+const controlClaims = new WeakMap<ControlContext, { root: string; request_id: string; token: string }>();
+
+async function withControlClaim<T>(ctx: ControlContext, action: () => Promise<T>): Promise<T> {
+  const claim = controlClaims.get(ctx);
+  if (claim === undefined) return action();
+  const path = controlLedgerFile(claim.root, claim.request_id);
+  return withRequestLedger(claim.root, path, async () => {
+    const current = JSON.parse(await readFile(path, "utf8")) as ControlRecord;
+    if (current.superseded || current.claim !== claim.token) {
+      throw new ControlError(EXIT_CONFLICT, "request-superseded", "Old control no longer owns this request; it cannot launch new work.");
+    }
+    return action();
+  });
+}
+
 /**
  * Run one v1 control request: parse, ledger mutating operations for
  * idempotency, route to the operation handler, and record the
  * terminal outcome. Semantic failures become typed envelopes;
  * infrastructure failures (compiler spawn, corrupt JSON, IO
- * crashes) fail closed without poisoning the ledger.
+ * crashes) leave the durable pending outcome for explicit recovery.
  */
+
 export async function dispatchControl(
   text: string,
   ctx: ControlContext = {},
@@ -544,26 +573,45 @@ export async function dispatchControl(
     stableStringify({ operation: header.operation, params: params.params }),
   );
   const ledgered = !READ_OPS.has(params.kind);
-  if (ledgered) {
-    const lookup = await lookupControl(root, header.request_id, inputHash);
-    if (lookup.status === "same") {
-      ctx.onEvent?.("recovered", `request ${JSON.stringify(header.request_id)} recovers its recorded outcome`);
-      return { code: lookup.record.code, envelope: lookup.record.envelope };
-    }
-    if (lookup.status === "conflict") {
-      return {
-        code: EXIT_CONFLICT,
-        envelope: errorEnvelope(
-          header.request_id,
-          header.operation,
-          "request-conflict",
-          `request ${JSON.stringify(header.request_id)} carries changed input; a new id is required for new work`,
-          ["resend changed work under a new request id"],
-        ),
-      };
-    }
-  }
+  let claim: string | undefined;
   try {
+    if (ledgered) {
+      const recorded = await lookupControl(root, header.request_id, inputHash);
+      const admission = recorded.status === "same" || recorded.status === "conflict" ? recorded :
+        await withRequestLedger(root, controlLedgerFile(root, header.request_id), async () => {
+          const lookup = await lookupControl(root, header.request_id, inputHash);
+          if (lookup.status === "same" || lookup.status === "conflict") return lookup;
+          const token = randomUUID();
+          const envelope = errorEnvelope(header.request_id, header.operation, "request-in-flight",
+            "This request is durably bound; execution may be running or interrupted. Resending cannot launch new work.",
+            ["inspect the recorded attempts; wait for completion or explicitly recover stopped work"]);
+          await persistRequestRecord(controlLedgerFile(root, header.request_id), {
+            request_id: header.request_id, input_hash: inputHash, superseded: false,
+            operation: header.operation, code: EXIT_UNKNOWN, state: "unknown", envelope, claim: token,
+          });
+          return { status: "claimed" as const, token };
+        });
+      const lookup = admission;
+      if (lookup.status === "same") {
+        ctx.onEvent?.("recovered", `request ${JSON.stringify(header.request_id)} recovers its recorded outcome`);
+        return { code: lookup.record.code, envelope: lookup.record.envelope };
+      }
+      if (lookup.status === "conflict") {
+        return {
+          code: EXIT_CONFLICT,
+          envelope: errorEnvelope(
+            header.request_id,
+            header.operation,
+            "request-conflict",
+            `request ${JSON.stringify(header.request_id)} carries changed input; a new id is required for new work`,
+            ["resend changed work under a new request id"],
+          ),
+        };
+      }
+      if (lookup.status === "claimed") claim = lookup.token;
+    }
+    ctx = { ...ctx };
+    if (claim !== undefined) controlClaims.set(ctx, { root, request_id: header.request_id, token: claim });
     const result = await runOperation(header, params, ctx);
     if (ledgered) {
       await storeControl(
@@ -574,6 +622,7 @@ export async function dispatchControl(
         result.code,
         stateOf(result.envelope, "unknown"),
         result.envelope,
+        claim!,
       );
     }
     return result;
@@ -582,13 +631,13 @@ export async function dispatchControl(
     if (mapped === null) {
       const detail = error instanceof Error ? error.message : String(error);
       return {
-        code: EXIT_INVALID,
+        code: claim === undefined ? EXIT_INVALID : EXIT_UNKNOWN,
         envelope: errorEnvelope(
           header.request_id,
           header.operation,
-          "control-failed",
+          claim === undefined ? "control-failed" : "request-outcome-unknown",
           detail,
-          ["retry the request; report persistent failures with the request id"],
+          ["inspect the recorded attempt; resend the same request to recover without relaunching"],
         ),
       };
     }
@@ -599,7 +648,7 @@ export async function dispatchControl(
       mapped.detail,
       mapped.next,
     );
-    if (ledgered) {
+    if (ledgered && claim !== undefined && mapped.code !== "request-superseded" && mapped.code !== "request-in-flight") {
       await storeControl(
         root,
         header.request_id,
@@ -608,6 +657,7 @@ export async function dispatchControl(
         mapped.exit,
         "error",
         envelope,
+        claim,
       );
     }
     return { code: mapped.exit, envelope };
@@ -2251,6 +2301,8 @@ async function launchPlannedJob(
     snapshotDir: join(attemptDir, SNAPSHOT_DIR),
     attemptDir,
     stateDir: join(root, ".can/gen"),
+    coordinationRoot: root,
+    assertCurrent: () => withControlClaim(ctx, async () => {}),
     required: issued.required,
     mcpBridge: bridge,
     ...(ctx.registry === undefined ? {} : { registry: ctx.registry }),
@@ -2317,7 +2369,7 @@ async function executeCaptured(
   const parentUnits = [...new Set(jobs.flatMap((job) => job.units.map((unit) => unit.unit_id)))].sort();
   const parentSet: ParentRetrySet = { request_id: header.request_id, attempts: parentAttempts, units: parentUnits };
   const bridge = ctx.mcpBridge === undefined ? defaultMcpBridge() : ctx.mcpBridge;
-  const planned = await planExecutionJobs(root, header, jobs, byId, mode, refineFiles, instruction, sources, scope, parentSet, context, now, ctx);
+  const planned = await withControlClaim(ctx, () => planExecutionJobs(root, header, jobs, byId, mode, refineFiles, instruction, sources, scope, parentSet, context, now, ctx));
   const executed: ExecutedJob[] = [];
   let givenPreparation: { unit_id: string; fingerprint: string }[] = [];
   let givenPrepared = false;
@@ -3686,6 +3738,8 @@ async function runResume(
     prompt,
     attemptDir,
     stateDir: join(params.root, ".can/gen"),
+    coordinationRoot: params.root,
+    assertCurrent: () => withControlClaim(ctx, async () => {}),
     allowed,
     required,
     mcpBridge: ctx.mcpBridge === undefined ? defaultMcpBridge() : ctx.mcpBridge,
@@ -4057,13 +4111,13 @@ async function runReset(
   }
   const fenced: string[] = [];
   for (const attempt of matched) {
-    const fence = await resetAttempt({ attemptDir: attempt.dir, stateDir: join(params.root, ".can/gen"), now });
+    if (attempt.capture !== null) await markControlSuperseded(params.root, attempt.capture.request_id);
+    const fence = await resetAttempt({ attemptDir: attempt.dir, stateDir: join(params.root, ".can/gen"), coordinationRoot: params.root, now });
     fenced.push(`${attempt.name} (fence ${String(fence)})`);
     if (attempt.capture !== null) {
       for (const unit of attempt.capture.units) {
         await removeUnitIndex(params.root, unit.unit_id, attempt.name);
       }
-      await markControlSuperseded(params.root, attempt.capture.request_id);
     }
   }
   return {
@@ -4098,10 +4152,10 @@ async function resetUnit(
   for (const attempt of holding) {
     const capture = attempt.capture as CaptureRecord;
     if (capture.units.length === 1) {
-      const fence = await resetAttempt({ attemptDir: attempt.dir, stateDir: join(root, ".can/gen"), now });
+      await markControlSuperseded(root, capture.request_id);
+      const fence = await resetAttempt({ attemptDir: attempt.dir, stateDir: join(root, ".can/gen"), coordinationRoot: root, now });
       details.push(`${attempt.name}: attempt reset (fence ${String(fence)})`);
       await removeUnitIndex(root, unit_id, attempt.name);
-      await markControlSuperseded(root, capture.request_id);
       continue;
     }
     // Explicit rescope: the unit's handles leave the attempt, its
