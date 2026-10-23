@@ -9973,7 +9973,10 @@ async function runScenarioExecution(
           });
           opaqueByPackage.set(scope.ownerPackage, opaque);
         }
-        if (opaque === null) { stamped.push(write); continue; }
+        if (opaque === null) {
+          if(sourceRequireAware)return refuseRecordBinding('Source-only EMIT requires its installed original source-routing inventory.');
+          stamped.push(write); continue;
+        }
         const declaration = opaque.event(event.event);
         const filePayloadOrigin = await opaque.prepare({ expectedRevision: call.checkpoint.revision,
           model: handlerModel as ModelName, row: write.row, field: 'payload', scope,
@@ -10018,7 +10021,10 @@ async function runScenarioExecution(
         });
         opaqueByPackage.set(ownerPackage, opaque);
       }
-      if (opaque === null) { stamped.push(write); continue; }
+      if (opaque === null) {
+        if(sourceRequireAware)return refuseRecordBinding('Source-only EMIT requires its installed original source-routing inventory.');
+        stamped.push(write); continue;
+      }
       const handlers = result['handlers'];
       if (!Array.isArray(handlers)) {
         return refuseRecordBinding('Declared source occurrence lacks its physical route inventory.');
@@ -10076,7 +10082,7 @@ async function runScenarioExecution(
     secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
     ...(ownerControl === undefined ? {} : { policies: ownerControl.policies }),
     encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
-    ...((trustedOwnerReads || receiptAware) ? { stageSources: emissionSourceStage }
+    ...((trustedOwnerReads || hasExecutionFrame) ? { stageSources: emissionSourceStage }
       : stageSources === undefined ? {} : { stageSources }),
   };
   const rootOwnerSession = !useOwnerSession || child !== undefined ? undefined : hasExecutionFrame
@@ -11157,9 +11163,18 @@ async function runScenarioExecution(
     ...(judgmentSpecification === undefined ? {} : { judgmentSpecification }),
     emitDeferred: async (event, payload) => {
       try {
-        if ((!trustedOwnerReads && !savedResultAware) || (savedResultAware && due !== undefined) ||
+        if ((!trustedOwnerReads && !savedResultAware && !sourceRequireAware) || (savedResultAware && due !== undefined) ||
             child !== undefined || rootOwnerSession === undefined) {
           throw new StateError('validation', 'Domain events require their private owning source finalizer.');
+        }
+        if(sourceRequireAware){
+          const actual=call as AdmittedCall;
+          const assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution;
+          if(assertExecution===undefined)return refuseRecordBinding('Source-only EMIT lost its installed State execution producer.');
+          assertExecution(actual,receiptStore!);
+          if(nativeScenarioExecutions.get(actual)?.session!==ownerSession) {
+            return refuseRecordBinding('Source-only EMIT requires its actual live State owner execution.');
+          }
         }
         if (emittedEvents.length >= (sourceEmissionMaximum??200) || typeof event !== 'string') throw new StateError('limit', 'Domain event bound exceeded.');
         const ownerPackage = event.slice(0, event.lastIndexOf('.'));
@@ -16357,9 +16372,13 @@ async function checkedDeclaredEventProducer(opts: Pick<CanonicalDueScheduleOpts,
     return true;
   }
   const plan = definition.descriptor.result?.disclosure;
-  if (definition.kind !== 'scenario' || definition.descriptor.kind !== 'scenario' || plan === undefined ||
+  // A source-only owner authenticates its original execution without a saved
+  // result association. The physical source header and durable receipt below
+  // still prove this exact event occurrence, context, scope and commit.
+  const source=plan?.source??sourceRequireFrames.get(definition);
+  if (definition.kind !== 'scenario' || definition.descriptor.kind !== 'scenario' || source === undefined ||
       opts.artifact.callables.filter(value => value.kind === 'operation' && value.id === definition.name &&
-        value.module === plan.source.module).length !== 1 || typeof context.operationId !== 'string') return false;
+        value.module === source.module).length !== 1 || typeof context.operationId !== 'string') return false;
   await verifyCheckedAssembly(opts.asm, opts.artifact);
   // The physical opaque header binds this exact Work row to its original
   // event, payload and attribution. A saved business receipt alone does not:
@@ -16371,7 +16390,7 @@ async function checkedDeclaredEventProducer(opts: Pick<CanonicalDueScheduleOpts,
       binding.origin.revision !== result.revision || binding.origin.recipe.kind !== 'declared-event') return false;
   const recipe = binding.origin.recipe;
   if (recipe.declaration.event !== result.event ||
-      stableStringify(recipe.declaration.source) !== stableStringify(plan.source) ||
+      stableStringify(recipe.declaration.source) !== stableStringify(source) ||
       stableStringify(recipe.context) !== stableStringify(context) ||
       stableStringify(recipe.payload) !== stableStringify(result.payload) ||
       stableStringify(recipe.bounds) !== stableStringify(result.bounds) ||
@@ -16384,8 +16403,9 @@ async function checkedDeclaredEventProducer(opts: Pick<CanonicalDueScheduleOpts,
   return saved !== null && saved.outcome.status === 'committed' &&
     stableStringify(saved.identity) === stableStringify(identity) && saved.createdAt === row.created &&
     saved.committedRevision === Number(result.revision) + 1 &&
-    saved.outcome.scenario?.kind === 'scenario-result/v1' &&
-    stableStringify(saved.outcome.scenario.plan) === stableStringify(plan);
+    (plan===undefined ? saved.outcome.scenario===undefined :
+      saved.outcome.scenario?.kind === 'scenario-result/v1' &&
+      stableStringify(saved.outcome.scenario.plan) === stableStringify(plan));
 }
 
 /** A declared-event receipt head carries its completed occurrence identity. */

@@ -1693,25 +1693,45 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
             _=>false,
         }
     }
-    fn statements(ir: &IrProgram, body: &[IrStmt], depth: usize,values:&mut BTreeSet<String>,consumed:&HashSet<Span>) -> bool {
+    fn emit_payload(ir:&IrProgram,owner:&IrItem,event:&str,payload:&TypedExpr,
+        values:&BTreeSet<String>,records:&BTreeMap<String,ResolvedType>)->bool{
+        let Some(declaration)=ir.items.iter().find(|item|item.canonical==event&&item.module==owner.module)else{return false;};
+        let IrItemKind::Event{fields}=&declaration.kind else{return false;};
+        let IrExpr::Object(entries)=&payload.expr else{return false;};
+        if fields.len()!=entries.len()||entries.len()>200{return false;}
+        entries.iter().all(|(name,value)|{
+            let Some(field)=fields.iter().filter_map(|id|ir.items.get(id.0 as usize)).find(|field|field.name==*name)else{return false;};
+            let IrItemKind::Field{ty:IrType::Known(expected),..}=&field.kind else{return false;};
+            // An event may retain the exact original admitted model identity,
+            // never a stored member, computed reference or copied row carrier.
+            let root_reference=matches!((&value.expr,&value.ty,expected),
+                (IrExpr::Name(name),ResolvedType::Record{symbol,..},ResolvedType::Record{symbol:target,..})
+                    if symbol==target&&records.get(name)==Some(&value.ty));
+            send_value(ir,value,values,0)||root_reference
+        })
+    }
+    fn statements(ir: &IrProgram,owner:&IrItem, body: &[IrStmt], depth: usize,
+        values:&mut BTreeSet<String>,records:&mut BTreeMap<String,ResolvedType>,consumed:&HashSet<Span>) -> bool {
         if depth > 64 { return false; }
         body.iter().all(|statement| match statement {
             IrStmt::Let { name,value,.. } => {
                 let pure=send_value(ir,value,values,0);
                 values.remove(name);
+                records.remove(name);
                 if pure{values.insert(name.clone());}
                 expression(ir,value,0)
             },
             IrStmt::Return { value, .. } => value.as_ref().is_none_or(|value| expression(ir, value, 0)),
             IrStmt::Create { input, when: None, .. } => expression(ir, input, 0),
             IrStmt::Send { args, when: None, .. } => send_value(ir,args,values,0),
+            IrStmt::Emit { event,payload,.. } => emit_payload(ir,owner,event,payload,values,records),
             IrStmt::Set { record, changes, when: None, .. } => expression(ir, record, 0) && expression(ir, changes, 0),
             IrStmt::Delete { record, .. } | IrStmt::Transition { record, .. } => expression(ir, record, 0),
             IrStmt::Require { cond, .. } => consumed.contains(&cond.span) || expression(ir, cond, 0),
             IrStmt::If { cond, then_branch, else_branch, .. } => expression(ir, cond, 0)
-                && statements(ir, then_branch, depth + 1,&mut values.clone(),consumed) && statements(ir, else_branch, depth + 1,&mut values.clone(),consumed),
+                && statements(ir,owner, then_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed) && statements(ir,owner, else_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed),
             IrStmt::Match { subject, arms, .. } => expression(ir, subject, 0)
-                && arms.iter().all(|arm| statements(ir, &arm.body, depth + 1,&mut values.clone(),consumed)),
+                && arms.iter().all(|arm| statements(ir,owner, &arm.body, depth + 1,&mut values.clone(),&mut records.clone(),consumed)),
             _ => false,
         })
     }
@@ -1723,7 +1743,14 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
     }).collect();
     let consumed=sources.iter().filter_map(|(span,source)|
         (source["owner"]==owner.canonical && source["node"]["start"]==span.start && source["node"]["end"]==span.end).then_some(*span)).collect();
-    statements(ir,effects,0,&mut values,&consumed)
+    let mut records=params.iter().filter_map(|id|{
+        let param=ir.items.get(id.0 as usize)?;
+        let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
+        matches!(ty,ResolvedType::Record{symbol,stored:true}
+            if ir.items.get(symbol.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..})))
+            .then(||(param.name.clone(),ty.clone()))
+    }).collect();
+    statements(ir,owner,effects,0,&mut values,&mut records,&consumed)
 }
 
 pub(super) fn emit_program_with_feasible_query_sources(

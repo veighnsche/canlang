@@ -8,13 +8,18 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { it } from 'node:test';
 import { promisify } from 'node:util';
-import type { CompileArtifact, ModelName, StoredRow } from '@canlang/contracts';
+import type { CompileArtifact, FileRetirementAuthority, ModelName, StoredRow } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createMemoryStorage, createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { asId, asModel, asVersion, makeBatch, makeRow } from '@canlang/state/testing/invocation/fixtures';
 import { buildInvoker } from '../worker/assembly.js';
 import { assembleModules } from './modules.js';
+
+import { invokeRetainedHandlerOccurrenceCanonical } from './invoke.js';
+import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
+import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
+import { installNativeFileInventory } from './file-inventory.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const fixture = (name: string) => join(root, 'packages/cloudflare/test/fixtures', name);
@@ -1471,4 +1476,95 @@ it('decides the original Purchase request against complete nested Money owner do
         if(mode==='domain-race'||mode==='worker-at-commit')assert.ok(raced,'actual final commit observed the current complete owner domain and eligibility');
       }
     } finally {await rm(directory,{recursive:true,force:true});}
+  });
+
+it('finalizes source-only declared EMIT with genuine references and ordinary replay privacy',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-source-only-emit-'));
+    try{
+      const {artifact,asm}=await installed('native-source-require-emit.can',directory);
+      for(const name of ['notify','abort'])assert.equal(artifact.operations?.find(op=>op.name===`SourceGuardEmit.${name}`)?.result?.disclosure,undefined);
+      const original=await readFile(fixture('native-source-require-emit.can'),'utf8');
+      const refused=fixture('.native-source-require-emit-refusal.can');
+      try{
+        for(const changed of [original.replaceAll('emit Checked {root,message}','emit Checked {root,message=root.secret}'),
+          original.replaceAll('emit Checked {root,message}','let alias=root\n   emit Checked {root=alias,message}')]){
+          await writeFile(refused,changed);
+          const report=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
+          assert.equal(report.status,10,report.stdout+report.stderr);
+          assert.ok((JSON.parse(report.stdout) as {diagnostics:{code:string}[]}).diagnostics.some(item=>item.code==='E6008'));
+        }
+      }finally{await rm(refused,{force:true});}
+      for(const mode of ['allowed','full','inactive','other-parent','invariant-after-emit','identity-during-source-stage','root-at-commit','tampered-source','missing-inventory']){
+        const {now,identities,identity,membership}=await member(`source-emit-${mode}`);
+        const scope={app:'SourceGuardEmit',owner:membership.team_id,ownerPackage:'SourceGuardEmit'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'source-emit-state',fileStoreId:'source-emit-files',
+          receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        if(mode!=='missing-inventory')await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,
+          verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+        const rootModel=model('SourceGuardEmit','Root');
+        const rootRow={...makeRow({id:asId('root-1'),data:{capacity:mode==='full'?'1':'2',checked:false,seen:false,secret:'Hidden field'}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:rootRow},
+          {kind:'insert',model:rootModel,row:{...rootRow,id:asId('root-2')}},
+          {kind:'insert',model:model('SourceGuardEmit','Child'),row:{...makeRow({id:asId('child-1'),data:{active:mode!=='inactive'}}),
+            parent:{model:rootModel,id:asId(mode==='other-parent'?'root-2':'root-1')}}}]}));
+        let raced=false;
+        if(mode==='identity-during-source-stage'){
+          const inventory=store.readFileReferenceInventory.bind(store);
+          store.readFileReferenceInventory=async owner=>{
+            if(!raced){raced=true;await identities.removeMembership(membership.membership_id);}
+            return inventory(owner);
+          };
+        }
+        if(mode==='root-at-commit'){
+          const commit=store.commit.bind(store);
+          store.commit=async batch=>{
+            if(!raced&&batch.writes.some(write=>write.model==='work.occurrence')){
+              raced=true;
+              await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,id:rootRow.id,
+                expectedVersion:asVersion(rootRow.version),row:{...rootRow,version:asVersion(rootRow.version+1),archivedAt:now}}]}));
+            }
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:mode==='invariant-after-emit'?'SourceGuardEmit.abort':'SourceGuardEmit.notify',operation_id:operationId(now),
+          inputs:{root:{id:rootRow.id,version:String(rootRow.version)},message:'Original event'}};
+        const outcome=await invoker.invokeMutation(request,identity);
+        const allowed=mode==='allowed'||mode==='tampered-source';
+        assert.equal('result'in outcome&&outcome.result.status==='committed',allowed,`${mode}: ${JSON.stringify(outcome)}`);
+        if(mode==='identity-during-source-stage')assert.equal('error'in outcome&&outcome.error.code,'forbidden');
+        if(mode==='root-at-commit')assert.equal('error'in outcome&&outcome.error.code,'conflict');
+        const sources=await store.query({model:asModel('work.occurrence'),authority:'owner'});
+        assert.equal(sources.length,allowed?1:0,mode);
+        const actual=await store.load(rootModel,rootRow.id);assert.ok(actual);assert.equal(actual.data.checked,allowed,mode);assert.equal(actual.data.seen,false);
+        if(mode==='identity-during-source-stage'||mode==='root-at-commit')assert.equal(raced,true,mode);
+        if(!allowed)continue;
+        const source=sources[0]!,result=source.data['result'] as {context:{kind:string;operation:string};payload:unknown};
+        assert.equal(result.context.kind,'user');assert.equal(result.context.operation,request.operation);
+        assert.deepEqual(result.payload,{root:{id:rootRow.id,version:String(actual.version)},message:'Original event'});
+        const saved=await store.readReceipt({app:'SourceGuardEmit',owner:membership.team_id,principal:membership.user_id,
+          operation:request.operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);
+        assert.ok(saved.outcome.status==='committed');assert.equal(saved.outcome.scenario,undefined);
+        const visible=await invoker.invokeRead({operation:'SourceGuardEmit.Root.read',inputs:{}},identity);
+        assert.ok('error'in visible||((visible.result as {records:unknown[]}).records.length===0));
+        const replay=await invoker.invokeMutation(request,identity);
+        assert.ok('error'in replay&&replay.error.code==='validation',JSON.stringify(replay));
+        assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),sources);
+        const deliver=()=>invokeRetainedHandlerOccurrenceCanonical({asm,artifact,app:'SourceGuardEmit',store,identities,now:()=>now+1,
+          selector:{scope:{app:'SourceGuardEmit',owner:membership.team_id,ownerPackage:'SourceGuardEmit'},event:'SourceGuardEmit.Checked',
+            sourceOccurrence:source.id,handler:'SourceGuardEmit.observe'}});
+        if(mode==='tampered-source'){
+          await assert.rejects(async()=>store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('work.occurrence'),id:source.id,
+            expectedVersion:source.version,row:{...source,version:asVersion(source.version+1),data:{...source.data,result:{...result,payload:{root:{id:'root-2',version:'1'},message:'Original event'}}}}}]})));
+          assert.deepEqual(await store.load(asModel('work.occurrence'),source.id),source,'owning opaque resolver rejects substituted event references');
+          assert.equal((await store.load(rootModel,rootRow.id))?.data.seen,false);
+        }
+        assert.equal((await deliver() as {status:string}).status,'completed');
+        assert.equal((await deliver() as {status:string}).status,'replayed');
+        assert.equal((await store.load(rootModel,rootRow.id))?.data.seen,true);
+        assert.deepEqual(await store.readReceipt(saved.identity),saved,'consumer never rewrites the ordinary source receipt');
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
   });
