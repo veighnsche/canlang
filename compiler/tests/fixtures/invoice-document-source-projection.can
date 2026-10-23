@@ -67,7 +67,7 @@ package invoice
    invoice(source:text,snapshot:InvoiceDocument,revision:int) -> PdfResult
    receipt(source:text,snapshot:InvoiceDocument,revision:int) -> PdfResult
   role finance
-  export Invoice in Customer {location:Location,source:text,ledger_revision:int=0,currency:currency,state:enum(draft,issued,void_pending,void)=draft,total:money,issuer:text,recipient:text,address:text,tax_reference:text?,terms:text?,due:date,number:text?,issued_at:datetime?,hidden:bool=false}
+  export Invoice in Customer {location:Location,source:text,ledger_revision:int=0,currency:currency,state:enum(draft,issued,void_pending,void)=draft,total:money,issuer:text,recipient:text,address:text,tax_reference:text?,terms:text?,due:date,number:text?,issued_at:datetime?,hidden:bool=false,needs_review:bool=false}
   Line in Invoice {description:text,position:int=0,quantity:decimal=1,unit:text?,service_from:datetime?,service_until:datetime?,service_location:text?,service_reference:text?,price:money,tax:money,discount:money,tax_readable:bool=true,hidden:bool=false}
   Attempt in Invoice {reference:text unique,amount:money,kind:enum(collection,refund),payment:text?,status:PaymentState.status=pending,received:datetime?,hidden:bool=false}
   Credit in Invoice {amount:money,reason:text,hidden:bool=false}
@@ -118,5 +118,12 @@ package invoice
    require not any(invoice.Attempt as attempt,attempt.status in [pending,unknown]) and not any(ExternalPayment as payment,payment.reference==reference)
    do
     create ExternalPayment {parent=invoice,amount,reference,received,evidence} as payment
+    set invoice {ledger_revision=invoice.ledger_revision+1}
+  scenario credit_review(invoice:Invoice,amount:money,reason:text) by=finance
+   require can_work(actor,invoice.location) and invoice.state==issued and amount.minor>0 and amount.currency==invoice.currency
+   do
+    create Credit {parent=invoice,amount,reason} as credit
+    if invoice.refund_due.minor>0
+     set invoice {needs_review=true}
     set invoice {ledger_revision=invoice.ledger_revision+1}
  Then

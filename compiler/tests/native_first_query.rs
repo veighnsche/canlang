@@ -2186,7 +2186,30 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
     assert!(serialize_decision_sources(&program,&ir,receipt,&db,Some(&catalog)).is_some());
     let guarded=artifact["modules"].as_array().unwrap().iter().map(|module|
         module["js"].as_str().unwrap().matches("check(await nativeScenarioRequire(c,").count()).sum::<usize>();
-    assert_eq!(guarded,10,"receipt and correlated allowance guards need their actual source observers");
+    assert_eq!(guarded,11,"receipt, credit and correlated allowance guards need their actual source observers");
+    let module=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).find(|text|text.contains("invoice.credit_review")).unwrap();
+    assert!(module.contains("if (await nativeScenarioRequire(c,"),"the original post-CREATE condition needs a real staged observer");
+    let credit=item(&ir,"invoice.credit_review");
+    assert!(serialize_decision_sources(&program,&ir,credit,&db,Some(&catalog)).is_some());
+    for mode in ["prefix-order","condition","then-value"] {
+        let mut changed=ir.clone();
+        let IrItemKind::Scenario{effects,..}=&mut changed.items[credit.id.0 as usize].kind else{panic!("credit");};
+        match mode {
+            "prefix-order"=>effects.swap(0,1),
+            "condition"=>{let IrStmt::If{cond,..}=&mut effects[1] else{panic!("if");};cond.expr=IrExpr::Bool(false);},
+            _=>{let IrStmt::If{then_branch,..}=&mut effects[1] else{panic!("if");};let IrStmt::Set{changes,..}=&mut then_branch[0] else{panic!("set");};let IrExpr::Object(fields)=&mut changes.expr else{panic!("fields");};fields[0].1.expr=IrExpr::Bool(false);},
+        }
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[credit.id.0 as usize],&db,Some(&catalog)).is_none(),"staged IF {mode}");
+    }
+    for (name,condition) in [
+        ("staged-local","    let copied=invoice\n    if copied.refund_due.minor>0"),
+        ("staged-input-version","    if invoice.refund_due.minor>0 and invoice.version==1"),
+    ] {
+        let changed=source.replace("    if invoice.refund_due.minor>0",condition);
+        let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
+        let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+        assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+    }
     for (name,index) in [("refund_allowance",1),("external_refund_allowance",2)] {
         let mut changed=ir.clone();let owner=item(&changed,&format!("invoice.{name}")).id;
         let IrItemKind::Scenario{guards,..}=&mut changed.items[owner.0 as usize].kind else{panic!("scenario");};

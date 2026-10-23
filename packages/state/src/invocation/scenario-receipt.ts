@@ -6253,6 +6253,8 @@ function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void) {
 }
 
 export interface ScenarioReceiptRequireSource {
+  /** A source-sealed IF observes its current staged snapshot; ordinary Requires remain initial-stage. */
+  readonly decision?: 'if';
   readonly source: ScenarioResultDisclosurePlan['source'];
   readonly owner: string;
   readonly node: { readonly start: number; readonly end: number };
@@ -6434,9 +6436,9 @@ function checkEventNoticeAuditPlan(value: unknown, source: unknown): EventNotice
 }
 const eventNoticeCaptures=new WeakMap<Capture,{ readonly values: Array<{readonly text:string;readonly locale:string}>; consumed:boolean }>();
 
-/** One original pre-write Require, evaluated once on the genuine admitted row.
- * Its source queries borrow this owner stage; complete owner domains and
- * current Identity survive to the fence. */
+/** One original control expression, evaluated once on its genuine owner row.
+ * Requires retain stage zero; a sealed IF captures its actual staged snapshot.
+ * Complete observed domains and current Identity survive to the fence. */
 export async function executeScenarioReceiptRequire(call: AdmittedCall, store: StoragePort, input: {
   readonly original: ScenarioReceiptRequireSource;
   /** Independently loaded from the verified source-Require inventory. */
@@ -6447,10 +6449,13 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
   const state = capture(call, store), owner = ownerSessions.get(call);
   let acquired = false;
   try {
-    if (owner === undefined || owner.session === null || owner.stage !== 0 || owner.busy ||
+    const staged=input.original.decision==='if';
+    if (input.original.decision!==undefined&&!staged) return invalid('Unknown original source decision.');
+    const stage=owner?.stage;
+    if (owner === undefined || owner.session === null || !staged&&owner.stage !== 0 || owner.busy ||
         state.pending !== 0 || state.returnId !== null || owner.executingCall !== call ||
         owner.callGuards.length >= MAX_ITEMS) {
-      return invalid('source Require needs its actual initial owner stage.');
+      return invalid('source control needs its actual quiescent owner stage.');
     }
     const original = deepFreeze(dataCopy(input.original));
     const sites = checkScenarioReceiptMembershipSites(original.sites);
@@ -6478,7 +6483,7 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
     owner.busy = true; state.pending++; acquired = true;
     const healthy = () => {
       capture(call, store); ownerHealthy(owner);
-      if (owner.stage !== 0 || owner.executingCall !== call || !owner.busy || state.pending !== 1 || state.returnId !== null) {
+      if (owner.stage !== stage || owner.executingCall !== call || !owner.busy || state.pending !== 1 || state.returnId !== null) {
         return invalid('source Require crossed its original owner stage.');
       }
     };
@@ -6486,8 +6491,8 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
     const rowKey = (model: string, id: string) => `${model}\0${id}`;
     const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
       healthy();
-      // This observer cannot cross stage zero or write. Reuse raw snapshot
-      // rows, never projected grants; Identity and the revision fence stay live.
+      // Freeze reads from this exact source stage. This control observer
+      // grants no DATA; Identity and the revision fence remain live.
       const key = rowKey(model, id), cached = rows.get(key);
       if (cached !== undefined) return cached;
       const row = await owner.session!.views.final.get(model, id); healthy();
@@ -6501,7 +6506,7 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
       return domain;
     };
     const root = await read(reference.model, reference.id);
-    if (root === null || stableStringify(root) !== stableStringify(reference.row)) {
+    if (root === null || root.archivedAt!==null || (staged ? !sameModelLifetime(root,reference.row) : stableStringify(root) !== stableStringify(reference.row))) {
       throw new StateError('conflict', 'Source Require model differs from its admitted row.');
     }
     // Invoice.collect's first original Require dereferences invoice.parent.kind
@@ -6572,11 +6577,10 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
       const finalHealthy = () => {
         if (owner.finalized !== final || owner.capture.poisoned) return invalid('source Require final capture changed.');
       };
-      // The original decision is retained across this operation's own
-      // writes. Recheck its complete pre-write domains at the fenced revision.
-      // Source guards execute at their original pre-write stage. Own later
-      // effects do not replace that domain; current Identity still rechecks it.
-      // Consumed fields separately retain their final-overlay authority below.
+      // Retain this exact source-stage decision across later own writes.
+      // Stage-zero Requires and post-write IFs each keep the domain they
+      // actually observed. Current Identity and the storage fence recheck it;
+      // this control observation issues no DATA authority.
       const originalDomains = policyDomains.retained(finalHealthy);
       const originalRead = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
         finalHealthy();

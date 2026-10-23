@@ -6353,8 +6353,8 @@ async function loadCheckedRequireSources(asm: AssembledModules, artifact: Compil
     if (Object.keys(raw).length > 200) throw new AssemblyCorrespondenceError('Scenario Require inventory exceeds its checked owner bound.');
     for (const owner of Object.keys(raw)) {
       const sources = nativeCallArray(raw[owner], 200).map(value => {
-        const site = localPolicyObject(value, ['source', 'owner', 'node', 'statement', 'parameters', 'sites']);
-        if (Object.keys(site).length !== 6 || site.owner !== owner) {
+        const site = localPolicyObject(value, ['source', 'owner', 'node', 'statement', 'parameters', 'sites', 'decision']);
+        if (Object.keys(site).length !== (site.decision==='if'?7:6) || Object.hasOwn(site,'decision')&&site.decision!=='if' || site.owner !== owner) {
           throw new AssemblyCorrespondenceError('Scenario Require inventory differs from its checked owner.');
         }
         const source = captureDispatchPreclaimData(site) as unknown as ScenarioReceiptRequireSource;
@@ -12958,8 +12958,8 @@ async function runScenarioExecution(
         const getter = privateSourceMember(module, 'canScenarioRequireSource');
         if (typeof getter !== 'function') throw new AssemblyCorrespondenceError('Scenario Require lacks its original source getter.');
         const raw: unknown = getter(fn);
-        const source = localPolicyObject(raw, ['source', 'owner', 'node', 'statement', 'parameters', 'sites']);
-        if (Object.keys(source).length !== 6 || source.owner !== scenarioDef.name) {
+        const source = localPolicyObject(raw, ['source', 'owner', 'node', 'statement', 'parameters', 'sites', 'decision']);
+        if (Object.keys(source).length !== (source.decision==='if'?7:6) || Object.hasOwn(source,'decision')&&source.decision!=='if' || source.owner !== scenarioDef.name) {
           throw new AssemblyCorrespondenceError('Scenario Require differs from its original owning source.');
         }
         const original = captureDispatchPreclaimData(source) as unknown as import('@canlang/state/invocation').ScenarioReceiptRequireSource;

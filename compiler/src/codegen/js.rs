@@ -1753,7 +1753,7 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
             IrStmt::Set { record, changes, when: None, .. } => expression(ir, record, 0) && expression(ir, changes, 0),
             IrStmt::Delete { record, .. } | IrStmt::Transition { record, .. } => expression(ir, record, 0),
             IrStmt::Require { cond, .. } => consumed.contains(&cond.span) || expression(ir, cond, 0),
-            IrStmt::If { cond, then_branch, else_branch, .. } => expression(ir, cond, 0)
+            IrStmt::If { cond, then_branch, else_branch, .. } => (consumed.contains(&cond.span)||expression(ir, cond, 0))
                 && statements(ir,owner, then_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,cancels,schedules,data_emits,context) && statements(ir,owner, else_branch, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,cancels,schedules,data_emits,context),
             IrStmt::Match { subject, arms, .. } => expression(ir, subject, 0)
                 && arms.iter().all(|arm| statements(ir,owner, &arm.body, depth + 1,&mut values.clone(),&mut records.clone(),consumed,data_sends,cancels,schedules,data_emits,context)),
@@ -12412,9 +12412,52 @@ fn null_equality(
         out
     }
 
-    /// Lower one statement to lines at `indent` (two spaces per level),
-    /// preserving source order. Every arm attributes its lines to the
-    /// statement span via the returned `(text, span)` pairs.
+    /// The installed source closure observes control only at its actual owner stage.
+    fn lower_source_condition(&mut self,cond:&TypedExpr)->Option<String> {
+        let identity=self.source_requires.get(&cond.span).cloned()?;
+        let parameters = identity["parameters"]
+            .as_array()
+            .expect("sealed Require parameters");
+        let names = parameters
+            .iter()
+            .filter(|parameter| parameter["unread"].as_bool() != Some(true))
+            .map(|parameter| {
+                parameter["name"]
+                    .as_str()
+                    .expect("sealed parameter")
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        let bindings = names
+            .iter()
+            .map(|name| format!("{}:{}", object_key(name), self.reference(name)))
+            .collect::<Vec<_>>()
+            .join(",");
+        let previous_boolean = std::mem::replace(&mut self.boolean_body, true);
+        let previous_generic = std::mem::replace(&mut self.generic_boolean_body,
+            !matches!(identity["owner"].as_str(), Some("invoice.collect" | "invoice.issue")));
+        let previous_source_guard =
+            std::mem::replace(&mut self.source_guard_body, true);
+        let previous_receipt = self.receipt_capture.take();
+        let previous_query = self.query_capture.take();
+        let previous_require=self.source_require_identity.replace(identity.clone());
+        let previous_calls=std::mem::take(&mut self.source_require_calls);
+        let expression = self.lower_expr(cond);
+        self.source_require_identity=previous_require;
+        self.source_require_calls=previous_calls;
+        self.boolean_body = previous_boolean;
+        self.generic_boolean_body = previous_generic;
+        self.source_guard_body = previous_source_guard;
+        self.receipt_capture = previous_receipt;
+        self.query_capture = previous_query;
+        self.stdlib.insert("nativeScenarioRequire".into());
+        Some(format!(
+            "await nativeScenarioRequire(c,$can$require$issue({},async(c,{{{bindings}}})=>({expression})),{{{bindings}}})",
+            descriptor_json(&descriptor_json(&identity))
+        ))
+    }
+
+    /// Lower one statement in source order, retaining its source span.
     pub fn lower_stmt(&mut self, stmt: &IrStmt, indent: usize) -> Vec<(String, Span)> {
         let pad = "  ".repeat(indent);
         let consumers: Vec<&TypedExpr> = match stmt {
@@ -13111,50 +13154,7 @@ fn null_equality(
                 if in_hook {
                     self.hook_decision_depth += 1;
                 }
-                let cond_text = if let Some(identity) = self.source_requires.get(&cond.span).cloned() {
-                    let parameters = identity["parameters"]
-                        .as_array()
-                        .expect("sealed Require parameters");
-                    let names = parameters
-                        .iter()
-                        .filter(|parameter| parameter["unread"].as_bool() != Some(true))
-                        .map(|parameter| {
-                            parameter["name"]
-                                .as_str()
-                                .expect("sealed parameter")
-                                .to_owned()
-                        })
-                        .collect::<Vec<_>>();
-                    let bindings = names
-                        .iter()
-                        .map(|name| format!("{}:{}", object_key(name), self.reference(name)))
-                        .collect::<Vec<_>>()
-                        .join(",");
-                    let previous_boolean = std::mem::replace(&mut self.boolean_body, true);
-                    let previous_generic = std::mem::replace(&mut self.generic_boolean_body,
-                        !matches!(identity["owner"].as_str(), Some("invoice.collect" | "invoice.issue")));
-                    let previous_source_guard =
-                        std::mem::replace(&mut self.source_guard_body, true);
-                    let previous_receipt = self.receipt_capture.take();
-                    let previous_query = self.query_capture.take();
-                    let previous_require=self.source_require_identity.replace(identity.clone());
-                    let previous_calls=std::mem::take(&mut self.source_require_calls);
-                    let expression = self.lower_expr(cond);
-                    self.source_require_identity=previous_require;
-                    self.source_require_calls=previous_calls;
-                    self.boolean_body = previous_boolean;
-                    self.generic_boolean_body = previous_generic;
-                    self.source_guard_body = previous_source_guard;
-                    self.receipt_capture = previous_receipt;
-                    self.query_capture = previous_query;
-                    self.stdlib.insert("nativeScenarioRequire".into());
-                    format!(
-                        "await nativeScenarioRequire(c,$can$require$issue({},async(c,{{{bindings}}})=>({expression})),{{{bindings}}})",
-                        descriptor_json(&descriptor_json(&identity))
-                    )
-                } else {
-                    self.lower_expr(cond)
-                };
+                let cond_text = self.lower_source_condition(cond).unwrap_or_else(||self.lower_expr(cond));
                 if in_hook {
                     self.hook_decision_depth -= 1;
                 }
@@ -13220,7 +13220,7 @@ fn null_equality(
                             descriptor_json(&decision))
                     }
                 } else {
-                    self.lower_expr(cond)
+                    self.lower_source_condition(cond).unwrap_or_else(||self.lower_expr(cond))
                 };
                 if in_hook {
                     self.hook_decision_depth -= 1;

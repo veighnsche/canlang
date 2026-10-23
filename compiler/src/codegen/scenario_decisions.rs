@@ -3641,17 +3641,16 @@ fn join_require_statements<'o>(
             }
             (actual,expected)
         }
+        ([CheckedDecisionPosition::Body(index)], CheckedDecisionStage::BodyCondition) => {
+            semantic.statements(effects.get(..*index)?,expected_effects.get(..*index)?,0)?;
+            (effects.get(*index)?,expected_effects.get(*index)?)
+        }
         _ => return None,
     };
-    let IrStmt::Require { cond, span } = actual else {
-        return None;
-    };
-    let IrStmt::Require {
-        cond: expected_cond,
-        span: expected_span,
-    } = expected
-    else {
-        return None;
+    let (cond,span,expected_cond,expected_span)=match(actual,expected,site.stage) {
+        (IrStmt::Require{cond,span},IrStmt::Require{cond:other,span:at},CheckedDecisionStage::LeadingRequire|CheckedDecisionStage::BodyRequire)=>(cond,span,other,at),
+        (IrStmt::If{cond,span,..},IrStmt::If{cond:other,span:at,..},CheckedDecisionStage::BodyCondition)=>(cond,span,other,at),
+        _=>return None,
     };
     if site.owner != owner.id
         || *span != *expected_span
@@ -3799,9 +3798,12 @@ fn serialize_require_observer(
         vec![observer],
         Some(&owner.canonical),
     )?;
-    let identity = serde_json::json!({"source":serial_source(site.source.clone()),
+    let mut identity = serde_json::json!({"source":serial_source(site.source.clone()),
         "owner":owner.canonical,"node":serial_node(site.node),"statement":serial_node(site.statement),
         "parameters":parameters,"sites":serialized});
+    if site.stage==crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition {
+        identity["decision"]=serde_json::json!("if");
+    }
     if output.len() >= 200 {
         return None;
     }
@@ -3868,7 +3870,14 @@ pub(super) fn serialize_scenario_requires(
         };
         let required = collect_require_keys(original, sites)?;
         consumer.index_required(sources.trees(), &required)?;
+        let mut staged_owner_sealed=false;
         for site in sites {
+            if site.stage==crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition && !staged_owner_sealed {
+                // A staged branch must retain its original prefix and both
+                // arms, not only the condition that borrows owner control.
+                same_scenario_semantics(original,ir,sources.fresh(),owner)?;
+                staged_owner_sealed=true;
+            }
             let cond = join_require_statements(
                 &mut semantic,
                 &mut consumer,

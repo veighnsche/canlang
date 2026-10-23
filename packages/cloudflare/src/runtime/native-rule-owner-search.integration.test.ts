@@ -2326,7 +2326,8 @@ it('projects the original Invoice document child arrays through ordinary field D
         {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
       const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
         stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-      for(const mode of ['allowed','hidden-row','other-parent','withheld-field','worker-inactive','role-during-send','child-at-commit','grant-at-commit','parent-at-commit','overflow','receipt-allowed','receipt-unsettled','receipt-pending','receipt-pending-at-commit','refund-allowed','refund-over','external-refund-allowed','external-refund-over','refund-at-commit','payment-allowed','payment-duplicate','payment-foreign-duplicate','payment-at-commit'] as const){
+      for(const mode of ['allowed','hidden-row','other-parent','withheld-field','worker-inactive','role-during-send','child-at-commit','grant-at-commit','parent-at-commit','overflow','receipt-allowed','receipt-unsettled','receipt-pending','receipt-pending-at-commit','refund-allowed','refund-over','external-refund-allowed','external-refund-over','refund-at-commit','payment-allowed','payment-duplicate','payment-foreign-duplicate','payment-at-commit','credit-positive','credit-false','credit-hidden','credit-at-commit','credit-role-loss'] as const){
+        const creditReview=mode.startsWith('credit-');
         const paymentAllowance=mode.startsWith('payment-');
         const allowance=paymentAllowance||mode.startsWith('refund-')||mode.startsWith('external-refund-');
         const {now,identities,identity,team,user}=await member(`invoice-document-${mode}`,['invoice.finance']);
@@ -2338,7 +2339,7 @@ it('projects the original Invoice document child arrays through ordinary field D
         const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
         const location=row('location',{active:true}),customer=row('customer',{kind:'company',hidden:false});
         const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',ledger_revision:'0',currency:'EUR',state:'issued',total:{minor:paymentAllowance?'1100':allowance?'100':mode==='receipt-allowed'||mode.startsWith('receipt-pending')?'900':'2000',currency:'EUR'},
-          issuer:'Original issuer',recipient:'Original recipient',address:'1 Road',tax_reference:null,terms:'Net 14',due:'2026-12-01',number:'INV-1',issued_at:new Date(now).toISOString(),hidden:false},
+          issuer:'Original issuer',recipient:'Original recipient',address:'1 Road',tax_reference:null,terms:'Net 14',due:'2026-12-01',number:'INV-1',issued_at:new Date(now).toISOString(),hidden:false,needs_review:false},
           {model:model('customer','Customer'),id:customer.id});
         const child={model:model('invoice','Invoice'),id:invoice.id};
         const first=row('line-a',{description:'First',position:'10',quantity:'2',unit:'seat',service_from:null,service_until:null,service_location:null,service_reference:null,
@@ -2348,7 +2349,7 @@ it('projects the original Invoice document child arrays through ordinary field D
           {kind:'insert',model:model('rent_catalog','Location'),row:location},{kind:'insert',model:model('customer','Customer'),row:customer},
           {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:mode!=='worker-inactive',hidden:true})},
           {kind:'insert',model:model('invoice','Invoice'),row:invoice},{kind:'insert',model:model('invoice','Line'),row:first},{kind:'insert',model:model('invoice','Line'),row:second},
-          {kind:'insert',model:model('invoice','Credit'),row:row('credit',{amount:{minor:'100',currency:'EUR'},reason:'Original credit',hidden:false},child)},
+          {kind:'insert',model:model('invoice','Credit'),row:row('credit',{amount:{minor:'100',currency:'EUR'},reason:'Original credit',hidden:mode==='credit-hidden'},child)},
           {kind:'insert',model:model('invoice','Attempt'),row:row('attempt',{reference:'payment-1',amount:{minor:'500',currency:'EUR'},kind:'collection',status:mode==='receipt-pending'?'pending':'succeeded',received:new Date(now).toISOString(),hidden:false},child)},
           {kind:'insert',model:model('invoice','ExternalPayment'),row:row('external',{reference:'bank-1',evidence:'Original bank proof',amount:{minor:'400',currency:'EUR'},received:new Date(now).toISOString(),hidden:mode==='payment-duplicate'},child)},
           {kind:'insert',model:model('invoice','ExternalRefund'),row:row('refund',{payment:{id:asId('external')},reference:'refund-1',amount:{minor:mode==='external-refund-over'?'390':'100',currency:'EUR'},received:new Date(now).toISOString(),hidden:false},child)},
@@ -2383,13 +2384,39 @@ it('projects the original Invoice document child arrays through ordinary field D
             return commit(batch);
           };
         }
+        if(mode==='credit-role-loss'){
+          const query=store.query.bind(store);store.query=async request=>{
+            if(!raced&&request.model===model('invoice','Credit')){
+              raced=true;const current=await identities.findMembership(team.team_id,user.user_id);assert.ok(current);await identities.setMembershipRoles(current.membership_id,[]);
+            }
+            return query(request);
+          };
+        }
+        if(mode==='credit-at-commit'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{
+            if(!raced&&batch.writes.some(write=>write.model===model('invoice','Credit'))){
+              raced=true;
+              await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice','ExternalRefund'),row:row('credit-race',{payment:{id:asId('external')},reference:'credit-race',amount:{minor:'1000',currency:'EUR'},received:new Date(now).toISOString(),hidden:true},child)}]}));
+            }
+            return commit(batch);
+          };
+        }
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
-        const request={operation:paymentAllowance?'invoice.record_payment_allowance':mode.startsWith('refund-')?'invoice.refund_allowance':mode.startsWith('external-refund-')?'invoice.external_refund_allowance':mode.startsWith('receipt-')?'invoice.generate_receipt':'invoice.document',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:String(invoice.version)},...(paymentAllowance?{amount:{minor:'100',currency:'EUR'},reference:mode==='payment-duplicate'?'bank-1':'new-payment',received:new Date(now).toISOString(),evidence:'Bank proof'}:allowance?{payment:{id:asId(mode.startsWith('refund-')?'attempt':'external'),version:'1'},amount:{minor:'50',currency:'EUR'},reason:'Approved allowance',...(mode.startsWith('external-refund-')?{reference:'new-refund',received:new Date(now).toISOString(),evidence:'Bank proof'}:{})}:{})}};
-        const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-row','other-parent','child-at-commit','receipt-allowed','refund-allowed','external-refund-allowed','payment-allowed'].includes(mode);
+        const request={operation:creditReview?'invoice.credit_review':paymentAllowance?'invoice.record_payment_allowance':mode.startsWith('refund-')?'invoice.refund_allowance':mode.startsWith('external-refund-')?'invoice.external_refund_allowance':mode.startsWith('receipt-')?'invoice.generate_receipt':'invoice.document',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:String(invoice.version)},...(creditReview?{amount:{minor:mode==='credit-false'?'1100':'1200',currency:'EUR'},reason:'Reviewed credit'}:paymentAllowance?{amount:{minor:'100',currency:'EUR'},reference:mode==='payment-duplicate'?'bank-1':'new-payment',received:new Date(now).toISOString(),evidence:'Bank proof'}:allowance?{payment:{id:asId(mode.startsWith('refund-')?'attempt':'external'),version:'1'},amount:{minor:'50',currency:'EUR'},reason:'Approved allowance',...(mode.startsWith('external-refund-')?{reference:'new-refund',received:new Date(now).toISOString(),evidence:'Bank proof'}:{})}:{})}};
+        const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-row','other-parent','child-at-commit','receipt-allowed','refund-allowed','external-refund-allowed','payment-allowed','credit-positive','credit-false','credit-hidden','credit-at-commit'].includes(mode);
         assert.equal('result'in result&&result.result.status==='committed',success,`${mode}: ${JSON.stringify(result)}`);
-        const pending=await store.outboxPending();assert.equal(pending.length,success&&!allowance?1:0,mode);
-        assert.equal((await store.query({model:model('invoice','DocumentRequest'),authority:'owner'})).length,success&&!allowance?1:0,mode);
+        const pending=await store.outboxPending();assert.equal(pending.length,success&&!allowance&&!creditReview?1:0,mode);
+        assert.equal((await store.query({model:model('invoice','DocumentRequest'),authority:'owner'})).length,success&&!allowance&&!creditReview?1:0,mode);
         if(['child-at-commit','grant-at-commit','parent-at-commit','role-during-send','receipt-pending-at-commit','refund-at-commit','payment-at-commit'].includes(mode))assert.ok(raced,'actual final race reached');
+        if(creditReview){
+          const current=await store.load(model('invoice','Invoice'),invoice.id);assert.ok(current);
+          assert.equal(current.data.needs_review,success&&mode!=='credit-false'&&mode!=='credit-at-commit',mode);
+          assert.equal(current.data.ledger_revision,success?'1':'0',mode);
+          assert.equal((await store.query({model:model('invoice','Credit'),authority:'owner'})).length,success?2:1,mode);
+          if(mode==='credit-at-commit'||mode==='credit-role-loss')assert.ok(raced,'actual staged-decision fence reached');
+          if(success){const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(replay.result.result,null);}
+          continue;
+        }
         if(paymentAllowance){
           assert.equal((await store.query({model:model('invoice','ExternalPayment'),authority:'owner'})).length,success||mode==='payment-at-commit'||mode==='payment-foreign-duplicate'?2:1,mode);
           assert.equal((await store.load(model('invoice','Invoice'),invoice.id))!.data.ledger_revision,success?'1':'0',mode);

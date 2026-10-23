@@ -16237,6 +16237,10 @@ impl<'a> Closure<'a> {
                 && matches!(self.types.symbol_types.get(&field.field), Some(ResolvedType::Nullable(inner))
                     if matches!(inner.as_ref(), ResolvedType::Record { stored: true, .. }))))
         { *helper_query = true; }
+        if site.stage==CheckedDecisionStage::BodyCondition && node.kind==SyntaxKind::Member
+            && self.count_member(key).is_some_and(|(base,name)|name=="version"
+                && matches!(self.types.node_types.get(&base),Some(ResolvedType::Record{stored:true,..})))
+        { *supported=false;return Some(false); }
         if body {
             match self.query_binding(key) {
                 Some(Binding::Let { .. } | Binding::CreateAs { .. } | Binding::SendAs { .. }
@@ -16412,9 +16416,27 @@ impl<'a> Closure<'a> {
             (path,CheckedDecisionStage::BodyRequire) if self.source_require_body_guard(scenario,path).is_some()=>{
                 (self.source_require_body_guard(scenario,path)?,true)
             }
+            ([CheckedDecisionPosition::Body(index)],CheckedDecisionStage::BodyCondition) => {
+                let effect=scenario.effects.get(*index)?;
+                // One original top-level IF observes the actual owner stage.
+                // Loop locals and branch-local aliases need their own producer.
+                if effect.verb!=EffectVerb::If||effect.cond!=Some(site.node)
+                    ||effect.node!=site.statement||!effect.match_arms.is_empty()
+                    ||self.types.node_types.get(&site.node)!=Some(&ResolvedType::Scalar(Scalar::Bool))
+                    ||scenario.params.iter().filter(|parameter|matches!(self.types.symbol_types.get(&parameter.param),
+                        Some(ResolvedType::Record{stored:true,..}))).count()!=1
+                    ||scenario.params.iter().any(|parameter|matches!(self.types.symbol_types.get(&parameter.param),
+                        Some(ResolvedType::Nullable(inner)|ResolvedType::Array{element:inner,..})
+                            if matches!(inner.as_ref(),ResolvedType::Record{stored:true,..})))
+                    ||scenario.params.iter().any(|parameter|matches!(self.types.symbol_types.get(&parameter.param),
+                        Some(ResolvedType::Scalar(Scalar::File)))||matches!(self.types.symbol_types.get(&parameter.param),
+                        Some(ResolvedType::Nullable(inner)) if inner.as_ref()==&ResolvedType::Scalar(Scalar::File)))
+                {return Some(());}
+                (effect,true)
+            }
             _ => return Some(()),
         };
-        self.source_require_site_guard(guard, &site)?;
+        if site.stage!=CheckedDecisionStage::BodyCondition { self.source_require_site_guard(guard, &site)?; }
         let mut supported = true;
         let mut helper_query = false;
         for call in &site.calls {
