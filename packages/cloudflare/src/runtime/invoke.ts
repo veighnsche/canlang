@@ -10477,8 +10477,12 @@ async function runScenarioExecution(
       effects.writes[0].model === 'work.schedule' &&
       (effects.outbox?.length ?? 0) === 0 && (effects.history?.length ?? 0) === 0 &&
       (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
-    const sourceCancellation = savedResultAware && cancellationSourceStages.delete(effects);
-    const sourceSchedule = savedResultAware && scheduleSourceStages.delete(effects);
+    // A specialized owner already retains its exact framework suffix. The
+    // shared source bridge must not append the same physical Work rows again.
+    const sourceCancellation = savedResultAware && cancellationSourceStages.delete(effects)
+      && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework;
+    const sourceSchedule = savedResultAware && scheduleSourceStages.delete(effects)
+      && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework;
     if (ownerSession !== undefined && !isDueAdmission && !privateFramework && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework && !sourceCancellation && !sourceSchedule && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
         (effects.uniqueReleases?.length ?? 0) !== 0)) {

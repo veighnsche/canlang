@@ -21570,6 +21570,10 @@ impl<'a> Emitter<'a> {
         out.push(item.span,Some(item.canonical.clone()),
             &format!("const $termPrevious=await nativeScenarioTermDecision(c,{},async(c,{{membership:{membership},cycle:{cycle},capture:{capture}}})=>{{",
                 descriptor_json(decision)));
+        // This exact admitted decision owns and observes its whole original
+        // prefix over private State-issued views. A second source Require
+        // frame would incorrectly treat those views as public input slots.
+        let source_requires = std::mem::take(&mut self.source_requires);
         for guard in guards {
             for (line,span) in self.lower_stmt(guard,0) {
                 out.push(span,Some(item.canonical.clone()),&line);
@@ -21583,6 +21587,7 @@ impl<'a> Emitter<'a> {
         let selected = self.reference("previous");
         out.push(item.span,Some(item.canonical.clone()),&format!("return {selected};}});"));
         self.exit_scope();
+        self.source_requires = source_requires;
         self.owner_handler_body = previous_owner;
         self.query_capture = previous_query;
         let previous = self.bind("previous");
