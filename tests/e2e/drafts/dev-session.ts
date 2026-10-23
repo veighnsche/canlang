@@ -160,7 +160,11 @@ export async function openDraftSession(options: {
     }
     let status = object((await control("status", flags())).result);
     while (!current(status)) {
-      if (status.revision !== null) {
+      const observation = object(status.observation);
+      // Manual start publishes control readiness before any source revision.
+      // Request its first check explicitly; an active or automatic check owns
+      // its existing work and must settle without a competing request.
+      if (observation.mode === "manual" && observation.operation === null) {
         const check = object((await control("check", flags())).result);
         status = object((await control("status", flags())).result);
         if (!current(status)) {
