@@ -9,36 +9,83 @@ Use the workspace commands below for local development. [Build scheduling](imple
 - Bun 1.4.2 (`bun --version`) for installs and script runs, plus
   Node.js >= 22 (`node --version`) as the JS runtime: builds and tests
   still execute under Node, invoked through `bun run`. Node 24 is the verified runtime test profile. Turbo 2.11.7 installs from
-  the frozen Bun lock; public tasks verify the Bun and Turbo pins. The workerd binary downloads on first install; no Cloudflare account or
+  the frozen Bun lock. The task runner requires Node 22+ and keys caches by the
+  executing host, Node and Bun versions; it does not enforce exact Bun/Turbo
+  versions. The workerd binary downloads on first install; no Cloudflare account or
   credentials are needed for local build/test/dev.
-- Rust toolchain 1.99.0 for the `can` compiler (`rustup toolchain install 1.99.0`).
+- Rust 1.99 or newer for the `can` compiler (`compiler/Cargo.toml` declares
+  this minimum). Native preparation separately selects 1.99.0 through its
+  `rust-toolchain.toml`; install it with `rustup toolchain install 1.99.0`.
 - Python 3.12+ for the language tools (`python3 --version`).
 - Optional: `wrangler` for remote deploys (never needed for local work).
 
 ## Build, check, test
 
 ```sh
-git clone https://github.com/veighnsche/canlang.git
+git clone --recurse-submodules https://github.com/veighnsche/canlang.git
 cd canlang
 bun install --frozen-lockfile
 bun run build
+```
+
+For an existing checkout, initialize the draft submodule with
+`git submodule update --init --recursive` before using draft examples.
+
+Runtime fixtures need prerequisites beyond TypeScript package builds. From the
+repository root, prepare the catalog, compiler profiles, packaged native
+preparation binary and browser:
+
+```sh
+bun run catalog
+bun run build:compiler
+cargo build --locked --release --manifest-path compiler/Cargo.toml
+node packages/cloudflare/scripts/build-preparation.mjs
+bunx playwright install --with-deps chromium
+```
+
+Some existing fixtures explicitly select `compiler/target/release/can`; the
+ordinary compiler build command uses the debug profile. Tests that invoke
+`can dev` also need the [native development server](#native-development-server)
+built before running. Then run the checks:
+
+```sh
 bun run typecheck
 bun run check:boundaries
+bun run check:unitban
 bun run test
 ```
 
 `bun run test` schedules producer builds, then runs the root Vitest suites,
-including local workerd/D1 tests. `bun run test:all` adds the ten owning
-Node test commands and emitted Cloudflare runtime tests, with sequential suite
-scheduling. Typechecks and tests always execute; only TypeScript producer builds
-are cacheable. Run one producer closure with
-`bun run build --filter=@canlang/values`.
+including local workerd/D1 tests. `bun run test:all` also runs the owning
+`test:integration` tasks (Interfaces, Services and Cloudflare) and emitted
+Cloudflare runtime tests, with sequential suite scheduling. Typechecks and tests
+always execute; producer `build` outputs are cacheable. Run one producer closure
+with `bun run build --filter=@canlang/values`.
 
-`bun run verify:turbo-cache` creates an isolated snapshot and frozen install,
-then verifies the actual graph, restoration of every output byte and file mode,
-upstream invalidation, source rollback/deletion and failed-producer blocking. It preserves its raw evidence in the temporary directory printed on completion.
-`bun run build:uncached` disables both cache reads and writes for reproducibility
-checks. Cached builds use `.turbo/cache` locally; remote caching is disabled.
+`bun run build:uncached` disables both cache reads and writes. Cached builds use
+`.turbo/cache` locally; remote caching is disabled. Producers clean their owned
+outputs and incremental state before a build or cache restoration. Current
+commands and dependencies live in [package.json](../package.json) and
+[turbo.json](../turbo.json); the former isolated cache-verification command is
+no longer provided.
+
+The [CI workflow](../.github/workflows/ci.yml) has three jobs:
+
+- **Workspace and installed artifacts:** build packages, check boundaries and the
+  unit-test bans, run selected native Work integration targets, typecheck the
+  workspace, build native preparation/compiler prerequisites, generate the
+  catalog, run `test:all`, and verify installed declarations/runtime on Node 24
+  and the declared Node 22.0.0 minimum.
+- **Compiler and editor:** format/lint the compiler, build real package/catalog
+  prerequisites, run compiler tests with shell completion engines, then check
+  editor grammar, compile its client and run LSP/client integrations.
+- **Browser and security journeys:** build runtime/catalog/compiler prerequisites,
+  typecheck the browser harness and run Playwright journeys.
+
+CI currently installs the latest Bun and stable Rust, rather than enforcing the
+local versions listed above. These are configured checks, not a statement that
+all currently pass; the [remaining-task checklist](ideal-filetree-plan/tasks.md)
+records known implementation and verification gaps.
 
 The Python prototype has known drift: `python3 tools/can_parser.py draft examples` currently
 exits 1; the draft corpus evolved past the Python prototype parser (owned
@@ -55,6 +102,8 @@ generation remain explicit opt-in commands (`build:values-wasm` and
 `build:work-wasm`); ordinary TypeScript builds stage the selected committed
 bindings. The VS Code extension keeps its separate build outside this workspace.
 
+## Native development server
+
 Build the independent native development owner into the compatible compiler
 target before using `can dev` from a checkout:
 
@@ -68,53 +117,21 @@ Reuse a compatible owned target when one is already configured. The native owner
 uses the built Cloudflare runtime bridge; ordinary source checks need no provider
 credentials. Standalone archives bundle the matching native server and Node.
 
-## Production function complexity
+## Reviewing complexity
 
-Aim for a source-AST cyclomatic score **≤10** in Rust and TypeScript; the normal
-maximum is **20**. Above 20 needs a specific justified exception, such as a
-straightforward compiler dispatch whose alternatives belong together. Preserve
-behavior and meaningful responsibilities; do not split functions just to lower a score.
+Follow [AGENTS.md](../AGENTS.md): keep responsibilities cohesive, reuse shared
+mechanisms, preserve behavior and permissions, and use focused integration or
+end-to-end checks. Simplify duplicated workflows rather than splitting functions
+or files merely to reduce a metric.
 
-```sh
-bun run check:complexity                         # HEAD versus saved working files, including untracked source
-bun run check:complexity --base <base-sha> --head HEAD  # committed branch/change range
-```
-
-The check needs installed TypeScript **5.9.3**, Python and the **Rust 1.99.0
-rust-analyzer component** on PATH (`rustup component add rust-analyzer --toolchain
-1.99.0` if missing). It performs no builds or downloads. CI runs it before the
-compiler build, against the PR base or previous push commit; a manual CI run uses
-the initial baseline commit. Missing parsers, incompatible versions and reported
-parse errors fail the check.
-
-`complexity-baseline.json` freezes existing
-scores above 20 at commit `68c826de7c6e3fbd50fc7cfba9865ebea4213e13`. Only changed
-function bodies are checked. An existing hotspot may stay or shrink, but its
-allowance is capped by both the frozen baseline and its score at the comparison
-commit, so reductions cannot regress within that comparison. New identities have
-no legacy allowance. Scores 11–20 are advisory; violations exit nonzero. `complexity-exceptions.json` accepts
-entries with `file`, the exact `identity` printed by the check, integer `max`, and
-a specific `reason`. Review that rationale and cap with the implementation; do
-not raise/reseed the baseline to silence new violations. Existing debt is not a
-request for a repository-wide refactor.
-
-Both metrics start at one per concrete function/method/closure, counting nested
-bodies separately. Rust adds `if`, `while`, `for`, `?`, `&&`, `||`, match guards
-and match-arm count minus one; unconditional `loop` and or-pattern alternatives
-add nothing. **Macros, including `matches!`, are unexpanded**; non-test platform
-cfg branches are counted together, and `cfg_attr` is conservatively retained. Rust-analyzer's source parser does not expose every recovery diagnostic, so this
-check does not replace compilation. TypeScript adds conditionals, loops, catch,
-nondefault switch cases, `&&`/`||`/`??`, logical assignments, optional-chain hops
-and parameter/destructuring defaults. Module/class-field/static initialization
-is not assigned to an enclosing function. These are explicit language-specific
-source metrics, not identical expanded control-flow measures.
-
-Tests, test-only Rust cfg subtrees and framework attributes, recognized TypeScript
-inline test guards/calls and `TestOnly*` doubles, test helpers, generated sources,
-fixtures, benchmarks, dependencies, vendor and build code are excluded. Renamed
-or moved functions and edited unnamed callbacks conservatively count as new
-identities; give a callback a meaningful binding or justify its exception when
-necessary. No test complexity limits change.
+Earlier versions of this guide described an advisory 11–20 source-AST
+cyclomatic band and named commit `68c826de7c6e3fbd50fc7cfba9865ebea4213e13`
+as the baseline for recorded scores above 20. This is historical guidance about
+the former analyzer, with language-specific counting and excluded generated/test
+code. That analyzer, its baseline/exception files and its CI gate are no longer
+present; the old scores are not measurements of the current tree or current
+acceptance thresholds. No rust-analyzer component is required for the checks
+listed here.
 
 ## Catalog and release checks
 
@@ -149,10 +166,11 @@ in an outside-checkout consumer with Bun’s isolated linker, then uses TypeScri
 export must resolve inside that consumer, expose symbols and use declared owned
 dependencies. Can declarations and the consumer fixture must have no diagnostics;
 missing/corrupt declaration controls must fail the same gate. Add `--skip-build`
-to check existing outputs. The installed type evidence
-records the scope: 150 typed exports across 13 owners pass, while all 797
-Miniflare 4.20260730.0 SDK declaration diagnostics remain visible. This is a
-scoped Can/consumer result; whole-program strict library checking does not pass.
+to check existing outputs. A historical installed-type run recorded 150 typed
+exports across 13 owners passing with 797 Miniflare 4.20260730.0 SDK declaration diagnostics visible. Those
+counts describe that captured run, not current verification. The script checks
+Can/consumer declarations and reports third-party diagnostics separately; its
+success does not assert a clean whole-program library check.
 
 The installed declaration and Worker/runtime consumers also accept
 `--minimum-node22` when invoked with exactly Node22.0.0, the declared minimum
@@ -216,5 +234,6 @@ report; standalone browser runs save the fixture's `playwright/screenshots/`.
   `CAN_DEV_BIN` as above. `can-platform` remains emitted JavaScript; its executable
   mode is restored by Cloudflare `build:emit` and Turbo restoration. Re-run the
   owning build after invoking `tsc` directly.
-- `wrangler` remote commands need `CLOUDFLARE_API_TOKEN`; nothing in this
-  repo runs them without asking.
+- For remote Wrangler deployment, configure authentication (such as
+  `CLOUDFLARE_API_TOKEN`) and use the deploy command's explicit `--yes`
+  confirmation.
