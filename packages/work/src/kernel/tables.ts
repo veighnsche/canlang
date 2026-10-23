@@ -66,6 +66,9 @@ export class KernelTableError extends Error {
   }
 }
 
+type TableErrorFactory = (message: string) => Error;
+const tableError: TableErrorFactory = message => new KernelTableError(message);
+
 /** Lane-04-owned table models (branded casts, mirroring L3 usage). */
 export const WORK_DISPATCH_MODEL = 'work.dispatch' as ModelName;
 export const WORK_OCCURRENCE_MODEL = 'work.occurrence' as ModelName;
@@ -217,12 +220,8 @@ export function readDispatchSourceGuard(data: Readonly<Record<string, unknown>>)
   return guard as unknown as DispatchSourceGuard;
 }
 
-/** Claim lifecycle per staged intent. Flat for store querying. */
-export interface DispatchRowData extends Partial<DispatchImageCorrelation>, Partial<DispatchImageControlPin>, Partial<DispatchMailRecipientPin> {
-  readonly queuePayload?: Readonly<Record<string, unknown>>;
-  readonly queuePayloadOrigin?: FrameworkFilePayloadOrigin;
-  readonly sourceGuard?: DispatchSourceGuard;
-  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
+/** Scalar lifecycle projection used by recovery planning; no provenance authority. */
+export interface DispatchLifecycleRowData {
   readonly intentId: OutboxId;
   readonly operationId: string;
   readonly source: string;
@@ -250,6 +249,14 @@ export interface DispatchRowData extends Partial<DispatchImageCorrelation>, Part
    * a sweeper can never resurrect a terminal business failure.
    */
   readonly retryClass: RetryClass | null;
+}
+
+/** Complete dispatch data; authoritative reads retain all original metadata checks. */
+export interface DispatchRowData extends DispatchLifecycleRowData, Partial<DispatchImageCorrelation>, Partial<DispatchImageControlPin>, Partial<DispatchMailRecipientPin> {
+  readonly queuePayload?: Readonly<Record<string, unknown>>;
+  readonly queuePayloadOrigin?: FrameworkFilePayloadOrigin;
+  readonly sourceGuard?: DispatchSourceGuard;
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
 }
 
 /** Execution receipt per admitted occurrence. */
@@ -318,9 +325,9 @@ const SCHEDULE_STATES: ReadonlySet<string> = new Set([
   'cancelled',
 ]);
 
-function checkRecord(value: unknown, what: string): Record<string, unknown> {
+function checkRecord(value: unknown, what: string, fail: TableErrorFactory = tableError): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new KernelTableError(`${what} must be an object.`);
+    throw fail(`${what} must be an object.`);
   }
   return value as Record<string, unknown>;
 }
@@ -329,10 +336,11 @@ function checkString(
   record: Record<string, unknown>,
   field: string,
   what: string,
+  fail: TableErrorFactory = tableError,
 ): string {
   const value = record[field];
   if (typeof value !== 'string' || value === '') {
-    throw new KernelTableError(`${what}.${field} must be a non-empty string.`);
+    throw fail(`${what}.${field} must be a non-empty string.`);
   }
   return value;
 }
@@ -341,11 +349,12 @@ function checkNullableString(
   record: Record<string, unknown>,
   field: string,
   what: string,
+  fail: TableErrorFactory = tableError,
 ): string | null {
   const value = record[field];
   if (value === null) return null;
   if (typeof value !== 'string') {
-    throw new KernelTableError(`${what}.${field} must be a string or null.`);
+    throw fail(`${what}.${field} must be a string or null.`);
   }
   return value;
 }
@@ -354,10 +363,11 @@ function checkCount(
   record: Record<string, unknown>,
   field: string,
   what: string,
+  fail: TableErrorFactory = tableError,
 ): number {
   const value = record[field];
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    throw new KernelTableError(`${what}.${field} must be an integer >= 0.`);
+    throw fail(`${what}.${field} must be an integer >= 0.`);
   }
   return value;
 }
@@ -378,11 +388,12 @@ function checkNullableInstant(
   record: Record<string, unknown>,
   field: string,
   what: string,
+  fail: TableErrorFactory = tableError,
 ): number | null {
   const value = record[field];
   if (value === null) return null;
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    throw new KernelTableError(`${what}.${field} must be finite epoch ms or null.`);
+    throw fail(`${what}.${field} must be finite epoch ms or null.`);
   }
   return value;
 }
@@ -595,15 +606,15 @@ function checkQueuePublicationOrigin(row: StoredRow, data: Record<string, unknow
       origin.target.intent.target !== data['source'] || origin.target.intent.occurrenceIndex !== data['occurrenceIndex'] ||
       origin.target.intent.target !== `${origin.declaration.event}.publish`) throw new KernelTableError('work.dispatch queue publication lost its original event/intent.');
 }
-function checkDispatchVerdict(guardVerdict: unknown): boolean | null {
+function checkDispatchVerdict(guardVerdict: unknown, fail: TableErrorFactory = tableError): boolean | null {
   if (guardVerdict !== null && typeof guardVerdict !== 'boolean') {
-    throw new KernelTableError('work.dispatch.guardVerdict must be boolean or null.');
+    throw fail('work.dispatch.guardVerdict must be boolean or null.');
   }
   return guardVerdict;
 }
-function checkDispatchRetryClass(retryClass: unknown): void {
+function checkDispatchRetryClass(retryClass: unknown, fail: TableErrorFactory = tableError): void {
   if (retryClass !== null && retryClass !== 'transient' && retryClass !== 'terminal') {
-    throw new KernelTableError(
+    throw fail(
       'work.dispatch.retryClass must be transient, terminal or null.',
     );
   }
@@ -616,16 +627,56 @@ function checkControlPin(row: StoredRow, data: Record<string, unknown>,
     throw new KernelTableError('Original generation control pin disagrees with its retained control row.');
   }
 }
+/** Validate only the lifecycle header; full metadata must run before tail fields. */
+function readDispatchLifecyclePrefix(row: StoredRow, fail: TableErrorFactory = tableError) {
+  const data = checkRecord(row.data, 'work.dispatch data', fail);
+  const state = checkString(data, 'state', 'work.dispatch', fail);
+  if (!OUTBOX_STATES.has(state)) {
+    throw fail(`work.dispatch.state is unknown: ${JSON.stringify(state)}.`);
+  }
+  const guardVerdict = checkDispatchVerdict(data['guardVerdict'], fail);
+  const retryClass = data['retryClass'];
+  checkDispatchRetryClass(retryClass, fail);
+  return { data, state: state as OutboxItemState, guardVerdict, retryClass: retryClass as RetryClass | null };
+}
+
+function projectDispatchLifecycle(
+  prefix: ReturnType<typeof readDispatchLifecyclePrefix>, fail: TableErrorFactory = tableError,
+): DispatchLifecycleRowData {
+  const { data, state, guardVerdict, retryClass } = prefix;
+  return {
+    intentId: checkString(data, 'intentId', 'work.dispatch', fail),
+    operationId: checkString(data, 'operationId', 'work.dispatch', fail),
+    source: checkString(data, 'source', 'work.dispatch', fail),
+    occurrenceIndex: checkCount(data, 'occurrenceIndex', 'work.dispatch', fail),
+    originOccurrence: checkNullableString(data, 'originOccurrence', 'work.dispatch', fail),
+    state: state as OutboxItemState,
+    attempts: checkCount(data, 'attempts', 'work.dispatch', fail),
+    claimId: checkNullableString(data, 'claimId', 'work.dispatch', fail),
+    claimedAtMs: checkNullableInstant(data, 'claimedAtMs', 'work.dispatch', fail),
+    guardVerdict,
+    deliveryId: checkNullableString(data, 'deliveryId', 'work.dispatch', fail),
+    errorCode: checkNullableString(data, 'errorCode', 'work.dispatch', fail),
+    errorMessage: checkNullableString(data, 'errorMessage', 'work.dispatch', fail),
+    availableAtMs: checkNullableInstant(data, 'availableAtMs', 'work.dispatch', fail),
+    firstAttemptAtMs: checkNullableInstant(data, 'firstAttemptAtMs', 'work.dispatch', fail),
+    retryClass: retryClass as RetryClass | null,
+  };
+}
+
+/**
+ * Historical/current lifecycle projection. Optional metadata is deliberately
+ * outside this read's domain; authoritative claim/reconcile must readDispatchRow.
+ * Validation errors use the supplied factory; caller-thrown values are not caught.
+ */
+export function readDispatchLifecycleRow(row: StoredRow, fail: TableErrorFactory = tableError): DispatchLifecycleRowData {
+  return projectDispatchLifecycle(readDispatchLifecyclePrefix(row, fail), fail);
+}
+
 /** Read one dispatch row's data, failing closed on any shape drift. */
 export function readDispatchRow(row: StoredRow): DispatchRowData {
-  const data = checkRecord(row.data, 'work.dispatch data');
-  const state = checkString(data, 'state', 'work.dispatch');
-  if (!OUTBOX_STATES.has(state)) {
-    throw new KernelTableError(`work.dispatch.state is unknown: ${JSON.stringify(state)}.`);
-  }
-  const guardVerdict = checkDispatchVerdict(data['guardVerdict']);
-  const retryClass = data['retryClass'];
-  checkDispatchRetryClass(retryClass);
+  const prefix = readDispatchLifecyclePrefix(row);
+  const { data } = prefix;
   const sourceGuard = readDispatchSourceGuard(data);
   const filePayloadOrigin = readWorkFilePayloadOrigin(data, row, WORK_DISPATCH_MODEL, 'sourceGuard', 'deferred-input');
   if ((sourceGuard === null) !== (filePayloadOrigin === undefined)) {
@@ -652,22 +703,7 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
     ...(sourceGuard === null ? {} : { sourceGuard }),
     ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
     ...(queuePayload === undefined ? {} : { queuePayload, queuePayloadOrigin: queuePayloadOrigin! }),
-    intentId: checkString(data, 'intentId', 'work.dispatch'),
-    operationId: checkString(data, 'operationId', 'work.dispatch'),
-    source: checkString(data, 'source', 'work.dispatch'),
-    occurrenceIndex: checkCount(data, 'occurrenceIndex', 'work.dispatch'),
-    originOccurrence: checkNullableString(data, 'originOccurrence', 'work.dispatch'),
-    state: state as OutboxItemState,
-    attempts: checkCount(data, 'attempts', 'work.dispatch'),
-    claimId: checkNullableString(data, 'claimId', 'work.dispatch'),
-    claimedAtMs: checkNullableInstant(data, 'claimedAtMs', 'work.dispatch'),
-    guardVerdict,
-    deliveryId: checkNullableString(data, 'deliveryId', 'work.dispatch'),
-    errorCode: checkNullableString(data, 'errorCode', 'work.dispatch'),
-    errorMessage: checkNullableString(data, 'errorMessage', 'work.dispatch'),
-    availableAtMs: checkNullableInstant(data, 'availableAtMs', 'work.dispatch'),
-    firstAttemptAtMs: checkNullableInstant(data, 'firstAttemptAtMs', 'work.dispatch'),
-    retryClass: retryClass as RetryClass | null,
+    ...projectDispatchLifecycle(prefix),
   };
 }
 

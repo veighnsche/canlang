@@ -1,3 +1,4 @@
+import { readDispatchLifecycleRow, type DispatchLifecycleRowData } from '@canlang/work/kernel/tables';
 import { message, mapThrownError, type InvokeResult } from "./invocation-errors.js";
 export { findAssembledFrame, findRemappedFrame, type InvokeResult, type AssembledFrame } from "./invocation-errors.js";
 import { createPageFilePresentation, type PageFileOccurrence } from '@canlang/files/bridge';
@@ -21536,126 +21537,15 @@ function checkFenceAttemptVerdict(value: unknown): FenceAttemptVerdict {
  */
 const T24B_WORK_DISPATCH_MODEL = "work.dispatch" as ModelName;
 
-/**
- * T24b structural mirror of the lane-04 dispatch row
- * (`DispatchRowData` in `work/src/kernel/tables.ts`). The sweeper reads
- * rows through `readDispatchExecutionRow` (below), which enforces the
- * same accept sets — drift fails loud at read, and the execution
- * tests cross-check this reader against the real `readDispatchRow`.
- */
-export interface DispatchExecutionRowData {
-  readonly intentId: string;
-  readonly operationId: string;
-  readonly source: string;
-  readonly occurrenceIndex: number;
-  readonly originOccurrence: string | null;
-  readonly state: OutboxItemState;
-  readonly attempts: number;
-  readonly claimId: string | null;
-  readonly claimedAtMs: number | null;
-  readonly guardVerdict: boolean | null;
-  readonly deliveryId: string | null;
-  readonly errorCode: string | null;
-  readonly errorMessage: string | null;
-  readonly availableAtMs: number | null;
-  readonly firstAttemptAtMs: number | null;
-  readonly retryClass: RetryClass | null;
-}
+/** Recovery planning keeps only scalar lifecycle fields. Full Work validation
+ * still runs at claim/reconcile before original metadata can authorize work. */
+export type DispatchExecutionRowData = DispatchLifecycleRowData;
 
-const T24B_DISPATCH_STATES: ReadonlySet<string> = new Set([
-  "pending",
-  "claimed",
-  "delivered",
-  "failed",
-  "uncertain",
-  "dead",
-]);
-
-function dispatchRowString(
-  data: Record<string, unknown>,
-  field: string,
-): string {
-  const value: unknown = data[field];
-  if (typeof value !== "string" || value === "") {
-    throw new Error(`t24b: work.dispatch.${field} must be a non-empty string.`);
-  }
-  return value;
-}
-
-function dispatchRowNullableString(
-  data: Record<string, unknown>,
-  field: string,
-): string | null {
-  const value: unknown = data[field];
-  if (value === null) return null;
-  if (typeof value !== "string") {
-    throw new Error(`t24b: work.dispatch.${field} must be a string or null.`);
-  }
-  return value;
-}
-
-function dispatchRowCount(data: Record<string, unknown>, field: string): number {
-  const value: unknown = data[field];
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    throw new Error(`t24b: work.dispatch.${field} must be an integer >= 0.`);
-  }
-  return value;
-}
-
-function dispatchRowNullableInstant(
-  data: Record<string, unknown>,
-  field: string,
-): number | null {
-  const value: unknown = data[field];
-  if (value === null) return null;
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-    throw new Error(`t24b: work.dispatch.${field} must be finite epoch ms >= 0 or null.`);
-  }
-  return value;
-}
-
-/**
- * T24b: fail-closed structural read of one dispatch row (mirrors
- * `readDispatchRow` accept sets: six lifecycle states, nullable
- * claim/guard/error/deferral/classification fields). Unknown states,
- * malformed fields, and non-object data throw — the sweeper never
- * decides on a row it cannot parse.
- */
+/** Preserve the host's historical error voice without duplicating row validation. */
 export function readDispatchExecutionRow(row: StoredRow): DispatchExecutionRowData {
-  const data: unknown = row.data;
-  if (!isUnknownRecord(data)) {
-    throw new Error("t24b: work.dispatch data must be an object.");
-  }
-  const state = dispatchRowString(data, "state");
-  if (!T24B_DISPATCH_STATES.has(state)) {
-    throw new Error(`t24b: work.dispatch.state is unknown: ${JSON.stringify(state)}.`);
-  }
-  const guardVerdict: unknown = data["guardVerdict"];
-  if (guardVerdict !== null && typeof guardVerdict !== "boolean") {
-    throw new Error("t24b: work.dispatch.guardVerdict must be boolean or null.");
-  }
-  const retryClass: unknown = data["retryClass"];
-  if (retryClass !== null && retryClass !== "transient" && retryClass !== "terminal") {
-    throw new Error("t24b: work.dispatch.retryClass must be transient, terminal or null.");
-  }
-  return {
-    intentId: dispatchRowString(data, "intentId"),
-    operationId: dispatchRowString(data, "operationId"),
-    source: dispatchRowString(data, "source"),
-    occurrenceIndex: dispatchRowCount(data, "occurrenceIndex"),
-    originOccurrence: dispatchRowNullableString(data, "originOccurrence"),
-    state: state as OutboxItemState,
-    attempts: dispatchRowCount(data, "attempts"),
-    claimId: dispatchRowNullableString(data, "claimId"),
-    claimedAtMs: dispatchRowNullableInstant(data, "claimedAtMs"),
-    guardVerdict,
-    deliveryId: dispatchRowNullableString(data, "deliveryId"),
-    errorCode: dispatchRowNullableString(data, "errorCode"),
-    errorMessage: dispatchRowNullableString(data, "errorMessage"),
-    availableAtMs: dispatchRowNullableInstant(data, "availableAtMs"),
-    firstAttemptAtMs: dispatchRowNullableInstant(data, "firstAttemptAtMs"),
-    retryClass,
-  };
+  return readDispatchLifecycleRow(row, message => new Error(`t24b: ${message.replace(
+    'must be finite epoch ms or null.', 'must be finite epoch ms >= 0 or null.',
+  )}`));
 }
 
 /**

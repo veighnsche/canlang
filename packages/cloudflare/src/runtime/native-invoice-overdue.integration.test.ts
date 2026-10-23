@@ -8,22 +8,26 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { it } from 'node:test';
 import { promisify } from 'node:util';
+import { Miniflare } from 'miniflare';
+import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, FileRetirementAuthority } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
+import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { asId, asModel, asVersion, makeBatch, makeRow, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { WORK_DISPATCH_STAGE_COMMANDS, WORK_SYSTEM_COMMANDS,
   createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
 import { classifyFailure } from '@canlang/work/receipt';
+import { KernelTableError, readDispatchRow } from '@canlang/work/kernel/tables';
 import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
 import { assembleDispatchCommands, buildInvoker } from '../worker/assembly.js';
 import { installNativeFileInventory } from './file-inventory.js';
 import { bindNativeEmailDispatchGuards, createWorkerDispatchJoinPort,
   driveDispatchIntentWithPreclaim, invokeDueScheduleCanonical,
-  loadCanonicalDescriptors, loadDispatchSystemProducers, withDispatchJoinPort } from './invoke.js';
+  loadCanonicalDescriptors, loadDispatchSystemProducers, readDispatchExecutionRow, withDispatchJoinPort } from './invoke.js';
 import { assembleModules } from './modules.js';
 import { loadOpaqueFileStaging } from './opaque-file-staging.js';
 
@@ -35,6 +39,110 @@ const model = (name: string) => asModel(name);
 const amount = (minor: string) => ({ minor, currency: 'EUR' });
 const now = Date.parse('2099-01-01T12:00:00.000Z');
 const deploymentBase = 'https://workspace.example.test';
+
+it('preserves persisted dispatch lifecycle projection and owning metadata fault order',
+  { timeout: 60000 }, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'can-dispatch-codec-d1-'));
+    const options = { compatibilityDate: '2026-07-15', modules: true,
+      script: 'export default { fetch() { return new Response("ok"); } }',
+      d1Databases: { DB: 'dispatch-codec' }, d1Persist: join(directory, 'd1') };
+    let worker: Miniflare | undefined;
+    try {
+      worker = new Miniflare(options);
+      const database = await worker.getD1Database('DB') as unknown as D1Database;
+      await ensureSchema(database);
+      const store = createD1Storage(database);
+      const baseline = { intentId: 'legacy-intent', operationId: 'operation', source: 'std.EmailV1.send_user',
+        occurrenceIndex: 0, originOccurrence: null, state: 'pending', attempts: 0,
+        claimId: null, claimedAtMs: null, guardVerdict: null, deliveryId: null,
+        errorCode: null, errorMessage: null, availableAtMs: null, firstAttemptAtMs: null, retryClass: null };
+      const keys = Object.keys(baseline).sort();
+      let serial = 0;
+      const persist = async (patch: Record<string, unknown>) => {
+        const row = makeRow({ id: `dispatch-${++serial}`, data: { ...baseline, ...patch } });
+        await store.commit(makeBatch(await store.readRevision(), {
+          writes: [{ kind: 'insert', model: model('work.dispatch'), row }],
+        }));
+        const loaded = await store.load(model('work.dispatch'), row.id);
+        assert.ok(loaded, 'row must be read from actual SQLite D1');
+        assert.deepEqual(loaded.data, row.data);
+        return loaded;
+      };
+      for (const state of ['pending', 'claimed', 'delivered', 'failed', 'uncertain', 'dead']) {
+        const row = await persist({ state });
+        const host = readDispatchExecutionRow(row);
+        assert.deepEqual(host, row.data, 'legacy row needs no original-request metadata');
+        assert.deepEqual(Object.keys(host).sort(), keys);
+        assert.deepEqual(readDispatchRow(row), host);
+      }
+      const numeric = await persist({ intentId: ' ', source: ' ', occurrenceIndex: 2 ** 54,
+        attempts: 2 ** 54, originOccurrence: '', claimId: '', deliveryId: '', errorCode: '', errorMessage: '',
+        claimedAtMs: 0.125, availableAtMs: 0, firstAttemptAtMs: 2 ** 54, guardVerdict: false,
+        retryClass: 'transient', ignoredLegacyField: { retained: true } });
+      const projection = readDispatchExecutionRow(numeric);
+      assert.deepEqual(Object.keys(projection).sort(), keys, 'host exposes only lifecycle fields');
+      assert.deepEqual(projection, Object.fromEntries(keys.map(key => [key, numeric.data[key]])));
+      assert.deepEqual(readDispatchRow(numeric), projection, 'legacy numeric/string domain is preserved');
+      const classified = await persist({ guardVerdict: true, retryClass: 'terminal' });
+      assert.deepEqual(readDispatchRow(classified), readDispatchExecutionRow(classified));
+
+      const faults: Array<[Record<string, unknown>, string]> = [
+        [{ state: '', guardVerdict: 1 }, 'work.dispatch.state must be a non-empty string.'],
+        [{ state: 'unknown', guardVerdict: 1 }, 'work.dispatch.state is unknown: "unknown".'],
+        [{ guardVerdict: 1, retryClass: 'wrong', intentId: '' }, 'work.dispatch.guardVerdict must be boolean or null.'],
+        [{ retryClass: 'wrong', intentId: '' }, 'work.dispatch.retryClass must be transient, terminal or null.'],
+        [{ intentId: '', operationId: '' }, 'work.dispatch.intentId must be a non-empty string.'],
+        [{ operationId: '', source: '' }, 'work.dispatch.operationId must be a non-empty string.'],
+        [{ source: '' }, 'work.dispatch.source must be a non-empty string.'],
+        [{ occurrenceIndex: 0.5, originOccurrence: 1 }, 'work.dispatch.occurrenceIndex must be an integer >= 0.'],
+        [{ originOccurrence: 1, attempts: -1 }, 'work.dispatch.originOccurrence must be a string or null.'],
+        [{ attempts: -1, claimId: 1 }, 'work.dispatch.attempts must be an integer >= 0.'],
+        [{ claimId: 1, claimedAtMs: -1 }, 'work.dispatch.claimId must be a string or null.'],
+        [{ claimedAtMs: -1, deliveryId: 1 }, 'work.dispatch.claimedAtMs must be finite epoch ms or null.'],
+        [{ deliveryId: 1, errorCode: 1 }, 'work.dispatch.deliveryId must be a string or null.'],
+        [{ errorCode: 1, errorMessage: 1 }, 'work.dispatch.errorCode must be a string or null.'],
+        [{ errorMessage: 1, availableAtMs: -1 }, 'work.dispatch.errorMessage must be a string or null.'],
+        [{ availableAtMs: -1, firstAttemptAtMs: -1 }, 'work.dispatch.availableAtMs must be finite epoch ms or null.'],
+        [{ firstAttemptAtMs: -1 }, 'work.dispatch.firstAttemptAtMs must be finite epoch ms or null.'],
+      ];
+      const refuses = (read: () => unknown, message: string, host: boolean) => {
+        assert.throws(read, (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.equal(error.constructor, host ? Error : KernelTableError);
+          assert.equal(error.name, host ? 'Error' : 'KernelTableError');
+          assert.equal(error.message, host ? 't24b: ' + message.replace('finite epoch ms or null.',
+            'finite epoch ms >= 0 or null.') : message);
+          return true;
+        });
+      };
+      for (const [patch, message] of faults) {
+        const row = await persist(patch);
+        refuses(() => readDispatchExecutionRow(row), message, true);
+        refuses(() => readDispatchRow(row), message, false);
+      }
+      for (const [patch, message] of [
+        [{ requestSource: 'original' }, 'Incomplete or invalid original generation correlation.'],
+        [{ sourceGuard: null }, 'work.dispatch.sourceGuard requires bounded closed own JSON data.'],
+      ] as const) {
+        const metadata = await persist(patch);
+        assert.deepEqual(readDispatchExecutionRow(metadata), baseline, 'planner deliberately ignores private metadata');
+        refuses(() => readDispatchRow(metadata), message, false);
+        const badTail = await persist({ ...patch, intentId: '' });
+        refuses(() => readDispatchExecutionRow(badTail), 'work.dispatch.intentId must be a non-empty string.', true);
+        refuses(() => readDispatchRow(badTail), message, false);
+        const badPrefix = await persist({ ...patch, intentId: '', retryClass: 'wrong' });
+        refuses(() => readDispatchRow(badPrefix), 'work.dispatch.retryClass must be transient, terminal or null.', false);
+        refuses(() => readDispatchExecutionRow(badPrefix), 'work.dispatch.retryClass must be transient, terminal or null.', true);
+      }
+      await worker.dispose();
+      worker = new Miniflare(options);
+      const reopened = createD1Storage(await worker.getD1Database('DB') as unknown as D1Database);
+      const retained = await reopened.load(model('work.dispatch'), numeric.id);
+      assert.ok(retained);
+      assert.deepEqual(readDispatchExecutionRow(retained), projection, 'projection survives retained SQLite reopen');
+      assert.deepEqual(readDispatchRow(retained), projection);
+    } finally { await worker?.dispose(); await rm(directory, { recursive: true, force: true }); }
+  });
 
 it('checks authored overdue variants and rejects malformed evaluation qualifiers',
   { timeout: 120000 }, async () => {
