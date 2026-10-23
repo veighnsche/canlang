@@ -90,7 +90,9 @@ function checkSkippedGuard(
   request: BoundCapabilityRequest,
   guard: FrameworkOpaqueSendGuardDeclaration,
 ): void {
-  closed(guard, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
+  closed(guard, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs',
+    ...(Object.hasOwn(guard, 'evaluation') ? ['evaluation'] : [])]);
+  if (Object.hasOwn(guard, 'evaluation') && guard.evaluation !== 'source') refuse();
   closed(guard.source, ['path', 'sha256', 'module']); closed(guard.node, ['start', 'end']);
   if (!originalText(guard.rule) || guard.owner !== entry.operation || guard.target !== entry.target || guard.binding !== request.binding ||
       !originalText(guard.source.path) || !originalText(guard.source.module) || typeof guard.source.sha256 !== 'string' ||

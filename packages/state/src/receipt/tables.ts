@@ -1092,7 +1092,10 @@ function checkSkippedGuardInputs(guard: Record<string, unknown>): void {
 
 function checkSkippedOrigin(data: object, records: OriginRecords): void {
   const { origin, intent, request, source } = records;
-  const guard = originRecord(origin.guard, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
+  const optionalPhase = typeof origin.guard === 'object' && origin.guard !== null && Object.hasOwn(origin.guard, 'evaluation');
+  const guard = originRecord(origin.guard, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs',
+    ...(optionalPhase ? ['evaluation'] : [])]);
+  if (optionalPhase && guard.evaluation !== 'source') throw new ReceiptTableError('work.receipt skipped origin has an invalid SEND evaluation phase.');
   const guardSource = originRecord(guard.source, ['path', 'sha256', 'module']);
   const node = originRecord(guard.node, ['start', 'end']);
   const validNode = typeof node.start === 'number' && Number.isSafeInteger(node.start) && node.start >= 0 &&
