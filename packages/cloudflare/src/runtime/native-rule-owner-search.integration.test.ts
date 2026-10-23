@@ -3142,3 +3142,38 @@ it('stages the complete original Affiliate settlement from its immediate scalar 
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('retains original admitted booking identity through the complete no-show evidence transaction', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-rent-emission-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/rent-original-emission.can');
+  const original=await readFile(join(root,'draft/apps/CanRent/CanRent.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  export scenario no_show('),end=original.indexOf('  # Keep overtime',start);assert.ok(text.includes(original.slice(start,end)));
+  const{stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','stale','inactive','identity-at-source','parent-at-commit','withheld-data','grant-at-commit']){
+   const{now,identities,identity,user,team,membership}=await member('rent-emission-'+mode,['rent_reservations.reception','rent_reservations.reservation_manager']);
+   const scope={app:'ConstructorCount',owner:team.team_id,ownerPackage:'rent_reservations'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'rent-state',fileStoreId:'rent-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const{store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+   await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const resource={model:asModel('rent_reservations.Resource'),id:asId('resource')},row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert'as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    row('rent_catalog.Location','site',{active:true}),row('employee.Employee','worker',{user:{id:user.user_id},active:mode!=='inactive',operator_wide:false,home:{id:'site'},locations:[]}),
+    row('rent_reservations.Resource','resource',{location:{id:'site'},active:true,capacity:'7',pooled:false,timezone:'UTC',readable:mode!=='withheld-data'}),
+    row('rent_reservations.Booking','booking',{from:new Date(now-7200000).toISOString(),until:new Date(now-3600000).toISOString(),intervals:[],quantity:'1',status:'confirmed',checked_in:null,checked_out:null,arrival_buffer:'0',departure_buffer:'0',source:'original',reserved_until:new Date(now-3600000).toISOString(),overdue:false,cancellation_reason:null},resource)
+   ]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(model,id)=>{if(mode==='identity-at-source'&&model==='work.occurrence'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return load(model,id);};
+   store.commit=async batch=>{if(['parent-at-commit','grant-at-commit'].includes(mode)&&!raced&&batch.writes.some(write=>write.model==='work.occurrence')){raced=true;const current=await load(resource.model,resource.id);assert.ok(current);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:resource.model,id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,...(mode==='parent-at-commit'?{capacity:'8'}:{readable:false})}}}]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'rent_reservations.no_show',operation_id:operationId(now),inputs:{booking:{id:'booking',version:mode==='stale'?'0':'1'},reason:'Missed arrival'}};
+   const outcome=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='parent-at-commit';assert.equal('result'in outcome&&outcome.result.status==='committed',success,mode+': '+JSON.stringify(outcome));
+   const policies=await store.query({model:asModel('rent_reservations.ResourcePolicy'),authority:'owner'}),evidence=await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'}),events=await store.query({model:asModel('work.occurrence'),authority:'owner'});
+   for(const rows of [policies,evidence,events])assert.equal(rows.length,success?1:0,mode);assert.equal((await load(asModel('rent_reservations.Booking'),asId('booking')))?.data.status,success?'no_show':'confirmed',mode);
+   if(mode==='identity-at-source'||mode==='parent-at-commit'||mode==='grant-at-commit')assert.equal(raced,true,mode);
+   if(success){assert.equal((policies[0]!.data.value as {capacity:string}).capacity,mode==='parent-at-commit'?'8':'7','commit retry must rebuild original Resource DATA, never retain stale capacity');assert.equal(evidence[0]!.data.key,'booking');assert.equal(evidence[0]!.data.sequence,'1');assert.equal((evidence[0]!.data.value as {status:string}).status,'no_show');
+    const result=events[0]!.data.result as {payload:unknown};assert.deepEqual(result.payload,{booking:{id:'booking',version:'2'},revision:'2'});
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),events);
+   }
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
