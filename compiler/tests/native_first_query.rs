@@ -2005,3 +2005,21 @@ fn original_purchase_intake_keeps_unique_key_guard_and_create_correspondence() {
         assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
     }
 }
+
+#[test]
+fn qualified_enum_case_is_a_literal_without_a_stored_prefix_dependency() {
+    let source=include_str!("../../packages/cloudflare/test/fixtures/native-qualified-enum-case.can");
+    let (db,program,ir,catalog)=fixture_source("native-qualified-enum-case.can",source);
+    let owner=item(&ir,"QualifiedCase.act");
+    assert!(matches!(&ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
+    let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let operation=artifact["operations"].as_array().unwrap().iter().find(|value|value["name"]=="QualifiedCase.act").unwrap();
+    assert!(operation["result"]["disclosure"].is_object(),"{operation}");
+    let mut changed=ir.clone();
+    let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else {panic!("scenario");};
+    let IrStmt::Set{changes,..}=&mut effects[0] else {panic!("SET");};
+    let IrExpr::Object(entries)=&mut changes.expr else {panic!("fields");};
+    entries.iter_mut().find(|(name,_)|name=="state").unwrap().1.expr=IrExpr::Text("ready".into());
+    assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$5175616c696669656443617365.mjs").is_none(),"a different SET case cannot retain the original source proof");
+}

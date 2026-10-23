@@ -1780,3 +1780,41 @@ it('executes original cancellation and candidate cleanup over exact admitted sib
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+it('executes qualified enum literals without reading their namespace as stored data',
+  {timeout:120000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-qualified-case-'));
+    try{
+      const {artifact,asm}=await installed('native-qualified-enum-case.can',directory);
+      assert.ok(artifact.operations?.find(operation=>operation.name==='QualifiedCase.act')?.result?.disclosure);
+      for(const mode of ['allowed','no-child','inactive','other-parent','changed-at-commit']){
+        const {now,identities,identity,membership}=await member(`qualified-case-${mode}`);
+        const store=createMemoryStorage(),rootModel=model('QualifiedCase','Root');
+        const row={...makeRow({id:asId('root'),data:{state:'ready',checked:false}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row},
+          {kind:'insert',model:rootModel,row:{...row,id:asId('other')}},
+          ...(mode==='no-child'?[]:[{kind:'insert' as const,model:model('QualifiedCase','Child'),row:{
+            ...makeRow({id:asId('child'),data:{active:mode!=='inactive'}}),parent:{model:rootModel,id:asId(mode==='other-parent'?'other':'root')}}}])]}));
+        if(mode==='changed-at-commit'){
+          const commit=store.commit.bind(store);let changed=false;
+          store.commit=async batch=>{
+            if(!changed){changed=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,
+              id:row.id,expectedVersion:asVersion(row.version),row:{...row,version:asVersion(row.version+1),data:{...row.data,state:'no_show'}}}]}));}
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'QualifiedCase.act',operation_id:operationId(now),inputs:{root:{id:row.id,version:String(row.version)}}};
+        const outcome=await invoker.invokeMutation(request,identity),allowed=mode==='allowed';
+        assert.equal('result'in outcome?outcome.result.status:outcome.error.code,
+          allowed?'committed':mode==='changed-at-commit'?'conflict':'rule_failed',`${mode}: ${JSON.stringify(outcome)}`);
+        assert.equal((await store.load(rootModel,row.id))?.data.checked,allowed);
+        if(allowed){
+          assert.ok('result'in outcome);assert.equal(outcome.result.result,true);
+          assert.equal((await store.load(rootModel,row.id))?.data.state,'no_show');
+          const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay);assert.equal(replay.result.result,true);
+          await identities.removeMembership(membership.membership_id);
+          const denied=await invoker.invokeMutation(request,identity);assert.ok('error'in denied||denied.result.result===null);
+        }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

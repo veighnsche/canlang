@@ -1,0 +1,16 @@
+app QualifiedCase
+Given
+ Root {state:enum(ready,no_show)=ready,checked:bool=false}
+ Other {state:enum(ready,no_show)=ready}
+ Child in Root {active:bool=true}
+ policy Root read=members
+ policy Other read=members
+ policy Child read=members
+ derive allowed(root:Root):bool=any(root.Child as child,child.active)
+When
+ scenario act(root:Root) -> bool by=members
+  require allowed(root) and root.state==ready
+  do
+   set root {state=Root.state.no_show,checked=true}
+   return root.state==Root.state.no_show
+Then

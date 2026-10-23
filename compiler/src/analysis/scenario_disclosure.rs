@@ -16982,6 +16982,13 @@ impl<'a> Closure<'a> {
         ) {
             return Err(self.fail(key, "unresolved expression type"));
         }
+        // A qualified enum case is one checked literal. Its type/member
+        // prefix is a namespace, not a stored row expression to evaluate.
+        if node.kind == SyntaxKind::Member && self.types.resolved_cases.contains(&key)
+            && matches!(ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+        {
+            return Ok(vec![ValuePath::default()]);
+        }
         let children: Vec<_> = node
             .children
             .iter()
