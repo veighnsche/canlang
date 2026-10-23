@@ -5612,7 +5612,7 @@ impl<'a> Emitter<'a> {
         if capabilities.next().is_some() || operation.canonical != format!("{}.{}",capability.canonical,operation.name) { return None; }
         let version = u32::try_from(version).ok().filter(|version| *version != 0)?;
         let schema = match result_type {
-            ResolvedType::Record { symbol, stored: false } => {
+            ResolvedType::Record { symbol, .. } => {
                 let result = self.ir.items.get(symbol.0 as usize)?;
                 if !matches!(result.kind, IrItemKind::Contract { .. }) { return None; }
                 self.value_types.as_ref()?.contracts.iter().find(|schema| schema.name == result.canonical)?.clone()

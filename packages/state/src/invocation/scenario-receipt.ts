@@ -5579,9 +5579,9 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
       // The private result is a frozen one-field canonical wire; retaining
       // this exact object closes the copy boundary without mutable aliases.
       snapshot[key] = member.value;
-    } else snapshot[key] = dataCopy(member.value,false,key==='writes' &&
-      Math.max(boundPlans.get(call.def as GeneratedOperationDef)?.plan.sourceEmissions!==undefined?200_000:20_000,
-        sourceCopyDataBudget(sourceCopyDefinitionLimits(call.def as GeneratedOperationDef))));
+    } else snapshot[key] = dataCopy(member.value,false,key==='writes'
+      ? Math.max(boundPlans.get(call.def as GeneratedOperationDef)?.plan.sourceEmissions!==undefined?200_000:20_000,
+        sourceCopyDataBudget(sourceCopyDefinitionLimits(call.def as GeneratedOperationDef))) : 20_000);
   }
   const fileAssignments = matchScenarioFileAssignments(call, snapshot as unknown as ExecutionEffects);
   const owner = ownerSessions.get(call);
