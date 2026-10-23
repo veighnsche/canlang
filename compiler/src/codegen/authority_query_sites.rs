@@ -73,6 +73,7 @@ fn source<'a>(context: &'a FreshSourceContext<'_>, node: NodeKey) -> Option<(Val
 fn query_model(context: &FreshSourceContext<'_>, ty: &ResolvedType) -> Option<(SymbolId, String, Option<String>, String)> {
     let ResolvedType::Array { element, .. } = ty else { return None; };
     let ResolvedType::Record { symbol, stored: true } = element.as_ref() else { return None; };
+    super::source_loops::model_corresponds(context,*symbol)?;
     let model = context.original().symbols.get(symbol.0 as usize)?;
     let SymbolKind::Model { owner, .. } = &model.kind else { return None; };
     let parent = match owner {
@@ -159,6 +160,19 @@ fn relevant_scopes(context: &FreshSourceContext<'_>, scenario: &ScenarioData) ->
             nested.push(context.original().symbols.get(id.0 as usize)?.canonical.clone());
             scopes.push((expr, nested));
         }
+        for (_,tree) in context.trees(){
+            for member in tree.descendants().filter(|node|node.kind==SyntaxKind::Member&&contains(scope,NodeKey::of(node))){
+                let Some(base)=member.children.iter().find(|node|crate::analysis::resolve::is_expression(node.kind))else{continue;};
+                let Some(ResolvedType::Record{symbol:model,stored:true})=context.original().types.node_types.get(&NodeKey::of(base))else{continue;};
+                let field=member.children.iter().rev().find(|node|node.kind==SyntaxKind::Name)?;
+                let (_,name)=source(context,NodeKey::of(field))?;
+                let Some(declaration)=context.original().symbols.iter().find(|item|item.name==name&&matches!(item.kind,SymbolKind::DeriveField{model:owner,..}if owner==*model))else{continue;};
+                if !seen.insert(declaration.id){continue;}
+                let derive=context.original().effects.derives.get(&declaration.id)?;
+                let mut nested=chain.clone();nested.push(declaration.canonical.clone());
+                scopes.push((derive.expr?,nested));
+            }
+        }
         cursor += 1;
         if scopes.len() > 256 { return None; }
     }
@@ -176,6 +190,16 @@ pub(super) fn prepare_with_context(context: &FreshSourceContext<'_>) -> Option<P
     if !scenario.read || !scenario.scope_authority || scenario.on.is_some() || scenario.cohort.is_some() {
         return None;
     }
+    let prepared=prepare_owner_with_context(context,owner)?;
+    if prepared.plan["source"]["module"]!="rent_reservations"||prepared.firsts.len()!=2||!prepared.sites.values().any(|site|site.model=="employee.Employee"){return None;}
+    Some(prepared)
+}
+
+/// Shared census of original source model reads, including the stored derived
+/// fields that actually execute from this owner. This inventory grants no reads.
+pub(super) fn prepare_owner_with_context(context:&FreshSourceContext<'_>,owner:&super::ir::IrItem)->Option<PreparedAuthorityQuerySites>{
+    context.same_scenario(context.ir(),owner)?;
+    let scenario=context.original().effects.scenarios.get(&owner.id)?;
     let scopes = relevant_scopes(context, scenario)?;
     // The source query fact alone does not seal the emitted predicate body.
     // Every transitive helper that can execute a marked read must still be
@@ -190,7 +214,6 @@ pub(super) fn prepare_with_context(context: &FreshSourceContext<'_>) -> Option<P
         }
     }
     let (origin, _) = source(context, scenario.node)?;
-    if origin["module"] != "rent_reservations" { return None; }
     let mut candidates = HashMap::<Span, AuthorityQuerySite>::new();
     for fact in context.original().types.checked_queries.values() {
         let Some((chain_scope, chain)) = scopes.iter().find(|(scope, _)| contains(*scope, fact.node)) else { continue; };
@@ -257,9 +280,6 @@ pub(super) fn prepare_with_context(context: &FreshSourceContext<'_>) -> Option<P
         if let Some(first) = site.first_site {
             if firsts.insert(first, *query_span).is_some() { return None; }
         }
-    }
-    if firsts.len() != 2 || !sites.iter().any(|(_, site)| site.model == "employee.Employee") {
-        return None;
     }
     let plan = json!({"version":1,"operation":owner.canonical,"source":origin,
         "sites":sites.iter().map(|(_,site)|site.wire.clone()).collect::<Vec<_>>()});

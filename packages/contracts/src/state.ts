@@ -187,6 +187,10 @@ export interface ScenarioReceiptQueryObservation {
 }
 
 export interface RetainedGuardedHandlerPlan {
+  /** Original reachable Model reads, sealed with this private execution closure. */
+  readonly queries?: ArtifactOperation['authorityQuerySites'];
+  /** Rules with an explicit checked `when_at=source` evaluation phase. */
+  readonly stagedRules?: readonly string[];
   readonly source: ScenarioReceiptSourceOrigin;
   readonly owner: string;
   readonly event: string;
@@ -199,7 +203,6 @@ export interface ScenarioResultDisclosurePlan {
   readonly retainedGuardedHandler?: RetainedGuardedHandlerPlan;
   readonly version: 1;
   readonly source: ScenarioReceiptSourceOrigin;
-  readonly invoiceOverdueDecision?: unknown;
   readonly rentMovementRefundDecision?: unknown;
   readonly invoiceCollectDecision?: unknown;
   readonly invoiceIssueDecision?: unknown;

@@ -35,7 +35,6 @@ export {
   executeScenarioReceiptLeaveDecideDecision, type LeaveDecideDecisionPlan,
   executeScenarioReceiptReferRejectDecision, type ReferRejectDecisionPlan,
   executeScenarioReceiptMemberRetryDecision, type MemberRetryDecisionPlan,
-  executeScenarioReceiptInvoiceOverdueDecision, type InvoiceOverdueDecisionPlan,
   executeScenarioReceiptRentMovementRefundDecision, type RentMovementRefundDecisionPlan,
   executeScenarioReceiptInvoiceCollectDecision, type InvoiceCollectDecisionPlan,
   executeScenarioReceiptInvoiceIssueDecision, type InvoiceIssueDecisionPlan,

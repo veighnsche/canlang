@@ -160,7 +160,7 @@ import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSo
 import { bindNativeScenarioSourceLetData, bindNativeScenarioSourceEmitQuery, bindNativeScenarioSourceEmitData, bindNativeScenarioSourceSendQuery, bindNativeScenarioSourceSchedule, bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopItem, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
-  bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
+  bindNativeScenarioMemberRetryDecision,
   bindNativeScenarioRentMovementRefundDecision, bindNativeScenarioInvoiceCollectDecision,
   bindNativeScenarioInvoiceIssueDecision,
   bindNativeScenarioRentNoticeDecision, bindNativeScenarioEventNoticeFormat } from './native-scenario-require.js';
@@ -1503,7 +1503,6 @@ interface StateInvokeProducer {
   readonly executeScenarioReceiptLeaveDecideDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptLeaveDecideDecision;
   readonly executeScenarioReceiptReferRejectDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptReferRejectDecision;
   readonly executeScenarioReceiptMemberRetryDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptMemberRetryDecision;
-  readonly executeScenarioReceiptInvoiceOverdueDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptInvoiceOverdueDecision;
   readonly executeScenarioReceiptRentMovementRefundDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptRentMovementRefundDecision;
   readonly executeScenarioReceiptInvoiceCollectDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptInvoiceCollectDecision;
   readonly executeScenarioReceiptInvoiceIssueDecision?: typeof import('@canlang/state/invocation').executeScenarioReceiptInvoiceIssueDecision;
@@ -1848,9 +1847,6 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['executeScenarioReceiptMemberRetryDecision'] !== 'function' ? {} : {
       executeScenarioReceiptMemberRetryDecision: scenarioMod['executeScenarioReceiptMemberRetryDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptMemberRetryDecision']>,
-    }),
-    ...(typeof scenarioMod['executeScenarioReceiptInvoiceOverdueDecision'] !== 'function' ? {} : {
-      executeScenarioReceiptInvoiceOverdueDecision: scenarioMod['executeScenarioReceiptInvoiceOverdueDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptInvoiceOverdueDecision']>,
     }),
     ...(typeof scenarioMod['executeScenarioReceiptRentMovementRefundDecision'] !== 'function' ? {} : {
       executeScenarioReceiptRentMovementRefundDecision: scenarioMod['executeScenarioReceiptRentMovementRefundDecision'] as NonNullable<StateInvokeProducer['executeScenarioReceiptRentMovementRefundDecision']>,
@@ -4201,12 +4197,13 @@ function retainedGuardViews(input:{readonly loaded:LoadedCanonicalDescriptors;
   readonly store:StoragePort;readonly identities:IdentityStore;readonly owner:string;
   readonly read:(model:ModelName,id:RecordId)=>Promise<StoredRow|null>;
   readonly query:(model:ModelName,parent?:{model:ModelName;id:RecordId})=>Promise<readonly StoredRow[]>;
-  readonly healthy:()=>void}) {
+  readonly healthy:()=>void;readonly bounds?:Readonly<{maxRows:number;maxWork:number}>}) {
   const {loaded,snapshots,healthy}=input,StateError=loaded.producers.errors;
+  const bounds=input.bounds??SCENARIO_RECEIPT_OWNER_BOUNDS;
   const rows=new Map<string,{model:ModelName;row:StoredRow}>(),views=new WeakMap<object,StoredRow>();
   const references=new WeakMap<object,{model:ModelName;id:RecordId}>();
   let context:HandlerContext|undefined,work=0;
-  const consume=()=>{healthy();if(++work>SCENARIO_RECEIPT_OWNER_BOUNDS.maxWork)throw new StateError('limit','Retained guard work bound exceeded.');};
+  const consume=()=>{healthy();if(++work>bounds.maxWork)throw new StateError('limit','Retained guard work bound exceeded.');};
   const reference=(model:string,id:string)=>{
     const value=makeRecordRef(model,id);references.set(value,{model:model as ModelName,id:id as RecordId});return value;
   };
@@ -4215,7 +4212,7 @@ function retainedGuardViews(input:{readonly loaded:LoadedCanonicalDescriptors;
     if(row.archivedAt!==null || !loaded.models.some(candidate=>candidate.name===model))throw new StateError('forbidden','Retained guard record is unavailable.');
     const key=stagedKey(model,row.id),prior=rows.get(key);
     if(prior!==undefined && stableStringify(prior.row)!==stableStringify(row))throw new StateError('conflict','Retained guard row changed within its source stage.');
-    rows.set(key,{model,row});if(rows.size>=SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows)throw new StateError('limit','Retained guard row census exceeded.');
+    rows.set(key,{model,row});if(rows.size>=bounds.maxRows)throw new StateError('limit','Retained guard row census exceeded.');
     const view=snapshots.view(model,{...row,sourcePresence:{fields:Object.keys(row.data)}},healthy,reference);
     views.set(view,row);return view;
   };
@@ -4245,7 +4242,7 @@ function retainedGuardViews(input:{readonly loaded:LoadedCanonicalDescriptors;
       parent={model:binding.model as ModelName,id:binding.id as RecordId};
     }
     const all=await input.query(model as ModelName,parent);healthy();
-    if(all.length>=SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows)throw new StateError('limit','Retained guard complete domain exceeds its bound.');
+    if(all.length>=bounds.maxRows)throw new StateError('limit','Retained guard complete domain exceeds its bound.');
     const matched:StoredRow[]=[];
     for(const row of all) {
       const view=record(model as ModelName,row);
@@ -5420,6 +5417,8 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
       .sort((left, right) => right.length - left.length);
     const ownerPackage = owners[0];
     if (ownerPackage === undefined) throw new AssemblyCorrespondenceError('SEND lacks its original callable package.');
+    const retainedQueries=plan?.retainedGuardedHandler;
+    if(retainedQueries?.queries!==undefined)checkAuthorityQuerySites(retainedQueries.queries,loaded,{artifact,operation:def.name},{path:retainedQueries.source.path,sha256:retainedQueries.source.sha256},ownerPackage,'handler');
     nativeSourceSendOwners.set(def, Object.freeze({ ownerPackage }));
     const live = (call: AdmittedCall): NativeScenarioExecution => {
       const active = nativeScenarioExecutions.get(call);
@@ -5542,11 +5541,9 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         const revisionInput = def.descriptor.inputs.find(input => input.name === revisionField.name);
         const fields = nativeCallArray(modelField.fields, 200) as string[];
         const declaredFields = artifact.models?.find(model => model.name === modelField.model)?.fields;
-        const invoiceOverdueDecision = (plan as typeof plan & { readonly invoiceOverdueDecision?:
-          { readonly owner: string; readonly sendRule: { readonly rule: string } } }).invoiceOverdueDecision;
-        const invoiceOverdueEvent = def.name === 'invoice.overdue' &&
-          invoiceOverdueDecision?.owner === 'invoice.overdue' &&
-          invoiceOverdueDecision.sendRule.rule === emitted.rule;
+        const retainedEvent=plan.retainedGuardedHandler;
+
+        const unusedRevision=retainedEvent?.owner===def.name&&retainedEvent.event===source.event&&retainedEvent.rules.includes(emitted.rule)&&revisionField.occurrence===null;
         const rentNoticeDecision = (plan as typeof plan & { readonly rentNoticeDecision?: {
           readonly owner: string; readonly event: string;
           readonly sendRules: readonly { readonly kind: string; readonly rule: string }[];
@@ -5579,16 +5576,14 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
             typeof revisionField.name !== 'string' || revisionField.type !== 'int' ||
             modelField.name === revisionField.name || !interval(modelField.declaration) || !interval(modelField.occurrence) ||
             !interval(revisionField.declaration) ||
-            !(invoiceOverdueEvent ? revisionField.occurrence === null : interval(revisionField.occurrence)) ||
+            !(unusedRevision||interval(revisionField.occurrence)) ||
             !interval(source.predicate) ||
-            (def.name === 'invoice.overdue' && (!invoiceOverdueEvent ||
-              stableStringify(fields) !== stableStringify(['balance', 'state']))) ||
             ((def.name === 'rent_reservations.correspondence' || def.name === 'rent_reservations.remind') &&
               (!rentNoticeEvent || stableStringify(fields) !== stableStringify(rentNoticeFields) ||
                 modelField.name !== 'booking' || modelField.model !== 'rent_reservations.Booking' ||
                 revisionField.name !== 'revision')) ||
             fields.some((field, index) => typeof field !== 'string' || index > 0 && fields[index - 1]! >= field ||
-              ((invoiceOverdueEvent && field === 'balance') || (rentNoticeEvent && field === 'version') ? false :
+              (rentNoticeEvent && field === 'version' ? false :
                 declaredFields?.filter(item => item.name === field && item.field.kind !== 'secret').length !== 1)) ||
             stableStringify(source.predicate) !== stableStringify(emitted.node) ||
             own(declaredModel, 'type') !== modelField.model || own(declaredRevision, 'type') !== 'int' ||
@@ -10331,7 +10326,7 @@ async function runScenarioExecution(
       ...invoiceIssueSourceWrites, ...cancellationSourceWrites, ...scheduleSourceWrites];
   };
   const privateSourceBodyLoop=scenarioDef===undefined?undefined:nativeSourceBodyLoops.get(scenarioDef);
-  const composedSourceOwner=hasExecutionFrame&&(privateSourceBodyLoop!==undefined||scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined));
+  const composedSourceOwner=hasExecutionFrame&&(internalRetainedGuarded||privateSourceBodyLoop!==undefined||scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined));
   const readOwnerBounds=loaded.producers.invoke.readScenarioReceiptOwnerBounds;
   if(hasExecutionFrame&&(readOwnerBounds===undefined||receiptStore===undefined))return refuseRecordBinding('Scenario owner lacks its actual State-derived plan budget.');
   const ownerBounds=hasExecutionFrame?readOwnerBounds!(call as AdmittedCall,receiptStore!):SCENARIO_RECEIPT_OWNER_BOUNDS;
@@ -10496,8 +10491,6 @@ async function runScenarioExecution(
     readonly sourceModel: string; readonly sourceId: string; readonly field: string;
     readonly model: string; readonly id: string; readonly version?: bigint;
   }>();
-  const invoiceOverdueSlot: { current: { readonly invoice: StoredRow; readonly balance: unknown;
-    readonly revision: bigint } | null } = { current: null };
   const invoiceCollectSlot: { current: { readonly invoice: StoredRow;
     readonly derived: (field: 'balance' | 'received' | 'refunded' |
       'collection_pending' | 'refund_pending') => unknown } | null } = { current: null };
@@ -10521,8 +10514,6 @@ async function runScenarioExecution(
     const model = loaded.models.find((model) => model.name === modelName);
     const record: Record<string, unknown> = {};
     const fields = Object.keys(model?.fields ?? snapshot.data);
-    if (scenarioDef?.name === 'invoice.overdue' && modelName === 'invoice.Invoice' &&
-        !fields.includes('balance')) fields.push('balance');
     if (scenarioDef?.name === 'invoice.collect' && modelName === 'invoice.Invoice') {
       for (const field of ['balance', 'received', 'refunded', 'collection_pending', 'refund_pending']) {
         if (!fields.includes(field)) fields.push(field);
@@ -10534,10 +10525,7 @@ async function runScenarioExecution(
     }
     for (const field of fields) Object.defineProperty(record, field, {
       enumerable: true, get: () => {
-        if (modelName === 'invoice.Invoice' && field === 'balance' &&
-            invoiceOverdueSlot.current?.invoice.id === row.id) {
-          return invoiceOverdueSlot.current.balance;
-        }
+
         if (modelName === 'invoice.Invoice' &&
             ['balance', 'received', 'refunded', 'collection_pending', 'refund_pending'].includes(field) &&
             invoiceCollectSlot.current?.invoice.id === row.id) {
@@ -11994,10 +11982,6 @@ async function runScenarioExecution(
         const ownerDecision = selected.guard.eventSource?.ownerDecision;
         const eventDecision = ownerDecision?.owner === 'maintain.remind' ? ownerDecision : undefined;
         const renewalDecision = ownerDecision !== undefined && isSuccessNoticeOwner(ownerDecision.owner) ? ownerDecision : undefined;
-        const invoiceOverdueGuard = selected.guard.owner === 'invoice.overdue' &&
-          (scenarioDef?.descriptor.result?.disclosure as
-            { readonly invoiceOverdueDecision?: { readonly sendRule: { readonly rule: string } } } | undefined)
-            ?.invoiceOverdueDecision?.sendRule.rule === selected.guard.rule;
         const invoiceCollectGuard = selected.guard.owner === 'invoice.collect' &&
           (scenarioDef?.descriptor.result?.disclosure as
             { readonly invoiceCollectDecision?: { readonly sendRule: { readonly rule: string } } } | undefined)
@@ -12013,10 +11997,10 @@ async function runScenarioExecution(
             localPolicyMember(frame.inputs, 'change')).id }
           : undefined;
         const retainedViews=internalRetainedGuarded && sendSnapshots!==undefined ? retainedGuardViews({loaded,artifact:opts.artifact,
-          snapshots:sendSnapshots,store:receiptStore,identities:opts.memberships as IdentityStore,owner:call.checkpoint!.owner,
+          snapshots:sendSnapshots,store:receiptStore,identities:opts.memberships as IdentityStore,owner:call.checkpoint!.owner,bounds:ownerBounds,
           read:(model,id)=>ownerSession!.read(model,id),query:(model,parent)=>ownerSession!.views.final.query({model,authority:'owner',
             ...(parent===undefined?{}:{parent}),order:[{field:'id',direction:'asc'}],limit:ownerBounds.maxRows}),healthy:assertGuard}):undefined;
-        const referenceNavigation = internalRetainedGuarded || eventDecision !== undefined || renewalDecision !== undefined || invoiceOverdueGuard ||
+        const referenceNavigation = internalRetainedGuarded || eventDecision !== undefined || renewalDecision !== undefined ||
           invoiceCollectGuard || invoiceIssueGuard || sendSnapshots === undefined
           ? undefined : await prepareNativeSendGuardReferences({
           loaded, artifact: opts.artifact, snapshots: sendSnapshots,
@@ -12036,23 +12020,7 @@ async function runScenarioExecution(
             ? retainedViews.record(input.type as ModelName,sendSnapshots.snapshot(input.type,wire)) : sendSnapshots?.has(input.type)
             ? sendSnapshots.view(input.type, wire, assertGuard, referenceNavigation?.reference)
             : decodeCanonicalValue(loaded.valueSchema, input.type, wire);
-          if (invoiceOverdueGuard && input.name === 'eventTerm') {
-            const activeInvoice = invoiceOverdueSlot.current;
-            if (activeInvoice === null || sendSnapshots === undefined || input.type !== 'invoice.Invoice') {
-              return refuseRecordBinding('Invoice overdue SEND needs its active State owner balance.');
-            }
-            const frozen = sendSnapshots.snapshot('invoice.Invoice', wire);
-            if (frozen.id !== activeInvoice.invoice.id || frozen.version !== activeInvoice.invoice.version ||
-                Object.entries(frozen.data).some(([field, observed]) =>
-                  !Object.hasOwn(activeInvoice.invoice.data, field) ||
-                  stableStringify(observed) !== stableStringify(activeInvoice.invoice.data[field]))) {
-              return refuseRecordBinding('Invoice overdue SEND differs from its frozen issued Invoice.');
-            }
-            const view = Object.create(value as object) as Record<string, unknown>;
-            Object.defineProperty(view, 'balance', { enumerable: true,
-              get: () => { assertGuard(); return activeInvoice.balance; } });
-            value = Object.freeze(view);
-          }
+
           if (invoiceCollectGuard && input.type === 'invoice.Invoice') {
             const activeInvoice = invoiceCollectSlot.current;
             if (activeInvoice === null || sendSnapshots === undefined || collectedInvoiceGuardInput) {
@@ -12087,9 +12055,7 @@ async function runScenarioExecution(
           Object.defineProperty(inputs, input.name, { enumerable: true,
             value });
         }
-        if (selected.guard.owner === 'invoice.overdue' && !invoiceOverdueGuard) {
-          return refuseRecordBinding('Invoice overdue SEND lacks its exact checked Rule owner.');
-        }
+
         if (selected.guard.owner === 'invoice.collect' &&
             (!invoiceCollectGuard || !collectedInvoiceGuardInput)) {
           return refuseRecordBinding('Invoice collect SEND lacks its exact checked Rule and Invoice.');
@@ -14299,61 +14265,6 @@ async function runScenarioExecution(
               if (answer !== undefined) return refuseRecordBinding('Movement refund original body must return void.');
             } finally { closeRole?.(); active = false; rentMovementRefundReadRecords = null;
               rentMovementRefundCreateParent = null; }
-          } });
-      } catch (error) { recordEngineFailure(error); throw error; }
-    });
-  }
-  if (internalHandlerDue && receiptStore !== undefined && ownerSession !== undefined &&
-      scenarioDef?.name === 'invoice.overdue') {
-    const actualCall = call as AdmittedCall;
-    const checked = (scenarioDef.descriptor.result?.disclosure as
-      { readonly invoiceOverdueDecision?: import('@canlang/state/invocation').InvoiceOverdueDecisionPlan } | undefined)
-      ?.invoiceOverdueDecision;
-    const execute = loaded.producers.invoke.executeScenarioReceiptInvoiceOverdueDecision;
-    const selected = [...(nativeSourceSendGuards.get(scenarioDef)?.values() ?? [])].filter(guard =>
-      guard.guard.owner === 'invoice.overdue');
-    if (checked === undefined || execute === undefined || selected.length !== 1 ||
-        selected[0]!.guard.rule !== checked.sendRule.rule) {
-      return refuseRecordBinding('Invoice overdue needs its exact installed due owner decision and guarded Mail.');
-    }
-    let consumed = false;
-    bindNativeScenarioInvoiceOverdueDecision(ctx, async (descriptor, body) => {
-      try {
-        if (consumed || stableStringify(descriptor) !== stableStringify(checked) ||
-            nativeScenarioExecutions.get(actualCall) === undefined) {
-          return refuseRecordBinding('Invoice overdue differs from its unique checked source occurrence.');
-        }
-        consumed = true;
-        await execute(actualCall, receiptStore, { original: descriptor as typeof checked, checked,
-          evaluate: async frame => {
-            const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
-            if (assertCall === undefined || invoiceOverdueSlot.current !== null) {
-              return refuseRecordBinding('Invoice overdue needs its serial live State due owner decision.');
-            }
-            const healthy = () => assertCall(actualCall, receiptStore);
-            const event = localPolicyObject(localPolicyMember(localPolicyObject(argument), 'event'));
-            const invoiceRef = nativeRecordReference(localPolicyMember(event, 'invoice'));
-            if (invoiceRef?.model !== 'invoice.Invoice' || invoiceRef.id !== frame.event.invoice.id ||
-                invoiceRef.version !== BigInt(frame.event.invoice.version) ||
-                localPolicyMember(event, 'revision') !== frame.event.revision) {
-              return refuseRecordBinding('Invoice overdue Invoice differs from its admitted Work event.');
-            }
-            const key = stagedKey('invoice.Invoice', frame.event.invoice.id);
-            const known = ownerRows.get(key);
-            if (known !== undefined && stableStringify(known) !== stableStringify(frame.event.invoice)) {
-              return refuseRecordBinding('Invoice overdue current owner row differs from its admitted Invoice.');
-            }
-            ownerRows.set(key, frame.event.invoice);
-            const invoice = recordView('invoice.Invoice', frame.event.invoice);
-            invoiceOverdueSlot.current = { invoice: frame.event.invoice, balance: frame.balance,
-              revision: frame.event.revision };
-            try {
-              healthy();
-              const answer = await Reflect.apply(body, undefined, [ctx,
-                Object.freeze({ event: Object.freeze({ invoice, revision: frame.event.revision }) })]);
-              healthy();
-              if (answer !== undefined) return refuseRecordBinding('Invoice overdue original body must return void.');
-            } finally { invoiceOverdueSlot.current = null; }
           } });
       } catch (error) { recordEngineFailure(error); throw error; }
     });
@@ -17907,10 +17818,11 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
           // inside this same State.invoke admission. `opts.store` is the
           // admitted store, so the frame/owner session join the same fence;
           // Work terminal effects below join the same commit atomically.
-          business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
+          if(privateDef.descriptor.result?.disclosure?.retainedGuardedHandler!==undefined)nativeRetainedGuardedCalls.add(call.context);
+          try{business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
             { effects: due.effects, occurrenceId: due.occurrence.occurrenceId as OccurrenceId,
               observeFramework: effects => stagedFramework.push(...structuredClone(effects.writes ?? [])) },
-            undefined, opts.store);
+            undefined, opts.store);}finally{nativeRetainedGuardedCalls.delete(call.context);}
         } catch (error) {
           if (!isAuthoredRequireFailure(error)) {
             // State receipts business errors. A transient private handler
@@ -19298,8 +19210,8 @@ const boundAuthorityQuerySites = new WeakMap<GeneratedOperationDef, ReadonlyMap<
 /** A source marker is useful only after both checked transports, the report
  * grant and every query site have agreed at the same verified module load. */
 function checkAuthorityQuerySites(raw: unknown, loaded: LoadedCanonicalDescriptors,
-  opts: CanonicalReadOpts, defining: { readonly path: string; readonly sha256: string },
-  ownerPackage: string): ReadonlyMap<string, AuthorityQuerySite> {
+  opts: Pick<CanonicalReadOpts,'operation'|'artifact'>, defining: { readonly path: string; readonly sha256: string },
+  ownerPackage: string, rootKind:'operation'|'handler'='operation'): ReadonlyMap<string, AuthorityQuerySite> {
   const fail = (): never => { throw new loaded.producers.errors('validation',
     'Authority report query census differs from its checked source and model domains.'); };
   const interval = (rawSpan: unknown): { readonly start: number; readonly end: number } => {
@@ -19341,7 +19253,7 @@ function checkAuthorityQuerySites(raw: unknown, loaded: LoadedCanonicalDescripto
       return fail();
     }
     const originCallables = opts.artifact.callables.filter(callable => callable.id === originCallableId &&
-      callable.kind === (chain.length === 0 ? 'operation' : 'pure'));
+      callable.kind === (chain.length === 0 ? rootKind : 'pure'));
     const owningModule = originCallables.length === 1
       ? opts.artifact.modules.find(module => module.path === originCallables[0]!.module) : undefined;
     if (owningModule === undefined || !Array.isArray(owningModule.map?.sources) ||
@@ -23015,22 +22927,6 @@ export async function bindNativeEmailDispatchGuards(input: {
           !sendSnapshots?.has('member_terms.Term'))) {
       throw new Error('Member retry dispatch requires its exact installed Term guard and snapshot.');
     }
-    const invoiceOverdueDecision = selected.guard.owner === 'invoice.overdue' ?
-      (def.descriptor.result?.disclosure as
-        { readonly invoiceOverdueDecision?: import('@canlang/state/invocation').InvoiceOverdueDecisionPlan } | undefined)
-        ?.invoiceOverdueDecision : undefined;
-    if (selected.guard.owner === 'invoice.overdue' &&
-        (invoiceOverdueDecision?.owner !== 'invoice.overdue' ||
-          invoiceOverdueDecision.sendRule.rule !== selected.guard.rule ||
-          selected.guard.target !== 'std.EmailV1.send' || selected.guard.binding !== 'invoice.Mail' ||
-          selected.guard.inputs.length !== 2 ||
-          selected.guard.inputs[0]?.name !== 'eventTerm' ||
-          selected.guard.inputs[0]?.type !== 'invoice.Invoice' ||
-          selected.guard.inputs[1]?.name !== 'eventRevision' ||
-          selected.guard.inputs[1]?.type !== 'int' ||
-          !sendSnapshots?.has('invoice.Invoice'))) {
-      throw new Error('Invoice overdue dispatch requires its exact installed event Mail origin.');
-    }
     const invoiceCollectDecision = selected.guard.owner === 'invoice.collect' ?
       (def.descriptor.result?.disclosure as
         { readonly invoiceCollectDecision?: import('@canlang/state/invocation').InvoiceCollectDecisionPlan } | undefined)
@@ -23190,7 +23086,7 @@ export async function bindNativeEmailDispatchGuards(input: {
       // current Request is separately reloaded and checked below, and the
       // original predicate reads only its three scalar fields.
       const referenceNavigation = retainedViews!==undefined || eventDecision !== undefined || leaveDecision !== undefined ||
-        invoiceOverdueDecision !== undefined || invoiceCollectDecision !== undefined ||
+        invoiceCollectDecision !== undefined ||
         invoiceIssueDecision !== undefined || successRenewalGuard || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
         loaded, artifact, snapshots: sendSnapshots,
         roots: selected.guard.inputs.filter(slot => sendSnapshots.has(slot.type)).map(slot => ({
@@ -23365,11 +23261,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         if (invoiceCollect !== undefined && !invoiceCollect.eligible) return false;
         if (invoiceIssue !== undefined && !invoiceIssue.eligible) return false;
         if (observeVenueDecision !== undefined && (observeVenue === undefined || !observeVenue.eligible)) return false;
-        // This event has no authored dispatch-time comparison. Its complete
-        // balance decision was sealed with the true source-stage Work guard;
-        // the verified preclaim above retains that exact verdict and intent.
-        const answer: unknown = invoiceOverdueDecision !== undefined ? true :
-          await selected.evaluate(c, Object.freeze(inputs));
+        const answer: unknown = await selected.evaluate(c, Object.freeze(inputs));
         frame.assertCompleted(); healthy();
         await referenceNavigation?.revalidate();await retainedViews?.revalidate(); healthy();
         await maintainFrame?.revalidate(); healthy();

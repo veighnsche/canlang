@@ -85,7 +85,7 @@ export { nativeReadBoolean, nativeReadReference } from './native-read-boolean.js
 export { nativeScenarioSourceLetData, nativeScenarioSourceEmitQuery, nativeScenarioSourceSendQuery, nativeScenarioSourceSchedule, nativeScenarioSourceCancel, nativeScenarioSourceEmitData, nativeScenarioSourceSendData, nativeScenarioSourceLoopItem, nativeScenarioSourceLoopCopy, nativeScenarioSourceLoop, nativeScenarioRequire, nativeScenarioEventDecision, nativeScenarioTermDecision,
   nativeScenarioLeaveRequestDecision, nativeScenarioLeaveDecideDecision,
   nativeScenarioReferRejectDecision, nativeScenarioMemberRetryDecision,
-  nativeScenarioInvoiceOverdueDecision, nativeScenarioRentMovementRefundDecision,
+  nativeScenarioRentMovementRefundDecision,
   nativeScenarioInvoiceCollectDecision, nativeScenarioInvoiceIssueDecision,
   nativeScenarioRentNoticeDecision, nativeScenarioEventNoticeFormat,
   withLeaveDecideAllowance } from './native-scenario-require.js';

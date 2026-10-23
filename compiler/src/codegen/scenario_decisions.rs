@@ -2381,6 +2381,7 @@ impl SemanticJoin<'_> {
                     operation: x,
                     args: a,
                     when: c,
+                    when_at_source: source_a,
                     binding: u,
                     deployment_binding: v,
                     span: s,
@@ -2389,11 +2390,12 @@ impl SemanticJoin<'_> {
                     operation: y,
                     args: b,
                     when: e,
+                    when_at_source: source_b,
                     binding: w,
                     deployment_binding: z,
                     span: t,
                 },
-            ) if x == y && u == w && v == z && s == t => {
+            ) if x == y && u == w && v == z && s == t && source_a==source_b => {
                 self.expression(a, b, d + 1)?;
                 self.optional(c, e, d + 1)?;
                 Some(true)

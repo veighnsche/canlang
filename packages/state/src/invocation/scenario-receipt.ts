@@ -437,64 +437,6 @@ export async function prepareObserveVenueScanQuery(call: AdmittedCall, store: St
     if (owner.activeOwnerDecision === lease) owner.activeOwnerDecision = null;
   } });
 }
-/** The original overdue event is a private Invoice decision over its complete
- * balance child domains, followed by one guarded outbound Mail SEND. */
-export interface InvoiceOverdueDecisionPlan {
-  readonly version: 1;
-  readonly owner: 'invoice.overdue';
-  readonly source: ScenarioResultDisclosurePlan['source'];
-  readonly event: { readonly name: 'invoice.Overdue'; readonly modelField: 'invoice';
-    readonly model: 'invoice.Invoice'; readonly revisionField: 'revision' };
-  readonly sites: { readonly header: EventDecisionSite; readonly send: EventDecisionSite };
-  readonly sendRule: { readonly rule: string; readonly source: ScenarioResultDisclosurePlan['source'];
-    readonly node: EventDecisionSite['node']; readonly statement: EventDecisionSite['statement'] };
-}
-function checkInvoiceOverdueDecisionPlan(value: unknown, transport: unknown): InvoiceOverdueDecisionPlan {
-  const raw = object(value, ['version', 'owner', 'source', 'event', 'sites', 'sendRule']);
-  origin(raw['source']); origin(transport);
-  const source = raw['source'] as ScenarioResultDisclosurePlan['source'];
-  const carrier = transport as ScenarioResultDisclosurePlan['source'];
-  if (raw['version'] !== 1 || raw['owner'] !== 'invoice.overdue' || source.module !== 'invoice' ||
-      source.path !== carrier.path || source.sha256 !== carrier.sha256 ||
-      stableStringify(object(raw['event'], ['name', 'modelField', 'model', 'revisionField'])) !==
-        stableStringify({ name: 'invoice.Overdue', modelField: 'invoice', model: 'invoice.Invoice', revisionField: 'revision' })) {
-    return invalid('overdue decision needs its original declared Invoice event and source.');
-  }
-  const span = (value: unknown): void => {
-    const item = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(item['start']) || !Number.isSafeInteger(item['end']) ||
-        (item['start'] as number) < 0 || (item['end'] as number) <= (item['start'] as number) ||
-        !Number.isSafeInteger(item['kind']) || (item['kind'] as number) < 0) {
-      return invalid('overdue decision needs nonempty original source intervals.');
-    }
-  };
-  const sites = object(raw['sites'], ['header', 'send']);
-  const ids = new Set<string>();
-  const site = (value: unknown): EventDecisionSite => {
-    const item = object(value, ['id', 'source', 'node', 'statement']);
-    const id = text(item['id']); origin(item['source']); span(item['node']); span(item['statement']);
-    const node = item['node'] as EventDecisionSite['node'];
-    const statement = item['statement'] as EventDecisionSite['statement'];
-    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
-        stableStringify(item['source']) !== stableStringify(source) ||
-        node.start < statement.start || node.end > statement.end) {
-      return invalid('overdue decision site differs from its checked source.');
-    }
-    ids.add(id); return item as unknown as EventDecisionSite;
-  };
-  const header = site(sites['header']), send = site(sites['send']);
-  if (send.statement.start < header.statement.end) {
-    return invalid('overdue SEND must follow its original leading Require.');
-  }
-  const rule = object(raw['sendRule'], ['rule', 'source', 'node', 'statement']);
-  text(rule['rule']); origin(rule['source']); span(rule['node']); span(rule['statement']);
-  if (stableStringify(rule['source']) !== stableStringify(source) ||
-      stableStringify(rule['node']) !== stableStringify(send.node) ||
-      stableStringify(rule['statement']) !== stableStringify(send.statement)) {
-    return invalid('overdue SEND lacks its original guarded source occurrence.');
-  }
-  return deepFreeze(raw) as unknown as InvoiceOverdueDecisionPlan;
-}
 function checkEventDecisionPlan(value: unknown, transport: unknown): EventDecisionPlan {
   const raw = object(value, ['version', 'owner', 'event', 'rowField', 'rowModel', 'revisionField',
     'letSite', 'ifSite', 'whenSite', 'sendSite', 'setSite', 'querySites', 'roleSites']);
@@ -1666,7 +1608,7 @@ function checkSourceEmissions(value:unknown,source:unknown):NonNullable<Scenario
 
 /** Loader checker; callers cannot turn this data into a bound generated def. */
 function checkRetainedGuardedHandler(value: unknown, source: unknown): void {
-  const frame=object(value,['source','owner','event','node','rules']);
+  const frame=object(value,['source','owner','event','node','rules',...(typeof value==='object'&&value!==null&&Object.hasOwn(value,'queries')?['queries']:[]),...(typeof value==='object'&&value!==null&&Object.hasOwn(value,'stagedRules')?['stagedRules']:[])]);
   origin(frame['source']);
   const node=object(frame['node'],['start','end']);
   const rules=list(frame['rules']).map(text);
@@ -1676,6 +1618,12 @@ function checkRetainedGuardedHandler(value: unknown, source: unknown): void {
       (node['start'] as number)<0 || (node['end'] as number)<=(node['start'] as number) ||
       rules.length===0 || new Set(rules).size!==rules.length) {
     return invalid('retained SEND frame lacks its complete original handler and guard census.');
+  }
+  if(Object.hasOwn(frame,'stagedRules')){const staged=list(frame['stagedRules']).map(text);if(staged.length===0||new Set(staged).size!==staged.length||staged.some(rule=>!rules.includes(rule)))return invalid('Staged SEND rules differ from the original complete retained guard census.');}
+  if(Object.hasOwn(frame,'queries')){
+    const queries=object(frame['queries'],['version','operation','source','sites']),originSource=object(frame['source'],['module','path','sha256']);
+    if(queries['version']!==1||queries['operation']!==frame['owner']||object(queries['source'],['module','path','sha256'])['path']!==originSource['path']||object(queries['source'],['module','path','sha256'])['sha256']!==originSource['sha256'])return invalid('Retained query census changed its owning source.');
+    const sites=list(queries['sites']);if(sites.length===0||sites.length>MAX_ITEMS)return invalid('Retained query census must be finite and nonempty.');
   }
 }
 
@@ -1691,7 +1639,6 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'leaveDecideDecision') ? ['leaveDecideDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'referRejectDecision') ? ['referRejectDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'memberRetryDecision') ? ['memberRetryDecision'] : []),
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceOverdueDecision') ? ['invoiceOverdueDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'rentMovementRefundDecision') ? ['rentMovementRefundDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceCollectDecision') ? ['invoiceCollectDecision'] : []),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'invoiceIssueDecision') ? ['invoiceIssueDecision'] : []),
@@ -1712,7 +1659,6 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'leaveDecideDecision')) checkLeaveDecideDecisionPlan(plan['leaveDecideDecision'], plan['source']);
   if (Object.hasOwn(plan, 'referRejectDecision')) checkReferRejectDecisionPlan(plan['referRejectDecision'], plan['source']);
   if (Object.hasOwn(plan, 'memberRetryDecision')) checkMemberRetryDecisionPlan(plan['memberRetryDecision'], plan['source']);
-  if (Object.hasOwn(plan, 'invoiceOverdueDecision')) checkInvoiceOverdueDecisionPlan(plan['invoiceOverdueDecision'], plan['source']);
   if (Object.hasOwn(plan, 'rentMovementRefundDecision')) checkRentMovementRefundDecisionPlan(plan['rentMovementRefundDecision'], plan['source']);
   if (Object.hasOwn(plan, 'invoiceCollectDecision')) checkInvoiceCollectDecisionPlan(plan['invoiceCollectDecision'], plan['source']);
   if (Object.hasOwn(plan, 'invoiceIssueDecision')) checkInvoiceIssueDecisionPlan(plan['invoiceIssueDecision'], plan['source']);
@@ -1821,7 +1767,6 @@ interface BoundPlan {
   readonly leaveDecideDecision?: LeaveDecideDecisionPlan;
   readonly referRejectDecision?: ReferRejectDecisionPlan;
   readonly memberRetryDecision?: MemberRetryDecisionPlan;
-  readonly invoiceOverdueDecision?: InvoiceOverdueDecisionPlan;
   readonly rentMovementRefundDecision?: RentMovementRefundDecisionPlan;
   readonly invoiceCollectDecision?: InvoiceCollectDecisionPlan;
   readonly invoiceIssueDecision?: InvoiceIssueDecisionPlan;
@@ -2307,9 +2252,9 @@ function scenarioReceiptOwnerBudget(def:GeneratedOperationDef,bound:BoundPlan):{
   readonly bounds:ScenarioReceiptMutationInput['bounds'];readonly exact:boolean;
 }{
   const extended=bound.leaveRequestDecision!==undefined||bound.leaveDecideDecision!==undefined||
-    bound.referRejectDecision!==undefined||bound.memberRetryDecision!==undefined||bound.invoiceOverdueDecision!==undefined||
+    bound.referRejectDecision!==undefined||bound.memberRetryDecision!==undefined||
     bound.rentMovementRefundDecision!==undefined||bound.invoiceCollectDecision!==undefined||
-    bound.invoiceIssueDecision!==undefined||bound.rentNoticeDecision!==undefined;
+    bound.invoiceIssueDecision!==undefined||bound.rentNoticeDecision!==undefined||hasRetainedQueryBudget(def);
   const loops=bound.plan.sourceEmissions===undefined?undefined:checkSourceEmissions(bound.plan.sourceEmissions,bound.plan.source);
   const emissions=loops===undefined?undefined:Object.freeze({
     maxRows:loops.loops.reduce((sum,loop)=>sum+loop.maximum,0)+1,maxWork:200_000,maxSourceNodes:200_000,
@@ -2942,9 +2887,6 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
   const rawMemberRetryDecision = (plan as ScenarioResultDisclosurePlan & { readonly memberRetryDecision?: unknown }).memberRetryDecision;
   const memberRetryDecision = rawMemberRetryDecision === undefined ? undefined :
     checkMemberRetryDecisionPlan(rawMemberRetryDecision, plan.source);
-  const rawInvoiceOverdueDecision = (plan as ScenarioResultDisclosurePlan & { readonly invoiceOverdueDecision?: unknown }).invoiceOverdueDecision;
-  const invoiceOverdueDecision = rawInvoiceOverdueDecision === undefined ? undefined :
-    checkInvoiceOverdueDecisionPlan(rawInvoiceOverdueDecision, plan.source);
   const rawRentMovementRefundDecision = plan.rentMovementRefundDecision;
   const rentMovementRefundDecision = rawRentMovementRefundDecision === undefined ? undefined :
     checkRentMovementRefundDecisionPlan(rawRentMovementRefundDecision, plan.source);
@@ -3075,33 +3017,7 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
       return invalid('member retry lacks its exact void owner source and model declarations.');
     }
   }
-  if (invoiceOverdueDecision !== undefined) {
-    const inputs = def.descriptor.inputs;
-    const field = (model: string, name: string, kind: string, valueType?: string): boolean =>
-      models.find(item => item.name === model)?.fields.filter(item => item.name === name &&
-        item.field.kind === kind && (valueType === undefined || item.valueType === valueType) &&
-        item.array === undefined && item.nullable !== true).length === 1;
-    if (def.kind !== 'scenario' || def.name !== invoiceOverdueDecision.owner || declared !== 'void' ||
-        inputs.length !== 2 || inputs[0]?.name !== 'invoice' || inputs[0].kind !== 'ref' ||
-        inputs[0].model !== 'invoice.Invoice' || !inputs[0].required ||
-        inputs[1]?.name !== 'revision' || inputs[1].kind !== 'integer' || !inputs[1].required ||
-        models.find(model => model.name === 'invoice.Invoice')?.parent !== 'customer.Customer' ||
-        !models.some(model => model.name === 'customer.Customer') ||
-        ['invoice.Credit', 'invoice.Attempt', 'invoice.ExternalPayment'].some(name =>
-          models.find(model => model.name === name)?.parent !== 'invoice.Invoice') ||
-        !field('invoice.Invoice', 'state', 'enum') || !field('invoice.Invoice', 'currency', 'string', 'currency') ||
-        !field('invoice.Invoice', 'total', 'money') ||
-        !field('invoice.Invoice', 'recipient_email', 'string', 'email') ||
-        !field('invoice.Invoice', 'description', 'string', 'text') ||
-        !field('invoice.Credit', 'amount', 'money') ||
-        !field('invoice.Attempt', 'amount', 'money') || !field('invoice.Attempt', 'kind', 'enum') ||
-        !field('invoice.Attempt', 'status', 'enum') || !field('invoice.ExternalPayment', 'amount', 'money') ||
-        (plan.queries?.length ?? 0) !== 0 || plan.returns.length !== 1 ||
-        plan.returns[0]!.dependencies.length !== 0 || plan.returns[0]!.influences.length !== 0 ||
-        (plan.returns[0]!.intrinsics?.length ?? 0) !== 0) {
-      return invalid('overdue decision lacks its exact void Invoice and balance-domain declarations.');
-    }
-  }
+
   if (rentMovementRefundDecision !== undefined) {
     const inputs = def.descriptor.inputs;
     if (def.kind !== 'scenario' || def.name !== rentMovementRefundDecision.owner || declared !== 'void' ||
@@ -3401,7 +3317,6 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
     ...(leaveDecideDecision === undefined ? {} : { leaveDecideDecision }),
     ...(referRejectDecision === undefined ? {} : { referRejectDecision }),
     ...(memberRetryDecision === undefined ? {} : { memberRetryDecision }),
-    ...(invoiceOverdueDecision === undefined ? {} : { invoiceOverdueDecision }),
     ...(rentMovementRefundDecision === undefined ? {} : { rentMovementRefundDecision }),
     ...(invoiceCollectDecision === undefined ? {} : { invoiceCollectDecision }),
     ...(invoiceIssueDecision === undefined ? {} : { invoiceIssueDecision }),
@@ -3500,6 +3415,11 @@ export interface ScenarioReceiptSendProducerInput {
 export interface ScenarioReceiptSendStaging { readonly effects: SystemStaging; readonly delivery: DeliveryRef }
 const frameworkProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptFrameworkProducer>();
 const frameworkModelInputs = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, ReadonlyMap<string, ModelLexicalSnapshotProfile>>>();
+// Issued only after the actual defining framework producer has installed the
+// complete source-owned query census. Descriptor presence alone grants no budget.
+const retainedQueryBudgets=new WeakSet<GeneratedOperationDef>();
+function hasRetainedQueryBudget(def:GeneratedOperationDef):boolean{return retainedQueryBudgets.has(def);}
+
 export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef, producer: ScenarioReceiptFrameworkProducer): void {
   const bound = boundPlans.get(def);
   const retained=bound?.plan.retainedGuardedHandler;
@@ -3583,6 +3503,8 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
       const revisionName = text(revisionField['name']);
       const fields = list(modelField['fields']).map(text);
       const declaredFields = bound.artifactModels.get(modelName as ModelName)?.fields;
+      const retainedEvent=bound.plan.retainedGuardedHandler;
+      const unusedRevision=retainedEvent?.owner===def.name&&retainedEvent.event===event['event']&&retainedEvent.rules.includes(rule)&&revisionField['occurrence']===null;
       const eventAudit=def.name==='events.attendee_notice' && bound.plan.eventNoticeAudit!==undefined;
       if (eventAudit) {
         const profile=checkEventNoticeAuditPlan(bound.plan.eventNoticeAudit,bound.plan.source);
@@ -3598,12 +3520,9 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
       if (event['handler'] !== def.name || typeof event['event'] !== 'string' || event['event'] === '' ||
           modelNameField === revisionName || !interval(modelField['declaration']) || !interval(modelField['occurrence']) ||
           !interval(revisionField['declaration']) ||
-          (bound.invoiceOverdueDecision === undefined ? !interval(revisionField['occurrence']) :
-            revisionField['occurrence'] !== null) || !interval(event['predicate']) ||
+          (!unusedRevision&&!interval(revisionField['occurrence'])) || !interval(event['predicate']) ||
           fields.some((field, index) => index > 0 && fields[index - 1]! >= field ||
-            (bound.invoiceOverdueDecision !== undefined && field === 'balance' ?
-              !bound.artifactModels.has('invoice.Invoice' as ModelName) :
-            bound.rentNoticeDecision !== undefined && modelName === 'rent_reservations.Booking' &&
+            (bound.rentNoticeDecision !== undefined && modelName === 'rent_reservations.Booking' &&
               field === 'version' ? false :
               declaredFields?.filter(item => item.name === field && item.field.kind !== 'secret').length !== 1)) ||
           stableStringify(event['predicate']) !== stableStringify(guard['node']) ||
@@ -3636,20 +3555,7 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
       } else if (bound.eventDecision !== undefined || bound.successRenewalDecision !== undefined) {
         return invalid('event SEND omitted its checked original owner decision.');
       }
-      if (bound.invoiceOverdueDecision !== undefined) {
-        const overdue = bound.invoiceOverdueDecision;
-        if (def.name !== overdue.owner || event['event'] !== overdue.event.name ||
-            modelName !== overdue.event.model || modelNameField !== overdue.event.modelField ||
-            revisionName !== overdue.event.revisionField ||
-            guard['binding'] !== 'invoice.Mail' || guard['target'] !== 'std.EmailV1.send' ||
-            rule !== overdue.sendRule.rule ||
-            stableStringify(guard['node']) !== stableStringify({
-              start: overdue.sendRule.node.start, end: overdue.sendRule.node.end }) ||
-            stableStringify(fields) !== stableStringify(['balance', 'state']) ||
-            Object.hasOwn(event, 'recipientPath')) {
-          return invalid('overdue SEND differs from its exact Invoice balance and guarded Mail source.');
-        }
-      }
+
       if (bound.rentNoticeDecision !== undefined) {
         const notice = bound.rentNoticeDecision;
         const selected = notice.sendRules.find(item => item.rule === rule);
@@ -3703,6 +3609,12 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
     }
     modelInputs.set(rule, models);
   }
+  if(metadata.sendGuards?.some(guard=>(guard.evaluation==='source')!==(retained?.stagedRules?.includes(guard.rule)===true)))return invalid('Source evaluation and staged Rule census must agree in both directions.');
+  if(retained?.stagedRules!==undefined&&retained.stagedRules.some(rule=>{
+    const selected=metadata.sendGuards?.filter(guard=>guard.rule===rule);
+    const event=selected?.length===1?selected[0]!.eventSource:undefined;
+    return event===undefined||event.handler!==def.name||event.event!==retained.event||selected?.[0]?.evaluation!=='source';
+  }))return invalid('Staged SEND policy lacks its exact validated typed event and provenance-only revision.');
   const sources = metadata.sendGuards?.flatMap(guard => guard.eventSource === undefined ? [] : [guard.eventSource]) ?? [];
   const event = sources.length > 0 && sources.every(source => source.event === sources[0]!.event &&
     source.handler === sources[0]!.handler && source.modelField.name === sources[0]!.modelField.name &&
@@ -3714,10 +3626,23 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
     return invalid('event intrinsic aliases differ from their complete checked framework source.');
   }
   if (event !== undefined) eventIntrinsicProfiles.set(def, deepFreeze(event));
+  if(retained?.queries!==undefined){
+    const queries=retained.queries,ids=new Set<string>();
+    if(retained.owner!==def.name||queries.operation!==def.name||queries.source.path!==metadata.source.path||queries.source.sha256!==metadata.source.sha256||queries.source.module!==def.name.slice(0,def.name.lastIndexOf('.'))||retained.rules.length!==guardRules.size||retained.rules.some(rule=>!guardRules.has(rule)))return invalid('Retained queries lack their installed original handler and complete Rules.');
+    for(const value of queries.sites){
+      const site=object(value,['id','source','node','model','parentModel','parentSite','predicateSite','predicateKind','order','archived','firstSite','deriveChain']);
+      const model=text(site['model']) as ModelName,declaration=bound.artifactModels.get(model);
+      const at=(value:unknown)=>{const node=object(value,['start','end']);return Number.isSafeInteger(node['start'])&&Number.isSafeInteger(node['end'])&&Number(node['start'])>=0&&Number(node['end'])>Number(node['start']);};
+      const source=object(site['source'],['module','path','sha256']);origin(source);
+      if(declaration===undefined||ids.has(text(site['id']))||site['parentModel']!==(declaration.parent??null)||site['archived']!=='exclude'||!at(site['node'])||(site['parentSite']===null)!==(site['parentModel']===null)||site['parentSite']!==null&&!at(site['parentSite'])||(site['predicateSite']===null)!==(site['predicateKind']==='none')||!['none','callback'].includes(text(site['predicateKind']))||site['predicateSite']!==null&&!at(site['predicateSite'])||site['firstSite']!==null&&!at(site['firstSite']))return invalid('Retained query changed its complete canonical Model domain or checked source.');
+      list(site['deriveChain']).forEach(text);list(site['order']);ids.add(text(site['id']));
+    }
+  }
   frameworkProducers.set(def, Object.freeze({ ...deepFreeze(metadata), stage: producer.stage, read: producer.read,
     ...(producer.evaluateGuard === undefined ? {} : { evaluateGuard: producer.evaluateGuard }),
     ...(producer.prepareReceiptOrigin === undefined ? {} : { prepareReceiptOrigin: producer.prepareReceiptOrigin }) }));
   frameworkModelInputs.set(def, modelInputs);
+  if(retained?.queries!==undefined)retainedQueryBudgets.add(def);
 }
 
 function primitiveInputType(type: unknown): type is CanTypeId {
@@ -4882,10 +4807,6 @@ interface Capture {
   memberRetryDecision?: { readonly term: StoredRow; readonly membership: StoredRow;
     readonly customer: StoredRow; readonly locationId: string; readonly deliveryId: string;
     readonly queued: boolean };
-  invoiceOverdueDecision?: { readonly invoice: StoredRow; readonly revision: bigint;
-    readonly balance: MoneyValue; readonly credits: readonly StoredRow[];
-    readonly attempts: readonly StoredRow[]; readonly payments: readonly StoredRow[];
-    readonly deliveryId: string };
   rentMovementRefundDecision?: { readonly movement: StoredRow; readonly booking: StoredRow;
     readonly resource: StoredRow; readonly adjustment: StoredRow | null;
     readonly chargeSource: string; readonly amount: MoneyValue; readonly reason: string;
@@ -5213,24 +5134,19 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
         const payload = object(eventPayload, eventPayloadFields(call,event));
         const ref = decodeValue(event.modelField.model, payload[event.modelField.name]) as { readonly id: string };
         if (row.id !== ref.id || row.archivedAt !== null) return invalid('event SEND model differs from its current retained source row.');
-        if (call.def.name === 'maintain.remind' || call.def.name === 'invoice.overdue' ||
+        if (call.def.name === 'maintain.remind' ||
             call.def.name === 'rent_reservations.correspondence' || call.def.name === 'rent_reservations.remind') {
           const admitted = call.recordRefs.find(candidate => candidate.param === event.modelField.name &&
             candidate.model === event.modelField.model && candidate.id === ref.id);
-          const invoice = call.def.name === 'invoice.overdue';
           const notice = call.def.name.startsWith('rent_reservations.');
-          if (event.event !== (invoice ? 'invoice.Overdue' : notice ?
+          if (event.event !== (notice ?
               call.def.name === 'rent_reservations.correspondence' ?
                 'rent_reservations.ReservationChanged' : 'rent_reservations.Reminder' : 'maintain.Reminder') ||
               owner.stage !== 0 || admitted === undefined ||
               !sameModelLifetime(admitted.row, row) || stableStringify(admitted.row) !== stableStringify(row)) {
             return invalid('event SEND requires its unchanged admitted row at the original source stage.');
           }
-          if (invoice && (owner.activeOwnerDecision?.owner !== 'invoice.overdue' ||
-              owner.activeOwnerDecision.call !== call || owner.activeOwnerDecision.staged !== 0 ||
-              owner.framework?.ordinal !== 0)) {
-            return invalid('overdue SEND requires its active sealed Invoice balance decision.');
-          }
+
           if (notice && (owner.activeOwnerDecision?.owner !== call.def.name ||
               owner.activeOwnerDecision.call !== call || owner.framework?.ordinal !== 0)) {
             return invalid('Rent Notice SEND requires its active sealed Booking decision.');
@@ -5407,7 +5323,7 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
     return deepFreeze(Object.fromEntries(guard.inputs.map(input => [input.name, values[input.name]])));
   }
   if (models.length === 0) return deepFreeze(values);
-  const privateOwner=state.bound.plan.retainedGuardedHandler!==undefined && retainedGuardedAdmissions.has(call) &&
+  const privateOwner=state.bound.plan.retainedGuardedHandler!==undefined && hasRetainedWorkAdmission(call) &&
     call.context.kind==='trusted' && call.context.actor===null;
   const privateEvent = privateOwner || event !== undefined && models.length === 1 && models[0]!.name === 'eventTerm';
   if (owner.session === null || !privateEvent && (producer?.app !== call.context.app || producer.readPolicies === undefined) ||
@@ -5567,12 +5483,7 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
             binding.binding !== 'member_terms.Billing' || source !== 'invoice.BillingV1.charge')) {
         return invalid('member retry SEND differs from its one original guarded charge stage.');
       }
-      if (member?.owner === 'invoice.overdue' &&
-          (member.call !== call || owner.stage !== 0 || member.staged !== 0 ||
-            ledger.ordinal !== 0 || rule !== owner.capture.bound.invoiceOverdueDecision?.sendRule.rule ||
-            binding.binding !== 'invoice.Mail' || source !== 'std.EmailV1.send')) {
-        return invalid('overdue SEND differs from its one original guarded Mail stage.');
-      }
+
       if (member?.owner === 'invoice.collect' &&
           (member.call !== call || owner.stage !== 2 || member.staged !== 2 ||
             ledger.ordinal !== 0 || rule !== owner.capture.bound.invoiceCollectDecision?.sendRule.rule ||
@@ -5875,7 +5786,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
   input: ScenarioReceiptMutationInput): Promise<ScenarioReceiptMutationSession> {
   const state = capture(call, store);
   try {
-    if(state.bound.plan.retainedGuardedHandler!==undefined && !retainedGuardedAdmissions.has(call)) {
+    if(state.bound.plan.retainedGuardedHandler!==undefined && !hasRetainedWorkAdmission(call)) {
       return invalid('retained SEND frame lacks its actual ordinary Work admission.');
     }
     if (ownerSessions.has(call) || state.pending !== 0 || state.observations.length !== 0 || state.intrinsics.length !== 0 || state.returnId !== null) return invalid('one owner session must begin before scenario observations/return completion.');
@@ -6075,8 +5986,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
       finalizeRefusal:async error=>{
         try {
           ownerHealthy(owner);
-          const admitted=retainedGuardedAdmissions.get(call);
-          if(state.bound.plan.retainedGuardedHandler===undefined || admitted===undefined || admitted.refused ||
+          const admitted=retainedGuardedAdmissions.get(call),due=retainedDueAdmissions.get(call);
+          if(state.bound.plan.retainedGuardedHandler===undefined || admitted===undefined&&due===undefined || admitted?.refused || due?.refused ||
               !isAuthoredRequireFailure(error) || owner.executingCall!==call || owner.busy || state.pending!==0 ||
               owner.activeSend!==null || owner.activeOwnerDecision!==null || owner.activeEventDecision!==null ||
               owner.activeTermDecision!==null || owner.activeLeaveDecision!==null || owner.activeLeaveDecideDecision!==null) {
@@ -6088,8 +5999,9 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
           // from an abandoned CREATE/SET overlay. Only the exact failed Work
           // terminal remains, checked separately at retention below.
           const empty=deepFreeze({writes:[],history:[],outbox:[],uniqueClaims:[],uniqueReleases:[],resolvedDefaults:{},schedules:[]});
-          owner.finalized=empty;owner.commitEffects=empty;admitted.refused=true;
-          admitted.frameworkWrites.clear();admitted.frameworkVersions.clear();admitted.schedules.length=0;
+          owner.finalized=empty;owner.commitEffects=empty;
+          if(due!==undefined)due.refused=true;
+          if(admitted!==undefined){admitted.refused=true;admitted.frameworkWrites.clear();admitted.frameworkVersions.clear();admitted.schedules.length=0;}
           owner.callGuards.length=0;owner.storedFileChecks.length=0;
           sourceEffectGuards.delete(owner);sourceEffectGrantCounts.delete(owner);
           state.rowIdGuards.length=0;state.files.length=0;
@@ -9754,138 +9666,6 @@ export async function executeScenarioReceiptRentNoticeDecision(call: AdmittedCal
 /** The private due Invoice may read its own complete balance ledger, despite
  * having no viewer actor. The authored Require and SEND use this one frozen
  * source-stage graph; the committed intent retains the original true Rule. */
-export async function executeScenarioReceiptInvoiceOverdueDecision(call: AdmittedCall, store: StoragePort, input: {
-  readonly original: InvoiceOverdueDecisionPlan;
-  readonly checked: InvoiceOverdueDecisionPlan;
-  readonly evaluate: (frame: {
-    readonly event: { readonly invoice: StoredRow; readonly revision: bigint };
-    readonly balance: MoneyValue;
-    readonly credits: readonly StoredRow[];
-    readonly attempts: readonly StoredRow[];
-    readonly payments: readonly StoredRow[];
-  }) => Promise<unknown>;
-}): Promise<void> {
-  const state = capture(call, store), owner = ownerSessions.get(call);
-  try {
-    const profile = state.bound.invoiceOverdueDecision;
-    if (profile === undefined || owner === undefined || owner.session === null || owner.framework === null ||
-        owner.stage !== 0 || owner.busy || owner.activeOwnerDecision !== null || state.pending !== 0 ||
-        state.returnId !== null || state.invoiceOverdueDecision !== undefined || owner.executingCall !== call ||
-        owner.maxRows !== 4_001 || owner.callGuards.length >= MAX_ITEMS - 4 ||
-        typeof input.evaluate !== 'function') {
-      return invalid('overdue decision needs its unique live due Invoice and finite owner stage.');
-    }
-    const original = checkInvoiceOverdueDecisionPlan(dataCopy(input.original), state.bound.plan.source);
-    const checked = checkInvoiceOverdueDecisionPlan(dataCopy(input.checked), state.bound.plan.source);
-    if (stableStringify(original) !== stableStringify(checked) ||
-        stableStringify(original) !== stableStringify(profile)) {
-      return invalid('overdue decision differs from its independently checked source.');
-    }
-    const source = admittedEventIntrinsic(call, 'eventTerm');
-    const due = dueWorkAdmissions.get(call);
-    if (source?.event !== profile.event.name || source.modelField.name !== profile.event.modelField ||
-        source.modelField.model !== profile.event.model || source.revisionField.name !== profile.event.revisionField ||
-        due?.eventPayload === undefined) {
-      return invalid('overdue decision requires its actual admitted due Work event.');
-    }
-    const payload = object(due.eventPayload, ['invoice', 'revision']);
-    const invoiceRef = decodeValue('invoice.Invoice', payload['invoice']) as { readonly id: string };
-    const revision = decodeValue('int', payload['revision']) as bigint;
-    const admittedInvoice = decodeValue('invoice.Invoice', admittedInputWire(call.inputs, 'invoice')) as { readonly id: string };
-    const admittedRevision = decodeValue('int', admittedInputWire(call.inputs, 'revision')) as bigint;
-    const ref = call.recordRefs.find(candidate => candidate.param === 'invoice' &&
-      candidate.model === 'invoice.Invoice' && candidate.id === invoiceRef.id);
-    if (ref === undefined || invoiceRef.id !== admittedInvoice.id || revision !== admittedRevision) {
-      return invalid('overdue decision differs from its retained Work Invoice and revision input.');
-    }
-    const invoice = await ownerOperation(owner, () => owner.session!.views.final.get('invoice.Invoice' as ModelName, ref.id));
-    if (invoice === null || invoice.archivedAt !== null || invoice.parent?.model !== 'customer.Customer' ||
-        !sameModelLifetime(ref.row, invoice) || stableStringify(invoice) !== stableStringify(ref.row)) {
-      throw new StateError('conflict', 'Overdue Invoice differs from its admitted source row.');
-    }
-    // The original `and` short-circuits before evaluating balance on an
-    // unissued invoice. Let its actual leading Require report a false branch;
-    // the due runner recognizes that authored refusal and commits only Work's
-    // failed terminal. Event.revision is provenance, not a version predicate.
-    const issued = invoice.data['state'] === 'issued';
-    const parent = Object.freeze({ model: 'invoice.Invoice' as ModelName, id: invoice.id });
-    const domains = new Map<ModelName, readonly StoredRow[]>();
-    for (const model of (issued ? ['invoice.Credit', 'invoice.Attempt', 'invoice.ExternalPayment'] : []) as ModelName[]) {
-      const rows = await ownerOperation(owner, () => owner.session!.views.final.query({ model, parent,
-        authority: 'owner', archived: 'exclude', order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows }));
-      if (rows.length > 4_000 || rows.some(row => row.archivedAt !== null ||
-          row.parent?.model !== 'invoice.Invoice' || row.parent.id !== invoice.id)) {
-        return invalid('overdue balance exceeds or differs from its complete owner child domain.');
-      }
-      domains.set(model, Object.freeze([...rows]));
-    }
-    const credits = domains.get('invoice.Credit' as ModelName) ?? Object.freeze([]);
-    const attempts = domains.get('invoice.Attempt' as ModelName) ?? Object.freeze([]);
-    const payments = domains.get('invoice.ExternalPayment' as ModelName) ?? Object.freeze([]);
-    const currency = decodeValue('currency', invoice.data['currency']) as string;
-    const balance = (() => {
-      if (!issued) return money(0n, currency);
-      const total = decodeValue('money', invoice.data['total']) as MoneyValue;
-      if (total.currency !== currency) return invalid('overdue Invoice total differs from its declared currency.');
-      const amount = (rows: readonly StoredRow[]): MoneyValue => sumMoney(rows.map(row =>
-        decodeValue('money', row.data['amount']) as MoneyValue), currency);
-      const creditTotal = amount(credits);
-      const successful = attempts.filter(row => row.data['kind'] === 'collection' && row.data['status'] === 'succeeded');
-      const received = addMoney(amount(successful), amount(payments));
-      const outstanding = subtractMoney(subtractMoney(total, creditTotal), received);
-      return outstanding.minor > 0n ? outstanding : money(0n, currency);
-    })();
-    if (await store.readRevision() !== call.revision) {
-      throw new StateError('conflict', 'Overdue balance moved beyond its admitted Work checkpoint.');
-    }
-    ownerRows.set(invoice, { session: owner, stage: 0, model: 'invoice.Invoice' as ModelName });
-    const lease: OwnerDecisionLease = { call, owner: profile.owner, staged: 0, queryIndex: 0,
-      stagedIds: [], stages: Object.freeze([]), queries: Object.freeze([]) };
-    owner.activeOwnerDecision = lease;
-    try {
-      const answer = await input.evaluate(Object.freeze({ event: Object.freeze({ invoice, revision }),
-        balance, credits, attempts, payments }));
-      if (answer !== undefined) return invalid('overdue original body must return void.');
-    } finally { owner.activeOwnerDecision = null; }
-    const ledger = owner.framework;
-    const queued = ledger.queued.values().next().value;
-    if (owner.stage !== 0 || ledger.ordinal !== 1 || ledger.queued.size !== 1 ||
-        ledger.skipped.size !== 0 || queued?.dispatchGuard !== profile.sendRule.rule) {
-      return invalid('overdue decision omitted its one original guarded Mail SEND.');
-    }
-    state.invoiceOverdueDecision = { invoice, revision, balance, credits, attempts, payments,
-      deliveryId: queued.intentId };
-    owner.callGuards.push(Object.freeze({ name: `invoice-overdue:${profile.sites.send.id}`, evaluate: async () => {
-      if (owner.finalized === null || owner.capture.poisoned || owner.activeOwnerDecision !== null) {
-        return invalid('overdue decision needs actual finalized owner effects.');
-      }
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Overdue balance changed before commit.');
-      const currentInvoice = await store.cohortLoad({ model: 'invoice.Invoice' as ModelName,
-        id: invoice.id, expectedRevision: call.revision });
-      if (stableStringify(currentInvoice) !== stableStringify(invoice)) {
-        throw new StateError('forbidden', 'Overdue Invoice changed before commit.');
-      }
-      for (const [model, frozen] of domains) {
-        const current = await store.query({ model, parent, authority: 'owner', archived: 'exclude',
-          order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
-        if (current.length > 4_000 || stableStringify(current) !== stableStringify(frozen)) {
-          throw new StateError('forbidden', 'Overdue balance child domain changed before commit.');
-        }
-      }
-      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Overdue balance moved beyond commit.');
-      return true;
-    } }));
-  } catch (error) {
-    // Only the original leading Require's branded false result can complete
-    // as a clean due refusal. Every other engine failure poisons the owner.
-    if (!isAuthoredRequireFailure(error) || owner?.stage !== 0 || owner.framework?.ordinal !== 0 ||
-        owner.framework.queued.size !== 0 || owner.framework.skipped.size !== 0) {
-      state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true;
-    }
-    throw error;
-  }
-}
-
 /** Borrow only this complete root predicate domain. Source-policy collections
  * retain id order and exclude archives; final authority sees the actual final
  * owning overlay while the original query guard retains its intermediate rows. */
@@ -10366,7 +10146,7 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
   const policy=captureSourcePolicyTable(bound,producer.policy,'SEND DATA policy differs from its owning model.');
   const readPolicies=captureSourceReadPolicies(producer.readPolicies);
   const sites=list(dataCopy(producer.sites)).map(value=>{
-    const site=object(value,['source','owner','node','operation','binding','parameters',...(Object.hasOwn(value as object,'queries')?['queries']:[])]);origin(site['source']);
+    const site=object(value,['source','owner','node','operation','binding','parameters',...(typeof value==='object'&&value!==null&&Object.hasOwn(value,'queries')?['queries']:[])]);origin(site['source']);
     if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source))return invalid('SEND DATA source owner mismatch.');
     const node=object(site['node'],['start','end']);
     if(!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid('SEND DATA occurrence is invalid.');
@@ -10512,7 +10292,7 @@ export function bindScenarioSourceEmitDataProducer(def:GeneratedOperationDef,pro
   const readPolicies=captureSourceReadPolicies(producer.readPolicies);
   const events=list(dataCopy(producer.events)).map(text);if(events.length>200||new Set(events).size!==events.length)return invalid('EMIT DATA declared event census is invalid.');
   const sites=list(dataCopy(producer.sites)).map(value=>{
-    const site=object(value,['source','owner','node','event','parameters',...(Object.hasOwn(value as object,'references')?['references']:[]),...(Object.hasOwn(value as object,'queries')?['queries']:[])]);origin(site['source']);
+    const site=object(value,['source','owner','node','event','parameters',...(Object.hasOwn(value as object,'references')?['references']:[]),...(typeof value==='object'&&value!==null&&Object.hasOwn(value,'queries')?['queries']:[])]);origin(site['source']);
     if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source))return invalid('EMIT DATA source owner mismatch.');
     const node=object(site['node'],['start','end']);
     if(!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid('EMIT DATA occurrence is invalid.');
@@ -12695,6 +12475,9 @@ export function noteRetainedEventAdmission(call: AdmittedCall, admission: Retain
   retainedEventAdmissions.set(call, deepFreeze(raw) as unknown as RetainedEventAdmission);
 }
 const dueWorkAdmissions = new WeakMap<AdmittedCall, DueWorkAdmission>();
+const retainedDueAdmissions=new WeakMap<AdmittedCall,{refused:boolean}>();
+function hasRetainedWorkAdmission(call:AdmittedCall):boolean{return retainedGuardedAdmissions.has(call)||retainedDueAdmissions.has(call);}
+
 export function noteDueWorkAdmission(call: AdmittedCall, admission: DueWorkAdmission): void {
   if (dueWorkAdmissions.has(call)) return invalid('duplicate due Work admission for one admitted call.');
   if (typeof admission !== 'object' || admission === null || Array.isArray(admission)) return invalid('due Work admission requires its defining shape.');
@@ -12720,6 +12503,21 @@ export function noteDueWorkAdmission(call: AdmittedCall, admission: DueWorkAdmis
   const context = call.context as { readonly kind?: unknown; readonly source?: unknown; readonly trustedSource?: unknown };
   if (context.kind !== 'trusted' || context.source !== 'schedule' ||
     context.trustedSource !== `schedule:${admission.event}`) return invalid('due Work admission differs from its admitted trusted schedule call.');
+  const retained=boundPlans.get(call.def as GeneratedOperationDef)?.plan.retainedGuardedHandler;
+  if(retained!==undefined){
+    const def=call.def as GeneratedOperationDef,payload=object(admission.eventPayload,def.descriptor.inputs.map(field=>field.name));
+    const write=staged as {row?:StoredRow};
+    if(retained.owner!==def.name||retained.event!==admission.event||call.context.actor!==null||scope.app!==call.context.app||scope.owner!==(call.context.team?.teamId??call.context.app)||scope.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||write.row?.data['event']!==retained.event||write.row.data['occurrenceId']!==admission.occurrenceId||write.row.data['key']!==admission.key||write.row.data['scopeOwner']!==scope.owner||write.row.data['scopeApp']!==scope.app||write.row.data['scopeOwnerPackage']!==scope.ownerPackage)return invalid('Retained due handler changed its original Work event/scope/head.');
+    for(const field of def.descriptor.inputs){
+      if(field.kind!=='ref'){if(stableStringify(payload[field.name])!==stableStringify(call.inputs[field.name]))return invalid('Retained due scalar differs from its actual Work payload.');continue;}
+      if(Object.hasOwn(def.inputArrays,field.name))return invalid('Retained due needs original singular Model inputs.');
+      if(payload[field.name]===null){if(field.nullable!==true||call.inputs[field.name]!==null)return invalid('Retained due nullable Model differs from its Work payload.');continue;}
+      const original=decodeValue(field.model,payload[field.name]) as {readonly id:string};
+      const admitted=call.recordRefs.filter(ref=>ref.param===field.name);
+      if(admitted.length!==1||admitted[0]!.model!==field.model||admitted[0]!.id!==original.id||admitted[0]!.row.archivedAt!==null)return invalid('Retained due Model differs from its actual admitted current row.');
+    }
+    retainedDueAdmissions.set(call,{refused:false});
+  }
   dueWorkAdmissions.set(call, deepFreeze(dataCopy(admission)));
 }
 function isDueWorkWrite(write: unknown): boolean {
@@ -13065,51 +12863,6 @@ function verifyMemberRetryEffects(call: AdmittedCall, decision: NonNullable<Capt
       stableStringify(item['until']) !== stableStringify(decision.term.data['until']) ||
       item['location'] !== decision.locationId || item['reference'] !== decision.term.data['source']) {
     return invalid('member retry charge item differs from its original frozen Term payload.');
-  }
-}
-function verifyInvoiceOverdueEffects(call: AdmittedCall,
-  decision: NonNullable<Capture['invoiceOverdueDecision']>, owner: ReceiptOwnerSession | undefined,
-  effects: ExecutionEffects, due: DueWorkAdmission | undefined): void {
-  const ledger = owner?.framework;
-  const dueScheduleKey = due === undefined ? null :
-    [due.scope.app, due.scope.ownerPackage, due.scope.owner, due.key].map(encodeURIComponent).join('/');
-  if (owner === undefined || owner.finalized === null || owner.commitEffects === null || ledger === null ||
-      ledger === undefined || due === undefined || call.def.name !== 'invoice.overdue' || effects.result !== null ||
-      owner.stage !== 0 || owner.finalized.writes.length !== 0 || owner.finalized.schedules.length !== 0 ||
-      stableStringify(effects.schedules) !== stableStringify([{ op: 'cancel', key: dueScheduleKey }]) ||
-      ledger.ordinal !== 1 || ledger.queued.size !== 1 ||
-      ledger.skipped.size !== 0 || effects.outbox.length !== 1 || decision.balance.minor <= 0n ||
-      decision.invoice.data['state'] !== 'issued') {
-    return invalid('overdue decision lacks its one positive guarded Mail SEND and zero business writes.');
-  }
-  const queued = ledger.queued.values().next().value;
-  if (queued === undefined || queued.intentId !== decision.deliveryId ||
-      queued.operationId !== call.context.operationId || queued.operation !== call.context.operation ||
-      queued.target !== 'std.EmailV1.send' ||
-      queued.dispatchGuard !== owner.capture.bound.invoiceOverdueDecision?.sendRule.rule ||
-      effects.outbox[0]?.intentId !== queued.intentId) {
-    return invalid('overdue Mail differs from its actual source SEND occurrence.');
-  }
-  const request = object(queued.arguments, ['binding', 'from', 'arguments']);
-  const value = request['arguments'];
-  const args = object(value, ['to', 'subject', 'body',
-    ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'attachments') ? ['attachments'] : [])]);
-  if (request['binding'] !== 'invoice.Mail' ||
-      args['to'] !== decision.invoice.data['recipient_email'] ||
-      (args['subject'] !== 'Invoice overdue' && args['subject'] !== 'Factuur achterstallig') ||
-      Object.hasOwn(args, 'attachments') && list(args['attachments']).length !== 0 ||
-      typeof args['body'] !== 'string' ||
-      !args['body'].startsWith(`${decision.invoice.data['description']} `)) {
-    return invalid('overdue Mail recipient or message differs from its original Invoice source.');
-  }
-  const url = args['body'].slice(String(decision.invoice.data['description']).length + 1);
-  let parsed: URL;
-  try { parsed = new URL(url); }
-  catch { return invalid('overdue Mail body lacks its original Invoice link.'); }
-  if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username !== '' || parsed.password !== '' ||
-      parsed.search !== '' || parsed.hash !== '' ||
-      !parsed.pathname.endsWith(`/finance/invoice/${decision.invoice.id}`)) {
-    return invalid('overdue Mail body differs from its original Invoice link.');
   }
 }
 function verifyInvoiceCollectEffects(call: AdmittedCall,
@@ -13532,6 +13285,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   let state = captures.get(call);
   const owner = ownerSessions.get(call); ownerSessions.delete(call);
   const dueAdmission = dueWorkAdmissions.get(call); dueWorkAdmissions.delete(call);
+  const retainedDue=retainedDueAdmissions.get(call);retainedDueAdmissions.delete(call);
   const retainedEventAdmission = retainedEventAdmissions.get(call); retainedEventAdmissions.delete(call);
   const retainedGuarded=retainedGuardedAdmissions.get(call);retainedGuardedAdmissions.delete(call);
   if (owner !== undefined) {
@@ -13590,6 +13344,10 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
         }
         const terminalWork = dueNotice ? returnedWork.slice(committedWork.length) : returnedWork;
         const terminalStatus = verifyDueWorkWrites(call, dueAdmission, terminalWork, effects.result);
+        if(retainedDue!==undefined){
+          const terminal=terminalWork.find(write=>typeof write==='object'&&write!==null&&(write as {model?:unknown}).model==='work.occurrence') as {row?:StoredRow}|undefined;
+          if(terminalStatus!==(retainedDue.refused?'failed':'completed')||retainedDue.refused&&(terminal?.row?.data['code']!=='require-false'||terminal.row.data['message']!=='handler requirement rejected the occurrence'))return invalid('Retained due terminal differs from its actual authored refusal.');
+        }
         // Only the actual branded authored-failure shape (empty domain, null
         // result, failed Work terminal) deliberately lacks a successful State
         // return. A completed handler with zero domain writes follows the
@@ -13632,7 +13390,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     return undefined;
   }
   if(state?.bound.plan.retainedGuardedHandler!==undefined) {
-    if(retainedGuarded===undefined || owner===undefined || effects.result!==null ||
+    if(retainedGuarded===undefined&&retainedDue===undefined || owner===undefined || effects.result!==null ||
         state.returnId!==null || state.observations.length!==0 || state.intrinsics.length!==0 || state.queries.length!==0) {
       return invalid('retained SEND frame cannot form a result association or escape its original owner.');
     }
@@ -13665,10 +13423,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     if (state?.memberRetryDecision === undefined) return invalid('member retry omitted its original owner decision.');
     verifyMemberRetryEffects(call, state.memberRetryDecision, owner, effects);
   }
-  if (bound.invoiceOverdueDecision !== undefined) {
-    if (state?.invoiceOverdueDecision === undefined) return invalid('overdue omitted its original due owner decision.');
-    verifyInvoiceOverdueEffects(call, state.invoiceOverdueDecision, owner, effects, dueAdmission);
-  }
+
   if (bound.invoiceCollectDecision !== undefined) {
     if (state?.invoiceCollectDecision === undefined) {
       return invalid('Invoice collection omitted its original complete owner decision.');

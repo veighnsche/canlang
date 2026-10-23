@@ -663,7 +663,6 @@ pub(super) fn collect_success_notice_receipt(
             leave_decide_decision: None,
             refer_reject_decision: None,
             member_retry_decision: None,
-            invoice_overdue_decision: None,
             rent_movement_refund_decision: None,
             invoice_collect_decision: None,
             rent_notice_decision: None,

@@ -69,7 +69,6 @@ mod leave_decisions;
 mod refer_decisions;
 mod rent_movement_refund_decisions;
 mod member_retry_decisions;
-mod invoice_overdue_decisions;
 mod invoice_collect_decisions;
 mod rent_notice_decisions;
 mod invoice_issue_decisions;

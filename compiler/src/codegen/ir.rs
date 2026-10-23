@@ -4552,6 +4552,7 @@ pub enum IrStmt {
         operation: String,
         args: TypedExpr,
         when: Option<TypedExpr>,
+        when_at_source: bool,
         binding: Option<String>,
         /// Exact importing module/alias key in appDefinition.bindings.
         deployment_binding: Option<String>,
@@ -11487,6 +11488,7 @@ impl<'a> Cx<'a> {
                     .as_ref()
                     .map(|key| self.decode_anchored(scope, key, &format!("{what} send guard"))),
                 binding: effect.binding.clone(),
+                when_at_source: effect.when_at_source,
                 span,
             };
         }
@@ -11530,6 +11532,7 @@ impl<'a> Cx<'a> {
                 .as_ref()
                 .map(|key| self.decode_anchored(scope, key, &format!("{what} send guard"))),
             binding: effect.binding.clone(),
+            when_at_source: effect.when_at_source,
             deployment_binding,
             span,
         }
