@@ -1,14 +1,34 @@
 # Remaining implementation tasks
 
-Updated after the seven implementation commits ending at `eb8a8544` on 23 October 2026. This is the execution checklist for the audit-derived backlog: **21 open named packets**, plus the next native-diagnostic measurement. Nine packets have implemented results below; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
+Updated after the seven implementation commits ending at `eb8a8544` on 23 October 2026. This is the execution checklist for the audit-derived backlog: **21 open named packets**, plus the diagnostic repair identified by the completed measurement below. Nine packets have implemented results below; File admission retains the stated support limits. Packet counts are not estimates of effort or diagnostic counts.
 
 The [reviews](reviews/index.md) retain the original source reasoning at audit baseline `8d48f969`. Current completion status is recorded here. The [broader product roadmap](../implementation/REMAINING-WORK.md) also contains older feature proposals and app-specific requirements; this checklist does not declare all of those satisfied or all external app semantics reviewed.
 
 ## Start here
 
-- [ ] **Measure the current full native corpus.** Run the existing complete native corpus check once against current source and correctly built producers (the last recorded corpus contained 26 sources). Record the complete diagnostic list by source, code and owning mechanism, including any omissions or timeouts. Keep native compilation separate from analysis-only results. The last recorded full run had **56 diagnostics before the latest seven commits**; the current count is unknown. Use this result to select the next shared repair toward zero, rather than guessing which backlog item removes which diagnostics. Do not suppress diagnostics, omit sources, enlarge timeouts or weaken permissions to reach zero.
+- [x] **Measure the current full native corpus.** On 23 October 2026 the retained [24-operand command](../implementation/REMAINING-WORK.md#next-original24-composition-capture--outcome14--t41) ran against the current `compiler/target/debug/can` and owning `packages/values/dist/catalog.json`. All 24 operands exist; compiler source inputs are older than the executable. It returned exit **10** in **6.862 seconds**, `complete:true`, `omitted:0`, with **26 sources** and **five E3001 analysis errors**. No timeout or source omission occurred. The CLI stops on these analysis errors before `codegen::emit`; the current downstream native-emission diagnostic count is therefore **unmeasured**, not five or zero. The historical 56 native diagnostics have not been demonstrated resolved.
 
-After that measurement, start with generation retry correctness and the development lifecycle fixes below. A demonstrated repeated compiler/runtime root may move ahead of that order. Independent ready work can proceed without waiting for unrelated design questions.
+- [ ] **Next: repair CanLeave's example binding/enum ambiguity, then repeat the full native compile.** Five expected `pending` enum values resolve to the declared `pending` Request fixture. Resolve the owning source/example spelling while preserving intended outcomes, lexical-binding precedence, expected-value compatibility checks and permission behavior. Do not relax the checker to accept a Request as an enum. Verify the affected original examples and repeat the unchanged full composition to expose any downstream emission diagnostics. Attribute those before choosing the next shared repair toward zero.
+  - Owner: `draft/apps/CanLeave/CanLeave.can`; compiler resolution/expected-value validation defines the contract. This is one shared cause with five occurrences, not five independent repairs. No source fix was started during the measurement turn.
+
+<details>
+<summary>Complete current diagnostic list and phase attribution</summary>
+
+All five diagnostics occur in [CanLeave](../../draft/apps/CanLeave/CanLeave.can). The authored `fixture pending=Request` shares its spelling with the `pending` enum case. The resolver's lexical binding precedes enum cases; expected-value checking reports the resulting Request/enum mismatch.
+
+| Source position | Code | Complete diagnostic message | Owning cause |
+| --- | --- | --- | --- |
+| CanLeave.can:136:52 | E3001 | example expected value: expected enum(none,pending,confirmed,conflict,unavailable), found Request | `pending` Request fixture shadows expected sync enum case |
+| CanLeave.can:157:48 | E3001 | example expected value: expected enum(none,pending,released,failed,unknown), found Request | Same binding shadows expected release-state enum case |
+| CanLeave.can:174:131 | E3001 | example expected value: expected enum(none,pending,released,failed,unknown), found Request | Same binding in sequence expected release state |
+| CanLeave.can:219:161 | E3001 | example expected value: expected enum(none,pending,confirmed,conflict,unavailable), found Request | Same binding in reserve-result expected sync state |
+| CanLeave.can:236:167 | E3001 | example expected value: expected enum(none,pending,released,failed,unknown), found Request | Same binding in release-result expected state |
+
+Source completeness covers the 24 explicit operands and two saved generated contributions. The compile command already enables `--native-scenario-receipts`; that flag does not bypass the earlier analysis failure gate. `compiler/src/cli/compile.rs::run_compile` returns diagnostics at `result.has_errors()` before calling `codegen::emit`. Do not compare this five-error earlier-phase envelope directly with the historical 56-error emission envelope as a reduction. The approximately seven-second run did not perform the downstream emission work measured in the historical longer runs.
+
+</details>
+
+After the diagnostic repair and attribution above, start with generation retry correctness and the development lifecycle fixes below unless the full compile demonstrates another shared root deserving earlier priority. Independent ready work can proceed without waiting for unrelated design questions.
 
 ## 1. Fix request replay and development lifecycle
 
