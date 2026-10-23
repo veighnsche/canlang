@@ -3177,3 +3177,50 @@ it('retains original admitted booking identity through the complete no-show evid
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('sends the complete original Quote derived Contract with stored intervals and contained lines', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-quote-derived-contract-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/propose-document-derived-contract.can'),original=await readFile(join(root,'draft/apps/CanPropose/CanPropose.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  export scenario document('),end=original.indexOf('   examples ',start);
+  assert.ok(text.includes(original.slice(start,end)),'complete original guard, SEND and SET');
+  for(const prefix of ['  derive Revision.snapshot:','  export contract QuoteDocument ','  export contract QuoteLine ','  export contract QuoteInterval '])assert.ok(text.includes(original.split('\n').find(line=>line.startsWith(prefix))!),'exact original '+prefix);
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','hidden-child','foreign-child','denied-root','denied-snapshot','denied-intervals','denied-tax','false-prefix','child-race','child-grant-race','child-insert-race','interval-race','grant-race','identity-race']){
+   const {now,identities,identity,team,user,membership}=await member('quote-derived-'+mode,['propose.salesperson']);
+   const scope={app:'CanPropose',owner:team.team_id,ownerPackage:'propose'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'quote-state',fileStoreId:'quote-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+   await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+   const intervals=[{from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T10:00:00.000Z'}],money={minor:'1000',currency:'EUR'},zero={minor:'0',currency:'EUR'};
+   const revision=row('revision',{number:'1',issuer_snapshot:'Frozen issuer',title_snapshot:'Frozen title',location_snapshot:'Frozen location',customer_snapshot:'Frozen customer',resource:null,quantity:'2',seats:'4',recipient_email:user.email,from:intervals[0]!.from,until:intervals[0]!.until,intervals,terms:'Original terms',refund_before:intervals[0]!.from,expires:'2099-01-01T08:00:00.000Z',total:money,state:mode==='false-prefix'?'withdrawn':'sent',document:null,document_state:'none',root_visible:mode!=='denied-root',snapshot_visible:mode!=='denied-snapshot',intervals_visible:mode!=='denied-intervals'},{model:model('propose','Proposal'),id:asId('proposal')});
+   const child={model:model('propose','Revision'),id:revision.id},item=row('item-a',{title:'Original line',quantity:'2',unit:'hour',price:money,tax:zero,discount:zero,hidden:mode==='hidden-child',tax_visible:mode!=='denied-tax'},child);
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:model('customer','Customer'),row:row('customer',{active:true})},
+    {kind:'insert',model:model('rent_catalog','Location'),row:row('location',{active:true})},
+    {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:'location'},locations:[],operator_wide:false,active:true,hidden:true})},
+    {kind:'insert',model:model('propose','Proposal'),row:row('proposal',{location:{id:'location'}},{model:model('customer','Customer'),id:asId('customer')})},
+    {kind:'insert',model:model('propose','Revision'),row:revision},{kind:'insert',model:model('propose','Item'),row:item},
+    ...(mode==='foreign-child'?[{kind:'insert' as const,model:model('propose','Revision'),row:{...revision,id:asId('foreign')}},{kind:'insert' as const,model:model('propose','Item'),row:{...item,id:asId('foreign-item'),data:{...item.data,title:'Foreign secret'},parent:{model:model('propose','Revision'),id:asId('foreign')}}}]:[])]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(name,id)=>{if(!raced&&mode==='identity-race'&&name==='work.dispatch'){raced=true;await identities.removeMembership(membership.membership_id);}return load(name,id);};
+   store.commit=async batch=>{if(!raced&&mode.endsWith('-race')&&mode!=='identity-race'&&batch.writes.some(write=>write.model==='work.dispatch')){
+    raced=true;const isChild=mode.startsWith('child-'),name=isChild?model('propose','Item'):model('propose','Revision'),old=await load(name,isChild?item.id:revision.id);assert.ok(old);
+    if(mode==='child-insert-race')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:name,row:{...old,id:asId('item-b'),data:{...old.data,title:'New line'}}}]}));
+    else await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:name,id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,...(isChild?mode==='child-grant-race'?{tax_visible:false}:{title:'Concurrent line'}:mode==='interval-race'?{intervals:[]}:{snapshot_visible:false})}}}]}));
+   }return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'propose.document',operation_id:operationId(now),inputs:{revision:{id:'revision',version:'1'}}};
+   const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-child','foreign-child','child-race','child-insert-race'].includes(mode);
+   assert.equal('result'in result,success,mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const pending=await store.outboxPending();assert.equal(pending.length,success?1:0,mode);assert.equal((await load(model('propose','Revision'),revision.id))?.data['document_state'],success?'pending':'none',mode);
+   if(success){const snapshot=(pending[0]!.arguments as {arguments:{snapshot:unknown}}).arguments.snapshot;
+    const receipt=await load(asModel('work.receipt'),pending[0]!.intentId as ReturnType<typeof asId>),origin=receipt?.data['filePayloadOrigin'] as {origin?:{kind:string;declaration?:{canonical?:{capability:string;operation:string}}}}|undefined;
+    assert.equal(origin?.origin?.kind,'delivery-result','pending receipt retains its genuine File result origin');
+    assert.equal(origin?.origin?.declaration?.canonical?.capability,'propose.DocumentsV1');
+    assert.equal(origin?.origin?.declaration?.canonical?.operation,'quote');
+    assert.deepEqual(snapshot,{issuer:'Frozen issuer',customer:'Frozen customer',resource:null,quantity:'2',attendees:'4',recipient:user.email,title:'Frozen title',location:'Frozen location',from:intervals[0]!.from,until:intervals[0]!.until,intervals,terms:'Original terms',refund_before:intervals[0]!.from,expires:'2099-01-01T08:00:00.000Z',lines:mode==='hidden-child'?[]:[{title:mode==='child-race'?'Concurrent line':'Original line',quantity:'2',unit:'hour',price:money,tax:zero,discount:zero},...(mode==='child-insert-race'?[{title:'New line',quantity:'2',unit:'hour',price:money,tax:zero,discount:zero}]:[])],total:money});
+    assert.ok('result'in await invoker.invokeMutation(request,identity));assert.deepEqual(await store.outboxPending(),pending,'replay retains frozen original snapshot');}
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

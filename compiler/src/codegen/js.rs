@@ -5047,6 +5047,7 @@ pub struct Emitter<'a> {
     source_data_emits: HashMap<Span, serde_json::Value>,
     source_body_loops: HashMap<String, serde_json::Value>,
     source_data_body: bool,
+    source_send_data_body: bool,
     source_cancels: HashMap<Span, serde_json::Value>,
     source_schedules: HashMap<Span, serde_json::Value>,
     source_require_identity: Option<serde_json::Value>,
@@ -5300,6 +5301,7 @@ impl<'a> Emitter<'a> {
             source_data_emits: HashMap::new(),
             source_body_loops: HashMap::new(),
             source_data_body: false,
+            source_send_data_body: false,
             source_cancels: HashMap::new(),
             source_schedules: HashMap::new(),
             source_require_identity: None,
@@ -8764,7 +8766,10 @@ impl<'a> Emitter<'a> {
                             model: owner,
                             expr: Some(body),
                             ..
-                        } if *owner == model && item.name == *field && body.ty == expr.ty => {
+                        } if *owner == model && item.name == *field && (body.ty == expr.ty
+                            || self.source_data_body && matches!((&body.ty,&expr.ty),
+                                (ResolvedType::Record{symbol:a,..},ResolvedType::Record{symbol:b,..})
+                                    if a==b && self.ir.items.get(a.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Contract{..})))) => {
                             Some(body.clone())
                         }
                         _ => None,
@@ -12128,6 +12133,18 @@ fn null_equality(
         match &query.domain {
             crate::codegen::ir::IrQueryDomain::Model(model) => {
                 if self.source_data_body {
+                    if self.source_send_data_body {
+                    let source=self.source_data_sends.values().filter_map(|source|source["queries"].as_array()).flat_map(|queries|queries.iter())
+                        .find(|source|source["node"]["file"]==span.file.0&&source["node"]["start"]==span.start&&source["node"]["end"]==span.end).cloned();
+                    if let Some(source)=source{
+                        self.stdlib.insert("nativeScenarioSourceSendQuery".into());
+                        let parent=self.lower_expr(query.parent.as_deref().expect("checked contained DATA parent"));
+                        let fetched=format!("await nativeScenarioSourceSendQuery(c,{}, {parent},async()=>{{throw new Error(\"unissued source query\");}})",js_string(source["id"].as_str().expect("checked DATA query id")));
+                        return self.append_select(&fetched,true,query);
+                    }
+                    self.unsupported("SEND DATA query","original contained domain lacks its independent DATA census",span);
+                    return self.throw_expr("unsealed SEND DATA query");
+                    }
                     let source=self.source_data_emits.values().filter_map(|source|source["queries"].as_array()).flat_map(|queries|queries.iter())
                         .find(|source|source["node"]["file"]==span.file.0&&source["node"]["start"]==span.start&&source["node"]["end"]==span.end).cloned();
                     let Some(source)=source else{self.unsupported("EMIT DATA query","original aggregate domain lacks its independent DATA census",span);return self.throw_expr("unsealed EMIT DATA query");};
@@ -13054,7 +13071,12 @@ fn null_equality(
                     )];
                 }
                 self.stdlib.insert("send".to_string());
+                let previous_data_body=self.source_data_body;
+                let previous_send_data_body=self.source_send_data_body;
+                if self.source_data_sends.get(span).is_some_and(|source|source["parameters"].as_array().is_some_and(|parameters|parameters.iter().any(|parameter|parameter.get("derived").is_some()))){self.source_data_body=true;self.source_send_data_body=true;}
                 let args_text = self.lower_expr(args);
+                self.source_data_body=previous_data_body;
+                self.source_send_data_body=previous_send_data_body;
                 let mut options = Vec::new();
                 if let Some(binding) = deployment_binding {
                     options.push(format!("binding:{}", js_string(binding)));
@@ -20886,7 +20908,7 @@ impl<'a> Emitter<'a> {
                     } else {
                         self.lower_business_expr(expr, "formatted ordinary derived field")
                     };
-                    derives.push(format!("{}:async(c,row)=>{body_text}", js_string(&key)));
+                    derives.push(format!("{}:async(c,row)=>({body_text})", js_string(&key)));
                 }
                 None => {
                     derives.push(format!(

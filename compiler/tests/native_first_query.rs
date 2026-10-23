@@ -2751,3 +2751,26 @@ fn original_no_show_retains_required_event_identity_and_complete_created_tail() 
   let(db,program,_,catalog)=fixture_source("different-root-event.can",&altered);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
  }
 }
+
+#[test]
+fn original_quote_derived_contract_seals_body_schema_and_child_domain() {
+ let source=include_str!("fixtures/propose-document-derived-contract.can");
+ let(db,program,_,catalog)=fixture_source("quote-derived-contract.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
+ assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ assert!(artifact["operations"].as_array().unwrap().iter().any(|operation|operation["name"]=="propose.document"));
+ for name in ["propose.QuoteLine.title","propose.QuoteInterval.from","propose.Revision.intervals"]{
+  let(db,mut changed,_,catalog)=fixture_source("quote-schema-substitution.can",source);
+  let field=changed.symbols.iter().find(|symbol|symbol.canonical==name).unwrap().id;
+  changed.types.symbol_types.insert(field,ResolvedType::Scalar(Scalar::Int));
+  let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);
+  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+ }
+ for (mode,member) in [("protected-file","file"),("stored-model","Revision")]{
+  let changed=source.replace("export contract QuoteInterval { from:datetime, until:datetime }",&format!("export contract QuoteInterval {{ from:{member}, until:datetime }}"));
+  assert_ne!(source,changed);
+  let(db,program,_,catalog)=fixture_source(&format!("quote-{mode}.can"),&changed);
+  let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {diagnostics:?}");
+ }
+}

@@ -1,0 +1,66 @@
+app CanPropose uses=[propose]
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+  policy Location read=members
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+package customer
+ Given
+  export Customer {active:bool=true}
+  export Contact in Customer {account:user?}
+  policy Customer read=members
+  policy Contact read=members
+ When
+ Then
+package propose
+ use customer {Customer,Contact}
+ use rent_catalog {Location}
+ use employee {can_work}
+ use propose {DocumentsV1 as Documents} from=deployment.documents
+ Given
+  message heading_itemized_quote = "Itemized quote"@{nl="Gespecificeerde offerte"}
+  message label_QuoteLine_tax = "Tax"@{nl="Belasting"}
+  message label_QuoteLine_discount = "Discount"@{nl="Korting"}
+  message label_QuoteDocument_issuer = "Issuer"@{nl="Uitgever"}
+  message label_QuoteDocument_recipient = "Recipient"@{nl="Ontvanger"}
+  message label_QuoteDocument_from = "Start"@{nl="Begin"}
+  message label_QuoteDocument_until = "End"@{nl="Einde"}
+  message label_QuoteDocument_terms = "Terms"@{nl="Voorwaarden"}
+  message label_QuoteDocument_expires = "Expires at"@{nl="Vervalt op"}
+  message label_QuotePdf_document = "Generate quote document"@{nl="Offertedocument genereren"}
+  message label_Revision_resource = "Resource reference"@{nl="Referentie voorziening"}
+  message label_Revision_seats = "Seats"@{nl="Plaatsen"}
+  export contract QuoteLine { title:text, quantity:decimal, unit:text, price:money, tax:money label=label_QuoteLine_tax, discount:money label=label_QuoteLine_discount } label="Quote line"@{nl="Offerteregel"}
+  export contract QuoteInterval { from:datetime, until:datetime } label="Quoted access interval"@{nl="Geoffreerd toegangstijdvak"}
+  export contract QuoteDocument { issuer:text label=label_QuoteDocument_issuer, customer:text, resource:text?, quantity:int, attendees:int, recipient:email label=label_QuoteDocument_recipient, title:text, location:text, from:datetime label=label_QuoteDocument_from, until:datetime label=label_QuoteDocument_until, intervals:QuoteInterval[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"}, terms:text label=label_QuoteDocument_terms, refund_before:datetime label="Refund deadline"@{nl="Terugbetalingsdeadline"}, expires:datetime label=label_QuoteDocument_expires, lines:QuoteLine[]! label="Lines"@{nl="Regels"}, total:money } label="Quote document"@{nl="Offertedocument"}
+  export contract QuotePdf { source:text label="Source reference"@{nl="Bronreferentie"}, document:file label=label_QuotePdf_document, revision:int } label="Quote PDF"@{nl="Offerte-PDF"}
+
+  export capability DocumentsV1 version=1
+   quote(source:text,snapshot:QuoteDocument,revision:int) -> QuotePdf
+  role salesperson
+  export Proposal in Customer {location:Location}
+  export Revision in Proposal {number:int,issuer_snapshot:text,title_snapshot:text,location_snapshot:text,customer_snapshot:text,resource:text?,quantity:int,seats:int,recipient_email:email,from:datetime,until:datetime,intervals:QuoteInterval[],terms:text,refund_before:datetime,expires:datetime,total:money,state:enum(draft,sent,accepted,declined,withdrawn)=sent,document:delivery(Documents.quote)?,document_state:enum(none,pending,ready,failed,unknown,skipped)=none,root_visible:bool=true,snapshot_visible:bool=true,intervals_visible:bool=true}
+  export Item in Revision {title:text,quantity:decimal,unit:text,price:money,tax:money,discount:money,hidden:bool=false,tax_visible:bool=true}
+  derive Revision.snapshot:QuoteDocument = QuoteDocument {issuer=row.issuer_snapshot,customer=row.customer_snapshot,resource=row.resource,quantity=row.quantity,attendees=row.seats,recipient=row.recipient_email,title=row.title_snapshot,location=row.location_snapshot,from=row.from,until=row.until,intervals=row.intervals,terms=row.terms,refund_before=row.refund_before,expires=row.expires,lines=row.Item as item select QuoteLine {title=item.title,quantity=item.quantity,unit=item.unit,price=item.price,tax=item.tax,discount=item.discount},total=row.total}
+  policy Proposal read=members
+  policy Revision read=members and row.root_visible fields=number,issuer_snapshot,title_snapshot,location_snapshot,customer_snapshot,resource,quantity,seats,recipient_email,from,until,terms,refund_before,expires,total,state,document,document_state,root_visible,snapshot_visible,intervals_visible
+  policy Revision read=members and row.root_visible and row.snapshot_visible fields=snapshot
+  policy Revision read=members and row.root_visible and row.intervals_visible fields=intervals
+  policy Item read=members and not row.hidden fields=title,quantity,unit,price,discount,hidden,tax_visible
+  policy Item read=members and not row.hidden and row.tax_visible fields=tax
+ When
+  export scenario document(revision:Revision) by=salesperson or authenticated label=label_QuotePdf_document
+   require revision.state in [sent,accepted,declined] and ((salesperson and can_work(actor,revision.parent.location)) or (actor.email_verified and actor.email==revision.recipient_email))
+   do
+    send Documents.quote {source=revision.id,revision=revision.number,snapshot=revision.snapshot} as delivery
+    set revision {document=delivery,document_state=pending}
+ Then

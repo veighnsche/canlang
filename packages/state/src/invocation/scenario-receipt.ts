@@ -9956,7 +9956,7 @@ export interface ScenarioSourceSendDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly operation:string;readonly binding:string;
   readonly parameters:readonly {readonly name:string;readonly model:ModelName;
-    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
+    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly derived?:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
   readonly queries?:readonly ScenarioSourceSendQuerySource[];
 }
 interface SourceSendDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceSendDataSource[];}
@@ -9964,9 +9964,38 @@ const sourceSendDataProducers=new WeakMap<GeneratedOperationDef,SourceSendDataPr
 const sourceSendDataExecutions=new WeakMap<ReceiptOwnerSession,{readonly call:AdmittedCall;readonly source:ScenarioSourceSendDataSource;
   readonly stage:number;readonly ordinal:number;readonly queries:Set<string>;sent:boolean}>();
 const consumedSourceSendData=new WeakMap<AdmittedCall,Set<string>>();
+/** Whole Values only: declared Contracts recurse; Model/File/opaque leaves
+ * cannot acquire authority through a copied effect argument. */
+function sourceSendPlainType(bound:BoundPlan,type:string,active=new Set<string>(),depth=0):boolean{
+  if(depth>=16)return false;
+  try{
+    const parsed=parseTypeId(type),base=parsed.base;
+    if(base.kind==='nominal'){
+      const name=base.path,schema=bound.valueSchema;
+      if(schema===undefined||bound.artifactModels.has(name as ModelName)||active.has(name))return false;
+      const contract=Object.hasOwn(schema.contracts,name)?schema.contracts[name]:undefined;
+      if(contract!==undefined){
+        const fields=Object.values(contract.fields);if(fields.length===0||fields.length>200)return false;
+        const next=new Set(active);next.add(name);return fields.every(field=>sourceSendPlainType(bound,field.typeId,next,depth+1));
+      }
+      return Object.hasOwn(schema.enums,name)&&schema.enums[name]!.cases.length>0&&!Object.hasOwn(schema.aliases??{},name);
+    }
+    return ['scalar','stringlike','enum','user'].includes(base.kind)&&!['file','secret','member','json','bytes'].includes(type.replace(/\[\]!?|\?/g,''));
+  }catch{return false;}
+}
 function sourceSendFieldType(bound:BoundPlan,model:ModelName,name:string,type:string):boolean{
   if(/^(int|datetime|text|email|timezone|bool|decimal|money|date|duration|currency|user)\??$/.test(type))return bound.models.get(model)?.fields.get(name)===type;
   const field=bound.artifactModels.get(model)?.fields.find(field=>field.name===name);
+  try{
+    const parsed=parseTypeId(type);
+    if(parsed.base.kind==='nominal'&&Object.hasOwn(bound.valueSchema?.contracts??{},parsed.base.path)&&sourceSendPlainType(bound,type)){
+      const canonical=bound.canonicalModels.find(item=>item.name===model)?.fields[name];
+      if(field?.default?.kind==='derived')return field.serverOnly===true&&canonical?.serverOnly===true&&canonical.default?.kind==='derived'
+        &&field.valueType===type&&canonical.valueType===type&&field.field.kind==='nominal'&&field.field.name===parsed.base.path
+        &&!parsed.array&&!parsed.nullable&&field.array===undefined&&field.nullable!==true;
+      const profile=storedNominalField(bound,model,name,type);return !profile.hasFiles;
+    }
+  }catch{return false;}
   if(field?.array!==undefined)return false;
   if(field?.field.kind==='enum'){
     const inline=`enum(${field.field.values.join(',')})${field.nullable===true?'?':''}`;
@@ -10012,7 +10041,7 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('SEND DATA needs its actual source root census.');
     const names=new Set<string>();
     for(const value of parameters){
-      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[]),...(Object.hasOwn(value as object,'derived')?['derived']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
       const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
       const loop=Object.hasOwn(parameter,'loop')?sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===parameter['loop']):undefined;
       const created=Object.hasOwn(parameter,'created')?object(parameter['created'],['id','node','stage','binding','model','parentParameter','parentModel']):undefined;
@@ -10030,6 +10059,14 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
         if(selected.has(name)||!sourceSendFieldType(bound,model,name,type)||['file','secret','member','json','bytes'].includes(type.replace(/\?$/,''))){
           return invalid('SEND DATA field differs from its owning plain scalar declaration.');
         }selected.add(name);
+      }
+      if(Object.hasOwn(parameter,'derived')){
+        const derived=list(parameter['derived']);if(derived.length===0)return invalid('SEND DATA derived census is empty.');
+        for(const value of derived){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
+          const original=bound.artifactModels.get(model)?.fields.find(field=>field.name===name);
+          if(selected.has(name)||original?.default?.kind!=='derived'||original.serverOnly!==true||!sourceSendFieldType(bound,model,name,type))return invalid('SEND DATA computed Contract differs from its original declaration.');
+          selected.add(name);
+        }
       }
       const seen=new Set<ModelName>();let ancestor:ModelName|undefined=model;
       while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
@@ -10095,7 +10132,8 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
         if(original===undefined)return invalid('SEND DATA source root was not issued.');
         const row=await owner.session!.views.final.get(parameter.model,original.id);ownerHealthy(owner);
         if(row===null||!sameModelLifetime(original,row)||owner.stage!==stage)return invalid('SEND DATA source root lifetime changed.');
-        const authority=await observeModelQuerySourceAuthority(call,store,owner,state,parameter.model,row,parameter.fields.map(field=>field.name),0,undefined,undefined,producer);
+        const computed=new Set((parameter.derived??[]).map(field=>field.name));
+        const authority=await observeModelQuerySourceAuthority(call,store,owner,state,parameter.model,row,[...parameter.fields.map(field=>field.name),...computed],0,undefined,undefined,producer,false,computed);
         rows[parameter.name]=authority.record;
       }
     },call);

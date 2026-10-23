@@ -69,6 +69,7 @@ struct Reads {
     query_spans:BTreeSet<(u32,u32,u32)>,
     steps:usize, stack:HashSet<SymbolId>,
     aggregates:bool,
+    contract_derives:bool,
     derived:BTreeMap<String,BTreeMap<String,String>>,
 }
 pub(super) fn data_type(ir:&IrProgram,ty:&ResolvedType)->Option<String>{match ty{
@@ -77,6 +78,10 @@ pub(super) fn data_type(ir:&IrProgram,ty:&ResolvedType)->Option<String>{match ty
         let owner=ir.items.get(id.0 as usize)?;Some(if matches!(owner.kind,IrItemKind::Field{owner,..}if ir.items.get(owner.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..}))){format!("enum({})",cases.join(","))}else{owner.canonical.clone()})
     },
     ResolvedType::Enum{owner:None,cases}if !cases.is_empty()=>Some(format!("enum({})",cases.join(","))),
+    ResolvedType::Record{symbol,..} if plain_value(ir,ty,0)
+        &&matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Contract{..})=>Some(ir.items[symbol.0 as usize].canonical.clone()),
+    ResolvedType::Array{element,ordered:true,nonempty:false} if plain_value(ir,ty,0)
+        &&matches!(element.as_ref(),ResolvedType::Record{symbol,..} if matches!(ir.items.get(symbol.0 as usize).map(|item|&item.kind),Some(IrItemKind::Contract{..})))=>Some(format!("{}[]",data_type(ir,element)?)),
     ResolvedType::Nullable(inner)=>Some(format!("{}?",data_type(ir,inner)?)),_=>None}}
 fn declared_field<'a>(ir:&'a IrProgram,model:SymbolId,name:&str)->Option<(&'a IrItem,&'a ResolvedType)>{
     let IrItemKind::Model{fields,..}=&ir.items.get(model.0 as usize)?.kind else{return None;};
@@ -105,10 +110,12 @@ impl Reads {
                     self.identities.entry(root.parameter.clone()).or_default().insert(field.clone());
                     self.fields.entry(root.parameter.clone()).or_default();return Some(());
                 }
-                if self.aggregates&&root.query.is_none()
+                if (self.aggregates||self.contract_derives)&&root.query.is_none()
                     &&let Some(item)=ir.items.iter().find(|item|item.name==*field&&matches!(item.kind,IrItemKind::DeriveField{model,..}if model==root.model)){
                     let IrItemKind::DeriveField{ty:IrType::Known(ty),expr:Some(body),..}=&item.kind else{return None;};
-                    if ty!=&value.ty||!matches!(ty,ResolvedType::Scalar(Scalar::Money|Scalar::Bool))||!self.stack.insert(item.id){return None;}
+                    if ty!=&value.ty||!(self.aggregates&&matches!(ty,ResolvedType::Scalar(Scalar::Money|Scalar::Bool))
+                        ||self.contract_derives&&matches!(ty,ResolvedType::Record{symbol,..} if matches!(ir.items.get(symbol.0 as usize).map(|item|&item.kind),Some(IrItemKind::Contract{..})))&&plain_value(ir,ty,0))
+                        ||!self.stack.insert(item.id){return None;}
                     self.derived.entry(root.parameter.clone()).or_default().insert(field.clone(),data_type(ir,ty)?);
                     self.fields.entry(root.parameter.clone()).or_default();
                     let mut local=env.clone();local.values.remove("row");local.roots.insert("row".into(),root.clone());
@@ -297,7 +304,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
                 }
             },
             IrStmt::Send{operation,deployment_binding:Some(binding),args,when:None,span,..}=>{
-                let mut reads=Reads::default();
+                let mut reads=Reads{contract_derives:true,..Reads::default()};
                 if reads.read(ir,context,args,env,0).is_none()||reads.fields.is_empty()||reads.fields.len()>200||reads.identities.keys().any(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))||reads.queries.values().any(|query|query["parameter"].as_str().is_some_and(|name|loop_roots.contains_key(name)||created_roots.contains_key(name))){continue;}
                 let mut parameters=Vec::new();
                 for(name,fields)in &reads.fields{
@@ -307,6 +314,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
                     if let Some(id)=loop_roots.get(name){value["loop"]=serde_json::json!(id);}
                     if let Some(created)=created_roots.get(name){value["created"]=created.clone();}
                     if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
+                    if let Some(derived)=reads.derived.get(name){value["derived"]=serde_json::json!(derived.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>());}
                     parameters.push(value);
                 }
                 let mut value=serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},

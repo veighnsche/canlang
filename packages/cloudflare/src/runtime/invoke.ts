@@ -5386,11 +5386,14 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
     const originalOperation = own(own(definition, 'operations'), def.name);
     const rawGuards = own(originalOperation, 'sendGuards');
     const entries = rawGuards === undefined ? [] : nativeCallArray(rawGuards, 200);
-    const typedResults = artifact.models?.some(model => model.fields.some(field =>
-      field.field.kind === 'delivery' && (tables.dispatchGenerationTargetProfile(
-        `${field.field.capability}.${field.field.operation}`)?.role === 'original' ||
-        field.field.capability === 'std.PaymentsV1' &&
-          ['collect', 'refund', 'cancel', 'reconcile'].includes(field.field.operation)))) === true;
+    const typedResults = artifact.models?.some(model => model.fields.some(field => {
+      if(field.field.kind!=='delivery')return false;
+      const target=`${field.field.capability}.${field.field.operation}`;
+      // The live assignment separately consumes its exact installed model,
+      // field and provider-result declaration. A matching genuine SEND route
+      // merely installs that existing receipt-origin producer in advance.
+      return bindings.some(binding=>binding.targets.some(entry=>entry.source===target));
+    })) === true;
     const packages = own(definition, 'packages');
     const owners = Object.keys(isUnknownRecord(packages) ? packages : {}).filter(name => def.name.startsWith(`${name}.`))
       .sort((left, right) => right.length - left.length);
@@ -12282,9 +12285,11 @@ async function runScenarioExecution(
         const tables = await import('@canlang/state/receipt/tables');
         const generation = (await import('@canlang/work/kernel/tables')).dispatchGenerationTargetProfile(send.target);
         currentSend();
-        if (!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.PaymentsV1.collect',
-          'std.PaymentsV1.refund', 'std.PaymentsV1.cancel', 'std.PaymentsV1.reconcile'].includes(send.target) &&
-            generation?.role !== 'original') {
+        const declaredCapability=declaration.kind==='capability'&&'capability'in declaration.canonical
+          &&'capability'in declaration.artifact
+          &&`${declaration.canonical.capability}.${declaration.canonical.operation}`===send.target
+          &&`${declaration.artifact.capability}.${declaration.artifact.operation}`===send.target;
+        if (!declaredCapability && generation?.role !== 'original') {
           return refuseRecordBinding('Receipt origin requires its original supported capability result context.');
         }
         if (generation?.role === 'original' && declaration.kind !== 'generation') {
