@@ -2179,7 +2179,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             && source_owned_updated_model_create(context, item, &creates[0]).is_some())
         || source_owned_void_member_loops(context,item).is_some());
     let copy_loop=source_context.and_then(|context|source_owned_copy_loop(context,item));
-    let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref(), event_notice.as_ref(), updated_model_owner,copy_loop.as_ref()) {
+    let sibling_loop=source_context.and_then(|context|source_owned_sibling_loop(context,item));
+    let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref(), event_notice.as_ref(), updated_model_owner,copy_loop.as_ref(),sibling_loop.as_ref()) {
         Some(sites) => sites,
         None => {
             return None;
@@ -2206,7 +2207,6 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         }
     }
     if match_effect_proofs(ir, item, models, checked, &sites, db, send_guards, source_context).is_none() {
-
         return None;
     }
     let sealed_created_tail=source_context.is_some_and(|context|checked.source_facts.as_deref()
@@ -8377,7 +8377,7 @@ fn native_count_original(
     let original = owning.next()?;
     if owning.next().is_some()
         || originals.is_empty()
-        || originals.len() > 2
+        || (originals.len() > 2 && !(originals.len() <= 200 && facts.result.is_none() && constructor_count_queries(facts).is_some()))
         || facts.queries.as_deref()?.len() >= 2 && originals.len() != 2 && constructor_count_queries(facts).is_none()
     {
         return None;
@@ -11441,6 +11441,9 @@ fn checked_created_row_operand(
                     pending.extend(else_branch);
                     *span
                 }
+                // A later loop cannot replace this earlier constructor operand.
+                // Its own source/effect proof still owns every loop execution.
+                IrStmt::For {span,..} if span.file==value.span.file && span.start>value.span.end => *span,
                 IrStmt::Require { span, .. }
                 | IrStmt::Create { span, .. }
                 | IrStmt::Send { span, .. }
@@ -15336,6 +15339,12 @@ fn match_effect_proofs(
                     ..
                 },
             ) => {
+                if source_context.and_then(|context|source_owned_sibling_loop(context,owner)).is_some_and(|plan|
+                    plan["loops"].as_array().is_some_and(|loops|loops.iter().any(|entry|entry["node"]["start"]==proof.node.start&&entry["node"]["end"]==proof.node.end))){
+                    if domain.span!=node_span(*checked_domain)||limit.span!=node_span(*checked_limit)||!matches!(limit.expr,IrExpr::Int(value)if value==i128::from(*maximum))
+                        ||item!=checked_item||body.len()!=checked_body.len()||body.iter().zip(checked_body).any(|(stmt,node)|!matches!(stmt,IrStmt::Create{span,..}if *span==node_span(*node))){return None;}
+                    continue;
+                }
                 let sealed_owner = source_context.is_some_and(|context| checked.source_facts.as_deref()
                     .and_then(|facts| facts.creates.as_deref()).is_some_and(|creates| creates.len() == 1
                         && source_owned_updated_model_create(context, owner, &creates[0]).is_some())
@@ -15978,9 +15987,16 @@ fn conditional_parameter_create_link(
     Some(())
 }
 
+/// A private original-source loop seal for contained sibling constructors.
+/// Every selected reference and ordinary CREATE keeps its own runtime authority.
+fn source_owned_sibling_loop(context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem)->Option<serde_json::Value>{
+    let checked=super::scenario_calls::checked_source(context.ir(),owner,context.db())?;
+    let source=serde_json::json!({"path":checked.source.path,"sha256":checked.source.sha256});
+    super::source_loops::collect_native(context.ir(),owner,context,&source,"")
+}
+
 /// Exact source-owned same-model copy loop after a completed Model child.
-/// The private loop producer owns every declared per-item constructor slot;
-/// ordinary schema/rule/lock staging remains mandatory for each CREATE.
+/// Ordinary schema/rule/lock staging remains mandatory for each CREATE.
 fn source_owned_copy_loop(context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem)->Option<serde_json::Value>{
     let ir=context.ir();
     context.same_scenario(ir, owner)?;
@@ -16157,6 +16173,14 @@ fn source_owned_void_create(context: &super::scenario_decisions::FreshSourceCont
     if creates.is_empty() || creates.len()>200 || !creates.iter().any(|value|std::ptr::eq(value,original)) {return None;}
     let top:Vec<_>=effects.iter().filter_map(|statement|match statement{
         IrStmt::Create{span,binding:Some(binding),when:None,..}=>Some((*span,binding)),_=>None}).collect();
+    if source_owned_sibling_loop(context,owner).is_some() {
+        let IrStmt::For{body,..}=effects.last()? else{return None;};
+        let [IrStmt::Create{span,binding:Some(binding),when:None,..}]=body.as_slice() else{return None;};
+        let mut census=top.clone();census.push((*span,binding));
+        if census.len()!=creates.len() || !census.iter().zip(creates).all(|((span,binding),source)|
+            *span==node_span(source.node) && **binding==source.binding) {return None;}
+        return Some(());
+    }
     if top.len()!=creates.len() || !top.iter().zip(creates).all(|((span,binding),source)|
         *span==node_span(source.node) && **binding==source.binding) {return None;}
     fn closed(body:&[IrStmt],depth:usize)->bool {
@@ -19103,6 +19127,7 @@ impl<'a> Sites<'a> {
         event_notice: Option<&serde_json::Value>,
         updated_model_owner: bool,
         copy_loop:Option<&serde_json::Value>,
+        sibling_loop:Option<&serde_json::Value>,
     ) -> Option<Self> {
         let IrItemKind::Scenario {
             params,
@@ -19227,6 +19252,12 @@ impl<'a> Sites<'a> {
                                 .is_some()
                         {
                             return None;
+                        }
+                        if sibling_loop.is_some_and(|plan|plan["loops"].as_array().is_some_and(|loops|loops.iter().any(|entry|entry["node"]["start"]==span.start&&entry["node"]["end"]==span.end))){
+                            let IrExpr::Query(query)=&domain.expr else{return None;};push!(Visit::Expression(query.parent.as_deref()?));
+                            push!(Visit::Expression(limit));
+                            for statement in body{let IrStmt::Create{span,..}=statement else{return None;};if out.effects.insert(context.site(*span),statement).is_some(){return None;}}
+                            continue;
                         }
                         // A proven member domain scans the whole contained
                         // collection: visit only its root parameter. Other

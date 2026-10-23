@@ -3290,3 +3290,52 @@ it('executes the original refund review with counted evidence and conditional de
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('executes the original Rent block contained sibling constructors with their complete native prefix', {timeout:300000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-rent-block-loop-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/rent-block-loop-source.can');
+  const authored=await readFile(join(root,'draft/apps/CanRent/CanRent.can'),'utf8'),fixtureSource=await readFile(source,'utf8');
+  const start=authored.indexOf('    create Downtime {parent=resource,source=operation.id,from,until,reason} as downtime');
+  const end=authored.indexOf(' as conflict',start)+' as conflict'.length;
+  assert.ok(start>=0&&fixtureSource.includes(authored.slice(start,end)),'preserves the entire original block body');
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact;
+  const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  const modes=(process.env['CAN_RENT_BLOCK_CASE']??'base,empty,null-until,large,inactive,hidden,stale,identity-race,role-race,insert-race,overflow,physical-cap').split(',');
+  for(const mode of modes){
+   const {now,identities,identity,user:actor,membership}=await member('rent-block-'+mode,['rent_reservations.reservation_manager']);
+   const {store}=createTestMemoryStorage(),parent={model:asModel('rent_reservations.Resource'),id:asId('resource')};
+   const date=(offset:number)=>new Date(now+offset).toISOString();
+   const insert=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+   const booking=(id:string,status='confirmed',owner=parent,extra:Record<string,unknown>={})=>insert('rent_reservations.Booking',id,{hidden:mode==='hidden',status,expires:date(10000),checked_in:null,checked_out:null,departure_buffer:'0',reserved_from:date(-1000),reserved_until:date(10000),...extra},owner);
+   const count=mode==='large'?1000:mode==='overflow'?1001:mode==='physical-cap'?2200:mode==='empty'?0:2;
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    insert('rent_catalog.Location','site',{active:true}),
+    insert('employee.Employee','operator',{user:{id:actor.user_id},active:mode!=='inactive',operator_wide:false,home:{id:'site'},locations:[]}),
+    insert('rent_reservations.Resource','resource',{location:{id:'site'},active:true,capacity:'7',pooled:false,timezone:'UTC'}),
+    insert('rent_reservations.Resource','other',{location:{id:'site'},active:true,capacity:'7',pooled:false,timezone:'UTC'}),
+    ...Array.from({length:count},(_,i)=>booking('booking-'+String(i).padStart(4,'0'),mode==='physical-cap'?'completed':'confirmed')),
+    booking('foreign','confirmed',{model:parent.model,id:asId('other')}),
+    booking('completed','completed'),booking('expired','held',parent,{expires:date(-1000)}),booking('outside','occupied',parent,{reserved_from:date(10000),reserved_until:date(20000)})
+   ]}));
+   const query=store.query.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.query=async spec=>{const rows=await query(spec);if(['identity-race','role-race'].includes(mode)&&!raced&&spec.model==='rent_reservations.Booking'){raced=true;if(mode==='role-race')await identities.setMembershipRoles(membership.membership_id,[]);else await identities.removeMembership(membership.membership_id);}return rows;};
+   store.commit=async batch=>{if(mode==='insert-race'&&!raced&&batch.writes.some(write=>write.model==='rent_reservations.Conflict')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[booking('raced')]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+   const request={operation:'rent_reservations.block',operation_id:operationId(now),inputs:{resource:{id:'resource',version:mode==='stale'?'2':'1'},from:date(0),until:mode==='null-until'?null:date(5000),reason:'maintenance'}};
+   const result=await invoker.invokeMutation(request,identity),success=['base','empty','null-until','large','insert-race','hidden'].includes(mode);
+   assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+   for(const name of ['Downtime','ResourcePolicy','DowntimeEvidence'])assert.equal((await query({model:asModel('rent_reservations.'+name),authority:'owner'})).length,success?1:0,mode+': atomic '+name);
+   const conflicts=await query({model:asModel('rent_reservations.Conflict'),authority:'owner'});
+   assert.equal(conflicts.length,success?count+(['insert-race','null-until'].includes(mode)?1:0):0,mode+': exact selected census');
+   if(success){
+    if(mode==='hidden'){assert.ok('result'in result);assert.ok(!JSON.stringify(result.result.records??[]).includes('"booking":'),'CONTROL selection does not expose unreadable selected references');}
+    assert.ok(conflicts.every(row=>row.parent?.id==='resource'&&row.data['reason']==='maintenance'&&row.data['downtime']===null));
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed',mode+': '+JSON.stringify(replay));
+    assert.deepEqual(await query({model:asModel('rent_reservations.Conflict'),authority:'owner'}),conflicts);
+   }
+   if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

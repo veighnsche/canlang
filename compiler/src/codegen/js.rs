@@ -3137,7 +3137,10 @@ fn emit_program_with_sources(
     }
     if native_receipts && let Some(context)=decisions.source_context {
         for owner in &ir.items {
-            if emitter.native_receipts.contains_key(&owner.id) {continue;}
+            if let Some(receipt)=emitter.native_receipts.get(&owner.id){
+                if let Some(loops)=super::source_loops::collect_native(ir,owner,context,&serde_json::to_value(&receipt.plan.source).ok().expect("checked source"),&module_path(&entry_name)){emitter.source_body_loops.insert(owner.canonical.clone(),loops);}
+                continue;
+            }
             if let Some(loops)=super::source_loops::collect(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_body_loops.insert(owner.canonical.clone(),loops);}
             if let Some(loans)=super::source_let_data::collect(ir,owner,context,&emitter.source_requires,&module_path(&entry_name)){emitter.source_let_data.extend(loans);}
             if let Some(sends)=source_only_data_sends(ir,owner,context,&emitter.source_requires,&emitter.source_let_data,&module_path(&entry_name),emitter.source_body_loops.get(&owner.canonical)) {

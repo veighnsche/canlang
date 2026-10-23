@@ -2065,7 +2065,7 @@ const sourceBodyLoopExecutions=new WeakMap<ReceiptOwnerSession,Map<string,Source
 const sourceBodyLoopItems=new WeakMap<ReceiptOwnerSession,{readonly execution:SourceBodyLoopExecution;readonly row:StoredRow}>();
 export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:ScenarioSourceBodyLoopPlan):void{
   const bound=boundPlans.get(def);
-  if(!bound?.sourceRequireOnly||invokedPlans.has(def)||sourceBodyLoopProducers.has(def)||!frameworkProducers.has(def))return invalid('Source loop needs its uninvoked original source-only framework owner.');
+  if(bound===undefined||bound.type!=='void'||invokedPlans.has(def)||sourceBodyLoopProducers.has(def))return invalid('Source loop needs its uninvoked original source-only framework owner.');
   const raw=object(dataCopy(value),['source','owner','loops']);origin(raw['source']);
   if(raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Source loop differs from its defining owner/source.');
   const loops=list(raw['loops']),ids=new Set<string>();let maximum=0,sends=0;
@@ -2081,18 +2081,22 @@ export function bindScenarioSourceLoopProducer(def:GeneratedOperationDef,value:S
         ||[node['start'],node['end'],domain['start'],domain['end']].some(value=>!Number.isSafeInteger(value))
         ||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])||Number(domain['start'])<Number(node['start'])
         ||Number(domain['end'])>Number(node['end'])||Number(domain['end'])<=Number(domain['start'])
-        ||!Number.isSafeInteger(loop['maximum'])||Number(loop['maximum'])<1||Number(loop['maximum'])>MAX_ITEMS
+        ||!Number.isSafeInteger(loop['maximum'])||Number(loop['maximum'])<1||Number(loop['maximum'])>1000
         ||!Number.isSafeInteger(loop['writes'])||Number(loop['writes'])<1||Number(loop['writes'])>4
-        ||!Number.isSafeInteger(loop['sends'])||Number(loop['sends'])<1||Number(loop['sends'])>2)return invalid('Source loop lost its exact contained input and bounded body.');
+        ||!Number.isSafeInteger(loop['sends'])||Number(loop['sends'])<0||Number(loop['sends'])>2||Number(loop['sends'])>0&&!frameworkProducers.has(def))return invalid('Source loop lost its exact contained input and bounded body.');
     ids.add(id);maximum+=Number(loop['maximum']);sends+=Number(loop['maximum'])*Number(loop['sends']);
   }
-  if(maximum>MAX_ITEMS||sends>MAX_ITEMS)return invalid('Source loop original aggregate exceeds its finite item/Work census.');
+  if(maximum>1000||sends>MAX_ITEMS)return invalid('Source loop original aggregate exceeds its finite item/Work census.');
   sourceBodyLoopProducers.set(def,deepFreeze(raw) as unknown as ScenarioSourceBodyLoopPlan);
 }
 function sourceBodyLoopLimits(def:GeneratedOperationDef):{readonly maxRows:number;readonly maxWork:number;readonly maxWrites:number}|undefined{
   const plan=sourceBodyLoopProducers.get(def);if(plan===undefined)return undefined;
-  const maxWrites=MAX_ITEMS+plan.loops.reduce((total,loop)=>total+loop.maximum*loop.writes,0),maxRows=maxWrites;
-  return Object.freeze({maxRows,maxWrites,maxWork:maxRows*MAX_ITEMS*2});
+  const maxWrites=MAX_ITEMS+plan.loops.reduce((total,loop)=>total+loop.maximum*loop.writes,0);
+  // Selection retains its source rows independently of every possible new row.
+  const maxRows=MAX_ITEMS+plan.loops.reduce((total,loop)=>total+loop.maximum*(loop.writes+1),0);
+  // Each authentic write refreshes all issued owner carriers; these reads are
+  // quadratic in the finite source/body census, in addition to field work.
+  return Object.freeze({maxRows,maxWrites,maxWork:maxRows*(MAX_ITEMS*2+maxWrites*2)});
 }
 export async function executeScenarioSourceLoop(call:AdmittedCall,store:StoragePort,input:{readonly id:string;
   readonly predicate:null|((row:StoredRow)=>Promise<boolean>)}):Promise<readonly StoredRow[]>{
@@ -2109,7 +2113,7 @@ export async function executeScenarioSourceLoop(call:AdmittedCall,store:StorageP
       const parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
       if(parent===null||!sameModelLifetime(ref.row,parent)||parent.archivedAt!==null)return invalid('Source loop parent lifetime changed.');
       const rows=await owner.session!.views.final.query({model:loop.model,parent:{model:ref.model,id:ref.id},authority:'owner',archived:'exclude',
-        order:[{field:'id',direction:'asc'}],limit:MAX_ITEMS});ownerHealthy(owner);
+        order:[{field:'id',direction:'asc'}],limit:loop.sends>0?MAX_ITEMS:owner.maxRows});ownerHealthy(owner);
       const selected=new Map<RecordId,{row:StoredRow;completed:boolean}>();
       for(const row of rows){
         if(row.archivedAt!==null||row.parent?.model!==ref.model||row.parent.id!==ref.id)return invalid('Source loop crossed its original contained live domain.');
@@ -2128,15 +2132,15 @@ export async function executeScenarioSourceLoopItem(call:AdmittedCall,store:Stor
   const state=capture(call,store),owner=ownerSessions.get(call);
   try{
     object(input,['id','row','execute']);const execution=owner===undefined?undefined:sourceBodyLoopExecutions.get(owner)?.get(input.id),entry=execution?.rows.get(input.row.id);
-    if(owner===undefined||owner.session===null||owner.framework===null||owner.busy||state.pending!==0||owner.executingCall!==call
+    if(owner===undefined||owner.session===null||owner.busy||state.pending!==0||owner.executingCall!==call
         ||execution===undefined||entry?.row!==input.row||entry.completed||sourceBodyLoopItems.has(owner)||typeof input.execute!=='function')return invalid('Source loop item lacks its unique actual original selection.');
     const current=await ownerOperation(owner,()=>owner.session!.views.final.get(execution.loop.model,entry.row.id),call);
     if(current===null||!sameModelLifetime(entry.row,current)||current.archivedAt!==null)return invalid('Source loop selected item lifetime changed.');
-    const stage=owner.stage,ordinal=owner.framework.ordinal;sourceBodyLoopItems.set(owner,{execution,row:entry.row});
+    const stage=owner.stage,ordinal=owner.framework?.ordinal??0;sourceBodyLoopItems.set(owner,{execution,row:entry.row});
     try{
       await input.execute();ownerHealthy(owner);capture(call,store);
       if(owner.busy||state.pending!==0||owner.executingCall!==call||owner.stage!==stage+execution.loop.writes
-          ||owner.framework.ordinal!==ordinal+execution.loop.sends)return invalid('Source loop item did not execute its exact original write/Work stages.');
+          ||(owner.framework?.ordinal??0)!==ordinal+execution.loop.sends)return invalid('Source loop item did not execute its exact original write/Work stages.');
       entry.completed=true;
     }finally{sourceBodyLoopItems.delete(owner);}
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
@@ -2182,7 +2186,32 @@ function sourceCopyDataBudget(limits:ReturnType<typeof sourceCopyLimits>):number
   return limits===undefined?20_000:20_000+limits.maxRows*MAX_ITEMS*4;
 }
 type CurrentScenarioReceiptSource=Pick<ProjectScenarioReceiptInput,'registry'|'app'|'identity'>;
+function savedSourceBodyLoopLimits(receipt:unknown,current?:CurrentScenarioReceiptSource):ReturnType<typeof sourceBodyLoopLimits>{
+  if(current===undefined)return undefined;
+  const own=(value:unknown,key:string):unknown=>{
+    if(typeof value!=='object'||value===null)return undefined;
+    const member=Object.getOwnPropertyDescriptor(value,key);
+    if(member!==undefined&&(!('value'in member)||!member.enumerable))return invalid('Saved loop header must contain own enumerable data.');
+    return member?.value;
+  };
+  const identity=object(dataCopy(own(receipt,'identity')),['app','owner','principal','operation','operationId']);
+  const def=current.registry.get(text(identity['operation']) as Receipt['identity']['operation']);
+  if(def===undefined||!isGeneratedOperationDef(def))return undefined;
+  const limits=sourceBodyLoopLimits(def),bound=boundPlans.get(def);
+  if(limits===undefined)return undefined;
+  if(identity['app']!==current.app||identity['owner']!==(current.identity.team?.team_id??'app')
+      ||identity['principal']!==(current.identity.actor?.user_id??'public')||referenceProducers.get(def)?.app!==current.app){
+    throw new StateError('forbidden','Saved loop scope differs from its actual current bound source.');
+  }
+  const rawPlan=own(own(own(receipt,'outcome'),'scenario'),'plan');
+  if(rawPlan===undefined)return undefined;
+  const plan=checkScenarioResultDisclosurePlan(dataCopy(rawPlan));
+  if(bound===undefined||stableStringify(bound.plan)!==stableStringify(plan))return invalid('Saved loop source differs from its current independently bound plan.');
+  return limits;
+}
 function savedSourceCopyDataBudget(receipt:unknown,current?:CurrentScenarioReceiptSource):number{
+  const bodyLimits=savedSourceBodyLoopLimits(receipt,current);
+  if(bodyLimits!==undefined)return sourceCopyDataBudget(bodyLimits);
   if(current===undefined)return 20_000;
   const own=(value:unknown,key:string):unknown=>{
     if(typeof value!=='object'||value===null)return undefined;
@@ -13635,7 +13664,7 @@ function readSavedScenarioAssociation(receipt: Receipt,
   if (returned.intrinsics?.some(dep => !intrinsics.some(entry => (entry as Record<string, unknown>)['dependencyId'] === dep.id))) {
     return invalid('missing saved intrinsic.');
   }
-  let changedMaximum=MAX_ITEMS;
+  let changedMaximum=savedSourceBodyLoopLimits(receipt,current)?.maxWrites??MAX_ITEMS;
   if(plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined)){
     const children=list(value['calls']??[]).map(entry=>{
       const saved=entry as Record<string,unknown>,scenario=saved['scenario'] as Record<string,unknown>|undefined;

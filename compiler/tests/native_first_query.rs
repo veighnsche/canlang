@@ -2791,3 +2791,45 @@ fn original_departure_keeps_its_cancel_key_and_constructor_stage() {
   assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode} borrowed original cancellation/count authority");
  }
 }
+
+#[test]
+fn contained_sibling_constructor_preserves_native_prefix_and_original_loop_closure() {
+ let source=include_str!("fixtures/rent-block-loop-source.can");
+ let (db,program,ir,catalog)=fixture_source("rent-block-loop-source.can",source);
+ let owner=item(&ir,"rent_reservations.block");
+ assert!(matches!(&ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
+ let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let module="$can$m$436f6e7374727563746f72436f756e74.mjs";
+ assert!(serialize_complete_query_receipt(&program,&ir,owner,&db,Some(&catalog),module).is_some());
+ let unprepared=js::emit_program_with_native_source_receipts(&ir,true,&db);
+ assert!(unprepared.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"raw IR cannot issue the private loop producer");
+ for mode in ["limit","parent","predicate","reference","create-parent","helper","field-type","child-owner","default"] {
+  let mut changed=ir.clone();
+  if mode=="helper" {
+   let helper=item(&changed,"rent_reservations.busy").id;
+   let IrItemKind::DeriveFn{expr:Some(value),..}=&mut changed.items[helper.0 as usize].kind else{panic!("helper");};value.expr=IrExpr::Bool(true);
+  }else if mode=="default" {
+   let field=item(&changed,"rent_reservations.Conflict.resolved").id;
+   let IrItemKind::Field{default:Some(ir::IrDefault::Literal(value)),..}=&mut changed.items[field.0 as usize].kind else{panic!("default");};value.expr=IrExpr::Bool(true);
+  }else if mode=="field-type" {
+   let field=item(&changed,"rent_reservations.Booking.reserved_from").id;
+   let IrItemKind::Field{ty,..}=&mut changed.items[field.0 as usize].kind else{panic!("field");};*ty=IrType::Known(ResolvedType::Scalar(Scalar::Text));
+  }else if mode=="child-owner" {
+   let model=item(&changed,"rent_reservations.Conflict").id;
+   let IrItemKind::Model{owner,..}=&mut changed.items[model.0 as usize].kind else{panic!("model");};*owner=ir::IrOwner::Team;
+  }else{
+   let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("scenario");};
+   let IrStmt::For{domain,limit:Some(limit),body,..}=effects.last_mut().unwrap() else{panic!("loop");};
+   if mode=="limit"{limit.expr=IrExpr::Int(1001);}
+   else if mode=="parent"||mode=="predicate"{
+    let IrExpr::Query(query)=&mut domain.expr else{panic!("query");};
+    if mode=="parent"{query.parent.as_mut().unwrap().expr=IrExpr::Name("other".into());}
+    else{query.where_pred.as_mut().unwrap().expr=IrExpr::Bool(true);}
+   }else{
+    let IrStmt::Create{input,..}=&mut body[0]else{panic!("create");};let IrExpr::Object(fields)=&mut input.expr else{panic!("fields");};
+    fields.iter_mut().find(|(name,_)|name==if mode=="reference"{"booking"}else{"parent"}).unwrap().1.expr=IrExpr::Name("other".into());
+   }
+  }
+  assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),module).is_none(),"{mode}");
+ }
+}

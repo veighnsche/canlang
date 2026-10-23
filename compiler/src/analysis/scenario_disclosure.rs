@@ -27655,6 +27655,49 @@ impl<'a> Closure<'a> {
                 Some(())
             }
 
+            /// A bounded sibling constructor retains its original prefix proof.
+            /// Native emission must independently seal the complete source loop;
+            /// this shape alone grants no collection or selected-row authority.
+            fn bounded_sibling_create_loop(&mut self,effect:&Effect,module:ModuleId,flow:Flow,calls:&[NodeKey])->Result<Vec<Flow>,DisclosureDecline>{
+                let fail=||self.fail(effect.node,"checked contained sibling constructor required");
+                if !calls.is_empty()||self.loop_node.is_some()||effect.cond.is_some()||!effect.else_effects.is_empty()||!effect.match_arms.is_empty(){return Err(fail());}
+                let [created]=effect.then_effects.as_slice()else{return Err(fail());};
+                let owner=self.effects.scenarios.values().find(|owner|owner.module==module&&owner.effects.last().is_some_and(|last|last.node==effect.node)).ok_or_else(fail)?;
+                if owner.result.is_some()||owner.on.is_some()||owner.read||created.verb!=EffectVerb::Create{return Err(fail());}
+                let domain=effect.domain.ok_or_else(fail)?;
+                let member=if let Some(query)=self.types.checked_queries.get(&domain){
+                    if query.projection.is_some()||query.clauses.iter().any(|clause|!matches!(clause.kind,CheckedQueryClauseKind::As{..}|CheckedQueryClauseKind::Where)){return Err(fail());}
+                    query.domain
+                }else{domain};
+                let (parameter,model)=self.original_loop_member_root(member,effect.node,module)?;
+                let checked=self.checked_create_source(created,module).ok_or_else(fail)?;
+                let [parent,fields @ ..]=checked.inputs.as_slice()else{return Err(fail());};
+                let (root,parent_model)=self.original_call_model_parameter(parent.value_node,created.node,module).ok_or_else(fail)?;
+                if parent.name!="parent"||root!=parameter||fields.is_empty()||fields.len()>200
+                    ||self.effects.models.get(&checked.model).is_none_or(|definition|definition.owner!=ModelOwner::ChildOf(parent_model)) {return Err(fail());}
+                let mut selected=false;
+                for field in fields{
+                    let item=matches!(self.query_binding(field.value_node),Some(Binding::ForItem{node})if *node==effect.node)
+                        &&field.ty==(ResolvedType::Record{symbol:model,stored:true});
+                    if item{selected=true;continue;}
+                    if !primitive_type(&field.ty)||!self.nodes.get(&field.value_node).is_some_and(|node|matches!(node.kind,SyntaxKind::Literal|SyntaxKind::NameRef|SyntaxKind::Name)){return Err(fail());}
+                    if self.nodes.get(&field.value_node).is_some_and(|node|matches!(node.kind,SyntaxKind::NameRef|SyntaxKind::Name))
+                        &&!matches!(self.query_binding(field.value_node),Some(Binding::Symbol(id))if owner.params.iter().any(|param|param.param==*id)){return Err(fail());}
+                }
+                if !selected{return Err(fail());}
+                let limit=effect.limit.ok_or_else(fail)?;
+                let maximum=self.db.get(limit.file).and_then(|source|source.text.get(limit.start as usize..limit.end as usize))
+                    .and_then(|text|text.trim().parse::<u16>().ok()).filter(|bound|(1..=1000).contains(bound)).ok_or_else(fail)?;
+                if self.nodes.get(&limit).is_none_or(|node|node.kind!=SyntaxKind::Literal)||self.types.node_types.get(&limit)!=Some(&ResolvedType::Scalar(Scalar::Int)){return Err(fail());}
+                let item=effect.item.clone().ok_or_else(fail)?;let (crud,defaults)=self.create_legacy_crud(&checked,checked.model,module,created.node);
+                self.proof(created,module,DisclosureEffectKind::Create{model:checked.model,crud,binding:checked.binding,defaults,inputs:checked.inputs})?;
+                self.proof(effect,module,DisclosureEffectKind::ForMember{domain,limit,maximum,item,parameter,model,body:vec![created.node]})?;
+                let mut empty=flow.clone();empty.writes.join(&empty.controls);empty.evaluated.push(DisclosureDecision{node:effect.node,calls:Vec::new(),choice:DisclosureChoice::Else});
+                let mut populated=flow;populated.evaluated.push(DisclosureDecision{node:effect.node,calls:Vec::new(),choice:DisclosureChoice::Then});
+                populated.executed_effect=true;populated.writes.join(&populated.controls);populated.writes.join(&populated.effect_guards);self.effect_visits+=1;
+                Ok(vec![empty,populated])
+            }
+
             /// A finite same-model copy constructor retains its complete original
             /// field inventory in the loop/create proofs. Its per-item reads are
             /// owned by the source loop copy producer, not a one-shot result read.
@@ -28381,7 +28424,10 @@ impl<'a> Closure<'a> {
     ) -> Result<(), DisclosureDecline> {
         let previous = self.loop_node;
         let paths = if matches!(effect.then_effects.as_slice(),[created] if created.verb==EffectVerb::Create) {
-            self.bounded_copy_loop(effect,module,flow,calls)
+            if self.effects.scenarios.values().any(|owner|owner.module==module&&matches!(owner.effects.as_slice(),[called,linked,looped]
+                if called.verb==EffectVerb::Call&&linked.verb==EffectVerb::Set&&looped.node==effect.node)){
+                self.bounded_copy_loop(effect,module,flow,calls)
+            }else{self.bounded_sibling_create_loop(effect,module,flow,calls)}
         } else {self.bounded_input_loop(effect, module, flow, calls)};
         self.loop_node = previous;
         next.extend(paths?);

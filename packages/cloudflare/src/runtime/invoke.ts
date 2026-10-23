@@ -5835,7 +5835,7 @@ async function bindNativeSourceSchedules(asm:AssembledModules,artifact:CompileAr
 
 async function bindNativeSourceBodyLoops(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,bindState:boolean):Promise<void>{
   for(const value of loaded.registry.values()){
-    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
+    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def)??def.descriptor.result?.disclosure?.source;
     if(def===undefined||source===undefined)continue;
     const callable=artifact.callables.find(callable=>callable.id===def.name&&callable.kind==='operation'&&callable.module===source.module);
     if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source loop lacks its original parameter-style operation.');
@@ -8101,7 +8101,8 @@ async function createContainmentNavigation(input: {
   const sourcePresence = new WeakMap<object, ReadonlySet<string>>();
   const used = new Set<Entry>();
   const readLimit=input.composedOwnerRows===undefined?256:
-    input.authority==='owner'&&input.preserveOwnerRows===true&&Number.isSafeInteger(input.composedOwnerRows)&&input.composedOwnerRows>0
+    (input.authority==='owner'&&input.preserveOwnerRows===true||input.authority==='viewer'&&input.sourceOwnerRows!==undefined)
+      &&Number.isSafeInteger(input.composedOwnerRows)&&input.composedOwnerRows>0
       ?input.composedOwnerRows*32:(()=>{throw new StateError('validation','Composed navigation requires its private State owner row bound.');})();
   let reads = 0;
   const sourceReads = input.sourceReadOpts === undefined ||
@@ -10467,6 +10468,7 @@ async function runScenarioExecution(
   const viewerNavigation = await createContainmentNavigation({ loaded, store: sourceOwnerRows === undefined ? overlay : opts.store,
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
     authority: 'viewer', failure: recordEngineFailure,
+    ...(sourceCopyBounds===undefined||sourceOwnerRows===undefined?{}:{composedOwnerRows:sourceCopyBounds.maxRows}),
     ...(sourceOwnerRows === undefined ? {} : { sourceOwnerRows, sourceReadOpts: opts,
       ...(opts.preferences === undefined ? {} : { sourcePreferences: opts.preferences }) }),
   });
@@ -12716,7 +12718,7 @@ async function runScenarioExecution(
     : { operation_id: call.context.operationId, inputs: call.inputs };
   let activeSourceLoopItem:{readonly id:string;readonly item:unknown;readonly row:StoredRow}|null=null;
   if(privateSourceBodyLoop!==undefined){
-    if(!sourceRequireAware||receiptStore===undefined||ownerSession===undefined||scenarioDef===undefined||callable?.inputStyle!=='parameters'||due!==undefined||cohort!==undefined)return refuseRecordBinding('Source loop lacks its actual installed source-only owner frame.');
+    if(!hasExecutionFrame||receiptStore===undefined||ownerSession===undefined||scenarioDef===undefined||callable?.inputStyle!=='parameters'||due!==undefined||cohort!==undefined)return refuseRecordBinding('Source loop lacks its actual installed source-only owner frame.');
     const actual=call as AdmittedCall,parameters=localPolicyObject(argument),selected=new Map<unknown,{readonly id:string;readonly row:StoredRow}>();
     const original=(body:Function,loop:SourceBodyLoopPlan['loops'][number],item:boolean)=>{
       const issued=localPolicyObject(privateSourceBodyLoop.original(body),['source','context']);

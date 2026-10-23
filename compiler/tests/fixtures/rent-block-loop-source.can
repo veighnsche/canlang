@@ -1,0 +1,89 @@
+app ConstructorCount uses=[rent_reservations,count_visibility]
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+  policy Location read=public
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]= []}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package rent_reservations
+ use rent_catalog {Location}
+ use employee {can_work}
+ Given
+  role reservation_manager
+  Resource {location:Location,active:bool=true,capacity:int,pooled:bool=false,timezone:timezone}
+  Downtime in Resource {source:text unique,from:datetime,until:datetime?,reason:text,active:bool=true,verified_by:user?,verification:text?}
+  contract ResourceEvidence {active:bool,capacity:int,pooled:bool,timezone:timezone}
+  ResourcePolicy in Resource {effective:datetime server=now,sequence:int,baseline:bool=false,value:ResourceEvidence}
+  unique ResourcePolicy fields=sequence
+  lock ResourcePolicy fields=effective,sequence,baseline,value
+  policy Resource read=public
+  policy Downtime read=reservation_manager and can_work(actor,row.parent.location)
+  policy ResourcePolicy read=reservation_manager and can_work(actor,row.parent.location)
+  Booking in Resource {hidden:bool=false,status:enum(held,pending,confirmed,occupied,completed,cancelled),expires:datetime,checked_in:datetime?,checked_out:datetime?,departure_buffer:duration=0m,reserved_from:datetime,reserved_until:datetime}
+  Conflict in Resource {booking:Booking,downtime:Downtime?,reason:text,resolved:bool=false,resolution:text?}
+  contract ReportDowntime {from:datetime,until:datetime?,active:bool}
+  DowntimeEvidence in Resource {sequence:int,key:text,value:ReportDowntime?}
+  policy DowntimeEvidence read=reservation_manager and can_work(actor,row.parent.location)
+  policy Booking read=reservation_manager and can_work(actor,row.parent.location) and not row.hidden
+  policy Conflict read=reservation_manager and can_work(actor,row.parent.location)
+  derive busy(b:Booking):bool = b.status in [confirmed,occupied] or (b.status in [held,pending] and now<b.expires) or (b.checked_in!=null and (b.checked_out==null or now<b.checked_out+b.departure_buffer))
+  derive report_downtime(downtime:Downtime):ReportDowntime = ReportDowntime {from=downtime.from,until=downtime.until,active=downtime.active}
+  derive resource_evidence(resource:Resource):ResourceEvidence = ResourceEvidence {active=resource.active,capacity=resource.capacity,pooled=resource.pooled,timezone=resource.timezone}
+ When
+  scenario block(resource:Resource,from:datetime,until:datetime?,reason:text) by=reservation_manager
+   require can_work(actor,resource.location) and trim(reason)!="" and (until==null or from<until)
+   do
+    create Downtime {parent=resource,source=operation.id,from,until,reason} as downtime
+    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+    create DowntimeEvidence {parent=downtime.parent,sequence=policy_snapshot_1.sequence,key=downtime.id,value=report_downtime(downtime)} as downtime_evidence_1
+    for booking in resource.Booking as b where busy(b) and b.reserved_from< (until ?? b.reserved_until) and from<b.reserved_until limit=1000
+     create Conflict {parent=resource,booking,reason} as conflict
+  scenario restore(downtime:Downtime,evidence:text) by=reservation_manager label="Restore availability"@{nl="Beschikbaarheid herstellen"}
+   require can_work(actor,downtime.parent.location) and downtime.active and trim(evidence)!=""
+   do
+    set downtime {active=false,verified_by=actor,verification=evidence}
+    create ResourcePolicy {parent=downtime.parent,sequence=count(downtime.parent.ResourcePolicy)+1,value=resource_evidence(downtime.parent)} as policy_snapshot_1
+ Then
+
+package count_visibility
+ Given
+  Root {label:text}
+  Snapshot in Root {sequence:int,hidden:bool=false}
+  Revision in Root {total:int}
+  Child in Root {allowed:bool}
+  Audit in Root {label:text}
+  policy Audit read=members
+  derive label(root:Root):text=root.label
+  policy Child read=members and row.allowed
+  policy Root read=members
+  policy Snapshot read=members and not row.hidden
+ When
+  scenario snapshot(root:Root) by=members
+   require true
+   do
+    create Snapshot {parent=root,sequence=count(root.Snapshot)+1} as snapshot
+  scenario plain_parent(root:Root,allowed:bool) by=members
+   require true
+   do
+    create Child {parent=root,allowed} as child
+    create Audit {parent=child.parent,label=label(child.parent)} as audit
+  scenario created_parent(root:Root,allowed:bool) by=members
+   require true
+   do
+    create Child {parent=root,allowed} as child
+    create Snapshot {parent=child.parent,sequence=count(child.parent.Snapshot)+1} as snapshot
+  scenario snapshot_after_writes(root:Root) by=members
+   require true
+   do
+    create Revision {parent=root,total=1} as revision
+    set root {label="revised"}
+    create Snapshot {parent=root,sequence=count(root.Snapshot)+1} as snapshot
+ Then
