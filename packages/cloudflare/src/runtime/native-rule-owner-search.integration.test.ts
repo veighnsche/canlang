@@ -11,7 +11,7 @@ import { promisify } from 'node:util';
 import type { CompileArtifact, ModelName, StoredRow } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
-import { createMemoryStorage } from '@canlang/state/storage/memory';
+import { createMemoryStorage, createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { asId, asModel, asVersion, makeBatch, makeRow } from '@canlang/state/testing/invocation/fixtures';
 import { buildInvoker } from '../worker/assembly.js';
 import { assembleModules } from './modules.js';
@@ -1238,6 +1238,77 @@ it('stages source-only unguarded SEND through the actual State Work owner withou
         }else{
           assert.equal(actual.data.last,null);assert.equal(actual.version,rootRow.version,'refusal rolls back preceding SET and staged SEND together');
         }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
+
+it('executes original rescheduling with real provider intents and unchanged original slots',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-book-body-'));
+    try {
+      const source=join(root,'compiler/tests/fixtures/book-original-source.can');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['reschedule','reschedule-room','missing-first','pending-attempt','first-read-race','unverified','wrong-actor','contact-at-commit','identity-query-race']){
+        const {now,identities,identity,user:actor,membership}=await member('book-body-'+mode);
+        const {store,probe}=createTestMemoryStorage();
+        const movement=mode.startsWith('reschedule')||['missing-first','pending-attempt','first-read-race','unverified','wrong-actor','contact-at-commit','identity-query-race'].includes(mode),room=mode.endsWith('-room');
+        const row=(model:string,id:string,data:Record<string,unknown>,parent:{model:ModelName;id:ReturnType<typeof asId>}|null=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+        const calendar={model:asModel('appointments.Calendar'),id:asId('calendar')},type={model:asModel('appointments.Type'),id:asId('type')},visit={model:asModel('appointments.Appointment'),id:asId('visit')};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          row('rent_catalog.Location','site',{active:true,timezone:'UTC'}),
+          row('rent_catalog.WeeklyHours','site-hours',{weekday:'4',opens:'09:00',closes:'18:00',close_after:'0',fold:'earlier'},{model:asModel('rent_catalog.Location'),id:asId('site')}),
+          row('employee.Employee','host',{user:{id:actor.user_id},active:mode!=='host-inactive',operator_wide:false,home:{id:'site'},locations:[]}),
+          row('customer.Customer','customer',{active:true,locations:[{id:'site'}],name:'Customer'}),
+          row('customer.Customer','other-customer',{active:true,locations:[{id:'site'}],name:'Other'}),
+          row('customer.Contact','contact',{account:{id:mode==='wrong-actor'?'other-user':actor.user_id},verified:mode!=='unverified',email:'customer@example.test',name:'Contact'},{model:asModel('customer.Customer'),id:asId(mode==='wrong-contact'?'other-customer':'customer')}),
+          row('appointments.Calendar','calendar',{location:{id:'site'},host:{id:'host'},timezone:'UTC',duration:'1800000',hours:'9-18',instructions:'Reception',cutoff:'3600000',active:true}),
+          row('appointments.Type','type',{name:'Tour',duration:'1800000',room:room?'room-1':null},calendar),
+          row('appointments.WeeklyHours','hours',{weekday:'4',opens:'09:00',closes:'18:00',fold:'earlier'},calendar),
+          row('appointments.Window','window',{from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T18:00:00.000Z',available:mode!=='blocked'},calendar),
+          ...(movement?[row('appointments.Appointment','visit',{customer:{id:'customer'},contact:{id:'contact'},from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T09:30:00.000Z',duration:'1800000',source:'original',active_source:'original',host:{id:actor.user_id},reservation_account:{id:actor.user_id},room_snapshot:room?'room-1':null,state:'confirmed',host_ok:true,room_ok:true,host_delivery:'original-host',room_delivery:null,reason:null,reason_code:null},type),
+            ...(mode==='missing-first'?[]:[row('appointments.Attempt','previous',{source:'original',kind:'initial',from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T09:30:00.000Z',previous_source:null,previous_host_revision:'1',previous_room_revision:'1',requested_by:{id:actor.user_id},state:'active',host_ok:true,room_ok:true,host_unknown:false,room_unknown:false,host_revision:'3',room_revision:'5',host_delivery:'original-host',room_delivery:null,room_confirmation:null,host_release:null,room_release:null,host_released:false,room_released:true},visit)]),
+            ...(mode==='pending-attempt'?[row('appointments.Attempt','pending',{state:'pending'},visit)]:[])]:[])
+        ]}));
+        let raced=false;
+        if(mode==='identity-query-race'){
+          const query=store.query.bind(store);
+          store.query=async spec=>{const rows=await query(spec);if(spec.model==='appointments.Attempt'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return rows;};
+        }
+        if(mode==='contact-at-commit'){
+          const commit=store.commit.bind(store);
+          store.commit=async batch=>{if(batch.writes.some(write=>write.kind==='insert'&&write.model==='appointments.Attempt')){raced=true;const contact=await store.load(asModel('customer.Contact'),asId('contact'));assert.ok(contact);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('customer.Contact'),id:contact.id,expectedVersion:contact.version,row:{...contact,version:asVersion(contact.version+1),data:{...contact.data,verified:false}}}]}));}return commit(batch);};
+        }
+        if(mode==='first-read-race'){
+          const commit=store.commit.bind(store);
+          store.commit=async batch=>{if(batch.writes.some(write=>write.kind==='insert'&&write.model==='appointments.Attempt')){raced=true;const previous=await store.load(asModel('appointments.Attempt'),asId('previous'));assert.ok(previous);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('appointments.Attempt'),id:previous.id,expectedVersion:previous.version,row:{...previous,version:asVersion(previous.version+1),data:{...previous.data,host_revision:(BigInt(String(previous.data['host_revision']))+1n).toString()}}}]}));}return commit(batch);};
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const operation=movement?'appointments.reschedule':'appointments.book',operation_id=operationId(now);
+        const inputs=movement?{visit:{id:'visit',version:'1'},from:'2099-01-01T10:00:00.000Z'}:{type:{id:'type',version:'1'},customer:{id:'customer',version:'1'},contact:{id:'contact',version:'1'},from:'2099-01-01T09:00:00.000Z'};
+        const result=await invoker.invokeMutation({operation,operation_id,inputs},identity);
+        const success=['book','book-room','reschedule','reschedule-room'].includes(mode);
+        assert.equal('result' in result,success,mode+': '+JSON.stringify(result));
+        if(['first-read-race','contact-at-commit','identity-query-race'].includes(mode))assert.equal(raced,true,mode+': the original authority or selected row changed');
+        const attempts=await store.query({model:asModel('appointments.Attempt'),authority:'owner'});
+        const created=attempts.filter(row=>row.data['source']===operation_id);assert.equal(created.length,success?1:0,mode+': attempts remain atomic');
+        assert.equal(probe.outboxAll().length,success?(room?2:1):0,mode+': genuine intents remain atomic');
+        if(success){
+          const attempt=created[0];assert.ok(attempt);assert.equal(attempt.data['kind'],movement?'movement':'initial');
+          const host=probe.outboxAll().find(intent=>intent.target==='shift.ScheduleV1.'+(movement?'stage':'reserve'));assert.ok(host);
+          const args=host.arguments['arguments'] as Record<string,unknown>;
+          assert.deepEqual(args['value'],{source:operation_id,employee:{id:actor.user_id},location:'site',from:movement?'2099-01-01T10:00:00.000Z':'2099-01-01T09:00:00.000Z',until:movement?'2099-01-01T10:30:00.000Z':'2099-01-01T09:30:00.000Z',before:'0',after:'0',skill:'host',kind:'appointment',revision:'1'});
+          assert.equal(attempt.data['host_delivery'],host.intentId);
+          if(movement){assert.equal(args['previous_source'],'original');assert.equal(args['previous_revision'],'3');assert.equal(attempt.data['previous_room_revision'],'5');}
+          if(room){const roomIntent=probe.outboxAll().find(intent=>intent.target==='rent_reservations.RoomsV1.'+(movement?'stage':'hold'));assert.ok(roomIntent);assert.equal(attempt.data['room_delivery'],roomIntent.intentId);
+            const roomArgs=roomIntent.arguments['arguments'] as Record<string,unknown>;
+            assert.deepEqual(roomArgs['value'],{source:operation_id,revision:'1',resource:'room-1',customer:'customer',account:{id:actor.user_id},from:'2099-01-01T10:00:00.000Z',until:'2099-01-01T10:30:00.000Z',quantity:'1',price:null,terms:null});
+            assert.equal(roomArgs['previous_source'],'original');assert.equal(roomArgs['previous_revision'],'5');}
+          else assert.equal(attempt.data['room_ok'],true);
+          const replay=await invoker.invokeMutation({operation,operation_id,inputs},identity);assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.equal(probe.outboxAll().length,room?2:1);
+        }
+        if(movement){const original=await store.load(asModel('appointments.Appointment'),asId('visit'));assert.ok(original);assert.equal(original.version,1);assert.equal(original.data['from'],'2099-01-01T09:00:00.000Z');assert.equal(original.data['state'],'confirmed');assert.equal(original.data['active_source'],'original');}
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });

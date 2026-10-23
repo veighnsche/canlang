@@ -5986,7 +5986,8 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     if (context === undefined && (plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined) || [...(nativeSourceSendGuards.get(def)?.values() ?? [])].some(source =>
         source.guard.inputs.some(input => loaded.models.some(model => model.name === input.type))) ||
       (nativeScenarioNominalFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
-        returned.dependencies.some(dependency => dependency.type === 'file[]')) ||
+        returned.dependencies.some(dependency => dependency.type === 'file[]' ||
+          dependency.field === 'id' && dependency.type === 'text')) ||
         loaded.models.some(model => model.name === def.descriptor.result?.type) ||
         plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dependency => dependency.field === 'parent')) ||
         nativeScenarioReferenceBindingDefersGrantFree(plan, loaded.models,

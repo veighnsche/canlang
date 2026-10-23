@@ -2187,11 +2187,12 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         return None;
     }
     let sealed_created_tail=source_context.is_some_and(|context|checked.source_facts.as_deref()
-        .and_then(|facts|facts.creates.as_deref()).is_some_and(|creates|creates.len()==1
-            && source_owned_created_return_tail(context,item,&creates[0]).is_some()));
+        .and_then(|facts|facts.creates.as_deref()).is_some_and(|creates|
+            creates.first().is_some_and(|original|source_owned_void_create(context,item,original).is_some())
+                || creates.len()==1 && source_owned_created_return_tail(context,item,&creates[0]).is_some()));
     let mut profile_scalar_pairs = HashMap::new();
     let mut profile_source_pairs = HashMap::new();
-    if created_model.is_some()
+    if (created_model.is_some() || sealed_created_tail)
         && let Some(db) = db
     {
         for (site, expressions) in &sites.members {
@@ -11291,6 +11292,7 @@ fn checked_created_row_operand(
                     *span
                 }
                 IrStmt::Require { span, .. }
+                | IrStmt::Create { span, .. }
                 | IrStmt::Send { span, .. }
                 | IrStmt::Set { span, .. }
                 | IrStmt::Emit { span, .. }
@@ -11690,10 +11692,9 @@ fn parameter_row_schema<'a>(
         .iter()
         .filter(|schema| schema.model && schema.id == symbol);
     let original = schemas.next()?;
-    let model = ir.items.get(symbol.0 as usize)?;
+    super::scenario_create_sources::reference_name(ir,owner,symbol,
+        direct_source_path_name(type_path,text)?,db)?;
     if schemas.next().is_some()
-        || model.module != owner.module
-        || direct_source_path_name(type_path, text)? != model.name
         || original.field_order.iter().any(|id| {
             ir.items
                 .get(id.0 as usize)
@@ -13312,7 +13313,7 @@ fn checked_reference_receiver_pairs<'a>(
             return None;
         }
         target
-    } else if guarded {
+    } else if guarded || matches!(leaf.ty,ResolvedType::Scalar(_)) && native_result_type(&leaf.ty) {
         let facts = super::scenario_calls::checked_source(ir, owner, db)?;
         let schema = facts
             .stored_contracts
@@ -15820,6 +15821,34 @@ fn source_owned_after_call_create(context: &super::scenario_decisions::FreshSour
     entries.iter().any(|(_, value)| checked_narrowed_call_reference(ir, owner, value, context.db()).is_some()).then_some(())
 }
 
+/// A complete public void owner may construct its original rows before a
+/// finite SEND/SET tail. The fresh whole-owner join seals every original
+/// operand and branch; schemas, query authority and effects stay independent.
+fn source_owned_void_create(context: &super::scenario_decisions::FreshSourceContext<'_>,
+    owner: &IrItem, original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate) -> Option<()> {
+    let ir = context.ir();
+    super::scenario_decisions::same_scenario_semantics(context.original(), ir, context.fresh(), owner)?;
+    let IrItemKind::Scenario {result:None,trusted:false,read:false,hook:None,event_source:None,
+        cohort:None,effects,..} = &owner.kind else {return None;};
+    let facts = super::scenario_calls::checked_source(ir,owner,context.db())?;
+    let creates = facts.creates.as_deref()?;
+    if creates.is_empty() || creates.len()>200 || !creates.iter().any(|value|std::ptr::eq(value,original)) {return None;}
+    let top:Vec<_>=effects.iter().filter_map(|statement|match statement{
+        IrStmt::Create{span,binding:Some(binding),when:None,..}=>Some((*span,binding)),_=>None}).collect();
+    if top.len()!=creates.len() || !top.iter().zip(creates).all(|((span,binding),source)|
+        *span==node_span(source.node) && **binding==source.binding) {return None;}
+    fn closed(body:&[IrStmt],depth:usize)->bool {
+        depth<64 && body.iter().all(|statement|match statement {
+            IrStmt::Let{..}|IrStmt::Require{..}|IrStmt::Set{when:None,..}
+                |IrStmt::Send{binding:Some(_),..}=>true,
+            IrStmt::If{then_branch,else_branch,..}=>closed(then_branch,depth+1)&&closed(else_branch,depth+1),
+            IrStmt::Create{binding:Some(_),when:None,..}=>depth==0,
+            _=>false,
+        })
+    }
+    closed(effects,0).then_some(())
+}
+
 /// A complete source-owned single-creation result may retain its finite
 /// conditional SEND/SET/EMIT tail. Re-lowering the entire original owner seals
 /// every ordered condition and operand; this grants no query or row authority.
@@ -15848,6 +15877,7 @@ fn scenario_create_nesting(
 ) -> Option<()> {
     let checked_schema=super::scenario_create_sources::checked_created_schema(ir,owner,models,original,db,source_context);
     checked_schema?;
+    if source_context.is_some_and(|context|source_owned_void_create(context,owner,original).is_some()) {return Some(());}
     if source_context.is_some_and(|context|
         super::event_notice_audit::checked(context, owner, "checked-create").is_some()) { return Some(()); }
     if source_context.is_some_and(|context|
@@ -15993,6 +16023,7 @@ fn scenario_create_entries(
     if !purchase_all && checked_created_statements(ir, owner, checked, original, db).is_none()
         && source_context.and_then(|context| conditional_parameter_create_link(context, owner, original)
             .or_else(|| source_owned_after_call_create(context, owner, original))
+            .or_else(|| source_owned_void_create(context, owner, original))
             .or_else(|| source_owned_created_return_tail(context, owner, original))
             .or_else(|| source_owned_updated_model_create(context, owner, original))
             .or_else(|| checked_first_target_branch_create(context,owner,checked,original))
@@ -16031,6 +16062,7 @@ fn scenario_create_entries(
     for (((name, value), source), authored) in entries.iter().zip(inputs).zip(authored_entries) {
         let sealed_source_create = source_context.is_some_and(|context|
             source_owned_updated_model_create(context, owner, original)
+                .or_else(|| source_owned_void_create(context,owner,original))
                 .or_else(|| source_owned_created_return_tail(context, owner, original)).is_some()
                 || source_owned_copy_loop(context,owner).is_some());
         scenario_create_entry_matches(ir, owner, original, name, value, source, authored, text, db, sealed_source_create)?;

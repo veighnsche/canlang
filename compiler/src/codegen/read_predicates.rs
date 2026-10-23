@@ -434,6 +434,23 @@ fn collect_boolean_predicates(
     Some((booleans, boolean_derives))
 }
 
+/// Required business-reference receivers must be resolved only when the
+/// original read predicate reaches them. A plain identity carrier has no
+/// stored fields; treating it as a row silently turns a genuine policy false.
+fn reads_required_reference(value: &TypedExpr, depth: usize) -> bool {
+    if depth > 64 { return false; }
+    match &value.expr {
+        IrExpr::Member {base,..} => matches!(base.ty,ResolvedType::Record{stored:true,..})
+            && matches!(base.expr,IrExpr::Member{..}) || reads_required_reference(base,depth+1),
+        IrExpr::Binary {left,right,..}=>reads_required_reference(left,depth+1)||reads_required_reference(right,depth+1),
+        IrExpr::Unary {operand,..}=>reads_required_reference(operand,depth+1),
+        IrExpr::Call{args,..}|IrExpr::BoundCall{args,..}=>args.iter().any(|value|reads_required_reference(value,depth+1)),
+        IrExpr::Array(values)=>values.iter().any(|value|reads_required_reference(value,depth+1)),
+        IrExpr::Object(fields)=>fields.iter().any(|(_,value)|reads_required_reference(value,depth+1)),
+        _=>false,
+    }
+}
+
 fn collect_boolean_rules(
     context: &super::scenario_decisions::FreshSourceContext<'_>,
     ir: &IrProgram,
@@ -442,8 +459,8 @@ fn collect_boolean_rules(
     let mut boolean_rules = HashSet::new();
     for rule in ir.read_rules.iter().chain(&ir.callback_read_rules) {
         if let Some(sites)=context.serialize_rule(rule)
-            && sites.iter().any(|site|site.calls.iter().any(|call|
-                matches!(&call.target,super::scenario_decisions::SerialDecisionTarget::Builtin{id,..} if id=="active_member"))) {
+            && (reads_required_reference(&rule.pred,0) || sites.iter().any(|site|site.calls.iter().any(|call|
+                matches!(&call.target,super::scenario_decisions::SerialDecisionTarget::Builtin{id,..} if id=="active_member")))) {
             boolean_rules.insert(rule.id.clone());
             for site in sites { for call in site.calls {
                 if let super::scenario_decisions::SerialDecisionTarget::Derive {name}=call.target {boolean_derives.insert(name);}

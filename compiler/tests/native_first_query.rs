@@ -1825,3 +1825,42 @@ fn commercial_money_sums_preserve_nullable_history_guard_and_original_first() {
         assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
     }
 }
+
+#[test]
+fn original_book_and_reschedule_keep_required_reference_and_body_correspondence() {
+    let source=include_str!("fixtures/book-original-source.can");
+    let (db,program,original,catalog)=fixture_source("book-original-source.can",source);
+    for name in ["appointments.book","appointments.reschedule"] {
+        let owner=item(&original,name);
+        assert!(matches!(&original.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{name}");
+    }
+    let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    for mode in ["create-path","provider-default","effect-order","previous-predicate"] {
+        let mut changed=original.clone();
+        let name=if mode=="previous-predicate" {"appointments.reschedule"}else{"appointments.book"};
+        let owner=item(&changed,name).id;
+        if mode=="provider-default" {
+            let id=item(&changed,"shift.CommitmentRequest.before").id;
+            let IrItemKind::Field {default:Some(ir::IrDefault::Literal(value)),..}=&mut changed.items[id.0 as usize].kind else {panic!("default");};
+            value.expr=IrExpr::DurationMs(1);
+        }else{
+            let IrItemKind::Scenario {effects,..}=&mut changed.items[owner.0 as usize].kind else {panic!("scenario");};
+            if mode=="effect-order" {effects.swap(2,3);}
+            else if mode=="create-path" {
+                let IrStmt::Create {input,..}=&mut effects[0] else {panic!("create");};
+                let IrExpr::Object(entries)=&mut input.expr else {panic!("object");};
+                let (_,value)=entries.iter_mut().find(|(name,_)|name=="host").unwrap();
+                let IrExpr::Member {field,..}=&mut value.expr else {panic!("host");};
+                *field="account".into();
+            }else{
+                let IrStmt::Let {value,..}=&mut effects[0] else {panic!("first");};
+                let IrExpr::Call {args,..}=&mut value.expr else {panic!("call");};
+                let IrExpr::Query(query)=&mut args[0].expr else {panic!("query");};
+                query.where_pred.as_mut().unwrap().expr=IrExpr::Bool(true);
+            }
+        }
+        assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.0 as usize],&db,Some(&catalog),"$can$m$6170706f696e746d656e7473.mjs").is_none(),"{mode} retained altered original semantics");
+    }
+
+}

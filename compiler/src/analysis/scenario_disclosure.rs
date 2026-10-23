@@ -2974,33 +2974,29 @@ impl<'a> Closure<'a> {
         Some((parameter, branch, reference_field, profile, field.id))
     }
 
-    /// A scalar constructor input may consume its exact original required
-    /// stored-reference field. It retains both row reads; it grants neither a
-    /// reusable reference nor an eager navigation through unrelated fields.
-    fn checked_constructor_reference_scalar(&self, key: NodeKey, module: ModuleId)
+    /// A scalar may consume an original required stored reference on a
+    /// required input or its checked parent path. Retain both owning DATA
+    /// observations; the actual getter still authorizes each reached field.
+    fn checked_required_reference_scalar(&self, key: NodeKey, module: ModuleId)
         -> Option<(SymbolId, SymbolId, SymbolId, SymbolId, SymbolId)> {
         let (reference, name) = self.count_member(key)?;
         let (root, _) = self.count_member(reference)?;
-        let Binding::Symbol(parameter) = self.query_binding(root)? else { return None; };
         let (source, reference_field, target) = self.checked_required_model_reference(reference, module)?;
         let scenario = self.effects.scenarios.values().find(|scenario|
             scenario.module == module && !scenario.read && scenario.on.is_none()
             && scenario.node.file == key.file && scenario.node.start <= key.start
             && key.end <= scenario.node.end)?;
-        let parameter_data = scenario.params.iter().find(|p| p.param == *parameter)?;
-        if parameter_data.default.is_some() || self.types.value_constraints.contains_key(parameter)
-            || self.types.symbol_types.get(parameter) != Some(&ResolvedType::Record {symbol: source, stored: true})
-            || !scenario.effects.iter().any(|effect| effect.verb == EffectVerb::Create
-                && effect.args.iter().any(|argument| argument.value == Some(key))) {
-            return None;
-        }
+        let parameter = scenario.params.iter().find(|parameter|
+            parameter.default.is_none() && !self.types.value_constraints.contains_key(&parameter.param)
+                && self.checked_call_parent_path(root, parameter.param, 0)
+                    .is_some_and(|(model, _)| model == source))?.param;
         let SymbolKind::Model { fields, .. } = &self.resolve.symbols.get(target.0 as usize)?.kind else { return None; };
         let field = fields.iter().filter_map(|id| self.resolve.symbols.get(id.0 as usize))
             .find(|field| field.name == name && matches!(field.kind, SymbolKind::Field {owner, ..} if owner == target))?;
         let ty = self.types.symbol_types.get(&field.id)?;
         if !primitive_type(ty) || self.types.node_types.get(&key) != Some(ty)
             || self.types.field_reuse_sources.contains_key(&field.id) { return None; }
-        Some((*parameter, source, reference_field, target, field.id))
+        Some((parameter, source, reference_field, target, field.id))
     }
 
     /// Validate a profile scalar field declaration: owned by the profile
@@ -7290,6 +7286,10 @@ impl<'a> Closure<'a> {
                     self.resolve.symbols.get(field.0 as usize)
                         .is_none_or(|symbol| symbol.name != "appointment")))
         { return None; }
+        if scenario.params.iter().any(|parameter|
+            self.checked_call_parent_path(base, parameter.param, 0).is_some_and(|(actual, _)| actual == *model)) {
+            return Some(true);
+        }
         Some(match self.query_binding(base) {
             Some(Binding::Symbol(parameter)) => {
                 self.checked_call_parent_path(base, *parameter, 0) == Some((*model, 0))
@@ -15548,11 +15548,10 @@ impl<'a> Closure<'a> {
                 *supported = false;
                 return Some(false);
             }
-            // A leading any that composes with a companion first over the
-            // same stored model stays receipt-owned: observer-owning it
-            // would skip its flow influences, starving the native
-            // [any, first] merge of the return correspondence it seals.
-            // Standalone contained anys keep the support above.
+            // An independently admitted native [any, first] composition
+            // keeps its original flow influences and owner frame. If that
+            // exact ANY profile is unavailable, the sealed whole leading
+            // observer may own it beside the independently proven FIRST.
             if !body
                 && scenario.effects.iter().any(|binding| {
                     binding.verb == EffectVerb::Let
@@ -15562,6 +15561,10 @@ impl<'a> Closure<'a> {
                                 first.first.is_some() && first.model == fact.model
                             })
                 })
+                && scenario.guards.iter().any(|guard|
+                    guard.node.file == call.node.file && guard.node.start <= call.node.start
+                        && call.node.end <= guard.node.end
+                        && self.checked_any_query_source(scenario, guard, call.node).is_some())
             {
                 *supported = false;
                 return Some(false);
@@ -15924,6 +15927,12 @@ impl<'a> Closure<'a> {
                 && matches!(self.types.symbol_types.get(parameter), Some(ResolvedType::Nullable(inner))
                     if matches!(inner.as_ref(), ResolvedType::Scalar(_))
                         && self.source_require_plain_value(inner, 0)))
+        { *helper_query = true; }
+        // Required stored-reference guards are owner decisions too. Keep
+        // their original lazy navigation inside the independently sealed
+        // guard observer; no field grant escapes into a later expression.
+        if !body && node.kind == SyntaxKind::Member
+            && self.checked_required_reference_scalar(key, scenario.module).is_some()
         { *helper_query = true; }
         // A required input’s original nullable stored reference must keep
         // its authored null test and lazy navigation in this same observer.
@@ -17310,7 +17319,7 @@ impl<'a> Closure<'a> {
             && self
                 .checked_profile_scalar(key, module)
                 .or_else(|| self.checked_run_unfinished(key, module))
-                .or_else(|| self.checked_constructor_reference_scalar(key, module))
+                .or_else(|| self.checked_required_reference_scalar(key, module))
                 .is_none()
         {
             return Err(self.fail(
@@ -17530,6 +17539,7 @@ impl<'a> Closure<'a> {
                 && self.checked_call_parent_path(base_key, parameter, 0) != Some((model, 0))
                 && self.narrowed_model_input(base_key,module)!=Some((parameter,model))
             || !member && owner.module != module && self.narrowed_model_input(base_key,module)!=Some((parameter,model))
+                && !self.original_reference_parameter(base_key, parameter)
             || scenario.module != module
             || scenario.read
             || scenario.on.is_some()
@@ -17826,6 +17836,12 @@ impl<'a> Closure<'a> {
             .filter(|_| calls.is_empty() && self.loop_node.is_none()
                 && (matches!(value.reference_origin, Some(ReferenceOrigin::Parameter(parameter))
                     if matches!(self.query_binding(base_key), Some(Binding::Symbol(actual)) if *actual == parameter))
+                    || matches!(value.reference_origin, Some(ReferenceOrigin::Parent {parameter, model: parent, depth})
+                        if parent == model
+                            && self.checked_call_parent_path(base_key, parameter, 0) == Some((model, depth))
+                            && value.reads.iter().any(|read| read.node == base_key && read.model != model
+                                && read.field_name == "parent" && read.ty == ResolvedType::Record {symbol:model,stored:true}
+                                && read.calls.is_empty() && read.query_id.is_none()))
                     || value.first_query.is_some_and(|(_, binding)| {
                         matches!(self.query_binding(base_key), Some(Binding::Let {node}) if *node == binding)
                     })
@@ -18353,7 +18369,7 @@ impl<'a> Closure<'a> {
             field.id,
             value,
         );
-        if let Some((_, source, reference, target, scalar)) = self.checked_constructor_reference_scalar(key, module) {
+        if let Some((_, source, reference, target, scalar)) = self.checked_required_reference_scalar(key, module) {
             if !calls.is_empty() || self.loop_node.is_some() || model != target || field.id != scalar
                 || !matches!(value.model_result, Some(DisclosureModelResult::Reference {
                     model, node, source_model, field }) if model == target && node == base_key
@@ -18361,7 +18377,7 @@ impl<'a> Closure<'a> {
                 || !value.reads.iter().any(|read| read.node == base_key && read.model == source
                     && read.field == reference && read.ty == ResolvedType::Record {symbol: target, stored: true}
                     && read.calls.is_empty() && read.query_id.is_none()) {
-                return Err(self.fail(key, "constructor scalar needs its original stored reference receiver"));
+                return Err(self.fail(key, "scalar needs its original required stored reference receiver"));
             }
             value.reference_origin = None;
         }
@@ -24498,10 +24514,24 @@ impl<'a> Closure<'a> {
                     if seen.contains(name) {
                         continue;
                     }
+                    let literal_default = if let ResolvedType::Record {symbol, ..} = ty {
+                        self.effects.records.get(symbol).filter(|record| record.record == *symbol
+                            && self.resolve.symbols.get(symbol.0 as usize).is_some_and(|symbol|matches!(symbol.kind,SymbolKind::Contract{..})))
+                            .and_then(|record| record.fields.iter().find(|field|
+                                self.resolve.symbols.get(field.field.0 as usize).is_some_and(|declaration|
+                                    declaration.name == *name && matches!(declaration.kind,SymbolKind::Field{owner,..} if owner == *symbol))))
+                            .filter(|field| field.server.is_none() && !field.required_array)
+                            .and_then(|field| field.default)
+                            .filter(|default| self.nodes.get(default).is_some_and(|node| node.kind == SyntaxKind::Literal)
+                                && self.types.node_types.get(default) == Some(field_ty)
+                                && primitive_type(field_ty))
+                            .and_then(|default| self.literal_value(default).ok())
+                            .is_some_and(|values| values.len() == 1 && values[0] == ValuePath::default())
+                    } else { false };
                     if !matches!(
                         field_ty,
                         ResolvedType::Nullable(_) | ResolvedType::Array { .. }
-                    ) {
+                    ) && !literal_default {
                         return Err(self.fail(key, "missing required checked object field"));
                     }
                     for path in &mut paths {
