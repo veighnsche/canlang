@@ -2,257 +2,106 @@
 
 ## Scope and evidence status
 
-Primary: `/root/audit_platform`. Independent challenger: `/root/audit_runtime`.
-Source: `1c3f1b383ad3eb02052f8240c9f6749134210f4c` in
-`/home/vince/Projects/canlang`. This is a planning-only review. No product build,
-test, install, provider request, service, Git mutation or implementation was run
-by this reviewer. The recent overdue implementation's executed checks remain
-evidence of their recorded subjects, not qualification of every platform path.
+Product source: `8d48f969` in `/home/vince/Projects/canlang`, reconciled against the preceding structural/review source `1c3f1b38`. Primary for this refresh: `/root/refresh_platform`; independent challenger: `/root/refresh_runtime`. The preceding review's `/root/audit_platform` and `/root/audit_runtime` challenge is reused only for the unchanged boundaries it actually examined. This reviewer inspects source and edits this record; it runs no product build, test, installation, provider request, service or Git mutation.
 
-The scoped tracked inventory contains 679 paths: Cloudflare 366, Interfaces 66,
-UI 49, Testkit 29, Stdlib 5, and 164 root/CI/script/test/example/gitlink inputs.
-All scoped regular files were read for structural classification: 678 text
-files, 13,405,782 bytes, 397 program files and 6,874 top-level declaration lines.
-Sixty-six JSON documents were decoded. `packages/stdlib/tsconfig.json` is JSONC,
-so ordinary JSON decoding does not establish an error in that file. The `draft`
-gitlink is independent source ownership and belongs to the coordinator's corpus
-inventory. Structural reading/indexing is **not** substantive review of every
-function, embedded program, test assertion or established product journey.
+At the earlier source, the platform assignment structurally classified 679 tracked paths (Cloudflare, Interfaces, UI, Testkit, Stdlib and shared root/CI/script/test/example inputs). That count and its 678-text-file scan belong to the earlier baseline, not this refresh. The current [inventory](../catalogue/inventory.md) owns exact path accounting. This refresh inspected the accumulated changed production duties and their direct defining consumers: error mapping, field binding, common receipt callbacks/FIRST decoding, default overdue discovery, bundle validation/asset selection, direct Soda runtime/setup/D1/guard/packaging, and their build/release/tool joins. Unchanged Interfaces, UI, generation and preparation branches retain their earlier bounded review; retention is not a fresh correctness verdict.
 
-| Dimension | Status at this source |
+| Dimension | Current status |
 | --- | --- |
-| Responsibility coverage | All paths structurally classified; mixed duties below mapped. Substantive duty review remains partial, especially the app-specific source profiles and large test matrices. |
-| Established source workflows | Traced compiler/artifact preparation, serving admission, HTTP/MCP convergence, bound dispatch phase, browser input identity and release/install ownership. Full provider, browser, root-authority and recovery journeys are not independently requalified here. |
-| Independent challenge | Actual challenge changed the proposed invocation split and confirmed UI helper ownership, TS host fit and the CI variant gap. Remaining equivalence gates are explicit below. |
-| Exact allocation | Every existing scoped path is retained at its current owner by default; two exact successor leaves are selected below. Unproved deeper splits and conditional executor retirement are not executable relocations. |
+| Responsibility coverage | Changed platform/native-host duties and new leaves are allocated below; the shared inventory accounts for retained paths. Whole-product substantive review remains partial, especially unchanged profiles, browser/generation lifetimes and fixture assertions. |
+| Established source workflows | Changed compiler-to-bundle, serving/dispatch, direct-workerd custody, protected setup and runtime packing chains are traced below. This is source inspection, not a new installed run or qualification of every failure branch. |
+| Independent challenge | Earlier challenge still supports keeping private invocation/preclaim state together and moving neutral field/error helpers. The runtime primary independently inspected the direct host/packaging boundary and Identity atomic setup claim; its bounded acceptance is recorded below. Remaining consequential review tasks are named below. |
+| Exact allocation | New leaves have literal owners and consumers below; completed splits and executor retirement are absorbed into current source. No new platform split, process, provider or public capability constructor is selected. |
 
-The current source therefore supports a useful task list and selected extraction
-boundaries, but not an assertion that all 6,874 indexed units received a complete
-correctness audit. Unreviewed duties must remain visible in the global matrix.
+## Intended model and controlling contracts
 
-## Intended contracts and slices
+[Requirements](../../specification/REQUIREMENTS.md), [design](../../specification/DESIGN.md), the artifact/interface contracts and current owner decisions require source-owned application behavior, common browser/MCP operations and preserved permission, current identity, File custody, ordering and recovery checks. [Soda's guide](../../soda-runtime.md) describes a deliberately bounded local Linux x86_64 target; its explicit unsupported-provider and migration refusals are not evidence that those domains have working adapters. Comments naming historical lanes do not select a new architecture.
 
-Requirements come from `docs/specification/REQUIREMENTS.md` (source-owned business
-behavior, common canonical operations for browser and MCP, the full presentation
-vocabulary and generated input contracts), `DESIGN.md` sections 6–9 and 13, the
-artifact/interface contracts, and current user instructions preserving authority
-while replacing app-specific execution paths. Code comments naming historical
-lanes and future joins are not independent owner decisions.
+| Slice | Defining authority and current owner |
+| --- | --- |
+| P-ARTIFACT | Cloudflare preparation/artifact/module/source-map and deploy validation consume checked compiler output; native preparation owns its retained job transforms, while Node owns SDK/process/publication integration. |
+| P-SERVING | Worker/runtime composition and Interfaces HTTP/MCP/OAuth/uploads bind actual Identity, State and Files producers. HTTP visibility, source metadata and browser inputs do not grant State authority. |
+| P-PRESENTATION | UI controls/forms/collections and browser binding lifetimes project checked descriptors; neutral field identities have one internal owner. |
+| P-DELIVERY | Cloudflare joins actual Work sources/claims and State fences to provider transport; it does not own another durable claim machine. |
+| P-AUTHORING-HOST | Testkit/example and saved-generation controls execute selected source/tool identities, not arbitrary proof-bearing metadata. |
+| P-DISTRIBUTION | Current scripts/manifests/build/release/upgrade and native host package deliver exact selected producers and installed commands. Production Soda, Project tools and managed Worker deployment are distinct closures. |
 
-| Slice | Defining responsibility and state | Current defining source families | Dependencies |
-| --- | --- | --- | --- |
-| P-ARTIFACT | Validate and prepare a checked artifact, import closure and source maps; one terminal preparation job | Cloudflare `preparation/`, `src/preparation/`, artifact/modules/assembly-verification/sourcemap, deploy module import/map/bundle helpers | Compiler artifact and producer distribution contracts; P-DISTRIBUTION packages the selected output |
-| P-SERVING | Bind source metadata and host resources, route HTTP/MCP to canonical State admission and safe projection | Cloudflare worker/runtime composition, Interfaces HTTP/MCP/OAuth/uploads, Stdlib export assembly | State owns admission/commit/replay; Identity owns authentication/grants; Values owns codecs; Files owns receiving custody |
-| P-PRESENTATION | Canonical controls/forms/collections, page navigation and browser binding lifetime | UI source/browser/assets plus Interfaces presentation, input-choice, preference and fragment adapters | Source declarations and canonical writable/readable descriptors; no browser authority grant |
-| P-DELIVERY | Compose canonical Work/source/provider lifecycles without introducing another claim or receipt authority | Cloudflare bound dispatch/resource/queue/receipt adapters and invocation dispatch/fanout sections | Work owns durable states, State owns fences/admission, Services owns provider behavior and Files owns custody |
-| P-AUTHORING-HOST | Execute compiled examples and saved generation controls using their actual tool/source identities | Testkit, Cloudflare generation controls, source/example adapters, integration/e2e/example fixtures | Compiler and native dev owner; P-ARTIFACT assembled modules; P-SERVING canonical invocation |
-| P-DISTRIBUTION | Build/discover/pack/install/activate the complete producer closure and its installed command identities | Root manifests/config/scripts/CI; Cloudflare release/upgrade and deployment publication; package distribution metadata | Every workspace distribution owner and the native compiler/dev/preparation binaries |
+These are slices, not instructions to add packages or services.
 
-These are responsibility slices, not six new packages or processes. A mixed
-function has one defining owner; other slices are callers, not competing writers.
+## Current source workflow traces
 
-## Source workflow traces
+1. **Preparation and bundle validation.** `cli/platform.ts` delegates to `preparation/host.ts`; TS/native paths consume the same prepared artifact/host contracts. Native `preparation/src/job.rs` owns one framed job and terminal outcome; Node owns actual host requests and publication. The formerly mixed module/import/link/fingerprint checks now live in `deploy/bundle-validation.ts`, reexported by `bundle.ts`. This lets runtime-only `cli/soda-runtime.ts` validate loaded bytes without importing the build-only deploy graph. Lexer/Acorn/scope facts retain original offsets and first-error order; loading a descriptor is not source-authority admission.
+2. **Installed closure.** `deploy/producer-files.ts` resolves actual exports and `package-assets.ts` checks manifest bytes/digests/confinement. `bundle.ts` retains the defining staged graph and pins `invocation-errors.js`. Its vendor walk includes relative State/UI successors; optional Values bootstrap/glue is excluded from ordinary bundles and enters only through explicit asset selection. `stageSodaRuntimeModules` follows actual relative producer imports, merges canonical Work/Files keys and refuses conflicting bytes. It does not create another Files finalizer or serialized observation issuer.
+3. **Serving and shared receipt callbacks.** `worker/main.ts` and `worker/assembly.ts::buildInvoker` select owner storage from admitted identity and invoke canonical State mutation/read paths. `runtime/invoke.ts` retains descriptor, source, membership, row and private preclaim maps. Its `ownerDecisionCallback`, `rememberOwnerDecisionRow` and `projectOwnerDecisionDomain` replace repeated host callback/domain handling within the original execution closure. `checkedFirstQueryCensus` owns complete FIRST metadata parsing/source/hash/interval/result reconstruction for ordinary and private-due binders; caller-specific admission and refusal text stay explicit. A passing ordinary FIRST fixture does not establish nonempty private-due FIRST execution.
+4. **SEND phases and ordinary discovery.** `when_at=source` retains the original staged decision, while omitted/current mode rechecks the live predicate. Current host/source/File/Identity/claim/supersession checks still run. `native-invoice-overdue.integration.test.ts` now declares source, renamed, live and source-false variants in ordinary Node discovery, with genuine Work modes and malformed metadata/mode controls. The old environment-only discovery finding is implemented, rather than queued for another parameterization.
+5. **Presentation.** `ui/src/internal/field-binding.ts` defines pointer/name/ID/error outlets, temporal representation and boolean-presence transport once. Forms preserve existing exports, and controls consume the neutral owner. Control factories, writable/readonly decisions and render policy remain in forms/controls. `browser/bootstrap.ts` still owns mount registration, form drafts, input choices, poll/rebind/disposal and client lifetime; collection/navigation/browser lifetimes were not all rereviewed by this delta inspection.
+6. **Direct native serving and retained custody.** `cli/soda.ts` is the Project entry, selecting build-only `soda-build.ts` or runtime-only `soda-runtime.ts`. `deploy/soda-contract.ts` owns pure target support, compatibility and storage fingerprint checks; `release/version.ts` supplies side-effect-free release constants. `soda-run.ts` opens a checked private mode-0600 non-symlink lock inode on the private retained `/home` mount, acquires kernel `flock` on that descriptor and retains its open-file description. `soda-workerd.ts` stages admitted modules/config, starts the delivered guard and waits for the actual bounded workerd control response. `host/src/main.rs` arms Linux parent-death SIGKILL, checks the expected parent, retains the lock/control descriptors across exec, and replaces itself with workerd. This is a native exec guard, not a new independent long-running service. `soda-lifetime.ts` supervises the Node gateway over private IPC; normal shutdown awaits custody retirement and forced termination is failure. Public serving begins only after the private application readiness gate; internal control routes and foreign application origins refuse.
+7. **Owned D1 adapter.** `runtime/soda-d1.ts` is embedded by `deploy/workerd-config.ts` into private services, using workerd's built-in D1 client and SQLite Durable Objects. It checks bounded query/parameter input, runs each batch in `transactionSync`, waits for storage `sync` before acknowledgement and returns a bookmark. Node config declares separate database bindings, disk services, target-owned application actor and denied outbound networking. This replaces the Miniflare production SDK host, not canonical State/Identity transaction semantics. Historical partial-row/result and storage-failure coverage remain bounded to their actual evidence.
+8. **Protected first-owner setup.** `soda-setup.ts` acquires stopped provisioning custody through `provisionSodaStorage`; its public listener exposes only setup form and claim. A private owned mode-0600 token file, exact HTTPS application Origin, JSON body bound, operation, constant-time token match and expiry gate the claim. The host derives app/artifact/bundle/storage context and sends only the token digest plus those facts to prebuilt `runtime/soda-admin.ts`; the admin Worker delegates actual account/team/membership/consumed-claim mutation to Identity. No public ordinary app/auth/MCP route exposes this administrator. Receipt publication uses a private `/home` directory, exclusive temporary file, file fsync, no-replace hardlink and directory fsync; existing receipt bytes must match. Identity may commit before receipt publication fails: matching retry must recover the durable completion rather than duplicate an owner, and the host intentionally requires retry before expiry. The runtime primary independently verified the atomic Identity claim and bounded host/packaging custody; the response is recorded below.
+9. **Production versus Project packing.** `scripts/build-soda-host.mjs` builds static admin Worker bytes and the locked Rust exec guard into Cloudflare `dist/host`; the ordinary Cloudflare build now has that explicit native build join. `scripts/pack-soda-runtime.mjs` assembles a runtime-only subtree containing its Node, workerd, guard, prebuilt administrator and bundled command. Its esbuild input census rejects Miniflare/Wrangler/Testkit/compiler/build graphs; it copies the derived D1 MIT notice and runtime/dependency licenses. `pack-tools.mjs` integrates this subtree into the offline Project tools archive without making compiler/Bun/development tools startup dependencies of production. `verify-soda-direct.mjs` and `verify-soda-runtime-closure.mjs` are real finite integration drivers, not startup components or executions performed by this review.
 
-1. **Preparation:** `cli/platform.ts` dispatches the actual host commands to
-   `src/preparation/host.ts`. The selected TS or native path consumes the same
-   artifact and host facts. The native route resolves and verifies the selected
-   executable, drives the versioned framed protocol, handles one job and its
-   ordered host requests, then publishes prepared outputs through the publication
-   session. `preparation/src/job.rs` owns the retained job state machine;
-   `artifact.rs`, `modules.rs`, `plan.rs`, `render.rs`, `compatibility.rs`,
-   `review.rs` and `release.rs` own its substantive transforms. Node remains the
-   owner of SDK/bundler/process integration and actual publication. A Rust
-   `Prepared` terminal is not permission to perform a deploy without the host's
-   existing confirmation and compatibility gates.
-2. **Installed artifact closure:** `deploy/producer-files.ts` resolves actual
-   package exports; `deploy/package-assets.ts` checks producer manifest file sets,
-   byte lengths, digests and directory confinement before exposing bytes.
-   `deploy/bundle.ts` stages exact producer/module/resource closures and explicitly
-   pins runtime leaf names. `runtime/modules.ts` rewrites supported imports into
-   private versioned assemblies and registers assembly verification. The latter
-   is not a generic `import()` permission or a synthetic source claim.
-3. **Serving:** `worker/main.ts` verifies staged deployment/resources and constructs
-   real joins. `worker/assembly.ts::buildInvoker` rejects descriptor-less serving,
-   selects owner storage from the admitted identity, and dispatches mutations and
-   reads through `invokeMutationCanonical` / `invokeReadCanonical`. HTTP validates
-   route/body identity, capped bodies, CSRF, source form binding and closed typed
-   inputs. MCP uses grant authentication, negotiated Streamable HTTP, generated
-   tool/schema discovery and the same canonical invoker. Neither transport may
-   grant identity from business inputs or replace State policy with UI visibility.
-4. **Source and dispatch decisions:** explicit `when_at=source` is checked by the
-   compiler and installed as the exact guard evaluation mode. The existing opaque
-   declaration includes the mode, original source/rule/owner/node/typed slots,
-   binding/target and intent correspondence. The native dispatch preclaim proves
-   that physical source before retaining its true staged decision. Current owner
-   identity, host authority, source/File lifetime, supersession and claim fences
-   still run. Omitted/current mode re-evaluates the predicate. The old privileged
-   Invoice overdue executor is absent at this source. This is a real shared
-   mechanism already implemented, not a new translation task in this plan.
-5. **Browser controls:** `forms.ts` and `controls.ts` share input name/ID/error
-   outlet, datetime and boolean-presence helpers. Generated fields and server
-   projection preserve readonly/closed input distinctions. `browser/bootstrap.ts`
-   owns mount registration, rebind/dispose, poll regions, form drafts, dialogs,
-   input choices and browser client lifetime. `collections.ts` owns list/table/
-   gallery/board presentation and bound query controls. Their rendering cannot
-   create a new source permission or make a denied action admissible.
-6. **Examples and test subjects:** Testkit converts compiler-generated example
-   steps into injected canonical dispatch and actual observation hooks; e2e's
-   artifact loader explicitly distinguishes compiled and handbuilt identities.
-   A handbuilt or injected fixture can test its real adapter, but cannot certify
-   compiler lowering. Unsupported/setup-failed examples remain gaps. Large
-   preparation fixtures also embed historical generated programs; their contents
-   are compatibility data, not proof that every embedded function is active.
-7. **CI and installed releases:** current CI builds actual workspace/catalog,
-   compiler and native preparation prerequisites, runs package/integration/runtime
-   tests and browser journeys, then checks installed declarations/Worker assets.
-   `pack-release.mjs` discovers every workspace owner, checks the complete internal
-   runtime closure and packs private dependencies too. Release/install workflows
-   preserve the actual native binary selectors, notices, hashes and platform
-   qualification. Historical claims that only five packages are packed or that CI
-   never builds the compiler are superseded. No current public/installed release
-   was executed by this audit.
+## Defining units and current allocation
 
-## Mixed files and complete remainder ownership
+All retained source shells, private maps, nested closures, errors and undecomposed fields remain with their present owner. The shared inventory and exact tree enumerate every path; the table below resolves the changed mixed duties rather than replacing that catalogue.
 
-The ordinary source flag is 1,000 lines; encoded/generated fixture flags use a
-separate data classification. This prompts concern inspection, not arbitrary
-splitting. Full retained functions stay intact, including their callbacks and
-private state. The coordinator's per-path inventory supplies every leaf.
-
-| Source selectors | Defining duty | Selected disposition |
+| Current defining files / units | Ownership and real joins | Disposition |
 | --- | --- | --- |
-| `runtime/invoke.ts`: `InvokeResult`, `message`, `AssembledFrame`, `PAREN_FRAME_RE`, `BARE_FRAME_RE`, `urlToPath`, `ParsedFrame`, `parseStackFrames`, `matchGeneratedModule`, `buildModuleMatchers`, `findAssembledFrame`, `findRemappedFrame`, `collectSources`, `mapThrownError` | Pure callable error/stack/source-map projection; no live authority state | Move complete cohort to `runtime/invocation-errors.ts`; retain public `invoke.ts` re-exports and import internal helpers from their one owner. |
-| `invokeWith`, callable resolution and `invokeCallable*` | Verified import-before-execution, source carrier binding and callable execution | Retain in `invoke.ts`: `invokeWith` reads `rowPolicyAssemblies`, source-correspondence predicates and `verifyCheckedAssembly`; the apparent first-file seam is not independent. |
-| `invoke.ts` policy transcription, producer interfaces/loaders, descriptor caches, model/CRUD candidate and source/membership/reference/query/framework binders | Original source metadata and actual installed producer definitions | Retain all private maps, import shell and helper/error/type declarations in `invoke.ts`; do not publish a claimable context DTO to make extraction easy. |
-| `runScenarioExecution`, `runScenarioSeam`, mutation entrypoints, staged overlays, containment navigation, source/callback/identity-removal/committed/due/retained handler drivers | Canonical host execution and one State/Work transaction boundary | Retain complete functions and nested closures in `invoke.ts`. Generalizing further named app profiles requires original-source permission/order/race equivalence first. |
-| Receipt read, page read/query/presentation, File consumption and preferences helpers in `invoke.ts` | Current authorized observation and projection | Retain in `invoke.ts`; receipt extraction presently depends on canonical descriptor and private Judgment/source loaders. No independent observer authority is introduced. |
-| Dispatch interfaces/results/checks, `nativeEmailPreclaims`, `bindNativeEmailDispatchGuards`, `driveDispatchIntent*`, `runRecoverySweep` | Genuine preclaim issuance/consumption and Work host execution | Retain their transitive cohort together in `invoke.ts`. A broad `dispatch-driver.ts` move was rejected during independent challenge. |
-| Fanout constants, row controls, producer loaders, trigger/claim/record/navigation/scheduler/progress/cancel operations plus `createCanonicalFanoutBody` | State-fenced durable fanout host/body join | Retain in `invoke.ts` until a complete private producer/body/caller handoff exists; avoid a new facade that splits real authority. |
-| `deploy/bundle.ts`: producer bundling/cache, runtime/vendor inventories, browser assets, module import/map rewrites, build/output paths and publication inputs | One closed staged deployment graph | Retain file and all private module/global units; selected runtime extraction updates its explicit leaf inventory coherently. No rename to a build facade is selected merely because the file uses Node. |
-| `generation/controls.ts`: persisted control/capture/unit/attempt indexes, compiler/Git adapters, leases/saved validation and operation routing | One source/tool-bound saved-generation lifecycle | Retain; a store/capture/router split needs actual shared write/lease closure mapping first. No second state machine or process selected. |
-| `preparation/host.ts` command envelopes, backend selection, native lifetime/integrity/protocol, publication and TS fallback | Host integration over the actual native preparation owner | Retain whole functions and host/native distinctions. Binary manifest, protocol and fixed-stage contracts stay with current defining owners. |
-| `worker/main.ts`, `worker/assembly.ts`, resource and bound dispatch adapters | Platform composition, app/owner/resource selection and serving closures | Retain TS owners and public package exports. Source-driven provider differences must be conserved before any consolidation. |
-| `interfaces/src/mcp/schemas.ts` | Artifact/input checking used by both MCP and HTTP, plus tool-schema projection | Retain at current path for this allocation. Neutralizing the directory name is optional; merging it into a provider or creating a second business schema is not selected. |
-| `ui/src/forms.ts`: `pointerToFieldName`, `unescapeSegment`, `formatDatetimeLocal`, `assertFieldPath`, `fieldName`, `fieldInputName`, `fieldInputId`, `fieldErrorOutletId`, `hidden`, `nativeBooleanPresence`, `NATIVE_BOOLEAN_PRESENCE_PREFIX`, `FIELD_PATH_RE`, `DATETIME_RE`, `TIME_RE` | Shared form/control field identities and transport representation | Move complete cohort to `ui/src/internal/field-binding.ts`. Import existing `internal/draft-values.ts::isValidDate`, `escape.ts::escapeAttr` and Contracts types; copy none. Keep all existing public forms exports stable. |
-| Remaining `forms.ts` and all `controls.ts` factories, generated input/date-fold projection, bindings and outcome rendering | Form and explicit-control presentation | Retain owning files; both import field bindings from the new neutral leaf, removing the actual forms↔controls cycle. No policy or control factory logic moves with helper extraction. |
-| `collections.ts`, `browser/bootstrap.ts`, browser poll/export/print, navigation/shell/settings/messages | Coherent collection, mount, UI and browser lifetime responsibilities | Retain current files and source-driven render/authorization boundaries. No arbitrary one-file-per-control split. |
-| `preparation/tests/modules.rs` (134 tests, a 2,877,926-byte longest line), other preparation Rust tests and raw/map/progress fixtures | Real algorithm harness plus embedded historical program/data corpus | Retain fixture bytes and test functions. Bulk source text is not an active compiler/runtime owner; no regeneration/deletion selected. |
-| Root/package/CI/scripts and all other scoped manifests, configuration, tests, fixtures, assets, examples and support files | Existing defining responsibility by package and artifact kind | Retain exact current leaf unless the coordinator's canonical retirement/allocation explicitly supersedes it. Untracked dependencies and build caches are not audited source. |
+| `runtime/invocation-errors.ts`: error/stack/source-map projection; `invoke.ts` public `InvokeResult`/find* compatibility exports | One read-only implementation; caller and source-map identities preserved; `bundle.ts::PINNED_RUNTIME_FILES` includes it | Implemented P-ERRORS; no further extraction task |
+| `ui/src/internal/field-binding.ts`; forms exports and controls consumers | One neutral field/transport owner using existing escape/date helpers; UI distribution vendor walk retains the relative import | Implemented P-UI; no duplicate helper or new policy owner |
+| `runtime/invoke.ts`: verified callable loading, source/CRUD/model/query/member/framework binders, descriptor caches and complete execution/receipt/page/dispatch/fanout cohorts | Actual private source/row/preclaim/session relationships remain together; shared callbacks/FIRST loader reduce duplication without exposing handles | Retain. Deeper split is investigative, not an allocated new leaf |
+| Former `runtime/executors.ts` | No current producer/export/pinned/installed consumer remains under the selected supported closure; frozen preparation fixture bytes remain historical compatibility data | Retired during implementation; remove it from current desired tree and executable backlog |
+| `deploy/bundle-validation.ts`; `bundle.ts` reexports and graph owner | Own module frontend/link/loadability and asset digest checks, consumed by both build and runtime-only bundle load | Retain landed complete closure; do not import the build graph into runtime to recover an old API path |
+| `deploy/soda-contract.ts`; `release/version.ts`; build-only `deploy/soda.ts`, `cli/soda-build.ts` and dispatching `cli/soda.ts` | Pure support/fingerprint/version facts have no checkout/build side effects; `soda.ts` preserves previous contract exports | Retain exact implemented files and installed `can-soda` command identity |
+| `cli/soda-runtime.ts`; `deploy/soda-run.ts`, `soda-workerd.ts`, `soda-lifetime.ts`, `workerd-config.ts`; `runtime/soda-d1.ts` | Runtime command, retained mount/writer ownership, direct workerd lifetime, private config and D1 protocol adaptation | P-DISTRIBUTION/P-SERVING/P-DELIVERY readers; defining platform target owner, no second State/Work authority |
+| `host/Cargo.toml`, `host/Cargo.lock`, `host/src/main.rs`; `cloudflare/scripts/build-soda-host.mjs` | Native `can-workerd-exec` package/bin; Cloudflare host build stages exact executable and static admin Worker; runtime pack carries both | Retain Linux x86_64 native boundary; not a TS package rename or native port of the application engine |
+| `deploy/soda-setup.ts`; `runtime/soda-admin.ts` | Host ingress/token-file/receipt-file custody; private Worker delegates atomic first-owner/membership claims to actual Identity | Retain exact boundary; Identity defines claim semantics and durable idempotence, platform defines local files/listener/disposal |
+| `scripts/pack-soda-runtime.mjs`, `verify-soda-direct.mjs`, `verify-soda-runtime-closure.mjs`, `scripts/distribution/licenses/Miniflare-D1-LICENSE` | Production assembly and finite integration subjects plus derived-code notice; existing `pack-tools.mjs` and verification scripts are consumers | Retain source and license ownership; verification drivers are not packaged startup dependencies |
+| Preparation host/native job, generation controls, Interfaces HTTP/MCP/schema/upload, browser/client/collection, release/upgrade, remaining manifests/assets/fixtures | Existing semantic and artifact owners, including exact subpath and Worker-versus-Node distinctions | Retain; concrete review work below limits new correctness/retirement conclusions |
 
-These tables own globals/imports/types/support and nested function duties through
-the named complete cohort or retained remainder. They do not falsely claim every
-remaining app-specific path is semantically reviewed simply because it has an owner.
+## Canonical findings after implementation
 
-## Findings and required corrections
+| Finding | Current disposition | Remaining gate |
+| --- | --- | --- |
+| P-F01 default overdue variants | Implemented: ordinary discovery enumerates four genuine variants and existing negative controls. Prior task-status evidence reports their actual passing runs. | No duplicate coverage packet; future changes reuse the same real subject |
+| P-F02 neutral UI field binding | Implemented in the internal owner with stable forms exports and actual consumers. | Remaining browser lifecycle review is P-R03, not a reason to repeat the completed move |
+| P-F03 interim executors | Retired after supported consumer/payload cutover; retained embedded programs are historical input, not active code | No automatic fixture deletion or arbitrary external deep-import guarantee |
+| P-F04 invocation boundaries | Read-only errors extracted and shared workflows consolidated. Broad callable/dispatch/fanout move remains unselected because issuer/consumer maps cross those textual sections | P-R01/P-R02 must establish a genuinely smaller private interface before another extraction |
+| P-F05 dispatch codec | Still a semantic consolidation candidate: Work validates guard/File/queue/mail/generation origin and mode fields beyond CF lifecycle projection | Exact accepted legacy row domain, projection, first-error and fault class equivalence before replacing `readDispatchExecutionRow` |
 
-| ID | Classification and exact observation | Requirement/consequence | Correction and evidence limit |
-| --- | --- | --- | --- |
-| P-F01 | Verification coverage gap: `native-invoice-overdue.integration.test.ts` selects renamed/live/source-false/metadata/persisted-origin controls through `CAN_OVERDUE_*` environment variables; current default `test:all` / CI never enumerates those modes | The shared source/live guard and original-origin contract needs continuing meaningful integration coverage. Prior manual runs are valid at their own revision, but default test discovery is not their execution. | Parameterize these real cases in the existing allowed integration file, or enumerate them in its owning existing runner. Preserve the single production subject and reuse common setup; no new test framework. Source inspection only in this audit. |
-| P-F02 | Architecture debt: `forms.ts` imports control factories while `controls.ts` imports eight public field/transport helpers back from forms | A renderer factory should not be the defining owner of another renderer's primitive field identity; current cycle adds coupling, not demonstrated authorization failure | Move exactly the field-binding cohort above; retain form exports and all writable/readonly, boolean presence, error-pointer, escaping and temporal behavior. No runtime bug claimed merely from an ESM cycle. |
-| P-F03 | Conditional obsolete implementation: `runtime/executors.ts` owns an interim mirrored dispatch row producer and decorators; no active production import or package export was found | Work is the genuine dispatch row producer; a second historical row builder should not become a new serving owner | Candidate retirement only after final installed-file/discovery and module-closure check. Matches elsewhere are comments and embedded historical preparation programs, which must remain as compatibility data. This audit has not proved arbitrary external deep-import absence. |
-| P-F04 | Architecture debt and incomplete equivalence: `invoke.ts` combines source-definition/private execution state, transport, page observation and durable Work/fanout host joins | Size alone does not establish an independent authority boundary. Naively splitting its first callable or dispatch sections breaks actual private source/preclaim identity | Select only the read-only error cohort now. Retain unproved private cohorts; require exact issuer/consumer/global closure and ordinary/retained/due/false/race equivalence before deeper movement. |
-| P-F05 | Potential consolidation, not yet an established defect: Cloudflare `readDispatchExecutionRow` and its field readers mirror Work's dispatch table reader | Work should own canonical row semantics, but acceptance/error/projection differences can be intentional host compatibility | Runtime primary must compare exact required/optional fields, historical partial rows and refusal behavior before selecting `readDispatchRow` reuse. No mechanically ready replacement or new target leaf follows from textual duplication. |
-
-The language primary owns the independently found `when_at` grammar/prototype
-documentation mismatch. This record does not duplicate its correction or silently
-reinterpret current `when` semantics. No new platform correctness exploit was
-established by this bounded source review.
-
-For P-F05, independent runtime inspection found a concrete non-equivalence:
-Work's reader additionally checks source-guard/File-origin pairing and the
-original mode/intent, queue origins, private Mail pins and generation control
-correlation. The CF helper projects lifecycle fields without those full checks.
-Replacing it is therefore a possible correctness correction with compatibility
-and first-error consequences, not a pure relocation. Downstream genuine Work
-commands may already reject malformed rows; no exploit is inferred from the gap.
+No new exploit or runtime defect is inferred from textual duplication or this source inspection. The known due-handler and maximum-proposal permission refusals, and unchanged native diagnostics, are implementation evidence at the stated inputs; they do not justify relaxing host/State checks.
 
 ## Language and package fit
 
-Retain TypeScript for Worker `fetch`/D1/DO/Queues composition, JS module/source-map
-integration, HTTP/MCP SDK adapters, browser DOM/control factories and Testkit's
-execution of generated JS functions. The strongest supported alternative is Rust
-with a WASM or host protocol boundary. It can centralize selected pure transforms,
-but translating these duties would add Fetch/DOM/SDK/callback/codec/lifetime joins
-and move established producer identities; no measurement or source finding here
-justifies that cost. This is a technical recommendation, not an unrestricted
-proof that TS is always best or an owner policy forbidding other languages.
+Retain TypeScript for actual Worker Fetch/D1/DO/Queues composition, JS module/source-map integration, SDK/browser/DOM adapters and generated-JS Testkit execution. Rust/WASM or a new framed host boundary would add real callback/codec/lifetime joins; no observed platform constraint in this delta justifies those translations. Retain the existing Rust preparation producer with its Node host rather than duplicating its native transforms in another service.
 
-Retain the actual Rust `can-preparation` producer and its Node host adapter. Its
-ordered single-job protocol and lossless module/input transformations already
-exist and have independent integration roots. The strongest alternative is the
-existing prepared-TS backend, which removes a subprocess/toolchain but would
-retire real native behavior and recreate protocol/provenance/compatibility work.
-No new port, process or blanket conversion is selected. Closed native Work/Values
-kernels remain with their runtime primary; a native kernel is not authority to
-move Worker storage or provider lifecycles into that kernel.
+Retain the narrow Rust Linux exec guard: its requirement is arming parent death before exec while preserving the already checked lock description, a native syscall/lifetime operation the Node command cannot perform directly. Shell traps alone cannot guarantee handling an unexpectedly killed parent. This is a bounded technical recommendation for this target, not a universal Rust-versus-TypeScript verdict. The installed platform, required `flock`/shell tools, native toolchain and release archive selectors must remain explicit; wider OS/architecture support is not implied by this Linux x86_64 path.
 
-Retain current semantic packages and their exports. Packing private packages is
-now an explicit release-artifact function; `private: true` is not evidence that
-the installed closure is absent. Consolidating Cloudflare, Interfaces or UI into
-one package might simplify manifests, but changes actual public imports,
-distribution metadata, browser assets, native catalog discovery and installed
-dependency identity without removing their authority boundaries.
+Current package exports and semantic owners remain. Packing private dependencies is an explicit release function; `private: true` is not absence from installed closure. Files' Node filesystem root remains different from Worker-safe ports/finalize/bridge subpaths. No new package, sidecar or alternate business-policy store is selected by these file extractions.
 
-Package roots are not universally Worker-safe. In particular Files' real root
-exports its Node filesystem-backed store; current State and deployment select
-the appropriate `ports`, `finalize`, bridge and durable-storage subpaths. The
-filesystem implementation is a real host owner, not automatically a test double.
-Preserve those exact import/export and staged-closure distinctions when changing
-package layout; no present Worker leak was established here.
+## Remaining review packets and physical writers
 
-## Coherent task packets and exclusive writers
+Completed P-CI, P-UI, P-ERRORS and P-RETIRE are no longer first ready work. The following are bounded review outputs, not instructions to rewrite working mechanisms. Each packet must finish source/contract/challenge before dependent C/M changes are specified.
 
-| Packet | M / C / V scope | Exact physical writers and joins | Dependencies and readiness |
-| --- | --- | --- | --- |
-| P-T01 | **C:** turn the env-only overdue modes into normal integration cases; no production change. **V:** source/live-after-payment, renamed owner, >200 ledger, genuine due refusal and header/mode downgrade cases against real compiler/State/Work. | Existing `packages/cloudflare/src/runtime/native-invoice-overdue.integration.test.ts`; if runner selection is used, Cloudflare `package.json` and root runner/CI writer owns that handoff. | Ready specification; preserve no-unit-test policy. No audit-authorized execution. |
-| P-T02 | **M:** extract field-binding cohort; update relative imports and preserve public re-exports. **V:** existing real form/control/browser input and readonly/error/temporal cases. | `packages/ui/src/forms.ts`, `controls.ts`, new `internal/field-binding.ts`; UI `index.ts` only if public re-export path needs adjustment. Interfaces consumers read unchanged UI exports. | Ready exact extraction; no new schema or permission producer. One UI writer. |
-| P-T03 | **M:** extract read-only error/remap cohort into `runtime/invocation-errors.ts`; `invoke.ts` imports it and preserves public symbols. **V:** existing source-map/callable-error and installed Worker/module-closure checks. | Both runtime files and exclusive integration writer for `deploy/bundle.ts::PINNED_RUNTIME_FILES`; frozen preparation module fixtures are retained, not regenerated by default. | Exact cohort selected; closure/build/install verification remains unperformed. Source/authority globals stay in `invoke.ts`. |
-| P-T04 | **M:** remove interim executors only if final consumer/payload check confirms retirement. **C:** none inferred. **V:** real canonical Work row staging and installed worker closure. | `runtime/executors.ts`, stale `invoke.ts` comments, actual pack/staging declarations if they select the leaf; no edits to historical embedded program bytes merely to erase name matches. | Gated on last-consumer/public-installed assessment; no executable deletion before that gate. |
-| P-T05 | **C/M:** compare canonical Work row reader versus the CF host projection; select one defining codec only after equivalence. **V:** actual stored legacy/current rows, null/control fields and error/refusal classes. | Runtime primary owns `packages/work/src/kernel/tables.ts`; CF integration writer owns `invoke.ts::readDispatchExecutionRow` and helpers. | Investigation gate P-F05; not an approved port or automatic replacement. |
-| P-T06 | **M:** retain other mapped files and serving/distribution boundaries; absorb selected extraction joins coherently. **V:** package exports, native binary selector, producer catalog, private runtime leaf and installed/browser closure checks at their actual scope. | Coordinator exclusively owns shared manifests, `.github/workflows/ci.yml`, `turbo.json`, `scripts/*`, pinned runtime/vendor inventories and shared fixtures. Each semantic package retains its files. | Unchanged duties need no implementation task. Unreviewed authority/workflow duties remain review gates, not ready instructions to rewrite them. |
+| Packet / slices | Exact source and question | Required recipient / smallest appropriate future verification |
+| --- | --- | --- |
+| P-R01 / P-SERVING + P-DELIVERY | `runtime/invoke.ts::{invokeWith,bindNativeEmailDispatchGuards,revalidateNativeSendGuardOrigin,driveDispatchIntentWithPreclaim,bindPrivateDueHandlerProducers,checkedFirstQueryCensus}` and `runtime/resource-dispatch.ts`: account for every private assembly/source/preclaim issuer and consumer; determine whether an actual boundary reduces dependency cycles without getters/capability DTOs | Runtime/State and language challenge; one `invoke.ts` writer. Actual false/current/source/due/replay/race subjects; nonempty private-due FIRST remains unestablished by the latest selected fixtures |
+| P-R02 / P-DELIVERY | `invoke.ts::{stageFanoutTriggerJoin,claimFanoutChild,driveFanoutTurnChild,runFanoutSchedulerTurn,maintainFanoutNavigationCanonical,requestFanoutProviderCancel}` and defining Work kernel producer calls: complete cancellation/supersession/terminal/recovery custody trace | Work primary plus State fence recipient; one host writer. Existing real retained fanout fixture, not a new scheduler or fabricated row replay |
+| P-R03 / P-PRESENTATION | `ui/src/browser/bootstrap.ts::{bindGeneratedView,applyPollResponse,bindInputChoices,bindGeneratedForm,releaseStaleBindings,startBrowserClient}` plus collections/navigation and Interfaces fragment/preference consumers: complete mount/draft/poll/rebind/dispose and denied-action behavior | UI/Interfaces owner and runtime challenger; actual existing browser journey including detached/replaced/current input identities |
+| P-R04 / P-DISTRIBUTION + RT.IDENTITY | `soda-setup.ts`, `soda-run.ts`, `soda-workerd.ts`, `soda-d1.ts`, `host/src/main.rs`, Identity `storage/bootstrap.ts`, runtime pack and closure drivers: finish source claim/receipt-publication failure, lock retirement and D1 acknowledgement/error trace; keep platform local-file custody separate from Identity atomicity | Runtime primary challenges host/claim boundary. Read existing local receipts at their exact archive/input identity before any installed/appliance claim; rerun only if source/binding changes warrant it |
+| P-R05 / P-AUTHORING-HOST + L03 | `generation/controls.ts::{lookupControl,storeControl,markControlSuperseded,dispatchControl}` with native saved-unit/lease/Git/CLI consumers and `preparation/host.ts` terminal publication: inspect remaining assertion/lease/error/lifetime branches | Native language owner and platform host writer; real source/tool-bound capture/accept/reset/refinement subjects, no parallel persisted lifecycle |
+| P-R06 / P-DISTRIBUTION + P-ARTIFACT | `upgrade/apply.ts::{applyUpgrade,runWranglerDeploy}`, release/install selectors, `pack-tools.mjs`, runtime pack and producer-assets readers: inspect remaining old-payload compatibility, interruption/rollback and matching installed closure duties | Exclusive manifest/lock/pinned/binary-selector integration writer; matching-release installed/native evidence remains separate from link/type/source checks |
+| P-CODEC / RT.WORK.DISPATCH | Work `kernel/tables.ts::readDispatchRow` versus CF `invoke.ts::readDispatchExecutionRow` and helpers: explicitly choose legacy acceptance/error/projection contract before reuse | Work codec owner plus sole CF host writer; actual accepted historical/current rows and ordered faults, no stricter silent replacement |
 
-Parallel planning lanes are UI (P-T02), test coverage (P-T01), and readonly runtime
-error extraction (P-T03). The shared integration writer serializes manifests,
-explicit staging lists and installed fixtures. P-T04/P-T05 do not block those
-independent packets. Source/preclaim/Work-body state remains a single writer
-cohort in `invoke.ts`; no agent receives different hunks of that file concurrently.
-No implementation lane is launched by this audit.
+Root owns shared inventories/tree/findings/task/slice matrices and manifest/lock/packaging integration. These review assignments have no independent source-writing authority. Shared `invoke.ts`, State/Identity indexes, native build outputs and expensive fixtures require one operator when implementation is separately selected. This audit starts no implementation lane, product build or scheduler.
 
-## Independent challenge and revised conclusion
+## Independent challenge and evidence limits
 
-The runtime challenger inspected the actual issuer/consumer relationship of
-`nativeEmailPreclaims`, native source definitions and guarded dispatch. A proposed
-broad dispatch extraction was rejected: it would require exposing private
-handles or introducing a dependency cycle without a proven boundary. Further
-primary inspection found the same issue in `invokeWith`, which mutates
-`rowPolicyAssemblies`; broad callable extraction was withdrawn too. Only the
-read-only error projection cohort remains selected. Receipt/fanout extractions
-are recorded as incomplete ideas, not desired-tree leaves.
+The earlier runtime challenge withdrew broad dispatch and callable extraction because `nativeEmailPreclaims`, `rowPolicyAssemblies` and their genuine producer/consumer joins cross the proposed split. That reason remains current after the common callback/FIRST consolidation. The neutral UI and read-only error owners are now real implemented source, so their old move proposals are absorbed rather than issued again. Current platform challenge also inspected the language refresh: Given producer/authority checks and eight parent-private helper dependencies, descriptor IR/type/catalog inputs and parent-only serializers, frozen CLI source/saved-unit capture and bind leases, and source-context pointer-qualified cache/consumed diagnostic seals. Query-only E6007/E6008 tolerance is not whole-artifact permission: public `emit` returns artifact plus diagnostics and CLI merges all errors before publication. Dev workers still report facts to the native owner. Runtime anchored-group shutdown must not be conflated with compiler direct-child/pipe closure, or generalized to escaped descendants calling `setsid`. Installed compiler/dev/LSP/completion paths remain real joins; no further package/bin relocation is implied.
 
-The challenger accepted moving, rather than copying, the UI field identity
-helpers with existing forms exports and policy consumers preserved. TS Worker/
-DOM/SDK retention is supported at this actual host boundary; native-kernel
-placement is not generalized to all runtime duties. The executor retirement
-retains its explicit staging/installed and embedded-history caveats. The CI
-environment-only variant gap remains a source-supported finding; manual feature
-checks do not satisfy default discovery.
+This refresh challenged the runtime primary with the host setup custody/claim trace and its crucial post-Identity/pre-receipt failure boundary. The runtime primary inspected `storage/bootstrap.ts`: the owner claim, user/team/membership and consumed setup operation/hash/context are in one genuine D1 batch; recovery verifies the original operation/token hash/context, email/timezone and password without resetting credentials. Derived `IDENTITY_TABLES` includes the setup claim, so an unclaimed populated schema cannot be adopted. Host expiry before retry remains intentional and documented. This establishes the named source boundary, not every Identity/OAuth workflow.
 
-This reviewer independently challenged the language primary's compiler/dev split:
-keep one actual native session/generation selector; subordinate SDK worker results
-must never select a generation; preserve source-context construction/caches and
-actual/fresh IR correspondence; preserve installed compiler/dev/LSP/completion
-selectors. Existing custom LSP zero-dependency setup is a concrete current
-constraint, not a new user mandate or global proof of superiority. Python syntax
-tooling remains live through its README caller and cannot be retired on Rust
-semantic rejection alone.
+In the reverse challenge, the runtime primary independently inspected the guard admission sequence (parent-death arming before expected-parent comparison), distinct inherited lock/control descriptors, actual locked inode/open-description transfer without `LOCK_UN`, awaited workerd exit, IPC shutdown and production input/byte/mode inventory. It accepted the existing owner allocation and no-new-daemon conclusion. Its objection is retained: the D1 adaptation and finite direct driver do not prove every historical D1/DO payload or failure-order contract; P-R04 and P-CODEC retain those actual limits.
 
-## Remaining evidence limits
+Prior implementation evidence is recorded in [task status](../tasks.md#implementation-status--2026-10-23): genuine overdue/installed/browser checks, 84 compiler checks for the subsequent private descriptor/Given split, six selected saved-decoder runtime checks, and exactly bounded baseline failures. The guide separately records local direct-runtime/setup/image checks and older VM evidence; this reviewer inspected their source/document claims but did not independently replay or inspect every external receipt. They do not establish a fresh installed appliance or public release qualification.
 
-No audit-time runtime measurements or installed qualification were performed.
-All 679 paths have structural dispositions, but full semantic review of the
-remaining app-specific source adapters, complete UI vocabulary, all root/queue/
-fanout/provider lifecycles and every frozen fixture program is incomplete.
-The current 56 diagnostics and prior focused checks do not close those duties.
-The exact selected task outputs can be planned without calling that missing
-workflow/challenge dimension complete. Only the independent, fully named packets
-above are ready for a later implementation instruction.
+Full substantive review of unchanged provider adapters, complete UI vocabulary, generation and preparation failure branches, every root/queue/fanout lifetime and frozen fixture assertion remains partial. The current complete native corpus still has 56 unchanged diagnostics; a retained path and a passing focused test do not close these review dimensions. All new and retained target ownership can be planned while keeping those exact pending duties visible.

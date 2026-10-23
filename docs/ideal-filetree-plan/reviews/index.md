@@ -1,14 +1,14 @@
 # Current reviews
 
-All current source reviews use [baseline](../baseline.md). These are separate reviewers with actual cross-challenge, not PR reviews or an implementation team launch.
+Current product source is `8d48f969`; [baseline](../baseline.md) separates structural reconciliation, changed-source review, prior review and previously performed behavior. These are source reviewers and actual cross-challenges, not PR reviews or running implementation lanes.
 
-| Scope | Primary | Independent challenge | Current record |
+| Scope | Current primary | Independent challenger | Current record |
 | --- | --- | --- | --- |
-| Language/checking/codegen/authoring/dev/native Values | audit_language | audit_platform; root policy/contract questions | [Language](language-current.md) |
-| State/Work/Identity/Files/Services/contracts/TS Values | audit_runtime | audit_language | [Runtime](runtime-current.md) |
-| Host/HTTP/MCP/UI/build/CI/native preparation/install | audit_platform | audit_runtime | [Platform](platform-current.md) |
-| Repository contracts/evidence/draft/complete allocation | root | Three primaries; platform graph/policy contradiction checks | [Repository](repository-current.md) |
+| Language/checking/codegen/authoring/dev/native Values | refresh_language | refresh_platform | [Language](language-current.md) |
+| State/Work/Identity/Files/Services/contracts/TS Values | refresh_runtime | refresh_language; platform for setup ingress/custody | [Runtime](runtime-current.md) |
+| Host/HTTP/MCP/UI/build/CI/native preparation/install | refresh_platform | refresh_runtime; language boundary recipients | [Platform](platform-current.md) |
+| Repository contracts/evidence/draft/complete allocation | root | Three current primaries and their explicit cross-boundary findings | [Repository](repository-current.md) |
 
-Source/path accountability and selected exact allocations are complete; complete fresh semantic review of every retained branch and test assertion is not. Each review states its precise missing responsibilities and workflow evidence. Challenge is complete for selected consequential boundaries, not universal security certification. No new runtime/product check was executed by this audit.
+The accumulated changed-source allocation and selected consequential boundary challenge are refreshed. Exact path retention is complete; whole-product substantive duty/workflow review remains partial, including previously unreviewed retained branches and assertion subjects. Each review names concrete remaining packets; a complete target tree does not close them. No product test/build or installed journey was executed by this audit.
 
-Older `compiler.md`, `runtime.md`, `platform.md`, `repository.md`, `finished-product/reviews/*` and Rust opportunity records are bounded historical sources. Current ownership/tree/findings/tasks supersede stale implementation/count/approval claims; their existence or link repair does not advance their review baselines.
+Earlier `audit_*` review reasoning is reused only where its source and question are unchanged. Older `compiler.md`, `runtime.md`, `platform.md`, `repository.md`, `finished-product/reviews/*` and Rust opportunity records remain historical at their own inputs. Current ownership/tree/findings/tasks supersede stale pending-move/count/process claims without upgrading old behavioral evidence.
