@@ -21,6 +21,15 @@ import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { installNativeFileInventory } from './file-inventory.js';
 
+import { createCanonicalFileBinding } from './bound-files.js';
+import { createFileJourneyKernel, type FileJourneyBindings } from '@canlang/interfaces/uploads/kernel';
+import { createUploadIntent, appendUploadContentAtOffset, completeUploadContent, sha256Hex, DEFAULT_FILE_POLICY } from '@canlang/files/upload';
+import { authorizeAttach, finalizeUpload, observeFinalizedFile, readCurrentFinalizedBytes,
+  readCurrentFinalizedSnapshot, readFinalizedBytes, readFinalizedFile, recordAttachment,
+  revalidateRetainedFinalizedFile } from '@canlang/files/finalize';
+import { TestOnlyManualClock, TestOnlyCounterIntentIds, TestOnlyCounterFileIds,
+  TestOnlyMemoryIntentStore, TestOnlyMemoryBlobStore, TestOnlyMemoryFinalizedStore } from '@canlang/files/ports';
+
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const fixture = (name: string) => join(root, 'packages/cloudflare/test/fixtures', name);
 const compiler = process.env['CAN_COMPILER_BIN'] ?? join(root, 'compiler/target/debug/can');
@@ -1594,6 +1603,98 @@ it('finalizes source-only declared EMIT with genuine references and ordinary rep
         assert.equal((await deliver() as {status:string}).status,'replayed');
         assert.equal((await store.load(rootModel,rootRow.id))?.data.seen,true);
         assert.deepEqual(await store.readReceipt(saved.identity),saved,'consumer never rewrites the ordinary source receipt');
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
+
+it('intakes the original Purchase File against an exact hidden unique-key owner census',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-purchase-intake-'));
+    try {
+      const source=join(root,'compiler/tests/fixtures/purchase-intake-source-require.can');
+      const authored=await readFile(join(root,'draft/apps/CanPurchase/CanPurchase.can'),'utf8');
+      const start=authored.indexOf('  scenario intake_invoice('),end=authored.indexOf('   examples ',start);
+      assert.ok((await readFile(source,'utf8')).includes(authored.slice(start,end)),'the original complete File intake body is retained');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['allowed','duplicate-other-parent','concurrent-duplicate','inactive-worker','draft-request','foreign-file','forged-file','revoked-buyer'] as const) {
+        const {now,identities,identity,team,user,membership}=await member(`intake-${mode}`,['purchase.buyer']);
+        const scope={app:'PurchaseDecision',owner:team.team_id,ownerPackage:'purchase'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'purchase-state',fileStoreId:'purchase-files',
+          receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,
+          verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+        const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+        const location=row('location',{name:'Office'}),budget=row('budget',{name:'Main',total:{minor:'10000',currency:'EUR'},active:true});
+        const request=row('request',{reviewer:{id:user.user_id},requester:{id:user.user_id},location:{id:location.id},amount:{minor:'100',currency:'EUR'},
+          state:mode==='draft-request'?'draft':'approved',decision:null,actual:null,hidden:false},{model:model('purchase','Budget'),id:budget.id});
+        const order=row('order',{location:{id:location.id}},{model:model('purchase','Request'),id:request.id});
+        const otherRequest={...request,id:asId('other-request')};
+        const other=row('other-order',{location:{id:location.id}},{model:model('purchase','Request'),id:otherRequest.id});
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:model('purchase','Location'),row:location},{kind:'insert',model:model('purchase','Budget'),row:budget},
+          {kind:'insert',model:model('purchase','Request'),row:request},{kind:'insert',model:model('purchase','Order'),row:order},
+          {kind:'insert',model:model('purchase','Order'),row:other},{kind:'insert',model:model('purchase','Request'),row:otherRequest},
+          {kind:'insert',model:model('purchase','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},active:mode!=='inactive-worker',hidden:true})},
+        ]}));
+        const clock=new TestOnlyManualClock(now),blobs=new TestOnlyMemoryBlobStore(),files=new TestOnlyMemoryFinalizedStore(),intents=new TestOnlyMemoryIntentStore();
+        const physical={clock,blobs,files,upload:{clock,intents,blobs,policy:DEFAULT_FILE_POLICY,intentIds:new TestOnlyCounterIntentIds(),intentTtlMs:3600000,urlBase:'https://purchase.test'},
+          finalize:{clock,intents,blobs,files,fileIds:new TestOnlyCounterFileIds()}};
+        const retention={unattachedHorizonMs:3600000,retentionMs:86400000},observation={policy:physical.upload.policy,retention};
+        const kernel=createFileJourneyKernel({maxBytes:physical.upload.policy.maxBytes,
+          createIntent:input=>createUploadIntent(physical.upload,input),append:(id,caller,bytes,offset)=>appendUploadContentAtOffset(physical.upload,id,caller,bytes,offset),
+          complete:(id,caller)=>completeUploadContent(physical.upload,id,caller),finalize:input=>finalizeUpload(physical.finalize,input),
+          authorizeAttach:(ref,caller)=>authorizeAttach(physical.finalize,ref,caller),readProvenance:(ref,caller)=>readFinalizedFile(physical.finalize,ref,caller),
+          recordAttachment:(ref,record,caller)=>recordAttachment(physical.finalize,ref,record,caller),readBytes:(ref,caller)=>readFinalizedBytes(physical.finalize,ref,caller),
+          readCurrentBytes:(ref,caller,policy)=>readCurrentFinalizedBytes(physical.finalize,ref,caller,{...observation,retention:policy}),
+          readCurrentSnapshot:(ref,caller,policy)=>readCurrentFinalizedSnapshot(physical.finalize,ref,caller,{...observation,retention:policy}),
+          observeFile:(ref,caller,policy)=>observeFinalizedFile(physical.finalize,ref,caller,{...observation,retention:policy}),
+          revalidateFile:(saved,caller,policy)=>revalidateRetainedFinalizedFile(physical.finalize,saved,caller,{...observation,retention:policy}),
+        } satisfies FileJourneyBindings);
+        const upload=(name:string,foreign=false)=>{
+          const receiver={app:scope.app,owner:team.team_id,team:team.team_id,principal:foreign?'foreign-principal':user.user_id};
+          const bytes=new TextEncoder().encode('Original invoice document');
+          const created=createUploadIntent(physical.upload,{receiver,binding:{adapter:'deployment.web',deliveryId:name,resultPath:'document'},
+            request:{upload_id:name,operation:'purchase.intake_invoice',field:'/document',arguments:{},name:'invoice.txt',type:'text/plain',size:String(bytes.length)}});
+          assert.equal(created.status,'granted');assert.ok(created.status==='granted');
+          assert.equal(appendUploadContentAtOffset(physical.upload,created.intentId,receiver,bytes,0).status,'appended');
+          assert.equal(completeUploadContent(physical.upload,created.intentId,receiver).status,'completed');
+          const finalized=finalizeUpload(physical.finalize,{intentId:created.intentId,retryId:name,bytesDigest:sha256Hex(bytes),caller:receiver});
+          assert.equal(finalized.status,'finalized');assert.ok(finalized.status==='finalized');return {id:finalized.result.file};
+        };
+        const document=mode==='forged-file'?{id:'unissued-file'}:upload('tested',mode==='foreign-file');
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now,files:createCanonicalFileBinding(kernel,retention)});
+        const invoke=(target:typeof order,file:{id:string})=>invoker.invokeMutation({operation:'purchase.intake_invoice',operation_id:operationId(now),
+          inputs:{order:{id:target.id,version:String(target.version)},document:file,source:'  invoice-42  '}},identity);
+        let raced=false;
+        if(mode==='duplicate-other-parent') {
+          const seeded=await invoke(other,upload('existing'));assert.ok('result' in seeded&&seeded.result.status==='committed',JSON.stringify(seeded));
+          await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('purchase','Request'),id:otherRequest.id,expectedVersion:otherRequest.version,
+            row:{...otherRequest,version:asVersion(otherRequest.version+1),data:{...otherRequest.data,state:'draft'}}}]}));
+          const visible=await invoker.invokeRead({operation:'purchase.InvoiceDocument.read',inputs:{}},identity);
+          assert.ok('result' in visible&&((visible.result as {records:unknown[]}).records.length===0),'ordinary row reads remain hidden');
+        }
+        if(mode==='concurrent-duplicate') {
+          const competing=upload('competing'),commit=store.commit.bind(store);
+          store.commit=async batch=>{
+            if(!raced&&batch.writes.some(write=>write.model===model('purchase','InvoiceDocument'))) {
+              raced=true;const result=await invoke(other,competing);assert.ok('result' in result&&result.result.status==='committed',JSON.stringify(result));
+            }
+            return commit(batch);
+          };
+        }
+        if(mode==='revoked-buyer')await identities.setMembershipRoles(membership.membership_id,[]);
+        const outcome=await invoke(order,document),success=mode==='allowed';
+        assert.equal('result' in outcome&&outcome.result.status==='committed',success,`${mode}: ${JSON.stringify(outcome)}`);
+        const records=await store.query({model:model('purchase','InvoiceDocument'),authority:'owner'});
+        assert.equal(records.length,success||mode==='duplicate-other-parent'||mode==='concurrent-duplicate'?1:0,mode);
+        if(success){assert.equal(records[0]!.parent?.id,order.id);assert.equal(records[0]!.data.source,'invoice-42');assert.deepEqual(records[0]!.data.document,document);}
+        if(mode==='concurrent-duplicate')assert.ok(raced,'the real competing CREATE invalidated the original complete owner census');
+        if(mode!=='forged-file')assert.equal(files.get(document.id)?.state,success?'attached':'finalized',`${mode}: refusal never attaches File or partially creates a row`);
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });

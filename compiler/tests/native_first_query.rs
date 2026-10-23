@@ -1939,3 +1939,47 @@ fn original_purchase_decision_keeps_nested_guard_money_closure_and_branch_corres
         assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
     }
 }
+
+#[test]
+fn original_purchase_intake_keeps_unique_key_guard_and_create_correspondence() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source=include_str!("fixtures/purchase-intake-source-require.can");
+    let authored=std::fs::read_to_string(root().join("draft/apps/CanPurchase/CanPurchase.can")).unwrap();
+    let start=authored.find("  scenario intake_invoice(").unwrap();
+    let end=start+authored[start..].find("   examples ").unwrap();
+    assert!(source.contains(&authored[start..end]));
+    let (db,program,ir,catalog)=fixture_source("purchase-intake.can",source);
+    let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let owner=item(&ir,"purchase.intake_invoice");
+    assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+    for mode in ["predicate","created-key","create-order"] {
+        let mut changed=ir.clone();
+        let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("scenario");};
+        match mode {
+            "predicate"=>{let IrStmt::Require{cond,..}=&mut effects[0] else{panic!("guard");};cond.expr=IrExpr::Bool(true);},
+            "created-key"=>{
+                let IrStmt::Create{input,..}=&mut effects[1] else{panic!("create");};
+                let IrExpr::Object(entries)=&mut input.expr else{panic!("input");};
+                entries.iter_mut().find(|(key,_)|key=="source").unwrap().1.expr=IrExpr::Text("different".into());
+            },
+            "create-order"=>effects.swap(0,1),
+            _=>unreachable!(),
+        }
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode} retained altered source correspondence");
+    }
+    for (name,changed) in [
+        ("not-unique",source.replace("source:text unique","source:text")),
+        ("positive-global-scan",source.replace("require not any(InvoiceDocument","require any(InvoiceDocument")),
+        ("different-create-key",source.replace("document,source=trim(source)","document,source=source")),
+        ("different-guard-key",source.replace("item.source==trim(source)","item.source==source")),
+        ("copied-query-data",source.replace("source=trim(source)} as invoice_document","source=format(\"{exists}\",{exists=any(InvoiceDocument as item,item.source==trim(source))})} as invoice_document")),
+        ("late-guard",source.replace("    require not any(InvoiceDocument as item,item.source==trim(source))\n","")
+            .replace("    return invoice_document","    require not any(InvoiceDocument as item,item.source==trim(source))\n    return invoice_document")),
+    ] {
+        assert_ne!(source,changed,"{name}");
+        let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
+        let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+        assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+    }
+}

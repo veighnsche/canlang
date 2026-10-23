@@ -1,0 +1,37 @@
+app PurchaseDecision uses=[purchase]
+package purchase
+ Given
+  message label_Request_state_approved = "Approved"@{nl="Goedgekeurd"}
+  message label_Request_actual = "Actual"@{nl="Werkelijk"}
+  role approver
+  role buyer
+  message label_Receipt_source = "Source"@{nl="Bron"}
+  Order in Request {location:Location}
+  InvoiceDocument in Order {document:file,source:text unique}
+  Location {name:text}
+  Employee {user:user,home:Location,active:bool=true,hidden:bool=false}
+  derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and e.home==location)
+  Budget {name:text,total:money,active:bool=true}
+  Request in Budget {reviewer:user,requester:user,location:Location,amount:money,state:enum(draft,submitted,approved,rejected,cancelled,closed)=draft,decision:text?,actual:money?,hidden:bool=false}
+  Increase in Request {amount:money,hidden:bool=false}
+  Adjustment in Budget {amount:money,hidden:bool=false}
+  derive Budget.committed:money = sum(row.Request as request where request.state==approved select request.authorized,row.total.currency) label="Committed amount"@{nl="Vastgelegd bedrag"}
+  derive Budget.spent:money = sum(row.Request as request where request.state==closed select (request.actual ?? money(0,row.total.currency)),row.total.currency)+sum(row.Adjustment as adjustment select adjustment.amount,row.total.currency) label=label_Request_actual
+  derive Budget.remaining:money = row.total-row.committed-row.spent label="Remaining"@{nl="Resterend"}
+  derive Request.authorized:money = row.amount+sum(row.Increase as increase select increase.amount,row.amount.currency) label="Authorized amount"@{nl="Geautoriseerd bedrag"}
+  policy Budget read=members where=row.name!="hidden"
+  policy Request read=members where=not row.hidden
+  policy Increase read=members where=not row.hidden
+  policy Adjustment read=members where=not row.hidden
+  policy Employee read=members where=not row.hidden
+  policy Order read=members
+  policy InvoiceDocument read=members where=row.parent.parent.state==approved
+  policy Location read=members
+ When
+  scenario intake_invoice(order:Order,document:file,source:text label=label_Receipt_source) -> InvoiceDocument by=buyer label="Intake invoice document"@{nl="Factuurdocument innemen"}
+   require can_work(actor,order.location) and order.parent.state in [approved,closed] and trim(source)!=""
+   do
+    require not any(InvoiceDocument as item,item.source==trim(source))
+    create InvoiceDocument {parent=order,document,source=trim(source)} as invoice_document
+    return invoice_document
+ Then

@@ -15564,6 +15564,111 @@ impl<'a> Closure<'a> {
                 && !self.source_require_contained_collection(scenario, call, "any")
     }
 
+    /// The authored pre-CREATE duplicate check may inspect one declared
+    /// unique Text key. This is the same owner-wide key that the ensuing
+    /// CREATE must claim, not a general global collection capability.
+    fn source_require_unique_any(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        call: &CheckedDecisionCall,
+        query: &super::types::CheckedQuery,
+        alias: &super::types::CheckedQueryClause,
+        predicate: NodeKey,
+        model: SymbolId,
+    ) -> Option<()> {
+        if !call.chain.is_empty()
+            || self.resolve.symbols.get(model.0 as usize)?.module != scenario.module
+            || !matches!(self.query_binding(query.domain),Some(Binding::Symbol(actual)) if *actual==model)
+        {
+            return None;
+        }
+        let guard = scenario
+            .guards
+            .iter()
+            .chain(scenario.effects.iter())
+            .find(|effect| {
+                if effect.verb != EffectVerb::Require {
+                    return false;
+                }
+                let Some(cond) = effect.cond.and_then(|cond| self.query_group(cond)) else {
+                    return false;
+                };
+                let Some(node) = self.nodes.get(&cond) else {
+                    return false;
+                };
+                node.kind == SyntaxKind::Unary
+                    && node
+                        .children
+                        .iter()
+                        .any(|child| self.word(child) == Some("not"))
+                    && node
+                        .children
+                        .iter()
+                        .filter(|child| expression(child.kind))
+                        .map(NodeKey::of)
+                        .collect::<Vec<_>>()
+                        == [call.node]
+            })?;
+        let (left, right) = self.query_binary(predicate, "==")?;
+        let field = self.query_member(left, alias.node, model)?;
+        let declaration = self
+            .effects
+            .models
+            .get(&model)?
+            .fields
+            .iter()
+            .find(|item| item.field == field)?;
+        if self.types.symbol_types.get(&field) != Some(&ResolvedType::Scalar(Scalar::Text))
+            || declaration.default.is_some()
+            || declaration.server.is_some()
+            || !declaration
+                .modifiers
+                .iter()
+                .any(|modifier| modifier.name == "unique" && modifier.value.is_none())
+        {
+            return None;
+        }
+        let input = |key: NodeKey| -> Option<(SymbolId, bool)> {
+            let key = self.query_group(key)?;
+            let (key, trimmed) = if let Some(call) = self.types.selected_calls.get(&key) {
+                if !matches!(&call.target,SelectedCallTarget::Builtin{id,overload:0} if id=="trim")
+                    || call.arguments.len() != 1
+                    || call.slots.as_slice() != [Some(0)]
+                {
+                    return None;
+                }
+                (self.query_group(call.arguments[0])?, true)
+            } else {
+                (key, false)
+            };
+            let Binding::Symbol(parameter) = self.query_binding(key)? else {
+                return None;
+            };
+            (scenario
+                .params
+                .iter()
+                .any(|input| input.param == *parameter && input.default.is_none())
+                && self.types.symbol_types.get(parameter)
+                    == Some(&ResolvedType::Scalar(Scalar::Text)))
+            .then_some((*parameter, trimmed))
+        };
+        let value = input(right)?;
+        scenario
+            .effects
+            .iter()
+            .any(|effect| {
+                effect.node.file == guard.node.file
+                    && effect.node.start >= guard.node.end
+                    && effect.verb == EffectVerb::Create
+                    && matches!(effect.target,Some(EffectTarget::Model(actual)) if actual==model)
+                    && effect.args.iter().any(|argument| {
+                        argument.key == self.resolve.symbols[field.0 as usize].name
+                            && argument.value.and_then(input) == Some(value)
+                    })
+            })
+            .then_some(())
+    }
+
     fn source_require_any_call(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -15615,6 +15720,9 @@ impl<'a> Closure<'a> {
                 .source_require_contained_any(scenario, query, fact.model)
                 .is_none()
                 && self.source_require_remove_term_locations_any(scenario, query, fact.model).is_none()
+                && self
+                    .source_require_unique_any(scenario, call, query, alias, *predicate, fact.model)
+                    .is_none()
             {
                 *supported = false;
                 return Some(false);
