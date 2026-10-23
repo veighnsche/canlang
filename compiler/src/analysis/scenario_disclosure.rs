@@ -15058,31 +15058,73 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
-    /// Original Money SUMs may combine only direct children of the same
-    /// owning row. Keep currency, predicate, selector and containment sealed;
-    /// recognizing a Money result alone cannot grant a foreign collection.
-    fn source_require_money_aggregate(&self, body: NodeKey, model: SymbolId, depth: usize) -> Option<()> {
-        if depth > 32 { return None; }
+    /// Currency comes from this row's stored currency or stored Money field.
+    /// A same-typed parent/foreign expression carries no aggregate authority.
+    fn source_require_money_currency(&self, key:NodeKey, model:SymbolId)->Option<()> {
+        let key=self.query_group(key)?;
+        if self.types.node_types.get(&key)!=Some(&ResolvedType::Scalar(Scalar::Currency)){return None;}
+        let (base,name)=self.count_member(key)?;
+        let (row,name,expected)=if name=="currency" && self.types.node_types.get(&base)==Some(&ResolvedType::Scalar(Scalar::Money)) {
+            let (row,name)=self.count_member(base)?;(row,name,ResolvedType::Scalar(Scalar::Money))
+        } else {(base,name,ResolvedType::Scalar(Scalar::Currency))};
+        if !matches!(self.query_binding(row),Some(Binding::Context(ContextVar::RowModel(owner))) if *owner==model){return None;}
+        let field=self.effects.models.get(&model)?.fields.iter().find(|field|
+            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|declaration|declaration.name==name))?;
+        (matches!(self.resolve.symbols.get(field.field.0 as usize)?.kind,SymbolKind::Field{owner,..} if owner==model)
+            && self.types.symbol_types.get(&field.field)==Some(&expected)).then_some(())
+    }
+
+    /// This source-Require-only algebra keeps complete same-owner child
+    /// censuses, nested derived selectors and nullable Money fallbacks. The
+    /// ordinary DATA closure does not inherit this Boolean observer proof.
+    fn source_require_money_aggregate(&self,body:NodeKey,model:SymbolId,depth:usize)->Option<()> {
+        self.source_require_money_value(body,model,depth,&mut Vec::new(),&mut 4096)
+    }
+
+    fn source_require_money_value(&self, body:NodeKey, model:SymbolId, depth:usize,
+        visited:&mut Vec<(SymbolId,SymbolId)>,budget:&mut usize)->Option<()> {
+        if depth>32 || *budget==0{return None;} *budget-=1;
         let body=self.query_group(body)?;
         let money=ResolvedType::Scalar(Scalar::Money);
-        if self.types.node_types.get(&body)!=Some(&money) { return None; }
-        if let Some((left,right))=self.query_binary(body,"+") {
-            self.source_require_money_aggregate(left,model,depth+1)?;
-            return self.source_require_money_aggregate(right,model,depth+1);
+        if self.types.node_types.get(&body)!=Some(&money){return None;}
+        if let Some((base,name))=self.count_member(body) {
+            if !matches!(self.query_binding(base),Some(Binding::Context(ContextVar::RowModel(owner))) if *owner==model){return None;}
+            let SymbolKind::Model{fields,..}=&self.resolve.symbols.get(model.0 as usize)?.kind else{return None;};
+            let field=fields.iter().find_map(|id|self.resolve.symbols.get(id.0 as usize).filter(|field|field.name==name))?;
+            if self.types.symbol_types.get(&field.id)!=Some(&money){return None;}
+            return match field.kind {
+                SymbolKind::Field{owner,..} if owner==model=>Some(()),
+                SymbolKind::DeriveField{model:owner,..} if owner==model && !visited.contains(&(field.id,model))=>{
+                    let expr=self.source_require_aggregate_decl(field.id,model)?;
+                    visited.push((field.id,model));
+                    let result=self.source_require_money_value(expr,model,depth+1,visited,budget);
+                    visited.pop();result
+                },
+                _=>None,
+            };
+        }
+        if let Some((left,right))=self.query_binary(body,"+").or_else(||self.query_binary(body,"-")) {
+            self.source_require_money_value(left,model,depth+1,visited,budget)?;
+            return self.source_require_money_value(right,model,depth+1,visited,budget);
         }
         let selected=self.types.selected_calls.get(&body)?;
-        if !matches!(&selected.target,SelectedCallTarget::Builtin{id,..} if id=="sum")
-            || selected.arguments.len()!=2 || selected.slots.as_slice()!=[Some(0),Some(1)]
-        { return None; }
-        let currency=self.query_group(selected.arguments[1])?;
-        let (row,name)=self.count_member(currency)?;
-        let field=self.effects.models.get(&model)?.fields.iter().find(|field|
-            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|declaration| declaration.name==name))?;
-        if !matches!(self.query_binding(row),Some(Binding::Context(ContextVar::RowModel(owner))) if *owner==model)
-            || !matches!(self.resolve.symbols.get(field.field.0 as usize)?.kind,SymbolKind::Field{owner,..} if owner==model)
-            || self.types.symbol_types.get(&field.field)!=Some(&ResolvedType::Scalar(Scalar::Currency))
-            || self.types.node_types.get(&currency)!=Some(&ResolvedType::Scalar(Scalar::Currency))
-        { return None; }
+        let SelectedCallTarget::Builtin{id,..}=&selected.target else{return None;};
+        if id=="money" && selected.arguments.len()==2 && selected.slots.as_slice()==[Some(0),Some(1)] {
+            let zero=self.nodes.get(&selected.arguments[0])?;
+            if zero.kind!=SyntaxKind::Literal || self.word(zero)!=Some("0"){return None;}
+            return self.source_require_money_currency(selected.arguments[1],model);
+        }
+        if id=="max" && selected.arguments.len()==1 && selected.slots.as_slice()==[Some(0)] {
+            let array=self.nodes.get(&self.query_group(selected.arguments[0])?)?;
+            if array.kind!=SyntaxKind::Array{return None;}
+            let mut count=0;
+            for value in array.children.iter().filter(|value|expression(value.kind)) {
+                self.source_require_money_value(NodeKey::of(value),model,depth+1,visited,budget)?;count+=1;
+            }
+            return (count>0).then_some(());
+        }
+        if id!="sum" || selected.arguments.len()!=2 || selected.slots.as_slice()!=[Some(0),Some(1)]{return None;}
+        self.source_require_money_currency(selected.arguments[1],model)?;
         let query=self.types.checked_queries.get(&self.query_group(selected.arguments[0])?)?;
         let (alias,filter,select)=match query.clauses.as_slice() {
             [alias,select]=>(alias,None,select),
@@ -15091,8 +15133,34 @@ impl<'a> Closure<'a> {
         };
         let ResolvedType::Array{element,ordered:true,nonempty:false}=&query.domain_type else{return None;};
         let ResolvedType::Record{symbol:child,stored:true}=element.as_ref() else{return None;};
-        self.source_require_aggregate_domain(query,alias,select,*child,model)?;
-        if self.types.node_types.get(select.expressions.first()?)!=Some(&money) {return None;}
+        let (row,name)=self.count_member(query.domain)?;
+        let child_decl=self.resolve.symbols.get(child.0 as usize)?;
+        if !matches!(self.query_binding(row),Some(Binding::Context(ContextVar::RowModel(owner))) if *owner==model)
+            || child_decl.name!=name || !matches!(child_decl.kind,SymbolKind::Model{owner:ModelOwner::ChildOf(owner),..} if owner==model)
+            || self.effects.models.get(child)?.owner!=ModelOwner::ChildOf(model)
+            || !matches!(alias.kind,CheckedQueryClauseKind::As{..}) || !alias.expressions.is_empty()
+            || select.kind!=CheckedQueryClauseKind::Select || select.expressions.len()!=1 || query.projection.is_some()
+        {return None;}
+        let selector=self.query_group(select.expressions[0])?;
+        if self.types.node_types.get(&selector)!=Some(&money){return None;}
+        let (selected_value,fallback)=if let Some((value,fallback))=self.query_binary(selector,"??") {
+            (value,Some(fallback))
+        } else {(selector,None)};
+        if let Some(field)=self.query_member(selected_value,alias.node,*child) {
+            let expected=if fallback.is_some(){ResolvedType::Nullable(Box::new(money.clone()))}else{money.clone()};
+            if self.types.symbol_types.get(&field)!=Some(&expected){return None;}
+            if let Some(fallback)=fallback {self.source_require_money_value(fallback,model,depth+1,visited,budget)?;}
+        } else {
+            if fallback.is_some(){return None;}
+            let name=self.query_member_name(selector,alias.node,*child)?;
+            let field=self.resolve.symbols.iter().find(|field|field.name==name
+                && matches!(field.kind,SymbolKind::DeriveField{model,..} if model==*child))?.id;
+            if visited.contains(&(field,*child)){return None;}
+            let expr=self.source_require_aggregate_decl(field,*child)?;
+            visited.push((field,*child));
+            let result=self.source_require_money_value(expr,*child,depth+1,visited,budget);
+            visited.pop();result?;
+        }
         if let Some(filter)=filter {
             let [predicate]=filter.expressions.as_slice() else{return None;};
             if self.types.node_types.get(predicate)!=Some(&ResolvedType::Scalar(Scalar::Bool)){return None;}
@@ -16092,6 +16160,27 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
+    /// A reached IF arm may contain an initial-stage Require. Every prefix
+    /// on that exact original path must be write-free; loop/match bodies and
+    /// guards after any staged effect keep their independent refusal.
+    fn source_require_body_guard<'b>(&self,scenario:&'b super::effects::ScenarioData,
+        path:&[CheckedDecisionPosition])->Option<&'b Effect> {
+        let (CheckedDecisionPosition::Body(index),nested)=path.split_first()? else{return None;};
+        if !scenario.effects.get(..*index)?.iter().all(|effect|self.source_require_before_write(effect)){return None;}
+        let mut effect=scenario.effects.get(*index)?;
+        for position in nested {
+            if effect.verb!=EffectVerb::If || !effect.match_arms.is_empty(){return None;}
+            let (branch,index)=match position {
+                CheckedDecisionPosition::Then(index)=>(&effect.then_effects,*index),
+                CheckedDecisionPosition::Else(index)=>(&effect.else_effects,*index),
+                _=>return None,
+            };
+            if !branch.get(..index)?.iter().all(|effect|self.source_require_before_write(effect)){return None;}
+            effect=branch.get(index)?;
+        }
+        Some(effect)
+    }
+
     fn source_require_site(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -16102,10 +16191,8 @@ impl<'a> Closure<'a> {
             ([CheckedDecisionPosition::Guard(index)], CheckedDecisionStage::LeadingRequire) => {
                 (scenario.guards.get(*index)?, false)
             }
-            ([CheckedDecisionPosition::Body(index)], CheckedDecisionStage::BodyRequire)
-                if scenario.effects[..*index].iter().all(|effect| self.source_require_before_write(effect)) =>
-            {
-                (scenario.effects.get(*index)?, true)
+            (path,CheckedDecisionStage::BodyRequire) if self.source_require_body_guard(scenario,path).is_some()=>{
+                (self.source_require_body_guard(scenario,path)?,true)
             }
             _ => return Some(()),
         };
@@ -22588,7 +22675,6 @@ impl<'a> Closure<'a> {
             .cond
             .ok_or_else(|| self.fail(effect.node, "missing checked requirement"))?;
         if calls.is_empty()
-            && self.statement_depth == 1
             && self.effects.scenarios.values().any(|scenario| {
                 scenario.module == module
                     && self.checked_source_requires(scenario).is_some_and(|sites| {

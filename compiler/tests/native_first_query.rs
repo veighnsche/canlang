@@ -1881,3 +1881,44 @@ fn parent_timezone_keeps_its_original_stored_dependency() {
     *ty=IrType::Known(ResolvedType::Scalar(Scalar::Text));
     assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$506172656e7454696d657a6f6e65.mjs").is_none(),"timezone must not be rescued by a plain string descriptor");
 }
+
+#[test]
+fn original_purchase_decision_keeps_nested_guard_money_closure_and_branch_correspondence() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source=include_str!("fixtures/purchase-decision-source-require.can");
+    let (db,program,ir,catalog)=fixture_source("purchase-decision.can",source);
+    let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let owner=item(&ir,"purchase.decide");
+    assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+    for mode in ["branch-condition","nested-guard","guard-position","budget-helper"] {
+        let mut changed=ir.clone();
+        if mode=="budget-helper" {
+            let field=changed.items.iter_mut().find(|item|item.canonical=="purchase.Budget.remaining").unwrap();
+            let IrItemKind::DeriveField{expr,..}=&mut field.kind else{panic!("derive field");};
+            expr.as_mut().unwrap().expr=IrExpr::Money{minor:0,currency:"EUR".into()};
+        } else {
+            let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("owner");};
+            let IrStmt::If{cond,then_branch,..}=&mut effects[0] else{panic!("if");};
+            match mode {
+                "branch-condition"=>cond.expr=IrExpr::Bool(true),
+                "nested-guard"=>{let IrStmt::Require{cond,..}=&mut then_branch[0] else{panic!("require");};cond.expr=IrExpr::Bool(true);},
+                "guard-position"=>then_branch.swap(0,1),
+                _=>unreachable!(),
+            }
+        }
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
+    }
+    for (name,changed) in [
+        ("guard-value-copied-to-effect",source.replace("set request {state=approved,decision=reason}",
+            "set request {state=approved,decision=format(\"{available}\",{available=request.parent.remaining.minor})}")),
+        ("late-require",source.replace("     require request.parent.active", "     set request {decision=reason}\n     require request.parent.active")),
+        ("global-budget-domain",source.replace("sum(row.Request as request where request.state==approved", "sum(Request as request where request.state==approved")),
+        ("foreign-currency",source.replace("sum(row.Increase as increase select increase.amount,row.amount.currency)", "sum(row.Increase as increase select increase.amount,row.parent.total.currency)")),
+    ] {
+        assert_ne!(source,changed,"{name}");
+        let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
+        let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+        assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+    }
+}

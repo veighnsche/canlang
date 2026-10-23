@@ -3453,8 +3453,22 @@ fn join_require_statements<'o>(
         ([CheckedDecisionPosition::Guard(index)], CheckedDecisionStage::LeadingRequire) => {
             (guards.get(*index)?, expected_guards.get(*index)?)
         }
-        ([CheckedDecisionPosition::Body(index)], CheckedDecisionStage::BodyRequire) => {
-            (effects.get(*index)?, expected_effects.get(*index)?)
+        ([CheckedDecisionPosition::Body(index),nested @ ..], CheckedDecisionStage::BodyRequire) => {
+            let mut actual=effects.get(*index)?;
+            let mut expected=expected_effects.get(*index)?;
+            if !nested.is_empty(){semantic.statements(&effects[..*index],&expected_effects[..*index],0)?;}
+            for position in nested {
+                let (IrStmt::If{cond:ac,then_branch:a,else_branch:b,span:at},IrStmt::If{cond:bc,then_branch:x,else_branch:y,span:bt})=(actual,expected) else{return None;};
+                if at!=bt{return None;}semantic.expression(ac,bc,0)?;
+                let (left,right,index)=match position {
+                    CheckedDecisionPosition::Then(index)=>(a,x,*index),
+                    CheckedDecisionPosition::Else(index)=>(b,y,*index),
+                    _=>return None,
+                };
+                semantic.statements(left.get(..index)?,right.get(..index)?,0)?;
+                actual=left.get(index)?;expected=right.get(index)?;
+            }
+            (actual,expected)
         }
         _ => return None,
     };

@@ -1623,7 +1623,7 @@ fn missing_source_checked_send_rule(
 // Work producers. Keep those body joins diagnosed until their real owner
 // implementations are available; ordinary CRUD and scalar evaluation retain
 // their existing caller grants and mutation pipeline.
-fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem) -> bool {
+fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&HashMap<Span,serde_json::Value>) -> bool {
     fn expression(ir: &IrProgram, value: &TypedExpr, depth: usize) -> bool {
         if depth > 64 { return false; }
         let child = |value: &TypedExpr| expression(ir, value, depth + 1);
@@ -1693,7 +1693,7 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem) -> bool {
             _=>false,
         }
     }
-    fn statements(ir: &IrProgram, body: &[IrStmt], depth: usize,values:&mut BTreeSet<String>) -> bool {
+    fn statements(ir: &IrProgram, body: &[IrStmt], depth: usize,values:&mut BTreeSet<String>,consumed:&HashSet<Span>) -> bool {
         if depth > 64 { return false; }
         body.iter().all(|statement| match statement {
             IrStmt::Let { name,value,.. } => {
@@ -1707,11 +1707,11 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem) -> bool {
             IrStmt::Send { args, when: None, .. } => send_value(ir,args,values,0),
             IrStmt::Set { record, changes, when: None, .. } => expression(ir, record, 0) && expression(ir, changes, 0),
             IrStmt::Delete { record, .. } | IrStmt::Transition { record, .. } => expression(ir, record, 0),
-            IrStmt::Require { cond, .. } => expression(ir, cond, 0),
+            IrStmt::Require { cond, .. } => consumed.contains(&cond.span) || expression(ir, cond, 0),
             IrStmt::If { cond, then_branch, else_branch, .. } => expression(ir, cond, 0)
-                && statements(ir, then_branch, depth + 1,&mut values.clone()) && statements(ir, else_branch, depth + 1,&mut values.clone()),
+                && statements(ir, then_branch, depth + 1,&mut values.clone(),consumed) && statements(ir, else_branch, depth + 1,&mut values.clone(),consumed),
             IrStmt::Match { subject, arms, .. } => expression(ir, subject, 0)
-                && arms.iter().all(|arm| statements(ir, &arm.body, depth + 1,&mut values.clone())),
+                && arms.iter().all(|arm| statements(ir, &arm.body, depth + 1,&mut values.clone(),consumed)),
             _ => false,
         })
     }
@@ -1721,7 +1721,9 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem) -> bool {
         let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
         plain_value(ir,ty,0).then(||param.name.clone())
     }).collect();
-    statements(ir,effects,0,&mut values)
+    let consumed=sources.iter().filter_map(|(span,source)|
+        (source["owner"]==owner.canonical && source["node"]["start"]==span.start && source["node"]["end"]==span.end).then_some(*span)).collect();
+    statements(ir,effects,0,&mut values,&consumed)
 }
 
 pub(super) fn emit_program_with_feasible_query_sources(
@@ -3143,7 +3145,7 @@ fn emit_program_with_sources(
                 // Public parameter-style source guards bind a decision-only
                 // State frame from this verified inventory. Private handlers
                 // still need their independently admitted retained frame.
-                && !source_require_only_body_supported(ir, item)
+                && !source_require_only_body_supported(ir, item,&emitter.source_requires)
                 && emitter.source_requires.values().any(|source| source["owner"] == item.canonical)
                 && !emitter.diags.iter().any(|diagnostic| diagnostic.primary == item.span
                     && diagnostic.severity == crate::diagnostic::Severity::Error)

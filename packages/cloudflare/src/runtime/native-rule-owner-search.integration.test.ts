@@ -1401,3 +1401,74 @@ it('authorizes a stored timezone through the original parent path and rechecks s
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('decides the original Purchase request against complete nested Money owner domains',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-purchase-decision-'));
+    try {
+      const source=join(root,'compiler/tests/fixtures/purchase-decision-source-require.can');
+      const authored=await readFile(join(root,'draft/apps/CanPurchase/CanPurchase.can'),'utf8');
+      const start=authored.indexOf('  scenario decide('),end=authored.indexOf('   examples ',start);
+      const text=await readFile(source,'utf8');
+      assert.ok(text.includes(authored.slice(start,end)),'the whole original decision body is retained');
+      for(const line of authored.split('\n').filter(line=>line.startsWith('  derive Budget.')||line.startsWith('  derive Request.authorized'))) {
+        assert.ok(text.includes(line),'original aggregate helper is retained');
+      }
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['allowed','rejected','too-much','hidden-increase','null-actual','foreign-budget','worker-inactive','worker-at-commit','domain-race'] as const) {
+        const {now,identities,identity}=await member(`purchase-${mode}`,['purchase.approver']);
+        const store=createMemoryStorage();
+        const actor=identity.actor!.user_id;
+        const other=await identities.createUser({email:`other-${mode}@purchase.test`,password_hash:'unused',email_verified:true});
+        const location={...makeRow({id:asId('location'),data:{name:'Office'}}),parent:null};
+        const budget={...makeRow({id:asId('budget'),data:{name:'hidden',total:{minor:'10000',currency:'EUR'},active:mode!=='rejected'}}),parent:null};
+        const request={...makeRow({id:asId('request'),data:{reviewer:{id:actor},requester:{id:other.user_id},location:{id:location.id},
+          amount:{minor:mode==='too-much'?'7000':'6000',currency:'EUR'},state:'submitted',decision:null,actual:null,hidden:false}}),
+          parent:{model:model('purchase','Budget'),id:budget.id}};
+        const approved={...request,id:asId('approved'),data:{...request.data,amount:{minor:'2000',currency:'EUR'},state:'approved',hidden:true}};
+        const closed={...request,id:asId('closed'),data:{...request.data,amount:{minor:'1000',currency:'EUR'},state:'closed',
+          actual:mode==='null-actual'?null:{minor:'1000',currency:'EUR'},hidden:true}};
+        const employee={...makeRow({id:asId('worker'),data:{user:{id:actor},home:{id:location.id},active:mode!=='worker-inactive',hidden:true}}),parent:null};
+        const writes:Array<{kind:'insert';model:ModelName;row:StoredRow}>=[
+          {kind:'insert',model:model('purchase','Location'),row:location},
+          {kind:'insert',model:model('purchase','Employee'),row:employee},
+          {kind:'insert',model:model('purchase','Budget'),row:budget},
+          {kind:'insert',model:model('purchase','Request'),row:request},
+          {kind:'insert',model:model('purchase','Request'),row:approved},
+          {kind:'insert',model:model('purchase','Request'),row:closed},
+          {kind:'insert',model:model('purchase','Adjustment'),row:{...makeRow({id:asId('adjustment'),data:{amount:{minor:'500',currency:'EUR'},hidden:true}}),parent:{model:model('purchase','Budget'),id:budget.id}}},
+        ];
+        if(mode==='hidden-increase')writes.push({kind:'insert',model:model('purchase','Increase'),row:{...makeRow({id:asId('increase'),data:{amount:{minor:'1000',currency:'EUR'},hidden:true}}),parent:{model:model('purchase','Request'),id:approved.id}}});
+        if(mode==='foreign-budget')writes.push(
+          {kind:'insert',model:model('purchase','Budget'),row:{...budget,id:asId('foreign-budget')}},
+          {kind:'insert',model:model('purchase','Request'),row:{...approved,id:asId('foreign-request'),data:{...approved.data,amount:{minor:'999999',currency:'EUR'}},parent:{model:model('purchase','Budget'),id:asId('foreign-budget')}}});
+        await store.commit(makeBatch(await store.readRevision(),{writes}));
+        let raced=false;
+        if(mode==='domain-race'||mode==='worker-at-commit') {
+          const commit=store.commit.bind(store);
+          store.commit=async batch=>{
+            if(!raced && batch.writes.some(write=>write.model===model('purchase','Request'))) {
+              raced=true;
+              if(mode==='worker-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('purchase','Employee'),
+                id:employee.id,expectedVersion:employee.version,row:{...employee,version:asVersion(employee.version+1),data:{...employee.data,active:false}}}]}));
+              else await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('purchase','Adjustment'),
+                row:{...makeRow({id:asId('race-adjustment'),data:{amount:{minor:'1000',currency:'EUR'},hidden:true}}),parent:{model:model('purchase','Budget'),id:budget.id}}}]}));
+            }
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const outcome=await invoker.invokeMutation({operation:'purchase.decide',operation_id:operationId(now),inputs:{
+          request:{id:request.id,version:String(request.version)},approve:mode!=='rejected',reason:'Reviewed budget'}},identity);
+        const success=['allowed','rejected','null-actual','foreign-budget'].includes(mode);
+        assert.equal('result' in outcome && outcome.result.status==='committed',success,`${mode}: ${JSON.stringify(outcome)}`);
+        assert.equal((await store.load(model('purchase','Request'),request.id))!.data.state,
+          success?mode==='rejected'?'rejected':'approved':'submitted',`${mode}: atomic source decision`);
+        if(mode==='domain-race'||mode==='worker-at-commit')assert.ok(raced,'actual final commit observed the current complete owner domain and eligibility');
+      }
+    } finally {await rm(directory,{recursive:true,force:true});}
+  });
