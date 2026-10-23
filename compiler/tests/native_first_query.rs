@@ -3037,3 +3037,31 @@ fn original_crm_win_admits_only_source_narrowed_nullable_reference_slots() {
   let(db,program,_,catalog)=fixture_source(name,&changed);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
  }
 }
+
+#[test]
+fn missing_source_observer_does_not_erase_original_model_guard_domains() {
+ let source=r#"app MissingGuard uses=[checks]
+package checks
+ Given
+  contract Interval {from:datetime,until:datetime}
+  Root {active:bool=true,intervals:Interval[]}
+  Child in Root {allowed:bool}
+  policy Root read=members
+  policy Child read=members
+  derive allowed(root:Root):bool=any(root.intervals as interval,interval.from<now) and any(root.Child as child,child.allowed)
+ When
+  scenario mutate(root:Root) by=members
+   require allowed(root)
+   do set root {active=false}
+ Then
+"#;
+ for (name,source) in [("leading",source.to_owned()),("staged",source.replace("   require allowed(root)\n   do set root {active=false}","   do\n    set root {active=false}\n    if allowed(root)\n     set root {active=true}"))] {
+  let (db,program,_,catalog)=fixture_source(&format!("missing-observer-{name}.can"),&source);
+  let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"&&diagnostic.message.contains("source guard")),"{name}: {diagnostics:?}");
+ }
+ let pure=source.replace("derive allowed(root:Root):bool=any(root.intervals as interval,interval.from<now) and any(root.Child as child,child.allowed)","derive allowed(root:Root):bool=root.active");
+ let (db,program,_,catalog)=fixture_source("ordinary-helper-guard.can",&pure);
+ let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+ assert!(diagnostics.is_empty(),"{diagnostics:?}");
+}

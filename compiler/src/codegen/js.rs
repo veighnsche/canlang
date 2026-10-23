@@ -31,7 +31,7 @@ use crate::codegen::ir::{
     CheckedStandardCompletionHandler, IrBinOp, IrCallTarget, IrChoiceValue, IrCohort, IrDefault,
     IrEffectCallTarget, IrEventSource, IrExpr, IrFieldLabel, IrGuard, IrHook, IrInputChoiceBinding,
     IrItem, IrItemKind, IrJudgmentGenerated, IrMessage, IrModule, IrOwner, IrPage, IrProgram,
-    IrServer, IrStmt, IrType, IrUi, IrUnOp, IrViewUse, ReferencedBuiltin, ScalarFamily, TypedExpr,
+    IrQueryDomain, IrServer, IrStmt, IrType, IrUi, IrUnOp, IrViewUse, ReferencedBuiltin, ScalarFamily, TypedExpr,
     expr_uses_async, is_structural, scalar_family,
 };
 use crate::codegen::model_policies::{LocalPolicies, ModelPolicies, collect_local_policies};
@@ -1748,6 +1748,58 @@ fn source_only_schedules(ir:&IrProgram,owner:&IrItem,context:&super::scenario_de
     let mut output=HashMap::new();walk(ir,owner,effects,&mut roots,&mut values,&source,module,context,&creates,&mut BTreeMap::new(),&mut output);Some(output)
 }
 
+// Independently inspect original public guards when optional observer
+// preparation is unavailable. A missing inventory cannot erase a model scan.
+fn source_require_missing_original_guard(ir:&IrProgram,owner:&IrItem,sources:&HashMap<Span,serde_json::Value>)->bool {
+    let IrItemKind::Scenario{guards,effects,read:false,trusted:false,hook:None,event_source:None,cohort:None,..}=&owner.kind else{return false;};
+    fn domain(ir:&IrProgram,value:&TypedExpr,seen:&mut HashSet<SymbolId>,depth:usize)->bool {
+        if depth>=64{return true;}
+        let mut child=|value:&TypedExpr|domain(ir,value,seen,depth+1);
+        match &value.expr{
+            IrExpr::Query(query)=>matches!(query.domain,IrQueryDomain::Model(_))
+                ||matches!(&query.domain,IrQueryDomain::Value{base,..} if child(base))
+                ||query.parent.iter().chain(query.where_pred.iter()).chain(query.limit.iter()).chain(query.archived.iter()).chain(query.select.iter()).any(|value|child(value))
+                ||query.value_order.as_ref().is_some_and(|order|child(&order.key)),
+            IrExpr::Call{target,args}|IrExpr::BoundCall{target,args,..}=>{
+                if args.iter().any(child){return true;}
+                if let IrCallTarget::DeriveFn(name)=target
+                    &&let Some(helper)=ir.items.iter().find(|item|item.canonical==*name){
+                    if !seen.insert(helper.id){return true;}
+                    let result=matches!(&helper.kind,IrItemKind::DeriveFn{expr:Some(body),..}if domain(ir,body,seen,depth+1));
+                    seen.remove(&helper.id);return result;
+                }false
+            },
+            IrExpr::Member{base,field}=>{
+                if child(base){return true;}
+                let mut ty=&base.ty;while let ResolvedType::Nullable(inner)=ty{ty=inner;}
+                if let ResolvedType::Record{symbol,..}=ty
+                    &&let Some(helper)=ir.items.iter().find(|item|matches!(&item.kind,IrItemKind::DeriveField{model,..}if model==symbol)&&item.name==*field){
+                    if !seen.insert(helper.id){return true;}
+                    let result=matches!(&helper.kind,IrItemKind::DeriveField{expr:Some(body),..}if domain(ir,body,seen,depth+1));
+                    seen.remove(&helper.id);return result;
+                }false
+            },
+            IrExpr::Binary{left,right,..}=>child(left)||child(right),
+            IrExpr::Unary{operand,..}|IrExpr::Lambda{body:operand,..}=>child(operand),
+            IrExpr::Array(values)=>values.iter().any(child),
+            IrExpr::Object(fields)=>fields.iter().any(|(_,value)|child(value)),
+            IrExpr::HasRole{person,..}=>person.as_deref().is_some_and(child),
+            _=>false,
+        }
+    }
+    let mut pending=guards.iter().chain(effects).collect::<Vec<_>>();
+    while let Some(statement)=pending.pop(){
+        let condition=match statement{IrStmt::Require{cond,..}|IrStmt::If{cond,..}=>Some(cond),_=>None};
+        if condition.is_some_and(|cond|sources.get(&cond.span).is_none_or(|source|source["owner"]!=owner.canonical)
+            &&domain(ir,cond,&mut HashSet::new(),0)){return true;}
+        match statement{
+            IrStmt::If{then_branch,else_branch,..}=>{pending.extend(then_branch);pending.extend(else_branch);},
+            IrStmt::For{body,..}=>pending.extend(body),
+            IrStmt::Match{arms,..}=>for arm in arms{pending.extend(&arm.body);},_=>{},
+        }
+    }false
+}
+
 fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&HashMap<Span,serde_json::Value>,data_sends:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>) -> bool {
     fn expression(ir: &IrProgram, value: &TypedExpr, depth: usize) -> bool {
         if depth > 64 { return false; }
@@ -3312,7 +3364,8 @@ fn emit_program_with_sources(
                 // State frame from this verified inventory. Private handlers
                 // still need their independently admitted retained frame.
                 && !source_require_only_body_supported(ir, item,&emitter.source_requires,&emitter.source_data_sends,&emitter.source_let_data,&emitter.source_cancels,&emitter.source_schedules,&emitter.source_data_emits,&emitter.source_body_loops,decisions.source_context)
-                && emitter.source_requires.values().any(|source| source["owner"] == item.canonical)
+                && (emitter.source_requires.values().any(|source| source["owner"] == item.canonical)
+                    || source_require_missing_original_guard(ir,item,&emitter.source_requires))
                 && !emitter.diags.iter().any(|diagnostic| diagnostic.primary == item.span
                     && diagnostic.severity == crate::diagnostic::Severity::Error)
             {
