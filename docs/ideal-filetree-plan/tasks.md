@@ -2,48 +2,15 @@
 
 Source: [baseline](baseline.md), `8d48f969`. Completed moves/corrections are absorbed in the implementation record below; they are not executable backlog. This refresh selects source review and planning. It does not dispatch production writers or repeat tests/builds. Literal duty lists in the primary [reviews](reviews/index.md) are part of these packets; the [inventory](catalogue/inventory.md) accounts for every retained leaf. M (placement), C (named correction) and V (meaningful qualification) remain distinct.
 
-## Completed bounded source review
+## Completed source review and remaining gates
 
-L-REVIEW-PROOF's cohort, fresh-context/cache, consumed diagnostic/structural seal, public SEND/read boundary, terminal admission, model declaration/unique-origin and emit-to-CLI publication pass is source-reviewed at `8d48f969`. Actual definition/caller/error/test-subject evidence and independent host/root challenge are in the [language review](reviews/language-current.md#bounded-proof-source-review-at-the-current-product-source). This closes that boundary inspection with open LANG-PROOF-UNIQUE, not all specialized codec/profile bodies or runtime qualification. The remaining event, lexical/narrowing and first-row profile codecs belong explicitly to L-REVIEW-PROFILES; analogous edited predicate anchors remain a follow-up subject in the correction.
+All named parent source-review packets are complete at responsibility-family scope in the [review index](reviews/index.md). Actual workflow, assertion-subject, owner-alternative and independent challenge reasoning is in those records:
 
-RT-SETUP-REVIEW + P-R04 source coverage, claim/acknowledgement/publication/retry/disposal tracing, independent challenge and retained allocation are complete in the [setup review](reviews/runtime-setup.md). SETUP-C1 repairs concrete stale integration callers; SETUP-V1 names missing real failure assertions. No tests were executed and installed qualification remains open.
+- Language: [checking](reviews/language-checking.md), [original-source proof](reviews/language-current.md#bounded-proof-source-review-at-the-current-product-source), [emission](reviews/artifact-emission.md), [receipt profiles](reviews/receipt-profiles.md), [saved generation](reviews/saved-generation.md) and [authoring](reviews/authoring.md).
+- Runtime and host: [Values](reviews/values.md), [migration](reviews/state-migration.md), [Identity](reviews/identity-authority.md), [providers/Work/Files](reviews/providers-work-files.md), [host invocation/fanout/generation tools](reviews/host-invocation-delivery.md), [browser](reviews/browser-presentation.md), [native development](reviews/native-development.md), [setup](reviews/runtime-setup.md) and [delivery](reviews/delivery-upgrade.md).
+- Repository: [contract ownership](reviews/repository-current.md#current-contract-ownership-and-support-boundary) and [input/reader/provenance scope](reviews/input-evidence.md). The parent audit retains all external app requirements; their full business semantics and image fidelity remain unqualified. The earlier blanket all-app semantic-review condition is explicitly corrected in that input-owner review.
 
-RT-MIGRATION-REVIEW's eight-module engine and selected File/Work/native refusal source trace is complete in the [migration review](reviews/state-migration.md), independently challenged by setup/root. Its documented cross-chunk claim limitation and missing installed orchestration/lock/immutable-plan producer contracts remain MIG-C1/MIG-CONTRACT, not a passing installed migration.
-
-RT-AUTHORITY-REVIEW's named authentication/session/removal leaves and selected Interface/State recipients are source-reviewed with root challenge in the [authority review](reviews/identity-authority.md). Account/password/invitation/role/selection source follow-up and default-dispatch absence are reviewed; AUTH-DELIVERY-C supplies the missing generated route/tool integration. Browser lifecycle source review is complete in [browser presentation](reviews/browser-presentation.md), with BROWSER-C1/C2/C3 corrections open; complete final disclosure profiles remain RT-RECEIPT/P-R01–03. No full-product authority verdict is implied.
-
-L-REVIEW-AUTHORING's transport/source/version/Unicode/safe-edit/client-lifetime/completion source trace and independent framing challenge are complete in [authoring](reviews/authoring.md). AUTHOR-C1 addresses client failure containment; installed editor/late-apply/shell-engine qualification remains distinct.
-
-L-REVIEW-GIVEN's actual five named compiler leaves, saved schema/closure/IR/artifact/Then joins and real public refine/accept/reset mainchain are source-reviewed in [saved generation](reviews/saved-generation.md), with root challenge. GEN-C1 fixes incomplete composed acceptance status; detailed adapters/renderer/preparation remain P-R05/provider duties.
-
-L-REVIEW-NATIVE/RT-VALUES-REVIEW source duties and established workflows are now reviewed in [Values](reviews/values.md), including transport scanner/schema/coverage, canonical codecs/host traversal/ICU and actual assertion/delivery responsibilities. Root independently challenged V-ORDER-1, V-LOOKUP-2 and V-BOUNDS-3; V-ORDER-C1/V-LOOKUP-C1/V-BOUNDS-C1 remain corrections. No conformance execution, asset/source build equivalence or installed/Intl qualification is claimed.
-
-L-REVIEW-DEV source responsibility/workflow and root challenge are complete in [native development](reviews/native-development.md): actual owner/worker/preview/transport/claim/control/capture/watch/foreground and fixed-host lifecycle plus real assertion subjects. DEV-C1/C2 retain the final cancellation and staging-scratch custody defects; no runtime race/cancellation experiment was run.
-
-P-R06 + REPO-REVIEW-DELIVERY bounded source mapping and consequential challenge are complete in [delivery](reviews/delivery-upgrade.md), reusing the real package/install/setup source traces. Explicit unsupported live upgrade and absent authoritative producers are implementation gaps in MIG-CONTRACT, not endless unread review. DELIVERY-C1 repairs consumed-byte verification; REPO-DOC-C corrects unsupported guide commands. Public release/installed/provider claims and foreign dirty guide local-run claims remain unverified by this audit.
-
-
-L-REVIEW-CHECK source responsibility families, genuine fixture subjects and root challenge are complete in [checking](reviews/language-checking.md), with CHECK-C1/C2 open. This is not branchwise proof or executed semantic qualification.
-
-P-R03/browser authority follow-up source workflows and root challenge are complete in [browser presentation](reviews/browser-presentation.md). BROWSER-C1/C2/C3 retain the denied-content, visible stale feedback and absent refresh-recipient corrections. Full final disclosure profiles remain their separate packets.
-
-RT-PROVIDER-REVIEW bounded provider/Work recovery/File intake source duties are reviewed in [providers and Files](reviews/providers-work-files.md). Provider choice and upload intent admission corrections stay in their existing owners; host fanout/scheduling and private receipt profiles remain separate. Unsupported producer/event joins are implementation gaps, not installed support.
-
-L-REVIEW-EMIT general IR/JS, wire/style, BDD/maps, actual CLI/error/assertion source responsibility families and consequential owner challenge are complete in [artifact emission](reviews/artifact-emission.md). EMIT-C1 and LANG-VALUE-EXPECTATIONS remain corrections. Specialized source/current/private profile collectors retain their own packet; no product execution or installed support is implied.
-
-## Ready review packets
-
-All rows are ready for source inspection and independent challenge. Their physical document writers are the named primary review owners; production files are read-only until a concrete separately authorized correction. One packet can span slices without creating another package or lifecycle.
-
-| Packet / lead | Literal source duties and canonical specification | Required output / dependency |
-| --- | --- | --- |
-| L-REVIEW-PROFILES + RT-RECEIPT-REVIEW / language + runtime | Compiler disclosure/receipt/query/decision collectors; State receipt/plan/decoder/query/File/nominal/reference owners; host binder recipients | One source/current/CONTROL/DATA/domain/parent/callee/effect/File/replay contract per remaining profile, including specialized SEND event/lexical/narrowing and first-row predicate codecs. The bounded source-copy/decoder/projection trace is recorded; finish the parent-max emitted-occurrence and ordinary-guard census before assigning its shared refusal to absent grants or exhaustion. The rejected 100-IF inference is not evidence. Do not waive the guard. Required before RT-C1 selects a correction |
-| RT-AUTHORITY-FOLLOWUP / runtime + platform | Account/password/invitation/role/selection source follow-up is complete in the authority review. Browser lifecycle source duties are reviewed with BROWSER-C1/C2/C3 open. Finish exact final disclosure profiles/download/progress/CSV/generated-view predicates (RT-RECEIPT/P-R01–03). Missing default OAuth/team/invitation joins are AUTH-DELIVERY-C | Complete the exact remaining source duties in [authority review](reviews/identity-authority.md), reusing the current account/atomic invitation and default-dispatch absence trace. Recipient policy profiles remain their own owners; no cross-store transaction or retroactive cancellation inferred |
-| P-R01 / platform | Host invocation/resource dispatch, source/preclaim issuers, ordinary/private-due FIRST and original binders; exact [platform list](reviews/platform-current.md#remaining-review-packets-and-physical-writers) | Close private issuer/consumer and cycle boundaries without getters or capability DTOs. Nonempty due-FIRST execution is not established by prior selected fixtures |
-| P-R02 / platform | Fanout staging/claim/drive/scheduler/navigation/cancel joins and actual Work producers | Cancellation/supersession/terminal/recovery custody trace. No scheduler launch or invented replay engine |
-| P-R05 / platform | Generation controls/capture/lease/CLI/native recipients and preparation terminal publication | Complete remaining source/tool binding, lease/error/lifetime branches without parallel persisted lifecycle |
-| REPO-REVIEW-CONTRACTS / root | REQUIREMENTS/DESIGN/GRAMMAR/BUILD_GENERATION_REQUIREMENTS, owning contracts and current implementation guide | Reconcile remaining requirement/code/test disagreements; `.can` controls business identity/policy. Current grammar and policy migration are completed, not pending corrections |
-| REPO-REVIEW-EVIDENCE / root | Retained docs/research/output/fixtures, 46 literal consumer entries and separately owned draft inputs | Complete current document/fixture assertion/provenance and 50 draft source/companion plus shared support duties before retirement or whole-product correctness claims. All 16 source hashes sampled by the retained language-cohort review differ; path repair is not valid current review reuse. No shallow no-caller inference |
+This completes source planning, not branchwise correctness or executed qualification. Open defects, unsupported producers and focused unknowns stay below. RT-MAX-I must establish the actual emitted parent-max profile and first refused ordinary guard before selecting its correction; the rejected 100-IF explanation permits no cap increase. P-CODEC requires an explicit accepted-domain/projection/error-order decision before substitution. No implementation lane is launched.
 
 ## Gated corrections and qualification
 
@@ -71,7 +38,11 @@ All rows are ready for source inspection and independent challenge. Their physic
 | FILE-INTENT-C1 | C: join authenticated upload intent to exposed canonical mutation, writable File slot, available protected/parent context, current operation authority and effective policy/quota before grant. Missing context refuses safely; incomplete ordinary business guards remain unevaluated | Sole native File host admission writer coordinated with existing Interfaces upload routing and Files kernel. Keep canonical attachment/acceptance checks and durable retry/custody semantics; no duplicate authorization engine |
 | EMIT-C1 | C: include all actually consumed decimal arithmetic helpers in existing artifact family requirements; preserve separate catalog major and scalar pins and compatibility refusal | Sole compiler/src/codegen/artifact.rs requirement writer with actual JS import and deploy compatibility recipients; real compiled add/subtract/multiply-only artifacts |
 | LANG-VALUE-EXPECTATIONS | C: correct the two obsolete standard inventory compile-refusal expectations: typed Images inspection schemas and checked versioned bound interfaces are source-supported; preserve genuine planned/external/unversioned refusals and source/census mutation checks. Use an actually unsupported case for useful partial-metadata versus ordinary CLI refusal coverage | Sole compiler/tests/standard_value_inventory.rs writer; actual CLI/artifact recipients. Missing installed Images.inspect/validate remains a runtime producer/admission task, never a new compiler prohibition merely to restore stale assertions |
-| RT-C1 | C: select one complete original profile only after L-REVIEW-PROFILES/RT-RECEIPT-REVIEW supplies its source/current authority/domain/effect/File/failure contract. No new family is selected by a file move. V: genuine renamed/source/forged/stale/race/replay recipients | One compiler collector writer, one State receipt writer and one host invoke writer with exact handoffs; shared protocol/index/fixture changes coordinated. No executable production assignment yet |
+| GEN-REQUEST-C1 | C: bind request/input/attempt durably and exclusively before external launch in the existing request lifecycle. Identical in-flight/interrupted resends must recover the specific execution or report unknown, without launching again; changed input conflicts. Preserve attempt fences, candidates/current code and finite recovery | Sole generation/controls.ts + lifecycle.ts coordinator, shared with GEN-C1; CLI remains forwarding recipient. Actual same-ID concurrent/interrupted launch/reopen integration, not terminal-only replay |
+| RT-MAX-I | Investigation before RT-C1: identify the exact emitted parent-max profile and first refused occurrence, with ordered ordinary query/dependency/guard contributions. Distinguish scope/permissions from actual exhausted budgets; rejected 100-IF inference is not evidence | Compiler js.rs/scenario_receipts/scenario_decisions/source_loops and State scenario-receipt.ts actual parent/child execution; one operator. Preserve DATA/ancestor/Identity/source/final guards, no global cap increase or app exception |
+| HOST-V1 | V after a relevant implementation/contract change: nonempty private-due FIRST and actual retained cohort tick/fanout restart/race/navigation/termination. Current emitted-handler stdlib probe and fixture JSON do not exercise retained scheduling | Existing real native due/host cohort and State/Work recipients; establish exact executable selectors before credit. No scheduler launched by this audit |
+| PRODUCER-JOINS | C specification/support gate: keep unsupported installed Images.inspect/validate, Mailbox/inbound attachment event replay, held CLI adapter/resume and absent default fanout-cancel joins explicit at their actual provider/installation consumers. Select a concrete required journey before implementing a join | Existing Services/Files/Cloudflare/generation adapter owners, canonical source contracts and current permission/custody; no registry from metadata, blind resend, vendor success claim or implied all-provider project |
+| RT-C1 | C: select one complete original profile from the reviewed source/current authority/domain/effect/File/failure contracts, closing RT-MAX-I where relevant before choosing its correction. No new family is selected by a file move. V: genuine renamed/source/forged/stale/race/replay recipients | One compiler collector writer, one State receipt writer and one host invoke writer with exact handoffs; shared protocol/index/fixture changes coordinated. No executable production assignment yet |
 | P-CODEC | C: decide accepted historical/current row domain, projection and ordered faults before replacing CF dispatch projection with Work's stricter reader. Textual duplication does not prove equivalence. V: real accepted and refused persisted rows | `packages/work/src/kernel/tables.ts` defining codec and sole `packages/cloudflare/src/runtime/invoke.ts` adapter writer; Work/host contract handoff precedes mutation |
 | REPO-DOC-C | C: correct developer guide references to absent verify:turbo-cache/check:complexity commands and CI step against current manifest/graph. Preserve useful historical measurements with their scope; do not recreate removed tooling or policy merely to match old prose | Sole docs/dev-setup.md writer, informed by package.json/turbo.json and CI; no runtime rebuild required for this guidance correction |
 | AUTH-DELIVERY-C | C: mount existing OAuth/metadata/consent and canonical team/invitation primitives in default generated transport, derived from owning app/team/source-role policy. Verified addressed acceptance and original removal issuance/staging must use existing Identity/State authorities; no app-auth model or second service | One Worker main/assembly/bundle writer with Interfaces OAuth/browser and compiler operation-registry handoffs; Identity transaction owner retained. Real emitted registry/router/invitation/consent/removal journeys required when implementation is authorized |
@@ -84,38 +55,38 @@ There is no pending M-only extraction or whole-package port at this source. The 
 | Slice | Primary completion packet / recipient |
 | --- | --- |
 | L01 | Completed checker source trace; CHECK-C1/C2; completed bounded Given source trace; GEN-C1 |
-| L02 | LANG-PROOF-C; completed L-REVIEW-PROOF source boundary; L-REVIEW-PROFILES; completed general emission source trace; EMIT-C1; LANG-VALUE-EXPECTATIONS; RT-C1 gated |
-| L03 | Completed bounded Given/authoring source trace; GEN-C1; AUTHOR-C1; P-R05 recipient |
+| L02 | LANG-PROOF-C; completed L-REVIEW-PROOF source boundary; completed profile source trace; completed general emission source trace; EMIT-C1; LANG-VALUE-EXPECTATIONS; RT-C1 gated |
+| L03 | Completed bounded Given/authoring source trace; GEN-C1; AUTHOR-C1; completed generation/tool source trace recipient |
 | L04 | Completed native development source trace; DEV-C1/C2 |
 | L05 | Completed native/TS Values source trace; V-ORDER-C1; V-LOOKUP-C1; V-BOUNDS-C1 |
-| RT.CONTRACTS | RT-RECEIPT-REVIEW; RT-AUTHORITY-FOLLOWUP; producer/consumer protocol recipients |
-| RT.STATE.ADMIT | RT-AUTHORITY-FOLLOWUP; RT-RECEIPT-REVIEW |
-| RT.STATE.QUERY | RT-AUTHORITY-FOLLOWUP; RT-RECEIPT-REVIEW |
-| RT.STATE.MUTATE | RT-AUTHORITY-FOLLOWUP; RT-RECEIPT-REVIEW |
-| RT.STATE.RECEIPT | RT-RECEIPT-REVIEW; RT-C1 gated |
+| RT.CONTRACTS | completed receipt source trace; completed authority/final-disclosure source trace; producer/consumer protocol recipients |
+| RT.STATE.ADMIT | completed authority/final-disclosure source trace; completed receipt source trace |
+| RT.STATE.QUERY | completed authority/final-disclosure source trace; completed receipt source trace |
+| RT.STATE.MUTATE | completed authority/final-disclosure source trace; completed receipt source trace |
+| RT.STATE.RECEIPT | completed receipt source trace; RT-C1 gated |
 | RT.STATE.MIGRATE | Completed RT-MIGRATION-REVIEW source trace; MIG-CONTRACT; MIG-C1 |
-| RT.WORK.OCCURRENCE | Completed bounded provider/Work recovery trace; completed migration source trace; MIG-CONTRACT; P-R02 |
-| RT.WORK.DISPATCH | Completed bounded provider/Work recovery trace; P-R01; P-CODEC gated |
-| RT.WORK.RECOVER | Completed bounded provider/Work recovery trace; completed migration source trace; MIG-CONTRACT; P-R02 |
-| RT.IDENTITY | Completed bounded authority/setup source review; RT-AUTHORITY-FOLLOWUP; SETUP-C1; SETUP-V1 |
-| RT.FILES.INTAKE | Completed bounded intake source trace; FILE-INTENT-C1; RT-RECEIPT-REVIEW |
-| RT.FILES.RETAIN | Completed migration/File source trace; MIG-CONTRACT; RT-RECEIPT-REVIEW |
+| RT.WORK.OCCURRENCE | Completed bounded provider/Work recovery trace; completed migration source trace; MIG-CONTRACT; completed host fanout source trace |
+| RT.WORK.DISPATCH | Completed bounded provider/Work recovery trace; completed host invocation source trace; P-CODEC gated |
+| RT.WORK.RECOVER | Completed bounded provider/Work recovery trace; completed migration source trace; MIG-CONTRACT; completed host fanout source trace |
+| RT.IDENTITY | Completed bounded authority/setup source review; completed authority/final-disclosure source trace; SETUP-C1; SETUP-V1 |
+| RT.FILES.INTAKE | Completed bounded intake source trace; FILE-INTENT-C1; completed receipt source trace |
+| RT.FILES.RETAIN | Completed migration/File source trace; MIG-CONTRACT; completed receipt source trace |
 | RT.SERVICES | Completed bounded provider source trace; PROVIDER-C1 |
 | RT.VALUES | Completed Values source trace; V-ORDER-C1; V-LOOKUP-C1; V-BOUNDS-C1 |
-| P-ARTIFACT | completed delivery source trace; DELIVERY-C1; P-R05; L-REVIEW-EMIT recipient |
-| P-SERVING | P-R01; RT-AUTHORITY-FOLLOWUP recipient |
+| P-ARTIFACT | completed delivery source trace; DELIVERY-C1; completed generation/tool source trace; L-REVIEW-EMIT recipient |
+| P-SERVING | completed host invocation source trace; completed authority/final-disclosure source trace recipient |
 | P-PRESENTATION | Completed browser source trace; BROWSER-C1/C2/C3 |
-| P-DELIVERY | P-R01; P-R02; P-CODEC gated |
-| P-AUTHORING-HOST | P-R05; L-REVIEW-GIVEN recipient |
+| P-DELIVERY | completed host invocation source trace; completed host fanout source trace; P-CODEC gated |
+| P-AUTHORING-HOST | completed generation/tool source trace; L-REVIEW-GIVEN recipient |
 | P-DISTRIBUTION | Completed setup/delivery source review; SETUP-C1/V1; DELIVERY-C1; MIG-CONTRACT |
-| REPO.GOVERNANCE | REPO-REVIEW-CONTRACTS; completed native policy source trace |
-| DOC.CONTRACTS | REPO-REVIEW-CONTRACTS; completed native policy source trace |
-| DOC.EVIDENCE | REPO-REVIEW-EVIDENCE |
+| REPO.GOVERNANCE | completed contract ownership review; completed native policy source trace |
+| DOC.CONTRACTS | completed contract ownership review; completed native policy source trace |
+| DOC.EVIDENCE | completed parent input-owner review |
 | DOC.DELIVERY | Completed source delivery review; REPO-DOC-C; DELIVERY-C1 |
 | DOC.PLAN | Root reconciliation across all review packets; inventory/tree/task/challenge consistency |
-| DRAFT.INPUTS | REPO-REVIEW-EVIDENCE |
+| DRAFT.INPUTS | completed parent input-owner review |
 
-Every slice has a primary completion route. Exact remaining file/duty selectors live in its primary review, and all retained leaf dispositions remain in the inventory. These tasks expose partial review; they do not convert a complete path tree into complete semantic review or achievement of zero native diagnostics.
+Every slice has a primary completion route. Exact defining file/duty selectors live in its source review, and retained leaf dispositions remain in the inventory. These tasks expose correction/support/investigation/qualification gates; the audit does not claim complete runtime conformance or zero native diagnostics.
 
 ## Implementation status — 2026-10-23
 
