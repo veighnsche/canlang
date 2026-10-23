@@ -562,6 +562,26 @@ fn add_unique_origins(
     prefix: &str,
 ) -> Option<()> {
     for (index, unique) in model.uniques.iter().enumerate() {
+        // Rebuilding IR from editable checked tables cannot authenticate the
+        // selected fields. Join them to the independently parsed declaration.
+        let declaration = original_nodes.get(&unique.node)?;
+        let text = &db.get(unique.node.file)?.text;
+        let fields = crate::analysis::attribute_value(declaration, "fields", text)?;
+        if fields.kind != SyntaxKind::Selectors
+            || unique.fields_node != Some(NodeKey::of(fields))
+            || unique.where_predicate
+                != crate::analysis::attribute_value(declaration, "where", text).map(NodeKey::of)
+        {
+            return None;
+        }
+        let authored_fields: Vec<_> = crate::analysis::kids(fields)
+            .into_iter()
+            .filter(|node| node.kind == SyntaxKind::Path)
+            .map(|node| crate::analysis::path_segments(node, text).join("."))
+            .collect();
+        if unique.fields != authored_fields {
+            return None;
+        }
         let id = unique
             .where_predicate
             .map(|_| format!("{prefix}.unique.{}", index + 1));

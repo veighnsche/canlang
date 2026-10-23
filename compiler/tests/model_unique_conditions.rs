@@ -511,3 +511,42 @@ fn preferences_invariants_share_the_real_global_allocation_without_model_substit
     assert_eq!(census[8]["registryId"], "preferencesValid");
     assert_eq!(census[9]["model"], "Warehouse.Item");
 }
+
+#[test]
+fn coordinated_checked_unique_fields_and_rebuilt_ir_cannot_replace_original_source() {
+    for composite in [false, true] {
+        let source = if composite {
+            SOURCE.replace("fields=qty where=row.closed", "fields=qty,title")
+        } else {
+            SOURCE.to_string()
+        };
+        let (db, mut program, original) = checked(&source);
+        assert!(collect_checked_model_rule_origins(&program, &original, &db, None).is_some());
+        assert!(collect_checked_unique_conditions(&program, &original, &db, None).is_some());
+        let model = program.symbols.iter().find(|s| s.canonical == "Office.Item").unwrap().id;
+        let unique = &mut program.effects.models.get_mut(&model).unwrap().uniques[0];
+        if composite {
+            unique.fields.reverse();
+        } else {
+            unique.fields[0] = "title".into();
+        }
+        let (rebuilt, diagnostics) = ir::build(&program, &db, None);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(collect_checked_model_rule_origins(&program, &rebuilt, &db, None).is_none());
+        assert!(collect_checked_unique_conditions(&program, &rebuilt, &db, None).is_none());
+    }
+    for changed_anchor in ["fields", "where"] {
+        let (db, mut program, _) = checked(SOURCE);
+        let model = program.symbols.iter().find(|s| s.canonical == "Office.Item").unwrap().id;
+        let data = program.effects.models.get_mut(&model).unwrap();
+        if changed_anchor == "fields" {
+            data.uniques[0].fields_node = data.locks[0].fields_node;
+        } else {
+            data.uniques[0].where_predicate = data.invariants[0].predicate;
+        }
+        let (rebuilt, diagnostics) = ir::build(&program, &db, None);
+        assert!(diagnostics.is_empty(), "{changed_anchor}: {diagnostics:?}");
+        assert!(collect_checked_model_rule_origins(&program, &rebuilt, &db, None).is_none());
+        assert!(collect_checked_unique_conditions(&program, &rebuilt, &db, None).is_none());
+    }
+}
