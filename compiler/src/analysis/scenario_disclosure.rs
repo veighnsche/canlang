@@ -1841,6 +1841,14 @@ struct Closure<'a> {
     source_facts: RefCell<ImmutableSourceFacts>,
 }
 
+/// Existing required-reference source profiles; neither variant grants
+/// traversal beyond its independently checked original field occurrence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ScalarReferenceKind {
+    Profile,
+    Run,
+}
+
 /// A value observed while proving a derived body: plain data attached
 /// to an admitted row, or a row of the owning parent lineage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2711,9 +2719,14 @@ impl<'a> Closure<'a> {
         Ok(Some(values))
     }
 
-    /// The original required Branch.profile feeds only its owning scalars.
-    fn checked_profile_reference(
+    /// Reconstruct the original required scalar-reference source once: the
+    /// actual scenario parameter, owning Model field, stored target, authored
+    /// type spellings and complete checked schemas. The closed profiles retain
+    /// their distinct scope and leading-guard requirements below; this proves
+    /// source correspondence, never a generic stored-row traversal grant.
+    fn checked_scalar_reference(
         &self,
+        kind: ScalarReferenceKind,
         node: NodeKey,
         module: ModuleId,
     ) -> Option<(SymbolId, SymbolId, SymbolId, SymbolId)> {
@@ -2722,9 +2735,14 @@ impl<'a> Closure<'a> {
             return None;
         };
         let parameter = *parameter;
-        let (branch, depth) = self.checked_call_parent_path(receiver, parameter, 0)?;
-        let declaration = self.resolve.symbols.get(branch.0 as usize)?;
-        let SymbolKind::Model { fields, .. } = &declaration.kind else {
+        let (root, depth) = self.checked_call_parent_path(receiver, parameter, 0)?;
+        let declaration = self.resolve.symbols.get(root.0 as usize)?;
+        let SymbolKind::Model {
+            fields,
+            owner: root_parent,
+            ..
+        } = &declaration.kind
+        else {
             return None;
         };
         let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
@@ -2739,120 +2757,145 @@ impl<'a> Closure<'a> {
             .params
             .iter()
             .find(|param| param.param == parameter)?;
-        let field = fields
+        let mut fields = fields
             .iter()
             .filter_map(|field| self.resolve.symbols.get(field.0 as usize))
-            .find(|field| field.name == name)?;
+            .filter(|field| field.name == name);
+        let field = fields.next()?;
         let ResolvedType::Record {
-            symbol: profile,
+            symbol: target_id,
             stored: true,
         } = self.types.symbol_types.get(&field.id)?
         else {
             return None;
         };
-        let profile = *profile;
-        let target = self.resolve.symbols.get(profile.0 as usize)?;
+        let target_id = *target_id;
+        let target = self.resolve.symbols.get(target_id.0 as usize)?;
         let data = self
             .effects
             .models
-            .get(&branch)?
+            .get(&root)?
             .fields
             .iter()
             .find(|data| data.field == field.id)?;
         let text = &self.db.get(node.file)?.text;
-        let SymbolKind::Field { owner: field_owner, .. } = field.kind else {
-            return None;
+        let expected_name = match kind {
+            ScalarReferenceKind::Profile => "profile",
+            ScalarReferenceKind::Run => "run",
         };
-        if !Self::profile_reference_scope_ok(
-            node,
-            module,
-            name,
-            depth,
-            declaration.module,
-            target.module,
-            parameter_symbol.module,
-            scenario,
-        ) || !self.profile_reference_field_ok(
-            node,
-            module,
-            field.id,
-            field_owner,
-            field.module,
-            data,
-            parameter_data,
-            text,
-            &declaration.name,
-            &target.name,
-            branch,
-            profile,
-        ) {
+        if name != expected_name
+            || depth != 0
+            || declaration.module != module
+            || target.module != module
+            || parameter_symbol.module != module
+            || scenario.module != module
+            || scenario.read
+            || scenario.on.is_some()
+            || node.file != scenario.node.file
+            || node.start < scenario.node.start
+            || node.end > scenario.node.end
+            || !matches!(field.kind, SymbolKind::Field { owner, .. } if owner == root)
+            || field.module != module
+            || data.default.is_some()
+            || data.server.is_some()
+            || data.required_array
+            || self.types.field_reuse_sources.contains_key(&field.id)
+            || self.types.node_types.get(&node) != self.types.symbol_types.get(&field.id)
+            || text
+                .get(data.type_node.start as usize..data.type_node.end as usize)
+                .is_none_or(|spelling| spelling.trim() != target.name)
+            || text
+                .get(parameter_data.type_node.start as usize..parameter_data.type_node.end as usize)
+                .is_none_or(|spelling| spelling.trim() != declaration.name)
+        {
             return None;
         }
-        Some((parameter, branch, field.id, profile))
-    }
-
-    /// A profile reference's scope: the `profile` member at depth zero
-    /// with all parties in this scenario's module and span.
-    #[allow(clippy::too_many_arguments)]
-    fn profile_reference_scope_ok(
-        node: NodeKey,
-        module: ModuleId,
-        name: &str,
-        depth: u8,
-        declaration_module: ModuleId,
-        target_module: ModuleId,
-        parameter_symbol_module: ModuleId,
-        scenario: &super::effects::ScenarioData,
-    ) -> bool {
-        name == "profile"
-            && depth == 0
-            && declaration_module == module
-            && target_module == module
-            && parameter_symbol_module == module
-            && scenario.module == module
-            && !scenario.read
-            && scenario.on.is_none()
-            && node.file == scenario.node.file
-            && node.start >= scenario.node.start
-            && node.end <= scenario.node.end
-    }
-
-    /// A profile reference's field: owned by the branch without
-    /// defaults, reuse or required arrays, checking at its declared
-    /// type with matching spellings and created models.
-    #[allow(clippy::too_many_arguments)]
-    fn profile_reference_field_ok(
-        &self,
-        node: NodeKey,
-        module: ModuleId,
-        field_id: SymbolId,
-        field_owner: SymbolId,
-        field_module: ModuleId,
-        data: &super::effects::FieldData,
-        parameter_data: &super::effects::ParamData,
-        text: &str,
-        declaration_name: &str,
-        target_name: &str,
-        branch: SymbolId,
-        profile: SymbolId,
-    ) -> bool {
-        field_owner == branch
-            && field_module == module
-            && data.default.is_none()
-            && data.server.is_none()
-            && !data.required_array
-            && !self.types.field_reuse_sources.contains_key(&field_id)
-            && self.types.node_types.get(&node) == self.types.symbol_types.get(&field_id)
-            && text
-                .get(data.type_node.start as usize..data.type_node.end as usize)
-                .is_some_and(|spelling| spelling.trim() == target_name)
-            && text
-                .get(
-                    parameter_data.type_node.start as usize..parameter_data.type_node.end as usize,
-                )
-                .is_some_and(|spelling| spelling.trim() == declaration_name)
-            && self.checked_created_model(branch, module).is_some()
-            && self.checked_created_model(profile, module).is_some()
+        if kind == ScalarReferenceKind::Run {
+            let SymbolKind::Model {
+                owner: target_parent,
+                ..
+            } = &target.kind
+            else {
+                return None;
+            };
+            let by = scenario.by?;
+            if fields.next().is_some()
+                || !matches!((root_parent, target_parent),
+                    (ModelOwner::ChildOf(left), ModelOwner::ChildOf(right)) if left == right)
+                || scenario.cohort.is_some()
+                || !matches!(self.query_binding(by), Some(Binding::Predicate))
+                || self
+                    .db
+                    .get(by.file)?
+                    .text
+                    .get(by.start as usize..by.end as usize)?
+                    .trim()
+                    != "members"
+            {
+                return None;
+            }
+        }
+        if self.checked_created_model(root, module).is_none()
+            || self.checked_created_model(target_id, module).is_none()
+        {
+            return None;
+        }
+        if kind == ScalarReferenceKind::Run {
+            let boolean = ResolvedType::Scalar(Scalar::Bool);
+            // Find the real leading Require operand, not an arbitrary occurrence
+            // with a matching span inside a default, helper, or do statement.
+            let mut matched = false;
+            let mut visited = 0usize;
+            for guard in &scenario.guards {
+                let condition = guard.cond?;
+                if guard.verb != EffectVerb::Require
+                    || self.nodes.get(&guard.node)?.kind != SyntaxKind::Require
+                    || self.types.node_types.get(&condition) != Some(&boolean)
+                {
+                    return None;
+                }
+                let mut pending = vec![*self.nodes.get(&condition)?];
+                while let Some(candidate) = pending.pop() {
+                    visited += 1;
+                    if visited > 16384 {
+                        return None;
+                    }
+                    if candidate.kind == SyntaxKind::Unary {
+                        let operands: Vec<_> = candidate
+                            .children
+                            .iter()
+                            .filter(|child| expression(child.kind))
+                            .collect();
+                        let words: Vec<_> = candidate
+                            .children
+                            .iter()
+                            .filter(|child| {
+                                matches!(child.kind, SyntaxKind::Name | SyntaxKind::Punct)
+                            })
+                            .map(|child| self.word(child))
+                            .collect::<Option<Vec<_>>>()?;
+                        if let [leaf] = operands.as_slice()
+                            && self.count_member(NodeKey::of(leaf)) == Some((node, "unfinished"))
+                        {
+                            if matched
+                                || words != ["not"]
+                                || self.types.node_types.get(&NodeKey::of(candidate))
+                                    != Some(&boolean)
+                                || self.types.node_types.get(&NodeKey::of(leaf)) != Some(&boolean)
+                            {
+                                return None;
+                            }
+                            matched = true;
+                        }
+                    }
+                    pending.extend(candidate.children.iter());
+                }
+            }
+            if !matched {
+                return None;
+            }
+        }
+        Some((parameter, root, field.id, target_id))
     }
 
     fn checked_profile_scalar(
@@ -2862,7 +2905,7 @@ impl<'a> Closure<'a> {
     ) -> Option<(SymbolId, SymbolId, SymbolId, SymbolId, SymbolId)> {
         let (reference, name) = self.count_member(node)?;
         let (parameter, branch, reference_field, profile) =
-            self.checked_profile_reference(reference, module)?;
+            self.checked_scalar_reference(ScalarReferenceKind::Profile, reference, module)?;
         let expected = match name {
             "active" => Scalar::Bool,
             "system_prompt" | "provider_key" | "policy_revision" => Scalar::Text,
@@ -2970,164 +3013,6 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
-    /// The original leading unfinished guard consumes one required Turn.run
-    /// and the genuine owning Run Bool. This is not Contract or generic row
-    /// traversal, and it never admits a copied/defaulted/nullable receiver.
-    fn checked_run_reference(
-        &self,
-        node: NodeKey,
-        module: ModuleId,
-    ) -> Option<(SymbolId, SymbolId, SymbolId, SymbolId)> {
-        let (receiver, name) = self.count_member(node)?;
-        let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
-            return None;
-        };
-        let parameter = *parameter;
-        let (turn, depth) = self.checked_call_parent_path(receiver, parameter, 0)?;
-        let declaration = self.resolve.symbols.get(turn.0 as usize)?;
-        let SymbolKind::Model {
-            fields,
-            owner: turn_parent,
-            ..
-        } = &declaration.kind
-        else {
-            return None;
-        };
-        let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
-        let SymbolKind::Param {
-            owner: scenario, ..
-        } = parameter_symbol.kind
-        else {
-            return None;
-        };
-        let scenario = self.effects.scenarios.get(&scenario)?;
-        let parameter_data = scenario
-            .params
-            .iter()
-            .find(|param| param.param == parameter)?;
-        let mut fields = fields
-            .iter()
-            .filter_map(|field| self.resolve.symbols.get(field.0 as usize))
-            .filter(|field| field.name == name);
-        let field = fields.next()?;
-        let ResolvedType::Record {
-            symbol: run,
-            stored: true,
-        } = self.types.symbol_types.get(&field.id)?
-        else {
-            return None;
-        };
-        let run = *run;
-        let target = self.resolve.symbols.get(run.0 as usize)?;
-        let SymbolKind::Model {
-            owner: run_parent, ..
-        } = &target.kind
-        else {
-            return None;
-        };
-        let data = self
-            .effects
-            .models
-            .get(&turn)?
-            .fields
-            .iter()
-            .find(|data| data.field == field.id)?;
-        let by = scenario.by?;
-        let text = &self.db.get(node.file)?.text;
-        if name != "run"
-            || depth != 0
-            || fields.next().is_some()
-            || !matches!((turn_parent, run_parent), (ModelOwner::ChildOf(left), ModelOwner::ChildOf(right)) if left == right)
-            || declaration.module != module
-            || target.module != module
-            || parameter_symbol.module != module
-            || scenario.module != module
-            || scenario.read
-            || scenario.on.is_some()
-            || scenario.cohort.is_some()
-            || !matches!(self.query_binding(by), Some(Binding::Predicate))
-            || self
-                .db
-                .get(by.file)?
-                .text
-                .get(by.start as usize..by.end as usize)?
-                .trim()
-                != "members"
-            || node.file != scenario.node.file
-            || node.start < scenario.node.start
-            || node.end > scenario.node.end
-            || !matches!(field.kind, SymbolKind::Field {owner,..} if owner == turn)
-            || field.module != module
-            || data.default.is_some()
-            || data.server.is_some()
-            || data.required_array
-            || self.types.field_reuse_sources.contains_key(&field.id)
-            || self.types.node_types.get(&node) != self.types.symbol_types.get(&field.id)
-            || text
-                .get(data.type_node.start as usize..data.type_node.end as usize)?
-                .trim()
-                != target.name
-            || text
-                .get(
-                    parameter_data.type_node.start as usize..parameter_data.type_node.end as usize,
-                )?
-                .trim()
-                != declaration.name
-            || self.checked_created_model(turn, module).is_none()
-            || self.checked_created_model(run, module).is_none()
-        {
-            return None;
-        }
-        let boolean = ResolvedType::Scalar(Scalar::Bool);
-        // Find the real leading Require operand, not an arbitrary occurrence
-        // with a matching span inside a default, helper, or do statement.
-        let mut matched = false;
-        let mut visited = 0usize;
-        for guard in &scenario.guards {
-            let condition = guard.cond?;
-            if guard.verb != EffectVerb::Require
-                || self.nodes.get(&guard.node)?.kind != SyntaxKind::Require
-                || self.types.node_types.get(&condition) != Some(&boolean)
-            {
-                return None;
-            }
-            let mut pending = vec![*self.nodes.get(&condition)?];
-            while let Some(candidate) = pending.pop() {
-                visited += 1;
-                if visited > 16384 {
-                    return None;
-                }
-                if candidate.kind == SyntaxKind::Unary {
-                    let operands: Vec<_> = candidate
-                        .children
-                        .iter()
-                        .filter(|child| expression(child.kind))
-                        .collect();
-                    let words: Vec<_> = candidate
-                        .children
-                        .iter()
-                        .filter(|child| matches!(child.kind, SyntaxKind::Name | SyntaxKind::Punct))
-                        .map(|child| self.word(child))
-                        .collect::<Option<Vec<_>>>()?;
-                    if let [leaf] = operands.as_slice()
-                        && self.count_member(NodeKey::of(leaf)) == Some((node, "unfinished"))
-                    {
-                        if matched
-                            || words != ["not"]
-                            || self.types.node_types.get(&NodeKey::of(candidate)) != Some(&boolean)
-                            || self.types.node_types.get(&NodeKey::of(leaf)) != Some(&boolean)
-                        {
-                            return None;
-                        }
-                        matched = true;
-                    }
-                }
-                pending.extend(candidate.children.iter());
-            }
-        }
-        matched.then_some((parameter, turn, field.id, run))
-    }
-
     fn checked_run_unfinished(
         &self,
         node: NodeKey,
@@ -3135,7 +3020,7 @@ impl<'a> Closure<'a> {
     ) -> Option<(SymbolId, SymbolId, SymbolId, SymbolId, SymbolId)> {
         let (reference, name) = self.count_member(node)?;
         let (parameter, turn, reference_field, run) =
-            self.checked_run_reference(reference, module)?;
+            self.checked_scalar_reference(ScalarReferenceKind::Run, reference, module)?;
         let SymbolKind::Model { fields, .. } = &self.resolve.symbols.get(run.0 as usize)?.kind
         else {
             return None;
@@ -7385,8 +7270,10 @@ impl<'a> Closure<'a> {
         }
         if node.kind == SyntaxKind::Member
             && let Some((_, _, _, profile)) = self
-                .checked_profile_reference(NodeKey::of(node), scenario.module)
-                .or_else(|| self.checked_run_reference(NodeKey::of(node), scenario.module))
+                .checked_scalar_reference(ScalarReferenceKind::Profile, NodeKey::of(node), scenario.module)
+                .or_else(|| {
+                    self.checked_scalar_reference(ScalarReferenceKind::Run, NodeKey::of(node), scenario.module)
+                })
         {
             pending.push((profile, true));
         }
@@ -18336,8 +18223,10 @@ impl<'a> Closure<'a> {
     ) -> Result<(), DisclosureDecline> {
         if matches!(value.reference_origin, Some(ReferenceOrigin::Field { .. }))
             && self
-                .checked_profile_reference(base_key, module)
-                .or_else(|| self.checked_run_reference(base_key, module))
+                .checked_scalar_reference(ScalarReferenceKind::Profile, base_key, module)
+                .or_else(|| {
+                    self.checked_scalar_reference(ScalarReferenceKind::Run, base_key, module)
+                })
                 .is_some()
             && profile_scalar.is_none()
         {
@@ -18816,8 +18705,10 @@ impl<'a> Closure<'a> {
             self.expr_member_field_decl(key, field_name, ty, model)?;
         self.expr_member_derived_field(key, calls, base_key, model, field, field_ty, value)?;
         let profile_reference = self
-            .checked_profile_reference(key, module)
-            .or_else(|| self.checked_run_reference(key, module));
+            .checked_scalar_reference(ScalarReferenceKind::Profile, key, module)
+            .or_else(|| {
+                self.checked_scalar_reference(ScalarReferenceKind::Run, key, module)
+            });
         let profile_scalar = self
             .checked_profile_scalar(key, module)
             .or_else(|| self.checked_run_unfinished(key, module));
@@ -24596,8 +24487,10 @@ impl<'a> Closure<'a> {
                     && self
                         .query_group(key)
                         .and_then(|key| {
-                            self.checked_profile_reference(key, module)
-                                .or_else(|| self.checked_run_reference(key, module))
+                            self.checked_scalar_reference(ScalarReferenceKind::Profile, key, module)
+                                .or_else(|| {
+                                    self.checked_scalar_reference(ScalarReferenceKind::Run, key, module)
+                                })
                         })
                         .is_some()
                 {

@@ -6934,19 +6934,6 @@ fn imported_field_source_corresponds(
 /// Direct receivers name the parameter; navigation receivers name the
 /// exact one-hop containment path. Anything else keeps the refusal.
 /// Authored parameter node plus the receiver slice it proves.
-fn first_query_receiver_text<'db>(
-    ir: &IrProgram,
-    owner: &IrItem,
-    fact_node: crate::analysis::NodeKey,
-    receiver: crate::analysis::NodeKey,
-    db: &'db SourceDb,
-) -> Option<(SyntaxNode, &'db str, &'db str)> {
-    let authored_parameter = checked_effect_node(ir, owner, fact_node, db)?;
-    let text = db.get(receiver.file)?.text.as_str();
-    let receiver_text = text.get(receiver.start as usize..receiver.end as usize)?;
-    Some((authored_parameter, text, receiver_text))
-}
-
 fn first_query_navigation(
     text: &str,
     source_receiver: &SyntaxNode,
@@ -7031,44 +7018,6 @@ fn navigation_parent_valid(
         })
 }
 
-fn first_query_parameter_valid(
-    parameter: &IrItem,
-    parameter_id: crate::analysis::SymbolId,
-    parameter_owner: &crate::analysis::SymbolId,
-    owner: &IrItem,
-    params: &[crate::analysis::SymbolId],
-    index: usize,
-    fact: &crate::analysis::scenario_disclosure::CheckedScenarioParameter,
-    input_id: &crate::analysis::SymbolId,
-    parameter_name: &SyntaxNode,
-    text: &str,
-    navigation: bool,
-    receiver_text: &str,
-    parent_span: Span,
-    receiver: crate::analysis::NodeKey,
-) -> bool {
-    parameter.id == parameter_id
-        && *parameter_owner == owner.id
-        && params.get(index) == Some(&parameter_id)
-        && params.iter().filter(|id| **id == parameter_id).count() == 1
-        && fact.parameter == parameter_id
-        && fact.ty
-            == (ResolvedType::Record {
-                symbol: *input_id,
-                stored: true,
-            })
-        && fact.default.is_none()
-        && fact.constraints.is_none()
-        && parameter.module == owner.module
-        && parameter.canonical == format!("{}.{}", owner.canonical, parameter.name)
-        && parameter.span == parameter_name.span
-        && parameter_name
-            .token()
-            .is_some_and(|token| token.text(text) == parameter.name)
-        && (navigation || receiver_text == parameter.name)
-        && parent_span == node_span(receiver)
-}
-
 fn match_stored_contract_fields(
     ir: &IrProgram,
     parent: &crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
@@ -7081,6 +7030,81 @@ fn match_stored_contract_fields(
     Some(())
 }
 
+/// Source and declaration ownership shared by contained FIRST and COUNT.
+/// Construction proves the original required input and child schema; finishing
+/// proves the selected parent, imported ownership and all declared fields.
+/// The caller must independently prove its particular receiver occurrence.
+struct ContainedParentSource<'ir, 'source> {
+    ir: &'ir IrProgram,
+    owner: &'source IrItem,
+    query: &'source crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &'source SourceDb,
+    facts: &'ir crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    parameter: &'ir IrItem,
+    fact: &'ir crate::analysis::scenario_disclosure::CheckedScenarioParameter,
+    input_model: crate::analysis::SymbolId,
+    child: &'ir crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+    receiver: SyntaxNode,
+    text: &'source str,
+}
+
+impl<'ir, 'source> ContainedParentSource<'ir, 'source> {
+    fn checked(
+        ir: &'ir IrProgram,
+        owner: &'source IrItem,
+        query: &'source crate::analysis::scenario_disclosure::DisclosureQuery,
+        receiver: crate::analysis::NodeKey,
+        parameter_id: crate::analysis::SymbolId,
+        db: &'source SourceDb,
+    ) -> Option<Self> {
+        let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+        let parameter = ir.items.get(parameter_id.0 as usize)?;
+        let IrItemKind::Scenario { params, read: false, .. } = &owner.kind else {
+            return None;
+        };
+        let IrItemKind::Param {
+            owner: parameter_owner, index,
+            ty: IrType::Known(ResolvedType::Record { symbol: input_model, stored: true }),
+            array_bounds: None, default: None, default_node: None, default_copy_source: None,
+            ..
+        } = &parameter.kind else { return None; };
+        let fact = facts.parameters.get(*index)?;
+        let child = checked_first_query_schema(ir, owner, query, db)?;
+        let receiver_node = checked_effect_node(ir, owner, receiver, db)?;
+        let declaration = checked_effect_node(ir, owner, fact.node, db)?;
+        let name = declaration.children.iter().find(|node| node.kind == SyntaxKind::Name)?;
+        let text = db.get(receiver.file)?.text.as_str();
+        if parameter.id != parameter_id
+            || *parameter_owner != owner.id
+            || params.get(*index) != Some(&parameter_id)
+            || params.iter().filter(|id| **id == parameter_id).count() != 1
+            || fact.parameter != parameter_id
+            || fact.ty != (ResolvedType::Record { symbol: *input_model, stored: true })
+            || fact.default.is_some() || fact.constraints.is_some()
+            || parameter.module != owner.module
+            || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
+            || parameter.span != name.span
+            || !name.token().is_some_and(|token| token.text(text) == parameter.name)
+        {
+            return None;
+        }
+        Some(Self { ir, owner, query, db, facts, parameter, fact,
+            input_model: *input_model, child, receiver: receiver_node, text })
+    }
+
+    fn check_domain_parent(&self, parent_id: crate::analysis::SymbolId) -> Option<()> {
+        let mut parents = self.facts.stored_contracts.as_deref()?.iter()
+            .filter(|schema| schema.model && schema.id == parent_id);
+        let parent = parents.next()?;
+        if parents.next().is_some()
+            || !contained_query_models_valid(self.ir, self.owner, self.query, self.child, &parent_id, parent)
+        {
+            return None;
+        }
+        match_stored_contract_fields(self.ir, parent, self.db)
+    }
+}
+
 pub(super) fn checked_first_query_parent<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
@@ -7088,139 +7112,30 @@ pub(super) fn checked_first_query_parent<'a>(
     scan: &super::ir::IrQuery,
     db: &SourceDb,
 ) -> Option<(&'a IrItem, crate::analysis::SymbolId)> {
-    let first = query.first.as_ref()?;
-    let (receiver, parameter_id) = first.contained_parent?;
-    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let parameter = ir.items.get(parameter_id.0 as usize)?;
-    let IrItemKind::Scenario {
-        params,
-        read: false,
-        ..
-    } = &owner.kind
-    else {
-        return None;
-    };
-    let IrItemKind::Param {
-        owner: parameter_owner,
-        index,
-        ty:
-            IrType::Known(ResolvedType::Record {
-                symbol: input_id,
-                stored: true,
-            }),
-        array_bounds: None,
-        default: None,
-        default_node: None,
-        default_copy_source: None,
-        ..
-    } = &parameter.kind
-    else {
-        return None;
-    };
-    let fact = facts.parameters.get(*index)?;
-    let child = checked_first_query_schema(ir, owner, query, db)?;
-    let source_receiver = checked_effect_node(ir, owner, receiver, db)?;
-    let (authored_parameter, text, receiver_text) =
-        first_query_receiver_text(ir, owner, fact.node, receiver, db)?;
-    let parameter_name = authored_parameter
-        .children
-        .iter()
-        .find(|node| node.kind == SyntaxKind::Name)?;
-    // Direct receivers name the parameter; navigation receivers name the
-    // exact one-hop containment path. Anything else keeps the refusal.
-    // The navigation arm also keeps the original base occurrence: the
-    // decoded IR base must match that exact NameRef span and the
-    // declared input type, not just the parameter name.
-    let (navigation, nav_base) =
-        first_query_navigation(text, &source_receiver, receiver_text, &parameter.name)?;
-    // The parent value decoded from the authored receiver carries the
-    // resolved model and occurrence: direct shapes read the parameter
-    // name, navigation shapes read the exact `param.parent` member.
+    let (receiver, parameter_id) = query.first.as_ref()?.contained_parent?;
+    let source = ContainedParentSource::checked(ir, owner, query, receiver, parameter_id, db)?;
+    let receiver_text = source.text.get(receiver.start as usize..receiver.end as usize)?;
+    // FIRST retains its exact direct or one-hop authored path and decoded IR
+    // base occurrence. The common declaration proof grants neither receiver.
+    let (navigation, nav_base) = first_query_navigation(
+        source.text, &source.receiver, receiver_text, &source.parameter.name,
+    )?;
     let parent_value = scan.parent.as_deref()?;
     let parent_id = first_query_parent_model(
-        parent_value,
-        navigation,
-        nav_base,
-        &parameter.name,
-        &fact.ty,
-        input_id,
+        parent_value, navigation, nav_base, &source.parameter.name,
+        &source.fact.ty, &source.input_model,
     )?;
-    // A navigation parent must be the input model's owning containment
-    // parent; the direct shape keeps the parameter's own declared model.
-    if !navigation_parent_valid(navigation, facts, input_id, parent_id) {
-        return None;
-    }
-    let mut parents = facts
-        .stored_contracts
-        .as_deref()?
-        .iter()
-        .filter(|schema| schema.model && schema.id == parent_id);
-    let parent = parents.next()?;
-    if parents.next().is_some()
-        || !first_query_parameter_valid(
-            parameter,
-            parameter_id,
-            parameter_owner,
-            owner,
-            params,
-            *index,
-            fact,
-            input_id,
-            parameter_name,
-            text,
-            navigation,
-            receiver_text,
-            parent_value.span,
-            receiver,
-        )
-        || !count_query_models_valid(ir, owner, query, child, &parent_id, parent)
+    if !navigation_parent_valid(navigation, source.facts, &source.input_model, parent_id)
+        || (!navigation && receiver_text != source.parameter.name)
+        || parent_value.span != node_span(receiver)
     {
         return None;
     }
-    match_stored_contract_fields(ir, parent, db)?;
-    Some((parameter, parent_id))
+    source.check_domain_parent(parent_id)?;
+    Some((source.parameter, parent_id))
 }
 
-/// The released contained COUNT selector is the original required singular
-/// parent parameter. No aliases, nullable references or stored-path selectors
-/// enter this finite producer.
-fn count_query_parameter_valid(
-    parameter: &IrItem,
-    parameter_id: crate::analysis::SymbolId,
-    parameter_owner: &crate::analysis::SymbolId,
-    owner: &IrItem,
-    params: &[crate::analysis::SymbolId],
-    index: usize,
-    fact: &crate::analysis::scenario_disclosure::CheckedScenarioParameter,
-    parent_id: &crate::analysis::SymbolId,
-    parameter_name: &SyntaxNode,
-    source_receiver: &SyntaxNode,
-    text: &str,
-    receiver: crate::analysis::NodeKey,
-) -> bool {
-    parameter.id == parameter_id
-        && *parameter_owner == owner.id
-        && params.get(index) == Some(&parameter_id)
-        && params.iter().filter(|id| **id == parameter_id).count() == 1
-        && fact.parameter == parameter_id
-        && fact.ty
-            == (ResolvedType::Record {
-                symbol: *parent_id,
-                stored: true,
-            })
-        && fact.default.is_none()
-        && fact.constraints.is_none()
-        && parameter.module == owner.module
-        && parameter.canonical == format!("{}.{}", owner.canonical, parameter.name)
-        && parameter.span == parameter_name.span
-        && parameter_name.token().is_some_and(|token| token.text(text) == parameter.name)
-        && source_receiver.kind == SyntaxKind::NameRef
-        && text
-            .get(receiver.start as usize..receiver.end as usize)
-            .is_some_and(|got| got == parameter.name)
-}
-
-fn count_query_models_valid(
+fn contained_query_models_valid(
     ir: &IrProgram,
     owner: &IrItem,
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
@@ -7252,43 +7167,12 @@ fn checked_count_query_parent<'a>(
 ) -> Option<&'a IrItem> {
     let count = query.count.as_ref()?;
     let (receiver, parameter_id) = count.contained_parent?;
-    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let parameter = ir.items.get(parameter_id.0 as usize)?;
-    let IrItemKind::Scenario {
-        params,
-        read: false,
-        ..
-    } = &owner.kind
-    else {
-        return None;
-    };
-    let IrItemKind::Param {
-        owner: parameter_owner,
-        index,
-        ty:
-            IrType::Known(ResolvedType::Record {
-                symbol: parent_id,
-                stored: true,
-            }),
-        array_bounds: None,
-        default: None,
-        default_node: None,
-        default_copy_source: None,
-        ..
-    } = &parameter.kind
-    else {
-        return None;
-    };
-    let fact = facts.parameters.get(*index)?;
-    let child = checked_first_query_schema(ir, owner, query, db)?;
-    let domain_parent=child.parent?;
-    let mut parents = facts
-        .stored_contracts
-        .as_deref()?
-        .iter()
-        .filter(|schema| schema.model && schema.id == domain_parent);
-    let parent = parents.next()?;
-    let source_receiver = checked_effect_node(ir, owner, receiver, db)?;
+    let source = ContainedParentSource::checked(ir, owner, query, receiver, parameter_id, db)?;
+    let facts = source.facts;
+    let parameter = source.parameter;
+    let parent_id = &source.input_model;
+    let domain_parent = source.child.parent?;
+    let source_receiver = &source.receiver;
     let created_receiver=if source_receiver.kind==SyntaxKind::Member {
         let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
         let (input,input_span)=native_count_create_input(effects,count.statement)?;
@@ -7302,7 +7186,7 @@ fn checked_count_query_parent<'a>(
     let created_root=created_receiver.map(|(created,_,_)|created.inputs.iter().find(|input|input.name=="parent").map(|input|input.value_node)).flatten();
     let created_root_node=created_root.and_then(|node|checked_effect_node(ir,owner,node,db));
     let receiver_root=if let Some(root)=&created_root_node {root}else if domain_parent==*parent_id && source_receiver.kind==SyntaxKind::NameRef {
-        &source_receiver
+        source_receiver
     }else{
         let root_schema=facts.stored_contracts.as_deref()?.iter().find(|schema|schema.model && schema.id==*parent_id)?;
         if source_receiver.kind!=SyntaxKind::Member || root_schema.parent!=Some(domain_parent)
@@ -7316,32 +7200,15 @@ fn checked_count_query_parent<'a>(
         if roots.next().is_some(){return None;}
         root
     };
-    let authored_parameter = checked_effect_node(ir, owner, fact.node, db)?;
-    let parameter_name = authored_parameter
-        .children
-        .iter()
-        .find(|node| node.kind == SyntaxKind::Name)?;
-    let text = &db.get(receiver.file)?.text;
-    if parents.next().is_some()
-        || !count_query_parameter_valid(
-            parameter,
-            parameter_id,
-            parameter_owner,
-            owner,
-            params,
-            *index,
-            fact,
-            parent_id,
-            parameter_name,
-            receiver_root,
-            text,
-            crate::analysis::NodeKey::of(receiver_root),
-        )
-        || !count_query_models_valid(ir, owner, query, child, &domain_parent, parent)
+    // COUNT retains its exact direct NameRef after its own created-parent or
+    // one-hop root proof; this is intentionally narrower than FIRST's path.
+    if receiver_root.kind != SyntaxKind::NameRef
+        || source.text.get(receiver_root.span.start as usize..receiver_root.span.end as usize)
+            != Some(parameter.name.as_str())
     {
         return None;
     }
-    match_stored_contract_fields(ir, parent, db)?;
+    source.check_domain_parent(domain_parent)?;
     Some(parameter)
 }
 

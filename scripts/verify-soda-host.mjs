@@ -23,7 +23,7 @@ process.env.CAN_DEV_BIN ??= join(toolRoot, 'bin/can-dev');
 process.env.CAN_DEV_RUNTIME_HOST ??= join(toolRoot, 'libexec/dev-server-host/entry.mjs');
 const { require } = tools;
 const load = specifier => import(pathToFileURL(require.resolve(specifier)).href);
-const { startSodaRuntime, provisionSodaStorage } = await load('@canlang/cloudflare/deploy/soda-run');
+const { startSodaRuntime } = await load('@canlang/cloudflare/deploy/soda-run');
 const { installWorkerdShutdown, superviseWorkerd } = await load('@canlang/cloudflare/deploy/soda-lifetime');
 const dataDir = join(state, 'data');
 
@@ -70,7 +70,7 @@ if (process.argv.includes('--serve')) {
   try {
   const { buildSodaBundle } = await load('@canlang/cloudflare/deploy/soda');
   const { CONTRACTS_VERSION } = await load('@canlang/contracts');
-  const { seedLocalPreviewActors } = await import('../packages/cloudflare/dist/runtime/native-preview.test-support.js');
+  const { seedLocalPreviewActors, startLocalDev } = await import('../packages/cloudflare/dist/runtime/native-preview.test-support.js');
   const { PINNED_COMPATIBILITY_DATE } = await import(pathToFileURL(join(tools.cloudflare, 'dist/cli/artifact-defaults.js')).href);
   const source = join(repo, 'scripts/fixtures/soda-runtime.can');
   const raw = execFileSync(tools.compiler, ['compile', '--format=json', '--native-scenario-receipts',
@@ -91,7 +91,12 @@ if (process.argv.includes('--serve')) {
   await writeFile(join(state, 'input.json'), JSON.stringify({ ...input, bundle: { ...input.bundle,
     binaries: Object.fromEntries(Object.entries(input.bundle.binaries).map(([key, bytes]) => [key, Buffer.from(bytes).toString('base64')])) } }), { mode: 0o600 });
   await mkdir(dataDir, { recursive: true, mode: 0o700 });
-  const provision = await provisionSodaStorage(input, dataDir);
+  // Stopped baseline data is created by the previous development adapter.
+  // Direct production then has to consume its exact retained native D1 layout.
+  await mkdir(join(dataDir,'d1'),{recursive:true,mode:0o700});
+  const provision = await startLocalDev({workerName:'SodaRuntime',compatibilityDate:PINNED_COMPATIBILITY_DATE,
+    mainModule:'seed.js',modules:{'seed.js':'export default {fetch(){return new Response(null,{status:404});}};'},
+    d1Databases:[{binding:'DB',id:'soda-test-identity'}],d1Persist:join(dataDir,'d1'),d1PersistenceRequired:true});
   let seed;
   try {
     try { seed = JSON.parse(await readFile(join(state, 'actors.json'), 'utf8')); }

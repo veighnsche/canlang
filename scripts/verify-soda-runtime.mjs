@@ -37,7 +37,8 @@ export async function createSodaTestGateway(toolRoot, state, options = {}) {
     '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1', '-keyout', key, '-out', certificate], { stdio: 'ignore' });
   const cert = await readFile(certificate);
   const { require } = sodaToolPaths(toolRoot);
-  const { Agent, setGlobalDispatcher } = await import(pathToFileURL(require.resolve('undici')).href);
+  const dependency=createRequire(require.resolve('miniflare'));
+  const { Agent, setGlobalDispatcher } = await import(pathToFileURL(dependency.resolve('undici')).href);
   const dispatcher = new Agent({ connect: { ca: cert } });
   setGlobalDispatcher(dispatcher);
   let backendPort = options.backendPort;

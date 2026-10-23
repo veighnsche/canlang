@@ -5,7 +5,7 @@ import { CONTRACTS_VERSION } from '@canlang/contracts';
 import { DEFAULT_FILE_POLICY } from '@canlang/files/upload';
 import { checkCompatibility } from './compat.js';
 import type { PackageDeployBundle } from './bundle.js';
-import { RELEASE_VERSION } from '../release/stamp.js';
+import { RELEASE_VERSION } from '../release/version.js';
 import { artifactNeedsFiles } from '../runtime/artifact.js';
 
 export const SODA_CAPABILITIES = [

@@ -10,6 +10,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packRelease } from './pack-release.mjs';
 import { nativeArtifact } from './distribution/native-artifact.mjs';
+import { assembleSodaRuntime } from './pack-soda-runtime.mjs';
 
 const root = realpathSync(fileURLToPath(new URL('..', import.meta.url)));
 const json = file => JSON.parse(readFileSync(file, 'utf8'));
@@ -173,6 +174,7 @@ try {
   }
   const licenses = [...packages.values()].map(pkg => ({ name: pkg.manifest.name, version: pkg.manifest.version,
     license: pkg.manifest.license ?? 'UNSPECIFIED', files: readdirSync(pkg.directory).filter(name => /license|notice|copying/i.test(name)) }));
+  const runtime=assembleSodaRuntime({destination:join(destination,'runtime'),node,nodeLicense});
   const files = [];
   const epoch = new Date(Number(execFileSync('git', ['show', '-s', '--format=%ct', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()) * 1000);
   function inventory(directory) {
@@ -196,7 +198,7 @@ try {
   }
   inventory(destination);
   const manifest = { schema: 'canlang.tools.v1', platform: 'linux-x86_64', sourceRevision, dirty: sourceChanges.length > 0, sourceChanges,
-    versions, packages: licenses, files, scope: 'Offline authoring, portable assembly and local workerd; browser binaries and production qualification excluded.' };
+    versions, packages: licenses, files, runtime:{path:'runtime',schema:runtime.schema,files:runtime.files}, scope: 'Offline authoring, portable assembly and direct workerd runtime; browser binaries and production qualification excluded.' };
   chmodSync(destination, 0o755);
   writeFileSync(join(destination, 'tools.json'), JSON.stringify(manifest, null, 2) + '\n', { mode: 0o644 });
   const filename = 'canlang-tools-linux-x86_64.tar.gz';

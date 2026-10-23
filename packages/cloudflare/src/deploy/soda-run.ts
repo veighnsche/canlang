@@ -92,7 +92,7 @@ export async function provisionSodaStorage(input: SodaBundle, dataDir: string): 
   try {
     await prepareStorage(input, dataDir);
     const dev = await startSodaWorker({ workerName: input.descriptor.identity.appName, compatibilityDate: input.compatibilityDate,
-    compatibilityFlags: input.compatibilityFlags, d1Databases: d1Databases(input),
+    compatibilityFlags: input.compatibilityFlags, d1Databases: d1Databases(input).filter(item=>item.binding==='DB'),
     d1Persist: join(dataDir, 'd1'),
     mainModule: 'admin.js', modules: { 'admin.js': await readFile(new URL('../host/soda-admin.worker.js',import.meta.url),'utf8') },
  },lock.fd);

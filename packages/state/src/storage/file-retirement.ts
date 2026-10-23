@@ -122,7 +122,7 @@ function fileGuardReceiptCopy(input:Receipt,aggregate:{entries:number}):Receipt{
     if(status===undefined||!('value' in status)||!status.enumerable)return refuse('own receipt status required');
     if(status.value==='rejected')return fileGuardCopy(build(closed(value,['status','code','message']),(_name,value)=>fileGuardCopy(value)));
     if(status.value!=='committed')return refuse('known receipt outcome required');
-    return build(closed(value,['status','result','recordVersions'],['scenario']),
+    return build(closed(value,['status','result','recordVersions'],['scenario','generatedCrud']),
       (name,value)=>name==='recordVersions'?collection(value):name==='scenario'?scenario(value):fileGuardCopy(value));
   };
   return deepFreeze(build(closed(input,['identity','inputHash','resolvedDefaults','outcome','committedRevision','createdAt']),

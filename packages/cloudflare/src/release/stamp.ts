@@ -23,10 +23,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** The one release version every lockstep package must carry. */
-export const RELEASE_VERSION = "0.1.1";
+import { RELEASE_VERSION, RELEASE_CONTRACTS_VERSION } from './version.js';
+export { RELEASE_VERSION, RELEASE_CONTRACTS_VERSION } from './version.js';
 
 /** The contracts version this release was built against. */
-export const RELEASE_CONTRACTS_VERSION = 1;
 
 /**
  * Documented 0.0.0 exceptions: separately versioned pre-release packages. Each maps to

@@ -148,6 +148,7 @@ export const IDENTITY_DDL: readonly string[] = [
   IDENTITY_OAUTH_CLIENTS_DDL,
   IDENTITY_AUTH_CODES_DDL,
   'CREATE TABLE IF NOT EXISTS identity_bootstrap_claim (slot INTEGER PRIMARY KEY CHECK (slot = 1), user_id TEXT NOT NULL UNIQUE, team_id TEXT NOT NULL UNIQUE, membership_id TEXT NOT NULL UNIQUE)',
+  'CREATE TABLE IF NOT EXISTS identity_setup_claim (slot INTEGER PRIMARY KEY CHECK (slot = 1), operation TEXT NOT NULL UNIQUE, token_hash TEXT NOT NULL, context TEXT NOT NULL, completed_at INTEGER NOT NULL)',
   'CREATE TABLE IF NOT EXISTS identity_member_removals (event_id TEXT PRIMARY KEY, namespace TEXT NOT NULL, operation_id TEXT NOT NULL, request_digest TEXT NOT NULL, team_id TEXT NOT NULL, membership_id TEXT NOT NULL, user_id TEXT NOT NULL, removed_by TEXT NOT NULL, occurred_at TEXT NOT NULL, winner_token TEXT NOT NULL, UNIQUE(namespace, operation_id))',
   ...IDENTITY_INDEXES,
 ];

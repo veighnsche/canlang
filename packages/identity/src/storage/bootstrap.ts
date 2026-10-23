@@ -16,6 +16,36 @@ export interface D1OwnerBootstrapOutcome {
   readonly teamId: string;
 }
 
+/** Opaque host admission metadata; the same D1 transaction consumes it and
+ * creates the first owner. Raw setup credentials/tokens are never retained. */
+export interface D1OwnerSetupInput {
+  readonly operation: string;
+  readonly tokenHash: string;
+  readonly context: string;
+  readonly expiresAt: number;
+}
+interface SetupClaim {
+  operation:string;
+  token_hash:string;
+  context:string;
+  completed_at:number;
+}
+async function setupClaim(db:IdentityD1Database,setup:D1OwnerSetupInput):Promise<SetupClaim> {
+  const saved=await db.prepare('SELECT operation, token_hash, context, completed_at FROM identity_setup_claim WHERE slot = 1').bind().first<SetupClaim>();
+  if(saved===null || saved.operation!==setup.operation || saved.token_hash!==setup.tokenHash || saved.context!==setup.context)
+    throw new IdentityError('conflict','First-owner setup belongs to a different operation, token or application.');
+  return saved;
+}
+export async function bootstrapD1SetupOwner(db:IdentityD1Database,input:D1OwnerBootstrapInput,setup:D1OwnerSetupInput):Promise<D1OwnerBootstrapOutcome & {completedAt:number}> {
+  if(typeof setup.operation!=='string'||setup.operation.length===0||setup.operation.length>160||
+    !/^[a-f0-9]{64}$/.test(setup.tokenHash)||typeof setup.context!=='string'||setup.context.length>4096||
+    !Number.isSafeInteger(setup.expiresAt)||setup.expiresAt<Math.floor(Date.now()/1000))
+    throw new IdentityError('validation','First-owner setup admission is invalid or expired.');
+  const owner=await bootstrapOwner(db,input,setup);
+  const saved=await setupClaim(db,setup);
+  return {...owner,completedAt:saved.completed_at};
+}
+
 interface OwnerClaim {
   readonly user_id: string;
   readonly team_id: string;
@@ -63,11 +93,18 @@ async function recover(claim: OwnerClaim, input: D1OwnerBootstrapInput,
  * returns the retained outcome; it never resets credentials or membership. */
 export async function bootstrapD1Owner(db: IdentityD1Database,
   input: D1OwnerBootstrapInput): Promise<D1OwnerBootstrapOutcome> {
+  return bootstrapOwner(db,input);
+}
+async function bootstrapOwner(db: IdentityD1Database,
+  input: D1OwnerBootstrapInput,setup?:D1OwnerSetupInput): Promise<D1OwnerBootstrapOutcome> {
   const validated = validate(input);
   if (typeof db.batch !== 'function') throw new Error('Owner bootstrap requires genuine transactional D1 batch support.');
   await ensureIdentitySchema(db);
   const prior = await readOwnerClaim(db);
-  if (prior !== null) return recover(prior, input, validated);
+  if (prior !== null) {
+    if(setup!==undefined)await setupClaim(db,setup);
+    return recover(prior, input, validated);
+  }
   const userId = webRandom.randomUUID(), teamId = webRandom.randomUUID(), membershipId = webRandom.randomUUID();
   const at = toInstant(systemClock.nowMs()), passwordHash = await hashPassword(input.password);
   const empty = IDENTITY_TABLES
@@ -85,12 +122,22 @@ export async function bootstrapD1Owner(db: IdentityD1Database,
       "SELECT membership_id, team_id, user_id, 1, '[]', 'active', ?, ? FROM identity_bootstrap_claim WHERE slot = 1 AND user_id = ?")
       .bind(at, at, userId),
   ];
+  if(setup!==undefined){
+    const completedAt=Math.floor(Date.now()/1000);
+    if(completedAt>setup.expiresAt)throw new IdentityError('validation','First-owner setup admission expired.');
+    statements.push(db.prepare('INSERT INTO identity_setup_claim (slot, operation, token_hash, context, completed_at) ' +
+      'SELECT 1, ?, ?, ?, ? FROM identity_bootstrap_claim WHERE slot = 1 AND user_id = ?')
+      .bind(setup.operation,setup.tokenHash,setup.context,completedAt,userId));
+  }
   let failed = false;
   try { await db.batch(statements); } catch { failed = true; }
   // A missing acknowledgement is resolved only from a complete committed
   // claim and verified credentials, never from an optimistic user lookup.
   const saved = await readOwnerClaim(db);
-  if (saved !== null) return recover(saved, input, validated);
+  if (saved !== null) {
+    if(setup!==undefined)await setupClaim(db,setup);
+    return recover(saved, input, validated);
+  }
   if (failed) throw new Error('Owner bootstrap transaction did not complete; retry with the same credentials.');
   throw new IdentityError('conflict', 'Identity database is populated or has an incomplete owner claim; bootstrap refused.');
 }

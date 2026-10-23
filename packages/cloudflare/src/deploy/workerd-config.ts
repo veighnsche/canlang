@@ -36,7 +36,7 @@ export async function stageWorkerdConfig(options: DirectWorkerOptions, stage: st
     ...ordered.map(name=>[name,options.modules[name]!,'esModule'] as const),
     ...Object.entries(options.binaryModules??{}).map(([name,bytes])=>[name,bytes,'wasm'] as const),
   ]) {
-    if (!/^[a-zA-Z0-9_@./-]+$/.test(name) || name.startsWith('/') || name.split('/').some(part=>part==='..' || part==='.') || names.has(name))
+    if (!/^[a-zA-Z0-9_$@./-]+$/.test(name) || name.startsWith('/') || name.split('/').some(part=>part==='..' || part==='.' || part==='') || names.has(name))
       throw new Error('Invalid or duplicate Soda module path');
     names.add(name);
     const file = `module-${modules.length}`;
