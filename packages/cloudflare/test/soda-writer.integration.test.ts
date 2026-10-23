@@ -9,10 +9,23 @@ import { fileURLToPath } from 'node:url';
 import { it } from 'vitest';
 import { CONTRACTS_VERSION } from '@canlang/contracts';
 import { distribution } from '@canlang/values/distribution';
-import { bootstrapD1Owner, deriveCsrfToken } from '@canlang/identity';
+import { deriveCsrfToken, type D1OwnerBootstrapInput, type D1OwnerBootstrapOutcome } from '@canlang/identity';
 import { parseArtifactText } from '../src/runtime/artifact.js';
 import { buildSodaBundle } from '../src/deploy/soda.js';
-import { provisionSodaStorage, startSodaRuntime } from '../src/deploy/soda-run.js';
+import { provisionSodaStorage, startSodaRuntime } from '@canlang/cloudflare/deploy/soda-run';
+
+/** The stopped administrator owns D1; tests use the same private handoff as the CLI. */
+async function bootstrapOwner(runtime: Awaited<ReturnType<typeof provisionSodaStorage>>,
+  credentials: D1OwnerBootstrapInput): Promise<D1OwnerBootstrapOutcome> {
+  const response = await runtime.dispatchUrl('https://private.invalid/bootstrap', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(credentials),
+  });
+  assert.equal(response.status, 200);
+  const owner = await response.json() as D1OwnerBootstrapOutcome;
+  assert.match(owner.userId, /^[0-9a-f-]{36}$/i);
+  assert.match(owner.teamId, /^[0-9a-f-]{36}$/i);
+  return owner;
+}
 
 function compiledInput(workspace?: string, fixtureSource?: string) {
   const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
@@ -42,11 +55,11 @@ it('creates mode 0600 under umask 022, excludes writers, and recovers genuine D1
     const lock = await lstat(join(directory, '.writer-lock'));
     assert.equal(lock.mode & 0o7777, 0o600); assert.equal(lock.uid, process.getuid?.()); assert.ok(lock.isFile());
     const credentials = { email: 'writer-owner@example.invalid', password: 'Synthetic writer bootstrap password' };
-    const owner = await bootstrapD1Owner(await runtime.getD1Database('DB'), credentials);
+    const owner = await bootstrapOwner(runtime, credentials);
     await assert.rejects(provisionSodaStorage(input, directory), /already has a writer/);
     await runtime.dispose(); runtime = undefined;
     runtime = await provisionSodaStorage(input, directory);
-    assert.deepEqual(await bootstrapD1Owner(await runtime.getD1Database('DB'), credentials), owner);
+    assert.deepEqual(await bootstrapOwner(runtime, credentials), owner);
     assert.equal((await lstat(join(directory, '.writer-lock'))).mode & 0o7777, 0o600);
   } finally { process.umask(previousUmask); await runtime?.dispose(); await rm(directory, { recursive: true, force: true }); }
 }, 30_000);
@@ -79,7 +92,7 @@ it('relays login redirects and session cookies to the browser', async () => {
   try {
     provision = await provisionSodaStorage(input, directory);
     const credentials = { email: 'gateway-owner@example.invalid', password: 'Synthetic gateway login password' };
-    const owner = await bootstrapD1Owner(await provision.getD1Database('DB'), credentials);
+    const owner = await bootstrapOwner(provision, credentials);
     await provision.dispose(); provision = undefined;
     runtime = await startSodaRuntime(input, { dataDir: directory, ownerTeam: owner.teamId, port: 0 });
     const descriptor = await fetch(runtime.origin + '/auth/login', { headers: { accept: 'text/html' }, redirect: 'manual' });
@@ -114,7 +127,7 @@ it('upgrades exact legacy storage, preserves Todo data across a title edit, and 
   try {
     provision = await provisionSodaStorage(input, directory);
     const credentials = { email: 'update-owner@example.invalid', password: 'Synthetic retained update password' };
-    const owner = await bootstrapD1Owner(await provision.getD1Database('DB'), credentials);
+    const owner = await bootstrapOwner(provision, credentials);
     await provision.dispose(); provision = undefined;
     const manifest = join(directory, 'storage.json');
     await writeFile(manifest, JSON.stringify({ schema: 'canlang.soda.storage.v1', app: input.descriptor.identity.appName,
