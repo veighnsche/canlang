@@ -1797,5 +1797,9 @@ fn source_require_has_a_frame_without_fabricating_result_disclosure() {
     assert!(diagnostics.is_empty(),"{diagnostics:?}");
     let mut result=DiagnosticResult::new("owner-body","1.0",1);result.add_sources(&db);
     let(_,diagnostics)=emit(&program,&EmitSources{db:&db,result:&result,catalog:catalog.as_ref(),options:EmitOptions{allow_incomplete_test_only:false,native_scenario_receipts:true}});
-    assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008" && diagnostic.message.contains("checked owner receipt is unavailable")),"{diagnostics:?}");
+    let diagnostic=diagnostics.iter().find(|diagnostic|diagnostic.code=="E6008" && diagnostic.message.contains("checked owner receipt is unavailable"))
+        .unwrap_or_else(||panic!("{diagnostics:?}"));
+    let [related]=diagnostic.related.as_slice() else {panic!("owner refusal must locate its unsupported expression: {diagnostic:?}")};
+    let source=&db.get(related.span.file).unwrap().text;
+    assert_eq!(source[related.span.start as usize..related.span.end as usize].trim(),"root.remaining");
 }

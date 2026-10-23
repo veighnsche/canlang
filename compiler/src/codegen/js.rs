@@ -3155,6 +3155,14 @@ fn emit_program_with_sources(
                 };
                 emitter.unsupported("scenario source requirement",
                     &format!("original checked owner receipt is unavailable for its source guard{reason}"), item.span);
+                if let Some(crate::analysis::scenario_disclosure::ScenarioDisclosure::Declined(decline)) =
+                    ir.scenario_disclosures.get(&item.id)
+                {
+                    emitter.diags.last_mut().unwrap().related.push(crate::diagnostic::Related {
+                        span: Span::new(decline.node.file, decline.node.start, decline.node.end),
+                        message: format!("Unsupported original owner expression: {}", decline.reason),
+                    });
+                }
             }
         }
     }
