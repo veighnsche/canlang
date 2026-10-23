@@ -1949,15 +1949,15 @@ fn checked_plain_enum_data_transport(
     {
         return None;
     }
-    let JsModelFieldType::Enum { values } = &descriptor.field else {
-        return None;
-    };
-    if values.as_slice() != ty_cases {
-        return None;
+    match &descriptor.field {
+        JsModelFieldType::Enum { values } if values.as_slice()==ty_cases => {},
+        JsModelFieldType::Nominal {name} if name==dependency_type_id
+            && descriptor.value_type.as_deref()==Some(dependency_type_id) => {},
+        _ => return None,
     }
     let owner_item = ir.items.get(enum_owner.0 as usize)?;
     let IrItemKind::Field {
-        ty: IrType::Known(ResolvedType::Enum { cases: owner_cases, .. }),
+        ty: IrType::Known(ResolvedType::Enum { cases: owner_cases, owner: Some(original_owner) }),
         ..
     } = &owner_item.kind
     else {
@@ -1966,11 +1966,13 @@ fn checked_plain_enum_data_transport(
     if owner_item.id != enum_owner
         || owner_item.canonical != dependency_type_id
         || owner_cases.as_slice() != ty_cases
+        || *original_owner != enum_owner
     {
         return None;
     }
     let inline = format!("enum({})", ty_cases.join(","));
-    if inventory_type(descriptor)? != inline {
+    if descriptor.value_type.as_deref() != Some(dependency_type_id)
+        && inventory_type(descriptor).as_deref() != Some(inline.as_str()) {
         return None;
     }
     Some(inline)
@@ -14262,9 +14264,13 @@ fn stored_contract_declaration<'i>(
     ir: &'i IrProgram,
     ty: &ResolvedType,
     field: &JsModelField,
-) -> Option<(&'i IrItem, crate::analysis::SymbolId, bool)> {
+) -> Option<(&'i IrItem, crate::analysis::SymbolId, bool, bool)> {
     let (ty, nullable) = match ty {
         ResolvedType::Nullable(inner) => (inner.as_ref(), true),
+        ty => (ty, false),
+    };
+    let (ty, array) = match ty {
+        ResolvedType::Array { element, ordered: true, nonempty: false } => (element.as_ref(), true),
         ty => (ty, false),
     };
     let ResolvedType::Record { symbol, .. } = ty else {
@@ -14279,21 +14285,17 @@ fn stored_contract_declaration<'i>(
     };
     if declaration.id != *symbol
         || name != &declaration.canonical
-        || field.value_type.as_deref()
-            != Some(if nullable {
-                format!("{}?", declaration.canonical)
-            } else {
-                declaration.canonical.clone()
-            }.as_str())
+        || field.value_type.as_deref()!=Some(format!("{}{}{}",declaration.canonical,
+            if array{"[]"}else{""},if nullable{"?"}else{""}).as_str())
         || field.nullable != nullable
-        || field.array_required.is_some()
+        || field.array_required != if array{Some(false)}else{None}
         || field.machine.is_some()
         || fields.is_empty()
         || fields.len() > 200
     {
         return None;
     }
-    Some((declaration, *symbol, nullable))
+    Some((declaration, *symbol, nullable, array))
 }
 
 fn stored_contract_root_schema<'s>(
@@ -14420,7 +14422,7 @@ fn stored_contract_inventory_type(
     db: Option<&SourceDb>,
     nullable_notice_snapshot: bool,
 ) -> Option<String> {
-    let (declaration, symbol, nullable) = stored_contract_declaration(ir, ty, field)?;
+    let (declaration, symbol, nullable, array) = stored_contract_declaration(ir, ty, field)?;
     if nullable && (!nullable_notice_snapshot
         || stored.canonical != "agreements.Term.snapshot"
         || declaration.canonical != "agreements.ExecutedParties") {
@@ -14453,7 +14455,8 @@ fn stored_contract_inventory_type(
             }
         }
     }
-    Some(format!("{}{}", declaration.canonical, if nullable { "?" } else { "" }))
+    Some(format!("{}{}{}", declaration.canonical,
+        if array { "[]" } else { "" }, if nullable { "?" } else { "" }))
 }
 
 fn stored_contract_owner_matches(
@@ -18752,7 +18755,7 @@ fn assignment_inventory_matches(ir: &IrProgram, ty: &ResolvedType, field: &JsMod
         ResolvedType::Array { element, .. } => (element.as_ref(), true),
         ty => (ty, false),
     };
-    if let ResolvedType::Enum { cases, .. } = element {
+    if let ResolvedType::Enum { cases, owner } = element {
         // Plain stored-enum assignment through the identical enum(...)
         // inventory as the declared field. Machine lifecycle enums keep
         // their transition-recipe refusal, and arrays never gain this
@@ -18760,11 +18763,12 @@ fn assignment_inventory_matches(ir: &IrProgram, ty: &ResolvedType, field: &JsMod
         if array || cases.is_empty() || field.machine.is_some() {
             return false;
         }
-        let JsModelFieldType::Enum { values } = &field.field else {
-            return false;
-        };
-        if values != cases {
-            return false;
+        match &field.field {
+            JsModelFieldType::Enum {values} if values==cases => {},
+            JsModelFieldType::Nominal {name} if owner.is_some_and(|owner|
+                ir.items.get(owner.0 as usize).is_some_and(|declaration|
+                    name==&declaration.canonical && field.value_type.as_deref()==Some(name.as_str()))) => {},
+            _ => return false,
         }
         let expected = format!(
             "enum({}){}",
@@ -18772,7 +18776,12 @@ fn assignment_inventory_matches(ir: &IrProgram, ty: &ResolvedType, field: &JsMod
             if nullable { "?" } else { "" }
         );
         return native_result_type(ty)
-            && inventory_type(field).as_deref() == Some(expected.as_str());
+            && (inventory_type(field).as_deref() == Some(expected.as_str())
+                || !nullable && owner.is_some_and(|owner|
+                    ir.items.get(owner.0 as usize).is_some_and(|declaration|
+                        field.value_type.as_deref()==Some(declaration.canonical.as_str())
+                        && matches!(&declaration.kind, IrItemKind::Field {ty:IrType::Known(ResolvedType::Enum {cases:original,owner:Some(original_owner)}),..}
+                            if *original_owner==owner && original==cases))));
     }
     let ResolvedType::Scalar(scalar) = element else {
         return false;

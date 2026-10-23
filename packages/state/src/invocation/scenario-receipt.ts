@@ -3005,9 +3005,24 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
         boolean: 'bool', date: 'date', duration: 'duration', user: 'user' } as Record<string, string>)[tag.kind];
       let fieldType: CanTypeId | null = null;
       if (tag.kind === 'secret') secrets.push(field.name);
-      if (base !== undefined || tag.kind === 'enum') {
+      if (base !== undefined || tag.kind === 'enum' || tag.kind === 'nominal' && field.valueType === tag.name &&
+          defaults.valueSchema !== undefined && Object.hasOwn(defaults.valueSchema.enums, tag.name)) {
         const canonical = field.valueType ?? `${base ?? `enum(${tag.kind === 'enum' ? tag.values.join(',') : ''})`}${field.array === undefined ? '' : '[]'}${field.nullable === true ? '?' : ''}`;
         try { fieldType = scalarType(canonical); } catch { /* Explicitly withheld unsupported field profile. */ }
+        // Reused plain enum fields retain their exact nominal declaration;
+        // receipt scalar observations use its sealed ordered inline cases.
+        if (fieldType === null && (tag.kind === 'enum' || tag.kind === 'nominal' && tag.name === canonical) && field.array === undefined && field.nullable !== true &&
+            defaults.valueSchema !== undefined && Object.hasOwn(defaults.valueSchema.enums, canonical) &&
+            !Object.hasOwn(defaults.valueSchema.contracts, canonical) && !Object.hasOwn(defaults.valueSchema.aliases ?? {}, canonical) &&
+            !models.some(owner => owner.name === canonical) &&
+            field.machine === undefined && defaults.canonicalModels.some(owner => {
+              const original=owner.fields[field.name];
+              return owner.name===model.name && original?.valueType===canonical && original.machine===undefined &&
+                original.array===undefined && original.nullable!==true;
+            }) &&
+            (tag.kind === 'nominal' || stableStringify(defaults.valueSchema.enums[canonical]!.cases) === stableStringify(tag.values))) {
+          fieldType = scalarType(`enum(${defaults.valueSchema.enums[canonical]!.cases.join(',')})`);
+        }
       }
       if (fieldType === null) withheld.push(field.name);
       fields.set(field.name, fieldType);
@@ -3016,7 +3031,14 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
   }
   const artifactModels = new Map(models.map(model => [model.name as ModelName, deepFreeze(dataCopy(model))]));
   const canonicalModels = Object.freeze(defaults.canonicalModels.map(model => deepFreeze(dataCopy(model))));
-  const narrowedDependencies = bindScenarioNarrowedFields({ plan, artifactModels, canonicalModels });
+  // Exact plain enum declaration normalization above is correspondence,
+  // not nullable field narrowing. Keep those already-bound observations out
+  // of the nullable-only proof, while the ordinary inventory check follows.
+  const narrowingPlan = { ...plan, returns: plan.returns.map(returned => ({ ...returned,
+    dependencies: returned.dependencies.filter(dependency => !(parseTypeId(dependency.type).base.kind === 'enum' &&
+      inventory.get(dependency.model)?.fields.get(dependency.field) === dependency.type)),
+  })) };
+  const narrowedDependencies = bindScenarioNarrowedFields({ plan: narrowingPlan, artifactModels, canonicalModels });
   const idDependencies = new Map<string, ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>();
   const namedEnumDependencies = new Map<string, ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>();
   const nominalDependencies = new Map<string, { readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
@@ -3885,7 +3907,7 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   const modelInputs = frameworkModelInputs.get(def);
   if (bound === undefined || bound.referenceDependencies.size === 0 && bound.fileDependencies.size === 0 && !Object.hasOwn(producer, 'executionDependencies') &&
       !bound.plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined) &&
-      ![...bound.nominalDependencies.values()].some(value => value.profile.hasFiles) && bound.idDependencies.size === 0 && bound.resultModel === undefined &&
+      ![...bound.nominalDependencies.values()].some(value => value.profile.hasFiles || value.profile.array && value.dependency.role === 'data') && bound.idDependencies.size === 0 && bound.resultModel === undefined &&
       !bound.plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dep => dep.field === 'parent')) &&
       ![...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) && !(def.kind === 'scenario' && hasNominalAssignments(bound)) || invokedPlans.has(def) || referenceProducers.has(def)) {
     return invalid('reference producer requires one checked source binding before execution.');
@@ -3936,14 +3958,14 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   if ([...bound.fileDependencies.values()].some(value => {
     const read = readPolicies?.get(value.dependency.model); return read === undefined || !('grants' in read);
   })) return invalid('stored File dependencies require their complete original source field grants.');
-  for (const value of bound.nominalDependencies.values()) if (value.profile.hasFiles) {
+  for (const value of bound.nominalDependencies.values()) if (value.profile.hasFiles || value.profile.array && value.dependency.role === 'data') {
     let model: ModelName | undefined = value.dependency.model;
     const seen = new Set<ModelName>();
     while (model !== undefined) {
       const declaration = bound.artifactModels.get(model), read = readPolicies?.get(model);
       if (seen.has(model) || declaration === undefined || read === undefined || read.parent !== declaration.parent ||
           !('grants' in read) && (!policy.has(model) || model === value.dependency.model)) {
-        return invalid('protected stored contracts require their exact complete source and ancestor policies.');
+        return invalid('stored contracts require their exact complete source and ancestor policies.');
       }
       seen.add(model); model = declaration.parent as ModelName | undefined;
     }
@@ -11495,6 +11517,16 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
           [dependency.field], 1);
         referenceRevalidate = () => authority.requireFields([dependency.field]);
       } else referenceRevalidate = await observeReferenceAuthority(call, store, owner, state, dependency.id, row, reference.profile, observed.model);
+    }
+    if(nominal?.profile.array===true&&dependency.role==='data'&&!nominal.profile.hasFiles){
+      if(owner===undefined||owner.session===null)return invalid('stored Contract-array DATA requires its actual owning stage.');
+      const current=await owner.session.views.final.get(observed.model,row.id);
+      if(current===null||!sameModelLifetime(row,current)||
+          stableStringify(getDataPath(current.data,dependency.field))!==stableStringify(getDataPath(row.data,dependency.field))){
+        throw new StateError('forbidden','Stored Contract-array source changed during its original read.');
+      }
+      const authority=await observeModelQuerySourceAuthority(call,store,owner,state,observed.model,current,[dependency.field],1);
+      referenceRevalidate=()=>authority.requireFields([dependency.field]);
     }
     const current = await store.load(observed.model, row.id);
     capture(call, store);

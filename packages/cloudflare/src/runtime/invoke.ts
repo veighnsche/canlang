@@ -6063,6 +6063,13 @@ function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: G
   }
   for(const loop of def.descriptor.result?.disclosure?.sourceLoops?.loops??[])if(loop.copy!==undefined)add(loop.model,true);
   addScenarioReturnConsumers(add, def);
+  // Whole stored Contract-array DATA needs the owning field's genuine source
+  // policy even when this void mutation returns no Model/query consumer.
+  for(const returned of def.descriptor.result?.disclosure?.returns??[])for(const dependency of returned.dependencies){
+    const type=parseTypeId(dependency.type);
+    if(dependency.role==='data'&&type.array&&type.base.kind==='nominal'&&loaded.valueSchema!==undefined&&
+        Object.hasOwn(loaded.valueSchema.contracts,type.base.path))add(dependency.model,true);
+  }
   for (const guard of nativeSourceSendGuards.get(def)?.values() ?? []) {
     for (const input of guard.guard.inputs) add(input.type);
   }
@@ -6132,7 +6139,11 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     // alongside file and model-result profiles instead of binding grant-free.
     // Stored references on owners outside the policy table defer the same
     // way: no grant-free bind could supply their viewer policy.
-    if (context === undefined && (plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined) || [...(nativeSourceSendGuards.get(def)?.values() ?? [])].some(source =>
+    if (context === undefined && (plan.returns.some(returned=>returned.dependencies.some(dependency=>{
+        const type=parseTypeId(dependency.type);
+        return dependency.role==='data'&&type.array&&type.base.kind==='nominal'&&loaded.valueSchema!==undefined&&
+          Object.hasOwn(loaded.valueSchema.contracts,type.base.path);
+      })) || plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined) || [...(nativeSourceSendGuards.get(def)?.values() ?? [])].some(source =>
         source.guard.inputs.some(input => loaded.models.some(model => model.name === input.type))) ||
       (nativeScenarioNominalFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
         returned.dependencies.some(dependency => dependency.type === 'file[]' ||

@@ -2653,3 +2653,43 @@ it('authorizes original EMIT Contract DATA through its separate declared Work li
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('copies the original booking report Contract array through whole-field DATA authority', {timeout:240000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-booking-report-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/rent-booking-report-source.can');
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact;
+  assert.ok(artifact.operations?.find(operation=>operation.name==='rent_reservations.depart')?.result?.disclosure,'real owning mutation receipt required');
+  const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['ordered','empty','hidden-field','invalid-leaf','extra-leaf','field-race','identity-race','stale']){
+   const {now,identities,identity,membership}=await member('booking-report-'+mode,['rent_reservations.manager']);
+   const {store}=createTestMemoryStorage(),model=asModel('rent_reservations.Booking');
+   const intervals=mode==='empty'?[]:[{from:'2099-01-01T12:00:00.000Z',until:'2099-01-01T13:00:00.000Z'},
+     {from:'2099-01-01T09:00:00.000Z',until:mode==='invalid-leaf'?'invalid':'2099-01-01T10:00:00.000Z',...(mode==='extra-leaf'?{authority:'forged'}:{})}];
+   await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model,row:makeRow({id:asId('booking'),data:{from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T13:00:00.000Z',intervals,quantity:'1',status:'occupied',checked_in:null,checked_out:null,arrival_buffer:'0',departure_buffer:'0',visible:mode!=='hidden-field'}})}]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(model,id)=>{const row=await load(model,id);if(model==='rent_reservations.BookingEvidence'&&mode==='identity-race'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return row;};
+   store.commit=async batch=>{if(mode==='field-race'&&batch.writes.some(write=>write.kind==='insert'&&write.model==='rent_reservations.BookingEvidence')){
+     raced=true;const current=await load(model,asId('booking'));assert.ok(current);
+     await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model,id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,intervals:[...(current.data['intervals'] as unknown[])].reverse()}}}]}));
+    }return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+   const request={operation:'rent_reservations.depart',operation_id:operationId(now),inputs:{booking:{id:'booking',version:mode==='stale'?'2':'1'}}};
+   const result=await invoker.invokeMutation(request,identity),success=['ordered','empty'].includes(mode);
+   assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+   if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+   const evidence=await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'});
+   const booking=await load(model,asId('booking'));assert.ok(booking);
+   assert.equal(evidence.length,success?1:0,mode+': CREATE and preceding SET remain atomic');
+   assert.equal(booking.data['status'],success?'completed':'occupied');
+   assert.equal(booking.data['checked_out'],success?new Date(now).toISOString():null);
+   if(success){
+    const report=evidence[0]!.data['value'] as Record<string,unknown>;
+    assert.deepEqual(report['intervals'],intervals,'whole ordered canonical array preserved');assert.equal(report['status'],'completed');assert.equal(report['checked_out'],new Date(now).toISOString());
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));
+    assert.deepEqual(await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'}),evidence);
+   }
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

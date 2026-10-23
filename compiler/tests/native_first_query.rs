@@ -2380,3 +2380,45 @@ fn source_only_emit_data_seals_helper_formals_and_nominal_event_payload() {
         assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
     }
 }
+
+#[test]
+fn booking_report_contract_array_data_retains_its_owning_schema_and_field() {
+ let source=include_str!("fixtures/rent-booking-report-source.can");
+ let (db,program,ir,catalog)=fixture_source("booking-report.can",source);
+ let owner=item(&ir,"rent_reservations.depart");
+ assert!(matches!(&ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
+ let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let operation=artifact["operations"].as_array().unwrap().iter().find(|operation|operation["name"]==owner.canonical).unwrap();
+ assert!(operation["result"]["disclosure"].is_object(),"{operation}");
+ let original=std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../draft/apps/CanRent/CanRent.can")).unwrap();
+ for prefix in ["contract BookingInterval ","contract ReportBooking ","derive report_booking("] {
+  assert_eq!(source.lines().find(|line|line.trim_start().starts_with(prefix)).unwrap().trim(),
+    original.lines().find(|line|line.trim_start().starts_with(prefix)).unwrap().trim(),"original {prefix}");
+ }
+ for mode in ["contract-order","contract-leaf","contract-owner","enum-owner","enum-cases"] {
+  let mut changed=ir.clone();
+  if mode=="contract-order" {
+   let id=item(&changed,"rent_reservations.BookingInterval").id;
+   let IrItemKind::Contract{fields,..}=&mut changed.items[id.0 as usize].kind else{panic!("contract");};fields.swap(0,1);
+  }else if mode.starts_with("enum") {
+   let id=item(&changed,"rent_reservations.Booking.status").id;
+   let other=item(&changed,"rent_reservations.Booking.quantity").id;
+   let IrItemKind::Field{ty:IrType::Known(ResolvedType::Enum{owner,cases}),..}=&mut changed.items[id.0 as usize].kind else{panic!("enum");};
+   if mode=="enum-owner"{*owner=Some(other);}else{cases.swap(0,1);}
+  }else{
+   let id=item(&changed,"rent_reservations.BookingInterval.until").id;
+   let other=item(&changed,"rent_reservations.ReportBooking").id;
+   let IrItemKind::Field{ty,owner,..}=&mut changed.items[id.0 as usize].kind else{panic!("leaf");};
+   if mode=="contract-owner"{*owner=other;}else{*ty=IrType::Known(ResolvedType::Scalar(Scalar::Text));}
+  }
+  assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$426f6f6b696e675265706f7274.mjs").is_none(),"{mode}");
+ }
+ for (name,leaf) in [("file","file?"),("model","Booking?")] {
+  let changed=source.replace("contract BookingInterval { from:datetime, until:datetime }",&format!("contract BookingInterval {{ from:datetime, until:datetime, authority:{leaf} }}"));
+  assert_ne!(source,changed);
+  let(db,program,changed_ir,catalog)=fixture_source(&format!("protected-{name}.can"),&changed);
+  let changed_owner=item(&changed_ir,"rent_reservations.depart");
+  assert!(!matches!(changed_ir.scenario_disclosures[&changed_owner.id],ScenarioDisclosure::Complete(_)),"{name}");
+  assert!(serialize_complete_query_receipt(&program,&changed_ir,changed_owner,&db,Some(&catalog),"$can$m$426f6f6b696e675265706f7274.mjs").is_none(),"{name}");
+ }
+}

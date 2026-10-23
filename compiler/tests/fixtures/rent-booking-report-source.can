@@ -1,0 +1,20 @@
+app BookingReport uses=[rent_reservations]
+package rent_reservations
+ Given
+  role manager
+  contract BookingInterval { from:datetime, until:datetime }
+  Booking {from:datetime,until:datetime,intervals:BookingInterval[],quantity:int=1,status:enum(held,pending,confirmed,occupied,completed,cancelled,expired,review,no_show)=occupied,checked_in:datetime?,checked_out:datetime?,arrival_buffer:duration=0m,departure_buffer:duration=0m,visible:bool=true}
+  contract ReportBooking { from:datetime,until:datetime,intervals:BookingInterval[],quantity:int,status:Booking.status,checked_in:datetime?,checked_out:datetime?,arrival_buffer:duration,departure_buffer:duration }
+  BookingEvidence {value:ReportBooking?}
+  policy Booking read=manager fields=from,until,quantity,status,checked_in,checked_out,arrival_buffer,departure_buffer
+  policy Booking read=manager and row.visible fields=intervals
+  policy BookingEvidence read=manager
+  derive allowed(booking:Booking):bool=booking.quantity>0
+  derive report_booking(booking:Booking):ReportBooking = ReportBooking {from=booking.from,until=booking.until,intervals=booking.intervals,quantity=booking.quantity,status=booking.status,checked_in=booking.checked_in,checked_out=booking.checked_out,arrival_buffer=booking.arrival_buffer,departure_buffer=booking.departure_buffer}
+ When
+  scenario depart(booking:Booking) by=manager
+   require allowed(booking) and booking.status==occupied
+   do
+    set booking {status=completed,checked_out=now}
+    create BookingEvidence {value=report_booking(booking)} as evidence
+ Then

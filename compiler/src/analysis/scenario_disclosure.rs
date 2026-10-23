@@ -7874,6 +7874,10 @@ impl<'a> Closure<'a> {
     ) -> bool {
         model
             && !matches!(ty, ResolvedType::Record { symbol, .. } if self.is_contract_symbol(*symbol))
+            && !matches!(ty, ResolvedType::Array { element, ordered: true, nonempty: false }
+                if matches!(element.as_ref(), ResolvedType::Record { symbol, .. }
+                    if self.is_contract_symbol(*symbol))
+                    && self.source_require_plain_value(ty, 0))
             && !(notice_event
                 && self.resolve.symbols.get(id.0 as usize)
                     .is_some_and(|owner| owner.canonical == "agreements.Term")
@@ -18945,6 +18949,18 @@ impl<'a> Closure<'a> {
             value.first_query = None;
             value.reference_origin = None;
             type_id
+        } else if let ResolvedType::Array{element,ordered:true,nonempty:false}=field_ty
+            && let ResolvedType::Record{symbol:contract,..}=element.as_ref()
+            && self.is_contract_symbol(*contract)
+            && self.source_require_plain_value(field_ty,0)
+            && self.effects.models.get(&model).is_some_and(|model|model.fields.iter().any(|declaration|
+                declaration.field==field.id&&!declaration.required_array))
+        {
+            // One ordered whole-value observation. Elements remain canonical
+            // Contract data and cannot issue a Model/File/reference view.
+            value.contract_value=Some(ContractValue::Array(*contract));
+            checked_stored_contract_type_id(field_ty,None,self.resolve,0)
+                .ok_or_else(||self.fail(key,"stored Contract array needs its exact declared nominal type"))?
         } else if matches!(field_ty, ResolvedType::Record { .. })
             || matches!(field_ty, ResolvedType::Nullable(inner)
                 if matches!(inner.as_ref(), ResolvedType::Record { .. }))
