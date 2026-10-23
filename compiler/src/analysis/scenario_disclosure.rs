@@ -15055,6 +15055,73 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
+    /// Original Money SUMs may combine only direct children of the same
+    /// owning row. Keep currency, predicate, selector and containment sealed;
+    /// recognizing a Money result alone cannot grant a foreign collection.
+    fn source_require_money_aggregate(&self, body: NodeKey, model: SymbolId, depth: usize) -> Option<()> {
+        if depth > 32 { return None; }
+        let body=self.query_group(body)?;
+        let money=ResolvedType::Scalar(Scalar::Money);
+        if self.types.node_types.get(&body)!=Some(&money) { return None; }
+        if let Some((left,right))=self.query_binary(body,"+") {
+            self.source_require_money_aggregate(left,model,depth+1)?;
+            return self.source_require_money_aggregate(right,model,depth+1);
+        }
+        let selected=self.types.selected_calls.get(&body)?;
+        if !matches!(&selected.target,SelectedCallTarget::Builtin{id,..} if id=="sum")
+            || selected.arguments.len()!=2 || selected.slots.as_slice()!=[Some(0),Some(1)]
+        { return None; }
+        let currency=self.query_group(selected.arguments[1])?;
+        let (row,name)=self.count_member(currency)?;
+        let field=self.effects.models.get(&model)?.fields.iter().find(|field|
+            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|declaration| declaration.name==name))?;
+        if !matches!(self.query_binding(row),Some(Binding::Context(ContextVar::RowModel(owner))) if *owner==model)
+            || !matches!(self.resolve.symbols.get(field.field.0 as usize)?.kind,SymbolKind::Field{owner,..} if owner==model)
+            || self.types.symbol_types.get(&field.field)!=Some(&ResolvedType::Scalar(Scalar::Currency))
+            || self.types.node_types.get(&currency)!=Some(&ResolvedType::Scalar(Scalar::Currency))
+        { return None; }
+        let query=self.types.checked_queries.get(&self.query_group(selected.arguments[0])?)?;
+        let (alias,filter,select)=match query.clauses.as_slice() {
+            [alias,select]=>(alias,None,select),
+            [alias,filter,select] if filter.kind==CheckedQueryClauseKind::Where=>(alias,Some(filter),select),
+            _=>return None,
+        };
+        let ResolvedType::Array{element,ordered:true,nonempty:false}=&query.domain_type else{return None;};
+        let ResolvedType::Record{symbol:child,stored:true}=element.as_ref() else{return None;};
+        self.source_require_aggregate_domain(query,alias,select,*child,model)?;
+        if self.types.node_types.get(select.expressions.first()?)!=Some(&money) {return None;}
+        if let Some(filter)=filter {
+            let [predicate]=filter.expressions.as_slice() else{return None;};
+            if self.types.node_types.get(predicate)!=Some(&ResolvedType::Scalar(Scalar::Bool)){return None;}
+            let mut pending=vec![*predicate];
+            let mut steps=0;
+            while let Some(key)=pending.pop() {
+                steps+=1;if steps>1024{return None;}
+                let node=self.nodes.get(&key)?;
+                self.source_require_expression_shape(key)?;
+                if matches!(node.kind,SyntaxKind::Call|SyntaxKind::Query){return None;}
+                if node.kind==SyntaxKind::Member {
+                    let field=self.query_member(key,alias.node,*child)?;
+                    let ty=self.types.symbol_types.get(&field)?;
+                    if !matches!(self.resolve.symbols.get(field.0 as usize)?.kind,SymbolKind::Field{owner,..} if owner==*child)
+                        || !(primitive_type(ty)||matches!(ty,ResolvedType::Enum{cases,..} if !cases.is_empty()))
+                        || self.types.node_types.get(&key)!=Some(ty)
+                    {return None;}
+                }
+                if node.kind==SyntaxKind::NameRef {
+                    match self.query_binding(key) {
+                        Some(Binding::QueryAlias{node}) if *node==alias.node=>{},
+                        Some(Binding::Context(ContextVar::Now))=>{},
+                        _ if self.types.resolved_cases.contains(&key)=>{},
+                        _=>return None,
+                    }
+                }
+                pending.extend(node.children.iter().map(NodeKey::of));
+            }
+        }
+        Some(())
+    }
+
     fn source_require_aggregate_field(
         &self,
         id: SymbolId,
@@ -15064,6 +15131,8 @@ impl<'a> Closure<'a> {
             return Some(());
         }
         let body = self.source_require_aggregate_decl(id, model)?;
+        if self.types.symbol_types.get(&id)==Some(&ResolvedType::Scalar(Scalar::Money))
+            && self.source_require_money_aggregate(body,model,0).is_some() {return Some(());}
         let aggregate = if self.source_require_aggregate_call(id, body).is_some() { body }
         else {
             // An integer base quantity plus one owned child sum remains an

@@ -1788,3 +1788,40 @@ fn original_register_tail_keeps_created_provider_and_schedule_correspondence() {
     }
 
 }
+
+#[test]
+fn commercial_money_sums_preserve_nullable_history_guard_and_original_first() {
+    let authored=std::fs::read_to_string(root().join("draft/apps/CanInvoice/CanInvoice.can")).unwrap();
+    let start=authored.find("  scenario review_commercial_history(").unwrap();
+    let end=start+authored[start..].find("\n   examples ").unwrap();
+    let guards=authored[start..end].replace("scenario review_commercial_history(","scenario verify(");
+    let mut source=include_str!("../../packages/cloudflare/test/fixtures/invoice-collect-owner-probe.can").to_string()
+        .replace("package customer\n","package customer\n use rent_catalog {Location}\n")
+        .replace("export Customer {kind:","export Customer {locations:Location[],currency:currency,kind:");
+    let at=source.rfind(" Then\n").unwrap();
+    source.insert_str(at,&format!("{guards}\n  scenario observe_sale on=SaleCheck\n   do let selected=event.sale\n"));
+    let (db,program,ir,catalog)=fixture_source("commercial-money.can",&source);
+    let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let owner=item(&ir,"invoice.verify");
+    assert!(matches!(ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)));
+    assert!(serialize_complete_query_receipt(&program,&ir,owner,&db,Some(&catalog),"$can$m$696e766f696365.mjs").is_some());
+    let operation=artifact["operations"].as_array().unwrap().iter().find(|entry|entry["name"]=="invoice.verify").unwrap();
+    assert_eq!(operation["result"]["disclosure"]["sourceEmissions"]["loops"][0]["maximum"],500);
+    assert!(!artifact["callables"].as_array().unwrap().iter().any(|entry|entry["id"]=="invoice.first_paid_invoice"));
+    // Equal Money types cannot substitute the source's complete contained
+    // child census or the original same-row stored currency field.
+    for (name,changed) in [
+        ("global-payment-domain",source.replace("sum(row.ExternalPayment as payment select payment.amount,row.currency)",
+            "sum(ExternalPayment as payment select payment.amount,row.currency)")),
+        ("foreign-currency",source.replace("sum(row.ExternalPayment as payment select payment.amount,row.currency)",
+            "sum(row.ExternalPayment as payment select payment.amount,row.parent.currency)")),
+        ("parent-filter",source.replace("attempt.kind==collection and attempt.status==succeeded select attempt.amount",
+            "attempt.kind==collection and attempt.parent.currency==row.currency and attempt.status==succeeded select attempt.amount")),
+    ] {
+        assert_ne!(source,changed,"{name}");
+        let (db,program,_,catalog)=fixture_source(&format!("{name}.can"),&changed);
+        let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+        assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");
+    }
+}
