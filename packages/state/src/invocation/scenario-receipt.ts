@@ -7671,11 +7671,13 @@ function predicateControlDomain(model: ModelName, domain: readonly StoredRow[], 
 /** Repeated source-owned effects retain every original field guard. Their
  * independent bank is bounded by the installed complete effect/loop census;
  * ordinary queries retain their existing invocation-wide limit. */
-const sourceEffectGrantCounts=new WeakMap<ReceiptOwnerSession,Map<ScenarioReceiptReferenceProducer,number>>();
+type SourceCopyLoop = NonNullable<ScenarioResultDisclosurePlan['sourceLoops']>['loops'][number];
+type SourceGuardOwner = ScenarioReceiptReferenceProducer | SourceCopyLoop;
+const sourceEffectGrantCounts=new WeakMap<ReceiptOwnerSession,Map<SourceGuardOwner,number>>();
 type SourceEffectGuard=NonNullable<ExecutionEffects['guards']>[number];
 const sourceEffectGuards=new WeakMap<ReceiptOwnerSession,{readonly position:number;readonly guard:SourceEffectGuard}[]>();
-function appendSourceEffectGuard(owner:ReceiptOwnerSession,producer:ScenarioReceiptReferenceProducer,guard:SourceEffectGuard):void{
-  if(sourceEffectGrantCounts.get(owner)?.has(producer)!==true){owner.callGuards.push(guard);return;}
+function appendSourceEffectGuard(owner:ReceiptOwnerSession,producer:ScenarioReceiptReferenceProducer,guard:SourceEffectGuard,copyLoop?:SourceCopyLoop):void{
+  if(sourceEffectGrantCounts.get(owner)?.has(copyLoop??producer)!==true){owner.callGuards.push(guard);return;}
   let guards=sourceEffectGuards.get(owner);
   if(guards===undefined){guards=[];sourceEffectGuards.set(owner,guards);}
   guards.push(Object.freeze({position:owner.callGuards.length,guard}));
@@ -7697,10 +7699,19 @@ function sourceEffectParameterGuardMaximum(parameter:Pick<ScenarioSourceSendData
   // exact association fence. Parent projection likewise retains its linkage.
   return 1+(parameter.parent===undefined?0:2)+[...(parameter.identityPaths??[]),...(parameter.dataPaths??[])].reduce((total,path)=>total+2*path.path.length+1,0);
 }
-function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceiptReferenceProducer|undefined):boolean {
+function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceiptReferenceProducer|undefined,copyLoop?:SourceCopyLoop):boolean {
   const def=owner.call.def as GeneratedOperationDef;
   let maximum=0;
-  if(producer!==undefined&&producer===sourceEmitDataProducers.get(def)){
+  const key=copyLoop??producer;
+  if(copyLoop!==undefined){
+    // One complete source-field observation per authenticated copy item. Its
+    // final guard shares the existing ordered bank without spending an
+    // ordinary query slot or granting that bank to the query producer.
+    const current=owner.executingCall===null?undefined:captures.get(owner.executingCall);
+    if(!owner.busy||sourceCopyCaptures.get(owner)?.active!==true||copyLoop.copy===undefined
+        ||current?.bound.plan.sourceLoops?.loops.includes(copyLoop)!==true)return false;
+    maximum=copyLoop.maximum;
+  }else if(producer!==undefined&&producer===sourceEmitDataProducers.get(def)){
     for(const site of sourceEmitDataProducers.get(def)!.sites)
       maximum+=site.parameters.reduce((total,parameter)=>total+sourceEffectParameterGuardMaximum(parameter),0)+(site.queries?.length??0)*owner.maxRows;
   }else if(producer!==undefined&&producer===sourceSendDataProducers.get(def)){
@@ -7715,9 +7726,9 @@ function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceip
   }else return owner.callGuards.length<MAX_ITEMS;
   let counts=sourceEffectGrantCounts.get(owner);
   if(counts===undefined){counts=new Map();sourceEffectGrantCounts.set(owner,counts);}
-  const count=counts.get(producer!)??0;
+  const count=counts.get(key!)??0;
   if(!Number.isSafeInteger(maximum)||maximum<=0||count>=maximum)return false;
-  counts.set(producer!,count+1);return true;
+  counts.set(key!,count+1);return true;
 }
 /** Original first-query rows reuse the installed source/ancestor projector and
  * complete Identity observation, both now and against actual final effects. */
@@ -7726,7 +7737,7 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
   predicateDomain?: readonly StoredRow[],
   decisionPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>,
   sourceProducer?:ScenarioReceiptReferenceProducer, allowAbsent?:AllowAbsent,
-  computedFields?:ReadonlySet<string>): Promise<{
+  computedFields?:ReadonlySet<string>, copyLoop?:SourceCopyLoop): Promise<{
     readonly record:AllowAbsent extends true ? ProjectedRecord | null : ProjectedRecord;
     readonly requireFields: (fields: readonly string[]) => Promise<void>; readonly revalidate: () => Promise<void>;
   }> {
@@ -7736,7 +7747,7 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
   const queryOwned = queryProducers.get(call.def as GeneratedOperationDef)?.readPolicies?.has(model) === true;
   if (producer?.app !== call.context.app || policies === undefined || read === undefined ||
       !('grants' in read) && (!queryOwned || !producer.policy.has(model)) ||
-      owner.session === null || !sourceEffectGrantSlot(owner,producer)) return invalid('model query requires its installed whole source field grants.');
+      owner.session === null || !sourceEffectGrantSlot(owner,producer,copyLoop)) return invalid('model query requires its installed whole source field grants.');
   const stage = owner.stage;
   const healthy = () => {
     capture(call, store); ownerHealthy(owner);
@@ -7793,7 +7804,7 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
     await now.revalidate(); await authority.revalidate(); finalHealthy();
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Model query source recheck moved beyond its original checkpoint.');
     return true;
-  } }));
+  } }),copyLoop);
   return { record:authority.value.record as AllowAbsent extends true ? ProjectedRecord | null : ProjectedRecord,revalidate: authority.revalidate, requireFields: async fields => {
     healthy();
     for (const field of fields) requiredFields.add(field);
@@ -8424,7 +8435,8 @@ export async function executeScenarioReceiptSourceCopy(call:AdmittedCall,store:S
         }else if(savedRoot.row.id!==root.id||savedRoot.model!==root.model||savedRoot.parameter!==loop.parameter){
           return invalid('Source copy root changed across issued items.');
         }
-        await observeModelQuerySourceAuthority(call,store,owner,state,loop.model as ModelName,input.row,copy.fields.map(field=>field.name));
+        await observeModelQuerySourceAuthority(call,store,owner,state,loop.model as ModelName,input.row,
+          copy.fields.map(field=>field.name),0,undefined,undefined,undefined,false,undefined,loop);
       },call);
       const target=await input.execute();ownerHealthy(owner);capture(call,store);
       const produced=ownerRows.get(target);
