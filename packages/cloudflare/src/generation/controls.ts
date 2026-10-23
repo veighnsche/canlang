@@ -2420,6 +2420,7 @@ function executionEnvelope(
   jobs: ExecutedJob[],
   skipped: { unit_id: string; reason: string }[],
   accepted: { run: string; files: number; units: string[] } | null,
+  acceptanceRequired = false,
 ): ControlResult {
   const attempts = jobs.map((job) => ({
     attempt: job.attempt,
@@ -2445,7 +2446,8 @@ function executionEnvelope(
     };
   }
   const states = new Set(jobs.map((job) => job.outcome.state));
-  if (states.size === 0 || (states.size === 1 && states.has("candidate"))) {
+  const candidatesOnly = states.size === 0 || (states.size === 1 && states.has("candidate"));
+  if (candidatesOnly && !(acceptanceRequired && !complete)) {
     const empty = jobs.length === 0;
     return {
       code: EXIT_OK,
@@ -2466,12 +2468,13 @@ function executionEnvelope(
       ),
     };
   }
-  const exit = states.has("unknown") ? EXIT_UNKNOWN : states.has("failed") ? EXIT_RUNNER : EXIT_OK;
+  const exit = states.has("unknown") ? EXIT_UNKNOWN
+    : states.has("failed") || states.has("cancelled") ? EXIT_RUNNER : EXIT_VALIDATION;
   const state = states.has("unknown")
     ? "unknown"
     : states.has("failed")
       ? "failed"
-      : [...states][0] ?? "candidate";
+      : states.has("cancelled") ? "cancelled" : "failed";
   return {
     code: exit,
     envelope: resultEnvelope(
@@ -2485,8 +2488,10 @@ function executionEnvelope(
         accepted: false,
         qualified: false,
         error: {
-          code: state === "unknown" ? "unknown-completion" : "runner-failure",
-          message: "one or more jobs did not reach candidates; inspect the attempts",
+          code: candidatesOnly ? "incomplete-set" : state === "unknown" ? "unknown-completion" : "runner-failure",
+          message: candidatesOnly
+            ? "the produced set is incomplete; acceptance needs every required output"
+            : "one or more jobs did not reach candidates; inspect the attempts",
         },
       },
       ["inspect the failed attempts, then resend corrected work with a new request id"],
@@ -2608,8 +2613,9 @@ async function runRetry(
 /**
  * Composed `accept: true`: the request's produced attempts validate
  * and promote together through one coordinated run journal, using
- * the same checks as the separate operations. Returns null when the
- * set is incomplete (candidates stay candidates).
+ * the same checks as the separate operations. Incomplete production reports
+ * the requested acceptance failure while preserving each job's outcome.
+ * Returns null only when saved-output reuse leaves no candidates to promote.
  */
 async function composeAcceptance(
   ctx: ControlContext,
@@ -2620,30 +2626,8 @@ async function composeAcceptance(
   // A prepare reuse has no candidate set to promote. Keep its skipped-unit
   // report instead of misreporting successful reuse as incomplete output.
   if (jobs.length === 0) return null;
-  const incomplete = jobs.filter((job) => !job.complete);
-  if (incomplete.length > 0) {
-    const attempts = jobs.map((job) => ({
-      attempt: job.attempt,
-      units: job.units,
-      state: job.outcome.state,
-      submission_complete: job.outcome.submission_complete,
-      disk_complete: job.complete,
-    }));
-    return {
-      code: EXIT_OK,
-      envelope: okEnvelope(
-        header,
-        "candidate",
-        {
-          attempts,
-          complete: false,
-          accepted: false,
-          qualified: false,
-          note: "the produced set is incomplete; acceptance needs every required output",
-        },
-        ["inspect the incomplete attempts, then retry or refine with a new request id"],
-      ),
-    };
+  if (jobs.some((job) => !job.complete || job.outcome.state !== "candidate")) {
+    return executionEnvelope(header, jobs, [], null, true);
   }
   const scope = await promotionScopeFromAttempts(root, jobs.map((job) => job.attemptDir));
   await validateCandidateSet(ctx, header, root, scope, true);

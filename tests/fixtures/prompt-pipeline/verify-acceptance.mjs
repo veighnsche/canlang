@@ -15,13 +15,13 @@ const workspace = resolve(fixture, '../../..');
 const compiler = process.env.CAN_COMPILER_BIN ?? join(workspace, 'compiler/target/debug/can');
 const cases = [['broken-keyword', 'test'], ['broken-view', 'playwright'], ['working-app', null]];
 const selected = process.argv.slice(2);
-const optInCases = ['request-replay'];
+const optInCases = ['request-replay', 'incomplete-outcomes'];
 if (selected.some(name => !cases.some(([candidate]) => candidate === name) && !optInCases.includes(name))) {
   throw new Error(`Expected case names: ${[...cases.map(([name]) => name), ...optInCases].join(', ')}`);
 }
 const { dispatchControl, runFor, savedPathFor, attemptFor } = await import(pathToFileURL(join(workspace, 'packages/cloudflare/dist/generation/controls.js')).href);
 const { executeJob, resumeSession, resetAttempt, readAttempt, readFence } = await import(pathToFileURL(join(workspace, 'packages/cloudflare/dist/generation/lifecycle.js')).href);
-const { EXIT_UNKNOWN, EXIT_CONFLICT } = await import(pathToFileURL(join(workspace, 'packages/cloudflare/dist/generation/protocol.js')).href);
+const { EXIT_UNKNOWN, EXIT_CONFLICT, EXIT_VALIDATION, EXIT_RUNNER } = await import(pathToFileURL(join(workspace, 'packages/cloudflare/dist/generation/protocol.js')).href);
 const exec = promisify(execFile);
 const controlBin = process.env.CAN_DEV_BIN ?? 'can';
 const controlPrefix = process.env.CAN_DEV_BIN === undefined ? ['dev'] : [];
@@ -87,6 +87,166 @@ process.stdin.on('end',async()=>{
  process.exit(1);
 });
 `;
+
+// Exercise composed acceptance results using real producer children and the
+// actual CLI's recorded-request path, with no model calls or preflight bypass.
+async function verifyIncompleteOutcomes({ clone, baseline, baseContext }) {
+  const root = join(clone, 'incomplete-outcomes');
+  await mkdir(root);
+  await cp(join(fixture, 'can.gen.toml'), join(root, 'can.gen.toml'));
+  await cp(join(fixture, 'can.generated'), join(root, 'can.generated'), { recursive: true });
+  const source = `${(await readFile(join(fixture, 'PromptStudio.can'), 'utf8')).split('\nWhen\n')[0]}\nWhen\nThen\n`;
+  await writeFile(join(root, 'PromptStudio.can'), source);
+  const control = async (input, ctx = baseContext) => {
+    const result = await dispatchControl(JSON.stringify(input), ctx);
+    return { code: result.code, body: JSON.parse(result.envelope) };
+  };
+  const header = (request_id, operation, params) => ({ version: 1, request_id, operation, root, ...params });
+  const status = await control(header(`incomplete-status-${randomUUID()}`, 'status', { files: ['PromptStudio.can'] }));
+  assert.equal(status.code, 0);
+  const givenUnits = status.body.units.filter(unit => unit.span !== null && unit.span !== undefined);
+  assert.ok(givenUnits.length > 0);
+  assert.ok(givenUnits.every(unit => ['named-trait', 'inline-trait', 'keyword'].includes(unit.kind)));
+  const revision = createHash('sha256').update(source).digest('hex');
+  for (const unit of givenUnits) {
+    const bound = await control(header(`incomplete-bind-${randomUUID()}`, 'bind', {
+      file: 'PromptStudio.can', start: unit.span.start, end: unit.span.end, revision, unit: unit.id,
+    }));
+    assert.equal(bound.code, 0, `Given fixture unit ${unit.id} must retain its identity`);
+  }
+  const saved = await currentBytes(root);
+  const log = join(root, 'launches.jsonl');
+  const launched = async () => existsSync(log)
+    ? (await readFile(log, 'utf8')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
+  const retainedCandidates = async dir => {
+    if (!existsSync(dir)) return [];
+    const entries = [];
+    for (const item of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      const path = join(dir, item.name);
+      if (item.isDirectory()) for (const [name, bytes] of await retainedCandidates(path)) entries.push([`${item.name}/${name}`, bytes]);
+      else { assert.ok(item.isFile()); entries.push([item.name, (await readFile(path)).toString('hex')]); }
+    }
+    return entries;
+  };
+  const matrix = [
+    ['clean-incomplete', 'clean', true, EXIT_VALIDATION, 'failed', 0],
+    ['known-failure', 'failure', true, EXIT_RUNNER, 'failed', EXIT_RUNNER],
+    ['signalled', 'signal', true, EXIT_UNKNOWN, 'unknown', EXIT_UNKNOWN],
+    ['missing-executable', 'missing', true, EXIT_RUNNER, 'failed', EXIT_RUNNER],
+    ['cancelled', 'cancel', true, EXIT_RUNNER, 'cancelled', EXIT_RUNNER],
+    ['candidate-only', 'clean', false, 0, 'candidate', 0],
+    ['complete-failure', 'failure', true, EXIT_RUNNER, 'failed', EXIT_RUNNER, true],
+    ['complete-signalled', 'signal', true, EXIT_UNKNOWN, 'unknown', EXIT_UNKNOWN, true],
+  ];
+  const results = [];
+  for (const [name, behavior, accept, exit, state, attemptExit, full = false] of matrix) {
+    const requestId = `incomplete-${name}-${randomUUID()}`;
+    const runner = join(root, `${name}-runner.cjs`);
+    await writeFile(runner, `#!/usr/bin/env node
+const fs=require('node:fs'),path=require('node:path');
+process.stdin.resume();process.stdin.on('end',async()=>{
+ const attempt=path.dirname(process.env.CAN_GENERATION_SESSION_FILE);
+ const capture=JSON.parse(fs.readFileSync(path.join(attempt,'capture.json'),'utf8'));
+ fs.appendFileSync(${JSON.stringify(log)},JSON.stringify({request_id:capture.request_id})+${JSON.stringify('\n')});
+ if(${JSON.stringify(full)}){
+  const required=Object.entries(capture.handles).filter(([,target])=>target.required).map(([handle])=>handle);
+  let complete=false;
+  for(let index=0;index<400;index++){
+   if(required.every(handle=>fs.existsSync(path.join(attempt,'candidates',handle,'submission.json')))){complete=true;break;}
+   await new Promise(done=>setTimeout(done,25));
+  }
+  if(!complete)process.exit(2);
+ }
+ const behavior=${JSON.stringify(behavior)};
+ if(behavior==='cancel'){setInterval(()=>{},1000);return;}
+ if(behavior==='signal'){process.kill(process.pid,'SIGTERM');return;}
+ console.log(JSON.stringify({status:'ok'}));process.exit(behavior==='failure'?1:0);
+});
+`);
+    await chmod(runner, 0o755);
+    const requestInput = header(requestId, 'generate', { files: ['PromptStudio.can'], mode: 'fresh',
+      accept, max_attempts: 1, timeout_seconds: 30 });
+    const registry = new Map(), submissions = [];
+    const context = { ...baseContext, registry,
+      resolveExecutable: async () => behavior === 'missing' ? join(root, 'absent-native-executable') : runner,
+      ...(full ? { onSession: session => {
+        const batch = session.context().allowed.flatMap(target => {
+          const unit = /^(u\d+)-/.exec(target.handle)?.[1];
+          assert.ok(unit);
+          const path = join(fixture, 'can.generated', unit, savedPathFor(target.role, target.filename));
+          return existsSync(path) ? [{ target: target.handle, role: target.role,
+            content_text: readFileSync(path, 'utf8') }] : [];
+        });
+        submissions.push(session.submit(session.id, batch));
+      } } : {}),
+    };
+    const pending = control(requestInput, context);
+    if (behavior === 'cancel') {
+      try {
+        let seen = false;
+        for (let count = 0; count < 400; count++) {
+          if ((await launched()).some(entry => entry.request_id === requestId)) { seen = true; break; }
+          await new Promise(done => setTimeout(done, 25));
+        }
+        assert.ok(seen, 'The cancellation case must reach its real child');
+        assert.equal(registry.size, 1);
+      } finally { for (const controller of registry.values()) controller.abort(); }
+    }
+    const result = await pending;
+    await Promise.all(submissions);
+    assert.equal(result.code, exit, JSON.stringify(result));
+    assert.equal(result.body.ok, !accept, JSON.stringify(result));
+    assert.equal(result.body.state, state);
+    assert.equal(result.body.accepted, false);
+    assert.equal(result.body.qualified, false);
+    assert.equal(result.body.complete, full);
+    assert.ok(result.body.attempts.length > 0);
+    for (const attempt of result.body.attempts) {
+      assert.equal(attempt.state, behavior === 'clean' ? 'candidate' : state);
+      assert.equal(attempt.exit, attemptExit);
+      assert.equal(typeof attempt.detail, 'string'); assert.ok(attempt.detail.length > 0);
+      assert.equal(attempt.submission_complete, full);
+      assert.equal(attempt.disk_complete, full);
+    }
+    const attempt = join(root, '.can/gen/attempts', attemptFor(requestId, 0));
+    const capture = await readFile(join(attempt, 'capture.json'), 'utf8');
+    const candidates = await retainedCandidates(join(attempt, 'candidates'));
+    if (full) assert.ok(candidates.length > 0, 'Complete failed production must retain actual submitted bytes');
+    const launchesBefore = (await launched()).filter(entry => entry.request_id === requestId).length;
+    assert.equal(launchesBefore, behavior === 'missing' ? 0 : 1);
+    assert.deepEqual(await control(requestInput, context), result, 'Identical requests replay their full classified result');
+    const requestFile = join(root, `${name}-request.json`);
+    await writeFile(requestFile, JSON.stringify(requestInput));
+    let cliCode = 0, stdout;
+    try {
+      ({ stdout } = await exec(process.execPath, [join(workspace, 'packages/cloudflare/dist/cli/platform.js'), 'gen', '--request', requestFile],
+        { cwd: workspace, timeout: 10_000, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024,
+          env: { ...process.env, CODEX_HOME: baseContext.codexHome, CAN_CODEX_BIN: runner } }));
+    } catch (error) {
+      if (typeof error.code !== 'number' || error.killed) throw error;
+      cliCode = error.code; stdout = error.stdout;
+    }
+    assert.equal(cliCode, exit, 'The actual CLI must forward the recorded dispatcher exit');
+    assert.deepEqual(JSON.parse(stdout), result.body, 'The actual CLI preserves the full recorded result envelope');
+    assert.equal((await launched()).filter(entry => entry.request_id === requestId).length, launchesBefore);
+    assert.equal(await readFile(join(attempt, 'capture.json'), 'utf8'), capture);
+    assert.deepEqual(await retainedCandidates(join(attempt, 'candidates')), candidates);
+    assert.deepEqual(await currentBytes(root), saved, 'An unaccepted outcome preserves every saved group byte');
+    results.push({ name, exit, state, launches: launchesBefore, cli_replayed: true });
+  }
+  const beforeReuse = (await launched()).length;
+  const reuse = await control(header(`incomplete-prepare-reuse-${randomUUID()}`, 'generate', {
+    files: ['PromptStudio.can'], mode: 'prepare', accept: true, max_attempts: 1,
+  }));
+  assert.equal(reuse.code, 0, JSON.stringify(reuse));
+  assert.equal(reuse.body.ok, true);
+  assert.equal(reuse.body.attempts.length, 0, 'Prepare reuse has no produced acceptance set');
+  assert.ok(reuse.body.skipped.length > 0);
+  assert.equal((await launched()).length, beforeReuse);
+  assert.deepEqual(await currentBytes(root), saved);
+  assert.deepEqual(await currentBytes(clone), baseline);
+  return { name: 'incomplete-outcomes', results, prepare_reuse: true, current_preserved: true };
+}
 
 // This producer journey deliberately holds the real child process open. It
 // exercises on-disk request recovery across imports/processes without any AI.
@@ -400,6 +560,7 @@ try {
     assert.equal(bound.code, 0, `Cloned unit ${unit.id} must retain its identity`);
   }
   const baseline = await currentBytes(clone);
+  if (selected.includes('incomplete-outcomes')) outcomes.push(await verifyIncompleteOutcomes({ clone, baseline, baseContext }));
   if (selected.includes('request-replay')) outcomes.push(await verifyRequestReplay({ clone, baseline, baseContext, status }));
 
   for (const [name, expectedStage] of cases.filter(([name]) => selected.length === 0 || selected.includes(name))) {
