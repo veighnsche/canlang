@@ -67,7 +67,9 @@ struct Reads {
 }
 fn data_type(ir:&IrProgram,ty:&ResolvedType)->Option<String>{match ty{
     ResolvedType::Scalar(scalar)if !matches!(scalar,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes|Scalar::Url|Scalar::Locale)=>Some(scalar.as_str().into()),
-    ResolvedType::Enum{owner:Some(id),cases}if !cases.is_empty()=>Some(ir.items.get(id.0 as usize)?.canonical.clone()),
+    ResolvedType::Enum{owner:Some(id),cases}if !cases.is_empty()=>{
+        let owner=ir.items.get(id.0 as usize)?;Some(if matches!(owner.kind,IrItemKind::Field{owner,..}if ir.items.get(owner.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..}))){format!("enum({})",cases.join(","))}else{owner.canonical.clone()})
+    },
     ResolvedType::Enum{owner:None,cases}if !cases.is_empty()=>Some(format!("enum({})",cases.join(","))),
     ResolvedType::Nullable(inner)=>Some(format!("{}?",data_type(ir,inner)?)),_=>None}}
 fn declared_field<'a>(ir:&'a IrProgram,model:SymbolId,name:&str)->Option<(&'a IrItem,&'a ResolvedType)>{

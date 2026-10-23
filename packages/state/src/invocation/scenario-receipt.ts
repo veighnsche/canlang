@@ -9827,7 +9827,18 @@ function sourceSendFieldType(bound:BoundPlan,model:ModelName,name:string,type:st
   if(/^(int|datetime|text|email|timezone|bool|decimal|money|date|duration|currency|user)\??$/.test(type))return bound.models.get(model)?.fields.get(name)===type;
   const field=bound.artifactModels.get(model)?.fields.find(field=>field.name===name);
   if(field?.array!==undefined)return false;
-  if(field?.field.kind==='enum'&&bound.models.get(model)?.fields.get(name)===type)return field.field.values.length>0;
+  if(field?.field.kind==='enum'){
+    const inline=`enum(${field.field.values.join(',')})${field.nullable===true?'?':''}`;
+    if(type===inline)return field.field.values.length>0;
+    if(bound.models.get(model)?.fields.get(name)===type)return field.field.values.length>0;
+  }
+  if(field?.field.kind==='nominal'&&field.valueType===`${field.field.name}${field.nullable===true?'?':''}`){
+    const schema=bound.valueSchema,cases=schema?.enums[field.field.name]?.cases,canonical=bound.canonicalModels.find(item=>item.name===model)?.fields[name];
+    if(schema!==undefined&&Object.hasOwn(schema.enums,field.field.name)&&!Object.hasOwn(schema.contracts,field.field.name)
+        &&!Object.hasOwn(schema.aliases??{},field.field.name)&&!bound.artifactModels.has(field.field.name as ModelName)
+        &&cases!==undefined&&cases.length>0&&canonical?.valueType===field.valueType&&canonical.array===undefined&&(canonical.nullable===true)===(field.nullable===true)
+        &&type===`enum(${cases.join(',')})${field.nullable===true?'?':''}`)return true;
+  }
   try{
     const parsed=parseTypeId(type),schema=bound.valueSchema,canonical=bound.canonicalModels.find(item=>item.name===model)?.fields[name];
     if(parsed.base.kind!=='nominal'||parsed.array||schema===undefined||field===undefined||field.valueType!==type
