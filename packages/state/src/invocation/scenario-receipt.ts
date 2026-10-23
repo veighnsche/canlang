@@ -9918,12 +9918,17 @@ function orderedOwnerCallGuards(owner:ReceiptOwnerSession):readonly SourceEffect
   return guards;
 }
 
+function sourceEffectParameterGuardMaximum(parameter:Pick<ScenarioSourceSendDataSource['parameters'][number],'parent'|'identityPaths'|'dataPaths'>):number{
+  // Root projection, plus each separately observed path edge/target and its
+  // exact association fence. Parent projection likewise retains its linkage.
+  return 1+(parameter.parent===undefined?0:2)+[...(parameter.identityPaths??[]),...(parameter.dataPaths??[])].reduce((total,path)=>total+2*path.path.length+1,0);
+}
 function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceiptReferenceProducer|undefined):boolean {
   const def=owner.call.def as GeneratedOperationDef;
   let maximum=0;
   if(producer!==undefined&&producer===sourceEmitDataProducers.get(def)){
     for(const site of sourceEmitDataProducers.get(def)!.sites)
-      maximum+=site.parameters.length+(site.queries?.length??0)*owner.maxRows;
+      maximum+=site.parameters.reduce((total,parameter)=>total+sourceEffectParameterGuardMaximum(parameter),0)+(site.queries?.length??0)*owner.maxRows;
   }else if(producer!==undefined&&producer===sourceSendDataProducers.get(def)){
     const loops=sourceBodyLoopProducers.get(def)?.loops??[];
     for(const site of sourceSendDataProducers.get(def)!.sites){
@@ -9931,7 +9936,7 @@ function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceip
       if(ids.size>1)return false;
       const id=[...ids][0],loop=id===undefined?undefined:loops.find(loop=>loop.id===id);
       if(id!==undefined&&loop===undefined)return false;
-      maximum+=(loop?.maximum??1)*(site.parameters.length+(site.queries?.length??0)*owner.maxRows);
+      maximum+=(loop?.maximum??1)*(site.parameters.reduce((total,parameter)=>total+sourceEffectParameterGuardMaximum(parameter),0)+(site.queries?.length??0)*owner.maxRows);
     }
   }else return owner.callGuards.length<MAX_ITEMS;
   let counts=sourceEffectGrantCounts.get(owner);
@@ -10200,8 +10205,8 @@ async function observeSourceEffectPath(call:AdmittedCall,store:StoragePort,owner
       const id=wire.id as RecordId,current=await owner.session!.views.final.get(edge.model,id);ownerHealthy(owner);
       if(current===null||current.archivedAt!==null)return invalid('Effect identity target lifetime is unavailable.');
       const sourceModel=model,sourceRow=row;
-      if(owner.callGuards.length>=MAX_ITEMS)return invalid('Effect identity paths exceed their final guard bound.');
-      owner.callGuards.push(Object.freeze({name:`effect identity ${label}:${depth}`,evaluate:async()=>{
+      if(!sourceEffectGrantSlot(owner,producer))return invalid('Effect identity paths exceed their final guard bound.');
+      appendSourceEffectGuard(owner,producer,Object.freeze({name:`effect identity ${label}:${depth}`,evaluate:async()=>{
         const final=owner.finalized;if(final===null||owner.capture.poisoned)return invalid('Effect identity lost its final owner.');
         const write=final.writes.find(write=>write.model===sourceModel&&(write.kind==='insert'?write.row.id:write.id)===sourceRow.id);
         const latest=write===undefined?await store.cohortLoad({model:sourceModel,id:sourceRow.id,expectedRevision:call.revision}):write.kind==='remove'?null:write.row;
@@ -10245,8 +10250,8 @@ async function observeSourceEffectParent(call:AdmittedCall,store:StoragePort,own
   const parentId=row.parent.id,current=await owner.session.views.final.get(parent.model,parentId);ownerHealthy(owner);
   if(current===null||current.archivedAt!==null)return invalid('Effect DATA parent lifetime is unavailable.');
   const authority=await observeModelQuerySourceAuthority(call,store,owner,state,parent.model,current,parent.fields.map(field=>field.name),0,undefined,undefined,producer);
-  if(owner.callGuards.length>=MAX_ITEMS)return invalid('Effect parent DATA exceeds its final guard bound.');
-  owner.callGuards.push(Object.freeze({name:`effect parent ${model}:${row.id}:${owner.stage}`,evaluate:async()=>{
+  if(!sourceEffectGrantSlot(owner,producer))return invalid('Effect parent DATA exceeds its final guard bound.');
+  appendSourceEffectGuard(owner,producer,Object.freeze({name:`effect parent ${model}:${row.id}:${owner.stage}`,evaluate:async()=>{
     const final=owner.finalized;if(final===null||owner.capture.poisoned)return invalid('Effect parent DATA lost its final owner.');
     const write=final.writes.find(write=>write.model===model&&(write.kind==='insert'?write.row.id:write.id)===row.id);
     const latest=write===undefined?await store.cohortLoad({model,id:row.id,expectedRevision:call.revision}):write.kind==='remove'?null:write.row;
