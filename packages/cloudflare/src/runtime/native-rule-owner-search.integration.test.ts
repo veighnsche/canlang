@@ -3151,7 +3151,9 @@ it('retains original admitted booking identity through the complete no-show evid
   const start=original.indexOf('  export scenario no_show('),end=original.indexOf('  # Keep overtime',start);assert.ok(text.includes(original.slice(start,end)));
   const{stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
   const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-  for(const mode of ['allowed','stale','inactive','identity-at-source','parent-at-commit','withheld-data','grant-at-commit']){
+  for(const mode of ['allowed','stale','inactive','identity-at-source','parent-at-commit','withheld-data','grant-at-commit','depart','depart-nonexistent','depart-denied','depart-grant-at-commit']){
+   if(process.env['CAN_RENT_EMISSION_CASE']&&!mode.startsWith(process.env['CAN_RENT_EMISSION_CASE']))continue;
+   const departing=mode.startsWith('depart');
    const{now,identities,identity,user,team,membership}=await member('rent-emission-'+mode,['rent_reservations.reception','rent_reservations.reservation_manager']);
    const scope={app:'ConstructorCount',owner:team.team_id,ownerPackage:'rent_reservations'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'rent-state',fileStoreId:'rent-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
    const{store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
@@ -3160,17 +3162,28 @@ it('retains original admitted booking identity through the complete no-show evid
    await store.commit(makeBatch(await store.readRevision(),{writes:[
     row('rent_catalog.Location','site',{active:true}),row('employee.Employee','worker',{user:{id:user.user_id},active:mode!=='inactive',operator_wide:false,home:{id:'site'},locations:[]}),
     row('rent_reservations.Resource','resource',{location:{id:'site'},active:true,capacity:'7',pooled:false,timezone:'UTC',readable:mode!=='withheld-data'}),
-    row('rent_reservations.Booking','booking',{from:new Date(now-7200000).toISOString(),until:new Date(now-3600000).toISOString(),intervals:[],quantity:'1',status:'confirmed',checked_in:null,checked_out:null,arrival_buffer:'0',departure_buffer:'0',source:'original',reserved_until:new Date(now-3600000).toISOString(),overdue:false,cancellation_reason:null},resource)
+    row('rent_reservations.Booking','booking',{from:new Date(now-7200000).toISOString(),until:new Date(now-3600000).toISOString(),intervals:[],quantity:'1',status:departing?'occupied':'confirmed',checked_in:departing?new Date(now-5400000).toISOString():null,checked_out:null,arrival_buffer:'0',departure_buffer:'0',source:'original',reserved_until:new Date(now-3600000).toISOString(),overdue:false,cancellation_reason:null},resource)
    ]}));
+   const scheduleKey=(owner:string)=>[scope.app,scope.ownerPackage,owner,'original:occupancy'].map(encodeURIComponent).join('/');
+   if(departing&&mode!=='depart-nonexistent'){
+    const seeder=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+    const seeded=await seeder.invokeMutation({operation:'rent_reservations.seed_occupancy',operation_id:operationId(now),inputs:{booking:{id:'booking',version:'1'}}},identity);
+    assert.ok('result'in seeded&&seeded.result.status==='committed','the original opaque Schedule must have a genuine source-bound Work header: '+JSON.stringify(seeded));
+   }
+   if(mode==='depart-denied'){const current=await store.load(resource.model,resource.id);assert.ok(current);await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:resource.model,id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,readable:false}}}]}));}
+   const originalSchedules=departing?await store.query({model:asModel('work.schedule'),authority:'owner'}):[];
    const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
    store.load=async(model,id)=>{if(mode==='identity-at-source'&&model==='work.occurrence'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return load(model,id);};
-   store.commit=async batch=>{if(['parent-at-commit','grant-at-commit'].includes(mode)&&!raced&&batch.writes.some(write=>write.model==='work.occurrence')){raced=true;const current=await load(resource.model,resource.id);assert.ok(current);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:resource.model,id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,...(mode==='parent-at-commit'?{capacity:'8'}:{readable:false})}}}]}));}return commit(batch);};
-   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'rent_reservations.no_show',operation_id:operationId(now),inputs:{booking:{id:'booking',version:mode==='stale'?'0':'1'},reason:'Missed arrival'}};
-   const outcome=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='parent-at-commit';assert.equal('result'in outcome&&outcome.result.status==='committed',success,mode+': '+JSON.stringify(outcome));
+   store.commit=async batch=>{if(['parent-at-commit','grant-at-commit','depart-grant-at-commit'].includes(mode)&&!raced&&batch.writes.some(write=>write.model==='work.occurrence')){raced=true;const current=await load(resource.model,resource.id);assert.ok(current);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:resource.model,id:current.id,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,...(mode==='parent-at-commit'?{capacity:'8'}:{readable:false})}}}]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:departing?'rent_reservations.depart':'rent_reservations.no_show',operation_id:operationId(now),inputs:{booking:{id:'booking',version:mode==='stale'?'0':'1'},...(departing?{}:{reason:'Missed arrival'})}};
+   const outcome=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='parent-at-commit'||mode==='depart'||mode==='depart-nonexistent';assert.equal('result'in outcome&&outcome.result.status==='committed',success,mode+': '+JSON.stringify(outcome));
    const policies=await store.query({model:asModel('rent_reservations.ResourcePolicy'),authority:'owner'}),evidence=await store.query({model:asModel('rent_reservations.BookingEvidence'),authority:'owner'}),events=await store.query({model:asModel('work.occurrence'),authority:'owner'});
-   for(const rows of [policies,evidence,events])assert.equal(rows.length,success?1:0,mode);assert.equal((await load(asModel('rent_reservations.Booking'),asId('booking')))?.data.status,success?'no_show':'confirmed',mode);
-   if(mode==='identity-at-source'||mode==='parent-at-commit'||mode==='grant-at-commit')assert.equal(raced,true,mode);
-   if(success){assert.equal((policies[0]!.data.value as {capacity:string}).capacity,mode==='parent-at-commit'?'8':'7','commit retry must rebuild original Resource DATA, never retain stale capacity');assert.equal(evidence[0]!.data.key,'booking');assert.equal(evidence[0]!.data.sequence,'1');assert.equal((evidence[0]!.data.value as {status:string}).status,'no_show');
+   for(const rows of [policies,evidence,events])assert.equal(rows.length,success?1:0,mode);assert.equal((await load(asModel('rent_reservations.Booking'),asId('booking')))?.data.status,success?(departing?'completed':'no_show'):(departing?'occupied':'confirmed'),mode);
+   if(mode==='identity-at-source'||mode==='parent-at-commit'||mode==='grant-at-commit'||mode==='depart-grant-at-commit')assert.equal(raced,true,mode);
+   if(departing){const ownSlot=await store.scheduleGet(scheduleKey(scope.owner));if(success)assert.equal(ownSlot,null,'authored CANCEL removes only its own active key');
+    if(!success)assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),originalSchedules,'rejected evidence rolls back cancellation');
+   }
+   if(success){assert.equal((policies[0]!.data.value as {capacity:string}).capacity,mode==='parent-at-commit'?'8':'7','commit retry must rebuild original Resource DATA, never retain stale capacity');assert.equal(evidence[0]!.data.key,'booking');assert.equal(evidence[0]!.data.sequence,'1');assert.equal((evidence[0]!.data.value as {status:string}).status,departing?'completed':'no_show');
     const result=events[0]!.data.result as {payload:unknown};assert.deepEqual(result.payload,{booking:{id:'booking',version:'2'},revision:'2'});
     const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.deepEqual(await store.query({model:asModel('work.occurrence'),authority:'owner'}),events);
    }

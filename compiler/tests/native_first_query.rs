@@ -2774,3 +2774,20 @@ fn original_quote_derived_contract_seals_body_schema_and_child_domain() {
   assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {diagnostics:?}");
  }
 }
+
+#[test]
+fn original_departure_keeps_its_cancel_key_and_constructor_stage() {
+ use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+ let source=include_str!("fixtures/rent-original-emission.can");let(db,program,ir,catalog)=fixture_source("rent-original-emission.can",source);
+ let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let owner=item(&ir,"rent_reservations.depart");assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+ for mode in ["key","scope","stage","count"]{
+  let mut changed=ir.clone();let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("owner")};
+  match mode{
+   "key"|"scope"=>{let IrStmt::Cancel{key,owner_package,..}=&mut effects[0]else{panic!("cancel")};if mode=="key"{key.expr=IrExpr::Text("foreign:occupancy".into());}else{*owner_package="foreign".into();}},
+   "stage"=>effects.swap(0,2),
+   _=>{let IrStmt::Create{input,..}=&mut effects[2]else{panic!("create")};let IrExpr::Object(fields)=&mut input.expr else{panic!("input")};fields.iter_mut().find(|(name,_)|name=="sequence").unwrap().1.expr=IrExpr::Int(99);},
+  }
+  assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode} borrowed original cancellation/count authority");
+ }
+}
