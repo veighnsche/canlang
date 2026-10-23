@@ -1,0 +1,71 @@
+app CanEvent uses=[events]
+package rent_catalog
+ Given
+  export Location {name:text,currency:currency}
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package customer
+ use rent_catalog {Location}
+ Given
+  role customer_reader
+  export Customer {active:bool=true,locations:Location[]}
+  policy Customer read=customer_reader
+ When
+ Then
+package rent_reservations
+ use rent_catalog {Location}
+ use std {OperationOutcome}
+ Given
+  export Resource {active:bool=true,location:Location,party_limit:int,visible:bool=true}
+  policy Resource read=public and row.visible fields=active,location,party_limit,visible
+  export contract RoomRequest {source:text,revision:int=1,resource:text,customer:text,account:user,from:datetime,until:datetime,quantity:int,price:money?,terms:text?}
+  export capability RoomsV1 version=1
+   hold(value:RoomRequest) -> OperationOutcome
+   stage(value:RoomRequest,previous_source:text,previous_revision:int) -> OperationOutcome
+   release(source:text,resource:text,reason:text) -> OperationOutcome
+ When
+ Then
+package events
+ use rent_catalog {Location}
+ use employee {can_work}
+ use customer {Customer}
+ use rent_reservations {Resource}
+ use rent_reservations {RoomsV1 as Rooms} from=deployment.rooms
+ use std {OperationOutcome,DeliveryResult}
+ Given
+  role organizer
+  Program {name:text}
+  Event in Program {location:Location,timezone:timezone,from:datetime,until:datetime,capacity:int min=1,price:money,sales_until:datetime,venue:Change?,pending_change:Change?,revision:int=1,cancelled:bool=false}
+  Registration in Event {checked_in:datetime?,state:enum(held,pending,confirmed,expired,cancelled,review)=held,expires:datetime}
+  Change in Event {source:text unique,base_revision:int,location:Event.location,timezone:Event.timezone,from:Event.from,until:Event.until,capacity:Event.capacity,sales_until:datetime,reason:text,author:user server=actor,resource:Resource?,customer:Customer?,account:user,previous:Change?,state:enum(holding,confirming,adopted,releasing,released,failed,review)=holding,venue_state:OperationOutcome.state=pending,venue_revision:int=0,hold_delivery:text?,hold_status:DeliveryResult.status?,release_reason:text?,release_delivery:text?,release_status:DeliveryResult.status?,resource_visible:bool=true}
+  event ApplyChange {change:Change}
+  policy Program read=organizer
+  policy Event read=organizer where=can_work(actor,row.location)
+  policy Registration read=organizer where=can_work(actor,row.parent.location)
+  policy Change read=organizer where=can_work(actor,row.parent.location) fields=source,base_revision,location,timezone,from,until,capacity,sales_until,reason,author,customer,account,previous,state,venue_state,venue_revision,hold_delivery,hold_status,release_reason,release_delivery,release_status,resource_visible
+  policy Change read=organizer where=can_work(actor,row.parent.location) and row.resource_visible fields=resource
+ When
+  scenario abandon(change:Change,reason:text) by=organizer label="Abandon proposed change"@{nl="Voorgestelde wijziging verlaten"}
+   require can_work(actor,change.parent.location) and change.parent.pending_change==change and change.state in [holding,confirming,failed,review] and trim(reason)!=""
+   do
+    set change.parent {pending_change=null}
+    set change {state=releasing}
+    if change.resource!=null
+     send Rooms.release {source=change.source,resource=change.resource.id,reason} as delivery
+     set change {release_reason=reason,release_delivery=delivery.id,release_status=pending}
+    else
+     set change {state=released}
+  scenario retry_release(change:Change) by=organizer label="Retry venue cleanup"@{nl="Locatieopruiming opnieuw proberen"}
+   require can_work(actor,change.parent.location) and change.resource!=null and change.state==releasing and change.release_status in [failed,unknown,skipped] and change.release_reason!=null
+   do
+    send Rooms.release {source=change.source,resource=change.resource.id,reason=change.release_reason} as delivery
+    set change {release_delivery=delivery.id,release_status=pending}
+ Then

@@ -3517,3 +3517,36 @@ it('emits both original membership recheck events with required identities in op
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('runs original Event nullable resource release paths at their actual source stages', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-event-resource-id-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/event-release-original-source.can'),original=await readFile(join(root,'draft/apps/CanEvent/CanEvent.can'),'utf8'),text=await readFile(source,'utf8');
+  for(const [head,tail]of [['  scenario abandon(','   examples'],['  scenario retry_release(','  # Correlate']]){const start=original.indexOf(head!),end=original.indexOf(tail!,start);assert.ok(text.includes(original.slice(start,end)));}
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const operation of ['abandon','retry_release'])for(const mode of ['allowed','null','null-denied','denied-ref','denied-target','false-prefix','stale','ref-race','grant-race','identity-race']){
+   const {now,identities,identity,team,user,membership}=await member('event-resource-'+operation+'-'+mode,['events.organizer']);
+   const scope={app:'CanEvent',owner:team.team_id,ownerPackage:'events'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'release-state',fileStoreId:'release-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent}),nullResource=mode.startsWith('null');
+   const event=row('event',{location:{id:'location'},timezone:'UTC',from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T10:00:00.000Z',capacity:'10',price:{minor:'1000',currency:'EUR'},sales_until:'2099-01-01T08:00:00.000Z',venue:null,pending_change:mode==='false-prefix'?null:{id:'change'},revision:'1',cancelled:false},{model:model('events','Program'),id:asId('program')});
+   const change=row('change',{source:'original-held-source',base_revision:'1',location:{id:'location'},timezone:'UTC',from:'2099-01-01T09:00:00.000Z',until:'2099-01-01T10:00:00.000Z',capacity:'10',sales_until:'2099-01-01T08:00:00.000Z',reason:'Original proposal',author:{id:user.user_id},resource:nullResource?null:{id:'resource'},customer:null,account:{id:user.user_id},previous:null,state:operation==='abandon'?'holding':mode==='false-prefix'?'released':'releasing',venue_state:'pending',venue_revision:'0',hold_delivery:null,hold_status:null,release_reason:operation==='retry_release'?'Frozen release':null,release_delivery:null,release_status:operation==='retry_release'?'failed':null,resource_visible:!['denied-ref','null-denied'].includes(mode)},{model:model('events','Event'),id:event.id});
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:model('rent_catalog','Location'),row:row('location',{name:'Site',currency:'EUR'})},
+    {kind:'insert',model:model('employee','Employee'),row:row('employee',{user:{id:user.user_id},active:true,operator_wide:false,home:{id:'location'},locations:[]})},
+    {kind:'insert',model:model('rent_reservations','Resource'),row:row('resource',{active:true,location:{id:'location'},party_limit:'20',visible:mode!=='denied-target'})},
+    {kind:'insert',model:model('rent_reservations','Resource'),row:row('replacement',{active:true,location:{id:'location'},party_limit:'20',visible:true})},
+    {kind:'insert',model:model('events','Program'),row:row('program',{name:'Original program'})},
+    {kind:'insert',model:model('events','Event'),row:event},{kind:'insert',model:model('events','Change'),row:change}]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(name,id)=>{if(!raced&&mode==='identity-race'&&name==='work.dispatch'){raced=true;await identities.removeMembership(membership.membership_id);}return load(name,id);};
+   store.commit=async batch=>{if(!raced&&['ref-race','grant-race'].includes(mode)&&batch.writes.some(write=>write.model==='work.dispatch')){raced=true;const name=mode==='ref-race'?model('events','Change'):model('rent_reservations','Resource'),old=await load(name,mode==='ref-race'?change.id:asId('resource'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:name,id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,...(mode==='ref-race'?{resource:{id:'replacement'}}:{visible:false})}}}]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'events.'+operation,operation_id:operationId(now),inputs:{change:{id:'change',version:mode==='stale'?'2':'1'},...(operation==='abandon'?{reason:'Keep original'}:{})}};
+   const result=await invoker.invokeMutation(request,identity),success=mode==='allowed'||operation==='abandon'&&nullResource;assert.equal('result'in result,success,operation+'/'+mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const pending=await store.outboxPending(),current=await load(model('events','Change'),change.id),parent=await load(model('events','Event'),event.id);assert.equal(pending.length,success&&!nullResource?1:0,mode);assert.ok(current);assert.ok(parent);
+   if(success){assert.equal(current.data.state,nullResource?'released':'releasing');assert.deepEqual(parent.data.pending_change,operation==='abandon'?null:{id:'change'});if(!nullResource){assert.deepEqual((pending[0]!.arguments as {arguments:unknown}).arguments,{source:'original-held-source',resource:'resource',reason:operation==='abandon'?'Keep original':'Frozen release'});assert.equal(current.data.release_status,'pending');}assert.ok('result'in await invoker.invokeMutation(request,identity));assert.deepEqual(await store.outboxPending(),pending);}
+   else{assert.deepEqual(parent,event,mode+': parent SET rolls back');if(mode==='ref-race'){assert.equal(current.data.state,change.data.state);assert.deepEqual(current.data.resource,{id:'replacement'});}else assert.deepEqual(current,change,mode+': no partial Change SET');}
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

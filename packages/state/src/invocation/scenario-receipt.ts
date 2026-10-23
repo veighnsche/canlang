@@ -6719,7 +6719,7 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
       return domain;
     };
     const root = await read(reference.model, reference.id);
-    if (root === null || root.archivedAt!==null || (staged ? !sameModelLifetime(root,reference.row) : stableStringify(root) !== stableStringify(reference.row))) {
+    if (root === null || root.archivedAt!==null || (staged ? !sameModelLifetime(reference.row,root) : stableStringify(root) !== stableStringify(reference.row))) {
       throw new StateError('conflict', 'Source Require model differs from its admitted row.');
     }
     // Invoice.collect's first original Require dereferences invoice.parent.kind
@@ -9986,7 +9986,7 @@ export interface ScenarioSourceSendDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly operation:string;readonly binding:string;
   readonly parameters:readonly {readonly name:string;readonly model:ModelName;
-    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identityPaths?:readonly {readonly path:readonly {readonly field:string;readonly model:ModelName}[];readonly leaf:'id'}[];readonly parent?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[]};readonly derived?:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
+    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identityPaths?:readonly {readonly path:readonly {readonly field:string;readonly model:ModelName;readonly nullable?:true}[];readonly leaf:'id'}[];readonly parent?:{readonly model:ModelName;readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[]};readonly derived?:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
   readonly queries?:readonly ScenarioSourceSendQuerySource[];
 }
 interface SourceSendDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceSendDataSource[];}
@@ -10054,10 +10054,10 @@ function checkSourceEffectIdentityPaths(bound:BoundPlan,model:ModelName,value:un
   for(const value of paths){
     const profile=object(value,['path','leaf']),path=list(profile['path']);let current=model;
     if(profile['leaf']!=='id'||path.length===0||path.length>8)return invalid('Effect identity path lacks its bounded original ID leaf.');
-    for(const value of path){const edge=object(value,['field','model']),field=text(edge['field']),target=text(edge['model']) as ModelName;
+    for(const value of path){const edge=object(value,['field','model',...(Object.hasOwn(value as object,'nullable')?['nullable']:[])]),field=text(edge['field']),target=text(edge['model']) as ModelName;
       const source=bound.artifactModels.get(current),stored=source?.fields.find(candidate=>candidate.name===field);
-      if(!bound.artifactModels.has(target)||(field==='parent'?source?.parent!==target:
-          stored?.field.kind!=='ref'||stored.field.model!==target||stored.nullable===true||stored.array!==undefined||stored.default?.kind==='derived'))return invalid('Effect identity path differs from its required original stored edge.');
+      if(!bound.artifactModels.has(target)||(field==='parent'?source?.parent!==target||Object.hasOwn(edge,'nullable'):
+          stored?.field.kind!=='ref'||stored.field.model!==target||(stored.nullable===true)!==(edge['nullable']===true)||Object.hasOwn(edge,'nullable')&&edge['nullable']!==true||stored.array!==undefined||stored.default?.kind==='derived'))return invalid('Effect identity path differs from its required original stored edge.');
       current=target;
     }
     const key=stableStringify(profile);if(seen.has(key))return invalid('Effect identity path repeats.');seen.add(key);

@@ -2914,3 +2914,17 @@ fn original_member_recheck_keeps_required_parameters_in_optional_event_slots() {
  let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
 }
+
+#[test]
+fn original_event_release_keeps_declared_nullable_identity_edges() {
+ let source=include_str!("fixtures/event-release-original-source.can");
+ let(db,program,_,catalog)=fixture_source("event-release-original-source.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let js=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<String>();assert!(js.contains("identityPaths")&&js.contains("nullable"));
+ for foreign in [false,true]{
+  let(db,mut changed,_,catalog)=fixture_source("event-release-reference-substitution.can",source);
+  let field=changed.symbols.iter().find(|symbol|symbol.canonical=="events.Change.resource").unwrap().id;
+  let ty=if foreign{let customer=changed.symbols.iter().find(|symbol|symbol.canonical=="customer.Customer").unwrap().id;ResolvedType::Nullable(Box::new(ResolvedType::Record{symbol:customer,stored:true}))}else{let ResolvedType::Nullable(inner)=changed.types.symbol_types[&field].clone()else{panic!("nullable source field")};*inner};
+  changed.types.symbol_types.insert(field,ty);let(_,diagnostics)=prepared_artifact(&changed,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"foreign={foreign}: {diagnostics:?}");
+ }
+}
