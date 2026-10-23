@@ -2864,7 +2864,7 @@ it('executes the original contained Invoice cancellation loop through authentic 
           const credits=await store.query({model:model('invoice','Credit'),authority:'owner'});assert.equal(credits.length,1);
           assert.equal((credits[0]!.data.amount as {minor:string}).minor,mode==='full-credit-positive'?'950':'100');
           const events=await store.query({model:asModel('work.occurrence'),authority:'owner'});assert.equal(events.length,1);
-          const emitted=events[0]!.data.payload as {value:{revision:string;collected:{minor:string};collection_pending:boolean}};
+          const emitted=(events[0]!.data.result as {payload:{value:{revision:string;collected:{minor:string};collection_pending:boolean}}}).payload;
           assert.equal(emitted.value.revision,'1');assert.equal(emitted.value.collected.minor,'100');assert.equal(emitted.value.collection_pending,true);
         }
         if(mode==='role-during-send'||mode==='insert-at-commit')assert.equal(raced,true);
