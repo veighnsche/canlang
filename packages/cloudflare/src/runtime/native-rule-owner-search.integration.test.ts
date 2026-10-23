@@ -2809,7 +2809,7 @@ it('executes the original contained Invoice cancellation loop through authentic 
       const credit=original.slice(original.indexOf('  scenario credit('));
       const begin=credit.indexOf('    for attempt in invoice.Attempt');
       assert.ok(text.includes(credit.slice(begin,credit.indexOf('\n    if ',begin))),'the exact original per-child SET, SEND and typed CREATE are retained');
-      for(const mode of ['allowed','empty','hidden','withheld-reference','inactive','stale','overflow','maximum','physical-cap','role-during-send','insert-at-commit']){
+      for(const mode of ['allowed','empty','hidden','withheld-reference','inactive','stale','overflow','maximum','physical-cap','role-during-send','insert-at-commit','full-credit-positive','full-credit-false']){
         if(process.env['CAN_INVOICE_LOOP_CASE']&&process.env['CAN_INVOICE_LOOP_CASE']!==mode)continue;
         if(process.env['CAN_INVOICE_LOOP_SKIP_MAXIMUM']==='1'&&mode==='maximum')continue;
         const {now,identities,identity,team,user}=await member(`invoice-loop-${mode}`,['invoice.finance']);
@@ -2820,7 +2820,7 @@ it('executes the original contained Invoice cancellation loop through authentic 
         await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
         const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
         const location=row('location',{active:true}),customer=row('customer',{kind:'company',hidden:false});
-        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',currency:'EUR',state:'issued',total:{minor:'1000',currency:'EUR'},next_collection:null,ledger_revision:'0',first_paid_at:null,hidden:false},{model:model('customer','Customer'),id:customer.id});
+        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',currency:'EUR',state:'issued',total:{minor:'1000',currency:'EUR'},next_collection:null,ledger_revision:'0',first_paid_at:null,hidden:false,needs_review:false},{model:model('customer','Customer'),id:customer.id});
         const child={model:model('invoice','Invoice'),id:invoice.id};
         const attempt=(id:string,status='pending',kind='collection',parent=child)=>row(id,{reference:id,amount:{minor:'100',currency:'EUR'},kind,status,failure:null,disabled:false,delivery:null,checkout:'https://checkout.test/'+id,outcome_at:null,received:null,reference_readable:mode!=='withheld-reference',hidden:mode==='hidden'},parent);
         const count=mode==='empty'?0:mode==='maximum'?100:mode==='overflow'?101:2;
@@ -2841,8 +2841,8 @@ it('executes the original contained Invoice cancellation loop through authentic 
           const commit=store.commit.bind(store);store.commit=async batch=>{if(!raced&&batch.writes.some(write=>write.model==='work.dispatch')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice','Attempt'),row:attempt('late-attempt')}]}));}return commit(batch);};
         }
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
-        const request={operation:'invoice.cancel_pending',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:mode==='stale'?'0':String(invoice.version)}}};
-        const outcome=await invoker.invokeMutation(request,identity),success=['allowed','empty','maximum','insert-at-commit'].includes(mode);
+        const request={operation:mode.startsWith('full-credit')?'invoice.credit':'invoice.cancel_pending',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:mode==='stale'?'0':String(invoice.version)},...(mode.startsWith('full-credit')?{amount:{minor:mode==='full-credit-positive'?'950':'100',currency:'EUR'},reason:'Reviewed original credit'}:{})}};
+        const outcome=await invoker.invokeMutation(request,identity),success=['allowed','empty','maximum','insert-at-commit','full-credit-positive','full-credit-false'].includes(mode);
         assert.equal('result'in outcome&&outcome.result.status==='committed',success,`${mode}: ${JSON.stringify(outcome)}`);
         const pending=await store.outboxPending(),requests=await store.query({model:model('invoice','PaymentRequest'),authority:'owner'});
         const expected=success?count+(mode==='insert-at-commit'?1:0):0;
@@ -2857,6 +2857,15 @@ it('executes the original contained Invoice cancellation loop through authentic 
           const intent=pending.find(intent=>intent.intentId===delivery.id);assert.ok(intent,'typed cancellation belongs to this actual retained SEND');
           assert.equal(intent.target,'std.PaymentsV1.cancel');assert.equal((intent.arguments as {arguments:{reference:string}}).arguments.reference,retained.parent?.id);
           const receipt=await store.load(asModel('work.receipt'),asId(delivery.id));assert.ok(receipt,'owning typed delivery retains the real pending receipt');assert.equal(receipt.data.status,'pending');assert.equal(receipt.data.result,null);
+        }
+        if(mode.startsWith('full-credit')){
+          const current=await store.load(model('invoice','Invoice'),invoice.id);assert.ok(current);
+          assert.equal(current.data.ledger_revision,'1');assert.equal(current.data.needs_review,mode==='full-credit-positive');
+          const credits=await store.query({model:model('invoice','Credit'),authority:'owner'});assert.equal(credits.length,1);
+          assert.equal((credits[0]!.data.amount as {minor:string}).minor,mode==='full-credit-positive'?'950':'100');
+          const events=await store.query({model:asModel('work.occurrence'),authority:'owner'});assert.equal(events.length,1);
+          const emitted=events[0]!.data.payload as {value:{revision:string;collected:{minor:string};collection_pending:boolean}};
+          assert.equal(emitted.value.revision,'1');assert.equal(emitted.value.collected.minor,'100');assert.equal(emitted.value.collection_pending,true);
         }
         if(mode==='role-during-send'||mode==='insert-at-commit')assert.equal(raced,true);
         if(success){const replay=await invoker.invokeMutation(request,identity);if('error'in replay)assert.equal(replay.error.code,'validation',JSON.stringify(replay));else{assert.equal(replay.result.status,'replayed');assert.equal(replay.result.result,null);}assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await store.query({model:model('invoice','PaymentRequest'),authority:'owner'}),requests);}

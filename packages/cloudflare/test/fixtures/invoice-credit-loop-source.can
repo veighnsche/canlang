@@ -37,9 +37,9 @@ package invoice
  use std {PaymentsV1 as Payments} from=deployment.payments
  Given
   role finance
-  export Invoice in Customer {location:Location,source:text,currency:currency,state:enum(draft,issued,void_pending,void)=draft,total:money,next_collection:datetime?,ledger_revision:int=0,first_paid_at:datetime?,hidden:bool=false}
+  export Invoice in Customer {location:Location,source:text,currency:currency,state:enum(draft,issued,void_pending,void)=draft,total:money,next_collection:datetime?,ledger_revision:int=0,first_paid_at:datetime?,hidden:bool=false,needs_review:bool=false}
   Attempt in Invoice {reference:text unique,amount:money,kind:enum(collection,refund),status:PaymentState.status=pending,failure:PaymentState.failure,disabled:bool=false,delivery:text?,checkout:url?,outcome_at:datetime?,received:datetime?,reference_readable:bool=true,hidden:bool=false}
-  Credit in Invoice {amount:money,hidden:bool=false}
+  Credit in Invoice {source:text,amount:money,reason:text,author:user,hidden:bool=false}
   ExternalPayment in Invoice {amount:money,received:datetime,hidden:bool=false}
   ExternalRefund in Invoice {amount:money,hidden:bool=false}
   PaymentRequest in Attempt {kind:enum(cancel,reconcile),cancellation:delivery(Payments.cancel)?,reconciliation:delivery(Payments.reconcile)?}
@@ -56,6 +56,7 @@ package invoice
   derive Invoice.received:money = sum(row.Attempt as attempt where attempt.kind==collection and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalPayment as payment select payment.amount,row.currency)
   derive Invoice.refunded:money = sum(row.Attempt as attempt where attempt.kind==refund and attempt.status==succeeded select attempt.amount,row.currency)+sum(row.ExternalRefund as refund select refund.amount,row.currency)
   derive Invoice.balance:money = max([money(0,row.currency),row.total-row.credits-row.received])
+  derive Invoice.refund_due:money = max([money(0,row.currency),row.received-row.refunded-(row.total-row.credits)])
   policy CommercialHistory read=members and not row.hidden
   policy CommercialSale read=members
   policy Invoice read=members and not row.hidden
@@ -161,4 +162,16 @@ package invoice
      set attempt {disabled=true,checkout=null}
      send Payments.cancel {reference=attempt.reference} as delivery
      create PaymentRequest {parent=attempt,kind=cancel,cancellation=delivery} as request
+  scenario credit(invoice:Invoice,amount:money,reason:text) by=finance label="Credit invoice"@{nl="Factuur crediteren"}
+   require can_work(actor,invoice.location) and invoice.state==issued and amount.minor>0 and amount.currency==invoice.currency and amount<=invoice.total-invoice.credits and trim(reason)!=""
+   do
+    create Credit {parent=invoice,source=operation.id,amount,reason,author=actor} as credit
+    for attempt in invoice.Attempt as candidate where candidate.kind==collection and candidate.status in [pending,unknown] limit=100
+     set attempt {disabled=true,checkout=null}
+     send Payments.cancel {reference=attempt.reference} as delivery
+     create PaymentRequest {parent=attempt,kind=cancel,cancellation=delivery} as request
+    if invoice.refund_due.minor>0
+     set invoice {needs_review=true}
+    set invoice {ledger_revision=invoice.ledger_revision+1}
+    emit InvoiceSettlement {value=settlement(invoice)}
  Then
