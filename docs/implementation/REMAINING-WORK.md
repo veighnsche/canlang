@@ -1,6 +1,14 @@
 # Remaining CanLang work
 
-## Current consolidated list — 18 October 2026
+The current prioritized audit-derived fixes and simplifications are in the
+[implementation checklist](../ideal-filetree-plan/tasks.md), updated after
+`eb8a8544` on 23 October 2026. Use that checklist for the next implementation
+batches. This broader roadmap retains older feature/app requirements, completed
+work and candidate priorities; check its historical status and measurements
+against current source before selecting a consumer. Its open product requirements
+are not declared complete by the audit checklist.
+
+## Broader product roadmap — 18 October 2026
 
 This list describes functional gaps, dependencies and proposed work. Existing task IDs identify related requirements; multiple IDs may refer to one shared implementation. Reuse satisfied behavior and check the affected consumer when it changes.
 
