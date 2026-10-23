@@ -51,3 +51,5 @@ dist-manifest.json
 
 # Generated root output
 /output/
+
+/host/target/
