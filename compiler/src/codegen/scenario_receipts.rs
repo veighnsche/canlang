@@ -1848,33 +1848,7 @@ pub(super) fn checked_require_consumptions(
             };
             // Select the actual expression inside this Require, retaining its
             // original lazy evaluation position instead of hoisting a read.
-            let mut pending = vec![cond];
-            let mut found = None;
-            let mut steps = 0;
-            while let Some(value) = pending.pop() {
-                steps += 1;
-                if steps > 16384 {
-                    return None;
-                }
-                if value.span == node_span(read.node) {
-                    if found.replace(value).is_some() {
-                        return None;
-                    }
-                }
-                match &value.expr {
-                    IrExpr::Binary { left, right, .. } => {
-                        pending.push(right);
-                        pending.push(left);
-                    }
-                    IrExpr::Unary { operand, .. } => pending.push(operand),
-                    IrExpr::Member { base, .. } => pending.push(base),
-                    IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
-                        pending.extend(args.iter().rev())
-                    }
-                    _ => {}
-                }
-            }
-            let value = found?;
+            let value = find_typed_subtree(&[cond], node_span(read.node))?;
             let IrExpr::Member { base, field } = &value.expr else {
                 return None;
             };
@@ -1927,10 +1901,7 @@ pub(super) fn checked_require_consumptions(
                     let contract = schemas
                         .iter()
                         .find(|schema| !schema.model && schema.id == *contract)?;
-                    match_stored_contract_schema(ir, contract, db)?;
-                    for field in &contract.fields {
-                        match_stored_contract_field(ir, field, db)?;
-                    }
+                    match_stored_contract_fields(ir, contract, db)?;
                     contract.canonical == read.type_id
                 }
                 _ => false,
@@ -3704,10 +3675,7 @@ pub(super) fn checked_any_query_ir<'a>(
         if schemas.next().is_some() || schema.source != query.source {
             return None;
         }
-        match_stored_contract_schema(ir, schema, db)?;
-        for field in &schema.fields {
-            match_stored_contract_field(ir, field, db)?;
-        }
+        match_stored_contract_fields(ir, schema, db)?;
         if id == query.model
             && schema
                 .fields
@@ -3936,6 +3904,66 @@ pub(super) fn checked_any_first_parent<'a, 'b>(
     Some((parameter, *input_id, parent, parent_base, parent_model))
 }
 
+/// Traverse only AND joins, preserving authored left-to-right leaf order.
+/// Callers retain their existing join-type and frontier limits: these options
+/// describe a walk, never a supported query or an admitted source expression.
+pub(super) fn predicate_conjuncts(
+    root: &TypedExpr,
+    boolean_joins: bool,
+    frontier_limit: Option<usize>,
+) -> Option<Vec<&TypedExpr>> {
+    let mut pending = vec![root];
+    let mut leaves = Vec::new();
+    while let Some(node) = pending.pop() {
+        if let IrExpr::Binary { op: IrBinOp::And, left, right } = &node.expr {
+            if boolean_joins && node.ty != ResolvedType::Scalar(Scalar::Bool) {
+                return None;
+            }
+            pending.push(right.as_ref());
+            pending.push(left.as_ref());
+        } else {
+            leaves.push(node);
+        }
+        if frontier_limit.is_some_and(|limit| pending.len() + leaves.len() > limit) {
+            return None;
+        }
+    }
+    Some(leaves)
+}
+
+/// Structural predicate operand join shared by proof and emission. Source
+/// spelling, receiver schema, dependency identities and operand provenance
+/// remain independently checked by their owning consumers.
+pub(super) struct PredicateMemberLeaf<'a> {
+    pub member: &'a TypedExpr,
+    pub receiver: &'a TypedExpr,
+    pub field: &'a str,
+    pub operand: Option<&'a TypedExpr>,
+}
+
+pub(super) fn predicate_member_leaf<'a>(
+    leaf: &'a TypedExpr,
+    alias: &str,
+) -> Option<PredicateMemberLeaf<'a>> {
+    let (member, operand) = match &leaf.expr {
+        IrExpr::Binary { op: IrBinOp::Eq, left, right } =>
+            (left.as_ref(), Some(right.as_ref())),
+        IrExpr::Member { .. } => (leaf, None),
+        _ => return None,
+    };
+    let IrExpr::Member { base: receiver, field } = &member.expr else { return None; };
+    if !matches!(&receiver.expr, IrExpr::Name(name) if name == alias)
+        || leaf.ty != ResolvedType::Scalar(Scalar::Bool)
+        || match operand {
+            Some(value) => value.ty != member.ty,
+            None => member.ty != ResolvedType::Scalar(Scalar::Bool),
+        }
+    {
+        return None;
+    }
+    Some(PredicateMemberLeaf { member, receiver, field, operand })
+}
+
 pub(super) fn checked_any_first_query_ir<'a>(
     ir: &'a IrProgram,
     owner: &'a IrItem,
@@ -4030,24 +4058,7 @@ pub(super) fn checked_any_first_query_ir<'a>(
     let model = ir.items.get(any.model.0 as usize)?;
     // Flatten the authored `and` chain order-preserving; each leaf carries
     // exactly one recorded Control dependency, in order.
-    let mut pending = vec![body.as_ref()];
-    let mut leaves: Vec<&TypedExpr> = Vec::new();
-    while let Some(node) = pending.pop() {
-        if let IrExpr::Binary {
-            op: super::ir::IrBinOp::And,
-            left,
-            right,
-        } = &node.expr
-        {
-            if node.ty != boolean {
-                return None;
-            }
-            pending.push(right.as_ref());
-            pending.push(left.as_ref());
-            continue;
-        }
-        leaves.push(node);
-    }
+    let leaves = predicate_conjuncts(body, true, None)?;
     if leaves.len() != any.dependencies.len() || leaves.is_empty() {
         return None;
     }
@@ -4060,38 +4071,12 @@ pub(super) fn checked_any_first_query_ir<'a>(
         (&parent_base.span, &parent_base.ty),
     ];
     for (leaf, dependency) in leaves.iter().zip(any.dependencies.iter()) {
-        let (member, field_name, operand) = match &leaf.expr {
-            IrExpr::Binary {
-                op: super::ir::IrBinOp::Eq,
-                left,
-                right,
-            } => {
-                let IrExpr::Member { base, field } = &left.expr else {
-                    return None;
-                };
-                let IrExpr::Name(base_name) = &base.expr else {
-                    return None;
-                };
-                if base_name != param || base.ty != record {
-                    return None;
-                }
-                (left.as_ref(), field.as_str(), Some(right.as_ref()))
-            }
-            IrExpr::Member { base, field } => {
-                let IrExpr::Name(base_name) = &base.expr else {
-                    return None;
-                };
-                if base_name != param || base.ty != record {
-                    return None;
-                }
-                (*leaf, field.as_str(), None)
-            }
-            _ => return None,
-        };
-        let member_ty = member.ty.clone();
-        if leaf.ty != boolean
-            || dependency.ty != member_ty
-            || (operand.is_none() != (member_ty == boolean))
+        let PredicateMemberLeaf { member, receiver, field: field_name, operand } =
+            predicate_member_leaf(leaf, param)?;
+        let member_ty = &member.ty;
+        if receiver.ty != record
+            || dependency.ty != *member_ty
+            || (operand.is_none() != (*member_ty == boolean))
         {
             return None;
         }
@@ -4106,9 +4091,6 @@ pub(super) fn checked_any_first_query_ir<'a>(
             return None;
         }
         if let Some(operand) = operand {
-            if operand.ty != member_ty {
-                return None;
-            }
             // Operand is the contextual actor read or a member read
             // off a real scenario parameter (the alias row itself is never
             // an operand base); anything else keeps the refusal. The base
@@ -4249,10 +4231,7 @@ pub(super) fn checked_any_first_query_ir<'a>(
         if schemas.next().is_some() || schema.source != any.source {
             return None;
         }
-        match_stored_contract_schema(ir, schema, db)?;
-        for field in &schema.fields {
-            match_stored_contract_field(ir, field, db)?;
-        }
+        match_stored_contract_fields(ir, schema, db)?;
         if id == any.model {
             for dependency in any.dependencies.iter() {
                 if schema
@@ -6857,10 +6836,7 @@ fn checked_first_query_schema<'a>(
     {
         return None;
     }
-    match_stored_contract_schema(ir, schema, db)?;
-    for field in &schema.fields {
-        match_stored_contract_field(ir, field, db)?;
-    }
+    match_stored_contract_fields(ir, schema, db)?;
     Some(schema)
 }
 
@@ -7093,7 +7069,7 @@ fn first_query_parameter_valid(
         && parent_span == node_span(receiver)
 }
 
-fn match_parent_schema(
+fn match_stored_contract_fields(
     ir: &IrProgram,
     parent: &crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
     db: &SourceDb,
@@ -7201,7 +7177,7 @@ pub(super) fn checked_first_query_parent<'a>(
     {
         return None;
     }
-    match_parent_schema(ir, parent, db)?;
+    match_stored_contract_fields(ir, parent, db)?;
     Some((parameter, parent_id))
 }
 
@@ -7365,10 +7341,7 @@ fn checked_count_query_parent<'a>(
     {
         return None;
     }
-    match_stored_contract_schema(ir, parent, db)?;
-    for field in &parent.fields {
-        match_stored_contract_field(ir, field, db)?;
-    }
+    match_stored_contract_fields(ir, parent, db)?;
     Some(parameter)
 }
 
@@ -7864,10 +7837,7 @@ fn ancestor_schemas_valid(
         if schemas.next().is_some() || schema.source != query.source {
             return None;
         }
-        match_stored_contract_schema(ir, schema, db)?;
-        for field in &schema.fields {
-            match_stored_contract_field(ir, field, db)?;
-        }
+        match_stored_contract_fields(ir, schema, db)?;
     }
     Some(())
 }
@@ -8833,21 +8803,7 @@ fn flatten_predicate_conjuncts<'x>(
     scan: &'x super::ir::IrQuery,
 ) -> Option<(Vec<&'x TypedExpr>, Vec<crate::analysis::NodeKey>)> {
     let predicate = scan.where_pred.as_deref()?;
-    let mut pending = vec![predicate];
-    let mut conjuncts = Vec::new();
-    while let Some(part) = pending.pop() {
-        if let IrExpr::Binary {
-            op: IrBinOp::And,
-            left,
-            right,
-        } = &part.expr
-        {
-            pending.push(right);
-            pending.push(left);
-            continue;
-        }
-        conjuncts.push(part);
-    }
+    let conjuncts = predicate_conjuncts(predicate, false, None)?;
     if conjuncts.is_empty() || conjuncts.len() != query.dependencies.len() {
         return None;
     }
@@ -9260,24 +9216,7 @@ fn checked_first_reference_predicate_ir(
     let IrItemKind::Scenario { params, .. } = &owner.kind else {
         return None;
     };
-    let mut pending = vec![scan.where_pred.as_deref()?];
-    let mut clauses = Vec::new();
-    while let Some(node) = pending.pop() {
-        if let IrExpr::Binary {
-            op: IrBinOp::And,
-            left,
-            right,
-        } = &node.expr
-        {
-            pending.push(right);
-            pending.push(left);
-        } else {
-            clauses.push(node);
-        }
-        if pending.len() + clauses.len() > 8 {
-            return None;
-        }
-    }
+    let clauses = predicate_conjuncts(scan.where_pred.as_deref()?, false, Some(8))?;
     let [identity, reference, presence] = clauses.as_slice() else {
         return None;
     };
@@ -10987,10 +10926,7 @@ fn checked_contract_parameter_row<'a>(
     if schemas.next().is_some() || schema.fields.iter().any(|field| field.name == "id") {
         return None;
     }
-    match_stored_contract_schema(ir, schema, db)?;
-    for field in &schema.fields {
-        match_stored_contract_field(ir, field, db)?;
-    }
+    match_stored_contract_fields(ir, schema, db)?;
     let expected = super::js::Emitter::source_models(ir, db)?;
     let mut generated = expected
         .iter()
@@ -11279,10 +11215,7 @@ fn checked_sealed_narrowed_parameter_id<'a>(
     if schema.fields.iter().any(|field| field.name == "id") {
         return None;
     }
-    match_stored_contract_schema(ir, schema, db)?;
-    for field in &schema.fields {
-        match_stored_contract_field(ir, field, db)?;
-    }
+    match_stored_contract_fields(ir, schema, db)?;
     let expected = super::js::Emitter::source_models(ir, db)?;
     let original = expected
         .iter()
@@ -11495,7 +11428,7 @@ fn parameter_row_schema<'a>(
     {
         return None;
     }
-    match_parent_schema(ir, original, db)?;
+    match_stored_contract_fields(ir, original, db)?;
     let generated = super::js::Emitter::source_models(ir, db)?;
     let mut expected = generated
         .iter()
@@ -12774,10 +12707,7 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
         return None;
     }
     match_stored_contract_schema(ir, branch, db)?;
-    match_stored_contract_schema(ir, profile, db)?;
-    for field in &profile.fields {
-        match_stored_contract_field(ir, field, db)?;
-    }
+    match_stored_contract_fields(ir, profile, db)?;
     let mut references = branch
         .fields
         .iter()
@@ -13594,10 +13524,7 @@ fn reference_reused_scope(
     if scopes.next().is_some() {
         return None;
     }
-    match_stored_contract_schema(ir, scope, db)?;
-    for field in &scope.fields {
-        match_stored_contract_field(ir, field, db)?;
-    }
+    match_stored_contract_fields(ir, scope, db)?;
     let (min, max) = (original.min.as_ref()?.1, original.max.as_ref()?.1);
     let reused = scope.fields.iter().find(|field| field.id == reused)?;
     if !(1..=200).contains(&min)
@@ -13732,10 +13659,7 @@ fn checked_reference_model_result<'a>(
     if schemas.next().is_some() || target.fields.iter().any(|field| field.name == "id") {
         return None;
     }
-    match_stored_contract_schema(ir, target, db)?;
-    for field in &target.fields {
-        match_stored_contract_field(ir, field, db)?;
-    }
+    match_stored_contract_fields(ir, target, db)?;
     let generated = super::js::Emitter::source_models(ir, db)?;
     let mut expected = generated
         .iter()

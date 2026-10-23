@@ -111,7 +111,7 @@
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
     "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/cloudflare",
-    "build:emit": "tsc -p tsconfig.json && node scripts/emit-native-catalog.mjs && chmod +x dist/cli/soda.js dist/cli/platform.js",
+    "build:emit": "tsc -p tsconfig.json && node scripts/build-soda-host.mjs && node scripts/emit-native-catalog.mjs && chmod +x dist/cli/soda.js dist/cli/platform.js",
     "typecheck:check": "tsc --noEmit -p tsconfig.json",
     "test:runtime": "cd ../.. && node --test \"packages/cloudflare/dist/**/*.test.js\"",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare",
@@ -140,7 +140,8 @@
     "estree-walker": "^3.0.3",
     "magic-string": "^1.4.3",
     "miniflare": "^4.20260730.0",
-    "smol-toml": "^1.9.1"
+    "smol-toml": "^1.9.1",
+    "workerd": "1.20260730.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261004.1",

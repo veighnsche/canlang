@@ -7,14 +7,14 @@ import type { Server, IncomingMessage, ServerResponse } from 'node:http';
 import { lstat, mkdir, open, readFile, realpath, rename, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { startSodaWorker, type SodaWorker } from './soda-workerd.js';
-import { getSodaStorageFingerprint, preflightSodaDeployment } from './soda.js';
-import type { SodaBundle } from './soda.js';
+import { getSodaStorageFingerprint, preflightSodaDeployment } from './soda-contract.js';
+import type { SodaBundle } from './soda-contract.js';
 import { DEFAULT_FILE_POLICY } from '@canlang/files/upload';
 import { SESSION_COOKIE_NAME, PRESESSION_COOKIE_NAME } from '@canlang/identity';
 import { artifactNeedsFiles } from '../runtime/artifact.js';
 
 /** Use the native kernel lock, so crashes release it without stale-lock recovery. */
-async function acquireWriter(dataDir: string): Promise<() => Promise<void>> {
+async function acquireWriter(dataDir: string): Promise<{fd:number;release:()=>Promise<void>}> {
   if (!isAbsolute(dataDir)) throw new Error('Soda data directory must be absolute');
   if (!(await realpath(dataDir)).startsWith('/home/')) throw new Error('Soda retained storage must be under /home');
   const stat = await lstat(dataDir);
@@ -33,7 +33,7 @@ async function acquireWriter(dataDir: string): Promise<() => Promise<void>> {
     // Its shared open-file description retains the kernel lock until disposal.
     child = spawn('sh', ['-c', 'flock --nonblock 3 || exit $?; printf "locked\\n"; exec cat'],
       { stdio: ['pipe', 'pipe', 'pipe', file.fd] });
-  } finally { await file.close(); }
+  } catch(error) { await file.close(); throw error; }
   const closed = new Promise<void>(resolve => { child.once('close', () => resolve()); });
   try {
     await new Promise<void>((resolve, reject) => {
@@ -41,8 +41,12 @@ async function acquireWriter(dataDir: string): Promise<() => Promise<void>> {
       child.once('close', () => reject(new Error('Soda data lock is unavailable or the data already has a writer')));
       child.stdout!.once('data', bytes => String(bytes) === 'locked\n' ? resolve() : reject(new Error('Invalid Soda writer lock acknowledgement')));
     });
-  } catch (error) { child.stdin!.end(); await closed; throw error; }
-  return async () => { child.stdin!.end(); await closed; };
+  } catch (error) { child.stdin!.end(); await closed; await file.close(); throw error; }
+  // Node and workerd inherit the same open description. The acquisition helper
+  // may now retire without unlocking either owner; never issue LOCK_UN.
+  child.stdin!.end(); await closed;
+  let released=false;
+  return {fd:file.fd,release:async()=>{if(!released){released=true;await file.close();}}};
 }
 
 async function prepareStorage(input: SodaBundle, dataDir: string): Promise<void> {
@@ -84,17 +88,17 @@ function d1Databases(input: SodaBundle) {
 
 /** Trusted bootstrap/test handoff. Caller disposes before serving; no public fixture route. */
 export async function provisionSodaStorage(input: SodaBundle, dataDir: string): Promise<SodaWorker> {
-  const release = await acquireWriter(dataDir);
+  const lock = await acquireWriter(dataDir);
   try {
     await prepareStorage(input, dataDir);
     const dev = await startSodaWorker({ workerName: input.descriptor.identity.appName, compatibilityDate: input.compatibilityDate,
     compatibilityFlags: input.compatibilityFlags, d1Databases: d1Databases(input),
     d1Persist: join(dataDir, 'd1'),
-    mainModule: 'provision.js', modules: { 'provision.js': 'export default {fetch(){return new Response(null,{status:404});}};' },
- });
+    mainModule: 'admin.js', modules: { 'admin.js': await readFile(new URL('../host/soda-admin.worker.js',import.meta.url),'utf8') },
+ },lock.fd);
     let closing: Promise<void> | undefined;
-    return { ...dev, dispose: () => closing ??= (async () => { try { await dev.dispose(); } finally { await release(); } })() };
-  } catch (error) { await release(); throw error; }
+    return { ...dev, dispose: () => closing ??= (async () => { try { await dev.dispose(); } finally { await lock.release(); } })() };
+  } catch (error) { await lock.release(); throw error; }
 }
 
 export interface SodaRuntimeOptions {
@@ -152,17 +156,17 @@ async function forward(request: IncomingMessage, response: ServerResponse, runti
 
 /** Bindings and retained provider paths belong to this target, never Soda's app domain. */
 export async function startSodaRuntime(input: SodaBundle, options: SodaRuntimeOptions): Promise<SodaRuntime> {
-  const release = await acquireWriter(options.dataDir);
+  const lock = await acquireWriter(options.dataDir);
   try {
-    const runtime = await startUnderLock(input, options);
+    const runtime = await startUnderLock(input, options, lock.fd, lock.release);
     let closing: Promise<void> | undefined;
     return { ...runtime, dispose: () => closing ??= (async () => {
-      try { await runtime.dispose(); } finally { await release(); }
+      try { await runtime.dispose(); } finally { await lock.release(); }
     })() };
-  } catch (error) { await release(); throw error; }
+  } catch (error) { await lock.release(); throw error; }
 }
 
-async function startUnderLock(input: SodaBundle, options: SodaRuntimeOptions): Promise<SodaRuntime> {
+async function startUnderLock(input: SodaBundle, options: SodaRuntimeOptions, lockFD:number, release:()=>Promise<void>): Promise<SodaRuntime> {
   await prepareStorage(input, options.dataDir);
   if (!/^[0-9a-f-]{36}$/i.test(options.ownerTeam)) throw new Error('Soda requires a concrete bootstrapped owner team');
   const databases = d1Databases(input);
@@ -216,6 +220,10 @@ async function startUnderLock(input: SodaBundle, options: SodaRuntimeOptions): P
       vars: { ...input.environment.vars, CAN_AUTH_ORIGIN: origin, CAN_DEPLOYMENT_BASE: origin,
         CAN_STATE_OWNER: options.ownerTeam, CAN_STATE_INITIALIZE_FRESH: true,
         CAN_FORM_BINDING_KEY: key, SODA_CONTROL_TOKEN: control },
+    },lockFD);
+    void runtime.failed.then(async()=>{
+      admitted=false;process.exitCode=1;
+      try{await dispose();}finally{await release();}
     });
     const ready = await runtime.dispatchUrl(new URL('/__soda_ready', origin).href, { headers: { 'x-soda-control': control } });
     if (ready.status !== 200) throw new Error(`Soda runtime admission refused HTTP ${ready.status}: ${await ready.text()}`);

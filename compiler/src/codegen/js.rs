@@ -9788,88 +9788,37 @@ fn conjunct_dependency_matches<'d>(
         body: &TypedExpr,
         param: &str,
     ) -> bool {
-        let boolean = ResolvedType::Scalar(Scalar::Bool);
-        let mut pending = vec![body];
-        let mut leaves: Vec<&TypedExpr> = Vec::new();
-        while let Some(node) = pending.pop() {
-            if let IrExpr::Binary {
-                op: IrBinOp::And,
-                left,
-                right,
-            } = &node.expr
-            {
-                if node.ty != boolean {
-                    return false;
-                }
-                pending.push(right.as_ref());
-                pending.push(left.as_ref());
-                continue;
-            }
-            leaves.push(node);
-        }
+        let Some(leaves) = super::scenario_receipts::predicate_conjuncts(body, true, None) else {
+            return false;
+        };
         if leaves.len() != source.dependencies.len() {
             return false;
         }
         let mut seen = HashSet::new();
         for (leaf, dependency) in leaves.iter().zip(source.dependencies.iter()) {
-            let (member, field_name, operand) = match &leaf.expr {
-                IrExpr::Binary {
-                    op: IrBinOp::Eq,
-                    left,
-                    right,
-                } => {
-                    let IrExpr::Member { base, field } = &left.expr else {
-                        return false;
-                    };
-                    let IrExpr::Name(base_name) = &base.expr else {
-                        return false;
-                    };
-                    if base_name != param {
-                        return false;
-                    }
-                    (left.as_ref(), field.as_str(), Some(right.as_ref()))
-                }
-                IrExpr::Member { base, field } => {
-                    let IrExpr::Name(base_name) = &base.expr else {
-                        return false;
-                    };
-                    if base_name != param {
-                        return false;
-                    }
-                    (*leaf, field.as_str(), None)
-                }
-                _ => return false,
-            };
-            if leaf.ty != boolean || dependency.ty != member.ty {
+            let Some(super::scenario_receipts::PredicateMemberLeaf {
+                member, field: field_name, operand, ..
+            }) = super::scenario_receipts::predicate_member_leaf(leaf, param) else {
                 return false;
-            }
-            match operand {
-                Some(operand) => {
-                    if operand.ty != member.ty {
-                        return false;
-                    }
-                    let IrExpr::Member { base, .. } = &operand.expr else {
-                        return false;
-                    };
-                    let mut root = base.as_ref();
-                    loop {
-                        match &root.expr {
-                            IrExpr::Name(name) => {
-                                if name == param {
-                                    return false;
-                                }
-                                break;
+            };
+            if dependency.ty != member.ty { return false; }
+            if let Some(operand) = operand {
+                let IrExpr::Member { base, .. } = &operand.expr else {
+                    return false;
+                };
+                let mut root = base.as_ref();
+                loop {
+                    match &root.expr {
+                        IrExpr::Name(name) => {
+                            if name == param {
+                                return false;
                             }
-                            IrExpr::Member { base: next, .. } => {
-                                root = next.as_ref();
-                            }
-                            _ => return false,
+                            break;
                         }
-                    }
-                }
-                None => {
-                    if member.ty != boolean {
-                        return false;
+                        IrExpr::Member { base: next, .. } => {
+                            root = next.as_ref();
+                        }
+                        _ => return false,
                     }
                 }
             }

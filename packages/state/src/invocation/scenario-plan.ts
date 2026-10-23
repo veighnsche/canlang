@@ -80,6 +80,38 @@ export function origin(value: unknown): void {
   if (typeof source['sha256'] !== 'string' || !/^[a-f0-9]{64}$/.test(source['sha256'])) return invalid('exact source digest required.');
 }
 
+/** Original AST intervals, including the sealed numeric syntax kind. Error
+ * text belongs to the owning profile; Event keeps its separate kind refusal. */
+function checkedSyntaxIntervals(failure: string, kindFailure = failure) {
+  return (value: unknown): EventDecisionSite['node'] => {
+    const node = object(value, ['start', 'end', 'kind']);
+    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
+        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number)) return invalid(failure);
+    if (!Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) return invalid(kindFailure);
+    return node as unknown as EventDecisionSite['node'];
+  };
+}
+/** One profile's original site/query identity census. Member retry checks
+ * statement containment later, with its ordered effects, so that mode must
+ * not admit an earlier containment refusal here. */
+function decisionSourceSites(source: ScenarioResultDisclosurePlan['source'],
+  span: ReturnType<typeof checkedSyntaxIntervals>, failure: string, mode: 'contained' | 'identity') {
+  const ids = new Set<string>();
+  const site = (value: unknown, extra: readonly string[] | Readonly<{ key: string; value: string }> = []): EventDecisionSite => {
+    const expected = 'key' in extra ? extra : undefined;
+    const keys = expected === undefined ? extra as readonly string[] : [expected.key];
+    const item = object(value, ['id', 'source', 'node', 'statement', ...keys]);
+    const id = text(item['id']); origin(item['source']);
+    const node = span(item['node']), statement = span(item['statement']);
+    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
+        stableStringify(item['source']) !== stableStringify(source) ||
+        mode === 'contained' && (node.start < statement.start || node.end > statement.end) ||
+        expected !== undefined && item[expected.key] !== expected.value) return invalid(failure);
+    ids.add(id); return item as unknown as EventDecisionSite;
+  };
+  return { ids, site };
+}
+
 export interface EventDecisionSite {
   readonly id: string;
   readonly source: ScenarioResultDisclosurePlan['source'];
@@ -162,28 +194,9 @@ export function checkObserveVenueDecisionPlan(value: unknown, transport: unknown
       source.path !== carrier.path || source.sha256 !== carrier.sha256) {
     return invalid('observe decision needs its original venue source.');
   }
-  const span = (value: unknown): void => {
-    const item = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(item['start']) || !Number.isSafeInteger(item['end']) ||
-        (item['start'] as number) < 0 || (item['end'] as number) <= (item['start'] as number) ||
-        !Number.isSafeInteger(item['kind']) || (item['kind'] as number) < 0) {
-      return invalid('observe decision needs nonempty original source intervals.');
-    }
-  };
+  const span = checkedSyntaxIntervals('observe decision needs nonempty original source intervals.');
   const sites = object(raw['sites'], ['for', 'send']);
-  const ids = new Set<string>();
-  const site = (value: unknown, extra: readonly string[] = []): EventDecisionSite => {
-    const item = object(value, ['id', 'source', 'node', 'statement', ...extra]);
-    const id = text(item['id']); origin(item['source']); span(item['node']); span(item['statement']);
-    const node = item['node'] as EventDecisionSite['node'];
-    const statement = item['statement'] as EventDecisionSite['statement'];
-    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
-        stableStringify(item['source']) !== stableStringify(source) ||
-        node.start < statement.start || node.end > statement.end) {
-      return invalid('observe decision site differs from its checked source.');
-    }
-    ids.add(id); return item as unknown as EventDecisionSite;
-  };
+  const { ids, site } = decisionSourceSites(source, span, 'observe decision site differs from its checked source.', 'contained');
   const scanned = site(sites['for'], ['model']);
   if ((sites['for'] as { readonly model: unknown }).model !== 'events.Change') {
     return invalid('observe decision scan needs its original Change target.');
@@ -240,28 +253,9 @@ export function checkSuccessRenewalDecisionPlan(value: unknown, transport: unkno
       source.path !== carrier.path || source.sha256 !== carrier.sha256) {
     return invalid('renewal decision needs its original success source.');
   }
-  const span = (value: unknown): void => {
-    const item = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(item['start']) || !Number.isSafeInteger(item['end']) ||
-        (item['start'] as number) < 0 || (item['end'] as number) <= (item['start'] as number) ||
-        !Number.isSafeInteger(item['kind']) || (item['kind'] as number) < 0) {
-      return invalid('renewal decision needs nonempty original source intervals.');
-    }
-  };
+  const span = checkedSyntaxIntervals('renewal decision needs nonempty original source intervals.');
   const sites = object(raw['sites'], ['require', 'if', 'send', 'create']);
-  const ids = new Set<string>();
-  const site = (value: unknown): EventDecisionSite => {
-    const item = object(value, ['id', 'source', 'node', 'statement']);
-    const id = text(item['id']); origin(item['source']); span(item['node']); span(item['statement']);
-    const node = item['node'] as EventDecisionSite['node'];
-    const statement = item['statement'] as EventDecisionSite['statement'];
-    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
-        stableStringify(item['source']) !== stableStringify(source) ||
-        node.start < statement.start || node.end > statement.end) {
-      return invalid('renewal decision site differs from its checked source.');
-    }
-    ids.add(id); return item as unknown as EventDecisionSite;
-  };
+  const { ids, site } = decisionSourceSites(source, span, 'renewal decision site differs from its checked source.', 'contained');
   const required = site(sites['require']);
   const admitted = site(sites['if']);
   const send = site(sites['send']);
@@ -289,17 +283,7 @@ export function checkEventDecisionPlan(value: unknown, transport: unknown): Even
   if (raw['version'] !== 1 || raw['owner'] !== 'maintain.remind' || raw['event'] !== 'maintain.Reminder' ||
       raw['rowField'] !== 'inspection' || raw['rowModel'] !== 'maintain.Inspection' ||
       raw['revisionField'] !== 'revision') return invalid('event decision requires its exact Maintain handler and event fields.');
-  const span = (value: unknown): void => {
-    const node = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
-        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number)) {
-      return invalid('event decision needs a nonempty original source interval.');
-    }
-    // Compiler AST kinds are sealed numeric syntax tags in the source map.
-    if (!Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
-      return invalid('event decision needs its original syntax kind.');
-    }
-  };
+  const span = checkedSyntaxIntervals('event decision needs a nonempty original source interval.', 'event decision needs its original syntax kind.');
   const ids = new Set<string>();
   const siteId = (value: unknown): void => {
     const id = text(value);
@@ -414,14 +398,7 @@ export function checkTermDecisionPlan(value: unknown, transport: unknown): TermD
         { name: 'cycle', type: 'int' },
         { name: 'capture', model: 'sales_attribution.Capture', nullable: true },
       ])) return invalid('term decision requires its exact three admitted inputs.');
-  const checkedSpan = (value: unknown): void => {
-    const span = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(span['start']) || !Number.isSafeInteger(span['end']) ||
-        (span['start'] as number) < 0 || (span['end'] as number) <= (span['start'] as number) ||
-        !Number.isSafeInteger(span['kind']) || (span['kind'] as number) < 0) {
-      return invalid('term decision requires its nonempty original syntax interval.');
-    }
-  };
+  const checkedSpan = checkedSyntaxIntervals('term decision requires its nonempty original syntax interval.');
   const checkedSite = (value: unknown, own: boolean, extra: readonly string[] = []): void => {
     const site = object(value, ['id', 'source', 'node', 'statement', ...extra]);
     if (!/^[a-f0-9]{64}$/.test(text(site['id']))) return invalid('term decision requires a checked site identity.');
@@ -520,14 +497,7 @@ export function checkLeaveRequestDecisionPlan(value: unknown, transport: unknown
       source.path !== carrier.path || source.sha256 !== carrier.sha256) {
     return invalid('leave request decision requires its exact owning source.');
   }
-  const checkedSpan = (value: unknown): void => {
-    const span = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(span['start']) || !Number.isSafeInteger(span['end']) ||
-        (span['start'] as number) < 0 || (span['end'] as number) <= (span['start'] as number) ||
-        !Number.isSafeInteger(span['kind']) || (span['kind'] as number) < 0) {
-      return invalid('leave request decision requires a nonempty checked syntax interval.');
-    }
-  };
+  const checkedSpan = checkedSyntaxIntervals('leave request decision requires a nonempty checked syntax interval.');
   const checkedSite = (value: unknown, extra: readonly string[] = []): void => {
     const site = object(value, ['id', 'source', 'node', 'statement', ...extra]);
     if (!/^[a-f0-9]{64}$/.test(text(site['id']))) return invalid('leave request decision needs a checked site identity.');
@@ -624,14 +594,7 @@ export function checkLeaveDecideDecisionPlan(value: unknown, transport: unknown)
       source.path !== carrier.path || source.sha256 !== carrier.sha256) {
     return invalid('leave decision requires its exact owning source.');
   }
-  const checkedSpan = (value: unknown): void => {
-    const span = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(span['start']) || !Number.isSafeInteger(span['end']) ||
-        (span['start'] as number) < 0 || (span['end'] as number) <= (span['start'] as number) ||
-        !Number.isSafeInteger(span['kind']) || (span['kind'] as number) < 0) {
-      return invalid('leave decision requires a nonempty checked syntax interval.');
-    }
-  };
+  const checkedSpan = checkedSyntaxIntervals('leave decision requires a nonempty checked syntax interval.');
   const checkedSite = (value: unknown, extra: readonly string[] = []): void => {
     const site = object(value, ['id', 'source', 'node', 'statement', ...extra]);
     if (!/^[a-f0-9]{64}$/.test(text(site['id']))) return invalid('leave decision needs a checked site identity.');
@@ -762,24 +725,8 @@ export function checkMemberRetryDecisionPlan(value: unknown, transport: unknown)
       stableStringify(list(raw['parameters'])) !== stableStringify([
         { name: 'term', model: 'member_terms.Term', nullable: false },
       ])) return invalid('member retry requires its exact owning source and Term input.');
-  const ids = new Set<string>();
-  const span = (value: unknown): void => {
-    const node = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
-        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number) ||
-        !Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
-      return invalid('member retry needs a nonempty checked source interval.');
-    }
-  };
-  const site = (value: unknown, extra: readonly string[] = []): void => {
-    const entry = object(value, ['id', 'source', 'node', 'statement', ...extra]);
-    const id = text(entry['id']); origin(entry['source']); span(entry['node']); span(entry['statement']);
-    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
-        stableStringify(entry['source']) !== stableStringify(source)) {
-      return invalid('member retry site differs from its checked source identity.');
-    }
-    ids.add(id);
-  };
+  const span = checkedSyntaxIntervals('member retry needs a nonempty checked source interval.');
+  const { ids, site } = decisionSourceSites(source, span, 'member retry site differs from its checked source identity.', 'identity');
   const sites = object(raw['sites'], ['header', 'locationFirst', 'locationRequire', 'send', 'set']);
   const header = list(sites['header']);
   if (header.length !== 2) return invalid('member retry needs both original Requires.');
@@ -841,14 +788,7 @@ export function checkReferRejectDecisionPlan(value: unknown, transport: unknown)
       source.path !== carrier.path || source.sha256 !== carrier.sha256) {
     return invalid('referral rejection needs its exact owning source.');
   }
-  const span = (value: unknown): void => {
-    const node = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
-        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number) ||
-        !Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
-      return invalid('referral rejection needs a nonempty checked source interval.');
-    }
-  };
+  const span = checkedSyntaxIntervals('referral rejection needs a nonempty checked source interval.');
   const site = (value: unknown, extra: readonly string[] = []): void => {
     const item = object(value, ['id', 'source', 'node', 'statement', ...extra]);
     if (!/^[a-f0-9]{64}$/.test(text(item['id'])) ||
@@ -943,28 +883,8 @@ export function checkRentMovementRefundDecisionPlan(value: unknown, transport: u
         { name: 'movement', type: 'rent_reservations.Movement' }, { name: 'charge_source', type: 'text' },
         { name: 'amount', type: 'money' }, { name: 'reason', type: 'text' },
       ])) return invalid('movement refund needs its exact owning source and four inputs.');
-  const span = (value: unknown): { readonly start: number; readonly end: number } => {
-    const node = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
-        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number) ||
-        !Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
-      return invalid('movement refund requires nonempty checked source intervals.');
-    }
-    return node as { readonly start: number; readonly end: number };
-  };
-  const ids = new Set<string>();
-  const site = (value: unknown, extra?: Readonly<{ readonly key: string; readonly value: string }>): TermDecisionSite => {
-    const item = object(value, ['id', 'source', 'node', 'statement', ...(extra === undefined ? [] : [extra.key])]);
-    const id = text(item['id']); origin(item['source']);
-    const node = span(item['node']), statement = span(item['statement']);
-    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
-        stableStringify(item['source']) !== stableStringify(source) ||
-        node.start < statement.start || node.end > statement.end ||
-        extra !== undefined && item[extra.key] !== extra.value) {
-      return invalid('movement refund site differs from its checked source.');
-    }
-    ids.add(id); return item as unknown as TermDecisionSite;
-  };
+  const span = checkedSyntaxIntervals('movement refund requires nonempty checked source intervals.');
+  const { ids, site } = decisionSourceSites(source, span, 'movement refund site differs from its checked source.', 'contained');
   const sites = object(raw['sites'], ['header', 'remaining', 'branch', 'adjustmentFirst',
     'bookingSend', 'bookingCreate', 'adjustmentSend', 'adjustmentCreate',
     'bookingBaseline', 'adjustmentBaseline']);
@@ -1104,28 +1024,8 @@ export function checkInvoiceIssueDecisionPlan(value: unknown, transport: unknown
         { name: 'invoice', type: 'invoice.Invoice' }, { name: 'number', type: 'text' }])) {
     return invalid('Invoice issue needs its exact owning source and two inputs.');
   }
-  const ids = new Set<string>();
-  const span = (value: unknown): { readonly start: number; readonly end: number } => {
-    const node = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
-        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number) ||
-        !Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
-      return invalid('Invoice issue needs nonempty checked source intervals.');
-    }
-    return node as { readonly start: number; readonly end: number };
-  };
-  const site = (value: unknown, extra?: { readonly key: string; readonly value: string }): TermDecisionSite => {
-    const item = object(value, ['id', 'source', 'node', 'statement', ...(extra === undefined ? [] : [extra.key])]);
-    const id = text(item['id']); origin(item['source']);
-    const node = span(item['node']), statement = span(item['statement']);
-    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
-        stableStringify(item['source']) !== stableStringify(source) ||
-        node.start < statement.start || node.end > statement.end ||
-        extra !== undefined && item[extra.key] !== extra.value) {
-      return invalid('Invoice issue site differs from its checked source.');
-    }
-    ids.add(id); return item as unknown as TermDecisionSite;
-  };
+  const span = checkedSyntaxIntervals('Invoice issue needs nonempty checked source intervals.');
+  const { ids, site } = decisionSourceSites(source, span, 'Invoice issue site differs from its checked source.', 'contained');
   const sites = object(raw['sites'], ['headers', 'defaultsFirst', 'defaultsRequire', 'lineSum',
     'invoiceSet', 'settlementEmit', 'mailSend', 'overdueSchedule']);
   const headers = list(sites['headers']);
@@ -1215,28 +1115,8 @@ export function checkInvoiceCollectDecisionPlan(value: unknown, transport: unkno
         stableStringify([{ name: 'invoice', type: 'invoice.Invoice' }])) {
     return invalid('Invoice collection needs its exact owning source and Invoice input.');
   }
-  const ids = new Set<string>();
-  const span = (value: unknown): { readonly start: number; readonly end: number } => {
-    const node = object(value, ['start', 'end', 'kind']);
-    if (!Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
-        (node['start'] as number) < 0 || (node['end'] as number) <= (node['start'] as number) ||
-        !Number.isSafeInteger(node['kind']) || (node['kind'] as number) < 0) {
-      return invalid('Invoice collection needs nonempty checked source intervals.');
-    }
-    return node as { readonly start: number; readonly end: number };
-  };
-  const site = (value: unknown, extra?: { readonly key: string; readonly value: string }): TermDecisionSite => {
-    const item = object(value, ['id', 'source', 'node', 'statement', ...(extra === undefined ? [] : [extra.key])]);
-    const id = text(item['id']); origin(item['source']);
-    const node = span(item['node']), statement = span(item['statement']);
-    if (!/^[a-f0-9]{64}$/.test(id) || ids.has(id) ||
-        stableStringify(item['source']) !== stableStringify(source) ||
-        node.start < statement.start || node.end > statement.end ||
-        extra !== undefined && item[extra.key] !== extra.value) {
-      return invalid('Invoice collection site differs from its checked source.');
-    }
-    ids.add(id); return item as unknown as TermDecisionSite;
-  };
+  const span = checkedSyntaxIntervals('Invoice collection needs nonempty checked source intervals.');
+  const { ids, site } = decisionSourceSites(source, span, 'Invoice collection site differs from its checked source.', 'contained');
   const sites = object(raw['sites'], ['header', 'cancel', 'invoiceReset', 'createAttempt',
     'send', 'deliverySet', 'ledgerSet', 'settlementEmit']);
   const header = list(sites['header']);

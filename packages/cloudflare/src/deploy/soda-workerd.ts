@@ -1,81 +1,84 @@
-/** Deployment-owned workerd SDK adapter for Soda's retained D1/DO resources. */
-import { randomBytes } from "node:crypto";
-import { constants } from "node:fs";
-import { access, lstat, open, unlink } from "node:fs/promises";
-import { isAbsolute, join } from "node:path";
-import { Miniflare, type DispatchFetch, type WorkerOptions } from "miniflare";
-import type { D1Database } from "@cloudflare/workers-types";
-import { cleanupAfterFailure, retryableDispose } from "../runtime/resource-lifetime.js";
+/** Direct workerd owner. Its inherited checked lock survives until actual exit. */
+import { randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { constants } from 'node:fs';
+import { access, lstat, mkdtemp, open, rm, unlink } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { isAbsolute, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { stageWorkerdConfig, type DirectWorkerOptions } from './workerd-config.js';
 
-type DispatchInit = Parameters<DispatchFetch>[1];
 export interface SodaWorker {
-  dispatchUrl(url: string, init?: DispatchInit): ReturnType<DispatchFetch>;
-  getD1Database(binding: string): Promise<D1Database>;
+  dispatchUrl(url: string, init?: RequestInit): Promise<Response>;
+  readonly failed: Promise<Error>;
   dispose(): Promise<void>;
 }
-interface SodaWorkerOptions {
-  workerName: string;
-  compatibilityDate: string;
-  compatibilityFlags?: readonly string[];
-  mainModule: string;
-  modules: Readonly<Record<string,string>>;
-  binaryModules?: Readonly<Record<string,Uint8Array>>;
-  d1Databases: readonly { binding: string; id: string }[];
-  d1Persist: string;
-  durableObjects?: readonly { binding: string; className: string; useSQLite: boolean }[];
-  durableObjectsPersist?: string;
-  vars?: Readonly<Record<string,unknown>>;
-}
-const gateway = `export default {async fetch(request,env){
-  if(request.headers.get('x-soda-dispatch')!==env.SECRET)return new Response(null,{status:403});
-  const headers=new Headers(request.headers);headers.delete('x-soda-dispatch');
-  return env.APP.fetch(new Request(request,{headers}));
-}};`;
+
 async function retainedStorage(path: string | undefined): Promise<void> {
-  if (path === undefined || !isAbsolute(path)) throw new Error("required Soda storage must be an existing absolute directory");
+  if (path === undefined || !isAbsolute(path)) throw new Error('required Soda storage must be an existing absolute directory');
   try {
     const info=await lstat(path);
-    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("not a directory");
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('not a directory');
     await access(path,constants.R_OK|constants.W_OK|constants.X_OK);
-    const probe=join(path,`.can-storage-probe-${randomBytes(16).toString("hex")}`);
-    const file=await open(probe,"wx",0o600);
-    try { await file.writeFile("storage preflight\n"); await file.sync(); }
+    const probe=join(path,`.can-storage-probe-${randomBytes(16).toString('hex')}`);
+    const file=await open(probe,'wx',0o600);
+    try { await file.writeFile('storage preflight\n'); await file.sync(); }
     finally { await file.close(); await unlink(probe); }
-  } catch { throw new Error("required Soda storage is unavailable or unwritable"); }
+  } catch { throw new Error('required Soda storage is unavailable or unwritable'); }
 }
-export async function startSodaWorker(options: SodaWorkerOptions): Promise<SodaWorker> {
+
+export async function startSodaWorker(options: DirectWorkerOptions, lockFD: number): Promise<SodaWorker> {
   await retainedStorage(options.d1Persist);
   if (options.durableObjects?.length) await retainedStorage(options.durableObjectsPersist);
-  const main=options.modules[options.mainModule];
-  if (main===undefined) throw new Error("Soda Worker entry module is missing");
-  const modules: Exclude<WorkerOptions["modules"],boolean|undefined>=[{path:options.mainModule,type:"ESModule",contents:main}];
-  for (const [path,contents] of Object.entries(options.modules)) if(path!==options.mainModule) modules.push({path,type:"ESModule",contents});
-  for (const [path,bytes] of Object.entries(options.binaryModules??{})) {
-    if(Object.hasOwn(options.modules,path)) throw new Error("Soda binary module collides with text module");
-    modules.push({path,type:"CompiledWasm",contents:new Uint8Array(bytes)});
-  }
-  const secret=randomBytes(32).toString("base64url");
-  const miniflare=new Miniflare({cf:false,host:"127.0.0.1",port:0,d1Persist:options.d1Persist,
-    ...(options.durableObjectsPersist===undefined?{}:{durableObjectsPersist:options.durableObjectsPersist}),
-    workers:[{name:`soda-gateway-${randomBytes(8).toString("hex")}`,compatibilityDate:options.compatibilityDate,
-      modules:true,script:gateway,bindings:{SECRET:secret},serviceBindings:{APP:options.workerName}},
-    {name:options.workerName,compatibilityDate:options.compatibilityDate,compatibilityFlags:[...(options.compatibilityFlags??[])],
-      outboundService:{network:{allow:[]}},modules,bindings:{...(options.vars??{})},
-      d1Databases:Object.fromEntries(options.d1Databases.map(({binding,id})=>[binding,id])),
-      durableObjects:Object.fromEntries((options.durableObjects??[]).map(({binding,...definition})=>[binding,definition])),
-    }],
-  });
-  let startupFailure: unknown;
-  const dispose=retryableDispose(async()=>{
-    try { await miniflare.dispose(); }
-    catch(error){if(startupFailure===undefined || error!==startupFailure)throw error;}
-  });
-  try { await miniflare.ready; }
-  catch(error){startupFailure=error;return cleanupAfterFailure(error,dispose);}
-  return {
-    dispatchUrl(url,init){const headers=new Headers(init?.headers);headers.set("x-soda-dispatch",secret);
-      return miniflare.dispatchFetch(url,{...init,headers:[...headers]});},
-    getD1Database:binding=>miniflare.getD1Database(binding,options.workerName),
-    dispose,
-  };
+  const stage = await mkdtemp(join(options.d1Persist,'../tmp/workerd-'));
+  let child: ReturnType<typeof spawn> | undefined;
+  let stopped = false;
+  let closed: Promise<void> = Promise.resolve();
+  let closing: Promise<void> | undefined;
+  let fail!: (error: Error) => void;
+  const failed = new Promise<Error>(resolve=>{fail=resolve;});
+  const dispose = (): Promise<void> => closing ??= (async()=>{
+    stopped=true;
+    if (child?.exitCode===null && child.signalCode===null) child.kill('SIGTERM');
+    const deadline=setTimeout(()=>child?.kill('SIGKILL'),10_000);
+    try { await closed; } finally { clearTimeout(deadline); await rm(stage,{recursive:true,force:true}); }
+  })();
+  try {
+    const secret=randomBytes(32).toString('base64url');
+    const config=await stageWorkerdConfig(options,stage,secret);
+    const require=createRequire(import.meta.url);
+    const workerd=(require('workerd') as {default:string}).default;
+    const guard=fileURLToPath(new URL('../host/can-workerd-exec',import.meta.url));
+    child=spawn(guard,[String(process.pid),'4','3',workerd,'--','serve','--experimental','--control-fd=3',config],
+      {stdio:['ignore','inherit','inherit','pipe',lockFD]});
+    const owned=child;
+    closed=new Promise<void>(resolve=>{owned.once('error',()=>resolve());owned.once('close',(code,signal)=>{
+      if (!stopped) fail(new Error(`Soda workerd exited unexpectedly (${signal??code})`));
+      resolve();
+    });});
+    const port=await new Promise<number>((resolve,reject)=>{
+      let text='';
+      const timeout=setTimeout(()=>reject(new Error('Soda workerd startup timed out')),15_000);
+      owned.once('error',reject);
+      owned.once('close',()=>reject(new Error('Soda workerd exited before readiness')));
+      owned.stdio[3]!.on('data',(bytes: Buffer)=>{
+        text+=bytes.toString();
+        if(text.length>65536){reject(new Error('Invalid Soda workerd control response'));return;}
+        for(let newline=text.indexOf('\n');newline>=0;newline=text.indexOf('\n')){
+          const line=text.slice(0,newline);text=text.slice(newline+1);
+          try{const item=JSON.parse(line) as {event?:string;socket?:string;port?:number};
+            if(item.event==='listen' && item.socket==='private' && Number.isInteger(item.port) && item.port!>0){clearTimeout(timeout);resolve(item.port!);}
+          }catch{reject(new Error('Invalid Soda workerd control response'));}
+        }
+      });
+      void closed.then(()=>clearTimeout(timeout));
+    });
+    return {failed,dispose,async dispatchUrl(url,init){
+      if(stopped || owned.exitCode!==null || owned.signalCode!==null)throw new Error('Soda workerd is unavailable');
+      const headers=new Headers(init?.headers);
+      headers.delete('x-soda-dispatch');headers.delete('x-soda-url');
+      headers.set('x-soda-dispatch',secret);headers.set('x-soda-url',url);
+      return fetch(`http://127.0.0.1:${port}/`,{...init,headers,redirect:'manual'});
+    }};
+  }catch(error){await dispose();throw error;}
 }

@@ -2225,6 +2225,32 @@ impl<'a> Typer<'a> {
         }
     }
 
+    /// Contextually type a supplied binding once, then report compatibility at
+    /// the original explicit-value or shorthand span. Owners still qualify the
+    /// field/parameter, defaults and required inputs before/after this step.
+    fn check_entry_assignment(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        key: &str,
+        key_node: &SyntaxNode,
+        value: Option<&SyntaxNode>,
+        expected: &ResolvedType,
+        code: &'static str,
+    ) {
+        let (actual, value_span) = self.entry_value(cx, key_node, value, Some(expected.clone()));
+        if !actual.is_error() && !self.types_compatible(&actual, expected) {
+            self.diags.push(Diagnostic::error(
+                code,
+                format!(
+                    "'{key}': expected {}, found {}",
+                    self.show(cx.module, expected),
+                    self.show(cx.module, &actual)
+                ),
+                value_span,
+            ));
+        }
+    }
+
     /// Type every value of an `Object` for its side effects (enum
     /// claims, name resolution), ignoring entry meanings.
     fn walk_object_values(&mut self, cx: &Ctx<'_, '_>, object: &SyntaxNode) {
@@ -2399,19 +2425,7 @@ impl<'a> Typer<'a> {
             }
             seen.push(key.to_string());
             let expected = self.decl_type(field);
-            let (actual, value_span) =
-                self.entry_value(cx, key_node, value, Some(expected.clone()));
-            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                self.diags.push(Diagnostic::error(
-                    "E3001",
-                    format!(
-                        "'{key}': expected {}, found {}",
-                        self.show(cx.module, &expected),
-                        self.show(cx.module, &actual)
-                    ),
-                    value_span,
-                ));
-            }
+            self.check_entry_assignment(cx, key, key_node, value, &expected, "E3001");
         }
         for field in self.model_fields(model) {
             if seen
@@ -2620,19 +2634,7 @@ impl<'a> Typer<'a> {
                 ));
             }
             let expected = self.decl_type(field);
-            let (actual, value_span) =
-                self.entry_value(cx, key_node, value, Some(expected.clone()));
-            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                self.diags.push(Diagnostic::error(
-                    "E3001",
-                    format!(
-                        "'{key}': expected {}, found {}",
-                        self.show(cx.module, &expected),
-                        self.show(cx.module, &actual)
-                    ),
-                    value_span,
-                ));
-            }
+            self.check_entry_assignment(cx, key, key_node, value, &expected, "E3001");
         }
     }
 
@@ -3198,37 +3200,13 @@ impl<'a> Typer<'a> {
         };
         let SymbolKind::CrudOp { model, op } = &self.tables.symbols[op.0 as usize].kind else {
             let expected = input.expected.clone().expect("scenario input type");
-            let (actual, value_span) =
-                self.entry_value(cx, key_node, value, Some(expected.clone()));
-            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                self.diags.push(Diagnostic::error(
-                    "E3001",
-                    format!(
-                        "'{key}': expected {}, found {}",
-                        self.show(cx.module, &expected),
-                        self.show(cx.module, &actual)
-                    ),
-                    value_span,
-                ));
-            }
+            self.check_entry_assignment(cx, key, key_node, value, &expected, "E3001");
             return;
         };
         let (model, op) = (*model, *op);
         match (&input.expected, key) {
             (Some(expected), _) => {
-                let (actual, value_span) =
-                    self.entry_value(cx, key_node, value, Some(expected.clone()));
-                if !actual.is_error() && !self.types_compatible(&actual, expected) {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        format!(
-                            "'{key}': expected {}, found {}",
-                            self.show(cx.module, expected),
-                            self.show(cx.module, &actual)
-                        ),
-                        value_span,
-                    ));
-                }
+                self.check_entry_assignment(cx, key, key_node, value, expected, "E3001");
             }
             (None, "changes") if matches!(op, CrudOp::Update) => match value {
                 Some(v) if v.kind == SyntaxKind::Object => {
@@ -3341,19 +3319,7 @@ impl<'a> Typer<'a> {
                 };
                 seen.push(key.to_string());
                 let expected = self.decl_type(*param);
-                let (actual, value_span) =
-                    self.entry_value(cx, key_node, value, Some(expected.clone()));
-                if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        format!(
-                            "'{key}': expected {}, found {}",
-                            self.show(cx.module, &expected),
-                            self.show(cx.module, &actual)
-                        ),
-                        value_span,
-                    ));
-                }
+                self.check_entry_assignment(cx, key, key_node, value, &expected, "E3001");
             }
         }
         for param in params {
@@ -3592,19 +3558,7 @@ impl<'a> Typer<'a> {
             };
             seen.push(key.to_string());
             let expected = self.decl_type(field);
-            let (actual, value_span) =
-                self.entry_value(cx, key_node, value, Some(expected.clone()));
-            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                self.diags.push(Diagnostic::error(
-                    "E3001",
-                    format!(
-                        "'{key}': expected {}, found {}",
-                        self.show(cx.module, &expected),
-                        self.show(cx.module, &actual)
-                    ),
-                    value_span,
-                ));
-            }
+            self.check_entry_assignment(cx, key, key_node, value, &expected, "E3001");
         }
         for field in self.record_fields(event) {
             if seen
@@ -3973,19 +3927,7 @@ impl<'a> Typer<'a> {
                     self.entry_value(cx, key_node, value, None);
                     continue;
                 };
-                let (actual, value_span) =
-                    self.entry_value(cx, key_node, value, Some(expected.clone()));
-                if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        format!(
-                            "'{key}': expected {}, found {}",
-                            self.show(cx.module, &expected),
-                            self.show(cx.module, &actual)
-                        ),
-                        value_span,
-                    ));
-                }
+                self.check_entry_assignment(cx, key, key_node, value, &expected, "E3001");
             }
         }
         for (name, declared) in op.inputs {
@@ -4126,19 +4068,7 @@ impl<'a> Typer<'a> {
                 self.entry_value(cx, key_node, value, None);
                 continue;
             };
-            let (actual, value_span) =
-                self.entry_value(cx, key_node, value, Some(expected.clone()));
-            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                self.diags.push(Diagnostic::error(
-                    "E3015",
-                    format!(
-                        "'{key}': expected {}, found {}",
-                        self.show(cx.module, &expected),
-                        self.show(cx.module, &actual)
-                    ),
-                    value_span,
-                ));
-            }
+            self.check_entry_assignment(cx, key, key_node, value, &expected, "E3015");
         }
         for (name, declared) in op.inputs {
             if seen.iter().any(|s| s == name) || !std_recipe_requires_input(declared) {
@@ -12149,19 +12079,7 @@ impl<'a> Typer<'a> {
                             symbol: parent,
                             stored: true,
                         };
-                        let (actual, value_span) =
-                            self.entry_value(cx, key_node, value, Some(expected.clone()));
-                        if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                            self.diags.push(Diagnostic::error(
-                                "E3015",
-                                format!(
-                                    "'parent': expected {}, found {}",
-                                    self.show(cx.module, &expected),
-                                    self.show(cx.module, &actual)
-                                ),
-                                value_span,
-                            ));
-                        }
+                        self.check_entry_assignment(cx, key, key_node, value, &expected, "E3015");
                     }
                     None => {
                         self.diags.push(Diagnostic::error(
@@ -12192,19 +12110,7 @@ impl<'a> Typer<'a> {
             };
             seen.push(key.to_string());
             let expected = self.decl_type(field);
-            let (actual, value_span) =
-                self.entry_value(cx, key_node, value, Some(expected.clone()));
-            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                self.diags.push(Diagnostic::error(
-                    "E3015",
-                    format!(
-                        "'{key}': expected {}, found {}",
-                        self.show(cx.module, &expected),
-                        self.show(cx.module, &actual)
-                    ),
-                    value_span,
-                ));
-            }
+            self.check_entry_assignment(cx, key, key_node, value, &expected, "E3015");
         }
         if parent_model.is_some() && !seen.iter().any(|k| k == "parent") {
             self.diags.push(Diagnostic::error(
@@ -12505,19 +12411,7 @@ impl<'a> Typer<'a> {
                     };
                     seen.push(key.to_string());
                     let expected = self.decl_type(param);
-                    let (actual, value_span) =
-                        self.entry_value(cx, key_node, value, Some(expected.clone()));
-                    if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                        self.diags.push(Diagnostic::error(
-                            "E3015",
-                            format!(
-                                "'{key}': expected {}, found {}",
-                                self.show(cx.module, &expected),
-                                self.show(cx.module, &actual)
-                            ),
-                            value_span,
-                        ));
-                    }
+                    self.check_entry_assignment(cx, key, key_node, value, &expected, "E3015");
                 }
                 for param in &params {
                     let name = self.tables.symbols[param.0 as usize].name.clone();
@@ -12809,19 +12703,7 @@ impl<'a> Typer<'a> {
                 continue;
             };
             let expected = self.decl_type(field);
-            let (actual, value_span) =
-                self.entry_value(cx, key_node, value, Some(expected.clone()));
-            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                self.diags.push(Diagnostic::error(
-                    "E3015",
-                    format!(
-                        "'{key}': expected {}, found {}",
-                        self.show(cx.module, &expected),
-                        self.show(cx.module, &actual)
-                    ),
-                    value_span,
-                ));
-            }
+            self.check_entry_assignment(cx, key, key_node, value, &expected, "E3015");
         }
     }
 

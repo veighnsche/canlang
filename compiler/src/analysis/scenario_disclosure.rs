@@ -10543,6 +10543,26 @@ impl<'a> Closure<'a> {
         })
     }
 
+    /// Decompose only authored `and` nodes, preserving left-to-right leaf
+    /// occurrences. Each profile keeps its original frontier bound; leaf
+    /// qualification and source/type/owner checks remain with that profile.
+    fn query_conjuncts(&self, predicate: NodeKey, max_parts: Option<usize>) -> Option<Vec<NodeKey>> {
+        let mut pending = vec![predicate];
+        let mut conjuncts = Vec::new();
+        while let Some(node) = pending.pop() {
+            if let Some((left, right)) = self.query_binary(node, "and") {
+                pending.push(right);
+                pending.push(left);
+            } else {
+                conjuncts.push(node);
+            }
+            if max_parts.is_some_and(|bound| conjuncts.len() + pending.len() > bound) {
+                return None;
+            }
+        }
+        (!conjuncts.is_empty()).then_some(conjuncts)
+    }
+
     /// One `any` predicate's member control reads: the flattened `and`
     /// conjuncts, each either a `member == operand` / `member != operand`
     /// comparison (null included), a bare-alias row comparison against a
@@ -10557,19 +10577,7 @@ impl<'a> Closure<'a> {
         boolean: &ResolvedType,
         scope: Option<&NestedAnyScope>,
     ) -> Option<Vec<(NodeKey, SymbolId)>> {
-        let mut pending = vec![predicate_node];
-        let mut conjuncts = Vec::new();
-        while let Some(node) = pending.pop() {
-            if let Some((left, right)) = self.query_binary(node, "and") {
-                pending.push(right);
-                pending.push(left);
-                continue;
-            }
-            conjuncts.push(node);
-        }
-        if conjuncts.is_empty() {
-            return None;
-        }
+        let conjuncts = self.query_conjuncts(predicate_node, None)?;
         let mut members: Vec<(NodeKey, SymbolId)> = Vec::new();
         for conjunct in &conjuncts {
             if let Some((member, operand, operator)) = self
@@ -12589,19 +12597,7 @@ impl<'a> Closure<'a> {
         model: SymbolId,
         predicate: NodeKey,
     ) -> Option<DisclosureFirstReferencePredicate> {
-        let mut pending = vec![predicate];
-        let mut clauses = Vec::new();
-        while let Some(node) = pending.pop() {
-            if let Some((left, right)) = self.query_binary(node, "and") {
-                pending.push(right);
-                pending.push(left);
-            } else {
-                clauses.push(node);
-            }
-            if clauses.len() + pending.len() > 8 {
-                return None;
-            }
-        }
+        let clauses = self.query_conjuncts(predicate, Some(8))?;
         let [identity, reference, presence] = clauses.as_slice() else {
             return None;
         };
@@ -12837,19 +12833,7 @@ impl<'a> Closure<'a> {
             // A where predicate is one `==` conjunct or an `and` chain of them,
             // flattened order-preserving. Any other shape (`or`, comparisons,
             // calls) keeps the closure refusal below.
-            let mut pending = vec![predicate_node];
-        let mut conjuncts = Vec::new();
-        while let Some(node) = pending.pop() {
-            if let Some((left, right)) = self.query_binary(node, "and") {
-                pending.push(right);
-                pending.push(left);
-                continue;
-            }
-            conjuncts.push(node);
-        }
-        if conjuncts.is_empty() {
-            return None;
-        }
+            let conjuncts = self.query_conjuncts(predicate_node, None)?;
         if fields.iter().any(|field| {
             self.resolve
                 .symbols
@@ -14080,16 +14064,11 @@ impl<'a> Closure<'a> {
         self.derived_body_row_closure(field, model, visited)
     }
 
-    /// Classify one member-step result by its declared type. Stored
-    /// scalar/enum leaves, scalar arrays, embedded contract data and
-    /// row-attached receipt/native slots are plain data. A stored model
-    /// row is a different row's observation: only the owning parent
-    /// lineage (proven containment) stays admitted, foreign rows refuse.
-    fn classify_body_member_value(
-        &self,
-        ty: &ResolvedType,
-        row_model: SymbolId,
-    ) -> Option<BodyValue> {
+    /// Classify derived-member data in its original context. Row reads may
+    /// reach only their checked owning parent; an embedded-data step admits
+    /// neither stored nor unstored Model references. Native slots keep their
+    /// existing, distinct row/data consumer qualification.
+    fn classify_member_value(&self, ty: &ResolvedType, base: BodyValue) -> Option<BodyValue> {
         let leaf = ty.nullable_inner().unwrap_or(ty);
         if primitive_type(leaf)
             || matches!(leaf, ResolvedType::Enum { cases, .. } if !cases.is_empty())
@@ -14099,40 +14078,31 @@ impl<'a> Closure<'a> {
         match leaf {
             ResolvedType::Array { element, .. } => {
                 let inner = element.nullable_inner().unwrap_or(element);
-                if primitive_type(inner)
-                    || matches!(inner, ResolvedType::Enum { cases, .. } if !cases.is_empty())
-                {
-                    Some(BodyValue::Scalar)
-                } else {
-                    None
-                }
+                (primitive_type(inner)
+                    || matches!(inner, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+                    .then_some(BodyValue::Scalar)
             }
             ResolvedType::Record { symbol, stored } => {
-                // Only a stored MODEL row is another row's observation.
-                // Embedded contract/record values are row-attached data;
-                // member steps inside them resolve through their declared
-                // type below.
                 let target = self.resolve.symbols.get(symbol.0 as usize)?;
                 if !matches!(&target.kind, SymbolKind::Model { .. }) {
                     return Some(BodyValue::Scalar);
                 }
+                let BodyValue::Row(row_model) = base else {
+                    return None;
+                };
                 if !stored {
                     return Some(BodyValue::Scalar);
                 }
                 let owner = self.resolve.symbols.get(row_model.0 as usize)?;
                 match &owner.kind {
-                    SymbolKind::Model {
-                        owner: ModelOwner::ChildOf(parent),
-                        ..
-                    } if *parent == *symbol => Some(BodyValue::Row(*symbol)),
+                    SymbolKind::Model { owner: ModelOwner::ChildOf(parent), .. }
+                        if *parent == *symbol => Some(BodyValue::Row(*symbol)),
                     _ => None,
                 }
             }
-            // Receipt/native slots (delivery observations, std nominals,
-            // opaque positions) are row-attached data, never another row.
-            // The existing consumer (exact-receipt census, codegen seal,
-            // emit lowering) still qualifies the actual read.
-            _ => Some(BodyValue::Scalar),
+            ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. } => Some(BodyValue::Scalar),
+            _ if matches!(base, BodyValue::Row(_)) => Some(BodyValue::Scalar),
+            _ => None,
         }
     }
 
@@ -14178,48 +14148,11 @@ impl<'a> Closure<'a> {
                 visited.pop();
                 admitted?;
                 let ty = self.types.symbol_types.get(&member.id)?;
-                self.classify_body_member_value(ty, model)
+                self.classify_member_value(ty, BodyValue::Row(model))
             }
             SymbolKind::Field { .. } => {
                 let ty = self.types.symbol_types.get(&member.id)?;
-                self.classify_body_member_value(ty, model)
-            }
-            _ => None,
-        }
-    }
-
-    /// Classify one embedded/native member value: scalar leaves and scalar
-    /// arrays are data, receipt slots stay admitted for the existing
-    /// consumer, and any stored model reference refuses (an unestablished
-    /// reference path, never silently traversed).
-    fn classify_data_member_value(&self, ty: &ResolvedType) -> Option<BodyValue> {
-        let leaf = ty.nullable_inner().unwrap_or(ty);
-        if primitive_type(leaf)
-            || matches!(leaf, ResolvedType::Enum { cases, .. } if !cases.is_empty())
-        {
-            return Some(BodyValue::Scalar);
-        }
-        match leaf {
-            ResolvedType::Array { element, .. } => {
-                let inner = element.nullable_inner().unwrap_or(element);
-                if primitive_type(inner)
-                    || matches!(inner, ResolvedType::Enum { cases, .. } if !cases.is_empty())
-                {
-                    Some(BodyValue::Scalar)
-                } else {
-                    None
-                }
-            }
-            ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. } => {
-                Some(BodyValue::Scalar)
-            }
-            // Embedded contract values stay data however stored; member
-            // steps inside them resolve through their declared type at
-            // the next level. Model-typed values refuse here.
-            ResolvedType::Record { symbol, .. } => {
-                let target = self.resolve.symbols.get(symbol.0 as usize)?;
-                (!matches!(&target.kind, SymbolKind::Model { .. }))
-                    .then_some(BodyValue::Scalar)
+                self.classify_member_value(ty, BodyValue::Row(model))
             }
             _ => None,
         }
@@ -14240,7 +14173,7 @@ impl<'a> Closure<'a> {
             {
                 Some(BodyValue::Scalar)
             }
-            ResolvedType::Array { element, .. } => self.classify_data_member_value(element),
+            ResolvedType::Array { element, .. } => self.classify_member_value(element, BodyValue::Scalar),
             // Embedded contracts resolve their named member; a stored
             // model reference inside refuses below.
             // Embedded contracts resolve their named member however the
@@ -14256,12 +14189,12 @@ impl<'a> Closure<'a> {
                     (symbol.name == name).then_some(field.field)
                 })?;
                 let ty = self.types.symbol_types.get(&member)?;
-                self.classify_data_member_value(ty)
+                self.classify_member_value(ty, BodyValue::Scalar)
             }
             // Native objects resolve their named member the same way.
             ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
                 let (_, ty) = fields.iter().find(|(field, _)| field == name)?;
-                self.classify_data_member_value(ty)
+                self.classify_member_value(ty, BodyValue::Scalar)
             }
             // Receipt slots stay admitted: the exact-receipt census and
             // the codegen seal still qualify the actual read.
