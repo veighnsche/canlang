@@ -15821,6 +15821,61 @@ fn source_owned_after_call_create(context: &super::scenario_decisions::FreshSour
     entries.iter().any(|(_, value)| checked_narrowed_call_reference(ir, owner, value, context.db()).is_some()).then_some(())
 }
 
+/// A private constructor input is a once-only original DATA occurrence, never
+/// a viewer field grant. Its scalar can only enter the first authored CREATE;
+/// State seals the observed required path against that actual staged field.
+pub(super) fn constructor_inputs(
+    context: &super::scenario_decisions::FreshSourceContext<'_>, owner: &IrItem, transport: &ReceiptSource,
+) -> Option<serde_json::Value> {
+    let ir=context.ir();
+    let facts=super::scenario_calls::checked_source(ir,owner,context.db())?;
+    let created=facts.creates.as_deref()?.first()?;
+    source_owned_void_create(context,owner,created)?;
+    let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
+    let position=effects.iter().position(|statement|matches!(statement,IrStmt::Create{..}))?;
+    if !effects[..position].iter().all(|statement|matches!(statement,IrStmt::Let{..}|IrStmt::Require{..})) {return None;}
+    let IrStmt::Create{input,span,..}=&effects[position] else{return None;};
+    if *span!=node_span(created.node) {return None;}
+    let IrExpr::Object(entries)=&input.expr else{return None;};
+    let models=super::js::Emitter::source_models(ir,context.db())?;
+    let mut inputs=Vec::new();
+    for (sink,leaf) in entries {
+        let IrExpr::Member{base:reference,field:leaf_name}=&leaf.expr else{continue;};
+        if !matches!(leaf.ty,ResolvedType::Scalar(_)) || !native_result_type(&leaf.ty) {continue;}
+        let IrExpr::Member{base:receiver,field:reference_name}=&reference.expr else{continue;};
+        let mut root=receiver.as_ref();
+        let mut parents=Vec::new();
+        while let IrExpr::Member{base,field}=&root.expr {
+            if field!="parent" || parents.len()>=2 {break;}
+            let ResolvedType::Record{symbol,stored:true}=&root.ty else{break;};
+            parents.push(ir.items.get(symbol.0 as usize)?.canonical.clone()); root=base;
+        }
+        let IrExpr::Name(parameter)=&root.expr else{continue;};
+        let Some(root_schema)=checked_parameter_row_id(ir,owner,root,&models,context.db()) else{continue;};
+        let Some((_,source_schema))=checked_parent_reference(ir,owner,receiver,context.db())
+            .or_else(|| (receiver.span==root.span).then_some((root_schema,root_schema))) else{continue;};
+        let Some(source_field)=stored_reference_operand(ir,owner,reference,context.db()) else{continue;};
+        let ResolvedType::Record{symbol:target,stored:true}=&source_field.ty else{continue;};
+        if source_field.owner!=source_schema.id {continue;}
+        let Some(pairs)=checked_reference_receiver_pairs(ir,owner,leaf,context.db()) else{continue;};
+        let Some(original)=created.inputs.iter().find(|value|value.name==*sink && node_span(value.value_node)==leaf.span && value.ty==leaf.ty) else{continue;};
+        if original.field.is_none() {continue;}
+        parents.reverse();
+        for (source,scalar) in pairs {
+            if source.role!=DependencyRole::Data || scalar.role!=DependencyRole::Data {continue;}
+            inputs.push(serde_json::json!({"owner":owner.canonical,"source":transport,
+                "parameter":parameter,"rootModel":root_schema.canonical,"parents":parents,
+                "sourceDependencyId":source.id,"sourceModel":source_schema.canonical,"sourceField":reference_name,
+                "leafDependencyId":scalar.id,"leafModel":ir.items.get(target.0 as usize)?.canonical,
+                "leafField":leaf_name,"type":scalar.type_id,
+                "create":{"start":span.start,"end":span.end},"model":created.definition.canonical,"field":sink}));
+        }
+    }
+    inputs.sort_by_key(|value|value["sourceDependencyId"].as_str().unwrap_or("").to_owned());
+    inputs.dedup();
+    (!inputs.is_empty()).then(||serde_json::Value::Array(inputs))
+}
+
 /// A complete public void owner may construct its original rows before a
 /// finite SEND/SET tail. The fresh whole-owner join seals every original
 /// operand and branch; schemas, query authority and effects stay independent.

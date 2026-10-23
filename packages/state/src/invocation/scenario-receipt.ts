@@ -3701,6 +3701,158 @@ function checkedFirstQueryParent(bound: BoundPlan, def: GeneratedOperationDef,
 
 type IntrinsicObservation = NonNullable<ScenarioReceiptAssociation['intrinsics']>[number];
 
+/** Private, source-sealed first-CREATE input. These descriptors are installed
+ * only from the verified owning module; they grant no viewer/read permission. */
+interface ConstructorInput {
+  readonly owner: string; readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly parameter: string; readonly rootModel: ModelName; readonly parents: readonly ModelName[];
+  readonly sourceDependencyId: string; readonly sourceModel: ModelName; readonly sourceField: string;
+  readonly leafDependencyId: string; readonly leafModel: ModelName; readonly leafField: string; readonly type: string;
+  readonly create: {readonly start: number; readonly end: number}; readonly model: ModelName; readonly field: string;
+}
+interface ConstructorCapture {
+  readonly profile: ConstructorInput; readonly rows: Array<{model: ModelName; row: StoredRow}>;
+  target: StoredRow | null; wire: unknown; consumedId: RecordId | null;
+}
+const constructorCaptures = new WeakMap<ReceiptOwnerSession, Map<string, ConstructorCapture>>();
+const constructorRows = new WeakMap<StoredRow, {owner: ReceiptOwnerSession; profile: ConstructorInput}>();
+function constructorInput(call: AdmittedCall, source: string, leaf?: string): ConstructorInput | undefined {
+  return referenceProducers.get(call.def as GeneratedOperationDef)?.constructorInputs?.find(value =>
+    value.sourceDependencyId === source && (leaf === undefined || value.leafDependencyId === leaf));
+}
+function bindConstructorInputs(def: GeneratedOperationDef, bound: BoundPlan, raw: unknown): readonly ConstructorInput[] {
+  if (raw === undefined) return Object.freeze([]);
+  const profiles = list(dataCopy(raw));
+  if (profiles.length === 0 || profiles.length > MAX_ITEMS || def.kind !== 'scenario' || def.descriptor.result?.type !== 'void') {
+    return invalid('constructor inputs require their checked void owner.');
+  }
+  const ids = new Set<string>(), sinks = new Set<string>();
+  for (const raw of profiles) {
+    object(raw, ['owner','source','parameter','rootModel','parents','sourceDependencyId','sourceModel','sourceField',
+      'leafDependencyId','leafModel','leafField','type','create','model','field']);
+    const value = raw as ConstructorInput;
+    origin(value.source); object(value.create,['start','end']);
+    for (const textValue of [value.owner,value.parameter,value.rootModel,value.sourceDependencyId,value.sourceModel,
+      value.sourceField,value.leafDependencyId,value.leafModel,value.leafField,value.type,value.model,value.field]) text(textValue);
+    const reference = bound.referenceDependencies.get(value.sourceDependencyId);
+    const sink = `${value.model}\0${value.field}`;
+    if (value.owner !== def.name || stableStringify(value.source) !== stableStringify(bound.plan.source) ||
+        !requiredVersionedReferenceInput(def,value.parameter,value.rootModel) ||
+        !Number.isSafeInteger(value.create.start) || !Number.isSafeInteger(value.create.end) ||
+        value.create.start < 0 || value.create.end <= value.create.start ||
+        !Array.isArray(value.parents) || value.parents.length > 2 ||
+        reference?.profile.kind !== 'field' || reference.profile.array || reference.profile.nullable ||
+        reference.dependency.model !== value.sourceModel || reference.profile.field !== value.sourceField ||
+        reference.profile.target !== value.leafModel || reference.dependency.role !== 'data' ||
+        bound.models.get(value.model)?.fields.get(value.field) !== value.type ||
+        bound.models.get(value.leafModel)?.fields.get(value.leafField) !== value.type ||
+        !/^(int|text|bool|decimal|money|date|datetime|duration|currency|user)$/.test(value.type) ||
+        ids.has(value.sourceDependencyId) || ids.has(value.leafDependencyId) || sinks.has(sink) ||
+        !bound.plan.returns.every(returned => {
+          const source = returned.dependencies.find(dep => dep.id === value.sourceDependencyId);
+          const leaf = returned.dependencies.find(dep => dep.id === value.leafDependencyId);
+          return source?.role === 'data' && source.queryId === undefined && leaf?.role === 'data' && leaf.queryId === undefined &&
+            leaf.model === value.leafModel && leaf.field === value.leafField && leaf.type === value.type &&
+            returned.dependencies.indexOf(source) < returned.dependencies.indexOf(leaf);
+        })) return invalid('constructor input differs from its required path, DATA pair or first CREATE field.');
+    let model = value.rootModel;
+    for (const parent of value.parents) {
+      text(parent);
+      if (bound.artifactModels.get(model)?.parent !== parent) return invalid('constructor parent differs from its original containment.');
+      model = parent;
+    }
+    if (model !== value.sourceModel) return invalid('constructor input source differs from its required parent path.');
+    ids.add(value.sourceDependencyId); ids.add(value.leafDependencyId); sinks.add(sink);
+  }
+  if (profiles.some(raw => {
+    const value = raw as ConstructorInput, first = profiles[0] as ConstructorInput;
+    return value.model !== first.model || stableStringify(value.create) !== stableStringify(first.create);
+  })) return invalid('constructor inputs must belong to one original first CREATE.');
+  return deepFreeze(profiles as ConstructorInput[]);
+}
+
+async function observeConstructorSource(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
+  state: Capture, dependencyId: string, row: StoredRow): Promise<(() => Promise<void>) | undefined> {
+  const profile = constructorInput(call,dependencyId);
+  if (profile === undefined || owner.call !== call || owner.stage !== 0) return undefined;
+  if (owner.session === null || owner.callGuards.length >= MAX_ITEMS) {
+    return invalid('constructor input requires its original pre-write owner stage.');
+  }
+  const healthy = () => {
+    capture(call,store); ownerHealthy(owner);
+    if (owner.executingCall !== call || owner.stage !== 0 || !owner.busy || state.pending !== 1 || state.returnId !== null) {
+      return invalid('constructor input crossed its original evaluation stage.');
+    }
+  };
+  const reference = call.recordRefs.find(ref => ref.param === profile.parameter && ref.model === profile.rootModel);
+  if (reference === undefined || reference.expectedVersion === null || reference.row.version !== reference.expectedVersion) {
+    return invalid('constructor input lacks its admitted required versioned root.');
+  }
+  const rows: ConstructorCapture['rows'] = [];
+  let model = profile.rootModel, id = reference.id;
+  for (let depth=0; depth<=profile.parents.length; depth++) {
+    const current = await owner.session.views.final.get(model,id); healthy();
+    if (current === null || current.archivedAt !== null || depth === 0 && stableStringify(current) !== stableStringify(reference.row)) {
+      throw new StateError('forbidden','Constructor input root lifetime changed.');
+    }
+    rows.push({model,row:deepFreeze(dataCopy(current))});
+    if (depth < profile.parents.length) {
+      if (current.parent === null || current.parent === undefined || current.parent.model !== profile.parents[depth]) return invalid('constructor input parent is not its original required edge.');
+      model = current.parent.model; id = current.parent.id;
+    } else if (model !== profile.sourceModel || id !== row.id || stableStringify(current) !== stableStringify(row)) {
+      throw new StateError('forbidden','Constructor input is not its admitted source row.');
+    }
+  }
+  const memberships = scenarioReceiptMemberships(owner.call,store), actor = call.context.actor?.userId,
+    team = call.context.team?.teamId;
+  const readMembership = async () => actor === undefined || team === undefined ? null
+    : checkedMembershipFact(await memberships.findMembership(team,actor),team,actor);
+  const membership = await readMembership(); healthy();
+  const captured: ConstructorCapture = {profile,rows,target:null,wire:undefined,consumedId:null};
+  let captures = constructorCaptures.get(owner);
+  if (captures === undefined) {captures=new Map();constructorCaptures.set(owner,captures);}
+  if (captures.has(dependencyId)) return invalid('constructor input was evaluated twice.');
+  captures.set(dependencyId,captured);
+  const revalidate = async () => {
+    healthy();
+    for (const entry of captured.rows) {
+      const now = await owner.session!.views.final.get(entry.model,entry.row.id); healthy();
+      if (now === null || stableStringify(now) !== stableStringify(entry.row)) throw new StateError('forbidden','Constructor input changed during evaluation.');
+    }
+    const now = await readMembership(); healthy();
+    if (stableStringify(now) !== stableStringify(membership)) throw new StateError('forbidden','Constructor input Identity changed.');
+    if (await store.readRevision() !== call.revision) throw new StateError('conflict','Constructor input moved beyond its checkpoint.');
+    healthy();
+  };
+  await revalidate();
+  owner.callGuards.push(Object.freeze({name:`constructor-input:${call.def.name}:${dependencyId}`,evaluate:async()=>{
+    const final = owner.finalized;
+    if (final === null || owner.capture.poisoned || captured.target === null || captured.consumedId === null) {
+      return invalid('constructor input lacks its original scalar and actual staged CREATE.');
+    }
+    const inserted = final.writes.find(write => write.kind === 'insert' && write.model === profile.model && write.row.id === captured.consumedId);
+    if (inserted?.kind !== 'insert' || stableStringify(inserted.row.data[profile.field]) !== stableStringify(captured.wire)) {
+      throw new StateError('forbidden','Constructor input changed in its final created field.');
+    }
+    for (const entry of captured.rows) {
+      if (final.writes.some(write => write.model === entry.model && (write.kind === 'insert' ? write.row.id : write.id) === entry.row.id)) {
+        throw new StateError('forbidden','Constructor input source was changed by its owner.');
+      }
+      const now = await store.cohortLoad({model:entry.model,id:entry.row.id,expectedRevision:call.revision});
+      if (owner.finalized !== final || owner.capture.poisoned || now === null || stableStringify(now) !== stableStringify(entry.row)) {
+        throw new StateError('forbidden','Constructor input source changed before commit.');
+      }
+    }
+    const now = await readMembership();
+    if (owner.finalized !== final || owner.capture.poisoned || stableStringify(now) !== stableStringify(membership)) {
+      throw new StateError('forbidden','Constructor input Identity changed before commit.');
+    }
+    if (await store.readRevision() !== call.revision) throw new StateError('conflict','Constructor input commit moved beyond its checkpoint.');
+    return true;
+  }}));
+  return revalidate;
+}
+
 /** Installed current viewer policy for checked stored reference influence.
  * Source field capture confers no authority over any referenced record. */
 export interface ScenarioReceiptReferenceProducer {
@@ -3714,6 +3866,7 @@ export interface ScenarioReceiptReferenceProducer {
   readonly readPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
   /** Verified Require reads of a scalar or whole Contract from an original first selection.
    * These are execution guards, independently of the selected result closure. */
+  readonly constructorInputs?: readonly ConstructorInput[];
   readonly executionSites?: readonly ScenarioReceiptMembershipSite[];
   readonly executionDependencies?: readonly {
     readonly siteIndex: number; readonly queryId: string;
@@ -3739,7 +3892,8 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   }
   object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : []),
     ...(Object.hasOwn(producer, 'executionDependencies') ? ['executionDependencies'] : []),
-    ...(Object.hasOwn(producer, 'executionSites') ? ['executionSites'] : [])]); origin(producer.source); text(producer.app);
+    ...(Object.hasOwn(producer, 'executionSites') ? ['executionSites'] : []),
+    ...(Object.hasOwn(producer, 'constructorInputs') ? ['constructorInputs'] : [])]); origin(producer.source); text(producer.app);
   if (stableStringify(dataCopy(producer.source)) !== stableStringify(bound.plan.source) || !(producer.policy instanceof Map)) {
     return invalid('reference producer differs from its checked source/policy.');
   }
@@ -3883,7 +4037,8 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
     }
     executions.set(dep.id, Object.freeze({ association: deepFreeze(value), profile }));
   }
-  referenceProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy, boundExecutionDependencies: executions,
+  const constructorInputs = bindConstructorInputs(def,bound,producer.constructorInputs);
+  referenceProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy, boundExecutionDependencies: executions, constructorInputs,
     ...(readPolicies === undefined ? {} : { readPolicies }) }));
 }
 
@@ -5517,7 +5672,24 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
             return invalid('owner decision write differs from its original fields and parent.');
           }
         }
+        const constructorInputs = [...constructorCaptures.get(owner)?.values() ?? []];
+        if (owner.stage === 0 && constructorInputs.length !== 0) {
+          const [write] = Array.isArray(writes) ? writes : [writes];
+          for (const captured of constructorInputs) {
+            const profile = captured.profile;
+            if (Array.isArray(writes) && writes.length !== 1 || write?.op !== 'create' || write.model !== profile.model ||
+                typeof write.id !== 'string' || write.id.length === 0 || write.when !== undefined || write.transition !== undefined ||
+                captured.target === null || captured.consumedId !== null ||
+                !Object.hasOwn(write.data ?? {},profile.field) ||
+                stableStringify(encodeValue(profile.type,write.data![profile.field] as Parameters<typeof encodeValue>[1])) !== stableStringify(captured.wire)) {
+              return invalid('constructor input requires its exact first staged CREATE field and frozen scalar.');
+            }
+          }
+        }
         await session.stage(writes, options);
+        if (owner.stage === 0) for (const captured of constructorCaptures.get(owner)?.values() ?? []) {
+          captured.consumedId = (Array.isArray(writes) ? writes[0]! : writes).id!;
+        }
         owner.stage += 1;
         if (leave !== null) leave.staged.push((Array.isArray(writes) ? writes[0] : writes).id!);
         if (decide !== null) decide.staged += 1;
@@ -5847,7 +6019,12 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
     const privateRecipient = !nullable && recipient?.sourceId === input.sourceDependencyId &&
       recipient.leafId === input.scalarLeafDependencyId && source.model === 'appointments.Appointment' &&
       scalar.model === 'customer.Contact' && scalar.field === 'email';
-    if (!privateRecipient) {
+    const constructorCapture = constructorCaptures.get(owner)?.get(input.sourceDependencyId);
+    const constructor = constructorCapture === undefined ? undefined : constructorInput(call,input.sourceDependencyId,input.scalarLeafDependencyId);
+    if (constructor !== undefined && (nullable || owner.stage !== 0 || constructorCapture === undefined)) {
+      return invalid('constructor scalar requires its exact unconsumed original source.');
+    }
+    if (!privateRecipient && constructor === undefined) {
       await observeModelQuerySourceAuthority(call, store, owner, state, source.model, currentSource,
         [reference.dependency.field], 1); healthy();
     }
@@ -5856,7 +6033,7 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
     if (wire !== null && (target === null || target.archivedAt !== null)) throw new StateError('forbidden', 'Stored scalar target lifetime is unavailable.');
     const narrowed = state.bound.narrowedDependencies.get(scalar.id);
     if (target !== null && narrowed !== undefined) capturedNarrowedControl(call, owner, state, narrowed, target);
-    const targetAuthority = target === null || privateRecipient ? null : await observeModelQuerySourceAuthority(call, store, owner, state,
+    const targetAuthority = target === null || privateRecipient || constructor !== undefined ? null : await observeModelQuerySourceAuthority(call, store, owner, state,
       scalar.model, target, targetId ? [] : [scalar.field], 1); healthy();
     const recipientRevalidate = privateRecipient && target !== null
       ? await observeEventRecipientTargetAuthority(call, store, owner, state, currentSource, target,
@@ -5870,7 +6047,7 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
     // Ordinary stored-reference reads can depend on distinct subjects; they
     // retain their complete Identity conjunction. The event recipient instead
     // has the exact Work-root/Contact owner fence above.
-    if (!privateRecipient) {
+    if (!privateRecipient && constructor === undefined) {
       const memberships = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
         teamId = call.context.team?.teamId ?? null;
       const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId); healthy();
@@ -5907,6 +6084,24 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
       await authority.revalidate(); healthy();
       if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Stored scalar final authority moved beyond its checkpoint.');
       healthy();
+    }
+    if (constructor !== undefined && constructorCapture !== undefined) {
+      if (target === null || constructor.leafModel !== scalar.model || constructor.leafField !== scalar.field) {
+        return invalid('constructor input target differs from its original scalar.');
+      }
+      if (constructorCapture.target !== null && stableStringify(constructorCapture.target) !== stableStringify(target)) {
+        throw new StateError('forbidden','Constructor scalar changed during native receiver refresh.');
+      }
+      scalarWire(scalar.type,dependencyObservedWire(scalar,target));
+      // scalarWire validates and may return a decoded primitive. Preserve the
+      // original canonical wire for comparison with the genuine CREATE data.
+      if (constructorCapture.target === null) {
+        constructorCapture.target=deepFreeze(dataCopy(target));
+        constructorCapture.wire=deepFreeze(dataCopy(dependencyObservedWire(scalar,target)));
+        constructorCapture.rows.push({model:scalar.model,row:constructorCapture.target});
+      }
+      constructorRows.set(target,{owner,profile:constructor});
+      await issued.revalidate(); healthy();
     }
     if (target !== null) {
       ownerRows.set(target, { session: owner, stage, model: scalar.model });
@@ -10377,6 +10572,8 @@ async function observeEventRecipientTargetAuthority(call: AdmittedCall, store: S
  * target admission remains independent and no target row is loaded here. */
 async function observeReferenceAuthority(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
   state: Capture, dependencyId: string, row: StoredRow, profile: StoredReferenceFieldProfile, model: ModelName): Promise<() => Promise<void>> {
+  const constructor = await observeConstructorSource(call,store,owner,state,dependencyId,row);
+  if (constructor !== undefined) return constructor;
   const eventOwner = await observeEventOwnerReferenceAuthority(call, store, owner, state, dependencyId, row, profile, model);
   if (eventOwner !== undefined) return eventOwner;
   const producer = referenceProducers.get(call.def as GeneratedOperationDef);
@@ -10726,6 +10923,17 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       state.bound.plan.returns.some(returned => returned.dependencies.some(other => other.id === observed.dependencyId));
     const dependency = execution?.association.dependency ?? state.bound.plan.returns.flatMap(entry => entry.dependencies).find(dep => dep.id === observed.dependencyId);
     if (dependency === undefined || dependency.model !== observed.model || dependency.field !== observed.field) return invalid('native observation disagrees with its checked dependency.');
+    const issuedConstructor = constructorRows.get(input.row);
+    if (issuedConstructor !== undefined && issuedConstructor.profile.leafDependencyId !== dependency.id) {
+      return invalid('private constructor row cannot serve another field occurrence.');
+    }
+    const constructor = issuedConstructor?.profile;
+    if (constructor !== undefined) {
+      const issued = issuedConstructor;
+      if (owner === undefined || owner.stage !== 0 || issued?.owner !== owner || issued.profile !== constructor) {
+        return invalid('constructor scalar observation requires its exact original promoted row.');
+      }
+    }
     const recipient = admittedEventRecipientDependencies(call, state);
     if (recipient?.leafId === dependency.id) {
       const issuedRecipient = eventRecipientRows.get(input.row);

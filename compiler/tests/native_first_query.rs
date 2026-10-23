@@ -1834,8 +1834,25 @@ fn original_book_and_reschedule_keep_required_reference_and_body_correspondence(
         let owner=item(&original,name);
         assert!(matches!(&original.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{name}");
     }
-    let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
     assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let code=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str())
+        .find(|code|code.contains("constructorInputs:")).expect("original constructor input");
+    let raw=code.split_once("constructorInputs:").unwrap().1;
+    let inputs=serde_json::Deserializer::from_str(raw).into_iter::<Value>().next().unwrap().unwrap();
+    let inputs=inputs.as_array().unwrap();
+    assert_eq!(inputs.len(),1);
+    let input=&inputs[0];
+    assert_eq!(input["owner"],"appointments.book");
+    assert_eq!(input["parameter"],"type");
+    assert_eq!(input["rootModel"],"appointments.Type");
+    assert_eq!(input["parents"],serde_json::json!(["appointments.Calendar"]));
+    assert_eq!(input["sourceField"],"host");
+    assert_eq!(input["leafModel"],"employee.Employee");
+    assert_eq!(input["leafField"],"user");
+    assert_eq!(input["model"],"appointments.Appointment");
+    assert_eq!(input["field"],"host");
+    assert_ne!(input["sourceDependencyId"],input["leafDependencyId"]);
     for mode in ["create-path","provider-default","effect-order","previous-predicate"] {
         let mut changed=original.clone();
         let name=if mode=="previous-predicate" {"appointments.reschedule"}else{"appointments.book"};

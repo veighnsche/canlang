@@ -2887,6 +2887,10 @@ fn emit_program_with_sources(
                 {
                     emitter.private_term_helper_only = true;
                 }
+                if let Some(inputs) = decisions.source_context.and_then(|context|
+                    super::scenario_receipts::constructor_inputs(context,item,&recipe.plan.source)) {
+                    emitter.constructor_inputs.insert(item.id,inputs);
+                }
                 emitter.native_receipts.insert(item.id, recipe);
             } else if ir.scenario_disclosures.get(&item.id)
                 .and_then(|value| value.source_facts())
@@ -4876,6 +4880,7 @@ pub struct Emitter<'a> {
     formatted_bindings: Vec<HashMap<String, bool>>,
     formatted_derives: BTreeSet<String>,
     native_receipts: HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+    constructor_inputs: HashMap<SymbolId, serde_json::Value>,
     private_term_helper_only: bool,
     execution_dependencies:
         BTreeMap<String, Vec<super::scenario_receipts::ReceiptRequireConsumption>>,
@@ -5127,6 +5132,7 @@ impl<'a> Emitter<'a> {
             formatted_bindings: vec![HashMap::new()],
             formatted_derives: BTreeSet::new(),
             native_receipts: HashMap::new(),
+            constructor_inputs: HashMap::new(),
             private_term_helper_only: false,
             execution_dependencies: BTreeMap::new(),
             native_call_sites: HashMap::new(),
@@ -17293,6 +17299,9 @@ impl<'a> Emitter<'a> {
         }
         if let Some(authority) = self.operation_root_authority(item) {
             members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
+        }
+        if let Some(inputs) = self.constructor_inputs.get(&item.id) {
+            members.push(format!("constructorInputs:{}", descriptor_json(inputs)));
         }
         if let Some(dependencies) = self.execution_dependencies.get(&item.canonical) {
             members.push(format!(

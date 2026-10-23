@@ -6015,6 +6015,9 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     }
     const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', where)?.value : undefined;
     const operation = isUnknownRecord(operations) ? readMetadataMember(operations, def.name, where)?.value : undefined;
+    const rawConstructorInputs = isUnknownRecord(operation) ? readMetadataMember(operation, 'constructorInputs', where)?.value : undefined;
+    const constructorInputs = rawConstructorInputs === undefined ? undefined : captureDispatchPreclaimData(nativeCallArray(rawConstructorInputs,200)) as
+      NonNullable<Parameters<typeof bind>[1]['constructorInputs']>;
     const rawExecution = isUnknownRecord(operation) ? readMetadataMember(operation, 'executionDependencies', where)?.value : undefined;
     const executionDependencies = rawExecution === undefined ? undefined : captureDispatchPreclaimData(nativeCallArray(rawExecution, 200)) as
       NonNullable<Parameters<typeof bind>[1]['executionDependencies']>;
@@ -6041,6 +6044,7 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     }
     bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'],
       ...(readPolicies === undefined ? {} : { readPolicies }),
+      ...(constructorInputs === undefined ? {} : { constructorInputs }),
       ...(executionDependencies === undefined ? {} : { executionDependencies, executionSites: executionSites! }) });
   }
 }
