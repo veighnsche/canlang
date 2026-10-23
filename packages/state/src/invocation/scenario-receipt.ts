@@ -4008,6 +4008,7 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   const modelInputs = frameworkModelInputs.get(def);
   if (bound === undefined || bound.referenceDependencies.size === 0 && bound.fileDependencies.size === 0 && !Object.hasOwn(producer, 'executionDependencies') &&
       !bound.plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined) &&
+      !(def.kind==='scenario'&&bound.plan.returns.some(returned=>returned.dependencies.some(dependency=>dependency.role==='data'&&dependency.queryId===undefined))) &&
       ![...bound.nominalDependencies.values()].some(value => value.profile.hasFiles || value.profile.array && value.dependency.role === 'data') && bound.idDependencies.size === 0 && bound.resultModel === undefined &&
       !bound.plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dep => dep.field === 'parent')) &&
       ![...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) && !(def.kind === 'scenario' && hasNominalAssignments(bound)) || invokedPlans.has(def) || referenceProducers.has(def)) {
@@ -4059,6 +4060,18 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   if ([...bound.fileDependencies.values()].some(value => {
     const read = readPolicies?.get(value.dependency.model); return read === undefined || !('grants' in read);
   })) return invalid('stored File dependencies require their complete original source field grants.');
+  const bodyData=def.kind==='scenario'?bound.plan.returns.flatMap(returned=>returned.dependencies)
+    .filter(dependency=>dependency.role==='data'&&dependency.queryId===undefined):[];
+  for(const dependency of bodyData){
+    let model:ModelName|undefined=dependency.model;const seen=new Set<ModelName>();
+    while(model!==undefined){
+      const declaration=bound.artifactModels.get(model),read=readPolicies?.get(model);
+      if(seen.has(model)||declaration===undefined||read===undefined||read.parent!==declaration.parent||!('grants'in read)){
+        return invalid('native mutation DATA requires its complete original source and ancestor field grants.');
+      }
+      seen.add(model);model=declaration.parent as ModelName|undefined;
+    }
+  }
   for (const value of bound.nominalDependencies.values()) if (value.profile.hasFiles || value.profile.array && value.dependency.role === 'data') {
     let model: ModelName | undefined = value.dependency.model;
     const seen = new Set<ModelName>();
@@ -11709,14 +11722,19 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
         referenceRevalidate = () => authority.requireFields([dependency.field]);
       } else referenceRevalidate = await observeReferenceAuthority(call, store, owner, state, dependency.id, row, reference.profile, observed.model);
     }
-    if(nominal?.profile.array===true&&dependency.role==='data'&&!nominal.profile.hasFiles){
-      if(owner===undefined||owner.session===null)return invalid('stored Contract-array DATA requires its actual owning stage.');
+    const bodyData=(call.def as GeneratedOperationDef).kind==='scenario'&&dependency.role==='data'&&dependency.queryId===undefined&&
+      execution===undefined&&constructor===undefined&&recipient?.leafId!==dependency.id&&id===undefined&&reference===undefined&&file===undefined&&nominal?.profile.hasFiles!==true;
+    if(bodyData){
+      if(owner===undefined||owner.session===null)return invalid('native mutation DATA requires its actual owning stage.');
+      const producer=referenceProducers.get(call.def as GeneratedOperationDef);
+      const read=producer?.readPolicies?.get(observed.model);
+      if(producer===undefined||read===undefined||!('grants'in read))return invalid('native mutation DATA requires its genuine original source field grants.');
       const current=await owner.session.views.final.get(observed.model,row.id);
       if(current===null||!sameModelLifetime(row,current)||
           stableStringify(getDataPath(current.data,dependency.field))!==stableStringify(getDataPath(row.data,dependency.field))){
-        throw new StateError('forbidden','Stored Contract-array source changed during its original read.');
+        throw new StateError('forbidden','Native mutation DATA source changed during its original read.');
       }
-      const authority=await observeModelQuerySourceAuthority(call,store,owner,state,observed.model,current,[dependency.field],1);
+      const authority=await observeModelQuerySourceAuthority(call,store,owner,state,observed.model,current,[dependency.field],1,undefined,undefined,producer);
       referenceRevalidate=()=>authority.requireFields([dependency.field]);
     }
     const current = await store.load(observed.model, row.id);

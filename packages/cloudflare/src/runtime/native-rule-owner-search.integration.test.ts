@@ -2949,3 +2949,40 @@ it('emits the original Invoice settlement with independently granted derived Mon
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('authorizes native scalar DATA before void CREATE and SEND and at final commit', {timeout:240000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-native-data-egress-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/native-data-egress-source.can');
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact;
+  for(const name of ['worker.act','worker.capture'])assert.ok(artifact.operations?.find(operation=>operation.name===name)?.result?.disclosure,'actual native mutation receipt required');
+  const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','allowed-capture','denied-money','denied-text','denied-enum','false-prefix','money-value-race','money-grant-race','enum-grant-race','identity-race']){
+   const {now,identities,identity,membership}=await member('native-data-egress-'+mode);
+   const {store}=createTestMemoryStorage(),model=asModel('worker.Root'),amount={minor:'2400',currency:'EUR'};
+   await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model,row:makeRow({id:asId('root'),data:{amount,reference:'original-reference',state:'held',visible:mode!=='false-prefix',
+    amount_visible:!['denied-money','false-prefix'].includes(mode),reference_visible:!['denied-text','false-prefix'].includes(mode),state_visible:!['denied-enum','false-prefix'].includes(mode),checked:false,last:null}})}]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(model,id)=>{const row=await load(model,id);if(model==='work.dispatch'&&mode==='identity-race'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return row;};
+   store.commit=async batch=>{if(['money-value-race','money-grant-race','enum-grant-race'].includes(mode)&&batch.writes.some(write=>write.kind==='insert'&&write.model==='worker.Evidence')){
+    raced=true;const row=await load(model,asId('root'));assert.ok(row);
+    const data=mode==='money-value-race'?{amount:{minor:'9999',currency:'EUR'}}:mode==='money-grant-race'?{amount_visible:false}:{state_visible:false};
+    await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model,id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,...data}}}]}));
+   }return commit(batch);};
+   const capture=mode==='allowed-capture'||mode.endsWith('-race');
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+   const request={operation:capture?'worker.capture':'worker.act',operation_id:operationId(now),inputs:{root:{id:'root',version:'1'}}};
+   const result=await invoker.invokeMutation(request,identity),success=mode.startsWith('allowed');
+   assert.equal('result'in result,success,mode+': '+JSON.stringify(result));if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+   const evidence=await store.query({model:asModel('worker.Evidence'),authority:'owner'}),pending=await store.outboxPending();
+   assert.equal(evidence.length,success?1:0,mode+': denied DATA must roll back the actual CREATE');
+   assert.equal(pending.length,success?1:0,mode+': denied DATA must roll back the actual SEND');
+   const current=await load(model,asId('root'));assert.ok(current);assert.equal(current.data['checked'],success&&!capture,mode);
+   if(success){const expected={amount,reference:'original-reference',state:'held'};
+    assert.deepEqual(evidence[0]!.data['value'],expected);assert.deepEqual(pending[0]!.arguments,{binding:'worker.Port',from:'deployment.port',arguments:{value:expected}});
+    assert.ok('result'in await invoker.invokeMutation(request,identity));assert.deepEqual(await store.query({model:asModel('worker.Evidence'),authority:'owner'}),evidence);assert.deepEqual(await store.outboxPending(),pending);
+   }else assert.equal(current.data['last'],null,mode);
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

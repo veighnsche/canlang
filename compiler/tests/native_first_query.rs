@@ -2603,3 +2603,17 @@ fn original_settlement_emit_seals_derived_aggregate_data_closure() {
         assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
     }
 }
+
+#[test]
+fn native_scalar_data_egress_keeps_its_real_void_mutation_receipt() {
+ let source=include_str!("fixtures/native-data-egress-source.can");
+ let(db,program,ir,catalog)=fixture_source("native-data-egress-source.can",source);
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ for name in ["worker.act","worker.capture"]{
+  let owner=item(&ir,name);assert!(matches!(ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)));
+  let operation=artifact["operations"].as_array().unwrap().iter().find(|operation|operation["name"]==name).unwrap();
+  assert!(operation["result"]["disclosure"].is_object(),"{operation}");
+  for field in ["amount","reference","state"]{assert!(operation["result"]["disclosure"]["returns"].as_array().unwrap().iter()
+    .flat_map(|returned|returned["dependencies"].as_array().unwrap()).any(|dependency|dependency["role"]=="data"&&dependency["field"]==field));}
+ }
+}

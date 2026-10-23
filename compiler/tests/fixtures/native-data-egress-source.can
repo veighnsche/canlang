@@ -1,0 +1,34 @@
+app NativeDataEgress uses=[worker]
+package api
+ Given
+  export Status {kind:enum(held,done)=held}
+  export contract Snapshot {amount:money,reference:text,state:Status.kind}
+  export capability PortV1 version=1
+   submit(value:Snapshot) -> text
+ When
+ Then
+package worker
+ use api {Snapshot,Status,PortV1 as Port} from=deployment.port
+ Given
+  Root {amount:money,reference:text,state:Status.kind=held,visible:bool=true,amount_visible:bool=true,reference_visible:bool=true,state_visible:bool=true,checked:bool=false,last:text?}
+  Evidence {value:Snapshot}
+  policy Root read=members and row.amount_visible fields=amount
+  policy Root read=members and row.reference_visible fields=reference
+  policy Root read=members and row.state_visible fields=state
+  policy Evidence read=members
+  derive allowed(root:Root):bool=root.visible
+  derive snapshot(root:Root):Snapshot=Snapshot {amount=root.amount,reference=root.reference,state=root.state}
+ When
+  scenario act(root:Root) by=members
+   require allowed(root)
+   do
+    set root {checked=true}
+    create Evidence {value=snapshot(root)} as evidence
+    send Port.submit {value=snapshot(root)} as delivery
+    set root {last=delivery.id}
+  scenario capture(root:Root) by=members
+   require allowed(root)
+   do
+    create Evidence {value=snapshot(root)} as evidence
+    send Port.submit {value=snapshot(root)} as delivery
+ Then
