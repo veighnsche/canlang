@@ -1491,7 +1491,7 @@ interface StateInvokeProducer {
   readonly executeScenarioSourceSendData?: typeof import('@canlang/state/invocation').executeScenarioSourceSendData;
   readonly executeScenarioSourceSendQuery?: typeof import('@canlang/state/invocation').executeScenarioSourceSendQuery;
   readonly executeScenarioReceiptSourceCopy?: typeof import('@canlang/state/invocation').executeScenarioReceiptSourceCopy;
-  readonly readScenarioReceiptSourceLoopBounds?: typeof import('@canlang/state/invocation').readScenarioReceiptSourceLoopBounds;
+  readonly readScenarioReceiptOwnerBounds?: typeof import('@canlang/state/invocation').readScenarioReceiptOwnerBounds;
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
   readonly executeScenarioReceiptEventNoticeFormat?: typeof import('@canlang/state/invocation').executeScenarioReceiptEventNoticeFormat;
   readonly materializeScenarioReceiptEventNoticeAudit?: typeof import('@canlang/state/invocation').materializeScenarioReceiptEventNoticeAudit;
@@ -1813,8 +1813,8 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     ...(typeof scenarioMod['executeScenarioSourceSendData']!=='function'?{}:{executeScenarioSourceSendData:scenarioMod['executeScenarioSourceSendData'] as NonNullable<StateInvokeProducer['executeScenarioSourceSendData']>}),
     ...(typeof scenarioMod['executeScenarioSourceSendQuery']!=='function'?{}:{executeScenarioSourceSendQuery:scenarioMod['executeScenarioSourceSendQuery'] as NonNullable<StateInvokeProducer['executeScenarioSourceSendQuery']>}),
     ...(typeof scenarioMod['executeScenarioReceiptSourceCopy'] !== 'function'?{}:{executeScenarioReceiptSourceCopy:scenarioMod['executeScenarioReceiptSourceCopy'] as NonNullable<StateInvokeProducer['executeScenarioReceiptSourceCopy']>}),
-    ...(typeof scenarioMod['readScenarioReceiptSourceLoopBounds'] !== 'function' ? {} : {
-      readScenarioReceiptSourceLoopBounds:scenarioMod['readScenarioReceiptSourceLoopBounds'] as NonNullable<StateInvokeProducer['readScenarioReceiptSourceLoopBounds']>,
+    ...(typeof scenarioMod['readScenarioReceiptOwnerBounds'] !== 'function' ? {} : {
+      readScenarioReceiptOwnerBounds:scenarioMod['readScenarioReceiptOwnerBounds'] as NonNullable<StateInvokeProducer['readScenarioReceiptOwnerBounds']>,
     }),
     ...(typeof scenarioMod['beginScenarioReceiptMutation'] !== 'function' ? {} : {
       beginScenarioReceiptMutation: scenarioMod['beginScenarioReceiptMutation'] as NonNullable<StateInvokeProducer['beginScenarioReceiptMutation']>,
@@ -10145,7 +10145,6 @@ async function runScenarioExecution(
   }
   const sourceEmissionPlan=scenarioDef?.descriptor.result?.disclosure?.sourceEmissions;
   const sourceEmissionMaximum=sourceEmissionPlan?.loops.reduce((sum,loop)=>sum+loop.maximum,0);
-  const sourceFrameworkMaximum=sourceEmissionPlan?.loops.reduce((sum,loop)=>sum+loop.maximum*(loop.handler===null?1:2),0);
   const emittedEvents: import('@canlang/work').DeclaredEventSourceInput[] = [];
   let invoiceCollectEmit: ((event: string, payload: Readonly<Record<string, unknown>>,
     occurrenceId: string) => void) | null = null;
@@ -10315,21 +10314,10 @@ async function runScenarioExecution(
       ...invoiceIssueSourceWrites, ...cancellationSourceWrites, ...scheduleSourceWrites];
   };
   const privateSourceBodyLoop=scenarioDef===undefined?undefined:nativeSourceBodyLoops.get(scenarioDef);
-  const needsSourceLoopBounds=hasExecutionFrame&&(privateSourceBodyLoop!==undefined||scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined));
-  const sourceCopyBounds=needsSourceLoopBounds&&receiptStore!==undefined
-    ?loaded.producers.invoke.readScenarioReceiptSourceLoopBounds?.(call as AdmittedCall,receiptStore):undefined;
-  if(needsSourceLoopBounds&&sourceCopyBounds===undefined)
-    return refuseRecordBinding('Source copy lacks its actual State-derived call graph budget.');
-  const ownerBounds = sourceCopyBounds!==undefined
-    ? Object.freeze({maxRows:sourceCopyBounds.maxRows,maxWork:sourceCopyBounds.maxWork})
-    : sourceEmissionMaximum!==undefined
-    ? Object.freeze({maxRows:sourceEmissionMaximum+1,maxWork:200_000,maxSourceNodes:200_000,maxSourceRows:sourceFrameworkMaximum!}) : receiptAware && (scenarioDef?.name === 'leave.request' || scenarioDef?.name === 'leave.decide' ||
-    scenarioDef?.name === 'refer.reject_source' || scenarioDef?.name === 'member_terms.retry_collection' ||
-    scenarioDef?.name === 'invoice.overdue' || scenarioDef?.name === 'rent_reservations.refund_movement_credit' ||
-    scenarioDef?.name === 'invoice.collect' || scenarioDef?.name === 'invoice.issue' ||
-    scenarioDef?.name === 'rent_reservations.correspondence' ||
-    scenarioDef?.name === 'rent_reservations.remind')
-    ? Object.freeze({ maxRows: 4_001, maxWork: 200_000 }) : SCENARIO_RECEIPT_OWNER_BOUNDS;
+  const composedSourceOwner=hasExecutionFrame&&(privateSourceBodyLoop!==undefined||scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined));
+  const readOwnerBounds=loaded.producers.invoke.readScenarioReceiptOwnerBounds;
+  if(hasExecutionFrame&&(readOwnerBounds===undefined||receiptStore===undefined))return refuseRecordBinding('Scenario owner lacks its actual State-derived plan budget.');
+  const ownerBounds=hasExecutionFrame?readOwnerBounds!(call as AdmittedCall,receiptStore!):SCENARIO_RECEIPT_OWNER_BOUNDS;
   const ownerOptions = {
     table: loaded.table as ModelTable, bounds: ownerBounds,
     secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
@@ -10436,12 +10424,12 @@ async function runScenarioExecution(
   const ownerNavigation = await createContainmentNavigation({ loaded, store: overlay,
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
     authority: 'owner', ...(ownerSession === undefined ? {} : { preserveOwnerRows: true }),
-    ...(sourceCopyBounds===undefined?{}:{composedOwnerRows:sourceCopyBounds.maxRows}),
+    ...(!composedSourceOwner?{}:{composedOwnerRows:ownerBounds.maxRows}),
     failure: recordEngineFailure });
   const viewerNavigation = await createContainmentNavigation({ loaded, store: sourceOwnerRows === undefined ? overlay : opts.store,
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
     authority: 'viewer', failure: recordEngineFailure,
-    ...(sourceCopyBounds===undefined||sourceOwnerRows===undefined?{}:{composedOwnerRows:sourceCopyBounds.maxRows}),
+    ...(!composedSourceOwner||sourceOwnerRows===undefined?{}:{composedOwnerRows:ownerBounds.maxRows}),
     ...(sourceOwnerRows === undefined ? {} : { sourceOwnerRows, sourceReadOpts: opts,
       ...(opts.preferences === undefined ? {} : { sourcePreferences: opts.preferences }) }),
   });

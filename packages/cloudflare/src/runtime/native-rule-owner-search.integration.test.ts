@@ -17,7 +17,7 @@ import { asId, asModel, asVersion, makeBatch, makeRow } from '@canlang/state/tes
 import { buildInvoker } from '../worker/assembly.js';
 import { assembleModules } from './modules.js';
 
-import { invokeDueScheduleCanonical, invokeRetainedHandlerOccurrenceCanonical } from './invoke.js';
+import { invokeDueScheduleCanonical, invokeRetainedHandlerOccurrenceCanonical, loadCanonicalDescriptors } from './invoke.js';
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { installNativeFileInventory } from './file-inventory.js';
@@ -4004,6 +4004,33 @@ it('refreshes the complete original Affiliate settlement through its parent loca
    if(mode.endsWith('-race'))assert.ok(raced,mode);if(mode==='own-unused-archived-location')assert.equal(employeeQueries,0,'own verified branch never evaluates the finance location ALL');
    if(success){assert.equal(pending[0]!.target,'affiliate.CommissionV1.reconcile');assert.deepEqual((pending[0]!.arguments as{arguments:unknown}).arguments,{source:settlement.source});assert.equal(updated.data.reconcile_delivery,pending[0]!.intentId);const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay,JSON.stringify(replay));assert.deepEqual(await store.outboxPending(),pending);}
    else{assert.equal(updated.data.reconcile_delivery,null);assert.equal(updated.data.result_revision,'0');}
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+it('derives owner bounds from genuine State plans and rejects forged allowances', {timeout:120000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-owner-budget-'));
+ try{
+  const state=await import('@canlang/state/invocation');
+  for(const profile of ['ordinary','protected']as const){
+   const source=profile==='ordinary'?join(root,'compiler/tests/fixtures/native-require-missing-owner-frame.can'):fixture('invoice-collect-owner-probe.can');
+   const{stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+   const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:join(directory,profile),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+   const ordinary=profile==='ordinary',expected={maxRows:ordinary?200:4001,maxWork:ordinary?10000:200000};
+   const variants=ordinary?[{maxRows:100,maxWork:30000},{maxRows:201,maxWork:10000},{maxRows:200,maxWork:10000,maxSourceNodes:200000,maxSourceRows:1}]:[expected,{maxRows:200,maxWork:200000},{maxRows:4001,maxWork:10000},{...expected,maxSourceNodes:200000,maxSourceRows:1}];
+   for(const[variant,bounds]of variants.entries()){
+    const{now,identities,identity}=await member(`owner-budget-${profile}-${variant}`,ordinary?[]:['invoice.finance']),store=createMemoryStorage(),loaded=await loadCanonicalDescriptors(asm,artifact,store);
+    const operation=ordinary?'GuardOwnerFrame.run':'invoice.collect',target=asModel(ordinary?'GuardOwnerFrame.Root':'invoice.Invoice');
+    await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:target,row:makeRow({id:asId('root'),data:ordinary?{capacity:'2',checked:false}:{location:{id:'location'},source:'original-source',currency:'EUR',state:'issued',total:{minor:'100',currency:'EUR'},next_collection:null,ledger_revision:'0',first_paid_at:null,hidden:false}})}]}));
+    const before=await store.readRevision();let entered=false,accepted=false;
+    await assert.rejects(()=>state.invoke({registry:loaded.registry as Parameters<typeof state.invoke>[0]['registry'],envelope:{operation,operation_id:operationId(now),inputs:{[ordinary?'root':'invoice']:{id:'root',version:'1'}}},identity,app:ordinary?'GuardOwnerFrame':'CanInvoice',source:'integration',store,memberships:identities,clock:{nowMs:()=>now},execute:async call=>{
+      entered=true;assert.deepEqual(state.readScenarioReceiptOwnerBounds(call,store),expected);
+      await state.beginScenarioReceiptMutation(call,store,{table:loaded.table as Parameters<typeof state.beginScenarioReceiptMutation>[2]['table'],bounds});
+      accepted=true;throw new Error('budget session accepted; stop before business execution');
+    }}),variant===0?/budget session accepted/:/owner row bound exceeds its exact saved disclosure budget/);
+    assert.ok(entered);assert.equal(accepted,variant===0);assert.equal((await store.load(target,asId('root')))?.version,1);assert.equal((await store.outboxPending()).length,0);
+    if(variant===0)assert.equal(await store.readRevision(),before,'accepted budget probe intentionally commits no effects');
+   }
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
