@@ -37,7 +37,7 @@ import type {
   MutationEnvelope,
   ResolvedIdentity,
 } from '@canlang/contracts';
-import { IdentityError, assertCredentialLive, deriveCsrfToken, sha256HexText } from '@canlang/identity';
+import { IdentityError, assertAudience, assertCredentialLive, deriveCsrfToken, resolveIdentity, sha256HexText } from '@canlang/identity';
 import { SOURCE_FORM_BINDING_FIELD } from '@canlang/contracts';
 import { NATIVE_BOOLEAN_PRESENCE_PREFIX, projectGeneratedInputs } from '@canlang/ui';
 export { createSourceFormBindings } from './form-binding.js';
@@ -444,27 +444,27 @@ async function checkOperationAge(
   seen: SeenDrafts | null,
   authed: { identity: ResolvedIdentity; sessionToken: string } | null,
 ): Promise<{
-  derived: DerivedOperationInputs | null | undefined; retainedScenario: boolean; idError: BusinessError | null;
+  derived: DerivedOperationInputs | null | undefined; retainedOutcome: boolean; idError: BusinessError | null;
 } | Response> {
   const idError = validateOperationId(operationId, deps.clock);
   let derived: DerivedOperationInputs | null | undefined;
-  let retainedScenario = false;
+  let retainedOutcome = false;
   if (idError !== null) {
-    // Checked scenarios use the dedicated current-authority saved-outcome
+    // Checked scenarios and team commands use current-authority saved-outcome
     // join for expired identities only; fresh and future routing stay intact.
     // Preserve ordinary fresh and malformed-ID demand order; consult the
     // catalog here only when the original age gate would refuse.
     if (validateOperationIdShape(operationId) === null) {
       derived = deps.catalog.derivedFor?.(operation) ?? null;
     }
-    retainedScenario = derived?.kind === 'scenario' && idError.message === 'Expired operation_id.' &&
+    retainedOutcome = (derived?.kind === 'scenario' || derived?.kind === 'team') && idError.message === 'Expired operation_id.' &&
       typeof deps.invoker.invokeRetainedMutation === 'function' &&
       (!Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD) || typeof deps.formBindings?.restoreRetained === 'function');
-    if (!retainedScenario && derived?.kind !== 'create' && derived?.kind !== 'update' && derived?.kind !== 'delete') {
+    if (!retainedOutcome && derived?.kind !== 'create' && derived?.kind !== 'update' && derived?.kind !== 'delete') {
       return denyOrRerender(deps, request, operation, idError, seen, authed);
     }
   }
-  return { derived, retainedScenario, idError };
+  return { derived, retainedOutcome, idError };
 }
 
 async function restoreNativeDrafts(
@@ -592,7 +592,7 @@ async function restoreOperationBindings(
       await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
         operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
     if (restored === null && typeof token === 'string' && derived !== null &&
-        ['create', 'update', 'delete', 'scenario'].includes(derived.kind) &&
+        ['create', 'update', 'delete', 'scenario', 'team'].includes(derived.kind) &&
         typeof deps.formBindings?.restoreRetained === 'function' && typeof deps.invoker.invokeRetainedMutation === 'function') {
       restored = await deps.formBindings.restoreRetained({ appId: deps.app.appId, sessionToken, identity, derived,
         operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
@@ -640,7 +640,7 @@ async function settleOperationOutcome(
   seen: SeenDrafts | null,
   authed: { identity: ResolvedIdentity; sessionToken: string } | null,
   retainedBinding: boolean,
-  retainedScenario: boolean,
+  retainedOutcome: boolean,
   idError: BusinessError | null,
   derived: DerivedOperationInputs | null,
   record: Record<string, unknown>,
@@ -656,13 +656,24 @@ async function settleOperationOutcome(
   });
   await assertSourceValidationCurrent(deps.catalog, operation);
   const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };
+  const teamId = identity.team?.team_id ?? null;
+  const actorUserId = identity.actor?.user_id ?? null;
+  const invocation = Object.freeze({ resolveCaller: async (): Promise<ResolvedIdentity> => {
+    const current = await resolveIdentity(deps.identity.store, { session_token: sessionToken,
+      ...(teamId === null ? {} : { team_id: teamId }) }, { clock: deps.clock });
+    assertAudience(current.binding, 'browser-session');
+    if ((current.actor?.user_id ?? null) !== actorUserId || (current.team?.team_id ?? null) !== teamId) {
+      throw new IdentityError('forbidden', 'The originating caller scope is no longer available.');
+    }
+    return current;
+  } });
   assertSourceValidationStable(deps.catalog, operation);
-  const outcome = retainedBinding || retainedScenario
-    ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
-    : await deps.invoker.invokeMutation(envelope, identity);
+  const outcome = retainedBinding || retainedOutcome
+    ? await deps.invoker.invokeRetainedMutation!(envelope, identity, invocation)
+    : await deps.invoker.invokeMutation(envelope, identity, invocation);
   if (!('error' in outcome)) {
     let refresh: FormRetry | undefined;
-    if (request.headers.get('X-Can-Refresh') === 'true' && !retainedBinding && !retainedScenario &&
+    if (request.headers.get('X-Can-Refresh') === 'true' && !retainedBinding && !retainedOutcome &&
         idError === null && derived?.kind === 'scenario') {
       try {
         // Continuation is optional transport metadata, never a replacement
@@ -688,7 +699,7 @@ async function settleOperationOutcome(
   // attempt. Unknown outcomes keep their original identity for replay.
   const error = outcome.receipt === 'rejected' ? { ...outcome.error, operation_id: operationId } : outcome.error;
   let retry: FormRetry | undefined;
-  if (outcome.receipt === 'rejected' && !retainedBinding && !retainedScenario && idError === null &&
+  if (outcome.receipt === 'rejected' && !retainedBinding && !retainedOutcome && idError === null &&
       derived !== null && ['create', 'update', 'scenario'].includes(derived.kind)) {
     try {
       await assertSourceValidationCurrent(deps.catalog, operation);
@@ -744,7 +755,7 @@ export async function handleOperationRequest(
 
     const aged = await checkOperationAge(deps, request, operation, operationId, record, seen, authed);
     if (aged instanceof Response) return aged;
-    const { retainedScenario, idError } = aged;
+    const { retainedOutcome, idError } = aged;
     const shape = deps.catalog.shapeFor(operation);
     if (shape === null) {
       return denyOrRerender(deps, request, operation, buildBusinessError('not_found', 'Unknown operation.'), seen, authed);
@@ -791,7 +802,7 @@ export async function handleOperationRequest(
       shape, prepared, derived, seen, authed);
     if (admission instanceof Response) return admission;
     return await settleOperationOutcome(deps, request, operation, operationId, businessInputs,
-      identity, sessionToken, seen, authed, retainedBinding, retainedScenario, idError, derived, record);
+      identity, sessionToken, seen, authed, retainedBinding, retainedOutcome, idError, derived, record);
   } catch (err) {
     if (err instanceof IdentityError) {
       return denyOrRerender(deps, request, operation, caughtToBusinessError(err), seen, authed);

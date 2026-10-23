@@ -186,10 +186,16 @@ export type MutationOutcome = { result: MutationResult } | {
 export type ReadOutcome = { result: ReadResult } | { error: BusinessError };
 
 /** L3 canonical invocation callable (admission + commit + projection). */
+export interface InvocationContext {
+  /** Re-resolve the originating credential in its original principal/team
+   * scope. This returns current Identity facts, never a captured grant snapshot. */
+  readonly resolveCaller: () => Promise<ResolvedIdentity>;
+}
+
 export interface OperationInvoker {
-  invokeMutation(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
-  /** Current-authority saved checked CRUD/scenario outcome only; never executes an unseen identity. */
-  invokeRetainedMutation?(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
+  invokeMutation(envelope: MutationEnvelope, identity: ResolvedIdentity, context?: InvocationContext): Promise<MutationOutcome>;
+  /** Current-authority saved CRUD/scenario/team outcome only; never executes an unseen identity. */
+  invokeRetainedMutation?(envelope: MutationEnvelope, identity: ResolvedIdentity, context?: InvocationContext): Promise<MutationOutcome>;
   invokeRead(envelope: ReadEnvelope, identity: ResolvedIdentity): Promise<ReadOutcome>;
 }
 

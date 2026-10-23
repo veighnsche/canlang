@@ -46,6 +46,7 @@
  * call by the MCP server, never cached here).
  */
 
+import { SYSTEM_TEAM_TOOL_NAMES } from "@canlang/contracts";
 import type { CompileArtifact, ResolvedIdentity } from "@canlang/contracts";
 import type { McpPermissions } from "./mcp-registry.js";
 
@@ -116,8 +117,11 @@ function isTeamMember(identity: ResolvedIdentity): boolean {
 export function createMemberMcpPermissions(artifact: CompileArtifact): McpPermissions {
   const known = knownOperationNames(artifact);
   const admits = (identity: ResolvedIdentity, operation: string): boolean => {
-    if (typeof operation !== "string" || !known.has(operation)) return false;
-    return isTeamMember(identity);
+    if (typeof operation !== "string" || !isTeamMember(identity)) return false;
+    // Runtime primitives are source-composed separately from compiler operations.
+    // The invoker rechecks the live credential, source roles and owner authority.
+    if ((SYSTEM_TEAM_TOOL_NAMES as readonly string[]).includes(operation)) return identity.membership?.is_owner === true;
+    return known.has(operation);
   };
   return {
     canDiscover: (identity: ResolvedIdentity, operation: string): boolean =>

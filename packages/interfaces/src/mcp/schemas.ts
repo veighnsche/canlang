@@ -283,6 +283,9 @@ export function toToolInputSchema(descriptor: OperationDescriptor): Record<strin
     required: [...ordinary.required, 'operation_id'],
     additionalProperties: false,
   };
+  // Fixed team primitives have no source action capable of minting a sealed
+  // handle. Advertise only their exact ordinary command envelope.
+  if (descriptor.kind === 'team') return withOpId;
   // Handle branch: sealed handle + operation_id (required) plus every
   // non-ref typed input as an OPTIONAL member (wire ActionHandleInvocation).
   const handleProperties: Record<string, unknown> = {

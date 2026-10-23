@@ -519,7 +519,7 @@ export interface DerivedWritableInput {
  */
 export interface DerivedOperationInputs {
   readonly operation: FqOperationName;
-  readonly kind: 'read' | 'create' | 'update' | 'delete' | 'scenario';
+  readonly kind: 'read' | 'create' | 'update' | 'delete' | 'scenario' | 'team';
   readonly artifactVersion: number;
   readonly inputs: readonly DerivedWritableInput[];
 }

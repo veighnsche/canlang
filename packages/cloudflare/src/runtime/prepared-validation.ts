@@ -2,6 +2,7 @@
  * from artifact shape or a request revision. The existing assembler verifies
  * its actual installed closure; its imported owning declarations are captured
  * and rechecked through the final HTTP admission await. */
+import { SYSTEM_TEAM_TOOL_NAMES } from '@canlang/contracts';
 import type { ArtifactModel, ArtifactOperation, CompileArtifact } from '@canlang/contracts';
 import type { CanValue } from '@canlang/contracts/values';
 import { sha256HexText } from '@canlang/identity';
@@ -10,6 +11,7 @@ import type { SchemaCatalog } from '@canlang/interfaces';
 import { Decimal, decodeValue, encodeValue, parseTypeId, printTypeId, type FieldDescriptor, type SchemaDescriptor } from '@canlang/values';
 import type { AssembledModules } from './modules.js';
 import { AssemblyCorrespondenceError, importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
+import { composeSystemTeamCatalog, createArtifactCatalog, systemTeamRoles } from './mcp-registry.js';
 
 const refuse = (message: string): never => { throw new AssemblyCorrespondenceError(`HTTP validation source: ${message}`); };
 type ArtifactInputField = NonNullable<CompileArtifact['operations']>[number]['inputs']['fields'][number] |
@@ -283,6 +285,47 @@ function unsupportedProfile(descriptor: SchemaDescriptor): boolean {
     ['format', 'distinctBy', 'excludedIds'].some(key => Object.hasOwn(field, key))));
 }
 
+/** Team schemas are owned by the fixed primitive and selected app's role
+ * declarations. They never acquire provenance from a fabricated callable. */
+async function prepareTeamValidation(artifact: CompileArtifact, asm: AssembledModules,
+  base: SchemaCatalog, expectedApp: string, operation: string) {
+  const entry = artifact.modules[0];
+  if (entry === undefined || artifact.callables.some(callable => callable.id === operation)) {
+    return refuse('team primitive conflicts with the compiler callable inventory');
+  }
+  const namespace = await importVerifiedAssemblyModule(asm, entry.path, artifact);
+  const definition = member(namespace, 'appDefinition');
+  const source = () => {
+    if (member(namespace, 'appDefinition') !== definition || member(definition, 'id') !== expectedApp) {
+      return refuse('team source belongs to a different receiving application');
+    }
+    // Reject exotic/callback-bearing owner arrays before consulting their census.
+    const owners = capture(member(definition, 'runtimeBindingOwners'));
+    return capture({ app: expectedApp, owners, roles: systemTeamRoles(definition, expectedApp) });
+  };
+  const original = source(), sealed = sealedData(original);
+  const expected = composeSystemTeamCatalog(createArtifactCatalog(artifact), systemTeamRoles(definition, expectedApp));
+  const expectedInputs = capture({ shape: expected.shapeFor(operation), derived: expected.derivedFor?.(operation) });
+  const inputsSeal = sealedData(expectedInputs);
+  const assertStable = (): void => {
+    if (sealedData(source()) !== sealed || sealedData(capture({
+      shape: base.shapeFor(operation), derived: base.derivedFor?.(operation),
+    })) !== inputsSeal) return refuse('team source or primitive catalog changed');
+  };
+  assertStable();
+  const revision = await sha256HexText(JSON.stringify({ app: expectedApp, operation, module: entry.path,
+    artifact_version: artifact.artifact_version, language_version: artifact.language_version,
+    sources: artifact.sources, declarations: stamp(original), inputs: stamp(expectedInputs) }));
+  const assertCurrent = async (): Promise<void> => {
+    await verifyAssemblerModuleCapability(asm, artifact);
+    assertStable();
+  };
+  await assertCurrent();
+  // The ordinary checked HTTP plan still validates bound primitive arguments;
+  // no compiler Values operation descriptor or callable is claimed here.
+  return { ownerRevision: revision, descriptor: null, assertCurrent, assertStable };
+}
+
 export async function createPreparedValidationCatalog(artifact: CompileArtifact,
   asm: AssembledModules, base: SchemaCatalog, expectedApp: string): Promise<SchemaCatalog> {
   // Framing-only/older artifacts remain exactly that. They neither claim a
@@ -292,6 +335,9 @@ export async function createPreparedValidationCatalog(artifact: CompileArtifact,
   const expected = catalogFromArtifactOperations(artifact);
   return createSourceValidationCatalog(base, async operation => {
     await verifyAssemblerModuleCapability(asm, artifact);
+    if (SYSTEM_TEAM_TOOL_NAMES.some(name => name === operation)) {
+      return await prepareTeamValidation(artifact, asm, base, expectedApp, operation);
+    }
     const candidates = artifact.callables.filter(callable => callable.id === operation && callable.kind === 'operation');
     const callable = candidates[0];
     if (candidates.length !== 1 || callable === undefined || callable.member.length !== 1 || callable.member[0] !== operation) return refuse('operation lacks its unique owning callable');

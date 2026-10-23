@@ -47,6 +47,7 @@ import { FILE_TRANSFER_META_KEY } from '@canlang/contracts';
 import { assertAudience, IdentityError, assertCredentialLive, resolveIdentity, sha256HexText } from '@canlang/identity';
 import type {
   McpDeps,
+  InvocationContext,
   McpOperationKind,
   MutationOutcome,
   OperationDescriptor,
@@ -101,7 +102,7 @@ function errorResponse(status: number, error: BusinessError, wwwAuthenticate?: s
 async function resolveGrantIdentity(
   deps: McpDeps,
   request: Request,
-): Promise<{ identity: ResolvedIdentity; grantTokenHash: string } | Response> {
+): Promise<{ identity: ResolvedIdentity; grantTokenHash: string; invocation: InvocationContext } | Response> {
   const token = bearerToken(request);
   if (token === null) {
     return errorResponse(401, buildBusinessError('forbidden', 'Authentication required.'), wwwAuthenticateChallenge(request.url));
@@ -115,7 +116,18 @@ async function resolveGrantIdentity(
     assertAudience(identity.binding, 'mcp-grant');
     // B4: capture the credential hash at transport admission; the mutation
     // admission re-read checks current facts immediately before invoker entry.
-    return { identity, grantTokenHash: await sha256HexText(token) };
+    const teamId = identity.team?.team_id ?? null;
+    const actorUserId = identity.actor?.user_id ?? null;
+    const invocation: InvocationContext = Object.freeze({ resolveCaller: async () => {
+      const current = await resolveIdentity(deps.identity.store, { mcp_grant_token: token,
+        ...(teamId === null ? {} : { team_id: teamId }) }, { clock: deps.clock });
+      assertAudience(current.binding, 'mcp-grant');
+      if ((current.actor?.user_id ?? null) !== actorUserId || (current.team?.team_id ?? null) !== teamId) {
+        throw new IdentityError('forbidden', 'The originating caller scope is no longer available.');
+      }
+      return current;
+    } });
+    return { identity, grantTokenHash: await sha256HexText(token), invocation };
   } catch (err) {
     if (err instanceof IdentityError) {
       return errorResponse(401, buildBusinessError(err.code, err.message), wwwAuthenticateChallenge(request.url));
@@ -178,6 +190,8 @@ async function invokeMutationOutcome(
   identity: ResolvedIdentity,
   envelope: MutationEnvelope,
   grantTokenHash: string,
+  invocation: InvocationContext,
+  retainedOnly = false,
 ): Promise<ToolCallResult> {
   /* B4 pre-invoker admission: re-read CURRENT grant facts after arguments
    * and permission checks. Revocation or expiry before this read refuses
@@ -198,7 +212,9 @@ async function invokeMutationOutcome(
   }
   let outcome: MutationOutcome;
   try {
-    outcome = await deps.invoker.invokeMutation(envelope, identity);
+    outcome = retainedOnly
+      ? await deps.invoker.invokeRetainedMutation!(envelope, identity, invocation)
+      : await deps.invoker.invokeMutation(envelope, identity, invocation);
   } catch (err) {
     logInternalError(deps.logger, err, { route: 'mcp', tool: envelope.operation });
     throw new McpError(ErrorCode.InternalError, 'Internal error.');
@@ -234,6 +250,7 @@ async function invokeHandleMode(
   deps: McpDeps,
   identity: ResolvedIdentity,
   grantTokenHash: string,
+  invocation: InvocationContext,
   descriptor: OperationDescriptor,
   args: Record<string, unknown>,
 ): Promise<ToolCallResult> {
@@ -288,7 +305,7 @@ async function invokeHandleMode(
     operation_id: operationId,
     inputs,
   };
-  return invokeMutationOutcome(deps, identity, envelope, grantTokenHash);
+  return invokeMutationOutcome(deps, identity, envelope, grantTokenHash, invocation);
 }
 
 /**
@@ -300,11 +317,13 @@ async function invokeOrdinaryMode(
   deps: McpDeps,
   identity: ResolvedIdentity,
   grantTokenHash: string,
+  invocation: InvocationContext,
   descriptor: OperationDescriptor,
   args: Record<string, unknown>,
 ): Promise<ToolCallResult> {
   const mutation = isMutationKind(descriptor.kind);
   let operationId = '';
+  let retainedTeamOutcome = false;
   if (mutation) {
     const raw: unknown = args['operation_id'];
     if (typeof raw !== 'string') {
@@ -312,7 +331,11 @@ async function invokeOrdinaryMode(
     }
     const idError = validateOperationId(raw, deps.clock);
     if (idError !== null) {
-      throw new McpError(ErrorCode.InvalidParams, idError.message);
+      // Team receipts outlive the age gate for unseen commands. The retained
+      // entry point must refuse absence/skew; it can never execute a new command.
+      retainedTeamOutcome = descriptor.kind === 'team' && idError.message === 'Expired operation_id.' &&
+        typeof deps.invoker.invokeRetainedMutation === 'function';
+      if (!retainedTeamOutcome) throw new McpError(ErrorCode.InvalidParams, idError.message);
     }
     operationId = raw;
   }
@@ -372,7 +395,7 @@ async function invokeOrdinaryMode(
       operation_id: operationId,
       inputs: businessInputs,
     };
-    return invokeMutationOutcome(deps, identity, envelope, grantTokenHash);
+    return invokeMutationOutcome(deps, identity, envelope, grantTokenHash, invocation, retainedTeamOutcome);
   }
   const envelope: ReadEnvelope = { operation: descriptor.name, inputs: businessInputs };
   return invokeReadOutcome(deps, identity, envelope);
@@ -382,6 +405,7 @@ async function handleToolCall(
   deps: McpDeps,
   identity: ResolvedIdentity,
   grantTokenHash: string,
+  invocation: InvocationContext,
   name: string,
   args: unknown,
 ): Promise<ToolCallResult> {
@@ -409,9 +433,9 @@ async function handleToolCall(
   }
   const record = args as Record<string, unknown>;
   if ('action_handle' in record) {
-    return invokeHandleMode(deps, identity, grantTokenHash, descriptor, record);
+    return invokeHandleMode(deps, identity, grantTokenHash, invocation, descriptor, record);
   }
-  return invokeOrdinaryMode(deps, identity, grantTokenHash, descriptor, record);
+  return invokeOrdinaryMode(deps, identity, grantTokenHash, invocation, descriptor, record);
 }
 
 /**
@@ -432,7 +456,7 @@ export function createMcpHandler(deps: McpDeps): (request: Request) => Promise<R
   return async (request: Request): Promise<Response> => {
     const authed = await resolveGrantIdentity(deps, request);
     if (authed instanceof Response) return authed;
-    const { identity, grantTokenHash } = authed;
+    const { identity, grantTokenHash, invocation } = authed;
 
     const server = new Server(
       { name: SERVER_NAME, version: MCP_SERVER_VERSION },
@@ -456,7 +480,7 @@ export function createMcpHandler(deps: McpDeps): (request: Request) => Promise<R
       return listToolsFor(deps, identity).then((tools) => ({ tools }));
     });
     server.setRequestHandler(CallToolRequestSchema, (call) => {
-      return handleToolCall(deps, identity, grantTokenHash, call.params.name, call.params.arguments);
+      return handleToolCall(deps, identity, grantTokenHash, invocation, call.params.name, call.params.arguments);
     });
 
     // Stateless: omitting `sessionIdGenerator` leaves it undefined, so each

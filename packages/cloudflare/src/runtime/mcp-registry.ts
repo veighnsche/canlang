@@ -18,8 +18,9 @@
  * builtins, no I/O. Pure functions over the artifact JSON.
  */
 
-import type { CanTypeId, CompileArtifact, DerivedOperationInputs, ResolvedIdentity } from "@canlang/contracts";
-import type { McpSchemaField } from "@canlang/interfaces";
+import { ARTIFACT_VERSION, SYSTEM_TEAM_TOOL_NAMES } from "@canlang/contracts";
+import type { CanTypeId, CompileArtifact, DerivedOperationInputs, DerivedWritableInput, ResolvedIdentity } from "@canlang/contracts";
+import type { McpSchemaField, OwnedOperationValidation } from "@canlang/interfaces";
 export type { McpSchemaField } from "@canlang/interfaces";
 import { checkArtifactOperation, checkArtifactOperations, checkedToMcpInputSchema } from "@canlang/interfaces";
 
@@ -90,6 +91,7 @@ export interface OperationInputShape {
 export interface SchemaCatalog {
   shapeFor(operation: string): OperationInputShape | null;
   derivedFor?(operation: string): DerivedOperationInputs | null;
+  ownedValidationFor?(operation: string): OwnedOperationValidation | null;
 }
 
 /** Mirror of `McpPermissions` (`ports.ts:205`). */
@@ -340,6 +342,14 @@ function readArtifactOperations(artifact: CompileArtifact): readonly OperationDe
 /* Builders (join J3).                                                 */
 /* ------------------------------------------------------------------ */
 
+// Composition is allowed only before request source validation issues its
+// private catalog lifetime. A forwarding wrapper cannot transfer that lifetime.
+const unissuedArtifactCatalogs = new WeakSet<SchemaCatalog>();
+function unissuedArtifactCatalog(catalog: SchemaCatalog): SchemaCatalog {
+  unissuedArtifactCatalogs.add(catalog);
+  return catalog;
+}
+
 /**
  * Build the production `OperationRegistry` from the artifact's P1
  * operations: canonical names, authored `#` descriptions verbatim,
@@ -355,6 +365,121 @@ export function createArtifactRegistry(artifact: CompileArtifact): OperationRegi
       return descriptors;
     },
   };
+}
+
+/** Exact compiler source identities, never display labels or membership grants.
+ * The caller supplies the original appDefinition from its verified assembly. */
+export function systemTeamRoles(definition: unknown, appId: string): readonly string[] {
+  const own = (value: unknown, key: string): unknown => {
+    if (!isRecord(value)) fail("team roles", "requires original source objects");
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === undefined || !('value' in descriptor)) fail(`team roles.${key}`, "requires an own source value");
+    return descriptor.value;
+  };
+  const sourceName = /^[A-Za-z_][A-Za-z0-9_]*(?![\s\S])/;
+  if (!sourceName.test(appId) || own(definition, 'id') !== appId) {
+    fail("team roles", "selected app differs from its original source definition");
+  }
+  const owners = own(definition, 'runtimeBindingOwners');
+  const packages = own(definition, 'packages');
+  if (!Array.isArray(owners) || !owners.includes(appId) || new Set(owners).size !== owners.length) {
+    fail("team roles", "requires the selected compiler owner closure");
+  }
+  const roles: string[] = [];
+  const seen = new Set<string>();
+  for (const owner of owners) {
+    if (typeof owner !== 'string' || !sourceName.test(owner)) fail("team roles", "invalid source owner");
+    const declarations = own(own(packages, owner), 'roles');
+    if (!isRecord(declarations)) fail("team roles", "source role declarations must be an object");
+    for (const local of Reflect.ownKeys(declarations)) {
+      if (typeof local !== 'string' || !sourceName.test(local)) fail("team roles", "invalid source role name");
+      const canonical = own(own(declarations, local), 'id');
+      if (canonical !== `${owner}.${local}` || seen.has(canonical)) {
+        fail("team roles", "role identity differs from its exact owning declaration");
+      }
+      seen.add(canonical);
+      roles.push(canonical);
+    }
+  }
+  return Object.freeze(roles);
+}
+
+function systemTeamDescriptors(roles: readonly string[]): readonly OperationDescriptor[] {
+  const declared = new Set<string>();
+  for (const role of roles) {
+    if (typeof role !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*(?![\s\S])/.test(role) || declared.has(role)) {
+      fail("team roles", "requires unique exact package-qualified source roles");
+    }
+    declared.add(role);
+  }
+  const grants = Object.freeze(['owner', ...declared]);
+  const deltas = Object.freeze([...grants, ...grants.map(role => `-${role}`)]);
+  const field = (name: string, schema: McpSchemaField, valueType?: CanTypeId): McpNamedField =>
+    Object.freeze({ name, field: Object.freeze(schema), required: true,
+      ...(valueType === undefined ? {} : { valueType }) });
+  const fields: readonly (readonly McpNamedField[])[] = [
+    [field('email', { kind: 'string' }, 'email'), field('role', { kind: 'enum', values: grants })],
+    [field('member', { kind: 'user' }, 'user')],
+    [field('member', { kind: 'user' }, 'user'), field('role', { kind: 'enum', values: deltas })],
+  ];
+  const descriptions = ['Invite a member to the selected team.', 'Remove a member from the selected team.', 'Change a member role in the selected team.'];
+  return Object.freeze(SYSTEM_TEAM_TOOL_NAMES.map((name, index) => Object.freeze({
+    name, kind: 'team' as const, description: descriptions[index]!,
+    inputs: Object.freeze({ fields: Object.freeze(fields[index]!) }),
+  })));
+}
+
+/** Fixed primitive schemas compose beside compiler-backed operations, never
+ * enter or modify the compiler artifact/baked correspondence checker. */
+export function composeSystemTeamRegistry(base: OperationRegistry, roles: readonly string[]): OperationRegistry {
+  const primitives = systemTeamDescriptors(roles);
+  return Object.freeze({ list: (app: unknown): readonly OperationDescriptor[] => {
+    const descriptors = [...base.list(app), ...primitives];
+    const seen = new Set<string>();
+    for (const descriptor of descriptors) {
+      if (seen.has(descriptor.name)) fail('operations', `repeats operation ${JSON.stringify(descriptor.name)}`);
+      seen.add(descriptor.name);
+    }
+    return Object.freeze(descriptors);
+  } });
+}
+
+/** Compose the unissued artifact catalog BEFORE request source-validation
+ * issuance. Its prepared lifetime is owned by the original issued catalog,
+ * and cannot be transferred by wrapping or copying catalog methods. */
+export function composeSystemTeamCatalog(base: SchemaCatalog, roles: readonly string[]): SchemaCatalog {
+  if (!unissuedArtifactCatalogs.has(base)) {
+    fail('team catalog', 'requires its original unissued artifact catalog; compose before owned/source validation wrappers');
+  }
+  const descriptors = systemTeamDescriptors(roles);
+  const shapes = new Map<string, OperationInputShape>();
+  const derived = new Map<string, DerivedOperationInputs>();
+  for (const descriptor of descriptors) {
+    if (base.shapeFor(descriptor.name) !== null || base.derivedFor?.(descriptor.name) != null) {
+      fail('operations', `repeats operation ${JSON.stringify(descriptor.name)}`);
+    }
+    const names = Object.freeze(descriptor.inputs.fields.map(input => input.name));
+    shapes.set(descriptor.name, Object.freeze({ allowed: names, required: names }));
+    const inputs = descriptor.inputs.fields.map((input): DerivedWritableInput => {
+      const common = { name: input.name, required: true,
+        ...(input.valueType === undefined ? {} : { valueType: input.valueType }) };
+      switch (input.field.kind) {
+        case 'string': return Object.freeze({ ...common, kind: 'string' });
+        case 'user': return Object.freeze({ ...common, kind: 'user' });
+        case 'enum': return Object.freeze({ ...common, kind: 'enum', enumValues: input.field.values });
+        default: return fail('team inputs', 'unsupported primitive field');
+      }
+    });
+    derived.set(descriptor.name, Object.freeze({ operation: descriptor.name, kind: 'team',
+      artifactVersion: ARTIFACT_VERSION, inputs: Object.freeze(inputs) }));
+  }
+  return unissuedArtifactCatalog(Object.freeze({
+    shapeFor: (operation: string) => shapes.get(operation) ?? base.shapeFor(operation),
+    derivedFor: (operation: string) => derived.get(operation) ?? base.derivedFor?.(operation) ?? null,
+    ...(base.ownedValidationFor === undefined ? {} : {
+      ownedValidationFor: (operation: string) => shapes.has(operation) ? null : base.ownedValidationFor!(operation),
+    }),
+  }));
 }
 
 /**
@@ -465,12 +590,12 @@ export function createArtifactCatalog(artifact: CompileArtifact, baked?: BakedDe
     );
   }
   const shapeFor = (operation: string): OperationInputShape | null => shapes.get(operation) ?? null;
-  if (baked === undefined) return { shapeFor };
+  if (baked === undefined) return unissuedArtifactCatalog({ shapeFor });
   const derived = checkBakedDerivedInputs(baked, artifact, new Set(shapes.keys()));
-  return {
+  return unissuedArtifactCatalog({
     shapeFor,
     derivedFor: (operation: string): DerivedOperationInputs | null => derived.get(operation) ?? null,
-  };
+  });
 }
 
 /**
