@@ -192,9 +192,9 @@ impl Reads {
 
 pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
     requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<HashMap<Span,serde_json::Value>>{
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
-    let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
+    let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
+    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
     let mut env=Environment::default();let mut models=BTreeMap::new();
     for id in params{
         let param=ir.items.get(id.0 as usize)?;let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
