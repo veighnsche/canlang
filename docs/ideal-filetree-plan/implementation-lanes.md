@@ -4,7 +4,7 @@ The audit has coordinator plus three reviewer slots. These are source-review rol
 
 | Lane | Ready review work | Exclusive document / later production handoff |
 | --- | --- | --- |
-| A — language | L-REVIEW-CHECK/PROOF/EMIT/GIVEN/AUTHORING/DEV/NATIVE; compiler half of L-REVIEW-PROFILES | `reviews/language-current.md`. Inspect source read-only. Any later compiler correction names its exact collector/pass writer; `codegen/mod.rs`, Cargo/export/install selectors remain coordinator handoffs |
+| A — language | L-REVIEW-CHECK/EMIT/GIVEN/AUTHORING/DEV/NATIVE; completed bounded PROOF source pass with open LANG-PROOF-C; compiler half of L-REVIEW-PROFILES | `reviews/language-current.md`. Inspect source read-only. Any later compiler correction names its exact collector/pass writer; `codegen/mod.rs`, Cargo/export/install selectors remain coordinator handoffs |
 | B — runtime | RT-RECEIPT/MIGRATION/SETUP/PROVIDER/AUTHORITY/VALUES-REVIEW | `reviews/runtime-current.md`. State receipt/session/issuance and Identity custody retain their owners. A later `scenario-receipt.ts` writer must be exclusive; index/schema/fixture changes coordinated |
 | C — platform | P-R01–06 and P-CODEC compatibility investigation | `reviews/platform-current.md`. Any later `invoke.ts`, host/setup, browser or packaging change has one actual writer; no independent changes to manifests/locks/pinned/runtime inventory |
 | Coordinator | REPO-REVIEW-CONTRACTS/EVIDENCE/DELIVERY; shared findings, coverage, target tree and task reconciliation | Entry guide, baseline, catalogue, slice matrix, ownership, integration, findings, task/lane files. Commit coherent reviewed documentation checkpoints; do not sweep unrelated changes into commits |
@@ -12,7 +12,7 @@ The audit has coordinator plus three reviewer slots. These are source-review rol
 ## Connected challenge and useful ordering
 
 - Current refresh challenge rotated platform → language → runtime → platform, with a direct platform/runtime check of Identity setup. Reuse the recorded bounded conclusions; do not schedule reviews of reviews.
-- Independent checker/proof/emitter, migration/provider, browser and upgrade source review can proceed together. Completing one monolith review is not a repository-wide barrier.
+- Independent checker/emitter, migration/provider, browser and upgrade source review can proceed together. The bounded proof boundary pass is complete; LANG-PROOF-C is a named original-source correspondence correction, not another generic review or implementation launch. Completing one monolith review is not a repository-wide barrier.
 - Cross-profile critical path: compiler original-source/query/effect census + State actual observation/return/File authority + host original bindings → one complete family contract → RT-C1 correction specification. Source/current semantics, complete domains and the parent-max permission refusal stay explicit. No recipe retirement or diagnostic suppression precedes that contract.
 - Setup critical path: platform stopped-writer/private-token/admin/receipt-file custody + Identity atomic consumed-claim/owner records + D1 acknowledgement/expiry/retry → any named custody correction. Atomic database state does not imply atomic completion-file publication.
 - Codec critical path: actual historical/current Work row acceptance + CF consumer projection and ordered faults → explicit compatibility decision → P-CODEC. The stricter reader is not a mechanical drop-in.

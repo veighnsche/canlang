@@ -2,6 +2,10 @@
 
 Source: [baseline](baseline.md), `8d48f969`. Completed moves/corrections are absorbed in the implementation record below; they are not executable backlog. This refresh selects source review and planning. It does not dispatch production writers or repeat tests/builds. Literal duty lists in the primary [reviews](reviews/index.md) are part of these packets; the [inventory](catalogue/inventory.md) accounts for every retained leaf. M (placement), C (named correction) and V (meaningful qualification) remain distinct.
 
+## Completed bounded source review
+
+L-REVIEW-PROOF's cohort, fresh-context/cache, consumed diagnostic/structural seal, public SEND/read boundary, terminal admission, model declaration/unique-origin and emit-to-CLI publication pass is source-reviewed at `8d48f969`. Actual definition/caller/error/test-subject evidence and independent host/root challenge are in the [language review](reviews/language-current.md#bounded-proof-source-review-at-the-current-product-source). This closes that boundary inspection with open LANG-PROOF-UNIQUE, not all specialized codec/profile bodies or runtime qualification. The remaining event, lexical/narrowing and first-row profile codecs belong explicitly to L-REVIEW-PROFILES; analogous edited predicate anchors remain a follow-up subject in the correction.
+
 ## Ready review packets
 
 All rows are ready for source inspection and independent challenge. Their physical document writers are the named primary review owners; production files are read-only until a concrete separately authorized correction. One packet can span slices without creating another package or lifecycle.
@@ -9,8 +13,7 @@ All rows are ready for source inspection and independent challenge. Their physic
 | Packet / lead | Literal source duties and canonical specification | Required output / dependency |
 | --- | --- | --- |
 | L-REVIEW-CHECK / language | Parser/layout/CST and resolve/types/effects/examples; exact family list in [language review](reviews/language-current.md#remaining-review-packets-with-exact-duties) | Requirements-to-branch/diagnostic/fixture trace, including narrowing, queries, defaults and lifetime rules. Preserve source order and independent expectations |
-| L-REVIEW-PROOF / language | Fresh context, semantic correspondence, cohort, read/send/model-rule proof and emit entry | Complete partial-query/terminal/cache/seal refusal review. Metadata never becomes executable proof; runtime challenger owns recipient authority |
-| L-REVIEW-PROFILES + RT-RECEIPT-REVIEW / language + runtime | Compiler disclosure/receipt/query/decision collectors; State receipt/plan/decoder/query/File/nominal/reference owners; host binder recipients | One source/current/CONTROL/DATA/domain/parent/callee/effect/File/replay contract per remaining profile. Start with the parent-max grant refusal; do not waive it. Required before RT-C1 selects a correction |
+| L-REVIEW-PROFILES + RT-RECEIPT-REVIEW / language + runtime | Compiler disclosure/receipt/query/decision collectors; State receipt/plan/decoder/query/File/nominal/reference owners; host binder recipients | One source/current/CONTROL/DATA/domain/parent/callee/effect/File/replay contract per remaining profile, including specialized SEND event/lexical/narrowing and first-row predicate codecs. The bounded source-copy/decoder/projection trace is recorded; finish the parent-max emitted-occurrence and ordinary-guard census before assigning its shared refusal to absent grants or exhaustion. The rejected 100-IF inference is not evidence. Do not waive the guard. Required before RT-C1 selects a correction |
 | L-REVIEW-EMIT / language | IR/JS/descriptors/artifact/BDD/source maps/Then and real typed-artifact/UI consumers | Finish value/model identity, canonical wire, source effects and saved joins. Resolve standard-value inspection/unused-producer assertion contracts before changing behavior or expectations |
 | L-REVIEW-GIVEN / language | Given contracts, generation/intake/store, CLI generation, IR lowering and artifact/Then joins | Saved schema/authority/import closure, stale target/export and lease/refine/accept/reset traces. Keep generated JS nonauthoritative for schema discovery |
 | L-REVIEW-AUTHORING / language | LSP/IDE/format/lint, editor client and completion scripts | Framing/version/Unicode/safe-edit/disposal review; installed editor qualification stays separate |
@@ -33,6 +36,7 @@ All rows are ready for source inspection and independent challenge. Their physic
 
 | Packet | M / C / V and exact gate | Future physical writers / recipients |
 | --- | --- | --- |
+| LANG-PROOF-C | C: independently authenticate conditional-unique field and predicate association against original checked source rather than a rebuild of the same editable tables. Reject coordinated checked-table/IR edits while preserving genuine source, ordinals, public APIs and shipping diagnostic aggregation. The unexecuted vector is a source-supported collector defect; no runtime bypass is assumed. V: existing model_unique_conditions/model_rule_origins and genuine driver/consumer cases must cover edited checked tables plus rebuilt IR, not raw-IR edits alone | Sole `compiler/src/codegen/model_unique_conditions.rs` writer; private `source_context.rs`/`source_correspondence.rs` or `mod.rs` handoffs only if the chosen shared original-check mechanism requires them. Native policy/assembly authority remains independent. Review specification ready; no implementation dispatch by this audit |
 | RT-C1 | C: select one complete original profile only after L-REVIEW-PROFILES/RT-RECEIPT-REVIEW supplies its source/current authority/domain/effect/File/failure contract. No new family is selected by a file move. V: genuine renamed/source/forged/stale/race/replay recipients | One compiler collector writer, one State receipt writer and one host invoke writer with exact handoffs; shared protocol/index/fixture changes coordinated. No executable production assignment yet |
 | P-CODEC | C: decide accepted historical/current row domain, projection and ordered faults before replacing CF dispatch projection with Work's stricter reader. Textual duplication does not prove equivalence. V: real accepted and refused persisted rows | `packages/work/src/kernel/tables.ts` defining codec and sole `packages/cloudflare/src/runtime/invoke.ts` adapter writer; Work/host contract handoff precedes mutation |
 | Qualification after review | V only where a concrete changed binding, contract question or missing required journey justifies it. Progress bounded owner/error cases → imports/types/fixtures/source guards → integrated graph → matching installed/native/provider journey | Single operator per compiler/catalog/cache/dist/native/browser fixture. Reuse matching prior evidence. No blanket rebuild or test campaign |
@@ -44,7 +48,7 @@ There is no pending M-only extraction or whole-package port at this source. The 
 | Slice | Primary completion packet / recipient |
 | --- | --- |
 | L01 | L-REVIEW-CHECK; L-REVIEW-GIVEN |
-| L02 | L-REVIEW-PROOF; L-REVIEW-PROFILES; L-REVIEW-EMIT; RT-C1 gated |
+| L02 | LANG-PROOF-C; completed L-REVIEW-PROOF source boundary; L-REVIEW-PROFILES; L-REVIEW-EMIT; RT-C1 gated |
 | L03 | L-REVIEW-GIVEN; L-REVIEW-AUTHORING; P-R05 recipient |
 | L04 | L-REVIEW-DEV |
 | L05 | L-REVIEW-NATIVE; RT-VALUES-REVIEW recipient |
