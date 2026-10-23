@@ -264,9 +264,10 @@ function assertSendGuard(entry: unknown, artifact: CompileArtifact,
   const rule = data(guard, 'rule') as string;
   const rules = artifact.callables.filter(candidate => candidate.kind === 'rule' && candidate.id === rule &&
     candidate.module === callable.module && equal(candidate.member, ['sendWhen', rule]));
-  if (!['binding,inputDeclaration,inputs,node,owner,rule,source,sourceBinding,statement,target',
-    'binding,eventSource,inputDeclaration,inputs,node,owner,rule,source,sourceBinding,statement,target']
-    .includes(Object.keys(guard).sort().join(',')) ||
+  const sourceEvaluation = Object.hasOwn(guard, 'evaluation');
+  const expected = ['binding', 'inputDeclaration', 'inputs', 'node', 'owner', 'rule', 'source', 'sourceBinding', 'statement', 'target',
+    ...(Object.hasOwn(guard, 'eventSource') ? ['eventSource'] : []), ...(sourceEvaluation ? ['evaluation'] : [])];
+  if (!equal(Object.keys(guard).sort(), expected.sort()) || sourceEvaluation && data(guard, 'evaluation') !== 'source' ||
       data(guard, 'owner') !== callable.id || originalSource.path !== source.source.path ||
       originalSource.sha256 !== source.source.sha256 || originalSource.module !== owningPackage ||
       rules.length !== 1 || rules[0]!.inputStyle !== undefined || profile.kind !== 'inputs') {
@@ -301,6 +302,7 @@ function assertSendSlots(guard: Record<string, unknown>, profile: FrameworkOpaqu
     node = { start: data(node, 'start') as number, end: data(node, 'end') as number };
   }
   declarations.push({ id: `${rule}:send-inputs`, source: { kind: 'send-guard', rule,
+    ...(Object.hasOwn(guard, 'evaluation') ? { evaluation: 'source' as const } : {}),
     source: source.source, owner: callable.id, node,
     binding: data(guard, 'binding') as string, target: data(guard, 'target') as string, inputs }, profile });
 }
