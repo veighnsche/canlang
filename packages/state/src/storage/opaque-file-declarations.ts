@@ -137,7 +137,9 @@ function guardIdentity(value: unknown): string {
   return result;
 }
 function sendGuard(set: FrameworkOpaqueDeclarationSet, value: FrameworkOpaqueSendGuardDeclaration, tagged = false): void {
-  record(value, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs', ...(tagged ? ['kind'] : [])]);
+  record(value, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs', ...(tagged ? ['kind'] : []),
+    ...(Object.hasOwn(value, 'evaluation') ? ['evaluation'] : [])]);
+  if (Object.hasOwn(value, 'evaluation') && value.evaluation !== 'source') return refuse('original SEND evaluation phase required.');
   for (const key of ['rule', 'owner', 'binding', 'target'] as const) guardIdentity(value[key]);
   source(set, value.source); guardIdentity(value.source.path); guardIdentity(value.source.module);
   record(value.node, ['start', 'end']);
@@ -384,7 +386,8 @@ export function bindOpaqueFileDeclarations(sets: readonly FrameworkOpaqueDeclara
       const from = item.source;
       record(from, from.kind === 'callable' ? ['kind', 'source', 'callable'] : from.kind === 'event' ?
         ['kind', 'source', 'event'] : from.kind === 'send-guard' ?
-          ['kind', 'rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs'] : ['kind', 'source', 'context']);
+          ['kind', 'rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs',
+            ...(Object.hasOwn(from, 'evaluation') ? ['evaluation'] : [])] : ['kind', 'source', 'context']);
       source(set, from.source);
       if (from.kind === 'callable') {
         callableShape(from.callable);
