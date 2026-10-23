@@ -2036,7 +2036,7 @@ it('constructs declared nested Contract SEND arguments through real Values and W
         const result=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='allowed-stored';
         assert.equal('result' in result&&result.result.status==='committed',success,`${mode}: ${JSON.stringify(result)}`);
         const row=await store.load(rootModel,owner.id);assert.ok(row);assert.equal(row.data.checked,success,mode);
-        const pending=await store.outboxPending();assert.equal(pending.length,success&&!allowance?1:0,mode);
+        const pending=await store.outboxPending();assert.equal(pending.length,success?1:0,mode);
         if(success){
           assert.deepEqual(pending[0]!.arguments,{binding:'worker.Port',from:'deployment.port',arguments:{packet:{
             detail:{title:mode==='allowed-stored'?'Readable title':'Original title',enabled:true,note:'Original',tags:['authored'],mode:'normal'},
