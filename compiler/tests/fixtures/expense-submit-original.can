@@ -1,0 +1,33 @@
+app CanExpense uses=[expense]
+package expense
+ use rent_catalog {Location}
+ use employee {Employee,can_work}
+ Given
+  role reviewer
+  role finance
+  Expense in Employee { location:Location, corrects:Expense? label="Corrected claim"@{nl="Gecorrigeerde declaratie"}, authorization:text? label="Job or purchase authorization reference"@{nl="Werk- of inkoopautorisatiereferentie"}, purpose:text trim min=1 label="Purpose"@{nl="Doel"}, category:text label="Category"@{nl="Categorie"}, amount:money, business_date:date label="Business date"@{nl="Kostendatum"}, receipt:file label=label_Expense_receipt, reviewer:user label=label_reviewer, status:enum(draft,submitted,approved,rejected,withdrawn,reimbursed)=draft label={text="Status"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved=label_Expense_status_approved,rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"},reimbursed="Reimbursed"@{nl="Vergoed"}}}, submission:int=0 label=label_Expense_submission, withdrawal:text? label="Withdrawal reason"@{nl="Reden voor intrekking"}, decision:text? label="Decision"@{nl="Besluit"}, decided_by:user? label="Decision maker"@{nl="Beslist door"}, decided_at:datetime? label=label_Expense_decided_at } label="Expense claim"@{nl="Onkostendeclaratie"}
+  ReceiptExtract in Expense { source:text unique label="Extraction source"@{nl="Extractiebron"}, amount:money, spent_on:date label="Receipt date"@{nl="Bondatum"}, merchant:text label="Merchant"@{nl="Verkoper"} } label="Receipt transcription"@{nl="Bontranscriptie"}
+  policy Expense read=authenticated where=row.parent.user==actor
+  policy Expense read=reviewer where=row.reviewer==actor and can_work(actor,row.location) and row.status!=draft
+  policy Expense read=finance and can_work(actor,row.location)
+  policy ReceiptExtract read=authenticated where=row.parent.parent.user==actor
+  policy ReceiptExtract read=reviewer where=row.parent.reviewer==actor and can_work(actor,row.parent.location) and row.parent.status!=draft
+  policy ReceiptExtract read=finance and can_work(actor,row.parent.location)
+  invariant Expense: row.amount.minor>0 and row.amount.currency==row.location.currency
+  invariant Expense: row.corrects==null or (row.corrects.parent==row.parent and row.corrects.status in [rejected,withdrawn])
+  invariant ReceiptExtract: row.amount.minor>0 and row.amount.currency==row.parent.location.currency and trim(row.merchant)!=""
+  lock Expense fields=location,authorization,purpose,category,amount,business_date,receipt,reviewer when=row.status!=draft
+  lock Expense fields=corrects
+  lock ReceiptExtract fields=source,amount,spent_on,merchant
+  message evidenced_reimbursement_caption = "Evidenced reimbursement"@{nl="Onderbouwde vergoeding"}
+  message label_reviewer = "Reviewer"@{nl="Beoordelaar"}
+  message label_Expense_receipt = "Receipt"@{nl="Bon"}
+  message label_Expense_status_approved = "Approved"@{nl="Goedgekeurd"}
+  message label_Expense_submission = "Submission revision"@{nl="Ingediende revisie"}
+  message label_Expense_decided_at = "Decision time"@{nl="Beslist op"}
+  message label_Reimbursement_paid = "Payment date"@{nl="Betaaldatum"}
+ When
+  scenario submit(expense:Expense) by=members
+   require expense.parent.user==actor and expense.parent.active and expense.status==draft and can_work(actor,expense.location) and expense.reviewer!=actor and reviewer(expense.reviewer) and can_work(expense.reviewer,expense.location) and any(expense.ReceiptExtract as extract,extract.amount==expense.amount and extract.spent_on==expense.business_date)
+   do set expense {status=submitted,submission=expense.submission+1}
+ Then
