@@ -15709,6 +15709,13 @@ impl<'a> Closure<'a> {
                     return Some((effect,&body[index+1..]));
                 }
                 if effect.verb==EffectVerb::If&&effect.match_arms.is_empty(){
+                    // The true arm claims exactly the key whose absence was
+                    // observed. A sibling/else CREATE cannot establish it.
+                    if effect.else_effects.is_empty() && matches!(effect.then_effects.as_slice(),[create] if create.verb==EffectVerb::Create && create.when.is_none()
+                            &&create.then_effects.is_empty()&&create.else_effects.is_empty()&&create.match_arms.is_empty())
+                        && effect.cond.is_some_and(|condition|closure.source_require_negative_conjunct(condition,call,0)) {
+                        return Some((effect,effect.then_effects.as_slice()));
+                    }
                     if let Some(found)=guard_tail(closure,&effect.then_effects,call,depth+1){return Some(found);}
                     if let Some(found)=guard_tail(closure,&effect.else_effects,call,depth+1){return Some(found);}
                 }
@@ -15744,7 +15751,7 @@ impl<'a> Closure<'a> {
         {
             return None;
         }
-        let input = |key: NodeKey| -> Option<(SymbolId, bool)> {
+        let input = |key: NodeKey| -> Option<(SymbolId, Option<SymbolId>, bool)> {
             let key = self.query_group(key)?;
             let (key, trimmed) = if let Some(call) = self.types.selected_calls.get(&key) {
                 if *expected!=ResolvedType::Scalar(Scalar::Text)
@@ -15758,6 +15765,19 @@ impl<'a> Closure<'a> {
             } else {
                 (key, false)
             };
+            if *expected==ResolvedType::Scalar(Scalar::Text) && let Some((root,name))=self.count_member(key) {
+                let Binding::Symbol(parameter)=self.query_binding(root)? else{return None;};
+                let parameter_data=scenario.params.iter().find(|input|input.param==*parameter&&input.default.is_none())?;
+                let ResolvedType::Record{symbol:source,stored:true}=self.types.symbol_types.get(&parameter_data.param)? else{return None;};
+                if self.types.node_types.get(&root)!=self.types.symbol_types.get(parameter)
+                    ||self.types.node_types.get(&key)!=Some(expected){return None;}
+                let source_model=self.effects.models.get(source)?;
+                let source_field=source_model.fields.iter().find(|field|
+                    self.resolve.symbols.get(field.field.0 as usize).is_some_and(|field|field.name==name))?;
+                if source_field.server.is_some() || source_field.default.is_some()
+                    ||self.types.symbol_types.get(&source_field.field)!=Some(expected){return None;}
+                return Some((*parameter,Some(source_field.field),trimmed));
+            }
             let Binding::Symbol(parameter) = self.query_binding(key)? else {
                 return None;
             };
@@ -15769,20 +15789,21 @@ impl<'a> Closure<'a> {
             }else{
                 parameter_data.default.is_none()&&self.types.symbol_types.get(parameter)==Some(expected)
             };
-            admitted.then_some((*parameter,trimmed))
+            admitted.then_some((*parameter,None,trimmed))
         };
         let value = input(right)?;
-        tail.iter().any(|effect| {
+        let guarded_end=if guard.verb==EffectVerb::If{guard.cond?.end}else{guard.node.end};
+        let found=tail.iter().any(|effect| {
                 effect.node.file == guard.node.file
-                    && effect.node.start >= guard.node.end
+                    && effect.node.start >= guarded_end
                     && effect.verb == EffectVerb::Create
                     && matches!(effect.target,Some(EffectTarget::Model(actual)) if actual==model)
                     && effect.args.iter().any(|argument| {
                         argument.key == self.resolve.symbols[field.0 as usize].name
                             && input(argument.value.unwrap_or(argument.key_node)) == Some(value)
                     })
-            })
-            .then_some(())
+            });
+        found.then_some(())
     }
 
     fn source_require_any_call(
@@ -29112,7 +29133,15 @@ impl<'a> Closure<'a> {
                                 {
                                     return Err(self.fail(effect.node, "unproven exhaustive match"));
                                 }
-                                let alternatives = self.expr(subject, module, &flow.env, calls)?;
+        // The exact source observer owns only this reached boolean and its
+        // current/final reads. Keep both original branch paths and decisions;
+        // its control observations confer no DATA authority on either arm.
+        let observed_condition=effect.verb==EffectVerb::If && calls.is_empty()
+            && self.effects.scenarios.values().any(|scenario|scenario.module==module
+                &&self.checked_source_requires(scenario).is_some_and(|sites|sites.iter().any(|site|
+                    site.stage==CheckedDecisionStage::BodyCondition && site.statement==effect.node && site.node==subject)));
+        let alternatives=if observed_condition{vec![ValuePath::default()]}
+            else{self.expr(subject,module,&flow.env,calls)?};
         let branches = self.branch_bodies(effect)?;
         for condition in alternatives {
             self.walk_branch_alternative(effect, module, calls, &flow, condition, &branches, next, returns)?;

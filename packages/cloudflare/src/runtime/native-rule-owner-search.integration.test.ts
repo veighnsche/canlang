@@ -3878,3 +3878,56 @@ it('terminates the original agreement with coherent subject roles and its exact 
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('executes the complete original Invoice void with its unique fence, Work cancellation and settlement', {timeout:900000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-invoice-void-source-')),sourceDirectory=await mkdtemp(join(root,'packages/cloudflare/test/fixtures/.invoice-void-data-'));
+ try{
+  const{artifact,asm}=await installed('invoice-void-source.can',directory),original=await readFile(join(root,'draft/apps/CanInvoice/CanInvoice.can'),'utf8'),text=await readFile(fixture('invoice-void-source.can'),'utf8');
+  const start=original.indexOf('  scenario void_invoice('),end=original.indexOf('   examples ',start);assert.ok(text.includes(original.slice(start,end)),'complete original unique IF, bounded cancellation loop, settlement and both CANCEL expressions remain authored');
+  for(const mode of (process.env['CAN_INVOICE_VOID_CASE']??'empty,pending,constructor-data-denied,maximum,overflow,existing-fence,duplicate-race,identity-race,source-race,aggregate-race,withheld-reference').split(',')){
+   let activeArtifact=artifact,activeAsm=asm;
+   if(mode==='constructor-data-denied'){
+    // Remove the later EMIT so only the original constructor's own DATA
+    // observation can reject this read; a Bool guard cannot lend that grant.
+    const source=join(sourceDirectory,'constructor-data.can');
+    await writeFile(source,text.replace('policy Invoice read=members and not row.hidden','policy Invoice read=members where=not row.hidden fields=location,currency,state,total,next_collection,ledger_revision,first_paid_at,hidden,needs_review,credits,received,refunded,balance,refund_due').replace('    emit InvoiceSettlement {value=settlement(invoice)}\n',''));
+    const{stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});activeArtifact=JSON.parse(stdout)as CompileArtifact;
+    activeAsm=await assembleModules({artifact:activeArtifact,sourcePath:source},{workDir:join(directory,'constructor-data'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+   }
+   const{now,identities,identity,user,team,membership}=await member('invoice-void-'+mode,['invoice.finance']);
+   const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'},authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'void-state',fileStoreId:'void-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+   const{store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+   await installNativeFileInventory({artifact:activeArtifact,asm:activeAsm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+   const row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert'as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}}),parent={model:asModel('invoice.Invoice'),id:asId('invoice')};
+   const zero={minor:'0',currency:'EUR'},amount={minor:'100',currency:'EUR'},count=['pending','aggregate-race','withheld-reference'].includes(mode)?2:mode==='maximum'?100:mode==='overflow'?101:0;
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    row('rent_catalog.Location','location',{active:true}),row('customer.Customer','customer',{kind:'company',hidden:false}),row('employee.Employee','worker',{user:{id:user.user_id},home:{id:'location'},locations:[],operator_wide:false,active:true,hidden:true}),
+    row('invoice.Invoice','invoice',{location:{id:'location'},source:'original-invoice',currency:'EUR',state:'issued',total:amount,next_collection:new Date(now+3600000).toISOString(),ledger_revision:'0',first_paid_at:null,hidden:false,needs_review:false},{model:asModel('customer.Customer'),id:asId('customer')}),
+    ...Array.from({length:count},(_,index)=>row('invoice.Attempt','attempt-'+index,{reference:'attempt-'+index,amount,kind:'collection',status:index===0?'pending':'unknown',failure:null,disabled:false,delivery:null,checkout:'https://checkout.test/'+index,outcome_at:null,received:null,reference_readable:mode!=='withheld-reference',hidden:false},parent)),
+    ...(mode==='existing-fence'?[row('invoice.BillingCancellation','prior',{source:'original-invoice',reason:'Original cancellation'})]:[])
+   ]}));
+   const invoker=buildInvoker(activeArtifact,activeAsm,store,{memberships:identities,now:()=>now});
+   const armed=await invoker.invokeMutation({operation:'invoice.arm_void',operation_id:operationId(now),inputs:{invoice:{id:'invoice',version:'1'}}},identity);assert.ok('result'in armed&&armed.result.status==='committed',JSON.stringify(armed));
+   const before=await store.query({model:asModel('work.schedule'),authority:'owner'});assert.equal(before.length,2);
+   const commit=store.commit.bind(store),query=store.query.bind(store),load=store.load.bind(store);let raced=false;
+   store.query=async spec=>{const rows=await query(spec);if(mode==='identity-race'&&spec.model==='invoice.BillingCancellation'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return rows;};
+   store.commit=async batch=>{if(!raced&&['duplicate-race','source-race','aggregate-race'].includes(mode)&&batch.writes.some(write=>write.kind==='insert'&&write.model==='invoice.BillingCancellation')){raced=true;if(mode==='duplicate-race')await commit(makeBatch(await store.readRevision(),{writes:[row('invoice.BillingCancellation','concurrent',{source:'original-invoice',reason:'Concurrent original cancellation'})]}));else{const changedModel=asModel(mode==='aggregate-race'?'invoice.Attempt':'invoice.Invoice'),old=await load(changedModel,asId(mode==='aggregate-race'?'attempt-0':'invoice'));assert.ok(old);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:changedModel,id:old.id,expectedVersion:old.version,row:{...old,version:asVersion(old.version+1),data:{...old.data,...(mode==='aggregate-race'?{hidden:true}:{state:'draft'})}}}]}));}}return commit(batch);};
+   const request={operation:'invoice.void_invoice',operation_id:operationId(now),inputs:{invoice:{id:'invoice',version:'1'},reason:'Reviewed cancellation'}},outcome=await invoker.invokeMutation(request,identity),success=!['constructor-data-denied','overflow','identity-race','source-race','aggregate-race','withheld-reference'].includes(mode);assert.equal('result'in outcome&&outcome.result.status==='committed',success,mode+': '+JSON.stringify(outcome));
+   if(mode.endsWith('-race'))assert.ok(raced,mode);
+   if(!success){assert.equal((await query({model:asModel('invoice.PaymentRequest'),authority:'owner'})).length,0);assert.equal((await query({model:asModel('invoice.BillingCancellation'),authority:'owner'})).length,0);assert.equal((await store.outboxPending()).length,0);assert.equal((await query({model:asModel('work.occurrence'),authority:'owner'})).length,0);assert.deepEqual(await query({model:asModel('work.schedule'),authority:'owner'}),before);const unchanged=await load(asModel('invoice.Invoice'),asId('invoice'));assert.ok(unchanged);assert.equal(unchanged.data.state,mode==='source-race'?'draft':'issued');assert.equal(unchanged.data.ledger_revision,'0');continue;}
+
+   const invoice=await store.load(asModel('invoice.Invoice'),asId('invoice'));assert.ok(invoice);assert.equal(invoice.data.state,count?'void_pending':'void');assert.equal(invoice.data.next_collection,null);assert.equal(invoice.data.ledger_revision,'1');
+   const fences=await store.query({model:asModel('invoice.BillingCancellation'),authority:'owner'});assert.equal(fences.length,1);assert.equal(fences[0]!.data.source,'original-invoice');assert.equal(fences[0]!.data.reason,mode==='existing-fence'?'Original cancellation':mode==='duplicate-race'?'Concurrent original cancellation':'Reviewed cancellation');
+   const pending=await store.outboxPending(),requests=await store.query({model:asModel('invoice.PaymentRequest'),authority:'owner'});assert.equal(pending.length,count);assert.equal(requests.length,count);
+   for(const request of requests){const id=(request.data.cancellation as{id:string}).id;assert.ok(pending.some(intent=>intent.intentId===id&&intent.target==='std.PaymentsV1.cancel'));assert.equal(request.data.kind,'cancel');assert.equal(request.data.reconciliation,null);}
+   const events=(await store.query({model:asModel('work.occurrence'),authority:'owner'}));assert.equal(events.length,1);assert.deepEqual((events[0]!.data.result as{payload:unknown}).payload,{value:{source:'original-invoice',invoice:'invoice',revision:'1',amount,collected:zero,refunded:zero,collection_pending:count>0,refund_pending:false,state:count?'void_pending':'void',recorded_at:new Date(now).toISOString()}});
+   for(const key of ['invoice','invoice:collection'])assert.equal(await store.scheduleGet([scope.app,scope.ownerPackage,scope.owner,key].map(encodeURIComponent).join('/')),null,'both authored keys cancel their genuine original Work schedules');
+   const schedules=await store.query({model:asModel('work.schedule'),authority:'owner'});assert.ok(schedules.every(row=>row.data.state==='cancelled'));
+   if(mode==='pending'){
+    for(const operation of ['invalid_kind','invalid_review']){const invalid=await invoker.invokeMutation({operation:'invoice.'+operation,operation_id:operationId(now),inputs:{attempt:{id:'attempt-0',version:'2'}}},identity);assert.ok('error'in invalid,operation+': '+JSON.stringify(invalid));assert.equal(invalid.error.code,'rule_failed',operation);assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await query({model:asModel('invoice.PaymentRequest'),authority:'owner'}),requests);}
+    const locked=await invoker.invokeMutation({operation:'invoice.alter_request',operation_id:operationId(now),inputs:{request:{id:requests[0]!.id,version:String(requests[0]!.version)}}},identity);assert.ok('error'in locked,JSON.stringify(locked));assert.equal(locked.error.code,'rule_failed');assert.match(locked.error.message,/Locked fields/);assert.deepEqual(await query({model:asModel('invoice.PaymentRequest'),authority:'owner'}),requests);
+   }
+   const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed',JSON.stringify(replay));assert.deepEqual(replay.result.records,[]);assert.equal(replay.result.result,null);assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),schedules);assert.deepEqual(await store.outboxPending(),pending);
+  }
+ }finally{await rm(directory,{recursive:true,force:true});await rm(sourceDirectory,{recursive:true,force:true});}
+});

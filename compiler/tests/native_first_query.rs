@@ -3156,3 +3156,21 @@ fn original_subject_roles_remain_in_the_complete_source_guard_census() {
   assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
  }
 }
+
+#[test]
+fn original_invoice_void_joins_its_unique_condition_and_both_owned_cancellations() {
+ let source=include_str!("../../packages/cloudflare/test/fixtures/invoice-void-source.can");
+ let(db,program,ir,catalog)=fixture_source("invoice-void-source.can",source);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let owner=item(&ir,"invoice.void_invoice");
+ for mode in ["cancel-template","cancel-root-field","cancel-owner","loop-maximum","if-condition","fence-source"]{
+  let mut changed=ir.clone();let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("owner")};
+  match mode{
+   "cancel-template"|"cancel-root-field"|"cancel-owner"=>{let IrStmt::Cancel{owner_package,key,..}=effects.last_mut().unwrap()else{panic!("cancel")};if mode=="cancel-owner"{*owner_package="foreign".into();}else{let args=match &mut key.expr{IrExpr::Call{args,..}|IrExpr::BoundCall{args,..}=>args,_=>panic!("format")};if mode=="cancel-template"{args[0].expr=IrExpr::Text("{invoice}:foreign".into());}else{let IrExpr::Object(fields)=&mut args[1].expr else{panic!("fields")};let IrExpr::Member{field,..}=&mut fields[0].1.expr else{panic!("identity")};*field="source".into();}}},
+   "loop-maximum"=>{let IrStmt::If{then_branch,..}=&mut effects[1]else{panic!("if")};let IrStmt::For{limit:Some(limit),..}=&mut then_branch[1]else{panic!("loop")};limit.expr=IrExpr::Int(101);},
+   "if-condition"=>{let IrStmt::If{cond,..}=&mut effects[0]else{panic!("if")};cond.expr=IrExpr::Bool(true);},
+   _=>{let IrStmt::If{then_branch,..}=&mut effects[0]else{panic!("if")};let IrStmt::Create{input,..}=&mut then_branch[0]else{panic!("create")};let IrExpr::Object(fields)=&mut input.expr else{panic!("fields")};fields[0].1.expr=IrExpr::Name("reason".into());},
+  }
+  let emitted=js::emit_program_with_native_source_receipts(&changed,true,&db);assert!(emitted.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {:?}",emitted.diagnostics);
+ }
+ for(name,changed)in[("positive-any",source.replace("if not any(BillingCancellation as fence,fence.source==invoice.source)","if any(BillingCancellation as fence,fence.source==invoice.source)")),("different-source",source.replace("create BillingCancellation {source=invoice.source,reason} as fence","create BillingCancellation {source=reason,reason} as fence")),("non-unique",source.replace("BillingCancellation {source:text unique,reason:text}","BillingCancellation {source:text,reason:text}")),("raw-scalar-alias",source.replace("    if not any(BillingCancellation as fence,fence.source==invoice.source)","    let copied=invoice.source\n    if not any(BillingCancellation as fence,fence.source==invoice.source)").replace("create BillingCancellation {source=invoice.source,reason} as fence","create BillingCancellation {source=invoice.source,reason=copied} as fence"))]{let(db,program,_,catalog)=fixture_source(name,&changed);let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{name}: {diagnostics:?}");}
+}

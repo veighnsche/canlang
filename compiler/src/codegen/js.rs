@@ -1651,18 +1651,37 @@ fn source_only_cancels(ir:&IrProgram,owner:&IrItem,context:&super::scenario_deci
     let mut roots:BTreeMap<String,SymbolId>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};
         matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}).then(||(param.name.clone(),*symbol))}).collect();
+    fn key_root<'a>(value:&'a TypedExpr,roots:&BTreeMap<String,SymbolId>)->Option<(&'a str,Option<String>)>{
+        fn identity<'b>(value:&'b TypedExpr,roots:&BTreeMap<String,SymbolId>)->Option<&'b str>{
+            let IrExpr::Member{base,field}=&value.expr else{return None;};let IrExpr::Name(name)=&base.expr else{return None;};
+            (field=="id"&&value.ty==ResolvedType::Scalar(Scalar::Text)
+                &&matches!(&base.ty,ResolvedType::Record{symbol,stored:true}if roots.get(name)==Some(symbol))).then_some(name.as_str())
+        }
+        if let Some(root)=identity(value,roots){return Some((root,None));}
+        let args=match &value.expr{
+            IrExpr::Call{target:IrCallTarget::Builtin{id,awaited:false},args}if id=="format"=>args,
+            IrExpr::BoundCall{target:IrCallTarget::Builtin{id,awaited:false},args,slots}if id=="format"&&slots.as_slice()==[Some(0),Some(1)]=>args,
+            _=>return None,
+        };
+        let [template,fields]=args.as_slice()else{return None;};
+        let IrExpr::Text(template)=&template.expr else{return None;};
+        let IrExpr::Object(fields)=&fields.expr else{return None;};let [(field,id)]=fields.as_slice()else{return None;};
+        let token=format!("{{{field}}}");let (prefix,suffix)=template.split_once(&token)?;
+        if value.ty!=ResolvedType::Scalar(Scalar::Text)||template.len()>512||prefix.contains(['{','}'])||suffix.contains(['{','}']){return None;}
+        Some((identity(id,roots)?,Some(format!("{prefix}{{id}}{suffix}"))))
+    }
     fn walk(ir:&IrProgram,owner:&IrItem,body:&[IrStmt],roots:&mut BTreeMap<String,SymbolId>,source:&serde_json::Value,module:&str,
         output:&mut HashMap<Span,serde_json::Value>){
         for statement in body{match statement{
             IrStmt::Let{name,..}=>{roots.remove(name);},
             IrStmt::Cancel{owner_package,key,span}=>{
-                let IrExpr::Member{base,field}=&key.expr else{continue;};let IrExpr::Name(parameter)=&base.expr else{continue;};
-                let Some(symbol)=roots.get(parameter)else{continue;};
-                if field!="id"||key.ty!=ResolvedType::Scalar(Scalar::Text)||owner.canonical.rsplit_once('.').map(|(package,_)|package)!=Some(owner_package)
-                    ||!matches!(&base.ty,ResolvedType::Record{symbol:actual,stored:true}if actual==symbol){continue;}
-                output.insert(*span,serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
+                let Some((parameter,template))=key_root(key,roots)else{continue;};let Some(symbol)=roots.get(parameter)else{continue;};
+                if owner.canonical.rsplit_once('.').map(|(package,_)|package)!=Some(owner_package){continue;}
+                let mut metadata=serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
                     "owner":owner.canonical,"node":{"start":span.start,"end":span.end},"parameter":parameter,"model":ir.items[symbol.0 as usize].canonical,
-                    "ownerPackage":owner_package}));
+                    "ownerPackage":owner_package});
+                if let Some(template)=template{metadata["key"]=serde_json::json!({"template":template});}
+                output.insert(*span,metadata);
             },
             IrStmt::If{then_branch,else_branch,..}=>{walk(ir,owner,then_branch,&mut roots.clone(),source,module,output);walk(ir,owner,else_branch,&mut roots.clone(),source,module,output);},
             IrStmt::Match{arms,..}=>for arm in arms{walk(ir,owner,&arm.body,&mut roots.clone(),source,module,output);},
@@ -1836,6 +1855,23 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
             _ => false,
         }
     }
+    fn constructor_data(value:&TypedExpr,loans:&HashMap<Span,serde_json::Value>,values:&BTreeSet<String>,depth:usize)->bool{
+        if depth>64{return false;}
+        let child=|value:&TypedExpr|constructor_data(value,loans,values,depth+1);
+        match &value.expr{
+            IrExpr::Name(name)=>values.contains(name)
+                ||matches!(value.ty.nullable_inner().unwrap_or(&value.ty),ResolvedType::Record{stored:true,..}|ResolvedType::StdDelivery{..})
+                ||matches!(&value.ty,ResolvedType::Enum{cases,..}if cases.contains(name))
+                ||name=="c"&&value.ty==ResolvedType::Unknown,
+            IrExpr::Member{base,..}if matches!(base.ty.nullable_inner().unwrap_or(&base.ty),ResolvedType::Record{stored:true,..})=>loans.contains_key(&value.span),
+            IrExpr::Member{base,..}=>child(base),
+            IrExpr::Object(fields)=>fields.iter().all(|(_,value)|child(value)),
+            IrExpr::Array(values)|IrExpr::Call{args:values,..}|IrExpr::BoundCall{args:values,..}=>values.iter().all(child),
+            IrExpr::Binary{left,right,..}=>child(left)&&child(right),
+            IrExpr::Unary{operand,..}=>child(operand),
+            _=>true,
+        }
+    }
     fn statements(ir: &IrProgram,owner:&IrItem, body: &[IrStmt], depth: usize,
         values:&mut BTreeSet<String>,records:&mut BTreeMap<String,ResolvedType>,consumed:&HashSet<Span>,data_sends:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,cancels:&HashMap<Span,serde_json::Value>,schedules:&HashMap<Span,serde_json::Value>,data_emits:&HashMap<Span,serde_json::Value>,loops:&HashMap<String,serde_json::Value>,context:Option<&super::scenario_decisions::FreshSourceContext<'_>>) -> bool {
         if depth > 64 { return false; }
@@ -1851,7 +1887,7 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem, sources:&H
                 expression(ir,value,0)
             },
             IrStmt::Return { value, .. } => value.as_ref().is_none_or(|value| expression(ir, value, 0)),
-            IrStmt::Create { input, when: None, .. } => expression(ir, input, 0),
+            IrStmt::Create { input, when: None, .. } => expression(ir, input, 0)&&constructor_data(input,let_data,values,0),
             IrStmt::Send { args, when: None, span,.. } => send_value(ir,args,values,0)||data_sends.contains_key(span),
             IrStmt::Emit { event,payload,span } => data_emits.contains_key(span)||source_event_payload(ir,owner,event,payload,values,records,context),
             IrStmt::Cancel {span,..}=>cancels.contains_key(span),
@@ -8441,6 +8477,12 @@ impl<'a> Emitter<'a> {
         {
             return self.formatted_refusal("formatted formatting argument", span);
         }
+        if let Some(source)=self.source_let_data.get(&span).cloned()
+            &&matches!(expr.expr,IrExpr::Member{..}){
+            self.stdlib.insert("nativeScenarioSourceLetData".into());
+            let root=self.reference(source["parameter"].as_str().expect("checked original scalar DATA root"));
+            return format!("(await nativeScenarioSourceLetData(c,{},{root}))",descriptor_json(&source));
+        }
         if let Some(lowered) = self.lower_current_policy_member(expr) {
             return lowered;
         }
@@ -13242,9 +13284,8 @@ fn null_equality(
                     return vec![(format!("{pad}$hookCtx.cancel({key_text});"), *span)];
                 }
                 if let Some(source)=self.source_cancels.get(span).cloned(){
-                    let IrExpr::Member{base,..}=&key.expr else{unreachable!("checked source cancellation");};
                     self.stdlib.insert("nativeScenarioSourceCancel".into());
-                    let root=self.lower_expr(base);
+                    let root=self.reference(source["parameter"].as_str().expect("checked source cancel root"));
                     return vec![(format!("{pad}await nativeScenarioSourceCancel(c,{},{});",descriptor_json(&source),root),*span)];
                 }
                 self.stdlib.insert("cancel".to_string());

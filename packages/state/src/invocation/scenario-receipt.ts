@@ -6080,6 +6080,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
           owner.finalized=empty;owner.commitEffects=empty;admitted.refused=true;
           admitted.frameworkWrites.clear();admitted.frameworkVersions.clear();admitted.schedules.length=0;
           owner.callGuards.length=0;owner.storedFileChecks.length=0;
+          sourceEffectGuards.delete(owner);sourceEffectGrantCounts.delete(owner);
           state.rowIdGuards.length=0;state.files.length=0;
         } catch(error) {state.poisoned=true;throw error;}
       },
@@ -6246,7 +6247,7 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
     state.rowIdWrites = deepFreeze(dataCopy(snapshot['writes'],false,Math.max(state.bound.plan.sourceEmissions===undefined?20_000:200_000,
       sourceCopyDataBudget(sourceBodyLoopLimits(call.def as GeneratedOperationDef)??sourceCopyDefinitionLimits(call.def as GeneratedOperationDef))))) as readonly DomainWrite[];
   }
-  const guards = [...(owner?.callGuards ?? []), ...(captures.get(call)?.rowIdGuards ?? [])];
+  const guards = [...(owner===undefined?[]:orderedOwnerCallGuards(owner)), ...(captures.get(call)?.rowIdGuards ?? [])];
   if (guards.length !== 0) retainedCallGuards.set(call, Object.freeze(guards));
   const finalNominalGuard = nominalGuard;
   const storedChecks = [...(owner?.storedFileChecks ?? []), ...(finalNominalGuard === undefined ? [] : [async () => {
@@ -9893,6 +9894,52 @@ function predicateControlDomain(model: ModelName, domain: readonly StoredRow[], 
     assertHealthy(); return Object.freeze(selected);
   };
 }
+/** Repeated source-owned effects retain every original field guard. Their
+ * independent bank is bounded by the installed complete effect/loop census;
+ * ordinary queries retain their existing invocation-wide limit. */
+const sourceEffectGrantCounts=new WeakMap<ReceiptOwnerSession,Map<ScenarioReceiptReferenceProducer,number>>();
+type SourceEffectGuard=NonNullable<ExecutionEffects['guards']>[number];
+const sourceEffectGuards=new WeakMap<ReceiptOwnerSession,{readonly position:number;readonly guard:SourceEffectGuard}[]>();
+function appendSourceEffectGuard(owner:ReceiptOwnerSession,producer:ScenarioReceiptReferenceProducer,guard:SourceEffectGuard):void{
+  if(sourceEffectGrantCounts.get(owner)?.has(producer)!==true){owner.callGuards.push(guard);return;}
+  let guards=sourceEffectGuards.get(owner);
+  if(guards===undefined){guards=[];sourceEffectGuards.set(owner,guards);}
+  guards.push(Object.freeze({position:owner.callGuards.length,guard}));
+}
+function orderedOwnerCallGuards(owner:ReceiptOwnerSession):readonly SourceEffectGuard[]{
+  const bank=sourceEffectGuards.get(owner)??[],guards:SourceEffectGuard[]=[];let next=0;
+  // Ordinary append positions retain the exact interleaving in which source
+  // guards were registered; the separate bank never consumes ordinary slots.
+  for(let index=0;index<=owner.callGuards.length;index++){
+    while(next<bank.length&&bank[next]!.position===index)guards.push(bank[next++]!.guard);
+    if(index<owner.callGuards.length)guards.push(owner.callGuards[index]!);
+  }
+  if(next!==bank.length)return invalid('Source effect final guard order changed.');
+  return guards;
+}
+
+function sourceEffectGrantSlot(owner:ReceiptOwnerSession,producer:ScenarioReceiptReferenceProducer|undefined):boolean {
+  const def=owner.call.def as GeneratedOperationDef;
+  let maximum=0;
+  if(producer!==undefined&&producer===sourceEmitDataProducers.get(def)){
+    for(const site of sourceEmitDataProducers.get(def)!.sites)
+      maximum+=site.parameters.length+(site.queries?.length??0)*owner.maxRows;
+  }else if(producer!==undefined&&producer===sourceSendDataProducers.get(def)){
+    const loops=sourceBodyLoopProducers.get(def)?.loops??[];
+    for(const site of sourceSendDataProducers.get(def)!.sites){
+      const ids=new Set(site.parameters.flatMap(parameter=>parameter.loop===undefined?[]:[parameter.loop]));
+      if(ids.size>1)return false;
+      const id=[...ids][0],loop=id===undefined?undefined:loops.find(loop=>loop.id===id);
+      if(id!==undefined&&loop===undefined)return false;
+      maximum+=(loop?.maximum??1)*(site.parameters.length+(site.queries?.length??0)*owner.maxRows);
+    }
+  }else return owner.callGuards.length<MAX_ITEMS;
+  let counts=sourceEffectGrantCounts.get(owner);
+  if(counts===undefined){counts=new Map();sourceEffectGrantCounts.set(owner,counts);}
+  const count=counts.get(producer!)??0;
+  if(!Number.isSafeInteger(maximum)||maximum<=0||count>=maximum)return false;
+  counts.set(producer!,count+1);return true;
+}
 /** Original first-query rows reuse the installed source/ancestor projector and
  * complete Identity observation, both now and against actual final effects. */
 async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = false>(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
@@ -9910,7 +9957,7 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
   const queryOwned = queryProducers.get(call.def as GeneratedOperationDef)?.readPolicies?.has(model) === true;
   if (producer?.app !== call.context.app || policies === undefined || read === undefined ||
       !('grants' in read) && (!queryOwned || !producer.policy.has(model)) ||
-      owner.session === null || owner.callGuards.length >= MAX_ITEMS) return invalid('model query requires its installed whole source field grants.');
+      owner.session === null || !sourceEffectGrantSlot(owner,producer)) return invalid('model query requires its installed whole source field grants.');
   const stage = owner.stage;
   const healthy = () => {
     capture(call, store); ownerHealthy(owner);
@@ -9947,7 +9994,7 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
   healthy();
   if (!readable(authority.value)) throw new StateError('forbidden', 'Original model query source fields are unavailable.');
   await authority.revalidate(); healthy();
-  owner.callGuards.push(Object.freeze({ name: `model-query:${call.def.name}:${model}:${row.id}:${stage}:${owner.callGuards.length}`, evaluate: async () => {
+  appendSourceEffectGuard(owner,producer,Object.freeze({ name: `model-query:${call.def.name}:${model}:${row.id}:${stage}:${owner.callGuards.length+(sourceEffectGuards.get(owner)?.length??0)}`, evaluate: async () => {
     if (owner.finalized === null) return invalid('model query source lacks actual final owner effects.');
     const final = owner.finalized;
     const finalHealthy = () => { if (owner.finalized !== final || owner.capture.poisoned) return invalid('model query final owner effects changed.'); };
@@ -9975,8 +10022,9 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
     await authority.revalidate(); healthy();
   } };
 }
-/** A scalar LET observes ordinary DATA at its original evaluation point.
- * It grants no reference, query, framework write, or saved result. */
+/** A source-owned scalar read observes ordinary DATA at its original LET
+ * or constructor field evaluation point. It grants no reference, query,
+ * framework write, or saved result. */
 export interface ScenarioSourceLetDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly stage:number;readonly binding:string;

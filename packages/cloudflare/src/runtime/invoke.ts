@@ -3722,6 +3722,7 @@ const nativeScenarioExecutions = new WeakMap<AdmittedCall, NativeScenarioExecuti
 interface SourceCancelSource {
   readonly source:import('@canlang/contracts').ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly parameter:string;readonly model:string;readonly ownerPackage:string;
+  readonly key?:{readonly template:string};
 }
 const nativeSourceCancels=new WeakMap<GeneratedOperationDef,readonly SourceCancelSource[]>();
 interface SourceScheduleSource extends SourceCancelSource{
@@ -5782,9 +5783,10 @@ async function bindNativeSourceCancels(asm:AssembledModules,artifact:CompileArti
     const sites=captureDispatchPreclaimData(nativeCallArray(entry.value,200)) as unknown as readonly SourceCancelSource[];
     const seen=new Set<string>();
     for(const value of sites){
-      const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage']);
+      const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage',...(Object.hasOwn(value as object,'key')?['key']:[])]);
       const node=localPolicyObject(site.node,['start','end']),key=`${node.start}:${node.end}`;
       const parameter=def.descriptor.inputs.find(input=>input.name===site.parameter);
+      sourceScheduleKey(site.key,'identity');
       if(seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
           site.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||
           Number(node.start)<0||Number(node.end)<=Number(node.start)||parameter?.kind!=='ref'||parameter.model!==site.model||
@@ -9462,7 +9464,7 @@ async function loadLocalOwnerPolicyControl(input: {
             return ids !== undefined && localPolicyStrings(ids).length > 0;
           });
           if (hasRules && !owning.some(descriptor => descriptor.model === model)) {
-            throw new Error('Local owner policy omits an owning model declaration.');
+            throw new Error(`Local owner policy omits an owning model declaration: ${model}.`);
           }
         }
       }
@@ -12976,8 +12978,9 @@ async function runScenarioExecution(
           assertExecution(actual,receiptStore);
           if(current===null||current.archivedAt!==null||current.created!==ref.row.created||current.createdBy!==ref.row.createdBy||
               current.version<ref.row.version||stableStringify(current.parent??null)!==stableStringify(ref.row.parent??null))return refuseRecordBinding('Source CANCEL root lifetime changed.');
-          consumed.add(key);activeSourceCancellation=Object.freeze({key:ref.id,ownerPackage:source.ownerPackage});
-          try{await ctx.cancelDeferred!(ref.id,source.ownerPackage);assertExecution(actual,receiptStore);}
+          const cancellationKey=sourceScheduleKey(source.key,ref.id);
+          consumed.add(key);activeSourceCancellation=Object.freeze({key:cancellationKey,ownerPackage:source.ownerPackage});
+          try{await ctx.cancelDeferred!(cancellationKey,source.ownerPackage);assertExecution(actual,receiptStore);}
           finally{activeSourceCancellation=null;}
         }catch(error){recordEngineFailure(error);throw error;}
       });

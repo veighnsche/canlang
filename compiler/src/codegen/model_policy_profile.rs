@@ -3781,6 +3781,15 @@ pub(crate) fn checked_local_rule_fields(
             {
                 return None;
             }
+            if let IrExpr::Binary { op: IrBinOp::Coalesce, left, right } = &args[0].expr {
+                if left.ty != ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Text)))
+                    || right.ty != ResolvedType::Scalar(Scalar::Text)
+                    || !matches!(right.expr, IrExpr::Text(_))
+                {
+                    return None;
+                }
+                return field(program, model, left, fields);
+            }
             return field(program, model, args[0], fields);
         }
         // Existing scalar semantics may form the other comparison operand;
@@ -3850,14 +3859,14 @@ pub(crate) fn checked_local_rule_fields(
             (left, right)
         };
         let ty = read.ty.nullable_inner().unwrap_or(&read.ty);
-        let ResolvedType::Record {
-            symbol,
-            stored: true,
-        } = ty
-        else {
-            return None;
-        };
-        policy_model(program, *symbol)?;
+        match ty {
+            ResolvedType::Record { symbol, stored: true } => { policy_model(program, *symbol)?; }
+            // Presence is a local owning-row fact. Decoding the exact declared
+            // delivery wire grants no delivery status or result observation.
+            ResolvedType::StdDelivery { .. } | ResolvedType::Scalar(Scalar::Text)
+                if read.ty.nullable_inner().is_some() => {}
+            _ => return None,
+        }
         if null.ty != ResolvedType::Null {
             return None;
         }
