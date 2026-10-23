@@ -630,8 +630,12 @@ fn validate_catalog(owned: &[Package], platform: &Package, catalog: &Path) -> Re
         .find(|p| p.name == "@canlang/values")
         .ok_or("Values producer unavailable")?;
     let selected_catalog = canonical(catalog)?;
-    if selected_catalog != canonical(values.root.join("dist/catalog.json"))?
-        && selected_catalog != canonical(platform.root.join("dist/native-catalog.json"))?
+    if ![
+        values.root.join("dist/catalog.json"),
+        platform.root.join("dist/native-catalog.json"),
+    ]
+    .iter()
+    .any(|path| fs::canonicalize(path).is_ok_and(|owned| owned == selected_catalog))
     {
         return Err("catalog must belong to the selected installed producer".into());
     }

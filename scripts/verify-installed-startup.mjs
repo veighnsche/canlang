@@ -15,9 +15,11 @@ await mkdir(root, { recursive: true, mode: 0o700 });
 await mkdir(state, { recursive: true, mode: 0o700 });
 const repoScripts = fileURLToPath(new URL('./', import.meta.url));
 const plain = join(root, 'Preview.can'), files = join(root, 'Files.can'), sodaSource = join(root, 'Soda.can');
+const todoSource = join(root, 'Todo.can'), todoArtifact = join(root, 'Todo.artifact.json');
 await copyFile(join(repoScripts, 'fixtures/preview-persistence.can'), plain);
 await copyFile(join(repoScripts, '../packages/cloudflare/test/fixtures/native-root-files.can'), files);
 await copyFile(join(repoScripts, 'fixtures/soda-runtime.can'), sodaSource);
+await copyFile(join(repoScripts, '../examples/Todo.can'), todoSource);
 let session;
 const env = { ...process.env, CAN_TOOL_ROOT: tools, CAN_DEV_STATE_ROOT: join(state, 'retained'), TMPDIR: process.env.TMPDIR ?? join(state, 'tmp') };
 await mkdir(env.TMPDIR, { recursive: true, mode: 0o700 });
@@ -52,6 +54,22 @@ for (const directory of [root, state]) {
   try { await access(join(directory, '.wrangler')); assert.fail('offline startup created a .wrangler metadata cache'); }
   catch (error) { if (error.code !== 'ENOENT') throw error; }
 }
+const can = join(tools, 'bin/can');
+await writeFile(todoArtifact, execFileSync(can, ['compile', '--format=json', '--native-scenario-receipts', 'Todo.can'],
+  { cwd: root, env, timeout: 120000 }));
+const examples = JSON.parse(execFileSync(can, ['test', '--artifact', todoArtifact],
+  { cwd: root, env, encoding: 'utf8', timeout: 120000 }));
+assert.equal(examples.ok, true, JSON.stringify(examples));
+assert.ok(examples.executed > 0, 'Installed tools execute nonempty native examples');
+const foreignCatalog = join(state, 'foreign-catalog.json');
+await copyFile(join(tools, 'lib/node_modules/@canlang/cloudflare/dist/native-catalog.json'), foreignCatalog);
+let foreignCatalogResult;
+try {
+  execFileSync(can, ['test', '--artifact', todoArtifact],
+    { cwd: root, env: { ...env, CAN_CATALOG: foreignCatalog }, encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'] });
+} catch (error) { foreignCatalogResult = JSON.parse(error.stdout); }
+assert.equal(foreignCatalogResult?.code, 'native-examples-failed');
+assert.match(foreignCatalogResult.detail, /catalog must belong to the selected installed producer/);
 const require = createRequire(join(tools, 'lib/package.json'));
 const { preflightSodaDeployment } = await import(pathToFileURL(require.resolve('@canlang/cloudflare/deploy/soda')).href);
 const { CONTRACTS_VERSION } = await import(pathToFileURL(require.resolve('@canlang/contracts')).href);
@@ -68,6 +86,7 @@ preflightSodaDeployment(artifact, descriptor, environment);
 assert.throws(() => preflightSodaDeployment(artifact, descriptor, { ...environment, vars: { CAN_AUTH_ORIGIN: 'http://127.0.0.1:8080' } }), /File receivers require an HTTPS/);
 assert.throws(() => preflightSodaDeployment(artifact, { ...descriptor, resourceBindings: [resources[0]] }, environment), /State D1 binding STATE_DB/);
 const results = { offlinePreviewStartup: true, noWranglerMetadataCache: true, devFilesAndDurableObjectsSupported: true,
+  nativeExamplesExecuted: examples.executed,
   missingStateBindingRejected: true, filesHttpOriginRejected: true, tools, project: root };
 await writeFile(join(state, 'startup-results.json'), JSON.stringify(results, null, 2));
 console.log(JSON.stringify(results, null, 2));
