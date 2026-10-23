@@ -2828,6 +2828,10 @@ fn emit_program_with_sources(
                         .into(),
                     item.span,
                 ));
+            } else if let Some(recipe) = decisions.source_context.zip(decisions.send_guards)
+                .and_then(|(context,guards)|super::send_guards::retained_handler_receipt(
+                    context,guards,item,&module_path(&entry_name))) {
+                emitter.native_receipts.insert(item.id,recipe);
             } else if super::scenario_receipts::has_original_guarded_send(
                 ir,
                 SymbolId(index as u32),
@@ -3025,10 +3029,16 @@ fn emit_program_with_sources(
             &format!("export function canMembershipSources(){{return JSON.parse({payload});}}"),
         );
     }
-    if let Some(queries) = queries.filter(|queries| !queries.is_empty()) {
+    let mut source_plans=queries.cloned().unwrap_or_default();
+    for (id,recipe) in &emitter.native_receipts {
+        if recipe.plan.retained_guarded_handler.is_some() {
+            source_plans.insert(ir.items[id.0 as usize].canonical.clone(),serde_json::to_value(&recipe.plan).expect("private source frame"));
+        }
+    }
+    if !source_plans.is_empty() {
         // Return fresh own data: readers cannot mutate another consumer's
         // checked recipe. The verified loader still owns all runtime binding.
-        let payload = descriptor_json(&descriptor_json(queries));
+        let payload = descriptor_json(&descriptor_json(&source_plans));
         body.push(
             entry_span,
             Some("canScenarioQuerySources".into()),
@@ -20157,7 +20167,15 @@ impl<'a> Emitter<'a> {
                         None => event,
                     }
                 });
+                let retained=self.native_receipts.values().any(|receipt|receipt.plan.retained_guarded_handler.as_ref()
+                    .is_some_and(|frame|frame["owner"]==guard.descriptor["owner"]));
+                let previous_owner=self.owner_handler_body;
+                let previous_retained=self.retained_owner_body;
+                self.owner_handler_body=retained;
+                self.retained_owner_body=retained;
                 let predicate = self.lower_expr(&guard.predicate);
+                self.owner_handler_body=previous_owner;
+                self.retained_owner_body=previous_retained;
                 self.exit_scope();
                 entries.push(format!(
                     "{}:async(c,$can$send$inputs)=>{{{bindings}{event_binding}return {predicate};}}",
@@ -21568,7 +21586,7 @@ impl<'a> Emitter<'a> {
                         std::mem::replace(&mut self.authority_body, *scope_authority);
                     self.receipt_calls.clear();
                     self.current_revision_binding = None;
-                    self.receipt_capture = self.native_receipts.get(&item.id).cloned();
+                    self.receipt_capture = self.native_receipts.get(&item.id).filter(|recipe| recipe.plan.retained_guarded_handler.is_none()).cloned();
                     // Source inventories remain useful for declined scenarios,
                     // but only a published, whole-owner receipt can enter the
                     // owning query lifetime. Dev dispatches the actual public

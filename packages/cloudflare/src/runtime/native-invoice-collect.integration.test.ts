@@ -23,13 +23,15 @@ import { WORK_DISPATCH_STAGE_COMMANDS, WORK_SYSTEM_COMMANDS,
   createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
 import { classifyFailure } from '@canlang/work/receipt';
 import { createSystemRegistry, systemCommandStageRevision } from '@canlang/state';
+import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
+import { loadOpaqueFileStaging } from './opaque-file-staging.js';
 import { readReceiptRow, readAssociationRow, withReceiptRowData, withAssociationRowData } from '@canlang/state/receipt/tables';
 import { applyReceiptProgress, applyRetainedRelatedProgress } from '@canlang/work/observation/association';
 import { assembleDispatchCommands, buildInvoker } from '../worker/assembly.js';
 import { installNativeFileInventory } from './file-inventory.js';
 import { bindNativeEmailDispatchGuards, createWorkerDispatchJoinPort,
   driveDispatchIntentWithPreclaim, loadDispatchSystemProducers,
-  withDispatchJoinPort, driveDispatchIntent, createNativeStandardCompletionSourceCommand, createNativeStandardCompletionPendingReceiptCommand, invokeRetainedHandlerOccurrenceCanonical } from './invoke.js';
+  withDispatchJoinPort, driveDispatchIntent, invokeDueSourceRoutingCanonical, loadCanonicalDescriptors, createNativeStandardCompletionSourceCommand, createNativeStandardCompletionPendingReceiptCommand, invokeRetainedHandlerOccurrenceCanonical } from './invoke.js';
 import { assembleModules } from './modules.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
@@ -380,11 +382,78 @@ it('executes the four authored Invoice terminals only from retained Work complet
         const line=original.split('\n').find(value=>value.startsWith(prefix));
         assert.ok(line && probe.includes(line),`${prefix} is retained`);
       }
+      const failedFramework=process.env['CAN_INVOICE_GUARDED_FAIL']==='1';
+      const sourceCharge=process.env['CAN_INVOICE_SOURCE_CHARGE']==='1';
+      const automaticCollection=process.env['CAN_INVOICE_AUTOMATIC_COLLECTION']==='1';
+      const applyResult=sourceCharge || automaticCollection || process.env['CAN_INVOICE_APPLY_RESULT']==='1';
+      const guardedRetained=failedFramework || applyResult || process.env['CAN_INVOICE_GUARDED_RETAINED']==='1';
+      const compiledSource=guardedRetained?join(directory,'guarded-invoice.can'):terminalSource;
+      if(guardedRetained) await writeFile(compiledSource,probe.replace(' use std {PaymentState}',
+        ' use std {EmailV1 as Mail} from=deployment.mail\n use std {PaymentState}')
+        .replace('  scenario collected on=Payments.collect.completed',
+          '  scenario guarded_receipt on=ProviderReceipt\n   do\n    for observed in Attempt as candidate where candidate.reference==event.value.reference limit=1\n     send Mail.send {to="owner@example.test",subject="Source guard",body="Retained receipt"} when=observed.status==pending as delivery\n     set observed {outcome_at=now}\n     schedule event.value.reference at=now+5m event=ProviderReceipt {value=event.value}\n     cancel event.value.reference\n     schedule "guarded-followup" at=now+10m event=ProviderReceipt {value=event.value}\n  scenario collected on=Payments.collect.completed'));
+      if(failedFramework) {
+        const text=await readFile(compiledSource,'utf8');
+        const marker='     schedule "guarded-followup" at=now+10m event=ProviderReceipt {value=event.value}';
+        assert.ok(text.includes(marker));
+        await writeFile(compiledSource,text.replace(marker,marker+'\n     require false'));
+      }
+      if(applyResult) {
+        const start=original.indexOf('  scenario apply_result on=ProviderReceipt');
+        const end=original.indexOf('   examples ',start);
+        const actualBody=original.slice(start,end).trimEnd();
+        const refundLine=original.split('\n').find(line=>line.startsWith('  derive Invoice.refund_due:'))!;
+        let text=probe.replace(' use std {PaymentState}',
+          ' use std {EmailV1 as Mail} from=deployment.mail\n use std {PaymentState}')
+          .replace('  export Invoice in Customer {','  export Invoice in Customer {recipient_email:email,needs_review:bool=false,consent:text?,retry_delay:duration=2d,retry_until:datetime?,attempt_limit:int=3,')
+          .replace('  Attempt in Invoice {','  Attempt in Invoice {mode:enum(interactive,automatic)=interactive,provider_revision:int=0,provider_reference:text?,')
+          .replace('  event ProviderReceipt {value:PaymentState}',
+            '  event ReconcileDue {attempt:Attempt}\n  event CollectionDue {invoice:Invoice}\n  event ProviderReceipt {value:PaymentState}')
+          .replace('  derive Invoice.balance:money',refundLine+'\n  derive Invoice.balance:money')
+          .replace('  scenario collected on=Payments.collect.completed',actualBody+'\n  scenario collected on=Payments.collect.completed');
+        assert.ok(text.includes(actualBody),'complete original apply_result body is unchanged');
+        if(automaticCollection) {
+          const automaticStart=original.indexOf('  scenario automatic_collection on=CollectionDue');
+          const automaticEnd=original.indexOf('   examples ',automaticStart);
+          const automaticBody=original.slice(automaticStart,automaticEnd).trimEnd();
+          text=text.replace('  event CollectionDue {invoice:Invoice}',
+            '  BillingCancellation {source:text}\n  event CollectionDue {invoice:Invoice}')
+            .replace('  scenario collected on=Payments.collect.completed',automaticBody+'\n  scenario collected on=Payments.collect.completed');
+          assert.ok(text.includes(automaticBody),'complete original automatic_collection body is unchanged');
+        }
+        if(sourceCharge) {
+          const start=original.indexOf('  scenario source_charge on=BillingRequests.charge');
+          const end=original.indexOf('   examples ',start);
+          const body=original.slice(start,end).trimEnd();
+          text=text.replace('package customer\n Given','package customer\n use rent_catalog {Location}\n Given')
+            .replace('export Location {active:bool=true}', 'export Location {active:bool=true,currency:currency,timezone:timezone}')
+            .replace('export Customer {','export Customer {name:text,active:bool=true,locations:Location[],')
+            .replace('export Contact in Customer {','export Contact in Customer {email:email,')
+            .replace('  export CompanyRole in Customer {','  export BillingProfile in Customer {contact:Contact,address:text,tax_reference:text?}\n  export CompanyRole in Customer {')
+            .replace('use customer {Customer,Contact,CompanyRole,has_role,owns}', 'use customer {Customer,Contact,CompanyRole,BillingProfile,has_role,owns}')
+            .replace(' use std {PaymentState}', ' use invoice {BillingIngressV1 as BillingRequests} from=deployment.billing_ingress\n use std {PaymentState,OperationOutcome}')
+            .replace('  export Invoice in Customer {','  export Invoice in Customer {issuer:text,recipient:text,address:text,tax_reference:text?,description:text,terms:text?,source_items:DocumentLine[]?,due:date,number:text?,issued_at:datetime?,')
+            .replace('  event CollectionDue {invoice:Invoice}', '  BillingCancellation {source:text}\n  event CollectionDue {invoice:Invoice}')
+            .replace('  role finance', `  message notice_invoice_issued = "Invoice issued"@{nl="Factuur uitgegeven"}
+  Defaults {issuer:text,attempt_limit:int=3,retry_delay:duration=2d,retry_window:duration=14d}
+  export contract DocumentLine {title:text,quantity:decimal,price:money,tax:money,discount:money,unit:text?,from:datetime?,until:datetime?,location:text?,reference:text?}
+  export contract Charge {source:text,customer:text,location:text,description:text,amount:money,due:date,issuer:text?,terms:text?,items:DocumentLine[]?,consent:text?}
+  export capability BillingIngressV1 version=1
+   event charge {value:Charge}
+  event ChargeOutcome {value:OperationOutcome}
+  event Overdue {invoice:Invoice,revision:int}
+  Line in Invoice {description:text,position:int=0,quantity:decimal=1,unit:text?,service_from:datetime?,service_until:datetime?,service_location:text?,service_reference:text?,price:money,tax:money,discount:money}
+  role finance`)
+            .replace('  scenario collected on=Payments.collect.completed',body+'\n  scenario collected on=Payments.collect.completed');
+          assert.ok(text.includes(body),'complete original source_charge body is unchanged');
+        }
+        await writeFile(compiledSource,text);
+      }
       const { stdout } = await promisify(execFile)(compiler,
-        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, terminalSource],
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, compiledSource],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
       const artifact = JSON.parse(stdout) as CompileArtifact;
-      const asm = await assembleModules({ artifact, sourcePath: terminalSource }, { workDir: directory,
+      const asm = await assembleModules({ artifact, sourcePath: compiledSource }, { workDir: directory,
         stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
         uiUrl: import.meta.resolve('@canlang/ui') });
       const selectedCase=process.env['CAN_INVOICE_TERMINAL_CASE'];
@@ -423,14 +492,85 @@ it('executes the four authored Invoice terminals only from retained Work complet
         await installNativeFileInventory({ artifact, asm, store, authority, scope,
           now: () => now, verifyOwner: async () => { assert.ok(await identities.findTeamById(team.team_id)); } });
         const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+        if(sourceCharge) {
+          const location={...makeRow({id:asId('charge-location'),data:{active:true,currency:'EUR',timezone:'UTC'}}),parent:null};
+          const customer={...makeRow({id:asId('charge-customer'),data:{name:'Customer',kind:'company',active:true,locations:[{id:location.id}],hidden:true}}),parent:null};
+          const contact={...makeRow({id:asId('charge-contact'),data:{email:'charge@example.test',account:null,verified:false,hidden:true}}),parent:{model:model('customer.Customer'),id:customer.id}};
+          const profile={...makeRow({id:asId('charge-profile'),data:{contact:{id:contact.id},address:'Billing address',tax_reference:null}}),parent:{model:model('customer.Customer'),id:customer.id}};
+          const defaults={...makeRow({id:asId('charge-defaults'),data:{issuer:'Operator',attempt_limit:'3',retry_delay:'172800000',retry_window:'1209600000'}}),parent:null};
+          await store.commit(makeBatch(await store.readRevision(),{writes:[
+            {kind:'insert',model:model('rent_catalog.Location'),row:location},
+            {kind:'insert',model:model('customer.Customer'),row:customer},
+            {kind:'insert',model:model('customer.Contact'),row:contact},
+            {kind:'insert',model:model('customer.BillingProfile'),row:profile},
+            {kind:'insert',model:model('invoice.Defaults'),row:defaults}]}));
+          const invalidChargeMode=process.env['CAN_INVOICE_SOURCE_CHARGE_INVALID'];
+          const invalidCharge=invalidChargeMode!==undefined;
+          const payload={value:{source:'charge-original',customer:customer.id,location:location.id,description:'Room',amount:money(invalidChargeMode==='1'?'-1500':'1500'),due:'2099-01-02',issuer:null,terms:null,items:invalidChargeMode==='items'?[]:null,consent:null}};
+          const kickoff={occurrenceId:uuidv7(now,30),key:'charge-kickoff',event:'invoice.BillingIngressV1.charge',scope,at:now};
+          const loaded=await loadCanonicalDescriptors(asm,artifact);
+          assert.ok(loaded.valueTypes);
+          const opaque=await loadOpaqueFileStaging({store,inventoryOwner:scope.ownerPackage,artifact,
+            canonicalModels:loaded.models,valueTypes:loaded.valueTypes,operations:new Map(),scope,verify:async()=>{}});assert.ok(opaque);
+          const declaration=opaque.event(kickoff.event);
+          const scheduleIdentity=await resolveIdentity(identities,{team_id:team.team_id},{clock:createFrozenClock(now)});
+          const stageContext={actor:'schedule:charge-fixture',now,operation:'invoice.source_charge',load:(name:ModelName,id:StoredRow['id'])=>store.load(name,id),query:(spec:Parameters<typeof store.query>[0])=>store.query(spec)};
+          const initial=await workSchedulePutCommand.stage({...kickoff,payload},stageContext);
+          const write=initial.writes?.find(write=>write.model==='work.schedule' && write.kind==='insert');assert.ok(write && write.kind==='insert');
+          const filePayloadOrigin=await opaque.prepare({expectedRevision:await store.readRevision(),model:model('work.schedule'),row:write.row,field:'payload',scope,
+            origin:{kind:'event-input',occurrenceId:kickoff.occurrenceId,sourceOccurrence:kickoff.occurrenceId,declaration,
+              lineage:{kind:'schedule',key:kickoff.key,replaces:null},target:{kind:'schedule'}},
+            projection:{kind:'inputs',path:[],declarationId:declaration.inputsDeclarationId},value:payload,identity:scheduleIdentity});
+          const staged=await workSchedulePutCommand.stage({...kickoff,payload,filePayloadOrigin},stageContext);
+          await store.commit(makeBatch(await store.readRevision(),{writes:staged.writes??[],schedules:staged.schedules??[]}));
+          assert.equal((await invokeDueSourceRoutingCanonical({asm,artifact,app:scope.app,handler:'invoice.source_charge',due:kickoff,store,identities,now:()=>now})).status,'completed');
+          const invoke=()=>invokeRetainedHandlerOccurrenceCanonical({asm,artifact,app:scope.app,selector:{scope,event:kickoff.event,sourceOccurrence:kickoff.occurrenceId,handler:'invoice.source_charge'},store,identities,deploymentBase:'https://billing.example.test',now:()=>now+1});
+          assert.equal((await invoke() as {status:string}).status,invalidCharge?'failed':'completed');
+          assert.equal((await store.query({model:model('invoice.Invoice'),authority:'owner'})).length,invalidCharge?0:1);
+          assert.equal((await store.query({model:model('invoice.Line'),authority:'owner'})).length,invalidCharge?0:1);
+          assert.equal(storageProbe.outboxAll().filter(intent=>intent.target==='std.EmailV1.send').length,invalidCharge?0:1);
+          if(invalidCharge) {
+            assert.equal((await store.query({model:model('work.schedule'),authority:'owner'})).length,1,'failed Require keeps only the original kickoff');
+            const sources=await store.query({model:model('work.occurrence'),authority:'owner'});
+            assert.equal(sources.some(row=>['invoice.InvoiceSettlement','invoice.ChargeOutcome'].includes(String((row.data['result'] as {event?:string}|null)?.event))),false,
+              'failed Require cannot emit events from its partial Invoice overlay');
+          }
+          assert.equal((await invoke() as {status:string}).status,'replayed');
+          if(!invalidCharge) {
+            const mail=storageProbe.outboxAll().find(intent=>intent.operation==='invoice.source_charge');assert.ok(mail);
+            const stale=process.env['CAN_INVOICE_SOURCE_CHARGE_DISPATCH']==='changed';
+            if(stale) {
+              const row=(await store.query({model:model('invoice.Invoice'),authority:'owner'}))[0]!;
+              await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice.Invoice'),id:row.id,
+                expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,state:'void'}}}]}));
+            }
+            const producers=await loadDispatchSystemProducers();
+            const claim=createWorkDispatchClaimCommand((id,target)=>id===mail.intentId && target===mail.target);
+            const commands=assembleDispatchCommands({l3Commands:producers.l3Commands,
+              workCommands:WORK_SYSTEM_COMMANDS.map(command=>command.name===claim.name?claim:command),stageCommands:WORK_DISPATCH_STAGE_COMMANDS});
+            const joined=withDispatchJoinPort(store,await createWorkerDispatchJoinPort(store));
+            const fence=(await bindNativeEmailDispatchGuards({asm,artifact,store,identities,scope,revalidateAuthority:async()=>true}))(mail);
+            let providerCalls=0;
+            await driveDispatchIntentWithPreclaim({store:joined,intent:mail,actor:'dispatch:charge',operation:'test.charge.dispatch',nowMs:()=>now+2,
+              nextClaimId:()=>`charge-${mode}`,maxClaimAgeMs:60000,claimOperationId:uuidv7(now+2,31),recordOperationId:uuidv7(now+2,32),
+              evaluateGuard:()=>true,readStateSnapshot:()=>null,fence,callProvider:async()=>{providerCalls++;return {kind:'delivered' as const,result:null};},classifyFailure},
+              (guard,allocator)=>{const nativeClaim=createWorkDispatchClaimCommand((id,target)=>id===mail.intentId && target===mail.target,guard,allocator);
+                return producers.createSystemRegistry(commands.map(command=>command.name===claim.name?nativeClaim:command));});
+            assert.equal(providerCalls,stale?0:1,'new Invoice current original WHEN owns source_charge Mail dispatch');
+          }
+          continue;
+        }
         const customer = { ...makeRow({ id: asId('customer'), data: { kind: 'company', hidden: true } }), parent: null };
         const invoice = { ...makeRow({ id: asId('invoice'), data: { location: { id: 'location' },
-          source: 'invoice-source', currency: 'EUR', state: realSkip ? 'issued' : 'void_pending', total: money('1500'),
+          source: 'invoice-source', currency: 'EUR', state: realSkip || applyResult ? 'issued' : 'void_pending', total: money('1500'),
+          ...(applyResult?{recipient_email:'owner@example.test',needs_review:false,consent:'verified',retry_delay:'172800000',
+            retry_until:new Date(now+14*86400000).toISOString(),attempt_limit:'3'}:{}),
           next_collection: null, ledger_revision: '7', hidden: true } }),
           parent: { model: model('customer.Customer'), id: customer.id } };
         let attempt: StoredRow = { ...makeRow({ id: asId('attempt'), data: { reference: 'provider-reference',
           amount: money('1500'), kind: op === 'refund' ? 'refund' : 'collection', status: 'pending',
           failure: null, disabled: false, delivery: null, checkout: 'https://pay.test/',
+          ...(applyResult?{mode:'automatic',provider_revision:'0',provider_reference:null}:{}),
           outcome_at: null, hidden: true } }), parent: { model: model('invoice.Invoice'), id: invoice.id } };
         const request = { ...makeRow({ id: asId('request'), data: { kind: op,
           cancellation: null, reconciliation: null } }),
@@ -572,7 +712,7 @@ it('executes the four authored Invoice terminals only from retained Work complet
         }
         const nominal = { reference: mismatch === 'reference' ? 'wrong-reference' : 'provider-reference',
           revision: '1', provider_reference: null, amount: money(mismatch === 'amount' ? '1400' : '1500'),
-          status: 'succeeded', checkout_url: null, failure: null };
+          status: applyResult?'failed':'succeeded', checkout_url: null, failure: applyResult?'transient':null };
         // Test provider progress uses the real owning reducer and State row writers.
         // The host has no installed Payments adapter; it grants no source authority.
         const progress = { name: 'test.payments.progress', stage: async (_: Readonly<Record<string, unknown>>,
@@ -662,6 +802,119 @@ it('executes the four authored Invoice terminals only from retained Work complet
         assert.equal(receipts.length, status === 'succeeded' && !mismatch ? 1 : 0, mode);
         if (receipts.length) assert.deepEqual((receipts[0]!.data['result'] as { payload: unknown }).payload,
           { value: nominal }, `${mode}: complete raw nominal result`);
+        if(guardedRetained && op==='collect' && status==='succeeded' && mismatch===null) {
+          assert.equal(receipts.length,1);
+          const before=storageProbe.outboxAll().length;
+          const invoke=()=>invokeRetainedHandlerOccurrenceCanonical({asm,artifact,app:scope.app,
+            selector:{scope,event:'invoice.ProviderReceipt',sourceOccurrence:receipts[0]!.id,
+              handler:applyResult?'invoice.apply_result':'invoice.guarded_receipt'},store,identities,
+            deploymentBase:'https://billing.example.test',now:()=>now+5});
+          for(const changed of [
+            {scope,event:'invoice.ProviderReceipt',sourceOccurrence:'missing-source',handler:applyResult?'invoice.apply_result':'invoice.guarded_receipt'},
+            {scope,event:'invoice.InvoiceSettlement',sourceOccurrence:receipts[0]!.id,handler:applyResult?'invoice.apply_result':'invoice.guarded_receipt'},
+            {scope:{...scope,owner:'foreign-owner'},event:'invoice.ProviderReceipt',sourceOccurrence:receipts[0]!.id,handler:applyResult?'invoice.apply_result':'invoice.guarded_receipt'},
+          ]) {
+            const denied=await invokeRetainedHandlerOccurrenceCanonical({asm,artifact,app:scope.app,
+              selector:changed,store,identities,deploymentBase:'https://billing.example.test',now:()=>now+5})
+              .catch(()=>({status:'rejected'})) as {status:string};
+            assert.ok(!['completed','replayed'].includes(denied.status),'foreign retained coordinates cannot execute');
+            assert.equal(storageProbe.outboxAll().length,before,'foreign source/event/owner has no guarded effects');
+          }
+          const sourceRace=process.env['CAN_INVOICE_GUARDED_SOURCE']==='race';
+          const sourceFalse=sourceRace || process.env['CAN_INVOICE_GUARDED_SOURCE']==='false';
+          let raced=false;
+          if(sourceRace) {
+            assert.ok(applyResult);
+            const commit=store.commit.bind(store);
+            Object.defineProperty(store,'commit',{value:async(batch:Parameters<typeof store.commit>[0])=>{
+              if(!raced && batch.outbox.some(intent=>intent.operation==='invoice.apply_result')) {
+                raced=true;
+                await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice.Credit'),
+                  row:{...makeRow({id:asId('source-race-credit'),data:{amount:money('1500'),hidden:true}}),parent:{model:model('invoice.Invoice'),id:invoice.id}}}]}));
+              }
+              return commit(batch);
+            }});
+          }
+          if(sourceFalse && !sourceRace) {
+            assert.ok(applyResult);
+            const row=await store.load(model('invoice.Invoice'),invoice.id);assert.ok(row);
+            await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice.Invoice'),id:row.id,
+              expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,state:'void'}}}]}));
+          }
+          assert.equal((await invoke() as {status:string}).status,failedFramework?'failed':'completed');
+          if(sourceRace)assert.ok(raced,'original guard domain changed only at actual final commit');
+          assert.equal(storageProbe.outboxAll().length,before+(sourceFalse || failedFramework?0:1),'original source guard stages Mail only when true');
+          const scheduled=await store.query({model:model('work.schedule'),authority:'owner'});
+          assert.equal(scheduled.filter(row=>row.data['key']===(applyResult?'invoice:collection':'guarded-followup') && row.data['state']==='pending').length,sourceFalse || failedFramework?0:1,
+            'actual Schedule/Cancel/replace stages preserve one current head');
+          assert.equal((await invoke() as {status:string}).status,'replayed');
+          assert.equal(storageProbe.outboxAll().length,before+(sourceFalse || failedFramework?0:1),'replay cannot duplicate guarded SEND');
+          if(failedFramework) {
+            assert.equal((await store.load(model('invoice.Attempt'),attempt.id))!.data['outcome_at'],null,'late Require discards earlier SET');
+            assert.equal(scheduled.length,0,'late Require discards genuine Schedule/Cancel stages');
+          }
+          if(sourceFalse || failedFramework)continue;
+          const mail=storageProbe.outboxAll().find(candidate=>candidate.target==='std.EmailV1.send');assert.ok(mail);
+          const staleRoot=process.env['CAN_INVOICE_GUARDED_DISPATCH']==='changed';
+          if(staleRoot) {
+            const row=await store.load(model('invoice.Attempt'),attempt.id);assert.ok(row);
+            await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice.Attempt'),
+              id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),
+                data:{...row.data,status:applyResult?'succeeded':'failed',failure:applyResult?null:'transient'}}}]}));
+          }
+          const dispatchFences=await bindNativeEmailDispatchGuards({asm,artifact,store,identities,scope,
+            revalidateAuthority:async()=>true});
+          const fence=dispatchFences(mail);
+          let mailCalls=0;
+          const mailDispatched=await driveDispatchIntentWithPreclaim({store:joined,intent:mail,
+            actor:'dispatch:retained-mail',operation:'test.retained-mail.dispatch',nowMs:()=>now+6,
+            nextClaimId:()=>`mail-${mode}`,maxClaimAgeMs:60000,
+            claimOperationId:uuidv7(now+6,20),recordOperationId:uuidv7(now+6,21),
+            evaluateGuard:()=>true,readStateSnapshot:()=>null,fence,
+            callProvider:async()=>{mailCalls++;return {kind:'delivered' as const,result:null};},classifyFailure},
+            (guard,allocator)=>{
+              const nativeClaim=createWorkDispatchClaimCommand((id,target)=>id===mail.intentId && target===mail.target,guard,allocator);
+              return producers.createSystemRegistry(commands.map(command=>command.name===claim.name?nativeClaim:command));
+            });
+          assert.equal(mailCalls,staleRoot?0:1,'current original guard owns deferred provider dispatch');
+          assert.ok(mailDispatched!==undefined);
+          if(automaticCollection) {
+            const schedule=scheduled.find(row=>row.data['key']==='invoice:collection' && row.data['state']==='pending');assert.ok(schedule);
+            const due={occurrenceId:schedule.id,key:String(schedule.data['key']),at:Number(schedule.data['at']),event:'invoice.CollectionDue',scope};
+            const dueNow=now+3*86400000;
+            const source=await invokeDueSourceRoutingCanonical({asm,artifact,app:scope.app,
+              handler:'invoice.automatic_collection',due,store,identities,now:()=>dueNow});
+            assert.equal(source.status,'completed','actual retry schedule retains original ordinary source route');
+            const automaticSelector={scope,event:due.event,sourceOccurrence:schedule.id,handler:'invoice.automatic_collection'};
+            const automatic=()=>invokeRetainedHandlerOccurrenceCanonical({asm,artifact,app:scope.app,
+              selector:automaticSelector,store,identities,now:()=>dueNow+1});
+            assert.equal((await automatic() as {status:string}).status,'completed');
+            const attempts=await store.query({model:model('invoice.Attempt'),authority:'owner'});
+            assert.equal(attempts.length,2,'authored scheduled source creates exactly one retry Attempt');
+            assert.equal(storageProbe.outboxAll().filter(intent=>intent.target==='std.PaymentsV1.collect').length,2,
+              'authored retry SEND shares real owner transaction');
+            assert.equal((await automatic() as {status:string}).status,'replayed');
+            const retry=storageProbe.outboxAll().find(intent=>intent.target==='std.PaymentsV1.collect' && intent.operation==='invoice.automatic_collection');assert.ok(retry);
+            const revoke=process.env['CAN_INVOICE_AUTOMATIC_DISPATCH']==='changed';
+            if(revoke) {
+              const row=await store.load(model('invoice.Invoice'),invoice.id);assert.ok(row);
+              await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice.Invoice'),
+                id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,consent:null}}}]}));
+            }
+            const retryFence=dispatchFences(retry);
+            let retryCalls=0;
+            await driveDispatchIntentWithPreclaim({store:joined,intent:retry,actor:'dispatch:retry',operation:'test.retry.dispatch',nowMs:()=>dueNow+2,
+              nextClaimId:()=>`retry-${mode}`,maxClaimAgeMs:60000,claimOperationId:uuidv7(dueNow+2,22),recordOperationId:uuidv7(dueNow+2,23),
+              evaluateGuard:()=>true,readStateSnapshot:()=>null,fence:retryFence,
+              callProvider:async()=>{retryCalls++;return {kind:'delivered' as const,result:null};},classifyFailure},
+              (guard,allocator)=>{
+                const nativeClaim=createWorkDispatchClaimCommand((id,target)=>id===retry.intentId && target===retry.target,guard,allocator);
+                return producers.createSystemRegistry(commands.map(command=>command.name===claim.name?nativeClaim:command));
+              });
+            assert.equal(retryCalls,revoke?0:1,'current consent/balance/original query guard fences retry provider dispatch');
+          }
+
+        }
         const settlements = events.filter(row => row.created===now+4 && (row.data['result'] as { event?: string })?.event === 'invoice.InvoiceSettlement');
         assert.equal(settlements.length, changed ? 1 : 0, mode);
         if (settlements.length) {

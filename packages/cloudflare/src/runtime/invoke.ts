@@ -1506,6 +1506,7 @@ interface StateInvokeProducer {
   readonly bindScenarioReceiptCallProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptCallProducer;
   readonly noteDueWorkAdmission?: typeof import('@canlang/state/invocation').noteDueWorkAdmission;
   readonly noteRetainedEventAdmission?: typeof import('@canlang/state/invocation').noteRetainedEventAdmission;
+  readonly noteRetainedGuardedHandlerAdmission?: typeof import('@canlang/state/invocation').noteRetainedGuardedHandlerAdmission;
   readonly invokeScenarioReceiptCall?: typeof import('@canlang/state/invocation').invokeScenarioReceiptCall;
   readonly assertScenarioReceiptCallExecution?: typeof import('@canlang/state/invocation').assertScenarioReceiptCallExecution;
   readonly readScenarioReceiptStoredReferenceRow?: typeof import('@canlang/state/invocation').readScenarioReceiptStoredReferenceRow;
@@ -1869,6 +1870,9 @@ function scenarioReceiptBindingsTail(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['noteDueWorkAdmission'] !== 'function' ? {} : {
       noteDueWorkAdmission: scenarioMod['noteDueWorkAdmission'] as NonNullable<StateInvokeProducer['noteDueWorkAdmission']>,
+    }),
+    ...(typeof scenarioMod['noteRetainedGuardedHandlerAdmission'] !== 'function' ? {} : {
+      noteRetainedGuardedHandlerAdmission: scenarioMod['noteRetainedGuardedHandlerAdmission'] as NonNullable<StateInvokeProducer['noteRetainedGuardedHandlerAdmission']>,
     }),
     ...(typeof scenarioMod['noteRetainedEventAdmission'] !== 'function' ? {} : {
       noteRetainedEventAdmission: scenarioMod['noteRetainedEventAdmission'] as NonNullable<StateInvokeProducer['noteRetainedEventAdmission']>,
@@ -3775,6 +3779,10 @@ interface NativeSourceSendGuard {
 }
 const nativeSourceSendOwners = new WeakMap<GeneratedOperationDef, { readonly ownerPackage: string }>();
 const nativeSourceSendGuards = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, NativeSourceSendGuard>>();
+function nativeRetainedFinancialGuard(def:GeneratedOperationDef,selected:NativeSourceSendGuard):boolean {
+  return def.descriptor.result?.disclosure?.retainedGuardedHandler?.owner===def.name &&
+    ['std.PaymentsV1.collect','std.PaymentsV1.refund','std.PaymentsV1.cancel','std.PaymentsV1.reconcile'].includes(selected.guard.target);
+}
 function nativeLeaveDecideReserveGuard(def: GeneratedOperationDef, selected: NativeSourceSendGuard): boolean {
   const decision = (def.descriptor.result?.disclosure as
     { readonly leaveDecideDecision?: import('@canlang/state/invocation').LeaveDecideDecisionPlan } | undefined)?.leaveDecideDecision;
@@ -4102,6 +4110,103 @@ async function loadNativeSendModelSnapshots(loaded: LoadedCanonicalDescriptors, 
   });
 }
 
+/** Read-only owner views for an independently sealed retained Rule. Lazy
+ * references come only from this frame's actual model slots, stored links or
+ * complete bounded query rows; arbitrary Values refs cannot acquire a read. */
+function retainedGuardViews(input:{readonly loaded:LoadedCanonicalDescriptors;
+  readonly artifact:CompileArtifact;readonly snapshots:NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
+  readonly store:StoragePort;readonly identities:IdentityStore;readonly owner:string;
+  readonly read:(model:ModelName,id:RecordId)=>Promise<StoredRow|null>;
+  readonly query:(model:ModelName,parent?:{model:ModelName;id:RecordId})=>Promise<readonly StoredRow[]>;
+  readonly healthy:()=>void}) {
+  const {loaded,snapshots,healthy}=input,StateError=loaded.producers.errors;
+  const rows=new Map<string,{model:ModelName;row:StoredRow}>(),views=new WeakMap<object,StoredRow>();
+  const references=new WeakMap<object,{model:ModelName;id:RecordId}>();
+  let context:HandlerContext|undefined,work=0;
+  const consume=()=>{healthy();if(++work>SCENARIO_RECEIPT_OWNER_BOUNDS.maxWork)throw new StateError('limit','Retained guard work bound exceeded.');};
+  const reference=(model:string,id:string)=>{
+    const value=makeRecordRef(model,id);references.set(value,{model:model as ModelName,id:id as RecordId});return value;
+  };
+  const record=(model:ModelName,row:StoredRow):Readonly<Record<string,unknown>>=>{
+    consume();
+    if(row.archivedAt!==null || !loaded.models.some(candidate=>candidate.name===model))throw new StateError('forbidden','Retained guard record is unavailable.');
+    const key=stagedKey(model,row.id),prior=rows.get(key);
+    if(prior!==undefined && stableStringify(prior.row)!==stableStringify(row))throw new StateError('conflict','Retained guard row changed within its source stage.');
+    rows.set(key,{model,row});if(rows.size>=SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows)throw new StateError('limit','Retained guard row census exceeded.');
+    const view=snapshots.view(model,{...row,sourcePresence:{fields:Object.keys(row.data)}},healthy,reference);
+    views.set(view,row);return view;
+  };
+  const readReference=async(value:unknown,field?:string):Promise<unknown>=>{
+    consume();
+    if(field!==undefined || typeof value!=='object' || value===null)throw new StateError('validation','Retained guard reference lacks its original issued value.');
+    if(views.has(value))return value;
+    const origin=references.get(value);if(origin===undefined)throw new StateError('validation','Retained guard cannot read an unissued reference.');
+    const cached=rows.get(stagedKey(origin.model,origin.id));
+    const row=cached?.row??await input.read(origin.model,origin.id);healthy();
+    if(row===null || row.id!==origin.id)throw new StateError('not_found','Retained guard reference is unavailable.');
+    return record(origin.model,row);
+  };
+  const readRecords=async(model:string,query:CanonicalReadQuery):Promise<readonly Record<string,unknown>[]>=>{
+    consume();
+    if(context===undefined || !loaded.models.some(candidate=>candidate.name===model) ||
+        Object.keys(query).some(key=>!['parent','where','order','limit','archived','authority'].includes(key)) ||
+        query.authority!==undefined && query.authority!=='owner' ||
+        query.archived!==undefined && query.archived!=='exclude' ||
+        query.where!==undefined && typeof query.where!=='function')throw new StateError('validation','Retained guard query lacks its original read-only owner shape.');
+    let parent:{model:ModelName;id:RecordId}|undefined;
+    if(query.parent!==undefined) {
+      if(typeof query.parent!=='object' || query.parent===null || !views.has(query.parent) && !references.has(query.parent))throw new StateError('validation','Retained guard query needs its issued parent.');
+      const parentView=await readReference(query.parent);
+      const binding=nativeRecordReference(parentView),ownership=loaded.containment.get(model);
+      if(binding===undefined || !isUnknownRecord(ownership) || ownership.parent!==binding.model)throw new StateError('validation','Retained guard query has a different declared parent.');
+      parent={model:binding.model as ModelName,id:binding.id as RecordId};
+    }
+    const all=await input.query(model as ModelName,parent);healthy();
+    if(all.length>=SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows)throw new StateError('limit','Retained guard complete domain exceeds its bound.');
+    const matched:StoredRow[]=[];
+    for(const row of all) {
+      const view=record(model as ModelName,row);
+      const verdict=query.where===undefined?true:await query.where(view,context);healthy();
+      if(typeof verdict!=='boolean')throw new StateError('validation','Retained guard predicate must return Bool.');
+      if(verdict)matched.push(row);
+    }
+    const limit=typeof query.limit==='bigint'?Number(query.limit):query.limit;
+    if(limit!==undefined && (!Number.isSafeInteger(limit) || limit<0))throw new StateError('validation','Retained guard needs its original finite query limit.');
+    if(query.order!==undefined && (!Array.isArray(query.order) || query.order.some(term=>typeof term!=='string' || term==='' || term==='-')))throw new StateError('validation','Retained guard order lacks its original field spellings.');
+    const engine=await loadProducerModule('@canlang/state/query/engine','retained guard owner query');
+    const run=requireProducerFn(engine,'queryRecords','retained guard owner query') as typeof import('@canlang/state/query/engine').queryRecords;
+    const selected=await run({model:model as ModelName,authority:'owner',modelDescriptor:loaded.models.find(candidate=>candidate.name===model)!,
+      policy:loaded.policy as import('@canlang/state/policy/grants').PolicyTable,
+      context:{actorUserId:null,teamId:input.owner},memberships:input.identities,
+      store:{...input.store,query:async()=>matched},
+      ...(limit===undefined?{}:{limit}),...(query.order===undefined?{}:{order:query.order.map(term=>({field:term.startsWith('-')?term.slice(1):term,direction:term.startsWith('-')?'desc' as const:'asc' as const}))})});healthy();
+    return Object.freeze(selected.rows.map(row=>record(model as ModelName,row)));
+  };
+  return {record,readRecords,bind:(value:HandlerContext)=>{if(context!==undefined)throw new StateError('validation','Retained guard context cannot be rebound.');context=value;bindNativeSourceReferenceReader(value,readReference);},
+    revalidate:async(read=input.read,ownWrites=false)=>{
+      for(const {model,row} of rows.values()) {
+        const current=await read(model,row.id);
+        if(current===null || (ownWrites?!sameRetainedModelLifetime(row,current):stableStringify(current)!==stableStringify(row)))throw new StateError('conflict','Retained guard row or lifetime changed.');
+      }
+    },
+    finalizedReader:(writes:readonly DomainWrite[],physical:typeof input.read)=>{
+      const final=new Map<string,StoredRow>();
+      for(const {model,row} of rows.values()) {
+        const write=writes.find(write=>write.model===model && (write.kind==='remove'?write.id:write.row.id)===row.id);
+        if(write===undefined)continue;
+        if(write.kind==='remove' || !sameRetainedModelLifetime(row,write.row))throw new StateError('conflict','Retained guard lost its actual final owner lifetime.');
+        final.set(stagedKey(model,row.id),write.row);
+      }
+      return async(model:ModelName,id:RecordId)=>final.get(stagedKey(model,id))??physical(model,id);
+    }};
+}
+
+function sameRetainedModelLifetime(original:StoredRow,current:StoredRow):boolean {
+  return current.id===original.id && current.archivedAt===null && current.version>=original.version &&
+    current.created===original.created && current.createdBy===original.createdBy &&
+    stableStringify(current.parent??null)===stableStringify(original.parent??null);
+}
+
 /** The installed Bool SEND guard may inspect current owner targets behind its
  * checked lexical links. These private views carry no native row capability.
  * Root fields remain historical; only declared reference/parent dereferences
@@ -4115,6 +4220,9 @@ async function prepareNativeSendGuardReferences(input: {
   readonly healthy: () => void;
   readonly failure: (error: unknown) => void;
   readonly observeField?: (model: string, row: StoredRow, field: string) => void;
+  /** Only an authenticated retained handler may preserve this historical
+   * source-stage decision across its actual later owner writes. */
+  readonly retainedSourceStage?: true;
   /** Checked private event guards in this profile navigate containment only. */
   readonly parentOnly?: boolean;
   /** The authenticated lexical root for events.observe_venue only: an
@@ -4241,7 +4349,8 @@ async function prepareNativeSendGuardReferences(input: {
       const id = write.kind === 'insert' || write.kind === 'update' ? write.row.id : write.id;
       if (write.model !== entry.model || id !== entry.id) continue;
       const after = write.kind === 'insert' || write.kind === 'update' ? write.row : null;
-      if (JSON.stringify(after) !== JSON.stringify(entry.row)) {
+      if (input.retainedSourceStage===true ? after===null || !sameRetainedModelLifetime(entry.row!,after) :
+          JSON.stringify(after) !== JSON.stringify(entry.row)) {
         throw new StateError('conflict', 'SEND target differs from its actual final owner effects.');
       }
       final.set(key(entry.model, entry.id), after);
@@ -4252,11 +4361,13 @@ async function prepareNativeSendGuardReferences(input: {
       return final.has(identity) ? final.get(identity)! : physical(model, id);
     };
   }, revalidate: async (
-    readCurrent = input.read,
+    readCurrent = input.read, retainedOwnWrites=false,
   ): Promise<void> => {
     for (const entry of used) {
       const current = await readCurrent(entry.model as ModelName, entry.id as RecordId);
-      if (current === null || current.archivedAt !== null || JSON.stringify(current) !== JSON.stringify(entry.row)) {
+      if (current === null || current.archivedAt !== null ||
+          (retainedOwnWrites && input.retainedSourceStage===true ? !sameRetainedModelLifetime(entry.row!,current) :
+            JSON.stringify(current) !== JSON.stringify(entry.row))) {
         throw new StateError('conflict', 'SEND target or ancestor changed during its guard.');
       }
     }
@@ -5168,7 +5279,15 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         }
         sources = [`${judgment}.evaluate`];
       } else {
-        const operations = own(own(own(definition, 'capabilities'), capability as string), 'operations');
+        const declared=own(own(definition,'capabilities'),capability as string);
+        const operations = own(declared, 'operations');
+        const events=own(declared,'events');
+        // An original event-only capability contributes no SEND targets.
+        // Keep its binding identity while granting an empty target inventory.
+        if(operations===undefined && isUnknownRecord(declared) && isUnknownRecord(events) &&
+            Object.keys(events).length>0 && Object.keys(events).every(event=>isUnknownRecord(own(events,event)))) {
+          return {binding,from,sources:[] as string[]};
+        }
         if (!isUnknownRecord(operations)) throw new AssemblyCorrespondenceError('Scenario framework lacks its owning capability operations.');
         sources = Object.keys(operations).map(operation => {
           if (!isUnknownRecord(own(operations, operation))) throw new AssemblyCorrespondenceError('Scenario framework has an invalid capability operation.');
@@ -9595,6 +9714,10 @@ async function runScenarioExecution(
   const receiptAware = scenarioDef?.descriptor.result?.disclosure !== undefined;
   const sourceRequireAware = scenarioDef !== undefined && sourceRequireFrames.has(scenarioDef);
   const hasExecutionFrame = receiptAware || sourceRequireAware;
+  const retainedGuardedFrame=scenarioDef?.descriptor.result?.disclosure?.retainedGuardedHandler;
+  // A private source frame observes SEND inputs; its body retains ordinary
+  // owner queries and never gains saved-result or query authority.
+  const savedResultAware=receiptAware && retainedGuardedFrame===undefined;
   const ownerControl = localOwnerPolicyControls.get(loaded);
   // Original model invariants and locks also apply to scenarios without a
   // saved-disclosure recipe. Stage those scenarios through the same owner
@@ -9646,8 +9769,16 @@ async function runScenarioExecution(
     call.context.trustedSource === 'event:rent_reservations.ReservationChanged' &&
     nativeDeclaredEventCalls.has(call.context) &&
     opts.artifact.callables.some(entry => entry.id === opts.operation && entry.kind === 'handler');
+  const internalRetainedGuarded=retainedGuardedFrame!==undefined && trustedOwnerReads &&
+    due!==undefined && cohort===undefined && child===undefined && receiptStore!==undefined &&
+    beginReceiptMutation!==undefined && retainedGuardedFrame.owner===scenarioDef?.name &&
+    [`event:${retainedGuardedFrame.event}`,`schedule:${retainedGuardedFrame.event}`].includes(call.context.trustedSource??'') &&
+    nativeRetainedGuardedCalls.has(call.context);
+  if(retainedGuardedFrame!==undefined && !internalRetainedGuarded) {
+    throw new loaded.producers.errors('validation','Guarded retained SEND requires its actual ordinary Declared Work driver.');
+  }
   if (hasExecutionFrame && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || cohort !== undefined ||
-      (due !== undefined && !internalHandlerDue && !internalRentNoticeRetained))) {
+      (due !== undefined && !internalHandlerDue && !internalRentNoticeRetained && !internalRetainedGuarded))) {
     throw new loaded.producers.errors('validation', 'Saved scenario mutation requires its installed State producer and actual admitted receipt execution.');
   }
   if (hasExecutionFrame && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
@@ -9917,7 +10048,9 @@ async function runScenarioExecution(
       }
       stamped.push({ kind: 'insert', model: write.model, row });
     }
-    due?.observeFramework?.({ writes: stamped });
+    // This source suffix already belongs to State's actual finalizer. The
+    // retained continuation observer records only separate Schedule/Cancel stages.
+    if(!internalRetainedGuarded)due?.observeFramework?.({ writes: stamped });
     return [...existing, ...stamped, ...termScheduleSourceWrites, ...rentNoticeSourceWrites,
       ...invoiceIssueSourceWrites, ...cancellationSourceWrites, ...scheduleSourceWrites];
   };
@@ -10286,7 +10419,7 @@ async function runScenarioExecution(
     );
   };
   const ownerFrameworkModels = new Set<string>();
-  if (trustedOwnerReads && !receiptAware && ownerSession !== undefined) {
+  if (trustedOwnerReads && !savedResultAware && ownerSession !== undefined) {
     const tables = await loadProducerModule('@canlang/work/kernel/tables', 'private handler framework effects');
     for (const name of ['WORK_SCHEDULE_MODEL', 'WORK_OCCURRENCE_MODEL', 'WORK_DISPATCH_MODEL', 'WORK_SUPERSESSION_MODEL']) {
       const model = requireProducerString(tables, name, 'private handler framework effects');
@@ -10305,10 +10438,10 @@ async function runScenarioExecution(
     }
     // Due admission and private Work stages share the domain commit fence.
     // Saved public scenarios retain their separate receipt/effect join.
-    const isDueAdmission = (internalHandlerDue || trustedOwnerReads && !receiptAware) && due !== undefined && effects === due.effects;
+    const isDueAdmission = (internalHandlerDue || trustedOwnerReads && !savedResultAware) && due !== undefined && effects === due.effects;
     // These effects are returned only by the installed Work staging callbacks
     // above/below; declared domain rows still go through State's owner session.
-    const privateFramework = trustedOwnerReads && !receiptAware && (effects.writes ?? []).every(write => ownerFrameworkModels.has(write.model)) &&
+    const privateFramework = trustedOwnerReads && !savedResultAware && (effects.writes ?? []).every(write => ownerFrameworkModels.has(write.model)) &&
       (effects.history?.length ?? 0) === 0 && (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
     const termSchedule = receiptAware && scenarioDef?.name === 'member_terms.term' &&
       termScheduleSourceWrites.length === 0 && effects.schedules?.length === 1 &&
@@ -10331,8 +10464,8 @@ async function runScenarioExecution(
       effects.writes[0].model === 'work.schedule' &&
       (effects.outbox?.length ?? 0) === 0 && (effects.history?.length ?? 0) === 0 &&
       (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
-    const sourceCancellation = receiptAware && cancellationSourceStages.delete(effects);
-    const sourceSchedule = receiptAware && scheduleSourceStages.delete(effects);
+    const sourceCancellation = savedResultAware && cancellationSourceStages.delete(effects);
+    const sourceSchedule = savedResultAware && scheduleSourceStages.delete(effects);
     if (ownerSession !== undefined && !isDueAdmission && !privateFramework && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework && !sourceCancellation && !sourceSchedule && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
         (effects.uniqueReleases?.length ?? 0) !== 0)) {
@@ -10790,7 +10923,7 @@ async function runScenarioExecution(
         if (typeof model !== "string" || model === "") {
           throw new Error(`t17b: readModel needs a non-empty string model (wiring bug).`);
         }
-        if (ownerSession !== undefined && (!trustedOwnerReads || receiptAware)) {
+        if (ownerSession !== undefined && (!trustedOwnerReads || savedResultAware)) {
           // Disclosure v1 has no query influence/current-authority carrier.
           // A viewer projection must not be upgraded into a State-issued row.
           throw new StateError('validation', 'Saved scenario query reads require their defining provenance and disclosure join.');
@@ -11021,7 +11154,7 @@ async function runScenarioExecution(
     ...(judgmentSpecification === undefined ? {} : { judgmentSpecification }),
     emitDeferred: async (event, payload) => {
       try {
-        if ((!trustedOwnerReads && !receiptAware) || (receiptAware && due !== undefined) ||
+        if ((!trustedOwnerReads && !savedResultAware) || (savedResultAware && due !== undefined) ||
             child !== undefined || rootOwnerSession === undefined) {
           throw new StateError('validation', 'Domain events require their private owning source finalizer.');
         }
@@ -11132,6 +11265,11 @@ async function runScenarioExecution(
             }
             loaded.producers.invoke.assertScenarioReceiptCallExecution(call as AdmittedCall, receiptStore);
             await resolvePrivateSourceOwner(opts.memberships as IdentityStore, selected.scope, call.context.now);
+          } else if(internalRetainedGuarded) {
+            if(receiptStore===undefined || loaded.producers.invoke.assertScenarioReceiptCallExecution===undefined ||
+                !nativeRetainedGuardedCalls.has(call.context)) throw new Error('Scheduled source lost its actual retained owner.');
+            loaded.producers.invoke.assertScenarioReceiptCallExecution(call as AdmittedCall,receiptStore);
+            await resolvePrivateSourceOwner(opts.memberships as IdentityStore,selected.scope,call.context.now);
           } else if (actorUserId === null || teamId === null ||
                      await readCallerRolesSnapshot(opts.memberships, teamId, actorUserId) !== callerRolesSnapshot) {
               throw new Error('Scheduled File receiving authority changed.');
@@ -11209,7 +11347,7 @@ async function runScenarioExecution(
         // Only this installed Work cancellation stage can join an original
         // receipt owner's source suffix. The opaque stage identity cannot be
         // supplied through generic deferred effects or an authored row write.
-        if (receiptAware && child === undefined) {
+        if (savedResultAware && child === undefined) {
           const tables = await loadProducerModule('@canlang/work/kernel/tables', 'source cancellation rows');
           const schedule = requireProducerString(tables, 'WORK_SCHEDULE_MODEL', 'source cancellation rows');
           const supersession = requireProducerString(tables, 'WORK_SUPERSESSION_MODEL', 'source cancellation rows');
@@ -11264,7 +11402,7 @@ async function runScenarioExecution(
               !isResourceSendTarget(selected?.definition, bindingKey, source) &&
               !(selected !== undefined && (nativeLeaveDecideReserveGuard(def, selected) ||
                 nativeMemberRetryChargeGuard(def, selected) ||
-                nativeInvoiceCollectPaymentGuard(def, selected) ||
+                nativeInvoiceCollectPaymentGuard(def, selected) || nativeRetainedFinancialGuard(def,selected) ||
                 nativeObserveVenueRoomsGuard(def, selected)))) ||
               ownerSession === undefined || selected === undefined ||
               selected.guard.binding !== bindingKey || selected.guard.target !== source || selected.guard.owner !== scope.operation ||
@@ -11454,7 +11592,7 @@ async function runScenarioExecution(
       });
     } catch (error) { recordEngineFailure(error); throw error; }
   }
-  if (trustedOwnerReads && !receiptAware && ownerSession !== undefined) {
+  if (trustedOwnerReads && !savedResultAware && ownerSession !== undefined) {
     // The retained handler already owns this State session. Reach a stored
     // reference lazily, using only views/field values issued in this execution;
     // a copied Values reference never creates owner read or write authority.
@@ -11575,13 +11713,18 @@ async function runScenarioExecution(
           ? { model: 'events.Change', id: sendSnapshots.snapshot('events.Change',
             localPolicyMember(frame.inputs, 'change')).id }
           : undefined;
-        const referenceNavigation = eventDecision !== undefined || renewalDecision !== undefined || invoiceOverdueGuard ||
+        const retainedViews=internalRetainedGuarded && sendSnapshots!==undefined ? retainedGuardViews({loaded,artifact:opts.artifact,
+          snapshots:sendSnapshots,store:receiptStore,identities:opts.memberships as IdentityStore,owner:call.checkpoint!.owner,
+          read:(model,id)=>ownerSession!.read(model,id),query:(model,parent)=>ownerSession!.views.final.query({model,authority:'owner',
+            ...(parent===undefined?{}:{parent}),order:[{field:'id',direction:'asc'}],limit:ownerBounds.maxRows}),healthy:assertGuard}):undefined;
+        const referenceNavigation = internalRetainedGuarded || eventDecision !== undefined || renewalDecision !== undefined || invoiceOverdueGuard ||
           invoiceCollectGuard || invoiceIssueGuard || sendSnapshots === undefined
           ? undefined : await prepareNativeSendGuardReferences({
           loaded, artifact: opts.artifact, snapshots: sendSnapshots,
           roots: selected.guard.inputs.filter(input => sendSnapshots.has(input.type)).map(input => ({
             type: input.type, wire: localPolicyMember(frame.inputs, input.name) })),
           read: (model, id) => ownerSession!.read(model, id), healthy: assertGuard, failure: recordEngineFailure,
+          ...(internalRetainedGuarded?{retainedSourceStage:true as const}:{}),
           parentOnly: selected.guard.eventSource !== undefined && selected.guard.owner !== 'success.renewal_due',
           ...(isSuccessNoticeOwner(selected.guard.owner) ? { successRenewalOnly: true as const } : {}),
           ...(observeVenueSelf === undefined ? {} : { selfReference: observeVenueSelf }),
@@ -11590,7 +11733,8 @@ async function runScenarioExecution(
         let collectedInvoiceGuardInput = false;
         for (const input of selected.guard.inputs) {
           const wire = localPolicyMember(frame.inputs, input.name);
-          let value: unknown = sendSnapshots?.has(input.type)
+          let value: unknown = retainedViews!==undefined && sendSnapshots?.has(input.type)
+            ? retainedViews.record(input.type as ModelName,sendSnapshots.snapshot(input.type,wire)) : sendSnapshots?.has(input.type)
             ? sendSnapshots.view(input.type, wire, assertGuard, referenceNavigation?.reference)
             : decodeCanonicalValue(loaded.valueSchema, input.type, wire);
           if (invoiceOverdueGuard && input.name === 'eventTerm') {
@@ -11660,7 +11804,7 @@ async function runScenarioExecution(
         const canonical: CanonicalEffectsScope = Object.freeze({ ...scope,
           stageWrite: reject, createRecord: reject, setRecord: reject, deleteRecord: reject,
           readModel: guardRead(scope.readModel.bind(scope)),
-          ...(scope.readRecords === undefined ? {} : { readRecords: guardRead(scope.readRecords.bind(scope)) }),
+          ...(retainedViews!==undefined?{readRecords:retainedViews.readRecords}:scope.readRecords === undefined ? {} : { readRecords: guardRead(scope.readRecords.bind(scope)) }),
           ...(scope.observeDelivery === undefined ? {} : { observeDelivery: guardRead(scope.observeDelivery.bind(scope)) }),
           ...(scope.observeGenerationCallbackDiagnostics === undefined ? {} : {
             observeGenerationCallbackDiagnostics: guardRead(scope.observeGenerationCallbackDiagnostics.bind(scope)) }) });
@@ -11671,6 +11815,7 @@ async function runScenarioExecution(
           memberships: [...grants], canonical, qualified: actualCall.context,
           ...(judgmentSpecification === undefined ? {} : { judgmentSpecification }),
           ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }) });
+        retainedViews?.bind(fresh);
         const membership = openNativeSourceSendMembershipFrame(fresh, actualCall, receiptStore,
           selected.guard.rule, recordEngineFailure);
         try {
@@ -11713,14 +11858,25 @@ async function runScenarioExecution(
                 } });
             })();
           membership.assertCompleted(); currentSend();
-          await referenceNavigation?.revalidate(); assertGuard();
+          await referenceNavigation?.revalidate();await retainedViews?.revalidate(); assertGuard();
           if (typeof accepted !== 'boolean') return refuseRecordBinding('Original SEND predicate must return Bool.');
           if (accepted) {
             nativeSourceSendCalls.set(frame.inputs, { call: actualCall, active });
+            if(retainedViews!==undefined) {
+              let finalRead:((model:ModelName,id:RecordId)=>Promise<StoredRow|null>)|undefined;
+              navigationOwner!.finalizers.add({refresh:()=>retainedViews.revalidate((model,id)=>navigationOwner!.session.read(model,id),true),
+                seal:writes=>{finalRead=retainedViews.finalizedReader(writes,(model,id)=>opts.store.cohortLoad({model,id,expectedRevision:navigationRevision}));}});
+              seamGuards.push({name:'send.retained',evaluate:async()=>{
+                await verifyCheckedAssembly(opts.asm,opts.artifact);
+                if(finalRead===undefined)throw new StateError('validation','Retained SEND lacks actual finalized owner effects.');
+                await retainedViews.revalidate(finalRead,true);
+                return await opts.store.readRevision()===navigationRevision;
+              }});
+            }
             if (referenceNavigation !== undefined) {
               let finalRead: ((model: ModelName, id: RecordId) => Promise<StoredRow | null>) | undefined;
               navigationOwner!.finalizers.add({ refresh: () => referenceNavigation.revalidate(
-                (model, id) => navigationOwner!.session.read(model, id)), seal: writes => {
+                (model, id) => navigationOwner!.session.read(model, id),internalRetainedGuarded), seal: writes => {
                 finalRead = referenceNavigation.finalizedReader(writes, (model, id) => opts.store.cohortLoad({
                   model, id, expectedRevision: navigationRevision }));
               } });
@@ -13543,7 +13699,7 @@ async function runScenarioExecution(
       } catch (error) { recordEngineFailure(error); throw error; }
     });
   }
-  if ((internalHandlerDue || internalRentNoticeRetained) && receiptStore !== undefined &&
+  if ((internalHandlerDue || internalRentNoticeRetained || internalRetainedGuarded) && receiptStore !== undefined &&
       ownerSession !== undefined &&
       (scenarioDef?.name === 'rent_reservations.correspondence' ||
         scenarioDef?.name === 'rent_reservations.remind')) {
@@ -13797,12 +13953,17 @@ async function runScenarioExecution(
     // write-free owner session for the clean branded authored failure only,
     // then rethrow the ORIGINAL error for the due catch to stage the exact
     // failed Work receipt. All other failures keep existing propagation.
-    if ((internalHandlerDue || internalRentNoticeRetained) && rootOwnerSession !== undefined) {
+    if ((internalHandlerDue || internalRentNoticeRetained || internalRetainedGuarded) && rootOwnerSession !== undefined) {
       const refusalGuards = await loadProducerModule('@canlang/state/effects/guards', 'due refusal thrown require');
       if ((requireProducerFn(refusalGuards, 'isAuthoredRequireFailure', 'due refusal thrown require') as
         typeof import('@canlang/state/effects/guards').isAuthoredRequireFailure)(error)) {
         try {
-          await rootOwnerSession.finalize();
+          if(internalRetainedGuarded) {
+            if(!('finalizeRefusal' in rootOwnerSession) || typeof rootOwnerSession.finalizeRefusal!=='function') {
+              throw new StateError('validation','Retained authored refusal lacks its installed discard finalizer.');
+            }
+            await rootOwnerSession.finalizeRefusal(error);
+          } else await rootOwnerSession.finalize();
         } catch (finalizeError) {
           throw new StateError('validation', `Due handler owner finalize failed: ${finalizeError instanceof Error ? finalizeError.message : String(finalizeError)}`);
         }
@@ -13831,7 +13992,7 @@ async function runScenarioExecution(
     // receipt. Genuine engine/observer/poison failures keep the immediate
     // throw with existing poisoning/rejected-receipt semantics — never
     // cleared by code or message match.
-    const guardsMod = (internalHandlerDue || internalRentNoticeRetained) && rootOwnerSession !== undefined
+    const guardsMod = (internalHandlerDue || internalRentNoticeRetained || internalRetainedGuarded) && rootOwnerSession !== undefined
       ? await loadProducerModule('@canlang/state/effects/guards', 'due refusal authored require') : undefined;
     const isCleanRequire = guardsMod !== undefined &&
       (requireProducerFn(guardsMod, 'isAuthoredRequireFailure', 'due refusal authored require') as
@@ -13844,7 +14005,7 @@ async function runScenarioExecution(
     // admission sees a clean owner close and the due path can return its
     // precise failed Work receipt. Other failures keep the existing
     // poisoning/rejected-receipt semantics below.
-    if ((internalHandlerDue || internalRentNoticeRetained) && rootOwnerSession !== undefined) {
+    if ((internalHandlerDue || internalRentNoticeRetained || internalRetainedGuarded) && rootOwnerSession !== undefined) {
       try {
         await rootOwnerSession.finalize();
       } catch (error) {
@@ -13915,11 +14076,11 @@ async function runScenarioExecution(
       isUnknownRecord(write) && ((write as { readonly model?: unknown }).model === 'work.schedule' ||
         (write as { readonly model?: unknown }).model === 'work.occurrence'));
     return { effects: {
-      writes: [...finalized.writes, ...(trustedOwnerReads && !receiptAware ? collapseStagedWrites(stagedWrites) : dueAdmissionWrites)], history: finalized.history,
+      writes: [...finalized.writes, ...(trustedOwnerReads && !savedResultAware ? collapseStagedWrites(stagedWrites) : dueAdmissionWrites)], history: finalized.history,
       uniqueClaims: finalized.uniqueClaims, uniqueReleases: finalized.uniqueReleases,
       resolvedDefaults: { ...finalized.resolvedDefaults, ...resolvedDefaults },
       schedules: [...finalized.schedules, ...extraSchedules],
-      outbox: [...outbox, ...(trustedOwnerReads && !receiptAware ? deferredEffects.flatMap(effects => effects.outbox ?? []) : [])], result,
+      outbox: [...outbox, ...(trustedOwnerReads && !savedResultAware ? deferredEffects.flatMap(effects => effects.outbox ?? []) : [])], result,
       fileAssignments: [...fileAssignments.values()].filter(assignment => finalized.writes.some(write =>
         (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
         write.row.id === assignment.recordId)),
@@ -15697,6 +15858,7 @@ const nativeIdentityRemovalSources = new WeakMap<AssembledModules,
   WeakMap<CompileArtifact, WeakMap<StoragePort, Map<string, NativeIdentityRemovalSource>>>>();
 const nativeIdentityRemovalCalls = new WeakMap<object, NativeIdentityRemovalSource>();
 const nativeDeclaredEventCalls = new WeakSet<object>();
+const nativeRetainedGuardedCalls = new WeakSet<object>();
 const nativeStandardCompletionCalls = new WeakMap<object, CheckedStandardCompletion>();
 function nativeIdentityRemovalSource(asm: AssembledModules, artifact: CompileArtifact,
   store: StoragePort, identities: IdentityStore, occurrence: string, scope: import('@canlang/contracts').WorkScope) {
@@ -16726,7 +16888,7 @@ async function bindPrivateDueHandlerProducers(
   sourceInput: Pick<CanonicalMutationOpts, 'identity' | 'store'> & { readonly now: () => number },
 ): Promise<void> {
   const plan = privateDef.descriptor.result?.disclosure;
-  if (plan === undefined || (plan.queries?.length ?? 0) === 0) return;
+  if (plan === undefined || (plan.queries?.length ?? 0) === 0 && plan.retainedGuardedHandler===undefined) return;
   const where = `Due handler query ${JSON.stringify(privateDef.name)}`;
   const member = (value: unknown, key: string): unknown =>
     isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
@@ -16759,6 +16921,14 @@ async function bindPrivateDueHandlerProducers(
   const planValue = isUnknownRecord(inventory) ? (inventory as Record<string, unknown>)[privateDef.name] : undefined;
   if (planValue === undefined || stableStringify(captureDispatchPreclaimData(planValue)) !== stableStringify(captureDispatchPreclaimData(plan))) {
     throw new AssemblyCorrespondenceError('Due handler query differs from its verified module inventory plan.');
+  }
+  if(plan.retainedGuardedHandler!==undefined) {
+    if(privateDef.descriptor.result?.type!=='void' || plan.retainedGuardedHandler.owner!==privateDef.name ||
+        member(operation,'event')!==plan.retainedGuardedHandler.event ||
+        ['queryFirst','queryAny','querySelections','executionDependencies','callSites'].some(key=>member(operation,key)!==undefined)) {
+      throw new AssemblyCorrespondenceError('Retained SEND source frame differs from its original private Declared handler.');
+    }
+    return;
   }
   const rawFirst = member(operation, 'queryFirst');
   const first = rawFirst === undefined ? [] : await Promise.all(nativeCallArray(rawFirst, plan.queries!.length).map(async value => {
@@ -17206,7 +17376,8 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
   const privateDef = descriptors.registry.get(selector.handler) as GeneratedOperationDef | undefined;
   if (privateDef === undefined) throw new Error('Retained ordinary handler descriptor was not checked.');
   let rentNoticeAppDefault: string | undefined;
-  if ((selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice')) {
+  if ((selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice') ||
+      privateDef.descriptor.result?.disclosure?.retainedGuardedHandler!==undefined) {
     const callable = opts.artifact.callables.find(entry => entry.id === selector.handler && entry.kind === 'handler');
     if (callable === undefined) throw new AssemblyCorrespondenceError('Rent notice handler lost its checked callable.');
     const module = await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
@@ -17219,7 +17390,8 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     rentNoticeAppDefault = declaredDefault;
   }
   const privateLoaded = { ...loaded, registry: descriptors.registry };
-  if ((selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice')) {
+  if ((selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice') ||
+      privateDef.descriptor.result?.disclosure?.retainedGuardedHandler!==undefined) {
     await bindScenarioFrameworkProducers(opts.asm, opts.artifact, privateLoaded, selector.handler);
   }
   const handlerModule = await loadProducerModule('@canlang/work/kernel/handler-occurrence', 'retained private handler');
@@ -17328,6 +17500,12 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     const ref = decodeValue(field.model, admittedInputs[field.name]) as import('@canlang/contracts').RecordRef;
     admittedInputs[field.name] = encodeValue(field.model, makeRecordRef(field.model, ref.id));
   }
+  if(privateDef.descriptor.result?.disclosure?.retainedGuardedHandler!==undefined) {
+    const operations=privateSourceMember(route.definition,'operations');
+    const handler=privateSourceMember(operations,selector.handler);
+    await bindPrivateDueHandlerProducers(opts.asm,opts.artifact,privateLoaded,privateDef,route.definition,handler,
+      {identity,store:opts.store,now:opts.now});
+  }
   const operationId = mintOperationId(() => now);
   const occurrenceIds: string[] = [];
   let commitGuards: ReadonlyArray<CanonicalGuardRevalidation> = [];
@@ -17353,8 +17531,8 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     identity, inputs: admittedInputs, source: sourceKind, memberships: opts.identities, now: () => now,
     ...(rentNoticeAppDefault === undefined ? {} : { formatting: { appDefault: rentNoticeAppDefault } }) };
   const committedSourceStage = await canonicalCommittedSourceStage(privateLoaded);
-  const retainedRentNoticeReceipt = declared && (selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice') &&
-    rentNoticeAppDefault !== undefined;
+  const retainedRentNoticeReceipt = privateDef.descriptor.result?.disclosure?.retainedGuardedHandler!==undefined || declared &&
+    ((selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice') && rentNoticeAppDefault!==undefined);
   let retainedRentNoticeOutcome: { readonly status: 'completed' | 'failed';
     readonly occurrenceId: string; readonly result: unknown } | undefined;
   try {
@@ -17378,6 +17556,17 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
         }
         await resolvePrivateSourceOwner(opts.identities, selector.scope, call.context.now);
         await verifyCommitted();
+        let observeRetainedFramework:((effects:SystemStaging)=>void)|undefined;
+        const guardedPlan=generatedScenarioDef(call)?.descriptor.result?.disclosure?.retainedGuardedHandler;
+        if(guardedPlan!==undefined) {
+          const note=loaded.producers.invoke.noteRetainedGuardedHandlerAdmission;
+          if(!(declared || scheduled) || guardedPlan.owner!==selector.handler || guardedPlan.event!==current.occurrence.event || note===undefined) {
+            throw new AssemblyCorrespondenceError('Retained SEND lacks its original Declared source frame.');
+          }
+          observeRetainedFramework=await note(call as never,guardedStore,{event:guardedPlan.event,
+            sourceOccurrenceId:selector.sourceOccurrence,handlerOccurrenceId:current.occurrence.occurrenceId,
+            scope:selector.scope,eventPayload:structuredClone(current.occurrence.payload)});
+        }
         if (declared && (selector.handler === 'rent_reservations.correspondence' || selector.handler === 'events.attendee_notice')) {
           const note = loaded.producers.invoke.noteRetainedEventAdmission;
           if (note === undefined || call.checkpoint === undefined) {
@@ -17400,14 +17589,18 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
           // This existing seam slot supplies origin effects/identity, not a
           // Work due gate: the derived retained handler occurrence is origin.
           if (declared) nativeDeclaredEventCalls.add(call.context);
+          if (guardedPlan!==undefined) nativeRetainedGuardedCalls.add(call.context);
           if (completion && checkedCompletion !== undefined) nativeStandardCompletionCalls.set(call.context, checkedCompletion);
           if (originalRemoval !== undefined) nativeIdentityRemovalCalls.set(call.context, originalRemoval);
           try {
             business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
-              { effects: {}, occurrenceId: current.occurrence.occurrenceId as OccurrenceId, ...(queue ? { queueValue: true as const } : {}) }, undefined,
+              { effects: {}, occurrenceId: current.occurrence.occurrenceId as OccurrenceId,
+                ...(observeRetainedFramework===undefined?{}:{observeFramework:observeRetainedFramework}),
+                ...(queue ? { queueValue: true as const } : {}) }, undefined,
               guardedStore, committedSourceStage.stageSources);
           } finally {
             nativeDeclaredEventCalls.delete(call.context);
+            nativeRetainedGuardedCalls.delete(call.context);
             nativeStandardCompletionCalls.delete(call.context);
             if (originalRemoval !== undefined) nativeIdentityRemovalCalls.delete(call.context);
           }
@@ -22113,7 +22306,7 @@ export async function bindNativeEmailDispatchGuards(input: {
       const targetOwner = resourceSendOwner(selected.definition, selected.guard.binding, selected.guard.target);
       if ((!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.TextGenerationV1.generate'].includes(selected.guard.target) &&
           targetOwner === undefined && !nativeLeaveDecideReserveGuard(def, selected) &&
-          !nativeMemberRetryChargeGuard(def, selected) && !nativeInvoiceCollectPaymentGuard(def, selected) &&
+          !nativeMemberRetryChargeGuard(def, selected) && !nativeInvoiceCollectPaymentGuard(def, selected) && !nativeRetainedFinancialGuard(def,selected) &&
           !nativeObserveVenueRoomsGuard(def, selected)) ||
           (targetOwner ?? selected.ownerPackage) !== scope.ownerPackage ||
           selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !nativeEventNoticeScalar(selected.guard,slot) && !sendSnapshots?.has(slot.type) &&
@@ -22253,10 +22446,21 @@ export async function bindNativeEmailDispatchGuards(input: {
       let successRenewal: Awaited<ReturnType<typeof prepareSuccessNoticeDispatchDecision>> | undefined;
       const physical = new Proxy(Object.create(null) as StoragePort, {
         get: reject, set: reject, defineProperty: reject, deleteProperty: reject, ownKeys: reject });
+      const privateFrame=def.descriptor.result?.disclosure?.retainedGuardedHandler;
+      const retainedQuery=async(model:ModelName,parent?:{model:ModelName;id:RecordId})=>{
+        if(await store.readRevision()!==actual.input.revision)throw new Error('Retained dispatch query checkpoint changed.');
+        const rows=await store.query({model,authority:'owner',archived:'exclude',order:[{field:'id',direction:'asc'}],
+          limit:SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows,...(parent===undefined?{}:{parent})});
+        if(await store.readRevision()!==actual.input.revision)throw new Error('Retained dispatch query checkpoint changed.');
+        return rows;
+      };
+      const retainedViews=privateFrame!==undefined && sendSnapshots!==undefined ? retainedGuardViews({loaded,artifact,snapshots:sendSnapshots,
+        store,identities,owner:scope.owner,read:(model,id)=>store.cohortLoad({model,id,expectedRevision:actual.input.revision}),
+        query:retainedQuery,healthy}):undefined;
       const canonical: CanonicalEffectsScope = Object.freeze({ operation: selected.guard.owner,
         operationId: originalIntent.operationId, stageWrite: reject, createRecord: reject, setRecord: reject,
         deleteRecord: reject, readModel: reject,
-        readRecords: (model: string, query: CanonicalReadQuery) => successRenewal !== undefined
+        readRecords: (model: string, query: CanonicalReadQuery) => retainedViews!==undefined ? retainedViews.readRecords(model,query) : successRenewal !== undefined
           ? successRenewal.readRecords(c, model, query) : maintainFrame === undefined
           ? reject() : maintainFrame.readRecords(c, model, query), observeDelivery: reject,
         builtinRoles: Object.freeze([]) });
@@ -22266,6 +22470,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         clock: () => { healthy(); return actual.input.context.now; }, canonical,
         qualified: { actor: null, team: { teamId: identity.team.team_id, timezone: identity.team.timezone },
           now: actual.input.context.now, source: 'dispatch', operationId: originalIntent.operationId } });
+      retainedViews?.bind(c);
       const inputs: Record<string, unknown> = Object.create(null);
       const observeVenueSelf = selected.guard.owner === 'events.observe_venue' &&
         selected.guard.inputs.length === 1 && selected.guard.inputs[0]?.name === 'change' &&
@@ -22273,18 +22478,36 @@ export async function bindNativeEmailDispatchGuards(input: {
         ? { model: 'events.Change', id: sendSnapshots.snapshot('events.Change',
           localPolicyMember(actual.lexical, 'change')).id }
         : undefined;
+      const retainedFrame=def.descriptor.result?.disclosure?.retainedGuardedHandler;
+      const retainedRoots=new Map<string,{readonly model:string;readonly frozen:StoredRow;readonly current:StoredRow|null}>();
+      let retainedEligible=true;
+      if(retainedFrame!==undefined) {
+        for(const slot of selected.guard.inputs) {
+          if(!sendSnapshots?.has(slot.type)) continue;
+          const frozen=sendSnapshots.snapshot(slot.type,localPolicyMember(actual.lexical,slot.name));
+          const current=await store.cohortLoad({model:slot.type as ModelName,id:frozen.id,expectedRevision:actual.input.revision});
+          healthy();
+          retainedRoots.set(slot.name,{model:slot.type,frozen,current});
+          if(current===null || !sameRetainedModelLifetime(frozen,current)) retainedEligible=false;
+        }
+      }
+      const retainedRootWire=(slot:{readonly name:string;readonly type:string})=>{
+        const root=retainedRoots.get(slot.name);
+        return root?.current===undefined || root.current===null ? localPolicyMember(actual.lexical,slot.name):
+          {...root.current,sourcePresence:{fields:Object.keys(root.current.data)}};
+      };
       const ownerDecision = selected.guard.eventSource?.ownerDecision;
       const eventDecision = ownerDecision?.owner === 'maintain.remind' ? ownerDecision : undefined;
       // The leave source guard captures Request after the approval SET; its
       // final delivery-id SET changes that same row before dispatch. The
       // current Request is separately reloaded and checked below, and the
       // original predicate reads only its three scalar fields.
-      const referenceNavigation = eventDecision !== undefined || leaveDecision !== undefined ||
+      const referenceNavigation = retainedViews!==undefined || eventDecision !== undefined || leaveDecision !== undefined ||
         invoiceOverdueDecision !== undefined || invoiceCollectDecision !== undefined ||
         invoiceIssueDecision !== undefined || successRenewalGuard || sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
         loaded, artifact, snapshots: sendSnapshots,
         roots: selected.guard.inputs.filter(slot => sendSnapshots.has(slot.type)).map(slot => ({
-          type: slot.type, wire: localPolicyMember(actual.lexical, slot.name) })),
+          type: slot.type, wire: retainedFrame===undefined?localPolicyMember(actual.lexical, slot.name):retainedRootWire(slot) })),
         read: (model, id) => store.cohortLoad({ model, id, expectedRevision: actual.input.revision }),
         healthy, failure: poison,
         parentOnly: selected.guard.eventSource !== undefined && selected.guard.owner !== 'success.renewal_due',
@@ -22415,7 +22638,8 @@ export async function bindNativeEmailDispatchGuards(input: {
               sendSnapshots!.view('member_terms.Term', { ...memberTerm!, sourcePresence: {
                 fields: Object.keys(memberTerm!.data),
               } }, healthy, referenceNavigation?.reference) :
-            sendSnapshots?.has(slot.type) ? sendSnapshots.view(slot.type, wire, healthy, referenceNavigation?.reference)
+            retainedViews!==undefined && retainedEligible && sendSnapshots?.has(slot.type) ? retainedViews.record(slot.type as ModelName,
+              sendSnapshots.snapshot(slot.type,retainedRootWire(slot))) : sendSnapshots?.has(slot.type) ? sendSnapshots.view(slot.type, retainedFrame===undefined?wire:retainedRootWire(slot), healthy, referenceNavigation?.reference)
             : decodeCanonicalValue(loaded.valueSchema, slot.type, wire) });
       }
       healthy(); admissions.set(execution, identity);
@@ -22427,7 +22651,11 @@ export async function bindNativeEmailDispatchGuards(input: {
           field: 'sourceGuard', binding: actual.row.data['filePayloadOrigin'] as FrameworkFilePayloadOrigin }, actual.input.revision, input.files);
         const current = await actual.currentIdentity();
         await verifyCheckedAssembly(asm, artifact);
-        await referenceNavigation?.revalidate();
+        await referenceNavigation?.revalidate();await retainedViews?.revalidate();
+        for(const root of retainedRoots.values()) {
+          const current=await store.cohortLoad({model:root.model as ModelName,id:root.frozen.id,expectedRevision:actual.input.revision});
+          if(stableStringify(current)!==stableStringify(root.current)) return false;
+        }
         await maintainFrame?.revalidate();
         await successRenewal?.revalidate();
         if (recheckLeave !== undefined && !await recheckLeave()) return false;
@@ -22447,6 +22675,7 @@ export async function bindNativeEmailDispatchGuards(input: {
           closeEventRole = bindNativeEventDecisionRole(c, successRenewal.role);
         }
         frame.assertCompleted(); healthy();
+        if(retainedFrame!==undefined && !retainedEligible) return false;
         if (successRenewalGuard && (successRenewal === undefined || !successRenewal.eligible)) return false;
         if (leaveDecision !== undefined && !leaveCurrent) return false;
         if (memberRetryDecision !== undefined && !memberCurrent) return false;
@@ -22459,7 +22688,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         const answer: unknown = invoiceOverdueDecision !== undefined ? true :
           await selected.evaluate(c, Object.freeze(inputs));
         frame.assertCompleted(); healthy();
-        await referenceNavigation?.revalidate(); healthy();
+        await referenceNavigation?.revalidate();await retainedViews?.revalidate(); healthy();
         await maintainFrame?.revalidate(); healthy();
         await successRenewal?.revalidate(); healthy();
         if (typeof answer !== 'boolean') return refuse(new Error('Original native SEND predicate must return Bool.'));

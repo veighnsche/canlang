@@ -28,6 +28,9 @@ pub(super) struct ReceiptSource {
 
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct ReceiptDisclosurePlan {
+    /// Private nongrant SEND source frame; never a public return recipe.
+    #[serde(rename="retainedGuardedHandler",skip_serializing_if="Option::is_none")]
+    pub retained_guarded_handler: Option<serde_json::Value>,
     #[serde(rename="sourceLoops",skip_serializing_if="Option::is_none")]
     pub source_loops: Option<serde_json::Value>,
     #[serde(rename="sourceEmissions",skip_serializing_if="Option::is_none")]
@@ -2246,7 +2249,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),item)?;
     }
     let mut recipe = NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { source_loops: None, source_emissions: checked_source_emissions(ir,item,checked,entry_module),
+        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: checked_source_emissions(ir,item,checked,entry_module),
             version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
             invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source,
             queries: effective_plan.map_or_else(Vec::new, |plan| plan.queries.clone()),
@@ -4673,7 +4676,7 @@ fn checked_guard_any_query_plan(
             projection: None,
         });
     }
-    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
+    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
         queries: fragments,
@@ -4725,7 +4728,7 @@ pub(super) fn checked_native_any_direct_query_plan(
     if kinds.len() != 4 {
         return None;
     }
-    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
+    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![fragment],
@@ -5161,7 +5164,7 @@ pub(super) fn checked_native_helper_any_query_plan(
             .into(),
         })
         .collect::<Vec<_>>();
-    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
+    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&facts.source, entry)?,
         queries: vec![ReceiptQuery {
@@ -6986,7 +6989,7 @@ fn checked_native_first_query_source_plan(
     // queries keep no parent. Re-proves the disclosure receiver here, so a
     // mismatched parent keeps the source-plan refusal.
     let parent = first_query_receipt_parent(ir, owner, query, scan, db, first, entry_module)?;
-    let expected = ReceiptDisclosurePlan { source_loops: None, source_emissions: checked_source_emissions(ir,owner,checked,entry_module),
+    let expected = ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: checked_source_emissions(ir,owner,checked,entry_module),
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&checked.source, entry_module)?,
         queries: vec![ReceiptQuery {
@@ -8206,7 +8209,7 @@ fn checked_native_ancestor_count_query_plan(
     {
         return None;
     }
-    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
+    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
@@ -8420,7 +8423,7 @@ fn native_count_plan(
     parent_id: crate::analysis::SymbolId,
     influences: Vec<ReceiptInfluence>,
 ) -> Option<ReceiptDisclosurePlan> {
-    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
+    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None,
         invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
@@ -8547,7 +8550,7 @@ pub(super) fn checked_native_assign_count_query_plan(
         Some(ReceiptReturn {id: returned.id.clone(), source: transport_source(&returned.source, entry)?,
             influences: influences.clone(), dependencies: Vec::new(), intrinsics: Vec::new(), projection: None})
     }).collect::<Option<Vec<_>>>()?;
-    Some(ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
+    Some(ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
         version: 1, event_decision: None, term_decision: None, leave_request_decision: None, leave_decide_decision: None, refer_reject_decision: None, member_retry_decision: None, invoice_overdue_decision: None, rent_movement_refund_decision: None, invoice_collect_decision: None, rent_notice_decision: None, invoice_issue_decision: None, observe_venue_decision: None, success_renewal_decision: None, purchase_receive_all: None, event_notice_audit: None,source: transport_source(&query.source, entry)?,
         queries: vec![ReceiptQuery {
             id: query.id.clone(), source: transport_source(&query.source, entry)?,

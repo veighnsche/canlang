@@ -1665,8 +1665,23 @@ function checkSourceEmissions(value:unknown,source:unknown):NonNullable<Scenario
 }
 
 /** Loader checker; callers cannot turn this data into a bound generated def. */
+function checkRetainedGuardedHandler(value: unknown, source: unknown): void {
+  const frame=object(value,['source','owner','event','node','rules']);
+  origin(frame['source']);
+  const node=object(frame['node'],['start','end']);
+  const rules=list(frame['rules']).map(text);
+  if(stableStringify(frame['source'])!==stableStringify(source) ||
+      !text(frame['owner']).includes('.') || !text(frame['event']).includes('.') ||
+      !Number.isSafeInteger(node['start']) || !Number.isSafeInteger(node['end']) ||
+      (node['start'] as number)<0 || (node['end'] as number)<=(node['start'] as number) ||
+      rules.length===0 || new Set(rules).size!==rules.length) {
+    return invalid('retained SEND frame lacks its complete original handler and guard census.');
+  }
+}
+
 export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResultDisclosurePlan {
   const plan = object(dataCopy(value), ['version', 'source', 'returns',
+    ...(typeof value === 'object' && value !== null && Object.hasOwn(value,'retainedGuardedHandler')?['retainedGuardedHandler']:[]),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value,'sourceLoops')?['sourceLoops']:[]),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value,'sourceEmissions')?['sourceEmissions']:[]),
     ...(typeof value === 'object' && value !== null && Object.hasOwn(value, 'queries') ? ['queries'] : []),
@@ -1708,7 +1723,13 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (Object.hasOwn(plan, 'eventNoticeAudit')) checkEventNoticeAuditPlan(plan['eventNoticeAudit'], plan['source']);
   const queries = checkQueries(plan['queries'] ?? []);
   const returns = list(plan['returns']);
-  if (returns.length === 0) return invalid('at least one checked return path required.');
+  if (Object.hasOwn(plan,'retainedGuardedHandler')) {
+    checkRetainedGuardedHandler(plan['retainedGuardedHandler'],plan['source']);
+    if(returns.length!==0 || queries.length!==0 || Object.keys(plan).some(key=>
+        !['version','source','returns','queries','retainedGuardedHandler'].includes(key))) {
+      return invalid('retained SEND frame cannot publish returns, query grants or another decision mode.');
+    }
+  } else if (returns.length === 0) return invalid('at least one checked return path required.');
   const ids = new Set<string>(); const dependencies = new Map<string, string>();
   for (const entry of returns) {
     const returned = object(entry, ['id', 'source', 'dependencies', 'influences',
@@ -2640,6 +2661,10 @@ function bindScenarioPlan(def: GeneratedOperationDef, models: readonly ArtifactM
   const plan: ScenarioResultDisclosurePlan = sourceRequire === undefined ? checkScenarioResultDisclosurePlan(claim)
     : { version: 1, source: sourceRequire, returns: [], queries: [] };
   const declared = sourceRequire === undefined ? def.descriptor.result!.type : 'void';
+  if(plan.retainedGuardedHandler!==undefined && (def.kind!=='scenario' || declared!=='void' ||
+      plan.retainedGuardedHandler.owner!==def.name)) {
+    return invalid('retained SEND frame requires its exact original private void handler.');
+  }
   const rawEventDecision = (plan as ScenarioResultDisclosurePlan & { readonly eventDecision?: unknown }).eventDecision;
   const eventDecision = rawEventDecision === undefined ? undefined : checkEventDecisionPlan(rawEventDecision, plan.source);
   const rawTermDecision = (plan as ScenarioResultDisclosurePlan & { readonly termDecision?: unknown }).termDecision;
@@ -3184,6 +3209,10 @@ const frameworkProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptFra
 const frameworkModelInputs = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, ReadonlyMap<string, ModelLexicalSnapshotProfile>>>();
 export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef, producer: ScenarioReceiptFrameworkProducer): void {
   const bound = boundPlans.get(def);
+  const retained=bound?.plan.retainedGuardedHandler;
+  if(retained!==undefined && stableStringify(producer.sendGuards?.map(guard=>guard.rule))!==stableStringify(retained.rules)) {
+    return invalid('retained handler framework differs from its complete original SEND census.');
+  }
   if (bound === undefined || frameworkProducers.has(def) || invokedPlans.has(def)) return invalid('framework producer requires one checked source binding before execution.');
   if (typeof producer !== 'object' || producer === null || Array.isArray(producer) ||
       ![Object.prototype, null].includes(Object.getPrototypeOf(producer)) ||
@@ -4427,7 +4456,11 @@ function capture(call: AdmittedCall, store: StoragePort): Capture {
 
 export type ScenarioReceiptMutationInput = Omit<OwnerMutationInput, 'context' | 'store' | 'trigger' | 'gateArchivedTargets'>;
 export interface ScenarioReceiptMutationEffects extends MutationWritesResult { readonly outbox?: OutboxIntent[] }
-export interface ScenarioReceiptMutationSession extends OwnerMutationSession { finalize(): Promise<ScenarioReceiptMutationEffects> }
+export interface ScenarioReceiptMutationSession extends OwnerMutationSession {
+  finalize(): Promise<ScenarioReceiptMutationEffects>;
+  /** Discard one authenticated retained handler's staged business effects after its actual authored Require throws. */
+  finalizeRefusal(error:unknown):Promise<void>;
+}
 interface FrameworkRow { readonly model: ModelName; readonly before: StoredRow | null; current: StoredRow | null; recreated: boolean }
 interface FrameworkLedger {
   readonly producer: ScenarioReceiptFrameworkProducer;
@@ -4880,7 +4913,9 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
     return deepFreeze(Object.fromEntries(guard.inputs.map(input => [input.name, values[input.name]])));
   }
   if (models.length === 0) return deepFreeze(values);
-  const privateEvent = event !== undefined && models.length === 1 && models[0]!.name === 'eventTerm';
+  const privateOwner=state.bound.plan.retainedGuardedHandler!==undefined && retainedGuardedAdmissions.has(call) &&
+    call.context.kind==='trusted' && call.context.actor===null;
+  const privateEvent = privateOwner || event !== undefined && models.length === 1 && models[0]!.name === 'eventTerm';
   if (owner.session === null || !privateEvent && (producer?.app !== call.context.app || producer.readPolicies === undefined) ||
       owner.busy || state.pending !== 0 || owner.callGuards.length + models.length >= MAX_ITEMS) {
     return invalid('SEND model snapshot requires its complete installed source grant and nonconcurrent owner stage.');
@@ -4899,8 +4934,8 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
     const membership = actorUserId === null || teamId === null ? null : await reader.findMembership(teamId, actorUserId); healthy();
     const context: ByContext = { actorUserId, teamId, membership, memberships: reader };
     for (const { name, profile, row, sourcePresence } of models) {
-      if (privateEvent && name === 'eventTerm') {
-        const fields = event!.modelField.fields;
+      if (privateOwner || privateEvent && name === 'eventTerm') {
+        const fields = privateOwner?Object.keys(row.data):event!.modelField.fields;
         const snapshot = deepFreeze({ ...row, parent: row.parent ?? null,
           data: dataCopy(Object.fromEntries(fields.filter(field => Object.hasOwn(row.data, field))
             .map(field => [field, row.data[field]]))), sourcePresence });
@@ -4918,6 +4953,7 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
           if (owner.finalized !== final || owner.capture.poisoned || current === null ||
               !sameModelLifetime(row, current) || (maintain
                 ? !maintainReminderOwnWrite(call, owner, event, row, current, final.writes)
+                : privateOwner ? write===undefined && stableStringify(current)!==stableStringify(row)
                 : stableStringify(current) !== stableStringify(row))) {
             throw new StateError('forbidden', 'event SEND source row changed before commit.');
           }
@@ -5338,6 +5374,9 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
   input: ScenarioReceiptMutationInput): Promise<ScenarioReceiptMutationSession> {
   const state = capture(call, store);
   try {
+    if(state.bound.plan.retainedGuardedHandler!==undefined && !retainedGuardedAdmissions.has(call)) {
+      return invalid('retained SEND frame lacks its actual ordinary Work admission.');
+    }
     if (ownerSessions.has(call) || state.pending !== 0 || state.observations.length !== 0 || state.intrinsics.length !== 0 || state.returnId !== null) return invalid('one owner session must begin before scenario observations/return completion.');
     if (typeof input !== 'object' || input === null || Array.isArray(input) ||
         ![Object.prototype, null].includes(Object.getPrototypeOf(input)) ||
@@ -5488,6 +5527,28 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
           finite.staged += 1;
         }
       }),
+      finalizeRefusal:async error=>{
+        try {
+          ownerHealthy(owner);
+          const admitted=retainedGuardedAdmissions.get(call);
+          if(state.bound.plan.retainedGuardedHandler===undefined || admitted===undefined || admitted.refused ||
+              !isAuthoredRequireFailure(error) || owner.executingCall!==call || owner.busy || state.pending!==0 ||
+              owner.activeSend!==null || owner.activeOwnerDecision!==null || owner.activeEventDecision!==null ||
+              owner.activeTermDecision!==null || owner.activeLeaveDecision!==null || owner.activeLeaveDecideDecision!==null) {
+            return invalid('retained refusal requires its actual live original authored Require.');
+          }
+          await ownerOperation(owner,async()=>undefined);
+          ownerHealthy(owner);
+          // No partial business finalizer runs: that could emit events or hooks
+          // from an abandoned CREATE/SET overlay. Only the exact failed Work
+          // terminal remains, checked separately at retention below.
+          const empty=deepFreeze({writes:[],history:[],outbox:[],uniqueClaims:[],uniqueReleases:[],resolvedDefaults:{},schedules:[]});
+          owner.finalized=empty;owner.commitEffects=empty;admitted.refused=true;
+          admitted.frameworkWrites.clear();admitted.frameworkVersions.clear();admitted.schedules.length=0;
+          owner.callGuards.length=0;owner.storedFileChecks.length=0;
+          state.rowIdGuards.length=0;state.files.length=0;
+        } catch(error) {state.poisoned=true;throw error;}
+      },
       finalize: async () => {
         try {
           if (owner.computedIndex !== owner.computedDefaults.length) return invalid('generated handler omitted a required computed-default contribution.');
@@ -11181,6 +11242,113 @@ export interface RetainedEventAdmission {
   readonly scope: { readonly app: string; readonly owner: string; readonly ownerPackage: string };
   readonly eventPayload: Readonly<Record<string, unknown>>;
 }
+export interface RetainedGuardedHandlerAdmission {
+  readonly event: string;
+  readonly sourceOccurrenceId: string;
+  readonly handlerOccurrenceId: string;
+  readonly scope: { readonly app: string; readonly owner: string; readonly ownerPackage: string };
+  readonly eventPayload: Readonly<Record<string, unknown>>;
+}
+const retainedGuardedAdmissions=new WeakMap<AdmittedCall,{readonly admission:RetainedGuardedHandlerAdmission;
+  readonly source:StoredRow;readonly handler:StoredRow;
+  readonly frameworkWrites:Map<string,DomainWrite>;readonly frameworkVersions:Map<string,number>;readonly schedules:unknown[];refused:boolean}>();
+/** The installed retained Work driver supplies coordinates, never read authority.
+ * Both physical rows must independently match this bound private source frame. */
+export async function noteRetainedGuardedHandlerAdmission(call:AdmittedCall,store:StoragePort,
+  input:RetainedGuardedHandlerAdmission):Promise<(effects:SystemStaging)=>void> {
+  assertScenarioReceiptCallExecution(call,store);
+  const plan=boundPlans.get(call.def as GeneratedOperationDef)?.plan.retainedGuardedHandler;
+  const raw=object(dataCopy(input),['event','sourceOccurrenceId','handlerOccurrenceId','scope','eventPayload']);
+  const scope=object(raw['scope'],['app','owner','ownerPackage']);
+  if(plan===undefined || retainedGuardedAdmissions.has(call) || plan.owner!==call.def.name ||
+      raw['event']!==plan.event || call.context.kind!=='trusted' || call.context.actor!==null ||
+      call.context.source!=='schedule' || ![`event:${plan.event}`,`schedule:${plan.event}`].includes(call.context.trustedSource??'') ||
+      scope['app']!==call.context.app || scope['owner']!==(call.context.team?.teamId??call.context.app) ||
+      raw['handlerOccurrenceId']!==`handler/v1/${encodeURIComponent(text(raw['sourceOccurrenceId']))}/${encodeURIComponent(call.def.name)}` ||
+      stableStringify(raw['eventPayload'])!==stableStringify(call.inputs)) {
+    return invalid('retained SEND frame differs from its actual admitted Work source.');
+  }
+  const source=await store.cohortLoad({model:'work.occurrence' as ModelName,
+    id:text(raw['sourceOccurrenceId']) as RecordId,expectedRevision:call.revision});
+  const handler=await store.cohortLoad({model:'work.handler_occurrence' as ModelName,
+    id:text(raw['handlerOccurrenceId']) as RecordId,expectedRevision:call.revision});
+  const result=source?.data['result'] as Record<string,unknown>|undefined;
+  const routes=result?.['handlers'];
+  const scheduled=call.context.trustedSource===`schedule:${plan.event}`;
+  const schedule=scheduled?await store.cohortLoad({model:'work.schedule' as ModelName,
+    id:text(raw['sourceOccurrenceId']) as RecordId,expectedRevision:call.revision}):null;
+  const sourceMatches=scheduled ? schedule!==null && schedule.archivedAt===null &&
+    schedule.data['occurrenceId']===source?.id && schedule.data['event']===plan.event &&
+    schedule.data['state']==='admitted' && schedule.data['scopeApp']===scope['app'] &&
+    schedule.data['scopeOwner']===scope['owner'] && schedule.data['scopeOwnerPackage']===scope['ownerPackage'] &&
+    stableStringify(schedule.data['payload'])===stableStringify(raw['eventPayload']) &&
+    result!==undefined && Object.keys(result).length===3 &&
+    ['fanouts','bounds','handlers'].every(key=>Object.hasOwn(result,key)) &&
+    Array.isArray(result['fanouts']) && typeof result['bounds']==='object' && result['bounds']!==null :
+    result?.['kind']==='declared-event-source' && result['event']===plan.event &&
+    stableStringify(result['payload'])===stableStringify(raw['eventPayload']) &&
+    stableStringify(result['scope'])===stableStringify(scope);
+  if(source===null || handler===null || source.archivedAt!==null || handler.archivedAt!==null ||
+      source.data['status']!=='completed' || source.data['code']!==null || source.data['message']!==null ||
+      !sourceMatches || !Array.isArray(routes) ||
+      !routes.some(route=>stableStringify(route)===stableStringify({handler:call.def.name,
+        ...(scheduled?{}:{kind:'ordinary'}),occurrenceId:handler.id})) ||
+      handler.data['state']!=='pending' || handler.data['sourceOccurrence']!==source.id ||
+      handler.data['handler']!==call.def.name || handler.data['event']!==plan.event ||
+      stableStringify(handler.data['payload'])!==stableStringify(raw['eventPayload']) ||
+      handler.data['scopeApp']!==scope['app'] || handler.data['scopeOwner']!==scope['owner'] ||
+      handler.data['scopeOwnerPackage']!==scope['ownerPackage'] || await store.readRevision()!==call.revision) {
+    return invalid('retained SEND frame lost its physical original Work source/route/payload.');
+  }
+  const admitted={admission:deepFreeze(raw) as unknown as RetainedGuardedHandlerAdmission,
+    source:deepFreeze(dataCopy(source)) as StoredRow,handler:deepFreeze(dataCopy(handler)) as StoredRow,
+    frameworkWrites:new Map<string,DomainWrite>(),frameworkVersions:new Map<string,number>(),schedules:[] as unknown[],refused:false};
+  retainedGuardedAdmissions.set(call,admitted);
+  // This closure is held only by the installed retained Work driver. It sees
+  // the actual Schedule/Cancel producer output before the host merges it;
+  // authored arguments and returned execution effects cannot call this port.
+  return effects=>{
+    try {
+      assertScenarioReceiptCallExecution(call,store);
+      const owner=ownerSessions.get(call);
+      if(retainedGuardedAdmissions.get(call)!==admitted || owner===undefined || owner.closed ||
+          owner.executingCall!==call || owner.busy || owner.capture.pending!==0) {
+        return invalid('retained Work stage crossed its actual owner execution.');
+      }
+      const copied=object(dataCopy(effects),Object.keys(effects));
+      if(Object.keys(copied).some(key=>!['writes','schedules','result'].includes(key))) {
+        return invalid('retained continuation stage may not supply business effects or an outbox.');
+      }
+      for(const rawWrite of list(copied['writes']??[])) {
+        const w=object(rawWrite,['kind','model',...(typeof rawWrite==='object' && rawWrite!==null &&
+          (rawWrite as {kind?:unknown}).kind==='insert'?['row']:['id','expectedVersion','row'])]);
+        const model=text(w['model']) as ModelName;
+        if(!['work.schedule','work.supersession'].includes(model) || owner.capture.bound.models.has(model) ||
+            w['kind']!=='insert' && w['kind']!=='update') {
+          return invalid('retained Work stage is outside the installed Schedule/Cancel tables.');
+        }
+        const row=checkedRow(w['row']),id=w['kind']==='insert'?row.id:text(w['id']) as RecordId;
+        if(row.id!==id || w['kind']==='update' && (!Number.isSafeInteger(w['expectedVersion']) ||
+            (w['expectedVersion'] as number)<1)) return invalid('retained Work stage lacks its exact row/version.');
+        const key=`${model}\0${id}`,prior=admitted.frameworkWrites.get(key);
+        if(prior!==undefined && (w['kind']!=='update' || prior.kind==='remove' ||
+            admitted.frameworkVersions.get(key)!==w['expectedVersion'])) return invalid('retained Work stages changed their original order.');
+        const firstVersion=prior===undefined ? w['kind']==='insert'?0:w['expectedVersion'] as number:
+          prior.kind==='insert'?0:prior.expectedVersion;
+        const next=deepFreeze({...row,version:(firstVersion+1) as typeof row.version});
+        // Work's source overlay collapses repeated touches onto their first
+        // physical version. Preserve first-touch ordering and the complete row.
+        admitted.frameworkWrites.set(key,firstVersion===0?{kind:'insert',model,row:next}:
+          {kind:'update',model,id,expectedVersion:firstVersion as typeof row.version,row:next});
+        admitted.frameworkVersions.set(key,row.version);
+        if(admitted.frameworkWrites.size>MAX_ITEMS) return invalid('retained Work stage census exceeded.');
+      }
+      admitted.schedules.push(...list(copied['schedules']??[]));
+      if(admitted.schedules.length>MAX_ITEMS) return invalid('retained schedule census exceeded.');
+    } catch(error) { const state=captures.get(call);if(state!==undefined)state.poisoned=true;throw error; }
+  };
+}
+
 const retainedEventAdmissions = new WeakMap<AdmittedCall, RetainedEventAdmission>();
 export function noteRetainedEventAdmission(call: AdmittedCall, admission: RetainedEventAdmission): void {
   if (retainedEventAdmissions.has(call)) return invalid('duplicate retained Work event admission.');
@@ -11301,8 +11469,8 @@ function verifyDueWorkWrites(call: AdmittedCall, admission: DueWorkAdmission, wr
 /** Retained declared handlers append their terminal Work pair outside the
  * owner's business finalizer. The pair is tied to the physical route loaded
  * at admission; all preceding Work writes remain byte-equal to that finalizer. */
-function verifyRetainedNoticeTerminal(call: AdmittedCall, admission: RetainedEventAdmission,
-  original: StoredRow | null, pair: readonly unknown[]): void {
+function verifyRetainedNoticeTerminal(call: AdmittedCall, admission: RetainedGuardedHandlerAdmission,
+  original: StoredRow | null, pair: readonly unknown[], refused=false): void {
   if (original === null || pair.length !== 2) return invalid('Rent correspondence lacks its exact retained terminal pair.');
   const update = object(pair[0], ['kind', 'model', 'id', 'expectedVersion', 'row']);
   const insert = object(pair[1], ['kind', 'model', 'row']);
@@ -11313,7 +11481,7 @@ function verifyRetainedNoticeTerminal(call: AdmittedCall, admission: RetainedEve
       changed.id !== original.id || changed.version !== original.version + 1 ||
       !sameModelLifetime(original, changed) || changed.updated !== call.context.now ||
       changed.updatedBy !== call.context.trustedSource ||
-      stableStringify(changed.data) !== stableStringify({ ...original.data, state: 'completed' }) ||
+      stableStringify(changed.data) !== stableStringify({ ...original.data, state: refused?'failed':'completed' }) ||
       insert['kind'] !== 'insert' || insert['model'] !== 'work.occurrence' ||
       receipt.id !== admission.handlerOccurrenceId || receipt.version !== 1 ||
       receipt.archivedAt !== null || receipt.parent !== null ||
@@ -11323,8 +11491,9 @@ function verifyRetainedNoticeTerminal(call: AdmittedCall, admission: RetainedEve
   }
   const data = object(receipt.data, ['occurrenceId', 'status', 'result', 'code', 'message', 'recordedAtMs',
     ...(Object.hasOwn(receipt.data, 'filePayloadOrigin') ? ['filePayloadOrigin'] : [])]);
-  if (data['occurrenceId'] !== admission.handlerOccurrenceId || data['status'] !== 'completed' ||
-      data['result'] !== null || data['code'] !== null || data['message'] !== null ||
+  if (data['occurrenceId'] !== admission.handlerOccurrenceId || data['status'] !== (refused?'failed':'completed') ||
+      data['result'] !== null || data['code'] !== (refused?'require-false':null) ||
+      data['message'] !== (refused?'handler requirement rejected the occurrence':null) ||
       data['recordedAtMs'] !== call.context.now ||
       Object.hasOwn(original.data, 'filePayloadOrigin') !== Object.hasOwn(data, 'filePayloadOrigin')) {
     return invalid('Rent correspondence terminal lacks its exact completed void receipt.');
@@ -12043,6 +12212,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   const owner = ownerSessions.get(call); ownerSessions.delete(call);
   const dueAdmission = dueWorkAdmissions.get(call); dueWorkAdmissions.delete(call);
   const retainedEventAdmission = retainedEventAdmissions.get(call); retainedEventAdmissions.delete(call);
+  const retainedGuarded=retainedGuardedAdmissions.get(call);retainedGuardedAdmissions.delete(call);
   if (owner !== undefined) {
     if (!owner.closed || owner.finalized === null || owner.commitEffects === null || owner.capture.poisoned || owner.capture.pending !== 0) {
       return invalid('owner session must finalize successfully inside its actual execution.');
@@ -12055,7 +12225,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     let dueEmptyNoAssociation = false;
     const returned = effects.writes as readonly unknown[];
     const committed = owner.commitEffects.writes as readonly unknown[];
-    const isFrameworkWork = (write: unknown): boolean => state?.bound.rentNoticeDecision !== undefined &&
+    const isFrameworkWork = (write: unknown): boolean => (state?.bound.rentNoticeDecision !== undefined || retainedGuarded!==undefined) &&
       typeof write === 'object' && write !== null &&
       typeof (write as { readonly model?: unknown }).model === 'string' &&
       (write as { readonly model: string }).model.startsWith('work.') || isDueWorkWrite(write);
@@ -12073,17 +12243,21 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
       // still match the separate disclosure below. Due handlers retain their
       // stronger recorded terminal-pair admission.
       if (dueAdmission === undefined) {
-        const retainedNotice = retainedEventAdmission !== undefined &&
+        const retainedNotice = retainedGuarded!==undefined || retainedEventAdmission !== undefined &&
           state?.bound.rentNoticeDecision?.owner === 'rent_reservations.correspondence' &&
           state.rentNoticeDecision !== undefined;
-        const ownerWork = retainedNotice ? returnedWork.slice(0, committedWork.length) : returnedWork;
+        const expectedWork=retainedGuarded===undefined?committedWork:
+          [...committedWork,...retainedGuarded.frameworkWrites.values()];
+        const ownerWork = retainedNotice ? returnedWork.slice(0, expectedWork.length) : returnedWork;
         if (owner.options.stageSources === undefined ||
             owner.finalized.writes.some(isFrameworkWork) && state?.termDecision === undefined &&
-              state?.rentNoticeDecision === undefined ||
-            stableStringify(dataCopy(ownerWork,false,dataBudget)) !== stableStringify(dataCopy(committedWork,false,dataBudget))) {
+              state?.rentNoticeDecision === undefined && retainedGuarded===undefined ||
+            stableStringify(dataCopy(ownerWork,false,dataBudget)) !== stableStringify(dataCopy(expectedWork,false,dataBudget))) {
           return invalid('executor source Work writes differ from the actual finalized owner sources.');
         }
-        if (retainedNotice) verifyRetainedNoticeTerminal(call, retainedEventAdmission!,
+        if (retainedGuarded!==undefined) verifyRetainedNoticeTerminal(call,
+          retainedGuarded.admission,retainedGuarded.handler,returnedWork.slice(expectedWork.length),retainedGuarded.refused);
+        else if (retainedNotice) verifyRetainedNoticeTerminal(call, retainedEventAdmission!,
           state!.rentNoticeDecision!.handlerRow, returnedWork.slice(committedWork.length));
       } else {
         const dueNotice = state?.bound.rentNoticeDecision?.owner === 'rent_reservations.remind' &&
@@ -12112,6 +12286,10 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     }
     // Duplicate schedule keys use last-operation-wins semantics. An extra
     // cancel/replacement on an owned key would override actual owner effects.
+    if(retainedGuarded!==undefined && stableStringify(effects.schedules)!==stableStringify(
+        [...owner.finalized.schedules,...retainedGuarded.schedules])) {
+      return invalid('retained handler omitted, mixed or reordered its installed Schedule/Cancel stages.');
+    }
     const keys = new Set(owner.finalized.schedules.map(schedule => schedule.key));
     const owned = effects.schedules.filter(schedule => keys.has(schedule.key));
     if (stableStringify(owned) !== stableStringify(owner.finalized.schedules)) return invalid('executor omitted, changed or overrode an owned schedule.');
@@ -12129,6 +12307,15 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
         state.observations.length !== 0 || state.intrinsics.length !== 0 || state.queries.length !== 0) {
       return invalid('source Require frame must close its actual owner without result captures.');
     }
+    captures.delete(call);
+    return undefined;
+  }
+  if(state?.bound.plan.retainedGuardedHandler!==undefined) {
+    if(retainedGuarded===undefined || owner===undefined || effects.result!==null ||
+        state.returnId!==null || state.observations.length!==0 || state.intrinsics.length!==0 || state.queries.length!==0) {
+      return invalid('retained SEND frame cannot form a result association or escape its original owner.');
+    }
+    matchScenarioFileAssignments(call,effects);
     captures.delete(call);
     return undefined;
   }

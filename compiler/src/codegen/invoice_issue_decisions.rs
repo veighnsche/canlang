@@ -1009,7 +1009,7 @@ pub(super) fn collect_issue_receipt(
         "employee.can_work".into(),
     )]);
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
+        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
             version: 1,
             source: source.clone(),
             event_decision: None,

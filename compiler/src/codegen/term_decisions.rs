@@ -841,7 +841,7 @@ pub(super) fn collect_term_receipt(
         projection: None,
     };
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
+        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
             version: 1,
             source,
             event_decision: None,

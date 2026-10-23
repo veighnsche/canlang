@@ -186,7 +186,17 @@ export interface ScenarioReceiptQueryObservation {
   readonly selectedIndices: readonly number[];
 }
 
+export interface RetainedGuardedHandlerPlan {
+  readonly source: ScenarioReceiptSourceOrigin;
+  readonly owner: string;
+  readonly event: string;
+  readonly node: { readonly start: number; readonly end: number };
+  readonly rules: readonly string[];
+}
+
 export interface ScenarioResultDisclosurePlan {
+  /** Private ordinary Work source frame; no result or query authority. */
+  readonly retainedGuardedHandler?: RetainedGuardedHandlerPlan;
   readonly version: 1;
   readonly source: ScenarioReceiptSourceOrigin;
   readonly invoiceOverdueDecision?: unknown;

@@ -275,7 +275,7 @@ pub(super) fn collect_overdue_receipt(
         .as_bytes(),
     );
     Some(NativeScenarioReceipt {
-        plan: ReceiptDisclosurePlan { source_loops: None, source_emissions: None,
+        plan: ReceiptDisclosurePlan { retained_guarded_handler: None, source_loops: None, source_emissions: None,
             version: 1,
             source: source.clone(),
             event_decision: None,

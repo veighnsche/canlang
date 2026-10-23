@@ -46,6 +46,7 @@ export {
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
   noteDueWorkAdmission, type DueWorkAdmission,
   noteRetainedEventAdmission, type RetainedEventAdmission,
+  noteRetainedGuardedHandlerAdmission, type RetainedGuardedHandlerAdmission,
   bindScenarioReceiptMembershipSource, type ScenarioReceiptMembershipSourceAssociation,
   bindScenarioReceiptMembershipProducer, evaluateScenarioReceiptMembership,
   bindScenarioReceiptSendMembershipProducer, evaluateScenarioReceiptSendMembership,

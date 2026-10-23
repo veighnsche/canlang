@@ -97,6 +97,37 @@ impl PreparedSendGuards {
     }
 }
 
+/// A prepared ordinary Declared handler may reuse the native SEND frame without
+/// publishing query grants or inventing a return. Preparation sealed the full
+/// fresh execution closure and each owner's complete original SEND inventory.
+pub(super) fn retained_handler_receipt(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    prepared: &PreparedSendGuards, owner: &IrItem, entry: &str,
+) -> Option<super::scenario_receipts::NativeScenarioReceipt> {
+    use super::scenario_receipts::{NativeScenarioReceipt, ReceiptDisclosurePlan, transport_source};
+    let ir=context.ir();
+    super::scenario_decisions::owner_handler_queries(context,owner)?;
+    let IrItemKind::Scenario {event_source:Some(super::ir::IrEventSource::Declared(event)),..}=&owner.kind else {return None;};
+    let guards=prepared.by_owner(ir)?.get(&owner.canonical)?.as_array()?;
+    if guards.is_empty() {return None;}
+    let facts=context.original().scenario_disclosures().get(&owner.id)?.source_facts()?;
+    let source=transport_source(&facts.source,entry)?;
+    let marker=serde_json::json!({"source":source,"owner":owner.canonical,"event":event,
+        "node":{"start":facts.node.start,"end":facts.node.end},
+        "rules":guards.iter().map(|guard|guard["rule"].clone()).collect::<Vec<_>>()});
+    Some(NativeScenarioReceipt {
+        plan:ReceiptDisclosurePlan {retained_guarded_handler:Some(marker),source_loops:None,source_emissions:None,
+            version:1,source,event_decision:None,term_decision:None,leave_request_decision:None,
+            leave_decide_decision:None,refer_reject_decision:None,member_retry_decision:None,
+            invoice_overdue_decision:None,rent_movement_refund_decision:None,invoice_collect_decision:None,
+            rent_notice_decision:None,invoice_issue_decision:None,observe_venue_decision:None,
+            success_renewal_decision:None,purchase_receive_all:None,event_notice_audit:None,
+            queries:Vec::new(),returns:Vec::new()},
+        dependencies:HashMap::new(),intrinsics:HashMap::new(),decisions:HashMap::new(),
+        decision_keys:HashMap::new(),calls:HashMap::new(),returns:Vec::new(),current_revision:None,
+    })
+}
+
 // Source-proof internals contain maps. Compare the emitted execution closure in
 // stable declaration order; the prepared snapshot additionally seals every field.
 fn execution_closure(ir: &IrProgram) -> String {
@@ -1195,15 +1226,64 @@ fn contained(outer: NodeKey, inner: NodeKey) -> bool {
     inner.file == outer.file && inner.start >= outer.start && inner.end <= outer.end
 }
 
+/// Existing versioned model inputs can capture one original loop binding,
+/// only inside a source-sealed ordinary trusted event handler. This is a
+/// codec join; the retained owner query and dispatch fence still own reads.
+fn checked_for_item_type(source: FreeInputSource<'_>, predicate: NodeKey,
+    key: NodeKey, loop_node: NodeKey) -> Option<ResolvedType> {
+    fn original_loop(effects:&[Effect],node:NodeKey,depth:usize)->Option<&Effect> {
+        if depth>64 {return None;}
+        effects.iter().find_map(|effect| {
+            if effect.node==node {return (effect.verb==EffectVerb::For).then_some(effect);}
+            original_loop(&effect.then_effects,node,depth+1)
+                .or_else(||original_loop(&effect.else_effects,node,depth+1))
+                .or_else(||effect.match_arms.iter().find_map(|arm|original_loop(&arm.effects,node,depth+1)))
+        })
+    }
+    fn lowered_loop(effects:&[IrStmt],span:Span,depth:usize)->Option<&IrStmt> {
+        if depth>64 {return None;}
+        effects.iter().find_map(|effect|match effect {
+            IrStmt::For {span:actual,body,..}=>if *actual==span {Some(effect)}else{lowered_loop(body,span,depth+1)},
+            IrStmt::If {then_branch,else_branch,..}=>lowered_loop(then_branch,span,depth+1)
+                .or_else(||lowered_loop(else_branch,span,depth+1)),
+            IrStmt::Match {arms,..}=>arms.iter().find_map(|arm|lowered_loop(&arm.body,span,depth+1)),
+            _=>None,
+        })
+    }
+    let scenario=source.program.effects.scenarios.get(&source.owner)?;
+    let Some(HandlerSource::Event(event))=scenario.on.as_ref() else {return None;};
+    if scenario.by.is_some() || scenario.read || scenario.result.is_some() || scenario.cohort.is_some()
+        || !matches!(source.resolved.symbols.get(event.0 as usize)?.kind,SymbolKind::Event {..})
+        || !contained(scenario.node,loop_node) || !contained(loop_node,predicate) || !contained(predicate,key)
+        || source.nodes.get(&loop_node)?.kind!=SyntaxKind::For {return None;}
+    let owner=source.ir.items.get(source.owner.0 as usize)?;
+    let IrItemKind::Scenario {trusted:true,event_source:Some(super::ir::IrEventSource::Declared(_)),
+        hook:None,cohort:None,read:false,result:None,effects,..}=&owner.kind else {return None;};
+    let original=original_loop(&scenario.effects,loop_node,0)?;
+    let query=source.program.types.checked_queries.get(&original.domain?)?;
+    let ResolvedType::Array {element,..}=&query.result else {return None;};
+    let ResolvedType::Record {symbol:model,stored:true}=element.as_ref() else {return None;};
+    if query.projection.is_some() || source.program.types.node_types.get(&query.node)!=Some(&query.result)
+        || !matches!(source.resolved.symbols.get(model.0 as usize)?.kind,SymbolKind::Model {..})
+        || source.nodes.get(&query.domain)?.kind!=SyntaxKind::NameRef
+        || !matches!(source.resolved.node_binding.get(&query.domain),Some(Binding::Symbol(actual)) if actual==model)
+        || source.program.types.node_types.get(&key)!=Some(element.as_ref()) {return None;}
+    let limit=original.limit?;
+    let IrStmt::For {item,domain,limit:Some(bound),..}=lowered_loop(effects,send_key_span(loop_node),0)? else {return None;};
+    if Some(item)!=original.item.as_ref() || domain.span!=send_key_span(query.node) || domain.ty!=query.result
+        || bound.span!=send_key_span(limit) || source.nodes.get(&limit)?.kind!=SyntaxKind::Literal
+        || source.program.types.node_types.get(&limit)!=Some(&ResolvedType::Scalar(Scalar::Int))
+        || !matches!(bound.expr,IrExpr::Int(value) if (1..=200).contains(&value)) {return None;}
+    Some(element.as_ref().clone())
+}
+
 fn declaration_type(
-    program: &CheckedProgram,
-    resolved: &resolve::ResolveTables,
-    nodes: &HashMap<NodeKey, &SyntaxNode>,
-    owner: SymbolId,
+    source: FreeInputSource<'_>,
     predicate: NodeKey,
     key: NodeKey,
     binding: &Binding,
 ) -> Result<Option<ResolvedType>, SendGuardGap> {
+    let FreeInputSource {program,resolved,nodes,owner,..}=source;
     let fail = || {
         gap(
             "free SEND lexical declaration has no supported transport",
@@ -1237,6 +1317,7 @@ fn declaration_type(
                 .cloned()
                 .ok_or_else(fail)?
         }
+        Binding::ForItem {node} => checked_for_item_type(source,predicate,key,*node).ok_or_else(fail)?,
         Binding::QueryAlias { node } if contained(predicate, *node) => return Ok(None),
         Binding::Let { node } => {
             if contained(predicate, *node) {
@@ -2061,7 +2142,7 @@ fn collect_source_names(
             continue;
         }
         let Some(ty) =
-            declaration_type(program, resolved, nodes, owner, predicate_key, key, binding)?
+            declaration_type(original_source, predicate_key, key, binding)?
         else {
             continue;
         };
@@ -2083,7 +2164,8 @@ fn collect_source_names(
             }
             Binding::Let { node }
             | Binding::CreateAs { node }
-            | Binding::CohortChild { node, .. } => (*node, None),
+            | Binding::CohortChild { node, .. }
+            | Binding::ForItem {node} => (*node, None),
             _ => unreachable!("declaration_type admits only original lexical declarations"),
         };
         let narrowing =
@@ -2158,16 +2240,14 @@ fn push_query_values<'e>(
 fn check_evaluated_name(
     source: FreeInputSource<'_>,
     predicate_key: NodeKey,
-    owner: SymbolId,
+    _owner: SymbolId,
     value: &TypedExpr,
     name: &str,
     identities: &HashMap<String, String>,
     evaluated: &mut HashSet<Span>,
     event_source: bool,
 ) -> Result<(), SendGuardGap> {
-    let program = source.program;
     let resolved = source.resolved;
-    let nodes = source.nodes;
     let key = NodeKey {
         file: value.span.file,
         start: value.span.start,
@@ -2183,7 +2263,7 @@ fn check_evaluated_name(
     if event_source && matches!(binding, Binding::Context(resolve::ContextVar::Event)) {
         return Ok(());
     }
-    if declaration_type(program, resolved, nodes, owner, predicate_key, key, binding)?.is_some()
+    if declaration_type(source, predicate_key, key, binding)?.is_some()
     {
         if !identities.contains_key(name) {
             return Err(gap(
