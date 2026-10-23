@@ -15642,6 +15642,21 @@ impl<'a> Closure<'a> {
                 && !self.source_require_contained_collection(scenario, call, "any")
     }
 
+    /// A duplicate veto may be one negative conjunct of the original
+    /// Require. Positive ANY, OR and negated compound forms confer no key
+    /// observation; the whole source guard still preserves short-circuiting.
+    fn source_require_negative_conjunct(&self,condition:NodeKey,call:NodeKey,depth:usize)->bool {
+        if depth>32{return false;}
+        let Some(condition)=self.query_group(condition)else{return false;};
+        if let Some((left,right))=self.query_binary(condition,"and") {
+            return self.source_require_negative_conjunct(left,call,depth+1)
+                ||self.source_require_negative_conjunct(right,call,depth+1);
+        }
+        let Some(node)=self.nodes.get(&condition)else{return false;};
+        node.kind==SyntaxKind::Unary&&node.children.iter().any(|child|self.word(child)==Some("not"))
+            &&node.children.iter().filter(|child|expression(child.kind)).map(NodeKey::of).collect::<Vec<_>>()==[call]
+    }
+
     /// The authored pre-CREATE duplicate check may inspect one declared
     /// unique Text key. This is the same owner-wide key that the ensuing
     /// CREATE must claim, not a general global collection capability.
@@ -15668,24 +15683,7 @@ impl<'a> Closure<'a> {
                 if effect.verb != EffectVerb::Require {
                     return false;
                 }
-                let Some(cond) = effect.cond.and_then(|cond| self.query_group(cond)) else {
-                    return false;
-                };
-                let Some(node) = self.nodes.get(&cond) else {
-                    return false;
-                };
-                node.kind == SyntaxKind::Unary
-                    && node
-                        .children
-                        .iter()
-                        .any(|child| self.word(child) == Some("not"))
-                    && node
-                        .children
-                        .iter()
-                        .filter(|child| expression(child.kind))
-                        .map(NodeKey::of)
-                        .collect::<Vec<_>>()
-                        == [call.node]
+                effect.cond.is_some_and(|condition|self.source_require_negative_conjunct(condition,call.node,0))
             })?;
         let (left, right) = self.query_binary(predicate, "==")?;
         let field = self.query_member(left, alias.node, model)?;
@@ -15741,7 +15739,7 @@ impl<'a> Closure<'a> {
                     && matches!(effect.target,Some(EffectTarget::Model(actual)) if actual==model)
                     && effect.args.iter().any(|argument| {
                         argument.key == self.resolve.symbols[field.0 as usize].name
-                            && argument.value.and_then(input) == Some(value)
+                            && input(argument.value.unwrap_or(argument.key_node)) == Some(value)
                     })
             })
             .then_some(())

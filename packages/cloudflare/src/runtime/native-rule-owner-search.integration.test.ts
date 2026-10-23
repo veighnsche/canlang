@@ -1857,7 +1857,7 @@ it('authorizes original SEND scalar DATA with independent current field projecti
         }
         if(mode==='source-at-commit'){
           const commit=store.commit.bind(store);store.commit=async batch=>{
-            if(!raced&&batch.writes.some(write=>write.model==='work.dispatch'||mode==='refund-at-commit'&&write.model===model('invoice','Invoice'))){
+            if(!raced&&batch.writes.some(write=>write.model==='work.dispatch')){
               raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,id:row.id,
                 expectedVersion:asVersion(row.version),row:{...row,version:asVersion(row.version+1),data:{...row.data,source:'Changed original source'}}}]}));
             }
@@ -2315,7 +2315,7 @@ it('projects the original Invoice document child arrays through ordinary field D
       assert.ok(text.includes(original.split('\n').find(line=>line.startsWith('  derive issued_snapshot('))!),'complete original snapshot helper is retained');
       const receiptStart=original.indexOf('  scenario generate_receipt('),receiptEnd=original.indexOf('   examples ',receiptStart);
       assert.ok(text.includes(original.slice(receiptStart,receiptEnd)),'complete original receipt owner is retained');
-      for(const name of ['refund_payment','record_refund']){
+      for(const name of ['refund_payment','record_refund','record_payment']){
         const start=original.indexOf(`  scenario ${name}(`),end=original.indexOf('   do',start);
         for(const guard of original.slice(start,end).split('\n').filter(line=>line.startsWith('   require '))){
           if(name==='record_refund'&&guard.includes('not any(ExternalRefund'))continue;
@@ -2326,8 +2326,9 @@ it('projects the original Invoice document child arrays through ordinary field D
         {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
       const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
         stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-      for(const mode of ['allowed','hidden-row','other-parent','withheld-field','worker-inactive','role-during-send','child-at-commit','grant-at-commit','parent-at-commit','overflow','receipt-allowed','receipt-unsettled','receipt-pending','receipt-pending-at-commit','refund-allowed','refund-over','external-refund-allowed','external-refund-over','refund-at-commit'] as const){
-        const allowance=mode.startsWith('refund-')||mode.startsWith('external-refund-');
+      for(const mode of ['allowed','hidden-row','other-parent','withheld-field','worker-inactive','role-during-send','child-at-commit','grant-at-commit','parent-at-commit','overflow','receipt-allowed','receipt-unsettled','receipt-pending','receipt-pending-at-commit','refund-allowed','refund-over','external-refund-allowed','external-refund-over','refund-at-commit','payment-allowed','payment-duplicate','payment-foreign-duplicate','payment-at-commit'] as const){
+        const paymentAllowance=mode.startsWith('payment-');
+        const allowance=paymentAllowance||mode.startsWith('refund-')||mode.startsWith('external-refund-');
         const {now,identities,identity,team,user}=await member(`invoice-document-${mode}`,['invoice.finance']);
         const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'};
         const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'document-state',fileStoreId:'document-files',
@@ -2336,7 +2337,7 @@ it('projects the original Invoice document child arrays through ordinary field D
         await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
         const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
         const location=row('location',{active:true}),customer=row('customer',{kind:'company',hidden:false});
-        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',currency:'EUR',state:'issued',total:{minor:allowance?'100':mode==='receipt-allowed'||mode.startsWith('receipt-pending')?'900':'2000',currency:'EUR'},
+        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',ledger_revision:'0',currency:'EUR',state:'issued',total:{minor:paymentAllowance?'1100':allowance?'100':mode==='receipt-allowed'||mode.startsWith('receipt-pending')?'900':'2000',currency:'EUR'},
           issuer:'Original issuer',recipient:'Original recipient',address:'1 Road',tax_reference:null,terms:'Net 14',due:'2026-12-01',number:'INV-1',issued_at:new Date(now).toISOString(),hidden:false},
           {model:model('customer','Customer'),id:customer.id});
         const child={model:model('invoice','Invoice'),id:invoice.id};
@@ -2349,9 +2350,10 @@ it('projects the original Invoice document child arrays through ordinary field D
           {kind:'insert',model:model('invoice','Invoice'),row:invoice},{kind:'insert',model:model('invoice','Line'),row:first},{kind:'insert',model:model('invoice','Line'),row:second},
           {kind:'insert',model:model('invoice','Credit'),row:row('credit',{amount:{minor:'100',currency:'EUR'},reason:'Original credit',hidden:false},child)},
           {kind:'insert',model:model('invoice','Attempt'),row:row('attempt',{reference:'payment-1',amount:{minor:'500',currency:'EUR'},kind:'collection',status:mode==='receipt-pending'?'pending':'succeeded',received:new Date(now).toISOString(),hidden:false},child)},
-          {kind:'insert',model:model('invoice','ExternalPayment'),row:row('external',{reference:'bank-1',amount:{minor:'400',currency:'EUR'},received:new Date(now).toISOString(),hidden:false},child)},
+          {kind:'insert',model:model('invoice','ExternalPayment'),row:row('external',{reference:'bank-1',evidence:'Original bank proof',amount:{minor:'400',currency:'EUR'},received:new Date(now).toISOString(),hidden:mode==='payment-duplicate'},child)},
           {kind:'insert',model:model('invoice','ExternalRefund'),row:row('refund',{payment:{id:asId('external')},reference:'refund-1',amount:{minor:mode==='external-refund-over'?'390':'100',currency:'EUR'},received:new Date(now).toISOString(),hidden:false},child)},
         ]}));
+        if(mode==='payment-foreign-duplicate'||mode==='payment-at-commit')await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice','Invoice'),row:{...invoice,id:asId('foreign-invoice'),data:{...invoice.data,source:'foreign-invoice'}}},...(mode==='payment-foreign-duplicate'?[{kind:'insert' as const,model:model('invoice','ExternalPayment'),row:row('foreign-payment',{reference:'new-payment',evidence:'Hidden bank proof',amount:{minor:'100',currency:'EUR'},received:new Date(now).toISOString(),hidden:true},{model:model('invoice','Invoice'),id:asId('foreign-invoice')})}]:[])]}));
         if(mode.startsWith('refund-'))await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice','Attempt'),row:row('prior-refund',{reference:'prior-refund',amount:{minor:mode==='refund-over'?'499':'20',currency:'EUR'},kind:'refund',payment:'payment-1',status:'succeeded',received:new Date(now).toISOString(),hidden:true},child)}]}));
         if(mode==='other-parent')await store.commit(makeBatch(await store.readRevision(),{writes:[
           {kind:'insert',model:model('invoice','Invoice'),row:{...invoice,id:asId('foreign-invoice')}},
@@ -2366,11 +2368,12 @@ it('projects the original Invoice document child arrays through ordinary field D
             return load(model,id);
           };
         }
-        if(mode==='child-at-commit'||mode==='grant-at-commit'||mode==='parent-at-commit'||mode==='receipt-pending-at-commit'||mode==='refund-at-commit'){
+        if(mode==='child-at-commit'||mode==='grant-at-commit'||mode==='parent-at-commit'||mode==='receipt-pending-at-commit'||mode==='refund-at-commit'||mode==='payment-at-commit'){
           const commit=store.commit.bind(store);store.commit=async batch=>{
-            if(!raced&&batch.writes.some(write=>write.model==='work.dispatch'||mode==='refund-at-commit'&&write.model===model('invoice','Invoice'))){
+            if(!raced&&batch.writes.some(write=>write.model==='work.dispatch'||(mode==='refund-at-commit'||mode==='payment-at-commit')&&write.model===model('invoice','Invoice'))){
               raced=true;
-              if(mode==='refund-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice','Attempt'),row:row('refund-race',{reference:'refund-race',amount:{minor:'431',currency:'EUR'},kind:'refund',payment:'payment-1',status:'succeeded',received:new Date(now).toISOString(),hidden:true},child)}]}));
+              if(mode==='payment-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice','ExternalPayment'),row:row('payment-race',{reference:'new-payment',evidence:'Concurrent bank proof',amount:{minor:'100',currency:'EUR'},received:new Date(now).toISOString(),hidden:true},{model:model('invoice','Invoice'),id:asId('foreign-invoice')})}]}));
+              else if(mode==='refund-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice','Attempt'),row:row('refund-race',{reference:'refund-race',amount:{minor:'431',currency:'EUR'},kind:'refund',payment:'payment-1',status:'succeeded',received:new Date(now).toISOString(),hidden:true},child)}]}));
               else if(mode==='receipt-pending-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('invoice','Attempt'),row:row('pending-race',{reference:'pending-race',amount:{minor:'1',currency:'EUR'},kind:'collection',status:'pending',received:null,hidden:true},child)}]}));
               else if(mode==='parent-at-commit')await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice','Invoice'),id:invoice.id,
                 expectedVersion:invoice.version,row:{...invoice,version:asVersion(invoice.version+1),data:{...invoice.data,hidden:true}}}]}));
@@ -2381,12 +2384,17 @@ it('projects the original Invoice document child arrays through ordinary field D
           };
         }
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
-        const request={operation:mode.startsWith('refund-')?'invoice.refund_allowance':mode.startsWith('external-refund-')?'invoice.external_refund_allowance':mode.startsWith('receipt-')?'invoice.generate_receipt':'invoice.document',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:String(invoice.version)},...(allowance?{payment:{id:asId(mode.startsWith('refund-')?'attempt':'external'),version:'1'},amount:{minor:'50',currency:'EUR'},reason:'Approved allowance',...(mode.startsWith('external-refund-')?{reference:'new-refund',received:new Date(now).toISOString(),evidence:'Bank proof'}:{})}:{})}};
-        const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-row','other-parent','child-at-commit','receipt-allowed','refund-allowed','external-refund-allowed'].includes(mode);
+        const request={operation:paymentAllowance?'invoice.record_payment_allowance':mode.startsWith('refund-')?'invoice.refund_allowance':mode.startsWith('external-refund-')?'invoice.external_refund_allowance':mode.startsWith('receipt-')?'invoice.generate_receipt':'invoice.document',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:String(invoice.version)},...(paymentAllowance?{amount:{minor:'100',currency:'EUR'},reference:mode==='payment-duplicate'?'bank-1':'new-payment',received:new Date(now).toISOString(),evidence:'Bank proof'}:allowance?{payment:{id:asId(mode.startsWith('refund-')?'attempt':'external'),version:'1'},amount:{minor:'50',currency:'EUR'},reason:'Approved allowance',...(mode.startsWith('external-refund-')?{reference:'new-refund',received:new Date(now).toISOString(),evidence:'Bank proof'}:{})}:{})}};
+        const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-row','other-parent','child-at-commit','receipt-allowed','refund-allowed','external-refund-allowed','payment-allowed'].includes(mode);
         assert.equal('result'in result&&result.result.status==='committed',success,`${mode}: ${JSON.stringify(result)}`);
         const pending=await store.outboxPending();assert.equal(pending.length,success&&!allowance?1:0,mode);
         assert.equal((await store.query({model:model('invoice','DocumentRequest'),authority:'owner'})).length,success&&!allowance?1:0,mode);
-        if(['child-at-commit','grant-at-commit','parent-at-commit','role-during-send','receipt-pending-at-commit','refund-at-commit'].includes(mode))assert.ok(raced,'actual final race reached');
+        if(['child-at-commit','grant-at-commit','parent-at-commit','role-during-send','receipt-pending-at-commit','refund-at-commit','payment-at-commit'].includes(mode))assert.ok(raced,'actual final race reached');
+        if(paymentAllowance){
+          assert.equal((await store.query({model:model('invoice','ExternalPayment'),authority:'owner'})).length,success||mode==='payment-at-commit'||mode==='payment-foreign-duplicate'?2:1,mode);
+          assert.equal((await store.load(model('invoice','Invoice'),invoice.id))!.data.ledger_revision,success?'1':'0',mode);
+          continue;
+        }
         if(allowance){
           assert.equal((await store.load(model('invoice','Invoice'),invoice.id))!.data.terms,success?'Approved allowance':'Net 14',mode);
           if(success){const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.equal(replay.result.result,null);}

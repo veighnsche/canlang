@@ -2186,7 +2186,7 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
     assert!(serialize_decision_sources(&program,&ir,receipt,&db,Some(&catalog)).is_some());
     let guarded=artifact["modules"].as_array().unwrap().iter().map(|module|
         module["js"].as_str().unwrap().matches("check(await nativeScenarioRequire(c,").count()).sum::<usize>();
-    assert_eq!(guarded,8,"receipt and correlated allowance guards need their actual source observers");
+    assert_eq!(guarded,10,"receipt and correlated allowance guards need their actual source observers");
     for (name,index) in [("refund_allowance",1),("external_refund_allowance",2)] {
         let mut changed=ir.clone();let owner=item(&changed,&format!("invoice.{name}")).id;
         let IrItemKind::Scenario{guards,..}=&mut changed.items[owner.0 as usize].kind else{panic!("scenario");};
@@ -2233,6 +2233,9 @@ fn original_invoice_document_keeps_contained_projection_and_helper_formal_corres
     let (db,program,_,catalog)=fixture_source("renamed-model-formal.can",&source.replace(helper,&renamed));
     let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
     for(name,changed)in[
+        ("positive-global-key",source.replace("and not any(ExternalPayment as payment,payment.reference==reference)","and any(ExternalPayment as payment,payment.reference==reference)")),
+        ("disjunctive-global-key",source.replace("and not any(ExternalPayment as payment,payment.reference==reference)","or not any(ExternalPayment as payment,payment.reference==reference)")),
+        ("different-created-key",source.replace("parent=invoice,amount,reference,received,evidence", "parent=invoice,amount,reference=trim(reference),received,evidence")),
         ("global-leading-sum",source.replace("sum(invoice.Attempt as old where", "sum(Attempt as old where")),
         ("ordered-leading-sum",source.replace("old.status==succeeded select old.amount,invoice.currency)","old.status==succeeded order=old.reference select old.amount,invoice.currency)")),
         ("global-derived-any",source.replace("any(row.Attempt as attempt,attempt.kind==collection", "any(Attempt as attempt,attempt.kind==collection")),
