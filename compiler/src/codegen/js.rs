@@ -1668,9 +1668,9 @@ fn send_value(ir:&IrProgram,value:&TypedExpr,values:&BTreeSet<String>,depth:usiz
 }
 fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
     requires:&HashMap<Span,serde_json::Value>,module:&str)->Option<HashMap<Span,serde_json::Value>>{
-    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
-    let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
+    let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
+    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
     let mut roots:BTreeMap<String,SymbolId>=params.iter().filter_map(|id|{let param=ir.items.get(id.0 as usize)?;
         let IrItemKind::Param{ty:IrType::Known(ResolvedType::Record{symbol,stored:true}),..}=&param.kind else{return None;};
         matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}).then(||(param.name.clone(),*symbol))}).collect();
