@@ -17,7 +17,7 @@ import { asId, asModel, asVersion, makeBatch, makeRow } from '@canlang/state/tes
 import { buildInvoker } from '../worker/assembly.js';
 import { assembleModules } from './modules.js';
 
-import { invokeRetainedHandlerOccurrenceCanonical } from './invoke.js';
+import { invokeDueScheduleCanonical, invokeRetainedHandlerOccurrenceCanonical } from './invoke.js';
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { installNativeFileInventory } from './file-inventory.js';
@@ -2204,6 +2204,102 @@ it('passes an original required parent to a helper while retaining both DATA gra
           await updateParent({visible:false});const hidden=await invoker.invokeMutation(request,identity);
           assert.ok('error'in hidden||hidden.result.result===null,'replay cannot disclose the now-hidden parent');
         }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
+
+it('schedules original admitted roots through genuine Work sources and ordinary replay privacy',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-source-only-schedule-'));
+    try{
+      const {artifact,asm}=await installed('native-source-require-schedule.can',directory);
+      for(const name of ['notify','abort'])assert.equal(artifact.operations?.find(op=>op.name===`SourceGuardSchedule.${name}`)?.result?.disclosure,undefined);
+      const original=await readFile(fixture('native-source-require-schedule.can'),'utf8');
+      const refused=fixture('.native-source-require-schedule-refusal.can');
+      try{
+        for(const changed of [original.replace('schedule root.id at=now','schedule \"arbitrary\" at=now'),
+          original.replaceAll('event=Checked {root,message}','event=Checked {root,message=root.secret}')]){
+          await writeFile(refused,changed);
+          const report=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
+          assert.equal(report.status,10,report.stdout+report.stderr);
+          assert.ok((JSON.parse(report.stdout) as {diagnostics:{code:string}[]}).diagnostics.some(item=>item.code==='E6008'));
+        }
+      }finally{await rm(refused,{force:true});}
+      for(const mode of ['allowed','replacement','full','inactive','other-parent','invariant-after-schedule','identity-during-source-stage','root-at-commit','missing-inventory']){
+        const {now,identities,identity,membership}=await member(`source-schedule-${mode}`);
+        const scope={app:'SourceGuardSchedule',owner:membership.team_id,ownerPackage:'SourceGuardSchedule'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'source-schedule-state',fileStoreId:'source-schedule-files',
+          receiver:{app:scope.app,owner:scope.owner,team:scope.owner}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        if(mode!=='missing-inventory')await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,
+          verifyOwner:async()=>{assert.ok(await identities.findTeamById(scope.owner));}});
+        const rootModel=model('SourceGuardSchedule','Root');
+        const rootRow={...makeRow({id:asId('root-1'),data:{capacity:mode==='full'?'1':'2',checked:false,seen:false,secret:'Hidden field'}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:rootRow},
+          {kind:'insert',model:rootModel,row:{...rootRow,id:asId('root-2')}},
+          {kind:'insert',model:model('SourceGuardSchedule','Child'),row:{...makeRow({id:asId('child-1'),data:{active:mode!=='inactive'}}),
+            parent:{model:rootModel,id:asId(mode==='other-parent'?'root-2':'root-1')}}}]}));
+        let raced=false;
+        if(mode==='identity-during-source-stage'){
+          const inventory=store.readFileReferenceInventory.bind(store);
+          store.readFileReferenceInventory=async owner=>{
+            if(!raced){raced=true;await identities.removeMembership(membership.membership_id);}
+            return inventory(owner);
+          };
+        }
+        if(mode==='root-at-commit'){
+          const commit=store.commit.bind(store);
+          store.commit=async batch=>{
+            if(!raced&&batch.writes.some(write=>write.model==='work.schedule')){
+              raced=true;
+              await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,id:rootRow.id,
+                expectedVersion:asVersion(rootRow.version),row:{...rootRow,version:asVersion(rootRow.version+1),archivedAt:now}}]}));
+            }
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:mode==='invariant-after-schedule'?'SourceGuardSchedule.abort':'SourceGuardSchedule.notify',operation_id:operationId(now),
+          inputs:{root:{id:rootRow.id,version:String(rootRow.version)},message:'Original event'}};
+        const outcome=await invoker.invokeMutation(request,identity);
+        const allowed=mode==='allowed'||mode==='replacement';
+        assert.equal('result'in outcome&&outcome.result.status==='committed',allowed,`${mode}: ${JSON.stringify(outcome)}`);
+        if(mode==='identity-during-source-stage')assert.equal('error'in outcome&&outcome.error.code,'validation');
+        if(mode==='root-at-commit')assert.equal('error'in outcome&&outcome.error.code,'conflict');
+        const sources=await store.query({model:asModel('work.schedule'),authority:'owner'});
+        assert.equal(sources.length,allowed?1:0,mode);
+        const actual=await store.load(rootModel,rootRow.id);assert.ok(actual);assert.equal(actual.data.checked,allowed,mode);assert.equal(actual.data.seen,false);
+        if(mode==='identity-during-source-stage'||mode==='root-at-commit')assert.equal(raced,true,mode);
+        if(!allowed)continue;
+        let source=sources[0]!;
+        assert.deepEqual(source.data['payload'],{root:{id:rootRow.id,version:String(actual.version)},message:'Original event'});
+        assert.equal(source.data['state'],'pending');assert.equal(source.data['key'],rootRow.id);
+        assert.equal(source.data['scopeOwner'],scope.owner);assert.equal(source.data['scopeOwnerPackage'],scope.ownerPackage);
+        const key=[scope.app,scope.ownerPackage,scope.owner,rootRow.id].map(encodeURIComponent).join('/');
+        assert.ok(await store.scheduleGet(key));
+        const saved=await store.readReceipt({app:'SourceGuardSchedule',owner:membership.team_id,principal:membership.user_id,
+          operation:request.operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);
+        assert.ok(saved.outcome.status==='committed');assert.equal(saved.outcome.scenario,undefined);
+        const visible=await invoker.invokeRead({operation:'SourceGuardSchedule.Root.read',inputs:{}},identity);
+        assert.ok('error'in visible||((visible.result as {records:unknown[]}).records.length===0));
+        const replay=await invoker.invokeMutation(request,identity);
+        assert.ok('error'in replay&&replay.error.code==='validation',JSON.stringify(replay));
+        assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),sources);
+        if(mode==='replacement'){
+          const again=await invoker.invokeMutation({...request,operation_id:operationId(now),inputs:{root:{id:rootRow.id,version:String(actual.version)},message:'Replacement event'}},identity);
+          assert.ok('result'in again&&again.result.status==='committed',JSON.stringify(again));
+          const replaced=await store.load(asModel('work.schedule'),source.id);assert.ok(replaced);assert.equal(replaced.data['state'],'superseded');
+          const all=await store.query({model:asModel('work.schedule'),authority:'owner'});assert.equal(all.length,2);
+          const next=all.find(row=>row.id!==source.id);assert.ok(next);assert.equal(next.data['replaces'],source.id);
+          assert.equal(next.data['state'],'pending');assert.deepEqual(next.data['payload'],{root:{id:rootRow.id,version:String(actual.version+1)},message:'Replacement event'});
+          source=next;
+        }
+        const deliver=()=>invokeDueScheduleCanonical({asm,artifact,app:scope.app,store,identities,now:()=>now,
+          handler:'SourceGuardSchedule.observe',due:{key:rootRow.id,scope,at:now,event:'SourceGuardSchedule.Checked',occurrenceId:source.id}});
+        assert.equal((await deliver() as {status:string}).status,'completed');
+        assert.equal((await deliver() as {status:string}).status,'replayed');
+        assert.equal((await store.load(rootModel,rootRow.id))?.data.seen,true);
+        assert.deepEqual(await store.readReceipt(saved.identity),saved,'consumer never rewrites the ordinary source receipt');
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });

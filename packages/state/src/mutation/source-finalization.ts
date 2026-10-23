@@ -167,14 +167,13 @@ async function checkSourceInsert(
   await input.checkRevision(); input.healthy();
 }
 
-/** The source finalizer admits one existing Work lifecycle transition, never
- * generic updates. The installed cancellation producer retains exact source
- * effect ownership; State independently checks its physical live preimage. */
-async function checkSourceCancellation(input: SourceStageInput, candidate: unknown,
+/** Only the installed Work cancellation/put stages own these schedule transitions.
+ * State checks the exact physical live preimage, immutable data and attribution. */
+async function checkSourceScheduleTransition(input: SourceStageInput, candidate: unknown,
   seen: Set<string>, ledger: StageLedger): Promise<void> {
   const write = object(candidate, ['kind', 'model', 'id', 'expectedVersion', 'row']);
   if (write['kind'] !== 'update' || write['model'] !== 'work.schedule' ||
-      input.businessModels.has('work.schedule')) return fail(ledger, 'only noncolliding Work schedule cancellations are supported.');
+      input.businessModels.has('work.schedule')) return fail(ledger, 'only noncolliding Work schedule lifecycle transitions are supported.');
   const id = identity(write['id'], 6000), key = `work.schedule\0${id}`;
   if (seen.has(key)) return fail(ledger, 'duplicate source write identity.');
   seen.add(key);
@@ -184,12 +183,16 @@ async function checkSourceCancellation(input: SourceStageInput, candidate: unkno
   if (before === null || before.id !== id || before.archivedAt !== null ||
       write['expectedVersion'] !== before.version || !Number.isSafeInteger(before.version + 1) ||
       !['pending', 'admitted'].includes(String(before.data['state']))) {
-    return fail(ledger, 'source cancellation requires its original live pending or admitted version.');
+    return fail(ledger, 'source schedule transition requires its original live pending or admitted version.');
+  }
+  const state=(write['row'] as {readonly data?:Readonly<Record<string,unknown>>})?.data?.['state'];
+  if(state!=='cancelled'&&(state!=='superseded'||before.data['state']!=='pending')){
+    return fail(ledger,'source schedule transition must cancel a pending/admitted row or supersede a pending row.');
   }
   const expected = { ...before, version: before.version + 1, updated: input.context.now,
-    updatedBy: input.actor, data: { ...before.data, state: 'cancelled' } };
+    updatedBy: input.actor, data: { ...before.data, state } };
   if (stableStringify(write['row']) !== stableStringify(expected)) {
-    return fail(ledger, 'source cancellation changed immutable row identity, attribution or data.');
+    return fail(ledger, 'source schedule transition changed immutable row identity, attribution or data.');
   }
 }
 
@@ -276,7 +279,7 @@ export async function stageOwnerMutationSources(input: {
     for (const candidate of writes) {
       input.consumeWork(); input.healthy();
       if (typeof candidate === 'object' && candidate !== null && candidate.kind === 'update') {
-        await checkSourceCancellation(input, candidate, seen, ledger);
+        await checkSourceScheduleTransition(input, candidate, seen, ledger);
       } else await checkSourceInsert(input, candidate, seen, ledger);
     }
     if (ledger.poisoned) return fail(ledger, 'source stage is poisoned.');

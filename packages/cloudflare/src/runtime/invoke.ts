@@ -157,7 +157,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
+import { bindNativeScenarioSourceSchedule, bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
@@ -3684,6 +3684,8 @@ interface SourceCancelSource {
   readonly node:{readonly start:number;readonly end:number};readonly parameter:string;readonly model:string;readonly ownerPackage:string;
 }
 const nativeSourceCancels=new WeakMap<GeneratedOperationDef,readonly SourceCancelSource[]>();
+interface SourceScheduleSource extends SourceCancelSource{readonly event:string;readonly at:'now';}
+const nativeSourceSchedules=new WeakMap<GeneratedOperationDef,readonly SourceScheduleSource[]>();
 type SourceSendDataSource=import('@canlang/state/invocation').ScenarioSourceSendDataSource;
 const nativeSourceSendData=new WeakMap<GeneratedOperationDef,{readonly sources:readonly SourceSendDataSource[];readonly original:(body:Function)=>unknown}>();
 const sourceRequireFrames = new WeakMap<GeneratedOperationDef, ScenarioReceiptRequireSource['source']>();
@@ -5727,6 +5729,34 @@ async function bindNativeSourceCancels(asm:AssembledModules,artifact:CompileArti
   }
 }
 
+async function bindNativeSourceSchedules(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors):Promise<void>{
+  for(const value of loaded.registry.values()){
+    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
+    if(def===undefined||source===undefined)continue;
+    const callable=artifact.callables.find(entry=>entry.kind==='operation'&&entry.id===def.name&&entry.module===source.module);
+    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source SCHEDULE lacks its original parameter-style operation.');
+    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact),getter=privateSourceMember(module,'canScenarioScheduleSources');
+    if(typeof getter!=='function')continue;
+    const census=localPolicyObject(getter()),entry=Object.getOwnPropertyDescriptor(census,def.name);
+    if(entry===undefined)continue;
+    const sites=captureDispatchPreclaimData(nativeCallArray(entry.value,200)) as unknown as readonly SourceScheduleSource[];
+    const seen=new Set<string>();
+    for(const value of sites){
+      const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage','event','at']);
+      const node=localPolicyObject(site.node,['start','end']),key=`${node.start}:${node.end}`;
+      const parameter=def.descriptor.inputs.find(input=>input.name===site.parameter);
+      if(seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
+          site.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||site.at!=='now'||typeof site.event!=='string'||!site.event.startsWith(site.ownerPackage+'.')||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||
+          Number(node.start)<0||Number(node.end)<=Number(node.start)||parameter?.kind!=='ref'||parameter.model!==site.model||
+          parameter.nullable===true||Object.hasOwn(def.inputArrays,parameter.name)||!loaded.models.some(model=>model.name===site.model)){
+        throw new AssemblyCorrespondenceError('Source SCHEDULE differs from its exact original scope, root and occurrence.');
+      }
+      seen.add(key);
+    }
+    nativeSourceSchedules.set(def,sites);
+  }
+}
+
 async function bindNativeSourceSendData(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,
   context?:InvocationSourceReadContext):Promise<void>{
   const sourceReads=context===undefined?undefined:createSourceReadPolicyAdapter({loaded,opts:context.opts,now:context.now,
@@ -6689,6 +6719,7 @@ async function loadCanonicalDescriptorsInternal(
   }
   // Selected-row execution dependencies bind against the checked first-query mark.
   await bindNativeSourceCancels(asm,artifact,canonical);
+  await bindNativeSourceSchedules(asm,artifact,canonical);
   await bindNativeSourceSendData(asm,artifact,canonical,invocationSourceReads);
   await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
   await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
@@ -9993,6 +10024,7 @@ async function runScenarioExecution(
   const invoiceIssueSourceWrites: DomainWrite[] = [];
   const cancellationSourceWrites: DomainWrite[] = [];
   const cancellationSourceStages = new WeakSet<object>();
+  let activeSourceSchedule:{readonly key:string;readonly event:string;readonly ownerPackage:string}|null=null;
   let activeSourceCancellation:{readonly key:string;readonly ownerPackage:string}|null=null;
   const scheduleSourceWrites: DomainWrite[] = [];
   const scheduleSourceStages = new WeakSet<object>();
@@ -10553,7 +10585,7 @@ async function runScenarioExecution(
     // shared source bridge must not append the same physical Work rows again.
     const sourceCancellation = (savedResultAware||sourceRequireAware) && cancellationSourceStages.delete(effects)
       && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework;
-    const sourceSchedule = savedResultAware && scheduleSourceStages.delete(effects)
+    const sourceSchedule = (savedResultAware||sourceRequireAware) && scheduleSourceStages.delete(effects)
       && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework;
     if (ownerSession !== undefined && !isDueAdmission && !privateFramework && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework && !sourceCancellation && !sourceSchedule && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
@@ -11321,6 +11353,9 @@ async function runScenarioExecution(
     },
     scheduleDeferred: async (key, at, event, payload, ownerPackage) => {
       try {
+        if(sourceRequireAware&&(activeSourceSchedule===null||activeSourceSchedule.key!==key||activeSourceSchedule.event!==event||activeSourceSchedule.ownerPackage!==ownerPackage)){
+          return refuseRecordBinding('Source SCHEDULE needs its exact live admitted root, event and scope.');
+        }
         const selected = await scheduleScope(ownerPackage);
         const inputs = selected.member(selected.member(selected.member(selected.definition, 'events'), event), 'inputs');
         if (!isUnknownRecord(inputs) || !isUnknownRecord(payload)) {
@@ -11373,6 +11408,7 @@ async function runScenarioExecution(
               throw new Error('Scheduled File receiving authority changed.');
           }
         });
+        if(sourceRequireAware&&opaque===null)return refuseRecordBinding('Source SCHEDULE needs its installed owning opaque event origin inventory.');
         if (opaque !== null) {
           // Select the genuine producer family by its owning exported name.
           const tables = await loadProducerModule('@canlang/work/kernel/tables', 'scheduled File row');
@@ -11399,7 +11435,7 @@ async function runScenarioExecution(
           }
           effects = await stage({ ...request, filePayloadOrigin }, selected.context);
         }
-        if (receiptAware && child === undefined) {
+        if ((receiptAware||sourceRequireAware) && child === undefined) {
           // Only this invocation's installed Work put can contribute source
           // rows to the same final State fence as the authored schedule.
           const tables = await loadProducerModule('@canlang/work/kernel/tables', 'source schedule rows');
@@ -12686,6 +12722,35 @@ async function runScenarioExecution(
           consumed.add(key);activeSourceCancellation=Object.freeze({key:ref.id,ownerPackage:source.ownerPackage});
           try{await ctx.cancelDeferred!(ref.id,source.ownerPackage);assertExecution(actual,receiptStore);}
           finally{activeSourceCancellation=null;}
+        }catch(error){recordEngineFailure(error);throw error;}
+      });
+    }
+  }
+  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
+    const sources=nativeSourceSchedules.get(scenarioDef),actual=call as AdmittedCall;
+    if(sources!==undefined){
+      const parameters=localPolicyObject(argument),consumed=new Set<string>();
+      bindNativeScenarioSourceSchedule(ctx,async(claimed,root,at,payload)=>{
+        try{
+          const assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution;
+          if(assertExecution===undefined||nativeScenarioExecutions.get(actual)?.session!==ownerSession||activeSourceSchedule!==null)return refuseRecordBinding('Source SCHEDULE lacks its actual live quiescent owner.');
+          assertExecution(actual,receiptStore);
+          const source=sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(claimed)));
+          if(source===undefined||root!==parameters[source.parameter]||!isUnknownRecord(root))return refuseRecordBinding('Source SCHEDULE changed its genuine original parameter graph.');
+          const binding=recordBindings.get(root),refs=actual.recordRefs.filter(ref=>ref.param===source.parameter),ref=refs[0],key=`${source.node.start}:${source.node.end}`;
+          if(consumed.has(key)||refs.length!==1||ref===undefined||ref.model!==source.model||ref.expectedVersion===null||
+              ref.expectedVersion!==ref.row.version||binding?.model!==source.model||binding.id!==ref.id||binding.version!==ref.row.version){
+            return refuseRecordBinding('Source SCHEDULE lost its exact versioned originally admitted model root.');
+          }
+          const current=await readOwnerRow(ref.model as ModelName,ref.id as RecordId);
+          assertExecution(actual,receiptStore);
+          if(current===null||current.archivedAt!==null||current.created!==ref.row.created||current.createdBy!==ref.row.createdBy||
+              current.version<ref.row.version||stableStringify(current.parent??null)!==stableStringify(ref.row.parent??null))return refuseRecordBinding('Source SCHEDULE root lifetime changed.');
+          const time=decodeValue('datetime',encodeValue('datetime',at as CanValue)) as import('@canlang/contracts').DatetimeValue;
+          if(time.ms!==BigInt(admittedNow))return refuseRecordBinding('Source SCHEDULE changed its original invocation time.');
+          consumed.add(key);activeSourceSchedule=Object.freeze({key:ref.id,event:source.event,ownerPackage:source.ownerPackage});
+          try{await ctx.scheduleDeferred!(ref.id,time,source.event,payload,source.ownerPackage);assertExecution(actual,receiptStore);}
+          finally{activeSourceSchedule=null;}
         }catch(error){recordEngineFailure(error);throw error;}
       });
     }

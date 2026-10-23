@@ -290,3 +290,16 @@ export async function nativeScenarioSourceCancel(context:unknown,source:unknown,
   if(evaluate===undefined)throw new StateError('validation','Source CANCEL needs its actual installed owner execution.');
   return evaluate(source,root);
 }
+
+
+type SourceSchedule=(source:unknown,root:unknown,at:unknown,payload:unknown)=>Promise<void>;
+const sourceScheduleReaders=new WeakMap<object,SourceSchedule>();
+export function bindNativeScenarioSourceSchedule(context:object,evaluate:SourceSchedule):void{
+  if(sourceScheduleReaders.has(context))throw new StateError('validation','Source SCHEDULE reader cannot be rebound.');
+  sourceScheduleReaders.set(context,evaluate);
+}
+export async function nativeScenarioSourceSchedule(context:unknown,source:unknown,root:unknown,at:unknown,payload:unknown):Promise<void>{
+  const evaluate=typeof context==='object'&&context!==null?sourceScheduleReaders.get(context):undefined;
+  if(evaluate===undefined)throw new StateError('validation','Source SCHEDULE needs its actual installed owner execution.');
+  return evaluate(source,root,at,payload);
+}
