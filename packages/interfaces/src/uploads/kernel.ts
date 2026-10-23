@@ -47,6 +47,7 @@ export interface KernelCreateInput {
   readonly request: UploadIntentRequest;
   readonly receiver: UploadReceiver;
   readonly binding: UploadBinding;
+  readonly revalidate?: () => Promise<void>;
 }
 
 /** Structural L4 `finalizeUpload` input (finalize/index.ts). */
@@ -236,7 +237,10 @@ export function createFileKernel(bindings: unknown): FileKernel {
   assertFileKernelBindings(bindings);
   return {
     maxBytes: () => bindings.maxBytes,
-    createIntent: async (input) => bindings.createIntent(input),
+    createIntent: async (input) => {
+      await input.revalidate?.();
+      return bindings.createIntent(input);
+    },
     append: async (intentId, caller, chunk, expectedOffset) => bindings.append(intentId, caller, chunk, expectedOffset),
     complete: async (intentId, caller) => bindings.complete(intentId, caller),
     finalize: async (input) => bindings.finalize(input),

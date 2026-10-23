@@ -41,7 +41,8 @@ import { hashAdmittedInputs, stableStringify } from './replay.js';
 import { StateError } from '../errors.js';
 import { appendInputArrayLengthErrors } from './prepared-inputs.js';
 import type { OwnerMutationReadView } from '../mutation/pipeline.js';
-import { decodeValue, encodeValue, isRecordRef, isFileValue, isDeliveryRef, isActionRef, isInvocationRef, parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
+import { decodeValue, encodeValue, isRecordRef, isFileValue, isDeliveryRef, isActionRef, isInvocationRef, normalizeSchema, parseTypeId, printTypeId, validateDraftValue, validateValue, type NormalizedSchema } from '@canlang/values';
+import { modelFieldConstraintSchema } from '../mutation/models.js';
 
 /** One admitted mutation call with its loaded record rows and fence. */
 export interface AdmittedCall {
@@ -631,7 +632,8 @@ export function validateCallInputs(
 
 /** Shared current caller authorization; enrollment belongs to the supplied fence. */
 async function authorizeCall(def: InterimOperationDef | GeneratedOperationDef,
-  context: InvocationContext, memberships: MembershipReader, scope: FenceScope, skipTrusted = true): Promise<void> {
+  context: { readonly kind?: string; readonly actor?: { readonly userId: string } | null;
+    readonly team?: { readonly teamId: string } | null }, memberships: MembershipReader, scope: FenceScope, skipTrusted = true): Promise<void> {
   if (skipTrusted && context.kind === 'trusted') return;
   const actorUserId = context.actor?.userId ?? null;
   const teamId = context.team?.teamId ?? null;
@@ -643,6 +645,126 @@ async function authorizeCall(def: InterimOperationDef | GeneratedOperationDef,
   if (!await evaluateBy(def.by, { actorUserId, teamId, membership, memberships })) {
     throw new StateError('forbidden', 'This operation is not permitted for the caller.');
   }
+}
+
+/** Preparatory upload admission has no receipt, defaults, body or staged effects.
+ * Omitted ordinary values stay omitted. Required reference context and every
+ * supplied value still use the same owning codecs, reference loader and by. */
+export async function prepareMutationInputs(input: {
+  readonly def: GeneratedOperationDef;
+  readonly inputs: ClosedInputs;
+  /** Decoded canonical File path already checked by the owning host. */
+  readonly selectedFilePath: readonly string[];
+  readonly context: { readonly actor: { readonly userId: string } | null;
+    readonly team: { readonly teamId: string } | null };
+  readonly store: StoragePort;
+  readonly memberships: MembershipReader;
+}): Promise<Revision> {
+  const { def, inputs, context, store, memberships } = input;
+  if (!isGeneratedOperationDef(def) || !['create', 'update', 'scenario'].includes(def.kind)) {
+    throw new StateError('validation', 'Uploads require a checked writable mutation.');
+  }
+  const revision = await store.readRevision();
+  const scope = openFenceScope(revision, context.team?.teamId ?? 'app');
+  await authorizeCall(def, context, memberships, scope, false);
+  const expected = new Set(def.descriptor.inputs.map(field => field.name));
+  const fields: FieldError[] = [], refs: PendingRef[] = [];
+  const normalized: Record<string, unknown> = { ...inputs }, inspected = { count: 0 };
+  const declarations = generatedCallInputDeclarations(def), schema = declarations?.valueSchema ?? normalizeSchema({});
+  let visits = 0;
+  const requireContext = (type: ReturnType<typeof parseTypeId>, value: unknown, required: boolean, path: readonly string[], depth = 0): void => {
+    if (++visits > 4096 || depth > 32) throw new StateError('limit', 'Upload context exceeds its finite bound.');
+    const selectedAncestor = path.length < input.selectedFilePath.length && path.every((part, index) => input.selectedFilePath[index] === part);
+    const pointer = path.map(part => part.replace(/~/g, '~0').replace(/\//g, '~1')).join('/');
+    if (type.nullable && value === null || value === undefined && !required && !selectedAncestor) return;
+    if (type.array) {
+      if (Array.isArray(value)) for (const [index, part] of value.entries()) requireContext({ ...type, array: false, requiredArray: false, nullable: false }, part, true, [...path, String(index)], depth + 1);
+      const selectedIndex = selectedAncestor ? Number(input.selectedFilePath[path.length]) : undefined;
+      if (selectedIndex !== undefined && (value === undefined || Array.isArray(value) && selectedIndex === value.length)) {
+        requireContext({ ...type, array: false, requiredArray: false, nullable: false }, undefined, true,
+          [...path, String(selectedIndex)], depth + 1);
+      }
+      else if (value === undefined && required) requireContext({ ...type, array: false, requiredArray: false, nullable: false }, undefined, true, path, depth + 1);
+      return;
+    }
+    if (type.base.kind === 'delivery' || type.base.kind === 'action' || type.base.kind === 'invocation') {
+      throw new StateError('validation', `Upload protected context at /${pointer} requires its owning provenance admission, which upload preparation does not support.`);
+    }
+    if (type.base.kind === 'union') {
+      if (typeof value === 'object' && value !== null && !Array.isArray(value) &&
+          typeof (value as Record<string, unknown>)['type'] === 'string' &&
+          type.base.arms.includes((value as Record<string, string>)['type']!)) {
+        return requireContext(parseTypeId((value as Record<string, string>)['type']!),
+          (value as Record<string, unknown>)['value'], true, [...path, 'value'], depth + 1);
+      }
+      // A missing branch may hide required record/protected context. Inspect
+      // its declarations without inventing a discriminator or ordinary data.
+      if (value === undefined && required) for (const arm of type.base.arms) {
+        requireContext(parseTypeId(arm), undefined, true, [...path, 'value'], depth + 1);
+      }
+      return;
+    }
+    if (type.base.kind !== 'nominal') return;
+    const name = type.base.path;
+    if (declarations?.modelNames.has(name)) {
+      if (value === undefined) throw new StateError('validation', `Upload requires record context at /${pointer}.`);
+      return;
+    }
+    const alias = Object.hasOwn(schema.aliases ?? {}, name) ? schema.aliases![name] : undefined;
+    if (alias !== undefined) return requireContext(alias.type, value, required, path, depth + 1);
+    const contract = Object.hasOwn(schema.contracts, name) ? schema.contracts[name] : undefined;
+    if (contract !== undefined) for (const [key, field] of Object.entries(contract.fields)) {
+      requireContext(field.type, typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined,
+        field.required, [...path, key], depth + 1);
+    }
+    else if (!Object.hasOwn(schema.enums, name)) {
+      throw new StateError('validation', `Upload context at /${pointer} requires its checked schema.`);
+    }
+  };
+  for (const key of Object.keys(inputs)) if (!expected.has(key)) {
+    fields.push({ path: `/${key}`, code: 'unknown_input', message: `Unknown input "${key}".` });
+  }
+  for (const field of def.descriptor.inputs) {
+    const present = Object.hasOwn(inputs, field.name);
+    if (field.kind === 'ref') {
+      if (!present && !Object.hasOwn(def.inputArrays, field.name) && field.nullable !== true) {
+        throw new StateError('validation', `Upload requires record context at /${field.name}.`);
+      }
+      if (present || field.required) validateOneGeneratedInput(def, field, inputs, normalized, refs, fields, inspected, false);
+      continue;
+    }
+    if (field.kind === 'delivery') {
+      if (present || field.required) throw new StateError('validation',
+        `Upload protected context at /${field.name} requires its owning provenance admission, which upload preparation does not support.`);
+      continue;
+    }
+    const type = field.valueType ?? ({ string: 'text', integer: 'int', boolean: 'bool', decimal: 'decimal',
+      money: 'money', datetime: 'datetime', duration: 'duration', user: 'user', file: 'file',
+      enum: field.kind === 'enum' ? `enum(${field.enumValues?.join(',')})` : undefined } as Record<string, string | undefined>)[field.kind];
+    if (type === undefined) {
+      if (present) throw new StateError('validation', 'Upload arguments need their checked input type.');
+      continue;
+    }
+    const valueType = field.valueType ?? `${type}${Object.hasOwn(def.inputArrays, field.name) ? '[]' : ''}`;
+    const parsed = parseTypeId(valueType);
+    requireContext(parsed, inputs[field.name], field.required, [field.name]);
+    if (!present) continue;
+    validateOneGeneratedInput(def, field, inputs, normalized, refs, fields, inspected, false);
+    try {
+      // The owning draft validator preserves omissions through contracts,
+      // array elements and union branches without evaluating defaults.
+      validateDraftValue(schema, valueType, inputs[field.name]);
+      const constraint = modelFieldConstraintSchema({ ...field, valueType }, schema);
+      if (constraint !== undefined) validateDraftValue(constraint.schema, constraint.type, { value: inputs[field.name] });
+    } catch { throw new StateError('validation', 'Invalid upload operation arguments.'); }
+    inspectCompositeRefs({ pending: refs, seen: new WeakSet(), inspected, ownerStage: false, receivingField: true,
+      field, valueSchema: schema, modelNames: declarations?.modelNames }, inputs[field.name], field.name, 0, inputs[field.name], parsed);
+  }
+  if (fields.length > 0) throw new StateError('validation', 'Invalid upload operation arguments.', null, { fields });
+  await loadCallRecordRefs({ pending: refs, inputs, store, scope });
+  await authorizeCall(def, context, memberships, scope, false);
+  if (await store.readRevision() !== revision) throw new StateError('conflict', 'Upload operation context changed.');
+  return revision;
 }
 
 /** Canonical child admission within an already active owner transaction.

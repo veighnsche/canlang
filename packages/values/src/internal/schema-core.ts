@@ -258,9 +258,10 @@ type OmittedOut = CanValue | UpdateContract | typeof UPDATE_OMITTED | typeof ENG
  * required fields; "update" yields UPDATE_OMITTED; "explicit" (descriptor
  * defaults) requires every field spelled out except nullable/array-implicit
  * leaves. Array elements and union branches are always "create"/"explicit"
- * (complete values), never partial.
+ * (complete values) for ordinary create/update validation. Preparatory
+ * "draft" validation preserves omissions through every container.
  */
-type Nesting = "create" | "update" | "explicit";
+type Nesting = "create" | "update" | "explicit" | "draft";
 
 interface NodeOptions {
   readonly nesting: Nesting;
@@ -668,7 +669,7 @@ function validateModelRef(
 }
 
 function omittedField(field: FieldView, path: Path, ctx: Collector, options: NodeOptions): OmittedOut {
-  if (options.nesting === "update") {
+  if (options.nesting === "update" || options.nesting === "draft") {
     return UPDATE_OMITTED;
   }
   if (field.required) {
@@ -804,7 +805,7 @@ function validateUnionValue(
   }
   let ok = true;
   for (const key of ["type", "value"] as const) {
-    if (!Object.hasOwn(wire, key) || wire[key] === undefined) {
+    if ((!Object.hasOwn(wire, key) || wire[key] === undefined) && !(options.nesting === "draft" && key === "value")) {
       ok = false;
       pushViolation(ctx, [...path, key], "required", `union is missing ${JSON.stringify(key)}`, "union {type, value}");
     }
@@ -842,13 +843,13 @@ function validateUnionValue(
       arm = rawType;
     }
   }
-  // Union branches are complete values even in update partials.
+  // Ordinary update union branches are complete; drafts remain unfinished.
   const complete: NodeOptions =
-    options.nesting === "explicit"
+    options.nesting === "draft" ? options : options.nesting === "explicit"
       ? { nesting: "explicit", requireVersion: options.requireVersion }
       : { nesting: "create", requireVersion: options.requireVersion };
   const rawValue = wire["value"];
-  let inner: NodeOut = FAIL;
+  let inner: NodeOut = options.nesting === "draft" ? UPDATE_OMITTED : FAIL;
   if (rawValue !== undefined && arm !== null) {
     const decoded = validateNode(schema, parseTypeId(arm), rawValue, [...path, "value"], ctx, complete);
     if (decoded === FAIL || decoded === UPDATE_OMITTED) {
@@ -859,6 +860,9 @@ function validateUnionValue(
   }
   if (!ok || arm === null || inner === FAIL) {
     return FAIL;
+  }
+  if (options.nesting === "draft") {
+    return Object.freeze(inner === UPDATE_OMITTED ? { type: arm } : { type: arm, value: inner }) as UpdateContract;
   }
   return makeUnionValue(arm, inner as CanValue);
 }
@@ -911,9 +915,9 @@ function validateArrayElements(
   options: NodeOptions,
 ): NodeOut {
   const element: NormalizedType = { base: ast.base, array: false, nullable: false, requiredArray: false };
-  // Array elements are complete values even in update partials.
+  // Ordinary update array elements are complete; drafts remain unfinished.
   const complete: NodeOptions =
-    options.nesting === "explicit"
+    options.nesting === "draft" ? options : options.nesting === "explicit"
       ? { nesting: "explicit", requireVersion: options.requireVersion }
       : { nesting: "create", requireVersion: options.requireVersion };
   const out: CanValue[] = [];
@@ -2384,9 +2388,21 @@ export function validateValueTsCore(
     throw new ValueError("invalid-construction", 'validation mode must be "create" or "update"');
   }
   const ast = parseTypeId(typeId);
-  const ctx: Collector = { violations: [] };
   const options: NodeOptions =
     mode === "create" ? { nesting: "create", requireVersion: false } : { nesting: "update", requireVersion: false };
+  return validateSchemaValue(schema, ast, wire, options);
+}
+
+/** Check supplied draft fields only, including partial array elements and
+ * union branches. Defaults and omitted fields never create values. This is
+ * preparation, not an operation-admission or complete-value constructor. */
+export function validateDraftValueTsCore(schema: NormalizedSchema, typeId: string, wire: unknown): void {
+  assertNormalizedSchema(schema);
+  validateSchemaValue(schema, parseTypeId(typeId), wire, { nesting: "draft", requireVersion: false });
+}
+
+function validateSchemaValue(schema: NormalizedSchema, ast: NormalizedType, wire: unknown, options: NodeOptions): CanValue | UpdateContract {
+  const ctx: Collector = { violations: [] };
   const out = validateNode(schema, ast, wire, [], ctx, options);
   if (out === FAIL || ctx.violations.length > 0) {
     throw new SchemaError(ctx.violations);

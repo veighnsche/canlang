@@ -1,7 +1,7 @@
 /** Public schema facade. Arbitrary callers always enter the canonical TS core. */
 import type { CanValue, ContractValue, WireValue } from "@canlang/contracts/values";
 import type { CanonicalNominalLeaf, CanonicalValueTypes } from "@canlang/contracts";
-import { normalizeSchema, validateValueTsCore, validateOperationInputTsCore } from "./internal/schema-core.js";
+import { normalizeSchema, validateValueTsCore, validateDraftValueTsCore, validateOperationInputTsCore } from "./internal/schema-core.js";
 import type { FieldDescriptor, NormalizedSchema, UpdateContract, ValidationMode } from "./internal/schema-core.js";
 import { parseTypeId, printTypeId } from "./types.js";
 
@@ -260,6 +260,12 @@ export function validateValue(
   schema: NormalizedSchema, typeId: string, wire: unknown, mode: ValidationMode,
 ): CanValue | UpdateContract {
   return validateValueTsCore(schema, typeId, wire, mode as "create");
+}
+
+/** Validate supplied draft fields without defaults or complete-container
+ * requirements. A successful check creates no complete value or authority. */
+export function validateDraftValue(schema: NormalizedSchema, typeId: string, wire: unknown): void {
+  validateDraftValueTsCore(schema, typeId, wire);
 }
 
 /** Validate operation inputs at their original assertion/framing position. */

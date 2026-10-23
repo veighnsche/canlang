@@ -538,6 +538,8 @@ export interface FileKernel {
     request: UploadIntentRequest;
     receiver: UploadReceiver;
     binding: UploadBinding;
+    /** Host-owned current admission, repeated by durable receiving stores before publication. */
+    revalidate?: () => Promise<void>;
   }): Promise<KernelCreateOutcome>;
   /** Expected byte offset identifies the submitted range, including retries. */
   append(intentId: string, caller: UploadReceiver, chunk: Uint8Array, expectedOffset: number): Promise<KernelAppendOutcome>;
@@ -555,6 +557,8 @@ export interface UploadDeps {
   readonly app: AppInfo;
   readonly files: FileUseInfo;
   readonly kernel: FileKernel;
+  /** Installed canonical operation/slot admission; no business body is executed. */
+  readonly authorizeIntent?: (request: UploadIntentRequest, identity: ResolvedIdentity) => Promise<void>;
   /** Uploads resolve credentials; they do not send mail or run account lifecycle routes. */
   readonly identity: Pick<IdentityDeps, 'store'> & Partial<Omit<IdentityDeps, 'store'>>;
   readonly logger: Logger;

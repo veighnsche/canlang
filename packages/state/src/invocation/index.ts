@@ -15,6 +15,7 @@ export {
 } from './context.js';
 export {
   admit,
+  prepareMutationInputs,
   receiptIdentityFor,
   type AdmittedCall,
   type ConflictServerOnly,

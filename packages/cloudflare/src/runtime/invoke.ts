@@ -14394,6 +14394,106 @@ export async function invokeMutationCanonical(
   return invokeCanonicalMutation(opts, false);
 }
 
+/** Upload preparation validates a writable source slot and available context;
+ * it neither invokes the mutation nor grants later attachment authority. */
+export async function prepareCanonicalUploadIntent(opts: {
+  readonly artifact: CompileArtifact; readonly asm: AssembledModules;
+  readonly store: StoragePort; readonly memberships: CanonicalMembershipReader;
+  readonly identity: ResolvedIdentity; readonly app: string;
+  readonly request: import('@canlang/contracts').UploadIntentRequest;
+}): Promise<void> {
+  await verifyCheckedAssembly(opts.asm, opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
+  const fail = (message: string): never => { throw new loaded.producers.errors('validation', message); };
+  let request: Record<string, unknown>;
+  try { request = localPolicyObject(opts.request, ['upload_id', 'operation', 'field', 'arguments', 'name', 'type', 'size']); }
+  catch { return fail('Invalid upload intent.'); }
+  if (Object.keys(request).length !== 7 || typeof request.operation !== 'string' ||
+      typeof request.field !== 'string' || !request.field.startsWith('/') || /~(?![01])/.test(request.field) ||
+      !isUnknownRecord(request.arguments)) {
+    return fail('Invalid upload intent.');
+  }
+  const def = generatedScenarioDef({ def: loaded.registry.get(request.operation) });
+  if (def === undefined || !['create', 'update', 'scenario'].includes(def.kind)) return fail('Upload operation is unavailable.');
+  const callable = opts.artifact.callables.find(entry => entry.kind === 'operation' && entry.id === def.name);
+  if (callable === undefined) return fail('Upload operation is unavailable.');
+  const entry = opts.artifact.modules[0];
+  if (entry === undefined || privateSourceMember(privateSourceMember(
+    await importVerifiedAssemblyModule(opts.asm, entry.path, opts.artifact), 'appDefinition'), 'id') !== opts.app) {
+    return fail('Upload app differs from its checked source.');
+  }
+  const module = await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
+  const definition = privateSourceMember(module, 'appDefinition');
+  const operation = privateSourceMember(privateSourceMember(definition, 'operations'), def.name);
+  if (!isUnknownRecord(operation) || privateSourceMember(operation, 'expose') === false ||
+      privateSourceMember(operation, 'read') === true) return fail('Upload operation is unavailable.');
+  const tokens = request.field.split('/').slice(1).map(token => token.replace(/~1/g, '/').replace(/~0/g, '~'));
+  if (tokens.length === 0 || tokens.some(token => token === '') || tokens.length > 32) return fail('Invalid upload File slot.');
+  let args: Record<string, unknown>;
+  try { args = captureDispatchPreclaimData(localPolicyObject(request.arguments)) as Record<string, unknown>; }
+  catch { return fail('Invalid upload operation arguments.'); }
+  // Generated canonical CRUD inputs are flat. The bridge also accepts its
+  // original changes-object notation, without permitting duplicate bindings.
+  if (def.kind === 'update' && tokens[0] === 'changes') {
+    tokens.shift();
+    if (Object.hasOwn(args, 'changes') && !isUnknownRecord(args.changes)) return fail('Invalid upload changes context.');
+    const changes = Object.hasOwn(args, 'changes') ? localPolicyObject(args.changes) : {};
+    const outer = { ...args }; delete outer.changes;
+    if (Object.keys(changes).some(key => Object.hasOwn(outer, key) || key === 'record')) return fail('Upload changes override protected context.');
+    args = { ...outer, ...changes };
+  }
+  const field = def.descriptor.inputs.find(field => field.name === tokens[0]);
+  if (field === undefined || field.kind === 'ref' || field.kind === 'delivery') return fail('Upload requires a writable File input.');
+  const type = field.valueType ?? (field.kind === 'file' ? `file${Object.hasOwn(def.inputArrays, field.name) ? '[]' : ''}` : undefined);
+  if (type === undefined) return fail('Upload requires a writable File input.');
+  let selected = parseTypeId(type), value = args[field.name], maximum = field.max;
+  const resolveAlias = (): void => {
+    let depth = 0;
+    while (selected.base.kind === 'nominal' && Object.hasOwn(loaded.valueSchema?.aliases ?? {}, selected.base.path)) {
+      if (++depth > 32) return fail('Upload File schema exceeds its bound.');
+      const alias = loaded.valueSchema!.aliases![selected.base.path]!;
+      // An outer array belongs to the field, rather than its element alias.
+      if (selected.array) break;
+      selected = alias.type;
+      maximum = alias.lengthMax ?? maximum;
+    }
+  };
+  for (const token of tokens.slice(1)) {
+    resolveAlias();
+    if (selected.array) {
+      if (!/^(0|[1-9][0-9]*)$/.test(token) || !Number.isSafeInteger(Number(token)) ||
+          value !== undefined && !Array.isArray(value) || Number(token) > (Array.isArray(value) ? value.length : 0) ||
+          maximum !== undefined && Number(token) >= maximum) return fail('Invalid upload File array slot.');
+      selected = { ...selected, array: false, requiredArray: false, nullable: false };
+      maximum = undefined;
+    } else {
+      if (selected.base.kind === 'union') {
+        const arm = isUnknownRecord(value) ? value.type : undefined;
+        if (token !== 'value' || typeof arm !== 'string' || !selected.base.arms.includes(arm)) return fail('Upload requires its declared union branch.');
+        selected = parseTypeId(arm);
+      } else {
+        const contract = selected.base.kind === 'nominal' && Object.hasOwn(loaded.valueSchema?.contracts ?? {}, selected.base.path)
+          ? loaded.valueSchema!.contracts[selected.base.path] : undefined;
+        const child = contract !== undefined && Object.hasOwn(contract.fields, token) ? contract.fields[token] : undefined;
+        if (child === undefined || child.serverOnly) return fail('Upload requires a writable declared File slot.');
+        selected = child.type;
+        maximum = child.lengthMax;
+      }
+    }
+    if (value === null || value !== undefined && typeof value !== 'object') return fail('Upload File parent has an invalid shape.');
+    value = value === undefined || value === null ? undefined : (value as Record<string, unknown>)[token];
+  }
+  resolveAlias();
+  if (selected.array || selected.base.kind !== 'file' || value !== undefined) return fail('The selected writable File slot must be absent.');
+  const state = await loadProducerModule(STATE_ADMISSION_SPECIFIER, 'canonical upload preparation');
+  const prepare = requireProducerFn(state, 'prepareMutationInputs', 'canonical upload preparation') as
+    typeof import('@canlang/state/invocation/admission').prepareMutationInputs;
+  await prepare({ def, inputs: args, selectedFilePath: tokens, store: opts.store, memberships: opts.memberships,
+    context: { actor: opts.identity.actor === null ? null : { userId: opts.identity.actor.user_id },
+      team: opts.identity.team === null ? null : { teamId: opts.identity.team.team_id } } });
+  await verifyCheckedAssembly(opts.asm, opts.artifact);
+}
+
 /** Trusted host recovery entry; no operation envelope can select this path. */
 export async function invokeRetainedMutationCanonical(
   opts: CanonicalMutationOpts,

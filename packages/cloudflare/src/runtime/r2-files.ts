@@ -204,7 +204,8 @@ export async function createR2FileBindings(input: R2FileOptions) {
     };
     return { intents, files, blobs };
   };
-  async function run<T>(select: { intentId?: string; retryId?: string; ref?: string }, body: (upload: UploadDeps, final: FinalizeDeps) => T): Promise<T> {
+  async function run<T>(select: { intentId?: string; retryId?: string; ref?: string }, body: (upload: UploadDeps, final: FinalizeDeps) => T,
+    revalidate?: () => Promise<void>): Promise<T> {
     // These minted identities belong to this actual call and survive its CAS retries.
     const mintedIntent = crypto.randomUUID(), mintedFile = crypto.randomUUID();
     const now = clock.nowMs();
@@ -224,11 +225,13 @@ export async function createR2FileBindings(input: R2FileOptions) {
       const final: FinalizeDeps = { clock: callClock, fileIds: { nextFileId: () => mintedFile }, intents, files, blobs };
       const result = body(upload, final);
       if (writes.intentWrite === undefined && writes.fileWrite === undefined && writes.blobWrites.size === 0) {
+        await revalidate?.();
         if (await root() === loaded.revision) return result;
         continue;
       }
       const token = crypto.randomUUID();
       const published = await publishBlobWrites(writes.blobWrites, pointers, token, now);
+      await revalidate?.();
       if (await commitPublished(loaded.revision, token, writes.intentWrite, writes.fileWrite, published)) return result;
     }
     throw new Error('Concurrent Files changes require retry.');
@@ -237,7 +240,8 @@ export async function createR2FileBindings(input: R2FileOptions) {
     maxBytes: policy.maxBytes,
     fileStoreId,
     physicalFiles,
-    createIntent: (input: CreateIntentInput) => run({ retryId: input.request.upload_id }, upload => createUploadIntent(upload, input)),
+    createIntent: (input: CreateIntentInput & { readonly revalidate?: () => Promise<void> }) =>
+      run({ retryId: input.request.upload_id }, upload => createUploadIntent(upload, input), input.revalidate),
     append: (intentId: string, caller: ReceivingContext, chunk: Uint8Array, expectedOffset: number) => run({ intentId }, upload => appendUploadContentAtOffset(upload, intentId, caller, chunk, expectedOffset)),
     complete: (intentId: string, caller: ReceivingContext) => run({ intentId }, upload => completeUploadContent(upload, intentId, caller)),
     finalize: (input: FinalizeInput) => run({ intentId: input.intentId }, (_, final) => finalizeUpload(final, input)),

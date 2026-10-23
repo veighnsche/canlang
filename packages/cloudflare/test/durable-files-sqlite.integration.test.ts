@@ -4,12 +4,132 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { Miniflare } from 'miniflare';
 import { it } from 'vitest';
 import { createSqliteFileStore } from '../../files/src/host/sqlite.js';
+import type { CompileArtifact } from '@canlang/contracts';
+import { deriveCsrfToken, sha256HexText } from '@canlang/identity';
+import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
+import { createMemoryStorage } from '@canlang/state/storage/memory';
+import { asId, asModel, makeBatch, makeRow } from '@canlang/state/testing/invocation/fixtures';
+
+it('admits native Worker upload intents through current canonical context before granting retries', async () => {
+  const root = fileURLToPath(new URL('../../../', import.meta.url));
+  const directory = await mkdtemp(join(tmpdir(), 'can-native-upload-admission-'));
+  const runtime = new Miniflare({ modules: true, compatibilityDate: '2026-07-15',
+    script: 'export default {fetch(){return new Response("ready")}}',
+    d1Databases: { DB: 'native-upload-admission' }, r2Buckets: { FILES: 'native-upload-admission' } });
+  try {
+    // Run the real Node importer: Vitest rewrites dynamic ESM namespaces to
+    // getter-backed objects, unlike the native namespaces checked by this host.
+    const requireNative = createRequire(import.meta.url);
+    const { assembleModules } = requireNative(fileURLToPath(new URL('../dist/runtime/modules.js', import.meta.url))) as
+      typeof import('../src/runtime/modules.js');
+    const { createWorkerFiles } = requireNative(fileURLToPath(new URL('../dist/runtime/worker-files.js', import.meta.url))) as
+      typeof import('../src/runtime/worker-files.js');
+    const fixture = join(root, 'packages/cloudflare/test/fixtures/typed-file-journey.can');
+    const source = join(directory, 'typed-file-journey.can');
+    await writeFile(source, (await readFile(fixture, 'utf8'))
+      .replace(' Entry { label:text="Uploaded", attachment:file? }',
+        ' Entry { label:text="Uploaded", attachment:file? }\n contract UploadDraft {entry:Entry,attachment:file,note:text}\n contract OtherDraft {attachment:file}\n contract UploadEnvelope {drafts:UploadDraft[]?}\n contract UnionEnvelope {draft:UploadDraft|OtherDraft}')
+      .replace('Then', ' scenario nested(envelope:UploadEnvelope?) by=owner\n  do\n   require true\n scenario unionDraft(payload:UnionEnvelope) by=owner\n  do\n   require true\nThen'));
+    const artifact = JSON.parse(execFileSync(process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can'),
+      ['compile', '--format=json', '--native-scenario-receipts', '--catalog',
+        process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json'), source],
+      { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024, encoding: 'utf8' })) as CompileArtifact;
+    const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
+      stdlibUrl: new URL('../dist/runtime/stdlib.js', import.meta.url).href,
+      uiUrl: pathToFileURL(createRequire(import.meta.url).resolve('@canlang/ui')).href });
+    const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
+    const team = await identities.createTeam({ timezone: 'UTC' });
+    const user = await identities.createUser({ email: 'native-upload@example.test', password_hash: 'unused', email_verified: true });
+    const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+    const token = 'native-upload-admission-session';
+    await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+      last_team_id: team.team_id, expires_at: new Date(now + 3600000).toISOString() });
+    const store = createMemoryStorage();
+    const row = makeRow({ id: asId('upload-entry'), data: { label: 'Uploaded', attachment: null } });
+    await store.commit(makeBatch(await store.readRevision(), { writes: [
+      { kind: 'insert', model: asModel('TypedFileJourney.Entry'), row, parent: null },
+    ] }));
+    const db = await runtime.getD1Database('DB');
+    const files = await createWorkerFiles({ artifact, asm, store, identities, clock,
+      env: { DB: db, FILES: await runtime.getR2Bucket('FILES') }, origin: 'https://files.test',
+      retention: { unattachedHorizonMs: 86400000, retentionMs: 86400000 }, intentTtlMs: 900000 });
+    assert.ok(files, 'the compiler must install its implicit Files binding');
+    const headers = { 'content-type': 'application/json', cookie: `can_session=${token}`,
+      'x-csrf-token': await deriveCsrfToken(token) };
+    const body = { upload_id: 'native-one', operation: 'TypedFileJourney.attach', field: '/attachment',
+      arguments: { entry: { id: row.id, version: String(row.version) } }, name: 'native.txt', type: 'text/plain', size: '5' };
+    const intent = (input: unknown, withHeaders: HeadersInit = headers) => files.fetch(new Request(files.intentsUrl,
+      { method: 'POST', headers: withHeaders, body: JSON.stringify(input) }));
+    // accept is deliberately absent: the later business Require remains unevaluated.
+    const granted = await intent(body);
+    assert.equal(granted.status, 200, await granted.clone().text());
+    const grant = await granted.json() as { intent_id: string; content: string; finalize: string };
+    assert.deepEqual(await (await intent(body)).json(), grant);
+    for (const input of [
+      { ...body, operation: 'TypedFileJourney.missing' },
+      { ...body, operation: 'TypedFileJourney.Entry.delete' },
+      { ...body, field: '/accept' },
+      { ...body, arguments: {} },
+      { ...body, arguments: { entry: { id: row.id, version: '999' } } },
+      { ...body, arguments: { ...body.arguments, unexpected: true } },
+    ]) {
+      const denied = await intent({ ...input, upload_id: 'invalid' });
+      assert.ok([400, 403, 404, 409].includes(denied.status), await denied.clone().text());
+    }
+    assert.equal((await intent(body, { 'content-type': 'application/json' })).status, 401);
+    assert.equal((await intent(body, { ...headers, 'x-csrf-token': 'wrong' })).status, 403);
+    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM can_files_intents').first<{ count: number }>())?.count, 1);
+    const nested = { ...body, upload_id: 'nested-one', operation: 'TypedFileJourney.nested',
+      field: '/envelope/drafts/0/attachment', arguments: {} };
+    for (const args of [{}, { envelope: {} }, { envelope: { drafts: [] } }, { envelope: { drafts: [{}] } }]) {
+      assert.equal((await intent({ ...nested, arguments: args })).status, 400,
+        'creating optional File ancestors still requires their required record siblings');
+    }
+    for (const draft of [
+      { entry: body.arguments.entry, note: 123 },
+      { entry: body.arguments.entry, unknown: true },
+      { entry: { id: row.id, version: 'invalid' } },
+    ]) {
+      assert.equal((await intent({ ...nested, arguments: { envelope: { drafts: [draft] } } })).status, 400,
+        'partial drafts still validate supplied scalar, reference and closed-object shape');
+    }
+    const nestedGranted = await intent({ ...nested,
+      arguments: { envelope: { drafts: [{ entry: body.arguments.entry }] } } });
+    assert.equal(nestedGranted.status, 200, await nestedGranted.clone().text());
+    const union = { ...body, upload_id: 'union-one', operation: 'TypedFileJourney.unionDraft', field: '/payload/draft/value/attachment' };
+    for (const draft of [{ value: {} }, { type: 'TypedFileJourney.Unknown', value: {} },
+      { type: 'TypedFileJourney.UploadDraft', value: { entry: body.arguments.entry, note: 123 } }]) {
+      assert.equal((await intent({ ...union, arguments: { payload: { draft } } })).status, 400,
+        'draft unions require a declared discriminator and validate their supplied branch');
+    }
+    const unionGranted = await intent({ ...union,
+      arguments: { payload: { draft: { type: 'TypedFileJourney.UploadDraft', value: { entry: body.arguments.entry } } } } });
+    assert.equal(unionGranted.status, 200, await unionGranted.clone().text());
+    const appended = await files.fetch(new Request(grant.content, { method: 'PUT',
+      headers: { ...headers, 'upload-offset': '0' }, body: 'hello' }));
+    assert.equal(appended.status, 200, await appended.clone().text());
+    const digest = `sha256:${createHash('sha256').update('hello').digest('hex')}`;
+    const finalized = await files.fetch(new Request(grant.finalize, { method: 'POST', headers,
+      body: JSON.stringify({ upload_id: body.upload_id, bytes_digest: digest }) }));
+    assert.equal(finalized.status, 200, await finalized.clone().text());
+    assert.ok(await finalized.json());
+    await store.commit(makeBatch(await store.readRevision(), { writes: [
+      { kind: 'update', model: asModel('TypedFileJourney.Entry'), id: row.id, expectedVersion: row.version,
+        row: makeRow({ id: row.id, version: 2, data: { label: 'Changed', attachment: null } }) },
+    ] }));
+    assert.equal((await intent(body)).status, 409, 'a retained retry must load the current record version');
+    await identities.removeMembership(membership.membership_id);
+    assert.notEqual((await intent(body)).status, 200, 'a retained retry must recheck current membership');
+    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM can_files_intents').first<{ count: number }>())?.count, 3);
+  } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 120000);
 
 it('migrates retained Node blobs without changing store identity or bytes', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'can-legacy-files-'));

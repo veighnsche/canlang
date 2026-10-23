@@ -64,6 +64,7 @@ import {
   assertPostCsrf,
   caughtToBusinessError,
   jsonErrorResponse,
+  isBusinessThrow,
   resolveRequestIdentity,
 } from '../http/context.js';
 import { readCappedBody } from '../http/limits.js';
@@ -182,6 +183,7 @@ async function handleIntent(
   request: Request,
   receiver: UploadReceiver,
   tool: string,
+  identity: ResolvedIdentity,
 ): Promise<Response> {
   const body = await parseObjectBody(request);
   // The route needs string `upload_id`/`field` members to construct the
@@ -195,10 +197,22 @@ async function handleIntent(
   ) {
     return deny(deps, buildBusinessError('validation', 'Invalid upload intent.'), tool);
   }
+  const intent = body as unknown as UploadIntentRequest;
+  const revalidate = deps.authorizeIntent === undefined ? undefined : async () => {
+    const current = await resolveCaller(deps, request);
+    if (current.identity.actor?.user_id !== identity.actor?.user_id ||
+        current.identity.team?.team_id !== identity.team?.team_id ||
+        JSON.stringify(current.identity.binding) !== JSON.stringify(identity.binding)) {
+      throw new IdentityError('forbidden', 'Upload caller context changed.');
+    }
+    await deps.authorizeIntent!(intent, current.identity);
+  };
+  await revalidate?.();
   const outcome = await deps.kernel.createIntent({
-    request: body as unknown as UploadIntentRequest,
+    request: intent,
     receiver,
     binding: bindingForIntent({ upload_id: uploadId, field } as UploadIntentRequest),
+    ...(revalidate === undefined ? {} : { revalidate }),
   });
   switch (outcome.status) {
     case 'granted':
@@ -388,7 +402,7 @@ async function dispatchUploadRoute(
   const receiver = receiverFromIdentity(deps.app.appId, caller.identity);
   switch (route.kind) {
     case 'intents':
-      return await handleIntent(deps, request, receiver, pathname);
+      return await handleIntent(deps, request, receiver, pathname, caller.identity);
     case 'content':
       return await handleContent(deps, request, receiver, pathname, route.intentId);
     case 'finalize':
@@ -419,7 +433,7 @@ export async function handleUploadRequest(
   try {
     return await dispatchUploadRoute(deps, request, caller, route, pathname);
   } catch (err) {
-    if (err instanceof IdentityError) {
+    if (isBusinessThrow(err)) {
       return deny(deps, caughtToBusinessError(err), pathname);
     }
     const incidentId = logInternalError(deps.logger, err, { route: 'uploads', tool: pathname });

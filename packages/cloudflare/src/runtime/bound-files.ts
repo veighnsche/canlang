@@ -14,7 +14,7 @@ import type { UploadDeps } from '@canlang/interfaces';
 import type { FileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
 import { decodeValue, encodeValue } from '@canlang/values';
 import type { AssembledModules } from './modules.js';
-import { consumeCanonicalFileReference, invokeReadCanonical } from './invoke.js';
+import { consumeCanonicalFileReference, invokeReadCanonical, prepareCanonicalUploadIntent } from './invoke.js';
 import type { CanonicalMembershipReader } from './invoke.js';
 import type { CanonicalFileBinding } from './file-staging.js';
 import { registerRetainedCanonicalFileObserver } from './file-staging.js';
@@ -254,9 +254,14 @@ export function parseBoundFileReadRequest(request: Request): { readonly preview:
 /** Native host join; upload routing/authentication remains owned by Interfaces. */
 export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Request) => Promise<Response> {
   const resolver = createBoundFileReadResolver(opts);
+  const upload: UploadDeps = { ...opts.upload, authorizeIntent: async (request, identity) => {
+    const store = opts.ownerStorage === undefined ? opts.store : await opts.ownerStorage.forIdentity(identity);
+    await prepareCanonicalUploadIntent({ artifact: opts.artifact, asm: opts.asm, store,
+      memberships: opts.memberships, identity, app: opts.upload.app.appId, request });
+  } };
   return async request => {
     const pathname = new URL(request.url).pathname;
-    if (!pathname.startsWith('/files/read/') && !pathname.startsWith('/files/preview/')) return handleUploadRequest(opts.upload, request);
+    if (!pathname.startsWith('/files/read/') && !pathname.startsWith('/files/preview/')) return handleUploadRequest(upload, request);
     if (!opts.upload.files.usesFiles(opts.upload.app)) return notFound();
     const parsed = parseBoundFileReadRequest(request);
     if (parsed === null) return notFound();
