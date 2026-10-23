@@ -6075,8 +6075,7 @@ impl<'a> Closure<'a> {
         if entries.len() != effect.args.len() || entries.len() > 200 {
             return None;
         }
-        let (inputs, seen) =
-            self.create_source_inputs(effect, text, &definition, &entries)?;
+        let (inputs, seen) = self.create_source_inputs(effect, text, &definition, &entries)?;
         if matches!(definition.declaration.owner, ModelOwner::ChildOf(_))
             && !seen.contains("parent")
         {
@@ -6784,7 +6783,11 @@ impl<'a> Closure<'a> {
                 self.types
                     .node_types
                     .get(&key)
-                    .is_some_and(|actual| created_input_type_matches(actual, ty, 0))
+                    .is_some_and(|actual| created_input_type_matches(actual, ty, 0)
+                        || *actual==ResolvedType::Scalar(Scalar::Int) && *ty==ResolvedType::Scalar(Scalar::Decimal)
+                            && self.nodes.get(&key).is_some_and(|node|node.kind==SyntaxKind::Literal)
+                            && self.db.get(key.file).and_then(|source|source.text.get(key.start as usize..key.end as usize))
+                                .is_some_and(|value|value.parse::<i128>().is_ok()))
             })
     }
 
@@ -26798,6 +26801,65 @@ impl<'a> Closure<'a> {
                 Some(())
             }
 
+            /// A finite same-model copy constructor retains its complete original
+            /// field inventory in the loop/create proofs. Its per-item reads are
+            /// owned by the source loop copy producer, not a one-shot result read.
+            fn bounded_copy_loop(&mut self, effect:&Effect, module:ModuleId, flow:Flow,
+                calls:&[NodeKey]) -> Result<Vec<Flow>,DisclosureDecline> {
+                let fail=|| self.fail(effect.node,"checked source-owned copy loop required");
+                if !calls.is_empty() || self.loop_node.is_some() || effect.cond.is_some()
+                    || !effect.else_effects.is_empty() || !effect.match_arms.is_empty() {return Err(fail());}
+                let [created]=effect.then_effects.as_slice() else {return Err(fail());};
+                if created.verb!=EffectVerb::Create || !created.then_effects.is_empty()
+                    || !created.else_effects.is_empty() || !created.match_arms.is_empty() {return Err(fail());}
+                let owner=self.effects.scenarios.values().find(|owner|owner.module==module
+                    && owner.effects.last().is_some_and(|last|last.node==effect.node)).ok_or_else(fail)?;
+                let [called,linked,looped]=owner.effects.as_slice() else{return Err(fail());};
+                if owner.result.is_some() || owner.on.is_some() || owner.read || owner.expose_none
+                    || called.verb!=EffectVerb::Call || called.binding.is_none()
+                    || linked.verb!=EffectVerb::Set || looped.node!=effect.node {return Err(fail());}
+                let Some(EffectTarget::Operation(operation))=called.target else{return Err(fail());};
+                let domain=effect.domain.ok_or_else(fail)?;
+                let (parameter,model)=self.original_loop_member_root(domain,effect.node,module)?;
+                let parent_model=*self.complete_model_children.get(&operation).ok_or_else(fail)?;
+                let checked=self.checked_create_source(created,module).ok_or_else(fail)?;
+                if checked.model!=model || self.types.symbol_types.get(&parameter)
+                    !=Some(&ResolvedType::Record{symbol:parent_model,stored:true}) {return Err(fail());}
+                let [parent,fields @ ..]=checked.inputs.as_slice() else{return Err(fail());};
+                if parent.name!="parent" || parent.field.is_some() || fields.is_empty() || fields.len()>200
+                    || parent.ty!=(ResolvedType::Record{symbol:parent_model,stored:true})
+                    || !matches!(self.query_binding(parent.value_node),Some(Binding::CallAs{node})if *node==called.node)
+                    || !self.nodes.get(&parent.value_node).is_some_and(|node|node.kind==SyntaxKind::NameRef) {return Err(fail());}
+                for field in fields {
+                    let Some((base,name))=self.count_member(field.value_node)else{return Err(fail());};
+                    if name!=field.name || !primitive_type(&field.ty)
+                        || !matches!(self.query_binding(base),Some(Binding::ForItem{node})if *node==effect.node)
+                        || !self.nodes.get(&base).is_some_and(|node|node.kind==SyntaxKind::NameRef)
+                        || !self.effects.models.get(&model).is_some_and(|definition|definition.fields.iter().any(|entry|
+                            Some(entry.field)==field.field && self.resolve.symbols.get(entry.field.0 as usize)
+                                .is_some_and(|symbol|symbol.name==name)
+                                && self.types.symbol_types.get(&entry.field)==Some(&field.ty))) {return Err(fail());}
+                }
+                let limit=effect.limit.ok_or_else(fail)?;
+                let maximum=self.db.get(limit.file).and_then(|source|source.text.get(limit.start as usize..limit.end as usize))
+                    .and_then(|text|text.trim().parse::<u16>().ok()).filter(|bound|(1..=200).contains(bound)).ok_or_else(fail)?;
+                if self.nodes.get(&limit).is_none_or(|node|node.kind!=SyntaxKind::Literal)
+                    || self.types.node_types.get(&limit)!=Some(&ResolvedType::Scalar(Scalar::Int)) {return Err(fail());}
+                let item=effect.item.clone().ok_or_else(fail)?;
+                let (crud,defaults)=self.create_legacy_crud(&checked,model,module,created.node);
+                self.proof(created,module,DisclosureEffectKind::Create{model,crud,binding:checked.binding,defaults,inputs:checked.inputs})?;
+                self.proof(effect,module,DisclosureEffectKind::ForMember{domain,limit,maximum,item,parameter,model,body:vec![created.node]})?;
+                let mut empty=flow.clone();
+                empty.writes.join(&empty.controls);
+                empty.evaluated.push(DisclosureDecision{node:effect.node,calls:Vec::new(),choice:DisclosureChoice::Else});
+                let mut populated=flow;
+                populated.evaluated.push(DisclosureDecision{node:effect.node,calls:Vec::new(),choice:DisclosureChoice::Then});
+                populated.executed_effect=true;
+                populated.writes.join(&populated.controls);populated.writes.join(&populated.effect_guards);
+                self.effect_visits+=1;
+                Ok(vec![empty,populated])
+            }
+
             /// One bounded, straight-line loop over the actual admitted reference
             /// array. This is source closure, not an array/query authority claim.
             fn bounded_input_loop(
@@ -27454,7 +27516,9 @@ impl<'a> Closure<'a> {
         next: &mut Vec<Flow>,
     ) -> Result<(), DisclosureDecline> {
         let previous = self.loop_node;
-        let paths = self.bounded_input_loop(effect, module, flow, calls);
+        let paths = if matches!(effect.then_effects.as_slice(),[created] if created.verb==EffectVerb::Create) {
+            self.bounded_copy_loop(effect,module,flow,calls)
+        } else {self.bounded_input_loop(effect, module, flow, calls)};
         self.loop_node = previous;
         next.extend(paths?);
         Ok(())

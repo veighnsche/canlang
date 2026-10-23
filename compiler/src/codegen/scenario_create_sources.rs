@@ -427,8 +427,9 @@ fn check_field_modifiers(
         {
             return None;
         }
-        matcher.optional(modifiers.min.as_ref(), minimum)?;
-        matcher.optional(modifiers.max.as_ref(), maximum)?;
+        for (value,node) in [(modifiers.min.as_ref(),minimum),(modifiers.max.as_ref(),maximum)]{
+            match(value,node){(None,None)=>{},(Some(value),Some(node))=>checked_field_literal_expression(matcher,value,node,&original_field.ty)?,_=>return None}
+        }
     }
     Some(())
 }
@@ -475,7 +476,8 @@ fn check_declared_field(
     source(ir, &original_field.source, span(data.node), db)?;
     check_field_syntax(nodes, data, field)?;
     check_field_reference(ir, owner, model, data, original_field, ty, text, db)?;
-    check_field_default(matcher, default, data.default, original_field, ty, field.span)?;
+    let checked_default=check_field_default(matcher,default,data.default,original_field,ty,field.span);
+    checked_default?;
     check_field_server(matcher, server, data.server, ty)?;
     check_field_modifiers(ir, matcher, original, original_field, data, modifiers, db)?;
     Some(())
@@ -825,6 +827,17 @@ fn check_bare_literal_default(
     Some(())
 }
 
+/// The checker promotes an authored integer token into its owning Decimal
+/// default/bound. Compare the token/value without discarding that target type.
+fn checked_field_literal_expression(matcher:&SourceExpressions<'_>,actual:&TypedExpr,node:NodeKey,
+    ty:&ResolvedType)->Option<()>{
+    if actual.ty==ResolvedType::Scalar(Scalar::Decimal) && *ty==actual.ty
+        && matches!(actual.expr,IrExpr::Int(_)) && node.kind==SyntaxKind::Literal as u8{
+        let literal=TypedExpr{ty:ResolvedType::Scalar(Scalar::Int),..actual.clone()};
+        matcher.expression(&literal,node,0)
+    }else{matcher.expression(actual,node,0)}
+}
+
 fn check_named_literal_default(
     matcher: &SourceExpressions<'_>,
     actual: &TypedExpr,
@@ -832,7 +845,7 @@ fn check_named_literal_default(
     default: &Option<IrDefault>,
     ty: &ResolvedType,
 ) -> Option<()> {
-    matcher.expression(actual, node, 0)?;
+    checked_field_literal_expression(matcher,actual,node,ty)?;
     if literal_json(actual).is_none() || js_field_default(default.as_ref(), None).is_none() {
         return None;
     }
@@ -946,7 +959,8 @@ pub(super) fn checked_created_schema(
         query_alias: None,
     };
     for (data, original_field) in declaration.fields.iter().zip(&definition.fields) {
-        check_declared_field(&matcher, ir, owner, model, original, definition, data, original_field, text, &nodes, db)?;
+        let field=check_declared_field(&matcher,ir,owner,model,original,definition,data,original_field,text,&nodes,db);
+        field?;
     }
     for original_field in &definition.contributed {
         checked_contributed_field(ir, model, original_field, db)?;

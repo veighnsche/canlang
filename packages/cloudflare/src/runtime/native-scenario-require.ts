@@ -251,3 +251,16 @@ export async function nativeScenarioSourceLoop(context:unknown,id:string,parent:
   if(read===undefined)throw new StateError('validation','Source loop needs its original admitted owner session.');
   return read(id,parent,predicate);
 }
+
+/** One checked original copy constructor inside its actual issued loop item. */
+type SourceLoopCopy=(id:string,item:unknown,parent:unknown,body:Function)=>Promise<void>;
+const sourceLoopCopies=new WeakMap<object,SourceLoopCopy>();
+export function bindNativeScenarioSourceLoopCopy(context:object,copy:SourceLoopCopy):void{
+  if(sourceLoopCopies.has(context))throw new StateError('validation','Source loop copy cannot be rebound.');
+  sourceLoopCopies.set(context,copy);
+}
+export async function nativeScenarioSourceLoopCopy(context:unknown,id:string,item:unknown,parent:unknown,body:Function):Promise<void>{
+  const copy=typeof context==='object'&&context!==null?sourceLoopCopies.get(context):undefined;
+  if(copy===undefined||typeof body!=='function')throw new StateError('validation','Source copy needs its actual original owner loop.');
+  return copy(id,item,parent,body);
+}

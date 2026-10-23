@@ -1611,11 +1611,24 @@ function checkSourceLoops(value:unknown,source:unknown):NonNullable<ScenarioResu
   text(raw['owner']); const loops=list(raw['loops']); const ids=new Set<string>(); let total=0;
   if(loops.length===0)return invalid('Source loop inventory must be complete and nonempty.');
   for(const entry of loops){
-    const loop=object(entry,['id','node','domain','maximum','parameter','parentModel','model','filtered']);
+    const loop=object(entry,['id','node','domain','maximum','parameter','parentModel','model','filtered',...(typeof entry==='object'&&entry!==null&&Object.hasOwn(entry,'copy')?['copy']:[])]);
     const id=text(loop['id']),node=span(loop['node']),domain=span(loop['domain']);
     if(domain.start<node.start||domain.end>node.end)return invalid('Source loop domain left its original statement.');
     for(const key of ['parameter','parentModel','model'])text(loop[key]);
     if(typeof loop['filtered']!=='boolean')return invalid('Source loop original filter marker is required.');
+    if(Object.hasOwn(loop,'copy')){
+      const copy=object(loop['copy'],['node','call','parent','model','target','fields']);
+      const created=span(copy['node']),called=span(copy['call']);
+      if(loop['filtered']!==false||created.start<node.start||created.end>node.end||called.end>node.start
+          ||text(copy['model'])!==loop['model'])return invalid('Source copy requires its original contained constructor and earlier child.');
+      text(copy['parent']);text(copy['target']);const fields=list(copy['fields']),names=new Set<string>();
+      if(fields.length===0)return invalid('Source copy retains every scalar constructor slot.');
+      for(const entry of fields){const field=object(entry,['name','type','node']),name=text(field['name']),at=span(field['node']);
+        if(name==='parent'||names.has(name)||at.start<created.start||at.end>created.end
+            ||!['int','text','email','bool','decimal','money','date','datetime','duration','currency'].includes(text(field['type'])))return invalid('Source copy requires unique original scalar fields.');
+        names.add(name);
+      }
+    }
     const maximum=loop['maximum'];
     if(!/^[a-f0-9]{64}$/.test(id)||ids.has(id)||!Number.isSafeInteger(maximum)||
         (maximum as number)<1||(maximum as number)>200)return invalid('Source loop identity or finite bound is invalid.');
@@ -1958,6 +1971,88 @@ interface BoundCalls {
   readonly targets: ReadonlyMap<string, GeneratedOperationDef>;
 }
 const callProducers = new WeakMap<GeneratedOperationDef, BoundCalls>();
+/** Finite source-copy budgets compose actual checked child plans. The caller
+ * SET aliases the child's created result; it adds no second row identity. */
+function sourceCopyLimits(plan:ScenarioResultDisclosurePlan,children:readonly {
+  readonly name:string;readonly result:string|undefined;readonly plan:ScenarioResultDisclosurePlan;
+}[]):{readonly maxRows:number;readonly maxWork:number;readonly maxWrites:number}|undefined{
+  const own=plan.sourceLoops;
+  if(own===undefined||!own.loops.some(loop=>loop.copy!==undefined))return undefined;
+  const [copyLoop]=own.loops,copy=copyLoop?.copy;
+  if(own.loops.length!==1||copyLoop===undefined||copy===undefined||children.length!==1)return invalid('Source copy budget requires its exact sole constructor loop and child.');
+  const [child]=children,loops=child?.plan.sourceLoops;
+  const [updated]=loops?.loops??[];
+  if(child===undefined||child.name!==copy.target||child.result!==copyLoop.parentModel||loops?.owner!==child.name
+      ||loops.loops.length!==1||updated===undefined||updated.copy!==undefined||updated.model!==copyLoop.parentModel){
+    return invalid('Source copy budget lacks its complete original update/create child.');
+  }
+  const repeated=copyLoop.maximum+updated.maximum;
+  return Object.freeze({maxRows:MAX_ITEMS+repeated,maxWork:(MAX_ITEMS+repeated)*MAX_ITEMS*2,maxWrites:repeated+2});
+}
+function sourceCopyDefinitionLimits(def:GeneratedOperationDef):ReturnType<typeof sourceCopyLimits>{
+  const plan=boundPlans.get(def)?.plan;
+  if(plan?.sourceLoops?.loops.some(loop=>loop.copy!==undefined)!==true)return undefined;
+  const calls=callProducers.get(def);
+  if(calls===undefined||calls.sites.length!==1||calls.targets.size!==1)return invalid('Source copy needs its actual one bound child call.');
+  const children=[...calls.targets.values()].map(child=>{
+    const bound=boundPlans.get(child);
+    if(bound===undefined||callProducers.get(child)?.sites.length)return invalid('Source copy child must retain its complete nonrecursive owner plan.');
+    return {name:child.name,result:child.descriptor.result?.type,plan:bound.plan};
+  });
+  return sourceCopyLimits(plan,children);
+}
+/** A composed copy can retain source and target rows plus owning field
+ * inventories. Only this independently checked finite graph gets the larger
+ * JSON traversal; ordinary wire data retains20k nodes and depth32. */
+function sourceCopyDataBudget(limits:ReturnType<typeof sourceCopyLimits>):number{
+  return limits===undefined?20_000:20_000+limits.maxRows*MAX_ITEMS*4;
+}
+type CurrentScenarioReceiptSource=Pick<ProjectScenarioReceiptInput,'registry'|'app'|'identity'>;
+function savedSourceCopyDataBudget(receipt:unknown,current?:CurrentScenarioReceiptSource):number{
+  if(current===undefined)return 20_000;
+  const own=(value:unknown,key:string):unknown=>{
+    if(typeof value!=='object'||value===null)return undefined;
+    const member=Object.getOwnPropertyDescriptor(value,key);
+    if(member!==undefined&&(!('value' in member)||!member.enumerable))return invalid('Saved copy header must contain own enumerable data.');
+    return member?.value;
+  };
+  const identity=object(dataCopy(own(receipt,'identity')),['app','owner','principal','operation','operationId']);
+  const def=current.registry.get(text(identity['operation']) as Receipt['identity']['operation']);
+  if(def===undefined||!isGeneratedOperationDef(def))return 20_000;
+  const bound=boundPlans.get(def),limits=sourceCopyDefinitionLimits(def);
+  if(limits===undefined)return 20_000;
+  if(identity['app']!==current.app||identity['owner']!==(current.identity.team?.team_id??'app')
+      ||identity['principal']!==(current.identity.actor?.user_id??'public')||referenceProducers.get(def)?.app!==current.app){
+    throw new StateError('forbidden','Saved copy scope differs from its actual current bound source.');
+  }
+  const scenario=own(own(receipt,'outcome'),'scenario'),rawPlan=own(scenario,'plan');
+  if(rawPlan===undefined)return 20_000;
+  const plan=checkScenarioResultDisclosurePlan(dataCopy(rawPlan));
+  if(bound===undefined||stableStringify(bound.plan)!==stableStringify(plan))return invalid('Saved copy source differs from its current independently bound plan.');
+  const calls=dataCopy(own(scenario,'calls')),targets=callProducers.get(def)!.targets;
+  const children=list(calls).map(raw=>{
+    const child=own(raw,'scenario'),name=text(own(raw,'target')),target=targets.get(name),original=target===undefined?undefined:boundPlans.get(target);
+    const childPlan=checkScenarioResultDisclosurePlan(dataCopy(own(child,'plan'))),result=text(own(child,'resultType'));
+    if(original===undefined||original.type!==result||stableStringify(original.plan)!==stableStringify(childPlan)){
+      return invalid('Saved copy child differs from its actual current bound callee.');
+    }
+    return {name,result,plan:childPlan};
+  });
+  // The claimed census must agree; it never chooses the allocation allowance.
+  if(stableStringify(sourceCopyLimits(plan,children))!==stableStringify(limits))return invalid('Saved copy aggregate budget differs from its actual call graph.');
+  return sourceCopyDataBudget(limits);
+}
+
+/** A read-only bound for this actual admitted source owner, never a request
+ * budget or an authority issuer. begin/finalize rederive it independently. */
+export function readScenarioReceiptSourceLoopBounds(call:AdmittedCall,store:StoragePort):{
+  readonly maxRows:number;readonly maxWork:number;readonly maxWrites:number;
+}{
+  capture(call,store);
+  return sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)
+    ??Object.freeze({maxRows:MAX_ITEMS,maxWork:10_000,maxWrites:MAX_ITEMS});
+}
+
 const activeCalls = new WeakMap<AdmittedCall, { readonly owner: ReceiptOwnerSession }>();
 const retainedCallGuards = new WeakMap<AdmittedCall, readonly NonNullable<ExecutionEffects['guards']>[number][]>();
 
@@ -3607,6 +3702,7 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   const bound = boundPlans.get(def);
   const modelInputs = frameworkModelInputs.get(def);
   if (bound === undefined || bound.referenceDependencies.size === 0 && bound.fileDependencies.size === 0 && !Object.hasOwn(producer, 'executionDependencies') &&
+      !bound.plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined) &&
       ![...bound.nominalDependencies.values()].some(value => value.profile.hasFiles) && bound.idDependencies.size === 0 && bound.resultModel === undefined &&
       !bound.plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dep => dep.field === 'parent')) &&
       ![...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) && !(def.kind === 'scenario' && hasNominalAssignments(bound)) || invokedPlans.has(def) || referenceProducers.has(def)) {
@@ -3624,6 +3720,19 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
     return copied;
   }), bound.canonicalModels);
   const readPolicies = producer.readPolicies === undefined ? undefined : captureSourceReadPolicies(producer.readPolicies);
+  for(const loop of bound.plan.sourceLoops?.loops??[])if(loop.copy!==undefined){
+    let model:ModelName|undefined=loop.model as ModelName;
+    const seen=new Set<ModelName>();
+    while(model!==undefined){
+      const declaration=bound.artifactModels.get(model),read=readPolicies?.get(model);
+      if(seen.has(model)||declaration===undefined||read===undefined||read.parent!==declaration.parent
+          ||!('grants' in read))return invalid('Source copy requires its complete original field and ancestor policies.');
+      seen.add(model);model=declaration.parent as ModelName|undefined;
+    }
+    for(const field of loop.copy.fields)if(bound.models.get(loop.model as ModelName)?.fields.get(field.name)!==field.type){
+      return invalid('Source copy differs from its original scalar field inventory.');
+    }
+  }
   for (const { dependency } of bound.referenceDependencies.values()) {
     if (!readPolicies?.has(dependency.model)) {
       if (!policy.has(dependency.model)) return invalid('reference source model requires its actual viewer policy.');
@@ -4402,6 +4511,13 @@ interface ReceiptOwnerSession {
 }
 const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
 const ownerContexts = new WeakMap<object, ReceiptOwnerSession>();
+interface SourceCopyCapture {
+  active:boolean;
+  readonly roots:NonNullable<ScenarioReceiptAssociation['sourceLoopRoots']>[number][];
+  readonly entries:Array<{readonly loop:string;readonly model:ModelName;readonly source:StoredRow;readonly target:StoredRow}>;
+}
+const sourceCopyCaptures=new WeakMap<ReceiptOwnerSession,SourceCopyCapture>();
+
 const ownerRows = new WeakMap<StoredRow, {
   readonly session: ReceiptOwnerSession; readonly stage: number; readonly model: ModelName;
 }>();
@@ -5243,12 +5359,14 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
       checkSourceEmissions(state.bound.plan.sourceEmissions,state.bound.plan.source);
     const loopRows=sourceLoops?.loops.reduce((sum,loop)=>sum+loop.maximum,0);
     const sourceRows=sourceLoops?.loops.reduce((sum,loop)=>sum+loop.maximum*(loop.handler===null?1:2),0);
-    const maxRows = loopRows===undefined ? !extendedOwner ? MAX_ITEMS : 4_001 : loopRows+1;
+    const sourceCopy=sourceCopyDefinitionLimits(call.def as GeneratedOperationDef);
+    const maxRows = loopRows===undefined ? extendedOwner ? 4_001 : sourceCopy?.maxRows??MAX_ITEMS : loopRows+1;
     if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
         (bounds['maxRows'] as number) > maxRows ||
         extendedOwner && (bounds['maxWork'] !== 200_000 || bounds['maxRows'] !== 4_001) ||
         loopRows!==undefined && (bounds['maxWork']!==200_000 || bounds['maxRows']!==loopRows+1 || bounds['maxSourceNodes']!==200_000 || bounds['maxSourceRows']!==sourceRows) ||
-        loopRows===undefined && Object.hasOwn(bounds,'maxSourceNodes')) {
+        loopRows===undefined && Object.hasOwn(bounds,'maxSourceNodes') ||
+        sourceCopy !== undefined && (bounds['maxWork'] !== sourceCopy.maxWork || bounds['maxRows'] !== sourceCopy.maxRows)) {
       return invalid('owner row bound exceeds its exact saved disclosure budget.');
     }
     const producer = frameworkProducers.get(call.def as GeneratedOperationDef);
@@ -5375,11 +5493,14 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
           if (owner.computedIndex !== owner.computedDefaults.length) return invalid('generated handler omitted a required computed-default contribution.');
           const result = await ownerOperation(owner, () => session.finalize());
           const businessWrites = ownerMutationBusinessWrites(result);
-          if (businessWrites.length > MAX_ITEMS) return invalid('changed snapshot budget exceeded.');
+          const maximum=sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)?.maxWrites??MAX_ITEMS;
+          if (businessWrites.length > maximum) return invalid('changed snapshot budget exceeded.');
           // The actual seal must not alias mutable output from the ordinary
           // model pipeline; both consumer and retention receive this copy.
+          const dataBudget=Math.max(sourceCopyDataBudget(sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)),
+            boundPlans.get(call.def as GeneratedOperationDef)?.plan.sourceEmissions===undefined?20_000:200_000);
           const finalized = deepFreeze(dataCopy({ ...result, writes: [...businessWrites],
-            resolvedDefaults: finalizedDefaults(owner, result.resolvedDefaults) }));
+            resolvedDefaults: finalizedDefaults(owner, result.resolvedDefaults) },false,dataBudget));
           owner.finalized = finalized;
           // Disclosure names business changes only. Source/framework effects
           // still reach Invoke together under this exact original fence.
@@ -5387,7 +5508,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
             deepFreeze(dataCopy({ ...finalized,
               writes: [...result.writes, ...(owner.framework === null ? [] : frameworkNetWrites(owner.framework))],
               ...(owner.framework === null ? {} : { outbox: [...owner.framework.queued.values()] }) },false,
-              state.bound.plan.sourceEmissions===undefined?20_000:200_000));
+              dataBudget));
           owner.commitEffects = commitEffects;
           return commitEffects;
         } catch (error) { state.poisoned = true; throw error; }
@@ -5459,7 +5580,8 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
       // this exact object closes the copy boundary without mutable aliases.
       snapshot[key] = member.value;
     } else snapshot[key] = dataCopy(member.value,false,key==='writes' &&
-      boundPlans.get(call.def as GeneratedOperationDef)?.plan.sourceEmissions!==undefined?200_000:20_000);
+      Math.max(boundPlans.get(call.def as GeneratedOperationDef)?.plan.sourceEmissions!==undefined?200_000:20_000,
+        sourceCopyDataBudget(sourceCopyDefinitionLimits(call.def as GeneratedOperationDef))));
   }
   const fileAssignments = matchScenarioFileAssignments(call, snapshot as unknown as ExecutionEffects);
   const owner = ownerSessions.get(call);
@@ -5523,7 +5645,8 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
   const state = captures.get(call);
   if (state !== undefined && state.rowIdGuards.length !== 0) {
     if (state.rowIdWrites !== undefined) return invalid('row id effects were already captured.');
-    state.rowIdWrites = deepFreeze(dataCopy(snapshot['writes'],false,state.bound.plan.sourceEmissions===undefined?20_000:200_000)) as readonly DomainWrite[];
+    state.rowIdWrites = deepFreeze(dataCopy(snapshot['writes'],false,Math.max(state.bound.plan.sourceEmissions===undefined?20_000:200_000,
+      sourceCopyDataBudget(sourceCopyDefinitionLimits(call.def as GeneratedOperationDef))))) as readonly DomainWrite[];
   }
   const guards = [...(owner?.callGuards ?? []), ...(captures.get(call)?.rowIdGuards ?? [])];
   if (guards.length !== 0) retainedCallGuards.set(call, Object.freeze(guards));
@@ -9213,6 +9336,56 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
     await authority.revalidate(); healthy();
   } };
 }
+/** One actual reached source-copy item consumes DATA authority once for its
+ * whole ordered field census. Its original grant guard survives the callback;
+ * its source/target association survives saved projection. */
+export async function executeScenarioReceiptSourceCopy(call:AdmittedCall,store:StoragePort,input:{
+  readonly loop:string;readonly row:StoredRow;readonly execute:()=>Promise<StoredRow>;
+}):Promise<void>{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    if(owner===undefined||owner.session===null)return invalid('Source copy needs its actual owner session.');
+    ownerHealthy(owner);
+    let copies=sourceCopyCaptures.get(owner);
+    if(copies===undefined){copies={active:false,roots:[],entries:[]};sourceCopyCaptures.set(owner,copies);}
+    const loop=state.bound.plan.sourceLoops?.loops.find(loop=>loop.id===input.loop),copy=loop?.copy;
+    const issued=ownerRows.get(input.row),stage=owner.stage;
+    const root=call.recordRefs.find(ref=>ref.param===loop?.parameter);
+    const child=owner.calls.find(entry=>entry.caller===call.def.name&&entry.target===copy?.target);
+    if(copies.active||owner.busy||state.pending!==0||state.returnId!==null||owner.executingCall!==call
+        ||loop===undefined||copy===undefined||issued?.session!==owner||issued.stage!==stage||issued.model!==loop.model
+        ||input.row.archivedAt!==null||root?.model!==loop.parentModel||input.row.parent?.model!==root.model||input.row.parent.id!==root.id
+        ||child===undefined||copies.entries.length>=loop.maximum||copies.entries.some(entry=>entry.loop===loop.id&&entry.source.id===input.row.id)){
+      return invalid('Source copy lacks its original unique current-stage contained item and completed child.');
+    }
+    copies.active=true;
+    try{
+      await ownerOperation(owner,async()=>{
+        const savedRoot=copies.roots.find(saved=>saved.loop===loop.id);
+        if(savedRoot===undefined){
+          const currentRoot=await owner.session!.views.final.get(root.model,root.id);
+          ownerHealthy(owner);
+          if(currentRoot===null||currentRoot.archivedAt!==null||!sameModelLifetime(currentRoot,root.row)
+              ||owner.stage!==stage)return invalid('Source copy root differs from its original admitted parameter.');
+          copies.roots.push({loop:loop.id,parameter:loop.parameter,model:root.model,row:root.row});
+        }else if(savedRoot.row.id!==root.id||savedRoot.model!==root.model||savedRoot.parameter!==loop.parameter){
+          return invalid('Source copy root changed across issued items.');
+        }
+        await observeModelQuerySourceAuthority(call,store,owner,state,loop.model as ModelName,input.row,copy.fields.map(field=>field.name));
+      },call);
+      const target=await input.execute();ownerHealthy(owner);capture(call,store);
+      const produced=ownerRows.get(target);
+      if(owner.stage!==stage+1||produced?.session!==owner||produced.stage!==owner.stage||produced.model!==copy.model
+          ||target.parent?.model!==loop.parentModel||target.parent.id!==modelResultWire(child.result)
+          ||target.archivedAt!==null||copy.fields.some(field=>state.bound.models.get(loop.model as ModelName)?.fields.get(field.name)!==field.type
+            ||!Object.hasOwn(input.row.data,field.name)||stableStringify(target.data[field.name])!==stableStringify(input.row.data[field.name]))){
+        return invalid('Source copy did not produce its exact one original child-owned constructor.');
+      }
+      copies.entries.push({loop:loop.id,model:loop.model as ModelName,source:input.row,target});
+    }finally{copies.active=false;}
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+
 /** DESIGN442 guard/presence-consumed owner decision: a marked first-query
  * occurrence of the confined single-query decision shape evaluates its
  * declared control reads as the consuming `Require` decision, never as a
@@ -11864,17 +12037,18 @@ function verifyReferRejectEffects(call: AdmittedCall, decision: NonNullable<Capt
 }
 /** Invoke alone calls this after execution; no executor-supplied association is accepted. */
 export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffects): ScenarioReceiptAssociation | undefined {
+  const dataBudget=Math.max(sourceCopyDataBudget(sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)),
+            boundPlans.get(call.def as GeneratedOperationDef)?.plan.sourceEmissions===undefined?20_000:200_000);
   let state = captures.get(call);
   const owner = ownerSessions.get(call); ownerSessions.delete(call);
   const dueAdmission = dueWorkAdmissions.get(call); dueWorkAdmissions.delete(call);
   const retainedEventAdmission = retainedEventAdmissions.get(call); retainedEventAdmissions.delete(call);
   if (owner !== undefined) {
-    const sourceBudget=owner.capture.bound.plan.sourceEmissions===undefined?20_000:200_000;
     if (!owner.closed || owner.finalized === null || owner.commitEffects === null || owner.capture.poisoned || owner.capture.pending !== 0) {
       return invalid('owner session must finalize successfully inside its actual execution.');
     }
     for (const key of ['history', 'uniqueClaims', 'uniqueReleases', 'resolvedDefaults'] as const) {
-      if (stableStringify(dataCopy(effects[key])) !== stableStringify(owner.commitEffects[key])) {
+      if (stableStringify(dataCopy(effects[key],false,dataBudget)) !== stableStringify(owner.commitEffects[key])) {
         return invalid(`executor ${key} differ from the actual finalized owner effects.`);
       }
     }
@@ -11889,7 +12063,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     const committedWork = committed.filter(isFrameworkWork);
     const returnedDomain = returned.filter(write => !isFrameworkWork(write));
     const committedDomain = committed.filter(write => !isFrameworkWork(write));
-    if (stableStringify(dataCopy(returnedDomain,false,sourceBudget)) !== stableStringify(dataCopy(committedDomain,false,sourceBudget))) {
+    if (stableStringify(dataCopy(returnedDomain,false,dataBudget)) !== stableStringify(dataCopy(committedDomain,false,dataBudget))) {
       return invalid('executor writes differ from the actual finalized owner effects.');
     }
     if (returnedWork.length !== 0 || committedWork.length !== 0) {
@@ -11906,7 +12080,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
         if (owner.options.stageSources === undefined ||
             owner.finalized.writes.some(isFrameworkWork) && state?.termDecision === undefined &&
               state?.rentNoticeDecision === undefined ||
-            stableStringify(dataCopy(ownerWork,false,sourceBudget)) !== stableStringify(dataCopy(committedWork,false,sourceBudget))) {
+            stableStringify(dataCopy(ownerWork,false,dataBudget)) !== stableStringify(dataCopy(committedWork,false,dataBudget))) {
           return invalid('executor source Work writes differ from the actual finalized owner sources.');
         }
         if (retainedNotice) verifyRetainedNoticeTerminal(call, retainedEventAdmission!,
@@ -11915,7 +12089,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
         const dueNotice = state?.bound.rentNoticeDecision?.owner === 'rent_reservations.remind' &&
           state.rentNoticeDecision !== undefined;
         const ownerWork = dueNotice ? returnedWork.slice(0, committedWork.length) : returnedWork;
-        if (stableStringify(dataCopy(ownerWork,false,sourceBudget)) !== stableStringify(dataCopy(committedWork,false,sourceBudget)) &&
+        if (stableStringify(dataCopy(ownerWork,false,dataBudget)) !== stableStringify(dataCopy(committedWork,false,dataBudget)) &&
             committedWork.length !== 0) {
           return invalid('executor Work writes differ from the actual finalized owner effects.');
         }
@@ -12034,7 +12208,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   const intrinsicIds = new Set(returned.intrinsics?.map(dep => dep.id));
   const intrinsics = state.intrinsics.filter(entry => intrinsicIds.has(entry.dependencyId));
   if (returned.intrinsics?.some(dep => !intrinsics.some(entry => entry.dependencyId === dep.id))) return invalid('required intrinsic was not evaluated/captured.');
-  if (writes.length > MAX_ITEMS) return invalid('changed snapshot budget exceeded.');
+  if (writes.length > (sourceCopyDefinitionLimits(call.def as GeneratedOperationDef)?.maxWrites ?? MAX_ITEMS)) return invalid('changed snapshot budget exceeded.');
   const changed: ScenarioReceiptAssociation['changed'][number][] = [];
   const identities = new Set<string>();
   for (const write of writes) {
@@ -12049,7 +12223,14 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     const assigned = (effects.fileAssignments ?? []).filter(raw => (raw as ScenarioReceiptFileAssignmentLocator).model === write.model &&
       (raw as ScenarioReceiptFileAssignmentLocator).recordId === row.id) as readonly ScenarioReceiptFileAssignmentLocator[];
     const assignedFields = new Set(assigned.map(locator => locator.field));
+    const copies=owner===undefined?undefined:sourceCopyCaptures.get(owner);
+    if(copies?.active)return invalid('Source copy callback is unfinished.');
+    const sourceCopy=copies?.entries.find(entry=>entry.model===write.model&&entry.target.id===row.id);
+    const copyLoop=bound.plan.sourceLoops?.loops.find(loop=>loop.copy?.model===write.model);
+    if(copyLoop!==undefined&&write.kind==='insert'&&sourceCopy===undefined)return invalid('Copied constructor omitted its original DATA authority.');
+    if(sourceCopy!==undefined&&stableStringify(sourceCopy.target)!==stableStringify(row))return invalid('Copied target changed after its original constructor.');
     changed.push({ model: write.model, row, secretFields: [...model.secrets],
+      ...(sourceCopy===undefined?{}:{sourceCopy:{loop:sourceCopy.loop,row:sourceCopy.source}}),
       withheldFields: [...new Set([...model.withheld.filter(field => !assignedFields.has(field)), ...Object.keys(row.data).filter(field => !model.fields.has(field))])],
       fieldTypes: { ...Object.fromEntries(model.fields), ...Object.fromEntries(assigned.map(locator =>
         [locator.field, assignmentField(bound, write.model, locator.field).type])) } });
@@ -12078,7 +12259,8 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     observations: observed.map(({ stored: _stored, ownerSession: _ownerSession, ...entry }) => entry),
     ...(Object.hasOwn(effects, 'fileAssignments') ? { fileAssignments: files } : {}),
     ...(owner === undefined || owner.calls.length === 0 ? {} : { calls: owner.calls }),
-    ...(returned.intrinsics === undefined ? {} : { intrinsics }), ...queryAssociations(state, returned), changed }));
+    ...(owner===undefined||!sourceCopyCaptures.get(owner)?.roots.length?{}:{sourceLoopRoots:sourceCopyCaptures.get(owner)!.roots}),
+    ...(returned.intrinsics === undefined ? {} : { intrinsics }), ...queryAssociations(state, returned), changed },false,dataBudget));
 }
 
 /** Saved type association closes nullable/array wire shapes before any current
@@ -12102,20 +12284,22 @@ function savedAssignmentRefs(type: CanTypeId, wire: unknown): readonly string[] 
 }
 
 /** Legacy receipts are unassociated; malformed recognized metadata refuses. */
-export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceiptAssociation | null {
-  return readSavedScenarioAssociation(receipt);
+export function readScenarioReceiptAssociation(receipt: Receipt,current?:CurrentScenarioReceiptSource): ScenarioReceiptAssociation | null {
+  return readSavedScenarioAssociation(receipt,undefined,current);
 }
 function readSavedScenarioAssociation(receipt: Receipt,
-  enclosingChanges?: ScenarioReceiptAssociation['changed']): ScenarioReceiptAssociation | null {
-  receipt = dataCopy(receipt);
+  enclosingChanges?: ScenarioReceiptAssociation['changed'],current?:CurrentScenarioReceiptSource): ScenarioReceiptAssociation | null {
+  const dataBudget=savedSourceCopyDataBudget(receipt,current);
+  receipt = dataCopy(receipt,false,dataBudget);
   if (!Object.hasOwn(receipt.outcome, 'scenario')) return null;
   if (receipt.outcome.status !== 'committed') return invalid('association requires a committed outcome.');
-  const scenario = dataCopy(receipt.outcome.scenario);
+  const scenario = dataCopy(receipt.outcome.scenario,false,dataBudget);
   const value = object(scenario, ['kind', 'plan', 'resultType', 'returnId', 'observations', 'changed',
     ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'fileAssignments') ? ['fileAssignments'] : []),
     ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'calls') ? ['calls'] : []),
     ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'intrinsics') ? ['intrinsics'] : []),
-    ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'queries') ? ['queries'] : [])]);
+    ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'queries') ? ['queries'] : []),
+    ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'sourceLoopRoots') ? ['sourceLoopRoots'] : [])]);
   if (value['kind'] !== 'scenario-result/v1') return invalid('unknown association version.');
   const plan = checkScenarioResultDisclosurePlan(value['plan']), resultModel = modelResultType(value['resultType']);
   const resultType = resultModel === undefined ? disclosureType(value['resultType'], plan) : resultModel as CanTypeId;
@@ -12203,9 +12387,30 @@ function readSavedScenarioAssociation(receipt: Receipt,
   if (returned.intrinsics?.some(dep => !intrinsics.some(entry => (entry as Record<string, unknown>)['dependencyId'] === dep.id))) {
     return invalid('missing saved intrinsic.');
   }
-  const changed = list(value['changed']); const identities = new Set<string>(); let fileFieldCount = 0;
+  let changedMaximum=MAX_ITEMS;
+  if(plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined)){
+    const children=list(value['calls']??[]).map(entry=>{
+      const saved=entry as Record<string,unknown>,scenario=saved['scenario'] as Record<string,unknown>|undefined;
+      if(scenario===undefined)return invalid('Saved source copy lacks its original child scenario receipt.');
+      const childPlan=checkScenarioResultDisclosurePlan(scenario['plan']);
+      return {name:text(saved['target']),result:text(scenario['resultType']),plan:childPlan};
+    });
+    changedMaximum=sourceCopyLimits(plan,children)!.maxWrites;
+  }
+  if(!Array.isArray(value['changed'])||value['changed'].length>changedMaximum)return invalid('changed snapshot exceeds its original source budget.');
+  const roots=list(value['sourceLoopRoots']??[]).map(raw=>{
+    const root=object(raw,['loop','parameter','model','row']),loop=plan.sourceLoops?.loops.find(loop=>loop.id===root['loop']);
+    const row=checkedRow(root['row']);
+    if(loop?.copy===undefined||root['parameter']!==loop.parameter||root['model']!==loop.parentModel||row.archivedAt!==null){
+      return invalid('Saved copy root differs from its original admitted parameter census.');
+    }
+    return {loop:loop.id,model:loop.parentModel,row};
+  });
+  if(new Set(roots.map(root=>root.loop)).size!==roots.length)return invalid('Duplicate original source loop root.');
+  const changed = value['changed'] as unknown[]; const identities = new Set<string>(),copySources=new Set<string>(); let fileFieldCount = 0;
   for (const entry of changed) {
-    const change = object(entry, ['model', 'row', 'secretFields', 'withheldFields', 'fieldTypes']); text(change['model']);
+    const change = object(entry, ['model', 'row', 'secretFields', 'withheldFields', 'fieldTypes',
+      ...(Object.hasOwn(entry as object,'sourceCopy')?['sourceCopy']:[])]); text(change['model']);
     const row = checkedRow(change['row']); paths(change['secretFields']); paths(change['withheldFields']);
     const types = change['fieldTypes'];
     if (typeof types !== 'object' || types === null || Array.isArray(types) || Object.keys(types).length > MAX_ITEMS) return invalid('bounded original field inventory required.');
@@ -12217,6 +12422,19 @@ function readSavedScenarioAssociation(receipt: Receipt,
         savedAssignmentRefs(type, row.data[field]);
       } else if (type !== null) scalarType(type);
     }
+    if(Object.hasOwn(change,'sourceCopy')){
+      const saved=object(change['sourceCopy'],['loop','row']),loop=plan.sourceLoops?.loops.find(loop=>loop.id===saved['loop']),copy=loop?.copy;
+      const source=checkedRow(saved['row']),root=roots.find(root=>root.loop===saved['loop']);
+      const sourceKey=stableStringify([saved['loop'],source.id]);
+      const child=(value['calls'] as ScenarioReceiptAssociation['calls'])?.find(child=>child.target===copy?.target&&child.caller===plan.sourceLoops?.owner);
+      if(copy===undefined||copy.model!==change['model']||source.archivedAt!==null||source.parent?.model!==loop!.parentModel
+          ||root===undefined||source.parent?.id!==root.row.id||source.id===row.id||child===undefined||row.parent?.model!==loop!.parentModel||row.parent.id!==modelResultWire(child.result)
+          ||copySources.has(sourceKey)||copySources.size>=loop!.maximum||copy.fields.some(field=>!Object.hasOwn(source.data,field.name)
+            ||stableStringify(source.data[field.name])!==stableStringify(row.data[field.name])
+            ||(types as Record<string,unknown>)[field.name]!==field.type))return invalid('Saved copy differs from its original field/target census.');
+      for(const field of copy.fields)scalarWire(field.type as CanTypeId,source.data[field.name]);
+      copySources.add(sourceKey);
+    }else if(plan.sourceLoops?.loops.some(loop=>loop.copy?.model===change['model']))return invalid('Saved copied Item omitted its original source DATA association.');
     const key = `${change['model']}/${row.id}`;
     if (identities.has(key) || !receipt.outcome.recordVersions.some(version => version.model === change['model'] &&
         version.id === row.id && version.version === row.version)) return invalid('changed snapshot disagrees with committed identities.');
@@ -12292,7 +12510,8 @@ export interface ProjectScenarioReceiptInput {
 export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput): Promise<{
   readonly result: unknown; readonly records: readonly ProjectedRecord[];
 }> {
-  const receipt = dataCopy(input.receipt); const association = readScenarioReceiptAssociation(receipt);
+  const dataBudget=savedSourceCopyDataBudget(input.receipt,input);
+  const receipt = dataCopy(input.receipt,false,dataBudget); const association = readScenarioReceiptAssociation(receipt,input);
   if (association === null) return invalid('no supported saved scenario association.');
   const actorUserId = input.identity.actor?.user_id ?? null, teamId = input.identity.team?.team_id ?? null;
   if (receipt.identity.app !== input.app || receipt.identity.owner !== (teamId ?? 'app') ||
@@ -12392,7 +12611,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   };
   const revision = await input.store.readRevision();
   const retained = await input.store.readReceipt(receipt.identity);
-  if (retained === null || stableStringify(dataCopy(retained)) !== stableStringify(receipt)) return invalid('exact retained receipt required.');
+  if (retained === null || stableStringify(dataCopy(retained,false,dataBudget)) !== stableStringify(receipt)) return invalid('exact retained receipt required.');
   const authorityFacts = new Map<string, { teamId: string; userId: string; snapshot: string }>();
   let authorityDrift = false;
   let coherentFacts: ReadonlyMap<string, Membership | null> | undefined;
@@ -12444,7 +12663,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   const modelSourceProducers = [def, ...(association.calls ?? []).map(saved => input.registry.get(saved.target))]
     .flatMap(def => def === undefined ? [] : [referenceProducers.get(def as GeneratedOperationDef)])
     .filter((producer): producer is NonNullable<typeof producer> => producer?.app === input.app && producer.readPolicies !== undefined);
-  const rowIdInfluence = currentBound.idDependencies.size !== 0 || association.calls?.some(saved => {
+  const rowIdInfluence = association.changed.some(change=>change.sourceCopy!==undefined) || currentBound.idDependencies.size !== 0 || association.calls?.some(saved => {
     const target = input.registry.get(saved.target);
     return target !== undefined && (boundPlans.get(target as GeneratedOperationDef)?.idDependencies.size ?? 0) !== 0;
   }) === true;
@@ -12747,6 +12966,20 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     }
     const records: ProjectedRecord[] = [];
     for (const changed of association.changed) {
+      // New-row grants cannot launder original source DATA. Recheck only the
+      // target's actual original source item; unrelated changes retain theirs.
+      if(changed.sourceCopy!==undefined){
+        const loop=currentBound.plan.sourceLoops?.loops.find(loop=>loop.id===changed.sourceCopy!.loop),copy=loop?.copy;
+        const root=association.sourceLoopRoots?.find(root=>root.loop===loop?.id);
+        if(root===undefined||changed.sourceCopy.row.parent?.id!==root.row.id||await currentSavedRow(root.model,root.row)===null)continue;
+        const producer=querySourceProducer(def as GeneratedOperationDef,changed.model);
+        const current=await currentSavedRow(changed.model,changed.sourceCopy.row);
+        const projected=current===null||producer?.app!==input.app?null:await sourceProjection(producer,changed.model,current);
+        const read=producer?.readPolicies?.get(changed.model);
+        if(copy===undefined||stableStringify(currentBound.plan)!==stableStringify(association.plan)||projected===null||read===undefined
+            ||copy.fields.some(field=>!Object.hasOwn(projected.record!.data,field.name)
+              ||'grants' in read&&!projected.grants.some(grant=>grant.fields.includes(field.name))))continue;
+      }
       const fields = currentBound.models.get(changed.model)?.fields;
       const files = fileFields.some(entry => entry.change === changed)
         ? await readableFileFields(changed, await currentSavedRow(changed.model, changed.row), async field => {

@@ -835,10 +835,13 @@ it('revises proposals through original filtered owner loops, interval guards and
     const start = original.indexOf('  export scenario revise('), end = original.indexOf('   examples ', start);
     assert.ok(start >= 0 && end > start && (await readFile(path, 'utf8')).includes(original.slice(start,end).trimEnd()),
       'exercise the complete authored revision child');
+    const parentStart=original.indexOf('  scenario offer_alternative('),parentEnd=original.indexOf('   examples ',parentStart);
+    assert.ok(parentStart>=0&&parentEnd>parentStart&&(await readFile(path,'utf8')).includes(original.slice(parentStart,parentEnd).trimEnd()),'exercise complete authored parent including copied Item fields/order');
     const {stdout} = await promisify(execFile)(compiler,
       ['compile','--format=json','--native-scenario-receipts','--catalog',catalog,path],
       {cwd:root,timeout:120000,maxBuffer:32*1024*1024});
-    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const baseArtifact = JSON.parse(stdout) as CompileArtifact;
+    const artifact=baseArtifact;
     assert.ok(artifact.operations?.find(operation => operation.name === 'propose.revise')?.result?.disclosure);
     const document = artifact.models?.find(model => model.name === 'propose.Revision')?.fields.find(field => field.name === 'document');
     assert.equal(document?.field.kind,'delivery');
@@ -850,11 +853,29 @@ it('revises proposals through original filtered owner loops, interval guards and
     }
     const asm = await assembleModules({artifact,sourcePath:path},{workDir:directory,
       stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
-    for (const mode of ['overlap','inactive','valid','hidden','defaults','empty','many-unmatched','predicate-race','membership-race'] as const) {
+    const baseAsm=asm;
+    const privacyPath=join(root,'packages/cloudflare/test/fixtures/.propose-source-copy-grants.can');
+    await writeFile(privacyPath,(await readFile(path,'utf8')).replace(
+      'policy Item read=salesperson and can_work(actor,row.parent.parent.location)',
+      'policy Item read=salesperson and can_work(actor,row.parent.parent.location) fields=title,quantity,unit,tax,discount\n  policy Item read=salesperson and can_work(actor,row.parent.parent.location) where=row.parent.state==draft or row.quantity>1 fields=price'));
+    const privacyCompile=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,privacyPath],
+      {cwd:root,timeout:120000,maxBuffer:32*1024*1024});
+    const privacyArtifact=JSON.parse(privacyCompile.stdout) as CompileArtifact;
+    const privacyAsm=await assembleModules({artifact:privacyArtifact,sourcePath:privacyPath},{workDir:directory,
+      stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+    const modes=['parent-source-hidden','parent-source-grant-race','parent-source-replay','parent-max','parent-empty','parent-overflow','parent-role-race','parent-copy-race','parent-membership-race','parent-stale-reference','parent-bad-line','parent-valid','overlap','inactive','valid','hidden','defaults','empty','many-unmatched','predicate-race','membership-race'] as const;
+    const requestedMode=process.env.CAN_PROPOSE_CASE;
+    assert.ok(requestedMode===undefined||modes.some(mode=>mode===requestedMode),'unknown explicit proposal integration case');
+    for(const mode of modes){
+      if(requestedMode!==undefined&&mode!==requestedMode)continue;
+      const privacyCase=mode.startsWith('parent-source-');
+      const artifact=privacyCase?privacyArtifact:baseArtifact,asm=privacyCase?privacyAsm:baseAsm;
+      const parentCase=mode.startsWith('parent-');
+      const itemCount=mode==='parent-empty'?0:mode==='parent-overflow'?101:mode==='parent-max'?100:1;
       const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({clock});
       const team = await identities.createTeam({timezone:'UTC'});
       const user = await identities.createUser({email:`${mode}@propose.test`,password_hash:'unused',email_verified:true});
-      await identities.createMembership({team_id:team.team_id,user_id:user.user_id,is_owner:false,
+      const membership=await identities.createMembership({team_id:team.team_id,user_id:user.user_id,is_owner:false,
         roles:[{role:'propose.salesperson',granted_at:new Date(now).toISOString(),granted_by:user.user_id}]});
       const token = `revise-${mode}`;
       await identities.createSession({user_id:user.user_id,token_sha256:await sha256HexText(token),last_team_id:team.team_id,
@@ -879,13 +900,71 @@ it('revises proposals through original filtered owner loops, interval guards and
         {kind:'insert',model:asModel('rent_catalog.Location'),row:row(location,{name:'Main',timezone:'UTC',active:true})},
         {kind:'insert',model:asModel('employee.Employee'),row:row(asId('employee-1'),{user:{id:user.user_id},home:{id:location},locations:[],operator_wide:false,active:mode!=='inactive',hidden:mode==='hidden'})},
         {kind:'insert',model:asModel('propose.Proposal'),row:row(proposal,{location:{id:location},recipient:{id:contact},issuer:'Issuer',title:'Offer',currency:'EUR',valid_days:'14',current:'3'},{model:asModel('customer.Customer'),id:customer})},
-        ...(mode==='empty'?[]:(['draft','sent','accepted'] as const)).map((state,index)=>({kind:'insert' as const,model:asModel('propose.Revision'),row:row(asId(`old-${index}`),oldData(String(index+1),state,index===0?'none':'held'),{model:asModel('propose.Proposal'),id:proposal})})),
+        ...(mode==='empty'?[]:(['draft','sent','accepted'] as const)).map((state,index)=>({kind:'insert' as const,model:asModel('propose.Revision'),row:row(asId(`old-${index}`),{...oldData(String(index+1),state,index===0?'none':'held'),...(parentCase&&index===2?{handoff:'unavailable'}:{})},{model:asModel('propose.Proposal'),id:proposal})})),
         ...(mode==='many-unmatched'?Array.from({length:101},(_,index)=>({kind:'insert' as const,model:asModel('propose.Revision'),
           row:row(asId(`unmatched-${index}`),oldData(String(index+10),'accepted','held'),{model:asModel('propose.Proposal'),id:proposal})})):[]),
+        ...(mode==='parent-max'?Array.from({length:98},(_,index)=>({kind:'insert' as const,model:asModel('propose.Revision'),
+          row:row(asId(`active-${index}`),oldData(String(index+10),'draft','none'),{model:asModel('propose.Proposal'),id:proposal})})):[]),
+        ...(parentCase?Array.from({length:itemCount},(_,index)=>({kind:'insert' as const,model:asModel('propose.Item'),row:row(asId(`line-${index}`),
+          {title:'Desk line',quantity:mode==='parent-bad-line'?'0':mode==='parent-source-hidden'?'1':'2',unit:'hours',price:{minor:'1000',currency:'EUR'},tax:{minor:'200',currency:'EUR'},discount:{minor:'50',currency:'EUR'}},
+          {model:asModel('propose.Revision'),id:asId('old-2')})})):[]),
       ]}));
-      const businessRows = async () => Promise.all(['propose.Proposal','propose.Revision'].map(model => store.query({model:asModel(model),authority:'owner'})));
+      const businessRows = async () => Promise.all(['propose.Proposal','propose.Revision','propose.Item'].map(model => store.query({model:asModel(model),authority:'owner'})));
       const baseline = JSON.stringify(await businessRows());
+      let receiptCopyRefusals=false;
+      if(mode==='parent-valid'){
+        const commit=store.commit.bind(store);
+        store.commit=async batch=>{
+          if(!receiptCopyRefusals&&batch.receipt?.outcome.status==='committed'&&batch.receipt.outcome.scenario!==undefined){
+            receiptCopyRefusals=true;
+            const checkpoint=await store.readRevision(),receipt=batch.receipt;
+            let getterCalls=0;
+            const accessor={...receipt};Object.defineProperty(accessor,'outcome',{enumerable:true,get:()=>{getterCalls++;return receipt.outcome;}});
+            await assert.rejects(commit({...batch,receipt:accessor}),/own enumerable receipt fields required/);
+            assert.equal(getterCalls,0,'receipt container getters never execute');
+            assert.equal(receipt.outcome.status,'committed');
+            if(receipt.outcome.status==='committed'){
+              const sparse={...receipt,outcome:{...receipt.outcome,scenario:{...receipt.outcome.scenario!,changed:new Array(1)}}};
+              await assert.rejects(commit({...batch,receipt:sparse}),/dense bounded census required/);
+              await assert.rejects(commit({...batch,receipt:{...receipt,outcome:{...receipt.outcome,result:new Array(20_001).fill(0)}}}),
+                /bounded own canonical data required/,'business result keeps its ordinary owning value bound');
+            }
+            assert.equal(await store.readRevision(),checkpoint,'rejected malformed receipt copies stage no writes');
+          }
+          return commit(batch);
+        };
+      }
+      let revoked=false;
+      if(mode==='parent-role-race'){
+        const find=identities.findMembership.bind(identities);
+        identities.findMembership=async(teamId,userId)=>{
+          const result=await find(teamId,userId);
+          if(!revoked&&result!==null&&teamId===team.team_id&&userId===user.user_id){revoked=true;await identities.setMembershipRoles(membership.membership_id,[]);}
+          return result;
+        };
+      }
       let raced = false;
+      if(mode==='parent-source-grant-race'||mode==='parent-copy-race'||mode==='parent-membership-race'||mode==='parent-stale-reference'){
+        const commit=store.commit.bind(store);
+        store.commit=async batch=>{
+          if(!raced&&batch.writes.some(write=>write.model==='propose.Item')){
+            raced=true;
+            if(mode==='parent-membership-race'){
+              await commit(makeBatch(await store.readRevision(),{writes:Array.from({length:100},(_,index)=>({kind:'insert' as const,
+                model:asModel('propose.Item'),row:row(asId(`concurrent-line-${index}`),{title:'Concurrent line',quantity:'1',unit:'hours',
+                  price:{minor:'1000',currency:'EUR'},tax:{minor:'0',currency:'EUR'},discount:{minor:'0',currency:'EUR'}},
+                  {model:asModel('propose.Revision'),id:asId('old-2')})}))}));
+            }else{
+              const model=mode==='parent-copy-race'||mode==='parent-source-grant-race'?'propose.Item':'propose.Revision';
+              const observed=await store.load(asModel(model),asId(model==='propose.Item'?'line-0':'old-2'));assert.ok(observed);
+              await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel(model),id:observed.id,expectedVersion:observed.version,
+                row:{...observed,version:asVersion(observed.version+1),updated:now,data:{...observed.data,...(mode==='parent-copy-race'
+                  ?{price:{minor:'1001',currency:'EUR'}}:mode==='parent-source-grant-race'?{quantity:'1'}:{handoff:'confirmed'})}}}]}));
+            }
+          }
+          return commit(batch);
+        };
+      }
       if (mode === 'predicate-race'||mode==='membership-race') {
         const commit = store.commit.bind(store);
         store.commit = async batch => {
@@ -912,14 +991,17 @@ it('revises proposals through original filtered owner loops, interval guards and
         [{from:nativeTime(midpoint),until:nativeTime(until)},{from:nativeTime(from),until:nativeTime(mode==='overlap'?until:midpoint)}]),mode!=='overlap',`${mode}: actual interval helper`);
       const invoker = buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
       const intervals = [{from:midpoint,until},{from,until:mode==='overlap'?until:midpoint}];
-      const outcome = await invoker.invokeMutation({operation:'propose.revise',operation_id:uuidv7(now,1),inputs:{
-        proposal:{id:proposal,version:'1'},terms:'New terms',resource:null,from,until,seats:'2',
-        ...(mode==='defaults'?{}:{quantity:'3',refund_before:from,intervals,product:'NEW'})}},identity);
-      const success = ['valid','hidden','defaults','empty','many-unmatched','predicate-race'].includes(mode);
+      const request={operation:parentCase?'propose.offer_alternative':'propose.revise',operation_id:uuidv7(now,1),inputs:{
+        ...(parentCase?{revision:{id:'old-2',version:'1'},resource:'new-desk'}:{proposal:{id:proposal,version:'1'},resource:null,seats:'2'}),terms:'New terms',from,until,
+        ...(mode==='defaults'?{}:{...(parentCase?{}:{quantity:'3'}),refund_before:from,intervals,product:'NEW'})}};
+      const outcome=await invoker.invokeMutation(request,identity);
+      const success = ['parent-source-replay','parent-max','parent-empty','parent-copy-race','parent-valid','valid','hidden','defaults','empty','many-unmatched','predicate-race'].includes(mode);
       assert.equal('result' in outcome && outcome.result.status==='committed',success,`${mode}: ${JSON.stringify(outcome)}`);
-      if (mode==='predicate-race'||mode==='membership-race') assert.equal(raced,true);
+      if (mode==='parent-source-grant-race'||mode==='predicate-race'||mode==='membership-race'||mode==='parent-copy-race'||mode==='parent-membership-race'||mode==='parent-stale-reference') assert.equal(raced,true);
+      if(mode==='parent-role-race')assert.equal(revoked,true);
+      if(mode==='parent-valid')assert.equal(receiptCopyRefusals,true);
       const revisions = await store.query({model:asModel('propose.Revision'),authority:'owner'});
-      assert.equal(revisions.length,(mode==='empty'?0:mode==='many-unmatched'?104:mode==='membership-race'?102:3)+(success?1:0),mode);
+      assert.equal(revisions.length,(mode==='empty'?0:mode==='many-unmatched'?104:mode==='membership-race'?102:mode==='parent-max'?101:3)+(success?1:0),mode);
       const changed = await store.load(asModel('propose.Proposal'),proposal); assert.ok(changed);
       assert.equal(changed.data['current'],success?'4':'3',mode);
       for (let index=0;index<(mode==='empty'?0:3);index++) {
@@ -933,15 +1015,54 @@ it('revises proposals through original filtered owner loops, interval guards and
         const created = revisions.find(row=>row.id.includes('#create:')); assert.ok(created);
         assert.equal(created.data['number'],'4'); assert.equal(created.data['location_snapshot'],'Main');
         assert.equal(created.data['customer_snapshot'],'Buyer'); assert.equal(created.data['recipient_email'],'buyer@example.test');
+        if(parentCase){
+          assert.deepEqual(created.data['alternative_to'],{id:'old-2'});
+          const items=await store.query({model:asModel('propose.Item'),authority:'owner'});
+          const copied=items.filter(item=>item.parent?.id===created.id);assert.equal(copied.length,itemCount);
+          assert.ok(copied.every(item=>JSON.stringify(item.data)===JSON.stringify(items.find(item=>item.id==='line-0')!.data)));
+          if(mode==='parent-max'){
+            assert.ok(revisions.filter(row=>row.id.startsWith('active-')).every(row=>row.version===2&&row.data['state']==='withdrawn'));
+            assert.ok('result' in outcome&&outcome.result.records?.length===202,'complete source call graph commits exactly202 net changed rows');
+            const saved=await store.readReceipt({app:scope.app,owner:scope.owner,principal:user.user_id,
+              operation:request.operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);
+            const {readScenarioReceiptAssociation}=await import('@canlang/state/invocation');
+            assert.throws(()=>readScenarioReceiptAssociation(saved),/data exceeds its finite budget/,
+              'saved metadata alone cannot expand ordinary20k JSON admission without actual bound source and current scope');
+          }
+        }
+        if(mode==='parent-source-replay'){
+          const copiedIds=new Set((await store.query({model:asModel('propose.Item'),authority:'owner'})).filter(item=>item.parent?.id===created.id).map(item=>item.id));
+          assert.ok('result' in outcome&&outcome.result.records?.some(record=>typeof record==='object'&&record!==null&&'id' in record&&copiedIds.has(record.id as ReturnType<typeof asId>)),'initial original source grants disclose copied Item');
+          const receiptIdentity={app:scope.app,principal:user.user_id,owner:scope.owner,operation:request.operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0];
+          const receiptBefore=await store.readReceipt(receiptIdentity);assert.ok(receiptBefore);
+          const {readScenarioReceiptAssociation}=await import('@canlang/state/invocation');
+          assert.ok(readScenarioReceiptAssociation(receiptBefore));
+          const forged=structuredClone(receiptBefore);
+          assert.equal(forged.outcome.status,'committed');
+          if(forged.outcome.status==='committed'){
+            const copied=forged.outcome.scenario?.changed.find(change=>change.sourceCopy!==undefined);assert.ok(copied?.sourceCopy);
+            (copied.sourceCopy.row as unknown as {parent:{id:string}}).parent.id='old-0';
+            assert.throws(()=>readScenarioReceiptAssociation(forged),/original field\/target census/,
+              'same-valued source from another same-model parent cannot replace actual admitted root');
+          }
+          const source=await store.load(asModel('propose.Item'),asId('line-0'));assert.ok(source);
+          await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:asModel('propose.Item'),id:source.id,expectedVersion:source.version,
+            row:{...source,version:asVersion(source.version+1),updated:now,data:{...source.data,quantity:'1'}}}]}));
+          const replay=await invoker.invokeMutation(request,identity);
+          assert.ok('result' in replay&&replay.result.status==='replayed',JSON.stringify(replay));
+          assert.ok(!('result' in replay)||!replay.result.records?.some(record=>typeof record==='object'&&record!==null&&'id' in record&&copiedIds.has(record.id as ReturnType<typeof asId>)),
+            'saved copied Item must retain original source DATA obligations even when the new draft Item is readable');
+          assert.deepEqual(await store.readReceipt(receiptIdentity),receiptBefore);
+        }
         assert.equal(created.data['document'],null); assert.equal(created.data['pdf'],null);
-        assert.equal(created.data['quantity'],mode==='defaults'?'1':'3'); assert.equal(created.data['refund_before'],from);
+        assert.equal(created.data['quantity'],mode==='defaults'||parentCase?'1':'3'); assert.equal(created.data['refund_before'],from);
         assert.deepEqual(created.data['intervals'],mode==='defaults'?[]:[{from,until:midpoint},{from:midpoint,until}]);
         assert.equal(created.data['expires'],new Date(now+14*86400000).toISOString());
-      } else if (mode!=='membership-race') {
+      } else if (mode!=='parent-source-grant-race'&&mode!=='membership-race'&&mode!=='parent-membership-race'&&mode!=='parent-stale-reference') {
         assert.equal(JSON.stringify(await businessRows()),baseline,'guard failure is atomic');
       }
     }
-  } finally {await rm(directory,{recursive:true,force:true});}
+  } finally {await rm(join(root,'packages/cloudflare/test/fixtures/.propose-source-copy-grants.can'),{force:true});await rm(directory,{recursive:true,force:true});}
 });
 
 it('executes original interval Values guards with nominal arrays, structural group results and declared defaults', {timeout:300000}, async()=>{

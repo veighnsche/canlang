@@ -78,4 +78,12 @@ package propose
     create Revision {parent=proposal,number,product,issuer_snapshot=proposal.issuer,title_snapshot=proposal.title,location_snapshot=proposal.location.name,customer_snapshot=proposal.parent.name,recipient_email=proposal.recipient.email,expires=now+proposal.valid_days*1d,terms,refund_before,resource,from,until,intervals=intervals as interval order=interval.from,seats,quantity,total=money(0,proposal.currency)} as revision
     return revision
 
+  scenario offer_alternative(revision:Revision,resource:text,from:datetime,until:datetime,terms:text,refund_before:datetime=from,intervals:QuoteInterval[]=[] label="Exact service intervals"@{nl="Exacte gebruikstijdvakken"},product:text?=null label="Product code"@{nl="Productcode"}) by=salesperson label="Prepare sold-out alternative"@{nl="Alternatief bij uitverkoop voorbereiden"}
+   require can_work(actor,revision.parent.location) and revision.state==accepted and revision.handoff==unavailable and revision.booking==null and from<until and trim(terms)!=""
+   do
+    call revise {proposal=revision.parent,terms,resource,from,until,seats=revision.seats,quantity=revision.quantity,refund_before,intervals,product} as replacement
+    set replacement {alternative_to=revision}
+    for item in revision.Item limit=100
+     create Item {parent=replacement,title=item.title,quantity=item.quantity,unit=item.unit,price=item.price,tax=item.tax,discount=item.discount} as copied
+
  Then

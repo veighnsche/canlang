@@ -2172,7 +2172,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     let updated_model_owner = source_context.is_some_and(|context| checked.source_facts.as_deref()
         .and_then(|facts| facts.creates.as_deref()).is_some_and(|creates| creates.len() == 1
             && source_owned_updated_model_create(context, item, &creates[0]).is_some()));
-    let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref(), event_notice.as_ref(), updated_model_owner) {
+    let copy_loop=source_context.and_then(|context|source_owned_copy_loop(context,item));
+    let sites = match Sites::collect(ir, item, send_guards, db, purchase_all.as_ref(), event_notice.as_ref(), updated_model_owner,copy_loop.as_ref()) {
         Some(sites) => sites,
         None => {
             return None;
@@ -2259,7 +2260,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         returns: Vec::new(),
         current_revision,
     };
-    if updated_model_owner {
+    if updated_model_owner || copy_loop.is_some() {
         let mut loops = Vec::new();
         for effect in &checked.effects {
             let DisclosureEffectKind::ForMember {domain,maximum,parameter,model,..} = &effect.kind else {continue;};
@@ -2269,9 +2270,11 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             let model = ir.items.get(model.0 as usize)?;
             let id = sha256_hex(format!("source-loop/v1:{}:{}:{}:{}:{}:{}:{}:{}",checked.source.path,
                 checked.source.sha256,item.canonical,effect.node.start,effect.node.end,domain.start,domain.end,maximum).as_bytes());
-            loops.push(serde_json::json!({"id":id,"node":{"start":effect.node.start,"end":effect.node.end},
+            let mut loop_=serde_json::json!({"id":id,"node":{"start":effect.node.start,"end":effect.node.end},
                 "domain":{"start":domain.start,"end":domain.end},"maximum":maximum,"parameter":parameter.name,
-                "parentModel":parent.canonical,"model":model.canonical,"filtered":domain.kind==SyntaxKind::Query as u8}));
+                "parentModel":parent.canonical,"model":model.canonical,"filtered":domain.kind==SyntaxKind::Query as u8});
+            if let Some(copy)=&copy_loop {loop_["copy"]=copy.clone();}
+            loops.push(loop_);
         }
         if loops.is_empty() {return None;}
         recipe.plan.source_loops = Some(serde_json::json!({"source":recipe.plan.source,"owner":item.canonical,"loops":loops}));
@@ -15153,6 +15156,8 @@ fn match_effect_proofs(
                 {
                     return None;
                 }
+                if source_context.and_then(|context|source_owned_copy_loop(context,owner)).is_some()
+                    && matches!(body.as_slice(),[IrStmt::Create{span,..}] if checked_body.len()==1 && *span==node_span(checked_body[0])) {continue;}
                 // Only value-typed owner parameters are element-constant;
                 // stored rows keep their per-element refusal above.
                 let constants: Vec<String> = params
@@ -15693,6 +15698,42 @@ fn conditional_parameter_create_link(
     Some(())
 }
 
+/// Exact source-owned same-model copy loop after a completed Model child.
+/// The private loop producer owns every declared per-item constructor slot;
+/// ordinary schema/rule/lock staging remains mandatory for each CREATE.
+fn source_owned_copy_loop(context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem)->Option<serde_json::Value>{
+    let ir=context.ir();
+    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    let IrItemKind::Scenario{result:None,trusted:false,read:false,hook:None,event_source:None,cohort:None,effects,..}=&owner.kind else{return None;};
+    let [IrStmt::Call{target:super::ir::IrEffectCallTarget::Operation{operation,..},binding:Some(result),result:Some(result_type),span:call,..},IrStmt::Set{..},
+        IrStmt::For{item,domain,limit:Some(limit),body,span,..}]=effects.as_slice()else{return None;};
+    let [IrStmt::Create{model,input,binding:Some(_),when:None,span:created,..}]=body.as_slice()else{return None;};
+    let facts=super::scenario_calls::checked_source(ir,owner,context.db())?;
+    let [original]=facts.creates.as_deref()?else{return None;};
+    if node_span(original.node)!=*created || ir.items.get(original.model.0 as usize)?.canonical!=*model{return None;}
+    let parameter=contained_member_scan_parent(ir,owner,domain,*span,false)?;
+    if &parameter.ty!=result_type{return None;}
+    let IrExpr::Object(inputs)=&input.expr else{return None;};
+    let [(parent_name,parent),fields @ ..]=inputs.as_slice()else{return None;};
+    if parent_name!="parent" || parent.ty!=*result_type || !matches!(&parent.expr,IrExpr::Name(name)if name==result)
+        || fields.is_empty() || fields.len()>200 || fields.len()+1!=original.inputs.len(){return None;}
+    let mut copied=Vec::new();
+    for ((name,value),source) in fields.iter().zip(&original.inputs[1..]){
+        let IrExpr::Member{base,field}=&value.expr else{return None;};
+        let ResolvedType::Scalar(scalar)=value.ty else{return None;};
+        if !supported_type_id(scalar.as_str()) || scalar==Scalar::User || name!=field || name!=&source.name
+            || source.ty!=value.ty || base.ty!=(ResolvedType::Record{symbol:original.model,stored:true})
+            || !matches!(&base.expr,IrExpr::Name(name)if name==item){return None;}
+        copied.push(serde_json::json!({"name":name,"type":scalar.as_str(),
+            "node":{"start":source.value_node.start,"end":source.value_node.end}}));
+    }
+    let IrExpr::Int(maximum)=limit.expr else{return None;};
+    if !(1..=200).contains(&maximum){return None;}
+    Some(serde_json::json!({"node":{"start":created.start,"end":created.end},
+        "call":{"start":call.start,"end":call.end},"parent":result,"model":model,
+        "target":ir.items.get(operation.0 as usize)?.canonical,"fields":copied}))
+}
+
 /// A finite contained update prefix may precede its own created Model result.
 /// Fresh source correspondence seals control flow and every operand; individual
 /// loop, assignment, constructor schema and return checks remain mandatory.
@@ -15764,9 +15805,8 @@ fn scenario_create_nesting(
     db: &SourceDb,
     source_context: Option<&super::scenario_decisions::FreshSourceContext<'_>>,
 ) -> Option<()> {
-    super::scenario_create_sources::checked_created_schema(
-        ir, owner, models, original, db, source_context,
-    )?;
+    let checked_schema=super::scenario_create_sources::checked_created_schema(ir,owner,models,original,db,source_context);
+    checked_schema?;
     if source_context.is_some_and(|context|
         super::event_notice_audit::checked(context, owner, "checked-create").is_some()) { return Some(()); }
     if source_context.is_some_and(|context|
@@ -15776,6 +15816,8 @@ fn scenario_create_nesting(
         // complete independent fresh-source seal, including its create stage.
         return Some(());
     }
+    if source_context.and_then(|context|source_owned_copy_loop(context,owner)).is_some_and(|copy|
+        copy["node"]["start"]==proof.node.start && copy["node"]["end"]==proof.node.end){return Some(());}
     if !is_top_level_create(owner, proof.node) {
         // Arm-nested creates admit only through the captured conditional
         // rule — including void scenarios (no free pass): every other nesting
@@ -15912,7 +15954,8 @@ fn scenario_create_entries(
             .or_else(|| source_owned_after_call_create(context, owner, original))
             .or_else(|| source_owned_created_return_tail(context, owner, original))
             .or_else(|| source_owned_updated_model_create(context, owner, original))
-            .or_else(|| checked_first_target_branch_create(context,owner,checked,original))).is_none() {
+            .or_else(|| checked_first_target_branch_create(context,owner,checked,original))
+            .or_else(|| source_owned_copy_loop(context,owner).map(|_|()))).is_none() {
         return None;
     }
     let authored = checked_effect_node(ir, owner, proof.node, db)?;
@@ -15946,7 +15989,8 @@ fn scenario_create_entries(
     }
     for (((name, value), source), authored) in entries.iter().zip(inputs).zip(authored_entries) {
         let sealed_source_create = source_context.is_some_and(|context|
-            source_owned_updated_model_create(context, owner, original).is_some());
+            source_owned_updated_model_create(context, owner, original).is_some()
+                || source_owned_copy_loop(context,owner).is_some());
         scenario_create_entry_matches(ir, owner, original, name, value, source, authored, text, db, sealed_source_create)?;
     }
     Some(())
@@ -15965,13 +16009,13 @@ fn checked_scenario_create(
     let facts = checked.source_facts.as_deref()?;
     let (original, input, span, binding, model) =
         scenario_create_identity(proof, statement, facts, checked)?;
-    scenario_create_nesting(
-        ir, owner, models, checked, facts, proof, original, binding, model, db, source_context,
-    )?;
+    let nested=scenario_create_nesting(ir,owner,models,checked,facts,proof,original,binding,model,db,source_context);
+    nested?;
     let purchase_all = source_context.is_some_and(|context|
         super::purchase_all::checked(context, owner, "checked-create").is_some()
         || super::event_notice_audit::checked(context,owner,"checked-create").is_some());
-    scenario_create_entries(ir, owner, checked, original, input, span, proof, db, source_context, purchase_all)
+    let entries=scenario_create_entries(ir,owner,checked,original,input,span,proof,db,source_context,purchase_all);
+    entries
 }
 
 /// Model results consume their checked pair's result origin. Void owners
@@ -18613,6 +18657,7 @@ impl<'a> Sites<'a> {
         purchase_all: Option<&serde_json::Value>,
         event_notice: Option<&serde_json::Value>,
         updated_model_owner: bool,
+        copy_loop:Option<&serde_json::Value>,
     ) -> Option<Self> {
         let IrItemKind::Scenario {
             params,
@@ -18709,7 +18754,9 @@ impl<'a> Sites<'a> {
                         if out.effects.insert(context.site(*span), statement).is_some() {
                             return None;
                         }
-                        push!(Visit::Expression(input));
+                        if !copy_loop.is_some_and(|copy|copy["node"]["start"]==span.start && copy["node"]["end"]==span.end){
+                            push!(Visit::Expression(input));
+                        }
                     }
                     IrStmt::Delete {
                         record,

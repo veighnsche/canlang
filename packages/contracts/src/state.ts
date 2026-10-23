@@ -203,7 +203,11 @@ export interface ScenarioResultDisclosurePlan {
     readonly source: ScenarioReceiptSourceOrigin; readonly owner:string;
     readonly loops:readonly {readonly id:string;readonly node:{readonly start:number;readonly end:number};
       readonly domain:{readonly start:number;readonly end:number};readonly maximum:number;readonly parameter:string;
-      readonly parentModel:string;readonly model:string;readonly filtered:boolean}[];
+      readonly parentModel:string;readonly model:string;readonly filtered:boolean;
+      readonly copy?:{readonly node:{readonly start:number;readonly end:number};
+        readonly call:{readonly start:number;readonly end:number};readonly parent:string;readonly model:string;
+        readonly target:string;readonly fields:readonly {readonly name:string;readonly type:string;
+          readonly node:{readonly start:number;readonly end:number}}[]}}[];
   };
   readonly sourceEmissions?: {
     readonly source: ScenarioReceiptSourceOrigin;
@@ -270,6 +274,8 @@ export interface ScenarioReceiptAssociation {
    * cannot establish the file recovery profile or grant access. */
   readonly fileAssignments?: ReadonlyArray<ScenarioReceiptFileAssignment>;
   readonly queries?: readonly ScenarioReceiptQueryObservation[];
+  /** Original admitted root issued once for each reached source-copy loop. */
+  readonly sourceLoopRoots?:readonly {readonly loop:string;readonly parameter:string;readonly model:ModelName;readonly row:StoredRow}[];
   /** Actual same-owner calls, retained privately with the parent receipt.
    * Target metadata identifies the checked interface; it grants no authority.
    * Current projection rechecks target authority and every saved dependency. */
@@ -306,6 +312,8 @@ export interface ScenarioReceiptAssociation {
     /** Unsupported reference/lifetime/composite fields cannot be disclosed. */
     readonly withheldFields: ReadonlyArray<string>;
     readonly fieldTypes: Readonly<Record<string, CanTypeId | null>>;
+    /** Original DATA source for one source-sealed loop constructor. */
+    readonly sourceCopy?: {readonly loop:string;readonly row:StoredRow};
   }>;
 }
 

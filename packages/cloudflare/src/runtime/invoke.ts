@@ -157,7 +157,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
+import { bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
@@ -1476,6 +1476,8 @@ interface StateInvokeProducer {
   }): Promise<MutationResult>;
   readonly readScenarioReceiptAssociation?: typeof import('@canlang/state/invocation').readScenarioReceiptAssociation;
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
+  readonly executeScenarioReceiptSourceCopy?: typeof import('@canlang/state/invocation').executeScenarioReceiptSourceCopy;
+  readonly readScenarioReceiptSourceLoopBounds?: typeof import('@canlang/state/invocation').readScenarioReceiptSourceLoopBounds;
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
   readonly executeScenarioReceiptEventNoticeFormat?: typeof import('@canlang/state/invocation').executeScenarioReceiptEventNoticeFormat;
   readonly materializeScenarioReceiptEventNoticeAudit?: typeof import('@canlang/state/invocation').materializeScenarioReceiptEventNoticeAudit;
@@ -1780,6 +1782,10 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     }),
     ...(typeof scenarioMod['projectScenarioReceipt'] !== 'function' ? {} : {
       projectScenarioReceipt: scenarioMod['projectScenarioReceipt'] as NonNullable<StateInvokeProducer['projectScenarioReceipt']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptSourceCopy'] !== 'function'?{}:{executeScenarioReceiptSourceCopy:scenarioMod['executeScenarioReceiptSourceCopy'] as NonNullable<StateInvokeProducer['executeScenarioReceiptSourceCopy']>}),
+    ...(typeof scenarioMod['readScenarioReceiptSourceLoopBounds'] !== 'function' ? {} : {
+      readScenarioReceiptSourceLoopBounds:scenarioMod['readScenarioReceiptSourceLoopBounds'] as NonNullable<StateInvokeProducer['readScenarioReceiptSourceLoopBounds']>,
     }),
     ...(typeof scenarioMod['beginScenarioReceiptMutation'] !== 'function' ? {} : {
       beginScenarioReceiptMutation: scenarioMod['beginScenarioReceiptMutation'] as NonNullable<StateInvokeProducer['beginScenarioReceiptMutation']>,
@@ -4891,7 +4897,9 @@ function isNativeScenarioFieldInadmissible(
   const literal = scalar && field.default?.kind === 'literal';
   const valueArray = scalar && nativeScenarioPlainValueInput(loaded, field as CanonicalOperationDescriptor['inputs'][number]) && def.inputArrays[field.name]?.required === false;
   const explicitComputedValue = scalar && field.computedDefault === true;
-  return (field.required !== true && !literal && !file && !valueArray && !explicitComputedValue &&
+  const explicitNullableValue=scalar && typeof field.valueType==='string' && parseTypeId(field.valueType).nullable
+    && nativeScenarioPlainValueInput(loaded,field as CanonicalOperationDescriptor['inputs'][number]);
+  return (field.required !== true && !literal && !file && !valueArray && !explicitComputedValue && !explicitNullableValue &&
       !(query && field.kind === 'ref' && Object.hasOwn(def.inputArrays, field.name))) ||
     (field.default !== undefined && !literal && !file) ||
     ('computedDefault' in field && field.computedDefault === true && !explicitComputedValue) ||
@@ -5783,6 +5791,7 @@ function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: G
   for (const query of def.descriptor.result?.disclosure?.queries ?? []) {
     add(query.model, true);
   }
+  for(const loop of def.descriptor.result?.disclosure?.sourceLoops?.loops??[])if(loop.copy!==undefined)add(loop.model,true);
   addScenarioReturnConsumers(add, def);
   for (const guard of nativeSourceSendGuards.get(def)?.values() ?? []) {
     for (const input of guard.guard.inputs) add(input.type);
@@ -5853,7 +5862,7 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     // alongside file and model-result profiles instead of binding grant-free.
     // Stored references on owners outside the policy table defer the same
     // way: no grant-free bind could supply their viewer policy.
-    if (context === undefined && ([...(nativeSourceSendGuards.get(def)?.values() ?? [])].some(source =>
+    if (context === undefined && (plan.sourceLoops?.loops.some(loop=>loop.copy!==undefined) || [...(nativeSourceSendGuards.get(def)?.values() ?? [])].some(source =>
         source.guard.inputs.some(input => loaded.models.some(model => model.name === input.type))) ||
       (nativeScenarioNominalFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
         returned.dependencies.some(dependency => dependency.type === 'file[]')) ||
@@ -7670,6 +7679,8 @@ async function createContainmentNavigation(input: {
   readonly authority: 'viewer' | 'owner';
   /** Private receipt-owner navigation retains State's actual issued row pointers. */
   readonly preserveOwnerRows?: boolean;
+  /** State-derived composed owner row bound; ancestry depth stays32. */
+  readonly composedOwnerRows?:number;
   /** Only committed native readers supply their original verified source context. */
   readonly sourceReadOpts?: Pick<CanonicalReadOpts, 'asm' | 'artifact' | 'identity' | 'source' | 'now'>;
   /** Actual private owner-session rows, while the query retains the physical store. */
@@ -7693,6 +7704,9 @@ async function createContainmentNavigation(input: {
   const projectionSources = new WeakMap<object, StoredRow>();
   const sourcePresence = new WeakMap<object, ReadonlySet<string>>();
   const used = new Set<Entry>();
+  const readLimit=input.composedOwnerRows===undefined?256:
+    input.authority==='owner'&&input.preserveOwnerRows===true&&Number.isSafeInteger(input.composedOwnerRows)&&input.composedOwnerRows>0
+      ?input.composedOwnerRows*32:(()=>{throw new StateError('validation','Composed navigation requires its private State owner row bound.');})();
   let reads = 0;
   const sourceReads = input.sourceReadOpts === undefined ||
       input.coherentContext !== undefined && input.sourceObservation === undefined || input.authority !== 'viewer' ||
@@ -7852,7 +7866,7 @@ async function createContainmentNavigation(input: {
         ancestors.add(ancestor);
         ancestor = scope.parent;
       }
-      if (depth >= 32 || path.has(model) || ++reads > 256) {
+      if (depth >= 32 || path.has(model) || ++reads > readLimit) {
         throw new StateError('validation', 'Parent navigation exceeds its containment bound.');
       }
       if (row.parent === null || row.parent === undefined || row.parent.model !== target ||
@@ -7873,7 +7887,8 @@ async function createContainmentNavigation(input: {
   };
   const attach = (record: Record<string, unknown>, model: string, row: StoredRow | ProjectedRecord,
     view: (model: string, row: StoredRow | ProjectedRecord) => Record<string, unknown>,
-    bindReference?: (reference: object, parent: object, model: string) => void): void => {
+    bindReference?: (reference: object, parent: object, model: string) => void,
+    captureParent?: (reference:object,model:string,id:string)=>void): void => {
     const ownership = loaded.containment.get(model);
     if (!isUnknownRecord(ownership) || typeof ownership.parent !== 'string') return;
     Object.defineProperty(record, 'parent', { enumerable: true, get: () => {
@@ -7913,6 +7928,7 @@ async function createContainmentNavigation(input: {
           },
         });
         bindNativeReference(reference, identity);
+        captureParent?.(reference,identity.model,identity.id);
         references.set(reference, entry);
         return entry.reference = reference;
       } catch (error) { input.failure?.(error); throw error; }
@@ -7988,7 +8004,7 @@ async function createContainmentNavigation(input: {
     return basis !== undefined && Object.hasOwn(basis.data, field) && !Object.hasOwn(row.data, field);
   };
   const authorizeReference = async (reference: ReturnType<typeof makeRecordRef>) => {
-    if (++reads > 256) throw new StateError('validation', 'Parent navigation exceeds its containment bound.');
+    if (++reads > readLimit) throw new StateError('validation', 'Parent navigation exceeds its containment bound.');
     const row = await load(reference.model, reference.id);
     if (await store.readRevision() !== input.revision) {
       throw new StateError('conflict', 'State changed during parent navigation.');
@@ -9647,10 +9663,11 @@ async function runScenarioExecution(
       nativeScenarioExecutions.get(child.parent)?.loaded !== loaded
     ? new Set<string>() : nativeScenarioStoredFileNames(childParent, scenarioDef);
   if (child !== undefined && (!receiptAware || (scenarioDef?.descriptor.inputs ?? []).some(field =>
-      field.kind !== 'delivery' && (field.computedDefault === true || (field.default !== undefined &&
-        // Explicit scalar or null File defaults and the exact bound stored File[] slot do
-        // not evaluate defaults. Omission, computed and reference defaults
-        // remain refused before the child executes.
+      field.kind !== 'delivery' && (field.computedDefault === true &&
+        (!Object.hasOwn(call.inputs,field.name)||!nativeScenarioPlainValueInput(loaded,field)) || (field.default !== undefined &&
+        // Every authored child member is supplied before State admission.
+        // A provided plain Values slot never reevaluates its declared default;
+        // opaque/reference defaults retain their separate refusal.
         (field.default.kind !== 'literal' || (!nativeScenarioScalarInput(loaded, field) &&
           !nativeScenarioNullableFileInput(scenarioDef!, field) &&
           !nativeScenarioStoredFileInput(scenarioDef!, field, childStoredFiles)) ||
@@ -9902,7 +9919,13 @@ async function runScenarioExecution(
     return [...existing, ...stamped, ...termScheduleSourceWrites, ...rentNoticeSourceWrites,
       ...invoiceIssueSourceWrites, ...cancellationSourceWrites];
   };
-  const ownerBounds = sourceEmissionMaximum!==undefined
+  const sourceCopyBounds=receiptAware&&receiptStore!==undefined&&scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined)
+    ?loaded.producers.invoke.readScenarioReceiptSourceLoopBounds?.(call as AdmittedCall,receiptStore):undefined;
+  if(receiptAware&&scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined)&&sourceCopyBounds===undefined)
+    return refuseRecordBinding('Source copy lacks its actual State-derived call graph budget.');
+  const ownerBounds = sourceCopyBounds!==undefined
+    ? Object.freeze({maxRows:sourceCopyBounds.maxRows,maxWork:sourceCopyBounds.maxWork})
+    : sourceEmissionMaximum!==undefined
     ? Object.freeze({maxRows:sourceEmissionMaximum+1,maxWork:200_000,maxSourceNodes:200_000,maxSourceRows:sourceFrameworkMaximum!}) : receiptAware && (scenarioDef?.name === 'leave.request' || scenarioDef?.name === 'leave.decide' ||
     scenarioDef?.name === 'refer.reject_source' || scenarioDef?.name === 'member_terms.retry_collection' ||
     scenarioDef?.name === 'invoice.overdue' || scenarioDef?.name === 'rent_reservations.refund_movement_credit' ||
@@ -10016,6 +10039,7 @@ async function runScenarioExecution(
   const ownerNavigation = await createContainmentNavigation({ loaded, store: overlay,
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
     authority: 'owner', ...(ownerSession === undefined ? {} : { preserveOwnerRows: true }),
+    ...(sourceCopyBounds===undefined?{}:{composedOwnerRows:sourceCopyBounds.maxRows}),
     failure: recordEngineFailure });
   const viewerNavigation = await createContainmentNavigation({ loaded, store: sourceOwnerRows === undefined ? overlay : opts.store,
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
@@ -10186,7 +10210,9 @@ async function runScenarioExecution(
       } });
     } else ownerNavigation.attach(record, modelName, ownerSession === undefined ? row : snapshot,
       (model, parent) => recordView(model, parent as StoredRow),
-      receiptAware ? (reference, parent, model) => scenarioReceiptFrame!.bindNavigationReference(reference, parent, model) : undefined);
+      receiptAware ? (reference, parent, model) => scenarioReceiptFrame!.bindNavigationReference(reference, parent, model) : undefined,
+      receiptAware ? (reference,target,id)=>storedReferences.set(reference,Object.freeze({sourceView:record,
+        wire:{id},sourceModel:modelName,sourceId:row.id,field:'parent',model:target,id})) : undefined);
     bindNativeRecord(record, modelName, row.id, row.version);
     Object.freeze(record);
     scenarioReceiptFrame?.bind(record, modelName, current);
@@ -10216,6 +10242,9 @@ async function runScenarioExecution(
   let scheduleIndex = 0;
   const resolvedDefaults: Record<string, unknown> = Object.create(null);
   const observedNativeDefaults = new Map<string, unknown>();
+  const sourceChildResults=new Map<string,unknown>();
+  let sourceCopyCreate:null|{readonly model:string;readonly parent:unknown;readonly row:StoredRow;
+    readonly fields:readonly {readonly name:string;readonly type:string}[];created:boolean;target:StoredRow|null}=null;
   let callIndex = 0;
   let createIndex = 0;
   const nextCreateId = child === undefined
@@ -10462,6 +10491,20 @@ async function runScenarioExecution(
     },
     createRecord: async (model, data) => {
       try {
+        if(sourceCopyCreate!==null){
+          const expected=sourceCopyCreate;
+          const fields=localPolicyObject(data,['parent',...expected.fields.map(field=>field.name)]);
+          if(expected.created || model!==expected.model || fields.parent!==expected.parent
+              || stableStringify(Object.keys(fields))!==stableStringify(['parent',...expected.fields.map(field=>field.name)])){
+            return refuseRecordBinding('Source copy differs from its one original ordered constructor.');
+          }
+          for(const field of expected.fields){
+            const declared=loaded.models.find(candidate=>candidate.name===model)?.fields[field.name];
+            if(declared?.valueType!==field.type || stableStringify(encodeValue(field.type,fields[field.name] as CanValue,undefined,loaded.valueSchema))
+                !==stableStringify(expected.row.data[field.name]))return refuseRecordBinding('Source copy field differs from its actual issued item.');
+          }
+          expected.created=true;
+        }
         if (leaveDecisionCreateParent !== null && model !== 'leave.Request' && model !== 'leave.Portion') {
           return refuseRecordBinding('Leave request may create only its checked Request and Portions.');
         }
@@ -10530,7 +10573,7 @@ async function runScenarioExecution(
             }
             parent = { model: binding.model as ModelName, id: binding.id as RecordId };
           } else {
-            const navigation = trustedOwnerReads || leaveParent !== null || referParent !== null
+            const navigation = trustedOwnerReads || sourceCopyCreate!==null || leaveParent !== null || referParent !== null
               ? ownerNavigation : viewerNavigation;
             const authorized = await navigation.authorizeReference(
               makeRecordRef(binding.model, binding.id, BigInt(current.version)));
@@ -10558,6 +10601,7 @@ async function runScenarioExecution(
         const row = await scope.stageWrite({ op: "create", model, id, data: fields,
           ...(parent === undefined ? {} : { parent }) });
         if (row === null) throw new StateError("validation", "Create staged no record.");
+        if(sourceCopyCreate!==null)sourceCopyCreate.target=row;
         if (model === 'rent_reservations.Notice' && rentNoticeHooks !== null) rentNoticeHooks.notice(row.id);
         if (leaveDecisionCreateParent !== null && model === 'leave.Request') {
           if (leaveDecisionCreateParent.requestId !== null) {
@@ -11904,7 +11948,12 @@ async function runScenarioExecution(
           }
           await ownerNavigation.prepare(returnedModel, row);
           assertCall(actualCall, receiptStore);
-          return recordView(returnedModel, row);
+          const returned=recordView(returnedModel, row);
+          if(scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined)){
+            if(sourceChildResults.has(target))return refuseRecordBinding('Source copy child result occurrence cannot be replaced.');
+            sourceChildResults.set(target,returned);
+          }
+          return returned;
         }
         // Other nominal query references remain Values carriers.
         return decodeCanonicalValue(loaded.valueSchema, type, wire);
@@ -12229,6 +12278,49 @@ async function runScenarioExecution(
       throw new AssemblyCorrespondenceError('Source loop needs its exact admitted checked owner.');
     }
     const actualCall = call as AdmittedCall, parameters = localPolicyObject(argument), consumed = new Set<string>();
+    const copyRows=new WeakMap<object,{readonly id:string;readonly row:StoredRow;used:boolean}>();
+    const assertLoop=()=>{
+      const assertCall=loaded.producers.invoke.assertScenarioReceiptCallExecution;
+      if(assertCall===undefined)return refuseRecordBinding('Source copy lacks its defining State execution.');
+      assertCall(actualCall,receiptStore);
+      if(nativeScenarioExecutions.get(actualCall)===undefined)return refuseRecordBinding('Source copy has no live owner execution.');
+    };
+    const authenticate=async(id:string,body:Function)=>{
+      const loop=sourceLoopPlan.loops.find(loop=>loop.id===id);
+      if(loop===undefined)return refuseRecordBinding('Source copy lacks its original loop occurrence.');
+      const module=await importVerifiedAssemblyModule(opts.asm,callable.module,opts.artifact);
+      const getter=privateSourceMember(module,'canScenarioSourceLoopSource');
+      if(typeof getter!=='function')return refuseRecordBinding('Source copy lacks its original body issuer.');
+      const issued=localPolicyObject(getter(body),['source','context']);
+      if(issued.context!==ctx || stableStringify(captureDispatchPreclaimData(issued.source))!==
+          stableStringify({source:sourceLoopPlan.source,owner:sourceLoopPlan.owner,loop}))return refuseRecordBinding('Source copy body differs from its original source/context.');
+      return loop;
+    };
+    bindNativeScenarioSourceLoopCopy(ctx,async(id,item,parent,body)=>{
+      try{
+        assertLoop();
+        const loop=await authenticate(id,body),copy=loop.copy;
+        const issued=typeof item==='object'&&item!==null?copyRows.get(item):undefined;
+        if(copy===undefined || sourceCopyCreate!==null || issued===undefined || issued.id!==id || issued.used
+            || sourceChildResults.size!==1 || sourceChildResults.get(copy.target)!==parent)return refuseRecordBinding('Source copy needs its actual unconsumed item and exact completed child parent.');
+        const parentBinding=isUnknownRecord(parent)?recordBindings.get(parent):undefined;
+        if(parentBinding?.model!==loop.parentModel)return refuseRecordBinding('Source copy parent differs from its original child result model.');
+        issued.used=true;
+        const executeCopy=loaded.producers.invoke.executeScenarioReceiptSourceCopy;
+        if(executeCopy===undefined)return refuseRecordBinding('Source copy lacks its owning DATA authority producer.');
+        const source=await readOwnerRow(copy.model as ModelName,issued.row.id);
+        if(source===null||stableStringify(source)!==stableStringify(issued.row))return refuseRecordBinding('Source copy item changed after its original complete query.');
+        await executeCopy(actualCall,receiptStore,{loop:id,row:source,execute:async()=>{
+          const expected={model:copy.model,parent,row:source,fields:copy.fields,created:false,target:null as StoredRow|null};
+          sourceCopyCreate=expected;
+          try{
+            await body();assertLoop();
+            if(!expected.created||expected.target===null)return refuseRecordBinding('Source copy omitted its original constructor.');
+            return expected.target;
+          }finally{sourceCopyCreate=null;}
+        }});
+      }catch(error){recordEngineFailure(error);throw error;}
+    });
     bindNativeScenarioSourceLoop(ctx, async (id,parent,predicate) => {
       try {
         const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
@@ -12266,7 +12358,10 @@ async function runScenarioExecution(
           const view = recordView(loop.model,row);
           const matches = predicate === null ? true : await predicate(view);
           if (typeof matches !== 'boolean') return refuseRecordBinding('Original source loop predicate must return bool.');
-          if (matches) selected.push(view);
+          if (matches) {
+            selected.push(view);
+            if(loop.copy!==undefined)copyRows.set(view,{id,row,used:false});
+          }
         }
         if (selected.length > loop.maximum) return refuseRecordBinding('Source loop selected domain exceeds its authored bound.');
         return Object.freeze(selected);
@@ -14349,7 +14444,8 @@ async function invokeCanonicalMutation(
     }
     // Recognized malformed metadata throws in State; legacy saved values are
     // never disclosed raw or upgraded with an association inferred here.
-    const association = producer.readScenarioReceiptAssociation(committedReceipt);
+    const association = producer.readScenarioReceiptAssociation(committedReceipt,{app:opts.app,identity:opts.identity,
+      registry:loaded.registry as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['registry']});
     if (association === null) {
       if (claimsScenario || checkedScenario?.descriptor.result?.type !== 'void' ||
           committedReceipt.outcome.status !== 'committed' || committedReceipt.outcome.result !== null) {

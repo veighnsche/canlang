@@ -1,6 +1,6 @@
 /** Backend-neutral validation only. Durable issuance belongs to the adapter's
  * original transaction, never this module or a copied fact. */
-import type { CommitBatch, FileReferenceInventory, FileRetirementAuthority, FinalizedFileIdentity,
+import type { Receipt, CommitBatch, FileReferenceInventory, FileRetirementAuthority, FinalizedFileIdentity,
   FinalizedFileRetirement, InstallFileReferenceInventory, InstalledFileReferenceInventory,
   InstalledSnapshot, ModelName, RetireFinalizedFile, RetainedFinalizedFile, Revision, StoredRow, CanonicalFieldDef, FrameworkFileReferenceProducer, FrameworkFileReferenceModel, FrameworkFilePayloadOrigin, FrameworkOpaqueFieldResolution, FileReferenceStoragePort, StoragePort } from '@canlang/contracts';
 import { assertSafeBlobKey } from '@canlang/files/ports';
@@ -79,6 +79,56 @@ export function fileGuardCopyCensus<T>(input: unknown): readonly T[] {
   catch (error) { if (error instanceof StorageConstraintError) throw error; return refuse('bounded own census required'); }
 }
 
+/** Receipt snapshots are a closed collection, not one unbounded opaque
+ * business value. Every leaf retains the normal own-data20k/depth boundary.
+ * Container syntax grants no File or source authority. */
+function fileGuardReceiptCopy(input:Receipt,aggregate:{entries:number}):Receipt{
+  const closed=(value:unknown,required:readonly string[],optional:readonly string[]=[]):readonly {name:string;value:unknown}[]=>{
+    if(typeof value!=='object'||value===null||Array.isArray(value)
+        ||![Object.prototype,null].includes(Object.getPrototypeOf(value)))return refuse('own receipt container required');
+    const names=Reflect.ownKeys(value);
+    if(required.some(name=>!names.includes(name))||names.some(name=>typeof name!=='string'||!required.includes(name)&&!optional.includes(name))){
+      return refuse('closed receipt container required');
+    }
+    return names.map(name=>{
+      const entry=Object.getOwnPropertyDescriptor(value,name)!;
+      if(!('value' in entry)||!entry.enumerable)return refuse('own enumerable receipt fields required');
+      return {name:name as string,value:entry.value};
+    });
+  };
+  const collection=(value:unknown):readonly unknown[]=>{
+    const entries=fileGuardCensusEntries(value);aggregate.entries+=entries.length;
+    if(aggregate.entries>FILE_GUARD_MAX_ROWS)return refuse('complete commit/receipt census exceeds bound');
+    return Object.freeze(entries.map(entry=>fileGuardCopy(entry)));
+  };
+  const build=(entries:readonly {name:string;value:unknown}[],copy:(name:string,value:unknown)=>unknown):Record<string,unknown>=>{
+    const result:Record<string,unknown>={};
+    for(const entry of entries)Object.defineProperty(result,entry.name,{value:copy(entry.name,entry.value),enumerable:true,writable:true,configurable:true});
+    return result;
+  };
+  const scenario=(value:unknown):unknown=>{
+    const entries=closed(value,['kind','plan','resultType','returnId','observations','changed'],
+      ['intrinsics','queries','calls','fileAssignments','sourceLoopRoots']);
+    const lists=new Set(['observations','changed','intrinsics','queries','calls','fileAssignments','sourceLoopRoots']);
+    // In particular, calls retain their ordinary per-entry bound. A claimed
+    // nested object is never recursively promoted to another receipt container.
+    return build(entries,(name,value)=>lists.has(name)?collection(value):fileGuardCopy(value));
+  };
+  const outcome=(value:unknown):unknown=>{
+    // The discriminator is read only after its descriptor is checked; the
+    // chosen closed variant then validates every descriptor before copying.
+    if(typeof value!=='object'||value===null)return refuse('own receipt outcome required');
+    const status=Object.getOwnPropertyDescriptor(value,'status');
+    if(status===undefined||!('value' in status)||!status.enumerable)return refuse('own receipt status required');
+    if(status.value==='rejected')return fileGuardCopy(build(closed(value,['status','code','message']),(_name,value)=>fileGuardCopy(value)));
+    if(status.value!=='committed')return refuse('known receipt outcome required');
+    return build(closed(value,['status','result','recordVersions'],['scenario']),
+      (name,value)=>name==='recordVersions'?collection(value):name==='scenario'?scenario(value):fileGuardCopy(value));
+  };
+  return deepFreeze(build(closed(input,['identity','inputHash','resolvedDefaults','outcome','committedRevision','createdAt']),
+    (name,value)=>name==='outcome'?outcome(value):fileGuardCopy(value))) as unknown as Receipt;
+}
+
 /** A commit is a bounded collection of complete values, rather than one
  * opaque payload. Keep every field and ordering while bounding the aggregate. */
 export function fileGuardCommitCopy(input: CommitBatch): CommitBatch {
@@ -95,17 +145,18 @@ export function fileGuardCommitCopy(input: CommitBatch): CommitBatch {
     if (!('value' in entry) || !entry.enumerable) return refuse('own enumerable commit fields required');
     return {name, value: entry.value as unknown};
   });
-  let entries = 0;
+  const aggregate={entries:0};
   const captured = descriptors.map(entry => {
     if (!collections.has(entry.name as string)) return { ...entry, collection: false };
     const value = fileGuardCensusEntries(entry.value);
-    entries += value.length;
-    if (entries > FILE_GUARD_MAX_ROWS) return refuse('complete commit census exceeds bound');
+    aggregate.entries += value.length;
+    if (aggregate.entries > FILE_GUARD_MAX_ROWS) return refuse('complete commit census exceeds bound');
     return { name: entry.name, value, collection: true };
   });
   const copied: Record<string, unknown> = {};
   for (const entry of captured) {
-    const value = entry.collection ? (entry.value as readonly unknown[]).map(value => fileGuardCopy(value)) : fileGuardCopy(entry.value);
+    const value = entry.collection ? (entry.value as readonly unknown[]).map(value => fileGuardCopy(value)) :
+      entry.name==='receipt'&&entry.value!==null?fileGuardReceiptCopy(entry.value as Receipt,aggregate):fileGuardCopy(entry.value);
     Object.defineProperty(copied, entry.name, {value, enumerable: true, writable: true, configurable: true});
   }
   return deepFreeze(copied) as unknown as CommitBatch;

@@ -13034,6 +13034,7 @@ fn null_equality(
                 let source_loop = self.receipt_capture.as_ref().and_then(|receipt|receipt.plan.source_loops.as_ref().or(receipt.plan.source_emissions.as_ref()))
                     .and_then(|source|source["loops"].as_array().and_then(|loops|loops.iter().find(|loop_|
                         loop_["node"]["start"]==span.start && loop_["node"]["end"]==span.end).map(|loop_|(source.clone(),loop_.clone()))));
+                let copy_loop=source_loop.as_ref().filter(|(_,loop_)|loop_.get("copy").is_some()).cloned();
                 let domain_text = if let Some((source,loop_)) = source_loop {
                     let parent = self.reference(loop_["parameter"].as_str().expect("checked loop parameter"));
                     let predicate = if loop_["filtered"].as_bool()==Some(true) {
@@ -13101,8 +13102,15 @@ fn null_equality(
                     }
                 }
                 lines.push((format!("{pad}for (const {item} of {over}) {{"), *span));
-                for stmt in body {
-                    lines.extend(self.lower_stmt(stmt, indent + 1));
+                if let Some((source,loop_))=copy_loop{
+                    self.stdlib.insert("nativeScenarioSourceLoopCopy".into());
+                    let parent=self.reference(loop_["copy"]["parent"].as_str().expect("checked copy parent"));
+                    let marker=descriptor_json(&descriptor_json(&serde_json::json!({"source":source["source"],"owner":source["owner"],"loop":loop_})));
+                    lines.push((format!("{pad}  await nativeScenarioSourceLoopCopy(c,{},{item},{parent},$can$loop$issue({marker},c,async()=>{{",descriptor_json(&loop_["id"])),*span));
+                    for stmt in body{lines.extend(self.lower_stmt(stmt,indent+2));}
+                    lines.push((format!("{pad}  }}));"),*span));
+                }else{
+                    for stmt in body {lines.extend(self.lower_stmt(stmt, indent + 1));}
                 }
                 self.exit_scope();
                 lines.push((format!("{pad}}}"), *span));

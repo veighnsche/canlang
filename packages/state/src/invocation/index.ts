@@ -25,7 +25,7 @@ export {
   type ScenarioReceiptFileProducer, type ScenarioReceiptFileAssignmentLocator, type ScenarioReceiptFileAssignmentInput,
   bindScenarioReceiptReferenceProducer, bindScenarioReceiptModelResult, type ScenarioReceiptReferenceProducer,
   observeScenarioReceiptDependency, observeScenarioReceiptRowId, type ScenarioReceiptRowIdInput, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
-  beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
+  executeScenarioReceiptSourceCopy, readScenarioReceiptSourceLoopBounds, beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   executeScenarioReceiptEventNoticeFormat, materializeScenarioReceiptEventNoticeAudit, type EventNoticeAuditPlan,
   bindScenarioSourceRequireFrame, executeScenarioReceiptRequire, type ScenarioReceiptRequireSource, type ScenarioReceiptRequireObserver,
   executeScenarioReceiptEventDecision, type EventDecisionPlan,
