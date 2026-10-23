@@ -1482,6 +1482,8 @@ interface StateInvokeProducer {
   readonly consumeScenarioSourceEmitData?: typeof import('@canlang/state/invocation').consumeScenarioSourceEmitData;
   readonly bindScenarioSourceLoopProducer?:typeof import('@canlang/state/invocation').bindScenarioSourceLoopProducer;
   readonly executeScenarioSourceLoop?:typeof import('@canlang/state/invocation').executeScenarioSourceLoop;
+  readonly readScenarioSourceCreatedRoot?:typeof import('@canlang/state/invocation').readScenarioSourceCreatedRoot;
+  readonly bindScenarioSourceCreatedRoots?:typeof import('@canlang/state/invocation').bindScenarioSourceCreatedRoots;
   readonly executeScenarioSourceLoopItem?:typeof import('@canlang/state/invocation').executeScenarioSourceLoopItem;
   readonly bindScenarioSourceSendDataProducer?: typeof import('@canlang/state/invocation').bindScenarioSourceSendDataProducer;
   readonly executeScenarioSourceSendData?: typeof import('@canlang/state/invocation').executeScenarioSourceSendData;
@@ -1800,6 +1802,8 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     ...(typeof scenarioMod['consumeScenarioSourceEmitData']!=='function'?{}:{consumeScenarioSourceEmitData:scenarioMod['consumeScenarioSourceEmitData'] as NonNullable<StateInvokeProducer['consumeScenarioSourceEmitData']>}),
     ...(typeof scenarioMod['bindScenarioSourceLoopProducer']!=='function'?{}:{bindScenarioSourceLoopProducer:scenarioMod['bindScenarioSourceLoopProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceLoopProducer']>}),
     ...(typeof scenarioMod['executeScenarioSourceLoop']!=='function'?{}:{executeScenarioSourceLoop:scenarioMod['executeScenarioSourceLoop'] as NonNullable<StateInvokeProducer['executeScenarioSourceLoop']>}),
+    ...(typeof scenarioMod['readScenarioSourceCreatedRoot']!=='function'?{}:{readScenarioSourceCreatedRoot:scenarioMod['readScenarioSourceCreatedRoot'] as NonNullable<StateInvokeProducer['readScenarioSourceCreatedRoot']>}),
+    ...(typeof scenarioMod['bindScenarioSourceCreatedRoots']!=='function'?{}:{bindScenarioSourceCreatedRoots:scenarioMod['bindScenarioSourceCreatedRoots'] as NonNullable<StateInvokeProducer['bindScenarioSourceCreatedRoots']>}),
     ...(typeof scenarioMod['executeScenarioSourceLoopItem']!=='function'?{}:{executeScenarioSourceLoopItem:scenarioMod['executeScenarioSourceLoopItem'] as NonNullable<StateInvokeProducer['executeScenarioSourceLoopItem']>}),
     ...(typeof scenarioMod['bindScenarioSourceSendDataProducer']!=='function'?{}:{bindScenarioSourceSendDataProducer:scenarioMod['bindScenarioSourceSendDataProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceSendDataProducer']>}),
     ...(typeof scenarioMod['executeScenarioSourceSendData']!=='function'?{}:{executeScenarioSourceSendData:scenarioMod['executeScenarioSourceSendData'] as NonNullable<StateInvokeProducer['executeScenarioSourceSendData']>}),
@@ -12909,7 +12913,15 @@ async function runScenarioExecution(
           const source=data.sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(issued.source)));
           if(issued.context!==ctx||source===undefined)return refuseRecordBinding('SEND DATA closure differs from its original source/context.');
           const roots=localPolicyObject(supplied,source.parameters.map(parameter=>parameter.name));
-          if(Object.keys(roots).length!==source.parameters.length||source.parameters.some(parameter=>parameter.loop===undefined?roots[parameter.name]!==parameters[parameter.name]:activeSourceLoopItem?.id!==parameter.loop||roots[parameter.name]!==activeSourceLoopItem.item))return refuseRecordBinding('SEND DATA changed its genuine original parameter graph.');
+          if(Object.keys(roots).length!==source.parameters.length)return refuseRecordBinding('SEND DATA changed its genuine original parameter graph.');
+          for(const parameter of source.parameters){
+            if(parameter.created!==undefined){
+              const read=loaded.producers.invoke.readScenarioSourceCreatedRoot,root=roots[parameter.name];
+              if(read===undefined||!isUnknownRecord(root))return refuseRecordBinding('SEND DATA created root lacks its actual native binding.');
+              const row=await read(actual,receiptStore,{id:parameter.created.id}),binding=recordBindings.get(root);
+              if(binding?.model!==parameter.model||binding.id!==row.id||binding.version>row.version||binding.version<1)return refuseRecordBinding('SEND DATA created root differs from its exact actual CREATE row.');
+            }else if(parameter.loop===undefined?roots[parameter.name]!==parameters[parameter.name]:activeSourceLoopItem?.id!==parameter.loop||roots[parameter.name]!==activeSourceLoopItem.item)return refuseRecordBinding('SEND DATA changed its genuine original parameter graph.');
+          }
           return await execute(actual,receiptStore,{source,execute:async rows=>{
             const projected:Record<string,unknown>=Object.create(null);
             for(const parameter of source.parameters){

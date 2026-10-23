@@ -2617,3 +2617,35 @@ fn native_scalar_data_egress_keeps_its_real_void_mutation_receipt() {
     .flat_map(|returned|returned["dependencies"].as_array().unwrap()).any(|dependency|dependency["role"]=="data"&&dependency["field"]==field));}
  }
 }
+
+#[test]
+fn created_refund_send_keeps_original_create_binding_stage_and_scalar_sources() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let full=include_str!("../../packages/cloudflare/test/fixtures/invoice-created-send-source.can");
+    let source=format!("{}{}",&full[..full.find("  scenario collected on=").unwrap()],&full[full.find("  scenario refund_source(").unwrap()..]);
+    let source=source.lines().filter(|line|!line.starts_with("  derive first_paid_invoice(")).collect::<Vec<_>>().join("\n");
+    let (db,program,ir,catalog)=fixture_source("created-refund-send.can",&source);
+    let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let owner=item(&ir,"invoice.refund_source");assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+    let code=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<Vec<_>>().join("\n");
+    assert!(code.contains("nativeScenarioSourceSendData(c"));assert!(code.contains("\\\"created\\\""));assert!(code.contains("\\\"parentParameter\\\":\\\"invoice\\\""));
+    for mode in ["binding","parent","created-value","created-root","operation","stage"]{
+        let mut changed=ir.clone();let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("owner");};
+        if mode=="stage"{effects.swap(0,2);}
+        else if mode=="operation"||mode=="created-root"{
+            let IrStmt::Send{operation,args,..}=&mut effects[1] else{panic!("send");};
+            if mode=="operation"{*operation="std.PaymentsV1.collect".into();}
+            else{let IrExpr::Object(fields)=&mut args.expr else{panic!("args");};let value=&mut fields.iter_mut().find(|(name,_)|name=="reference").unwrap().1;
+                let IrExpr::Member{base,..}=&mut value.expr else{panic!("created scalar");};base.expr=IrExpr::Name("payment".into());}
+        }else{
+            let IrStmt::Create{binding,input,..}=&mut effects[0] else{panic!("create");};
+            if mode=="binding"{*binding=Some("foreign".into());}
+            else{let IrExpr::Object(fields)=&mut input.expr else{panic!("input");};let field=if mode=="parent"{"parent"}else{"reference"};
+                fields.iter_mut().find(|(name,_)|name==field).unwrap().1.expr=if mode=="parent"{IrExpr::Name("payment".into())}else{IrExpr::Text("substituted".into())};}
+        }
+        assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
+    }
+    let copied=source.replace("    send Payments.refund {payment=payment.reference,amount,reference=refund.reference}","    let copy=refund\n    send Payments.refund {payment=payment.reference,amount,reference=copy.reference}");
+    let (db,program,_,catalog)=fixture_source("copied-created-refund.can",&copied);
+    let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
+}

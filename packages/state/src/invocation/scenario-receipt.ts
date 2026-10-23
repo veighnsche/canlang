@@ -1992,6 +1992,58 @@ interface BoundCalls {
   readonly targets: ReadonlyMap<string, GeneratedOperationDef>;
 }
 const callProducers = new WeakMap<GeneratedOperationDef, BoundCalls>();
+/** A source-declared CREATE is identity evidence only. Every DATA consumer
+ * independently projects its current fields under the installed source policy. */
+export interface ScenarioSourceCreatedRoot {
+  readonly id:string;readonly node:{readonly start:number;readonly end:number};readonly stage:number;
+  readonly binding:string;readonly model:ModelName;readonly parentParameter:string;readonly parentModel:ModelName;
+}
+interface SourceCreatedRootCapture {readonly profile:ScenarioSourceCreatedRoot;readonly row:StoredRow;checked:boolean;}
+const sourceCreatedRootProducers=new WeakMap<GeneratedOperationDef,Map<string,ScenarioSourceCreatedRoot>>();
+const sourceCreatedRootCaptures=new WeakMap<ReceiptOwnerSession,Map<string,SourceCreatedRootCapture>>();
+export function bindScenarioSourceCreatedRoots(def:GeneratedOperationDef,value:{readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;readonly creates:readonly ScenarioSourceCreatedRoot[]}):void{
+  const bound=boundPlans.get(def),raw=object(dataCopy(value),['source','owner','creates']);origin(raw['source']);
+  if(!bound?.sourceRequireOnly||invokedPlans.has(def)||raw['owner']!==def.name||stableStringify(raw['source'])!==stableStringify(bound.plan.source))return invalid('Created source roots require their uninvoked original source-only owner.');
+  const previous=sourceCreatedRootProducers.get(def)??new Map<string,ScenarioSourceCreatedRoot>(),next=new Map(previous);
+  for(const value of list(raw['creates'])){
+    const profile=object(value,['id','node','stage','binding','model','parentParameter','parentModel']),id=text(profile['id']);
+    const node=object(profile['node'],['start','end']),parameter=text(profile['parentParameter']),parent=text(profile['parentModel']),model=text(profile['model']);
+    const input=bound.inputs.find(input=>input.name===parameter);text(profile['binding']);
+    if(!/^[a-f0-9]{64}$/.test(id)||!Number.isSafeInteger(profile['stage'])||Number(profile['stage'])<0||Number(profile['stage'])>=MAX_ITEMS
+        ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
+        ||input?.kind!=='ref'||input.model!==parent||input.nullable===true||Object.hasOwn(def.inputArrays,parameter)
+        ||bound.artifactModels.get(model as ModelName)?.parent!==parent)return invalid('Created source root lost its original stage, model or required admitted parent.');
+    const prior=next.get(id);if(prior!==undefined&&stableStringify(prior)!==stableStringify(profile))return invalid('Created source root ID changes its original declaration.');
+    if([...next.values()].some(other=>other.id!==id&&other.stage===profile['stage']))return invalid('Created source roots overlap an actual linear owner stage.');
+    next.set(id,deepFreeze(profile) as unknown as ScenarioSourceCreatedRoot);
+  }
+  if(next.size>MAX_ITEMS)return invalid('Created source roots exceed their finite original census.');
+  sourceCreatedRootProducers.set(def,next);
+}
+export async function readScenarioSourceCreatedRoot(call:AdmittedCall,store:StoragePort,input:{readonly id:string}):Promise<StoredRow>{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    object(input,['id']);const captured=owner===undefined?undefined:sourceCreatedRootCaptures.get(owner)?.get(text(input.id));
+    if(owner===undefined||owner.session===null||owner.busy||state.pending!==0||owner.executingCall!==call||captured===undefined||owner.stage<=captured.profile.stage)return invalid('Created source root lacks its actual original CREATE capture.');
+    return await ownerOperation(owner,async()=>{
+      const row=await owner.session!.views.final.get(captured.profile.model,captured.row.id);ownerHealthy(owner);
+      if(row===null||row.archivedAt!==null||!sameModelLifetime(captured.row,row))return invalid('Created source root lifetime changed.');
+      if(!captured.checked){
+        if(owner.callGuards.length>=MAX_ITEMS)return invalid('Created source root exceeds its finite final guard census.');
+        captured.checked=true;
+        owner.callGuards.push(Object.freeze({name:`original created root ${captured.profile.id}`,evaluate:async()=>{
+          const final=owner.finalized;if(final===null||owner.capture.poisoned)return invalid('Created source root lost its final owner.');
+          const insert=final.writes.find(write=>write.kind==='insert'&&write.model===captured.profile.model&&write.row.id===captured.row.id);
+          if(insert?.kind!=='insert'||insert.row.archivedAt!==null||!sameModelLifetime(captured.row,insert.row))return invalid('Created source root is absent from its actual final insert.');
+          if(await store.readRevision()!==call.revision)throw new StateError('conflict','Created source root moved beyond its original checkpoint.');
+          return true;
+        }}));
+      }
+      ownerRows.set(row,{session:owner,stage:owner.stage,model:captured.profile.model});return row;
+    },call);
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+
 /** Private source-only loops grant control selection, never a read projection.
  * SEND roots borrow only their actual once-entered item lifetime below. */
 export interface ScenarioSourceBodyLoop {
@@ -5891,7 +5943,21 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
               write.parent?.model!==root.model||write.parent.id!==root.id||write.when!==undefined||write.transition!==undefined||
               createdCountParents.get(owner)?.has(profile.queryId))return invalid('created COUNT parent requires its exact actual CREATE and admitted parent.');
         }
+        const createdSources=[...sourceCreatedRootProducers.get(owner.call.def as GeneratedOperationDef)?.values()??[]].filter(profile=>profile.stage===owner.stage);
+        for(const profile of createdSources){
+          const [write]=Array.isArray(writes)?writes:[writes],references=owner.call.recordRefs.filter(reference=>reference.param===profile.parentParameter),root=references[0];
+          if(references.length!==1||root?.model!==profile.parentModel||root.expectedVersion===null||root.expectedVersion!==root.row.version
+              ||Array.isArray(writes)&&writes.length!==1||write?.op!=='create'||write.model!==profile.model||typeof write.id!=='string'||write.id.length===0
+              ||write.parent?.model!==root.model||write.parent.id!==root.id||write.when!==undefined||write.transition!==undefined
+              ||sourceCreatedRootCaptures.get(owner)?.has(profile.id))return invalid('Created source root differs from its exact actual CREATE stage and admitted parent.');
+        }
         await session.stage(writes, options);
+        for(const profile of createdSources){
+          let captures=sourceCreatedRootCaptures.get(owner);if(captures===undefined){captures=new Map();sourceCreatedRootCaptures.set(owner,captures);}
+          const write=Array.isArray(writes)?writes[0]!:writes,row=await owner.session!.views.final.get(profile.model,write.id!);
+          if(row===null||row.archivedAt!==null||stableStringify(row.parent)!==stableStringify(write.parent))return invalid('Created source root lacks its actual staged row.');
+          captures.set(profile.id,{profile,row,checked:false});
+        }
         for(const profile of createdParents){
           let captures=createdCountParents.get(owner);if(captures===undefined){captures=new Map();createdCountParents.set(owner,captures);}
           const write=Array.isArray(writes)?writes[0]!:writes;
@@ -9828,7 +9894,7 @@ export interface ScenarioSourceSendDataSource {
   readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
   readonly node:{readonly start:number;readonly end:number};readonly operation:string;readonly binding:string;
   readonly parameters:readonly {readonly name:string;readonly model:ModelName;
-    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string}[];
+    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[];readonly identity?:readonly ('id'|'version')[];readonly loop?:string;readonly created?:ScenarioSourceCreatedRoot}[];
   readonly queries?:readonly ScenarioSourceSendQuerySource[];
 }
 interface SourceSendDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceSendDataSource[];}
@@ -9884,10 +9950,11 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
     const parameters=list(site['parameters']);if(parameters.length===0)return invalid('SEND DATA needs its actual source root census.');
     const names=new Set<string>();
     for(const value of parameters){
-      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const parameter=object(value,['name','model','fields',...(Object.hasOwn(value as object,'identity')?['identity']:[]),...(Object.hasOwn(value as object,'loop')?['loop']:[]),...(Object.hasOwn(value as object,'created')?['created']:[])]),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
       const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
       const loop=Object.hasOwn(parameter,'loop')?sourceBodyLoopProducers.get(def)?.loops.find(loop=>loop.id===parameter['loop']):undefined;
-      if(names.has(name)||declaration===undefined||(Object.hasOwn(parameter,'loop')?loop?.item!==name||loop.model!==model||Object.hasOwn(parameter,'identity'):input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name))){
+      const created=Object.hasOwn(parameter,'created')?object(parameter['created'],['id','node','stage','binding','model','parentParameter','parentModel']):undefined;
+      if(names.has(name)||declaration===undefined||(created!==undefined?(created['binding']!==name||created['model']!==model||Object.hasOwn(parameter,'identity')||Object.hasOwn(parameter,'loop')||Number(object(created['node'],['start','end'])['end'])>Number(node['start'])):Object.hasOwn(parameter,'loop')?loop?.item!==name||loop.model!==model||Object.hasOwn(parameter,'identity'):input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name))){
         return invalid('SEND DATA needs an exact required singular original model parameter.');
       }
       names.add(name);const fields=list(parameter['fields']);
@@ -9932,6 +9999,8 @@ export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,pro
     return deepFreeze(site) as unknown as ScenarioSourceSendDataSource;
   });
   if(new Set(sites.map(site=>`${site.node.start}:${site.node.end}`)).size!==sites.length)return invalid('SEND DATA occurrence census repeats.');
+  const creates=sites.flatMap(site=>site.parameters.flatMap(parameter=>parameter.created===undefined?[]:[parameter.created]));
+  if(creates.length!==0)bindScenarioSourceCreatedRoots(def,{source:bound.plan.source,owner:def.name,creates});
   sourceSendDataProducers.set(def,Object.freeze({source:bound.plan.source,app:producer.app,policy,readPolicies,sites:Object.freeze(sites)}));
 }
 /** Authorize the current source projection, then execute exactly the original
@@ -9952,13 +10021,14 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
     const source=matches[0]!,stage=owner.stage,ordinal=owner.framework.ordinal,key=`${source.node.start}:${source.node.end}:${source.parameters.some(parameter=>parameter.loop!==undefined)?sourceBodyLoopItems.get(owner)?.row.id??'unissued-loop':''}`;
     const consumed=consumedSourceSendData.get(call)??new Set<string>();consumedSourceSendData.set(call,consumed);
     if(consumed.has(key))return invalid('SEND DATA repeats its original source occurrence.');consumed.add(key);
-    const rows:Record<string,ProjectedRecord>=Object.create(null);
+    const rows:Record<string,ProjectedRecord>=Object.create(null),createdRows=new Map<string,StoredRow>();
+    for(const parameter of source.parameters)if(parameter.created!==undefined)createdRows.set(parameter.name,await readScenarioSourceCreatedRoot(call,store,{id:parameter.created.id}));
     await ownerOperation(owner,async()=>{
       for(const parameter of source.parameters){
         const item=parameter.loop===undefined?undefined:sourceBodyLoopItems.get(owner);
         const refs=call.recordRefs.filter(ref=>ref.param===parameter.name),ref=refs[0];
-        const original=parameter.loop===undefined?ref?.row:item?.row;
-        if(parameter.loop===undefined?(refs.length!==1||ref?.model!==parameter.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version):
+        const original=parameter.created!==undefined?createdRows.get(parameter.name):parameter.loop===undefined?ref?.row:item?.row;
+        if(parameter.created!==undefined?(original===undefined||sourceCreatedRootProducers.get(call.def as GeneratedOperationDef)?.get(parameter.created.id)?.model!==parameter.model):parameter.loop===undefined?(refs.length!==1||ref?.model!==parameter.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version):
             item?.execution.loop.id!==parameter.loop||item.execution.loop.item!==parameter.name||item.execution.loop.model!==parameter.model){return invalid('SEND DATA lost its genuine admitted or selected-loop root.');}
         if(original===undefined)return invalid('SEND DATA source root was not issued.');
         const row=await owner.session!.views.final.get(parameter.model,original.id);ownerHealthy(owner);

@@ -2986,3 +2986,59 @@ it('authorizes native scalar DATA before void CREATE and SEND and at final commi
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('projects original created refund scalar fields independently from admitted payment DATA',
+  {timeout:240000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-invoice-cancel-loop-'));
+    try{
+      const {artifact,asm}=await installed('invoice-created-send-source.can',directory);
+      assert.equal(artifact.operations?.find(operation=>operation.name==='invoice.refund_source')?.result?.disclosure,undefined,'this exercises the original source-only DATA lifecycle');
+      const original=await readFile(join(root,'draft/apps/CanInvoice/CanInvoice.can'),'utf8');
+      const text=await readFile(fixture('invoice-created-send-source.can'),'utf8');
+      const refund=original.slice(original.indexOf('  scenario refund_payment('));
+      const begin=refund.indexOf('    create Attempt'),end=refund.indexOf('    set invoice',begin);
+      assert.ok(text.includes(refund.slice(begin,end)),'the exact original CREATE, refund SEND and delivery write are retained');
+      for(const mode of ['allowed','withheld-payment','withheld-created','inactive','stale','role-during-send','payment-at-commit']){
+        if(process.env['CAN_CREATED_SEND_CASE']&&process.env['CAN_CREATED_SEND_CASE']!==mode)continue;
+        const {now,identities,identity,team,user}=await member(`invoice-loop-${mode}`,['invoice.finance']);
+        const scope={app:'CanInvoice',owner:team.team_id,ownerPackage:'invoice'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'loop-state',fileStoreId:'loop-files',
+          receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+        const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+        const location=row('location',{active:true}),customer=row('customer',{kind:'company',hidden:false});
+        const invoice=row('invoice',{location:{id:location.id},source:'original-invoice',currency:'EUR',state:'issued',total:{minor:'50',currency:'EUR'},next_collection:null,ledger_revision:'0',first_paid_at:null,hidden:false},{model:model('customer','Customer'),id:customer.id});
+        const child={model:model('invoice','Invoice'),id:invoice.id};
+        const attempt=(id:string,status='pending',kind='collection',parent=child)=>row(id,{reference:id,amount:{minor:'100',currency:'EUR'},kind,status,failure:null,disabled:false,delivery:null,checkout:'https://checkout.test/'+id,outcome_at:null,received:null,reference_readable:mode!=='withheld-payment',hidden:mode==='hidden'},parent);
+        const payment=attempt('payment','succeeded');
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:model('rent_catalog','Location'),row:location},{kind:'insert',model:model('customer','Customer'),row:customer},
+          {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:mode!=='inactive',hidden:true})},
+          {kind:'insert',model:model('invoice','Invoice'),row:invoice},{kind:'insert',model:model('invoice','Attempt'),row:payment}
+        ]}));
+        let raced=false;
+        if(mode==='role-during-send'){
+          const load=store.load.bind(store);store.load=async(model,id)=>{if(!raced&&model==='work.dispatch'){raced=true;const membership=await identities.findMembership(team.team_id,user.user_id);assert.ok(membership);await identities.setMembershipRoles(membership.membership_id,[]);}return load(model,id);};
+        }
+        if(mode==='payment-at-commit'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{if(!raced&&batch.writes.some(write=>write.model==='work.dispatch')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('invoice','Attempt'),id:payment.id,expectedVersion:payment.version,row:{...payment,version:asVersion(payment.version+1),data:{...payment.data,reference:'concurrent-payment'}}}]}));}return commit(batch);};
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:mode==='withheld-created'?'invoice.refund_unreadable':'invoice.refund_source',operation_id:operationId(now),inputs:{invoice:{id:invoice.id,version:mode==='stale'?'0':String(invoice.version)},payment:{id:payment.id,version:String(payment.version)},amount:{minor:'50',currency:'EUR'},reason:'Approved refund'}};
+        const outcome=await invoker.invokeMutation(request,identity),success=mode==='allowed';
+        assert.equal('result'in outcome&&outcome.result.status==='committed',success,`${mode}: ${JSON.stringify(outcome)}`);
+        const pending=await store.outboxPending(),attempts=await store.query({model:model('invoice','Attempt'),authority:'owner'});
+        assert.equal(pending.length,success?1:0,mode);assert.equal(attempts.length,success?2:1,mode);
+        if(mode==='role-during-send'||mode==='payment-at-commit')assert.equal(raced,true);
+        if(success){
+          const created=attempts.find(row=>row.id!==payment.id);assert.ok(created);assert.equal(created.data.kind,'refund');
+          assert.equal(created.data.reference,request.operation_id);assert.equal(created.data.delivery,pending[0]!.intentId);
+          assert.equal(pending[0]!.target,'std.PaymentsV1.refund');
+          assert.deepEqual((pending[0]!.arguments as {arguments:unknown}).arguments,{payment:'payment',amount:{minor:'50',currency:'EUR'},reference:request.operation_id});
+          const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed',JSON.stringify(replay));assert.equal(replay.result.result,null);
+          assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await store.query({model:model('invoice','Attempt'),authority:'owner'}),attempts);
+        }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
