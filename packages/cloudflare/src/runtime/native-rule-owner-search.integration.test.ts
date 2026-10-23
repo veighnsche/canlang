@@ -1,3 +1,4 @@
+import { workSchedulePutCommand, workScheduleCancelCommand } from '@canlang/work/kernel/schedule-staging';
 /** Compiled mutation decisions observe bounded owner rows without widening reads. */
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
@@ -2080,6 +2081,88 @@ it('formats original scalar DATA with saved result privacy and commit fences',
           await identities.removeMembership(membership.membership_id);
           const denied=await invoker.invokeMutation(request,identity);assert.ok('error'in denied||denied.result.result===null);
         }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });
+
+it('cancels only the original admitted root schedule through the source-only Work lifecycle',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-source-only-cancel-'));
+    try{
+      const {artifact,asm}=await installed('native-source-require-cancel.can',directory);
+      for(const name of ['notify','abort'])assert.equal(artifact.operations?.find(op=>op.name===`SourceGuardCancel.${name}`)?.result?.disclosure,undefined);
+      const original=await readFile(fixture('native-source-require-cancel.can'),'utf8'),refused=fixture('.native-source-cancel-refusal.can');
+      try{
+        for(const text of [original.replaceAll('cancel root.id','cancel "arbitrary"'),
+          original.replaceAll('cancel root.id','let key=root.id\n   cancel key')]){
+          await writeFile(refused,text);const result=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
+          assert.equal(result.status,10,result.stdout+result.stderr);
+          assert.ok((JSON.parse(result.stdout) as {diagnostics:{code:string}[]}).diagnostics.some(item=>item.code==='E6008'));
+        }
+      }finally{await rm(refused,{force:true});}
+      for(const mode of ['allowed','twins','nonexistent','other-root','full','inactive','late-invariant','identity-during-cancel','schedule-at-commit']){
+        const {now,identities,identity,membership}=await member(`source-cancel-${mode}`);
+        const store=createMemoryStorage(),rootModel=model('SourceGuardCancel','Root');
+        const rootRow={...makeRow({id:asId('root-1'),data:{capacity:mode==='full'?'1':'2',checked:false}}),parent:null};
+        const root2={...rootRow,id:asId('root-2'),data:{capacity:'2',checked:false}};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:rootModel,row:rootRow},{kind:'insert',model:rootModel,row:root2},
+          ...[rootRow,root2].map((root,index)=>({kind:'insert' as const,model:model('SourceGuardCancel','Child'),row:{...makeRow({id:asId(`child-${index}`),
+            data:{active:mode!=='inactive'}}),parent:{model:rootModel,id:root.id}}}))]}));
+        const scope={app:'SourceGuardCancel',owner:membership.team_id,ownerPackage:'SourceGuardCancel'},foreign={...scope,owner:'foreign-owner'};
+        const stageContext={actor:'cancel-fixture',now,operation:'SourceGuardCancel.seed',load:store.load.bind(store),query:store.query.bind(store)};
+        const put=async(current:typeof scope,id:string)=>workSchedulePutCommand.stage({key:rootRow.id,scope:current,at:now+10000,
+          event:'SourceGuardCancel.Due',payload:{message:'Original schedule'},occurrenceId:id},stageContext);
+        const stages=[await put(foreign,'foreign-source'),...(mode==='nonexistent'?[]:[await put(scope,'original-source')]),
+          ...(mode==='twins'?[await put(scope,'twin-source')]:[])];
+        await store.commit(makeBatch(await store.readRevision(),{writes:stages.flatMap(stage=>stage.writes??[]),schedules:stages.flatMap(stage=>stage.schedules??[])}));
+        const scheduleKey=(current:typeof scope,key:string)=>[current.app,current.ownerPackage,current.owner,key].map(encodeURIComponent).join('/');
+        const foreignRows=await store.query({model:asModel('work.schedule'),authority:'owner'});
+        const foreignRow=foreignRows.find(row=>row.data['scopeOwner']===foreign.owner);assert.ok(foreignRow);
+        const foreignSlot=await store.scheduleGet(scheduleKey(foreign,rootRow.id));assert.ok(foreignSlot);
+        let raced=false;
+        if(mode==='identity-during-cancel'){
+          const query=store.query.bind(store);store.query=async spec=>{
+            if(!raced&&spec.model==='work.schedule'){raced=true;await identities.removeMembership(membership.membership_id);}
+            return query(spec);
+          };
+        }
+        if(mode==='schedule-at-commit'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{
+            if(batch.writes.some(write=>write.model===rootModel&&write.kind==='update')){
+              raced=true;const cancelled=await workScheduleCancelCommand.stage({key:rootRow.id,scope},{...stageContext,actor:'external-cancel',operation:'external-cancel'});
+              await commit(makeBatch(await store.readRevision(),{writes:cancelled.writes??[],schedules:cancelled.schedules??[]}));
+            }
+            return commit(batch);
+          };
+        }
+        const selected=mode==='other-root'?root2:rootRow,operation=mode==='late-invariant'?'SourceGuardCancel.abort':'SourceGuardCancel.notify';
+        const request={operation,operation_id:operationId(now),inputs:{root:{id:selected.id,version:String(selected.version)}}};
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const outcome=await invoker.invokeMutation(request,identity),allowed=['allowed','twins','nonexistent','other-root'].includes(mode);
+        assert.equal('result'in outcome&&outcome.result.status==='committed',allowed,`${mode}: ${JSON.stringify(outcome)}`);
+        if(mode==='identity-during-cancel')assert.equal('error'in outcome&&outcome.error.code,'forbidden');
+        if(mode==='schedule-at-commit')assert.equal('error'in outcome&&outcome.error.code,'busy');
+        const current=await store.load(rootModel,selected.id);assert.ok(current);assert.equal(current.data.checked,allowed,mode);
+        assert.equal(current.data.capacity,selected.data.capacity,mode);
+        assert.deepEqual(await store.load(asModel('work.schedule'),foreignRow.id),foreignRow,'same key in another owner scope is untouched');
+        assert.deepEqual(await store.scheduleGet(scheduleKey(foreign,rootRow.id)),foreignSlot);
+        const own=(await store.query({model:asModel('work.schedule'),authority:'owner'})).filter(row=>row.data['scopeOwner']===scope.owner);
+        assert.equal(own.length,mode==='nonexistent'?0:mode==='twins'?2:1,mode);
+        const cancelled=mode==='allowed'||mode==='twins'||mode==='schedule-at-commit';
+        assert.ok(own.every(row=>row.data['state']===(cancelled?'cancelled':'pending')),mode);
+        assert.equal(await store.scheduleGet(scheduleKey(scope,rootRow.id))===null,mode==='nonexistent'||cancelled,mode);
+        if(mode==='schedule-at-commit')assert.ok(own.every(row=>row.updatedBy==='external-cancel'));
+        if(mode==='identity-during-cancel'||mode==='schedule-at-commit')assert.equal(raced,true,mode);
+        assert.deepEqual(await store.outboxPending(),[]);
+        if(!allowed)continue;
+        const visible=await invoker.invokeRead({operation:'SourceGuardCancel.Root.read',inputs:{}},identity);
+        assert.ok('error'in visible||((visible.result as {records:unknown[]}).records.length===0));
+        const saved=await store.readReceipt({app:scope.app,owner:scope.owner,principal:membership.user_id,operation,
+          operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);assert.ok(saved.outcome.status==='committed');assert.equal(saved.outcome.scenario,undefined);
+        const before=await store.query({model:asModel('work.schedule'),authority:'owner'});
+        const replay=await invoker.invokeMutation(request,identity);
+        assert.ok('error'in replay&&replay.error.code==='validation',JSON.stringify(replay));
+        assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),before);assert.deepEqual(await store.readReceipt(saved.identity),saved);
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });

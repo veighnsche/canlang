@@ -157,7 +157,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
+import { bindNativeScenarioSourceCancel, bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
@@ -3679,6 +3679,11 @@ interface NativeScenarioExecution {
 }
 const nativeScenarioExecutions = new WeakMap<AdmittedCall, NativeScenarioExecution>();
 // A guard-only frame has no saved result or native body/call privileges.
+interface SourceCancelSource {
+  readonly source:import('@canlang/contracts').ScenarioResultDisclosurePlan['source'];readonly owner:string;
+  readonly node:{readonly start:number;readonly end:number};readonly parameter:string;readonly model:string;readonly ownerPackage:string;
+}
+const nativeSourceCancels=new WeakMap<GeneratedOperationDef,readonly SourceCancelSource[]>();
 type SourceSendDataSource=import('@canlang/state/invocation').ScenarioSourceSendDataSource;
 const nativeSourceSendData=new WeakMap<GeneratedOperationDef,{readonly sources:readonly SourceSendDataSource[];readonly original:(body:Function)=>unknown}>();
 const sourceRequireFrames = new WeakMap<GeneratedOperationDef, ScenarioReceiptRequireSource['source']>();
@@ -5694,6 +5699,34 @@ async function assertCheckedFirstQuery<Query extends { readonly id: unknown; rea
   return query;
 }
 
+async function bindNativeSourceCancels(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors):Promise<void>{
+  for(const value of loaded.registry.values()){
+    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
+    if(def===undefined||source===undefined)continue;
+    const callable=artifact.callables.find(entry=>entry.kind==='operation'&&entry.id===def.name&&entry.module===source.module);
+    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source CANCEL lacks its original parameter-style operation.');
+    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact),getter=privateSourceMember(module,'canScenarioCancelSources');
+    if(typeof getter!=='function')continue;
+    const census=localPolicyObject(getter()),entry=Object.getOwnPropertyDescriptor(census,def.name);
+    if(entry===undefined)continue;
+    const sites=captureDispatchPreclaimData(nativeCallArray(entry.value,200)) as unknown as readonly SourceCancelSource[];
+    const seen=new Set<string>();
+    for(const value of sites){
+      const site=localPolicyObject(value,['source','owner','node','parameter','model','ownerPackage']);
+      const node=localPolicyObject(site.node,['start','end']),key=`${node.start}:${node.end}`;
+      const parameter=def.descriptor.inputs.find(input=>input.name===site.parameter);
+      if(seen.has(key)||site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)||
+          site.ownerPackage!==def.name.slice(0,def.name.lastIndexOf('.'))||!Number.isSafeInteger(node.start)||!Number.isSafeInteger(node.end)||
+          Number(node.start)<0||Number(node.end)<=Number(node.start)||parameter?.kind!=='ref'||parameter.model!==site.model||
+          parameter.nullable===true||Object.hasOwn(def.inputArrays,parameter.name)||!loaded.models.some(model=>model.name===site.model)){
+        throw new AssemblyCorrespondenceError('Source CANCEL differs from its exact original scope, root and occurrence.');
+      }
+      seen.add(key);
+    }
+    nativeSourceCancels.set(def,sites);
+  }
+}
+
 async function bindNativeSourceSendData(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,
   context?:InvocationSourceReadContext):Promise<void>{
   const sourceReads=context===undefined?undefined:createSourceReadPolicyAdapter({loaded,opts:context.opts,now:context.now,
@@ -6655,6 +6688,7 @@ async function loadCanonicalDescriptorsInternal(
     bindNativeOwnerMembership(def, { source: ownerSites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites: ownerSites });
   }
   // Selected-row execution dependencies bind against the checked first-query mark.
+  await bindNativeSourceCancels(asm,artifact,canonical);
   await bindNativeSourceSendData(asm,artifact,canonical,invocationSourceReads);
   await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
   await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
@@ -9959,6 +9993,7 @@ async function runScenarioExecution(
   const invoiceIssueSourceWrites: DomainWrite[] = [];
   const cancellationSourceWrites: DomainWrite[] = [];
   const cancellationSourceStages = new WeakSet<object>();
+  let activeSourceCancellation:{readonly key:string;readonly ownerPackage:string}|null=null;
   const scheduleSourceWrites: DomainWrite[] = [];
   const scheduleSourceStages = new WeakSet<object>();
   const emissionSourceStage: OwnerMutationSourceStager = async token => {
@@ -10516,7 +10551,7 @@ async function runScenarioExecution(
       (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
     // A specialized owner already retains its exact framework suffix. The
     // shared source bridge must not append the same physical Work rows again.
-    const sourceCancellation = savedResultAware && cancellationSourceStages.delete(effects)
+    const sourceCancellation = (savedResultAware||sourceRequireAware) && cancellationSourceStages.delete(effects)
       && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework;
     const sourceSchedule = savedResultAware && scheduleSourceStages.delete(effects)
       && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework;
@@ -11400,6 +11435,9 @@ async function runScenarioExecution(
           if (parent === undefined) return refuseRecordBinding('Child cancellation lost its live parent owner.');
           return await parent.cancel(child, key, ownerPackage);
         }
+        if(sourceRequireAware&&(activeSourceCancellation===null||activeSourceCancellation.key!==key||activeSourceCancellation.ownerPackage!==ownerPackage)){
+          return refuseRecordBinding('Source CANCEL needs its exact live admitted root key and original scope.');
+        }
         const selected = await scheduleScope(ownerPackage);
         const producer = await loadProducerModule('@canlang/work/kernel/schedule-staging', 'work keyed schedule producer');
         const command = producer['workScheduleCancelCommand'];
@@ -11410,7 +11448,7 @@ async function runScenarioExecution(
         // Only this installed Work cancellation stage can join an original
         // receipt owner's source suffix. The opaque stage identity cannot be
         // supplied through generic deferred effects or an authored row write.
-        if (savedResultAware && child === undefined) {
+        if ((savedResultAware||sourceRequireAware) && child === undefined) {
           const tables = await loadProducerModule('@canlang/work/kernel/tables', 'source cancellation rows');
           const schedule = requireProducerString(tables, 'WORK_SCHEDULE_MODEL', 'source cancellation rows');
           const supersession = requireProducerString(tables, 'WORK_SUPERSESSION_MODEL', 'source cancellation rows');
@@ -12624,6 +12662,33 @@ async function runScenarioExecution(
         return Object.freeze(selected);
       } catch (error) {recordEngineFailure(error);throw error;}
     });
+  }
+  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
+    const sources=nativeSourceCancels.get(scenarioDef),actual=call as AdmittedCall;
+    if(sources!==undefined){
+      const parameters=localPolicyObject(argument),consumed=new Set<string>();
+      bindNativeScenarioSourceCancel(ctx,async(claimed,root)=>{
+        try{
+          const assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution;
+          if(assertExecution===undefined||nativeScenarioExecutions.get(actual)?.session!==ownerSession||activeSourceCancellation!==null)return refuseRecordBinding('Source CANCEL lacks its actual live quiescent owner.');
+          assertExecution(actual,receiptStore);
+          const source=sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(claimed)));
+          if(source===undefined||root!==parameters[source.parameter]||!isUnknownRecord(root))return refuseRecordBinding('Source CANCEL changed its genuine original parameter graph.');
+          const binding=recordBindings.get(root),refs=actual.recordRefs.filter(ref=>ref.param===source.parameter),ref=refs[0],key=`${source.node.start}:${source.node.end}`;
+          if(consumed.has(key)||refs.length!==1||ref===undefined||ref.model!==source.model||ref.expectedVersion===null||
+              ref.expectedVersion!==ref.row.version||binding?.model!==source.model||binding.id!==ref.id||binding.version!==ref.row.version){
+            return refuseRecordBinding('Source CANCEL lost its exact versioned originally admitted model root.');
+          }
+          const current=await readOwnerRow(ref.model as ModelName,ref.id as RecordId);
+          assertExecution(actual,receiptStore);
+          if(current===null||current.archivedAt!==null||current.created!==ref.row.created||current.createdBy!==ref.row.createdBy||
+              current.version<ref.row.version||stableStringify(current.parent??null)!==stableStringify(ref.row.parent??null))return refuseRecordBinding('Source CANCEL root lifetime changed.');
+          consumed.add(key);activeSourceCancellation=Object.freeze({key:ref.id,ownerPackage:source.ownerPackage});
+          try{await ctx.cancelDeferred!(ref.id,source.ownerPackage);assertExecution(actual,receiptStore);}
+          finally{activeSourceCancellation=null;}
+        }catch(error){recordEngineFailure(error);throw error;}
+      });
+    }
   }
   if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
     const data=nativeSourceSendData.get(scenarioDef),actual=call as AdmittedCall;

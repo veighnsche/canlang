@@ -277,3 +277,16 @@ export async function nativeScenarioSourceSendData(context:unknown,body:Function
   if(evaluate===undefined||typeof body!=='function')throw new StateError('validation','Source SEND DATA needs its actual installed owner execution.');
   return evaluate(body,inputs);
 }
+
+type SourceCancel=(source:unknown,root:unknown)=>Promise<void>;
+const sourceCancelReaders=new WeakMap<object,SourceCancel>();
+/** Original source coordinates and a genuine admitted model view select the key. */
+export function bindNativeScenarioSourceCancel(context:object,evaluate:SourceCancel):void{
+  if(sourceCancelReaders.has(context))throw new StateError('validation','Source CANCEL reader cannot be rebound.');
+  sourceCancelReaders.set(context,evaluate);
+}
+export async function nativeScenarioSourceCancel(context:unknown,source:unknown,root:unknown):Promise<void>{
+  const evaluate=typeof context==='object'&&context!==null?sourceCancelReaders.get(context):undefined;
+  if(evaluate===undefined)throw new StateError('validation','Source CANCEL needs its actual installed owner execution.');
+  return evaluate(source,root);
+}

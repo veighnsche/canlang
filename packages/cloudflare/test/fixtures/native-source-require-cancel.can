@@ -1,0 +1,26 @@
+app SourceGuardCancel
+Given
+ Root {capacity:int=2,checked:bool=false}
+ Child in Root {active:bool=true}
+ event Due {message:text}
+ derive Root.remaining:int=row.capacity-count(row.Child as child where child.active)
+ derive allowed(root:Root):bool=any(root.Child as child,child.active)
+ policy Root read=owner
+ policy Child read=owner
+ invariant Root: row.capacity>=0
+When
+ scenario notify(root:Root) -> date by=members
+  require root.remaining>0
+  require allowed(root)
+  do
+   set root {checked=true}
+   cancel root.id
+   return add_days(local_date(now,"UTC"),1)
+ scenario abort(root:Root) -> date by=members
+  require allowed(root)
+  do
+   set root {checked=true}
+   cancel root.id
+   set root {capacity=-1}
+   return add_days(local_date(now,"UTC"),1)
+Then
