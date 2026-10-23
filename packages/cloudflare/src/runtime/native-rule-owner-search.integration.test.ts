@@ -1189,7 +1189,7 @@ it('stages source-only unguarded SEND through the actual State Work owner withou
       const declined=fixture('.native-source-require-send-refusal.can');
       try{
         for(const [name,text] of [
-          ['stored field',original.replace('let subject="Checked request"','let subject=root.secret')],
+          ['unbound stored alias',original.replace('let subject="Checked request"','let copied=root\n   let subject=copied.secret')],
           ['guarded SEND',original.replace('body="Original source action"} as delivery','body="Original source action"} when=root.checked as delivery')],
           ['unproved CALL',original.replace('let subject="Checked request"','call abort {root,to} as prior\n   let subject="Checked request"')],
         ] as const){
