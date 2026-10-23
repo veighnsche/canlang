@@ -1650,23 +1650,78 @@ fn source_require_only_body_supported(ir: &IrProgram, owner: &IrItem) -> bool {
             _ => false,
         }
     }
-    fn statements(ir: &IrProgram, body: &[IrStmt], depth: usize) -> bool {
+    fn plain_value(ir:&IrProgram,ty:&ResolvedType,depth:usize)->bool{
+        if depth>=16{return false;}
+        match ty{
+            ResolvedType::Null=>true,
+            ResolvedType::Scalar(scalar)=>!matches!(scalar,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes),
+            ResolvedType::Nullable(inner)=>plain_value(ir,inner,depth+1),
+            ResolvedType::Array{element,ordered:true,..}=>plain_value(ir,element,depth+1),
+            ResolvedType::Object(fields)=>fields.len()<=200&&fields.iter().all(|(_,ty)|plain_value(ir,ty,depth+1)),
+            ResolvedType::Record{symbol,..}=>ir.items.get(symbol.0 as usize).is_some_and(|item|{
+                let IrItemKind::Contract{fields,..}=&item.kind else{return false;};
+                !fields.is_empty()&&fields.len()<=200&&fields.iter().all(|id|matches!(ir.items.get(id.0 as usize).map(|field|&field.kind),
+                    Some(IrItemKind::Field{ty:IrType::Known(ty),..})if plain_value(ir,ty,depth+1)))
+            }),
+            _=>false,
+        }
+    }
+    // SEND consumes data. A guard-only owner can carry its ordinary admitted
+    // Values inputs and pure locals, but cannot turn a stored field/control
+    // observation, File, reference or provider receipt into an egress value.
+    fn send_value(ir:&IrProgram,value:&TypedExpr,values:&BTreeSet<String>,depth:usize)->bool{
+        if depth>=32{return false;}
+        let child=|value:&TypedExpr|send_value(ir,value,values,depth+1);
+        // Effect argument objects retain their owning checked operation schema;
+        // their aggregate IR carrier can be Unknown while every slot is typed.
+        if let IrExpr::Object(fields)=&value.expr{
+            return matches!(value.ty,ResolvedType::Unknown|ResolvedType::Object(_))
+                && fields.len()<=200&&fields.iter().all(|(_,value)|child(value));
+        }
+        if !plain_value(ir,&value.ty,0){return false;}
+        match &value.expr{
+            IrExpr::Int(_)|IrExpr::Decimal(_)|IrExpr::Text(_)|IrExpr::Bool(_)|IrExpr::Null
+            |IrExpr::Money{..}|IrExpr::DurationMs(_)|IrExpr::Date(_)|IrExpr::Datetime(_)=>true,
+            IrExpr::Name(name)=>values.contains(name),
+            IrExpr::Member{base,..}=>plain_value(ir,&base.ty,0)&&child(base),
+            IrExpr::Call{target:IrCallTarget::Builtin{awaited:false,..},args}
+            |IrExpr::BoundCall{target:IrCallTarget::Builtin{awaited:false,..},args,..}=>args.iter().all(child),
+            IrExpr::Binary{left,right,..}=>child(left)&&child(right),
+            IrExpr::Unary{operand,..}=>child(operand),
+            IrExpr::Array(entries)=>entries.iter().all(child),
+            IrExpr::Object(fields)=>fields.iter().all(|(_,value)|child(value)),
+            _=>false,
+        }
+    }
+    fn statements(ir: &IrProgram, body: &[IrStmt], depth: usize,values:&mut BTreeSet<String>) -> bool {
         if depth > 64 { return false; }
         body.iter().all(|statement| match statement {
-            IrStmt::Let { value, .. } => expression(ir, value, 0),
+            IrStmt::Let { name,value,.. } => {
+                let pure=send_value(ir,value,values,0);
+                values.remove(name);
+                if pure{values.insert(name.clone());}
+                expression(ir,value,0)
+            },
             IrStmt::Return { value, .. } => value.as_ref().is_none_or(|value| expression(ir, value, 0)),
             IrStmt::Create { input, when: None, .. } => expression(ir, input, 0),
+            IrStmt::Send { args, when: None, .. } => send_value(ir,args,values,0),
             IrStmt::Set { record, changes, when: None, .. } => expression(ir, record, 0) && expression(ir, changes, 0),
             IrStmt::Delete { record, .. } | IrStmt::Transition { record, .. } => expression(ir, record, 0),
             IrStmt::Require { cond, .. } => expression(ir, cond, 0),
             IrStmt::If { cond, then_branch, else_branch, .. } => expression(ir, cond, 0)
-                && statements(ir, then_branch, depth + 1) && statements(ir, else_branch, depth + 1),
+                && statements(ir, then_branch, depth + 1,&mut values.clone()) && statements(ir, else_branch, depth + 1,&mut values.clone()),
             IrStmt::Match { subject, arms, .. } => expression(ir, subject, 0)
-                && arms.iter().all(|arm| statements(ir, &arm.body, depth + 1)),
+                && arms.iter().all(|arm| statements(ir, &arm.body, depth + 1,&mut values.clone())),
             _ => false,
         })
     }
-    matches!(&owner.kind, IrItemKind::Scenario { effects, hook: None, .. } if statements(ir, effects, 0))
+    let IrItemKind::Scenario{params,effects,hook:None,..}=&owner.kind else{return false;};
+    let mut values=params.iter().filter_map(|id|{
+        let param=ir.items.get(id.0 as usize)?;
+        let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
+        plain_value(ir,ty,0).then(||param.name.clone())
+    }).collect();
+    statements(ir,effects,0,&mut values)
 }
 
 pub(super) fn emit_program_with_feasible_query_sources(
@@ -18855,10 +18910,13 @@ impl<'a> Emitter<'a> {
                             self.symbol_value_type_id(*param_id, resolved, param.span),
                         ),
                         _ => self.operation_input_value_type(ty).or_else(|| {
-                            // New intrinsic claims require the exact
-                            // checked primitive type, even when its
-                            // legacy MCP tag was unambiguous.
-                            self.native_receipts.get(&item.id)?;
+                            // Active native receipts and source-only Require
+                            // frames retain the exact checked primitive type;
+                            // a legacy string tag cannot authenticate email.
+                            if !self.native_receipts.contains_key(&item.id)
+                                && !self.source_requires.values().any(|source| source["owner"] == item.canonical) {
+                                return None;
+                            }
                             let IrType::Known(resolved) = ty else {
                                 return None;
                             };

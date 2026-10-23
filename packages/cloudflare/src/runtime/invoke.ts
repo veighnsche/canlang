@@ -5234,9 +5234,10 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
   const deliveryFields = artifact.models?.some(model => model.fields.some(field => field.field.kind === 'delivery')) === true;
   for (const value of registry.values()) {
     const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
-    if (def === undefined || plan === undefined) continue;
+    const source=plan?.source??(def===undefined?undefined:sourceRequireFrames.get(def));
+    if (def === undefined || source === undefined) continue;
     const callable = artifact.callables.find(entry => entry.kind === (def.name === privateHandler ? 'handler' : 'operation') && entry.id === def.name &&
-      entry.module === plan.source.module);
+      entry.module === source.module);
     if (callable === undefined) throw new AssemblyCorrespondenceError('Scenario framework source lacks its exact owning callable.');
     const module = await importVerifiedAssemblyModule(asm, callable.module, artifact);
     const where = `Scenario framework ${JSON.stringify(def.name)}`;
@@ -5362,12 +5363,12 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
       });
     };
     if (entries.length === 0 && !typedResults) {
-      bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, bindings: Object.freeze(bindings),
+      bind(def, Object.freeze({ source: Object.freeze({ ...source }), app, bindings: Object.freeze(bindings),
         stage, read: work.readCanonicalSendStaging }));
       continue;
     }
     if (entries.length === 0) {
-      bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, bindings: Object.freeze(bindings),
+      bind(def, Object.freeze({ source: Object.freeze({ ...source }), app, bindings: Object.freeze(bindings),
         stage, read: work.readCanonicalSendStaging,
         prepareReceiptOrigin: (frame: ScenarioReceiptDeliveryOriginFrame) => {
           const active = nativeScenarioExecutions.get(frame.call);
@@ -5379,6 +5380,7 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
         } }));
       continue;
     }
+    if(plan===undefined)throw new AssemblyCorrespondenceError('Source-only SEND requires its unguarded original body; guarded sends need their independent owner plan.');
     const originalRegistry = await importPolicyRegistry(asm, callable.module, def.name, artifact);
     const functions = own(originalRegistry, 'sendWhen');
     const selected = new Map<string, NativeSourceSendGuard>();
@@ -11642,7 +11644,7 @@ async function runScenarioExecution(
       } catch (error) { recordEngineFailure(error); throw error; }
     });
   }
-  if (receiptAware && receiptStore !== undefined) {
+  if (hasExecutionFrame && receiptStore !== undefined) {
     // This is the unchanged call pointer supplied by actual State.invoke.
     // State verifies the lifetime and selected store before opening the frame.
     const actualCall = call as AdmittedCall;
@@ -12025,6 +12027,9 @@ async function runScenarioExecution(
       },
     });
     nativeScenarioExecutions.set(actualCall, active);
+    // Source-only frames get the same actual Work lifecycle, without opening
+    // any saved DATA/query/CALL frame or fabricating a result recipe.
+    if(receiptAware){
     const frameEventSources = [...(nativeSourceSendGuards.get(actualCall.def as GeneratedOperationDef)?.values() ?? [])]
       .flatMap(selected => selected.guard.eventSource === undefined ? [] : [selected.guard.eventSource]);
     const pairedRentNoticeSource = scenarioDef?.name === 'rent_reservations.correspondence' &&
@@ -12372,6 +12377,7 @@ async function runScenarioExecution(
         }
         return recordView(origin.model, row);
       }, frameEventSources[0]);
+    }
   }
   for (const ref of call.recordRefs ?? []) {
     const row = ownerSession === undefined ? ref.row : await readOwnerRow(ref.model as ModelName, ref.row.id);

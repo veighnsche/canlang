@@ -1163,3 +1163,81 @@ it('runs source-only guard frames without inventing result disclosure',
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
+
+
+it('stages source-only unguarded SEND through the actual State Work owner without saved DATA authority',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-source-only-send-'));
+    try{
+      const {artifact,asm}=await installed('native-source-require-send.can',directory);
+      const original=await readFile(fixture('native-source-require-send.can'),'utf8');
+      const declined=fixture('.native-source-require-send-refusal.can');
+      try{
+        for(const [name,text] of [
+          ['stored field',original.replace('let subject="Checked request"','let subject=root.secret')],
+          ['direct stored field',original.replace('send Mail.send {to,subject,','send Mail.send {to,subject=root.secret,')],
+          ['guarded SEND',original.replace('body="Original source action"} as delivery','body="Original source action"} when=root.checked as delivery')],
+          ['unproved CALL',original.replace('let subject="Checked request"','call abort {root,to} as prior\n   let subject="Checked request"')],
+        ] as const){
+          await writeFile(declined,text);
+          const rejected=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,declined],{cwd:root,encoding:'utf8'});
+          assert.equal(rejected.status,10,`${name}: ${rejected.stdout}`);
+          const report=JSON.parse(rejected.stdout) as {diagnostics:{code:string;message:string}[]};
+          assert.ok(report.diagnostics.some(item=>item.code==='E6008'),`${name}: source-only work must not lend DATA/guard/CALL authority`);
+        }
+      }finally{await rm(declined,{force:true});}
+      for(const name of ['SourceGuardSend.notify','SourceGuardSend.abort']){
+        assert.equal(artifact.operations?.find(operation=>operation.name===name)?.result?.disclosure,undefined);
+      }
+      for(const mode of ['allowed','full','inactive','other-parent','invariant-after-send','membership-during-send','invalid-email'] as const){
+        const {now,identities,identity,membership}=await member(`source-send-${mode}`);
+        const store=createMemoryStorage(),rootModel=model('SourceGuardSend','Root');
+        const rootRow={...makeRow({id:asId('root-1'),data:{capacity:mode==='full'?'1':'2',checked:false,last:null,secret:'Hidden source field'}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:rootModel,row:rootRow},
+          {kind:'insert',model:rootModel,row:{...rootRow,id:asId('root-2')}},
+          {kind:'insert',model:model('SourceGuardSend','Child'),row:{...makeRow({id:asId('child-1'),data:{active:mode!=='inactive'}}),
+            parent:{model:rootModel,id:asId(mode==='other-parent'?'root-2':'root-1')}}},
+        ]}));
+        let revoked=false;
+        if(mode==='membership-during-send'){
+          const load=store.load.bind(store);
+          store.load=async(model,id)=>{
+            if(!revoked&&model==='work.dispatch'){revoked=true;await identities.removeMembership(membership.membership_id);}
+            return load(model,id);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:mode==='invariant-after-send'?'SourceGuardSend.abort':'SourceGuardSend.notify',operation_id:operationId(now),
+          inputs:{root:{id:rootRow.id,version:String(rootRow.version)},to:mode==='invalid-email'?'invalid':'recipient@example.test'}};
+        const result=await invoker.invokeMutation(request,identity);
+        const allowed=mode==='allowed';
+        assert.equal('result' in result&&result.result.status==='committed',allowed,`${mode}: ${JSON.stringify(result)}`);
+        if(mode==='membership-during-send')assert.equal(revoked,true);
+        const actual=await store.load(rootModel,rootRow.id);assert.ok(actual);
+        assert.equal(actual.data.checked,allowed,mode);assert.equal(actual.data.capacity,rootRow.data.capacity,mode);
+        const dispatch=await store.query({model:asModel('work.dispatch'),authority:'owner'}),pending=await store.outboxPending();
+        assert.equal(dispatch.length,allowed?1:0,mode);assert.equal(pending.length,allowed?1:0,mode);
+        if(allowed){
+          assert.equal(typeof actual.data.last,'string');assert.equal(actual.data.last,dispatch[0]!.id);
+          assert.equal(pending[0]!.target,'std.EmailV1.send');
+          assert.deepEqual(pending[0]!.arguments,{binding:'SourceGuardSend.Mail',from:'deployment.mail',
+            arguments:{to:'recipient@example.test',subject:'Checked request',body:'Original source action',attachments:[]}});
+          assert.equal('result' in result&&result.result.result,new Date(now).toISOString().slice(0,10));
+          const visible=await invoker.invokeRead({operation:'SourceGuardSend.Root.read',inputs:{}},identity);
+          assert.ok('error' in visible||((visible.result as {records:unknown[]}).records.length===0),'source guard/SEND creates no row DATA grant');
+          const saved=await store.readReceipt({app:'SourceGuardSend',owner:membership.team_id,principal:membership.user_id,
+            operation:request.operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);
+          assert.equal(saved.outcome.status,'committed');assert.equal('scenario' in saved.outcome,false);
+          const replay=await invoker.invokeMutation(request,identity);
+          assert.ok('error' in replay&&replay.error.code==='validation',JSON.stringify(replay));
+          assert.match('error' in replay?replay.error.message:'',/no supported execution association/);
+          assert.deepEqual(await store.outboxPending(),pending,'ordinary replay never sends again or changes the original Work request');
+          assert.deepEqual(await store.query({model:asModel('work.dispatch'),authority:'owner'}),dispatch);
+          assert.deepEqual(await store.readReceipt(saved.identity),saved);
+        }else{
+          assert.equal(actual.data.last,null);assert.equal(actual.version,rootRow.version,'refusal rolls back preceding SET and staged SEND together');
+        }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

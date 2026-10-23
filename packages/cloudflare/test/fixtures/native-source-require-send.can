@@ -1,0 +1,28 @@
+app SourceGuardSend
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Root {capacity:int=1,checked:bool=false,last:text?,secret:text="Hidden source field"}
+ Child in Root {active:bool=true}
+ derive Root.remaining:int=row.capacity-count(row.Child as child where child.active)
+ derive allowed(root:Root):bool=any(root.Child as child,child.active)
+ policy Root read=owner
+ policy Child read=owner
+ invariant Root: row.capacity>=0
+When
+ scenario notify(root:Root,to:email) -> date by=members
+  require root.remaining>0
+  require allowed(root)
+  do
+   let subject="Checked request"
+   set root {checked=true}
+   send Mail.send {to,subject,body="Original source action"} as delivery
+   set root {last=delivery.id}
+   return local_date(now,"UTC")
+ scenario abort(root:Root,to:email) -> date by=members
+  require allowed(root)
+  do
+   set root {checked=true}
+   send Mail.send {to,subject="Rolled back request",body="Must stay atomic"} as delivery
+   set root {capacity=-1,last=delivery.id}
+   return local_date(now,"UTC")
+Then
