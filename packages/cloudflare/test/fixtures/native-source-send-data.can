@@ -1,0 +1,41 @@
+app SourceSendData
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Location {enabled:bool=true}
+ Root {location:Location,capacity:int=2,checked:bool=false,last:text?,source:text="Readable source",reason:text?,secret:text="Hidden source",visible:bool=true}
+ Child in Root {active:bool=true}
+ derive Root.remaining:int=row.capacity-count(row.Child as child where child.active)
+ derive allowed(root:Root):bool=any(root.Child as child,child.active)
+ policy Location read=members fields=enabled
+ policy Root read=members where=row.visible and row.location.enabled fields=source,reason
+ policy Child read=owner
+ invariant Root: row.capacity>=0
+When
+ scenario notify(root:Root,to:email,reason:text) -> date by=members
+  require root.remaining>0
+  require allowed(root)
+  do
+   set root {checked=true}
+   send Mail.send {to,subject=root.source,body=root.reason ?? reason} as delivery
+   set root {last=delivery.id}
+   return add_days(local_date(now,"UTC"),1)
+ scenario lose_grant(root:Root,to:email,reason:text) -> date by=members
+  require allowed(root)
+  do
+   send Mail.send {to,subject=root.source,body=root.reason ?? reason} as delivery
+   set root {checked=true,last=delivery.id,visible=false}
+   return add_days(local_date(now,"UTC"),1)
+ scenario change_reference(root:Root,other:Location,to:email,reason:text) -> date by=members
+  require allowed(root)
+  do
+   send Mail.send {to,subject=root.source,body=root.reason ?? reason} as delivery
+   set root {checked=true,last=delivery.id,location=other}
+   return add_days(local_date(now,"UTC"),1)
+ scenario secret(root:Root,to:email) -> date by=members
+  require allowed(root)
+  do
+   set root {checked=true}
+   send Mail.send {to,subject=root.secret,body="Forbidden source"} as delivery
+   set root {last=delivery.id}
+   return add_days(local_date(now,"UTC"),1)
+Then

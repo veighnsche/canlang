@@ -1818,3 +1818,77 @@ it('executes qualified enum literals without reading their namespace as stored d
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('authorizes original SEND scalar DATA with independent current field projections and final guards',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-source-send-data-'));
+    try{
+      const {artifact,asm}=await installed('native-source-send-data.can',directory);
+      for(const name of ['notify','lose_grant','change_reference','secret'])assert.equal(artifact.operations?.find(op=>op.name===`SourceSendData.${name}`)?.result?.disclosure,undefined);
+      const original=await readFile(fixture('native-source-send-data.can'),'utf8'),refused=fixture('.native-source-send-data-refusal.can');
+      try{
+        for(const text of [original.replace('subject=root.source','subject=root.location.id'),
+          original.replace('send Mail.send {to,subject=root.source','let loan=root\n   send Mail.send {to,subject=loan.source')]){
+          await writeFile(refused,text);
+          const result=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
+          assert.equal(result.status,10,result.stdout+result.stderr);
+          assert.ok((JSON.parse(result.stdout) as {diagnostics:{code:string}[]}).diagnostics.some(item=>item.code==='E6008'));
+        }
+      }finally{await rm(refused,{force:true});}
+
+      for(const mode of ['allowed','nonnull','hidden-row','field-withheld','grant-loss','reference-change','identity-during-send','source-at-commit']){
+        const {now,identities,identity,membership}=await member(`source-data-${mode}`);
+        const store=createMemoryStorage(),rootModel=model('SourceSendData','Root'),locationModel=model('SourceSendData','Location');
+        const location={...makeRow({id:asId('location'),data:{enabled:true}}),parent:null};
+        const other={...location,id:asId('other'),data:{enabled:false}};
+        const row={...makeRow({id:asId('root'),data:{location:{id:location.id},capacity:'2',checked:false,last:null,
+          source:'Readable source',reason:mode==='nonnull'?'Stored reason':null,secret:'Hidden source',visible:mode!=='hidden-row'}}),parent:null};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:locationModel,row:location},
+          {kind:'insert',model:locationModel,row:other},{kind:'insert',model:rootModel,row},
+          {kind:'insert',model:model('SourceSendData','Child'),row:{...makeRow({id:asId('child'),data:{active:true}}),parent:{model:rootModel,id:row.id}}}]}));
+        let raced=false;
+        if(mode==='identity-during-send'){
+          const load=store.load.bind(store);store.load=async(model,id)=>{
+            if(!raced&&model==='work.dispatch'){raced=true;await identities.removeMembership(membership.membership_id);}
+            return load(model,id);
+          };
+        }
+        if(mode==='source-at-commit'){
+          const commit=store.commit.bind(store);store.commit=async batch=>{
+            if(!raced&&batch.writes.some(write=>write.model==='work.dispatch')){
+              raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:rootModel,id:row.id,
+                expectedVersion:asVersion(row.version),row:{...row,version:asVersion(row.version+1),data:{...row.data,source:'Changed original source'}}}]}));
+            }
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const operation=`SourceSendData.${mode==='grant-loss'?'lose_grant':mode==='reference-change'?'change_reference':mode==='field-withheld'?'secret':'notify'}`;
+        const request={operation,operation_id:operationId(now),inputs:{root:{id:row.id,version:String(row.version)},to:'recipient@example.test',
+          ...(mode==='field-withheld'?{}:{reason:'Fallback reason'}),...(mode==='reference-change'?{other:{id:other.id,version:String(other.version)}}:{})}};
+        const outcome=await invoker.invokeMutation(request,identity);
+        const allowed=mode==='allowed'||mode==='nonnull';
+        assert.equal('result'in outcome?outcome.result.status:outcome.error.code,
+          allowed?'committed':mode==='source-at-commit'?'conflict':'forbidden',`${mode}: ${JSON.stringify(outcome)}`);
+        const actual=await store.load(rootModel,row.id);assert.ok(actual);
+        assert.equal(actual.data.checked,allowed,mode);assert.equal(actual.data.visible,row.data.visible,mode);
+        assert.deepEqual(actual.data.location,row.data.location,mode);
+        const pending=await store.outboxPending(),dispatch=await store.query({model:asModel('work.dispatch'),authority:'owner'});
+        assert.equal(pending.length,allowed?1:0,mode);assert.equal(dispatch.length,allowed?1:0,mode);
+        if(mode==='identity-during-send'||mode==='source-at-commit')assert.equal(raced,true,mode);
+        if(!allowed){assert.equal(actual.data.last,null);continue;}
+        assert.equal(actual.data.last,pending[0]!.intentId);
+        assert.deepEqual(pending[0]!.arguments,{binding:'SourceSendData.Mail',from:'deployment.mail',
+          arguments:{to:'recipient@example.test',subject:'Readable source',body:mode==='nonnull'?'Stored reason':'Fallback reason',attachments:[]}});
+        const read=await invoker.invokeRead({operation:'SourceSendData.Root.read',inputs:{}},identity);
+        assert.ok('result'in read,JSON.stringify(read));
+        assert.ok(!JSON.stringify(read).includes('Hidden source'),'SEND authorization does not expose ungranted row fields');
+        const saved=await store.readReceipt({app:'SourceSendData',owner:membership.team_id,principal:membership.user_id,
+          operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);assert.ok(saved.outcome.status==='committed');
+        assert.equal(saved.outcome.scenario,undefined);
+        const replay=await invoker.invokeMutation(request,identity);
+        assert.ok('error'in replay&&replay.error.code==='validation',JSON.stringify(replay));
+        assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await store.readReceipt(saved.identity),saved);
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

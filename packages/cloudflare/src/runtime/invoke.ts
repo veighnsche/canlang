@@ -157,7 +157,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
-import { bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
+import { bindNativeScenarioSourceSendData, bindNativeScenarioSourceLoopCopy, bindNativeScenarioSourceLoop, bindNativeScenarioRequire, bindNativeScenarioEventDecision, bindNativeScenarioTermDecision,
   bindNativeScenarioLeaveRequestDecision, bindNativeScenarioLeaveDecideDecision,
   bindNativeLeaveDecideAllowance, bindNativeScenarioReferRejectDecision,
   bindNativeScenarioMemberRetryDecision, bindNativeScenarioInvoiceOverdueDecision,
@@ -1476,6 +1476,8 @@ interface StateInvokeProducer {
   }): Promise<MutationResult>;
   readonly readScenarioReceiptAssociation?: typeof import('@canlang/state/invocation').readScenarioReceiptAssociation;
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
+  readonly bindScenarioSourceSendDataProducer?: typeof import('@canlang/state/invocation').bindScenarioSourceSendDataProducer;
+  readonly executeScenarioSourceSendData?: typeof import('@canlang/state/invocation').executeScenarioSourceSendData;
   readonly executeScenarioReceiptSourceCopy?: typeof import('@canlang/state/invocation').executeScenarioReceiptSourceCopy;
   readonly readScenarioReceiptSourceLoopBounds?: typeof import('@canlang/state/invocation').readScenarioReceiptSourceLoopBounds;
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
@@ -1784,6 +1786,8 @@ function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
     ...(typeof scenarioMod['projectScenarioReceipt'] !== 'function' ? {} : {
       projectScenarioReceipt: scenarioMod['projectScenarioReceipt'] as NonNullable<StateInvokeProducer['projectScenarioReceipt']>,
     }),
+    ...(typeof scenarioMod['bindScenarioSourceSendDataProducer']!=='function'?{}:{bindScenarioSourceSendDataProducer:scenarioMod['bindScenarioSourceSendDataProducer'] as NonNullable<StateInvokeProducer['bindScenarioSourceSendDataProducer']>}),
+    ...(typeof scenarioMod['executeScenarioSourceSendData']!=='function'?{}:{executeScenarioSourceSendData:scenarioMod['executeScenarioSourceSendData'] as NonNullable<StateInvokeProducer['executeScenarioSourceSendData']>}),
     ...(typeof scenarioMod['executeScenarioReceiptSourceCopy'] !== 'function'?{}:{executeScenarioReceiptSourceCopy:scenarioMod['executeScenarioReceiptSourceCopy'] as NonNullable<StateInvokeProducer['executeScenarioReceiptSourceCopy']>}),
     ...(typeof scenarioMod['readScenarioReceiptSourceLoopBounds'] !== 'function' ? {} : {
       readScenarioReceiptSourceLoopBounds:scenarioMod['readScenarioReceiptSourceLoopBounds'] as NonNullable<StateInvokeProducer['readScenarioReceiptSourceLoopBounds']>,
@@ -3675,6 +3679,8 @@ interface NativeScenarioExecution {
 }
 const nativeScenarioExecutions = new WeakMap<AdmittedCall, NativeScenarioExecution>();
 // A guard-only frame has no saved result or native body/call privileges.
+type SourceSendDataSource=import('@canlang/state/invocation').ScenarioSourceSendDataSource;
+const nativeSourceSendData=new WeakMap<GeneratedOperationDef,{readonly sources:readonly SourceSendDataSource[];readonly original:(body:Function)=>unknown}>();
 const sourceRequireFrames = new WeakMap<GeneratedOperationDef, ScenarioReceiptRequireSource['source']>();
 // Only the verified static occurrence installs these explicit stored File slots.
 const nativeScenarioStoredFileSlots = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, {
@@ -5688,6 +5694,36 @@ async function assertCheckedFirstQuery<Query extends { readonly id: unknown; rea
   return query;
 }
 
+async function bindNativeSourceSendData(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,
+  context?:InvocationSourceReadContext):Promise<void>{
+  const sourceReads=context===undefined?undefined:createSourceReadPolicyAdapter({loaded,opts:context.opts,now:context.now,
+    ...(context.preferences===undefined?{}:{preferences:context.preferences})});
+  for(const value of loaded.registry.values()){
+    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
+    if(def===undefined||source===undefined)continue;
+    const callable=artifact.callables.find(callable=>callable.kind==='operation'&&callable.id===def.name&&callable.module===source.module);
+    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('SEND DATA lacks its original parameter-style operation.');
+    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact),getter=privateSourceMember(module,'canScenarioSendDataSources');
+    if(typeof getter!=='function')continue;
+    const census=localPolicyObject(getter()),raw=Object.getOwnPropertyDescriptor(census,def.name);
+    if(raw===undefined)continue;
+    const sites=captureDispatchPreclaimData(nativeCallArray(raw.value,200)) as unknown as readonly SourceSendDataSource[];
+    if(sites.length===0||sites.some(site=>site.owner!==def.name||stableStringify(site.source)!==stableStringify(source))){
+      throw new AssemblyCorrespondenceError('SEND DATA lacks its exact original owner/source census.');
+    }
+    const original=privateSourceMember(module,'canScenarioSendDataSource'),bind=loaded.producers.invoke.bindScenarioSourceSendDataProducer;
+    if(typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('SEND DATA lacks its installed source issuer and State producer.');
+    nativeSourceSendData.set(def,{sources:sites,original:original as (body:Function)=>unknown});
+    if(context===undefined)continue;
+    const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
+    for(const site of sites)for(const parameter of site.parameters)for(const [model,policy]of sourceReads!.policies(parameter.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
+    const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');
+    if(typeof app!=='string'||app==='')throw new AssemblyCorrespondenceError('SEND DATA lacks its original owning app.');
+    bind(def,{source,app,policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
+    nativeSourceSendData.set(def,{sources:sites,original:original as (body:Function)=>unknown});
+  }
+}
+
 /** Query authority comes from the checked source module and actual same-load
  * viewer policy. A claimed descriptor cannot opt into a provisional host read. */
 async function bindNativeScenarioQueries(asm: AssembledModules, artifact: CompileArtifact,
@@ -5932,7 +5968,7 @@ function needsInvocationSourceReads(loaded: LoadedCanonicalDescriptors, operatio
     visited.add(name);
     const def = generatedScenarioDef({ def: loaded.registry.get(name) });
     if (def === undefined) return false;
-    if (nativeScenarioModelConsumers(loaded, def).length !== 0) return true;
+    if (nativeSourceSendData.has(def)||nativeScenarioModelConsumers(loaded, def).length !== 0) return true;
     for (const target of nativeScenarioCalls.get(loaded)?.get(name)?.values() ?? []) {
       if (visit(target.name)) return true;
     }
@@ -6619,6 +6655,7 @@ async function loadCanonicalDescriptorsInternal(
     bindNativeOwnerMembership(def, { source: ownerSites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites: ownerSites });
   }
   // Selected-row execution dependencies bind against the checked first-query mark.
+  await bindNativeSourceSendData(asm,artifact,canonical,invocationSourceReads);
   await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
   await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
   if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
@@ -12581,6 +12618,38 @@ async function runScenarioExecution(
         return Object.freeze(selected);
       } catch (error) {recordEngineFailure(error);throw error;}
     });
+  }
+  if(sourceRequireAware&&scenarioDef!==undefined&&receiptStore!==undefined&&ownerSession!==undefined){
+    const data=nativeSourceSendData.get(scenarioDef),actual=call as AdmittedCall;
+    if(data!==undefined){
+      const parameters=localPolicyObject(argument);
+      bindNativeScenarioSourceSendData(ctx,async(body,supplied)=>{
+        try{
+          const assertExecution=loaded.producers.invoke.assertScenarioReceiptCallExecution,execute=loaded.producers.invoke.executeScenarioSourceSendData;
+          if(assertExecution===undefined||execute===undefined||nativeScenarioExecutions.get(actual)?.session!==ownerSession)return refuseRecordBinding('SEND DATA lacks its actual live State owner.');
+          assertExecution(actual,receiptStore);
+          const issued=localPolicyObject(data.original(body),['source','context']);
+          const source=data.sources.find(source=>stableStringify(source)===stableStringify(captureDispatchPreclaimData(issued.source)));
+          if(issued.context!==ctx||source===undefined)return refuseRecordBinding('SEND DATA closure differs from its original source/context.');
+          const roots=localPolicyObject(supplied,source.parameters.map(parameter=>parameter.name));
+          if(Object.keys(roots).length!==source.parameters.length||source.parameters.some(parameter=>roots[parameter.name]!==parameters[parameter.name]))return refuseRecordBinding('SEND DATA changed its genuine original parameter graph.');
+          return await execute(actual,receiptStore,{source,execute:async rows=>{
+            const projected:Record<string,unknown>=Object.create(null);
+            for(const parameter of source.parameters){
+              const record=rows[parameter.name];if(record===undefined)return refuseRecordBinding('SEND DATA omitted its independently projected source row.');
+              const fields:Record<string,unknown>=Object.create(null);
+              for(const field of parameter.fields){
+                const wire=Object.getOwnPropertyDescriptor(record.data,field.name);
+                if(wire===undefined||!('value'in wire)||!wire.enumerable)return refuseRecordBinding('SEND DATA lacks its actually granted source field.');
+                fields[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);
+              }
+              projected[parameter.name]=Object.freeze(fields);
+            }
+            return body(ctx,Object.freeze(projected));
+          }});
+        }catch(error){recordEngineFailure(error);throw error;}
+      });
+    }
   }
   if (hasExecutionFrame && receiptStore !== undefined && ownerSession !== undefined && callable?.inputStyle === 'parameters' &&
       due === undefined && cohort === undefined && scenarioDef !== undefined) {

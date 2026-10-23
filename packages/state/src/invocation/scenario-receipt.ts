@@ -5186,9 +5186,16 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
     // generic copying can erase its private current-stage row identity.
     const received = object(report, ['source', 'request', ...(Object.hasOwn(report, 'when') ? ['when'] : [])]);
     const source = text(received['source']);
+    const sourceData=sourceSendDataExecutions.get(owner);
+    if(sourceData!==undefined){
+      if(sourceData.call!==call||sourceData.stage!==owner.stage||sourceData.ordinal!==owner.framework!.ordinal||sourceData.sent
+          ||sourceData.source.operation!==source||Object.hasOwn(received,'when'))return invalid('SEND DATA crossed its original one-send stage or target.');
+      sourceData.sent=true;
+    }
     const request = object(dataCopy(received['request']), ['binding', 'from', 'arguments',
       ...(typeof received['request'] === 'object' && received['request'] !== null &&
         Object.hasOwn(received['request'], 'judgment') ? ['judgment'] : [])]) as unknown as BoundCapabilityRequest;
+    if(sourceData!==undefined&&sourceData.source.binding!==request.binding)return invalid('SEND DATA changed its original importing binding.');
     const ledger = owner.framework!, producer = owner.call === call ? ledger.producer
       : frameworkProducers.get(call.def as GeneratedOperationDef)!;
     const binding = producer.bindings.find(value => value.binding === request.binding);
@@ -9518,10 +9525,12 @@ function predicateControlDomain(model: ModelName, domain: readonly StoredRow[], 
 async function observeModelQuerySourceAuthority(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
   state: Capture, model: ModelName, row: StoredRow, fields: readonly string[], pending = 0,
   predicateDomain?: readonly StoredRow[],
-  decisionPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>): Promise<{
+  decisionPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>,
+  sourceProducer?:ScenarioReceiptReferenceProducer): Promise<{
+    readonly record:ProjectedRecord;
     readonly requireFields: (fields: readonly string[]) => Promise<void>; readonly revalidate: () => Promise<void>;
   }> {
-  const producer = querySourceProducer(call.def as GeneratedOperationDef, model);
+  const producer = sourceProducer??querySourceProducer(call.def as GeneratedOperationDef, model);
   const policies = decisionPolicies ?? producer?.readPolicies;
   const read = policies?.get(model);
   const queryOwned = queryProducers.get(call.def as GeneratedOperationDef)?.readPolicies?.has(model) === true;
@@ -9585,13 +9594,111 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Model query source recheck moved beyond its original checkpoint.');
     return true;
   } }));
-  return { revalidate: authority.revalidate, requireFields: async fields => {
+  return { record:authority.value.record!,revalidate: authority.revalidate, requireFields: async fields => {
     healthy();
     for (const field of fields) requiredFields.add(field);
     if (!readable(authority.value)) throw new StateError('forbidden', 'Executed model query source fields are unavailable.');
     await authority.revalidate(); healthy();
   } };
 }
+/** Private source-only SEND consumer. These declarations never create a
+ * query plan, result association, or Bool-observer field permission. */
+export interface ScenarioSourceSendDataSource {
+  readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
+  readonly node:{readonly start:number;readonly end:number};readonly operation:string;readonly binding:string;
+  readonly parameters:readonly {readonly name:string;readonly model:ModelName;
+    readonly fields:readonly {readonly name:string;readonly type:CanTypeId}[]}[];
+}
+interface SourceSendDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceSendDataSource[];}
+const sourceSendDataProducers=new WeakMap<GeneratedOperationDef,SourceSendDataProducer>();
+const sourceSendDataExecutions=new WeakMap<ReceiptOwnerSession,{readonly call:AdmittedCall;readonly source:ScenarioSourceSendDataSource;
+  readonly stage:number;readonly ordinal:number;sent:boolean}>();
+const consumedSourceSendData=new WeakMap<AdmittedCall,Set<string>>();
+export function bindScenarioSourceSendDataProducer(def:GeneratedOperationDef,producer:SourceSendDataProducer):void{
+  const bound=boundPlans.get(def),framework=frameworkProducers.get(def);
+  if(!bound?.sourceRequireOnly||invokedPlans.has(def)||sourceSendDataProducers.has(def)||framework===undefined){
+    return invalid('SEND DATA needs its original uninvoked source-only framework owner.');
+  }
+  object(producer,['source','app','policy','readPolicies','sites']);origin(producer.source);text(producer.app);
+  if(stableStringify(producer.source)!==stableStringify(bound.plan.source)||producer.app!==framework.app||!(producer.policy instanceof Map)
+      ||!(producer.readPolicies instanceof Map))return invalid('SEND DATA differs from its original owner/source/policies.');
+  const policy=buildPolicyTable([...Map.prototype.entries.call(producer.policy)].map(([model,value])=>{
+    const copied=dataCopy(value);if(copied.model!==model)return invalid('SEND DATA policy differs from its owning model.');return copied;
+  }),bound.canonicalModels);
+  const readPolicies=captureSourceReadPolicies(producer.readPolicies);
+  const sites=list(dataCopy(producer.sites)).map(value=>{
+    const site=object(value,['source','owner','node','operation','binding','parameters']);origin(site['source']);
+    if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source))return invalid('SEND DATA source owner mismatch.');
+    const node=object(site['node'],['start','end']);
+    if(!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start']))return invalid('SEND DATA occurrence is invalid.');
+    const operation=text(site['operation']),binding=text(site['binding']);
+    if(!framework.bindings.some(entry=>entry.binding===binding&&entry.targets.some(target=>target.source===operation)))return invalid('SEND DATA lacks its owning Work route.');
+    const parameters=list(site['parameters']);if(parameters.length===0)return invalid('SEND DATA needs its actual source root census.');
+    const names=new Set<string>();
+    for(const value of parameters){
+      const parameter=object(value,['name','model','fields']),name=text(parameter['name']),model=text(parameter['model']) as ModelName;
+      const input=bound.inputs.find(input=>input.name===name),declaration=bound.models.get(model);
+      if(names.has(name)||input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,name)||declaration===undefined){
+        return invalid('SEND DATA needs an exact required singular original model parameter.');
+      }
+      names.add(name);const fields=list(parameter['fields']);if(fields.length===0)return invalid('SEND DATA needs its exact field census.');
+      const selected=new Set<string>();
+      for(const value of fields){const field=object(value,['name','type']),name=text(field['name']),type=text(field['type']);
+        if(selected.has(name)||declaration.fields.get(name)!==type||!/^(int|datetime|text|email|timezone|bool|decimal|money|date|duration|currency|user)\??$/.test(type)||['file','secret','member','json','bytes'].includes(type.replace(/\?$/,''))){
+          return invalid('SEND DATA field differs from its owning plain scalar declaration.');
+        }selected.add(name);
+      }
+      const seen=new Set<ModelName>();let ancestor:ModelName|undefined=model;
+      while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
+        if(seen.has(ancestor)||original===undefined||read===undefined||read.parent!==original.parent||!('grants'in read))return invalid('SEND DATA needs complete original field and ancestor policies.');
+        seen.add(ancestor);ancestor=original.parent as ModelName|undefined;
+      }
+    }
+    return deepFreeze(site) as unknown as ScenarioSourceSendDataSource;
+  });
+  if(new Set(sites.map(site=>`${site.node.start}:${site.node.end}`)).size!==sites.length)return invalid('SEND DATA occurrence census repeats.');
+  sourceSendDataProducers.set(def,Object.freeze({source:bound.plan.source,app:producer.app,policy,readPolicies,sites:Object.freeze(sites)}));
+}
+/** Authorize the current source projection, then execute exactly the original
+ * one SEND. Its original field grants survive the Work stage and final commit. */
+export async function executeScenarioSourceSendData(call:AdmittedCall,store:StoragePort,input:{
+  readonly source:ScenarioSourceSendDataSource;
+  readonly execute:(rows:Readonly<Record<string,ProjectedRecord>>)=>Promise<unknown>;
+}):Promise<unknown>{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    const supplied=object(input,['source','execute']);
+    if(typeof supplied['execute']!=='function')return invalid('SEND DATA requires its original executable source callback.');
+    const claimed=dataCopy(supplied['source']);
+    const producer=sourceSendDataProducers.get(call.def as GeneratedOperationDef);
+    const matches=producer?.sites.filter(source=>stableStringify(source)===stableStringify(claimed))??[];
+    if(owner===undefined||owner.session===null||owner.framework===null||!state.bound.sourceRequireOnly||matches.length!==1||producer===undefined
+        ||owner.busy||owner.capture.pending!==0||owner.executingCall!==call||sourceSendDataExecutions.has(owner))return invalid('SEND DATA lacks its actual quiescent source owner.');
+    const source=matches[0]!,stage=owner.stage,ordinal=owner.framework.ordinal,key=`${source.node.start}:${source.node.end}`;
+    const consumed=consumedSourceSendData.get(call)??new Set<string>();consumedSourceSendData.set(call,consumed);
+    if(consumed.has(key))return invalid('SEND DATA repeats its original source occurrence.');consumed.add(key);
+    const rows:Record<string,ProjectedRecord>=Object.create(null);
+    await ownerOperation(owner,async()=>{
+      for(const parameter of source.parameters){
+        const refs=call.recordRefs.filter(ref=>ref.param===parameter.name),ref=refs[0];
+        if(refs.length!==1||ref?.model!==parameter.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('SEND DATA lost its genuine versioned admitted root.');
+        const row=await owner.session!.views.final.get(parameter.model,ref.id);ownerHealthy(owner);
+        if(row===null||!sameModelLifetime(ref.row,row)||owner.stage!==stage)return invalid('SEND DATA source root lifetime changed.');
+        const authority=await observeModelQuerySourceAuthority(call,store,owner,state,parameter.model,row,parameter.fields.map(field=>field.name),0,undefined,undefined,producer);
+        rows[parameter.name]=authority.record;
+      }
+    },call);
+    const active={call,source,stage,ordinal,sent:false};sourceSendDataExecutions.set(owner,active);
+    try{
+      const result=await input.execute(Object.freeze(rows));ownerHealthy(owner);capture(call,store);
+      if(sourceSendDataExecutions.get(owner)!==active||owner.executingCall!==call||owner.busy||owner.stage!==stage||owner.capture.pending!==0
+          ||!active.sent||owner.framework.ordinal!==ordinal+1)return invalid('SEND DATA did not consume its exact one original Work occurrence.');
+      if(await store.readRevision()!==call.revision)throw new StateError('conflict','SEND DATA moved beyond its original source checkpoint.');
+      return result;
+    }finally{sourceSendDataExecutions.delete(owner);}
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+
 /** One actual reached source-copy item consumes DATA authority once for its
  * whole ordered field census. Its original grant guard survives the callback;
  * its source/target association survives saved projection. */

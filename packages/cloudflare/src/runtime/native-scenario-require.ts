@@ -264,3 +264,16 @@ export async function nativeScenarioSourceLoopCopy(context:unknown,id:string,ite
   if(copy===undefined||typeof body!=='function')throw new StateError('validation','Source copy needs its actual original owner loop.');
   return copy(id,item,parent,body);
 }
+
+type SourceSendData=(body:Function,inputs:Readonly<Record<string,unknown>>)=>Promise<unknown>;
+const sourceSendDataReaders=new WeakMap<object,SourceSendData>();
+/** Only the genuine source-only execution can authorize its original SEND DATA. */
+export function bindNativeScenarioSourceSendData(context:object,evaluate:SourceSendData):void{
+  if(sourceSendDataReaders.has(context))throw new StateError('validation','Source SEND DATA reader cannot be rebound.');
+  sourceSendDataReaders.set(context,evaluate);
+}
+export async function nativeScenarioSourceSendData(context:unknown,body:Function,inputs:Readonly<Record<string,unknown>>):Promise<unknown>{
+  const evaluate=typeof context==='object'&&context!==null?sourceSendDataReaders.get(context):undefined;
+  if(evaluate===undefined||typeof body!=='function')throw new StateError('validation','Source SEND DATA needs its actual installed owner execution.');
+  return evaluate(body,inputs);
+}
