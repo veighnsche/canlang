@@ -1829,8 +1829,12 @@ it('authorizes original SEND scalar DATA with independent current field projecti
       for(const name of ['notify','lose_grant','change_reference','secret'])assert.equal(artifact.operations?.find(op=>op.name===`SourceSendData.${name}`)?.result?.disclosure,undefined);
       const original=await readFile(fixture('native-source-send-data.can'),'utf8'),refused=fixture('.native-source-send-data-refusal.can');
       try{
-        for(const text of [original.replace('subject=root.source','subject=root.location.id'),
-          original.replace('send Mail.send {to,subject=root.source','let loan=root\n   send Mail.send {to,subject=loan.source')]){
+        // Required reference identities now have their own checked DATA path.
+        // A lexical row copy still cannot borrow that authority.
+        await writeFile(refused,original.replace('subject=root.source','subject=root.location.id'));
+        const identityPath=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
+        assert.equal(identityPath.status,0,identityPath.stdout+identityPath.stderr);
+        for(const text of [original.replace('send Mail.send {to,subject=root.source','let loan=root\n   send Mail.send {to,subject=loan.source')]){
           await writeFile(refused,text);
           const result=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,refused],{cwd:root,encoding:'utf8'});
           assert.equal(result.status,10,result.stdout+result.stderr);

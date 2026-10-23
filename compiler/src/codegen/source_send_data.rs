@@ -60,6 +60,19 @@ pub(super) fn send_value(ir:&IrProgram,value:&TypedExpr,values:&BTreeSet<String>
 struct Root { parameter:String, model:SymbolId, query:Option<String> }
 #[derive(Clone,Default)]
 struct Environment { values:BTreeSet<String>, roots:BTreeMap<String,Root> }
+impl Environment {
+    fn admitted(ir:&IrProgram,params:&[SymbolId])->Option<(Self,BTreeMap<String,SymbolId>)>{
+        let mut env=Environment::default();let mut models=BTreeMap::new();
+        for id in params{
+            let param=ir.items.get(id.0 as usize)?;let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
+            if let ResolvedType::Record{symbol,stored:true}=ty
+                && matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}){
+                env.roots.insert(param.name.clone(),Root{parameter:param.name.clone(),model:*symbol,query:None});models.insert(param.name.clone(),*symbol);
+            }else if plain_value(ir,ty,0){env.values.insert(param.name.clone());}
+        }
+        Some((env,models))
+    }
+}
 #[derive(Default)]
 struct Reads {
     fields:BTreeMap<String,BTreeMap<String,String>>,
@@ -116,7 +129,28 @@ fn required_identity_path(ir:&IrProgram,value:&TypedExpr,env:&Environment,depth:
     }
     path.push((field.clone(),*target,narrowed));Some((root,path))
 }
+fn field_descriptors(fields:&BTreeMap<String,String>)->Vec<serde_json::Value>{
+    fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect()
+}
+fn path_descriptor(ir:&IrProgram,path:&[(String,u32,bool)])->Vec<serde_json::Value>{
+    path.iter().map(|(field,model,narrowed)|{
+        let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});
+        if *narrowed{edge["nullable"]=serde_json::json!(true);}
+        edge
+    }).collect()
+}
 impl Reads {
+    fn parameter(&self,ir:&IrProgram,name:&str,model:SymbolId,fields:&BTreeMap<String,String>)->serde_json::Value{
+        let mut value=serde_json::json!({"name":name,"model":ir.items[model.0 as usize].canonical,
+            "fields":field_descriptors(fields)});
+        if let Some(identity)=self.identities.get(name){value["identity"]=serde_json::json!(identity);}
+        if let Some(paths)=self.identity_paths.get(name){value["identityPaths"]=serde_json::json!(paths.iter().map(|(path,leaf)|serde_json::json!({"path":path_descriptor(ir,path),"leaf":leaf})).collect::<Vec<_>>());}
+        if let Some(paths)=self.data_paths.get(name){value["dataPaths"]=serde_json::json!(paths.iter().map(|((path,field),ty)|serde_json::json!({"path":path_descriptor(ir,path),"field":field,"type":ty})).collect::<Vec<_>>());}
+        if let Some((model,fields))=self.parents.get(name){value["parent"]=serde_json::json!({"model":ir.items[model.0 as usize].canonical,"fields":field_descriptors(fields)});}
+        if let Some(derived)=self.derived.get(name){value["derived"]=serde_json::json!(field_descriptors(derived));}
+        value
+    }
+
     fn read(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,
         value:&TypedExpr,env:&Environment,depth:usize)->Option<()> {
         self.steps+=1;if depth>32||self.steps>4096{return None;}
@@ -256,7 +290,7 @@ impl Reads {
         self.queries.insert(query_id.clone(),serde_json::json!({"id":query_id,"source":{"path":source.path,"sha256":source.sha256,"module":module.name},
             "node":{"file":collection.span.file.0,"start":collection.span.start,"end":collection.span.end},"parameter":root.parameter,
             "model":model.canonical,"parentModel":ir.items[root.model.0 as usize].canonical,
-            "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>(),"order":[]}));
+            "fields":field_descriptors(fields),"order":[]}));
         Some(())
     }
     fn helper(&mut self,ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,name:&str,
@@ -329,7 +363,7 @@ impl Reads {
         self.queries.insert(id.clone(),serde_json::json!({"id":id,"source":{"path":source.path,"sha256":source.sha256,"module":module.name},
             "node":{"file":value.span.file.0,"start":value.span.start,"end":value.span.end},
             "parameter":root.parameter,"model":model.canonical,"parentModel":ir.items[root.model.0 as usize].canonical,
-            "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>(),"order":order}));
+            "fields":field_descriptors(fields),"order":order}));
         Some(())
     }
 }
@@ -340,14 +374,7 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     context.same_scenario(ir, owner)?;
     let creates=super::source_created_rows::collect(ir,owner,context,&source)?;
-    let mut env=Environment::default();let mut models=BTreeMap::new();
-    for id in params{
-        let param=ir.items.get(id.0 as usize)?;let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
-        if let ResolvedType::Record{symbol,stored:true}=ty
-            && matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}){
-            env.roots.insert(param.name.clone(),Root{parameter:param.name.clone(),model:*symbol,query:None});models.insert(param.name.clone(),*symbol);
-        }else if plain_value(ir,ty,0){env.values.insert(param.name.clone());}
-    }
+    let (mut env,mut models)=Environment::admitted(ir,params)?;
     fn walk(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
         models:&mut BTreeMap<String,SymbolId>,created_roots:&mut BTreeMap<String,serde_json::Value>,creates:&[serde_json::Value],loop_roots:&BTreeMap<String,String>,loops:Option<&serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
         for statement in body{match statement{
@@ -365,15 +392,9 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
                 let mut parameters=Vec::new();
                 for(name,fields)in &reads.fields{
                     let Some(model)=models.get(name)else{continue;};
-                    let mut value=serde_json::json!({"name":name,"model":ir.items[model.0 as usize].canonical,
-                        "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});
+                    let mut value=reads.parameter(ir,name,*model,fields);
                     if let Some(id)=loop_roots.get(name){value["loop"]=serde_json::json!(id);}
                     if let Some(created)=created_roots.get(name){value["created"]=created.clone();}
-                    if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
-                    if let Some(paths)=reads.identity_paths.get(name){value["identityPaths"]=serde_json::json!(paths.iter().map(|(path,leaf)|serde_json::json!({"path":path.iter().map(|(field,model,narrowed)|{let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});if *narrowed{edge["nullable"]=serde_json::json!(true);}edge}).collect::<Vec<_>>(),"leaf":leaf})).collect::<Vec<_>>());}
-                    if let Some(paths)=reads.data_paths.get(name){value["dataPaths"]=serde_json::json!(paths.iter().map(|((path,field),ty)|serde_json::json!({"path":path.iter().map(|(field,model,narrowed)|{let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});if *narrowed{edge["nullable"]=serde_json::json!(true);}edge}).collect::<Vec<_>>(),"field":field,"type":ty})).collect::<Vec<_>>());}
-                    if let Some((model,fields))=reads.parents.get(name){value["parent"]=serde_json::json!({"model":ir.items[model.0 as usize].canonical,"fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});}
-                    if let Some(derived)=reads.derived.get(name){value["derived"]=serde_json::json!(derived.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>());}
                     parameters.push(value);
                 }
                 let mut value=serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},
@@ -407,14 +428,7 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
     if !has_emit(effects){return Some(HashMap::new());}
     context.same_scenario(ir, owner)?;
     let creates=super::source_created_rows::collect(ir,owner,context,&source)?;
-    let mut env=Environment::default();let mut models=BTreeMap::new();
-    for id in params{
-        let param=ir.items.get(id.0 as usize)?;let IrItemKind::Param{ty:IrType::Known(ty),..}=&param.kind else{return None;};
-        if let ResolvedType::Record{symbol,stored:true}=ty
-            && matches!(ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model{..}){
-            env.roots.insert(param.name.clone(),Root{parameter:param.name.clone(),model:*symbol,query:None});models.insert(param.name.clone(),*symbol);
-        }else if plain_value(ir,ty,0){env.values.insert(param.name.clone());}
-    }
+    let (mut env,models)=Environment::admitted(ir,params)?;
     fn walk(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
         models:&BTreeMap<String,SymbolId>,created:&mut BTreeMap<String,serde_json::Value>,creates:&[serde_json::Value],source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
         for statement in body{match statement{
@@ -446,7 +460,7 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                         && !path.is_empty(){
                         let target=path.last().expect("nonempty original path").1;
                         let path=path.into_iter().map(|(field,model,narrowed)|(field,model.0,narrowed)).collect::<Vec<_>>();
-                        let wire=path.iter().map(|(field,model,narrowed)|{let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});if *narrowed{edge["nullable"]=serde_json::json!(true);}edge}).collect::<Vec<_>>();
+                        let wire=path_descriptor(ir,&path);
                         reads.fields.entry(root.parameter.clone()).or_default();reads.identity_paths.entry(root.parameter.clone()).or_default().insert(path,"id".into());
                         references.push(serde_json::json!({"field":field,"parameter":root.parameter,"model":ir.items[target.0 as usize].canonical,"path":wire}));
                     }else if reads.read(ir,context,value,env,0).is_none(){valid=false;break;}
@@ -455,15 +469,7 @@ pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super:
                 let mut parameters=Vec::new();
                 for(name,fields)in &reads.fields{
                     let Some(model)=models.get(name)else{continue;};
-                    let mut value=serde_json::json!({"name":name,"model":ir.items[model.0 as usize].canonical,
-                        "fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});
-                    if let Some(identity)=reads.identities.get(name){value["identity"]=serde_json::json!(identity);}
-                    if let Some(paths)=reads.identity_paths.get(name){value["identityPaths"]=serde_json::json!(paths.iter().map(|(path,leaf)|serde_json::json!({"path":path.iter().map(|(field,model,narrowed)|{let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});if *narrowed{edge["nullable"]=serde_json::json!(true);}edge}).collect::<Vec<_>>(),"leaf":leaf})).collect::<Vec<_>>());}
-                    if let Some(paths)=reads.data_paths.get(name){value["dataPaths"]=serde_json::json!(paths.iter().map(|((path,field),ty)|serde_json::json!({"path":path.iter().map(|(field,model,narrowed)|{let mut edge=serde_json::json!({"field":field,"model":ir.items[*model as usize].canonical});if *narrowed{edge["nullable"]=serde_json::json!(true);}edge}).collect::<Vec<_>>(),"field":field,"type":ty})).collect::<Vec<_>>());}
-                    if let Some((model,fields))=reads.parents.get(name){value["parent"]=serde_json::json!({"model":ir.items[model.0 as usize].canonical,"fields":fields.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>()});}
-                    if let Some(derived)=reads.derived.get(name){
-                        value["derived"]=serde_json::json!(derived.iter().map(|(name,ty)|serde_json::json!({"name":name,"type":ty})).collect::<Vec<_>>());
-                    }
+                    let value=reads.parameter(ir,name,*model,fields);
                     parameters.push(value);
                 }
                 let mut value=serde_json::json!({"source":{"module":module,"path":source["path"],"sha256":source["sha256"]},

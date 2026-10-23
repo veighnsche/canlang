@@ -10408,6 +10408,28 @@ export async function executeScenarioSourceSendData(call:AdmittedCall,store:Stor
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
 
+/** Shared contained-domain projection; the owning SEND/EMIT lease is checked
+ * by its caller. Visibility remains explicit: aggregates cannot omit a row. */
+async function projectSourceEffectChildren(call:AdmittedCall,store:StoragePort,owner:ReceiptOwnerSession,state:Capture,
+  producer:ScenarioReceiptReferenceProducer,query:NonNullable<ScenarioSourceSendDataSource['queries']>[number],
+  stage:number,visibility:'filter'|'complete'):Promise<readonly ProjectedRecord[]>{
+  const refs=call.recordRefs.filter(ref=>ref.param===query.parameter),ref=refs[0];
+  if(refs.length!==1||ref?.model!==query.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)
+    return invalid('Source DATA query lost its original versioned parent.');
+  const parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
+  if(parent===null||!sameModelLifetime(ref.row,parent)||owner.stage!==stage)return invalid('Source DATA query parent lifetime changed.');
+  const rows=await owner.session!.views.final.query({model:query.model,authority:'owner',parent:{model:ref.model,id:ref.id},
+    archived:'exclude',order:[{field:'id',direction:'asc'}],limit:owner.maxRows});ownerHealthy(owner);
+  const projected:ProjectedRecord[]=[],fields=query.fields.map(field=>field.name);
+  for(const row of rows){
+    if(row.parent?.model!==ref.model||row.parent.id!==ref.id||row.archivedAt!==null)return invalid('Source DATA query crossed its genuine contained domain.');
+    const authority=await observeModelQuerySourceAuthority(call,store,owner,state,query.model,row,fields,0,undefined,undefined,producer,visibility==='filter');
+    if(authority.record!==null)projected.push(authority.record);
+  }
+  if(await store.readRevision()!==call.revision)throw new StateError('conflict','Source DATA query moved beyond its original checkpoint.');
+  return Object.freeze(projected);
+}
+
 /** Read only a reached original projection inside this exact SEND argument
  * evaluation. Ordinary source grants filter rows before authored order/SELECT. */
 export async function executeScenarioSourceSendQuery(call:AdmittedCall,store:StoragePort,input:{readonly id:string}):Promise<readonly ProjectedRecord[]>{
@@ -10421,18 +10443,7 @@ export async function executeScenarioSourceSendQuery(call:AdmittedCall,store:Sto
         ||owner.busy||state.pending!==0||active.queries.has(id))return invalid('SEND DATA query lacks its actual original argument execution.');
     active.queries.add(id);
     return await ownerOperation(owner,async()=>{
-      const refs=call.recordRefs.filter(ref=>ref.param===query.parameter),ref=refs[0];
-      if(refs.length!==1||ref?.model!==query.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('SEND DATA query lost its original versioned parent.');
-      const parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
-      if(parent===null||!sameModelLifetime(ref.row,parent)||owner.stage!==active.stage)return invalid('SEND DATA query parent lifetime changed.');
-      const rows=await owner.session!.views.final.query({model:query.model,authority:'owner',parent:{model:ref.model,id:ref.id},archived:'exclude',order:[{field:'id',direction:'asc'}],limit:owner.maxRows});ownerHealthy(owner);
-      const selected:ProjectedRecord[]=[];
-      for(const row of rows){
-        if(row.parent?.model!==ref.model||row.parent.id!==ref.id||row.archivedAt!==null)return invalid('SEND DATA query crossed its genuine contained domain.');
-        const authority=await observeModelQuerySourceAuthority(call,store,owner,state,query.model,row,query.fields.map(field=>field.name),0,undefined,undefined,producer,true);
-        if(authority.record!==null)selected.push(authority.record);
-      }
-      if(await store.readRevision()!==call.revision)throw new StateError('conflict','SEND DATA query moved beyond its original checkpoint.');
+      const selected=await projectSourceEffectChildren(call,store,owner,state,producer,query,active.stage,'filter');
       const model=state.bound.canonicalModels.find(model=>model.name===query.model);if(model===undefined)return invalid('SEND DATA query has no defining model.');
       return orderSourceReadRecords(Object.freeze(selected),model,query.order.length===0?[{field:'id',direction:'asc'}]:query.order);
     },call);
@@ -10613,21 +10624,7 @@ export async function executeScenarioSourceEmitQuery(call:AdmittedCall,store:Sto
         ||owner.executingCall!==call||owner.stage!==active.stage||(owner.framework?.ordinal??null)!==active.ordinal||active.emitted
         ||owner.busy||state.pending!==0||active.queries.has(id))return invalid('EMIT DATA aggregate lacks its actual original source lease.');
     active.queries.add(id);
-    return await ownerOperation(owner,async()=>{
-      const refs=call.recordRefs.filter(ref=>ref.param===query.parameter),ref=refs[0];
-      if(refs.length!==1||ref?.model!==query.parentModel||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('EMIT DATA aggregate lost its original versioned parent.');
-      const parent=await owner.session!.views.final.get(ref.model,ref.id);ownerHealthy(owner);
-      if(parent===null||!sameModelLifetime(ref.row,parent)||owner.stage!==active.stage)return invalid('EMIT DATA aggregate parent lifetime changed.');
-      const rows=await owner.session!.views.final.query({model:query.model,authority:'owner',parent:{model:ref.model,id:ref.id},archived:'exclude',order:[{field:'id',direction:'asc'}],limit:owner.maxRows});ownerHealthy(owner);
-      const projected:ProjectedRecord[]=[];
-      for(const row of rows){
-        if(row.parent?.model!==ref.model||row.parent.id!==ref.id||row.archivedAt!==null)return invalid('EMIT DATA aggregate crossed its exact contained domain.');
-        const authority=await observeModelQuerySourceAuthority(call,store,owner,state,query.model,row,query.fields.map(field=>field.name),0,undefined,undefined,producer);
-        projected.push(authority.record);
-      }
-      if(await store.readRevision()!==call.revision)throw new StateError('conflict','EMIT DATA aggregate moved beyond its original checkpoint.');
-      return Object.freeze(projected);
-    },call);
+    return await ownerOperation(owner,()=>projectSourceEffectChildren(call,store,owner,state,producer,query,active.stage,'complete'),call);
   }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
 }
 

@@ -5851,41 +5851,31 @@ async function bindNativeSourceBodyLoops(asm:AssembledModules,artifact:CompileAr
   }
 }
 
-async function bindNativeSourceSendData(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,
-  context?:InvocationSourceReadContext):Promise<void>{
-  const sourceReads=context===undefined?undefined:createSourceReadPolicyAdapter({loaded,opts:context.opts,now:context.now,
-    ...(context.preferences===undefined?{}:{preferences:context.preferences})});
-  for(const value of loaded.registry.values()){
-    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
-    if(def===undefined||source===undefined)continue;
-    const callable=artifact.callables.find(callable=>callable.kind==='operation'&&callable.id===def.name&&callable.module===source.module);
-    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('SEND DATA lacks its original parameter-style operation.');
-    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact),getter=privateSourceMember(module,'canScenarioSendDataSources');
-    if(typeof getter!=='function')continue;
-    const census=localPolicyObject(getter()),raw=Object.getOwnPropertyDescriptor(census,def.name);
-    if(raw===undefined)continue;
-    const sites=captureDispatchPreclaimData(nativeCallArray(raw.value,200)) as unknown as readonly SourceSendDataSource[];
-    if(sites.length===0||sites.some(site=>site.owner!==def.name||stableStringify(site.source)!==stableStringify(source))){
-      throw new AssemblyCorrespondenceError('SEND DATA lacks its exact original owner/source census.');
-    }
-    const original=privateSourceMember(module,'canScenarioSendDataSource'),bind=loaded.producers.invoke.bindScenarioSourceSendDataProducer;
-    if(typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('SEND DATA lacks its installed source issuer and State producer.');
-    nativeSourceSendData.set(def,{sources:sites,original:original as (body:Function)=>unknown});
-    if(context===undefined)continue;
-    const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
-    for(const site of sites){
-      for(const parameter of site.parameters)for(const [model,policy]of sourceReads!.policies(parameter.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
-      for(const parameter of site.parameters)for(const profile of [...parameter.identityPaths??[],...parameter.dataPaths??[]])for(const edge of profile.path)for(const [model,policy]of sourceReads!.policies(edge.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
-      for(const query of site.queries??[])for(const [model,policy]of sourceReads!.policies(query.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
-    }
-    const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');
-    if(typeof app!=='string'||app==='')throw new AssemblyCorrespondenceError('SEND DATA lacks its original owning app.');
-    bind(def,{source,app,policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
-    nativeSourceSendData.set(def,{sources:sites,original:original as (body:Function)=>unknown});
-  }
+/** Verify the original DATA-site census before binding its specific issuer. */
+function sourceDataCensus<Site extends {readonly owner:string;readonly source:unknown}>(
+  module:unknown,def:GeneratedOperationDef,
+  source:import('@canlang/contracts').ScenarioResultDisclosurePlan['source'],getterName:string,label:string){
+  const getter=privateSourceMember(module,getterName);
+  if(typeof getter!=='function')return undefined;
+  const census=localPolicyObject(getter()),raw=Object.getOwnPropertyDescriptor(census,def.name);
+  if(raw===undefined)return undefined;
+  const sites=captureDispatchPreclaimData(nativeCallArray(raw.value,200)) as unknown as readonly Site[];
+  if(sites.length===0||sites.some(site=>site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)))
+    throw new AssemblyCorrespondenceError(`${label} lacks its exact original owner/source census.`);
+  return sites;
+}
+function sourceDataReadPolicies(sourceReads:ReturnType<typeof createSourceReadPolicyAdapter>,models:readonly ModelName[]){
+  const policies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
+  for(const name of models)for(const [model,policy]of sourceReads.policies(name))if(!policies.has(model))policies.set(model,policy);
+  return policies;
+}
+function sourceDataApp(module:unknown,label:string):string{
+  const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');
+  if(typeof app!=='string'||app==='')throw new AssemblyCorrespondenceError(`${label} lacks its original owning app.`);
+  return app;
 }
 
-async function bindNativeSourceLetData(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,
+async function bindNativeSourceData(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,
   context?:InvocationSourceReadContext):Promise<void>{
   const sourceReads=context===undefined?undefined:createSourceReadPolicyAdapter({loaded,opts:context.opts,now:context.now,
     ...(context.preferences===undefined?{}:{preferences:context.preferences})});
@@ -5893,58 +5883,51 @@ async function bindNativeSourceLetData(asm:AssembledModules,artifact:CompileArti
     const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
     if(def===undefined||source===undefined)continue;
     const callable=artifact.callables.find(callable=>callable.kind==='operation'&&callable.id===def.name&&callable.module===source.module);
-    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Scalar LET DATA lacks its original parameter-style operation.');
-    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact),getter=privateSourceMember(module,'canScenarioLetDataSources');
-    if(typeof getter!=='function')continue;
-    const census=localPolicyObject(getter()),raw=Object.getOwnPropertyDescriptor(census,def.name);
-    if(raw===undefined)continue;
-    const sites=captureDispatchPreclaimData(nativeCallArray(raw.value,200)) as unknown as readonly SourceLetDataSource[];
-    if(sites.length===0||sites.some(site=>site.owner!==def.name||stableStringify(site.source)!==stableStringify(source)))throw new AssemblyCorrespondenceError('Scalar LET DATA differs from its original source owner census.');
-    nativeSourceLetData.set(def,sites);
-    if(context===undefined)continue;
-    const bind=loaded.producers.invoke.bindScenarioSourceLetDataProducer;
-    if(bind===undefined)throw new AssemblyCorrespondenceError('Scalar LET DATA lacks its original State producer.');
-    const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
-    for(const site of sites)for(const [model,policy]of sourceReads!.policies(site.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
-    const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');
-    if(typeof app!=='string'||app==='')throw new AssemblyCorrespondenceError('Scalar LET DATA lacks its original owning app.');
-    bind(def,{source,app,policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
-  }
-}
-
-async function bindNativeSourceEmitData(asm:AssembledModules,artifact:CompileArtifact,loaded:LoadedCanonicalDescriptors,
-  context?:InvocationSourceReadContext):Promise<void>{
-  const sourceReads=context===undefined?undefined:createSourceReadPolicyAdapter({loaded,opts:context.opts,now:context.now,
-    ...(context.preferences===undefined?{}:{preferences:context.preferences})});
-  for(const value of loaded.registry.values()){
-    const def=generatedScenarioDef({def:value}),source=def===undefined?undefined:sourceRequireFrames.get(def);
-    if(def===undefined||source===undefined)continue;
-    const callable=artifact.callables.find(callable=>callable.kind==='operation'&&callable.id===def.name&&callable.module===source.module);
-    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('EMIT DATA lacks its original parameter-style operation.');
-    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact),getter=privateSourceMember(module,'canScenarioEmitDataSources');
-    if(typeof getter!=='function')continue;
-    const census=localPolicyObject(getter()),raw=Object.getOwnPropertyDescriptor(census,def.name);
-    if(raw===undefined)continue;
-    const sites=captureDispatchPreclaimData(nativeCallArray(raw.value,200)) as unknown as readonly SourceEmitDataSource[];
-    if(sites.length===0||sites.some(site=>site.owner!==def.name||stableStringify(site.source)!==stableStringify(source))){
-      throw new AssemblyCorrespondenceError('EMIT DATA lacks its exact original owner/source census.');
+    if(callable?.inputStyle!=='parameters')throw new AssemblyCorrespondenceError('Source DATA lacks its original parameter-style operation.');
+    const module=await importVerifiedAssemblyModule(asm,callable.module,artifact);
+    const sendData=sourceDataCensus<SourceSendDataSource>(module,def,source,'canScenarioSendDataSources','SEND DATA');
+    if(sendData!==undefined){
+      const sites=sendData;
+      const original=privateSourceMember(module,'canScenarioSendDataSource'),bind=loaded.producers.invoke.bindScenarioSourceSendDataProducer;
+      if(typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('SEND DATA lacks its installed source issuer and State producer.');
+      nativeSourceSendData.set(def,{sources:sites,original:original as (body:Function)=>unknown});
+      if(context!==undefined){
+        const readPolicies=sourceDataReadPolicies(sourceReads!,sites.flatMap(site=>[
+          ...site.parameters.map(parameter=>parameter.model),
+          ...site.parameters.flatMap(parameter=>[...parameter.identityPaths??[],...parameter.dataPaths??[]].flatMap(profile=>profile.path.map(edge=>edge.model))),
+          ...(site.queries??[]).map(query=>query.model)]));
+        const app=sourceDataApp(module,'SEND DATA');
+        bind(def,{source,app,policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
+      }
     }
-    const original=privateSourceMember(module,'canScenarioEmitDataSource'),bind=loaded.producers.invoke.bindScenarioSourceEmitDataProducer;
-    if(typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('EMIT DATA lacks its installed source issuer and State producer.');
-    nativeSourceEmitData.set(def,{sources:sites,original:original as (body:Function)=>unknown});
-    if(context===undefined)continue;
-    const readPolicies=new Map<ModelName,import('@canlang/state/query').ViewerSourceReadPolicy>();
-    for(const site of sites){
-      for(const parameter of site.parameters)for(const profile of [...parameter.identityPaths??[],...parameter.dataPaths??[]])for(const edge of profile.path)for(const [model,policy]of sourceReads!.policies(edge.model))if(!readPolicies.has(model))readPolicies.set(model,policy);
-      for(const modelName of [...site.parameters.map(parameter=>parameter.model),...(site.queries??[]).map(query=>query.model)])
-        for(const [model,policy]of sourceReads!.policies(modelName))if(!readPolicies.has(model))readPolicies.set(model,policy);
+    const letData=sourceDataCensus<SourceLetDataSource>(module,def,source,'canScenarioLetDataSources','Scalar LET DATA');
+    if(letData!==undefined){
+      const sites=letData;
+      nativeSourceLetData.set(def,sites);
+      if(context!==undefined){
+        const bind=loaded.producers.invoke.bindScenarioSourceLetDataProducer;
+        if(bind===undefined)throw new AssemblyCorrespondenceError('Scalar LET DATA lacks its original State producer.');
+        const readPolicies=sourceDataReadPolicies(sourceReads!,sites.map(site=>site.model));
+        const app=sourceDataApp(module,'Scalar LET DATA');
+        bind(def,{source,app,policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
+      }
     }
-    const app=privateSourceMember(privateSourceMember(module,'appDefinition'),'id');
-    if(typeof app!=='string'||app==='')throw new AssemblyCorrespondenceError('EMIT DATA lacks its original owning app.');
-    const definition=privateSourceMember(module,'appDefinition'),events=privateSourceMember(definition,'events');
-    if(!isUnknownRecord(events)||sites.some(site=>!Object.hasOwn(events,site.event)))throw new AssemblyCorrespondenceError('EMIT DATA lacks its original declared event.');
-    bind(def,{source,app,events:Object.keys(events),policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
-    nativeSourceEmitData.set(def,{sources:sites,original:original as (body:Function)=>unknown});
+    const emitData=sourceDataCensus<SourceEmitDataSource>(module,def,source,'canScenarioEmitDataSources','EMIT DATA');
+    if(emitData!==undefined){
+      const sites=emitData;
+      const original=privateSourceMember(module,'canScenarioEmitDataSource'),bind=loaded.producers.invoke.bindScenarioSourceEmitDataProducer;
+      if(typeof original!=='function'||bind===undefined)throw new AssemblyCorrespondenceError('EMIT DATA lacks its installed source issuer and State producer.');
+      nativeSourceEmitData.set(def,{sources:sites,original:original as (body:Function)=>unknown});
+      if(context!==undefined){
+        const readPolicies=sourceDataReadPolicies(sourceReads!,sites.flatMap(site=>[
+          ...site.parameters.flatMap(parameter=>[...parameter.identityPaths??[],...parameter.dataPaths??[]].flatMap(profile=>profile.path.map(edge=>edge.model))),
+          ...site.parameters.map(parameter=>parameter.model),...(site.queries??[]).map(query=>query.model)]));
+        const app=sourceDataApp(module,'EMIT DATA');
+        const definition=privateSourceMember(module,'appDefinition'),events=privateSourceMember(definition,'events');
+        if(!isUnknownRecord(events)||sites.some(site=>!Object.hasOwn(events,site.event)))throw new AssemblyCorrespondenceError('EMIT DATA lacks its original declared event.');
+        bind(def,{source,app,events:Object.keys(events),policy:loaded.policy as Parameters<typeof bind>[1]['policy'],readPolicies,sites});
+      }
+    }
   }
 }
 
@@ -6890,9 +6873,7 @@ async function loadCanonicalDescriptorsInternal(
   await bindNativeSourceCancels(asm,artifact,canonical);
   await bindNativeSourceSchedules(asm,artifact,canonical);
   await bindNativeSourceBodyLoops(asm,artifact,canonical,invocationSourceReads!==undefined);
-  await bindNativeSourceSendData(asm,artifact,canonical,invocationSourceReads);
-  await bindNativeSourceLetData(asm,artifact,canonical,invocationSourceReads);
-  await bindNativeSourceEmitData(asm,artifact,canonical,invocationSourceReads);
+  await bindNativeSourceData(asm,artifact,canonical,invocationSourceReads);
   await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
   await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
   if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
