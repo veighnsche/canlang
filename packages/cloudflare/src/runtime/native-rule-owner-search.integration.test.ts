@@ -3385,3 +3385,40 @@ it('emits the original Shift request with its genuine created Swap and parent DA
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('uses the original Shift nested nullable FIRST guards before actual assignment', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-shift-helper-first-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/shift-assign-original.can'),original=await readFile(join(root,'draft/apps/CanShift/CanShift.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  scenario assign('),end=original.indexOf('   examples',start);assert.ok(text.includes(original.slice(start,end)));
+  for(const name of ['fits','previous_work','next_work','travel_entered'])assert.ok(text.includes(original.split('\n').find(line=>line.startsWith('  derive '+name+'('))!));
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['empty','previous-same','previous-away','previous-buffer','nearest-same','nearest-away','next-away','absence','false-prefix','domain-race','identity-race']){
+   const {now,identities,identity,team,user,membership}=await member('shift-first-'+mode,['shift.scheduler']);
+   const store=createMemoryStorage(),day='2099-01-01T',at=(time:string)=>day+time+':00.000Z',roster={model:model('shift','Roster'),id:asId('roster')};
+   const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+   const prior=(id:string,from:string,until:string,location='location',kind='duty')=>row(id,{employee:{id:'employee'},location:{id:location},from:at(from),until:at(until),before:'0',after:'0',skill:'reception',kind,source:id,previous:null,revision:'1',active:true,revision_visible:true,conflict:false},roster);
+   const existing:StoredRow[]=[];
+   if(mode.startsWith('previous-'))existing.push(prior('prior','14:00','16:00',mode==='previous-same'?'location':'away'));
+   if(mode.startsWith('nearest-'))existing.push(prior('far','09:00','12:00',mode==='nearest-same'?'away':'location'),prior('near','14:00','16:00',mode==='nearest-same'?'location':'away'));
+   if(mode==='next-away')existing.push(prior('next-far','21:00','22:00'),prior('next-near','19:00','20:00','away'));
+   if(mode==='absence')existing.push(prior('absence','14:00','16:00','away','absence'));
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:model('rent_catalog','Location'),row:row('location',{active:mode!=='false-prefix'})},{kind:'insert',model:model('rent_catalog','Location'),row:row('away',{active:true})},
+    {kind:'insert',model:model('employee','Employee'),row:row('employee',{user:{id:user.user_id},home:{id:'location'},locations:[{id:'away'}],operator_wide:false,active:true,skills:['reception'],role:'Reception',visible:true,user_visible:true})},
+    {kind:'insert',model:model('shift','Roster'),row:row('roster',{name:'Original roster'})},
+    {kind:'insert',model:model('shift','Availability'),row:row('availability',{employee:{id:'employee'},from:at('08:00'),until:at('23:00'),available:true},roster)},
+    ...existing.map(row=>({kind:'insert' as const,model:model('shift','Commitment'),row}))]}));
+   const commit=store.commit.bind(store),query=store.query.bind(store);let raced=false,scans=0;
+   store.query=async input=>{if(input.model===model('shift','Commitment')){scans++;if(mode==='identity-race'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}}return query(input);};
+   store.commit=async batch=>{if(mode==='domain-race'&&!raced&&batch.writes.some(write=>write.model===model('shift','Duty'))){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:model('shift','Commitment'),row:prior('raced','14:00','16:00','away')}]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'shift.assign',operation_id:operationId(now),inputs:{roster:{id:'roster',version:'1'},employee:{id:'employee',version:'1'},location:{id:'location',version:'1'},from:at('17:30'),until:at('18:00'),role:'Reception',skill:'reception',before:mode==='previous-buffer'?'1800000':'0',after:'0'}};
+   const result=await invoker.invokeMutation(request,identity),success=['empty','previous-same','previous-buffer','nearest-same','absence'].includes(mode);assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+   if(mode==='false-prefix')assert.equal(scans,0,'false original prefix does not enter helper domains');
+   if(mode.endsWith('-race'))assert.ok(raced,mode);
+   const duties=await query({model:model('shift','Duty'),authority:'owner'}),commitments=await query({model:model('shift','Commitment'),authority:'owner'});assert.equal(duties.length,success?1:0,mode);assert.equal(commitments.length,existing.length+(success?1:0)+(mode==='domain-race'?1:0),mode);
+   if(success){const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay||replay.error.code==='validation',JSON.stringify(replay));assert.deepEqual(await query({model:model('shift','Duty'),authority:'owner'}),duties);assert.deepEqual(await query({model:model('shift','Commitment'),authority:'owner'}),commitments);}
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

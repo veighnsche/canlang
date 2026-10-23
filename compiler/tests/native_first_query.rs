@@ -2855,3 +2855,20 @@ fn original_shift_request_retains_created_and_parent_source_ownership() {
   let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {diagnostics:?}");
  }
 }
+
+#[test]
+fn original_shift_nested_first_requires_every_helper_consumer_private() {
+ let source=include_str!("fixtures/shift-assign-original.can");
+ let(db,program,_,catalog)=fixture_source("shift-assign-original.can",source);
+ let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ for(mode,changed)in [
+  ("exported",source.replace("  derive previous_work(","  export derive previous_work(")),
+  ("ordinary-tail",source.replace("    create Commitment {parent=roster", "    let selected=previous_work(roster,employee,from,null)\n    create Commitment {parent=roster")),
+  ("exported-outer",source.replace("  derive travel_entered(","  export derive travel_entered(")),
+  ("unused",source.replace(" and travel_entered(roster,employee,location,from,until,before,after,null)","")),
+ ]{
+  assert_ne!(source,changed,"{mode}");let(db,program,_,catalog)=fixture_source(&format!("shift-first-{mode}.can"),&changed);
+  let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+  assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"&&diagnostic.message.contains("first query")),"{mode}: {diagnostics:?}");
+ }
+}

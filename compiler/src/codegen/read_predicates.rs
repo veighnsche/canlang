@@ -46,26 +46,42 @@ impl PreparedReadPredicates {
                 .map(|effect| effect.node).collect::<Vec<_>>())
         }).collect::<Option<Vec<_>>>()?.into_iter().flatten().collect::<Vec<_>>();
         let mut result = HashSet::new();
-        for item in &context.ir().items {
-            if item.exported || !matches!(&item.kind, IrItemKind::DeriveFn { expr: Some(_), .. }) {
-                continue;
+        // A helper call inside another private helper keeps the same original
+        // observer only after every call of that outer helper is proven private.
+        loop {
+            let before = result.len();
+            for item in &context.ir().items {
+                if result.contains(&item.canonical) || item.exported || !matches!(&item.kind, IrItemKind::DeriveFn { expr: Some(_), .. }) {
+                    continue;
+                }
+                let calls = program.types.selected_calls.iter().filter_map(|(node, call)| {
+                    matches!(call.target, SelectedCallTarget::DeriveFn(id) if id == item.id).then_some(*node)
+                }).collect::<Vec<_>>();
+                // Unused unsupported source is still checked. In particular an
+                // empty census cannot turn an unsupported derive into dead code.
+                if calls.is_empty() { continue; }
+                let boolean = self.boolean_derives.contains(&item.canonical);
+                if calls.iter().all(|node| {
+                    let at = Span::new(node.file, node.start, node.end);
+                    let nested = context.ir().items.iter().any(|caller|
+                        result.contains(&caller.canonical) && matches!(&caller.kind,
+                            IrItemKind::DeriveFn {expr:Some(body),..} if contains(body.span,at)));
+                    let checked = nested && context.db().get(node.file).is_some_and(|source|
+                        self.source_requires.values().any(|identity|
+                            identity["sites"].as_array().into_iter().flatten().any(|site|
+                                site["calls"].as_array().into_iter().flatten().any(|call|
+                                    call["target"]["kind"]=="derive" && call["target"]["name"]==item.canonical
+                                        && call["source"]["path"]==source.path && call["source"]["sha256"]==source.sha256
+                                        && call["node"]["start"]==node.start && call["node"]["end"]==node.end))));
+                    private_roots.iter().any(|root| root.file == node.file
+                        && root.start <= node.start && node.end <= root.end)
+                        || boolean && (self.source_requires.keys().any(|root| contains(*root, at))
+                            || nested && checked)
+                }) {
+                    result.insert(item.canonical.clone());
+                }
             }
-            let calls = program.types.selected_calls.iter().filter_map(|(node, call)| {
-                matches!(call.target, SelectedCallTarget::DeriveFn(id) if id == item.id).then_some(*node)
-            }).collect::<Vec<_>>();
-            // Unused unsupported source is still checked. In particular an
-            // empty census cannot turn an unsupported derive into dead code.
-            if calls.is_empty() { continue; }
-            let boolean = self.boolean_derives.contains(&item.canonical);
-            if calls.iter().all(|node| {
-                let at = Span::new(node.file, node.start, node.end);
-                private_roots.iter().any(|root| root.file == node.file
-                    && root.start <= node.start && node.end <= root.end)
-                    || boolean && self.source_requires.keys()
-                        .any(|root| contains(*root, at))
-            }) {
-                result.insert(item.canonical.clone());
-            }
+            if result.len() == before { break; }
         }
         Some(result)
     }
