@@ -42,6 +42,22 @@ package affiliate
     send Commissions.settle {source=operation.id,account=provider_account,amount} as delivery
     create Settlement {parent=partner,source=operation.id,account=provider_account,amount,delivery=delivery.id} as settlement
     schedule format("commission-{id}",{id=settlement.id}) at=now+5m event=SettlementCheck {settlement}
+  scenario settle_snapshot(partner:Partner,amount:money) by=finance label="Settle commission"@{nl="Commissie verrekenen"}
+   require all(partner.locations as location,can_work(actor,location)) and partner.active and partner.onboarded and partner.provider_state==ready and partner.provider_account!=null and amount.minor>0 and amount<=available(partner,amount.currency)
+   do
+    let provider_account=partner.provider_account
+    set partner {provider_account="acct-replaced"}
+    send Commissions.settle {source=operation.id,account=provider_account,amount} as delivery
+    create Settlement {parent=partner,source=operation.id,account=provider_account,amount,delivery=delivery.id} as settlement
+    schedule format("commission-{id}",{id=settlement.id}) at=now+5m event=SettlementCheck {settlement}
+  scenario settle_lose_grant(partner:Partner,amount:money) by=finance label="Settle commission"@{nl="Commissie verrekenen"}
+   require all(partner.locations as location,can_work(actor,location)) and partner.active and partner.onboarded and partner.provider_state==ready and partner.provider_account!=null and amount.minor>0 and amount<=available(partner,amount.currency)
+   do
+    let provider_account=partner.provider_account
+    send Commissions.settle {source=operation.id,account=provider_account,amount} as delivery
+    create Settlement {parent=partner,source=operation.id,account=provider_account,amount,delivery=delivery.id} as settlement
+    schedule format("commission-{id}",{id=settlement.id}) at=now+5m event=SettlementCheck {settlement}
+    set partner {account_readable=false}
   scenario observe on=SettlementCheck
    do set event.settlement {seen=true}
  Then

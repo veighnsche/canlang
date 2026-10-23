@@ -3100,22 +3100,29 @@ it('stages the complete original Affiliate settlement from its immediate scalar 
       const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
         stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
       assert.equal(artifact.operations?.find(operation=>operation.name==='affiliate.settle')?.result?.disclosure,undefined);
-      for(const mode of ['allowed'] as const){
+      for(const mode of ['allowed','snapshot','withheld','false-prefix','grant-loss','identity-during-schedule','partner-at-commit'] as const){
         const {now,identities,identity,team,user}=await member(`affiliate-created-${mode}`,['affiliate.finance']);
         const scope={app:'CanAffiliate',owner:team.team_id,ownerPackage:'affiliate'};
         const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'affiliate-state',fileStoreId:'affiliate-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
         const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
         await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
         const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
-        const location=row('location',{active:true}),partner=row('partner',{locations:[{id:location.id}],active:true,onboarded:true,provider_state:'ready',provider_account:'acct-original',readable:true,account_readable:true});
+        const location=row('location',{active:true}),partner=row('partner',{locations:[{id:location.id}],active:mode!=='false-prefix',onboarded:true,provider_state:'ready',provider_account:'acct-original',readable:true,account_readable:!['withheld','false-prefix'].includes(mode)});
         await store.commit(makeBatch(await store.readRevision(),{writes:[
           {kind:'insert',model:model('rent_catalog','Location'),row:location},{kind:'insert',model:model('affiliate','Partner'),row:partner},
           {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:true,hidden:true})},
           {kind:'insert',model:model('affiliate','Sale'),row:row('sale',{commission:{minor:'100',currency:'EUR'}},{model:model('affiliate','Partner'),id:partner.id})},
         ]}));
+        const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false,workReads=0;
+        store.load=async(model,id)=>{if(model==='work.dispatch')workReads++;if(model==='work.schedule'&&mode==='identity-during-schedule'&&!raced){raced=true;const membership=await identities.findMembership(team.team_id,user.user_id);assert.ok(membership);await identities.setMembershipRoles(membership.membership_id,[]);}return load(model,id);};
+        store.commit=async batch=>{if(mode==='partner-at-commit'&&!raced&&batch.writes.some(write=>write.model==='work.schedule')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:model('affiliate','Partner'),id:partner.id,expectedVersion:partner.version,row:{...partner,version:asVersion(partner.version+1),data:{...partner.data,account_readable:false}}}]}));}return commit(batch);};
         const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now,allocateRecordId:()=> 'settlement-created'});
-        const request={operation:'affiliate.settle',operation_id:operationId(now),inputs:{partner:{id:partner.id,version:String(partner.version)},amount:{minor:'100',currency:'EUR'}}};
-        const outcome=await invoker.invokeMutation(request,identity);assert.ok('result'in outcome&&outcome.result.status==='committed',`${mode}: ${JSON.stringify(outcome)}`);
+        const request={operation:mode==='snapshot'?'affiliate.settle_snapshot':mode==='grant-loss'?'affiliate.settle_lose_grant':'affiliate.settle',operation_id:operationId(now),inputs:{partner:{id:partner.id,version:String(partner.version)},amount:{minor:'100',currency:'EUR'}}};
+        const outcome=await invoker.invokeMutation(request,identity),success=mode==='allowed'||mode==='snapshot';
+        assert.equal('result'in outcome&&outcome.result.status==='committed',success,`${mode}: ${JSON.stringify(outcome)}`);
+        if(mode==='identity-during-schedule'||mode==='partner-at-commit')assert.equal(raced,true,mode);
+        if(!success){assert.equal((await store.query({model:model('affiliate','Settlement'),authority:'owner'})).length,0,mode);assert.equal((await store.query({model:asModel('work.schedule'),authority:'owner'})).length,0,mode);assert.equal((await store.outboxPending()).length,0,mode);if(mode==='withheld'||mode==='false-prefix')assert.equal(workReads,0,'early DATA denial/false guard must precede Work SEND');continue;}
+        assert.equal((await load(model('affiliate','Partner'),partner.id))?.data.provider_account,mode==='snapshot'?'acct-replaced':'acct-original',mode);
         const settlements=await store.query({model:model('affiliate','Settlement'),authority:'owner'});assert.equal(settlements.length,1);
         const settlement=settlements[0]!;assert.equal(settlement.id,'settlement-created');assert.equal(settlement.data.account,'acct-original');assert.equal(settlement.data.source,request.operation_id);
         const pending=await store.outboxPending();assert.equal(pending.length,1);

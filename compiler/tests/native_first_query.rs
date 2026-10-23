@@ -2696,3 +2696,37 @@ fn original_entitlement_helper_keeps_imported_reference_identity() {
   assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$456e7469746c656d656e74536f75726365.mjs").is_none(),"{mode}");
  }
 }
+
+#[test]
+fn affiliate_scalar_let_and_created_schedule_keep_exact_original_source() {
+    use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+    let source=include_str!("fixtures/affiliate-created-schedule.can");
+    let(db,program,ir,catalog)=fixture_source("affiliate-created-schedule.can",source);
+    let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let owner=item(&ir,"affiliate.settle");
+    assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+    let code=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<Vec<_>>().join("\n");
+    assert!(code.contains("nativeScenarioSourceLetData(c,"));assert!(code.contains("nativeScenarioSourceSchedule(c,"));
+    for mode in ["let-field","let-root","let-stage","create-binding","create-parent","schedule-key","schedule-time","schedule-owner","schedule-payload","field-type"] {
+        let mut changed=ir.clone();
+        if mode=="field-type" {let field=item(&changed,"affiliate.Partner.provider_account").id;let IrItemKind::Field{ty,..}=&mut changed.items[field.0 as usize].kind else{panic!("field")};*ty=IrType::Known(ResolvedType::Scalar(Scalar::Int));}
+        else {
+            let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("owner")};
+            if mode=="let-stage" {effects.swap(0,2);}
+            else if mode.starts_with("let-"){let IrStmt::Let{value,..}=&mut effects[0] else{panic!("let")};let IrExpr::Member{base,field}=&mut value.expr else{panic!("member")};if mode=="let-field"{*field="provider_state".into();}else{base.expr=IrExpr::Name("foreign".into());}}
+            else if mode.starts_with("create-"){let IrStmt::Create{binding,input,..}=&mut effects[2] else{panic!("create")};if mode=="create-binding"{*binding=Some("foreign".into());}else{let IrExpr::Object(fields)=&mut input.expr else{panic!("input")};fields.iter_mut().find(|(name,_)|name=="parent").unwrap().1.expr=IrExpr::Name("foreign".into());}}
+            else {let IrStmt::Schedule{key,at,owner_package,payload,..}=&mut effects[3] else{panic!("schedule")};match mode{
+                "schedule-key"=>key.expr=IrExpr::Text("substituted".into()),
+                "schedule-time"=>at.expr=IrExpr::DurationMs(123),
+                "schedule-owner"=>*owner_package="foreign".into(),
+                _=>{let IrExpr::Object(fields)=&mut payload.expr else{panic!("payload")};fields[0].1.expr=IrExpr::Name("partner".into());},
+            }}
+        }
+        if mode=="field-type" {
+            // Header control metadata alone grants no LET DATA. The independent
+            // LET field declaration seal must reject during complete emission.
+            let emitted=js::emit_program_with_native_source_receipts(&changed,true,&db);
+            assert!(emitted.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {:?}",emitted.diagnostics);
+        }else{assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode} retained source authority");}
+    }
+}
