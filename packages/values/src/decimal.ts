@@ -33,7 +33,7 @@
  * (out-of-range, never silent rounding) stay rejected.
  */
 import type { DecimalValue, MoneyValue } from "@canlang/contracts/values";
-import { NOT_ROUTED, routeExact } from "../bindings/exact-route.js";
+import { NOT_ROUTED, routeExact, rememberExactValue } from "../bindings/exact-route.js";
 import { ValueError } from "./errors.js";
 import { int64 } from "./int.js";
 
@@ -90,6 +90,7 @@ export class Decimal implements DecimalValue {
     this.coef = coef;
     this.scale = scale;
     Object.freeze(this);
+    rememberExactValue(this);
   }
 }
 

@@ -14,6 +14,25 @@
 //   dispatch table references the same routing public functions.
 import type { ExactBackend } from "./backend.js";
 
+// Only exact scalar factories record their freshly frozen values. Membership
+// reads identity without probing arbitrary caller properties or proxies; it
+// grants transport eligibility only, never schema/record/request authority.
+const exactFactoryValues = new WeakSet<object>();
+
+export function rememberExactValue<T extends object>(value: T): T {
+  exactFactoryValues.add(value);
+  return value;
+}
+
+export function isExactTransportLeaf(value: unknown): boolean {
+  switch (typeof value) {
+    case "object": return value === null || exactFactoryValues.has(value);
+    case "function":
+    case "symbol": return false;
+    default: return true;
+  }
+}
+
 let selected: ExactBackend | null = null;
 
 /** True while the canonical TypeScript backend dispatches one call. */

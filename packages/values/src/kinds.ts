@@ -1,3 +1,4 @@
+import { rememberExactValue } from "../bindings/exact-route.js";
 import type {
   ActionRef,
   CanValue,
@@ -77,7 +78,7 @@ export function makeMoney(minor: bigint, currency: string): MoneyValue {
     throw new ValueError("unknown-currency", `unknown currency: ${currency}`);
   }
   const value: MoneyValue = { kind: "money", minor, currency };
-  return freeze(value);
+  return rememberExactValue(freeze(value));
 }
 
 function isValidDateParts(year: unknown, month: unknown, day: unknown): boolean {
@@ -118,7 +119,7 @@ export function makeDate(year: number, month: number, day: number): DateValue {
     throw new ValueError("invalid-construction", `invalid civil date: ${year}-${month}-${day}`);
   }
   const value: DateValue = { kind: "date", year, month, day };
-  return freeze(value);
+  return rememberExactValue(freeze(value));
 }
 
 export function isDatetime(value: unknown): value is DatetimeValue {
@@ -146,7 +147,7 @@ export function makeDatetime(ms: bigint): DatetimeValue {
     throw new ValueError("out-of-range", "datetime outside the supported 0001-9999 range");
   }
   const value: DatetimeValue = { kind: "datetime", ms };
-  return freeze(value);
+  return rememberExactValue(freeze(value));
 }
 
 export function isUserRef(value: unknown): value is UserRef {

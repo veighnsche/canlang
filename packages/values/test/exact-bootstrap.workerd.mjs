@@ -34,6 +34,126 @@ const missingTransport = new Uint8Array([
   ...section(10, [2, 4, 0, 65, 1, 11, 2, 0, 11]),
 ]);
 
+// Compare original public host observations with an actually bootstrapped
+// selected Wasm producer. Fresh subjects prevent the first run consuming the
+// second run's getters/iterators; raw thrown sentinel identity is checked too.
+async function verifyAccessOrder(bootstrapWasm) {
+  bootstrapWasm(bytes());
+  const values = await import(pathToFileURL(join(dist, "src/index.js")).href);
+  const { wasmBackend, tsBackend, selectExactBackend } = await import(pathToFileURL(join(dist, "bindings/backend.js")).href);
+  const glue = await import(pathToFileURL(join(dist, "bindings/generated/values_semantics.js")).href);
+  let nativeCalls = 0, injected;
+  const selected = wasmBackend({ abi_version: () => glue.abi_version(), exact_call: request => {
+    nativeCalls++;
+    if (injected !== undefined) throw injected;
+    return glue.exact_call(request);
+  } });
+  const canonical = tsBackend();
+  const decimalShell = (trace, side, poison) => ({
+    get kind() { trace.push(`${side}.kind`); return 'decimal'; },
+    get coef() { trace.push(`${side}.coef`); if (poison !== undefined) throw poison; return 2n; },
+    get scale() { trace.push(`${side}.scale`); return 0; },
+  });
+  const cases = [
+    { name: 'reported decimal poison currency', api: 'addDecimal', make: (trace, sentinel) => [{ kind: 'money', minor: 1n,
+      get currency() { trace.push('currency'); throw sentinel; } }, 1n] },
+    { name: 'left decimal accessor shell', api: 'addDecimal', make: trace => [decimalShell(trace, 'left'), new values.Decimal(1n, 0)] },
+    { name: 'right decimal accessor shell', api: 'addDecimal', make: trace => [new values.Decimal(1n, 0), decimalShell(trace, 'right')] },
+    { name: 'left decimal getter sentinel', api: 'multiplyDecimal', sentinel: true,
+      make: (trace, sentinel) => [decimalShell(trace, 'left', sentinel), new values.Decimal(1n, 0)] },
+    { name: 'right decimal getter sentinel', api: 'divideDecimal', sentinel: true,
+      make: (trace, sentinel) => [new values.Decimal(1n, 0), decimalShell(trace, 'right', sentinel)] },
+    { name: 'wrong first primitive before right poison', api: 'addDecimal', make: (trace, sentinel) => [true,
+      { get kind() { trace.push('right.kind'); throw sentinel; } }] },
+    { name: 'symbol stays owning decimal error', api: 'addDecimal', make: () => [Symbol('invalid'), 1n] },
+    { name: 'integer range precedes invalid right', api: 'addInt', make: () => [9223372036854775808n, 'invalid'] },
+    { name: 'money unknown currency before poison value', api: 'money', make: (trace, sentinel) => [
+      { get kind() { trace.push('value.kind'); throw sentinel; } }, 'ZZZ'] },
+    { name: 'money unknown currency before invalid primitive', api: 'money', make: () => [false, 'ZZZ'] },
+    { name: 'proxy around genuine Decimal', api: 'addDecimal', make: trace => [new Proxy(new values.Decimal(2n, 0), {
+      get(target, key, receiver) { trace.push(`decimal:${String(key)}`); return Reflect.get(target, key, receiver); },
+    }), new values.Decimal(1n, 0)] },
+    { name: 'frozen structural Decimal clone', api: 'addDecimal', make: () => [Object.freeze({ kind: 'decimal', coef: 2n, scale: 0 }), new values.Decimal(1n, 0)] },
+    { name: 'aggregate custom iterator and ignored properties', api: 'sumDecimal', make: (trace, sentinel) => {
+      const items = [new values.Decimal(1n, 0), new values.Decimal(2n, 0)];
+      const array = [...items];
+      Object.defineProperty(array, Symbol.iterator, { get() {
+        trace.push('iterator'); return function* () { trace.push('iterate'); yield* items; };
+      } });
+      Object.defineProperty(array, 'map', { get() { trace.push('map'); throw sentinel; } });
+      Object.defineProperty(array, 'extra', { enumerable: true, get() { trace.push('extra'); throw sentinel; } });
+      return [array];
+    } },
+    { name: 'direct backend argument Proxy', op: 'add-decimal', make: trace => new Proxy([new values.Decimal(1n, 0), new values.Decimal(2n, 0)], {
+      get(target, key, receiver) { trace.push(`args:${String(key)}`); return Reflect.get(target, key, receiver); },
+    }), native: true },
+    { name: 'direct backend argument custom iterator', op: 'add-int', native: true, make: (trace, sentinel) => {
+      const args = [];
+      Object.defineProperty(args, Symbol.iterator, { get() { trace.push('args.iterator'); return function* () {
+        trace.push('args.iterate'); yield 1n; yield 2n;
+      }; } });
+      Object.defineProperty(args, 'map', { get() { trace.push('args.map'); throw sentinel; } });
+      return args;
+    } },
+    { name: 'direct backend iterator reentrant public call', op: 'add-int', native: true, nativeCount: 1, make: trace => {
+      const args = [];
+      args[Symbol.iterator] = function* () {
+        trace.push(`inner:${values.addInt(10n, 20n)}`);
+        yield 1n; yield 2n;
+      };
+      return args;
+    } },
+    { name: 'direct backend ignores extra unused object', op: 'add-int', make: (trace, sentinel) => [1n, 2n,
+      { get kind() { trace.push('extra.kind'); throw sentinel; } }] },
+    { name: 'direct backend missing argument', op: 'add-int', make: () => [1n] },
+    { name: 'genuine primitive native addition', api: 'addInt', native: true, make: () => [1n, 2n] },
+    { name: 'genuine factory native Decimal', api: 'addDecimal', native: true, make: () => [new values.Decimal(1n, 0), new values.Decimal(2n, 0)] },
+    { name: 'genuine factory native Money', api: 'addMoney', native: true, make: () => [values.makeMoney(1n, 'USD'), values.makeMoney(2n, 'USD')] },
+    { name: 'genuine factory native Date', api: 'compareDate', native: true, make: () => [values.makeDate(2026, 1, 1), values.makeDate(2026, 1, 2)] },
+    { name: 'genuine factory native Datetime', api: 'compareInstant', native: true, make: () => [values.makeDatetime(0n), values.makeDatetime(1n)] },
+  ];
+  const observe = (test, backend, sentinel) => {
+    selectExactBackend(backend);
+    const trace = [];
+    const args = test.make(trace, sentinel);
+    nativeCalls = 0;
+    let outcome;
+    try {
+      const result = test.op === undefined ? Reflect.apply(values[test.api], undefined, args)
+        : (backend ?? canonical).call(test.op, args);
+      outcome = { value: JSON.parse(JSON.stringify(result, (_key, value) => typeof value === 'bigint' ? { bigint: String(value) } : value)) };
+    } catch (error) {
+      if (error === sentinel) outcome = { sentinel: true };
+      else outcome = { error: { name: error?.name, code: error?.code, message: error?.message } };
+    }
+    return { trace, outcome, nativeCalls };
+  };
+  try {
+    for (const test of cases) {
+      const sentinel = new Error(`raw sentinel: ${test.name}`);
+      const expected = observe(test, null, sentinel);
+      const actual = observe(test, selected, sentinel);
+      assert.deepEqual({ trace: actual.trace, outcome: actual.outcome },
+        { trace: expected.trace, outcome: expected.outcome }, test.name);
+      if (test.sentinel) assert.deepEqual(actual.outcome, { sentinel: true }, test.name);
+      if (test.native) assert.ok(actual.nativeCalls > 0, `${test.name}: a genuine native call is required`);
+      if (test.nativeCount !== undefined) assert.equal(actual.nativeCalls, test.nativeCount, `${test.name}: only the outer call is native`);
+      if (!test.native && test.name !== 'integer range precedes invalid right' && test.name !== 'money unknown currency before invalid primitive') {
+        assert.equal(actual.nativeCalls, 0, `${test.name}: unissued host graphs must stay canonical`);
+      }
+    }
+    selectExactBackend(selected);
+    nativeCalls = 0;
+    const first = values.addDecimal(new values.Decimal(1n, 0), new values.Decimal(2n, 0));
+    assert.equal(values.addDecimal(first, new values.Decimal(3n, 0)).coef, 6n);
+    assert.equal(nativeCalls, 2, 'reconstructed factory values retain genuine native admission');
+    const sentinel = new Error('injected actual native boundary failure');
+    injected = sentinel; nativeCalls = 0;
+    assert.throws(() => values.addDecimal(new values.Decimal(1n, 0), new values.Decimal(2n, 0)), error => error === sentinel);
+    assert.equal(nativeCalls, 1, 'an admitted native failure propagates without canonical retry');
+  } finally { injected = undefined; selectExactBackend(null); }
+}
+
 if (hostCase !== undefined) {
   const { bootstrapWasm, BootstrapError } = await import(bootstrapURL);
   const expectCode = (action, code) => assert.throws(action, (error) => {
@@ -41,7 +161,9 @@ if (hostCase !== undefined) {
     assert.equal(error.code, code);
     return true;
   });
-  if (hostCase === "compiled") {
+  if (hostCase === "access-order") {
+    await verifyAccessOrder(bootstrapWasm);
+  } else if (hostCase === "compiled") {
     const module = new WebAssembly.Module(bytes());
     const first = bootstrapWasm(module);
     assert.equal(first.call("add-int", [1n, 2n]), 3n);
@@ -84,7 +206,7 @@ if (hostCase !== undefined) {
   }
   console.log(JSON.stringify({ hostCase, status: "passed", executable: process.execPath }));
 } else {
-  for (const test of ["compiled", "abi", "missing-exports", "missing-transport-exports", "caller-methods", "first-asset-mutation", "caller-methods-first", "externally-initialized"]) {
+  for (const test of ["compiled", "abi", "missing-exports", "missing-transport-exports", "caller-methods", "first-asset-mutation", "caller-methods-first", "externally-initialized", "access-order"]) {
     process.stdout.write(execFileSync(process.execPath, [self, `--host-case=${test}`], {
       encoding: "utf8", env: process.env,
     }));

@@ -2,8 +2,9 @@
 //
 // Both backends expose the same synchronous op call over native Can
 // values. The ts backend dispatches straight to the TS package (usable
-// with no bootstrap); the wasm backend round-trips through the generated
-// glue. Can failures surface as ValueError with the original code and
+// with no bootstrap); the wasm backend round-trips primitive/factory-issued
+// leaves through generated glue and keeps arbitrary host graphs canonical.
+// Can failures surface as ValueError with the original code and
 // message on both sides. This is the A07.3 final exact assembly: every
 // selected integer, decimal, money, temporal, numeric aggregate/
 // comparison and scalar-codec operation the native transport dispatches.
@@ -99,6 +100,7 @@ import {
 } from "../src/temporal.js";
 import { decodeValueTsCore, encodeValueTsCore } from "../src/internal/wire-core.js";
 import {
+  isExactTransportLeaf,
   readSelectedExact,
   withCanonicalDispatch,
   writeSelectedExact,
@@ -241,130 +243,6 @@ export function exactOpNames(): string[] {
  */
 export function hasExactOp(op: string): boolean {
   return Object.hasOwn(TS_OPS, op);
-}
-
-/**
- * VALUES-012 A admission before tagging: mirrors the canonical guard
- * read order for the poison-trigger shapes only. Bigint guards check
- * `typeof` (no value-internal reads); string/currency guards check the
- * slot before any graph scan; `money` demands the currency (arg 1)
- * before the value (arg 0) exactly like `money()` scales the currency
- * first, so an unknown currency wins without touching a poison value;
- * `decode-value` for `decimal` defers to the owning core (which reads
- * no value internals for a non-string wire) to raise the owning
- * SchemaError. Every other op falls through to tagging: their guards
- * either read value internals identically on both backends (1 read) or
- * have no poison trigger. Arbitrary-JS shells (`is-*`) stay untouched.
- */
-function admitBeforeTag(op: string, args: unknown[]): void {
-  switch (op) {
-    case "int64": {
-      if (typeof args[0] !== "bigint") {
-        throw new ValueError("invalid-construction", "int64 must be a bigint");
-      }
-      return;
-    }
-    case "add-int": {
-      if (typeof args[0] !== "bigint") {
-        throw new ValueError("invalid-construction", "addInt must be a bigint");
-      }
-      if (args.length > 1 && typeof args[1] !== "bigint") {
-        throw new ValueError("invalid-construction", "addInt must be a bigint");
-      }
-      return;
-    }
-    case "subtract-int": {
-      if (typeof args[0] !== "bigint") {
-        throw new ValueError("invalid-construction", "subtractInt must be a bigint");
-      }
-      if (args.length > 1 && typeof args[1] !== "bigint") {
-        throw new ValueError("invalid-construction", "subtractInt must be a bigint");
-      }
-      return;
-    }
-    case "multiply-int": {
-      if (typeof args[0] !== "bigint") {
-        throw new ValueError("invalid-construction", "multiplyInt must be a bigint");
-      }
-      if (args.length > 1 && typeof args[1] !== "bigint") {
-        throw new ValueError("invalid-construction", "multiplyInt must be a bigint");
-      }
-      return;
-    }
-    case "mod-int": {
-      if (typeof args[0] !== "bigint") {
-        throw new ValueError("invalid-construction", "modInt must be a bigint");
-      }
-      if (args.length > 1 && typeof args[1] !== "bigint") {
-        throw new ValueError("invalid-construction", "modInt must be a bigint");
-      }
-      return;
-    }
-    case "negate-int": {
-      if (typeof args[0] !== "bigint") {
-        throw new ValueError("invalid-construction", "negateInt must be a bigint");
-      }
-      return;
-    }
-    case "abs-int": {
-      if (typeof args[0] !== "bigint") {
-        throw new ValueError("invalid-construction", "absInt must be a bigint");
-      }
-      return;
-    }
-    case "compare-int": {
-      if (typeof args[0] !== "bigint") {
-        throw new ValueError("invalid-construction", "compareInt must be a bigint");
-      }
-      if (args.length > 1 && typeof args[1] !== "bigint") {
-        throw new ValueError("invalid-construction", "compareInt must be a bigint");
-      }
-      return;
-    }
-    case "round-rational": {
-      if (typeof args[0] !== "bigint" || (args.length > 1 && typeof args[1] !== "bigint")) {
-        throw new ValueError("invalid-construction", "roundRationalHalfEven needs bigint inputs");
-      }
-      return;
-    }
-    case "currency-scale": {
-      if (typeof args[0] !== "string") {
-        throw new ValueError("invalid-construction", "currency must be a string");
-      }
-      return;
-    }
-    case "money": {
-      const currency = args[1];
-      if (typeof currency !== "string") {
-        throw new ValueError("invalid-construction", "currency must be a string");
-      }
-      if (!isKnownCurrency(currency)) {
-        throw new ValueError("unknown-currency", `unknown currency: ${currency}`);
-      }
-      return;
-    }
-    case "make-money": {
-      if (typeof args[0] !== "bigint") {
-        throw new ValueError("invalid-construction", "money minor must be a bigint");
-      }
-      const currency = args[1];
-      if (typeof currency !== "string" || !isCurrencyShape(currency)) {
-        throw new ValueError("invalid-construction", `invalid currency code shape: ${currency}`);
-      }
-      if (!isKnownCurrency(currency)) {
-        throw new ValueError("unknown-currency", `unknown currency: ${currency}`);
-      }
-      return;
-    }
-    case "decode-value": {
-      if (args[0] === "decimal" && typeof args[1] !== "string") {
-        decodeValueTsCore(args[0] as string, args[1]);
-      }
-      return;
-    }
-    default:
-      return;
-  }
 }
 
 /** Direct-TS backend: works with no bootstrap and no built glue. */
@@ -741,9 +619,9 @@ function repairViolations(violations: unknown, wire: unknown): unknown {
 
 /**
  * Wasm backend over caller-supplied glue. The ABI version is checked at
- * construction: a mismatched module fails here, never mid-request. Each
- * call crosses exactly once; a native semantic failure throws once with
- * its original code and message and never retries in TS.
+ * construction: a mismatched module fails here, never mid-request. Host
+ * graphs and noncanonical arities use TS before transport; each admitted
+ * native call crosses exactly once. Native failures never retry in TS.
  */
 export function wasmBackend(glue: WasmGlue): ExactBackend {
   const abi = glue.abi_version();
@@ -762,14 +640,17 @@ export function wasmBackend(glue: WasmGlue): ExactBackend {
       if (!hasExactOp(op)) {
         throw new ValueError("invalid-construction", `smoke backend has no op: ${op}`);
       }
-      // VALUES-012 A: demand-ordered admission before any tagging. Each
-      // check reads its own argument slot once, in the canonical guard
-      // order, and throws the canonical error without touching later
-      // arguments or scanning value graphs. Success falls through to
-      // tagging and the single genuine native call; native semantic
-      // failures never retry in TS.
-      admitBeforeTag(op, args);
-      const tagged = args.map(tag);
+      // Match canonical dispatch's argument iteration once. Never probe an
+      // arbitrary value to decide whether it is safe to tag: only primitive
+      // leaves and frozen values issued by the owning factories are eligible.
+      // Structural inputs/arrays keep their original guards, getters and
+      // iterator behavior through canonical dispatch, before any native call.
+      const supplied = withCanonicalDispatch(() => [...args]);
+      const fn = TS_OPS[op]!;
+      if (supplied.length !== fn.length || !supplied.every(isExactTransportLeaf)) {
+        return withCanonicalDispatch(() => Reflect.apply(fn, undefined, supplied));
+      }
+      const tagged = supplied.map(tag);
       const request = stringifyRequest(op, tagged);
       const raw = glue.exact_call(request);
       const response = JSON.parse(raw) as {
@@ -781,15 +662,15 @@ export function wasmBackend(glue: WasmGlue): ExactBackend {
         transport?: string;
       };
       if (!response.ok) {
-        if (response.violations !== undefined && args.length > 1) {
-          response.violations = repairViolations(response.violations, args[1]);
+        if (response.violations !== undefined && supplied.length > 1) {
+          response.violations = repairViolations(response.violations, supplied[1]);
         }
         if (typeof response.message === "string" && response.message.includes("�")) {
           // Demand-ordered re-render only: the message itself carries a
           // replacement character, so at most one known primitive template
           // matches. No whole-graph argument rescan runs here, so throwing
           // getters surface in call order, identically on both backends.
-          response.message = renderHostMessage(op, response.message, args);
+          response.message = renderHostMessage(op, response.message, supplied);
         }
         throwFailure(op, response);
       }
