@@ -1104,7 +1104,9 @@ fn draft_outcome_table() {
         // crud-when membership reads no longer diagnose (Knowledge -2).
         ("draft/apps/CanKnowledge/CanKnowledge.can", 44),
         ("draft/apps/CanLearn/CanLearn.can", 51),
-        ("draft/apps/CanLeave/CanLeave.can", 79),
+        // Renaming the pending Request fixture leaves enum cases unshadowed;
+        // only its five expected-value Request/enum mismatches disappear.
+        ("draft/apps/CanLeave/CanLeave.can", 74),
         // The same owned bound-tab cases (rewards/history) now resolve;
         // transient caption tabs and all original source remain unchanged.
         ("draft/apps/CanLoyalty/CanLoyalty.can", 66),
