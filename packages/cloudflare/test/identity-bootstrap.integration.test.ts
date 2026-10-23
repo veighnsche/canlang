@@ -1,5 +1,6 @@
 /** Real D1 owner claim: account/team/membership publish atomically. */
 import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -9,7 +10,7 @@ import { it } from 'vitest';
 import { bootstrapD1Owner, addD1TeamMember } from '../../identity/src/storage/bootstrap.js';
 import { ensureIdentitySchema, type IdentityD1Database, type IdentityD1BoundStatement } from '../../identity/src/storage/d1.js';
 
-import { createD1IdentityStore, createOpaqueToken, deriveCsrfToken, hashPassword, inviteMember, setMemberRole } from '@canlang/identity';
+import { createD1IdentityStore, createOpaqueToken, deriveCsrfToken, hashPassword, inviteMember, inviteMemberWithReceipt, acceptInvitation, setMemberRole } from '@canlang/identity';
 import { handleAuthRequest, type AuthHttpDeps } from '@canlang/interfaces';
 
 const credentials = { email: 'owner@example.invalid', password: 'Synthetic bootstrap password', timezone: 'Europe/Amsterdam' };
@@ -315,4 +316,170 @@ it('rolls back durable role claims with their writes and serializes competing ow
     assert.deepEqual(await readonly.readMemberRoleMutationReceipt!(input), committed);
     assert.equal(await readonly.readMemberRoleMutationReceipt!({ ...input, operationId: randomUUID() }), null);
   } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 30_000);
+
+
+/** A real local HTTP receiver; acknowledgement proves only this mail boundary. */
+async function invitationMailReceiver() {
+  const received: Array<{ to: string; subject: string; body_text: string }> = [];
+  const server = createServer((request, response) => {
+    let body = '';
+    request.setEncoding('utf8'); request.on('data', chunk => { body += chunk; });
+    request.on('end', () => { received.push(JSON.parse(body)); response.writeHead(204); response.end(); });
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address(); assert.ok(address !== null && typeof address !== 'string');
+  return { received,
+    mail: { async sendMail(to: string, subject: string, body_text: string) {
+      const response = await fetch(`http://127.0.0.1:${address.port}/mail`, { method: 'POST',
+        headers: { 'content-type': 'application/json' }, body: JSON.stringify({ to, subject, body_text }) });
+      assert.equal(response.status, 204); await response.arrayBuffer();
+    } },
+    close: async () => { server.closeAllConnections(); await new Promise<void>((resolve, reject) =>
+      server.close(error => error ? reject(error) : resolve())); },
+  };
+}
+
+it('publishes one original invitation and mail intent, recovers lost publication acknowledgement and never retargets after D1 reopen', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-invitation-receipts-'));
+  const receiver = await invitationMailReceiver();
+  let runtime = new Miniflare(options(directory));
+  try {
+    let db = await runtime.getD1Database('IDENTITY');
+    const owner = await bootstrapD1Owner(db, credentials);
+    const clock = { nowMs: () => Date.parse('2026-10-24T02:00:00.000Z') };
+    let store = createD1IdentityStore(db, { clock });
+    const input = { namespace: 'invitation-app', operationId: randomUUID(), team_id: owner.teamId,
+      email: '  Invited@Example.invalid  ', role: 'Workspace.reviewer', invited_by: owner.userId };
+    const config = { inviteBaseUrl: 'https://original.example/auth/invite' };
+    const interrupted = createD1IdentityStore({ prepare: sql => db.prepare(sql), exec: sql => db.exec(sql),
+      batch: statements => db.batch([...(statements.slice(0, 2) as Parameters<typeof db.batch>[0]), db.prepare('INSERT INTO missing_invitation_table VALUES (1)')]) }, { clock });
+    await assert.rejects(interrupted.createInvitationWithReceipt!(input, config));
+    for (const table of ['identity_invitations', 'identity_team_mutations', 'identity_invitation_mail']) {
+      assert.equal((await db.prepare(`SELECT * FROM ${table}`).all()).results.length, 0, 'publication rolls back all three records');
+    }
+    const lost = createD1IdentityStore({ prepare: sql => db.prepare(sql), exec: sql => db.exec(sql),
+      batch: async statements => { await db.batch(statements as Parameters<typeof db.batch>[0]); throw new Error('lost invitation publication acknowledgement'); } }, { clock });
+    await assert.rejects(lost.createInvitationWithReceipt!(input, config), /lost invitation publication acknowledgement/);
+    const original = await store.readInvitationMutationReceipt!(input); assert.ok(original);
+    assert.equal(original.invitation.email, 'invited@example.invalid');
+    assert.deepEqual(original.invitation.grants_roles, ['Workspace.reviewer']);
+    assert.equal(original.invitation.grants_owner, false);
+    assert.equal(await store.readInvitationMailState!(input), 'pending');
+    assert.deepEqual(await store.createInvitationWithReceipt!(input, { inviteBaseUrl: 'invalid-new-configuration' }), original,
+      'saved original publication does not reconstruct new configuration');
+    const mutable = { ...input };
+    const changesDuringPublication = { ...store, async createInvitationWithReceipt(
+      raw: Parameters<NonNullable<typeof store.createInvitationWithReceipt>>[0], creationConfig: { inviteBaseUrl: string },
+    ) {
+      const receipt = await store.createInvitationWithReceipt!(raw, creationConfig);
+      mutable.email = 'retargeted@example.invalid'; mutable.role = 'owner'; mutable.operationId = randomUUID();
+      return receipt;
+    } };
+    const [a, b] = await Promise.all([
+      inviteMemberWithReceipt(changesDuringPublication, receiver.mail, mutable, { inviteBaseUrl: 'https://replacement.example' }),
+      inviteMemberWithReceipt(store, receiver.mail, { ...input, email: 'invited@example.invalid' }, config),
+    ]);
+    assert.equal(a.invitation_id, original.invitation.invitation_id); assert.equal(b.invitation_id, a.invitation_id);
+    assert.ok(['acknowledged', 'unknown'].includes(a.mail)); assert.ok(['acknowledged', 'unknown'].includes(b.mail));
+    assert.equal(receiver.received.length, 1, 'concurrent retries expose only one local send attempt');
+    const message = receiver.received[0]!;
+    assert.equal(message.to, 'invited@example.invalid');
+    assert.ok(message.body_text.includes(`https://original.example/auth/invite?invitation_id=${a.invitation_id}`));
+    assert.ok(!message.body_text.includes('replacement.example'));
+    assert.ok(message.body_text.includes(original.invitation.expires_at), 'mail states the captured expiry');
+    assert.equal(await store.readInvitationMailState!(input), 'acknowledged');
+    for (const altered of [{ role: 'owner' }, { email: 'other@example.invalid' }, { invited_by: 'other-owner' }, { team_id: 'other-team' }]) {
+      await assert.rejects(store.createInvitationWithReceipt!({ ...input, ...altered }, config),
+        error => error instanceof Error && 'code' in error && error.code === 'conflict');
+    }
+    assert.equal(await store.readInvitationMutationReceipt!({ ...input, operationId: randomUUID() }), null);
+    assert.equal((await db.prepare('SELECT * FROM identity_invitations').all()).results.length, 1);
+    await runtime.dispose(); runtime = new Miniflare(options(directory));
+    db = await runtime.getD1Database('IDENTITY'); store = createD1IdentityStore(db, { clock });
+    assert.deepEqual(await store.readInvitationMutationReceipt!(input), original);
+    assert.deepEqual(await inviteMemberWithReceipt(store, receiver.mail, input, config), { invitation_id: a.invitation_id, mail: 'acknowledged' });
+    assert.equal(receiver.received.length, 1);
+    const readonly = createD1IdentityStore({ prepare: sql => db.prepare(sql), exec: sql => db.exec(sql) }, { clock });
+    assert.equal(readonly.createInvitationWithReceipt, undefined); assert.equal(readonly.claimInvitationMail, undefined);
+    assert.deepEqual(await readonly.readInvitationMutationReceipt!(input), original);
+    assert.equal(await readonly.readInvitationMailState!(input), 'acknowledged');
+  } finally { await runtime.dispose(); await receiver.close(); await rm(directory, { recursive: true, force: true }); }
+}, 30_000);
+
+it('preserves unknown mail attempts across faults and rechecks live invitation authority before an unclaimed send', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-invitation-mail-recovery-'));
+  const receiver = await invitationMailReceiver();
+  let runtime = new Miniflare(options(directory));
+  try {
+    let db = await runtime.getD1Database('IDENTITY');
+    const owner = await bootstrapD1Owner(db, credentials);
+    let at = Date.parse('2026-10-24T02:00:00.000Z'); const clock = { nowMs: () => at };
+    let store = createD1IdentityStore(db, { clock });
+    const config = { inviteBaseUrl: 'https://mail.example' };
+    const command = (email: string) => ({ namespace: 'mail-app', operationId: randomUUID(), team_id: owner.teamId,
+      email, role: 'Workspace.reviewer', invited_by: owner.userId });
+    const lostClaimInput = command('lost-claim@example.invalid');
+    await store.createInvitationWithReceipt!(lostClaimInput, config);
+    const lost = createD1IdentityStore({ prepare: sql => db.prepare(sql), exec: sql => db.exec(sql),
+      batch: async statements => { await db.batch(statements as Parameters<typeof db.batch>[0]); throw new Error('lost mail acknowledgement'); } }, { clock });
+    const lostClaim = await inviteMemberWithReceipt(lost, receiver.mail, lostClaimInput, config);
+    assert.equal(lostClaim.mail, 'unknown'); assert.equal(receiver.received.length, 0);
+    assert.equal((await inviteMemberWithReceipt(store, receiver.mail, lostClaimInput, config)).mail, 'unknown');
+    assert.equal(receiver.received.length, 0, 'lost claim cannot be assumed unsent');
+    const acceptedInput = command('accepted-unknown@example.invalid');
+    const ambiguousMail = { async sendMail(to: string, subject: string, body: string) {
+      await receiver.mail.sendMail(to, subject, body); throw new Error('lost receiver response');
+    } };
+    const ambiguous = await inviteMemberWithReceipt(store, ambiguousMail, acceptedInput, config);
+    assert.equal(ambiguous.mail, 'unknown'); assert.equal(receiver.received.length, 1);
+    assert.equal((await inviteMemberWithReceipt(store, receiver.mail, acceptedInput, config)).mail, 'unknown');
+    assert.equal(receiver.received.length, 1, 'provider-side receipt plus lost acknowledgement never triggers a duplicate');
+    const ackInput = command('lost-local-ack@example.invalid');
+    await store.createInvitationWithReceipt!(ackInput, config);
+    const lostAck = { ...store, acknowledgeInvitationMail: lost.acknowledgeInvitationMail!.bind(lost) };
+    assert.equal((await inviteMemberWithReceipt(lostAck, receiver.mail, ackInput, config)).mail, 'acknowledged');
+    assert.equal(receiver.received.length, 2, 'lost local ack is observed from durable state');
+    const pendingInput = command('pending-owner@example.invalid');
+    await store.createInvitationWithReceipt!(pendingInput, config);
+    const second = await addD1TeamMember(db, { teamId: owner.teamId, email: 'second-owner@example.invalid', password: 'Synthetic second password' });
+    await store.setMembershipOwner((await store.findMembership(owner.teamId, second.userId))!.membership_id, true);
+    await assert.rejects(store.createInvitationWithReceipt!(command('second-owner@example.invalid'), config),
+      'an active addressed membership cannot receive a new grant offer');
+    const principal = (await store.findMembership(owner.teamId, owner.userId))!;
+    await store.removeMembership(principal.membership_id);
+    assert.deepEqual(await store.claimInvitationMail!(pendingInput), { state: 'pending' });
+    assert.equal(receiver.received.length, 2);
+    await assert.rejects(store.createInvitationWithReceipt!(command('denied-owner@example.invalid'), config));
+    await store.reactivateMembership(principal.membership_id, { is_owner: true, roles: [] });
+    const claimed = await store.claimInvitationMail!(pendingInput); assert.ok(claimed.attempt);
+    await assert.rejects(store.acknowledgeInvitationMail!(pendingInput, 'wrong-attempt'));
+    const original = await store.readInvitationMutationReceipt!(pendingInput); assert.ok(original);
+    await store.revokeInvitation(original.invitation.invitation_id);
+    assert.equal(await store.acknowledgeInvitationMail!(pendingInput, claimed.attempt.token), 'acknowledged',
+      'late acknowledgement concerns only the old attempt, never restores the revoked offer');
+    const revokedInput = command('revoked-pending@example.invalid');
+    const revoked = await store.createInvitationWithReceipt!(revokedInput, config);
+    await store.revokeInvitation(revoked.invitation.invitation_id);
+    assert.deepEqual(await store.claimInvitationMail!(revokedInput), { state: 'cancelled' });
+    const expiresInput = command('expires-pending@example.invalid');
+    const expires = await store.createInvitationWithReceipt!(expiresInput, config);
+    at = Date.parse(expires.invitation.expires_at);
+    assert.deepEqual(await store.claimInvitationMail!(expiresInput), { state: 'cancelled' });
+    assert.equal((await inviteMemberWithReceipt(store, receiver.mail, acceptedInput, config)).mail, 'unknown', 'expiry never cancels an unknown effect');
+    assert.equal(receiver.received.length, 2);
+    at -= 1000;
+    const addressed = command('addressed@example.invalid');
+    const offer = await store.createInvitationWithReceipt!(addressed, config);
+    const invited = await store.createUser({ email: addressed.email, password_hash: 'unused', email_verified: true });
+    await acceptInvitation(store, { invitation_id: offer.invitation.invitation_id, user_id: invited.user_id }, { clock });
+    assert.equal((await inviteMemberWithReceipt(store, receiver.mail, addressed, config)).mail, 'cancelled');
+    assert.deepEqual(await store.readInvitationMutationReceipt!(addressed), offer, 'acceptance never rewrites the original receipt');
+    assert.equal(receiver.received.length, 2);
+    await runtime.dispose(); runtime = new Miniflare(options(directory));
+    db = await runtime.getD1Database('IDENTITY'); store = createD1IdentityStore(db, { clock });
+    assert.equal(await store.readInvitationMailState!(acceptedInput), 'unknown');
+    assert.equal((await store.claimInvitationMail!(acceptedInput)).attempt, undefined);
+    assert.equal(receiver.received.length, 2);
+  } finally { await runtime.dispose(); await receiver.close(); await rm(directory, { recursive: true, force: true }); }
 }, 30_000);

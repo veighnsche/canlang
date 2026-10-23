@@ -17,7 +17,7 @@ import {
   systemClock,
   toInstant,
 } from '../ports.js';
-import type { Clock, IdentityStore, MailPort } from '../ports.js';
+import type { Clock, IdentityStore, MailPort, InvitationMutationInput, InvitationMailState } from '../ports.js';
 import type { Membership } from '@canlang/contracts';
 import { normalizeEmail } from '../accounts/registration.js';
 
@@ -36,6 +36,65 @@ export interface InviteOptions {
   /** Absolute deployment origin or invitation page URL (S4). */
   readonly inviteBaseUrl: string;
   readonly inviteExpiresMs?: number;
+}
+
+/** One original message for legacy sends and durable Identity intents. */
+export function buildInvitationMail(
+  invitation: { readonly invitation_id: string; readonly email: string; readonly expires_at: string },
+  inviteBaseUrl: string,
+): { to: string; subject: string; body_text: string } {
+  const base = new URL(inviteBaseUrl);
+  if (!['http:', 'https:'].includes(base.protocol) || base.username !== '' || base.password !== '' ||
+      !Number.isFinite(Date.parse(invitation.expires_at))) {
+    throw new IdentityError('validation', 'Invalid invitation mail configuration.');
+  }
+  const url = new URL('/auth/invite', base);
+  url.searchParams.set('invitation_id', invitation.invitation_id);
+  return { to: invitation.email, subject: 'You are invited to a team',
+    body_text: `Sign in with this email address to accept the invitation:\n${url.href}\nThis invitation expires at ${invitation.expires_at}.` };
+}
+
+/** Original invitation publication plus at most one local mail attempt.
+ * A void MailPort cannot reconcile a provider or prove non-delivery. Unknown
+ * therefore remains unknown across retries; only an unclaimed pending intent
+ * can be resumed. Current transport authority and app scope remain host-owned. */
+export async function inviteMemberWithReceipt(
+  store: IdentityStore,
+  mail: MailPort,
+  input: InvitationMutationInput,
+  opts: { readonly inviteBaseUrl: string },
+): Promise<{ invitation_id: string; mail: InvitationMailState }> {
+  const create = store.createInvitationWithReceipt, claim = store.claimInvitationMail;
+  const acknowledge = store.acknowledgeInvitationMail, read = store.readInvitationMailState;
+  if (typeof create !== 'function' || typeof claim !== 'function' ||
+      typeof acknowledge !== 'function' || typeof read !== 'function' || typeof mail?.sendMail !== 'function') {
+    throw new Error('Durable invitation mail is not configured.');
+  }
+  const send = mail.sendMail.bind(mail);
+  const receipt = await create.call(store, input, { inviteBaseUrl: opts.inviteBaseUrl });
+  // Reconstruct subsequent requests from the captured original receipt, never
+  // a caller object which may have changed while publication was awaited.
+  const original: InvitationMutationInput = Object.freeze({ namespace: receipt.namespace, operationId: receipt.operationId,
+    team_id: receipt.invitation.team_id, email: receipt.invitation.email,
+    role: receipt.invitation.grants_owner ? 'owner' : receipt.invitation.grants_roles[0]!,
+    invited_by: receipt.invitation.invited_by });
+  const result = (state: InvitationMailState) => ({ invitation_id: receipt.invitation.invitation_id, mail: state });
+  const observe = async (): Promise<InvitationMailState> => {
+    try { return await read.call(store, original) ?? 'unknown'; }
+    catch { return 'unknown'; }
+  };
+  let delivery;
+  try { delivery = await claim.call(store, original); }
+  catch { return result(await observe()); }
+  if (delivery.attempt === undefined) return result(delivery.state);
+  try {
+    // A richer provider completion must be interpreted by its adapter, not
+    // erased into this void port. Unexpected returned data is not an ack.
+    const acknowledged = await send(delivery.attempt.to, delivery.attempt.subject, delivery.attempt.body_text);
+    if (acknowledged !== undefined) return result('unknown');
+  } catch { return result('unknown'); }
+  try { return result(await acknowledge.call(store, original, delivery.attempt.token)); }
+  catch { return result(await observe()); }
 }
 
 export async function inviteMember(
@@ -62,21 +121,17 @@ export async function inviteMember(
       throw new IdentityError('conflict', 'Already a member of this team.');
     }
   }
+  const expires_at = toInstant(clock.nowMs() + (opts.inviteExpiresMs ?? INVITE_EXPIRES_MS));
   const { invitation_id } = await store.createInvitation({
     team_id: input.team_id,
     email,
     grants_owner: input.role === 'owner',
     grants_roles: input.role === 'owner' ? [] : [input.role],
     invited_by: opts.invited_by,
-    expires_at: toInstant(clock.nowMs() + (opts.inviteExpiresMs ?? INVITE_EXPIRES_MS)),
+    expires_at,
   });
-  const inviteUrl = new URL('/auth/invite', opts.inviteBaseUrl);
-  inviteUrl.searchParams.set('invitation_id', invitation_id);
-  await mail.sendMail(
-    email,
-    'You are invited to a team',
-    `Sign in with this email address to accept the invitation:\n${inviteUrl.href}\nThis invitation expires in 7 days.`,
-  );
+  const message = buildInvitationMail({ invitation_id, email, expires_at }, opts.inviteBaseUrl);
+  await mail.sendMail(message.to, message.subject, message.body_text);
   return { invitation_id };
 }
 

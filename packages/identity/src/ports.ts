@@ -78,9 +78,10 @@ export class IdentityError extends Error {
   }
 }
 
-/** Outbound mail port. Production binds the lane-04 mail adapter
- * (std.EmailV1 shape); tests capture into an outbox array. Bodies are
- * escaped plain text; raw tokens travel only inside addressed mail. */
+/** Outbound account mail port, explicitly bound by the host. Fulfilment
+ * acknowledges this port, not inbox delivery. A provider adapter must inspect
+ * its completion and reject unknown/failed outcomes rather than erase them
+ * into void. Bodies are plain text; raw tokens stay in addressed mail. */
 export interface MailPort {
   sendMail(to: string, subject: string, body_text: string): Promise<void>;
 }
@@ -92,6 +93,31 @@ export interface MemberRoleMutationReceipt {
   readonly operationId: string;
   readonly requestDigest: string;
   readonly membership: Membership;
+}
+
+export interface InvitationMutationInput {
+  readonly namespace: string;
+  readonly operationId: string;
+  readonly team_id: string;
+  readonly email: string;
+  readonly role: string;
+  readonly invited_by: string;
+}
+
+/** Saved creation facts only; neither the receipt nor its offer is current authority. */
+export interface InvitationMutationReceipt {
+  readonly namespace: string;
+  readonly operation: 'system.team.invite';
+  readonly operationId: string;
+  readonly requestDigest: string;
+  readonly invitation: TeamInvitationRow & { readonly invitation_id: InvitationId };
+}
+
+/** Unknown is terminal for automatic delivery: MailPort cannot reconcile it. */
+export type InvitationMailState = 'pending' | 'unknown' | 'acknowledged' | 'cancelled';
+export interface InvitationMailClaim {
+  readonly state: InvitationMailState;
+  readonly attempt?: { readonly token: string; readonly to: string; readonly subject: string; readonly body_text: string };
 }
 
 /**
@@ -189,6 +215,16 @@ export interface IdentityStore {
   ): Promise<void>;
 
   // -- invitations --
+  /** Original invitation and immutable mail intent share one transaction.
+   * Hosts must authenticate/bind namespace; replay creates no new offer/mail. */
+  createInvitationWithReceipt?(input: InvitationMutationInput, config: { readonly inviteBaseUrl: string }):
+    Promise<InvitationMutationReceipt>;
+  readInvitationMutationReceipt?(input: InvitationMutationInput): Promise<InvitationMutationReceipt | null>;
+  /** A pending winner becomes unknown durably before its one attempt is
+   * returned. No lease/reset exists; retries of unknown never return an attempt. */
+  claimInvitationMail?(input: InvitationMutationInput): Promise<InvitationMailClaim>;
+  acknowledgeInvitationMail?(input: InvitationMutationInput, token: string): Promise<InvitationMailState>;
+  readInvitationMailState?(input: InvitationMutationInput): Promise<InvitationMailState | null>;
   createInvitation(input: {
     team_id: TeamId;
     email: string;

@@ -48,6 +48,9 @@ import type {
 import type {
   Clock,
   IdentityStore,
+  InvitationMailState,
+  InvitationMutationInput,
+  InvitationMutationReceipt,
   MemberRoleMutationReceipt,
   RandomSource,
   StoredUser,
@@ -59,6 +62,8 @@ import { captureRemoval, removalEnvelope, type RemovalRow } from '../teams/remov
 import { IdentityError } from '../ports.js';
 import { parseRoleValue } from '../teams/roles.js';
 import { sha256HexText } from '../sessions/tokens.js';
+import { normalizeEmail } from '../accounts/registration.js';
+import { buildInvitationMail, checkRoleName, INVITE_EXPIRES_MS } from '../teams/invitations.js';
 
 /* ------------------------------------------------------------------ */
 /* Minimal D1 surface. No `@cloudflare/workers-types` import: this     */
@@ -154,6 +159,7 @@ export const IDENTITY_DDL: readonly string[] = [
   'CREATE TABLE IF NOT EXISTS identity_setup_claim (slot INTEGER PRIMARY KEY CHECK (slot = 1), operation TEXT NOT NULL UNIQUE, token_hash TEXT NOT NULL, context TEXT NOT NULL, completed_at INTEGER NOT NULL)',
   'CREATE TABLE IF NOT EXISTS identity_member_removals (event_id TEXT PRIMARY KEY, namespace TEXT NOT NULL, operation_id TEXT NOT NULL, request_digest TEXT NOT NULL, team_id TEXT NOT NULL, membership_id TEXT NOT NULL, user_id TEXT NOT NULL, removed_by TEXT NOT NULL, occurred_at TEXT NOT NULL, winner_token TEXT NOT NULL, UNIQUE(namespace, operation_id))',
   'CREATE TABLE IF NOT EXISTS identity_team_mutations (namespace TEXT NOT NULL, operation TEXT NOT NULL, operation_id TEXT NOT NULL, request_digest TEXT NOT NULL, winner_token TEXT NOT NULL, outcome_json TEXT NOT NULL, PRIMARY KEY(namespace, operation, operation_id))',
+  "CREATE TABLE IF NOT EXISTS identity_invitation_mail (namespace TEXT NOT NULL, operation_id TEXT NOT NULL, request_digest TEXT NOT NULL, invitation_id TEXT NOT NULL, to_address TEXT NOT NULL, subject TEXT NOT NULL, body_text TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('pending','unknown','acknowledged','cancelled')), attempt_token TEXT NULL, PRIMARY KEY(namespace, operation_id))",
   ...IDENTITY_INDEXES,
 ];
 
@@ -245,26 +251,25 @@ function toMembership(row: MembershipRow): Membership {
 
 type RoleMutationInput = Parameters<NonNullable<IdentityStore['changeMemberRoleWithReceipt']>>[0];
 const ROLE_MUTATION_OPERATION = 'system.team.role' as const;
+const INVITATION_MUTATION_OPERATION = 'system.team.invite' as const;
 const roleMutationFields = ['namespace', 'operationId', 'team_id', 'member_user_id', 'granted_by', 'role'] as const;
+const invitationMutationFields = ['namespace', 'operationId', 'team_id', 'email', 'role', 'invited_by'] as const;
+const TEAM_MUTATION_WINNER = 'EXISTS (SELECT 1 FROM identity_team_mutations receipt WHERE receipt.namespace = ? AND receipt.operation = ? AND receipt.operation_id = ? AND receipt.winner_token = ?)';
 
-function roleMutationObject(value: unknown, fields: readonly string[]): Record<string, unknown> {
+function teamMutationObject(value: unknown, fields: readonly string[]): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
-      Reflect.ownKeys(value).length !== fields.length) throw new IdentityError('validation', 'Invalid role mutation data.');
+      Reflect.ownKeys(value).length !== fields.length) throw new IdentityError('validation', 'Invalid team mutation data.');
   const result: Record<string, unknown> = Object.create(null);
   for (const field of fields) {
     const member = Object.getOwnPropertyDescriptor(value, field);
-    if (member === undefined || !('value' in member) || !member.enumerable) throw new IdentityError('validation', 'Invalid role mutation data.');
+    if (member === undefined || !('value' in member) || !member.enumerable) throw new IdentityError('validation', 'Invalid team mutation data.');
     result[field] = member.value;
   }
   return result;
 }
 
 async function captureRoleMutation(raw: RoleMutationInput) {
-  const captured = roleMutationObject(raw, roleMutationFields);
-  if (Object.values(captured).some(value => typeof value !== 'string' || value === '')) {
-    throw new IdentityError('validation', 'Invalid role mutation data.');
-  }
-  const input = Object.freeze(captured) as unknown as RoleMutationInput;
+  const input = captureTeamMutation(raw, roleMutationFields) as unknown as RoleMutationInput;
   const parsed = parseRoleValue(input.role);
   // The exact grammar has one spelling per grant/revoke decision. Fixed key
   // order makes equivalent own-data request objects share the same digest.
@@ -273,19 +278,42 @@ async function captureRoleMutation(raw: RoleMutationInput) {
   return { input, digest, ...parsed };
 }
 
-interface RoleMutationRow {
+function captureTeamMutation(raw: unknown, fields: readonly string[]): Readonly<Record<string, string>> {
+  const captured = teamMutationObject(raw, fields);
+  if (Object.values(captured).some(value => typeof value !== 'string' || value === '')) {
+    throw new IdentityError('validation', 'Invalid team mutation data.');
+  }
+  return Object.freeze(captured) as Readonly<Record<string, string>>;
+}
+
+async function captureInvitationMutation(raw: InvitationMutationInput) {
+  const captured = captureTeamMutation(raw, invitationMutationFields) as unknown as InvitationMutationInput;
+  checkRoleName(captured.role);
+  const input = Object.freeze({ ...captured, email: normalizeEmail(captured.email) });
+  return { input, digest: await sha256HexText(JSON.stringify({ operation: INVITATION_MUTATION_OPERATION, ...input })) };
+}
+
+function teamMutationKey(input: { readonly namespace: string; readonly operationId: string }, operation: string, winner: string) {
+  return [input.namespace, operation, input.operationId, winner];
+}
+
+interface TeamMutationRow {
   readonly namespace: string; readonly operation: string; readonly operation_id: string;
   readonly request_digest: string; readonly outcome_json: string;
 }
 
-function roleMutationReceipt(row: RoleMutationRow, input: RoleMutationInput, digest: string): MemberRoleMutationReceipt {
-  if (row.namespace !== input.namespace || row.operation !== ROLE_MUTATION_OPERATION ||
+function checkTeamMutationRow(row: TeamMutationRow, input: { readonly namespace: string; readonly operationId: string }, digest: string, operation: string): void {
+  if (row.namespace !== input.namespace || row.operation !== operation ||
       row.operation_id !== input.operationId || row.request_digest !== digest) {
-    throw new IdentityError('conflict', 'Role mutation occurrence differs from its original request.');
+    throw new IdentityError('conflict', 'Team mutation occurrence differs from its original request.');
   }
+}
+
+function roleMutationReceipt(row: TeamMutationRow, input: RoleMutationInput, digest: string): MemberRoleMutationReceipt {
+  checkTeamMutationRow(row, input, digest, ROLE_MUTATION_OPERATION);
   let membership: Membership;
   try {
-    const value = roleMutationObject(JSON.parse(row.outcome_json) as unknown,
+    const value = teamMutationObject(JSON.parse(row.outcome_json) as unknown,
       ['membership_id', 'team_id', 'user_id', 'is_owner', 'roles', 'status', 'created_at', 'updated_at']);
     if (['membership_id', 'team_id', 'user_id', 'created_at', 'updated_at'].some(key =>
       typeof value[key] !== 'string' || value[key] === '') || value['team_id'] !== input.team_id ||
@@ -293,7 +321,7 @@ function roleMutationReceipt(row: RoleMutationRow, input: RoleMutationInput, dig
         !Number.isFinite(Date.parse(value['created_at'] as string)) || !Number.isFinite(Date.parse(value['updated_at'] as string)) ||
         !Array.isArray(value['roles'])) throw new Error('Invalid original membership.');
     const roles = value['roles'].map((raw: unknown) => {
-      const grant = roleMutationObject(raw, ['role', 'granted_at', 'granted_by']);
+      const grant = teamMutationObject(raw, ['role', 'granted_at', 'granted_by']);
       if (Object.values(grant).some(value => typeof value !== 'string' || value === '') ||
           !Number.isFinite(Date.parse(grant['granted_at'] as string))) throw new Error('Invalid original grant.');
       const parsed = parseRoleValue(grant['role'] as string);
@@ -306,6 +334,42 @@ function roleMutationReceipt(row: RoleMutationRow, input: RoleMutationInput, dig
   }
   return Object.freeze({ namespace: input.namespace, operation: ROLE_MUTATION_OPERATION,
     operationId: input.operationId, requestDigest: digest, membership });
+}
+
+function invitationMutationReceipt(row: TeamMutationRow, input: InvitationMutationInput, digest: string): InvitationMutationReceipt {
+  checkTeamMutationRow(row, input, digest, INVITATION_MUTATION_OPERATION);
+  let invitation: InvitationMutationReceipt['invitation'];
+  try {
+    const value = teamMutationObject(JSON.parse(row.outcome_json) as unknown,
+      ['invitation_id', 'team_id', 'email', 'grants_owner', 'grants_roles', 'invited_by', 'created_at', 'expires_at', 'accepted_at', 'revoked_at']);
+    if (['invitation_id', 'team_id', 'email', 'invited_by', 'created_at', 'expires_at'].some(key => typeof value[key] !== 'string' || value[key] === '') ||
+        value['team_id'] !== input.team_id || value['email'] !== input.email || value['invited_by'] !== input.invited_by ||
+        value['grants_owner'] !== (input.role === 'owner') || value['accepted_at'] !== null || value['revoked_at'] !== null ||
+        !Number.isFinite(Date.parse(value['created_at'] as string)) ||
+        Date.parse(value['expires_at'] as string) - Date.parse(value['created_at'] as string) !== INVITE_EXPIRES_MS ||
+        JSON.stringify(value['grants_roles']) !== JSON.stringify(input.role === 'owner' ? [] : [input.role])) throw new Error('Invalid original invitation.');
+    invitation = Object.freeze({ ...value, grants_roles: Object.freeze([...(value['grants_roles'] as string[])]) }) as unknown as InvitationMutationReceipt['invitation'];
+  } catch { throw new Error('Invalid stored original invitation outcome.'); }
+  return Object.freeze({ namespace: input.namespace, operation: INVITATION_MUTATION_OPERATION,
+    operationId: input.operationId, requestDigest: digest, invitation });
+}
+
+interface InvitationMailRow {
+  readonly namespace: string; readonly operation_id: string; readonly request_digest: string;
+  readonly invitation_id: string; readonly to_address: string; readonly subject: string; readonly body_text: string;
+  readonly state: InvitationMailState; readonly attempt_token: string | null;
+}
+
+function checkInvitationMail(row: InvitationMailRow | null, receipt: InvitationMutationReceipt): InvitationMailRow {
+  if (row === null || row.namespace !== receipt.namespace || row.operation_id !== receipt.operationId ||
+      row.request_digest !== receipt.requestDigest || row.invitation_id !== receipt.invitation.invitation_id ||
+      row.to_address !== receipt.invitation.email || typeof row.subject !== 'string' || row.subject === '' ||
+      typeof row.body_text !== 'string' || row.body_text === '' || !['pending', 'unknown', 'acknowledged', 'cancelled'].includes(row.state) ||
+      (row.state === 'unknown' || row.state === 'acknowledged'
+        ? typeof row.attempt_token !== 'string' || row.attempt_token === '' : row.attempt_token !== null)) {
+    throw new Error('Original invitation mail intent is unavailable.');
+  }
+  return row;
 }
 
 interface InvitationRow {
@@ -543,14 +607,35 @@ export function createD1IdentityStore(
   const readRemoval = (input: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0]) =>
     db.prepare('SELECT namespace, operation_id, request_digest, event_id, team_id, membership_id, user_id, removed_by, occurred_at FROM identity_member_removals WHERE namespace = ? AND operation_id = ?')
       .bind(input.namespace, input.operationId).first<RemovalRow>();
-  const readRoleMutation = (input: RoleMutationInput) => db.prepare(
+  const readTeamMutation = (input: { readonly namespace: string; readonly operationId: string }, operation: string) => db.prepare(
     'SELECT namespace, operation, operation_id, request_digest, outcome_json FROM identity_team_mutations WHERE namespace = ? AND operation = ? AND operation_id = ?',
-  ).bind(input.namespace, ROLE_MUTATION_OPERATION, input.operationId).first<RoleMutationRow>();
+  ).bind(input.namespace, operation, input.operationId).first<TeamMutationRow>();
+  const readInvitationMail = (input: InvitationMutationInput) => db.prepare(
+    'SELECT namespace, operation_id, request_digest, invitation_id, to_address, subject, body_text, state, attempt_token FROM identity_invitation_mail WHERE namespace = ? AND operation_id = ?',
+  ).bind(input.namespace, input.operationId).first<InvitationMailRow>();
+  const claimTeamMutation = (input: { readonly namespace: string; readonly operationId: string }, operation: string,
+    digest: string, winner: string, condition: string, values: readonly unknown[]) => db.prepare(
+    `INSERT INTO identity_team_mutations (namespace, operation, operation_id, request_digest, winner_token, outcome_json)
+      SELECT ?, ?, ?, ?, ?, '{}' ${condition} ON CONFLICT(namespace, operation, operation_id) DO NOTHING`,
+  ).bind(input.namespace, operation, input.operationId, digest, winner, ...values);
+  const originalInvitation = async (input: InvitationMutationInput, digest: string) => {
+    const row = await readTeamMutation(input, INVITATION_MUTATION_OPERATION);
+    return row === null ? null : invitationMutationReceipt(row, input, digest);
+  };
 
   return {
+    async readInvitationMutationReceipt(raw) {
+      const { input, digest } = await captureInvitationMutation(raw);
+      return originalInvitation(input, digest);
+    },
+    async readInvitationMailState(raw) {
+      const { input, digest } = await captureInvitationMutation(raw);
+      const receipt = await originalInvitation(input, digest);
+      return receipt === null ? null : checkInvitationMail(await readInvitationMail(input), receipt).state;
+    },
     async readMemberRoleMutationReceipt(raw) {
       const { input, digest } = await captureRoleMutation(raw);
-      const prior = await readRoleMutation(input);
+      const prior = await readTeamMutation(input, ROLE_MUTATION_OPERATION);
       return prior === null ? null : roleMutationReceipt(prior, input, digest);
     },
     async readMemberRemovalOccurrence(raw) {
@@ -559,13 +644,95 @@ export function createD1IdentityStore(
       return prior === null ? null : removalEnvelope(prior, input, digest);
     },
     ...(typeof db.batch !== 'function' ? {} : {
+      async createInvitationWithReceipt(raw: InvitationMutationInput, config: { readonly inviteBaseUrl: string }) {
+        const { input, digest } = await captureInvitationMutation(raw);
+        const prior = await originalInvitation(input, digest);
+        if (prior !== null) return prior;
+        const at = now(), expires = toInstant(Date.parse(at) + INVITE_EXPIRES_MS);
+        const invitationId = random.randomUUID(), winner = random.randomUUID();
+        const mail = buildInvitationMail({ invitation_id: invitationId, email: input.email, expires_at: expires }, config.inviteBaseUrl);
+        const key = teamMutationKey(input, INVITATION_MUTATION_OPERATION, winner);
+        const insert = claimTeamMutation(input, INVITATION_MUTATION_OPERATION, digest, winner,
+          `FROM identity_memberships principal JOIN identity_users actor ON actor.user_id = principal.user_id
+            JOIN identity_teams team ON team.team_id = principal.team_id
+            WHERE principal.team_id = ? AND principal.user_id = ? AND principal.status = 'active' AND principal.is_owner = 1
+            AND NOT EXISTS (SELECT 1 FROM identity_users subject JOIN identity_memberships member ON member.user_id = subject.user_id
+              WHERE subject.email_lc = ? AND member.team_id = principal.team_id AND member.status = 'active')`,
+          [input.team_id, input.invited_by, input.email]);
+        await db.batch!([insert,
+          db.prepare(`INSERT INTO identity_invitations (invitation_id, team_id, email, email_lc, grants_owner, grants_roles, invited_by, created_at, expires_at, accepted_at, revoked_at)
+            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL WHERE ${TEAM_MUTATION_WINNER}`)
+            .bind(invitationId, input.team_id, input.email, input.email, input.role === 'owner' ? 1 : 0,
+              JSON.stringify(input.role === 'owner' ? [] : [input.role]), input.invited_by, at, expires, ...key),
+          db.prepare(`UPDATE identity_team_mutations SET outcome_json = (SELECT json_object(
+            'invitation_id', invitation_id, 'team_id', team_id, 'email', email,
+            'grants_owner', json(CASE WHEN grants_owner = 1 THEN 'true' ELSE 'false' END), 'grants_roles', json(grants_roles),
+            'invited_by', invited_by, 'created_at', created_at, 'expires_at', expires_at, 'accepted_at', accepted_at, 'revoked_at', revoked_at)
+            FROM identity_invitations WHERE invitation_id = ?)
+            WHERE namespace = ? AND operation = ? AND operation_id = ? AND winner_token = ?`)
+            .bind(invitationId, ...key),
+          db.prepare(`INSERT INTO identity_invitation_mail (namespace, operation_id, request_digest, invitation_id, to_address, subject, body_text, state, attempt_token)
+            SELECT ?, ?, ?, ?, ?, ?, ?, 'pending', NULL WHERE ${TEAM_MUTATION_WINNER}`)
+            .bind(input.namespace, input.operationId, digest, invitationId, mail.to, mail.subject, mail.body_text, ...key),
+        ]);
+        const saved = await originalInvitation(input, digest);
+        if (saved === null) throw new IdentityError('forbidden', 'A current team owner and a nonmember addressee are required.');
+        return saved;
+      },
+      async claimInvitationMail(raw: InvitationMutationInput) {
+        const { input, digest } = await captureInvitationMutation(raw);
+        const receipt = await originalInvitation(input, digest);
+        if (receipt === null) throw new IdentityError('not_found', 'Invitation occurrence not found.');
+        const prior = checkInvitationMail(await readInvitationMail(input), receipt);
+        if (prior.state !== 'pending') return Object.freeze({ state: prior.state });
+        const token = random.randomUUID(), at = now(), invitation = receipt.invitation;
+        const live = `EXISTS (SELECT 1 FROM identity_invitations offer JOIN identity_teams team ON team.team_id = offer.team_id
+          WHERE offer.invitation_id = ? AND offer.team_id = ? AND offer.email_lc = ? AND offer.invited_by = ?
+          AND offer.grants_owner = ? AND offer.grants_roles = ? AND offer.created_at = ? AND offer.expires_at = ?
+          AND offer.accepted_at IS NULL AND offer.revoked_at IS NULL AND offer.expires_at > ?
+          AND NOT EXISTS (SELECT 1 FROM identity_users subject JOIN identity_memberships member ON member.user_id = subject.user_id
+            WHERE subject.email_lc = offer.email_lc AND member.team_id = offer.team_id AND member.status = 'active'))`;
+        const liveKey = [invitation.invitation_id, input.team_id, input.email, input.invited_by,
+          invitation.grants_owner ? 1 : 0, JSON.stringify(invitation.grants_roles), invitation.created_at, invitation.expires_at, at];
+        const owner = `EXISTS (SELECT 1 FROM identity_memberships principal JOIN identity_users actor ON actor.user_id = principal.user_id
+          WHERE principal.team_id = ? AND principal.user_id = ? AND principal.status = 'active' AND principal.is_owner = 1)`;
+        const key = [input.namespace, input.operationId, digest];
+        const results: unknown = await db.batch!([
+          // Only pending can be cancelled. Unknown may already have been sent.
+          db.prepare(`UPDATE identity_invitation_mail SET state = 'cancelled' WHERE namespace = ? AND operation_id = ? AND request_digest = ? AND state = 'pending' AND NOT ${live}`)
+            .bind(...key, ...liveKey),
+          db.prepare(`UPDATE identity_invitation_mail SET state = 'unknown', attempt_token = ?
+            WHERE namespace = ? AND operation_id = ? AND request_digest = ? AND state = 'pending' AND ${live} AND ${owner}`)
+            .bind(token, ...key, ...liveKey, input.team_id, input.invited_by),
+        ]);
+        const changes = Array.isArray(results) && results.length === 2 ? results[1]?.meta?.changes : undefined;
+        if (changes !== 0 && changes !== 1) throw new Error('Invitation mail claim acknowledgement is unavailable.');
+        const saved = checkInvitationMail(await readInvitationMail(input), receipt);
+        if (changes === 0) return Object.freeze({ state: saved.state });
+        if (saved.state !== 'unknown' || saved.attempt_token !== token) throw new Error('Invitation mail winner changed.');
+        return Object.freeze({ state: saved.state, attempt: Object.freeze({ token,
+          to: saved.to_address, subject: saved.subject, body_text: saved.body_text }) });
+      },
+      async acknowledgeInvitationMail(raw: InvitationMutationInput, token: string) {
+        const { input, digest } = await captureInvitationMutation(raw);
+        if (typeof token !== 'string' || token === '') throw new IdentityError('validation', 'Invalid invitation mail acknowledgement.');
+        const receipt = await originalInvitation(input, digest);
+        if (receipt === null) throw new IdentityError('not_found', 'Invitation occurrence not found.');
+        await db.batch!([db.prepare(`UPDATE identity_invitation_mail SET state = 'acknowledged'
+          WHERE namespace = ? AND operation_id = ? AND request_digest = ? AND state = 'unknown' AND attempt_token = ?`)
+          .bind(input.namespace, input.operationId, digest, token)]);
+        const saved = checkInvitationMail(await readInvitationMail(input), receipt);
+        if (saved.state !== 'acknowledged' || saved.attempt_token !== token) {
+          throw new IdentityError('conflict', 'Invitation mail acknowledgement differs from its original attempt.');
+        }
+        return saved.state;
+      },
       async changeMemberRoleWithReceipt(raw: RoleMutationInput) {
         const { input, digest, action, role } = await captureRoleMutation(raw);
-        const prior = await readRoleMutation(input);
+        const prior = await readTeamMutation(input, ROLE_MUTATION_OPERATION);
         if (prior !== null) return roleMutationReceipt(prior, input, digest);
         const at = now(), winner = random.randomUUID();
-        const insert = db.prepare(`INSERT INTO identity_team_mutations (namespace, operation, operation_id, request_digest, winner_token, outcome_json)
-          SELECT ?, ?, ?, ?, ?, '{}' FROM identity_memberships target
+        const insert = claimTeamMutation(input, ROLE_MUTATION_OPERATION, digest, winner, `FROM identity_memberships target
           JOIN identity_memberships principal ON principal.team_id = target.team_id
           JOIN identity_users subject ON subject.user_id = target.user_id
           JOIN identity_users actor ON actor.user_id = principal.user_id
@@ -574,11 +741,9 @@ export function createD1IdentityStore(
           AND principal.user_id = ? AND principal.status = 'active' AND principal.is_owner = 1
           AND (? <> 'owner' OR ? <> 'revoke' OR target.is_owner = 0 OR
             (SELECT COUNT(*) FROM identity_memberships owners WHERE owners.team_id = target.team_id AND owners.status = 'active' AND owners.is_owner = 1) > 1)
-          ON CONFLICT(namespace, operation, operation_id) DO NOTHING`)
-          .bind(input.namespace, ROLE_MUTATION_OPERATION, input.operationId, digest, winner,
-            input.team_id, input.member_user_id, input.granted_by, role, action);
-        const eligible = 'EXISTS (SELECT 1 FROM identity_team_mutations receipt WHERE receipt.namespace = ? AND receipt.operation = ? AND receipt.operation_id = ? AND receipt.winner_token = ?)';
-        const key = [input.namespace, ROLE_MUTATION_OPERATION, input.operationId, winner];
+          `, [input.team_id, input.member_user_id, input.granted_by, role, action]);
+        const eligible = TEAM_MUTATION_WINNER;
+        const key = teamMutationKey(input, ROLE_MUTATION_OPERATION, winner);
         // Each delta reads the current row inside the same serialized batch.
         // In particular, concurrent commands never replace a JS-captured array.
         const mutation = role === 'owner'
@@ -601,7 +766,7 @@ export function createD1IdentityStore(
             WHERE namespace = ? AND operation = ? AND operation_id = ? AND winner_token = ?`)
             .bind(input.team_id, input.member_user_id, ...key),
         ]);
-        const saved = await readRoleMutation(input);
+        const saved = await readTeamMutation(input, ROLE_MUTATION_OPERATION);
         if (saved === null) throw new IdentityError('forbidden', 'Current owner and active membership with an owner-preserving role change are required.');
         return roleMutationReceipt(saved, input, digest);
       },
