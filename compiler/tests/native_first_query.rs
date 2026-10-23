@@ -2445,3 +2445,37 @@ fn booking_report_contract_array_data_retains_its_owning_schema_and_field() {
   assert!(serialize_complete_query_receipt(&program,&changed_ir,changed_owner,&db,Some(&catalog),"$can$m$426f6f6b696e675265706f7274.mjs").is_none(),"{name}");
  }
 }
+
+#[test]
+fn original_model_helper_identity_retains_required_stored_reference() {
+ let source=include_str!("fixtures/helper-reference-identity.can");
+ let(db,program,ir,catalog)=fixture_source("helper-reference-identity.can",source);
+ let owner=item(&ir,"worker.prepare");
+ assert!(matches!(ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
+ let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let operation=artifact["operations"].as_array().unwrap().iter().find(|operation|operation["name"]==owner.canonical).unwrap();
+ assert!(operation["result"]["disclosure"].is_object(),"{operation}");
+ for mode in ["field-type","helper-substitution","helper-formal"] {
+  let mut changed=ir.clone();
+  if mode=="field-type" {
+   let id=item(&changed,"worker.Booking.customer").id;
+   let IrItemKind::Field{ty,..}=&mut changed.items[id.0 as usize].kind else{panic!("field");};
+   *ty=IrType::Known(ResolvedType::Nullable(Box::new(match ty {IrType::Known(value)=>value.clone(),_=>panic!("known")})));
+  } else {
+   let id=item(&changed,"worker.benefit_request").id;
+   let IrItemKind::DeriveFn{params,expr:Some(body),..}=&mut changed.items[id.0 as usize].kind else{panic!("helper");};
+   if mode=="helper-substitution" {
+    let IrExpr::Object(fields)=&mut body.expr else{panic!("construct");};
+    let IrExpr::Member{base,..}=&mut fields[0].1.expr else{panic!("id");};
+    let IrExpr::Member{field,..}=&mut base.expr else{panic!("reference");};*field="visible".into();
+   } else {
+    let parameter=params[0];let IrItemKind::Param{index,..}=&mut changed.items[parameter.0 as usize].kind else{panic!("formal");};*index=1;
+   }
+  }
+  assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$48656c7065724964656e74697479.mjs").is_none(),"{mode}");
+ }
+ let copied=source.replace("    set booking {checked=true}","    let copy=booking\n    set booking {checked=true}").replace("benefit_request(booking)}","benefit_request(copy)}");
+ let(_,_,copied_ir,_)=fixture_source("copied-helper-input.can",&copied);
+ let copied_owner=item(&copied_ir,"worker.prepare");
+ assert!(!matches!(copied_ir.scenario_disclosures[&copied_owner.id],ScenarioDisclosure::Complete(_)));
+}

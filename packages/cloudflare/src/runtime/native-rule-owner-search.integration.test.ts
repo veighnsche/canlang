@@ -2720,3 +2720,39 @@ it('copies the original booking report Contract array through whole-field DATA a
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('observes original helper reference identities through their genuine owning field', {timeout:240000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-helper-reference-identity-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/helper-reference-identity.can');
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout) as CompileArtifact;
+  assert.ok(artifact.operations?.find(operation=>operation.name==='worker.prepare')?.result?.disclosure);
+  const asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['allowed','denied-field','hidden-target','reference-race','identity-race','stale']){
+   const {now,identities,identity,membership}=await member('helper-reference-'+mode);
+   const {store}=createTestMemoryStorage(),model=asModel('worker.Booking');
+   await store.commit(makeBatch(await store.readRevision(),{writes:[
+    {kind:'insert',model:asModel('api.Customer'),row:makeRow({id:asId('customer'),data:{active:mode!=='hidden-target'}})},
+    {kind:'insert',model:asModel('api.Customer'),row:makeRow({id:asId('other'),data:{active:true}})},
+    {kind:'insert',model,row:makeRow({id:asId('booking'),data:{customer:{id:'customer'},visible:true,permitted:mode!=='denied-field',last:null,checked:false}})}]}));
+   const load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.load=async(model,id)=>{const row=await load(model,id);if(model==='worker.Evidence'&&mode==='identity-race'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return row;};
+   store.commit=async batch=>{if(mode==='reference-race'&&batch.writes.some(write=>write.kind==='insert'&&write.model==='worker.Evidence')){
+    raced=true;const row=await load(model,asId('booking'));assert.ok(row);
+    await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model,id:row.id,expectedVersion:row.version,row:{...row,version:asVersion(row.version+1),data:{...row.data,customer:{id:'other'}}}}]}));
+   }return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+   const request={operation:'worker.prepare',operation_id:operationId(now),inputs:{booking:{id:'booking',version:mode==='stale'?'2':'1'}}};
+   const result=await invoker.invokeMutation(request,identity),success=['allowed','hidden-target'].includes(mode);
+   assert.equal('result'in result,success,mode+': '+JSON.stringify(result));
+   if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+   const evidence=await store.query({model:asModel('worker.Evidence'),authority:'owner'});
+   assert.equal(evidence.length,success?1:0,mode);assert.equal((await load(model,asId('booking')))?.data['checked'],success,mode);
+   const pending=await store.outboxPending();assert.equal(pending.length,success?1:0,mode+': SEND remains atomic with SET and CREATE');
+   if(success){assert.deepEqual(pending[0]!.arguments,{binding:'worker.Membership',from:'deployment.membership',arguments:{value:{customer:'customer'}}});
+    assert.deepEqual(evidence[0]!.data['value'],{customer:'customer'});
+    assert.ok('result'in await invoker.invokeMutation(request,identity));assert.deepEqual(await store.query({model:asModel('worker.Evidence'),authority:'owner'}),evidence);assert.deepEqual(await store.outboxPending(),pending);}
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

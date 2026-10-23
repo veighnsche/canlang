@@ -18310,6 +18310,37 @@ impl<'a> Closure<'a> {
         Some((source.model, field.field, *target, source.node))
     }
 
+    /// A required stored reference selected inside one original Model helper
+    /// is consumed only by its authored identity selector. The helper formal
+    /// substitutes the actual required scenario input; copied arguments and
+    /// nullable/defaulted fields cannot manufacture that association.
+    fn helper_reference_identity(&self, key: NodeKey, module: ModuleId, calls: &[NodeKey])
+        -> Option<(SymbolId, SymbolId, SymbolId)> {
+        let [call]=calls else {return None;};
+        let selected=self.types.selected_calls.get(call)?;
+        let SelectedCallTarget::DeriveFn(derive)=selected.target else{return None;};
+        let helper=self.effects.derives.get(&derive)?;
+        let body=helper.expr?;
+        if helper.module!=module || key.file!=body.file || key.start<body.start || key.end>body.end {
+            return None;
+        }
+        let (base,_)=self.count_member(key)?;
+        let (formal,source,depth)=self.source_require_helper_parent_path(base,derive,0)?;
+        if depth!=0{return None;}
+        let index=helper.params.iter().position(|param|param.param==formal)?;
+        let argument=*selected.arguments.get(selected.slots.get(index)?.as_ref().copied()?)?;
+        let Some(Binding::Symbol(parameter))=self.query_binding(argument) else{return None;};
+        if !self.original_reference_parameter(argument,*parameter)
+            || self.checked_call_parent_path(argument,*parameter,0)!=Some((source,0))
+            || !self.nodes.keys().any(|consumer|self.count_member(*consumer)==Some((key,"id"))
+                && self.types.node_types.get(consumer)==Some(&ResolvedType::Scalar(Scalar::Text))) {
+            return None;
+        }
+        let association=self.required_reference_field(key,self.nodes.get(&key)?,&source)?;
+        let field=self.effects.models.get(&source)?.fields.iter().find(|field|field.field==association.1)?;
+        (field.default.is_none()&&field.server.is_none()).then_some(association)
+    }
+
     fn expr_member_required_reference(
         &self,
         key: NodeKey,
@@ -18320,6 +18351,12 @@ impl<'a> Closure<'a> {
         field_id: SymbolId,
         value: &ValuePath,
     ) -> Option<SymbolId> {
+        if self.loop_node.is_none()
+            && let Some((source,field,target))=self.helper_reference_identity(key,module,calls)
+            && source==model && field==field_id
+            && matches!(value.reference_origin,Some(ReferenceOrigin::Parameter(_))) {
+            return Some(target);
+        }
         // A required stored Model field is a reference to its actual row,
         // never a local Contract shell. Retain the exact original receiver;
         // lexical copies and further traversal are separate consumers.
@@ -19037,6 +19074,15 @@ impl<'a> Closure<'a> {
         {
             value.record = None; value.model_result = None;
             value.reference = None; value.reference_origin = None;
+            return Ok(());
+        }
+        if field_name=="id" && *ty==ResolvedType::Scalar(Scalar::Text) && self.loop_node.is_none()
+            && let Some((source,field,target))=self.helper_reference_identity(base_key,module,calls)
+            && matches!(value.model_result,Some(DisclosureModelResult::Reference{model,node,source_model,field:actual})
+                if model==target && node==base_key && source_model==source && actual==field)
+            && value.reads.iter().any(|read|read.node==base_key && read.model==source && read.field==field
+                && read.ty==ResolvedType::Record{symbol:target,stored:true} && read.calls==calls && read.query_id.is_none()) {
+            value.record=None;value.model_result=None;value.reference=None;value.reference_origin=None;
             return Ok(());
         }
         self.expr_member_model_guard(key, module, base_key, value)?;

@@ -2887,11 +2887,13 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     }
                     dependency.type_id.clone()
                 } else if let Some(reference_type) = reference_type {
-                    if transition.is_some() || !dependency.calls.is_empty() {
+                    if transition.is_some() {
                         return None;
                     }
                     let expression = sites.members.get(&site)?.first()?;
-                    let original = if let Some((reference, _)) = profile_source_pair {
+                    let original = if !dependency.calls.is_empty() {
+                        checked_helper_identity_reference(source_context?,item,dependency,expression,checked.source_facts.as_deref()?)?
+                    } else if let Some((reference, _)) = profile_source_pair {
                         checked
                             .source_facts
                             .as_deref()?
@@ -13917,6 +13919,32 @@ fn reference_reused_bounds(
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
     let inventory = source.stored_contracts.as_deref()?;
     reference_reused_scope(ir, original, inventory, db)
+}
+
+/// Whole-owner source re-lowering seals the helper call, formal substitution
+/// and its identity-only consumer. The retained owning schema still proves
+/// the actual stored reference field and target; no copied receiver is added.
+fn checked_helper_identity_reference<'a>(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    owner: &IrItem,
+    read: &crate::analysis::scenario_disclosure::DisclosureDependency,
+    value: &TypedExpr,
+    facts: &'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    let [_]=read.calls.as_slice() else{return None;};
+    let ir=context.ir();
+    super::scenario_decisions::same_scenario_semantics(context.original(),ir,context.fresh(),owner)?;
+    if read.query_id.is_some() || read.role!=DependencyRole::Data || value.span!=node_span(read.node)
+        || value.ty!=read.ty || !matches!(&value.expr,IrExpr::Member{base,field}
+            if matches!(base.expr,IrExpr::Name(_)) && field==&read.field_name
+                && base.ty==ResolvedType::Record{symbol:read.model,stored:true}) {return None;}
+    let mut schemas=facts.stored_contracts.as_deref()?.iter().filter(|schema|schema.model&&schema.id==read.model);
+    let schema=schemas.next()?;if schemas.next().is_some(){return None;}
+    match_stored_contract_schema(ir,schema,context.db())?;
+    let mut fields=schema.fields.iter().filter(|field|field.id==read.field&&field.ty==read.ty&&field.name==read.field_name);
+    let field=fields.next()?;if fields.next().is_some(){return None;}
+    match_stored_contract_field(ir,field,context.db())?;
+    Some(field)
 }
 
 fn stored_reference_operand_inner<'a>(
