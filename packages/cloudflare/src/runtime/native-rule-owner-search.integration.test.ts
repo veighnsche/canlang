@@ -2166,3 +2166,42 @@ it('cancels only the original admitted root schedule through the source-only Wor
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('passes an original required parent to a helper while retaining both DATA grants',
+  {timeout:120000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-parent-helper-'));
+    try{
+      const {artifact,asm}=await installed('native-parent-helper.can',directory);
+      assert.ok(artifact.operations?.find(operation=>operation.name==='ParentHelper.act')?.result?.disclosure);
+      for(const mode of ['allowed','hidden','inactive','changed-at-commit','hidden-at-commit']){
+        const {now,identities,identity}=await member(`parent-helper-${mode}`);
+        const store=createMemoryStorage(),parentModel=model('ParentHelper','Parent'),childModel=model('ParentHelper','Child');
+        const parent={...makeRow({id:asId('parent'),data:{label:'Original parent',visible:mode!=='hidden'}}),parent:null};
+        const child={...makeRow({id:asId('child'),data:{active:mode!=='inactive',checked:false}}),parent:{model:parentModel,id:parent.id}};
+        await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'insert',model:parentModel,row:parent},{kind:'insert',model:childModel,row:child}]}));
+        const updateParent=async(data:Record<string,unknown>)=>{
+          const current=await store.load(parentModel,parent.id);assert.ok(current);
+          await store.commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:parentModel,id:current.id,
+            expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,...data}}}]}));
+        };
+        if(mode.endsWith('at-commit')){
+          const commit=store.commit.bind(store);let injecting=false;
+          store.commit=async batch=>{
+            if(!injecting){injecting=true;try{await updateParent(mode==='hidden-at-commit'?{visible:false}:{label:'Changed parent'});}finally{injecting=false;}}
+            return commit(batch);
+          };
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const request={operation:'ParentHelper.act',operation_id:operationId(now),inputs:{child:{id:child.id,version:String(child.version)}}};
+        const outcome=await invoker.invokeMutation(request,identity),allowed=mode==='allowed';
+        assert.equal('result'in outcome,allowed,`${mode}: ${JSON.stringify(outcome)}`);
+        assert.equal((await store.load(childModel,child.id))?.data.checked,allowed,'failed helper DATA or stale parent rolls back the preceding SET');
+        if(allowed){
+          assert.ok('result'in outcome);assert.equal(outcome.result.result,'Original parent');
+          const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay);assert.equal(replay.result.result,'Original parent');
+          await updateParent({visible:false});const hidden=await invoker.invokeMutation(request,identity);
+          assert.ok('error'in hidden||hidden.result.result===null,'replay cannot disclose the now-hidden parent');
+        }
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

@@ -21562,6 +21562,23 @@ impl<'a> Closure<'a> {
         alternatives: &mut Vec<ValuePath>,
         helper_reference_reads: &mut HashSet<NodeKey>,
     ) -> Result<(), DisclosureDecline> {
+        if calls.is_empty() && self.loop_node.is_none()
+            && let SelectedCallTarget::DeriveFn(derive) = &selected.target
+            && let Some(ReferenceOrigin::Parent { model, .. }) = alternatives.first().and_then(|value| value.reference_origin)
+            && self.effects.derives.get(derive).is_some_and(|derive|
+                derive.params.iter().zip(&selected.slots).any(|(formal,slot)|
+                    *slot == Some(argument_index)
+                        && self.types.symbol_types.get(&formal.param)
+                            == Some(&ResolvedType::Record { symbol:model, stored:true })))
+        {
+            // An exact required parent is an ordinary Model formal, with
+            // the same original edge census as an authorization argument.
+            // The callee still proves and authorizes every DATA field it reads.
+            self.call_authorization_argument(module,env,model,argument,alternatives)?;
+            for value in alternatives.iter() {
+                helper_reference_reads.extend(value.reads.iter().map(|read| read.node));
+            }
+        }
         if calls.is_empty()
             && self.loop_node.is_none()
             && let SelectedCallTarget::DeriveFn(derive) = &selected.target

@@ -1,0 +1,14 @@
+app ParentHelper
+Given
+ Parent {label:text="Original parent",visible:bool=true}
+ Child in Parent {active:bool=true,checked:bool=false}
+ derive summary(parent:Parent):text=parent.label
+ policy Parent read=members where=row.visible fields=label
+ policy Child read=members
+When
+ scenario act(child:Child) -> text by=members
+  require child.active
+  do
+   set child {checked=true}
+   return summary(child.parent)
+Then

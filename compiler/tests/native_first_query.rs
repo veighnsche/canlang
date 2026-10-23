@@ -2099,3 +2099,24 @@ fn literal_format_keeps_operand_data_and_original_template_correspondence() {
     args[0].expr=IrExpr::Text("Substituted {code}".into());
     assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$4c69746572616c466f726d6174.mjs").is_none());
 }
+
+#[test]
+fn required_parent_helper_retains_original_edges_and_field_dependencies() {
+    let source=include_str!("../../packages/cloudflare/test/fixtures/native-parent-helper.can");
+    let (db,program,ir,catalog)=fixture_source("native-parent-helper.can",source);
+    let owner=item(&ir,"ParentHelper.act");
+    assert!(matches!(&ir.scenario_disclosures[&owner.id],ScenarioDisclosure::Complete(_)),"{:?}",ir.scenario_disclosures[&owner.id]);
+    let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);
+    assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let operation=artifact["operations"].as_array().unwrap().iter().find(|value|value["name"]=="ParentHelper.act").unwrap();
+    let dependencies=operation["result"]["disclosure"]["returns"][0]["dependencies"].as_array().unwrap();
+    for (model,field) in [("ParentHelper.Child","parent"),("ParentHelper.Parent","label")] {
+        assert!(dependencies.iter().any(|value|value["model"]==model&&value["field"]==field&&value["role"]=="data"),"{model}.{field}: {dependencies:?}");
+    }
+    let mut changed=ir.clone();
+    let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("scenario");};
+    let IrStmt::Return{value:Some(value),..}=&mut effects[1] else{panic!("return");};
+    let args=match &mut value.expr{IrExpr::Call{args,..}|IrExpr::BoundCall{args,..}=>args,_=>panic!("helper")};
+    args[0].expr=IrExpr::Name("child".into());
+    assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),"$can$m$506172656e7448656c706572.mjs").is_none());
+}
