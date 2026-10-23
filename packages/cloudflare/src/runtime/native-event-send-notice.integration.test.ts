@@ -557,3 +557,81 @@ it('executes original optional Customer helper guards with complete owner domain
       }
     }finally{await rm(directory,{recursive:true,force:true});}
   });
+
+it('executes the original register create, free notice and paid charge plus hold schedule atomically',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-register-tail-'));
+    try{
+      const sourcePath=join(root,'compiler/tests/fixtures/event-register-source.can');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,sourcePath],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact;
+      const asm=await assembleModules({artifact,sourcePath},{workDir:join(directory,'assembly'),stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      for(const mode of ['free','paid','delegated','full','unpublished','missing-description','missing-timezone','capacity-race','paid-capacity-race','identity-race']){
+        const now=Date.parse('2099-01-01T12:00:00Z'),clock=createFrozenClock(now),identities=createMemoryIdentityStore({clock});
+        const team=await identities.createTeam({timezone:'UTC'});
+        const actor=await identities.createUser({email:'register@example.test',password_hash:'unused',email_verified:true});
+        const other=await identities.createUser({email:'guest@example.test',password_hash:'unused',email_verified:true});
+        const membership=await identities.createMembership({team_id:team.team_id,user_id:actor.user_id,is_owner:false,roles:[{role:'events.organizer',granted_at:new Date(now).toISOString(),granted_by:actor.user_id}]});
+        const token='register-tail-'+randomBytes(8).toString('hex');
+        await identities.createSession({user_id:actor.user_id,token_sha256:await sha256HexText(token),last_team_id:team.team_id,expires_at:new Date(now+3600000).toISOString()});
+        const identity=await resolveIdentity(identities,{session_token:token},{clock});
+        const {store,probe}=createTestMemoryStorage();
+        const site=asId('site'),event=asId('event'),customer=asId('customer');
+        const delegated=mode==='delegated'||mode==='identity-race',account=delegated?other.user_id:actor.user_id;
+        const free=['free','full','unpublished','capacity-race'].includes(mode);
+        const row=(model:string,id:string,data:Record<string,unknown>,parent:{model:ReturnType<typeof asModel>;id:ReturnType<typeof asId>}|null=null)=>({kind:'insert' as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+        const eventData:Record<string,unknown>={location:{id:site},name:'Original event',description:'Description',timezone:'Europe/Amsterdam',from:'2099-01-03T12:00:00.000Z',until:'2099-01-03T14:00:00.000Z',published:mode!=='unpublished',cancelled:false,sales_until:'2099-01-02T08:00:00.000Z',capacity:mode==='full'?'1':'10',venue:null,pending_change:null,revision:'7',terms:'Original terms',refund_before:'2099-01-02T12:00:00.000Z',organizer:{id:actor.user_id},price:{minor:free?'0':'1250',currency:'EUR'}};
+        if(mode==='missing-description')delete eventData['name'];
+        if(mode==='missing-timezone')delete eventData['timezone'];
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          row('rent_catalog.Location',site,{name:'Site',currency:'EUR'}),
+          row('employee.Employee','employee',{user:{id:actor.user_id},active:true,operator_wide:false,home:{id:site},locations:[]}),
+          row('customer.Customer',customer,{name:'Customer',kind:'individual',active:true,locations:[{id:site}]}),
+          row('customer.Contact','contact',{account:{id:account},verified:true,hidden:false},{model:asModel('customer.Customer'),id:customer}),
+          row('events.Program','program',{name:'Program'}),
+          row('events.Event',event,eventData,{model:asModel('events.Program'),id:asId('program')}),
+          ...(mode==='full'?[row('events.Registration','existing',{state:'confirmed',expires:'2099-01-02T12:00:00.000Z'},{model:asModel('events.Event'),id:event})]:[]),
+        ]}));
+        let raced=false;
+        const query=store.query.bind(store);
+        store.query=async spec=>{const rows=await query(spec);if(mode==='identity-race'&&spec.model==='customer.Contact'&&!raced){raced=true;await identities.removeMembership(membership.membership_id);}return rows;};
+        if(mode==='capacity-race'||mode==='paid-capacity-race'){
+          const commit=store.commit.bind(store);
+          store.commit=async batch=>{if(batch.writes.some(write=>write.kind==='insert'&&write.model==='events.Registration')){raced=true;await commit(makeBatch(await store.readRevision(),{writes:[row('events.Registration','racing-'+randomBytes(4).toString('hex'),{state:'confirmed',expires:'2099-01-02T12:00:00.000Z'},{model:asModel('events.Event'),id:event})]}));}return commit(batch);};
+        }
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now});
+        const time=now.toString(16).padStart(12,'0'),random=randomBytes(10).toString('hex'),operationId=`${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}`;
+        const inputs={event:{id:event,version:'1'},name:'Attendee',...(free?{}:{customer:{id:customer,version:'1'}}),...(delegated?{account:{id:account},email:'guest@example.test'}:{})};
+        const result=await invoker.invokeMutation({operation:'events.check_register',operation_id:operationId,inputs},identity);
+        const success=['free','paid','delegated'].includes(mode);
+        assert.equal('result' in result,success,mode+': '+JSON.stringify(result));
+        const registrations=(await query({model:asModel('events.Registration'),authority:'owner'})).filter(row=>row.data['source']===operationId);
+        assert.equal(registrations.length,success?1:0,mode+': create is atomic');
+        assert.equal(probe.outboxAll().length,success&&!free?1:0,mode+': provider intent is atomic');
+        assert.equal((await query({model:asModel('work.schedule'),authority:'owner'})).length,success&&!free?1:0,mode+': hold schedule is atomic');
+        const occurrences=await query({model:asModel('work.handler_occurrence'),authority:'owner'});
+        assert.equal(occurrences.filter(row=>row.data['handler']==='events.observe_notice').length,success&&free?1:0,mode+': genuine free notice route');
+        if(success){
+          const registration=registrations[0];assert.ok(registration);
+          assert.equal(registration.data['state'],free?'confirmed':'pending');assert.equal(registration.data['payment'],free?'free':'pending');
+          assert.deepEqual(registration.data['account'],{id:account});assert.equal(registration.data['email'],delegated?'guest@example.test':'register@example.test');
+          assert.equal(registration.data['ticket'],operationId);assert.equal(registration.data['event_revision'],'7');assert.equal(registration.data['terms'],'Original terms');
+          assert.deepEqual(registration.data['collected'],{minor:'0',currency:'EUR'});assert.deepEqual(registration.data['refunded'],{minor:'0',currency:'EUR'});
+          if(!free){
+            const intent=probe.outboxAll()[0];assert.ok(intent);assert.equal(intent.target,'invoice.BillingV1.charge');
+            assert.deepEqual(registration.data['delivery'],{id:intent.intentId,operation:'invoice.BillingV1.charge'});
+            assert.deepEqual((intent.arguments['arguments'] as Record<string,unknown>)['value'],{source:operationId,customer,location:site,description:'Original event',amount:{minor:'1250',currency:'EUR'},terms:'Original terms',due:'2099-01-01',issuer:null,items:null,consent:null});
+            const schedule=await probe.scheduleGet(['EventRegisterProbe','events',team.team_id,registration.id].map(encodeURIComponent).join('/'));assert.ok(schedule);assert.equal(schedule.at,now+15*60000);assert.equal(schedule.event,'events.HoldDue');
+            assert.deepEqual(schedule.payload,{registration:{id:registration.id,version:'1'}});
+            const receipt=await store.load(asModel('work.receipt'),asId(intent.intentId));assert.ok(receipt);assert.equal(receipt.data['status'],'pending');
+            const schedules=await query({model:asModel('work.schedule'),authority:'owner'});assert.equal(schedules.length,1);assert.equal(schedules[0]?.data['key'],registration.id);
+          }else assert.equal(registration.data['delivery'],null);
+          const replay=await invoker.invokeMutation({operation:'events.check_register',operation_id:operationId,inputs},identity);
+          assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+          assert.equal((await query({model:asModel('events.Registration'),authority:'owner'})).length,1);
+          assert.equal(probe.outboxAll().length,free?0:1);
+        }
+        if(mode.endsWith('-race'))assert.equal(raced,true,mode+': race was exercised');
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

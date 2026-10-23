@@ -1662,11 +1662,15 @@ fn check_trait_reuse(
     target: &IrItem,
     target_owner: &SymbolId,
 ) -> Option<()> {
-    let path = nodes
-        .get(&data.type_node)?
-        .children
-        .iter()
-        .find(|node| node.kind == SyntaxKind::Path)?;
+    let mut type_node = *nodes.get(&data.type_node)?;
+    for _ in 0..16 {
+        if !matches!(type_node.kind, SyntaxKind::NullableType | SyntaxKind::ArrayType) { break; }
+        let mut children = type_node.children.iter().filter(|node|
+            matches!(node.kind, SyntaxKind::NamedType | SyntaxKind::NullableType | SyntaxKind::ArrayType));
+        type_node = children.next()?;
+        if children.next().is_some() { return None; }
+    }
+    let path = type_node.children.iter().find(|node| node.kind == SyntaxKind::Path)?;
     let spelling = path
         .children
         .iter()

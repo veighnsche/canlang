@@ -9784,10 +9784,12 @@ async function runScenarioExecution(
   const invoiceIssueSourceWrites: DomainWrite[] = [];
   const cancellationSourceWrites: DomainWrite[] = [];
   const cancellationSourceStages = new WeakSet<object>();
+  const scheduleSourceWrites: DomainWrite[] = [];
+  const scheduleSourceStages = new WeakSet<object>();
   const emissionSourceStage: OwnerMutationSourceStager = async token => {
     const existing = stageSources === undefined ? [] : await stageSources(token);
     if (emittedEvents.length === 0) return [...existing, ...termScheduleSourceWrites,
-      ...rentNoticeSourceWrites, ...invoiceIssueSourceWrites, ...cancellationSourceWrites];
+      ...rentNoticeSourceWrites, ...invoiceIssueSourceWrites, ...cancellationSourceWrites, ...scheduleSourceWrites];
     if(sourceEmissionPlan!==undefined){
       const limits=new Map<string,number>();
       for(const loop of sourceEmissionPlan.loops)limits.set(loop.event,(limits.get(loop.event)??0)+loop.maximum);
@@ -9917,7 +9919,7 @@ async function runScenarioExecution(
     }
     due?.observeFramework?.({ writes: stamped });
     return [...existing, ...stamped, ...termScheduleSourceWrites, ...rentNoticeSourceWrites,
-      ...invoiceIssueSourceWrites, ...cancellationSourceWrites];
+      ...invoiceIssueSourceWrites, ...cancellationSourceWrites, ...scheduleSourceWrites];
   };
   const sourceCopyBounds=receiptAware&&receiptStore!==undefined&&scenarioDef?.descriptor.result?.disclosure?.sourceLoops?.loops.some(loop=>loop.copy!==undefined)
     ?loaded.producers.invoke.readScenarioReceiptSourceLoopBounds?.(call as AdmittedCall,receiptStore):undefined;
@@ -10330,7 +10332,8 @@ async function runScenarioExecution(
       (effects.outbox?.length ?? 0) === 0 && (effects.history?.length ?? 0) === 0 &&
       (effects.uniqueClaims?.length ?? 0) === 0 && (effects.uniqueReleases?.length ?? 0) === 0;
     const sourceCancellation = receiptAware && cancellationSourceStages.delete(effects);
-    if (ownerSession !== undefined && !isDueAdmission && !privateFramework && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework && !sourceCancellation && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
+    const sourceSchedule = receiptAware && scheduleSourceStages.delete(effects);
+    if (ownerSession !== undefined && !isDueAdmission && !privateFramework && !termSchedule && !rentNoticeFramework && !invoiceIssueFramework && !sourceCancellation && !sourceSchedule && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
         (effects.uniqueReleases?.length ?? 0) !== 0)) {
       refuseRecordBinding('Saved scenario deferred domain effects require their defining owner-session join.');
@@ -10339,6 +10342,7 @@ async function runScenarioExecution(
     if (rentNoticeFramework) rentNoticeSourceWrites.push(...effects.writes ?? []);
     if (invoiceIssueFramework) invoiceIssueSourceWrites.push(...effects.writes!);
     if (sourceCancellation) cancellationSourceWrites.push(...effects.writes ?? []);
+    if (sourceSchedule) scheduleSourceWrites.push(...effects.writes ?? []);
     if (effects !== due?.effects) due?.observeFramework?.(effects);
     for (const write of effects.writes ?? []) {
       stagedWrites.push(write);
@@ -11158,6 +11162,30 @@ async function runScenarioExecution(
               await opts.files.validate(occurrence.ref, opts.identity, opts.app) });
           }
           effects = await stage({ ...request, filePayloadOrigin }, selected.context);
+        }
+        if (receiptAware && child === undefined) {
+          // Only this invocation's installed Work put can contribute source
+          // rows to the same final State fence as the authored schedule.
+          const tables = await loadProducerModule('@canlang/work/kernel/tables', 'source schedule rows');
+          const schedule = requireProducerString(tables, 'WORK_SCHEDULE_MODEL', 'source schedule rows');
+          const supersession = requireProducerString(tables, 'WORK_SUPERSESSION_MODEL', 'source schedule rows');
+          const scheduleKey = [selected.scope.app, selected.scope.ownerPackage, selected.scope.owner, key]
+            .map(encodeURIComponent).join('/');
+          const created = (effects.writes ?? []).filter(write => write.kind === 'insert' &&
+            write.model === schedule && write.row.id === occurrenceId);
+          if (loaded.models.some(model => model.name === schedule || model.name === supersession) ||
+              created.length !== 1 || (effects.writes ?? []).some(write =>
+                !(write.kind === 'insert' && write.model === schedule && write.row.id === occurrenceId ||
+                  write.kind === 'update' && write.model === schedule ||
+                  write.kind === 'insert' && write.model === supersession)) ||
+              effects.schedules?.length !== 1 || effects.schedules[0]?.op !== 'replace' ||
+              effects.schedules[0].key !== scheduleKey || effects.schedules[0].event !== event ||
+              effects.schedules[0].at !== Number(at.ms) ||
+              (effects.outbox?.length ?? 0) !== 0 || (effects.history?.length ?? 0) !== 0 ||
+              (effects.uniqueClaims?.length ?? 0) !== 0 || (effects.uniqueReleases?.length ?? 0) !== 0) {
+            return refuseRecordBinding('Source schedule differs from its installed scoped Work stage.');
+          }
+          scheduleSourceStages.add(effects);
         }
         rentNoticeHooks?.schedule(key, Number(at.ms), event, Object.freeze({ ...arguments_ }));
         invoiceIssueSchedule?.(key, Number(at.ms), event, Object.freeze({ ...arguments_ }));

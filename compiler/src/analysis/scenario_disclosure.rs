@@ -3782,7 +3782,7 @@ impl<'a> Closure<'a> {
         field: SymbolId,
         ty: &ResolvedType,
     ) -> Result<String, DisclosureDecline> {
-        if !result_type(ty) {
+        if !result_type(ty) && *ty != ResolvedType::Scalar(Scalar::Timezone) {
             return Err(self.fail(key, "unsupported stored field type"));
         }
         let owner = match self.resolve.symbols.get(field.0 as usize).map(|s| &s.kind) {
@@ -8047,8 +8047,13 @@ impl<'a> Closure<'a> {
         pending: &mut Vec<(SymbolId, bool)>,
         fields: &mut Vec<CheckedStoredContractField>,
     ) -> Option<()> {
-        // Reference-array bounds retain their genuine reusable field owner.
-        if self.reference_operand_type_id(ty).is_some() {
+        // Reference-array bounds and inherited enum traits retain their
+        // genuine reusable Contract field owner, even when the resolved
+        // scalar enum type points through it to an original Model field.
+        let enum_type = match ty { ResolvedType::Nullable(inner) => inner.as_ref(), value => value };
+        if self.reference_operand_type_id(ty).is_some()
+            || matches!(enum_type, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+        {
             for reused_field in reused_order {
                 let SymbolKind::Field { owner, .. } =
                     self.resolve.symbols.get(reused_field.0 as usize)?.kind
@@ -15841,6 +15846,16 @@ impl<'a> Closure<'a> {
                 && matches!(self.types.symbol_types.get(parameter),Some(ResolvedType::Nullable(inner))
                     if matches!(inner.as_ref(),ResolvedType::Record {stored:true,..})))
         { *helper_query = true; }
+        // Nullable immutable Values inputs keep their original boolean
+        // short-circuit recipe, rather than expanding mutually exclusive
+        // null/value cases into unrelated static return paths. These slots
+        // grant no row/query authority; the whole source observer stays sealed.
+        if matches!(self.query_binding(key), Some(Binding::Symbol(parameter))
+            if scenario.params.iter().any(|input| input.param == *parameter)
+                && matches!(self.types.symbol_types.get(parameter), Some(ResolvedType::Nullable(inner))
+                    if matches!(inner.as_ref(), ResolvedType::Scalar(_))
+                        && self.source_require_plain_value(inner, 0)))
+        { *helper_query = true; }
         // A required input’s original nullable stored reference must keep
         // its authored null test and lazy navigation in this same observer.
         // Matching a target Model type does not prove an input field path.
@@ -17150,6 +17165,14 @@ impl<'a> Closure<'a> {
                             intrinsic.kind,
                             DisclosureIntrinsicKind::AdmittedInput { .. }
                         )
+                }) || value.reads.iter().any(|dependency| {
+                    // A selector over an already observed whole Money value
+                    // keeps that exact stored field dependency and authority.
+                    dependency.node == base_key
+                        && dependency.ty == ResolvedType::Scalar(Scalar::Money)
+                        && self.types.symbol_types.get(&dependency.field) == Some(&dependency.ty)
+                        && matches!(self.resolve.symbols.get(dependency.field.0 as usize).map(|field| &field.kind),
+                            Some(SymbolKind::Field { owner, .. }) if *owner == dependency.model)
                 })
             })
         {
@@ -17467,18 +17490,23 @@ impl<'a> Closure<'a> {
         model: SymbolId,
         value: &mut ValuePath,
     ) -> Result<(), DisclosureDecline> {
-        let (parameter, member) =
-            self.expr_member_id_origin(key, module, base_key, model, value)?;
-        let model_name = self.expr_member_id_source(
-            key,
-            module,
-            calls,
-            base_key,
-            parameter,
-            member,
-            model,
-            ty,
-        )?;
+        let created = self.created_binding_source(base_key, module)
+            .filter(|source| calls.is_empty() && self.loop_node.is_none() && source.model == model
+                && matches!(value.model_result, Some(DisclosureModelResult::Create { model: actual, node })
+                    if actual == model && node == source.node));
+        let model_name = if created.is_some() {
+            let owner = self.resolve.symbols.get(model.0 as usize)
+                .ok_or_else(|| self.fail(key, "created identity model declaration"))?;
+            let SymbolKind::Model { fields, .. } = &owner.kind else { return Err(self.fail(key, "created identity model")); };
+            if *ty != ResolvedType::Scalar(Scalar::Text) || fields.iter().any(|field|
+                self.resolve.symbols.get(field.0 as usize).is_none_or(|field| field.name == "id")) {
+                return Err(self.fail(key, "created identity reserved text field"));
+            }
+            owner.canonical.clone()
+        } else {
+            let (parameter, member) = self.expr_member_id_origin(key, module, base_key, model, value)?;
+            self.expr_member_id_source(key, module, calls, base_key, parameter, member, model, ty)?
+        };
         // Reserved row identity is an owning stored observation. It is
         // neither an authored field nor a version/context intrinsic.
         value.reads.push(DisclosureDependency {
@@ -17499,6 +17527,7 @@ impl<'a> Closure<'a> {
         value.record = None;
         value.reference = None;
         value.reference_origin = None;
+        if created.is_some() { value.model_result = None; }
         Ok(())
     }
 
@@ -17670,6 +17699,40 @@ impl<'a> Closure<'a> {
         Ok(())
     }
 
+    /// Recover only the original dominating CREATE spelling and stored type.
+    /// Flow consumers must additionally match their live CreateAs provenance.
+    fn created_binding_source(&self, base: NodeKey, module: ModuleId) -> Option<CheckedScenarioCreate> {
+        let Some(Binding::CreateAs { node: created }) = self.query_binding(base) else { return None; };
+        let scenario = self.effects.scenarios.values().find(|owner| owner.module == module
+            && owner.node.file == base.file && owner.node.start <= created.start
+            && created.end <= base.start && base.end <= owner.node.end)?;
+        let source = self.checked_create_sources(scenario)?.into_iter().find(|source| source.node == *created)?;
+        (self.word(self.nodes.get(&base)?) == Some(source.binding.as_str())
+            && self.types.node_types.get(&base) == Some(&ResolvedType::Record { symbol: source.model, stored: true }))
+            .then_some(source)
+    }
+
+    /// Only the exact `.id` consumer of a dominating created row’s required
+    /// stored reference is a local identity selection. It cannot navigate a
+    /// target row, and it retains the whole original reference-field read.
+    fn created_reference_identity(&self, key: NodeKey, module: ModuleId)
+        -> Option<(SymbolId, SymbolId, SymbolId, NodeKey)> {
+        let (base, name) = self.count_member(key)?;
+        let source = self.created_binding_source(base, module)?;
+        if !self.nodes.values().any(|node| node.kind == SyntaxKind::Member
+                && self.count_member(NodeKey::of(node)) == Some((key, "id"))
+                && self.types.node_types.get(&NodeKey::of(node)) == Some(&ResolvedType::Scalar(Scalar::Text)))
+        { return None; }
+        let field = self.effects.models.get(&source.model)?.fields.iter().find(|field|
+            self.resolve.symbols.get(field.field.0 as usize).is_some_and(|symbol|
+                symbol.name == name && matches!(symbol.kind, SymbolKind::Field {owner,..} if owner == source.model)))?;
+        let ResolvedType::Record { symbol: target, stored: true } = self.types.symbol_types.get(&field.field)? else { return None; };
+        if self.types.node_types.get(&key) != self.types.symbol_types.get(&field.field)
+            || !matches!(self.resolve.symbols.get(target.0 as usize)?.kind, SymbolKind::Model {..})
+        { return None; }
+        Some((source.model, field.field, *target, source.node))
+    }
+
     fn expr_member_required_reference(
         &self,
         key: NodeKey,
@@ -17683,6 +17746,12 @@ impl<'a> Closure<'a> {
         // A required stored Model field is a reference to its actual row,
         // never a local Contract shell. Retain the exact original receiver;
         // lexical copies and further traversal are separate consumers.
+        if calls.is_empty() && self.loop_node.is_none()
+            && let Some((source, field, target, created)) = self.created_reference_identity(key, module)
+            && source == model && field == field_id
+            && matches!(value.model_result, Some(DisclosureModelResult::Create {model, node})
+                if model == source && node == created)
+        { return Some(target); }
         self.checked_required_model_reference(key, module)
             .filter(|(source, reference, _)| *source == model && *reference == field_id)
             .filter(|_| calls.is_empty() && self.loop_node.is_none()
@@ -18362,6 +18431,19 @@ impl<'a> Closure<'a> {
         ty: &ResolvedType,
         value: &mut ValuePath,
     ) -> Result<(), DisclosureDecline> {
+        if field_name == "id" && *ty == ResolvedType::Scalar(Scalar::Text)
+            && calls.is_empty() && self.loop_node.is_none()
+            && let Some((source, field, target, _)) = self.created_reference_identity(base_key, module)
+            && matches!(value.model_result, Some(DisclosureModelResult::Reference {model, node, source_model, field: actual})
+                if model == target && node == base_key && source_model == source && actual == field)
+            && value.reads.iter().any(|read| read.node == base_key && read.model == source && read.field == field
+                && read.ty == ResolvedType::Record {symbol: target, stored: true}
+                && read.calls.is_empty() && read.query_id.is_none())
+        {
+            value.record = None; value.model_result = None;
+            value.reference = None; value.reference_origin = None;
+            return Ok(());
+        }
         self.expr_member_model_guard(key, module, base_key, value)?;
         let notice_snapshot_title = field_name == "title"
             && *ty == ResolvedType::Scalar(Scalar::Text)
@@ -20252,7 +20334,11 @@ impl<'a> Closure<'a> {
 
     fn settled_scalar_call(&self, id: &str, arguments: &[NodeKey], slots: &[Option<usize>]) -> bool {
         (matches!(id, "date" | "datetime" | "money" | "abs" | "round" | "min" | "max" | "trim" | "starts_with")
-            || id == "format" && self.literal_format_arguments(arguments, slots).is_some())
+            || id == "format" && self.literal_format_arguments(arguments, slots).is_some()
+            || id == "local_date" && self.catalog.and_then(|catalog| catalog.effects(id)) == Some(Effects::Pure)
+                && slots == [Some(0), Some(1)] && arguments.len() == 2
+                && self.types.node_types.get(&arguments[0]) == Some(&ResolvedType::Scalar(Scalar::Datetime))
+                && self.types.node_types.get(&arguments[1]) == Some(&ResolvedType::Scalar(Scalar::Timezone)))
             && slots.iter().all(Option::is_some)
     }
 
@@ -21604,7 +21690,7 @@ impl<'a> Closure<'a> {
                 pending.extend(&effect.else_effects);
             } else if !matches!(
                 effect.verb,
-                EffectVerb::Let | EffectVerb::Require | EffectVerb::Send | EffectVerb::Set | EffectVerb::Emit
+                EffectVerb::Let | EffectVerb::Require | EffectVerb::Send | EffectVerb::Set | EffectVerb::Emit | EffectVerb::Schedule
             ) || !effect.then_effects.is_empty()
                 || !effect.else_effects.is_empty()
             {
@@ -25962,13 +26048,13 @@ impl<'a> Closure<'a> {
                 Some(())
             }
 
-            /// An EMIT may carry its original owning CREATE binding. The
+            /// An EMIT or SCHEDULE may carry its original owning CREATE binding. The
             /// checked lexical value supplies dominance; exact CreateAs/source
             /// facts pin identity. No caller-supplied or copied row qualifies.
             fn external_effect_created_reference(&self, effect: &Effect, event: SymbolId,
                 module: ModuleId, argument: &super::effects::EffectArg,
                 key: NodeKey, value: &ValuePath) -> Option<()> {
-                if effect.verb != EffectVerb::Emit || self.loop_node.is_some() { return None; }
+                if !matches!(effect.verb, EffectVerb::Emit | EffectVerb::Schedule) || self.loop_node.is_some() { return None; }
                 let Some(DisclosureModelResult::Create { model, node }) = value.model_result else { return None; };
                 if value.record != Some(model) || value.delivery.is_some() || value.members.is_some()
                     || value.first_query.is_some() || value.query_child.is_some()
@@ -26023,9 +26109,11 @@ impl<'a> Closure<'a> {
                 if values.iter().any(|value| {
                     value.delivery.is_some() || value.members.is_some()
                         || value.record.is_some() && event.is_none_or(|event| {
-                            self.external_effect_parent_reference(event, module, argument, key, value).is_none()
+                            (effect.verb != EffectVerb::Emit
+                                || self.external_effect_parent_reference(event, module, argument, key, value).is_none())
                                 && self.external_effect_created_reference(effect, event, module, argument, key, value).is_none()
-                                && !self.external_effect_loop_reference(event,argument,key,value)
+                                && (effect.verb != EffectVerb::Emit
+                                    || !self.external_effect_loop_reference(event,argument,key,value))
                         })
                 }) {
                     return Err(self.fail(key, "opaque external effect input"));
@@ -26061,7 +26149,7 @@ impl<'a> Closure<'a> {
                 for key in keys.drain(..).flatten() {
                     paths = self.external_effect_key(effect, module, env, calls, key, paths)?;
                 }
-                let payload_event = event.filter(|_| matches!(effect.verb, EffectVerb::Emit));
+                let payload_event = event.filter(|_| matches!(effect.verb, EffectVerb::Emit | EffectVerb::Schedule));
                 for argument in &effect.args {
                     paths = self.external_effect_argument(effect, module, env, calls, payload_event, argument, paths)?;
                 }
@@ -28358,7 +28446,7 @@ fn checked_stored_contract_type_id(
 }
 
 fn exact_type_id(ty: &ResolvedType, resolve: &ResolveTables) -> Option<String> {
-    if !result_type(ty) {
+    if !result_type(ty) && *ty != ResolvedType::Scalar(Scalar::Timezone) {
         return None;
     }
     let mut ty = ty;

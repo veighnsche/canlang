@@ -155,7 +155,17 @@ function prepareStagingHead(input: AuthoredDeliveryInput, ctx: SystemCommandCont
   const judgment = 'judgment' in descriptor && descriptor.judgment === true;
   const resultContext: ReceiptResultContext | undefined = descriptor.result === undefined ? undefined
     : { source: target, declaredResult: descriptor.result };
-  if (!judgment && !T26_PROGRESS_RELATIONS.some(relation => relation.target === target && relation.version === descriptor.version)) refuse();
+  if (!judgment && !T26_PROGRESS_RELATIONS.some(relation => relation.target === target && relation.version === descriptor.version)) {
+    // A declared capability may persist its genuine queued carrier without
+    // acquiring a standard delivery-observation or progress relation. Its
+    // entire result declaration still belongs to the installed Values schema.
+    const declared = input.valueTypes?.contracts.find(value => value.name === descriptor.result.name);
+    if (descriptor.capability.startsWith('std.') ||
+        !/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/.test(descriptor.capability) ||
+        !/^[A-Za-z_][A-Za-z0-9_]*$/.test(descriptor.operation) ||
+        typeof descriptor.version !== 'number' || !Number.isSafeInteger(descriptor.version) || descriptor.version <= 0 || declared === undefined ||
+        !sameOriginal(descriptor.result, declared)) refuse();
+  }
   return { input, ctx, originProperty, field, target, judgment, resultContext };
 }
 

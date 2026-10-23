@@ -2695,7 +2695,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     checked_reference_model_result(ir, item, expression, models, db?)?
                 } else {
                     checked_parameter_row_id(ir, item, expression, models, db?)
-                        .or_else(||db.and_then(|db|checked_sealed_narrowed_parameter_id(ir,item,expression,models,db,sealed_created_tail)))?
+                        .or_else(||db.and_then(|db|checked_sealed_narrowed_parameter_id(ir,item,expression,models,db,sealed_created_tail)))
+                        .or_else(||db.and_then(|db|checked_sealed_created_row_id(ir,item,expression,db,sealed_created_tail)))?
                 };
                 if original.id != dependency.model || original.canonical != dependency.model_name {
                     return None;
@@ -2894,7 +2895,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             .iter()
                             .find(|field| field.id == reference.field)?
                     } else {
-                        stored_reference_operand(ir, item, expression, db?)?
+                        stored_reference_operand(ir, item, expression, db?)
+                            .or_else(|| checked_sealed_created_reference(ir,item,expression,db?,sealed_created_tail))?
                     };
                     if original.id != stored.id
                         || reference_type != dependency.type_id
@@ -10110,6 +10112,7 @@ pub(super) fn supported_type_id(type_id: &str) -> bool {
         "int"
             | "text"
             | "email"
+            | "timezone"
             | "bool"
             | "decimal"
             | "money"
@@ -11288,6 +11291,7 @@ fn checked_created_row_operand(
                 | IrStmt::Send { span, .. }
                 | IrStmt::Set { span, .. }
                 | IrStmt::Emit { span, .. }
+                | IrStmt::Schedule { span, .. }
                 | IrStmt::Return { span, .. }
                 | IrStmt::Let { span, .. } => *span,
                 _ => return None,
@@ -11352,6 +11356,38 @@ fn checked_created_row_operand(
         }
     }
     None
+}
+
+/// Observe the original required reference field of the genuine new row.
+/// The complete owner seal preserves its authored consumer and evaluation order.
+fn checked_sealed_created_reference<'a>(ir: &'a IrProgram, owner: &IrItem,
+    value: &TypedExpr, db: &SourceDb, sealed: bool,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    if !sealed || !matches!(value.ty, ResolvedType::Record {stored:true,..}) { return None; }
+    let IrExpr::Member {base,field} = &value.expr else { return None; };
+    let ResolvedType::Record {symbol:model,stored:true} = base.ty else { return None; };
+    checked_created_row_operand(ir,owner,base,model,db,false,true)?;
+    let facts = super::scenario_calls::checked_source(ir,owner,db)?;
+    let schema = facts.stored_contracts.as_deref()?.iter().find(|schema| schema.model && schema.id == model)?;
+    match_stored_contract_schema(ir,schema,db)?;
+    reference_receiver_matches(ir,owner,value,base,field,db)?;
+    reference_member_field(ir,owner,value,schema,field,db)
+}
+
+/// A reserved identity read remains attached to its one actual created row
+/// inside the independently sealed complete original owner tail.
+fn checked_sealed_created_row_id<'a>(ir: &'a IrProgram, owner: &IrItem, value: &TypedExpr,
+    db: &SourceDb, sealed: bool) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
+    if !sealed || value.ty != ResolvedType::Scalar(Scalar::Text) { return None; }
+    let IrExpr::Member {base,field} = &value.expr else { return None; };
+    let ResolvedType::Record {symbol:model,stored:true} = base.ty else { return None; };
+    if field != "id" { return None; }
+    checked_created_row_operand(ir,owner,base,model,db,false,true)?;
+    let facts = super::scenario_calls::checked_source(ir,owner,db)?;
+    let schema = facts.stored_contracts.as_deref()?.iter().find(|schema| schema.model && schema.id == model)?;
+    if schema.fields.iter().any(|field| field.name == "id") { return None; }
+    match_stored_contract_schema(ir,schema,db)?;
+    Some(schema)
 }
 
 /// A source/IR-sealed created tail may read the reserved identity of its
@@ -15007,7 +15043,9 @@ fn match_effect_proofs(
                     }
                     let mut declared = descriptor.fields.iter().filter(|f| f.name == *name);
                     let emitted = declared.next()?;
-                    if declared.next().is_some() || !assignment_inventory_matches(ir, ty, emitted) {
+                    if declared.next().is_some() || !(assignment_inventory_matches(ir, ty, emitted)
+                        || source_context.is_some_and(|context| checked_declared_delivery_assignment(
+                            context, model_item, ty, emitted, db).is_some())) {
                         return None;
                     }
                     let compatible = value.ty == *ty
@@ -15989,7 +16027,8 @@ fn scenario_create_entries(
     }
     for (((name, value), source), authored) in entries.iter().zip(inputs).zip(authored_entries) {
         let sealed_source_create = source_context.is_some_and(|context|
-            source_owned_updated_model_create(context, owner, original).is_some()
+            source_owned_updated_model_create(context, owner, original)
+                .or_else(|| source_owned_created_return_tail(context, owner, original)).is_some()
                 || source_owned_copy_loop(context,owner).is_some());
         scenario_create_entry_matches(ir, owner, original, name, value, source, authored, text, db, sealed_source_create)?;
     }
@@ -17862,7 +17901,7 @@ fn created_effects_ordered_tail(
                 IrStmt::Let { span, .. } | IrStmt::Require { span, .. }
                 | IrStmt::Set { when: None, span, .. }
                 | IrStmt::Send { binding: Some(_), span, .. }
-                | IrStmt::Emit { span, .. } => *span,
+                | IrStmt::Emit { span, .. } | IrStmt::Schedule { span, .. } => *span,
                 IrStmt::If { then_branch, else_branch, span, .. } => {
                     pending.push((then_branch.as_slice(), span.start, span.end));
                     pending.push((else_branch.as_slice(), span.start, span.end));
@@ -18374,6 +18413,25 @@ fn assignment_reference_inventory_matches(
             field.value_type.as_deref() == Some(format!("{model}{}", if nullable { "?" } else { "" }).as_str())
                 && field.array_required.is_none()
         })
+}
+
+/// A declared provider slot uses the exact fresh model descriptor and operation.
+/// The SEND producer and original ordered assignment are checked separately.
+fn checked_declared_delivery_assignment(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    model: &IrItem, ty: &ResolvedType, field: &JsModelField, db: Option<&SourceDb>,
+) -> Option<()> {
+    let base = match ty { ResolvedType::Nullable(inner) => inner.as_ref(), ty => ty };
+    let ResolvedType::Delivery { op } = base else { return None; };
+    super::scenario_decisions::same_capability_operation(context, *op)?;
+    if !matches!(field.field, JsModelFieldType::Delivery(_)) { return None; }
+    let models = super::js::Emitter::source_models(context.fresh(), db?)?;
+    let mut models = models.iter().filter(|item| item.name == model.canonical);
+    let expected = models.next()?;
+    if models.next().is_some() { return None; }
+    let mut fields = expected.fields.iter().filter(|item| item.name == field.name);
+    let expected = fields.next()?;
+    (fields.next().is_none() && serde_json::to_value(expected).ok()? == serde_json::to_value(field).ok()?).then_some(())
 }
 
 fn delivery_assignment_inventory_match(

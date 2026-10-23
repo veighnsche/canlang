@@ -1745,3 +1745,46 @@ fn optional_customer_helper_domains_keep_original_source_and_ir_owners() {
         );
     }
 }
+
+#[test]
+fn original_register_tail_keeps_created_provider_and_schedule_correspondence() {
+    let source = include_str!("fixtures/event-register-source.can");
+    let (db, program, original, catalog) = fixture_source("event-register-source.can", source);
+    let owner = item(&original, "events.check_register").id;
+    assert!(matches!(&original.scenario_disclosures[&owner], ScenarioDisclosure::Complete(_)));
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = artifact["operations"].as_array().unwrap().iter().find(|value|value["name"]=="events.check_register").unwrap();
+    assert!(operation["result"]["disclosure"].is_object(), "{operation}");
+    for mode in ["create-account", "paid-order", "schedule-event", "provider-result", "reused-trait"] {
+        let mut changed = original.clone();
+        if mode == "provider-result" {
+            let id = item(&changed, "invoice.BillingV1.charge").id;
+            let IrItemKind::CapabilityOp { result, .. } = &mut changed.items[id.0 as usize].kind else { panic!("provider"); };
+            *result = ir::IrType::Known(ResolvedType::Scalar(Scalar::Text));
+        } else if mode == "reused-trait" {
+            let id = item(&changed, "invoice.Settlement.state").id;
+            let IrItemKind::Field {ty,..} = &mut changed.items[id.0 as usize].kind else {panic!("trait");};
+            *ty = ir::IrType::Known(ResolvedType::Scalar(Scalar::Text));
+        } else {
+            let IrItemKind::Scenario {effects,..} = &mut changed.items[owner.0 as usize].kind else {panic!("scenario");};
+            if mode == "create-account" {
+                let IrStmt::Create {input,..} = &mut effects[0] else {panic!("create");};
+                let IrExpr::Object(entries) = &mut input.expr else {panic!("inputs");};
+                let (_, value) = entries.iter_mut().find(|(name,_)|name=="account").unwrap();
+                let IrExpr::Binary {left,right,..} = &mut value.expr else {panic!("coalesce");};
+                std::mem::swap(left,right);
+            } else {
+                let IrStmt::If {else_branch,..} = &mut effects[1] else {panic!("branch");};
+                if mode == "paid-order" { else_branch.swap(1,2); }
+                else {
+                    let IrStmt::Schedule {event,..} = &mut else_branch[3] else {panic!("schedule");};
+                    *event = "events.AttendeeNotice".into();
+                }
+            }
+        }
+        assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.0 as usize],
+            &db,Some(&catalog),"$can$m$6576656e7473.mjs").is_none(),"{mode} retained altered source correspondence");
+    }
+
+}

@@ -5605,15 +5605,26 @@ impl<'a> Emitter<'a> {
     /// its nullable slot is absent. This grants no send/result/input profile.
     fn local_model_delivery_descriptor(&self, op: SymbolId) -> Option<JsDeliveryDescriptor> {
         let operation = self.ir.items.get(op.0 as usize)?;
-        let IrItemKind::CapabilityOp {result:IrType::Known(ResolvedType::Record {symbol,..}),..} = &operation.kind else { return None; };
+        let IrItemKind::CapabilityOp {result:IrType::Known(result_type),..} = &operation.kind else { return None; };
         let mut capabilities = self.ir.items.iter().filter(|item| matches!(&item.kind,IrItemKind::Capability {ops,..} if ops.contains(&op)));
         let capability = capabilities.next()?;
         let IrItemKind::Capability {version:Some(version),..} = capability.kind else { return None; };
         if capabilities.next().is_some() || operation.canonical != format!("{}.{}",capability.canonical,operation.name) { return None; }
         let version = u32::try_from(version).ok().filter(|version| *version != 0)?;
-        let result = self.ir.items.get(symbol.0 as usize)?;
-        if !matches!(result.kind, IrItemKind::Contract { .. }) { return None; }
-        let schema = self.value_types.as_ref()?.contracts.iter().find(|schema| schema.name == result.canonical)?.clone();
+        let schema = match result_type {
+            ResolvedType::Record { symbol, stored: false } => {
+                let result = self.ir.items.get(symbol.0 as usize)?;
+                if !matches!(result.kind, IrItemKind::Contract { .. }) { return None; }
+                self.value_types.as_ref()?.contracts.iter().find(|schema| schema.name == result.canonical)?.clone()
+            }
+            ResolvedType::StdNominal { name, .. } => {
+                let schema = nominal_schema(name)?;
+                JsNominalResult { name: (*name).to_string(), fields: schema.fields.iter()
+                    .map(|(name, declared)| JsNominalLeaf {name:(*name).to_string(),
+                        declared:(*declared).to_string(), constraints:JsValueConstraints::default()}).collect() }
+            }
+            _ => return None,
+        };
         Some(JsDeliveryDescriptor {capability:capability.canonical.clone(), operation:operation.name.clone(), version, result:schema})
     }
 

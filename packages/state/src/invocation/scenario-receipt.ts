@@ -110,7 +110,7 @@ function scalarType(type: unknown): CanTypeId {
   try {
     const parsed = parseTypeId(type);
     if (printTypeId(parsed) !== type || parsed.requiredArray ||
-        !(parsed.base.kind === 'enum' || /^(int|datetime|text|email|bool|decimal|money|date|duration|currency|user)(\[\])?\??$/.test(type))) {
+        !(parsed.base.kind === 'enum' || /^(int|datetime|text|email|timezone|bool|decimal|money|date|duration|currency|user)(\[\])?\??$/.test(type))) {
       return invalid(`unsupported disclosure type ${JSON.stringify(type)}; defining composite/lifetime join required.`);
     }
   } catch (error) {

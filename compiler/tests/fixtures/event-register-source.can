@@ -1,0 +1,114 @@
+app EventRegisterProbe uses=[events,rent_reservations]
+package rent_catalog
+ Given
+  export Location {name:text,currency:currency}
+  policy Location read=members
+ When
+ Then
+package customer
+ use rent_catalog {Location}
+ Given
+  export Customer {name:text,kind:enum(individual,company),active:bool=true,locations:Location[]}
+  export Contact in Customer {account:user?,verified:bool=false,hidden:bool=false}
+  export CompanyRole in Customer {account:user,role:enum(administrator,booker,billing),locations:Location[]=[],active:bool=true,hidden:bool=false}
+  export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+  export derive has_location_role(person:user,org:Customer,role:CompanyRole.role,location:Location):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active and location in grant.locations)
+  export derive owns(person:user,org:Customer):bool = org.kind==individual and any(org.Contact as contact,contact.account==person and contact.verified)
+  policy Customer read=members
+  policy Contact read=members and not row.hidden
+  policy CompanyRole read=members and not row.hidden
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[]}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members
+ When
+ Then
+package invoice
+ use std {OperationOutcome}
+ use customer {Customer}
+ Given
+  export Invoice in Customer { state:enum(draft,issued,void_pending,void)=draft }
+  export contract DocumentLine { title:text, quantity:decimal, price:money, tax:money, discount:money, unit:text?, from:datetime?, until:datetime?, location:text?, reference:text? }
+  export contract Charge { source:text, customer:text, location:text, description:text, amount:money, due:date, issuer:text?, terms:text?, items:DocumentLine[]?, consent:text? }
+  export contract Settlement { source:text, invoice:text, revision:int, amount:money, collected:money, refunded:money, collection_pending:bool, refund_pending:bool, state:Invoice.state, recorded_at:datetime }
+  export capability BillingV1 version=1
+   charge(value:Charge) -> OperationOutcome
+   cancel(source:text,reason:text) -> OperationOutcome
+   refund(source:text,amount:money,reason:text) -> OperationOutcome
+   reconcile(source:text) -> Settlement?
+   event settled { value:Settlement }
+ When
+ Then
+
+package events
+ use rent_catalog {Location}
+ use customer {Customer,owns,has_location_role}
+ use employee {can_work}
+ use invoice {Settlement}
+ use invoice {BillingV1 as Billing} from=deployment.billing
+ use std {OperationOutcome,DeliveryResult}
+ Given
+  role organizer
+  Program {name:text}
+  Change {venue_state:OperationOutcome.state=pending}
+  Event in Program { location:Location, name:text, description:text, timezone:timezone, from:datetime label="From"@{nl="Vanaf"}, until:datetime label="Until"@{nl="Tot"}, capacity:int min=1 label="Capacity"@{nl="Capaciteit"}, price:money, sales_until:datetime label="Sales close at"@{nl="Verkoop sluit op"}, refund_before:datetime label="Refund cutoff"@{nl="Terugbetalingsgrens"}, terms:text label="Terms"@{nl="Voorwaarden"}, venue:Change? label="Selected venue reservation"@{nl="Gekozen locatiereservering"}, venue_name:text? label="Venue"@{nl="Evenementlocatie"}, pending_change:Change? label="Pending material change"@{nl="Materiële wijziging in behandeling"}, revision:int=1 min=1, organizer:user server=actor label="Created by"@{nl="Aangemaakt door"}, cancellation_reason:text? label="Event cancellation reason"@{nl="Reden evenementannulering"}, published:bool=false label="Published"@{nl="Gepubliceerd"}, cancelled:bool=false label=label_Event_cancelled } label="Event"@{nl="Evenement"}
+  Registration in Event { settlement_revision:int=0 min=0, event_revision:int=0 min=0 label="Last event update applied"@{nl="Laatst toegepaste evenementwijziging"}, account:user label="Account"@{nl="Account"}, location:Location label="Original billing location"@{nl="Oorspronkelijke facturatielocatie"}, name:text, email:email, source:text unique label="Source reference"@{nl="Bronreferentie"}, price:money, terms:text label="Frozen ticket terms"@{nl="Vastgelegde toegangsbewijsvoorwaarden"}, refund_before:datetime label="Frozen refund cutoff"@{nl="Vastgelegde terugbetalingsgrens"}, refund_required:bool=false label="Return unfulfilled funds"@{nl="Niet uitgevoerde bedragen terugbetalen"}, refund_reason:text? label="Refund reason"@{nl="Terugbetalingsreden"}, refund_state:enum(none,pending,unknown,refunded,review)=none label={text="Refund outcome"@{nl="Terugbetalingsresultaat"},values={none="No refund requested"@{nl="Geen terugbetaling aangevraagd"},pending="Refund requested"@{nl="Terugbetaling aangevraagd"},unknown="Refund uncertain"@{nl="Terugbetaling onzeker"},refunded="Funds resolved"@{nl="Bedragen afgehandeld"},review="Finance review"@{nl="Financiële beoordeling"}}}, collected:money label="Collected funds"@{nl="Geïnde bedragen"}, refunded:money label="Returned funds"@{nl="Terugbetaalde bedragen"}, collection_pending:bool=false label="Collection unresolved"@{nl="Inning onopgelost"}, refund_pending:bool=false label="Refund unresolved"@{nl="Terugbetaling onopgelost"}, cancel_reason:text? label="Frozen collection cancellation reason"@{nl="Vastgelegde reden annulering inning"}, cancel_delivery:text? label="Collection cancellation request"@{nl="Aanvraag annulering inning"}, cancel_status:DeliveryResult.status? label="Cancellation delivery state"@{nl="Status annuleringsverzending"}, fenced:bool=false label="Collection source fenced"@{nl="Inningsbron afgeschermd"}, fence_revision:int=0 label="Cancellation ledger fence"@{nl="Afwikkelingsgrens annulering"}, absent:bool=false label="Invoice authoritatively absent"@{nl="Factuur aantoonbaar afwezig"}, invoice_state:Settlement.state? label="Invoice state"@{nl="Factuurstatus"}, refund_delivery:text? label="Refund request"@{nl="Terugbetalingsaanvraag"}, refund_target:money? label="Requested cumulative return"@{nl="Aangevraagde cumulatieve terugbetaling"}, refund_status:DeliveryResult.status? label="Refund delivery state"@{nl="Status terugbetalingsverzending"}, reconcile_delivery:text? label="Settlement refresh request"@{nl="Aanvraag afwikkelingsverversing"}, reconcile_status:DeliveryResult.status? label="Settlement refresh state"@{nl="Status afwikkelingsverversing"}, expires:datetime label="Expires at"@{nl="Verloopt op"}, state:enum(held,pending,confirmed,expired,cancelled,review)=held label={text="State"@{nl="Status"},values={cancelled=label_Event_cancelled,held="Held"@{nl="Gereserveerd"},pending=label_Registration_state_pending,confirmed="Confirmed"@{nl="Bevestigd"},expired="Expired"@{nl="Verlopen"},review="Needs resolution"@{nl="Vereist beoordeling"}}}, payment:enum(free,unpaid,pending,paid,refunded,unknown)=unpaid label={text="Payment state"@{nl="Betaalstatus"},values={pending=label_Registration_state_pending,free="Free"@{nl="Gratis"},unpaid="Unpaid"@{nl="Onbetaald"},paid="Paid"@{nl="Betaald"},refunded="Refunded"@{nl="Terugbetaald"},unknown="Unknown"@{nl="Onbekend"}}}, ticket:text unique label="Ticket"@{nl="Toegangsbewijs"}, checked_in:datetime? label="Admission time"@{nl="Toegelaten op"}, checked_by:user? label="Admitted by"@{nl="Toegelaten door"}, invoice:text? label="Invoice reference"@{nl="Factuurreferentie"}, delivery:delivery(Billing.charge)? label="Delivery reference"@{nl="Afleverreferentie"} } label="Event registration"@{nl="Evenementregistratie"}
+  Notice in Registration {kind:enum(confirmation,change,cancellation)}
+  event HoldDue {registration:Registration}
+  event AttendeeNotice {registration:Registration,kind:Notice.kind,revision:int,body:text}
+  message label_Event_cancelled = "Cancelled"@{nl="Geannuleerd"}
+  message label_Registration_state_pending = "Pending"@{nl="In behandeling"}
+  invariant Event: row.from<row.until and row.sales_until<=row.from and row.price.minor>=0 and row.price.currency==row.location.currency and row.available>=0
+  lock Registration fields=account,location,name,email,source,price,terms,refund_before,ticket
+  derive Event.available:int = row.capacity-count(row.Registration as registration where registration.state==confirmed or (registration.state in [held,pending] and now<registration.expires))
+  policy Program read=members
+  policy Event read=members
+  policy Change read=members
+  policy Registration read=members
+ When
+  export scenario check_register(event:Event,name:text,email:email?=null,customer:Customer?=null,account:user?=null) -> Registration by=authenticated or organizer label="Register for event"@{nl="Registreren voor evenement"}
+   require event.published and not event.cancelled and now<event.sales_until and event.available>0 and trim(name)!=""
+   require event.venue==null or event.venue.venue_state==confirmed
+   require account==null or account==actor or (organizer and can_work(actor,event.location))
+   require (account!=null and account!=actor and email!=null) or ((account==null or account==actor) and actor.email_verified and (email==null or email==actor.email))
+   require event.price.minor==0 or (customer!=null and customer.active and event.location in customer.locations and (owns(account ?? actor,customer) or has_location_role(account ?? actor,customer,booker,event.location) or has_location_role(account ?? actor,customer,administrator,event.location)))
+   do
+    create Registration {parent=event,account=account ?? actor,location=event.location,name,email=email ?? actor.email,source=operation.id,price=event.price,event_revision=event.revision,terms=event.terms,refund_before=event.refund_before,collected=money(0,event.price.currency),refunded=money(0,event.price.currency),expires=now+15m,ticket=operation.id} as registration
+    if event.price.minor==0
+     set registration {state=confirmed,payment=free}
+     emit AttendeeNotice {registration,kind=confirmation,revision=event.revision,body=registration.ticket}
+    else
+     require customer!=null
+     send Billing.charge {value={source=registration.source,customer=customer.id,location=registration.location.id,description=event.name,amount=registration.price,terms=registration.terms,due=local_date(now,event.timezone)}} as delivery
+     set registration {state=pending,payment=pending,delivery=delivery}
+     schedule registration.id at=registration.expires event=HoldDue {registration}
+    return registration
+  scenario observe_notice on=AttendeeNotice
+   do require true
+  scenario observe_expiry on=HoldDue
+   do require true
+ Then
+package rent_reservations
+ use rent_catalog {Location}
+ use customer {Customer,owns,has_location_role}
+ use employee {can_work}
+ Given
+  role reservation_manager
+  role finance
+  contract LegacyFacts {customer_source:text?,customer_external_id:text?,resource_source:text?,resource_external_id:text?}
+  Resource {location:Location,active:bool=true}
+  LegacyBooking {location:Location,facts:LegacyFacts,customer:Customer?,resource:Resource?,account:user?,mapping_reason:text?}
+  policy Resource read=members
+  policy LegacyBooking read=members
+ When
+  export scenario link_legacy(entry:LegacyBooking,customer:Customer? label="Current customer"@{nl="Huidige klant"},resource:Resource? label="Current resource"@{nl="Huidige voorziening"},account:user? label="Current account"@{nl="Huidig account"},reason:text label="Review reason"@{nl="Reden voor beoordeling"}) by=reservation_manager or finance label="Map historical booking"@{nl="Historische reservering koppelen"}
+   require can_work(actor,entry.location) and trim(reason)!=""
+   require customer==null or (finance and trim(entry.facts.customer_source??"")!="" and trim(entry.facts.customer_external_id??"")!="" and entry.location in customer.locations)
+   require resource==null or (reservation_manager and trim(entry.facts.resource_source??"")!="" and trim(entry.facts.resource_external_id??"")!="" and resource.location==entry.location)
+   require account==null or (customer!=null and (owns(account,customer) or has_location_role(account,customer,booker,entry.location)))
+   do set entry {customer,resource,account,mapping_reason=trim(reason)}
+ Then
