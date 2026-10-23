@@ -1,57 +1,85 @@
-# Dependency-ordered implementation packets
+# Current dependency-ordered audit and implementation tasks
 
-This backlog was planned at [baseline](baseline.md). The user authorized implementation on 2026-10-23; current working-tree implementation status is recorded below. The original audit and its performed evidence remain bounded to their recorded source. Exact source-unit lists in the primary [reviews](reviews/index.md) plus every retained leaf in the [inventory](catalogue/inventory.md) are part of each packet's scope. Public APIs, generated inputs, tests, manifests and installed selectors retain their real owners. M = behavior-preserving move; C = named correction; V = meaningful verification. M does not close C or prove V.
+Source: [baseline](baseline.md), `8d48f969`. Completed moves/corrections are absorbed in the implementation record below; they are not executable backlog. This refresh selects source review and planning. It does not dispatch production writers or repeat tests/builds. Literal duty lists in the primary [reviews](reviews/index.md) are part of these packets; the [inventory](catalogue/inventory.md) accounts for every retained leaf. M (placement), C (named correction) and V (meaningful qualification) remain distinct.
 
-| Packet / completion lead | Slices / literal defining writers | M / C / V and exact prerequisites | Completion / recipient |
-| --- | --- | --- | --- |
-| LANG-01 / language | L01,L03; `docs/specification/GRAMMAR.md`, `tools/can_parser.py`, `editors/vscode/syntaxes/can.tmLanguage.json`, owning existing syntax/highlighting fixtures | C LANG-GRAMMAR. Align literal source/current phase syntax; compare actual prototype/editor boundaries. V default/source/current and malformed/without-when/dynamic/quoted cases and physical locations. No extraction prerequisite. | One grammar contract; native parser semantics unchanged. Editor/prototype consumers receive exact syntax output. |
-| P-CI / platform | P-DISTRIBUTION,P-DELIVERY; `packages/cloudflare/src/runtime/native-invoice-overdue.integration.test.ts`; owned package runner/CI file only if needed | C P-F01. Enumerate source, renamed, live, source-false and metadata/persisted downgrade/header controls in ordinary integration discovery. V actual normal runner executes them with real compiled source/State/Work and zero-provider negatives. | Manual opt-in is not the only regression owner. Reuse current real cases, no new test framework or unit tests. Independent of LANG-01. |
-| RT-M1 / State | RT.STATE.RECEIPT,RT.CONTRACTS; `packages/state/src/invocation/scenario-receipt.ts`, new `scenario-plan.ts`, `invocation/index.ts`; actual private import consumers as named handoffs | M exact 46-declaration closure in runtime review, move not copy. C none implicit. V original closed plan/forged profile, getters/errors/order, one State identity and real current/staged handler behavior. Gate private maps/session/budgets remain original owner. | Runtime defining codec delivered once; CF/compiler recipients confirm source/type compatibility. Monolith file release before RT-C1. |
-| RT-M2 / query | RT.STATE.QUERY; `packages/state/src/query/engine.ts`, new `query/order.ts`; existing source-query reader import recipient | M exact 11 declarations. V typed field-major order, singleton/null/missing/money faults and canonical engine/source call order. No native port or M1 prerequisite. | Same engine export through compatibility reexport; no authority/predicate evaluator merge. |
-| RT-M3 / State invocation | RT.STATE.ADMIT,RT.STATE.RECEIPT; `packages/state/src/invocation/invoke.ts`, new `crud-receipt.ts`, `invocation/index.ts` | M exact six declarations. V original-image/current-mask/membership/ancestor/secret projection and real replay API consumers. Execution issuer/retry maps stay private. | Existing invoke subpath/API and one State instance. Shared index handoff serialized with RT-M1; no whole-packet dependency. |
-| LANG-02 / language CLI | L03; `compiler/src/cli.rs`, new `cli/{args,compile,reference,generation,entry}.rs` | M complete disjoint command/custody selectors in language review; keep public Analyzer/dispatch/editing and shared locators once. V CLI flags/stdout/errors, saved import confinement, lease/refine/accept/reset and installed can/dev/completions. Gate shared helper caller/visibility closure. | Same can binary/public API. Integration writer owns any Cargo/export/install table handoff; no new package. |
-| LANG-03 / compiler source | L02; `compiler/src/codegen/{scenario_decisions,source_context,source_correspondence,mod}.rs`, literal private import consumers across collectors | M complete immutable context and structural-comparison closures. V prepared original versus forged source/IR phase/trigger/arguments/callee/schema plus actual native recipient. | One private constructor/cache/borrowed context, no authority DTO. Independent of LANG-02; module-root handoff reserved. |
-| LANG-04 / native dev | L04; `dev-server/src/owner.rs`, new `owner/{check_worker,service_worker}.rs` | M full worker structs/impls; parent Loop/Event/tickets/claims/publication remain defining once. V stale result, cleanup/retry, same-tab generation and installed can-dev lookup. Gate exact visibility/captured event closure. | Worker facts do not select generations. Cannot overlap owner.rs writes with ROOT-POLICY. |
-| P-ERRORS / platform | P-SERVING; `packages/cloudflare/src/runtime/invoke.ts`, new `runtime/invocation-errors.ts`, pinned/staged runtime inventory consumer | M exact read-only remap/error cohort in platform review. V actual generated stack/source remapping and installed source closure. invokeWith/callable resolution/private row/guard maps remain original owner. | Same public InvokeResult/find* API via reexports, no capability getter facade. Cannot overlap RT-C1 host edits in invoke. |
-| P-UI / UI | P-PRESENTATION; `packages/ui/src/{forms,controls}.ts`, new `internal/field-binding.ts`, actual browser bundle imports | M exact field helper/support closure; original forms reexports remain. V existing DOM names/IDs/errors/date/boolean/JSON-pointer behavior, same source policy and installed browser include. | Single field-binding owner; break cycle without a new package. Independent of State/compiler moves. |
-| ROOT-POLICY / repository+dev | REPO.GOVERNANCE,L04,P-DISTRIBUTION; `dev-server/src/` exact 25 marker-bearing files after subject mapping, new `dev-server/tests/session_lifecycle.rs` actual lifecycle integration owner, new `dev-server/build.rs`, existing shared `tools/unitban/build_impl.rs` only if a real shared defect requires it | C REPO-UNIT-SCOPE. First map actual helper/real lifecycle coverage; retain gateway real HTTP/shutdown subject. Preserve useful behavior in actual Owner/capture/check/serve/failure/cancel/cleanup integration before removing forbidden source tests; never merely rename tests. Then wire existing shared crate-local enforcement with correct relative include/watch/distribution inputs. V enforcement plus real normal-run discovery. | Gate before enabling hook: source marker/real regression coverage reconciliation. No mass legacy deletion, no fabricated fake-worker qualification. Share owner.rs exclusively with LANG-04. |
-| LANG-05 / values+language | L01,L05,RT.VALUES; `compiler/src/analysis/types.rs`, existing native currency fact owner/API and owning literal/conformance fixtures | C LANG-CURRENCY. Establish same admitted/excluded/unknown classification and diagnostic class/message/span before table removal. V pinned table differential and real literal diagnostics. | Bounded shared facts; no new native backend/default or performance claim. |
-| P-CODEC / Work+platform | P-DELIVERY,RT.WORK.DISPATCH; CF `invoke.ts::readDispatchExecutionRow`, Work `kernel/tables.ts::readDispatchRow` and owning typed error/projection callers | C P-F05. First define exact accepted legacy row/guard/File/queue/generation/mail and fault ordering. Then adopt defining Work reader only if compatible source contract selected. V genuine legacy/current producer and fault cases. | Gated C design; not an executable blind replacement. Sole invoke writer; ordinary package types/shared exports reserved. |
-| RT-C1 / one profile lead | RT.STATE.RECEIPT,L02,P-SERVING/P-DELIVERY; per selected original profile in State `scenario-receipt.ts`, compiler collector, CF `invoke.ts`, protocol/fixture/stdlib export consumers | C RT-01. Before executable edits select one original family's exact source/current phase, CONTROL/DATA, complete domains, effect order, terminal/refusal/race/File contract and exact writer list. V genuine original + renamed/generalized + forged-source controls. | No profile currently selected by audit; no suppressing 56 diagnostics or treating all recipes equivalent. Overdue excluded as completed. Cannot overlap M1/P-ERRORS monolith writers. |
-| P-RETIRE / platform | P-SERVING; `runtime/executors.ts`, last supported callers/pinned/staged installed payload and fixture readers | C P-F03. Prove actual final public/installed/old-artifact consumer and fixture disposition; then delete only the evidenced predecessor and joins. V genuine installed canonical producer path, not shallow grep. | Gated. Retain current file in tree until that proof; no live wire/input/fixture retirement inferred. |
-| RETAIN-REVIEW / all primary slice leads | All unchanged paths in inventory plus independent draft and newly created plan docs; readers only until a specific correction is authorized | V/source review: finish explicitly unreviewed checker/provider/migration/UI/fixture/business duties before their correctness/retirement/port conclusions. Retained locks/generated/data get their actual producer/consumer disposition; no blanket behavior tests/moves. | Every slice has a completion lead below. Existing authority retained; whole semantic audit and zero diagnostics are not falsely declared achieved. |
+## Ready review packets
+
+All rows are ready for source inspection and independent challenge. Their physical document writers are the named primary review owners; production files are read-only until a concrete separately authorized correction. One packet can span slices without creating another package or lifecycle.
+
+| Packet / lead | Literal source duties and canonical specification | Required output / dependency |
+| --- | --- | --- |
+| L-REVIEW-CHECK / language | Parser/layout/CST and resolve/types/effects/examples; exact family list in [language review](reviews/language-current.md#remaining-review-packets-with-exact-duties) | Requirements-to-branch/diagnostic/fixture trace, including narrowing, queries, defaults and lifetime rules. Preserve source order and independent expectations |
+| L-REVIEW-PROOF / language | Fresh context, semantic correspondence, cohort, read/send/model-rule proof and emit entry | Complete partial-query/terminal/cache/seal refusal review. Metadata never becomes executable proof; runtime challenger owns recipient authority |
+| L-REVIEW-PROFILES + RT-RECEIPT-REVIEW / language + runtime | Compiler disclosure/receipt/query/decision collectors; State receipt/plan/decoder/query/File/nominal/reference owners; host binder recipients | One source/current/CONTROL/DATA/domain/parent/callee/effect/File/replay contract per remaining profile. Start with the parent-max grant refusal; do not waive it. Required before RT-C1 selects a correction |
+| L-REVIEW-EMIT / language | IR/JS/descriptors/artifact/BDD/source maps/Then and real typed-artifact/UI consumers | Finish value/model identity, canonical wire, source effects and saved joins. Resolve standard-value inspection/unused-producer assertion contracts before changing behavior or expectations |
+| L-REVIEW-GIVEN / language | Given contracts, generation/intake/store, CLI generation, IR lowering and artifact/Then joins | Saved schema/authority/import closure, stale target/export and lease/refine/accept/reset traces. Keep generated JS nonauthoritative for schema discovery |
+| L-REVIEW-AUTHORING / language | LSP/IDE/format/lint, editor client and completion scripts | Framing/version/Unicode/safe-edit/disposal review; installed editor qualification stays separate |
+| L-REVIEW-DEV / language | Native owner/preview/runtime/control/claim/capture/files/watch/foreground, fixed host bridges and real boundary/lifecycle tests | Finish stale-result/failure retention/PTY/private-file/cleanup subjects. Distinguish anchored runtime groups from compiler child/pipe completion; no universal descendant containment claim |
+| L-REVIEW-NATIVE + RT-VALUES-REVIEW / language + runtime | Values Rust semantics/bindings/assets and public TS codecs/validation/native selection, exact lists in primary reviews | Complete ordered input/error/ABI/resource and host-domain comparison. Generated rebuild equality is not all-host native equivalence |
+| RT-MIGRATION-REVIEW / runtime | State migration mapper/stage/retain/activate/recover/transition/validate, File-reference/drop barriers and retained Work | Failure/retry/activation/abort map with exact persisted fields and predecessor custody before a migration correctness/port verdict |
+| RT-SETUP-REVIEW + P-R04 / runtime + platform | Identity bootstrap/D1, private Soda setup/admin/run/D1, native guard and runtime packing/closure driver | Complete uncertain acknowledgement, durable claim versus completion-file failure and expiry/retry boundaries. Source custody/private ingress and Identity atomicity remain separate |
+| RT-PROVIDER-REVIEW / runtime | Services HTTP/mail/models/judgments/media/controlled admission, Work dispatch/recovery and Files upload/finalize | Per-provider request/stream/cancel/reconcile/terminal contracts; keep real transport and custody differences |
+| RT-AUTHORITY-REVIEW / runtime | Identity OAuth/grants/revocation/pre-session/token/CSRF/cookie/membership/removal, State admission/query/mutation and actual auth integrations | Complete current authority, expiry/consumption and cross-store termination/error review; prior membership/replay checks are bounded evidence |
+| P-R01 / platform | Host invocation/resource dispatch, source/preclaim issuers, ordinary/private-due FIRST and original binders; exact [platform list](reviews/platform-current.md#remaining-review-packets-and-physical-writers) | Close private issuer/consumer and cycle boundaries without getters or capability DTOs. Nonempty due-FIRST execution is not established by prior selected fixtures |
+| P-R02 / platform | Fanout staging/claim/drive/scheduler/navigation/cancel joins and actual Work producers | Cancellation/supersession/terminal/recovery custody trace. No scheduler launch or invented replay engine |
+| P-R03 / platform | UI browser bootstrap/bindings/collections/navigation and Interface fragment/preferences | Mount/draft/poll/rebind/dispose/denied-action and current input identity traces; real browser qualification follows only where warranted |
+| P-R05 / platform | Generation controls/capture/lease/CLI/native recipients and preparation terminal publication | Complete remaining source/tool binding, lease/error/lifetime branches without parallel persisted lifecycle |
+| P-R06 / platform | Upgrade/apply/deploy, release/install selectors, tools/runtime pack and producer assets | Old-payload compatibility, interruption/rollback and matching installed closure map; source/type/link checks are not installed evidence |
+| REPO-REVIEW-CONTRACTS / root | REQUIREMENTS/DESIGN/GRAMMAR/BUILD_GENERATION_REQUIREMENTS, owning contracts and current implementation guide | Reconcile remaining requirement/code/test disagreements; `.can` controls business identity/policy. Current grammar and policy migration are completed, not pending corrections |
+| REPO-REVIEW-EVIDENCE / root | Retained docs/research/output/fixtures, 46 literal consumer entries and separately owned draft inputs | Complete remaining document/fixture assertion/provenance and draft business-workflow review before any retirement or whole-product correctness claim. No shallow no-caller inference |
+| REPO-REVIEW-DELIVERY / root + platform | README/developer/Soda/install guides, root scripts/manifests/CI/release and actual installed selectors | Keep documentation claims attached to real source and performed evidence, including direct-runtime versus older VM/managed deployment differences |
+
+## Gated corrections and qualification
+
+| Packet | M / C / V and exact gate | Future physical writers / recipients |
+| --- | --- | --- |
+| RT-C1 | C: select one complete original profile only after L-REVIEW-PROFILES/RT-RECEIPT-REVIEW supplies its source/current authority/domain/effect/File/failure contract. No new family is selected by a file move. V: genuine renamed/source/forged/stale/race/replay recipients | One compiler collector writer, one State receipt writer and one host invoke writer with exact handoffs; shared protocol/index/fixture changes coordinated. No executable production assignment yet |
+| P-CODEC | C: decide accepted historical/current row domain, projection and ordered faults before replacing CF dispatch projection with Work's stricter reader. Textual duplication does not prove equivalence. V: real accepted and refused persisted rows | `packages/work/src/kernel/tables.ts` defining codec and sole `packages/cloudflare/src/runtime/invoke.ts` adapter writer; Work/host contract handoff precedes mutation |
+| Qualification after review | V only where a concrete changed binding, contract question or missing required journey justifies it. Progress bounded owner/error cases → imports/types/fixtures/source guards → integrated graph → matching installed/native/provider journey | Single operator per compiler/catalog/cache/dist/native/browser fixture. Reuse matching prior evidence. No blanket rebuild or test campaign |
+
+There is no pending M-only extraction or whole-package port at this source. The fourteen original private splits, subsequent two compiler and one persisted-decoder boundaries, dev guard/integrations, grammar/CI correction, currency reuse and executor retirement are implemented.
 
 ## Complete slice-to-packet coverage
 
-| Slice set | Primary completion packet / retained-duty recipient |
+| Slice | Primary completion packet / recipient |
 | --- | --- |
-| L01 | LANG-01; LANG-05 only currency gate; retained checker responsibilities RETAIN-REVIEW language |
-| L02 | LANG-03; remaining source profiles RT-C1 only when individually selected; retained lowering RETAIN-REVIEW language |
-| L03 | LANG-02 + LANG-01 syntax consumers; retained editor/prototype RETAIN-REVIEW language |
-| L04 | LANG-04; ROOT-POLICY current test enforcement; retained lifecycle RETAIN-REVIEW language |
-| L05 | LANG-05 bounded fact gate; native values/build/asset duties RETAIN-REVIEW language |
-| RT.CONTRACTS | RT-M1 recipient only; protocol definitions retained RETAIN-REVIEW runtime |
-| RT.STATE.ADMIT | RT-M3; admission/identity/retry kept RETAIN-REVIEW runtime |
-| RT.STATE.QUERY | RT-M2; scanning/policy/continuation retained RETAIN-REVIEW runtime |
-| RT.STATE.MUTATE / RT.STATE.MIGRATE | RETAIN-REVIEW runtime; no speculative rewrite |
-| RT.STATE.RECEIPT | RT-M1 lead; RT-M3 recipient; RT-C1 independently specified correctness |
-| RT.WORK.OCCURRENCE / RT.WORK.RECOVER | RETAIN-REVIEW runtime; no new scheduler/fanout policy |
-| RT.WORK.DISPATCH | RETAIN-REVIEW runtime; P-CODEC gated compatible consumer handoff |
-| RT.IDENTITY / RT.FILES.INTAKE / RT.FILES.RETAIN / RT.SERVICES / RT.VALUES | RETAIN-REVIEW runtime; actual lifecycle/host/durable/provider variations retained |
-| P-ARTIFACT / P-AUTHORING-HOST | RETAIN-REVIEW platform; real native/host/custody inputs retained |
-| P-SERVING | P-ERRORS; remaining canonical binding/route cohort RETAIN-REVIEW platform; P-RETIRE separately gated |
-| P-PRESENTATION | P-UI; remaining component/browser lifetimes RETAIN-REVIEW platform |
-| P-DELIVERY | P-CI regression owner; P-CODEC gated; other Work-host join RETAIN-REVIEW platform |
-| P-DISTRIBUTION | P-CI; ROOT-POLICY integration recipient; retained build/release/install RETAIN-REVIEW platform |
-| REPO.GOVERNANCE / DOC.CONTRACTS / DOC.PLAN | ROOT-POLICY and LANG-01 only named corrections; retained metadata/plan/specification owner root |
-| DOC.EVIDENCE / DOC.DELIVERY / DRAFT.INPUTS | RETAIN-REVIEW root; exact retained files and consumer identities, no automatic business-policy implementation |
+| L01 | L-REVIEW-CHECK; L-REVIEW-GIVEN |
+| L02 | L-REVIEW-PROOF; L-REVIEW-PROFILES; L-REVIEW-EMIT; RT-C1 gated |
+| L03 | L-REVIEW-GIVEN; L-REVIEW-AUTHORING; P-R05 recipient |
+| L04 | L-REVIEW-DEV |
+| L05 | L-REVIEW-NATIVE; RT-VALUES-REVIEW recipient |
+| RT.CONTRACTS | RT-RECEIPT-REVIEW; RT-AUTHORITY-REVIEW; producer/consumer protocol recipients |
+| RT.STATE.ADMIT | RT-AUTHORITY-REVIEW; RT-RECEIPT-REVIEW |
+| RT.STATE.QUERY | RT-AUTHORITY-REVIEW; RT-RECEIPT-REVIEW |
+| RT.STATE.MUTATE | RT-AUTHORITY-REVIEW; RT-RECEIPT-REVIEW |
+| RT.STATE.RECEIPT | RT-RECEIPT-REVIEW; RT-C1 gated |
+| RT.STATE.MIGRATE | RT-MIGRATION-REVIEW |
+| RT.WORK.OCCURRENCE | RT-PROVIDER-REVIEW; RT-MIGRATION-REVIEW; P-R02 |
+| RT.WORK.DISPATCH | RT-PROVIDER-REVIEW; P-R01; P-CODEC gated |
+| RT.WORK.RECOVER | RT-PROVIDER-REVIEW; RT-MIGRATION-REVIEW; P-R02 |
+| RT.IDENTITY | RT-AUTHORITY-REVIEW; RT-SETUP-REVIEW; P-R04 recipient |
+| RT.FILES.INTAKE | RT-PROVIDER-REVIEW; RT-RECEIPT-REVIEW |
+| RT.FILES.RETAIN | RT-MIGRATION-REVIEW; RT-RECEIPT-REVIEW |
+| RT.SERVICES | RT-PROVIDER-REVIEW |
+| RT.VALUES | RT-VALUES-REVIEW; L-REVIEW-NATIVE recipient |
+| P-ARTIFACT | P-R06; P-R05; L-REVIEW-EMIT recipient |
+| P-SERVING | P-R01; RT-AUTHORITY-REVIEW recipient |
+| P-PRESENTATION | P-R03 |
+| P-DELIVERY | P-R01; P-R02; P-CODEC gated |
+| P-AUTHORING-HOST | P-R05; L-REVIEW-GIVEN recipient |
+| P-DISTRIBUTION | P-R04; P-R06; REPO-REVIEW-DELIVERY |
+| REPO.GOVERNANCE | REPO-REVIEW-CONTRACTS; L-REVIEW-DEV policy recipient |
+| DOC.CONTRACTS | REPO-REVIEW-CONTRACTS; L-REVIEW-DEV policy recipient |
+| DOC.EVIDENCE | REPO-REVIEW-EVIDENCE |
+| DOC.DELIVERY | REPO-REVIEW-DELIVERY |
+| DOC.PLAN | Root reconciliation across all review packets; inventory/tree/task/challenge consistency |
+| DRAFT.INPUTS | REPO-REVIEW-EVIDENCE |
 
-Implementation is now authorized. Completed moves and corrections are absorbed below; remaining semantic migrations and the dev test guard retain their actual behavior/coverage gates. The functional [remaining-work](../implementation/REMAINING-WORK.md) record keeps its original scope; this plan does not reclassify a prior PASS or launch its backlog.
-
+Every slice has a primary completion route. Exact remaining file/duty selectors live in its primary review, and all retained leaf dispositions remain in the inventory. These tasks expose partial review; they do not convert a complete path tree into complete semantic review or achievement of zero native diagnostics.
 
 ## Implementation status — 2026-10-23
 
-These are working-tree changes following the audit baseline, not a new committed source identity. Permission checks, State issuance/session/budget maps, source-context construction and owner-loop generation selection retain their defining owners.
+These are prior performed implementation results, now reconciled to committed source `8d48f969`; they are not fresh results from this documentation audit. Permission checks, State issuance/session/budget maps, source-context construction and owner-loop generation selection retain their defining owners.
 
 | Packet | Current result and performed verification | Remaining scope |
 | --- | --- | --- |

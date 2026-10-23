@@ -1,4 +1,6 @@
-# Import, artifact, test and install joins
+# Current import, artifact, test and install joins
+
+Reconciled to product source `8d48f969`. The selected mechanical cutovers below are implemented; this table records their retained defining joins, not pending extraction work. Current source-review and gated corrections are in [tasks](tasks.md).
 
 | Cutover | Required real joins; preserve current external identity |
 | --- | --- |
@@ -11,6 +13,9 @@
 | UI neutral field binding | `forms.ts` and `controls.ts` import the sole internal helper; compatibility reexports and existing DOM/attribute/date/boolean/pointer behavior remain. Build/staged browser asset discovery must include the new module. |
 | SEND phase grammar and ordinary CI | Exact syntax slots/prototype/highlighting + malformed/current/source cases. Normal existing integration test discovery must enumerate renamed/live/source-false/metadata/downgrade controls without undocumented environment opt-in. No new test framework/unit tests. |
 | Dev test policy | `dev-server/tests/session_lifecycle.rs` exercises actual Owner/capture/check/serve, stale inputs, supersession, failed rebuild retention, cancellation and process/listener cleanup. Preserve existing gateway HTTP subjects. Reconcile legacy source markers before `dev-server/build.rs` includes `../tools/unitban/build_impl.rs` and calls the existing crate-local guard; retain normal discovery and package inputs. |
+| Given / descriptor children | `analysis/types/given.rs` and `codegen/js/descriptors.rs` are private child owners; explicit parent reexports preserve existing public paths. Parent-private checker helpers and parent-only serializer helpers stay narrow. Source admission remains with collectors; Emitter and completion state are retained. |
+| Persisted receipt decoder | Existing State invocation export stays at the receipt owner. Only two lazy callbacks supply independently installed current-source allowances, at their original evaluation points; recursive children receive neither. Pure helpers are shared by imports, and no registry/session/storage/issuance map enters the decoder. Vendor-tree discovery includes the emitted relative module without a new public package export. |
+| Native guard / setup / runtime pack | Existing Node provisioning/packaging selects the Linux exec guard and private admin/public Worker closure. Identity alone atomically consumes setup and creates owner records. Preserve inherited-lock/parent-death custody, expiry/context binding, D1 acknowledgement and later completion-file failure; no additional daemon or public setup authority. |
 | Repository/draft/docs | `.gitmodules` and independent child identity retained. Current audit entry/tree/tasks supersede old proposals; moved links repaired without upgrading old behavioral evidence. Public guide/spec/reference consumers remain owned. |
 
 No new package dependencies or manifests are intrinsically required by private file splits. If an actual include/export/pinned inventory needs changing, reserve its literal file for the integration writer and hand off the exact import/selector tuple; never assume a source move automatically enters a packed Worker or native install. Existing normal package/release discovery is retained, not reimplemented.

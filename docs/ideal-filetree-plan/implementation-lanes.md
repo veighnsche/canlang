@@ -1,25 +1,26 @@
-# Parallel lanes and dependency critical path
+# Current review lanes and implementation handoffs
 
-Capacity available to the audit was coordinator plus three workers. These are **future implementation roles**, not running jobs or a scheduler. Use actual available capacity when work is selected. Each original physical file has one active writer; reviewers may inspect any file.
+The audit has coordinator plus three reviewer slots. These are source-review roles and future handoffs, not a scheduler or running implementation team. The product pin is `8d48f969`; a documentation commit does not demand a product rebuild or another source-baseline cycle.
 
-| Lane | First independent ready packet | Next released packet / reservations |
+| Lane | Ready review work | Exclusive document / later production handoff |
 | --- | --- | --- |
-| A — language | LANG-01 grammar/prototype/editor contract alignment | LANG-03 codegen proof context; LANG-02 CLI command split can be another released lane if no shared source writer; LANG-05 only after currency error contract |
-| B — State | RT-M2 closed query ordering or RT-M1 closed plan codec | RT-M3 independent invocation projection, but release `invocation/index.ts` through coordinator. RT-C1 cannot touch scenario-receipt concurrently with M1. |
-| C — platform/UI | P-CI ordinary regression discovery or P-UI neutral helper | P-ERRORS only with exclusive invoke.ts; P-CODEC/P-RETIRE remain gated; ROOT-POLICY requires mapped actual lifecycle subjects before guard activation. |
-| Coordinator | Shared inventory/contracts/import/export/distribution integration and small handoffs | Own root manifests/locks, codegen/mod.rs coordination, State index, PINNED_RUNTIME_FILES, common fixtures, package/TS includes, build/install selectors. No independent copying of owners or parallel edits to the same file. |
+| A — language | L-REVIEW-CHECK/PROOF/EMIT/GIVEN/AUTHORING/DEV/NATIVE; compiler half of L-REVIEW-PROFILES | `reviews/language-current.md`. Inspect source read-only. Any later compiler correction names its exact collector/pass writer; `codegen/mod.rs`, Cargo/export/install selectors remain coordinator handoffs |
+| B — runtime | RT-RECEIPT/MIGRATION/SETUP/PROVIDER/AUTHORITY/VALUES-REVIEW | `reviews/runtime-current.md`. State receipt/session/issuance and Identity custody retain their owners. A later `scenario-receipt.ts` writer must be exclusive; index/schema/fixture changes coordinated |
+| C — platform | P-R01–06 and P-CODEC compatibility investigation | `reviews/platform-current.md`. Any later `invoke.ts`, host/setup, browser or packaging change has one actual writer; no independent changes to manifests/locks/pinned/runtime inventory |
+| Coordinator | REPO-REVIEW-CONTRACTS/EVIDENCE/DELIVERY; shared findings, coverage, target tree and task reconciliation | Entry guide, baseline, catalogue, slice matrix, ownership, integration, findings, task/lane files. Commit coherent reviewed documentation checkpoints; do not sweep unrelated changes into commits |
 
-## Required output DAG
+## Connected challenge and useful ordering
 
-- LANG-01 and P-CI have no global source-extraction prerequisite.
-- RT-M1 emits one plan codec → its native source-plan/actual handler verification; only its actual file release permits RT-C1 on that monolith. RT-M2 is independent. RT-M3 needs an exclusive short index-export handoff, not completion of M1's entire verification campaign.
-- LANG-03 needs the complete existing constructor/comparison/import closure and one codegen root writer; no LANG-02 dependency. CLI and dev worker extractions are distinct crates/owners.
-- ROOT-POLICY: map legacy markers and real subject coverage → actual lifecycle integration/meaningful retention → retire forbidden source placement → enable shared dev-server/build.rs guard → normal build/discovery. The hook is not activated against an unresolved legacy tree. LANG-04 and this packet share owner.rs; release it rather than edit separate hunks concurrently.
-- P-ERRORS and any future RT-C1/P-CODEC/P-RETIRE host edits share invoke.ts and pinned/installed payload ownership. Native claim/guard/source-definition closure remains indivisible until an actual compatible private handoff is specified.
-- Unreviewed provider/migration/browser/draft branches gate only their dependent correctness/retirement assertions, not all ready packets. No artificial repository-wide refactor barrier.
+- Current refresh challenge rotated platform → language → runtime → platform, with a direct platform/runtime check of Identity setup. Reuse the recorded bounded conclusions; do not schedule reviews of reviews.
+- Independent checker/proof/emitter, migration/provider, browser and upgrade source review can proceed together. Completing one monolith review is not a repository-wide barrier.
+- Cross-profile critical path: compiler original-source/query/effect census + State actual observation/return/File authority + host original bindings → one complete family contract → RT-C1 correction specification. Source/current semantics, complete domains and the parent-max permission refusal stay explicit. No recipe retirement or diagnostic suppression precedes that contract.
+- Setup critical path: platform stopped-writer/private-token/admin/receipt-file custody + Identity atomic consumed-claim/owner records + D1 acknowledgement/expiry/retry → any named custody correction. Atomic database state does not imply atomic completion-file publication.
+- Codec critical path: actual historical/current Work row acceptance + CF consumer projection and ordered faults → explicit compatibility decision → P-CODEC. The stricter reader is not a mechanical drop-in.
+- Values review pairs native ABI/assets with public JS inputs/errors/host domains. A regenerated binary or an opt-in route does not settle unsupported host semantics.
+- Finished mechanical moves, grammar/CI coverage, dev policy migration, currency reuse and executor retirement have no lane reservation or pending build barrier.
 
-## Verification progression and resources
+## Verification and resources
 
-M: preserve current functions and public identity. C: name the exact corrected requirement and negative case. V: start with actual bounded owner behavior and forged/stale/error cases; close imports/type/module/fixture and source checks; then affected integrated graph and installed payload; finally actual native/Worker/browser/provider journeys where authorized and relevant. Do not broaden or repeat merely because files moved.
+This audit runs read-only document/path checks only. Retained implementation evidence is reused at its exact source, fixture and binding scope. Once a concrete correction is separately authorized: decisive real owner/error/refusal cases → affected imports/types/fixtures/source guards → integrated producer graph → matching installed/native/provider journey where required. A move does not itself close a semantic defect.
 
-Give compiler/catalog generation, package dist writes and heavyweight native/browser fixtures one resource operator per checkout/cache. Never rebuild dist while its Node-backed native runtime checks are consuming it. Reuse compatible caches and unchanged evidence; installed/native claims need their real matching bytes and bindings. Unit tests remain banned; use existing meaningful integration/e2e subjects, not tests that mirror moved helpers. No elapsed-time promise derives from path/line counts.
+Reserve one operator per compiler/catalog cache, package dist writer and heavy native/browser fixture. Never rewrite emitted State/Cloudflare code while checks consume it. Shared protocol/index/schema/manifest/lock/binary/payload/fixture changes have one integration writer. No new unit tests, proof framework, synthetic capability constructor, service topology or scheduler follows from this plan.
