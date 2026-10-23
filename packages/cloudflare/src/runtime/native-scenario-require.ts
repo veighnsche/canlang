@@ -303,16 +303,16 @@ export async function nativeScenarioSourceCancel(context:unknown,source:unknown,
 }
 
 
-type SourceSchedule=(source:unknown,root:unknown,at:unknown,payload:unknown)=>Promise<void>;
+type SourceSchedule=(source:unknown,root:unknown,at:unknown,payload:unknown,key?:unknown)=>Promise<void>;
 const sourceScheduleReaders=new WeakMap<object,SourceSchedule>();
 export function bindNativeScenarioSourceSchedule(context:object,evaluate:SourceSchedule):void{
   if(sourceScheduleReaders.has(context))throw new StateError('validation','Source SCHEDULE reader cannot be rebound.');
   sourceScheduleReaders.set(context,evaluate);
 }
-export async function nativeScenarioSourceSchedule(context:unknown,source:unknown,root:unknown,at:unknown,payload:unknown):Promise<void>{
+export async function nativeScenarioSourceSchedule(context:unknown,source:unknown,root:unknown,at:unknown,payload:unknown,key?:unknown):Promise<void>{
   const evaluate=typeof context==='object'&&context!==null?sourceScheduleReaders.get(context):undefined;
   if(evaluate===undefined)throw new StateError('validation','Source SCHEDULE needs its actual installed owner execution.');
-  return evaluate(source,root,at,payload);
+  return evaluate(source,root,at,payload,key);
 }
 
 const sourceSendQueryReaders=new WeakMap<object,(id:string,parent:unknown)=>Promise<readonly Record<string,unknown>[]>>();
@@ -348,4 +348,15 @@ export async function nativeScenarioSourceEmitQuery(context:unknown,id:string,pa
   const read=typeof context==='object'&&context!==null?sourceEmitQueryReaders.get(context):undefined;
   if(read===undefined)throw new StateError('validation','Source EMIT aggregate needs its actual independent DATA execution.');
   return read(id,parent);
+}
+
+const sourceLetDataReaders=new WeakMap<object,(source:unknown,root:unknown)=>Promise<unknown>>();
+export function bindNativeScenarioSourceLetData(context:object,read:(source:unknown,root:unknown)=>Promise<unknown>):void{
+  if(sourceLetDataReaders.has(context))throw new StateError('validation','Scalar LET DATA reader cannot be rebound.');
+  sourceLetDataReaders.set(context,read);
+}
+export async function nativeScenarioSourceLetData(context:unknown,source:unknown,root:unknown):Promise<unknown>{
+  const read=typeof context==='object'&&context!==null?sourceLetDataReaders.get(context):undefined;
+  if(read===undefined)throw new StateError('validation','Scalar LET DATA needs its actual source owner.');
+  return read(source,root);
 }

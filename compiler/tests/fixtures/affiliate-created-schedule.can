@@ -1,0 +1,47 @@
+app CanAffiliate uses=[affiliate]
+package rent_catalog
+ Given
+  export Location {active:bool=true}
+ When
+ Then
+package employee
+ use rent_catalog {Location}
+ Given
+  export Employee {user:user,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,hidden:bool=false}
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and not row.hidden
+ When
+ Then
+package affiliate
+ use rent_catalog {Location}
+ use employee {can_work}
+ use affiliate {CommissionV1 as Commissions} from=deployment.commissions
+ Given
+  export contract CommissionResult {source:text,revision:int min=1,amount:money,account:text,allocation:enum(pending,unknown,allocated,failed,reversed),bank:enum(not_started,pending,in_transit,succeeded,failed,returned),transfer:text?,payout:text?}
+  export capability CommissionV1 version=1
+   settle(source:text,account:text,amount:money) -> CommissionResult
+   reconcile(source:text) -> CommissionResult
+  role finance
+  Partner {locations:Location[],active:bool=true,onboarded:bool=true,provider_state:enum(pending,action_required,ready,disabled)=ready,provider_account:text?,readable:bool=true,account_readable:bool=true}
+  Sale in Partner {commission:money}
+  Adjustment in Partner {amount:money}
+  Settlement in Partner {source:text unique,account:text,amount:money,delivery:text,allocation:CommissionResult.allocation=pending,bank:CommissionResult.bank=not_started,reconcile_delivery:text?,seen:bool=false}
+  event SettlementCheck {settlement:Settlement}
+  policy Partner read=members where=row.readable fields=locations,active,onboarded,provider_state,readable,account_readable
+  policy Partner read=members where=row.readable and row.account_readable fields=provider_account
+  policy Settlement read=members fields=source,account,amount,allocation,bank,reconcile_delivery,seen
+  policy Sale read=owner
+  policy Adjustment read=owner
+  invariant Settlement: row.amount.minor>0
+  derive available(partner:Partner,currency:currency):money = sum(partner.Sale as sale where sale.commission.currency==currency select sale.commission,currency)+sum(partner.Adjustment as adjustment where adjustment.amount.currency==currency select adjustment.amount,currency)-sum(partner.Settlement as settlement where settlement.amount.currency==currency and settlement.allocation in [pending,unknown,allocated] select settlement.amount,currency)
+ When
+  scenario settle(partner:Partner,amount:money) by=finance label="Settle commission"@{nl="Commissie verrekenen"}
+   require all(partner.locations as location,can_work(actor,location)) and partner.active and partner.onboarded and partner.provider_state==ready and partner.provider_account!=null and amount.minor>0 and amount<=available(partner,amount.currency)
+   do
+    let provider_account=partner.provider_account
+    send Commissions.settle {source=operation.id,account=provider_account,amount} as delivery
+    create Settlement {parent=partner,source=operation.id,account=provider_account,amount,delivery=delivery.id} as settlement
+    schedule format("commission-{id}",{id=settlement.id}) at=now+5m event=SettlementCheck {settlement}
+  scenario observe on=SettlementCheck
+   do set event.settlement {seen=true}
+ Then

@@ -77,6 +77,7 @@ mod send_guards;
 mod source_send_data;
 mod source_loops;
 mod source_created_rows;
+mod source_let_data;
 pub mod sourcemap;
 pub mod then_views;
 

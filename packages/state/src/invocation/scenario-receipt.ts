@@ -9881,6 +9881,68 @@ async function observeModelQuerySourceAuthority<AllowAbsent extends boolean = fa
     await authority.revalidate(); healthy();
   } };
 }
+/** A scalar LET observes ordinary DATA at its original evaluation point.
+ * It grants no reference, query, framework write, or saved result. */
+export interface ScenarioSourceLetDataSource {
+  readonly source:ScenarioResultDisclosurePlan['source'];readonly owner:string;
+  readonly node:{readonly start:number;readonly end:number};readonly stage:number;readonly binding:string;
+  readonly parameter:string;readonly model:ModelName;
+  readonly field:{readonly name:string;readonly type:CanTypeId};readonly valueType:CanTypeId;
+}
+interface SourceLetDataProducer extends ScenarioReceiptReferenceProducer {readonly sites:readonly ScenarioSourceLetDataSource[];}
+const sourceLetDataProducers=new WeakMap<GeneratedOperationDef,SourceLetDataProducer>();
+const consumedSourceLetData=new WeakMap<AdmittedCall,Set<string>>();
+export function bindScenarioSourceLetDataProducer(def:GeneratedOperationDef,producer:SourceLetDataProducer):void{
+  const bound=boundPlans.get(def);
+  if(!bound?.sourceRequireOnly||invokedPlans.has(def)||sourceLetDataProducers.has(def))return invalid('Scalar LET DATA requires its uninvoked original source-only owner.');
+  object(producer,['source','app','policy','readPolicies','sites']);origin(producer.source);text(producer.app);
+  if(stableStringify(producer.source)!==stableStringify(bound.plan.source)||!(producer.policy instanceof Map)||!(producer.readPolicies instanceof Map))return invalid('Scalar LET DATA differs from its owning source and policies.');
+  const policy=buildPolicyTable([...Map.prototype.entries.call(producer.policy)].map(([model,value])=>{
+    const copied=dataCopy(value);if(copied.model!==model)return invalid('Scalar LET DATA policy differs from its owning model.');return copied;
+  }),bound.canonicalModels);
+  const readPolicies=captureSourceReadPolicies(producer.readPolicies);
+  const sites=list(dataCopy(producer.sites)).map(value=>{
+    const site=object(value,['source','owner','node','stage','binding','parameter','model','field','valueType']);origin(site['source']);
+    const node=object(site['node'],['start','end']),parameter=text(site['parameter']),model=text(site['model']) as ModelName;
+    const field=object(site['field'],['name','type']),name=text(field['name']),type=text(field['type']),valueType=text(site['valueType']);text(site['binding']);
+    const input=bound.inputs.find(input=>input.name===parameter),declaration=bound.artifactModels.get(model)?.fields.find(field=>field.name===name);
+    if(site['owner']!==def.name||stableStringify(site['source'])!==stableStringify(bound.plan.source)
+        ||!Number.isSafeInteger(site['stage'])||Number(site['stage'])<0||Number(site['stage'])>=MAX_ITEMS
+        ||!Number.isSafeInteger(node['start'])||!Number.isSafeInteger(node['end'])||Number(node['start'])<0||Number(node['end'])<=Number(node['start'])
+        ||input?.kind!=='ref'||input.model!==model||input.nullable===true||Object.hasOwn(def.inputArrays,parameter)
+        ||declaration===undefined||declaration.default?.kind==='derived'||!sourceSendFieldType(bound,model,name,type)
+        ||valueType!==type&&`${valueType}?`!==type)return invalid('Scalar LET DATA lost its exact original stage, required root or stored scalar field.');
+    const ancestors=new Set<ModelName>();let ancestor:ModelName|undefined=model;
+    while(ancestor!==undefined){const original=bound.artifactModels.get(ancestor),read=readPolicies.get(ancestor);
+      if(ancestors.has(ancestor)||original===undefined||read===undefined||read.parent!==original.parent||!('grants'in read))return invalid('Scalar LET DATA lacks its complete original source policies.');
+      ancestors.add(ancestor);ancestor=original.parent as ModelName|undefined;
+    }
+    return deepFreeze(site) as unknown as ScenarioSourceLetDataSource;
+  });
+  if(sites.length>MAX_ITEMS||new Set(sites.map(site=>`${site.node.start}:${site.node.end}`)).size!==sites.length)return invalid('Scalar LET DATA has an invalid original occurrence census.');
+  sourceLetDataProducers.set(def,Object.freeze({source:bound.plan.source,app:producer.app,policy,readPolicies,sites:Object.freeze(sites)}));
+}
+export async function executeScenarioSourceLetData(call:AdmittedCall,store:StoragePort,input:{readonly source:ScenarioSourceLetDataSource}):Promise<ProjectedRecord>{
+  const state=capture(call,store),owner=ownerSessions.get(call);
+  try{
+    const claimed=object(input,['source']),source=dataCopy(claimed['source']),producer=sourceLetDataProducers.get(call.def as GeneratedOperationDef);
+    const sites=producer?.sites.filter(site=>stableStringify(site)===stableStringify(source))??[],site=sites[0];
+    if(owner===undefined||owner.session===null||!state.bound.sourceRequireOnly||producer===undefined||producer.app!==call.context.app||sites.length!==1||site===undefined
+        ||owner.executingCall!==call||owner.busy||owner.capture.pending!==0||owner.stage!==site.stage)return invalid('Scalar LET DATA lacks its exact current source owner stage.');
+    const consumed=consumedSourceLetData.get(call)??new Set<string>(),key=`${site.node.start}:${site.node.end}`;consumedSourceLetData.set(call,consumed);
+    if(consumed.has(key))return invalid('Scalar LET DATA repeats its original declaration.');consumed.add(key);
+    return await ownerOperation(owner,async()=>{
+      const refs=call.recordRefs.filter(ref=>ref.param===site.parameter),ref=refs[0];
+      if(refs.length!==1||ref?.model!==site.model||ref.expectedVersion===null||ref.expectedVersion!==ref.row.version)return invalid('Scalar LET DATA lost its original admitted root.');
+      const row=await owner.session!.views.final.get(site.model,ref.id);ownerHealthy(owner);
+      if(row===null||!sameModelLifetime(ref.row,row)||owner.stage!==site.stage)return invalid('Scalar LET DATA root lifetime or original stage changed.');
+      const authority=await observeModelQuerySourceAuthority(call,store,owner,state,site.model,row,[site.field.name],0,undefined,undefined,producer);
+      if(await store.readRevision()!==call.revision)throw new StateError('conflict','Scalar LET DATA moved beyond its original checkpoint.');
+      return authority.record;
+    },call);
+  }catch(error){state.poisoned=true;if(owner!==undefined)owner.capture.poisoned=true;throw error;}
+}
+
 /** Private source-only SEND consumer. These declarations never create a
  * query plan, result association, or Bool-observer field permission. */
 export interface ScenarioSourceSendQuerySource {

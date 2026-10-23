@@ -3085,3 +3085,53 @@ it('evaluates the original Entitlement enum FIRST through immutable Values and f
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('stages the complete original Affiliate settlement from its immediate scalar LET and created schedule root',
+  {timeout:180000},async()=>{
+    const directory=await mkdtemp(join(tmpdir(),'can-affiliate-created-schedule-'));
+    try{
+      const source=join(root,'compiler/tests/fixtures/affiliate-created-schedule.can');
+      const original=await readFile(join(root,'draft/apps/CanAffiliate/CanAffiliate.can'),'utf8'),text=await readFile(source,'utf8');
+      const start=original.indexOf('  scenario settle('),end=original.indexOf('   examples ',start);
+      assert.ok(text.includes(original.slice(start,end)),'full original guard, LET, SEND, CREATE and SCHEDULE remain authored');
+      assert.ok(text.includes(original.split('\n').find(line=>line.startsWith('  derive available('))!),'full original financial control helper remains authored');
+      const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],
+        {cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+      const artifact=JSON.parse(stdout) as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,
+        stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+      assert.equal(artifact.operations?.find(operation=>operation.name==='affiliate.settle')?.result?.disclosure,undefined);
+      for(const mode of ['allowed'] as const){
+        const {now,identities,identity,team,user}=await member(`affiliate-created-${mode}`,['affiliate.finance']);
+        const scope={app:'CanAffiliate',owner:team.team_id,ownerPackage:'affiliate'};
+        const authority:FileRetirementAuthority={app:scope.app,stateOwner:scope.app,stateStoreId:'affiliate-state',fileStoreId:'affiliate-files',receiver:{app:scope.app,owner:team.team_id,team:team.team_id}};
+        const {store}=createTestMemoryStorage(authority,[STATE_FILE_REFERENCE_PRODUCER,WORK_FILE_REFERENCE_PRODUCER]);
+        await installNativeFileInventory({artifact,asm,store,authority,scope,now:()=>now,verifyOwner:async()=>{assert.ok(await identities.findTeamById(team.team_id));}});
+        const row=(id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({...makeRow({id:asId(id),data}),parent});
+        const location=row('location',{active:true}),partner=row('partner',{locations:[{id:location.id}],active:true,onboarded:true,provider_state:'ready',provider_account:'acct-original',readable:true,account_readable:true});
+        await store.commit(makeBatch(await store.readRevision(),{writes:[
+          {kind:'insert',model:model('rent_catalog','Location'),row:location},{kind:'insert',model:model('affiliate','Partner'),row:partner},
+          {kind:'insert',model:model('employee','Employee'),row:row('worker',{user:{id:user.user_id},home:{id:location.id},locations:[],operator_wide:false,active:true,hidden:true})},
+          {kind:'insert',model:model('affiliate','Sale'),row:row('sale',{commission:{minor:'100',currency:'EUR'}},{model:model('affiliate','Partner'),id:partner.id})},
+        ]}));
+        const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now,allocateRecordId:()=> 'settlement-created'});
+        const request={operation:'affiliate.settle',operation_id:operationId(now),inputs:{partner:{id:partner.id,version:String(partner.version)},amount:{minor:'100',currency:'EUR'}}};
+        const outcome=await invoker.invokeMutation(request,identity);assert.ok('result'in outcome&&outcome.result.status==='committed',`${mode}: ${JSON.stringify(outcome)}`);
+        const settlements=await store.query({model:model('affiliate','Settlement'),authority:'owner'});assert.equal(settlements.length,1);
+        const settlement=settlements[0]!;assert.equal(settlement.id,'settlement-created');assert.equal(settlement.data.account,'acct-original');assert.equal(settlement.data.source,request.operation_id);
+        const pending=await store.outboxPending();assert.equal(pending.length,1);
+        assert.deepEqual(pending[0]!.arguments,{binding:'affiliate.Commissions',from:'deployment.commissions',arguments:{source:request.operation_id,account:'acct-original',amount:{minor:'100',currency:'EUR'}}});
+        const schedules=await store.query({model:asModel('work.schedule'),authority:'owner'});assert.equal(schedules.length,1);
+        const scheduled=schedules[0]!;assert.equal(scheduled.data.key,'commission-settlement-created');assert.equal(scheduled.data.state,'pending');
+        assert.equal(scheduled.data.scopeOwner,scope.owner);assert.equal(scheduled.data.scopeOwnerPackage,'affiliate');
+        assert.deepEqual(scheduled.data.payload,{settlement:{id:settlement.id,version:String(settlement.version)}});
+        const slot=await store.scheduleGet([scope.app,scope.ownerPackage,scope.owner,'commission-settlement-created'].map(encodeURIComponent).join('/'));assert.ok(slot);assert.equal(slot.at,now+300000);
+        const saved=await store.readReceipt({app:scope.app,owner:scope.owner,principal:user.user_id,operation:request.operation,operationId:request.operation_id} as Parameters<typeof store.readReceipt>[0]);assert.ok(saved);assert.ok(saved.outcome.status==='committed');assert.equal(saved.outcome.scenario,undefined);
+        const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed',JSON.stringify(replay));assert.deepEqual(replay.result.records,[]);assert.equal(replay.result.result,null);
+        assert.deepEqual(await store.outboxPending(),pending);assert.deepEqual(await store.query({model:asModel('work.schedule'),authority:'owner'}),schedules);
+        const deliver=()=>invokeDueScheduleCanonical({asm,artifact,app:scope.app,store,identities,now:()=>now+300000,
+          handler:'affiliate.observe',due:{key:'commission-settlement-created',scope,at:now+300000,event:'affiliate.SettlementCheck',occurrenceId:scheduled.id}});
+        assert.equal((await deliver() as {status:string}).status,'completed');assert.equal((await deliver() as {status:string}).status,'replayed');
+        assert.equal((await store.load(model('affiliate','Settlement'),settlement.id))?.data.seen,true);assert.deepEqual(await store.readReceipt(saved.identity),saved);
+      }
+    }finally{await rm(directory,{recursive:true,force:true});}
+  });

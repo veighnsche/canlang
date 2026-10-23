@@ -27,6 +27,12 @@ pub(super) fn plain_value(ir:&IrProgram,ty:&ResolvedType,depth:usize)->bool{
 // observation, File, reference or provider receipt into an egress value.
 pub(super) fn send_value(ir:&IrProgram,value:&TypedExpr,values:&BTreeSet<String>,depth:usize)->bool{
     if depth>=32{return false;}
+    if let IrExpr::Member{base,field}=&value.expr
+        &&field=="id"&&value.ty==ResolvedType::Scalar(Scalar::Text)&&base.ty==ResolvedType::OperationContext
+        &&let IrExpr::Member{base:context,field:operation}=&base.expr
+        &&operation=="operation"&&context.ty==ResolvedType::Unknown&&matches!(&context.expr,IrExpr::Name(name)if name=="c"){
+        return true;
+    }
     let child=|value:&TypedExpr|send_value(ir,value,values,depth+1);
     // Effect argument objects retain their owning checked operation schema;
     // their aggregate IR carrier can be Unknown while every slot is typed.
@@ -65,7 +71,7 @@ struct Reads {
     aggregates:bool,
     derived:BTreeMap<String,BTreeMap<String,String>>,
 }
-fn data_type(ir:&IrProgram,ty:&ResolvedType)->Option<String>{match ty{
+pub(super) fn data_type(ir:&IrProgram,ty:&ResolvedType)->Option<String>{match ty{
     ResolvedType::Scalar(scalar)if !matches!(scalar,Scalar::File|Scalar::Secret|Scalar::Member|Scalar::Json|Scalar::Bytes|Scalar::Url|Scalar::Locale)=>Some(scalar.as_str().into()),
     ResolvedType::Enum{owner:Some(id),cases}if !cases.is_empty()=>{
         let owner=ir.items.get(id.0 as usize)?;Some(if matches!(owner.kind,IrItemKind::Field{owner,..}if ir.items.get(owner.0 as usize).is_some_and(|item|matches!(item.kind,IrItemKind::Model{..}))){format!("enum({})",cases.join(","))}else{owner.canonical.clone()})
@@ -266,7 +272,7 @@ impl Reads {
 }
 
 pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
-    requires:&HashMap<Span,serde_json::Value>,module:&str,loops:Option<&serde_json::Value>)->Option<HashMap<Span,serde_json::Value>>{
+    requires:&HashMap<Span,serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,module:&str,loops:Option<&serde_json::Value>)->Option<HashMap<Span,serde_json::Value>>{
     let IrItemKind::Scenario{params,effects,hook:None,read:false,trusted:false,..}=&owner.kind else{return None;};
     let source=requires.values().find(|source|source["owner"]==owner.canonical)?["source"].clone();
     context.same_scenario(ir, owner)?;
@@ -280,9 +286,9 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
         }else if plain_value(ir,ty,0){env.values.insert(param.name.clone());}
     }
     fn walk(ir:&IrProgram,context:&super::scenario_decisions::FreshSourceContext<'_>,owner:&IrItem,body:&[IrStmt],env:&mut Environment,
-        models:&mut BTreeMap<String,SymbolId>,created_roots:&mut BTreeMap<String,serde_json::Value>,creates:&[serde_json::Value],loop_roots:&BTreeMap<String,String>,loops:Option<&serde_json::Value>,source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
+        models:&mut BTreeMap<String,SymbolId>,created_roots:&mut BTreeMap<String,serde_json::Value>,creates:&[serde_json::Value],loop_roots:&BTreeMap<String,String>,loops:Option<&serde_json::Value>,let_data:&HashMap<Span,serde_json::Value>,source:&serde_json::Value,module:&str,output:&mut HashMap<Span,serde_json::Value>){
         for statement in body{match statement{
-            IrStmt::Let{name,value,..}=>{let pure=send_value(ir,value,&env.values,0);env.values.remove(name);env.roots.remove(name);models.remove(name);created_roots.remove(name);if pure{env.values.insert(name.clone());}},
+            IrStmt::Let{name,value,span}=>{let pure=send_value(ir,value,&env.values,0)||let_data.contains_key(span);env.values.remove(name);env.roots.remove(name);models.remove(name);created_roots.remove(name);if pure{env.values.insert(name.clone());}},
             IrStmt::Create{binding:Some(name),model,span,..}=>{
                 env.values.remove(name);env.roots.remove(name);models.remove(name);created_roots.remove(name);
                 if let Some(profile)=creates.iter().find(|profile|profile["node"]["start"]==span.start&&profile["node"]["end"]==span.end)
@@ -315,14 +321,14 @@ pub(super) fn source_only_data_sends(ir:&IrProgram,owner:&IrItem,context:&super:
                 let mut models=models.clone();models.insert(item.clone(),*symbol);
                 let mut roots=loop_roots.clone();roots.insert(item.clone(),entry["id"].as_str().unwrap().to_owned());
                 let mut created=created_roots.clone();created.remove(item);
-                walk(ir,context,owner,body,&mut nested,&mut models,&mut created,creates,&roots,loops,source,module,output);
+                walk(ir,context,owner,body,&mut nested,&mut models,&mut created,creates,&roots,loops,let_data,source,module,output);
             },
-            IrStmt::If{then_branch,else_branch,..}=>{walk(ir,context,owner,then_branch,&mut env.clone(),&mut models.clone(),&mut created_roots.clone(),creates,loop_roots,loops,source,module,output);walk(ir,context,owner,else_branch,&mut env.clone(),&mut models.clone(),&mut created_roots.clone(),creates,loop_roots,loops,source,module,output);},
-            IrStmt::Match{arms,..}=>for arm in arms{walk(ir,context,owner,&arm.body,&mut env.clone(),&mut models.clone(),&mut created_roots.clone(),creates,loop_roots,loops,source,module,output);},
+            IrStmt::If{then_branch,else_branch,..}=>{walk(ir,context,owner,then_branch,&mut env.clone(),&mut models.clone(),&mut created_roots.clone(),creates,loop_roots,loops,let_data,source,module,output);walk(ir,context,owner,else_branch,&mut env.clone(),&mut models.clone(),&mut created_roots.clone(),creates,loop_roots,loops,let_data,source,module,output);},
+            IrStmt::Match{arms,..}=>for arm in arms{walk(ir,context,owner,&arm.body,&mut env.clone(),&mut models.clone(),&mut created_roots.clone(),creates,loop_roots,loops,let_data,source,module,output);},
             _=>{},
         }}
     }
-    let mut output=HashMap::new();walk(ir,context,owner,effects,&mut env,&mut models,&mut BTreeMap::new(),&creates,&BTreeMap::new(),loops,&source,module,&mut output);Some(output)
+    let mut output=HashMap::new();walk(ir,context,owner,effects,&mut env,&mut models,&mut BTreeMap::new(),&creates,&BTreeMap::new(),loops,let_data,&source,module,&mut output);Some(output)
 }
 
 pub(super) fn source_only_data_emits(ir:&IrProgram,owner:&IrItem,context:&super::scenario_decisions::FreshSourceContext<'_>,
