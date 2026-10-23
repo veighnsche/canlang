@@ -27,14 +27,17 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
-use num_bigint::BigInt;
 use serde_json::{json, Value};
 
+use crate::codecs::numeric::{
+    decode_value_scalar, encode_value_scalar, json_stringify, ScalarName, WireValue,
+};
 use crate::input::{InputArena, TransportNode};
 use crate::plans::{
-    is_name_units, scalar_len_units, AliasPlan, ContractPlan, FieldPlan, Meta, OperationPlan,
-    Plan, TypeBase,
+    is_name_units, scalar_len_units, AliasPlan, ContractPlan, FieldPlan, Meta, OperationPlan, Plan,
+    TypeBase,
 };
+use crate::representations::numeric::{require_money, Value as ExactValue};
 
 /// Pinned UTF-16 length bound for record ids (mirrors `refs.ts`).
 pub const MAX_ID_UNITS: usize = 256;
@@ -1023,18 +1026,119 @@ fn check_bounds(cx: &mut Cx, field: &FieldPlan, value: &OutNode, path: &[PathSeg
     }
 }
 
-/// Constraint enforcement over one consumed resolved exact leaf, in
-/// the original `checkBounds` order. Registration routes bounds by
-/// shape — array fields carry length bounds, scalar exact fields
-/// carry value bounds — so each branch reads only its own duties:
-/// array carriers check inclusive length against the admitted input
-/// length; scalar `int`/`duration` carriers compare the canonical
-/// digit string against the registered bigint bound. Length bounds on
-/// a scalar carrier check nothing (the original length branch returns
-/// after length duties, and decoded exact scalars have no length),
-/// and value bounds on any other scalar kind stay a native no-op,
-/// exactly like the unresolved path. The `Exact` carrier is preserved:
-/// only violations are added, never a rewritten value.
+/// Convert only the owned scalar wire shapes admitted by the resolve join.
+fn exact_frame_value(frame: &Value) -> Option<ExactValue> {
+    match frame.get("t")?.as_str()? {
+        "text" => {
+            let units: Vec<u16> = frame
+                .get("units")?
+                .as_array()?
+                .iter()
+                .map(|unit| u16::try_from(unit.as_u64()?).ok())
+                .collect::<Option<_>>()?;
+            Some(ExactValue::Str(String::from_utf16(&units).ok()?))
+        }
+        "entries" => {
+            let entries = frame
+                .get("entries")?
+                .as_array()?
+                .iter()
+                .map(|entry| {
+                    let pair = entry.as_array()?;
+                    if pair.len() != 2 {
+                        return None;
+                    }
+                    let units: Vec<u16> = pair[0]
+                        .as_array()?
+                        .iter()
+                        .map(|unit| u16::try_from(unit.as_u64()?).ok())
+                        .collect::<Option<_>>()?;
+                    Some((
+                        String::from_utf16(&units).ok()?,
+                        exact_frame_value(&pair[1])?,
+                    ))
+                })
+                .collect::<Option<Vec<_>>>()?;
+            Some(ExactValue::Record(entries))
+        }
+        _ => None,
+    }
+}
+
+/// Bounds are already normalized CanValues, not scalar wire. Preserve their
+/// bigint parts and IEEE bits while passing them to the owning exact codec.
+fn exact_meta_value(meta: &Meta) -> Option<ExactValue> {
+    match meta {
+        Meta::Bigint(value) => Some(ExactValue::BigInt(value.clone())),
+        Meta::NumBits(bits) => Some(ExactValue::Num(f64::from_bits(*bits))),
+        Meta::Text(units) => Some(ExactValue::Str(String::from_utf16(units).ok()?)),
+        Meta::Object(entries) => Some(ExactValue::Record(
+            entries
+                .iter()
+                .map(|(key, value)| Some((key.clone(), exact_meta_value(value)?)))
+                .collect::<Option<_>>()?,
+        )),
+        _ => None,
+    }
+}
+
+/// The scalar codec owns canonical spelling and money entry order.
+fn render_exact_wire(wire: &WireValue) -> String {
+    match wire {
+        WireValue::Text(text) => json_stringify(text),
+        WireValue::Object(entries) => format!(
+            "{{{}}}",
+            entries
+                .iter()
+                .map(|(key, value)| format!("{}:{}", json_stringify(key), render_exact_wire(value)))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+    }
+}
+
+fn compare_exact_bound(
+    kind: ScalarName,
+    value: &ExactValue,
+    bound: &ExactValue,
+) -> Result<Option<i8>, ()> {
+    match kind {
+        ScalarName::Int | ScalarName::Duration => match (value, bound) {
+            (ExactValue::BigInt(value), ExactValue::BigInt(bound)) => {
+                Ok(Some(match value.cmp(bound) {
+                    std::cmp::Ordering::Less => -1,
+                    std::cmp::Ordering::Equal => 0,
+                    std::cmp::Ordering::Greater => 1,
+                }))
+            }
+            _ => Err(()),
+        },
+        ScalarName::Decimal => crate::numeric::decimal::compare_decimal(value, bound)
+            .map(Some)
+            .map_err(|_| ()),
+        ScalarName::Date => crate::temporal::civil::compare_date(value, bound)
+            .map(Some)
+            .map_err(|_| ()),
+        ScalarName::Datetime => crate::temporal::instant::compare_instant(value, bound)
+            .map(Some)
+            .map_err(|_| ()),
+        ScalarName::Money => {
+            let value = require_money(value, "bound").map_err(|_| ())?;
+            let bound = require_money(bound, "bound").map_err(|_| ())?;
+            if value.currency != bound.currency {
+                return Ok(None);
+            }
+            Ok(Some(match value.minor.cmp(&bound.minor) {
+                std::cmp::Ordering::Less => -1,
+                std::cmp::Ordering::Equal => 0,
+                std::cmp::Ordering::Greater => 1,
+            }))
+        }
+    }
+}
+
+/// Enforce length or exact scalar bounds after decoding, in original min/max
+/// order. Unsupported metadata refuses explicitly; it cannot drop a duty.
 fn check_exact_bounds(
     cx: &mut Cx,
     field: &FieldPlan,
@@ -1042,11 +1146,11 @@ fn check_exact_bounds(
     frame: &Value,
     path: &[PathSeg],
     node: usize,
-) {
+) -> Result<(), Outcome> {
     if field.array {
         let length = match cx.arena.node(node) {
             TransportNode::Array { items } => items.len() as f64,
-            _ => return,
+            _ => return Ok(()),
         };
         if let Some(min) = field.length_min {
             if length < min {
@@ -1070,60 +1174,64 @@ fn check_exact_bounds(
                 );
             }
         }
-        return;
+        return Ok(());
     }
     if field.length_min.is_some() || field.length_max.is_some() {
-        return;
+        return Ok(());
     }
-    if kind != "int" && kind != "duration" {
-        return;
+    if field.value_min.is_none() && field.value_max.is_none() {
+        return Ok(());
     }
-    let units = match frame.get("t").and_then(Value::as_str) {
-        Some("text") => match frame.get("units").and_then(Value::as_array) {
-            Some(units) => units,
-            None => return,
-        },
-        _ => return,
+    let unsupported = || Outcome::Deferred {
+        owner: LeafOwner::ExactCodec,
+        detail: format!("unsupported exact bound metadata/carrier for {kind}"),
+        pointer: None,
     };
-    let mut digits: Vec<u16> = Vec::with_capacity(units.len());
-    for unit in units {
-        match unit.as_u64() {
-            Some(unit) if unit <= u16::MAX as u64 => digits.push(unit as u16),
-            _ => return,
-        }
-    }
-    let spelled = match String::from_utf16(&digits) {
-        Ok(spelled) => spelled,
-        Err(_) => return,
-    };
-    let value = match BigInt::parse_bytes(spelled.as_bytes(), 10) {
-        Some(value) => value,
-        None => return,
-    };
-    let render = |spelled: &str| format!("\"{spelled}\"");
-    let actual = render(&spelled);
-    if let Some(crate::plans::Meta::Bigint(limit)) = field.value_min.as_ref() {
-        if value < *limit {
+    let kind = ScalarName::parse(kind).ok_or_else(&unsupported)?;
+    let wire = exact_frame_value(frame).ok_or_else(&unsupported)?;
+    let value = decode_value_scalar(kind, &wire).map_err(|_| unsupported())?;
+    let actual = render_exact_wire(&encode_value_scalar(kind, &value).map_err(|_| unsupported())?);
+    for (side, limit) in [
+        ("min", field.value_min.as_ref()),
+        ("max", field.value_max.as_ref()),
+    ] {
+        let Some(limit) = limit else {
+            continue;
+        };
+        let bound = exact_meta_value(limit).ok_or_else(&unsupported)?;
+        let rendered =
+            render_exact_wire(&encode_value_scalar(kind, &bound).map_err(|_| unsupported())?);
+        let order = compare_exact_bound(kind, &value, &bound).map_err(|_| unsupported())?;
+        if let Some(order) = order {
+            if (side == "min" && order < 0) || (side == "max" && order > 0) {
+                cx.push(
+                    path,
+                    "bound",
+                    if side == "min" {
+                        "value is below the minimum"
+                    } else {
+                        "value is above the maximum"
+                    }
+                    .into(),
+                    Some(format!(
+                        "{} {rendered}",
+                        if side == "min" { ">=" } else { "<=" }
+                    )),
+                    Some(actual.clone()),
+                );
+            }
+        } else {
+            let bound = require_money(&bound, "bound").map_err(|_| unsupported())?;
             cx.push(
                 path,
                 "bound",
-                "value is below the minimum".to_string(),
-                Some(format!(">= {}", render(&limit.to_string()))),
+                "money bound needs a matching currency".into(),
+                Some(format!("currency {}", bound.currency)),
                 Some(actual.clone()),
             );
         }
     }
-    if let Some(crate::plans::Meta::Bigint(limit)) = field.value_max.as_ref() {
-        if value > *limit {
-            cx.push(
-                path,
-                "bound",
-                "value is above the maximum".to_string(),
-                Some(format!("<= {}", render(&limit.to_string()))),
-                Some(actual.clone()),
-            );
-        }
-    }
+    Ok(())
 }
 
 /// One-line shape description of a normalized node for diagnostics.
@@ -1402,7 +1510,7 @@ fn validate_node(
                 let produced = consume_resolved(cx, &kind, &leaf, &frame, path, depth)?;
                 if produced.is_some() {
                     let before = cx.violations.len();
-                    check_exact_bounds(cx, field, &kind, &frame, path, node);
+                    check_exact_bounds(cx, field, &kind, &frame, path, node)?;
                     if cx.violations.len() != before {
                         return Ok(None);
                     }

@@ -778,3 +778,407 @@ fn scalar_array_skew_on_canonical_frames_records_type_not_malformed() {
     assert_eq!(violations[0]["code"], "type");
     dispose(&mut host, request);
 }
+
+// Bound metadata is the copied native CanValue, while resolved frames are the
+// owning codec's wire representation. These two transports must not be confused.
+fn bound_object(entries: Vec<(&str, Value)>) -> Value {
+    json!({"t":"object","entries":entries.into_iter().map(|(name,value)|json!([name,value])).collect::<Vec<_>>()})
+}
+fn bound_bigint(digits: &str) -> Value {
+    json!({"t":"bigint","digits":digits})
+}
+fn bound_number(value: f64) -> Value {
+    json!({"t":"bits","bits":format!("{:016x}",value.to_bits())})
+}
+fn bound_decimal(coef: &str, scale: f64) -> Value {
+    bound_object(vec![
+        ("kind", fr_text("decimal")),
+        ("coef", bound_bigint(coef)),
+        ("scale", bound_number(scale)),
+    ])
+}
+fn bound_money(minor: &str, currency: &str) -> Value {
+    bound_object(vec![
+        ("kind", fr_text("money")),
+        ("minor", bound_bigint(minor)),
+        ("currency", fr_text(currency)),
+    ])
+}
+fn bound_date(year: f64, month: f64, day: f64) -> Value {
+    bound_object(vec![
+        ("kind", fr_text("date")),
+        ("year", bound_number(year)),
+        ("month", bound_number(month)),
+        ("day", bound_number(day)),
+    ])
+}
+fn bound_datetime(ms: &str) -> Value {
+    bound_object(vec![
+        ("kind", fr_text("datetime")),
+        ("ms", bound_bigint(ms)),
+    ])
+}
+fn exact_bounds_schema(fields: Vec<Value>) -> Value {
+    json!({"t":"normalized","contracts":[{"name":"ExactBounds","fields":fields}],"enums":[],"operations":[]})
+}
+fn bounded_exact_field(name: &str, kind: &str, min: Value, max: Value) -> Value {
+    let mut field = exact_field(name, kind, true);
+    field["value_min"] = min;
+    field["value_max"] = max;
+    field
+}
+fn release_bounds_plan(host: &mut ProfileHost, owner: u64, plan: &str) {
+    assert_eq!(
+        call(host, "plan.release", json!({"owner":owner,"id":plan}))["ok"],
+        true
+    );
+    assert_eq!(
+        call(host, "owner.retire", json!({"owner":owner}))["ok"],
+        true
+    );
+}
+fn bound_violation(name: &str, side: &str, bound: &str, actual: &str) -> Value {
+    json!({"path":[seg_key(name)],"code":"bound",
+        "message":if side=="min" {"value is below the minimum"} else {"value is above the maximum"},
+        "expected":format!("{} {bound}",if side=="min" {">="} else {"<="}),"actual":actual})
+}
+
+#[test]
+fn all_exact_scalar_bounds_are_inclusive_and_preserve_codec_diagnostics() {
+    // Expected strings are the public TS checkBounds/encodeValue voices, not
+    // observations calculated by the production native bound implementation.
+    let cases = vec![
+        (
+            "int",
+            bound_bigint("-10"),
+            bound_bigint("10"),
+            vec![
+                (fr_text("-10"), None),
+                (fr_text("10"), None),
+                (fr_text("-11"), Some(("min", "\"-10\"", "\"-11\""))),
+                (fr_text("11"), Some(("max", "\"10\"", "\"11\""))),
+            ],
+        ),
+        (
+            "duration",
+            bound_bigint("-10"),
+            bound_bigint("10"),
+            vec![
+                (fr_text("-10"), None),
+                (fr_text("10"), None),
+                (fr_text("-11"), Some(("min", "\"-10\"", "\"-11\""))),
+                (fr_text("11"), Some(("max", "\"10\"", "\"11\""))),
+            ],
+        ),
+        (
+            "decimal",
+            bound_decimal("150", 2.0),
+            bound_decimal("250", 2.0),
+            vec![
+                (fr_text("1.5"), None),
+                (fr_text("2.5"), None),
+                (fr_text("1.49"), Some(("min", "\"1.5\"", "\"1.49\""))),
+                (fr_text("2.51"), Some(("max", "\"2.5\"", "\"2.51\""))),
+            ],
+        ),
+        (
+            "decimal",
+            bound_decimal("12345678901234567890123456789012345678", 1.0),
+            bound_decimal("12345678901234567890123456789012345678", 1.0),
+            vec![
+                (fr_text("1234567890123456789012345678901234567.8"), None),
+                (
+                    fr_text("1234567890123456789012345678901234567.7"),
+                    Some((
+                        "min",
+                        "\"1234567890123456789012345678901234567.8\"",
+                        "\"1234567890123456789012345678901234567.7\"",
+                    )),
+                ),
+                (
+                    fr_text("1234567890123456789012345678901234567.9"),
+                    Some((
+                        "max",
+                        "\"1234567890123456789012345678901234567.8\"",
+                        "\"1234567890123456789012345678901234567.9\"",
+                    )),
+                ),
+            ],
+        ),
+        (
+            "money",
+            bound_money("10", "USD"),
+            bound_money("20", "USD"),
+            vec![
+                (money_frame("10", "USD"), None),
+                (money_frame("20", "USD"), None),
+                (
+                    money_frame("9", "USD"),
+                    Some((
+                        "min",
+                        "{\"minor\":\"10\",\"currency\":\"USD\"}",
+                        "{\"minor\":\"9\",\"currency\":\"USD\"}",
+                    )),
+                ),
+                (
+                    money_frame("21", "USD"),
+                    Some((
+                        "max",
+                        "{\"minor\":\"20\",\"currency\":\"USD\"}",
+                        "{\"minor\":\"21\",\"currency\":\"USD\"}",
+                    )),
+                ),
+            ],
+        ),
+        (
+            "date",
+            bound_date(2024.0, 2.0, 29.0),
+            bound_date(2024.0, 3.0, 1.0),
+            vec![
+                (fr_text("2024-02-29"), None),
+                (fr_text("2024-03-01"), None),
+                (
+                    fr_text("2024-02-28"),
+                    Some(("min", "\"2024-02-29\"", "\"2024-02-28\"")),
+                ),
+                (
+                    fr_text("2024-03-02"),
+                    Some(("max", "\"2024-03-01\"", "\"2024-03-02\"")),
+                ),
+            ],
+        ),
+        (
+            "datetime",
+            bound_datetime("1709164800000"),
+            bound_datetime("1709164801000"),
+            vec![
+                (fr_text("2024-02-29T00:00:00.000Z"), None),
+                (fr_text("2024-02-29T00:00:01.000Z"), None),
+                (
+                    fr_text("2024-02-28T23:59:59.999Z"),
+                    Some((
+                        "min",
+                        "\"2024-02-29T00:00:00.000Z\"",
+                        "\"2024-02-28T23:59:59.999Z\"",
+                    )),
+                ),
+                (
+                    fr_text("2024-02-29T00:00:01.001Z"),
+                    Some((
+                        "max",
+                        "\"2024-02-29T00:00:01.000Z\"",
+                        "\"2024-02-29T00:00:01.001Z\"",
+                    )),
+                ),
+            ],
+        ),
+    ];
+    for (kind, min, max, rows) in cases {
+        let mut host = host();
+        let (owner, plan) = register(
+            &mut host,
+            exact_bounds_schema(vec![bounded_exact_field("x", kind, min, max)]),
+        );
+        for (frame, expected) in rows {
+            let request = begin(
+                &mut host,
+                owner,
+                &plan,
+                fr_entries(vec![("x", frame.clone())]),
+            );
+            let outcome = execute(
+                &mut host,
+                request,
+                contract_target("ExactBounds", "create"),
+                json!([value_entry("x", frame.clone())]),
+            );
+            if let Some((side, bound, actual)) = expected {
+                assert_eq!(outcome["outcome"], "invalid", "{kind}: {outcome}");
+                assert_eq!(
+                    outcome["violations"],
+                    json!([bound_violation("x", side, bound, actual)]),
+                    "{kind}: {outcome}"
+                );
+            } else {
+                assert_eq!(outcome["outcome"], "valid", "{kind}: {outcome}");
+                assert_eq!(
+                    outcome["value"]["entries"][0][1],
+                    json!({"t":"exact","kind":kind,"value":frame})
+                );
+            }
+            dispose(&mut host, request);
+        }
+        release_bounds_plan(&mut host, owner, &plan);
+    }
+}
+
+#[test]
+fn currency_mismatch_and_later_bounds_keep_field_and_min_max_order() {
+    let mut host = host();
+    let (owner, plan) = register(
+        &mut host,
+        exact_bounds_schema(vec![
+            bounded_exact_field(
+                "amount",
+                "money",
+                bound_money("10", "USD"),
+                bound_money("20", "USD"),
+            ),
+            bounded_exact_field(
+                "rate",
+                "decimal",
+                bound_decimal("150", 2.0),
+                bound_decimal("250", 2.0),
+            ),
+        ]),
+    );
+    let frame = fr_entries(vec![
+        ("amount", money_frame("15", "EUR")),
+        ("rate", fr_text("3")),
+    ]);
+    let request = begin(&mut host, owner, &plan, frame);
+    let outcome = execute(
+        &mut host,
+        request,
+        contract_target("ExactBounds", "create"),
+        json!([
+            value_entry("amount", money_frame("15", "EUR")),
+            value_entry("rate", fr_text("3"))
+        ]),
+    );
+    assert_eq!(outcome["outcome"], "invalid", "{outcome}");
+    let mismatch = json!({"path":[seg_key("amount")],"code":"bound","message":"money bound needs a matching currency",
+        "expected":"currency USD","actual":"{\"minor\":\"15\",\"currency\":\"EUR\"}"});
+    assert_eq!(
+        outcome["violations"],
+        json!([
+            mismatch.clone(),
+            mismatch,
+            bound_violation("rate", "max", "\"2.5\"", "\"3\"")
+        ])
+    );
+    dispose(&mut host, request);
+    // A supplied host decode refusal replays in place; no bound checks on that
+    // failed leaf, and the later successfully decoded field still checks max.
+    let request = begin(
+        &mut host,
+        owner,
+        &plan,
+        fr_entries(vec![
+            ("amount", money_frame("xx", "USD")),
+            ("rate", fr_text("3")),
+        ]),
+    );
+    let outcome = execute(
+        &mut host,
+        request,
+        contract_target("ExactBounds", "create"),
+        json!([
+            poison_entry("amount", "format", "money minor is malformed"),
+            value_entry("rate", fr_text("3"))
+        ]),
+    );
+    assert_eq!(
+        outcome["violations"],
+        json!([
+        {"path":[seg_key("amount")],"code":"format","message":"money minor is malformed","expected":"canonical minor","actual":"\"xx\""},
+        bound_violation("rate","max","\"2.5\"","\"3\"")])
+    );
+    dispose(&mut host, request);
+    release_bounds_plan(&mut host, owner, &plan);
+}
+
+#[test]
+fn exact_bounds_do_not_replace_nullable_omission_update_or_array_length_duties() {
+    let mut host = host();
+    let mut optional = bounded_exact_field(
+        "maybe",
+        "decimal",
+        bound_decimal("10", 0.0),
+        bound_decimal("20", 0.0),
+    );
+    optional["required"] = json!(false);
+    optional["nullable"] = json!(true);
+    optional["type_id"] = json!("decimal?");
+    let mut array = exact_field("batch", "decimal", false);
+    array["array"] = json!(true);
+    array["type_id"] = json!("decimal[]");
+    array["length_max"] = json!(1.0);
+    let (owner, plan) = register(&mut host, exact_bounds_schema(vec![optional, array]));
+    for mode in ["create", "update"] {
+        let request = begin(&mut host, owner, &plan, fr_entries(vec![]));
+        let outcome = execute(
+            &mut host,
+            request,
+            contract_target("ExactBounds", mode),
+            json!([
+            {"path":[seg_key("maybe")]},{"path":[seg_key("batch")]}]),
+        );
+        assert_eq!(outcome["outcome"], "valid", "{mode}: {outcome}");
+        dispose(&mut host, request);
+    }
+    let request = begin(
+        &mut host,
+        owner,
+        &plan,
+        fr_entries(vec![
+            ("maybe", json!({"t":"null"})),
+            ("batch", fr_array(vec![fr_text("100"), fr_text("200")])),
+        ]),
+    );
+    let outcome = execute(
+        &mut host,
+        request,
+        contract_target("ExactBounds", "create"),
+        json!([
+        {"path":[seg_key("maybe")]},value_entry("batch",fr_array(vec![fr_text("100"),fr_text("200")]))]),
+    );
+    assert_eq!(outcome["outcome"], "invalid", "{outcome}");
+    assert_eq!(
+        outcome["violations"],
+        json!([{"path":[seg_key("batch")],"code":"bound","message":"length 2 is above the maximum of 1","expected":"length <= 1","actual":"length 2"}])
+    );
+    dispose(&mut host, request);
+    release_bounds_plan(&mut host, owner, &plan);
+}
+
+#[test]
+fn malformed_exact_bounds_or_resolved_scalars_refuse_explicitly() {
+    for (kind, min, frame) in [
+        ("decimal", fr_text("not a native Decimal"), fr_text("2")),
+        ("date", bound_date(2024.0, 2.0, 30.0), fr_text("2024-03-01")),
+        ("money", bound_bigint("1"), money_frame("2", "USD")),
+        (
+            "decimal",
+            bound_decimal("1", 0.0),
+            fr_text("not a canonical decimal"),
+        ),
+    ] {
+        let mut host = host();
+        let mut field = exact_field("x", kind, true);
+        field["value_min"] = min;
+        let (owner, plan) = register(&mut host, exact_bounds_schema(vec![field]));
+        let request = begin(
+            &mut host,
+            owner,
+            &plan,
+            fr_entries(vec![("x", frame.clone())]),
+        );
+        let outcome = execute(
+            &mut host,
+            request,
+            contract_target("ExactBounds", "create"),
+            json!([value_entry("x", frame)]),
+        );
+        assert_eq!(outcome["outcome"], "deferred", "{kind}: {outcome}");
+        assert!(
+            outcome.get("leaf").is_none() && outcome.get("path").is_none(),
+            "no repeated codec-resolution loop: {outcome}"
+        );
+        assert!(outcome["detail"]
+            .as_str()
+            .is_some_and(|detail| !detail.is_empty()));
+        dispose(&mut host, request);
+        release_bounds_plan(&mut host, owner, &plan);
+    }
+}

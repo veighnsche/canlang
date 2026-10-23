@@ -154,6 +154,104 @@ async function verifyAccessOrder(bootstrapWasm) {
   } finally { injected = undefined; selectExactBackend(null); }
 }
 
+// A real JS codec -> Wasm structural-profile round trip. Canonical public
+// validation supplies the independent expected values and exact diagnostics.
+async function verifyNativeBounds(bootstrapWasm) {
+  const exact = bootstrapWasm(bytes());
+  const values = await import(pathToFileURL(join(dist, 'src/index.js')).href);
+  const api = await import(pathToFileURL(join(dist, 'bindings/validation.js')).href);
+  const { frameForWireValue } = await import(pathToFileURL(join(dist, 'bindings/owned-input.js')).href);
+  const glue = await import(pathToFileURL(join(dist, 'bindings/generated/values_semantics.js')).href);
+  let failure, failedCalls = 0, disposed = 0, structuralCalls = 0;
+  const backend = api.validationBackend({ structural_abi_version: () => glue.structural_abi_version(), validation_call: request => {
+    const { op } = JSON.parse(request); structuralCalls++;
+    if (op === 'values.execute' && failure !== undefined) { failedCalls++; throw failure; }
+    if (op === 'request.dispose') disposed++;
+    return glue.validation_call(request);
+  } });
+  const codec = api.exactCodecFromBackend(exact);
+  const metadata = value => {
+    if (typeof value === 'bigint') return { t: 'bigint', digits: String(value) };
+    if (typeof value === 'string') return { t: 'text', units: Array.from({ length: value.length }, (_, i) => value.charCodeAt(i)) };
+    if (typeof value === 'number') { const bits = Buffer.alloc(8); bits.writeDoubleBE(value); return { t: 'bits', bits: bits.toString('hex') }; }
+    return { t: 'object', entries: Object.entries(value).map(([key, part]) => [key, metadata(part)]) };
+  };
+  const load = fields => {
+    const nativeFields = Object.entries(fields).map(([name, field]) => ({ name, type_id: field.type,
+      base: { t: 'scalar', name: field.type }, required: true,
+      ...Object.fromEntries(['min', 'max'].filter(side => Object.hasOwn(field, side))
+        .map(side => [`value_${side}`, metadata(values.decodeValue(field.type, field[side]))])) }));
+    return api.loadOwnerPlan(backend, { abi: 'v1', profile: 'values', planProfile: 'values/v1', backend: 'native',
+      owner_rev: 'real-wasm-bounds', bound: 8, provenance: { factory: 'normalizeSchema', owner_rev: 'real-wasm-bounds' },
+      schema: { t: 'normalized', contracts: [{ name: 'Bounded', fields: nativeFields }], enums: [], operations: [] } });
+  };
+  const release = plan => { backend.call('plan.release', { owner: plan.owner, id: plan.id }); backend.call('owner.retire', { owner: plan.owner }); };
+  const execute = (plan, input) => api.resolveDeferredValidation(backend, {
+    owner: plan.owner, plan: plan.id, frame: frameForWireValue(input), profile: 'values/v1',
+    target: { kind: 'contract', name: 'Bounded', mode: 'create' }, budgets: { nodes: 1000, depth: 50, text: 2000, entries: 100 },
+  }, input, { exact: codec });
+  const compare = (fields, plan, input) => {
+    const schema = values.normalizeSchema({ contracts: { Bounded: { fields } } });
+    let expected;
+    try { expected = { value: values.validateValue(schema, 'Bounded', input, 'create') }; }
+    catch (error) { assert.equal(error.name, 'SchemaError'); expected = { violations: error.violations }; }
+    const result = execute(plan, input);
+    if (expected.violations !== undefined) {
+      assert.equal(result.outcome, 'invalid', JSON.stringify(result));
+      const violations = result.violations.map(violation => ({ ...violation,
+        path: violation.path.map(step => step.i ?? String.fromCharCode(...step.k)) }));
+      assert.deepEqual(violations, expected.violations);
+    } else {
+      assert.equal(result.outcome, 'valid', JSON.stringify(result));
+      for (const [name, field] of Object.entries(fields)) {
+        const entry = result.value.entries.find(([key]) => String.fromCharCode(...key) === name);
+        assert.deepEqual(entry[1], { t: 'exact', kind: field.type,
+          value: frameForWireValue(values.encodeValue(field.type, expected.value[name])) });
+      }
+    }
+  };
+  const money = (minor, currency = 'USD') => ({ minor, currency });
+  const cases = [
+    ['int', '-10', '10', '-11', '11'],
+    ['duration', '-10', '10', '-11', '11'],
+    ['decimal', '1.50', '2.50', '1.49', '2.51'],
+    ['decimal', '1234567890123456789012345678901234567.8', '1234567890123456789012345678901234567.8',
+      '1234567890123456789012345678901234567.7', '1234567890123456789012345678901234567.9'],
+    ['money', money('10'), money('20'), money('9'), money('21')],
+    ['date', '2024-02-29', '2024-03-01', '2024-02-28', '2024-03-02'],
+    ['datetime', '2024-02-29T00:00:00.000Z', '2024-02-29T00:00:01.000Z',
+      '2024-02-28T23:59:59.999Z', '2024-02-29T00:00:01.001Z'],
+  ];
+  for (const [type, min, max, below, above] of cases) {
+    const fields = { x: { type, min, max } }, plan = load(fields);
+    try { for (const x of [min, max, below, above]) compare(fields, plan, { x }); }
+    finally { release(plan); }
+  }
+  const fields = { amount: { type: 'money', min: money('10'), max: money('20') }, rate: { type: 'decimal', min: '1.5', max: '2.5' } };
+  const ordered = load(fields);
+  try {
+    compare(fields, ordered, { amount: money('15', 'EUR'), rate: '3' });
+    compare(fields, ordered, { amount: money('xx'), rate: '3' });
+    const sentinel = new Error('native structural failure must propagate');
+    failure = sentinel; failedCalls = 0; const beforeDispose = disposed;
+    assert.throws(() => execute(ordered, { amount: money('15'), rate: '2' }), error => error === sentinel);
+    failure = undefined;
+    assert.equal(failedCalls, 1, 'native structural failure is never retried');
+    assert.equal(disposed, beforeDispose + 1, 'failed native requests are disposed');
+  } finally { failure = undefined; release(ordered); }
+  const malformed = api.loadOwnerPlan(backend, { abi: 'v1', profile: 'values', planProfile: 'values/v1', backend: 'native',
+    owner_rev: 'malformed-bounds', bound: 8, provenance: { factory: 'normalizeSchema', owner_rev: 'malformed-bounds' },
+    schema: { t: 'normalized', contracts: [{ name: 'Bounded', fields: [{ name: 'x', type_id: 'decimal',
+      base: { t: 'scalar', name: 'decimal' }, required: true, value_min: metadata('not a Decimal') }] }], enums: [], operations: [] } });
+  try {
+    const result = execute(malformed, { x: '2' });
+    assert.equal(result.outcome, 'deferred'); assert.equal(result.reason, 'exact-codec');
+    assert.equal(result.leaf, undefined); assert.equal(result.path, undefined);
+    assert.ok(result.detail.length > 0, 'unsupported metadata must explicitly refuse without another codec loop');
+  } finally { release(malformed); }
+  assert.ok(structuralCalls > 0);
+}
+
 if (hostCase !== undefined) {
   const { bootstrapWasm, BootstrapError } = await import(bootstrapURL);
   const expectCode = (action, code) => assert.throws(action, (error) => {
@@ -161,7 +259,9 @@ if (hostCase !== undefined) {
     assert.equal(error.code, code);
     return true;
   });
-  if (hostCase === "access-order") {
+  if (hostCase === "bounds") {
+    await verifyNativeBounds(bootstrapWasm);
+  } else if (hostCase === "access-order") {
     await verifyAccessOrder(bootstrapWasm);
   } else if (hostCase === "compiled") {
     const module = new WebAssembly.Module(bytes());
@@ -206,7 +306,7 @@ if (hostCase !== undefined) {
   }
   console.log(JSON.stringify({ hostCase, status: "passed", executable: process.execPath }));
 } else {
-  for (const test of ["compiled", "abi", "missing-exports", "missing-transport-exports", "caller-methods", "first-asset-mutation", "caller-methods-first", "externally-initialized", "access-order"]) {
+  for (const test of ["compiled", "abi", "missing-exports", "missing-transport-exports", "caller-methods", "first-asset-mutation", "caller-methods-first", "externally-initialized", "access-order", "bounds"]) {
     process.stdout.write(execFileSync(process.execPath, [self, `--host-case=${test}`], {
       encoding: "utf8", env: process.env,
     }));
