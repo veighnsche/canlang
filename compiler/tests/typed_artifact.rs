@@ -17,6 +17,7 @@ fn empty() -> CompileArtifact {
         operations: vec![],
         models: vec![],
         given_contracts: None,
+        derived_bool_receipts: vec![],
         stylesheets: vec![],
         generated_views: vec![],
         value_types: None,

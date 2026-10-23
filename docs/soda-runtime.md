@@ -307,6 +307,13 @@ CANLANG_TOOLS=/home/canlang-builder/.cache/canlang-soda/installed-tools-final-de
 CANLANG_TEST_TMP=/home/canlang-builder/.cache/canlang-runtime-tests
 mkdir -p "$CANLANG_TEST_TMP"
 
+TMPDIR="$CANLANG_TEST_TMP" node scripts/verify-soda-direct.mjs \
+  --state "$CANLANG_TEST_TMP/direct-FRESH"
+
+TMPDIR="$CANLANG_TEST_TMP" node scripts/verify-soda-runtime-closure.mjs \
+  --runtime "$CANLANG_TOOLS/runtime" --bundle /home/canlang-builder/Apps/board/build/bundle.json \
+  --tool-root "$CANLANG_TOOLS" --state "$CANLANG_TEST_TMP/closure-FRESH"
+
 TMPDIR="$CANLANG_TEST_TMP" node scripts/verify-native-runtime.mjs \
   --compiler compiler/target/release/can \
   --state "$CANLANG_REPO/.artifacts/soda-native-runtime-FRESH"
@@ -318,14 +325,20 @@ TMPDIR="$CANLANG_TEST_TMP" node scripts/verify-soda-host.mjs \
   --podman-state "$CANLANG_REPO/.artifacts/soda-native-runtime"
 ```
 
-The second command requires the explicitly selected existing task-owned Podman
+The direct gate exercises real D1 rollback, binds, storage, autonomous alarms,
+inherited writer locks, parent death and delayed/forced termination. The
+closure gate uses only the production subtree for protected first-owner setup,
+claim/replay/refusal, private administration and real app routes/restart.
+Its bundle is the compiled `SodaRuntime` fixture produced by the host driver.
+
+The host command with `--containers` requires the explicitly selected existing task-owned Podman
 store and Rocky image; it does not pull an image. Use a fresh full-test state
 directory. The HTTPS witness creates and trusts a task-owned test certificate,
 without disabling TLS verification. It uses actual Identity credentials and
 retains real sessions and MCP grants across the stable application origin.
 
-The G1 command above checks the native process path. Add `--containers` for its
-container checks; that experimental driver pulls its selected Rocky base into
+The development driver `verify-native-runtime.mjs` checks its native process
+path. Add `--containers` for its container checks; it pulls its Rocky base into
 the task-owned store under `--state`. It does not describe serving-image startup. The locally qualified runtime/application recipes can be exercised from the
 canonical Soda checkout, using the already retained images and admitted assets:
 
