@@ -26821,8 +26821,12 @@ impl<'a> Closure<'a> {
                 if declaration.module!=module{return None;}
                 let field=fields.iter().find(|field|self.resolve.symbols.get(field.0 as usize)
                     .is_some_and(|field|field.name==argument.key))?;
-                (self.types.symbol_types.get(field)==self.types.symbol_types.get(&parameter)
-                    &&self.types.node_types.get(&key)==self.types.symbol_types.get(&parameter)).then_some(())
+                let input_ty=self.types.symbol_types.get(&parameter)?;
+                let event_ty=self.types.symbol_types.get(field)?;
+                // A required original identity can fill an optional slot of the
+                // same Model; it still carries no nullable input or DATA grant.
+                ((event_ty==input_ty||matches!(event_ty,ResolvedType::Nullable(inner)if inner.as_ref()==input_ty))
+                    &&self.types.node_types.get(&key)==Some(input_ty)).then_some(())
             }
 
             /// An EMIT or SCHEDULE may carry its original owning CREATE binding. The

@@ -3491,3 +3491,29 @@ it('sends original Propose offers through independently authorized parent identi
   }
  }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+it('emits both original membership recheck events with required identities in optional slots', {timeout:180000},async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'can-member-recheck-'));
+ try{
+  const source=join(root,'compiler/tests/fixtures/member-recheck-original-source.can'),original=await readFile(join(root,'draft/apps/CanMember/CanMember.can'),'utf8'),text=await readFile(source,'utf8');
+  const start=original.indexOf('  export scenario recheck_access('),end=original.indexOf('   examples',start);assert.ok(text.includes(original.slice(start,end)));
+  const {stdout}=await promisify(execFile)(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,source],{cwd:root,timeout:60000,maxBuffer:32*1024*1024});
+  const artifact=JSON.parse(stdout)as CompileArtifact,asm=await assembleModules({artifact,sourcePath:source},{workDir:directory,stdlibUrl:new URL('./stdlib.js',import.meta.url).href,uiUrl:import.meta.resolve('@canlang/ui')});
+  for(const mode of ['manager','administrator','unauthorized','inactive','stale','identity-race','source-race']){
+   const admin=mode==='administrator'||mode==='source-race',roles=admin||mode==='unauthorized'?[]:['member_terms.member_manager'];
+   const {now,identities,identity,user,membership}=await member('member-recheck-'+mode,roles),{store}=createTestMemoryStorage();
+   const customerModel=asModel('customer.Customer'),customerId=asId('customer');
+   const row=(model:string,id:string,data:Record<string,unknown>,parent:StoredRow['parent']=null)=>({kind:'insert'as const,model:asModel(model),row:{...makeRow({id:asId(id),data}),parent}});
+   await store.commit(makeBatch(await store.readRevision(),{writes:[row('rent_catalog.Location','site',{name:'Site',currency:'EUR'}),row('employee.Employee','worker',{user:{id:user.user_id},active:mode!=='inactive',operator_wide:false,home:{id:'site'},locations:[]}),row('customer.Customer','customer',{active:true,locations:[{id:'site'}]}),...(admin?[row('customer.CompanyRole','administrator',{account:{id:user.user_id},active:true,role:'administrator',locations:[{id:'site'}]},{model:customerModel,id:customerId})]:[])]}));
+   const query=store.query.bind(store),load=store.load.bind(store),commit=store.commit.bind(store);let raced=false;
+   store.query=async spec=>{const rows=await query(spec);if(mode==='identity-race'&&!raced&&spec.model==='customer.CompanyRole'){raced=true;await identities.removeMembership(membership.membership_id);}return rows;};
+   store.commit=async batch=>{if(mode==='source-race'&&!raced&&batch.writes.some(write=>write.model==='work.occurrence')){raced=true;const current=await load(customerModel,customerId);assert.ok(current);await commit(makeBatch(await store.readRevision(),{writes:[{kind:'update',model:customerModel,id:customerId,expectedVersion:current.version,row:{...current,version:asVersion(current.version+1),data:{...current.data,locations:[]}}}]}));}return commit(batch);};
+   const invoker=buildInvoker(artifact,asm,store,{memberships:identities,now:()=>now}),request={operation:'member_terms.recheck_access',operation_id:operationId(now),inputs:{customer:{id:'customer',version:mode==='stale'?'2':'1'},location:{id:'site',version:'1'}}};
+   const outcome=await invoker.invokeMutation(request,identity),success=mode==='manager'||mode==='administrator';assert.equal('result'in outcome&&outcome.result.status==='committed',success,mode+': '+JSON.stringify(outcome));
+   const events=await query({model:asModel('work.occurrence'),authority:'owner'});assert.equal(events.length,success?2:0,mode);if(mode.endsWith('-race'))assert.equal(raced,true,mode);
+   if(success){for(const event of events){const payload=event.data.payload as Record<string,unknown>;assert.deepEqual(payload.customer,{id:'customer',version:'1'});assert.deepEqual(payload.location,{id:'site',version:'1'});assert.equal(payload.after,null);}
+    const replay=await invoker.invokeMutation(request,identity);assert.ok('result'in replay&&replay.result.status==='replayed');assert.deepEqual(await query({model:asModel('work.occurrence'),authority:'owner'}),events);
+   }
+  }
+ }finally{await rm(directory,{recursive:true,force:true});}
+});

@@ -2901,3 +2901,16 @@ fn original_propose_offers_keep_required_identity_path_ownership() {
  let(db,program,_,catalog)=fixture_source("propose-path-copied-root.can",&changed);
  let(_,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
 }
+
+#[test]
+fn original_member_recheck_keeps_required_parameters_in_optional_event_slots() {
+ let source=include_str!("fixtures/member-recheck-original-source.can");
+ let (db,program,_,catalog)=fixture_source("member-recheck-original-source.can",source);
+ let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+ assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let copied=source.replace("    emit CompanyAccessStep {customer,location,after=null}",
+     "    let copied=location\n    emit CompanyAccessStep {customer,location=copied,after=null}");
+ let (db,program,_,catalog)=fixture_source("member-recheck-copied-reference.can",&copied);
+ let (_,diagnostics)=prepared_artifact(&program,&db,&catalog);
+ assert!(diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{diagnostics:?}");
+}
