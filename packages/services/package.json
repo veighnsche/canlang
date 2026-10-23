@@ -10,6 +10,7 @@
     "build": "node ../../scripts/build-package.mjs",
     "clean": "rm -rf dist/",
     "build:emit": "tsc -p tsconfig.json",
+    "test:integration": "node --test test/*.integration.mjs",
     "typecheck:check": "tsc -p tsconfig.json --noEmit",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"
   },

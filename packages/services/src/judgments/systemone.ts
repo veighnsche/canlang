@@ -407,7 +407,7 @@ function readChoiceAnswer(
   const choice = record['choice'];
   const probabilities = record['probabilities'];
   const confidence = record['confidence'];
-  if (typeof choice !== 'string' || !(choice in options)) {
+  if (typeof choice !== 'string' || !Object.hasOwn(options, choice)) {
     return null;
   }
   if (
@@ -421,13 +421,13 @@ function readChoiceAnswer(
   if (!sameStringSet(entries.map(([key]) => key), Object.keys(options))) {
     return null;
   }
-  const distribution: Record<string, number> = {};
+  const distribution: Array<[string, number]> = [];
   let sum = 0;
   for (const [key, probability] of entries) {
     if (!isProbability(probability)) {
       return null;
     }
-    distribution[key] = probability;
+    distribution.push([key, probability]);
     sum += probability;
   }
   if (Math.abs(sum - 1) > WIRE_PROBABILITY_TOLERANCE) {
@@ -436,7 +436,7 @@ function readChoiceAnswer(
   if (!isProbability(confidence)) {
     return null;
   }
-  return { choice, probabilities: distribution, confidence };
+  return { choice, probabilities: Object.fromEntries(distribution), confidence };
 }
 
 /** Read one score level row; null unless the description/probability pair is valid. */
