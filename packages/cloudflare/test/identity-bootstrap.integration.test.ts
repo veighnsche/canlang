@@ -1,5 +1,6 @@
 /** Real D1 owner claim: account/team/membership publish atomically. */
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,7 +9,7 @@ import { it } from 'vitest';
 import { bootstrapD1Owner, addD1TeamMember } from '../../identity/src/storage/bootstrap.js';
 import { ensureIdentitySchema, type IdentityD1Database, type IdentityD1BoundStatement } from '../../identity/src/storage/d1.js';
 
-import { createD1IdentityStore, createOpaqueToken, deriveCsrfToken, hashPassword, inviteMember } from '@canlang/identity';
+import { createD1IdentityStore, createOpaqueToken, deriveCsrfToken, hashPassword, inviteMember, setMemberRole } from '@canlang/identity';
 import { handleAuthRequest, type AuthHttpDeps } from '@canlang/interfaces';
 
 const credentials = { email: 'owner@example.invalid', password: 'Synthetic bootstrap password', timezone: 'Europe/Amsterdam' };
@@ -196,5 +197,122 @@ it('accepts only an addressed verified invitation through browser CSRF and retai
     assert.deepEqual(await readOffer(), acceptedOffer);
     assert.ok((await handleAuthRequest(deps(), request(recipient, body))).status >= 400, 'consumed offer refuses after reopen');
     assert.deepEqual(await store.findMembership(owner.teamId, invited.user_id), accepted);
+  } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 30_000);
+
+
+it('serializes durable role deltas and preserves exact original receipts across lost acknowledgement and D1 reopen', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-team-role-receipts-'));
+  let runtime = new Miniflare(options(directory));
+  try {
+    let db = await runtime.getD1Database('IDENTITY');
+    const owner = await bootstrapD1Owner(db, credentials);
+    const member = await addD1TeamMember(db, { teamId: owner.teamId, email: 'role-member@example.invalid', password: 'Synthetic role password' });
+    const clock = { nowMs: () => Date.parse('2026-10-24T00:00:00.000Z') };
+    let store = createD1IdentityStore(db, { clock });
+    const command = (role: string, operationId: string = randomUUID()) => ({ namespace: 'role-app', operationId,
+      team_id: owner.teamId, member_user_id: member.userId, granted_by: owner.userId, role });
+    const run = (input: ReturnType<typeof command>) => store.changeMemberRoleWithReceipt!(input);
+    const current = () => store.findMembership(owner.teamId, member.userId);
+    const names = async () => (await current())!.roles.map(grant => grant.role).sort();
+    const [alpha, beta] = await Promise.all([run(command('Workspace.alpha')), run(command('Workspace.beta'))]);
+    assert.deepEqual(await names(), ['Workspace.alpha', 'Workspace.beta'], 'concurrent grants preserve both deltas');
+    assert.equal(alpha.membership.membership_id, beta.membership.membership_id);
+    assert.equal(alpha.namespace, 'role-app'); assert.match(alpha.requestDigest, /^[a-f0-9]{64}$/);
+    const originalBeta = (await current())!.roles.find(grant => grant.role === 'Workspace.beta');
+    const repeatBeta = command('Workspace.beta');
+    await run(repeatBeta);
+    assert.deepEqual((await current())!.roles.find(grant => grant.role === 'Workspace.beta'), originalBeta,
+      'idempotent grants retain the original attribution');
+    const originalAlpha = { ...command('Workspace.alpha'), operationId: alpha.operationId };
+    await Promise.all([run(command('-Workspace.alpha')), run(command('Workspace.gamma'))]);
+    assert.deepEqual(await names(), ['Workspace.beta', 'Workspace.gamma']);
+    assert.deepEqual(await run(originalAlpha), alpha, 'exact replay returns original technical outcome');
+    assert.deepEqual(await store.readMemberRoleMutationReceipt!(originalAlpha), alpha);
+    const unseen = command('Workspace.unseen');
+    const receiptCount = (await db.prepare('SELECT * FROM identity_team_mutations').all()).results.length;
+    assert.equal(await store.readMemberRoleMutationReceipt!(unseen), null);
+    assert.equal((await db.prepare('SELECT * FROM identity_team_mutations').all()).results.length, receiptCount, 'receipt-only lookup never executes an unseen operation');
+    assert.deepEqual(await names(), ['Workspace.beta', 'Workspace.gamma'], 'replay never reapplies a role');
+    for (const changed of [{ role: '-Workspace.alpha' }, { member_user_id: owner.userId }, { granted_by: member.userId }, { team_id: 'other-team' }]) {
+      await assert.rejects(run({ ...originalAlpha, ...changed }), error => error instanceof Error && 'code' in error && error.code === 'conflict');
+    }
+    const lostInput = command('Workspace.delta');
+    const lostStore = createD1IdentityStore({ prepare: sql => db.prepare(sql), exec: sql => db.exec(sql),
+      batch: async statements => { await db.batch(statements as Parameters<typeof db.batch>[0]); throw new Error('injected lost role acknowledgement'); } }, { clock });
+    await lostStore.changeMemberRoleWithReceipt!(lostInput).catch(error => assert.match(String(error), /lost role acknowledgement/));
+    assert.deepEqual(await names(), ['Workspace.beta', 'Workspace.delta', 'Workspace.gamma']);
+    const recovered = await run(lostInput);
+    await run(command('-Workspace.delta'));
+    assert.deepEqual(await run(lostInput), recovered);
+    assert.deepEqual(await names(), ['Workspace.beta', 'Workspace.gamma']);
+    const historical = await setMemberRole(store,
+      { team_id: owner.teamId, member_user_id: member.userId, role: 'Workspace.alpha' },
+      { granted_by: owner.userId, occurrence: { namespace: originalAlpha.namespace, operationId: originalAlpha.operationId } });
+    assert.deepEqual(historical, alpha.membership);
+    await runtime.dispose(); runtime = new Miniflare(options(directory));
+    db = await runtime.getD1Database('IDENTITY'); store = createD1IdentityStore(db, { clock });
+    assert.deepEqual(await run(lostInput), recovered, 'original outcome survives physical D1 reopen');
+    assert.deepEqual(await names(), ['Workspace.beta', 'Workspace.gamma']);
+    const retainedMember = (await current())!;
+    await store.removeMembership(retainedMember.membership_id);
+    await store.reactivateMembership(retainedMember.membership_id, { is_owner: false, roles: retainedMember.roles });
+    assert.deepEqual(await run(originalAlpha), alpha, 're-admission never turns an old occurrence into a new grant');
+    assert.equal((await current())!.created_at, retainedMember.created_at);
+    assert.deepEqual(await names(), ['Workspace.beta', 'Workspace.gamma']);
+    const before = await current();
+    const revokedOwner = (await store.findMembership(owner.teamId, owner.userId))!;
+    // A second owner keeps the real last-owner guard intact while revoking the original actor.
+    await store.setMembershipOwner(before!.membership_id, true);
+    await store.removeMembership(revokedOwner.membership_id);
+    assert.deepEqual(await run(originalAlpha), alpha, 'stored technical outcome grants no new authority');
+    await assert.rejects(run(command('Workspace.unadmitted')), error => error instanceof Error && 'code' in error && error.code === 'forbidden');
+    assert.deepEqual(await names(), ['Workspace.beta', 'Workspace.gamma']);
+    await store.removeMembership(before!.membership_id).catch(error => assert.match(String(error), /at least one owner/));
+    assert.equal((await current())!.status, 'active', 'last active owner remains protected');
+  } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
+}, 30_000);
+
+it('rolls back durable role claims with their writes and serializes competing owner demotions on real D1', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-team-role-atomic-'));
+  const runtime = new Miniflare(options(directory));
+  try {
+    const db = await runtime.getD1Database('IDENTITY');
+    const owner = await bootstrapD1Owner(db, credentials);
+    const member = await addD1TeamMember(db, { teamId: owner.teamId, email: 'role-target@example.invalid', password: 'Synthetic target password' });
+    const store = createD1IdentityStore(db);
+    const input = { namespace: 'atomic-role-app', operationId: randomUUID(), team_id: owner.teamId,
+      member_user_id: member.userId, granted_by: owner.userId, role: 'Workspace.reviewer' };
+    const original = await store.findMembership(owner.teamId, member.userId);
+    const interrupted = createD1IdentityStore({ prepare: sql => db.prepare(sql), exec: sql => db.exec(sql),
+      batch: statements => db.batch([...(statements.slice(0, 2) as Parameters<typeof db.batch>[0]), db.prepare('INSERT INTO missing_role_table VALUES (1)')]) });
+    await assert.rejects(interrupted.changeMemberRoleWithReceipt!(input));
+    assert.deepEqual(await store.findMembership(owner.teamId, member.userId), original);
+    assert.equal((await db.prepare('SELECT * FROM identity_team_mutations').all()).results.length, 0, 'failed transaction leaves no receipt claim');
+    const committed = await store.changeMemberRoleWithReceipt!(input);
+    assert.deepEqual(committed.membership.roles.map(grant => grant.role), ['Workspace.reviewer']);
+    for (const candidate of [
+      { ...input, operationId: randomUUID(), granted_by: member.userId },
+      { ...input, operationId: randomUUID(), member_user_id: 'missing-member' },
+      { ...input, operationId: randomUUID(), role: 'unqualified' },
+    ]) await assert.rejects(store.changeMemberRoleWithReceipt!(candidate));
+    let getterReads = 0;
+    const accessor = { ...input, operationId: randomUUID() };
+    Object.defineProperty(accessor, 'role', { enumerable: true, get() { getterReads++; return 'Workspace.reviewer'; } });
+    await assert.rejects(store.changeMemberRoleWithReceipt!(accessor));
+    assert.equal(getterReads, 0, 'command capture does not evaluate accessors');
+    assert.equal((await db.prepare('SELECT * FROM identity_team_mutations').all()).results.length, 1, 'denials publish no successful receipts');
+    await store.changeMemberRoleWithReceipt!({ ...input, operationId: randomUUID(), role: 'owner' });
+    const demotions = await Promise.allSettled([
+      store.changeMemberRoleWithReceipt!({ ...input, operationId: randomUUID(), member_user_id: owner.userId, granted_by: owner.userId, role: '-owner' }),
+      store.changeMemberRoleWithReceipt!({ ...input, operationId: randomUUID(), granted_by: member.userId, role: '-owner' }),
+    ]);
+    assert.equal(demotions.filter(result => result.status === 'fulfilled').length, 1);
+    assert.equal(demotions.filter(result => result.status === 'rejected').length, 1);
+    assert.equal((await store.listActiveOwners(owner.teamId)).length, 1, 'competing self-demotions preserve one owner');
+    const readonly = createD1IdentityStore({ prepare: sql => db.prepare(sql), exec: sql => db.exec(sql) });
+    assert.equal(readonly.changeMemberRoleWithReceipt, undefined, 'nontransactional stores cannot expose this command');
+    assert.deepEqual(await readonly.readMemberRoleMutationReceipt!(input), committed);
+    assert.equal(await readonly.readMemberRoleMutationReceipt!({ ...input, operationId: randomUUID() }), null);
   } finally { await runtime.dispose(); await rm(directory, { recursive: true, force: true }); }
 }, 30_000);

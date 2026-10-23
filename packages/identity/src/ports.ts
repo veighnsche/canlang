@@ -85,10 +85,19 @@ export interface MailPort {
   sendMail(to: string, subject: string, body_text: string): Promise<void>;
 }
 
+/** Original technical outcome of one durable role command, never current authority. */
+export interface MemberRoleMutationReceipt {
+  readonly namespace: string;
+  readonly operation: 'system.team.role';
+  readonly operationId: string;
+  readonly requestDigest: string;
+  readonly membership: Membership;
+}
+
 /**
  * Constrained system-command surface for identity facts. No raw SQL, no
  * second role store, no account enumeration beyond the exact lookups below.
- * Recovery, invitation acceptance and occurrence-backed removal use their bounded atomic commands.
+ * Recovery, invitation acceptance and occurrence-backed removal/role changes use bounded atomic commands.
  * Other check-then-act mutations have no shared transaction fence.
  * The bounded membership snapshot supplies one read observation only. The
  * memory double is single-threaded and proves no native concurrency semantics.
@@ -138,6 +147,18 @@ export interface IdentityStore {
     membership_id: MembershipId,
     roles: Membership['roles'],
   ): Promise<void>;
+  /** Atomically decide current owner/target/last-owner policy, apply a role
+   * delta and retain its original result. Exact replay never changes current
+   * membership, including after removal/re-admission. The host must authenticate
+   * the current caller and bind namespace before invoking this technical port. */
+  changeMemberRoleWithReceipt?(input: {
+    readonly namespace: string; readonly operationId: string; readonly team_id: string;
+    readonly member_user_id: string; readonly granted_by: string; readonly role: string;
+  }): Promise<MemberRoleMutationReceipt>;
+  /** Read the retained original result for the exact request, or null. Never
+   * executes an unseen occurrence or supplies current owner/role authority. */
+  readMemberRoleMutationReceipt?(input: Parameters<NonNullable<IdentityStore['changeMemberRoleWithReceipt']>>[0]):
+    Promise<MemberRoleMutationReceipt | null>;
   /** D1's conditional write refuses demotion/removal of the last active owner;
    * promotion, inactive/nonowner updates and missing-row no-ops remain supported.
    * This does not make the surrounding feature admission/cascades atomic. */

@@ -2,9 +2,7 @@
  * Owner-assigned team role lifecycle behind the fixed
  * `system.team.role(member, role)` tool schema (DESIGN section 10).
  *
- * The schema fixes `{member, role}` but no grant/revoke expression, so this
- * lane authors a minimal value grammar, pending L3 acknowledgment: `role`
- * grants, `-role` revokes. `owner` / `-owner` promote and demote, guarded
+ * `role` grants and `-role` revokes. `owner` / `-owner` promote and demote, guarded
  * by the last-owner rule; qualified `App.Role` values add or drop one
  * package-qualified assignment idempotently. A team owner never implicitly
  * holds declared roles, and revoking a role never rewrites history: stored
@@ -34,8 +32,19 @@ export function parseRoleValue(value: string): ParsedRoleValue {
 export async function setMemberRole(
   store: IdentityStore,
   input: { team_id: string; member_user_id: string; role: string },
-  opts: { granted_by: string; clock?: Clock },
+  opts: { granted_by: string; clock?: Clock; occurrence?: { namespace: string; operationId: string } },
 ): Promise<Membership> {
+  if (opts.occurrence !== undefined) {
+    if (typeof store.changeMemberRoleWithReceipt !== 'function') {
+      throw new Error('Atomic membership role occurrences are not configured.');
+    }
+    // The atomic store owns time for this path; opts.clock belongs to the
+    // ordinary compatibility path below. Replay returns the original result.
+    // Current transport authorization and namespace binding remain host-owned.
+    const receipt = await store.changeMemberRoleWithReceipt({ ...input, granted_by: opts.granted_by,
+      namespace: opts.occurrence.namespace, operationId: opts.occurrence.operationId });
+    return receipt.membership;
+  }
   const clock = opts.clock ?? systemClock;
   const granter = await store.findMembership(input.team_id, opts.granted_by);
   if (granter === null || granter.status !== 'active' || !granter.is_owner) {

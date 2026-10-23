@@ -48,6 +48,7 @@ import type {
 import type {
   Clock,
   IdentityStore,
+  MemberRoleMutationReceipt,
   RandomSource,
   StoredUser,
   TeamInvitationRow,
@@ -56,6 +57,8 @@ import { systemClock, toInstant, webRandom } from '../ports.js';
 import { captureMembershipRequest, finishMembershipSnapshot, snapshotData } from '../membership-snapshot.js';
 import { captureRemoval, removalEnvelope, type RemovalRow } from '../teams/removal-occurrence.js';
 import { IdentityError } from '../ports.js';
+import { parseRoleValue } from '../teams/roles.js';
+import { sha256HexText } from '../sessions/tokens.js';
 
 /* ------------------------------------------------------------------ */
 /* Minimal D1 surface. No `@cloudflare/workers-types` import: this     */
@@ -86,7 +89,7 @@ export interface IdentityD1Statement {
 export interface IdentityD1Database {
   prepare(sql: string): IdentityD1Statement;
   exec(sql: string): Promise<unknown>;
-  /** Genuine transactional D1 batch; absence keeps atomic removal/recovery unavailable. */
+  /** Genuine transactional D1 batch; absence keeps bounded atomic commands unavailable. */
   batch?(statements: IdentityD1BoundStatement[]): Promise<unknown>;
 }
 
@@ -150,6 +153,7 @@ export const IDENTITY_DDL: readonly string[] = [
   'CREATE TABLE IF NOT EXISTS identity_bootstrap_claim (slot INTEGER PRIMARY KEY CHECK (slot = 1), user_id TEXT NOT NULL UNIQUE, team_id TEXT NOT NULL UNIQUE, membership_id TEXT NOT NULL UNIQUE)',
   'CREATE TABLE IF NOT EXISTS identity_setup_claim (slot INTEGER PRIMARY KEY CHECK (slot = 1), operation TEXT NOT NULL UNIQUE, token_hash TEXT NOT NULL, context TEXT NOT NULL, completed_at INTEGER NOT NULL)',
   'CREATE TABLE IF NOT EXISTS identity_member_removals (event_id TEXT PRIMARY KEY, namespace TEXT NOT NULL, operation_id TEXT NOT NULL, request_digest TEXT NOT NULL, team_id TEXT NOT NULL, membership_id TEXT NOT NULL, user_id TEXT NOT NULL, removed_by TEXT NOT NULL, occurred_at TEXT NOT NULL, winner_token TEXT NOT NULL, UNIQUE(namespace, operation_id))',
+  'CREATE TABLE IF NOT EXISTS identity_team_mutations (namespace TEXT NOT NULL, operation TEXT NOT NULL, operation_id TEXT NOT NULL, request_digest TEXT NOT NULL, winner_token TEXT NOT NULL, outcome_json TEXT NOT NULL, PRIMARY KEY(namespace, operation, operation_id))',
   ...IDENTITY_INDEXES,
 ];
 
@@ -237,6 +241,71 @@ function toMembership(row: MembershipRow): Membership {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+type RoleMutationInput = Parameters<NonNullable<IdentityStore['changeMemberRoleWithReceipt']>>[0];
+const ROLE_MUTATION_OPERATION = 'system.team.role' as const;
+const roleMutationFields = ['namespace', 'operationId', 'team_id', 'member_user_id', 'granted_by', 'role'] as const;
+
+function roleMutationObject(value: unknown, fields: readonly string[]): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
+      Reflect.ownKeys(value).length !== fields.length) throw new IdentityError('validation', 'Invalid role mutation data.');
+  const result: Record<string, unknown> = Object.create(null);
+  for (const field of fields) {
+    const member = Object.getOwnPropertyDescriptor(value, field);
+    if (member === undefined || !('value' in member) || !member.enumerable) throw new IdentityError('validation', 'Invalid role mutation data.');
+    result[field] = member.value;
+  }
+  return result;
+}
+
+async function captureRoleMutation(raw: RoleMutationInput) {
+  const captured = roleMutationObject(raw, roleMutationFields);
+  if (Object.values(captured).some(value => typeof value !== 'string' || value === '')) {
+    throw new IdentityError('validation', 'Invalid role mutation data.');
+  }
+  const input = Object.freeze(captured) as unknown as RoleMutationInput;
+  const parsed = parseRoleValue(input.role);
+  // The exact grammar has one spelling per grant/revoke decision. Fixed key
+  // order makes equivalent own-data request objects share the same digest.
+  const digest = await sha256HexText(JSON.stringify({ operation: ROLE_MUTATION_OPERATION,
+    ...input, role: parsed.action === 'revoke' ? `-${parsed.role}` : parsed.role }));
+  return { input, digest, ...parsed };
+}
+
+interface RoleMutationRow {
+  readonly namespace: string; readonly operation: string; readonly operation_id: string;
+  readonly request_digest: string; readonly outcome_json: string;
+}
+
+function roleMutationReceipt(row: RoleMutationRow, input: RoleMutationInput, digest: string): MemberRoleMutationReceipt {
+  if (row.namespace !== input.namespace || row.operation !== ROLE_MUTATION_OPERATION ||
+      row.operation_id !== input.operationId || row.request_digest !== digest) {
+    throw new IdentityError('conflict', 'Role mutation occurrence differs from its original request.');
+  }
+  let membership: Membership;
+  try {
+    const value = roleMutationObject(JSON.parse(row.outcome_json) as unknown,
+      ['membership_id', 'team_id', 'user_id', 'is_owner', 'roles', 'status', 'created_at', 'updated_at']);
+    if (['membership_id', 'team_id', 'user_id', 'created_at', 'updated_at'].some(key =>
+      typeof value[key] !== 'string' || value[key] === '') || value['team_id'] !== input.team_id ||
+        value['user_id'] !== input.member_user_id || typeof value['is_owner'] !== 'boolean' || value['status'] !== 'active' ||
+        !Number.isFinite(Date.parse(value['created_at'] as string)) || !Number.isFinite(Date.parse(value['updated_at'] as string)) ||
+        !Array.isArray(value['roles'])) throw new Error('Invalid original membership.');
+    const roles = value['roles'].map((raw: unknown) => {
+      const grant = roleMutationObject(raw, ['role', 'granted_at', 'granted_by']);
+      if (Object.values(grant).some(value => typeof value !== 'string' || value === '') ||
+          !Number.isFinite(Date.parse(grant['granted_at'] as string))) throw new Error('Invalid original grant.');
+      const parsed = parseRoleValue(grant['role'] as string);
+      if (parsed.action !== 'grant' || parsed.role === 'owner') throw new Error('Invalid original grant.');
+      return Object.freeze(grant) as unknown as Membership['roles'][number];
+    });
+    membership = Object.freeze({ ...value, roles: Object.freeze(roles) }) as unknown as Membership;
+  } catch {
+    throw new Error('Invalid stored original role mutation outcome.');
+  }
+  return Object.freeze({ namespace: input.namespace, operation: ROLE_MUTATION_OPERATION,
+    operationId: input.operationId, requestDigest: digest, membership });
 }
 
 interface InvitationRow {
@@ -474,14 +543,68 @@ export function createD1IdentityStore(
   const readRemoval = (input: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0]) =>
     db.prepare('SELECT namespace, operation_id, request_digest, event_id, team_id, membership_id, user_id, removed_by, occurred_at FROM identity_member_removals WHERE namespace = ? AND operation_id = ?')
       .bind(input.namespace, input.operationId).first<RemovalRow>();
+  const readRoleMutation = (input: RoleMutationInput) => db.prepare(
+    'SELECT namespace, operation, operation_id, request_digest, outcome_json FROM identity_team_mutations WHERE namespace = ? AND operation = ? AND operation_id = ?',
+  ).bind(input.namespace, ROLE_MUTATION_OPERATION, input.operationId).first<RoleMutationRow>();
 
   return {
+    async readMemberRoleMutationReceipt(raw) {
+      const { input, digest } = await captureRoleMutation(raw);
+      const prior = await readRoleMutation(input);
+      return prior === null ? null : roleMutationReceipt(prior, input, digest);
+    },
     async readMemberRemovalOccurrence(raw) {
       const { input, digest } = await captureRemoval(raw);
       const prior = await readRemoval(input);
       return prior === null ? null : removalEnvelope(prior, input, digest);
     },
     ...(typeof db.batch !== 'function' ? {} : {
+      async changeMemberRoleWithReceipt(raw: RoleMutationInput) {
+        const { input, digest, action, role } = await captureRoleMutation(raw);
+        const prior = await readRoleMutation(input);
+        if (prior !== null) return roleMutationReceipt(prior, input, digest);
+        const at = now(), winner = random.randomUUID();
+        const insert = db.prepare(`INSERT INTO identity_team_mutations (namespace, operation, operation_id, request_digest, winner_token, outcome_json)
+          SELECT ?, ?, ?, ?, ?, '{}' FROM identity_memberships target
+          JOIN identity_memberships principal ON principal.team_id = target.team_id
+          JOIN identity_users subject ON subject.user_id = target.user_id
+          JOIN identity_users actor ON actor.user_id = principal.user_id
+          JOIN identity_teams team ON team.team_id = target.team_id
+          WHERE target.team_id = ? AND target.user_id = ? AND target.status = 'active'
+          AND principal.user_id = ? AND principal.status = 'active' AND principal.is_owner = 1
+          AND (? <> 'owner' OR ? <> 'revoke' OR target.is_owner = 0 OR
+            (SELECT COUNT(*) FROM identity_memberships owners WHERE owners.team_id = target.team_id AND owners.status = 'active' AND owners.is_owner = 1) > 1)
+          ON CONFLICT(namespace, operation, operation_id) DO NOTHING`)
+          .bind(input.namespace, ROLE_MUTATION_OPERATION, input.operationId, digest, winner,
+            input.team_id, input.member_user_id, input.granted_by, role, action);
+        const eligible = 'EXISTS (SELECT 1 FROM identity_team_mutations receipt WHERE receipt.namespace = ? AND receipt.operation = ? AND receipt.operation_id = ? AND receipt.winner_token = ?)';
+        const key = [input.namespace, ROLE_MUTATION_OPERATION, input.operationId, winner];
+        // Each delta reads the current row inside the same serialized batch.
+        // In particular, concurrent commands never replace a JS-captured array.
+        const mutation = role === 'owner'
+          ? db.prepare(`UPDATE identity_memberships SET is_owner = ?, updated_at = ? WHERE team_id = ? AND user_id = ? AND is_owner <> ? AND ${eligible}`)
+            .bind(action === 'grant' ? 1 : 0, at, input.team_id, input.member_user_id, action === 'grant' ? 1 : 0, ...key)
+          : action === 'grant'
+            ? db.prepare(`UPDATE identity_memberships SET roles = json_insert(roles, '$[#]', json_object('role', ?, 'granted_at', ?, 'granted_by', ?)), updated_at = ?
+                WHERE team_id = ? AND user_id = ? AND NOT EXISTS (SELECT 1 FROM json_each(identity_memberships.roles) WHERE json_extract(value, '$.role') = ?) AND ${eligible}`)
+              .bind(role, at, input.granted_by, at, input.team_id, input.member_user_id, role, ...key)
+            : db.prepare(`UPDATE identity_memberships SET roles = (SELECT json_group_array(json(value)) FROM
+                (SELECT value FROM json_each(identity_memberships.roles) WHERE json_extract(value, '$.role') <> ? ORDER BY key)), updated_at = ?
+                WHERE team_id = ? AND user_id = ? AND EXISTS (SELECT 1 FROM json_each(identity_memberships.roles) WHERE json_extract(value, '$.role') = ?) AND ${eligible}`)
+              .bind(role, at, input.team_id, input.member_user_id, role, ...key);
+        await db.batch!([insert, mutation,
+          db.prepare(`UPDATE identity_team_mutations SET outcome_json = (SELECT json_object(
+            'membership_id', membership_id, 'team_id', team_id, 'user_id', user_id,
+            'is_owner', json(CASE WHEN is_owner = 1 THEN 'true' ELSE 'false' END), 'roles', json(roles),
+            'status', status, 'created_at', created_at, 'updated_at', updated_at)
+            FROM identity_memberships WHERE team_id = ? AND user_id = ?)
+            WHERE namespace = ? AND operation = ? AND operation_id = ? AND winner_token = ?`)
+            .bind(input.team_id, input.member_user_id, ...key),
+        ]);
+        const saved = await readRoleMutation(input);
+        if (saved === null) throw new IdentityError('forbidden', 'Current owner and active membership with an owner-preserving role change are required.');
+        return roleMutationReceipt(saved, input, digest);
+      },
       async acceptInvitationWithMembership({ invitation_id, user_id }: Parameters<NonNullable<IdentityStore['acceptInvitationWithMembership']>>[0]) {
         const at = now(), membershipId = random.randomUUID();
         // The live invitation guards the membership write. Only that write's
