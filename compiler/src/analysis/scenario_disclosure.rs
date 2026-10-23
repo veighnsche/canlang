@@ -16258,9 +16258,15 @@ impl<'a> Closure<'a> {
         if site.stage==CheckedDecisionStage::BodyCondition && node.kind==SyntaxKind::Member
             && self.count_member(key).is_some_and(|(base,name)|name=="version"
                 && matches!(self.types.node_types.get(&base),Some(ResolvedType::Record{stored:true,..})))
-        { *supported=false;return Some(false); }
+        {
+            let admitted=self.source_require_loop_condition(scenario,site).is_some()
+                &&self.count_member(key).is_some_and(|(base,_)|matches!(self.query_binding(base),Some(Binding::Symbol(id))
+                    if scenario.params.iter().any(|parameter|parameter.param==*id)));
+            if !admitted{*supported=false;return Some(false);}
+        }
         if body {
             match self.query_binding(key) {
+                Some(Binding::ForItem{node}) if self.source_require_loop_condition(scenario,site).is_some_and(|(outer,_)|outer.node==*node)=>{},
                 Some(Binding::Let { .. } | Binding::CreateAs { .. } | Binding::SendAs { .. }
                     | Binding::ForItem { .. } | Binding::CallAs { .. } | Binding::CohortChild { .. }
                     | Binding::External { .. } | Binding::Error) => { *supported = false; return Some(false); }
@@ -16421,6 +16427,19 @@ impl<'a> Closure<'a> {
         Some(effect)
     }
 
+    fn source_require_loop_condition<'b>(&self,scenario:&'b super::effects::ScenarioData,site:&CheckedDecisionSite)->Option<(&'b Effect,&'b Effect)> {
+        let [CheckedDecisionPosition::Body(index),CheckedDecisionPosition::Loop(child)]=site.position.as_slice() else{return None;};
+        let outer=scenario.effects.get(*index)?;
+        let condition=outer.then_effects.get(*child)?;
+        if outer.verb!=EffectVerb::For||*child!=0||outer.then_effects.len()!=1||outer.cond.is_some()
+            ||!outer.else_effects.is_empty()||!outer.match_arms.is_empty()
+            ||condition.verb!=EffectVerb::If||condition.cond!=Some(site.node)||condition.node!=site.statement
+            ||!condition.else_effects.is_empty()||!condition.match_arms.is_empty()
+            ||!matches!(condition.then_effects.as_slice(),[effect]if effect.verb==EffectVerb::Set)
+        {return None;}
+        Some((outer,condition))
+    }
+
     fn source_require_site(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -16434,8 +16453,9 @@ impl<'a> Closure<'a> {
             (path,CheckedDecisionStage::BodyRequire) if self.source_require_body_guard(scenario,path).is_some()=>{
                 (self.source_require_body_guard(scenario,path)?,true)
             }
-            ([CheckedDecisionPosition::Body(index)],CheckedDecisionStage::BodyCondition) => {
-                let effect=scenario.effects.get(*index)?;
+            (path,CheckedDecisionStage::BodyCondition) if matches!(path,[CheckedDecisionPosition::Body(_)]) || self.source_require_loop_condition(scenario,&site).is_some() => {
+                let effect=if let Some((_,condition))=self.source_require_loop_condition(scenario,&site){condition}else{
+                    let [CheckedDecisionPosition::Body(index)]=path else{return None;};scenario.effects.get(*index)?};
                 // One original top-level IF observes the actual owner stage.
                 // Loop locals and branch-local aliases need their own producer.
                 if effect.verb!=EffectVerb::If||effect.cond!=Some(site.node)

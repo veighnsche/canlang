@@ -6459,8 +6459,8 @@ async function loadCheckedRequireSources(asm: AssembledModules, artifact: Compil
     if (Object.keys(raw).length > 200) throw new AssemblyCorrespondenceError('Scenario Require inventory exceeds its checked owner bound.');
     for (const owner of Object.keys(raw)) {
       const sources = nativeCallArray(raw[owner], 200).map(value => {
-        const site = localPolicyObject(value, ['source', 'owner', 'node', 'statement', 'parameters', 'sites', 'decision']);
-        if (Object.keys(site).length !== (site.decision==='if'?7:6) || Object.hasOwn(site,'decision')&&site.decision!=='if' || site.owner !== owner) {
+        const site = localPolicyObject(value, ['source', 'owner', 'node', 'statement', 'parameters', 'sites', 'decision','loop']);
+        if (Object.keys(site).length !== (site.decision==='if'?7:6)+(site.loop===undefined?0:1) || Object.hasOwn(site,'decision')&&site.decision!=='if' || site.owner !== owner) {
           throw new AssemblyCorrespondenceError('Scenario Require inventory differs from its checked owner.');
         }
         const source = captureDispatchPreclaimData(site) as unknown as ScenarioReceiptRequireSource;
@@ -7740,7 +7740,7 @@ function createSourceReadPolicyAdapter(input: {
   readonly formatting?: HandlerFormattingScope;
   readonly deploymentBase?: string;
   readonly observer?: { readonly predicate: Function;
-    readonly reads: import('@canlang/state/invocation').ScenarioReceiptRequireObserver };
+    readonly reads: import('@canlang/state/invocation').ScenarioReceiptRequireObserver;readonly admittedVersion?:number };
   readonly ownerDecisionQuery?: (model: string, query: CanonicalReadQuery,
     parent: { readonly model: string; readonly id: string } | undefined) => void;
 }) {
@@ -7785,11 +7785,11 @@ function createSourceReadPolicyAdapter(input: {
         if ('value' in descriptor) rememberReferences(descriptor.value, depth + 1);
       }
     };
-    const recordView = (name: string, source: StoredRow | ProjectedRecord, presence?: readonly string[]): Record<string, unknown> => {
+    const recordView = (name: string, source: StoredRow | ProjectedRecord, presence?: readonly string[],admittedVersion?:number): Record<string, unknown> => {
       const projected = nativeProjectedRecord(loaded, name, source, navigation, recordView, presence);
       const view = input.observer?.predicate !== installed ? projected : new Proxy(projected, {
         get: (target, field, receiver) => {
-          const value = Reflect.get(target, field, receiver);
+          const value = field==='version'&&admittedVersion!==undefined?BigInt(admittedVersion):Reflect.get(target, field, receiver);
           if (typeof field === 'string') input.observer!.reads.field(name, source, field);
           return value;
         },
@@ -7801,7 +7801,7 @@ function createSourceReadPolicyAdapter(input: {
     };
     await navigation.prepare(sourceModel, row);
     const actualReadTeam = team === null ? null : Object.freeze({ teamId: context.teamId!, timezone: team.timezone });
-    const nativeRow = recordView(sourceModel, row, observation.sourcePresence);
+    const nativeRow = recordView(sourceModel, row, observation.sourcePresence,ownerDecision?input.observer?.admittedVersion:undefined);
     let allowed = false;
     for (const { predicate, owner } of predicates) {
       let active = true;
@@ -12732,7 +12732,19 @@ async function runScenarioExecution(
         const loop=privateSourceBodyLoop.plan.loops.find(loop=>loop.id===id),execute=loaded.producers.invoke.executeScenarioSourceLoop;
         if(loop===undefined||execute===undefined||parent!==parameters[loop.parameter]||loop.filtered!==(typeof predicate==='function'))return refuseRecordBinding('Source loop differs from its original parent/filter.');
         if(predicate!==null)original(predicate,loop,false);
-        const rows=await execute(actual,receiptStore,{id,predicate:predicate===null?null:async row=>{
+        const rows=await execute(actual,receiptStore,{id,predicate:predicate===null?null:async(row,ancestors)=>{
+          if(loop.ancestors!==undefined){
+            if(ancestors?.length!==loop.ancestors.length||loop.control===undefined)return refuseRecordBinding('Descendant control projection lacks its exact original parent path.');
+            const project=(descriptor:NonNullable<typeof loop.control>,row:StoredRow,parent?:object)=>{
+              const view:Record<string,unknown>=Object.create(null);
+              for(const field of descriptor.fields){const wire=Object.getOwnPropertyDescriptor(row.data,field.name);if(wire===undefined||!('value'in wire))return refuseRecordBinding('Descendant control field lost its actual owning row.');view[field.name]=decodeCanonicalValue(loaded.valueSchema,field.type,wire.value);}
+              if(parent!==undefined)view.parent=parent;
+              bindNativeRecord(view,descriptor.model,row.id,row.version);return Object.freeze(view);
+            };
+            let parent:object|undefined;
+            for(let index=ancestors.length-1;index>=0;index--)parent=project(loop.ancestors[index]!,ancestors[index]!,parent);
+            return await predicate(project(loop.control,row,parent));
+          }
           ownerRows.set(stagedKey(loop.model,row.id),row);return await predicate(recordView(loop.model,row));
         }});
         return Object.freeze(rows.map(row=>{ownerRows.set(stagedKey(loop.model,row.id),row);const view=recordView(loop.model,row);selected.set(view,{id,row});return view;}));
@@ -13205,8 +13217,8 @@ async function runScenarioExecution(
         const getter = privateSourceMember(module, 'canScenarioRequireSource');
         if (typeof getter !== 'function') throw new AssemblyCorrespondenceError('Scenario Require lacks its original source getter.');
         const raw: unknown = getter(fn);
-        const source = localPolicyObject(raw, ['source', 'owner', 'node', 'statement', 'parameters', 'sites', 'decision']);
-        if (Object.keys(source).length !== (source.decision==='if'?7:6) || Object.hasOwn(source,'decision')&&source.decision!=='if' || source.owner !== scenarioDef.name) {
+        const source = localPolicyObject(raw, ['source', 'owner', 'node', 'statement', 'parameters', 'sites', 'decision','loop']);
+        if (Object.keys(source).length !== (source.decision==='if'?7:6)+(source.loop===undefined?0:1) || Object.hasOwn(source,'decision')&&source.decision!=='if' || source.owner !== scenarioDef.name) {
           throw new AssemblyCorrespondenceError('Scenario Require differs from its original owning source.');
         }
         const original = captureDispatchPreclaimData(source) as unknown as import('@canlang/state/invocation').ScenarioReceiptRequireSource;
@@ -13225,6 +13237,10 @@ async function runScenarioExecution(
             !opts.artifact.sources.some(source => source.path === original.source.path && source.sha256 === original.source.sha256)) {
           throw new AssemblyCorrespondenceError('Scenario Require lacks its complete independently checked original guard observer.');
         }
+        const loopMarker=original.loop,loopItem=loopMarker===undefined?undefined:activeSourceLoopItem;
+        const loop=loopMarker===undefined?undefined:privateSourceBodyLoop?.plan.loops.find(loop=>
+          stableStringify(loop.node)===stableStringify(loopMarker.node)&&loop.item===loopMarker.item&&loop.model===loopMarker.model);
+        if(loopMarker!==undefined&&(original.decision!=='if'||loop===undefined||loopItem===null||loopItem===undefined||loopItem.id!==loop.id))return refuseRecordBinding('Loop IF lacks its actual selected item and original loop.');
         const declared = scenarioDef.descriptor.inputs;
         const parameters = nativeCallArray(original.parameters, 200).map(value => {
           const parameter = localPolicyObject(value, ['name', 'typeId', 'unread']);
@@ -13243,11 +13259,15 @@ async function runScenarioExecution(
         // The first required model parameter anchors the observed row; further
         // model parameters flow as admitted rows (the observer tracks reads
         // per model). Unread File slots remain in the declaration census.
-        if (parameters.length !== declared.length || Object.keys(suppliedValues).length !== parameters.filter(parameter => !parameter.unread).length ||
+        if (parameters.length !== declared.length+(loopMarker===undefined?0:1) || Object.keys(suppliedValues).length !== parameters.filter(parameter => !parameter.unread).length ||
             new Set(parameters.map(parameter => parameter.name)).size !== parameters.length || anchor === undefined) {
           throw new AssemblyCorrespondenceError('Scenario Require needs its complete parameters and one original admitted model.');
         }
         for (const [index, parameter] of parameters.entries()) {
+          if(index===declared.length&&loopMarker!==undefined){
+            if(parameter.name!==loopMarker.item||parameter.typeId!==loopMarker.model||parameter.unread||suppliedValues[parameter.name]!==loopItem?.item)return refuseRecordBinding('Loop IF selected carrier differs from its actual original item.');
+            continue;
+          }
           const field = declared[index]!;
           if (field.kind === 'delivery') throw new AssemblyCorrespondenceError('Scenario Require parameters need their supported original scalar or model declarations.');
           const type = field.kind === 'ref' ? `${field.model}${Object.hasOwn(scenarioDef.inputArrays, field.name) ? '[]' : ''}${field.nullable ? '?' : ''}` :
@@ -13301,7 +13321,7 @@ async function runScenarioExecution(
         if (!actualCall.recordRefs.some(reference => reference.param === parameter && reference.model === anchor.model)) {
           throw new AssemblyCorrespondenceError('Scenario Require lacks its exact admitted model reference.');
         }
-        const occurrence = stableStringify([original.source, original.node]);
+        const occurrence = stableStringify([original.source, original.node,...(loopItem===undefined||loopItem===null?[]:[loopItem.row.id])]);
         if (consumed.has(occurrence)) throw new AssemblyCorrespondenceError('Scenario Require source must execute once.');
         consumed.add(occurrence);
         const execute = loaded.producers.invoke.executeScenarioReceiptRequire;
@@ -13324,6 +13344,10 @@ async function runScenarioExecution(
                   }
                   for (const modelParameter of modelParameters) {
                     if (modelParameter.name === parameter) continue;
+                    if(loopMarker!==undefined&&modelParameter.name===loopMarker.item){
+                      if(loopItem===undefined||loopItem===null)return refuseRecordBinding('Loop IF lost its actual selected row.');
+                      args[modelParameter.name]=await project!(loopMarker.model,loopItem.row.id,loopItem.row.version);continue;
+                    }
                     const ref = actualCall.recordRefs.find(entry => entry.param === modelParameter.name);
                     if (modelParameter.nullable && admittedParameters[modelParameter.name] === null) {
                       if(ref!==undefined) throw new AssemblyCorrespondenceError('Null Require model slot cannot carry an admitted row.');
@@ -13343,7 +13367,7 @@ async function runScenarioExecution(
             } else bindNativeReadRoleContext(predicate, original.owner);
             bindInstalledSourceQueryPredicate(predicate, { source: original.source, rule: original.owner });
             adapter = createSourceReadPolicyAdapter({ loaded, opts: { ...opts, store: receiptStore },
-              now: () => actualCall.context.now, observer: { predicate, reads },
+              now: () => actualCall.context.now, observer: { predicate, reads,...(loopMarker===undefined?{}:{admittedVersion:actualCall.recordRefs.find(ref=>ref.param===parameter)!.expectedVersion!}) },
               ...(scenarioDef.name !== 'invoice.collect' ? {} : {
                 ownerDecisionQuery: (model: string, query: CanonicalReadQuery,
                   parent: { readonly model: string; readonly id: string } | undefined): void => {

@@ -3662,6 +3662,12 @@ fn join_require_statements<'o>(
             semantic.statements(effects.get(..*index)?,expected_effects.get(..*index)?,0)?;
             (effects.get(*index)?,expected_effects.get(*index)?)
         }
+        ([CheckedDecisionPosition::Body(index),CheckedDecisionPosition::Loop(child)], CheckedDecisionStage::BodyCondition) => {
+            semantic.statements(effects.get(..*index)?,expected_effects.get(..*index)?,0)?;
+            let (IrStmt::For{body:a,span:at,..},IrStmt::For{body:b,span:bt,..})=(effects.get(*index)?,expected_effects.get(*index)?)else{return None;};
+            if at!=bt||*child!=0||a.len()!=1||b.len()!=1{return None;}
+            (a.get(*child)?,b.get(*child)?)
+        }
         _ => return None,
     };
     let (cond,span,expected_cond,expected_span)=match(actual,expected,site.stage) {
@@ -3820,6 +3826,24 @@ fn serialize_require_observer(
         "parameters":parameters,"sites":serialized});
     if site.stage==crate::analysis::scenario_disclosure::CheckedDecisionStage::BodyCondition {
         identity["decision"]=serde_json::json!("if");
+    }
+    if let [crate::analysis::scenario_disclosure::CheckedDecisionPosition::Body(index),crate::analysis::scenario_disclosure::CheckedDecisionPosition::Loop(child)]=site.position.as_slice(){
+        let IrItemKind::Scenario{effects,..}=&owner.kind else{return None;};
+        let IrStmt::For{item,domain,body,span,..}=effects.get(*index)?else{return None;};
+        if *child!=0||body.len()!=1{return None;}
+        let ResolvedType::Array{element,..}=&domain.ty else{return None;};
+        let ResolvedType::Record{symbol,stored:true}=element.as_ref() else{return None;};
+        let mut ancestor=*symbol;let mut visited=HashSet::new();
+        loop{
+            if !visited.insert(ancestor)||visited.len()>32{return None;}
+            super::source_loops::model_corresponds(sources,ancestor)?;
+            let IrItemKind::Model{owner,..}=&ir.items.get(ancestor.0 as usize)?.kind else{return None;};
+            if let super::ir::IrOwner::ChildOf(parent)=owner{ancestor=*parent;}else{break;}
+        }
+        identity["loop"]=serde_json::json!({"node":{"start":span.start,"end":span.end},"item":item,"model":ir.items.get(symbol.0 as usize)?.canonical});
+        let parameters=identity["parameters"].as_array_mut()?;
+        if parameters.iter().any(|parameter|parameter["name"]==*item){return None;}
+        parameters.push(serde_json::json!({"name":item,"typeId":ir.items.get(symbol.0 as usize)?.canonical}));
     }
     if output.len() >= 200 {
         return None;

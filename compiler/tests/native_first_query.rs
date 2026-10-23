@@ -2978,3 +2978,43 @@ fn original_prepare_branch_count_metadata_cannot_drop_reached_observations() {
   else{assert!(serialize_complete_query_receipt(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog),module).is_none(),"{mode} borrowed original branch COUNT authority");}
  }
 }
+
+#[test]
+fn original_shift_descendant_control_keeps_its_exact_selected_loop_and_public_root() {
+ use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+ let source=include_str!("fixtures/shift-recover-original.can");
+ let (db,program,ir,catalog)=fixture_source("shift-recover-original.can",source);
+ let owner=item(&ir,"shift.recover_commitment");
+ let (artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let code=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<Vec<_>>().join("\n");
+ assert!(code.contains("nativeScenarioSourceLoopItem(c"));assert!(code.contains("\\\"ancestors\\\""));assert!(code.contains("\\\"loop\\\""));
+ assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+ let unprepared=js::emit_program_with_native_source_receipts(&ir,true,&db);assert!(unprepared.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"));
+ let oversized=source.replace("limit=100\n     if commitment.conflict","limit=201\n     if commitment.conflict");
+ assert_ne!(source,oversized);let (large_db,large_program,_,large_catalog)=fixture_source("shift-recover-guard-overflow.can",&oversized);
+ let (_,large_diagnostics)=prepared_artifact(&large_program,&large_db,&large_catalog);
+ assert!(large_diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{large_diagnostics:?}");
+ for mode in ["limit","filter","condition","update","item","prefix","field-type","helper"] {
+  let mut changed=ir.clone();
+  if mode=="helper" {
+   let helper=item(&changed,"shift.fits").id;
+   let IrItemKind::DeriveFn{expr:Some(value),..}=&mut changed.items[helper.0 as usize].kind else{panic!("helper");};value.expr=IrExpr::Bool(true);
+  }else if mode=="field-type"{
+   let field=item(&changed,"shift.Commitment.until").id;let IrItemKind::Field{ty,..}=&mut changed.items[field.0 as usize].kind else{panic!("field");};*ty=IrType::Known(ResolvedType::Scalar(Scalar::Text));
+  }else{
+   let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("owner");};
+   if mode=="prefix"{effects.swap(0,1);}else{
+    let IrStmt::For{item,domain,limit:Some(limit),body,..}=effects.last_mut().unwrap()else{panic!("loop");};
+    if mode=="item"{*item="foreign".into();}
+    else if mode=="limit"{limit.expr=IrExpr::Int(101);}
+    else if mode=="filter"{let IrExpr::Query(query)=&mut domain.expr else{panic!("query");};query.where_pred.as_mut().unwrap().expr=IrExpr::Bool(true);}
+    else{let IrStmt::If{cond,then_branch,..}=&mut body[0]else{panic!("condition");};
+     if mode=="condition"{cond.expr=IrExpr::Bool(true);}else{
+      let IrStmt::Set{record,..}=&mut then_branch[0]else{panic!("update");};record.expr=IrExpr::Name("commitment".into());
+     }
+    }
+   }
+  }
+  assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode}");
+ }
+}
