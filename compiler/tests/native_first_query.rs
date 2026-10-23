@@ -3223,3 +3223,28 @@ fn original_affiliate_refresh_seals_parent_stored_model_array_all() {
   let emitted=js::emit_program_with_native_source_receipts(&changed,true,&db);assert!(emitted.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: {:?}",emitted.diagnostics);
  }
 }
+
+#[test]
+fn retained_staged_mail_keeps_original_mode_domains_and_schema() {
+ use canlang_compiler::codegen::scenario_decisions::serialize_decision_sources;
+ let source=include_str!("../../packages/cloudflare/test/fixtures/invoice-overdue-owner-probe.can");
+ let(db,program,ir,catalog)=fixture_source("invoice-overdue-owner-probe.can",source);
+ let owner=item(&ir,"invoice.overdue");
+ assert!(serialize_decision_sources(&program,&ir,owner,&db,Some(&catalog)).is_some());
+ let(artifact,diagnostics)=prepared_artifact(&program,&db,&catalog);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+ let code=artifact["modules"].as_array().unwrap().iter().filter_map(|module|module["js"].as_str()).collect::<Vec<_>>().join("\n");
+ assert!(code.contains("stagedRules")&&code.contains("retainedGuardedHandler"));assert!(!code.contains("invoiceOverdueDecision"));
+ for mode in ["evaluation","trigger","query-model","field-schema"]{
+  let mut changed=ir.clone();
+  match mode{
+   "evaluation"=>{let IrItemKind::Scenario{effects,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("scenario")};let IrStmt::Send{when_at_source,..}=&mut effects[0]else{panic!("send")};*when_at_source=false;},
+   "trigger"=>{let IrItemKind::Scenario{event_source,..}=&mut changed.items[owner.id.0 as usize].kind else{panic!("scenario")};*event_source=Some(canlang_compiler::codegen::ir::IrEventSource::Declared("foreign.Overdue".into()));},
+   "field-schema"=>{let field=item(&changed,"invoice.Attempt.amount").id;let IrItemKind::Field{ty,..}=&mut changed.items[field.0 as usize].kind else{panic!("field")};*ty=IrType::Known(ResolvedType::Scalar(Scalar::Int));},
+   _=>{let derived=item(&changed,"invoice.Invoice.credits").id;let IrItemKind::DeriveField{expr:Some(expr),..}=&mut changed.items[derived.0 as usize].kind else{panic!("derive")};let args=match &mut expr.expr{IrExpr::Call{args,..}|IrExpr::BoundCall{args,..}=>args,_=>panic!("sum")};let IrExpr::Query(query)=&mut args[0].expr else{panic!("query")};query.domain=canlang_compiler::codegen::ir::IrQueryDomain::Model("invoice.Attempt".into());},
+  }
+  // Predicate transport deliberately does not issue handler-trigger authority.
+  // Its complete prepared owner entry is independently required by emission.
+  if mode=="evaluation"||mode=="query-model"{assert!(serialize_decision_sources(&program,&changed,&changed.items[owner.id.0 as usize],&db,Some(&catalog)).is_none(),"{mode} borrowed source proof");}
+  let raw=js::emit_program_with_native_source_receipts(&changed,true,&db);assert!(raw.diagnostics.iter().any(|diagnostic|diagnostic.code=="E6008"),"{mode}: unprepared owning source must refuse");
+ }
+}

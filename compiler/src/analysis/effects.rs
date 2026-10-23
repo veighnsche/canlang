@@ -345,6 +345,8 @@ pub struct Effect {
     pub args: Vec<EffectArg>,
     /// `send` dispatch guard (`when=`).
     pub when: Option<NodeKey>,
+    /// Explicit `when_at=source`; omitted/current retains live dispatch semantics.
+    pub when_at_source: bool,
     /// `require` diagnostic (`message=`).
     pub message: Option<NodeKey>,
     /// `require` predicate / `if` condition.
@@ -3279,6 +3281,7 @@ impl<'a> Cx<'a> {
             item: None,
             args: Vec::new(),
             when: None,
+            when_at_source: false,
             message: None,
             cond: None,
             value: None,
@@ -3545,6 +3548,7 @@ impl<'a> Cx<'a> {
         effect.target_node = target.map(NodeKey::of);
         effect.target = target.and_then(|t| self.operation_target(module, text, t));
         effect.when = bare_keyword_value(node, "when", text).map(NodeKey::of);
+        effect.when_at_source = bare_slot_value(node,"when_at",text).is_some_and(|mode|is_name(mode,text,"source"));
         effect.args = effect_args(text, node);
         effect.binding = as_binding(text, node);
     }

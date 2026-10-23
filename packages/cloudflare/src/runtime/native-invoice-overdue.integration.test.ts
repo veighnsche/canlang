@@ -36,7 +36,7 @@ const amount = (minor: string) => ({ minor, currency: 'EUR' });
 const now = Date.parse('2099-01-01T12:00:00.000Z');
 const deploymentBase = 'https://workspace.example.test';
 
-it('refuses mutations to the original overdue guard, Mail request, and balance derivation',
+it('checks authored overdue variants and rejects malformed evaluation qualifiers',
   { timeout: 120000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'can-invoice-overdue-mutants-'));
     try {
@@ -66,21 +66,20 @@ it('refuses mutations to the original overdue guard, Mail request, and balance d
         const result = spawnSync(compiler,
           ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, path],
           { cwd: root, encoding: 'utf8', timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
-        assert.equal(result.status, 10, `${name}: ${result.stderr || result.stdout}`);
-        const report = JSON.parse(result.stdout) as { sources: { sha256: string }[];
-          diagnostics: { code: string; message: string;
-            primary: { file: number; start: number; end: number } }[] };
-        assert.equal(report.sources[0]?.sha256,
-          createHash('sha256').update(changed).digest('hex'), name);
-        const ownerName = changed.indexOf('scenario overdue') + 'scenario '.length;
-        const guard = changed.indexOf('when=event.invoice.') + 'when='.length;
-        const guardEnd = changed.indexOf(' as notice', guard);
-        assert.ok(ownerName >= 'scenario '.length && guard >= 'when='.length && guardEnd > guard);
-        assert.ok(report.diagnostics.some(diagnostic => diagnostic.code === 'E6008' &&
-          diagnostic.primary.file === 0 &&
-          (diagnostic.primary.start === ownerName && diagnostic.primary.end === ownerName + 'overdue'.length ||
-            diagnostic.primary.start === guard && diagnostic.primary.end === guardEnd)),
-        `${name}: original overdue owner or SEND guard must lose its proof`);
+        assert.equal(result.status, 0, `${name}: ${result.stderr || result.stdout}`);
+        const report=JSON.parse(result.stdout)as CompileArtifact;
+        assert.equal(report.sources[0]?.sha256,createHash('sha256').update(changed).digest('hex'),name);
+        assert.ok(report.modules.some(module=>(module.js??'').includes('retainedGuardedHandler')),name);
+      }
+      for(const [name,text]of[
+        ['unknown',original.replace('when_at=source','when_at=earlier')],
+        ['dynamic',original.replace('when_at=source','when_at=event.invoice.state')],
+        ['quoted',original.replace('when_at=source','when_at="source"')],
+        ['without-when',original.replace(/ when=event.invoice.state==issued and event.invoice.balance.minor>0/, '')],
+      ]as const){
+        const path=join(directory,name+'.can');await writeFile(path,text);
+        const result=spawnSync(compiler,['compile','--format=json','--native-scenario-receipts','--catalog',catalog,path],{cwd:root,encoding:'utf8',timeout:60000});
+        assert.equal(result.status,10,name+': '+result.stdout);assert.ok(JSON.parse(result.stdout).diagnostics.some((diagnostic:{code:string})=>diagnostic.code.startsWith('E1')),name);
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
@@ -101,12 +100,17 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
         assert.ok(probe.includes(declaration.split(' label=')[0]!),
           `original ${name} balance dependency is retained`);
       }
+      const variant=process.env['CAN_OVERDUE_VARIANT']??'source',renamed=variant==='renamed',live=variant==='live';
+      const ownerPackage=renamed?'billing_reminders':'invoice',handler=renamed?'billing_reminders.nudge':'invoice.overdue';
+      const model=(name:string)=>asModel(name.replace(/^invoice\./,ownerPackage+'.').replace(/\.Invoice$/,renamed?'.Receivable':'.Invoice'));
+      let compileSource=source;
+      if(renamed||live){compileSource=join(directory,variant+'.can');await writeFile(compileSource,renamed?probe.replace('uses=[invoice]','uses=[billing_reminders]').replace('package invoice','package billing_reminders').replace(/\bInvoice\b/g,'Receivable').replace('scenario overdue on=','scenario nudge on='):probe.replace(' when_at=source',''));}
       const { stdout } = await promisify(execFile)(compiler,
-        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],
+        ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, compileSource],
         { cwd: root, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
       const artifact = JSON.parse(stdout) as CompileArtifact;
-      const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: directory,
-        stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+      const asm = await assembleModules({ artifact, sourcePath: compileSource }, { workDir: directory,
+        stdlibUrl: new URL('./stdlib.js',import.meta.url).href,
         uiUrl: import.meta.resolve('@canlang/ui') });
       assert.ok((artifact.modules[0]?.js ?? '').includes('sendWhen:'), 'original balance Rule is emitted');
 
@@ -115,8 +119,9 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
         'initial-succeeded-attempt', 'initial-external-payment', 'failed-attempt',
         'credit-after-schedule', 'attempt-after-schedule', 'payment-after-schedule',
         'recipient-after-schedule', 'void-after-schedule', 'missing-work-due',
-        'credit-at-commit',
+        'credit-at-commit','many-credits',
       ] as const) {
+        if(process.env['CAN_OVERDUE_CASE']!==undefined&&!process.env['CAN_OVERDUE_CASE']!.split(',').includes(mode))continue;
         const clock = createFrozenClock(now);
         const identities = createMemoryIdentityStore({ clock });
         const team = await identities.createTeam({ timezone: 'UTC' });
@@ -129,7 +134,7 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
           token_sha256: await sha256HexText(token), last_team_id: team.team_id,
           expires_at: new Date(now + 3600000).toISOString() });
         const viewerIdentity = await resolveIdentity(identities, { session_token: token }, { clock });
-        const scope = { app: 'CanInvoice', owner: team.team_id, ownerPackage: 'invoice' };
+        const scope = { app: 'CanInvoice', owner: team.team_id, ownerPackage };
         const authority: FileRetirementAuthority = { app: scope.app, stateOwner: scope.app,
           stateStoreId: 'invoice-overdue-state', fileStoreId: 'invoice-overdue-files',
           receiver: { app: scope.app, owner: team.team_id, team: team.team_id } };
@@ -159,22 +164,23 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
           kind: 'collection', status, amount: amount('10000'),
         });
         const payment = () => addChild('ExternalPayment', 'payment-1', { amount: amount('10000') });
+        if(mode==='many-credits')await store.commit(makeBatch(await store.readRevision(),{writes:Array.from({length:201},(_,index)=>({kind:'insert'as const,model:model('invoice.Credit'),row:{...makeRow({id:asId('zero-credit-'+index),data:{amount:amount('0')}}),parent:{model:model('invoice.Invoice'),id:invoiceId}}}))}));
         if (mode === 'initial-credit') await credit();
         if (mode === 'initial-succeeded-attempt') await attempt('succeeded');
         if (mode === 'initial-external-payment') await payment();
         if (mode === 'failed-attempt') await attempt('failed');
         if (mode === 'current-hidden') {
           const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
-          const visible = await invoker.invokeRead({ operation: 'invoice.Invoice.read', inputs: {} }, viewerIdentity);
+          const visible = await invoker.invokeRead({ operation: model('invoice.Invoice')+'.read', inputs: {} }, viewerIdentity);
           assert.ok('result' in visible, JSON.stringify(visible));
           assert.equal((visible.result as { records: unknown[] }).records.length, 0,
             'private due can decide a row the viewer cannot read');
         }
         const due = { key: invoiceId, scope, occurrenceId: 'overdue-1',
-          event: 'invoice.Overdue', at: now - 1 };
+          event: ownerPackage+'.Overdue', at: now - 1 };
         const payload = { invoice: { id: invoiceId, version: '1' },
           revision: mode === 'revision-is-not-in-authored-guard' ? '2' : '1' };
-        const stageContext = { actor: `schedule:${due.event}`, now, operation: 'invoice.overdue',
+        const stageContext = { actor: `schedule:${due.event}`, now, operation: handler,
           load: (name: Parameters<typeof store.load>[0], id: Parameters<typeof store.load>[1]) => store.load(name, id),
           query: (spec: Parameters<typeof store.query>[0]) => store.query(spec) };
         if (mode !== 'missing-work-due') {
@@ -204,7 +210,7 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
           }));
           if (mode === 'current-hidden') {
             const forged = await invokeDueScheduleCanonical({ asm, artifact, app: scope.app,
-              handler: 'invoice.overdue', due: { ...due, occurrenceId: 'not-the-issued-head' },
+              handler, due: { ...due, occurrenceId: 'not-the-issued-head' },
               store, identities, now: () => now, deploymentBase });
             assert.equal(forged.status, 'refused', 'unissued occurrence has no owner authority');
             assert.equal(storageProbe.outboxAll().length, 0);
@@ -239,7 +245,7 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
           };
         }
         const result = await invokeDueScheduleCanonical({ asm, artifact, app: scope.app,
-          handler: 'invoice.overdue', due, store, identities, now: () => now, deploymentBase });
+          handler, due, store, identities, now: () => now, deploymentBase });
         const intents = storageProbe.outboxAll();
         if (mode === 'credit-at-commit') {
           assert.equal(injected, true, 'credit race runs at the Mail commit');
@@ -248,7 +254,7 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
         }
         const expected = [
           'current-hidden', 'revision-is-not-in-authored-guard', 'failed-attempt',
-          'recipient-after-schedule',
+          'recipient-after-schedule','many-credits',
         ].includes(mode) ? 1 : 0;
         assert.equal(intents.length, expected, `${mode}: ${JSON.stringify(result)}`);
         assert.equal(result.status, mode === 'missing-work-due' ? 'refused'
@@ -257,7 +263,7 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
           const request = intents[0]?.arguments['arguments'] as Record<string, unknown>;
           assert.equal(request['to'], mode === 'recipient-after-schedule'
             ? 'new@example.test' : 'customer@example.test', mode);
-          assert.equal(request['subject'], 'Invoice overdue', mode);
+          assert.equal(request['subject'], renamed?'Receivable overdue':'Invoice overdue', mode);
           assert.equal(request['body'],
             `Desk rental ${deploymentBase}/finance/invoice/${invoiceId}`, mode);
           if (mode === 'current-hidden') {
@@ -289,8 +295,8 @@ it('sends overdue Mail only for a current positive owner balance from genuine Wo
               return producers.createSystemRegistry(commands.map(command =>
                 command.name === claim.name ? guarded : command));
             });
-            assert.equal(dispatch.status, 'recorded', JSON.stringify(dispatch));
-            assert.equal(providerCalls, 1,
+            assert.equal(dispatch.status, live?'not-claimed':'recorded', JSON.stringify(dispatch));
+            assert.equal(providerCalls, live?0:1,
               'a later payment cannot rewrite the original source-stage true verdict');
             assert.deepEqual((await store.outboxGet(intent.intentId))?.intent.arguments, frozen,
               'queued Mail arguments stay frozen after payment');

@@ -23,5 +23,5 @@ package invoice
  When
   scenario overdue on=Overdue
    require event.invoice.state==issued and event.invoice.balance.minor>0
-   do send Mail.send {to=event.invoice.recipient_email,subject=format("Invoice overdue"@{nl="Factuur achterstallig"},locale=null),body=format("{description} {url}",{description=event.invoice.description,url=app_url(format("/finance/invoice/{invoice}",{invoice=event.invoice.id}))})} when=event.invoice.state==issued and event.invoice.balance.minor>0 as notice
+   do send Mail.send {to=event.invoice.recipient_email,subject=format("Invoice overdue"@{nl="Factuur achterstallig"},locale=null),body=format("{description} {url}",{description=event.invoice.description,url=app_url(format("/finance/invoice/{invoice}",{invoice=event.invoice.id}))})} when=event.invoice.state==issued and event.invoice.balance.minor>0 when_at=source as notice
  Then

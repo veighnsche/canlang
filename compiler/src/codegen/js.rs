@@ -8860,23 +8860,6 @@ impl<'a> Emitter<'a> {
                     },
                     _=>None,
                 };
-                // The exact overdue owner receipt supplies one State-computed,
-                // dependency-fenced balance to both its Require and SEND Rule.
-                // Recomputing this derived field here would open a second
-                // unordered child-query view and break the owner proof.
-                if self.owner_handler_body && field == "balance"
-                    && matches!(derived_model, Some(model) if self.ir.items.get(model.0 as usize)
-                        .is_some_and(|item| item.canonical == "invoice.Invoice"))
-                    && self.receipt_capture.as_ref()
-                        .and_then(|receipt| receipt.plan.invoice_overdue_decision.as_ref())
-                        .is_some_and(|decision| {
-                            let header = &decision["sites"]["header"]["node"];
-                            header["start"].as_u64().is_some_and(|start| start <= span.start as u64)
-                                && header["end"].as_u64().is_some_and(|end| span.end as u64 <= end)
-                        })
-                {
-                    return format!("{}.balance", self.lower_expr(base));
-                }
                 if (self.source_guard_body || self.owner_handler_body || self.source_data_body)
                     && let Some(model)=derived_model
                     && let Some(derived) = self.ir.items.iter().find_map(|item| match &item.kind {
@@ -13133,6 +13116,7 @@ fn null_equality(
                 deployment_binding,
                 args,
                 when,
+                when_at_source,
                 binding,
                 span,
             } => {
@@ -13154,6 +13138,11 @@ fn null_equality(
                     .send_guards
                     .and_then(|guards| guards.get(span))
                     .cloned();
+                if *when_at_source && !prepared.as_ref().is_some_and(|guard|self.native_receipts.values().any(|receipt|
+                    receipt.plan.retained_guarded_handler.as_ref().is_some_and(|frame|frame["stagedRules"].as_array().is_some_and(|rules|rules.iter().any(|rule|rule==&guard.rule))))) {
+                    self.unsupported("send guard evaluation","source evaluation needs its complete source-owned retained Rule",*span);
+                    return vec![(format!("{pad}throw new Error('unproved source guard evaluation');"),*span)];
+                }
                 if prepared.is_none() && when.is_some() && self.native_source_predicates {
                     // One owner can be refused while another has sealed
                     // guards. Report this SEND even if no owner-wide receipt
@@ -21580,13 +21569,6 @@ impl<'a> Emitter<'a> {
             return;
         }
         if let Some(decision) = self.receipt_capture.as_ref()
-            .and_then(|receipt| receipt.plan.invoice_overdue_decision.clone())
-            && item.canonical == "invoice.overdue"
-        {
-            self.emit_invoice_overdue_decision_body(out,item,guards,effects,&decision);
-            return;
-        }
-        if let Some(decision) = self.receipt_capture.as_ref()
             .and_then(|receipt| receipt.plan.leave_decide_decision.clone())
             && item.canonical == "leave.decide"
         {
@@ -21826,35 +21808,6 @@ impl<'a> Emitter<'a> {
             out.push(item.span, Some(item.canonical.clone()),
                 "check(await hasRole(c,\"refer.program_manager\",c.actor),\"forbidden\");");
         }
-        for stmt in guards.iter().chain(effects) {
-            for (line,span) in self.lower_stmt(stmt,0) {
-                out.push(span,Some(item.canonical.clone()),&line);
-            }
-        }
-        out.push(item.span,Some(item.canonical.clone()),"return undefined;});");
-        self.exit_scope();
-        self.owner_handler_body=previous_owner;
-        self.query_capture=previous_query;
-    }
-
-    fn emit_invoice_overdue_decision_body(
-        &mut self, out: &mut JsWriter, item: &IrItem,
-        guards: &[IrStmt], effects: &[IrStmt], decision: &serde_json::Value,
-    ) {
-        if guards.len()!=1 || effects.len()!=1 {
-            self.unsupported("invoice overdue owner decision",
-                "the exact authored body is missing",item.span);
-            return;
-        }
-        let previous_owner=self.owner_handler_body;
-        let previous_query=self.query_capture.take();
-        self.owner_handler_body=true;
-        self.enter_scope();
-        let event=format!("{}:{}",object_key("event"),self.bind("event"));
-        self.stdlib.insert("nativeScenarioInvoiceOverdueDecision".into());
-        out.push(item.span,Some(item.canonical.clone()),
-            &format!("await nativeScenarioInvoiceOverdueDecision(c,{},async(c,{{{event}}})=>{{",
-                descriptor_json(decision)));
         for stmt in guards.iter().chain(effects) {
             for (line,span) in self.lower_stmt(stmt,0) {
                 out.push(span,Some(item.canonical.clone()),&line);

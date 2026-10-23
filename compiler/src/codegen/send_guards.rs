@@ -115,11 +115,25 @@ pub(super) fn retained_handler_receipt(
     let marker=serde_json::json!({"source":source,"owner":owner.canonical,"event":event,
         "node":{"start":facts.node.start,"end":facts.node.end},
         "rules":guards.iter().map(|guard|guard["rule"].clone()).collect::<Vec<_>>()});
+    let mut marker=marker;
+    let staged=guards.iter().filter(|guard|guard["evaluation"]=="source"
+        &&guard["eventSource"].is_object()
+        &&facts.decision_sites.as_deref().is_some_and(|sites|sites.iter().any(|site|
+            site.stage==CheckedDecisionStage::SendDispatch&&guard["node"]["start"]==site.node.start&&guard["node"]["end"]==site.node.end
+            &&site.calls.iter().all(|call|match &call.target{
+                crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin{id,..}=>context.catalog().and_then(|catalog|catalog.effects(id))==Some(crate::analysis::catalog::Effects::Pure),
+                crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::DeriveFn(_)=>true,
+                crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Role(_)=>false,
+            }))))
+        .map(|guard|guard["rule"].clone()).collect::<Vec<_>>();
+    if !staged.is_empty(){marker["stagedRules"]=serde_json::Value::Array(staged);}
+    if let Some(queries)=super::authority_query_sites::prepare_owner_with_context(context,owner)
+        &&!queries.sites.is_empty(){marker["queries"]=queries.plan;}
     Some(NativeScenarioReceipt {
         plan:ReceiptDisclosurePlan {retained_guarded_handler:Some(marker),source_loops:None,source_emissions:None,
             version:1,source,event_decision:None,term_decision:None,leave_request_decision:None,
             leave_decide_decision:None,refer_reject_decision:None,member_retry_decision:None,
-            invoice_overdue_decision:None,rent_movement_refund_decision:None,invoice_collect_decision:None,
+            rent_movement_refund_decision:None,invoice_collect_decision:None,
             rent_notice_decision:None,invoice_issue_decision:None,observe_venue_decision:None,
             success_renewal_decision:None,purchase_receive_all:None,event_notice_audit:None,
             queries:Vec::new(),returns:Vec::new()},
@@ -163,11 +177,11 @@ pub(super) fn source_preparation_gap(
     }
 }
 
-/// One typed overdue Invoice source row, with Work revision carried as
+/// One typed declared-event source row, with its revision carried as
 /// authenticated event provenance. The authored Rule never reads revision;
 /// its null occurrence in the descriptor records that absence explicitly.
 #[allow(clippy::too_many_arguments)]
-fn invoice_overdue_event_source(
+fn declared_model_event_source(
     original: &CheckedProgram,
     ir: &IrProgram,
     db: &SourceDb,
@@ -181,7 +195,7 @@ fn invoice_overdue_event_source(
     let Some(HandlerSource::Event(event_id)) = scenario.on else { return Ok(None) };
     let Some(event) = resolved.symbols.get(event_id.0 as usize) else { return Ok(None) };
     let SymbolKind::Event { fields } = &event.kind else { return Ok(None) };
-    if event.canonical != "invoice.Overdue" || event.module != owner.module ||
+    if event.module != owner.module ||
         scenario.module != owner.module || scenario.read || scenario.by.is_some() ||
         scenario.result.is_some() || scenario.cohort.is_some() || !scenario.params.is_empty() ||
         fields.len() != 2 || scenario.guards.len() != 1 || scenario.effects.len() != 1 {
@@ -189,20 +203,9 @@ fn invoice_overdue_event_source(
     }
     let header = &scenario.guards[0];
     let source_send = &scenario.effects[0];
-    let source_condition = "event.invoice.state==issued and event.invoice.balance.minor>0";
-    let slice = |node: NodeKey| db.get(node.file).and_then(|file|
-        file.text.get(node.start as usize..node.end as usize)).map(str::trim);
-    if header.verb != EffectVerb::Require || source_send.verb != EffectVerb::Send ||
-        header.cond.and_then(slice) != Some(source_condition) ||
-        source_send.when != Some(predicate) || slice(predicate) != Some(source_condition) ||
-        source_send.target_node.and_then(slice) != Some("Mail.send") ||
-        source_send.binding.as_deref() != Some("notice") ||
-        source_send.args.len() != 3 ||
-        source_send.args.iter().map(|arg| arg.key.as_str()).collect::<Vec<_>>() != ["to","subject","body"] ||
-        !header.then_effects.is_empty() || !header.else_effects.is_empty() ||
-        !source_send.then_effects.is_empty() || !source_send.else_effects.is_empty() {
-        return Ok(None);
-    }
+    if header.verb!=EffectVerb::Require||source_send.verb!=EffectVerb::Send||source_send.when!=Some(predicate)
+        ||!header.then_effects.is_empty()||!header.else_effects.is_empty()||!header.match_arms.is_empty()
+        ||!source_send.then_effects.is_empty()||!source_send.else_effects.is_empty()||!source_send.match_arms.is_empty(){return Ok(None);}
     let IrItemKind::Scenario { trusted: true,
         event_source: Some(super::ir::IrEventSource::Declared(ir_event)),
         hook: None, cohort: None, result: None, read: false, by, guards, effects, .. } = &owner.kind
@@ -211,8 +214,7 @@ fn invoice_overdue_event_source(
     let [IrStmt::Send {operation,when:Some(ir_when),span:send_span,binding:Some(binding),..}]
         = effects.as_slice() else { return Ok(None) };
     let IrStmt::Send {span:actual,..} = send else { return Ok(None) };
-    if ir_event != "invoice.Overdue" || !by.is_empty() || operation != "std.EmailV1.send" ||
-        binding != "notice" || *send_span != *actual ||
+    if ir_event != &event.canonical || !by.is_empty() || *send_span != *actual ||
         *span != Span::new(header.node.file,header.node.start,header.node.end) ||
         cond.span != Span::new(header.cond.unwrap().file,header.cond.unwrap().start,header.cond.unwrap().end) ||
         ir_when.span != Span::new(predicate.file,predicate.start,predicate.end) {
@@ -227,8 +229,6 @@ fn invoice_overdue_event_source(
         original.types.symbol_types.get(&model_field.id) else { return Ok(None) };
     let invoice_ty = ResolvedType::Record {symbol:*invoice,stored:true};
     if *model_owner != event_id || *revision_owner != event_id ||
-        model_field.name != "invoice" || revision_field.name != "revision" ||
-        resolved.symbols.get(invoice.0 as usize).map(|item| item.canonical.as_str()) != Some("invoice.Invoice") ||
         original.types.symbol_types.get(&revision_field.id) != Some(&ResolvedType::Scalar(Scalar::Int)) ||
         original.types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool)) {
         return Ok(None);
@@ -237,18 +237,18 @@ fn invoice_overdue_event_source(
     let mut invoice_uses = Vec::new();
     for member in predicate_node.descendants().filter(|node| node.kind == SyntaxKind::Member) {
         if source.text.get(member.span.start as usize..member.span.end as usize).map(str::trim)
-            == Some("event.invoice") {
+            == Some(format!("event.{}",model_field.name).as_str()) {
             let key = NodeKey::of(member);
             if original.types.node_types.get(&key) != Some(&invoice_ty) { return Ok(None); }
             invoice_uses.push(key);
         }
     }
-    if invoice_uses.len() != 2 { return Ok(None); }
+    if invoice_uses.is_empty() { return Ok(None); }
     let roots = predicate_node.descendants().filter(|node| node.kind == SyntaxKind::NameRef &&
         source.text.get(node.span.start as usize..node.span.end as usize).map(str::trim)
             == Some("event"))
         .map(NodeKey::of).collect::<Vec<_>>();
-    if roots.len() != 2 || roots.iter().any(|key|
+    if roots.len() != invoice_uses.len() || roots.iter().any(|key|
         !matches!(resolved.node_binding.get(key),Some(Binding::Context(resolve::ContextVar::Event)))) {
         return Ok(None);
     }
@@ -262,23 +262,30 @@ fn invoice_overdue_event_source(
             Span::new(use_site.file,use_site.start,use_site.end)),
         declaration,symbol:None,owner:owner.id,ordinal,narrowing:None,
     };
-    let model_input = make_input("eventTerm","invoice",invoice_ty,*model_decl,
+    let model_input = make_input("eventTerm",&model_field.name,invoice_ty,*model_decl,
         invoice_uses[0],roots[0],0);
     // Revision has a checked event declaration but no source predicate use.
     // It is still transported so State can compare it to the actual due Work
     // payload without silently adding a version test to the authored Rule.
-    let revision_input = make_input("eventRevision","revision",
+    let revision_input = make_input("eventRevision",&revision_field.name,
         ResolvedType::Scalar(Scalar::Int),*revision_decl,*revision_decl,roots[0],1);
-    if model_input.type_id != "invoice.Invoice" || revision_input.type_id != "int" {
+    if model_input.type_id != resolved.symbols.get(invoice.0 as usize).map(|item|item.canonical.as_str()).unwrap_or("") || revision_input.type_id != "int" {
         return Ok(None);
     }
     let site = |node:NodeKey| serde_json::json!({"start":node.start,"end":node.end});
+    let mut stored_fields=std::collections::BTreeSet::new();
+    for member in predicate_node.descendants().filter(|node|node.kind==SyntaxKind::Member){
+        let Some(base)=member.children.iter().find(|node|node.kind==SyntaxKind::Member)else{continue;};
+        if !invoice_uses.contains(&NodeKey::of(base)){continue;}
+        let Some(name)=member.children.iter().rev().find(|node|node.kind==SyntaxKind::Name).and_then(|node|source.text.get(node.span.start as usize..node.span.end as usize))else{return Ok(None);};
+        if original.effects.models.get(invoice).is_some_and(|model|model.fields.iter().any(|field|resolved.symbols.get(field.field.0 as usize).is_some_and(|decl|decl.name==name))){stored_fields.insert(name.to_owned());}
+    }
     let descriptor = serde_json::json!({
-        "event":"invoice.Overdue","handler":"invoice.overdue",
-        "modelField":{"name":"invoice","model":"invoice.Invoice",
-            "fields":["balance","state"],"declaration":site(*model_decl),
+        "event":event.canonical,"handler":owner.canonical,
+        "modelField":{"name":model_field.name,"model":model_input.type_id,
+            "fields":stored_fields,"declaration":site(*model_decl),
             "occurrence":site(invoice_uses[0])},
-        "revisionField":{"name":"revision","type":"int",
+        "revisionField":{"name":revision_field.name,"type":"int",
             "declaration":site(*revision_decl),"occurrence":null},
         "predicate":site(predicate),
     });
@@ -571,15 +578,12 @@ fn private_delivery_event_source(
         return attendee_notice_event_source(original, ir, db, resolved, owner,
             predicate, predicate_node, send);
     }
-    if owner.canonical == "invoice.overdue" {
-        return invoice_overdue_event_source(original, ir, db, resolved, owner,
-            predicate, predicate_node, send);
-    }
     if owner.canonical == "rent_reservations.correspondence" ||
         owner.canonical == "rent_reservations.remind" {
         return rent_notice_event_source(original, ir, db, resolved, owner,
             predicate, predicate_node, send);
     }
+    if let Some(source)=declared_model_event_source(original,ir,db,resolved,owner,predicate,predicate_node,send)?{return Ok(Some(source));}
     let Some(scenario) = original.effects.scenarios.get(&owner.id) else { return Ok(None) };
     let Some(HandlerSource::Event(event_id)) = scenario.on.as_ref() else { return Ok(None) };
     let Some(event) = resolved.symbols.get(event_id.0 as usize) else { return Ok(None) };
@@ -872,6 +876,7 @@ fn prepare_send_guard(
     let IrStmt::Send {
         operation,
         when: Some(predicate),
+        when_at_source,
         deployment_binding,
         binding,
         span,
@@ -956,6 +961,7 @@ fn prepare_send_guard(
     if let Some((_, event)) = &event_source {
         descriptor["eventSource"] = event.clone();
     }
+    if *when_at_source {descriptor["evaluation"]=serde_json::json!("source");}
     Ok((
         *span,
         PreparedSendGuard {
@@ -963,18 +969,11 @@ fn prepare_send_guard(
             predicate: predicate.clone(),
             descriptor,
             inputs,
-            event_source: event_source.map(|_| PreparedSendEventSource {
+            event_source: event_source.map(|(_,event)| PreparedSendEventSource {
                 model_slot: "eventTerm",
                 revision_slot: "eventRevision",
-                model_field: match owner.canonical.as_str() {
-                    "agreements.due" => "obligation",
-                    "appointments.remind" => "appointment",
-                    "invoice.overdue" => "invoice",
-                    "rent_reservations.correspondence" | "rent_reservations.remind" => "booking",
-                    "events.attendee_notice" => "registration",
-                    _ => "term",
-                }.into(),
-                revision_field: "revision".into(),
+                model_field:event["modelField"]["name"].as_str().expect("checked event field").into(),
+                revision_field:event["revisionField"]["name"].as_str().expect("checked event revision").into(),
                 lexical_alias: None,
             }),
         },
